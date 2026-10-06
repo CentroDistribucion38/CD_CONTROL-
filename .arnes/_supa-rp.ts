@@ -45,6 +45,19 @@ export const createClient = () => ({
       }
       return { data: [...m.values()].reverse(), error: null };
     }
+    if (n === "rotulos_plan_cierres") {
+      return { data: ((W.__cierres ||= []) as any[]).filter((c) => c.anio === a.p_anio && c.semana === a.p_semana).map((c) => ({ fecha: c.fecha, turno: c.turno, tren: c.tren, sap: c.sap, sobrantes: c.sobrantes, cerrado_en: "2026-08-21T10:00:00Z" })), error: null };
+    }
+    if (n === "rotulos_plan_cierre_guardar") {
+      const cs: any[] = (W.__cierres ||= []);
+      const k = [a.p_fecha, a.p_turno, a.p_tren, a.p_sap].join("|");
+      const vig = db.filter((r) => r.anio === a.p_anio && r.semana === a.p_semana && r.estado === "impreso" && clave(r) === k).length;
+      if (a.p_sobrantes != null && (a.p_sobrantes < 0 || a.p_sobrantes > vig)) return { data: null, error: { message: `Sobraron ${a.p_sobrantes} pero solo hay ${vig} rótulos impresos en este bloque` } };
+      const i = cs.findIndex((c) => c.anio === a.p_anio && c.semana === a.p_semana && clave(c) === k);
+      if (i >= 0) cs.splice(i, 1);
+      if (a.p_sobrantes != null) cs.push({ anio: a.p_anio, semana: a.p_semana, fecha: a.p_fecha, turno: a.p_turno, tren: a.p_tren, sap: a.p_sap, sobrantes: a.p_sobrantes });
+      return { data: null, error: null };
+    }
     return { data: null, error: { message: "rpc desconocida " + n } };
   },
 });

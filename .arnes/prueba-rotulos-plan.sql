@@ -102,5 +102,26 @@ begin
   begin perform public.rotulos_plan_imprimir(2026, 34, '2026-08-21', 4, 'TREN-1', '3617', 1, 1, 54); v_falla := v_falla || ' 8b(turno 4)'; exception when others then null; end;
   reset role;
 
+  /* 9 · CIERRE: SOLO SE ESCRIBE CUÁNTOS SOBRARON */
+  perform set_config('request.jwt.claim.sub', JEFE, true);
+  set local role probador;
+  perform public.rotulos_plan_cierre_guardar(2026, 34, '2026-08-21', 1, 'TREN-1', '3617', 2);
+  select sobrantes into n from public.rotulos_plan_cierres(2026, 34) where fecha = '2026-08-21' and turno = 1 and tren = 'TREN-1' and sap = '3617';
+  if n is distinct from 2 then v_falla := v_falla || ' 9(no guardó los sobrantes: ' || coalesce(n::text, 'null') || ')'; end if;
+  perform public.rotulos_plan_cierre_guardar(2026, 34, '2026-08-21', 1, 'TREN-1', '3617', 3);
+  select count(*) into n from public.rotulos_plan_cierres(2026, 34) where fecha = '2026-08-21' and turno = 1 and sap = '3617';
+  if n <> 1 then v_falla := v_falla || ' 9b(duplicó el cierre)'; end if;
+  begin perform public.rotulos_plan_cierre_guardar(2026, 34, '2026-08-21', 1, 'TREN-1', '3617', 9999); v_falla := v_falla || ' 9c(sobraron más de lo impreso)'; exception when others then null; end;
+  begin perform public.rotulos_plan_cierre_guardar(2026, 34, '2026-08-21', 1, 'TREN-1', '3617', -1); v_falla := v_falla || ' 9d(negativo)'; exception when others then null; end;
+  perform public.rotulos_plan_cierre_guardar(2026, 34, '2026-08-21', 1, 'TREN-1', '3617', null);
+  select count(*) into n from public.rotulos_plan_cierres(2026, 34) where fecha = '2026-08-21' and turno = 1 and sap = '3617';
+  if n <> 0 then v_falla := v_falla || ' 9e(vacío no borró el cierre)'; end if;
+  reset role;
+  perform set_config('request.jwt.claim.sub', ANA, true);
+  set local role probador;
+  begin perform public.rotulos_plan_cierre_guardar(2026, 34, '2026-08-21', 1, 'TREN-1', '3617', 1); v_falla := v_falla || ' 9f(cerró sin permiso)'; exception when others then null; end;
+  begin insert into public.rotulos_plan_cierre (anio, semana, fecha, turno, tren, sap, sobrantes) values (1,1,current_date,1,'T','1',0); v_falla := v_falla || ' 9g(insertó directo)'; exception when others then null; end;
+  reset role;
+
   if v_falla <> '' then raise notice 'ROTULOS-PLAN: %', v_falla; else raise notice 'ok · rótulos del plan'; end if;
 end $prueba$;

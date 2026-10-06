@@ -211,5 +211,83 @@ end $$;
 revoke all on function public.rotulos_plan_lotes(int, int) from public, anon;
 grant execute on function public.rotulos_plan_lotes(int, int) to authenticated;
 
+-- ---------------------------------------------------------------------
+-- CIERRE POR BLOQUE: lo único que se escribe es CUÁNTOS SOBRARON.
+-- Usados = rótulos vigentes (plan + adicionales) − sobrantes; la variación
+-- contra el plan y los adicionales se calculan solos en pantalla.
+-- Una fila por día + turno + tren + SKU. Vacío = se borra el cierre.
+-- ---------------------------------------------------------------------
+create table if not exists public.rotulos_plan_cierre (
+  anio        integer not null,
+  semana      integer not null,
+  fecha       date not null,
+  turno       smallint not null check (turno between 1 and 3),
+  tren        text not null,
+  sap         text not null,
+  sobrantes   integer not null check (sobrantes >= 0),
+  cerrado_por uuid references public.perfiles(id) on delete set null,
+  cerrado_en  timestamptz not null default now(),
+  primary key (anio, semana, fecha, turno, tren, sap)
+);
+alter table public.rotulos_plan_cierre enable row level security;
+drop policy if exists rotulos_plan_cierre_ver on public.rotulos_plan_cierre;
+create policy rotulos_plan_cierre_ver on public.rotulos_plan_cierre for select to authenticated using (public.puede_ver('/inventario/recibir'));
+revoke insert, update, delete on public.rotulos_plan_cierre from authenticated, anon;
+grant select on public.rotulos_plan_cierre to authenticated;
+
+create or replace function public.rotulos_plan_cierre_guardar(
+  p_anio int, p_semana int, p_fecha date, p_turno int, p_tren text, p_sap text, p_sobrantes int
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_vig int;
+begin
+  if not public.puede_editar('/inventario/recibir') then
+    raise exception 'Cerrar lo entregado requiere el permiso «Recepción» (Roles)';
+  end if;
+  if p_turno not between 1 and 3 or p_fecha is null or coalesce(p_sap, '') = '' or coalesce(p_tren, '') = '' then
+    raise exception 'Falta el día, el turno, la línea o el SKU';
+  end if;
+  if p_sobrantes is null then
+    delete from public.rotulos_plan_cierre
+     where anio = p_anio and semana = p_semana and fecha = p_fecha and turno = p_turno and tren = p_tren and sap = p_sap;
+    return;
+  end if;
+  select count(*) into v_vig from public.rotulos_plan r
+   where r.anio = p_anio and r.semana = p_semana and r.fecha = p_fecha and r.turno = p_turno and r.tren = p_tren and r.sap = p_sap
+     and r.estado = 'impreso';
+  if p_sobrantes < 0 or p_sobrantes > v_vig then
+    raise exception 'Sobraron % pero solo hay % rótulos impresos en este bloque', p_sobrantes, v_vig;
+  end if;
+  insert into public.rotulos_plan_cierre (anio, semana, fecha, turno, tren, sap, sobrantes, cerrado_por)
+  values (p_anio, p_semana, p_fecha, p_turno, p_tren, p_sap, p_sobrantes, auth.uid())
+  on conflict (anio, semana, fecha, turno, tren, sap)
+  do update set sobrantes = excluded.sobrantes, cerrado_por = auth.uid(), cerrado_en = now();
+end $$;
+revoke all on function public.rotulos_plan_cierre_guardar(int, int, date, int, text, text, int) from public, anon;
+grant execute on function public.rotulos_plan_cierre_guardar(int, int, date, int, text, text, int) to authenticated;
+
+create or replace function public.rotulos_plan_cierres(p_anio int, p_semana int)
+returns table (fecha date, turno int, tren text, sap text, sobrantes int, cerrado_en timestamptz)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  if not public.puede_ver('/inventario/recibir') then
+    raise exception 'Sin permiso para ver los rótulos del plan';
+  end if;
+  return query
+    select c.fecha, c.turno::int, c.tren, c.sap, c.sobrantes, c.cerrado_en
+      from public.rotulos_plan_cierre c
+     where c.anio = p_anio and c.semana = p_semana;
+end $$;
+revoke all on function public.rotulos_plan_cierres(int, int) from public, anon;
+grant execute on function public.rotulos_plan_cierres(int, int) to authenticated;
+
 commit;
 -- LISTO · rótulos del plan

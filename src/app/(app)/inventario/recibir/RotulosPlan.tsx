@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
 import { rotulosPdf, type Rotulo } from "@/modulos/inventario/rotulo";
 import type { Factores } from "@/modulos/inventario/plan-envase";
-import { armarRotulo, bloquesDelPlan, folioDe, llaveBloque, type BloquePlan, type LoteImpreso, type MaterialRotulo, type ResumenBloque } from "@/modulos/inventario/rotulos-plan";
+import { armarRotulo, bloquesDelPlan, folioDe, llaveBloque, type BloquePlan, type CierreBloque, type LoteImpreso, type MaterialRotulo, type ResumenBloque } from "@/modulos/inventario/rotulos-plan";
 import { VisorPdf } from "@/components/VisorPdf";
 import type { SemanaGuardada } from "./PlanEnvase";
 
@@ -48,6 +48,17 @@ export function RotulosPlan({ guardadas, factores: fac, materiales: mats, puedeI
   const [tren, setTren] = useState("");
   const [resumen, setResumen] = useState<Map<string, ResumenBloque>>(new Map());
   const [lotes, setLotes] = useState<LoteImpreso[]>([]);
+  const [cierres, setCierres] = useState<Map<string, number>>(new Map());
+  const [sobra, setSobra] = useState<Record<string, string>>({});
+  const [listaSem, setListaSem] = useState(false);
+  const semRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!listaSem) return;
+    const fuera = (e: MouseEvent) => { if (semRef.current && !semRef.current.contains(e.target as Node)) setListaSem(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setListaSem(false); };
+    document.addEventListener("mousedown", fuera); document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", fuera); document.removeEventListener("keydown", esc); };
+  }, [listaSem]);
   const [faltaSql, setFaltaSql] = useState(false);
   const [trabajando, setTrabajando] = useState(false);
   const [cantidades, setCantidades] = useState<Record<string, string>>({});
@@ -66,15 +77,18 @@ export function RotulosPlan({ guardadas, factores: fac, materiales: mats, puedeI
   const cargar = useCallback(async () => {
     if (!actual) return;
     const supabase = createClient();
-    const [r, l] = await Promise.all([
+    const [r, l, c] = await Promise.all([
       supabase.rpc("rotulos_plan_resumen", { p_anio: actual.anio, p_semana: actual.semana }),
       supabase.rpc("rotulos_plan_lotes", { p_anio: actual.anio, p_semana: actual.semana }),
+      supabase.rpc("rotulos_plan_cierres", { p_anio: actual.anio, p_semana: actual.semana }),
     ]);
-    const err = r.error ?? l.error;
+    const err = r.error ?? l.error ?? c.error;
     if (err) { if (/does not exist|schema cache|Could not find/i.test(err.message)) setFaltaSql(true); else avisarRef.current.mal(err.message); return }
     setFaltaSql(false);
     setResumen(new Map(((r.data ?? []) as ResumenBloque[]).map((x) => [llaveBloque(x), x])));
     setLotes((l.data ?? []) as LoteImpreso[]);
+    setCierres(new Map(((c.data ?? []) as CierreBloque[]).map((x) => [llaveBloque(x), x.sobrantes])));
+    setSobra({});
   }, [actual]);
   useEffect(() => { void cargar() }, [cargar]);
 
@@ -82,9 +96,26 @@ export function RotulosPlan({ guardadas, factores: fac, materiales: mats, puedeI
   const est = (b: BloquePlan) => {
     const r = resumen.get(llaveBloque(b));
     const imp = r?.impresos ?? 0;
-    return { imp, adic: r?.adicionales ?? 0, rei: r?.reimpresos ?? 0, faltan: Math.max(0, b.planeadas - imp) };
+    const adic = r?.adicionales ?? 0;
+    const sob = cierres.get(llaveBloque(b));
+    /* LO ÚNICO QUE SE ESCRIBE ES LO QUE SOBRÓ: usados = impresos vigentes − sobrantes; lo demás sale solo. */
+    const usados = sob == null ? null : imp + adic - sob;
+    return { imp, adic, rei: r?.reimpresos ?? 0, faltan: Math.max(0, b.planeadas - imp), sob, usados, vs: usados == null ? null : usados - b.planeadas };
   };
-  const tot = filas.reduce((a, b) => { const e = est(b); return { plan: a.plan + b.planeadas, imp: a.imp + e.imp, faltan: a.faltan + e.faltan, adic: a.adic + e.adic, rei: a.rei + e.rei } }, { plan: 0, imp: 0, faltan: 0, adic: 0, rei: 0 });
+  const tot = filas.reduce((a, b) => { const e = est(b); return { plan: a.plan + b.planeadas, imp: a.imp + e.imp, faltan: a.faltan + e.faltan, adic: a.adic + e.adic, rei: a.rei + e.rei, sob: a.sob + (e.sob ?? 0), usados: a.usados + (e.usados ?? 0), extra: a.extra + Math.max(0, e.vs ?? 0) } }, { plan: 0, imp: 0, faltan: 0, adic: 0, rei: 0, sob: 0, usados: 0, extra: 0 });
+  const guardarSobra = async (b: BloquePlan, texto: string) => {
+    if (!actual) return;
+    const k = llaveBloque(b);
+    const e = est(b);
+    const nuevo = texto.trim() === "" ? null : Number(texto);
+    if ((nuevo ?? null) === (e.sob ?? null)) { setSobra((m) => { const { [k]: _, ...r } = m; return r }); return }
+    if (nuevo != null && !(Number.isInteger(nuevo) && nuevo >= 0)) { avisarRef.current.mal("Escribe cuántos sobraron: un número desde 0"); return }
+    if (nuevo != null && nuevo > e.imp + e.adic) { avisarRef.current.mal(`Sobraron ${nuevo} pero solo hay ${e.imp + e.adic} rótulos impresos en este bloque`); return }
+    const { error } = await createClient().rpc("rotulos_plan_cierre_guardar", { p_anio: actual.anio, p_semana: actual.semana, p_fecha: b.fecha, p_turno: b.turno, p_tren: b.tren, p_sap: b.sap, p_sobrantes: nuevo });
+    if (error) { avisarRef.current.mal(error.message); return }
+    setCierres((m) => { const n = new Map(m); if (nuevo == null) n.delete(k); else n.set(k, nuevo); return n });
+    setSobra((m) => { const { [k]: _, ...r } = m; return r });
+  };
   const lotesVis = lotes.filter((l) => l.fecha === diaOn && (!turno || l.turno === turno) && (!tren || l.tren === tren));
 
   /* EL PDF SE VE DENTRO DE LA PANTALLA (VisorPdf), no en una pestaña nueva: la app instalada y el celular
@@ -185,10 +216,24 @@ export function RotulosPlan({ guardadas, factores: fac, materiales: mats, puedeI
       {avisos}
       <section className="rp-panel" aria-label="Filtros de rótulos">
         <div className="rp-fila">
-          <div className="rp-sem">
+          <div className="rp-sem" ref={semRef}>
             <button type="button" aria-label="Semana anterior" disabled={idxSem >= guardadas.length - 1} onClick={() => irSemana(idxSem + 1)}>‹</button>
-            <div><b>Semana {actual?.semana}</b><small>{actual ? `${corto(actual.fecha_ini)} – ${corto(actual.fecha_fin)}` : ""}</small></div>
+            <button type="button" className="rp-sem-med" aria-haspopup="listbox" aria-expanded={listaSem} onClick={() => setListaSem((v) => !v)}>
+              <b>Semana {actual?.semana}</b><small>{actual ? `${corto(actual.fecha_ini)} – ${corto(actual.fecha_fin)}` : ""}</small>
+              <i aria-hidden="true">▾</i>
+            </button>
             <button type="button" aria-label="Semana siguiente" disabled={idxSem <= 0} onClick={() => irSemana(idxSem - 1)}>›</button>
+            {listaSem && (
+              <ul className="rp-sem-lista" role="listbox" aria-label="Semanas del plan">
+                {guardadas.map((g, i) => (
+                  <li key={g.id} role="option" aria-selected={i === idxSem}>
+                    <button type="button" className={i === idxSem ? "on" : ""} onClick={() => { irSemana(i); setListaSem(false); }}>
+                      <b>Semana {g.semana}</b><span>{corto(g.fecha_ini)} – {corto(g.fecha_fin)}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
           <div className="rp-dias" role="radiogroup" aria-label="Día">
             {dias.map((d, i) => {
@@ -230,6 +275,8 @@ export function RotulosPlan({ guardadas, factores: fac, materiales: mats, puedeI
         <div className="pe-kpi"><span>Faltan por imprimir</span><b>{nf.format(tot.faltan)}</b></div>
         <div className="pe-kpi"><span>Adicionales</span><b>{nf.format(tot.adic)}</b></div>
         <div className="pe-kpi"><span>Reimpresos</span><b>{nf.format(tot.rei)}</b></div>
+        <div className="pe-kpi"><span>Sobraron</span><b>{nf.format(tot.sob)}</b></div>
+        <div className="pe-kpi"><span>Usados</span><b>{nf.format(tot.usados)}</b></div>
       </div>
 
       <div className="pe-fila">
@@ -252,6 +299,7 @@ export function RotulosPlan({ guardadas, factores: fac, materiales: mats, puedeI
                 <th className="pe-izq">Línea</th><th className="pe-izq">Turno</th><th className="pe-izq">SKU</th>
                 <th className="pe-der">Plan</th><th className="pe-der">Impresos</th><th className="pe-der">Faltan</th><th className="pe-der">Adic.</th>
                 <th className="pe-der">Imprimir</th><th />
+                <th className="pe-der">Sobraron</th><th className="pe-der">Usados</th><th className="pe-der">Vs plan</th>
               </tr>
             </thead>
             <tbody>
@@ -274,6 +322,17 @@ export function RotulosPlan({ guardadas, factores: fac, materiales: mats, puedeI
                     </td>
                     <td className="pe-der">
                       <button type="button" className="btn plano" disabled={!puedeImprimir || trabajando || !!b.problema || !(Number(cant) >= 1)} onClick={() => void imprimir([{ b, n: Math.min(Number(cant), MAX_PDF) }])}>Imprimir</button>
+                    </td>
+                    <td className="pe-der">
+                      <input className="rp-cant rp-sobra" inputMode="numeric" aria-label={`Cuántos sobraron de ${b.sku}`} placeholder={e.imp + e.adic > 0 ? "—" : ""}
+                        value={sobra[k] ?? (e.sob == null ? "" : String(e.sob))} disabled={!puedeImprimir || !!b.problema || e.imp + e.adic === 0}
+                        onChange={(ev) => setSobra((m) => ({ ...m, [k]: ev.target.value.replace(/\D/g, "").slice(0, 3) }))}
+                        onBlur={(ev) => void guardarSobra(b, ev.target.value)}
+                        onKeyDown={(ev) => { if (ev.key === "Enter") (ev.target as HTMLInputElement).blur(); }} />
+                    </td>
+                    <td className="pe-der">{e.usados == null ? "·" : nf.format(e.usados)}</td>
+                    <td className={`pe-der ${e.vs == null ? "" : e.vs > 0 ? "rp-mal" : e.vs < 0 ? "rp-mal" : "rp-ok"}`}>
+                      {e.vs == null ? "·" : e.vs === 0 ? "Cuadra" : e.vs > 0 ? `+${nf.format(e.vs)} adicionales` : `${nf.format(e.vs)} menos`}
                     </td>
                   </tr>
                 );

@@ -222,7 +222,7 @@ console.log(`páginas: ${paginas}`);
    4 · UN PAPEL POR ESTIBA, NUMERADO
    ===================================================================== */
 ok(paginas === 5, `salieron ${paginas} páginas y se pidieron 5 rótulos: uno por estiba`);
-for (const n of ["1 / 12", "2 / 12", "3 / 12", "1 / 1"]) {
+for (const n of ["1 de 12", "2 de 12", "3 de 12", "1 de 1"]) {
   ok(texto.includes(n),
      `falta «${n}»: doce papeles iguales en la mano no se pueden repartir entre doce estibas`);
 }
@@ -274,7 +274,7 @@ for (const n of ["1 / 12", "2 / 12", "3 / 12", "1 / 1"]) {
   /* EL TOTAL DEL ARRUME sigue en el QR y en el «1 / 12» de la cabecera;
      en el renglón grande solo sale cuando el pie de las unidades no
      tiene nada mejor que decir. */
-  ok(/1 \/ 12/.test(h),
+  ok(/1 de 12/.test(h),
      "se perdió de cuál de cuántas estibas es esta tarjeta");
 
   /* Y LA BANDA «ARRUME · ESTIBAS» SE FUE A PROPÓSITO. Ocupaba un tercio
@@ -550,5 +550,5 @@ if (fallas.length) {
 }
 console.log("✓ La tarjeta de arrume: una por estiba y numerada N/M, cajas de la estiba y total del " +
   "arrume, el vencimiento en su banda y el límite de despacho calculado, el envase sin fechas " +
-  "pero con la misma tarjeta, el QR se LEE con el logo encima y lleva el enlace y los datos en " +
+  "pero con la misma tarjeta, el QR se LEE con el logo encima y lleva TODOS los datos del rótulo en texto y ningún enlace, producto en ámbar y envase en azul, en " +
   "ASCII, y nada calculado a ojo. Y las TRES CIFRAS GRANDES —unidades de ESTA estiba, factor de estiba y vida útil—: se fueron la banda «arrume · estibas», que decía «1 × 1 × 1» casi siempre, y la casilla «cajas en esta estiba», que con la estiba completa repetía el factor; el factor sale del maestro y NO del patrón, que 370 de los 493 materiales no tienen; y cuando la estiba viene INCOMPLETA sale la franja roja con las cajas que hay de verdad, que es el único caso en que las dos cifras no son la misma.");

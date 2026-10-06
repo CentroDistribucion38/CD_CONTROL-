@@ -99,7 +99,7 @@ console.log("paso 3");
 /* 3 · UNA TANDA A MEDIAS: la siguiente sigue la numeración */
 const aguila = pg.locator(".pe-tabla").first().locator("tbody tr", { hasText: "BACANA BR" }).nth(0);
 const planA = num((await celdas(aguila))[3]);
-await aguila.locator("input").fill("5");
+await aguila.locator("input.rp-cant:not(.rp-sobra)").fill("5");
 await aguila.locator("button:has-text('Imprimir')").click();
 await pg.waitForFunction(() => (window.__pdfs || []).length >= 3);
 await pg.waitForSelector(".vp"); await pg.waitForFunction(() => (window.__pag || []).length >= (window.__pdfs || []).length);
@@ -130,7 +130,7 @@ console.log("  4.4 ok");
 await pg.waitForFunction(() => [...document.querySelectorAll(".pe-tabla tbody tr")].filter((t) => /Costeñita/.test(t.textContent) && t.textContent.includes("Listo")).length >= 2);
 console.log("  4.5 ok");
 const t1 = pg.locator(".pe-tabla").first().locator("tbody tr", { hasText: "Costeñita" }).nth(0);
-await t1.locator("input").fill("3");
+await t1.locator("input.rp-cant:not(.rp-sobra)").fill("3");
 console.log("  4.7 ok");
 await t1.locator("button:has-text('Imprimir')").click();
 console.log("  4.8 ok");
@@ -227,6 +227,43 @@ for (const w of [1440, 1024, 768, 390, 360]) {
 }
 await monta(390); await pg.screenshot({ path: R(".arnes/_rp-390.png"), fullPage: true });
 await monta(1440); await pg.screenshot({ path: R(".arnes/_rp-1440.png"), fullPage: true });
+
+console.log("paso 11");
+/* 11 · LA SEMANA SE ESCOGE DE UNA LISTA y el cierre es SOLO escribir cuántos sobraron */
+await monta(1440, "", "");
+await pg.click(".rp-sem-med");
+ok(await pg.locator(".rp-sem-lista li").count() === 2, "la lista de semanas no trae las dos semanas guardadas");
+ok(/Semana 35/.test(await pg.textContent(".rp-sem-lista")) && /Semana 34/.test(await pg.textContent(".rp-sem-lista")), "faltan semanas en la lista");
+await pg.keyboard.press("Escape");
+ok(await pg.locator(".rp-sem-lista").count() === 0, "Esc no cierra la lista de semanas");
+await pg.click(".rp-sem-med");
+await pg.click(".rp-sem-lista button:has-text('Semana 34')");
+ok(/Semana 34/.test(await pg.textContent(".rp-sem-med")) && await pg.locator(".rp-sem-lista").count() === 0, "escoger una semana de la lista no la cambia o no cierra la lista");
+const fila11 = pg.locator(".rp-bloques tbody tr").first();
+const plan1 = num(await fila11.locator("td.pe-der").nth(0).textContent());
+ok(await fila11.locator(".rp-sobra").isDisabled(), "se puede escribir lo que sobró sin haber impreso nada");
+await fila11.locator(".rp-cant").first().fill(String(plan1 + 2));
+await fila11.locator("button:has-text('Imprimir')").click();
+await pg.waitForSelector(".vp", { timeout: 90000 }); await cerrarVisor();
+await pg.waitForFunction(() => document.querySelector(".rp-sobra") && !document.querySelector(".rp-sobra").disabled);
+const lanza = async (v) => { const i = pg.locator(".rp-bloques tbody tr").first().locator(".rp-sobra"); await i.fill(v); await i.press("Enter"); await pg.waitForTimeout(250) };
+const celda = async (n) => (await pg.locator(".rp-bloques tbody tr").first().locator("td.pe-der").nth(n).textContent()).trim();
+await lanza("1");
+ok(await celda(7) === String(plan1 + 1), "usados = impresos − sobrantes: " + await celda(7));
+ok(/\+1 adicionales/.test(await celda(8)), "usados sobre el plan no se marca adicional: " + await celda(8));
+await lanza("2");
+ok(await celda(8) === "Cuadra", "con usados = plan no dice «Cuadra»: " + await celda(8));
+await lanza("5");
+ok(/menos/.test(await celda(8)), "usados bajo el plan no lo dice: " + await celda(8));
+await lanza("9999");
+ok(await pg.evaluate(() => (window.__cierres || []).every((c) => c.sobrantes !== 9999)), "guardó más sobrantes de los que hay impresos");
+await lanza("");
+ok(await celda(7) === "·", "vaciar lo que sobró no quita el cierre: " + await celda(7));
+ok(await pg.evaluate(() => (window.__cierres || []).length === 0), "el cierre vacío no se borró");
+await lanza("2");
+await pg.click(".rp-sem button[aria-label='Semana siguiente']"); await pg.waitForTimeout(200);
+await pg.click(".rp-sem button[aria-label='Semana anterior']"); await pg.waitForTimeout(400);
+ok(await celda(7) === String(plan1), "al volver a la semana el cierre no vuelve: " + await celda(7));
 
 console.log("paso 10");
 /* 10 · CONTRASTE */

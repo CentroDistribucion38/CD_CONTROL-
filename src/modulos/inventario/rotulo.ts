@@ -262,6 +262,15 @@ async function comoDataUrl(url: string) {
    quien lo haya sacado. */
 const TINTA: [number, number, number] = [13, 13, 13];
 const AMBAR: [number, number, number] = [255, 196, 0];
+/* EL COLOR DE LA TARJETA DICE QUÉ ES: PRODUCTO = ÁMBAR, ENVASE = AZUL. Es
+   una diferencia a simple vista, de lejos, en la estiba. EL ROJO NO SE USA
+   COMO COLOR DE TIPO: está reservado para avisos (estiba incompleta, dato
+   que falta) y no puede significar otra cosa en el mismo papel. */
+const AZUL: [number, number, number] = [58, 170, 255];
+const AZUL_OSCURO: [number, number, number] = [0, 45, 90];
+const AMBAR_OSCURO: [number, number, number] = [90, 70, 0];
+const AMBAR_LINEA: [number, number, number] = [120, 92, 0];
+const AZUL_LINEA: [number, number, number] = [0, 80, 140];
 const GRIS: [number, number, number] = [94, 98, 94];
 const LINEA: [number, number, number] = [228, 228, 223];
 const PANEL: [number, number, number] = [244, 245, 242];
@@ -280,6 +289,7 @@ export async function rotulosPdf(
   const pdf = new jsPDF({ unit: "mm", format: "a4", compress: true });
   const W = 210, H = 297, M = 12, AN = W - M * 2;
 
+  let AC = AMBAR, ACO = AMBAR_OSCURO, ACL = AMBAR_LINEA;
   const sello = await comoDataUrl("/marca/logo-b.png").catch(() => null);
 
   /** Una caja con su rótulo negro encima, como las `.bx` del modelo. */
@@ -289,22 +299,19 @@ export async function rotulosPdf(
   };
   const rotulo = (x: number, y: number, an: number, t: string, centro = false) => {
     pdf.setFillColor(...TINTA); pdf.rect(x, y, an, 5.6, "F");
-    pdf.setFont("helvetica", "bold"); pdf.setFontSize(7); pdf.setTextColor(...AMBAR);
+    pdf.setFont("helvetica", "bold"); pdf.setFontSize(7); pdf.setTextColor(...AC);
     pdf.text(t, centro ? x + an / 2 : x + 3, y + 3.8, centro ? { align: "center" } : undefined);
   };
 
   rotulos.forEach((r, i) => {
     if (i > 0) pdf.addPage();
     const esProd = r.tipo === "producto";
+    AC = esProd ? AMBAR : AZUL; ACO = esProd ? AMBAR_OSCURO : AZUL_OSCURO; ACL = esProd ? AMBAR_LINEA : AZUL_LINEA;
 
     /* ====================== LA CABECERA ====================== */
     const hCab = 17;
     pdf.setFillColor(...TINTA); pdf.rect(0, 0, W, hCab, "F");
-    /* LAS RAYAS DIAGONALES del modelo. jsPDF no pinta degradados ni
-       tramas, así que se dibujan: líneas finas ámbar muy apagadas, cada
-       5 mm, recortadas por la banda. */
-    pdf.setDrawColor(70, 62, 30); pdf.setLineWidth(0.5);
-    for (let x = -hCab; x < W + hCab; x += 5) pdf.line(x, hCab, x + hCab * 0.5, 0);
+    /* LA BANDA VA LISA, SIN RAYAS: pedido del usuario («que el fondo esté sin líneas»). */
 
     if (sello) {
       try {
@@ -315,17 +322,29 @@ export async function rotulosPdf(
     }
     pdf.setFont("helvetica", "bold"); pdf.setFontSize(15); pdf.setTextColor(255, 255, 255);
     pdf.text("BARRANQUILLA", M + 12, hCab / 2 - 0.3);
-    pdf.setFontSize(6.6); pdf.setTextColor(...AMBAR);
-    pdf.text("TARJETA DE ARRUME  ·  UNA POR ESTIBA", M + 12, hCab / 2 + 4.2);
+    pdf.setFontSize(6.6); pdf.setTextColor(...AC);
+    pdf.text(esProd ? "TARJETA DE ARRUME  ·  PRODUCTO  ·  UNA POR ESTIBA" : "TARJETA DE ARRUME  ·  ENVASE  ·  UNA POR ESTIBA", M + 12, hCab / 2 + 4.2);
 
     /* LA ESTIBA «3 / 12», EN ÁMBAR Y A LA DERECHA. Doce papeles iguales
        en una mano no se pueden repartir entre doce estibas. */
     const anEst = 34;
-    pdf.setFillColor(...AMBAR); pdf.rect(W - M - anEst, 2.4, anEst, hCab - 4.8, "F");
-    pdf.setFont("helvetica", "bold"); pdf.setFontSize(6.6); pdf.setTextColor(90, 70, 0);
-    pdf.text("ESTIBA", W - M - anEst / 2, 7.4, { align: "center" });
-    pdf.setFontSize(17); pdf.setTextColor(...TINTA);
-    pdf.text(`${r.numero} / ${r.total}`, W - M - anEst / 2, 13.6, { align: "center" });
+    pdf.setFillColor(...AC); pdf.rect(W - M - anEst, 2.4, anEst, hCab - 4.8, "F");
+    /* «2  ESTIBA / de 181»: la cifra grande a la izquierda y, a su lado,
+       la palabra y el total, uno sobre otro. */
+    {
+      const cx = W - M - anEst / 2;
+      pdf.setFont("helvetica", "bold"); pdf.setFontSize(22);
+      const wN = pdf.getTextWidth(String(r.numero));
+      pdf.setFontSize(6.6); const wE = pdf.getTextWidth("ESTIBA") + 0.6;
+      pdf.setFontSize(10.5); const wT = pdf.getTextWidth(`de ${r.total}`);
+      const x0 = cx - (wN + 2.6 + Math.max(wE, wT)) / 2;
+      pdf.setFontSize(22); pdf.setTextColor(...TINTA);
+      pdf.text(String(r.numero), x0, 2.4 + (hCab - 4.8) / 2 + 3.7);
+      pdf.setFontSize(6.6); pdf.setTextColor(...ACO);
+      pdf.text("ESTIBA", x0 + wN + 2.6, 7.1, { charSpace: 0.6 } as never);
+      pdf.setFontSize(10.5); pdf.setTextColor(...TINTA);
+      pdf.text(`de ${r.total}`, x0 + wN + 2.6, 12.2);
+    }
 
     /* ====================== LA FICHA ====================== */
     let y = hCab + 7;
@@ -341,7 +360,7 @@ export async function rotulosPdf(
 
     caja(M + anProd + 3, y, anCod, 18);
     rotulo(M + anProd + 3, y, anCod, "CÓDIGO", true);
-    pdf.setFillColor(...AMBAR);
+    pdf.setFillColor(...AC);
     pdf.rect(M + anProd + 3.3, y + 5.9, anCod - 0.6, 11.8, "F");
     pdf.setFont("helvetica", "bold"); pdf.setFontSize(23); pdf.setTextColor(...TINTA);
     pdf.text(r.sku, M + anProd + 3 + anCod / 2, y + 14.6, { align: "center" });
@@ -483,7 +502,7 @@ export async function rotulosPdf(
            caía en y+18 y el recuadro terminaba en y+17: las unidades salían
            pegadas al borde de abajo, medio fuera del ámbar. */
         const yr = y + 6.4, hr = alP - 7.8;
-        pdf.setFillColor(...AMBAR); pdf.rect(xr, yr, anR, hr, "F");
+        pdf.setFillColor(...AC); pdf.rect(xr, yr, anR, hr, "F");
         pdf.setFont("helvetica", "bold"); pdf.setFontSize(13); pdf.setTextColor(...TINTA);
         pdf.text(`= ${nf.format(cajas)} cajas`, xr + anR / 2, yr + 5.9, { align: "center" });
         /* LAS UNIDADES VAN DENTRO DEL RECUADRO Y NO SUELTAS AL LADO.
@@ -514,7 +533,7 @@ export async function rotulosPdf(
       /* --- La banda del vencimiento: día, mes y año en tres casillas --- */
       const p = partesFecha(r.vence);
       const alB = 14, anC = 22;
-      pdf.setFillColor(...(p ? AMBAR : [253, 235, 238] as [number, number, number]));
+      pdf.setFillColor(...(p ? AC : [253, 235, 238] as [number, number, number]));
       pdf.rect(M, y, AN, alB, "F");
       pdf.setDrawColor(...TINTA); pdf.setLineWidth(0.6);
       pdf.rect(M, y, AN, alB, "S");
@@ -525,7 +544,7 @@ export async function rotulosPdf(
       if (p) {
         p.forEach((t, j) => {
           const x = W - M - anC * (3 - j);
-          pdf.setDrawColor(120, 92, 0); pdf.setLineWidth(0.3);
+          pdf.setDrawColor(...ACL); pdf.setLineWidth(0.3);
           pdf.line(x, y + 1, x, y + alB - 1);
           pdf.setFont("helvetica", "bold"); pdf.setFontSize(20); pdf.setTextColor(...TINTA);
           pdf.text(t, x + anC / 2, y + alB / 2 + 3.4, { align: "center" });
@@ -604,7 +623,7 @@ export async function rotulosPdf(
     const yPie = H - 24;
     const zAl = yPie - y - 3;
     pdf.setFillColor(...PANEL); pdf.rect(M, y, AN, zAl, "F");
-    pdf.setFillColor(...AMBAR); pdf.rect(M, y, AN, 1.6, "F");
+    pdf.setFillColor(...AC); pdf.rect(M, y, AN, 1.6, "F");
 
     /* EL CÓDIGO SE MIDE DEJANDO SITIO A LO QUE VA DEBAJO, y esto salió
        de mirar la hoja impresa: con el alto libre a secas, el código se
@@ -635,7 +654,7 @@ export async function rotulosPdf(
       }
 
       /* Las cuatro esquinas ámbar del modelo. */
-      pdf.setDrawColor(...AMBAR); pdf.setLineWidth(1.6);
+      pdf.setDrawColor(...AC); pdf.setLineWidth(1.6);
       const e = 9, x0 = qx - 3.8, y0 = qy - 3.8, x1 = qx + lado + 3.8, y1 = qy + lado + 3.8;
       pdf.line(x0, y0, x0 + e, y0); pdf.line(x0, y0, x0, y0 + e);
       pdf.line(x1 - e, y0, x1, y0); pdf.line(x1, y0, x1, y0 + e);
@@ -661,7 +680,7 @@ export async function rotulosPdf(
     pdf.setFont("helvetica", "bold"); pdf.setFontSize(9.5);
     const anF = pdf.getTextWidth(r.folio) + 12;
     pdf.setFillColor(...TINTA); pdf.rect(W / 2 - anF / 2, yz, anF, 8, "F");
-    pdf.setTextColor(...AMBAR);
+    pdf.setTextColor(...AC);
     pdf.text(r.folio, W / 2, yz + 5.5, { align: "center" });
 
     /* ====================== LAS FIRMAS ====================== */

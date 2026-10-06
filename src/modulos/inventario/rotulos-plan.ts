@@ -93,6 +93,7 @@ export function armarRotulo(o: {
 }
 
 export type ResumenBloque = { fecha: string; turno: number; tren: string; sap: string; impresos: number; adicionales: number; reimpresos: number; ultima: string | null };
+export type CierreBloque = { fecha: string; turno: number; tren: string; sap: string; sobrantes: number; cerrado_en: string };
 export type LoteImpreso = {
   lote: string; impreso_en: string; quien: string; fecha: string; turno: number; tren: string; sap: string;
   cantidad: number; desde: number; hasta: number; reimpresion: boolean; motivo: string | null; vigentes: number; primero: string; ultimo: string;
