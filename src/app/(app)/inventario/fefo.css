@@ -1785,3 +1785,11 @@
 .fe .fe-mas .fe-marcas.uno .fe-marca { border-radius: 0 }
 .fe .fe-mas .fe-marca-campo { display: flex; flex-direction: column; gap: 5px }
 .fe .fe-foto .fe-obliga { margin: 0 }
+
+/* PNC · POLÍTICA DE BLOQUEO: dos preguntas, rótulo y bloqueo mecánico. */
+.fe .fe-pnc-pol { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid var(--fe-linea); border-radius: 2px }
+.fe .fe-pnc-cab { margin: 0; font-weight: 700; font-size: 13px; color: var(--fe-gris-panel) }
+.fe .fe-pnc-pol .fe-rota { margin: 0 }
+.fe .fe-pnc-veredicto { margin: 0; font-size: 13px; font-weight: 600 }
+.fe .fe-pnc-veredicto.cumple { color: var(--fe-bien) }
+.fe .fe-pnc-veredicto.falta { color: var(--fe-ojo) }

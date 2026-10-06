@@ -554,7 +554,7 @@ for (const [ancho, etiqueta] of ANCHOS) {
                 "(mínimo 56: son las únicas que se teclean SIN MIRARLAS, porque el cursor " +
                 "entra solo y los dedos van a donde estaba el dedo anterior)");
   if (m.marcas.length !== 1)
-    fallas.push(`${etiqueta}: hay ${m.marcas.length} cuadros de marca y es uno solo, PNC (la avería es «¿Está rota o averiada?»)`);
+    fallas.push(`${etiqueta}: hay ${m.marcas.length} cuadros de marca y es uno solo, PNC (la avería es «¿Está averiada?»)`);
   else if (new Set(m.marcas.map((x) => x.join("×"))).size > 1)
     fallas.push(`${etiqueta}: las marcas miden ${m.marcas.map((x) => x.join("×")).join(" / ")}, `
               + "y se pidieron del mismo tamaño");
@@ -807,7 +807,7 @@ const orden = [
   ["Estibas completas", ">Estibas completas<"], ["Saldo", ">Saldo · cajas<"],
   /* ESTADO, ROTA, MARCA Y NOTA: plegados en «Datos adicionales», de
      último — es lo raro (avería 2 de 152 filas, PNC 1). */
-  ["¿Está rota o averiada?", ">¿Está rota o averiada?<"],
+  ["¿Está averiada?", ">¿Está averiada?<"],
   ["Avería", ">Sí, avería<"], ["PNC", ">PNC <em>"],
   ["Observación", ">Observación<"],
 ];
@@ -885,7 +885,9 @@ if (!/rot:\s*null/.test(limpio))
    ES decir que no. Un aviso que frena el renglón por algo que no cambia
    la cifra es un aviso que la gente aprende a esquivar. */
 {
-  const rev = (limpio.match(/function revisar\(bb: Borrador\)[\s\S]*?\n  \}/) ?? [""])[0];
+  /* LA ÚNICA EXCEPCIÓN: con PNC marcado hay que contestar rótulo y bloqueo mecánico (política de bloqueo). */
+  const rev = (limpio.match(/function revisar\(bb: Borrador\)[\s\S]*?\n  \}/) ?? [""])[0]
+    .split("\n").filter((l) => !/bb\.pnc && \(bb\.pncRotulo == null/.test(l)).join("\n");
   for (const [que, re] of [["la rotación", /bb\.rot/], ["el PNC", /bb\.pnc/]]) {
     if (re.test(rev))
       fallas.push(`volvió a frenar el renglón por ${que}, y de «Cómo está» en adelante no se valida nada`);
@@ -1754,14 +1756,14 @@ createRoot(document.getElementById("r")!).render(<Contar bodegaId="b1"
     if (!m1 || m1.mezclado !== true || m1.sin_acceso !== false || !m1.ruta)
       fallas.push(`montada, la marca del módulo mezclado no quedó guardada con su foto: ${JSON.stringify(m1 ?? null)}`);
     if (!a1.sub.some((r) => /modulo-/.test(r))) fallas.push("montada, la foto del módulo mezclado no se subió");
-    /* AVERÍA: «¿Está rota o averiada?» Sí marca la avería SOLA y la foto es OBLIGATORIA; PNC aparte. */
+    /* AVERÍA: «¿Está averiada?» Sí marca la avería SOLA y la foto es OBLIGATORIA; PNC aparte. */
     await pgm.evaluate(() => { const c = document.querySelector(".fe-estmod .fe-mezclado input"); if (c && c.checked) c.click() });
     await pgm.click(ladoIzq);
     await pgm.fill(cod, "3128");
     await pgm.fill('input[placeholder="DD"]', "11"); await pgm.fill('input[placeholder="MM"]', "03"); await pgm.fill('input[placeholder="AA"]', "27");
     await pgm.locator(".fe-cuanto-campo input").first().fill("3");
     await pgm.evaluate(() => { document.querySelector(".fe-mas").open = true });
-    ok2(await pgm.locator(".fe-mas-dentro .fe-rota").count() === 1 && /¿Está rota o averiada\?/.test(await pgm.textContent(".fe-mas-dentro .fe-rota")), "falta «¿Está rota o averiada?»");
+    ok2(await pgm.locator(".fe-mas-dentro .fe-rota").count() === 1 && /¿Está averiada\?/.test(await pgm.textContent(".fe-mas-dentro .fe-rota")), "falta «¿Está averiada?»");
     ok2((await pgm.$$eval(".fe-mas-marcas em", (es) => es.length)) === 0, "con «No» no debía haber marcas puestas");
     await pgm.click('.fe-mas-dentro .fe-rota button:has-text("Sí, avería")');
     ok2((await pgm.textContent(".fe-mas-marcas")).includes("AVERÍA"), "«Sí» no marcó la avería solo");
@@ -1776,6 +1778,33 @@ createRoot(document.getElementById("r")!).render(<Contar bodegaId="b1"
     const av = await pgm.evaluate(() => (window.__llamadas ?? []).find((c) => c.fn === "conteo_fefo_agregar")?.args ?? null);
     ok2(!!av && av.p_averia === true, "con avería y foto debía anotar con p_averia verdadero: " + JSON.stringify(av && av.p_averia));
     ok2(!!av && av.p_rotacion === false, "la rotación debía ir resuelta en «no» (ya no se pregunta): " + JSON.stringify(av && av.p_rotacion));
+    /* PNC: al marcarlo se despliegan DOS preguntas —¿tiene rótulo? ¿tiene bloqueo mecánico?—, obligatorias y sin nada marcado. */
+    await pgm.click(ladoIzq);
+    await pgm.fill(cod, "3128");
+    await pgm.fill('input[placeholder="DD"]', "12"); await pgm.fill('input[placeholder="MM"]', "03"); await pgm.fill('input[placeholder="AA"]', "27");
+    await pgm.locator(".fe-cuanto-campo input").first().fill("4");
+    await pgm.evaluate(() => { document.querySelector(".fe-mas").open = true });
+    ok2(await pgm.locator(".fe-pnc-pol").count() === 0, "sin PNC no deben salir las preguntas de rótulo y bloqueo mecánico");
+    await pgm.click('.fe-marca-campo .fe-marca:has-text("PNC")');
+    ok2(await pgm.locator(".fe-pnc-pol .fe-rota").count() === 2, "con PNC debían salir dos preguntas");
+    const tpol = await pgm.textContent(".fe-pnc-pol");
+    ok2(/¿Tiene rótulo\?/.test(tpol) && /¿Tiene bloqueo mecánico\?/.test(tpol), "las preguntas no son rótulo y bloqueo mecánico: " + tpol);
+    ok2((await pgm.locator(".fe-pnc-pol button.on").count()) === 0, "las preguntas del PNC no deben venir preseleccionadas");
+    await pgm.evaluate(() => { window.__llamadas = [] });
+    await pgm.click(".fe-anotar .btn.grande"); await pgm.waitForTimeout(300);
+    if (await pgm.evaluate(() => (window.__llamadas ?? []).some((c) => c.fn === "conteo_fefo_agregar")))
+      fallas.push("montada, con PNC y SIN contestar rótulo ni bloqueo igual se anotó el renglón");
+    await pgm.click('.fe-pnc-pol .fe-rota:nth-of-type(1) button:has-text("Sí")');
+    await pgm.click(".fe-anotar .btn.grande"); await pgm.waitForTimeout(300);
+    if (await pgm.evaluate(() => (window.__llamadas ?? []).some((c) => c.fn === "conteo_fefo_agregar")))
+      fallas.push("montada, con PNC y solo el rótulo contestado igual se anotó el renglón");
+    await pgm.click('.fe-pnc-pol .fe-rota:nth-of-type(2) button:has-text("No")');
+    ok2(/No cumple la política de bloqueo: falta el bloqueo mecánico/.test(await pgm.textContent(".fe-pnc-pol")), "no dice que falta el bloqueo mecánico");
+    await pgm.click(".fe-anotar .btn.grande"); await pgm.waitForTimeout(400);
+    const llp = await pgm.evaluate(() => window.__llamadas ?? []);
+    ok2(llp.some((c) => c.fn === "conteo_fefo_agregar" && c.args.p_pnc === true), "con las dos respuestas el renglón PNC no se anotó");
+    const pol = llp.find((c) => c.fn === "conteo_fefo_pnc_politica")?.args;
+    ok2(!!pol && pol.p_rotulo === true && pol.p_bloqueo === false, "las respuestas del PNC no viajaron a la base: " + JSON.stringify(pol));
     /* SIN ACCESO: no hay renglón, solo el módulo y su foto. Otro lado: el izquierdo ya tiene su foto. */
     await pgm.click('[aria-labelledby=fe-rot-lado] button:has-text("Derecho")');
     await pgm.click('.fe-acceso .fe-si-no button:has-text("No")');

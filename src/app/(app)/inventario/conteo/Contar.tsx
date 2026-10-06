@@ -138,11 +138,13 @@ type Borrador = {
   modo: Modo; estibas: string; saldo: string; cajas: string;
   rot: boolean | null;
   averia: boolean; pnc: boolean; estado: string; nota: string;
+  /* PNC: ¿tiene rótulo? ¿tiene bloqueo mecánico? true = sí (cumple). null = sin contestar; solo aplica con PNC. */
+  pncRotulo?: boolean | null; pncBloqueo?: boolean | null;
 };
 const VACIO: Borrador = {
   calle: "", base: "", lado: "", codigo: "", dia: "", mes: "", anio: "",
   modo: "estibas", estibas: "", saldo: "", cajas: "", rot: null,
-  averia: false, pnc: false, estado: "", nota: "",
+  averia: false, pnc: false, estado: "", nota: "", pncRotulo: null, pncBloqueo: null,
 };
 
 /* La clave con la que se agrupan las ubicaciones de un mismo módulo.
@@ -817,6 +819,7 @@ export function Contar({
     if (!mat) return `El código «${bb.codigo}» no está en el maestro.`;
     if (env && bb.estado.trim() === "") return "Falta el estado del envase.";
     if (bb.averia && !fotoNueva && !(corrigiendo && fotosDe[corrigiendo])) return "Avería: falta la foto de evidencia.";
+    if (bb.pnc && (bb.pncRotulo == null || bb.pncBloqueo == null)) return "PNC: falta contestar si tiene rótulo y si tiene bloqueo mecánico.";
     if (env && estadosUsados.has(bb.estado.trim().toUpperCase())) return `Ya contaste ${bb.codigo.trim()} como ${bb.estado.trim()} en ${claveEscogida}: escoge otro estado o corrige ese renglón.`;
     if (bb.modo === "cajas") {
       if (ent(bb.cajas) == null) return "¿Cuántas cajas?";
@@ -1052,6 +1055,19 @@ export function Contar({
     return null;
   }
 
+  /** LAS DOS PREGUNTAS DEL PNC (rótulo y bloqueo mecánico), DESPUÉS DEL RENGLÓN y con su id. Sin PNC la base las deja vacías
+      (sirve también para cuando se corrige un renglón y se le quita el PNC). Devuelve el aviso si algo falla. */
+  async function guardarPoliticaPnc(lineaId: string | null, bb: Borrador): Promise<string | null> {
+    if (!lineaId) return "No se encontró el renglón para guardar las respuestas del PNC.";
+    const { error } = await supabase.rpc("conteo_fefo_pnc_politica", {
+      p_linea: lineaId, p_rotulo: bb.pnc ? bb.pncRotulo ?? null : null, p_bloqueo: bb.pnc ? bb.pncBloqueo ?? null : null,
+    });
+    if (!error) return null;
+    return /does not exist|schema cache/i.test(error.message)
+      ? "Falta correr supabase/migraciones/2026-10-pnc-politica-bloqueo.sql en Supabase."
+      : error.message;
+  }
+
   /** El renglón recién anotado: el último de ese material en este recorrido. */
   async function ultimoRenglon(sku: string): Promise<string | null> {
     if (!conteo) return null;
@@ -1135,8 +1151,12 @@ export function Contar({
           if (error) return esFalloDeRed(error.message) ? { red: true } : { error: error.message };
           idU = data as string;
         }
-        const { error } = await supabase.rpc("conteo_fefo_agregar", { p_conteo: conteo.id, ...argumentos(it.bb, mat, idU) });
+        const { data: idCola, error } = await supabase.rpc("conteo_fefo_agregar", { p_conteo: conteo.id, ...argumentos(it.bb, mat, idU) });
         if (!error) {
+          if (it.bb.pnc) {
+            const malP = await guardarPoliticaPnc(typeof idCola === "string" ? idCola : await ultimoRenglon(mat.sku), it.bb);
+            if (malP) avisar.mal(`${mat.sku}: ${malP} Corrígelo en «El borrador».`);
+          }
           const f = fotosCola.current.get(it.id);
           if (f) {
             fotosCola.current.delete(it.id);
@@ -1231,7 +1251,7 @@ export function Contar({
       }
       return;
     }
-    const { error } = corrigiendo
+    const { data: idNuevo, error } = corrigiendo
       ? await supabase.rpc("conteo_fefo_editar", { p_linea: corrigiendo, ...argumentos(bb, mat, idU) })
       : await supabase.rpc("conteo_fefo_agregar", { p_conteo: conteo.id, ...argumentos(bb, mat, idU) });
     setGuardando(false);
@@ -1241,6 +1261,13 @@ export function Contar({
         return;
       }
       avisar.mal(esDuplicado(error.message) ? AVISO_REPETIDO : error.message); return;
+    }
+
+    /* PNC: las dos respuestas viajan en su propia llamada, con el id del renglón recién guardado. */
+    if (bb.pnc || corrigiendo) {
+      const idP = corrigiendo ?? (typeof idNuevo === "string" ? idNuevo : await ultimoRenglon(mat.sku));
+      const malP = await guardarPoliticaPnc(idP, bb);
+      if (malP) avisar.mal(`${mat.sku} quedó anotado, pero ${malP.charAt(0).toLowerCase()}${malP.slice(1)} Corrígelo en «El borrador».`);
     }
 
     /* LA FOTO, DESPUÉS DEL RENGLÓN: su ruta lleva el id de la línea. Si
@@ -1368,6 +1395,15 @@ export function Contar({
       estado: r.estado_envase ?? "", nota: r.nota ?? "",
     });
     setMas(!!(r.rotacion || r.averia || r.pnc || r.nota));
+    /* LAS DOS RESPUESTAS DEL PNC viven en la tabla, no en la vista: se traen aparte y, si no están (renglón anterior a la
+       pregunta, o falta el SQL), quedan sin contestar y se piden antes de guardar. */
+    if (r.pnc) {
+      void supabase.from("conteo_lineas").select("pnc_rotulo, pnc_bloqueo_mecanico").eq("id", r.id).maybeSingle()
+        .then(({ data }) => {
+          if (!data) return;
+          setB((x) => ({ ...x, pncRotulo: (data.pnc_rotulo as boolean | null) ?? null, pncBloqueo: (data.pnc_bloqueo_mecanico as boolean | null) ?? null }));
+        });
+    }
     campoCodigo.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
@@ -2046,15 +2082,15 @@ export function Contar({
           </summary>
           <div className="fe-mas-dentro">
             <div className="fe-mas-dos">
-              {/* UNA SOLA PREGUNTA DE AVERÍA: «¿está rota o averiada?». Sí marca AVERÍA solo y la foto pasa a ser
+              {/* UNA SOLA PREGUNTA DE AVERÍA: «¿está averiada?». Sí marca AVERÍA solo y la foto pasa a ser
                   obligatoria; No la quita. La rotación (si la estiba se mueve) ya no se pregunta: se guarda «no». */}
               <div className="fe-rota">
-                <span id="fe-rot-rota">¿Está rota o averiada?</span>
+                <span id="fe-rot-rota">¿Está averiada?</span>
                 <div className="fe-si-no" role="group" aria-labelledby="fe-rot-rota">
                   <button type="button" className={!b.averia ? "on" : ""} aria-pressed={!b.averia}
                           onClick={() => setB((x) => ({ ...x, averia: false }))}>No</button>
                   <button type="button" className={b.averia ? "on" : ""} aria-pressed={b.averia}
-                          onClick={() => setB((x) => ({ ...x, averia: true, pnc: false }))}>Sí, avería</button>
+                          onClick={() => setB((x) => ({ ...x, averia: true, pnc: false, pncRotulo: null, pncBloqueo: null }))}>Sí, avería</button>
                 </div>
               </div>
               {/* PNC, APARTE Y OPCIONAL: sin tocar es «no». Excluye a la avería (en la hoja nunca van juntas). */}
@@ -2063,10 +2099,34 @@ export function Contar({
                 <div className="fe-marcas uno" role="group" aria-labelledby="fe-rot-marca">
                   <button type="button" className={"fe-marca" + (b.pnc ? " on" : "")}
                           aria-pressed={b.pnc}
-                          onClick={() => setB((x) => ({ ...x, averia: false, pnc: !x.pnc }))}>PNC</button>
+                          onClick={() => setB((x) => ({ ...x, averia: false, pnc: !x.pnc, pncRotulo: null, pncBloqueo: null }))}>PNC</button>
                 </div>
               </div>
             </div>
+            {/* PNC → DOS PREGUNTAS PARA VER SI CUMPLE LA POLÍTICA DE BLOQUEO: rótulo y bloqueo mecánico. Obligatorias; nada viene marcado. */}
+            {b.pnc && (
+              <div className="fe-pnc-pol" role="group" aria-label="Política de bloqueo del PNC">
+                <p className="fe-pnc-cab">Política de bloqueo <em className="fe-obliga">· obligatorio</em></p>
+                {([["rotulo", "¿Tiene rótulo?", b.pncRotulo ?? null], ["bloqueo", "¿Tiene bloqueo mecánico?", b.pncBloqueo ?? null]] as const).map(([k, txt, v]) => (
+                  <div className="fe-rota" key={k}>
+                    <span id={`fe-pnc-${k}`}>{txt}</span>
+                    <div className="fe-si-no" role="group" aria-labelledby={`fe-pnc-${k}`}>
+                      <button type="button" className={v === false ? "on" : ""} aria-pressed={v === false}
+                              onClick={() => setB((x) => ({ ...x, [k === "rotulo" ? "pncRotulo" : "pncBloqueo"]: false }))}>No</button>
+                      <button type="button" className={v === true ? "on" : ""} aria-pressed={v === true}
+                              onClick={() => setB((x) => ({ ...x, [k === "rotulo" ? "pncRotulo" : "pncBloqueo"]: true }))}>Sí</button>
+                    </div>
+                  </div>
+                ))}
+                {b.pncRotulo != null && b.pncBloqueo != null && (
+                  <p className={"fe-pnc-veredicto " + (b.pncRotulo && b.pncBloqueo ? "cumple" : "falta")}>
+                    {b.pncRotulo && b.pncBloqueo
+                      ? "Cumple la política de bloqueo."
+                      : `No cumple la política de bloqueo: falta ${[!b.pncRotulo && "el rótulo", !b.pncBloqueo && "el bloqueo mecánico"].filter(Boolean).join(" y ")}.`}
+                  </p>
+                )}
+              </div>
+            )}
             <label className="fe-nota"><span>Observación</span>
               <input value={b.nota} placeholder="Opcional — lo que haya que decir de esta estiba"
                      onChange={(e) => pon("nota", e.target.value)} /></label>
