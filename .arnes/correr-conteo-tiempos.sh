@@ -9,12 +9,12 @@ if grep -q "^FALLA [^ ]*inventario" /tmp/claude-0/ct-base.txt; then grep "^FALLA
 PSQL="sudo -u postgres psql -q -v ON_ERROR_STOP=1"
 $PSQL -d $DB -c "grant probador to postgres; grant authenticated to probador;" >/dev/null 2>&1 || true
 for vez in 1 2; do
-  for mig in 2026-10-conteo-tiempos 2026-10-conteo-vence-8h; do
+  for mig in 2026-10-conteo-tiempos 2026-10-conteo-vence-8h 2026-10-conteo-ubicacion-recorrido; do
   $PSQL -d $DB -f supabase/migraciones/$mig.sql >/dev/null 2>/tmp/claude-0/ct-mig.txt || { head -6 /tmp/claude-0/ct-mig.txt; echo "✗ la migración $mig falló la vez $vez"; exit 1; }
   done
 done
 salida=$($PSQL -d $DB -f .arnes/prueba-conteo-tiempos.sql 2>&1) || true
 echo "$salida" | grep NOTICE | sed 's/^.*NOTICE:  /    /'
 if echo "$salida" | grep -qE "ERROR|FALLA"; then echo "$salida" | grep -vE "NOTICE|^$" | head -25 | sed 's/^/    /'; echo "✗ tiempos: una comprobación falló"; exit 1; fi
-for n in T1 T2 T3 T4 T5; do echo "$salida" | grep -q "NOTICE:  $n ·" || { echo "✗ no corrió $n"; exit 1; }; done
+for n in T1 T2 T3 T4 T5 T6; do echo "$salida" | grep -q "NOTICE:  $n ·" || { echo "✗ no corrió $n"; exit 1; }; done
 echo "✓ Tiempos del conteo: primer renglón → envío, pausas largas aparte, en curso sin fin, y solo lo ve quien puede ver el Tablero o el Conteo."

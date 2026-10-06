@@ -74,6 +74,8 @@ ok((await pg.locator(".bs-campo").nth(0).inputValue()) === "A", "escoger TANDEM 
 await escoger(0, "C"); await escoger(1, "PASILLO");
 ok(/no tiene lados/i.test(await pg.locator(".fe-lado").textContent()), "un pasillo ofrece izquierdo y derecho: " + await pg.locator(".fe-lado").textContent());
 await pg.fill('input[placeholder="Teclea el código"]', "900");
+/* EL FLUJO: un envase pide estado antes de «Cuánto». */
+await pg.locator(".fe-estenv:not(:has(button.on)) .fe-estados button").first().click({ timeout: 400 }).catch(() => {});
 await pg.locator(".fe-cuanto-campo input").first().fill("3");
 await pg.click(".btn.grande"); await pg.waitForTimeout(250);
 const ll = await pg.evaluate(() => window.__llamadas);

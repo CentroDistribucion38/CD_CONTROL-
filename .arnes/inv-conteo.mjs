@@ -97,8 +97,6 @@ const ARMAZON = `
           <div class="fe-si-no"><button type="button" class="on">Sí</button><button type="button">No</button></div></div>
         <label class="fe-mezclado"><input type="checkbox"><span><b>Módulo mezclado</b></span></label>
       </div>
-      <div class="fe-estados-envase"><span>Estado del envase <em>(si lo que hay es envase)</em></span>
-        <div class="fe-estados"><button type="button">RETORNO</button><button type="button">LAVADO</button><button type="button">NUEVO</button><button type="button">BAJA</button><button type="button" class="on">EXTRASUCIO</button></div></div>
     </div>
 
     <div class="fe-bloque">
@@ -123,6 +121,11 @@ const ARMAZON = `
         <span class="fe-dias-par"><b>249</b><em>días para salir</em></span>
         <span class="fe-dias-par suave"><b>339</b><em>días para vencer</em></span>
       </div>
+    </div>
+
+    <div class="fe-bloque fe-estenv">
+      <p class="fe-bloque-cab">Estado del envase</p>
+      <div class="fe-estados"><button type="button">RETORNO</button><button type="button">LAVADO</button><button type="button">NUEVO</button><button type="button">BAJA</button><button type="button" class="on">EXTRASUCIO</button></div>
     </div>
 
     <div class="fe-bloque">
@@ -160,10 +163,8 @@ const ARMAZON = `
         </div>
         <div class="fe-marca-campo">
           <span>Marca</span>
-          <div class="fe-marcas tres">
-            <button type="button" class="fe-marca">Ninguna</button>
-            <button type="button" class="fe-marca on">Avería</button>
-            <button type="button" class="fe-marca">PNC</button>
+          <div class="fe-marcas uno">
+            <button type="button" class="fe-marca on">PNC</button>
           </div>
         </div>
         <label class="fe-nota"><span>Observación</span>
@@ -552,8 +553,8 @@ for (const [ancho, etiqueta] of ANCHOS) {
     fallas.push(`${etiqueta}: las casillas de la fecha miden ${m.fechaAlto} px de alto ` +
                 "(mínimo 56: son las únicas que se teclean SIN MIRARLAS, porque el cursor " +
                 "entra solo y los dedos van a donde estaba el dedo anterior)");
-  if (m.marcas.length !== 3)
-    fallas.push(`${etiqueta}: hay ${m.marcas.length} cuadros de marca y son tres, Ninguna, Avería y PNC`);
+  if (m.marcas.length !== 1)
+    fallas.push(`${etiqueta}: hay ${m.marcas.length} cuadros de marca y es uno solo, PNC (la avería es «¿Está rota o averiada?»)`);
   else if (new Set(m.marcas.map((x) => x.join("×"))).size > 1)
     fallas.push(`${etiqueta}: las marcas miden ${m.marcas.map((x) => x.join("×")).join(" / ")}, `
               + "y se pidieron del mismo tamaño");
@@ -750,7 +751,7 @@ if (!env.rotulo)
 {
   /* Y LO RARO, PLEGADO AL FINAL: «Datos adicionales» es un <details>
      —estado, rota, avería, PNC, nota— que va DESPUÉS de «Cuánto». */
-  const debe = ["Dónde", "Estado del módulo", "Qué", "Cuánto"];
+  const debe = ["Dónde", "Estado del módulo", "Qué", "Estado del envase", "Cuánto"];
   const iCuanto = tsx.indexOf('fe-bloque-cab">Cuánto<'), iMas = tsx.indexOf('<details className="fe-mas"');
   if (!(iCuanto > 0 && iMas > iCuanto && /<b>Datos adicionales<\/b>/.test(tsx)))
     fallas.push("«Datos adicionales» no va plegado después de «Cuánto»: lo raro tiene que ir de último");
@@ -795,18 +796,19 @@ if (!/p_ubicacion:\s*idUbicacion/.test(limpio))
 const orden = [
   ["Calle", ">Calle<"], ["Módulo", ">Módulo<"], ["Lado", ">Lado<"],
   /* LAS TRES PREGUNTAS VAN ENTRE EL LUGAR Y EL CÓDIGO: 1) acceso, 2) mezclado y 3) estado del envase. */
-  ["Acceso", "¿Tienes acceso al módulo?"], ["Mezclado", ">Módulo mezclado<"], ["Estado del envase", "Estado del envase <em>"],
+  ["Acceso", "¿Tienes acceso al módulo?"], ["Mezclado", ">Módulo mezclado<"],
   ["Código", ">Código<"], ["Descripción", ">Descripción<"],
   /* LA FECHA YA NO SE BUSCA POR SU RÓTULO, porque el rótulo es dinámico
      —«Se fabricó» casi siempre, «Vence» al corregir uno de antes— y un
      `indexOf(">Vence<")` diría que falta el paso entero. Se busca por el
      bloque, que es lo que de verdad ocupa ese lugar en el orden. */
   ["La fecha", 'className={"fe-fecha fe-que-vence"'],
+  ["Estado del envase", '>Estado del envase<'],
   ["Estibas completas", ">Estibas completas<"], ["Saldo", ">Saldo · cajas<"],
   /* ESTADO, ROTA, MARCA Y NOTA: plegados en «Datos adicionales», de
      último — es lo raro (avería 2 de 152 filas, PNC 1). */
-  ["¿Rota?", ">¿Rota?<"],
-  ["Avería", ">Avería<"], ["PNC", ">PNC<"],
+  ["¿Está rota o averiada?", ">¿Está rota o averiada?<"],
+  ["Avería", ">Sí, avería<"], ["PNC", ">PNC <em>"],
   ["Observación", ">Observación<"],
 ];
 let desde = 0;
@@ -820,8 +822,8 @@ for (const [r, aguja] of orden) {
    cuenta al componente. */
 {
   const marcas = [...limpio.matchAll(/className=\{"fe-marca"[\s\S]*?\)\)\}>([^<]+)<\/button>/g)].map((m) => m[1]);
-  if (marcas.join("|") !== "Ninguna|Avería|PNC")
-    fallas.push(`los cuadros de marca de la pantalla son [${marcas.join(", ")}] y son tres: Ninguna, Avería y PNC`);
+  if (marcas.join("|") !== "PNC")
+    fallas.push(`los cuadros de marca de la pantalla son [${marcas.join(", ")}] y es uno solo: PNC, sin nada preseleccionado`);
 }
 /* Y el borrador tiene que poder corregirse y enviarse. */
 if (!/conteo_fefo_editar/.test(limpio))
@@ -884,11 +886,15 @@ if (!/rot:\s*null/.test(limpio))
    la cifra es un aviso que la gente aprende a esquivar. */
 {
   const rev = (limpio.match(/function revisar\(bb: Borrador\)[\s\S]*?\n  \}/) ?? [""])[0];
-  for (const [que, re] of [["la rotación", /bb\.rot/], ["la avería", /bb\.averia/],
-                           ["el PNC", /bb\.pnc/], ["el estado del envase", /bb\.estado/]]) {
+  for (const [que, re] of [["la rotación", /bb\.rot/], ["el PNC", /bb\.pnc/]]) {
     if (re.test(rev))
       fallas.push(`volvió a frenar el renglón por ${que}, y de «Cómo está» en adelante no se valida nada`);
   }
+  /* EL ESTADO DEL ENVASE SÍ SE VALIDA, pero SOLO en envase y antes de «Cuánto»: sin estado no se pasa. */
+  if (!/if \(env && bb\.estado\.trim\(\) === ""\) return/.test(rev))
+    fallas.push("revisar() ya no exige el estado del envase cuando lo que se cuenta es ENVASE: el flujo debe frenar sin estado");
+  if (!/estadosUsados\.has\(bb\.estado/.test(rev))
+    fallas.push("revisar() deja repetir un estado ya contado para el mismo código en el mismo módulo");
   /* Y SE MANDA RESUELTO, no nulo: la base sigue rechazando el nulo, así
      que dejar de resolverlo aquí rompería el guardado entero. */
   if (!/p_rotacion: bb\.rot === true/.test(limpio))
@@ -1339,7 +1345,9 @@ if (!/function atrasFecha/.test(limpio))
      corte del renglón —se terminaba la fecha y había que levantar la
      mano a tocar «Estibas completas»— y es justo lo que se pidió
      quitar. */
-  if (cadena !== "dia→campoMes mes→campoAnio anio→campoCantidad")
+  const cadenaOk = cadena === "dia→campoMes mes→campoAnio anio→campoCantidad"
+    || (cadena === "dia→campoMes mes→campoAnio anio→fin" && /tecleaFecha\("anio"[^)]*pasoCuanto \? campoCantidad : undefined/.test(dma));
+  if (!cadenaOk)
     fallas.push(`las casillas de la fecha están encadenadas [${cadena || "de ninguna forma"}] ` +
                 "y deben ir dia→campoMes mes→campoAnio anio→campoCantidad");
   const atras = [...dma.matchAll(/atrasFecha\(e, b\.(\w+), (campo\w+)\)/g)]
@@ -1567,7 +1575,7 @@ import { Contar } from "../src/app/(app)/inventario/conteo/Contar";
 const w = window as any;
 createRoot(document.getElementById("r")!).render(<Contar bodegaId="b1"
   conteoInicial={{ id: "c1", codigo: "INV-1", estado: "en_proceso", iniciado_en: null }}
-  renglonesIniciales={[]} materiales={w.MAT} ubicaciones={w.UBI} estados={["PIROGRABADO"]} />);
+  renglonesIniciales={w.__DATOS.v_conteo_fefo as any} materiales={w.MAT} ubicaciones={w.UBI} estados={["PIROGRABADO"]} />);
 `);
     const js = buildSync({
       entryPoints: [R(".arnes/_ic-entrada.tsx")], bundle: true, write: false, format: "iife",
@@ -1583,11 +1591,16 @@ createRoot(document.getElementById("r")!).render(<Contar bodegaId="b1"
     const MAT = [{ id: "m1", sku: "3128", nombre: "CERVEZA AGUILA LATA 269 CC X 6 UND",
       unidades_por_caja: 6, cajas_por_estiba: 45, unidades_por_estiba: 270, contenido: null,
       familia: null, presentacion: null, vida_util: 180, f_limite_desp: null, dias_minimo: 30,
-      origen: null, foraneo: null, tipo_material: "PRODUCTO", activo: true }];
+      origen: null, foraneo: null, tipo_material: "PRODUCTO", activo: true },
+      ...["3500005", "3500006"].map((sku, i) => ({ id: "e" + i, sku, nombre: "CANASTILLA PLASTICA " + (i + 1),
+        unidades_por_caja: 1, cajas_por_estiba: 20, unidades_por_estiba: 20, contenido: null, familia: null, presentacion: null,
+        vida_util: null, f_limite_desp: null, dias_minimo: null, origen: null, foraneo: null, tipo_material: "ENVASE", activo: true }))];
     const U = (calle, modulo, lado) => ({ id: `${calle}${modulo}${lado ?? ""}`, bodega_id: "b1",
       clave: `${calle}${modulo}${lado ? "_" + lado : ""}`, calle, modulo, lado, familia: null,
       capacidad: 10, activa: true });
     const UBI = [U("A", "01", "IZQ"), U("A", "01", "DER")];
+    const RENGLON0 = { id: "r0", conteo_id: "c1", conteo: "INV-1", estado: "en_proceso", codigo: "3500005", material: "CANASTILLA PLASTICA 1", tipo_material: "ENVASE",
+      ubicacion: "A01_IZQ", estibas: 20, cajas: null, saldo: null, total_cajas: 400, total_estibas: 20, estado_envase: "RETORNO", contado_en: "2026-10-06T12:00:00Z" };
 
     paso = "montarla";
     const pgm = await navegador.newPage();
@@ -1597,7 +1610,7 @@ createRoot(document.getElementById("r")!).render(<Contar bodegaId="b1"
       <body><div class="sh"><div class="sh-marco sin-riel"><main class="sh-main">
         <div id="r" class="fe contando"></div>
       </main></div></div>
-      <script>window.MAT=${JSON.stringify(MAT)};window.UBI=${JSON.stringify(UBI)};</script>
+      <script>window.MAT=${JSON.stringify(MAT)};window.UBI=${JSON.stringify(UBI)};window.__DATOS={v_conteo_fefo:[${JSON.stringify(RENGLON0)}]};</script>
       <script>${js}</script></body></html>`);
     await pgm.waitForSelector(".fe-anotar", { timeout: 8000 });
 
@@ -1607,9 +1620,9 @@ createRoot(document.getElementById("r")!).render(<Contar bodegaId="b1"
     paso = "leer los momentos del renglón";
     const momentos = await pgm.$$eval(".fe-anotar .fe-bloque-cab",
       (es) => es.map((e) => e.textContent.trim()));
-    if (momentos.join("|") !== "Dónde|Qué|Cuánto")
+    if (momentos.join("|") !== "Dónde|Qué|Estado del envase|Cuánto")
       fallas.push(`montada, los momentos del renglón salen [${momentos.join(", ") || "ninguno"}] ` +
-                  "y deben salir [Dónde, Estado del módulo, Qué, Cuánto]: es el orden en que se mira una estiba");
+                  "y deben salir [Dónde, Qué, Estado del envase, Cuánto]: es el orden en que se mira una estiba");
 
     /* LA MARCA SON TRES CUADROS, y se cuentan abriendo «Datos
        adicionales», que es como se llega a ellos de verdad. */
@@ -1617,9 +1630,9 @@ createRoot(document.getElementById("r")!).render(<Contar bodegaId="b1"
     await pgm.evaluate(() => document.querySelector(".fe-mas summary").click());
     await pgm.waitForTimeout(50);
     const marcas = await pgm.$$eval(".fe-marca", (es) => es.map((e) => e.textContent.trim()));
-    if (marcas.join("|") !== "Ninguna|Avería|PNC")
+    if (marcas.join("|") !== "PNC")
       fallas.push(`montada, los cuadros de marca de la pantalla son ` +
-                  `[${marcas.join(", ") || "ninguno"}] y son tres: Ninguna, Avería y PNC`);
+                  `[${marcas.join(", ") || "ninguno"}] y es uno solo: PNC`);
 
     /* Y AHORA EL RENGLÓN ENTERO, COMO SE LLENA DE PIE: calle, módulo,
        lado, código, 11/03/27 y doce estibas. Lo que interesa no es que
@@ -1672,41 +1685,67 @@ createRoot(document.getElementById("r")!).render(<Contar bodegaId="b1"
     paso = "las tres preguntas del módulo";
     const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
     const ladoIzq = '[aria-labelledby=fe-rot-lado] button:has-text("Izquierdo")';
+    const apagado = (sel) => pgm.evaluate((x) => document.querySelector(x)?.classList.contains("fe-apagado") ?? null, sel);
+    const cod = 'input[placeholder="Teclea el código"]';
     await pgm.click(ladoIzq);
-    const est = await pgm.$$eval(".fe-estmod .fe-estados button", (es) => es.map((e) => e.textContent.trim()));
-    if (est.join("|") !== "RETORNO|LAVADO|NUEVO|BAJA|EXTRASUCIO")
-      fallas.push(`montada, los estados del envase son [${est.join(", ") || "ninguno"}] y deben ser retorno, lavado, nuevo, baja y extrasucio`);
     if (await pgm.locator(".fe-mas-dentro .fe-estado").count() > 0)
-      fallas.push("montada, «Estado del envase» sigue dentro de «Datos adicionales»: ya va en las tres preguntas");
+      fallas.push("montada, «Estado del envase» sigue dentro de «Datos adicionales»: ya va en su paso, después de «Qué»");
     ok2(await pgm.locator(".fe-estmod .fe-mezclado input").count() === 1, "falta la casilla «Módulo mezclado»");
-    /* Mezclado SIN foto: no deja anotar. */
+    ok2(await pgm.locator(".fe-estmod .fe-estados").count() === 0, "el estado del envase sigue dentro de «Estado del módulo»: va después de «Qué»");
+    /* EL FLUJO: con el módulo MEZCLADO y sin foto, «Qué» sigue apagado y no deja anotar. */
     await pgm.check(".fe-estmod .fe-mezclado input");
-    await pgm.click('.fe-estados button:has-text("RETORNO")');
+    await pgm.evaluate(() => { window.__llamadas = []; window.__upserts = [] });
+    ok2(await apagado(".fe-bloque:has(.fe-que-vence)") === true, "con «mezclado» y sin foto «Qué» debía estar apagado");
+    await pgm.click(".fe-anotar .btn.grande"); await pgm.waitForTimeout(250);
+    if (await pgm.evaluate(() => (window.__llamadas ?? []).some((c) => c.fn === "conteo_fefo_agregar")))
+      fallas.push("montada, con el módulo mezclado y SIN foto igual se anotó el renglón: la foto es obligatoria");
+    await pgm.setInputFiles('.fe-foto-mod input[type=file]', { name: "m.png", mimeType: "image/png", buffer: PNG });
+    await pgm.waitForSelector(".fe-foto-mod .fe-foto-btn.con", { timeout: 8000 });
+    ok2(await apagado(".fe-bloque:has(.fe-que-vence)") === false, "con la foto puesta «Qué» debía encenderse");
+    /* Sin código reconocido: «Estado del envase» y «Cuánto» apagados. */
+    ok2(await apagado(".fe-estenv") === true, "sin código el «Estado del envase» debía estar apagado");
+    ok2(await apagado(".fe-cuanto-bloque") === true, "sin código «Cuánto» debía estar apagado");
     /* EL CÓDIGO SE FILTRA MIENTRAS SE TECLEA: «31» ya ofrece el 3128, «aguila» también (por nombre), y escoger lo pone en el campo. */
-    await pgm.fill('input[placeholder="Teclea el código"]', "31");
+    await pgm.fill(cod, "31");
     await pgm.waitForSelector(".fe-sug li", { timeout: 3000 });
     ok2((await pgm.$$eval(".fe-sug li", (es) => es.map((e) => e.textContent))).some((t) => t.includes("3128")), "al teclear «31» la lista no ofrece el 3128");
-    await pgm.fill('input[placeholder="Teclea el código"]', "aguila");
+    await pgm.fill(cod, "aguila");
     ok2((await pgm.$$eval(".fe-sug li", (es) => es.length)) >= 1, "al teclear parte del nombre la lista no filtra por nombre");
-    await pgm.fill('input[placeholder="Teclea el código"]', "zzz");
+    await pgm.fill(cod, "zzz");
     ok2(await pgm.locator(".fe-sug li").count() === 0, "con un texto que no coincide con nada la lista sigue mostrando materiales");
-    await pgm.fill('input[placeholder="Teclea el código"]', "31");
+    await pgm.fill(cod, "31");
     if (process.env.FOTO_SUG) await pgm.locator(".fe-anotar").screenshot({ path: process.env.FOTO_SUG });
     await pgm.locator(".fe-sug li").first().dispatchEvent("mousedown");
-    ok2((await pgm.inputValue('input[placeholder="Teclea el código"]')) === "3128", "escoger de la lista no puso el código");
+    ok2((await pgm.inputValue(cod)) === "3128", "escoger de la lista no puso el código");
     ok2(await pgm.locator(".fe-sug").count() === 0, "la lista no se cerró al escoger");
-    await pgm.fill('input[placeholder="Teclea el código"]', "3128");
+    /* PRODUCTO: el estado del envase NO aplica y «Cuánto» se enciende solo. */
+    ok2(/No aplica/.test(await pgm.textContent(".fe-estenv")) && await pgm.locator(".fe-estenv .fe-estados button").count() === 0, "con un producto el estado del envase debía decir «No aplica»");
+    ok2(await apagado(".fe-cuanto-bloque") === false, "con un producto «Cuánto» debía estar encendido");
+    /* ENVASE que YA se contó como RETORNO en este módulo: RETORNO no sale; los otros cuatro sí. */
+    await pgm.fill(cod, "3500005");
+    const est = await pgm.$$eval(".fe-estenv .fe-estados button", (es) => es.map((e) => e.textContent.trim()));
+    if (est.join("|") !== "LAVADO|NUEVO|BAJA|EXTRASUCIO")
+      fallas.push(`montada, con el envase 3500005 ya contado como RETORNO en este módulo los estados salen [${est.join(", ") || "ninguno"}] y deben ser lavado, nuevo, baja y extrasucio (RETORNO oculto)`);
+    ok2(/Ya contado aquí/.test(await pgm.textContent(".fe-estenv")), "falta el aviso de qué estado ya se contó");
+    /* Sin estado escogido, «Cuánto» sigue apagado. */
+    ok2(await apagado(".fe-cuanto-bloque") === true, "envase sin estado: «Cuánto» debía seguir apagado");
+    /* OTRO envase en el MISMO módulo: RETORNO vuelve a salir (los cinco). */
+    await pgm.fill(cod, "3500006");
+    const est2 = await pgm.$$eval(".fe-estenv .fe-estados button", (es) => es.map((e) => e.textContent.trim()));
+    if (est2.join("|") !== "RETORNO|LAVADO|NUEVO|BAJA|EXTRASUCIO")
+      fallas.push(`montada, con OTRO envase en el mismo módulo los estados salen [${est2.join(", ") || "ninguno"}] y deben ser los cinco`);
+    /* Escoger el estado enciende «Cuánto». */
+    await pgm.click('.fe-estenv .fe-estados button:has-text("RETORNO")');
+    ok2(await apagado(".fe-cuanto-bloque") === false, "con el estado escogido «Cuánto» debía encenderse");
     await pgm.fill('input[placeholder="DD"]', "11"); await pgm.fill('input[placeholder="MM"]', "03"); await pgm.fill('input[placeholder="AA"]', "27");
     await pgm.locator(".fe-cuanto-campo input").first().fill("7");
     await pgm.evaluate(() => { window.__llamadas = []; window.__upserts = [] });
     if (process.env.FOTO_ADIC) { await pgm.setViewportSize({ width: 1100, height: 900 }); await pgm.evaluate(() => document.querySelector(".fe-mas").open = true); await pgm.waitForTimeout(100); await pgm.locator(".fe-mas").screenshot({ path: process.env.FOTO_ADIC }); await pgm.setViewportSize({ width: 390, height: 900 }) }
-    await pgm.click(".fe-anotar .btn.grande"); await pgm.waitForTimeout(300);
-    if (await pgm.evaluate(() => (window.__llamadas ?? []).some((c) => c.fn === "conteo_fefo_agregar")))
-      fallas.push("montada, con el módulo mezclado y SIN foto igual se anotó el renglón: la foto es obligatoria");
-    /* Con foto: anota, sube la foto y guarda la marca con el estado del envase. */
-    await pgm.setInputFiles('.fe-foto-mod input[type=file]', { name: "m.png", mimeType: "image/png", buffer: PNG });
-    await pgm.waitForSelector(".fe-foto-mod .fe-foto-btn.con", { timeout: 8000 });
     if (process.env.FOTO_QR) await pgm.locator(".fe-anotar").screenshot({ path: process.env.FOTO_QR });
+    /* Quitar el estado y anotar: no deja pasar. */
+    await pgm.click('.fe-estenv .fe-estados button:has-text("RETORNO")');
+    ok2(await apagado(".fe-cuanto-bloque") === true, "al quitar el estado «Cuánto» debía volver a apagarse");
+    await pgm.click('.fe-estenv .fe-estados button:has-text("RETORNO")'); await pgm.waitForTimeout(100);
     await pgm.click(".fe-anotar .btn.grande"); await pgm.waitForTimeout(400);
     const a1 = await pgm.evaluate(() => ({ lin: (window.__llamadas ?? []).find((c) => c.fn === "conteo_fefo_agregar")?.args ?? null, up: window.__upserts ?? [], sub: window.__subidas ?? [] }));
     if (!a1.lin) fallas.push("montada, con el módulo mezclado y su foto no se anotó el renglón");
@@ -1715,6 +1754,28 @@ createRoot(document.getElementById("r")!).render(<Contar bodegaId="b1"
     if (!m1 || m1.mezclado !== true || m1.sin_acceso !== false || !m1.ruta)
       fallas.push(`montada, la marca del módulo mezclado no quedó guardada con su foto: ${JSON.stringify(m1 ?? null)}`);
     if (!a1.sub.some((r) => /modulo-/.test(r))) fallas.push("montada, la foto del módulo mezclado no se subió");
+    /* AVERÍA: «¿Está rota o averiada?» Sí marca la avería SOLA y la foto es OBLIGATORIA; PNC aparte. */
+    await pgm.evaluate(() => { const c = document.querySelector(".fe-estmod .fe-mezclado input"); if (c && c.checked) c.click() });
+    await pgm.click(ladoIzq);
+    await pgm.fill(cod, "3128");
+    await pgm.fill('input[placeholder="DD"]', "11"); await pgm.fill('input[placeholder="MM"]', "03"); await pgm.fill('input[placeholder="AA"]', "27");
+    await pgm.locator(".fe-cuanto-campo input").first().fill("3");
+    await pgm.evaluate(() => { document.querySelector(".fe-mas").open = true });
+    ok2(await pgm.locator(".fe-mas-dentro .fe-rota").count() === 1 && /¿Está rota o averiada\?/.test(await pgm.textContent(".fe-mas-dentro .fe-rota")), "falta «¿Está rota o averiada?»");
+    ok2((await pgm.$$eval(".fe-mas-marcas em", (es) => es.length)) === 0, "con «No» no debía haber marcas puestas");
+    await pgm.click('.fe-mas-dentro .fe-rota button:has-text("Sí, avería")');
+    ok2((await pgm.textContent(".fe-mas-marcas")).includes("AVERÍA"), "«Sí» no marcó la avería solo");
+    ok2(/obligatoria/.test(await pgm.textContent(".fe-mas-dentro .fe-foto")), "con avería la foto debía decir «obligatoria»");
+    await pgm.evaluate(() => { window.__llamadas = []; window.__upserts = [] });
+    await pgm.click(".fe-anotar .btn.grande"); await pgm.waitForTimeout(300);
+    if (await pgm.evaluate(() => (window.__llamadas ?? []).some((c) => c.fn === "conteo_fefo_agregar")))
+      fallas.push("montada, con avería y SIN foto igual se anotó el renglón: la foto es obligatoria");
+    await pgm.setInputFiles('.fe-mas-dentro .fe-foto input[type=file]', { name: "a.png", mimeType: "image/png", buffer: PNG });
+    await pgm.waitForSelector(".fe-mas-dentro .fe-foto-btn.con", { timeout: 8000 });
+    await pgm.click(".fe-anotar .btn.grande"); await pgm.waitForTimeout(400);
+    const av = await pgm.evaluate(() => (window.__llamadas ?? []).find((c) => c.fn === "conteo_fefo_agregar")?.args ?? null);
+    ok2(!!av && av.p_averia === true, "con avería y foto debía anotar con p_averia verdadero: " + JSON.stringify(av && av.p_averia));
+    ok2(!!av && av.p_rotacion === false, "la rotación debía ir resuelta en «no» (ya no se pregunta): " + JSON.stringify(av && av.p_rotacion));
     /* SIN ACCESO: no hay renglón, solo el módulo y su foto. Otro lado: el izquierdo ya tiene su foto. */
     await pgm.click('[aria-labelledby=fe-rot-lado] button:has-text("Derecho")');
     await pgm.click('.fe-acceso .fe-si-no button:has-text("No")');

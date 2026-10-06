@@ -38,6 +38,8 @@ const escoger = async (n, texto) => {
 const renglon = async (lado) => {
   if (lado) await pg.click(`[aria-labelledby=fe-rot-lado] button:has-text("${lado}")`);
   await pg.fill('input[placeholder="Teclea el código"]', "900");
+  /* EL FLUJO: un envase pide estado antes de «Cuánto». */
+  await pg.locator(".fe-estenv:not(:has(button.on)) .fe-estados button").first().click({ timeout: 400 }).catch(() => {});
   await pg.locator(".fe-cuanto-campo input").first().fill("3");
   await pg.click(".btn.grande");
   await pg.waitForTimeout(250);
@@ -55,6 +57,8 @@ await pg.waitForTimeout(50);
 ok(await pg.evaluate(() => document.activeElement?.getAttribute("placeholder") === "Teclea el código"), "al escoger el lado el cursor no salta al código");
 /* Módulo de UN solo lado: no se pregunta, y el cursor va derecho al código. */
 await pg.fill('input[placeholder="Teclea el código"]', "900");
+/* EL FLUJO: un envase pide estado antes de «Cuánto». */
+await pg.locator(".fe-estenv:not(:has(button.on)) .fe-estados button").first().click({ timeout: 400 }).catch(() => {});
 await pg.locator(".fe-cuanto-campo input").first().fill("2");
 await pg.click(".btn.grande"); await pg.waitForTimeout(250);
 await escoger(0, "B"); await escoger(1, "02");
@@ -82,7 +86,7 @@ await pg.fill('input[placeholder="Teclea el código"]', "");
    «Otro SKU» deja el sitio y vacía lo demás. */
 await pg.evaluate(() => { window.__DATOS = { v_conteo_ultimo_por_ubicacion: [{ linea_id: "p1", codigo: "900", material: "Canasta 30",
   contado_en: new Date(Date.now() - 864e5).toISOString(), estibas: 7, cajas: null, venc_dia: 5, venc_mes: 11, venc_anio: 26, rotacion: null,
-  averia: false, pnc: false, estado_envase: null, nota: null, total_cajas: 280 }] }; window.__rpc = [] });
+  averia: false, pnc: false, estado_envase: "RETORNO", nota: null, total_cajas: 280 }] }; window.__rpc = [] });
 await escoger(0, "A"); await escoger(1, "01");
 await pg.click('[aria-labelledby=fe-rot-lado] button:has-text("Izquierdo")');
 await pg.waitForSelector(".fe-tarjeta", { timeout: 3000 }).catch(() => null);

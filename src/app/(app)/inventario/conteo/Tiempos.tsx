@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { duracion, estadoConteo, horaCo, hoyCo, porHora, ranking, sumarDias, type FilaTiempo } from "@/modulos/inventario/tiempos";
+import { analizarRecorrido, duracion, estadoConteo, fmtSeg, horaCo, hoyCo, porHora, ranking, SEG_MUY_SEGUIDO, sumarDias, textoUbicacion, type FilaTiempo, type InicioUbi, type Renglon } from "@/modulos/inventario/tiempos";
 
 /**
  * INVENTARIO · CONTEO · TIEMPOS
@@ -29,6 +29,9 @@ export function Tiempos() {
   const [filas, setFilas] = useState<FilaTiempo[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [falta, setFalta] = useState(false);
+  const [ubis, setUbis] = useState<Map<string, InicioUbi>>(new Map());
+  const [abierto, setAbierto] = useState<string | null>(null);
+  const [recorridos, setRecorridos] = useState<Record<string, Renglon[] | "cargando" | "falta">>({});
 
   const escoger = (r: Rango) => {
     setRango(r);
@@ -47,7 +50,19 @@ export function Tiempos() {
     }
     setFalta(false);
     setFilas((data ?? []) as FilaTiempo[]);
+    /* DÓNDE EMPEZÓ CADA UNO. Si falta 2026-10-conteo-ubicacion-recorrido.sql no hay columna de ubicación y listo. */
+    const u = await supabase.rpc("conteo_inicio_ubicacion", { p_desde: desde, p_hasta: hasta });
+    setUbis(u.error ? new Map() : new Map(((u.data ?? []) as InicioUbi[]).map((x) => [x.conteo_id, x])));
   }, [supabase, desde, hasta]);
+
+  const verRecorrido = async (id: string) => {
+    if (abierto === id) { setAbierto(null); return }
+    setAbierto(id);
+    if (Array.isArray(recorridos[id])) return;
+    setRecorridos((r) => ({ ...r, [id]: "cargando" }));
+    const { data, error: e } = await supabase.rpc("conteo_recorrido", { p_conteo: id });
+    setRecorridos((r) => ({ ...r, [id]: e ? "falta" : ((data ?? []) as Renglon[]) }));
+  };
   useEffect(() => { void cargar() }, [cargar]);
 
   const personas = useMemo(() => {
@@ -135,13 +150,15 @@ export function Tiempos() {
       ) : (
         <div className="tp-tabla" tabIndex={0} aria-label="Tiempos de cada conteo">
           <table>
-            <thead><tr><th className="tp-izq">Día</th><th className="tp-izq">Persona</th><th>Inició</th><th>Finalizó</th><th>Duración</th><th>Activo</th><th>Pausas</th><th>Renglones</th><th>Módulos</th><th>Renglones / hora</th></tr></thead>
+            <thead><tr><th className="tp-izq">Día</th><th className="tp-izq">Persona</th><th>Inició</th><th>Finalizó</th><th>Duración</th><th>Activo</th><th>Pausas</th><th>Renglones</th><th>Módulos</th><th>Renglones / hora</th><th className="tp-izq">Empezó en</th><th className="tp-izq">Recorrido</th></tr></thead>
             <tbody>
               {vistas.map((f) => {
                 const r = porHora(f.renglones, Number(f.activo_min));
                 const est = estadoConteo(f);
+                const ub = textoUbicacion(ubis.get(f.conteo_id));
                 return (
-                  <tr key={f.conteo_id}>
+                <Fragment key={f.conteo_id}>
+                  <tr>
                     <td className="tp-izq">{diaTxt(f.dia)}</td>
                     <th scope="row" className="tp-izq">{f.persona ?? "Sin nombre"}</th>
                     <td>{horaCo(f.primer_renglon)}</td>
@@ -152,7 +169,13 @@ export function Tiempos() {
                     <td>{nf.format(f.renglones)}</td>
                     <td>{nf.format(f.ubicaciones)}</td>
                     <td className="tp-rph">{r == null ? "—" : nf1.format(r)}</td>
+                    <td className="tp-izq">{ub.mapa ? <a className="tp-mapa" href={ub.mapa} target="_blank" rel="noopener noreferrer">{ub.texto}</a> : <span className={ub.texto.startsWith("Sin") ? "tp-sinubi" : undefined}>{ub.texto}</span>}</td>
+                    <td className="tp-izq"><button type="button" className="tp-ver" aria-expanded={abierto === f.conteo_id} onClick={() => void verRecorrido(f.conteo_id)}>{abierto === f.conteo_id ? "Ocultar" : "Ver"}</button></td>
                   </tr>
+                  {abierto === f.conteo_id && (
+                    <tr className="tp-detalle"><td colSpan={12}><Recorrido datos={recorridos[f.conteo_id]} /></td></tr>
+                  )}
+                </Fragment>
                 );
               })}
             </tbody>
@@ -160,5 +183,49 @@ export function Tiempos() {
         </div>
       )}
     </section>
+  );
+}
+
+/** El recorrido de UN conteo: cada renglón, a qué hora y cuánto pasó desde el anterior. */
+function Recorrido({ datos }: { datos: Renglon[] | "cargando" | "falta" | undefined }) {
+  if (datos === "cargando" || datos === undefined) return <p className="fe-vacio">Cargando el recorrido…</p>;
+  if (datos === "falta") return <p className="tp-error">Falta correr <code>supabase/migraciones/2026-10-conteo-ubicacion-recorrido.sql</code> en Supabase.</p>;
+  if (datos.length === 0) return <p className="fe-vacio">Este conteo no tiene renglones.</p>;
+  const a = analizarRecorrido(datos);
+  return (
+    <div className="tp-rec">
+      <p className="tp-rec-res">
+        <span><b>{a.renglones}</b> renglones</span>
+        <span>Mediana entre renglones <b>{fmtSeg(a.mediana)}</b></span>
+        <span>El más corto <b>{fmtSeg(a.masCorto)}</b></span>
+        <span>El más largo <b>{fmtSeg(a.masLargo)}</b></span>
+        <span className={a.seguidos > 0 ? "tp-alerta" : undefined}><b>{a.seguidos}</b> con menos de {SEG_MUY_SEGUIDO} s del anterior</span>
+        {a.corregidos > 0 && <span><b>{a.corregidos}</b> corregidos después</span>}
+      </p>
+      <div className="tp-tabla" tabIndex={0} aria-label="Recorrido renglón por renglón">
+        <table>
+          <thead><tr><th>#</th><th>Hora</th><th>Desde el anterior</th><th className="tp-izq">Módulo</th><th className="tp-izq">Código</th><th className="tp-izq">Material</th><th>Estibas</th><th>Cajas</th><th>Saldo</th><th className="tp-izq">Marca</th></tr></thead>
+          <tbody>
+            {datos.map((r) => {
+              const seguido = r.n > 1 && r.seg_desde_anterior < SEG_MUY_SEGUIDO;
+              return (
+                <tr key={r.n} className={seguido ? "tp-seguido" : undefined}>
+                  <td>{r.n}</td>
+                  <td>{horaCo(r.registrado_en)}</td>
+                  <td className="tp-seg-n">{fmtSeg(r.seg_desde_anterior)}{r.n === 1 && <small> desde que abrió</small>}</td>
+                  <td className="tp-izq">{r.ubicacion ?? "—"}</td>
+                  <td className="tp-izq">{r.codigo ?? "—"}</td>
+                  <td className="tp-izq tp-mat">{r.material ?? "—"}</td>
+                  <td>{r.estibas == null ? "—" : nf.format(r.estibas)}</td>
+                  <td>{r.cajas == null ? "—" : nf.format(r.cajas)}</td>
+                  <td>{r.saldo == null ? "—" : nf.format(r.saldo)}</td>
+                  <td className="tp-izq">{seguido && <span className="tp-sin">Muy seguido</span>}{r.corregido && <span className="tp-sin">Corregido</span>}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }

@@ -765,12 +765,31 @@ export function Contar({
     } else campoCalle.current?.focus();
   }
 
+  /* LA UBICACIÓN DE QUIEN EMPIEZA. Se pide al tocar «Empezar a contar» —sin otro botón— y se manda UNA vez
+     por conteo (2026-10-conteo-ubicacion-recorrido.sql). Si dice que no, o el celular no puede, también se
+     anota por qué: el Tablero muestra «Sin ubicación». No frena el conteo: en la bodega la señal falla. */
+  function posicionDeInicio(): Promise<{ estado: "ok" | "denegada" | "no_disponible" | "tiempo"; lat?: number; lng?: number; precision?: number }> {
+    return new Promise((res) => {
+      if (typeof navigator === "undefined" || !("geolocation" in navigator)) { res({ estado: "no_disponible" }); return }
+      navigator.geolocation.getCurrentPosition(
+        (p) => res({ estado: "ok", lat: p.coords.latitude, lng: p.coords.longitude, precision: p.coords.accuracy }),
+        (e) => res({ estado: e.code === e.PERMISSION_DENIED ? "denegada" : e.code === e.TIMEOUT ? "tiempo" : "no_disponible" }),
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+      );
+    });
+  }
+
   async function abrir() {
     setGuardando(true);
+    const pos = posicionDeInicio(); /* arranca ya, en paralelo: no hace esperar al abrir */
     const { data, error } = await supabase.rpc("conteo_fefo_abrir", { p_bodega: bodegaId });
     setGuardando(false);
     if (error) { avisar.mal(error.message); return }
-    setConteo({ id: data as string, codigo: "…", estado: "en_proceso", iniciado_en: null });
+    const id = data as string;
+    setConteo({ id, codigo: "…", estado: "en_proceso", iniciado_en: null });
+    void pos.then((u) => supabase.rpc("conteo_fefo_posicion", {
+      p_conteo: id, p_lat: u.lat ?? null, p_lng: u.lng ?? null, p_precision: u.precision ?? null, p_estado: u.estado,
+    }));
     router.refresh();
   }
 
@@ -796,6 +815,9 @@ export function Contar({
     if (mod.sinAcceso) return "Este módulo está marcado «sin acceso»: usa «Anotar módulo sin acceso».";
     if (mod.mezclado && !fotoMod && !marcaGuardada?.ruta) return "Módulo mezclado: falta la foto de evidencia.";
     if (!mat) return `El código «${bb.codigo}» no está en el maestro.`;
+    if (env && bb.estado.trim() === "") return "Falta el estado del envase.";
+    if (bb.averia && !fotoNueva && !(corrigiendo && fotosDe[corrigiendo])) return "Avería: falta la foto de evidencia.";
+    if (env && estadosUsados.has(bb.estado.trim().toUpperCase())) return `Ya contaste ${bb.codigo.trim()} como ${bb.estado.trim()} en ${claveEscogida}: escoge otro estado o corrige ese renglón.`;
     if (bb.modo === "cajas") {
       if (ent(bb.cajas) == null) return "¿Cuántas cajas?";
     } else if (ent(bb.estibas) == null && ent(bb.saldo) == null) {
@@ -1433,6 +1455,18 @@ export function Contar({
   const fichaTodo = totalesDelConteo(renglones, materiales);
   const fichaVista = totalesDelConteo(vistos, materiales);
 
+  /* LOS ESTADOS DEL ENVASE QUE YA SE CONTARON PARA ESTE CÓDIGO EN ESTE MÓDULO, dentro del mismo recorrido, no
+     vuelven a salir: con otro código sí. Al corregir un renglón, el suyo no cuenta como usado. */
+  const estadosUsados = useMemo(() => new Set(
+    renglones
+      .filter((r) => r.ubicacion === claveEscogida && r.codigo === b.codigo.trim() && r.estado_envase && r.id !== corrigiendo)
+      .map((r) => (r.estado_envase ?? "").toUpperCase())),
+  [renglones, claveEscogida, b.codigo, corrigiendo]);
+  /* Si el estado escogido ya se contó para este código aquí (o el material no es envase), se suelta. */
+  useEffect(() => {
+    if (b.estado && (estadosUsados.has(b.estado.toUpperCase()) || (material && !esEnvase))) setB((x) => ({ ...x, estado: "" }));
+  }, [estadosUsados, b.estado, material, esEnvase]);
+
   if (!conteo) {
     return (
       <>
@@ -1444,6 +1478,10 @@ export function Contar({
             vuelves, sigues en el mismo. Cada renglón se guarda al momento —una señal que se
             cae no borra lo que anotaste— y al final lo revisas y lo envías firmado.
           </p>
+          <p className="fe-aviso-ubi">
+            Al empezar se registra <b>dónde estás</b> (el celular te pide permiso). Queda anotado
+            junto con la hora de cada renglón.
+          </p>
           <button type="button" className="btn grande" disabled={guardando} onClick={abrir}>
             {guardando ? "Abriendo…" : "Empezar a contar"}
           </button>
@@ -1452,6 +1490,14 @@ export function Contar({
     );
   }
 
+  /* ---------- EL FLUJO: CADA PASO SE ENCIENDE CUANDO EL ANTERIOR ESTÁ COMPLETO ----------
+     Dónde (calle · módulo · lado) → ¿acceso? y ¿mezclado? (con su foto) → Qué (el código, ya reconocido) →
+     Estado del envase (solo si es ENVASE) → Cuánto. Un paso apagado se ve pero no se toca. */
+  const fotoModOk = !mod.mezclado || !!fotoMod || !!marcaGuardada?.ruta;
+  const pasoQue = !!claveEscogida && fotoModOk;
+  const pasoEstado = pasoQue && !!material;
+  const estadoOk = !esEnvase || b.estado.trim() !== "";
+  const pasoCuanto = pasoEstado && estadoOk;
   return (
     <>
       {dialogo}
@@ -1695,17 +1741,6 @@ export function Contar({
                 </div>
               </div>
             )}
-            {!mod.sinAcceso && (
-              <div className="fe-estados-envase">
-                <span id="fe-rot-estenv">Estado del envase <em>(si lo que hay es envase)</em></span>
-                <div className="fe-estados" role="group" aria-labelledby="fe-rot-estenv">
-                  {[...ESTADOS_ENVASE, ...(b.estado && !(ESTADOS_ENVASE as readonly string[]).includes(b.estado) ? [b.estado] : [])].map((e) => (
-                    <button key={e} type="button" className={b.estado === e ? "on" : ""} aria-pressed={b.estado === e}
-                            onClick={() => pon("estado", b.estado === e ? "" : e)}>{e}</button>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         )}
 
@@ -1801,8 +1836,9 @@ export function Contar({
         )}
 
         {/* ============ 2 · QUÉ — CÓDIGO · DESCRIPCIÓN · D/M/A ============ */}
-        <div className="fe-bloque">
+        <div className={"fe-bloque" + (pasoQue ? "" : " fe-apagado")} inert={!pasoQue} aria-disabled={!pasoQue}>
           <p className="fe-bloque-cab">Qué</p>
+          {!pasoQue && <p className="fe-paso-aviso">{!claveEscogida ? "Escoge el módulo y el lado para continuar." : "Falta la foto del módulo mezclado."}</p>}
 
           {/* MITAD Y MITAD, y del mismo tamaño. La descripción iba debajo
               en letra chica, como una nota al pie, y es LA CONFIRMACIÓN de
@@ -1876,7 +1912,7 @@ export function Contar({
                     escribe de corrido desde el código hasta el número. */}
                 <input ref={campoAnio} inputMode="numeric" maxLength={2} placeholder="AA"
                        aria-label="Año del vencimiento" value={b.anio}
-                       onChange={(e) => tecleaFecha("anio", e.target.value, campoCantidad)}
+                       onChange={(e) => tecleaFecha("anio", e.target.value, pasoCuanto ? campoCantidad : undefined)}
                        onKeyDown={(e) => atrasFecha(e, b.anio, campoMes)} />
               </div>
             </div>
@@ -1901,6 +1937,33 @@ export function Contar({
           )}
         </div>
 
+        {/* ============ ESTADO DEL ENVASE — después de «Qué» y antes de «Cuánto» ============
+            Va aquí porque depende del CÓDIGO: los estados que ya se contaron para este código en este módulo
+            no vuelven a salir (con otro código sí), y solo se pide si lo que se cuenta es ENVASE. Mientras
+            no se escoja, «Cuánto» sigue apagado. */}
+        <div className={"fe-bloque fe-estenv" + (pasoEstado ? "" : " fe-apagado")} inert={!pasoEstado} aria-disabled={!pasoEstado}>
+          <p className="fe-bloque-cab">Estado del envase</p>
+          {pasoEstado && esEnvase && <p className="fe-obliga">Obligatorio: escoge uno para pasar a «Cuánto».</p>}
+          {!pasoEstado ? (
+            <p className="fe-paso-aviso">{!claveEscogida ? "Escoge el módulo para continuar." : !fotoModOk ? "Falta la foto del módulo mezclado." : "Escribe el código para continuar."}</p>
+          ) : !esEnvase ? (
+            <p className="fe-paso-aviso">No aplica: lo que cuentas es producto, no envase.</p>
+          ) : (
+            <>
+              <div className="fe-estados" role="group" aria-label="Estado del envase">
+                {[...ESTADOS_ENVASE.filter((e) => !estadosUsados.has(e)), ...(b.estado && !(ESTADOS_ENVASE as readonly string[]).includes(b.estado) ? [b.estado] : [])].map((e) => (
+                  <button key={e} type="button" className={b.estado === e ? "on" : ""} aria-pressed={b.estado === e}
+                          onClick={() => { pon("estado", b.estado === e ? "" : e); if (b.estado !== e) setTimeout(() => campoCantidad.current?.focus(), 60) }}>{e}</button>
+                ))}
+              </div>
+              {estadosUsados.size > 0 && (
+                <p className="fe-paso-aviso">Ya contado aquí para este código: <b>{[...estadosUsados].join(", ")}</b>.
+                  {estadosUsados.size >= ESTADOS_ENVASE.length ? " Ya no queda otro estado: para cambiar algo, corrige ese renglón." : ""}</p>
+              )}
+            </>
+          )}
+        </div>
+
         {/* ============ 3 · CUÁNTO — ESTIBAS · SALDO · CAJAS ============
             DOS FORMAS DE CONTAR UN MÓDULO, no tres cifras sueltas: o se
             cuentan estibas —completas más lo que sobre suelto— o se
@@ -1911,8 +1974,9 @@ export function Contar({
             completas y ocho sueltas son 548 cajas de un mismo material
             en un mismo sitio: partirlo en dos renglones obliga a
             acordarse de que van juntos. */}
-        <div className="fe-bloque">
+        <div className={"fe-bloque fe-cuanto-bloque" + (pasoCuanto ? "" : " fe-apagado")} inert={!pasoCuanto} aria-disabled={!pasoCuanto}>
           <p className="fe-bloque-cab">Cuánto</p>
+          {!pasoCuanto && <p className="fe-paso-aviso">{!pasoEstado ? "Completa los pasos de arriba para continuar." : "Escoge el estado del envase para continuar."}</p>}
 
           {/* QUÉ CUENTAS · ESTIBAS · SALDO · TOTAL EN UNA FILA. En el
               celular: qué cuentas arriba, estibas y saldo lado a lado, y
@@ -1974,40 +2038,33 @@ export function Contar({
               <svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 12h4M12 12h8M4 17h12" /><circle cx="16" cy="7" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="17" r="2" /></svg>
             </span>
             <span className="fe-mas-tx"><b>Datos adicionales</b>
-              <span>Rota · avería · PNC · observación · foto</span></span>
+              <span>Avería · PNC · observación · foto</span></span>
             <span className="fe-mas-marcas">
-              {([b.rot && "ROTA", b.averia && "AVERÍA", b.pnc && "PNC", fotoNueva && "FOTO"].filter(Boolean) as string[]).map((m) => <em key={m}>{m}</em>)}
+              {([b.averia && "AVERÍA", b.pnc && "PNC", fotoNueva && "FOTO"].filter(Boolean) as string[]).map((m) => <em key={m}>{m}</em>)}
             </span>
             <span className="fe-mas-fl" aria-hidden>▾</span>
           </summary>
           <div className="fe-mas-dentro">
             <div className="fe-mas-dos">
-              {/* «¿ROTA?» ES ROTACIÓN —si la estiba se mueve o está quieta—,
-                  no si está rota. */}
+              {/* UNA SOLA PREGUNTA DE AVERÍA: «¿está rota o averiada?». Sí marca AVERÍA solo y la foto pasa a ser
+                  obligatoria; No la quita. La rotación (si la estiba se mueve) ya no se pregunta: se guarda «no». */}
               <div className="fe-rota">
-                <span id="fe-rot-rota">¿Rota?</span>
+                <span id="fe-rot-rota">¿Está rota o averiada?</span>
                 <div className="fe-si-no" role="group" aria-labelledby="fe-rot-rota">
-                  <button type="button" className={!b.rot ? "on" : ""} aria-pressed={!b.rot}
-                          onClick={() => pon("rot", false)}>No</button>
-                  <button type="button" className={b.rot ? "on" : ""} aria-pressed={!!b.rot}
-                          onClick={() => pon("rot", true)}>Sí, rota</button>
+                  <button type="button" className={!b.averia ? "on" : ""} aria-pressed={!b.averia}
+                          onClick={() => setB((x) => ({ ...x, averia: false }))}>No</button>
+                  <button type="button" className={b.averia ? "on" : ""} aria-pressed={b.averia}
+                          onClick={() => setB((x) => ({ ...x, averia: true, pnc: false }))}>Sí, avería</button>
                 </div>
               </div>
-            </div>
-            {/* LA MARCA, UNA SOLA: ninguna, avería o PNC. En la hoja nunca
-                van las dos juntas. */}
-            <div className="fe-marca-campo">
-              <span id="fe-rot-marca">Marca</span>
-              <div className="fe-marcas tres" role="group" aria-labelledby="fe-rot-marca">
-                <button type="button" className={"fe-marca" + (!b.averia && !b.pnc ? " on" : "")}
-                        aria-pressed={!b.averia && !b.pnc}
-                        onClick={() => setB((x) => ({ ...x, averia: false, pnc: false }))}>Ninguna</button>
-                <button type="button" className={"fe-marca" + (b.averia ? " on" : "")}
-                        aria-pressed={b.averia}
-                        onClick={() => setB((x) => ({ ...x, averia: true, pnc: false }))}>Avería</button>
-                <button type="button" className={"fe-marca" + (b.pnc ? " on" : "")}
-                        aria-pressed={b.pnc}
-                        onClick={() => setB((x) => ({ ...x, averia: false, pnc: true }))}>PNC</button>
+              {/* PNC, APARTE Y OPCIONAL: sin tocar es «no». Excluye a la avería (en la hoja nunca van juntas). */}
+              <div className="fe-marca-campo">
+                <span id="fe-rot-marca">PNC <em>(opcional)</em></span>
+                <div className="fe-marcas uno" role="group" aria-labelledby="fe-rot-marca">
+                  <button type="button" className={"fe-marca" + (b.pnc ? " on" : "")}
+                          aria-pressed={b.pnc}
+                          onClick={() => setB((x) => ({ ...x, averia: false, pnc: !x.pnc }))}>PNC</button>
+                </div>
               </div>
             </div>
             <label className="fe-nota"><span>Observación</span>
@@ -2016,7 +2073,7 @@ export function Contar({
             {/* LA CAMARITA: evidencia de un mixeo, de una avería, de lo que
                 sea. Opcional; una por renglón; no cambia ninguna cuenta. */}
             <div className="fe-foto">
-              <span id="fe-rot-foto">Evidencia</span>
+              <span id="fe-rot-foto">Evidencia{b.averia && <em className="fe-obliga"> · obligatoria</em>}</span>
               <input ref={camaraNueva} type="file" accept="image/jpeg,image/png,image/webp,image/heic" capture="environment" hidden onChange={tomarNueva} />
               <div className="fe-foto-fila" role="group" aria-labelledby="fe-rot-foto">
                 <button type="button" className={"fe-foto-btn" + (fotoNueva ? " con" : "")} disabled={sellando}
@@ -2034,7 +2091,8 @@ export function Contar({
                         onClick={() => setFotoNueva((x) => { if (x) URL.revokeObjectURL(x.url); return null })}>Quitarla</button></>
                     : corrigiendo && fotosDe[corrigiendo]
                       ? "Este renglón ya tiene foto. Tomar otra la reemplaza."
-                      : "Opcional: un mixeo, una avería, lo que haga falta para tener soporte."}
+                      : b.averia ? "Avería: foto de la estiba rota. Sin ella no se anota."
+                      : "Opcional: un mixeo, lo que haga falta para tener soporte."}
                 </p>
               </div>
             </div>

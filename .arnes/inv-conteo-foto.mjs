@@ -47,6 +47,8 @@ const escoger = async (pg, n, texto) => {
 const anota = async (pg, lado, cant) => {
   if (lado) await pg.click(`[aria-labelledby=fe-rot-lado] button:has-text("${lado}")`);
   await pg.fill('input[placeholder="Teclea el código"]', "900");
+  /* EL FLUJO: un envase pide estado antes de «Cuánto». */
+  await pg.locator(".fe-estenv:not(:has(button.on)) .fe-estados button").first().click({ timeout: 400 }).catch(() => {});
   await pg.locator(".fe-cuanto-campo input").first().fill(String(cant));
 };
 

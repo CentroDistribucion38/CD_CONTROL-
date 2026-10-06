@@ -31,7 +31,7 @@ insert into public.conteo_lineas (conteo_id, producto_id, ubicacion_id, cajas, c
   ('eeeeeeee-0000-0000-0000-000000000002','cccccccc-0000-0000-0000-000000000002','dddddddd-0000-0000-0000-000000000001', 10,'55555555-5555-5555-5555-555555555555','2026-09-30 13:20+00','2026-09-30 13:20+00');
 
 do $prueba$
-declare v_falla text := ''; r record; n int; v_nuevo uuid; v_otro uuid;
+declare v_falla text := ''; r record; n int; v_nuevo uuid; v_otro uuid; v_ok boolean; v_txt text;
   JEFE constant text := '11111111-1111-1111-1111-111111111111';
   ANA constant text := '44444444-4444-4444-4444-444444444444';
 begin
@@ -125,6 +125,54 @@ begin
   reset role;
   if r.vencido is distinct from true or r.enviado then v_falla := v_falla || ' T5i(Tiempos no marca vencido: ' || coalesce(r.vencido::text, 'null') || ')'; end if;
   if v_falla = '' then raise notice 'T5 · a las 8 horas sin uso se cierra solo (sin perder renglones), lo reciente se conserva y cada quien cierra lo suyo'; end if;
+
+  /* T6 · UBICACIÓN AL INICIAR (una sola vez, solo el dueño) Y RECORRIDO RENGLÓN POR RENGLÓN */
+  perform set_config('request.jwt.claim.sub', ANA, true);
+  set local role probador;
+  select public.conteo_fefo_posicion('eeeeeeee-0000-0000-0000-000000000001', 10.96, -74.80, 12, 'ok') into v_ok;
+  reset role;
+  if v_ok then v_falla := v_falla || ' T6(anotó la ubicación de un conteo ya enviado)'; end if;
+  perform set_config('request.jwt.claim.sub', '55555555-5555-5555-5555-555555555555', true);
+  set local role probador;
+  select public.conteo_fefo_posicion(v_nuevo, 10.96, -74.80, 12, 'ok') into v_ok;
+  reset role;
+  if not v_ok then v_falla := v_falla || ' T6b(no anotó la ubicación al iniciar)'; end if;
+  perform set_config('request.jwt.claim.sub', '55555555-5555-5555-5555-555555555555', true);
+  set local role probador;
+  select public.conteo_fefo_posicion(v_nuevo, 1, 1, 1, 'ok') into v_ok;
+  reset role;
+  if v_ok or (select inicio_lat from public.conteos where id = v_nuevo) <> 10.96 then v_falla := v_falla || ' T6c(se pudo sobrescribir la ubicación)'; end if;
+  perform set_config('request.jwt.claim.sub', ANA, true);
+  set local role probador;
+  begin perform public.conteo_fefo_posicion(v_nuevo, 2, 2, 2, 'ok'); exception when others then null; end;
+  reset role;
+  if (select inicio_lat from public.conteos where id = v_nuevo) <> 10.96 then v_falla := v_falla || ' T6d(otra persona cambió la ubicación)'; end if;
+  perform set_config('request.jwt.claim.sub', '55555555-5555-5555-5555-555555555555', true);
+  set local role probador;
+  begin perform public.conteo_fefo_posicion(v_nuevo, 999, 0, 1, 'ok'); v_falla := v_falla || ' T6e(aceptó una latitud imposible)'; exception when others then null; end;
+  reset role;
+  /* denegada queda anotada */
+  update public.conteos set inicio_pos_estado = null, inicio_lat = null, inicio_lng = null where id = v_nuevo;
+  perform set_config('request.jwt.claim.sub', '55555555-5555-5555-5555-555555555555', true);
+  set local role probador;
+  perform public.conteo_fefo_posicion(v_nuevo, null, null, null, 'denegada');
+  reset role;
+  if (select inicio_pos_estado from public.conteos where id = v_nuevo) <> 'denegada' or (select inicio_lat from public.conteos where id = v_nuevo) is not null then v_falla := v_falla || ' T6f(la negativa no quedó anotada)'; end if;
+  /* el recorrido de Ana: 4 renglones en orden, el primero medido desde que abrió (12:40Z → 13:00Z = 1200 s), luego 600, 900, 5400 */
+  perform set_config('request.jwt.claim.sub', JEFE, true);
+  set local role probador;
+  select string_agg(x.n || ':' || x.seg_desde_anterior || ':' || x.ubicacion || ':' || x.codigo || ':' || x.corregido, ' | ' order by x.n) into v_txt
+    from public.conteo_recorrido('eeeeeeee-0000-0000-0000-000000000001') x;
+  reset role;
+  if v_txt is distinct from '1:1200:A01_DER:P1:true | 2:600:A01_DER:P2:false | 3:900:A01_DER:P3:false | 4:5400:A01_DER:P4:false' then v_falla := v_falla || ' T6g(recorrido: ' || coalesce(v_txt, 'null') || ')'; end if;
+  select count(*) into n from (select 1 from public.conteo_inicio_ubicacion('2026-09-30', '2026-10-31')) z;
+  if n < 1 then v_falla := v_falla || ' T6h(conteo_inicio_ubicacion no devuelve)'; end if;
+  perform set_config('request.jwt.claim.sub', ANA, true);
+  delete from public.rol_permisos where rol = 'operador' and seccion in ('/inventario/tablero', '/inventario/conteo');
+  set local role probador;
+  begin perform * from public.conteo_recorrido('eeeeeeee-0000-0000-0000-000000000001'); v_falla := v_falla || ' T6i(vio el recorrido sin permiso)'; exception when others then null; end;
+  reset role;
+  if v_falla = '' then raise notice 'T6 · ubicación al iniciar (una vez, solo el dueño, la negativa también queda) y recorrido renglón por renglón con los segundos'; end if;
 
   if v_falla <> '' then raise exception 'FALLA:%', v_falla; end if;
 end $prueba$;

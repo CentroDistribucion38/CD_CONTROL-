@@ -48,6 +48,8 @@ const escoger = async (n, texto) => {
 const renglon = async (lado, cant) => {
   if (lado) await pg.click(`[aria-labelledby=fe-rot-lado] button:has-text("${lado}")`);
   await pg.fill('input[placeholder="Teclea el código"]', "900");
+  /* EL FLUJO: un envase pide estado antes de «Cuánto». */
+  await pg.locator(".fe-estenv:not(:has(button.on)) .fe-estados button").first().click({ timeout: 400 }).catch(() => {});
   await pg.locator(".fe-cuanto-campo input").first().fill(String(cant));
   await pg.click(".btn.grande"); await pg.waitForTimeout(300);
 };
@@ -85,6 +87,7 @@ if (process.env.FOTO) { await pg.evaluate(() => window.scrollTo(0, 0)); await pg
 /* 3 · CORREGIR UN RENGLÓN QUE YA ESTÁ EN LA BASE NECESITA SEÑAL: se avisa y no se encola. */
 await pg.click('.fe-pes-conteo button:has-text("borrador")');
 await pg.click(".fe-fila .fe-mini:has-text('Corregir')");
+await pg.locator(".fe-estenv:not(:has(button.on)) .fe-estados button").first().click({ timeout: 400 }).catch(() => {});
 await pg.fill(".fe-cuanto-campo input >> nth=0", "9");
 await pg.click(".btn.grande"); await pg.waitForTimeout(300);
 ok(/corregir un renglón que ya está en la base necesita conexión/i.test(await texto()), "corregir sin señal no explicó que necesita señal");
@@ -158,10 +161,13 @@ await pg.evaluate(() => { while (document.activeElement && document.activeElemen
 await escoger(0, "A"); await escoger(1, "01");
 await pg.click('[aria-labelledby=fe-rot-lado] button:has-text("Izquierdo")');
 await pg.fill('input[placeholder="Teclea el código"]', "900");
+/* EL FLUJO: un envase pide estado antes de «Cuánto». */
+await pg.locator(".fe-estenv:not(:has(button.on)) .fe-estados button").first().click({ timeout: 400 }).catch(() => {});
 await pg.locator(".fe-cuanto-campo input").first().fill("9");   /* cantidad distinta a la de la base */
 await pg.click(".btn.grande"); await pg.waitForTimeout(300);
 ok((await nCola()) >= 2, `no quedaron los dos pendientes del caso de duplicados (${await nCola()})`);
-await pg.evaluate(() => { window.__dup = true });
+/* la base (otro teléfono, o este mismo antes de caerse) ya tiene el renglón de 7 con el estado que se escogió */
+await pg.evaluate(() => { window.__DATOS.v_conteo_fefo[0].estado_envase = "RETORNO"; window.__dup = true });
 await ctx.setOffline(false);
 await pg.waitForTimeout(800);
 const quedan = await colaGuardada();
@@ -191,6 +197,7 @@ ok((await nCola()) === 1, "con la red caída (aunque el navegador diga que hay s
 ok(!(await pg.$(".fe-cola.sin")) && !!(await pg.$(".fe-cola")), "con señal y pendientes el aviso debía ser el de pendientes, no el de «sin señal»");
 await pg.click('.fe-pes-conteo button:has-text("borrador")');
 await pg.click(".fe-fila .fe-mini:has-text('Corregir')");
+await pg.locator(".fe-estenv:not(:has(button.on)) .fe-estados button").first().click({ timeout: 400 }).catch(() => {});
 await pg.fill(".fe-cuanto-campo input >> nth=0", "11");
 await pg.click(".btn.grande"); await pg.waitForTimeout(300);
 ok((await nCola()) === 1, "una corrección con la red caída entró a la cola");

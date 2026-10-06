@@ -77,3 +77,46 @@ export function estadoConteo(f: FilaTiempo, ahora: number = Date.now()): Estado 
   if (min > HORAS_VENCE * 60) return "cerrado";
   return min <= MINUTOS_ABANDONO ? "en_curso" : "sin_enviar";
 }
+
+/* ---------- EL RECORRIDO RENGLÓN POR RENGLÓN ---------- */
+export type Renglon = {
+  n: number; registrado_en: string; seg_desde_anterior: number;
+  ubicacion: string | null; codigo: string | null; material: string | null;
+  estibas: number | null; cajas: number | null; saldo: number | null; corregido: boolean;
+};
+export type InicioUbi = { conteo_id: string; lat: number | null; lng: number | null; precision_m: number | null; tomada_en: string | null; estado: string | null };
+
+/** Menos de 15 s de un renglón al siguiente es muy poco para caminar, mirar y teclear: se marca para revisar. */
+export const SEG_MUY_SEGUIDO = 15;
+
+/** «45 s», «3 min 20 s», «1 h 05 min». */
+export function fmtSeg(seg: number | null | undefined): string {
+  if (seg == null || !Number.isFinite(seg)) return "—";
+  const s = Math.max(0, Math.round(seg));
+  if (s < 60) return `${s} s`;
+  if (s < 3600) { const m = Math.floor(s / 60), r = s % 60; return r ? `${m} min ${String(r).padStart(2, "0")} s` : `${m} min`; }
+  return `${Math.floor(s / 3600)} h ${String(Math.floor((s % 3600) / 60)).padStart(2, "0")} min`;
+}
+
+/** Resumen de los saltos de un renglón al siguiente (sin contar el primero, que se mide desde que abrió). */
+export function analizarRecorrido(rs: Renglon[]) {
+  const saltos = rs.filter((r) => r.n > 1).map((r) => r.seg_desde_anterior).sort((a, b) => a - b);
+  const mediana = saltos.length === 0 ? null : saltos.length % 2 ? saltos[(saltos.length - 1) / 2] : (saltos[saltos.length / 2 - 1] + saltos[saltos.length / 2]) / 2;
+  return {
+    renglones: rs.length,
+    masCorto: saltos[0] ?? null,
+    masLargo: saltos.length ? saltos[saltos.length - 1] : null,
+    mediana,
+    seguidos: rs.filter((r) => r.n > 1 && r.seg_desde_anterior < SEG_MUY_SEGUIDO).length,
+    corregidos: rs.filter((r) => r.corregido).length,
+  };
+}
+
+/** Texto de la ubicación de inicio para la tabla. */
+export function textoUbicacion(u: InicioUbi | undefined): { texto: string; mapa: string | null } {
+  if (!u || !u.estado) return { texto: "—", mapa: null };
+  if (u.estado === "ok" && u.lat != null && u.lng != null)
+    return { texto: `Ver mapa${u.precision_m != null ? ` · ±${Math.round(u.precision_m)} m` : ""}`, mapa: `https://www.openstreetmap.org/?mlat=${u.lat}&mlon=${u.lng}#map=18/${u.lat}/${u.lng}` };
+  const why = u.estado === "denegada" ? "dijo que no" : u.estado === "tiempo" ? "tardó demasiado" : "no se pudo";
+  return { texto: `Sin ubicación · ${why}`, mapa: null };
+}

@@ -49,3 +49,17 @@
 .fe .tp-tabs a { display: inline-flex; align-items: center; min-height: 48px; padding: 0 22px; white-space: nowrap; font: 700 14px var(--fe-texto); color: var(--fe-gris-panel); text-decoration: none; border: 1px solid transparent; border-bottom: 0; border-radius: 0 }
 .fe .tp-tabs a.on { color: var(--fe-tinta); background: var(--fe-papel); border-color: var(--fe-linea); box-shadow: inset 0 3px 0 var(--fe-acento) }
 .fe .tp-tabs a:focus-visible { outline: 3px solid var(--fe-acento); outline-offset: -3px }
+.fe .tp-ver { min-height: 44px; min-width: 44px; padding: 0 14px; border: 1px solid var(--fe-linea); border-radius: 0; background: var(--fe-papel); color: var(--fe-tinta); font: 700 13px var(--fe-texto); cursor: pointer }
+.fe .tp-ver[aria-expanded="true"] { box-shadow: inset 0 -3px 0 var(--fe-acento) }
+.fe .tp-mapa { color: var(--fe-tinta); font-weight: 700; text-decoration: underline; text-underline-offset: 3px }
+.fe .tp-sinubi { font: 700 11px var(--fe-texto); letter-spacing: .04em; text-transform: uppercase; color: var(--fe-gris-panel) }
+.fe .tp-detalle > td { padding: 0; background: var(--fe-fondo); text-align: left; white-space: normal }
+.fe .tp-rec { padding: 12px }
+.fe .tp-rec-res { display: flex; flex-wrap: wrap; gap: 6px 22px; margin: 0 0 10px; font-size: 13px; color: var(--fe-gris-panel) }
+.fe .tp-rec-res b { color: var(--fe-tinta); font-variant-numeric: tabular-nums }
+.fe .tp-rec-res .tp-alerta { padding: 2px 8px; border: 1px dashed var(--fe-gris); color: var(--fe-tinta) }
+.fe .tp-rec .tp-tabla { max-height: 420px; overflow: auto }
+.fe .tp-seguido td { background: color-mix(in srgb, var(--fe-aviso) 14%, var(--fe-papel)) }
+.fe .tp-seg-n small { display: block; font: 500 10.5px var(--fe-texto); color: var(--fe-gris-panel) }
+.fe .tp-mat { white-space: normal; min-width: 180px }
+.fe .tp-rec td .tp-sin + .tp-sin { margin-left: 4px }

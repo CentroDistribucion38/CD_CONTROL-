@@ -25,10 +25,18 @@ const filas = [
 ];
 filas.find((x) => x.conteo_id === 'c1').ultimo_renglon = new Date().toISOString(); // movimiento ahora mismo
 filas.push({ ...f('g1', 'Gabo Ruiz', 'G', hoy, '05:00', null, false, 3, 1, 0, 0, 0), ultimo_renglon: new Date(Date.now() - 2 * 3600e3).toISOString() }); // hace 2 h: sin enviar, aún no se cierra
+const ubis = [
+  { conteo_id: "a1", lat: 10.9685, lng: -74.7813, precision_m: 9.4, tomada_en: t(hoy, "07:00"), estado: "ok" },
+  { conteo_id: "b1", lat: null, lng: null, precision_m: null, tomada_en: t(hoy, "06:00"), estado: "denegada" },
+];
+const rec = (n, seg, ubi, cod, mat, est, caj, cor = false) => ({ n, registrado_en: t(hoy, "07:00"), seg_desde_anterior: seg, ubicacion: ubi, codigo: cod, material: mat, estibas: est, cajas: caj, saldo: null, corregido: cor });
+const recorridos = { a1: [rec(1, 1200, "A01_DER", "3128", "AGUILA LATA", 2, 0), rec(2, 40, "A01_DER", "3129", "POKER", 1, 0), rec(3, 6, "A02_IZQ", "3130", "COSTENA", 3, 0, true), rec(4, 300, "A02_IZQ", "3131", "CLUB", 0, 12)] };
 writeFileSync(R(".arnes/_tp-pant.tsx"), `
 import { createRoot } from "react-dom/client";
 import { Tiempos } from "../src/app/(app)/inventario/conteo/Tiempos";
 (window as any).__filas = ${JSON.stringify(filas)};
+(window as any).__ubis = ${JSON.stringify(ubis)};
+(window as any).__recorridos = ${JSON.stringify(recorridos)};
 createRoot(document.getElementById("r")!).render(<Tiempos />);
 `);
 const js = buildSync({ entryPoints: [R(".arnes/_tp-pant.tsx")], bundle: true, write: false, format: "iife", jsx: "automatic",
@@ -81,9 +89,32 @@ ok(await pg.locator(".tp-fechas input").count() === 2, "faltan los campos de fec
 const ll = await pg.evaluate(() => window.__rpc.at(-1).a);
 ok(ll.p_desde === mas(hoy, -29) && ll.p_hasta === hoy, "rango enviado: " + JSON.stringify(ll));
 
+console.log("paso 2b · ubicación y recorrido");
+await pg.click(".tp-seg button:has-text('7 días')"); await pg.waitForTimeout(150);
+const celdaUbi = await pg.locator(".tp-tabla").nth(1).locator("tbody tr", { hasText: "Ana Ríos" }).first().locator("td").nth(9).textContent();
+ok(/Ver mapa · ±9 m/.test(celdaUbi), "ubicación de Ana: " + celdaUbi);
+ok((await pg.locator(".tp-mapa").first().getAttribute("href")).includes("mlat=10.9685&mlon=-74.7813"), "el enlace del mapa no lleva las coordenadas");
+const detBeto = await pg.locator(".tp-tabla").nth(1).locator("tbody tr", { hasText: "Beto Díaz" }).first().textContent();
+ok(/Sin ubicación · dijo que no/.test(detBeto), "Beto debía salir «Sin ubicación · dijo que no»: " + detBeto);
+await pg.locator(".tp-tabla").nth(1).locator("tbody tr", { hasText: "Ana Ríos" }).first().locator(".tp-ver").click(); await pg.waitForTimeout(150);
+const filasRec = await pg.locator(".tp-rec tbody tr").count();
+ok(filasRec === 4, "el recorrido debía tener 4 renglones: " + filasRec);
+const resumen = await pg.locator(".tp-rec-res").textContent();
+ok(/Mediana entre renglones 40 s/.test(resumen) && /El más corto 6 s/.test(resumen) && /1\s*con menos de 15 s/.test(resumen) && /1\s*corregidos/.test(resumen), "resumen del recorrido: " + resumen);
+ok((await pg.locator(".tp-rec tbody tr").nth(0).textContent()).includes("20 min") && (await pg.locator(".tp-rec tbody tr").nth(0).textContent()).includes("desde que abrió"), "el primero se mide desde que abrió");
+ok(/Muy seguido/.test(await pg.locator(".tp-rec tbody tr").nth(2).textContent()), "el de 6 s debía salir «Muy seguido»");
+ok(!/Muy seguido/.test(await pg.locator(".tp-rec tbody tr").nth(1).textContent()), "el de 40 s no debía salir «Muy seguido»");
+const anchoRec = await pg.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }));
+ok(anchoRec.sw <= anchoRec.cw, "con el recorrido abierto la página se desborda");
+await pg.screenshot({ path: R(".arnes/_tp-recorrido.png"), fullPage: true });
+await pg.locator(".tp-tabla").nth(1).locator("tbody tr", { hasText: "Ana Ríos" }).first().locator(".tp-ver").click();
+ok(await pg.locator(".tp-rec").count() === 0, "«Ocultar» debía cerrar el recorrido");
+
 console.log("paso 3 · sin SQL / vacío");
 await monta(1440, "sinsql=1", ".sin-tablas");
 ok(/2026-10-conteo-tiempos\.sql/.test(await pg.textContent(".sin-tablas")), "no avisa qué SQL correr");
+await monta(1440, "sinubi=1");
+ok(await pg.locator(".tp-tabla").nth(1).locator("tbody tr").first().locator("td").nth(9).textContent() === "—", "sin el SQL de ubicación debía salir «—»");
 await monta(1440, "vacio=1", ".fe-vacio");
 ok(/Todavía no hay conteos enviados/.test(await pg.textContent(".tp")), "falta el mensaje de vacío");
 

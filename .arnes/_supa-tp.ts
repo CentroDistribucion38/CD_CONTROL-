@@ -3,6 +3,8 @@ const q = new URLSearchParams(location.hash.slice(1));
 export const createClient = () => ({
   rpc: async (n: string, a: any) => {
     (W.__rpc ||= []).push({ n, a });
+    if (n === "conteo_inicio_ubicacion") return q.get("sinubi") ? { data: null, error: { message: "Could not find the function" } } : { data: W.__ubis ?? [], error: null };
+    if (n === "conteo_recorrido") return q.get("sinrec") ? { data: null, error: { message: "Could not find the function" } } : { data: (W.__recorridos ?? {})[a.p_conteo] ?? [], error: null };
     if (q.get("sinsql")) return { data: null, error: { message: "Could not find the function public.conteo_tiempos in the schema cache" } };
     if (q.get("vacio")) return { data: [], error: null };
     const filas = W.__filas as any[];
