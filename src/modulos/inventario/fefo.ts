@@ -244,6 +244,11 @@ export async function miConteoFefo(bodegaId: string | null) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user || !bodegaId) return { conteo: null, renglones: [] as Renglon[] };
 
+  /* UN RECORRIDO ABIERTO CON MÁS DE 8 HORAS SIN USO SE CIERRA SOLO (2026-10-conteo-vence-8h.sql): la
+     persona que abre mañana empieza uno nuevo y no hereda el de ayer. Si el SQL aún no se corrió, el error
+     se ignora y todo sigue como antes. */
+  await supabase.rpc("conteo_fefo_vencer");
+
   const { data: c } = await supabase
     .from("conteos")
     .select("id, codigo, estado, iniciado_en, enviado_en")

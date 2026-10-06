@@ -31,7 +31,7 @@ insert into public.conteo_lineas (conteo_id, producto_id, ubicacion_id, cajas, c
   ('eeeeeeee-0000-0000-0000-000000000002','cccccccc-0000-0000-0000-000000000002','dddddddd-0000-0000-0000-000000000001', 10,'55555555-5555-5555-5555-555555555555','2026-09-30 13:20+00','2026-09-30 13:20+00');
 
 do $prueba$
-declare v_falla text := ''; r record; n int;
+declare v_falla text := ''; r record; n int; v_nuevo uuid; v_otro uuid;
   JEFE constant text := '11111111-1111-1111-1111-111111111111';
   ANA constant text := '44444444-4444-4444-4444-444444444444';
 begin
@@ -67,11 +67,64 @@ begin
   select count(*) into n from public.conteo_tiempos('2026-10-01', '2026-10-31');
   reset role;
   if n <> 0 then v_falla := v_falla || ' T4(el filtro de días deja pasar ' || n || ')'; end if;
+  /* Ana (operador): se le quitan el tablero Y el conteo → no ve; con SOLO el tablero → ve (los tiempos viven en el tablero). */
+  delete from public.rol_permisos where rol = 'operador' and seccion in ('/inventario/tablero', '/inventario/conteo');
   perform set_config('request.jwt.claim.sub', ANA, true);
   set local role probador;
   begin perform * from public.conteo_tiempos('2026-09-01', '2026-09-30'); v_falla := v_falla || ' T4b(vio los tiempos sin permiso)'; exception when others then null; end;
   reset role;
+  insert into public.rol_permisos (rol, seccion, nivel) values ('operador', '/inventario/tablero', 'ver') on conflict (rol, seccion) do update set nivel = 'ver';
+  perform set_config('request.jwt.claim.sub', ANA, true);
+  set local role probador;
+  begin perform * from public.conteo_tiempos('2026-09-01', '2026-09-30'); exception when others then v_falla := v_falla || ' T4c(con permiso del tablero no los ve: ' || sqlerrm || ')'; end;
+  reset role;
   if v_falla = '' then raise notice 'T4 · el filtro de días corta y sin permiso no se ven los tiempos'; end if;
+
+  /* T5 · A LAS 8 HORAS SIN USO SE CIERRA SOLO. Luis dejó FEFO-LUIS abierto el 30-sep (hace días): al tocar «Contar» se anula, arranca uno NUEVO, y el viejo sale en Tiempos como vencido. Lo reciente NO se toca. */
+  perform set_config('request.jwt.claim.sub', '55555555-5555-5555-5555-555555555555', true);
+  set local role probador;
+  select public.conteo_fefo_abrir('bbbbbbbb-0000-0000-0000-000000000001') into v_nuevo;
+  reset role;
+  if v_nuevo = 'eeeeeeee-0000-0000-0000-000000000002' then v_falla := v_falla || ' T5(reabrió el de hace días en vez de uno nuevo)'; end if;
+  if (select estado::text from public.conteos where id = 'eeeeeeee-0000-0000-0000-000000000002') <> 'anulado' then v_falla := v_falla || ' T5b(el viejo no quedó anulado)'; end if;
+  if (select count(*) from public.conteo_lineas where conteo_id = 'eeeeeeee-0000-0000-0000-000000000002') <> 2 then v_falla := v_falla || ' T5c(se perdieron renglones del viejo)'; end if;
+  if (select estado::text from public.conteos where id = v_nuevo) <> 'en_proceso' then v_falla := v_falla || ' T5d(el nuevo no está abierto)'; end if;
+  /* tocar Contar otra vez NO abre otro: el reciente se conserva */
+  perform set_config('request.jwt.claim.sub', '55555555-5555-5555-5555-555555555555', true);
+  set local role probador;
+  select public.conteo_fefo_abrir('bbbbbbbb-0000-0000-0000-000000000001') into v_otro;
+  select public.conteo_fefo_vencer() into n;
+  reset role;
+  if v_otro is distinct from v_nuevo or n <> 0 then v_falla := v_falla || ' T5e(venció o duplicó uno reciente: ' || n || ')'; end if;
+  /* uno con renglón de hace 2 horas sigue abierto; con renglón de hace 9 horas se anula */
+  update public.conteos set iniciado_en = now() - interval '12 hours' where id = v_nuevo;
+  insert into public.conteo_lineas (conteo_id, producto_id, ubicacion_id, cajas, contado_por, contado_en, registrado_en) values
+    (v_nuevo,'cccccccc-0000-0000-0000-000000000001','dddddddd-0000-0000-0000-000000000001',5,'55555555-5555-5555-5555-555555555555', now() - interval '2 hours', now() - interval '2 hours');
+  perform set_config('request.jwt.claim.sub', '55555555-5555-5555-5555-555555555555', true);
+  set local role probador;
+  select public.conteo_fefo_vencer() into n;
+  reset role;
+  if n <> 0 then v_falla := v_falla || ' T5f(venció uno con un renglón de hace 2 horas)'; end if;
+  update public.conteo_lineas set contado_en = now() - interval '9 hours', registrado_en = now() - interval '9 hours' where conteo_id = v_nuevo;
+  perform set_config('request.jwt.claim.sub', '55555555-5555-5555-5555-555555555555', true);
+  set local role probador;
+  select public.conteo_fefo_vencer() into n;
+  reset role;
+  if n <> 1 then v_falla := v_falla || ' T5g(no venció el de 9 horas: ' || n || ')'; end if;
+  /* cada quien solo cierra lo suyo */
+  update public.conteos set estado = 'en_proceso', cerrado_en = null where id = v_nuevo;
+  perform set_config('request.jwt.claim.sub', ANA, true);
+  set local role probador;
+  select public.conteo_fefo_vencer() into n;
+  reset role;
+  if n <> 0 or (select estado::text from public.conteos where id = v_nuevo) <> 'en_proceso' then v_falla := v_falla || ' T5h(Ana cerró el conteo de Luis)'; end if;
+  /* Tiempos lo marca como vencido */
+  perform set_config('request.jwt.claim.sub', JEFE, true);
+  set local role probador;
+  select * into r from public.conteo_tiempos('2026-09-30', '2026-09-30') where codigo = 'FEFO-LUIS';
+  reset role;
+  if r.vencido is distinct from true or r.enviado then v_falla := v_falla || ' T5i(Tiempos no marca vencido: ' || coalesce(r.vencido::text, 'null') || ')'; end if;
+  if v_falla = '' then raise notice 'T5 · a las 8 horas sin uso se cierra solo (sin perder renglones), lo reciente se conserva y cada quien cierra lo suyo'; end if;
 
   if v_falla <> '' then raise exception 'FALLA:%', v_falla; end if;
 end $prueba$;

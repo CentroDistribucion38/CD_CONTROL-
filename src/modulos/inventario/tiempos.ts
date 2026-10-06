@@ -14,7 +14,7 @@
  */
 export type FilaTiempo = {
   conteo_id: string; codigo: string; responsable_id: string | null; persona: string | null; dia: string;
-  primer_renglon: string; fin: string | null; enviado: boolean; ultimo_renglon: string | null;
+  primer_renglon: string; fin: string | null; enviado: boolean; ultimo_renglon: string | null; vencido?: boolean;
   renglones: number; ubicaciones: number; total_cajas: number;
   bruto_min: number; activo_min: number; pausas_min: number;
 };
@@ -64,11 +64,16 @@ export function sumarDias(iso: string, d: number): string {
   return f.toISOString().slice(0, 10);
 }
 
-/** Un conteo abierto sigue «en curso» solo si se movió en los últimos 30 minutos; si no, quedó SIN ENVIAR. */
+/** Un conteo abierto sigue «en curso» solo si se movió en los últimos 30 minutos; si no, quedó SIN ENVIAR;
+    y con más de 8 horas sin uso (o anulado por la base) está CERRADO sin enviar: la persona arranca otro. */
 export const MINUTOS_ABANDONO = 30;
-export type Estado = "enviado" | "en_curso" | "sin_enviar";
+export const HORAS_VENCE = 8;
+export type Estado = "enviado" | "en_curso" | "sin_enviar" | "cerrado";
 export function estadoConteo(f: FilaTiempo, ahora: number = Date.now()): Estado {
   if (f.enviado) return "enviado";
-  const u = f.ultimo_renglon ? new Date(f.ultimo_renglon).getTime() : new Date(f.primer_renglon).getTime();
-  return ahora - u <= MINUTOS_ABANDONO * 60000 ? "en_curso" : "sin_enviar";
+  if (f.vencido) return "cerrado";
+  const u = new Date(f.ultimo_renglon ?? f.primer_renglon).getTime();
+  const min = (ahora - u) / 60000;
+  if (min > HORAS_VENCE * 60) return "cerrado";
+  return min <= MINUTOS_ABANDONO ? "en_curso" : "sin_enviar";
 }

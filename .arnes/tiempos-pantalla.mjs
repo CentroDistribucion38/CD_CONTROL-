@@ -24,6 +24,7 @@ const filas = [
   f("d1", "Dani Pérez", "D", mas(hoy, -20), "07:00", "08:00", true, 90, 15, 60, 60, 0) // fuera de 7 días: 90 /h
 ];
 filas.find((x) => x.conteo_id === 'c1').ultimo_renglon = new Date().toISOString(); // movimiento ahora mismo
+filas.push({ ...f('g1', 'Gabo Ruiz', 'G', hoy, '05:00', null, false, 3, 1, 0, 0, 0), ultimo_renglon: new Date(Date.now() - 2 * 3600e3).toISOString() }); // hace 2 h: sin enviar, aún no se cierra
 writeFileSync(R(".arnes/_tp-pant.tsx"), `
 import { createRoot } from "react-dom/client";
 import { Tiempos } from "../src/app/(app)/inventario/conteo/Tiempos";
@@ -59,11 +60,12 @@ ok(await kpi("Conteos enviados") === "3", "KPI enviados: " + await kpi("Conteos 
 ok(await kpi("Renglones", true) === "280", "KPI renglones");
 const detalle = (await pg.locator(".tp-tabla").nth(1).locator("tbody tr").allTextContents()).join("|");
 ok(/En curso/.test(detalle), "falta «En curso»");
-ok(/Sin enviar · 09:00/.test(detalle), "el abandonado debía salir «Sin enviar · 09:00»: " + detalle);
+ok(/Cerrado sin enviar · 09:00/.test(detalle), "el de más de 8 h debía salir «Cerrado sin enviar · 09:00»: " + detalle);
+ok(/Sin enviar · \d\d:\d\d/.test(detalle.replace(/Cerrado sin enviar/g, "")), "el de hace 2 h debía salir «Sin enviar · hh:mm»: " + detalle);
 ok((detalle.match(/En curso/g) || []).length === 1, "«En curso» solo para Carla");
 ok(/08:10/.test(detalle) && /09:05/.test(detalle) && /2 h 05 min/.test(detalle), "horas/duración de Ana hoy: " + detalle);
 ok(/1 h 00 min/.test(detalle) && /4 h 00 min/.test(detalle), "pausas de Beto: " + detalle);
-ok(await pg.locator(".tp-tabla").nth(1).locator("tbody tr").count() === 5, "conteo por conteo debía tener 5 filas");
+ok(await pg.locator(".tp-tabla").nth(1).locator("tbody tr").count() === 6, "conteo por conteo debía tener 6 filas");
 
 console.log("paso 2 · filtros");
 await pg.click(".tp-seg button:has-text('Hoy')"); await pg.waitForTimeout(150);

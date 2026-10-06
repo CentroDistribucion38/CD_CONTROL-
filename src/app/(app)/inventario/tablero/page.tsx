@@ -5,6 +5,8 @@ import { medirRiesgo } from "@/modulos/inventario/riesgo";
 import { Riesgo } from "../Riesgo";
 import "../fefo.css";
 import "../riesgo.css";
+import "../conteo/tiempos.css";
+import { Tiempos } from "../conteo/Tiempos";
 
 export const dynamic = "force-dynamic";
 
@@ -433,6 +435,17 @@ export default async function InventarioTableroPage({ searchParams }: { searchPa
           </section>
         </>
       )}
+
+      {/* LOS TIEMPOS DEL CONTEO: quién empezó y terminó cuándo, y el ranking. Van al final del tablero
+          porque cuentan lo mismo que «Conteos enviados», pero medido en horas. Aparecen aunque todavía
+          no haya conteos enviados: un conteo abierto también tiene hora de inicio. */}
+      <section className="fe-caja" id="tiempos">
+        <div className="fe-caja-cab">
+          <h2>Tiempos de conteo</h2>
+          <p>Cuándo empezó y cuándo envió cada persona, cuánto trabajó de verdad y quién va más rápido.</p>
+        </div>
+      </section>
+      <Tiempos />
     </div>
   );
 }

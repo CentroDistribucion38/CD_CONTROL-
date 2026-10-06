@@ -19,7 +19,7 @@
 -- saber cuándo se anotó por primera vez: se agrega `registrado_en`, que solo se escribe
 -- al insertar. Los renglones que ya existían heredan su `contado_en`.
 --
--- Solo lee quien puede ver «Conteo». No escribe nada. Se puede correr dos veces.
+-- Va en el TABLERO de Inventario. Solo lee quien puede ver el Tablero o el Conteo. No escribe nada. Se puede correr dos veces.
 -- =====================================================================
 begin;
 
@@ -31,7 +31,7 @@ drop function if exists public.conteo_tiempos(date, date);
 create function public.conteo_tiempos(p_desde date, p_hasta date)
 returns table (
   conteo_id uuid, codigo text, responsable_id uuid, persona text, dia date,
-  primer_renglon timestamptz, fin timestamptz, enviado boolean, ultimo_renglon timestamptz,
+  primer_renglon timestamptz, fin timestamptz, enviado boolean, ultimo_renglon timestamptz, vencido boolean,
   renglones int, ubicaciones int, total_cajas bigint,
   bruto_min numeric, activo_min numeric, pausas_min numeric
 )
@@ -41,7 +41,7 @@ security definer
 set search_path = public
 as $$
 begin
-  if not public.puede_ver('/inventario/conteo') then
+  if not (public.puede_ver('/inventario/tablero') or public.puede_ver('/inventario/conteo')) then
     raise exception 'Sin permiso para ver los tiempos del conteo';
   end if;
   return query
@@ -70,6 +70,7 @@ begin
          case when c.estado = 'cerrado' then c.enviado_en else null end,
          (c.estado = 'cerrado'),
          (select max(coalesce(cl.registrado_en, cl.contado_en)) from public.conteo_lineas cl where cl.conteo_id = c.id),
+         (c.estado = 'anulado'),
          v.renglones::int, v.ubicaciones::int, v.total_cajas::bigint,
          round((extract(epoch from (pc.ultimo - pc.primero)) / 60.0)::numeric, 1),
          round(pc.activo::numeric, 1),

@@ -129,7 +129,7 @@ export function Tiempos() {
         </div>
       )}
 
-      <h2 className="tp-h">Conteo por conteo <small>inicio = primer renglón · fin = envío · activo = sin pausas de más de 30 min</small></h2>
+      <h2 className="tp-h">Conteo por conteo <small>inicio = primer renglón · fin = envío · activo = sin pausas de más de 30 min · sin uso 8 h = se cierra solo</small></h2>
       {filas == null ? null : vistas.length === 0 ? (
         <p className="fe-vacio">No hay conteos en este periodo.</p>
       ) : (
@@ -145,7 +145,7 @@ export function Tiempos() {
                     <td className="tp-izq">{diaTxt(f.dia)}</td>
                     <th scope="row" className="tp-izq">{f.persona ?? "Sin nombre"}</th>
                     <td>{horaCo(f.primer_renglon)}</td>
-                    <td>{f.enviado ? horaCo(f.fin) : est === "en_curso" ? <span className="tp-curso">En curso</span> : <span className="tp-sin" title={`Último renglón a las ${horaCo(f.ultimo_renglon)}`}>Sin enviar · {horaCo(f.ultimo_renglon)}</span>}</td>
+                    <td>{f.enviado ? horaCo(f.fin) : est === "en_curso" ? <span className="tp-curso">En curso</span> : est === "cerrado" ? <span className="tp-sin" title="Más de 8 horas sin uso: se cerró solo, sin enviar">Cerrado sin enviar · {horaCo(f.ultimo_renglon)}</span> : <span className="tp-sin" title={`Último renglón a las ${horaCo(f.ultimo_renglon)}`}>Sin enviar · {horaCo(f.ultimo_renglon)}</span>}</td>
                     <td>{f.enviado ? duracion(Number(f.bruto_min)) : "—"}</td>
                     <td>{duracion(Number(f.activo_min))}</td>
                     <td>{Number(f.pausas_min) > 0 ? duracion(Number(f.pausas_min)) : "·"}</td>

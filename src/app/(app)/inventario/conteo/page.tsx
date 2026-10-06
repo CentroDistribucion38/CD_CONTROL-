@@ -5,9 +5,6 @@ import { diaColombia } from "@/modulos/inventario/corte";
 import { hojasParaContar, type MiHojaBD } from "@/modulos/inventario/fiscal";
 import "../fefo.css";
 import "./asignado.css";
-import "./tiempos.css";
-import Link from "next/link";
-import { Tiempos } from "./Tiempos";
 import { Contar } from "./Contar";
 import { ContarConFiscal } from "./ContarConFiscal";
 import { FiscalAsignado } from "./FiscalAsignado";
@@ -28,33 +25,7 @@ export const dynamic = "force-dynamic";
  * módulo sin ir al servidor — que es lo que se siente lento con señal de
  * bodega.
  */
-function Pestanas({ vista }: { vista: "contar" | "tiempos" }) {
-  return (
-    <nav className="tp-tabs" aria-label="Conteo">
-      <Link href="/inventario/conteo" aria-current={vista === "contar" ? "page" : undefined} className={vista === "contar" ? "on" : ""}>Contar</Link>
-      <Link href="/inventario/conteo?vista=tiempos" aria-current={vista === "tiempos" ? "page" : undefined} className={vista === "tiempos" ? "on" : ""}>Tiempos</Link>
-    </nav>
-  );
-}
-
-export default async function ConteoFefoPage({ searchParams }: { searchParams?: Promise<{ vista?: string }> }) {
-  const sp = (await searchParams) ?? {};
-  if (sp.vista === "tiempos") {
-    /* TIEMPOS no necesita el maestro: solo el permiso de ver Conteo, que la base vuelve a exigir. */
-    return (
-      <div className="fe">
-        <section className="cabeza">
-          <div>
-            <p className="ojo">INVENTARIO · CONTEO</p>
-            <h1>Tiempos</h1>
-            <p className="sub">Cuándo empezó y cuándo envió cada persona su conteo, cuánto trabajó de verdad y quién va más rápido.</p>
-          </div>
-        </section>
-        <Pestanas vista="tiempos" />
-        <Tiempos />
-      </div>
-    );
-  }
+export default async function ConteoFefoPage() {
   const [permisos, m] = await Promise.all([misPermisos(), maestroInventario()]);
   const puedeContar = permisos.puedeEditar("/inventario/conteo");
 
@@ -131,8 +102,6 @@ export default async function ConteoFefoPage({ searchParams }: { searchParams?: 
           </div>
         </div>
       </section>
-
-      <Pestanas vista="contar" />
 
       <FiscalAsignado filas={misHojas} hoy={hoy} />
 
