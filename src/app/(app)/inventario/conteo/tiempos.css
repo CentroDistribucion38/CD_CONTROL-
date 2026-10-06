@@ -1,0 +1,50 @@
+/* INVENTARIO · CONTEO · TIEMPOS. Todo rectangular. */
+.fe .tp { display: flex; flex-direction: column; gap: 14px }
+.fe .tp-panel { background: var(--fe-papel); border: 1px solid var(--fe-linea); border-radius: 0 }
+.fe .tp-fila { display: flex; align-items: center; gap: 14px; padding: 12px 16px; flex-wrap: wrap }
+.fe .tp-fila + .tp-fila { border-top: 1px solid var(--fe-linea) }
+.fe .tp-lb { font: 700 11px var(--fe-texto); letter-spacing: .06em; text-transform: uppercase; color: var(--fe-gris); min-width: 56px }
+.fe .tp-seg { display: inline-flex; border: 1px solid var(--fe-linea); border-radius: 0; overflow: hidden }
+.fe .tp-seg button { border: 0; border-right: 1px solid var(--fe-linea); background: transparent; color: var(--fe-tinta); min-height: 44px; padding: 0 16px; font: 600 13.5px var(--fe-texto); cursor: pointer; white-space: nowrap }
+.fe .tp-seg button:last-child { border-right: 0 }
+.fe .tp-seg button.on { box-shadow: inset 0 -3px 0 var(--fe-acento); font-weight: 800 }
+.fe .tp-fechas { display: flex; gap: 10px; flex-wrap: wrap }
+.fe .tp-fechas label { display: flex; flex-direction: column; gap: 3px; font: 600 10.5px var(--fe-texto); letter-spacing: .06em; text-transform: uppercase; color: var(--fe-gris) }
+.fe .tp-fechas input, .fe .tp-sel select { min-height: 44px; padding: 0 10px; border: 1px solid var(--fe-linea); border-radius: 0; background: var(--fe-papel); color: var(--fe-tinta); font: 600 14px var(--fe-texto) }
+.fe .tp-sel select { min-width: 200px }
+.fe .tp-res { margin: 0 0 0 auto; font-size: 13px; color: var(--fe-gris-panel) }
+.fe .tp-res b { color: var(--fe-tinta) }
+.fe .tp-kpis { display: grid; grid-template-columns: 1.3fr repeat(3, 1fr); gap: 10px }
+.fe .tp-kpi { background: var(--fe-papel); border: 1px solid var(--fe-linea); border-radius: 0; padding: 12px 16px }
+.fe .tp-kpi.grande { border-left: 4px solid var(--fe-acento) }
+.fe .tp-kpi span { font: 700 11px var(--fe-texto); letter-spacing: .06em; text-transform: uppercase; color: var(--fe-gris) }
+.fe .tp-kpi b { display: block; margin-top: 4px; font: 800 26px var(--fe-titulo); font-variant-numeric: tabular-nums }
+.fe .tp-h { margin: 6px 0 0; font: 800 16px var(--fe-titulo) }
+.fe .tp-h small { font: 500 12.5px var(--fe-texto); color: var(--fe-gris-panel); margin-left: 8px }
+.fe .tp-tabla { overflow-x: auto; background: var(--fe-papel); border: 1px solid var(--fe-linea); border-radius: 0 }
+.fe .tp-tabla table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums }
+.fe .tp-tabla th, .fe .tp-tabla td { padding: 10px 12px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--fe-linea); font-size: 13.5px }
+.fe .tp-tabla thead th { font: 700 11px var(--fe-texto); letter-spacing: .05em; text-transform: uppercase; color: var(--fe-gris); background: var(--fe-fondo) }
+.fe .tp-tabla .tp-izq { text-align: left }
+.fe .tp-tabla tbody th { font-weight: 700 }
+.fe .tp-pos { width: 44px; text-align: center !important; font-weight: 800 }
+.fe .tp-rph { font-weight: 800 }
+.fe .tp-primero td, .fe .tp-primero th { background: rgba(255, 196, 0, .16) }
+.fe .tp-primero .tp-pos { box-shadow: inset 4px 0 0 var(--fe-acento) }
+.fe .tp-curso { font: 800 11px var(--fe-texto); letter-spacing: .06em; text-transform: uppercase; padding: 3px 7px; background: var(--fe-fondo); border: 1px solid var(--fe-linea) }
+.fe .tp-error { margin: 0; padding: 10px 12px; background: #FDECEE; color: #8A1020; border: 1px solid #F3B9C0 }
+@media (max-width: 760px) {
+  .fe .tp-fila { gap: 10px; padding: 10px }
+  .fe .tp-lb { display: none }
+  .fe .tp-seg { overflow-x: auto; max-width: 100% }
+  .fe .tp-seg button { padding: 0 12px }
+  .fe .tp-res { margin-left: 0; flex-basis: 100% }
+  .fe .tp-kpis { grid-template-columns: 1fr 1fr }
+  .fe .tp-sel { flex: 1 } .fe .tp-sel select { width: 100%; min-width: 0 }
+  .fe .tp-h small { display: block; margin: 2px 0 0 }
+}
+
+.fe .tp-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--fe-linea) }
+.fe .tp-tabs a { display: inline-flex; align-items: center; min-height: 48px; padding: 0 22px; font: 700 14px var(--fe-texto); color: var(--fe-gris-panel); text-decoration: none; border: 1px solid transparent; border-bottom: 0; border-radius: 0 }
+.fe .tp-tabs a.on { color: var(--fe-tinta); background: var(--fe-papel); border-color: var(--fe-linea); box-shadow: inset 0 3px 0 var(--fe-acento) }
+.fe .tp-tabs a:focus-visible { outline: 3px solid var(--fe-acento); outline-offset: -3px }
