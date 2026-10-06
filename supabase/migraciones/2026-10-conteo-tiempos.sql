@@ -7,7 +7,9 @@
 --
 -- Por cada conteo FEFO:
 --   · primer renglón   la hora en que se anotó el PRIMER renglón (no la de abrir el recorrido)
---   · fin              la hora de envío (si todavía no se envía: «en curso»)
+--   · fin              la hora de envío (si todavía no se envía no hay fin)
+--   · ultimo_renglon   la hora del último renglón anotado: con ella la pantalla distingue «En curso»
+--                      (movimiento en los últimos 30 min) de «Sin enviar» (abierto y abandonado)
 --   · bruto            fin − primer renglón, tal cual
 --   · activo           lo anterior SIN las pausas largas: los huecos de más de 30 min
 --                      entre un renglón y el siguiente (o entre el último y el envío)
@@ -29,7 +31,7 @@ drop function if exists public.conteo_tiempos(date, date);
 create function public.conteo_tiempos(p_desde date, p_hasta date)
 returns table (
   conteo_id uuid, codigo text, responsable_id uuid, persona text, dia date,
-  primer_renglon timestamptz, fin timestamptz, enviado boolean,
+  primer_renglon timestamptz, fin timestamptz, enviado boolean, ultimo_renglon timestamptz,
   renglones int, ubicaciones int, total_cajas bigint,
   bruto_min numeric, activo_min numeric, pausas_min numeric
 )
@@ -67,6 +69,7 @@ begin
          pc.primero,
          case when c.estado = 'cerrado' then c.enviado_en else null end,
          (c.estado = 'cerrado'),
+         (select max(coalesce(cl.registrado_en, cl.contado_en)) from public.conteo_lineas cl where cl.conteo_id = c.id),
          v.renglones::int, v.ubicaciones::int, v.total_cajas::bigint,
          round((extract(epoch from (pc.ultimo - pc.primero)) / 60.0)::numeric, 1),
          round(pc.activo::numeric, 1),

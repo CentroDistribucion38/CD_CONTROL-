@@ -57,6 +57,7 @@ begin
   select * into r from public.conteo_tiempos('2026-09-30', '2026-09-30') where codigo = 'FEFO-LUIS';
   reset role;
   if r.fin is not null or r.enviado then v_falla := v_falla || ' T3(el conteo en curso trae fin)'; end if;
+  if r.ultimo_renglon is null then v_falla := v_falla || ' T3b(no trae la hora del último renglón)'; end if;
   if r.activo_min <> 20 then v_falla := v_falla || ' T3b(activo ' || r.activo_min || ')'; end if;
   if v_falla = '' then raise notice 'T3 · el conteo sin enviar sale «en curso», sin hora de fin'; end if;
 

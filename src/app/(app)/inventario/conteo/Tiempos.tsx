@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { duracion, horaCo, hoyCo, porHora, ranking, sumarDias, type FilaTiempo } from "@/modulos/inventario/tiempos";
+import { duracion, estadoConteo, horaCo, hoyCo, porHora, ranking, sumarDias, type FilaTiempo } from "@/modulos/inventario/tiempos";
 
 /**
  * INVENTARIO · CONTEO · TIEMPOS
@@ -139,12 +139,13 @@ export function Tiempos() {
             <tbody>
               {vistas.map((f) => {
                 const r = porHora(f.renglones, Number(f.activo_min));
+                const est = estadoConteo(f);
                 return (
                   <tr key={f.conteo_id}>
                     <td className="tp-izq">{diaTxt(f.dia)}</td>
                     <th scope="row" className="tp-izq">{f.persona ?? "Sin nombre"}</th>
                     <td>{horaCo(f.primer_renglon)}</td>
-                    <td>{f.enviado ? horaCo(f.fin) : <span className="tp-curso">En curso</span>}</td>
+                    <td>{f.enviado ? horaCo(f.fin) : est === "en_curso" ? <span className="tp-curso">En curso</span> : <span className="tp-sin" title={`Último renglón a las ${horaCo(f.ultimo_renglon)}`}>Sin enviar · {horaCo(f.ultimo_renglon)}</span>}</td>
                     <td>{f.enviado ? duracion(Number(f.bruto_min)) : "—"}</td>
                     <td>{duracion(Number(f.activo_min))}</td>
                     <td>{Number(f.pausas_min) > 0 ? duracion(Number(f.pausas_min)) : "·"}</td>

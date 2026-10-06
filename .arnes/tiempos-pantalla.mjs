@@ -14,14 +14,16 @@ const hoy = new Date().toLocaleDateString("sv", { timeZone: "America/Bogota" });
 const mas = (iso, d) => { const f = new Date(iso + "T12:00:00Z"); f.setUTCDate(f.getUTCDate() + d); return f.toISOString().slice(0, 10) };
 /* horas de Bogotá = UTC-5 */
 const t = (dia, hhmm) => `${dia}T${String(Number(hhmm.slice(0, 2)) + 5).padStart(2, "0")}:${hhmm.slice(3)}:00Z`;
-const f = (id, per, pid, dia, ini, fin, env, ren, ubi, bru, act, pau) => ({ conteo_id: id, codigo: id, responsable_id: pid, persona: per, dia, primer_renglon: t(dia, ini), fin: fin ? t(dia, fin) : null, enviado: env, renglones: ren, ubicaciones: ubi, total_cajas: ren * 10, bruto_min: bru, activo_min: act, pausas_min: pau });
+const f = (id, per, pid, dia, ini, fin, env, ren, ubi, bru, act, pau) => ({ conteo_id: id, codigo: id, responsable_id: pid, persona: per, dia, primer_renglon: t(dia, ini), fin: fin ? t(dia, fin) : null, enviado: env, ultimo_renglon: fin ? t(dia, fin) : t(dia, ini), renglones: ren, ubicaciones: ubi, total_cajas: ren * 10, bruto_min: bru, activo_min: act, pausas_min: pau });
 const filas = [
   f("a1", "Ana Ríos", "A", hoy, "07:00", "09:05", true, 100, 20, 125, 125, 0),     // 48 /h
   f("a2", "Ana Ríos", "A", mas(hoy, -1), "07:30", "08:30", true, 60, 12, 60, 60, 0),  // 60 /h → ana 160/185 = 51,9
   f("b1", "Beto Díaz", "B", hoy, "06:00", "10:00", true, 120, 30, 240, 180, 60),   // 40 /h
   f("c1", "Carla Gómez", "C", hoy, "08:10", null, false, 25, 5, 0, 30, 0),          // en curso
+  f("e1", "Esteban Mora", "E", mas(hoy, -1), "09:00", null, false, 1, 1, 0, 0, 0),    // abierto y abandonado
   f("d1", "Dani Pérez", "D", mas(hoy, -20), "07:00", "08:00", true, 90, 15, 60, 60, 0) // fuera de 7 días: 90 /h
 ];
+filas.find((x) => x.conteo_id === 'c1').ultimo_renglon = new Date().toISOString(); // movimiento ahora mismo
 writeFileSync(R(".arnes/_tp-pant.tsx"), `
 import { createRoot } from "react-dom/client";
 import { Tiempos } from "../src/app/(app)/inventario/conteo/Tiempos";
@@ -57,9 +59,11 @@ ok(await kpi("Conteos enviados") === "3", "KPI enviados: " + await kpi("Conteos 
 ok(await kpi("Renglones", true) === "280", "KPI renglones");
 const detalle = (await pg.locator(".tp-tabla").nth(1).locator("tbody tr").allTextContents()).join("|");
 ok(/En curso/.test(detalle), "falta «En curso»");
+ok(/Sin enviar · 09:00/.test(detalle), "el abandonado debía salir «Sin enviar · 09:00»: " + detalle);
+ok((detalle.match(/En curso/g) || []).length === 1, "«En curso» solo para Carla");
 ok(/08:10/.test(detalle) && /09:05/.test(detalle) && /2 h 05 min/.test(detalle), "horas/duración de Ana hoy: " + detalle);
 ok(/1 h 00 min/.test(detalle) && /4 h 00 min/.test(detalle), "pausas de Beto: " + detalle);
-ok(await pg.locator(".tp-tabla").nth(1).locator("tbody tr").count() === 4, "conteo por conteo debía tener 4 filas");
+ok(await pg.locator(".tp-tabla").nth(1).locator("tbody tr").count() === 5, "conteo por conteo debía tener 5 filas");
 
 console.log("paso 2 · filtros");
 await pg.click(".tp-seg button:has-text('Hoy')"); await pg.waitForTimeout(150);
