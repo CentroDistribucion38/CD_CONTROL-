@@ -359,9 +359,18 @@ export function Contar({
   /* LA CASILLA DE CANTIDAD EN LA QUE ESTÁ EL CURSOR: a ella van los signos de la calculadora. */
   const campoActivo = useRef<"estibas" | "saldo" | "cajas">("estibas");
   /* LA CALCULADORA SE VE: al tocar una cantidad sube un panel fijo al pie con el teclado completo (el del celular se
-     suprime con `inputMode="none"`). `calcBajo` es lo que hay que subirlo si el navegador deja una barra o un teclado debajo. */
+     suprime con `inputMode={escritorio ? "numeric" : "none"}`). `calcBajo` es lo que hay que subirlo si el navegador deja una barra o un teclado debajo. */
   const [calcAbierta, setCalcAbierta] = useState(false);
   const [calcBajo, setCalcBajo] = useState(0);
+  /* EN EL COMPUTADOR NO HAY PANEL FLOTANTE: hay teclado de verdad, así que los números se escriben y la calculadora
+     es solo la fila de signos bajo las casillas, siempre a la vista. */
+  const [escritorio, setEscritorio] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 900px) and (hover: hover) and (pointer: fine)");
+    const act = () => setEscritorio(mq.matches);
+    act(); mq.addEventListener("change", act);
+    return () => mq.removeEventListener("change", act);
+  }, []);
   const [calcActiva, setCalcActiva] = useState<"estibas" | "saldo" | "cajas">("estibas");
   /* Sube de uno cada vez que hay que mandar el cursor a la cantidad.
      Es un contador y no un `true/false` porque hay que poder pedirlo
@@ -676,6 +685,13 @@ export function Contar({
   const material = useMemo(() => materialDe(b),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [materiales, b.codigo]);
+  /* EL MODO SE ESCOGE SOLO: con factor de estiba se cuenta en estibas + saldo; sin factor —las estibas darían cero— se
+     cuenta en cajas. Una tarjeta que venía en cajas conserva su modo mientras tenga cajas escritas. */
+  const sinFactor = !!material && material.cajas_por_estiba == null;
+  useEffect(() => {
+    if (sinFactor && b.modo === "estibas") setB((x) => ({ ...x, modo: "cajas" }));
+    else if (!sinFactor && b.modo === "cajas" && b.cajas.trim() === "") setB((x) => ({ ...x, modo: "estibas" }));
+  }, [sinFactor, b.modo, b.cajas]);
   /* EL CILINDRO (CO2) TAMBIÉN PIDE ESTADO, pero no es RETORNO/LAVADO…: es LLENO o VACÍO. Sin fecha de vencimiento. */
   const esCilindro = /cilindro/i.test(material?.tipo_envase ?? "");
   const esEnvase = material?.tipo_material === "ENVASE" || esCilindro;
@@ -2131,31 +2147,24 @@ export function Contar({
               celular: qué cuentas arriba, estibas y saldo lado a lado, y
               el total abajo, grande, en la franja oscura. */}
           <div className={"fe-cuanto4" + (b.modo === "cajas" ? " cajas" : "")}>
-            <div className="fe-cuanto-modo">
-              <span className="fe-cuanto-rot" id="fe-rot-modo">Qué cuentas</span>
-              <div className="fe-segmento" role="group" aria-labelledby="fe-rot-modo">
-                <button type="button" className={b.modo === "estibas" ? "on" : ""}
-                        onClick={() => pon("modo", "estibas")}>Estibas</button>
-                <button type="button" className={b.modo === "cajas" ? "on" : ""}
-                        onClick={() => pon("modo", "cajas")}>Cajas</button>
-              </div>
-            </div>
+            {/* SIN SELECTOR «QUÉ CUENTAS»: se cuenta por estibas y saldo. Solo si el material no dice cuántas cajas lleva una
+                estiba (o la tarjeta que se edita venía en cajas) el modo pasa solo a «Cajas» — ver el efecto de arriba. */}
             {b.modo === "estibas" ? (
               <>
                 <label className="fe-cuanto-campo"><span>Estibas completas</span>
-                  <input ref={campoCantidad} inputMode="none" value={b.estibas}
+                  <input ref={campoCantidad} inputMode={escritorio ? "numeric" : "none"} value={b.estibas}
                          onFocus={(e) => abrirCalc("estibas", e.currentTarget)} onBlur={() => soltarCalc("estibas")}
                          onChange={(e) => pon("estibas", e.target.value)}
                          onKeyDown={(e) => saltaCon(e, campoSaldo)} /></label>
                 <label className="fe-cuanto-campo"><span>Saldo · cajas</span>
-                  <input ref={campoSaldo} inputMode="none" value={b.saldo}
+                  <input ref={campoSaldo} inputMode={escritorio ? "numeric" : "none"} value={b.saldo}
                          onFocus={(e) => abrirCalc("saldo", e.currentTarget)} onBlur={() => soltarCalc("saldo")}
                          onChange={(e) => pon("saldo", e.target.value)}
                          onKeyDown={(e) => saltaCon(e)} /></label>
               </>
             ) : (
               <label className="fe-cuanto-campo ancho"><span>Cajas</span>
-                <input ref={campoCantidad} inputMode="none" value={b.cajas}
+                <input ref={campoCantidad} inputMode={escritorio ? "numeric" : "none"} value={b.cajas}
                        onFocus={(e) => abrirCalc("cajas", e.currentTarget)} onBlur={() => soltarCalc("cajas")}
                        onChange={(e) => pon("cajas", e.target.value)}
                        onKeyDown={(e) => saltaCon(e)} /></label>
@@ -2171,9 +2180,9 @@ export function Contar({
               no trae signos y se suprime). Los botones escriben donde está el cursor de la casilla activa; «=» deja el
               resultado en la casilla (también pasa solo al salir de ella) y «Listo» cierra el panel. Con el teclado de un
               computador también se puede escribir. */}
-          {calcAbierta && (
-            <div className="fe-calc fe-calc-fija" role="group" aria-label="Calculadora para las cantidades"
-                 style={{ bottom: calcBajo }}>
+          {(calcAbierta || escritorio) && (
+            <div className={"fe-calc fe-calc-fija" + (escritorio ? " en-linea" : "")} role="group" aria-label="Calculadora para las cantidades"
+                 style={escritorio ? undefined : { bottom: calcBajo }}>
               <div className="fe-calc-cab">
                 <span>{calcActiva === "estibas" ? "Estibas completas" : calcActiva === "saldo" ? "Saldo · cajas" : "Cajas"}</span>
                 <p className="fe-calc-vista" aria-live="polite">

@@ -1815,6 +1815,16 @@ createRoot(document.getElementById("r")!).render(<Contar bodegaId="b1"
     ok2(llp.some((c) => c.fn === "conteo_fefo_agregar" && c.args.p_pnc === true), "con las dos respuestas el renglón PNC no se anotó");
     const pol = llp.find((c) => c.fn === "conteo_fefo_pnc_politica")?.args;
     ok2(!!pol && pol.p_rotulo === true && pol.p_bloqueo === false, "las respuestas del PNC no viajaron a la base: " + JSON.stringify(pol));
+    ok2(await pgm.locator(".fe-cuanto-modo").count() === 0, "el selector «Qué cuentas» (Estibas/Cajas) ya no debía estar");
+    /* COMPUTADOR: sin panel flotante, solo la fila de signos bajo las casillas */
+    await pgm.setViewportSize({ width: 1280, height: 900 }); await pgm.waitForTimeout(250);
+    if (process.env.FOTO_PC) await pgm.screenshot({ path: process.env.FOTO_PC });
+    const lin = pgm.locator(".fe-calc-fija.en-linea");
+    ok2(await lin.count() === 1 && await lin.isVisible(), "en el computador la calculadora debía verse como fila en línea");
+    ok2((await lin.evaluate((e) => getComputedStyle(e).position)) === "static", "en el computador la calculadora no debía flotar");
+    ok2(await lin.locator("button.num").first().isHidden(), "en el computador no deben estar los dígitos (se teclean)");
+    ok2((await pgm.getAttribute(".fe-cuanto-campo input >> nth=0", "inputmode")) === "numeric", "en el computador la cantidad debía conservar inputmode numeric");
+    await pgm.setViewportSize({ width: 390, height: 900 }); await pgm.waitForTimeout(250);
     /* CILINDRO: en vez de los cinco estados del envase se pregunta LLENO o VACÍO; y las cantidades aceptan una cuenta. */
     await pgm.click(ladoIzq);
     await pgm.fill(cod, "3500024");
