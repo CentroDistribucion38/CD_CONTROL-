@@ -36,7 +36,7 @@ export function dataUrlABytes(url: string): { bytes: Uint8Array; ext: "png" | "j
 }
 
 export function armarWord(bloques: Bloque[], x: ExtraWord): Uint8Array {
-  const TINTA = hex(x.tinta ?? "#12263A"), ACENTO = hex(x.acento ?? "#FF7A1A");
+  const TINTA = hex(x.tinta ?? "#12263A"), ACENTO = hex(x.acento ?? "#E4002B");
   const media: Record<string, Uint8Array> = {};
   const rels: string[] = [];
   let nImg = 0;

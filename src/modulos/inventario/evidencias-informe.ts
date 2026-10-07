@@ -152,7 +152,7 @@ export function construirInforme(a: Analisis, novs: Novedad[], o: OpcionesInform
     filas: pnc.map((n) => [
       diaCorto(n.dia), { x: mod(n), bold: true }, `${n.codigo ?? ""} ${n.material ?? ""}`.trim() || "—", n.cajas != null ? nf.format(n.cajas) : "—",
       si(n.pnc_rotulo), si(n.pnc_bloqueo_mecanico),
-      n.cumple == null ? { x: "Sin responder", color: "#5B6B7F" } : n.cumple ? { x: "Cumple", fill: "#CDEBD8", bold: true } : { x: "No cumple", fill: "#FFC21A", bold: true },
+      n.cumple == null ? { x: "Sin responder", color: "#5B6B7F" } : n.cumple ? { x: "Cumple", fill: "#CFE0F5", bold: true } : { x: "No cumple", fill: "#F9C6CF", bold: true },
       n.persona ?? "—",
     ]),
     nota: pnc.length ? undefined : "No hubo PNC en el periodo (o no se escogió ese tipo).",

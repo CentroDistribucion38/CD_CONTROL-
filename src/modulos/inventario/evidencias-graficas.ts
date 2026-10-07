@@ -86,8 +86,8 @@ export function graficaCobertura(a: Analisis): Imagen {
   const x = (i: number) => L + (n === 1 ? ancho / 2 : (ancho * i) / (n - 1));
   const y = (v: number) => T + alto - (v / top) * alto;
   const series = [
-    { nombre: "Ubicaciones contadas", color: "#55606B", v: a.porDia.map((d) => d.contadas), dash: [6, 4] as number[] },
-    { nombre: "Ubicaciones con novedad", color: "#FF7A1A", v: a.porDia.map((d) => d.conNovedad), dash: [] as number[] },
+    { nombre: "Ubicaciones contadas", color: "#0B4EA2", v: a.porDia.map((d) => d.contadas), dash: [6, 4] as number[] },
+    { nombre: "Ubicaciones con novedad", color: "#E4002B", v: a.porDia.map((d) => d.conNovedad), dash: [] as number[] },
   ];
   let lx = L; fuente(g, 600, 12);
   for (const s of series) { g.strokeStyle = s.color; g.lineWidth = 3; g.setLineDash(s.dash); g.beginPath(); g.moveTo(lx, 20); g.lineTo(lx + 22, 20); g.stroke(); g.setLineDash([]); g.fillStyle = TINTA; g.textAlign = "left"; g.fillText(s.nombre, lx + 28, 20); lx += 28 + g.measureText(s.nombre).width + 26 }
