@@ -3,6 +3,7 @@
    y NO AVISA: la lista llega corta y se ve perfectamente normal. La pantalla «La base» y el Excel pedían
    así y se quedaban en 1.000. Se pide por páginas (`.range`) hasta que se acaben, y por tandas de
    recorridos para que la URL del `in(...)` no se haga enorme. */
+/* Si Supabase cambia su máximo de filas, solo hay que tocar este número. */
 export const PAGINA = 1000;
 
 type Pagina<T> = PromiseLike<{ data: T[] | null; error: { message: string } | null }>;
