@@ -244,6 +244,9 @@ const ESTADO: Col<Fila> = {
   pinta: (r) => <span className={r.pasado ? "ba-pas" : "ba-pen"}>{r.pasado ? "PASADO" : "POR PASAR"}</span>,
 };
 
+/** «20261007-1136»: fecha y hora de Colombia en el nombre de cada Excel, para que ninguna descarga pise a otra. */
+const selloDescarga = () => new Date().toLocaleString("sv", { timeZone: "America/Bogota" }).replace(/[-:]/g, "").replace(" ", "-").slice(0, 13);
+
 export function Base({
   enviadas, abiertas, conteos, tope, manda = false, bodega = null, uxc = {},
   pasados = [], pasadosOk = true, puedeMarcar = false,
@@ -463,7 +466,7 @@ export function Base({
       const blob = await r.blob();
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = `inventario-consolidado-${desde === hasta ? desde : `${desde}_${hasta}`}.xlsx`;
+      a.download = `inventario-consolidado-${desde === hasta ? desde : `${desde}_${hasta}`}-${selloDescarga()}.xlsx`;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
     } catch { setMal("Se cortó la conexión con el servidor.") }
@@ -495,7 +498,7 @@ export function Base({
       /* EL NOMBRE DICE QUÉ TRAE: bajando tres vistas seguidas salían tres archivos con el mismo nombre. */
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = ["conteo", pestania, dia, fTipo ? fTipo.toLowerCase() : null, hoyColombia()].filter(Boolean).join("-") + ".xlsx";
+      a.download = ["conteo", pestania, dia, fTipo ? fTipo.toLowerCase() : null, selloDescarga()].filter(Boolean).join("-") + ".xlsx";
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
     } catch { setMal("No se pudo armar el Excel.") }

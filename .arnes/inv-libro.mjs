@@ -36,7 +36,10 @@ const MAT = ["3128", "3129", "3130", "900"].map((sku, i) => ({ id: "m" + i, sku,
   unidades_por_estiba: 2400, contenido: null, familia: null, presentacion: null, vida_util: 180, f_limite_desp: null, dias_minimo: 30, origen: null, foraneo: null,
   tipo_material: sku === "900" ? "ENVASE" : "PRODUCTO", activo: true }));
 const UBI = ["A01IZQ", "A01DER", "A02IZQ", "B01IZQ", "C01IZQ", "C02IZQ", "Z09DER", "D01IZQ", "D02DER"].map((k) => ({ id: "u-" + k, bodega_id: "b", clave: k, calle: k[0], modulo: k.slice(1, 3), lado: k.slice(3), familia: null, capacidad: 3, activa: true }));
-const buf = await armarLibroDia({ fecha: "2026-09-22", bodega: "AG01", quien: "Cristian", conteos: CONT, lineas: LIN, materiales: MAT, ubicaciones: UBI, logo: readFileSync(R("public/marca/logo-b.png")), colores: process.env.COLORES ? JSON.parse(process.env.COLORES) : undefined });
+/* Un borrador: alguien tiene abierto el FEFO-03 con dos renglones, uno en una ubicación que ya está en la base. */
+const BOR = [{ id: "c3", codigo: "FEFO-03", estado: "en_proceso", bodega: "AG01", responsable: "Cristian", fecha_analisis: "2026-09-22", enviado_en: null, envio_nombre: null, renglones: 2, ubicaciones: 2, total_cajas: 200 }];
+const LBOR = [L({ c: "c3", u: "A01IZQ", t: 100 }), L({ c: "c3", u: "D01IZQ", t: 100 })].map((l) => ({ ...l, conteo: "FEFO-03", estado: "en_proceso" }));
+const buf = await armarLibroDia({ fecha: "2026-09-22", bodega: "AG01", quien: "Cristian", conteos: CONT, lineas: LIN, abiertos: { conteos: BOR, lineas: LBOR }, materiales: MAT, ubicaciones: UBI, logo: readFileSync(R("public/marca/logo-b.png")), colores: process.env.COLORES ? JSON.parse(process.env.COLORES) : undefined });
 const dest = (process.env.FOTO ?? "/tmp") + "/inventario-dia.xlsx";
 writeFileSync(dest, buf);
 const py = execSync(`python3 - <<'P'
@@ -51,6 +54,7 @@ s = wb["Sin contar"]; o["sin"] = [s.cell(r, 1).value for r in range(7, s.max_row
 import zipfile
 o["imgs"] = len([n for n in zipfile.ZipFile("${dest}").namelist() if n.startswith("xl/media/") and not n.endswith("/")])
 o["total"] = b.cell(b.max_row, 1).value
+t = wb["Todos los renglones"]; o["todos"] = [[t.cell(r, 1).value, t.cell(r, 2).value, t.cell(r, 4).value] for r in range(7, t.max_row + 1)]
 o["filtro"] = b.auto_filter.ref
 # LO CONTADO: las cuatro tarjetas van en la fila 13 (rótulo en la 12).
 z = wb["Resumen"]
@@ -65,8 +69,14 @@ o["mats"] = [[m.cell(r, 1).value, m.cell(r, 3).value, m.cell(r, 7).value] for r 
 print(json.dumps(o, default=str))
 P`).toString();
 const x = JSON.parse(py);
-ok(x.hojas.join() === "Resumen,Base,Por material,Por ubicación,Validar,Sin contar", `hojas: ${x.hojas}`);
+ok(x.hojas.join() === "Resumen,Base,Todos los renglones,Por material,Por ubicación,Validar,Sin contar", `hojas: ${x.hojas}`);
 ok(x.imgs === 1, "el libro no trae el logo");
+/* TODOS LOS RENGLONES: los 9 enviados (con el A01IZQ viejo, sin cruzar) + los 2 borradores = 11, más la fila de totales. */
+const todos = x.todos.slice(0, -1);
+ok(todos.length === 11, `«Todos los renglones»: ${todos.length} (11 = 9 enviados sin cruzar + 2 borradores)`);
+ok(todos.filter((t) => t[0] === "Enviado").length === 9 && todos.filter((t) => String(t[0]).startsWith("Borrador")).length === 2, "los borradores no salen marcados");
+ok(todos.filter((t) => t[1] === "FEFO-03").every((t) => t[2] == null), "un borrador no debe traer fecha de envío");
+ok(todos.filter((t) => t[0] === "Enviado").every((t) => t[2] != null), "los enviados deben traer fecha y hora de envío");
 const filasBase = x.base.slice(0, -1);
 ok(filasBase.length === 8, `base: ${filasBase.length} renglones (8: el A01IZQ viejo reemplazado)`);
 ok(!filasBase.some((f) => f[2] === 999), "el renglón reemplazado quedó en la base");

@@ -51,6 +51,9 @@ export type InsumosDia = {
   evidencias?: EvidenciaRenglon[];
   /** Fotos que no se pudieron meter (techo de peso o no bajaron): la hoja lo dice. */
   fotosRecortadas?: number;
+  /** Los recorridos que alguien tiene ABIERTOS (borradores) y sus renglones. Solo van a la hoja
+   *  «Todos los renglones», marcados «Borrador»: no entran en la base ni suman en ningún total. */
+  abiertos?: { conteos: ConteoFefo[]; lineas: Renglon[] };
 };
 
 export type EvidenciaRenglon = {
@@ -75,7 +78,7 @@ const aHex = (c: number[]) => "FF" + c.map((v) => Math.round(Math.max(0, Math.mi
 /** La tinta llevada hacia el blanco: t = cuánto de tinta queda. */
 const aclarar = (h: string, t: number) => aHex(hex(h).map((c) => 255 - (255 - c) * t));
 const oscurecer = (h: string, k: number) => aHex(hex(h).map((c) => c * k));
-const BLANCO = "FFFFFFFF", ROJO = "FFC6202A", VERDE = "FF1F7A45", ROSA = "FFFFF4F4", MENTA = "FFEFF8F2";
+const BLANCO = "FFFFFFFF", ROJO = "FFC6202A", VERDE = "FF1F7A45", ROSA = "FFFFF4F4", MENTA = "FFEFF8F2", AMBAR_SUAVE = "FFFFF1CC";
 let TINTA = "", BANDA = "", GRIS = "", LINEA = "", FONDO = "", CAJA = "", PANEL = "", CABEZA = "", ENLACE = "";
 function usarColores(c: ColoresLibro) {
   const ok = (x: string) => /^[0-9a-f]{6}$/i.test(x);
@@ -203,7 +206,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
   const cuando = periodo ? `Del ${fechaLarga(d.fecha)} al ${fechaLarga(d.hasta!)}` : fechaLarga(d.fecha);
   const sub = `${cuando.replace(/^./, (c) => c.toUpperCase())}  ·  ` +
     (parcial ? `${d.conteos.length} de ${d.totalDelDia} FEFO ${periodo ? "del período" : "del día"} (escogidos: ${d.conteos.map((c) => c.codigo).join(", ")})`
-             : `${d.conteos.length} FEFO enviado${d.conteos.length === 1 ? "" : "s"}`) + ` · exportó ${d.quien}`;
+             : `${d.conteos.length} FEFO enviado${d.conteos.length === 1 ? "" : "s"}`) + ` · exportó ${d.quien} el ${new Date().toLocaleString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Bogota" }).replace(",", "")}`;
 
   /* ================= VALIDAR (se arma primero: el resumen la cuenta) ================= */
   type Ojo = { tipo: string; grave: boolean; ubicacion: string; codigo: string; material: string; detalle: string; recorrido: string };
@@ -395,8 +398,8 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     pon(f, 2, graves ? vinculo("Validar", `  ⚠  ${graves} ${graves === 1 ? "renglón" : "renglones"} por validar  →  abrir la hoja Validar`) : "  ✓  Nada grave por validar",
       letra(10, graves ? ROJO : VERDE, true, false), { alignment: { vertical: "middle" }, border: { left: { style: "thick", color: { argb: graves ? ROJO : VERDE } } } });
     if (graves) h.getCell(f, 2).font = { ...letra(10, ROJO, true), underline: true };
-    f += 1; alto(f, 31.5); unir(f, 2, 9);
-    pon(f, 2, "La base toma, de cada ubicación, el ÚLTIMO recorrido del día que pasó por ella: una calle caminada dos veces no se suma dos veces. El detalle está en las hojas Base, Por material, Por ubicación y Sin contar.",
+    f += 1; alto(f, 43); unir(f, 2, 9);
+    pon(f, 2, "La base toma, de cada ubicación, el ÚLTIMO recorrido del día que pasó por ella: una calle caminada dos veces no se suma dos veces. El detalle está en las hojas Base, Por material, Por ubicación y Sin contar. La hoja «Todos los renglones» trae TODO lo anotado, sin cruzar ni recortar, con los borradores marcados.",
       letra(8, GRIS, false, true), { alignment: { wrapText: true, vertical: "top" } });
     h.pageSetup = { orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 1, horizontalCentered: true };
     h.pageSetup.printArea = `A1:J${f}`;
@@ -428,6 +431,43 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     totales(h, fin + 1, 7, fin, [12, 13, 14, 15, 16], C.length);
     h.autoFilter = `A6:${col(C.length)}${fin}`;
     h.views = [{ state: "frozen", xSplit: 8, ySplit: 6, showGridLines: false }];
+    h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: "6:6" };
+  }
+
+  /* ================= 2b · TODOS LOS RENGLONES =================
+     «Debe bajar todo junto, con la fecha y la hora.» La hoja Base es la FOTO (de cada ubicación, el último
+     recorrido); esta es el REGISTRO: cada renglón de cada recorrido, enviado o borrador, sin cruzar y
+     sin recortar. Es la que cuadra con «Bajar esta vista» de la pantalla. */
+  {
+    const h = wb.addWorksheet("Todos los renglones", { properties: { tabColor: { argb: GRIS } } });
+    const conteoDe = new Map<string, ConteoFefo>([...d.conteos, ...(d.abiertos?.conteos ?? [])].map((c) => [c.id, c]));
+    const todos = [...d.lineas, ...(d.abiertos?.lineas ?? [])].sort((a, b) =>
+      porSitio(a, b, (x) => x.ubicacion_combinada ?? x.ubicacion ?? "") || natural(a.conteo, b.conteo) || natural(a.codigo, b.codigo) || natural(a.vencimiento, b.vencimiento));
+    const nBor = (d.abiertos?.lineas ?? []).length;
+    const C = ["Estado", "Recorrido", "Fecha del recorrido", "Enviado el", "Contó", "Contado", "Calle", "Módulo", "Lado", "Ubicación", "Código", "Material", "Tipo", "Familia",
+      "Estibas", "Cajas sueltas", "Saldo", "Total cajas", "Unidades", "Fabricación", "Vencimiento", "Días p/vencer", "Días p/salir", "Rota", "Avería", "PNC", "Estado envase", "Nota"];
+    h.columns = [20, 20, 13, 16, 18, 16, 7, 8, 7, 13, 10, 34, 11, 14, 9, 10, 8, 11, 12, 12, 12, 10, 10, 6, 7, 6, 14, 30].map((w) => ({ width: w }));
+    cabecera(h, "Todos los renglones", `${todos.length.toLocaleString("es-CO")} renglones: ${d.lineas.length.toLocaleString("es-CO")} de recorridos enviados` +
+      (nBor ? ` y ${nBor.toLocaleString("es-CO")} de borradores (sin enviar)` : "") + `  ·  sin cruzar: cada renglón de cada recorrido`, C.length);
+    encabezado(h, 6, C, [15, 16, 17, 18, 19, 22, 23]);
+    todos.forEach((l, i) => {
+      const c = conteoDe.get(l.conteo_id);
+      const enviado = c?.estado === "cerrado";
+      const u = uxc[l.codigo];
+      const r = h.getRow(7 + i);
+      r.values = [enviado ? "Enviado" : "Borrador (sin enviar)", l.conteo, aFecha(c?.fecha_analisis ?? null), enviado ? aFecha(c?.enviado_en ?? null) : null, l.conto ?? c?.responsable ?? "", aFecha(l.contado_en),
+        l.calle ?? "", l.modulo ?? "", l.lado ?? "", l.ubicacion_combinada ?? l.ubicacion ?? "Sin ubicación", l.codigo, l.material, l.tipo_material, l.familia ?? "",
+        Number(l.estibas ?? 0), Number(l.cajas ?? 0), Number(l.saldo ?? 0), Number(l.total_cajas), u ? Number(l.total_cajas) * u : null,
+        aFecha(l.fabricacion), aFecha(l.vencimiento), l.dias_para_vencer, l.dias_para_salir, siNo(l.rotacion), siNo(l.averia), siNo(l.pnc), l.estado_envase ?? "", l.nota ?? ""];
+      filaDatos(r, C.length, i % 2 === 1, { 3: "dd/mm/yyyy", 4: "dd/mm/yy hh:mm", 6: "dd/mm/yy hh:mm", 15: "#,##0", 16: "#,##0", 17: "#,##0", 18: "#,##0", 19: "#,##0", 20: "dd/mm/yyyy", 21: "dd/mm/yyyy", 22: "0", 23: "0" }, [15, 16, 17, 18, 19, 22, 23]);
+      r.getCell(11).font = letra(9.5, TINTA, true);
+      r.getCell(18).font = letra(9.5, TINTA, true);
+      if (!enviado) { r.getCell(1).fill = relleno(AMBAR_SUAVE); r.getCell(1).font = letra(9.5, TINTA, true) }
+    });
+    const fin = 6 + Math.max(todos.length, 1);
+    totales(h, fin + 1, 7, fin, [15, 16, 17, 18, 19], C.length);
+    h.autoFilter = `A6:${col(C.length)}${fin}`;
+    h.views = [{ state: "frozen", xSplit: 2, ySplit: 6, showGridLines: false }];
     h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: "6:6" };
   }
 

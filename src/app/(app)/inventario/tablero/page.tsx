@@ -6,7 +6,9 @@ import { Riesgo } from "../Riesgo";
 import "../fefo.css";
 import "../riesgo.css";
 import "../conteo/tiempos.css";
+import "../conteo/evidencias.css";
 import { Tiempos } from "../conteo/Tiempos";
+import { Evidencias } from "../conteo/Evidencias";
 
 export const dynamic = "force-dynamic";
 
@@ -38,12 +40,13 @@ const dia = (s: string | null) =>
  * está vacía porque todavía no se ha llegado, y sobre eso alguien podría
  * decidir un despacho. Lo firmado es lo único que se puede afirmar.
  */
-/* LAS DOS HOJAS DEL TABLERO: lo que se vence (FEFO) y los tiempos de conteo. */
-function Hojas({ vista }: { vista: "fefo" | "tiempos" }) {
+/* LAS HOJAS DEL TABLERO: lo que se vence (FEFO), los tiempos de conteo y las evidencias. */
+function Hojas({ vista }: { vista: "fefo" | "tiempos" | "evidencias" }) {
   return (
     <nav className="tp-tabs" aria-label="Hojas del tablero">
       <Link href="/inventario/tablero" aria-current={vista === "fefo" ? "page" : undefined} className={vista === "fefo" ? "on" : ""}>Qué se vence</Link>
       <Link href="/inventario/tablero?vista=tiempos" aria-current={vista === "tiempos" ? "page" : undefined} className={vista === "tiempos" ? "on" : ""}>Tiempos de conteo</Link>
+      <Link href="/inventario/tablero?vista=evidencias" aria-current={vista === "evidencias" ? "page" : undefined} className={vista === "evidencias" ? "on" : ""}>Evidencias</Link>
     </nav>
   );
 }
@@ -63,6 +66,22 @@ export default async function InventarioTableroPage({ searchParams }: { searchPa
           </div>
         </section>
         <Tiempos />
+      </div>
+    );
+  }
+  if (sp.vista === "evidencias") {
+    /* Como los tiempos: no necesita el maestro ni el riesgo, solo el permiso, que la base vuelve a exigir. */
+    return (
+      <div className="fe">
+        <Hojas vista="evidencias" />
+        <section className="cabeza">
+          <div>
+            <p className="ojo">INVENTARIO · TABLERO</p>
+            <h1>Evidencias</h1>
+            <p className="sub">Las novedades que se encontraron al contar —avería, PNC, módulo mezclado, módulo sin acceso— día a día y ubicación por ubicación: dónde persisten, dónde ya no y dónde aparecen. Con informe en PDF y Word.</p>
+          </div>
+        </section>
+        <Evidencias />
       </div>
     );
   }
