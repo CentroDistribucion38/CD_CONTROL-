@@ -104,10 +104,10 @@ await pg.screenshot({ path: R(".arnes/_ev-1440.png"), fullPage: true });
 console.log("paso 2 · filtros");
 const rpc = () => pg.evaluate(() => window.__rpc.filter((x) => x.n === "conteo_evidencias").at(-1).a);
 let ll = await rpc(); ok(ll.p_desde === D(0) && ll.p_hasta === D(6), "rango inicial: " + JSON.stringify(ll));
-await pg.click(".tp-seg button:has-text('Hoy')"); await pg.waitForTimeout(400);
+await pg.click(".ev-seg button:has-text('Hoy')"); await pg.waitForTimeout(400);
 ll = await rpc(); ok(ll.p_desde === hoy && ll.p_hasta === hoy, "hoy: " + JSON.stringify(ll));
 ok(await kpi("Novedades") === String(novs.filter((n) => n.dia === hoy).length), "novedades hoy: " + await kpi("Novedades"));
-await pg.click(".tp-seg button:has-text('7 días')"); await pg.waitForTimeout(400);
+await pg.click(".ev-seg button:has-text('7 días')"); await pg.waitForTimeout(400);
 /* tipos: quitar PNC */
 await pg.click(".ev-tipos button:has-text('PNC')"); await pg.waitForTimeout(300);
 const sinPnc = novs.filter((n) => n.tipo !== "pnc").length;
@@ -120,7 +120,7 @@ await pg.waitForTimeout(200);
 ok(await pg.locator(".ev-tipos button[aria-checked=true]").count() === 1, "siempre debe quedar al menos un tipo");
 ok((await pg.locator(".ev-tipos button[aria-checked=true]").textContent()).includes("Avería"), "debía quedar Avería");
 for (const t of ["Módulo mezclado", "Módulo sin acceso", "PNC"]) await pg.click(`.ev-tipos button:has-text('${t}')`);
-await pg.click(".tp-seg button:has-text('Fechas')"); await pg.waitForTimeout(100);
+await pg.click(".ev-seg button:has-text('Fechas')"); await pg.waitForTimeout(100);
 ok(await pg.locator(".tp-fechas input").count() === 2, "faltan los campos de fecha");
 
 console.log("paso 3 · fotos y PNC");

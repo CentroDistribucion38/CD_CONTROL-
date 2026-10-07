@@ -156,43 +156,49 @@ export function Evidencias() {
 
   return (
     <section className="tp ev" ref={raiz} aria-busy={cargando}>
-      <section className="tp-panel" aria-label="Filtros de evidencias">
-        <div className="tp-fila">
-          <span className="tp-lb">Periodo</span>
-          <div className="tp-seg" role="radiogroup" aria-label="Periodo">
-            {([["hoy", "Hoy"], ["ayer", "Ayer"], ["7", "7 días"], ["30", "30 días"], ["otro", "Fechas"]] as [Rango, string][]).map(([k, t]) => (
-              <button key={k} type="button" role="radio" aria-checked={rango === k} className={rango === k ? "on" : ""} onClick={() => escoger(k)}>{t}</button>
-            ))}
-          </div>
-          {rango === "otro" && (
-            <div className="tp-fechas">
-              <label><span>Desde</span><input type="date" value={desde} max={hasta} onChange={(e) => e.target.value && setDesde(e.target.value)} /></label>
-              <label><span>Hasta</span><input type="date" value={hasta} min={desde} max={hoy} onChange={(e) => e.target.value && setHasta(e.target.value)} /></label>
+      <section className="ev-f" aria-label="Filtros de evidencias">
+        <div className="ev-r">
+          <div className="ev-g">
+            <span className="ev-lb">Periodo</span>
+            <div className="ev-seg" role="radiogroup" aria-label="Periodo">
+              {([["hoy", "Hoy"], ["ayer", "Ayer"], ["7", "7 días"], ["30", "30 días"], ["otro", "Fechas"]] as [Rango, string][]).map(([k, t]) => (
+                <button key={k} type="button" role="radio" aria-checked={rango === k} className={rango === k ? "on" : ""} onClick={() => escoger(k)}>{t}</button>
+              ))}
             </div>
-          )}
+            {rango === "otro" && (
+              <div className="tp-fechas">
+                <label><span>Desde</span><input type="date" value={desde} max={hasta} onChange={(e) => e.target.value && setDesde(e.target.value)} /></label>
+                <label><span>Hasta</span><input type="date" value={hasta} min={desde} max={hoy} onChange={(e) => e.target.value && setHasta(e.target.value)} /></label>
+              </div>
+            )}
+          </div>
+          <span className="ev-sep" aria-hidden />
+          <div className="ev-g">
+            <span className="ev-lb">Novedad</span>
+            <div className="ev-tipos" role="group" aria-label="Qué se cuenta como novedad">
+              {TIPOS.map((t) => (
+                <button key={t.k} type="button" role="checkbox" aria-checked={tipos.includes(t.k)} className={tipos.includes(t.k) ? "on" : ""} onClick={() => alternar(t.k)}>
+                  <i style={{ background: t.color }} aria-hidden /><b>{t.letra}</b> {t.nombre}
+                </button>
+              ))}
+            </div>
+            <button type="button" className="ev-todas" onClick={() => setTipos(TIPOS.map((t) => t.k))} disabled={tipos.length === TIPOS.length}>Todas</button>
+          </div>
         </div>
-        <div className="tp-fila">
-          <span className="tp-lb">Novedad</span>
-          <div className="ev-tipos" role="group" aria-label="Qué se cuenta como novedad">
-            {TIPOS.map((t) => (
-              <button key={t.k} type="button" role="checkbox" aria-checked={tipos.includes(t.k)} className={tipos.includes(t.k) ? "on" : ""} onClick={() => alternar(t.k)}>
-                <i style={{ background: t.color }} aria-hidden /><b>{t.letra}</b> {t.nombre}
+        <div className="ev-r">
+          <p className="ev-vi">Viendo <b>{periodoTxt(desde, hasta)}</b> · {tipos.length === TIPOS.length ? "todas las novedades" : TIPOS.filter((t) => tipos.includes(t.k)).map((t) => t.nombre).join(", ")}</p>
+          <div className="ev-inf">
+            <span className="ev-lb">Informe</span>
+            <div className="ev-bajar">
+              <button type="button" className="ev-bt" onClick={() => void bajar("pdf")} disabled={!!armando || cargando || !!error}>
+                <svg viewBox="0 0 24 24" aria-hidden><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16" /></svg><span>{armando === "pdf" ? "Armando…" : "Bajar PDF"}</span>
               </button>
-            ))}
+              <button type="button" className="ev-bt sec" onClick={() => void bajar("word")} disabled={!!armando || cargando || !!error}>
+                <svg viewBox="0 0 24 24" aria-hidden><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16" /></svg><span>{armando === "word" ? "Armando…" : "Bajar Word"}</span>
+              </button>
+              {armando && <span className="ev-avance" role="status">{avance}</span>}
+            </div>
           </div>
-        </div>
-        <div className="tp-fila">
-          <span className="tp-lb">Informe</span>
-          <div className="ev-bajar">
-            <button type="button" className="ev-bt" onClick={() => void bajar("pdf")} disabled={!!armando || cargando || !!error}>
-              <svg viewBox="0 0 24 24" aria-hidden><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16" /></svg><span>{armando === "pdf" ? "Armando…" : "Bajar PDF"}</span>
-            </button>
-            <button type="button" className="ev-bt" onClick={() => void bajar("word")} disabled={!!armando || cargando || !!error}>
-              <svg viewBox="0 0 24 24" aria-hidden><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16" /></svg><span>{armando === "word" ? "Armando…" : "Bajar Word"}</span>
-            </button>
-            {armando && <span className="ev-avance" role="status">{avance}</span>}
-          </div>
-          <p className="tp-res">Viendo <b>{periodoTxt(desde, hasta)}</b> · {tipos.length === TIPOS.length ? "todas las novedades" : TIPOS.filter((t) => tipos.includes(t.k)).map((t) => t.nombre).join(", ")}</p>
         </div>
       </section>
 

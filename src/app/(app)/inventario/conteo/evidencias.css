@@ -41,3 +41,33 @@
   .fe .ev-bajar { flex: 1 }
   .fe .ev-bt { flex: 1; justify-content: center }
 }
+
+/* ---- Filtros: dos filas en una sola caja (periodo + novedad / lo que se ve + informe) ---- */
+.fe .ev-f { background: var(--fe-papel); border: 1px solid var(--fe-linea) }
+.fe .ev-r { display: flex; align-items: center; gap: 28px; padding: 14px 18px; flex-wrap: wrap }
+.fe .ev-r + .ev-r { border-top: 1px solid var(--fe-linea) }
+.fe .ev-g { display: flex; align-items: center; gap: 12px; flex-wrap: wrap }
+.fe .ev-lb { font: 600 11px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase; color: var(--fe-gris) }
+.fe .ev-sep { width: 1px; align-self: stretch; background: var(--fe-linea) }
+.fe .ev-seg { display: flex; border: 1px solid var(--fe-linea) }
+.fe .ev-seg button { min-height: 44px; min-width: 44px; white-space: nowrap; padding: 0 16px; border: 0; border-right: 1px solid var(--fe-linea); border-radius: 0; background: var(--fe-papel); color: var(--fe-tinta); font: 600 14px var(--fe-texto); cursor: pointer }
+.fe .ev-seg button:last-child { border-right: 0 }
+.fe .ev-seg button.on { background: color-mix(in srgb, var(--fe-acento) 8%, #fff); box-shadow: inset 0 -3px 0 var(--fe-acento) }
+.fe .ev-seg button:focus-visible { outline: 3px solid var(--fe-acento); outline-offset: -3px }
+.fe .ev-f .ev-tipos button { min-height: 44px; white-space: nowrap }
+.fe .ev-todas { border: 0; background: none; padding: 0 6px; min-height: 44px; min-width: 44px; font: 600 13px var(--fe-texto); color: var(--fe-gris-panel); text-decoration: underline; cursor: pointer }
+.fe .ev-todas:disabled { opacity: .4; cursor: default; text-decoration: none }
+.fe .ev-vi { margin: 0; font-size: 13.5px; color: var(--fe-gris-panel) }
+.fe .ev-vi b { color: var(--fe-tinta) }
+.fe .ev-inf { margin-left: auto; display: flex; align-items: center; gap: 12px; flex-wrap: wrap }
+.fe .ev-f .ev-bt { min-height: 44px; white-space: nowrap; padding: 0 16px; border-width: 1.5px; font: 700 14px var(--fe-texto) }
+.fe .ev-f .ev-bt.sec { background: var(--fe-papel) }
+@media (max-width: 900px) {
+  .fe .ev-r { gap: 12px }
+  .fe .ev-sep { display: none }
+  .fe .ev-inf { margin-left: 0; flex-basis: 100% }
+  .fe .ev-inf .ev-bajar { flex: 1 }
+  .fe .ev-inf .ev-bt { flex: 1; justify-content: center }
+  .fe .ev-seg { overflow-x: auto; max-width: 100% }
+  .fe .ev-seg button { padding: 0 11px }
+}
