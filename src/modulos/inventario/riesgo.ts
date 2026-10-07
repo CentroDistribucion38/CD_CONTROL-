@@ -37,7 +37,7 @@ export type Franja = "vencido" | "pasado" | "semana" | "quince" | "mes" | "ok" |
 
 export const FRANJAS: { clave: Franja; rot: string; corto: string; que: string }[] = [
   { clave: "vencido", rot: "Vencido · fuera de fecha", corto: "Vencido", que: "superó su fecha de vencimiento: no se puede despachar" },
-  { clave: "pasado", rot: "Bajo vida útil mínima", corto: "Bajo mínimo", que: "llegaría al cliente con menos vida útil que la mínima exigida" },
+  { clave: "pasado", rot: "Fuera de despacho", corto: "Fuera de despacho", que: "llegaría al cliente con menos vida útil que la mínima exigida" },
   { clave: "semana", rot: "Salida crítica · 0–7 d", corto: "0–7 días", que: "debe despacharse dentro de los próximos 7 días" },
   { clave: "quince", rot: "Salida próxima · 8–15 d", corto: "8–15 días", que: "requiere programación de despacho" },
   { clave: "mes", rot: "Seguimiento · 16–30 d", corto: "16–30 días", que: "monitorear rotación" },
@@ -63,7 +63,7 @@ export const enRiesgo = (f: Franja) => ORDEN[f] <= ORDEN.mes;
 export type Sitio = {
   id: string; ubicacion: string; calle: string | null; modulo: string | null; lado: string | null;
   vencimiento: string | null; fabricacion: string | null; dias_para_vencer: number | null; dias_para_salir: number | null;
-  estibas: number; cajas: number; saldo: number; total_cajas: number; unidades: number | null;
+  estibas: number; cajas: number; saldo: number; total_cajas: number; unidades: number | null; hl: number | null;
   franja: Franja; averia: boolean; pnc: boolean; nota: string | null;
   conto: string | null; contado_en: string | null; conteo: string;
 };
@@ -71,6 +71,8 @@ export type Sitio = {
 export type MaterialRiesgo = {
   codigo: string; nombre: string; familia: string | null; uxc: number | null;
   cajas: number; unidades: number | null; enRiesgoCajas: number; enRiesgoUnidades: number | null;
+  /** Hectolitros (unidades × HL de una unidad del maestro); null si el maestro no trae el HL. */
+  hl: number | null; enRiesgoHl: number | null;
   franja: Franja; diasSalir: number | null; vence: string | null; sitios: Sitio[];
 };
 
@@ -78,7 +80,7 @@ export type MaterialRiesgo = {
  *  «LO CONTADO» y en la hoja «Por material» del consolidado. No sirve para
  *  el riesgo —el envase no se vence— y por eso va aparte. */
 export type Inventario = {
-  cajas: number; unidades: number; estibas: number; renglones: number;
+  cajas: number; unidades: number; hl: number; estibas: number; renglones: number;
   materiales: MaterialRiesgo[]; ubicaciones: number;
   /** Cuántos renglones de la foto son envase. Si es 0, `inventario` y el
    *  riesgo dicen lo mismo y el Excel no tiene que aclarar nada. */
@@ -88,13 +90,13 @@ export type Inventario = {
 export type Riesgo = {
   foto: Renglon[];
   /** Cajas / unidades / renglones / materiales por franja. SOLO producto. */
-  franjas: Record<Franja, { cajas: number; unidades: number; renglones: number; materiales: number; sinUxc: number }>;
+  franjas: Record<Franja, { cajas: number; unidades: number; hl: number; renglones: number; materiales: number; sinUxc: number; sinHl: number }>;
   /** SOLO producto terminado, ordenados por qué tan cerca están de vencerse. */
   materiales: MaterialRiesgo[];
   /** Cajas que TIENEN que salir por semana, las próximas 8 (la 0 ya se pasó). */
-  semanas: { rot: string; cajas: number; unidades: number }[];
+  semanas: { rot: string; cajas: number; unidades: number; hl: number }[];
   /** SOLO producto terminado: son el denominador de los porcentajes del riesgo. */
-  totalCajas: number; totalUnidades: number; ubicaciones: number;
+  totalCajas: number; totalUnidades: number; totalHl: number; ubicaciones: number;
   /** TODO lo contado, envase incluido. */
   inventario: Inventario;
   /** Del conteo más viejo al más nuevo que aportan a la foto. */
@@ -103,7 +105,8 @@ export type Riesgo = {
 
 const num = (x: unknown) => { const n = Number(x); return Number.isFinite(n) ? n : 0 };
 
-export function medirRiesgo(lineas: Renglon[], conteos: ConteoFefo[], uxcPorSku: Record<string, number | null>): Riesgo {
+/** `hlPorSku`: hectolitros de UNA unidad, del maestro de productos. Sin él (o sin el dato de un material), ese material no suma en hectolitros. */
+export function medirRiesgo(lineas: Renglon[], conteos: ConteoFefo[], uxcPorSku: Record<string, number | null>, hlPorSku: Record<string, number | null> = {}): Riesgo {
   /* ---------- LA FOTO ---------- */
   /* LA MISMA REGLA QUE LA PANTALLA «LA BASE» (`cruzar`): de cada ubicación, el último recorrido que pasó por
      ella. Tener dos copias de la regla —con desempates distintos— es cómo el Excel y la pantalla terminan
@@ -114,7 +117,7 @@ export function medirRiesgo(lineas: Renglon[], conteos: ConteoFefo[], uxcPorSku:
   const fechas = conteos.filter((c) => usados.has(c.id)).map((c) => c.fecha_analisis).filter(Boolean).sort();
 
   /* ---------- POR FRANJA Y POR MATERIAL ---------- */
-  const vacia = () => ({ cajas: 0, unidades: 0, renglones: 0, materiales: 0, sinUxc: 0 });
+  const vacia = () => ({ cajas: 0, unidades: 0, hl: 0, renglones: 0, materiales: 0, sinUxc: 0, sinHl: 0 });
   const franjas = Object.fromEntries(FRANJAS.map((f) => [f.clave, vacia()])) as Riesgo["franjas"];
   /* UN SOLO MAPA PARA LOS DOS. Un material es envase o no lo es —nunca a
      ratos— así que se acumulan todos juntos y al final se aparta la lista
@@ -123,18 +126,20 @@ export function medirRiesgo(lineas: Renglon[], conteos: ConteoFefo[], uxcPorSku:
   const porMat = new Map<string, MaterialRiesgo>();
   const envases = new Set<string>();
   const matsPorFranja = new Map<Franja, Set<string>>();
-  let totalCajas = 0, totalUnidades = 0;
-  let invCajas = 0, invUnidades = 0, invEstibas = 0, invRenglones = 0, invEnvase = 0;
+  let totalCajas = 0, totalUnidades = 0, totalHl = 0;
+  let invCajas = 0, invUnidades = 0, invHl = 0, invEstibas = 0, invRenglones = 0, invEnvase = 0;
 
   for (const l of foto) {
     const esEnvase = l.tipo_material === "ENVASE";
     const uxc = uxcPorSku[l.codigo] ?? null;
     const tc = num(l.total_cajas);
     const un = uxc ? tc * uxc : null;
+    const hlu = hlPorSku[l.codigo] ?? null;
+    const hl = un != null && hlu ? un * hlu : null;
     const f = franja(l);
 
     /* LO CONTADO CUENTA TODO, tenga fecha o no. */
-    invCajas += tc; if (un != null) invUnidades += un;
+    invCajas += tc; if (un != null) invUnidades += un; if (hl != null) invHl += hl;
     invEstibas += num(l.total_estibas); invRenglones += 1;
 
     if (esEnvase) { envases.add(l.codigo); invEnvase += 1 }
@@ -142,22 +147,24 @@ export function medirRiesgo(lineas: Renglon[], conteos: ConteoFefo[], uxcPorSku:
       /* EL RIESGO, SOLO PRODUCTO TERMINADO. */
       const fr = franjas[f];
       fr.cajas += tc; fr.renglones += 1; if (un != null) fr.unidades += un; else fr.sinUxc += 1;
+      if (hl != null) fr.hl += hl; else fr.sinHl += 1;
       (matsPorFranja.get(f) ?? matsPorFranja.set(f, new Set()).get(f)!).add(l.codigo);
-      totalCajas += tc; if (un != null) totalUnidades += un;
+      totalCajas += tc; if (un != null) totalUnidades += un; if (hl != null) totalHl += hl;
     }
 
     const m = porMat.get(l.codigo) ?? {
       codigo: l.codigo, nombre: l.material, familia: l.familia, uxc, cajas: 0, unidades: uxc ? 0 : null,
-      enRiesgoCajas: 0, enRiesgoUnidades: uxc ? 0 : null, franja: "ok" as Franja, diasSalir: null, vence: null, sitios: [],
+      enRiesgoCajas: 0, enRiesgoUnidades: uxc ? 0 : null, hl: uxc && hlu ? 0 : null, enRiesgoHl: uxc && hlu ? 0 : null, franja: "ok" as Franja, diasSalir: null, vence: null, sitios: [],
     };
     m.cajas += tc; if (m.unidades != null && un != null) m.unidades += un;
-    if (enRiesgo(f)) { m.enRiesgoCajas += tc; if (m.enRiesgoUnidades != null && un != null) m.enRiesgoUnidades += un }
+    if (m.hl != null && hl != null) m.hl += hl;
+    if (enRiesgo(f)) { m.enRiesgoCajas += tc; if (m.enRiesgoUnidades != null && un != null) m.enRiesgoUnidades += un; if (m.enRiesgoHl != null && hl != null) m.enRiesgoHl += hl }
     m.franja = m.sitios.length ? peor(m.franja, f) : f;
     if (l.dias_para_salir != null && (m.diasSalir == null || l.dias_para_salir < m.diasSalir)) { m.diasSalir = l.dias_para_salir; m.vence = l.vencimiento }
     m.sitios.push({
       id: l.id, ubicacion: l.ubicacion_combinada ?? l.ubicacion ?? "Sin ubicación", calle: l.calle, modulo: l.modulo, lado: l.lado,
       vencimiento: l.vencimiento, fabricacion: l.fabricacion, dias_para_vencer: l.dias_para_vencer, dias_para_salir: l.dias_para_salir,
-      estibas: num(l.estibas), cajas: num(l.cajas), saldo: num(l.saldo), total_cajas: tc, unidades: un, franja: f,
+      estibas: num(l.estibas), cajas: num(l.cajas), saldo: num(l.saldo), total_cajas: tc, unidades: un, hl, franja: f,
       averia: !!l.averia, pnc: !!l.pnc, nota: l.nota, conto: l.conto, contado_en: l.contado_en, conteo: l.conteo,
     });
     porMat.set(l.codigo, m);
@@ -172,21 +179,21 @@ export function medirRiesgo(lineas: Renglon[], conteos: ConteoFefo[], uxcPorSku:
   const materiales = todos.filter((m) => !envases.has(m.codigo));
 
   /* ---------- LAS PRÓXIMAS 8 SEMANAS ---------- */
-  const semanas = Array.from({ length: 9 }, (_, i) => ({ rot: i === 0 ? "Vencidas" : i === 1 ? "S0" : `S+${i - 1}`, cajas: 0, unidades: 0 }));
+  const semanas = Array.from({ length: 9 }, (_, i) => ({ rot: i === 0 ? "Vencidas" : i === 1 ? "S0" : `S+${i - 1}`, cajas: 0, unidades: 0, hl: 0 }));
   for (const l of foto) {
     if (l.tipo_material === "ENVASE" || l.dias_para_salir == null) continue;
     const i = l.dias_para_salir < 0 || franja(l) === "vencido" ? 0 : Math.floor(l.dias_para_salir / 7) + 1;
     if (i > 8) continue;
     const uxc = uxcPorSku[l.codigo] ?? null;
-    semanas[i].cajas += num(l.total_cajas); if (uxc) semanas[i].unidades += num(l.total_cajas) * uxc;
+    semanas[i].cajas += num(l.total_cajas); if (uxc) { semanas[i].unidades += num(l.total_cajas) * uxc; const hu = hlPorSku[l.codigo]; if (hu) semanas[i].hl += num(l.total_cajas) * uxc * hu }
   }
 
   const ubicaciones = new Set(foto.map((l) => l.ubicacion_id ?? l.ubicacion)).size;
 
   return {
-    foto, franjas, materiales, semanas, totalCajas, totalUnidades, ubicaciones,
+    foto, franjas, materiales, semanas, totalCajas, totalUnidades, totalHl, ubicaciones,
     inventario: {
-      cajas: invCajas, unidades: invUnidades, estibas: invEstibas, renglones: invRenglones,
+      cajas: invCajas, unidades: invUnidades, hl: invHl, estibas: invEstibas, renglones: invRenglones,
       materiales: todos, ubicaciones, renglonesEnvase: invEnvase,
     },
     desde: fechas[0] ?? null, hasta: fechas.at(-1) ?? null, recorridos: usados.size,

@@ -114,7 +114,8 @@ export default async function InventarioTableroPage({ searchParams }: { searchPa
   /* EL RIESGO: la foto de la bodega (el último recorrido de cada
      ubicación, no la suma de todos) por franja de salida y por material. */
   const uxc = Object.fromEntries(m.materiales.map((x) => [x.sku, x.unidades_por_caja]));
-  const { foto, ...riesgo } = medirRiesgo(t.lineas, t.conteos, uxc);
+  const hlu = Object.fromEntries(m.materiales.map((x) => [x.sku, x.hl == null ? null : Number(x.hl)]));
+  const { foto, ...riesgo } = medirRiesgo(t.lineas, t.conteos, uxc, hlu);
 
   const sinFecha = foto.filter((l) => l.dias_para_salir == null && l.tipo_material !== "ENVASE");
 

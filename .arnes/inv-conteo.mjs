@@ -1726,19 +1726,19 @@ createRoot(document.getElementById("r")!).render(<Contar bodegaId="b1"
     /* PRODUCTO: el estado del envase NO aplica y «Cuánto» se enciende solo. */
     ok2(/No aplica/.test(await pgm.textContent(".fe-estenv")) && await pgm.locator(".fe-estenv .fe-estados button").count() === 0, "con un producto el estado del envase debía decir «No aplica»");
     ok2(await apagado(".fe-cuanto-bloque") === false, "con un producto «Cuánto» debía estar encendido");
-    /* ENVASE que YA se contó como RETORNO en este módulo: RETORNO no sale; los otros cuatro sí. */
+    /* ENVASE que YA se contó como RETORNO en este módulo: RETORNO no sale; los otros cinco sí. */
     await pgm.fill(cod, "3500005");
     const est = await pgm.$$eval(".fe-estenv .fe-estados button", (es) => es.map((e) => e.textContent.trim()));
-    if (est.join("|") !== "LAVADO|NUEVO|BAJA|EXTRASUCIO")
-      fallas.push(`montada, con el envase 3500005 ya contado como RETORNO en este módulo los estados salen [${est.join(", ") || "ninguno"}] y deben ser lavado, nuevo, baja y extrasucio (RETORNO oculto)`);
+    if (est.join("|") !== "LAVADO|NUEVO|BAJA|EXTRASUCIO|OTROS")
+      fallas.push(`montada, con el envase 3500005 ya contado como RETORNO en este módulo los estados salen [${est.join(", ") || "ninguno"}] y deben ser lavado, nuevo, baja, extrasucio y otros (RETORNO oculto)`);
     ok2(/Ya contado aquí/.test(await pgm.textContent(".fe-estenv")), "falta el aviso de qué estado ya se contó");
     /* Sin estado escogido, «Cuánto» sigue apagado. */
     ok2(await apagado(".fe-cuanto-bloque") === true, "envase sin estado: «Cuánto» debía seguir apagado");
     /* OTRO envase en el MISMO módulo: RETORNO vuelve a salir (los cinco). */
     await pgm.fill(cod, "3500006");
     const est2 = await pgm.$$eval(".fe-estenv .fe-estados button", (es) => es.map((e) => e.textContent.trim()));
-    if (est2.join("|") !== "RETORNO|LAVADO|NUEVO|BAJA|EXTRASUCIO")
-      fallas.push(`montada, con OTRO envase en el mismo módulo los estados salen [${est2.join(", ") || "ninguno"}] y deben ser los cinco`);
+    if (est2.join("|") !== "RETORNO|LAVADO|NUEVO|BAJA|EXTRASUCIO|OTROS")
+      fallas.push(`montada, con OTRO envase en el mismo módulo los estados salen [${est2.join(", ") || "ninguno"}] y deben ser los seis`);
     /* Escoger el estado enciende «Cuánto». */
     await pgm.click('.fe-estenv .fe-estados button:has-text("RETORNO")');
     ok2(await apagado(".fe-cuanto-bloque") === false, "con el estado escogido «Cuánto» debía encenderse");

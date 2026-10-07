@@ -41,14 +41,18 @@ async function comoDataUrl(url: string) {
   return await new Promise<string>((ok, mal) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result)); fr.onerror = mal; fr.readAsDataURL(b) });
 }
 
-export async function informeRiesgo(r: DatosRiesgo, o: { bodega: string; unidad: "cajas" | "unidades"; material?: MaterialRiesgo; dentro?: Element | null }) {
+export async function informeRiesgo(r: DatosRiesgo, o: { bodega: string; unidad: "cajas" | "unidades" | "hl"; material?: MaterialRiesgo; dentro?: Element | null }) {
   const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ unit: "mm", format: "letter" });
   const W = 216, H = 279, M = 14, AN = W - M * 2;
-  const U = o.unidad === "unidades";
+  const U = o.unidad === "unidades", HL = o.unidad === "hl";
+  const unid = HL ? "hectolitros" : o.unidad;
+  const fh = (n: number) => n.toLocaleString("es-CO", { maximumFractionDigits: n < 10 ? 2 : 1 });
+  const fmt = (n: number | null) => n == null ? "—" : HL ? fh(n) : nf.format(n);
+  const pick = (c: number, u: number | null, h: number | null) => HL ? (h ?? 0) : U ? (u ?? 0) : c;
   const hoy = new Date();
   const hoyTx = hoy.toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" });
-  const cant = (c: number, u: number | null) => U ? (u == null ? "—" : nf.format(u)) : nf.format(c);
+  const cant = (c: number, u: number | null, h: number | null = null) => HL ? fmt(h) : U ? fmt(u) : nf.format(c);
   const P = leerPaleta(o.dentro ?? null);
   const TINTA = P.tinta;
   const [palabra, sello] = await Promise.all([
@@ -86,7 +90,7 @@ export async function informeRiesgo(r: DatosRiesgo, o: { bodega: string; unidad:
       pdf.text(titular, W - M, 21.5, { align: "right" });
       pdf.setFont("helvetica", "normal"); pdf.setFontSize(9); pdf.setTextColor(...GRIS);
       const foto = `Foto de ${r.recorridos} recorrido${r.recorridos === 1 ? "" : "s"}${r.desde ? ` · ${f(r.desde)}${r.hasta !== r.desde ? ` al ${f(r.hasta)}` : ""}` : ""}`;
-      pdf.text(`${hoyTx.charAt(0).toUpperCase() + hoyTx.slice(1)} · ${foto} · en ${o.unidad}`, W - M, 27.5, { align: "right" });
+      pdf.text(`${hoyTx.charAt(0).toUpperCase() + hoyTx.slice(1)} · ${foto} · en ${unid}`, W - M, 27.5, { align: "right" });
       pdf.setDrawColor(...TINTA); pdf.setLineWidth(0.5); pdf.line(M, 32, W - M, 32); pdf.setLineWidth(0.2);
     } else {
       cinta(0, 0, W, 2.2);
@@ -122,7 +126,7 @@ export async function informeRiesgo(r: DatosRiesgo, o: { bodega: string; unidad:
     for (const s of m.sitios) {
       cabe(6); if (y === 26) cabSitios();
       pdf.setFont("helvetica", "normal"); pdf.setFontSize(7.6); pdf.setTextColor(...TINTA);
-      const total = U ? (s.unidades == null ? "—" : nf.format(s.unidades)) : nf.format(s.total_cajas);
+      const total = HL ? fmt(s.hl) : U ? fmt(s.unidades) : nf.format(s.total_cajas);
       const vals = [s.ubicacion, rot(s.franja).corto, f(s.vencimiento), d(s.dias_para_vencer), d(s.dias_para_salir),
         nf.format(s.estibas), nf.format(s.cajas), nf.format(s.saldo), total, (s.conto ?? "—").split(" ")[0]];
       let x = M + 1.5;
@@ -152,9 +156,9 @@ export async function informeRiesgo(r: DatosRiesgo, o: { bodega: string; unidad:
     pdf.setFont("helvetica", "normal"); pdf.setFontSize(7.8); pdf.setTextColor(...GRIS);
     pdf.text(`${m.codigo}${m.familia ? ` · ${m.familia}` : ""} · ${rot(m.franja).rot} · sale ${m.diasSalir == null ? "—" : m.diasSalir < 0 ? `hace ${-m.diasSalir} días` : `en ${m.diasSalir} días`}`, M + 4, y + 4.4);
     pdf.setFont("helvetica", "bold"); pdf.setFontSize(9.5); pdf.setTextColor(...COLOR.pasado);
-    pdf.text(`${cant(m.enRiesgoCajas, m.enRiesgoUnidades)} en riesgo`, W - M, y, { align: "right" });
+    pdf.text(`${cant(m.enRiesgoCajas, m.enRiesgoUnidades, m.enRiesgoHl)} en riesgo`, W - M, y, { align: "right" });
     pdf.setFont("helvetica", "normal"); pdf.setFontSize(7.8); pdf.setTextColor(...GRIS);
-    pdf.text(`de ${cant(m.cajas, m.unidades)} ${o.unidad} · ${m.sitios.length} ubicaci${m.sitios.length === 1 ? "ón" : "ones"}`, W - M, y + 4.4, { align: "right" });
+    pdf.text(`de ${cant(m.cajas, m.unidades, m.hl)} ${unid} · ${m.sitios.length} ubicaci${m.sitios.length === 1 ? "ón" : "ones"}`, W - M, y + 4.4, { align: "right" });
     y += 10.5;
   };
 
@@ -174,7 +178,7 @@ export async function informeRiesgo(r: DatosRiesgo, o: { bodega: string; unidad:
       pdf.setFont("helvetica", "bold"); pdf.setFontSize(6.6); pdf.setTextColor(...GRIS);
       pdf.text(pdf.splitTextToSize(rot(k).rot.toUpperCase(), cw - 4), x + 2.5, y + 6);
       pdf.setFontSize(16); pdf.setTextColor(...(a.renglones ? COLOR[k] : TINTA));
-      pdf.text(cant(a.cajas, a.unidades), x + 2.5, y + 17);
+      pdf.text(cant(a.cajas, a.unidades, a.hl), x + 2.5, y + 17);
       pdf.setFont("helvetica", "normal"); pdf.setFontSize(6.8); pdf.setTextColor(...GRIS);
       pdf.text(`${a.materiales} mat. · ${a.renglones} ubic.`, x + 2.5, y + 23);
     });
@@ -183,35 +187,35 @@ export async function informeRiesgo(r: DatosRiesgo, o: { bodega: string; unidad:
     /* ---------- LA FRASE ---------- */
     const urg = r.franjas.vencido.materiales + r.franjas.pasado.materiales;
     pdf.setFont("helvetica", "normal"); pdf.setFontSize(9.5); pdf.setTextColor(...TINTA);
-    const frase = `${urg ? `${urg} material${urg === 1 ? "" : "es"} ${urg === 1 ? "vencido o por debajo" : "vencidos o por debajo"} de la vida útil mínima de despacho.` : "Sin producto vencido ni por debajo de la vida útil mínima."} `
+    const frase = `${urg ? `${urg} material${urg === 1 ? "" : "es"} ${urg === 1 ? "vencido o fuera de despacho" : "vencidos o fuera de despacho"} (ya pasó su fecha límite de salida).` : "Sin producto vencido ni fuera de despacho."} `
       + `${r.franjas.semana.materiales ? `${r.franjas.semana.materiales} con salida crítica (0–7 días). ` : ""}`
-      + `En total hay ${nf.format(U ? r.totalUnidades : r.totalCajas)} ${o.unidad} contadas en ${r.ubicaciones} ubicaciones.`;
+      + `En total hay ${fmt(pick(r.totalCajas, r.totalUnidades, r.totalHl))} ${unid} contadas en ${r.ubicaciones} ubicaciones.`;
     pdf.text(pdf.splitTextToSize(frase, AN), M, y); y += 13;
 
     /* ---------- POR SEMANA ---------- */
-    titulo("Cuándo tiene que salir", `${o.unidad} por semana de salida`);
+    titulo("Cuándo tiene que salir", `${unid} por semana de salida`);
     const gh = 34, bw = AN / r.semanas.length;
-    const max = Math.max(1, ...r.semanas.map((s) => U ? s.unidades : s.cajas));
+    const max = Math.max(1, ...r.semanas.map((s) => pick(s.cajas, s.unidades, s.hl)));
     pdf.setDrawColor(...TINTA); pdf.setLineWidth(0.4); pdf.line(M, y + gh, W - M, y + gh); pdf.setLineWidth(0.2);
     r.semanas.forEach((s, i) => {
-      const v = U ? s.unidades : s.cajas, h = (v / max) * (gh - 5), x = M + i * bw + bw * 0.18;
+      const v = pick(s.cajas, s.unidades, s.hl), h = (v / max) * (gh - 5), x = M + i * bw + bw * 0.18;
       const c: RGB = i === 0 ? COLOR.pasado : i === 1 ? COLOR.semana : i <= 3 ? COLOR.quince : [150, 162, 176];
       if (v) { pdf.setFillColor(...c); pdf.rect(x, y + gh - h, bw * 0.64, h, "F");
-        pdf.setFont("helvetica", "bold"); pdf.setFontSize(7); pdf.setTextColor(...TINTA); pdf.text(nf.format(v), x + bw * 0.32, y + gh - h - 1.2, { align: "center" }) }
+        pdf.setFont("helvetica", "bold"); pdf.setFontSize(7); pdf.setTextColor(...TINTA); pdf.text(fmt(v), x + bw * 0.32, y + gh - h - 1.2, { align: "center" }) }
       pdf.setFont("helvetica", "normal"); pdf.setFontSize(7); pdf.setTextColor(...GRIS); pdf.text(s.rot, x + bw * 0.32, y + gh + 4, { align: "center" });
     });
     y += gh + 12;
 
     /* ---------- REPARTO ---------- */
     titulo("Cómo está la bodega");
-    const tot = Math.max(1, U ? r.totalUnidades : r.totalCajas);
+    const tot = Math.max(1, pick(r.totalCajas, r.totalUnidades, r.totalHl));
     let x = M;
-    FRANJAS.forEach((k) => { const v = U ? r.franjas[k.clave].unidades : r.franjas[k.clave].cajas; const w = (v / tot) * AN;
+    FRANJAS.forEach((k) => { const v = pick(r.franjas[k.clave].cajas, r.franjas[k.clave].unidades, r.franjas[k.clave].hl); const w = (v / tot) * AN;
       if (w > 0) { pdf.setFillColor(...COLOR[k.clave]); pdf.rect(x, y, w, 6, "F"); x += w } });
     y += 11;
-    FRANJAS.forEach((k, i) => { const v = U ? r.franjas[k.clave].unidades : r.franjas[k.clave].cajas; const lx = M + (i % 4) * (AN / 4), ly = y + Math.floor(i / 4) * 5;
+    FRANJAS.forEach((k, i) => { const v = pick(r.franjas[k.clave].cajas, r.franjas[k.clave].unidades, r.franjas[k.clave].hl); const lx = M + (i % 4) * (AN / 4), ly = y + Math.floor(i / 4) * 5;
       pdf.setFillColor(...COLOR[k.clave]); pdf.rect(lx, ly - 2.4, 2.6, 2.6, "F");
-      pdf.setFontSize(7.6); pdf.setTextColor(...TINTA); pdf.text(`${k.corto}: ${nf.format(v)} (${Math.round((v / tot) * 100)} %)`, lx + 4, ly) });
+      pdf.setFontSize(7.6); pdf.setTextColor(...TINTA); pdf.text(`${k.corto}: ${fmt(v)} (${Math.round((v / tot) * 100)} %)`, lx + 4, ly) });
     y += 14;
 
     /* ---------- CADA MATERIAL CON SUS UBICACIONES ---------- */

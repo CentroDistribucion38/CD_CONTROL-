@@ -98,7 +98,7 @@ ok(x.total === "TOTAL (lo filtrado)", "no hay fila de totales");
 for (const t of ["Repetido", "Sin fecha", "Vencido", "Código fuera del maestro", "Sobre capacidad", "Reemplazado", "Avería"])
   ok(x.validar.includes(t), `Validar no avisa «${t}»: ${x.validar}`);
 ok(JSON.stringify(x.sin) === JSON.stringify(["D01IZQ", "D02DER"]), `sin contar: ${x.sin}`);
-ok(x.filtro === "A6:Z14", `filtro de la base: ${x.filtro}`);
+ok(x.filtro === "A6:AA14", `filtro de la base: ${x.filtro}`);
 
 /* ---------- EL ENVASE CUENTA EN LO CONTADO Y NO CUENTA EN EL RIESGO ----
    La foto son 8 renglones: 1.360 cajas y 18 estibas, de las cuales 160

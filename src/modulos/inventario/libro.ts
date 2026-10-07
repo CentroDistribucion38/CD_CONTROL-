@@ -200,7 +200,8 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
      vencimiento, y el envase no se vence. `inventario` es TODO lo que se
      caminó. «LO CONTADO» y la hoja «Por material» van con `inventario`;
      si fueran con el riesgo, un día de solo envase saldría en cero. */
-  const { foto, franjas, materiales, totalCajas, totalUnidades, ubicaciones: nUbi, inventario } = medirRiesgo(d.lineas, d.conteos, uxc);
+  const hlu = Object.fromEntries(d.materiales.map((m) => [m.sku, m.hl == null ? null : Number(m.hl)]));
+  const { foto, franjas, materiales, totalCajas, totalUnidades, totalHl, ubicaciones: nUbi, inventario } = medirRiesgo(d.lineas, d.conteos, uxc, hlu);
   const enFoto = new Set(foto.map((l) => l.id));
   const reemplazados = d.lineas.filter((l) => !enFoto.has(l.id));
   const matPorSku = new Map(d.materiales.map((m) => [m.sku, m]));
@@ -227,7 +228,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     const f = franja(l);
     if (l.tipo_material !== "ENVASE" && !l.vencimiento) ojos.push({ tipo: "Sin fecha", grave: true, ubicacion: ub(l), codigo: l.codigo, material: l.material, detalle: "Producto sin fecha de vencimiento: no se puede saber cuándo sale.", recorrido: l.conteo });
     if (f === "vencido") ojos.push({ tipo: "Vencido", grave: true, ubicacion: ub(l), codigo: l.codigo, material: l.material, detalle: `Vencido hace ${-(l.dias_para_vencer ?? 0)} día(s). ${Number(l.total_cajas)} cajas.`, recorrido: l.conteo });
-    else if (f === "pasado") ojos.push({ tipo: "Bajo vida útil mínima", grave: true, ubicacion: ub(l), codigo: l.codigo, material: l.material, detalle: `Superó la fecha límite de despacho hace ${-(l.dias_para_salir ?? 0)} día(s). ${Number(l.total_cajas)} cajas.`, recorrido: l.conteo });
+    else if (f === "pasado") ojos.push({ tipo: "Fuera de despacho", grave: true, ubicacion: ub(l), codigo: l.codigo, material: l.material, detalle: `Superó la fecha límite de despacho hace ${-(l.dias_para_salir ?? 0)} día(s). ${Number(l.total_cajas)} cajas.`, recorrido: l.conteo });
     if (!matPorSku.has(l.codigo)) ojos.push({ tipo: "Código fuera del maestro", grave: true, ubicacion: ub(l), codigo: l.codigo, material: l.material, detalle: "El código no está en el maestro de materiales.", recorrido: l.conteo });
     else if (l.tipo_material !== "ENVASE" && !uxc[l.codigo]) ojos.push({ tipo: "Sin unidades por caja", grave: false, ubicacion: ub(l), codigo: l.codigo, material: l.material, detalle: "El maestro no trae unidades por caja: no suma en unidades.", recorrido: l.conteo });
     if (l.averia || l.pnc) ojos.push({ tipo: l.averia ? "Avería" : "PNC", grave: false, ubicacion: ub(l), codigo: l.codigo, material: l.material, detalle: l.nota ?? "Marcado en el conteo.", recorrido: l.conteo });
@@ -417,25 +418,26 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     const h = wb.addWorksheet("Base", { properties: { tabColor: { argb: TINTA } } });
     const C = ["Recorrido", "Contó", "Contado", "Calle", "Módulo", "Lado", "Ubicación", "Código", "Material", "Tipo", "Familia",
       "Estibas", "Cajas sueltas", "Saldo", "Total cajas", "Unidades", "Fabricación", "Vencimiento", "Días p/vencer", "Días p/salir",
-      "Franja", "Rota", "Avería", "PNC", "Estado envase", "Nota"];
-    h.columns = [12, 18, 16, 7, 8, 7, 13, 10, 34, 11, 14, 9, 10, 8, 11, 12, 12, 12, 10, 10, 18, 6, 7, 6, 14, 30].map((w) => ({ width: w }));
+      "Franja", "Rota", "Avería", "PNC", "Estado envase", "Nota", "Hectolitros"];
+    h.columns = [12, 18, 16, 7, 8, 7, 13, 10, 34, 11, 14, 9, 10, 8, 11, 12, 12, 12, 10, 10, 18, 6, 7, 6, 14, 30, 12].map((w) => ({ width: w }));
     cabecera(h, "Base consolidada del día", `${base.length.toLocaleString("es-CO")} renglones: los mismos que «La base» de la pantalla para este período  ·  ${sub}`, C.length);
-    encabezado(h, 6, C, [12, 13, 14, 15, 16, 19, 20]);
+    encabezado(h, 6, C, [12, 13, 14, 15, 16, 19, 20, 27]);
     base.forEach((l, i) => {
       const u = uxc[l.codigo];
       const r = h.getRow(7 + i);
       r.values = [l.conteo, l.conto ?? "", aFecha(l.contado_en), l.calle ?? "", l.modulo ?? "", l.lado ?? "", ub(l), l.codigo, l.material,
         l.tipo_material, l.familia ?? "", Number(l.estibas ?? 0), Number(l.cajas ?? 0), Number(l.saldo ?? 0), Number(l.total_cajas),
         u ? Number(l.total_cajas) * u : null, aFecha(l.fabricacion), aFecha(l.vencimiento), l.dias_para_vencer, l.dias_para_salir,
-        rotFr(franja(l)), siNo(l.rotacion), siNo(l.averia), siNo(l.pnc), l.estado_envase ?? "", l.nota ?? ""];
-      filaDatos(r, C.length, i % 2 === 1, { 3: "dd/mm/yy hh:mm", 12: "#,##0", 13: "#,##0", 14: "#,##0", 15: "#,##0", 16: "#,##0", 17: "dd/mm/yyyy", 18: "dd/mm/yyyy", 19: "0", 20: "0" }, [12, 13, 14, 15, 16, 19, 20]);
+        rotFr(franja(l)), siNo(l.rotacion), siNo(l.averia), siNo(l.pnc), l.estado_envase ?? "", l.nota ?? "",
+        u && hlu[l.codigo] ? Number(l.total_cajas) * u * (hlu[l.codigo] as number) : null];
+      filaDatos(r, C.length, i % 2 === 1, { 3: "dd/mm/yy hh:mm", 12: "#,##0", 13: "#,##0", 14: "#,##0", 15: "#,##0", 16: "#,##0", 17: "dd/mm/yyyy", 18: "dd/mm/yyyy", 19: "0", 20: "0", 27: "#,##0.00" }, [12, 13, 14, 15, 16, 19, 20, 27]);
       r.getCell(8).font = letra(9.5, TINTA, true);
       r.getCell(15).font = letra(9.5, TINTA, true);
       if (l.tipo_material !== "ENVASE") pintarFranja(r.getCell(21), franja(l));
       if ((l.dias_para_salir ?? 0) < 0) r.getCell(20).font = letra(9.5, ROJO, true);
     });
     const fin = 6 + Math.max(base.length, 1);
-    totales(h, fin + 1, 7, fin, [12, 13, 14, 15, 16], C.length);
+    totales(h, fin + 1, 7, fin, [12, 13, 14, 15, 16, 27], C.length);
     h.autoFilter = `A6:${col(C.length)}${fin}`;
     h.views = [{ state: "frozen", xSplit: 8, ySplit: 6, showGridLines: false }];
     h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: "6:6" };
@@ -444,10 +446,10 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
   /* ================= 3 · POR MATERIAL ================= */
   {
     const h = wb.addWorksheet("Por material", { properties: { tabColor: { argb: VERDE } } });
-    const C = ["Código", "Material", "Tipo", "Familia", "Ubicaciones", "Estibas", "Cajas", "Unidades", "Vence primero", "Días p/salir", "Franja", "En riesgo (cajas)"];
-    h.columns = [10, 36, 11, 14, 12, 10, 11, 12, 13, 11, 20, 14].map((w) => ({ width: w }));
+    const C = ["Código", "Material", "Tipo", "Familia", "Ubicaciones", "Estibas", "Cajas", "Unidades", "Vence primero", "Días p/salir", "Franja", "En riesgo (cajas)", "Hectolitros"];
+    h.columns = [10, 36, 11, 14, 12, 10, 11, 12, 13, 11, 20, 14, 13].map((w) => ({ width: w }));
     cabecera(h, "Por material", sub, C.length);
-    encabezado(h, 6, C, [5, 6, 7, 8, 10, 12]);
+    encabezado(h, 6, C, [5, 6, 7, 8, 10, 12, 13]);
     const est = new Map<string, number>();
     for (const l of base) est.set(l.codigo, (est.get(l.codigo) ?? 0) + Number(l.total_estibas ?? 0));
     /* TODO LO CONTADO, envase incluido: esta hoja es el inventario del
@@ -457,13 +459,13 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     mats.forEach((m, i) => {
       const r = h.getRow(7 + i);
       r.values = [m.codigo, m.nombre, matPorSku.get(m.codigo)?.tipo_material ?? "", m.familia ?? "", m.sitios.length, est.get(m.codigo) ?? 0, m.cajas, m.unidades,
-        aFecha(m.vence), m.diasSalir, rotFr(m.franja), m.enRiesgoCajas];
-      filaDatos(r, C.length, i % 2 === 1, { 5: "#,##0", 6: "#,##0", 7: "#,##0", 8: "#,##0", 9: "dd/mm/yyyy", 10: "0", 12: "#,##0" }, [5, 6, 7, 8, 10, 12]);
+        aFecha(m.vence), m.diasSalir, rotFr(m.franja), m.enRiesgoCajas, m.hl];
+      filaDatos(r, C.length, i % 2 === 1, { 5: "#,##0", 6: "#,##0", 7: "#,##0", 8: "#,##0", 9: "dd/mm/yyyy", 10: "0", 12: "#,##0", 13: "#,##0.00" }, [5, 6, 7, 8, 10, 12, 13]);
       r.getCell(1).font = letra(9.5, TINTA, true);
       pintarFranja(r.getCell(11), m.franja);
     });
     const fin = 6 + Math.max(mats.length, 1);
-    totales(h, fin + 1, 7, fin, [5, 6, 7, 8, 12], C.length);
+    totales(h, fin + 1, 7, fin, [5, 6, 7, 8, 12, 13], C.length);
     h.autoFilter = `A6:${col(C.length)}${fin}`;
     h.views = [{ state: "frozen", xSplit: 2, ySplit: 6, showGridLines: false }];
     h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: "6:6" };

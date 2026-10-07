@@ -25,7 +25,7 @@ const dias = (d: number | null) => d == null ? "—" : d < 0 ? `hace ${nf.format
 
 /** El nombre de cada estado en la tabla y su rango. */
 const TXT: Record<Franja, { n: string; r?: string }> = {
-  vencido: { n: "Vencido" }, pasado: { n: "Bajo vida útil mínima" },
+  vencido: { n: "Vencido" }, pasado: { n: "Fuera de despacho" },
   semana: { n: "Salida crítica", r: "0–7 días" }, quince: { n: "Salida próxima", r: "8–15 días" },
   mes: { n: "Seguimiento", r: "16–30 días" }, ok: { n: "Con margen", r: "+30 días" }, sinfecha: { n: "Sin fecha" },
 };
@@ -37,7 +37,7 @@ export function Riesgo({ r, bodega, sinContar, ultimo, activas, barra }: {
   /** Cuántas posiciones activas tiene la bodega, para la barra de avance. */
   activas?: number;
 }) {
-  const [unidad, setUnidad] = useState<"cajas" | "unidades">("cajas");
+  const [unidad, setUnidad] = useState<"cajas" | "unidades" | "hl">("cajas");
   const [filtro, setFiltro] = useState<Franja | "riesgo" | "todos">("riesgo");
   const [buscar, setBuscar] = useState("");
   const [abierto, setAbierto] = useState<MaterialRiesgo | null>(null);
@@ -45,9 +45,16 @@ export function Riesgo({ r, bodega, sinContar, ultimo, activas, barra }: {
   const [pdf, setPdf] = useState(false);
   const caja = useRef<HTMLDivElement>(null);
 
-  const U = unidad === "unidades";
-  const cant = (c: number, u: number | null) => U ? (u == null ? "—" : nf.format(u)) : nf.format(c);
+  const U = unidad === "unidades", H = unidad === "hl";
+  /* HECTOLITROS: con una decimal (con dos si son pocos): 5,9 HL se lee; 6 HL no dice nada. */
+  const fh = (n: number) => n.toLocaleString("es-CO", { maximumFractionDigits: n < 10 ? 2 : 1 });
+  const fmt = (n: number | null) => n == null ? "—" : H ? fh(n) : nf.format(n);
+  const cant = (c: number, u: number | null, h: number | null = null) => H ? fmt(h) : U ? fmt(u) : nf.format(c);
+  const pick = (c: number, u: number | null, h: number | null) => H ? (h ?? 0) : U ? (u ?? 0) : c;
+  const palabra = H ? "hectolitros" : U ? "unidades" : "cajas";
+  const Palabra = H ? "Hectolitros" : U ? "Unidades" : "Cajas";
   const sinUxc = FRANJAS.reduce((a, f) => a + r.franjas[f.clave].sinUxc, 0);
+  const sinHl = FRANJAS.reduce((a, f) => a + r.franjas[f.clave].sinHl, 0);
 
   const lista = useMemo(() => {
     const q = buscar.trim().toLowerCase();
@@ -73,8 +80,8 @@ export function Riesgo({ r, bodega, sinContar, ultimo, activas, barra }: {
 
   const urgentes = r.franjas.vencido.materiales + r.franjas.pasado.materiales;
   const semana = r.franjas.semana;
-  const maxS = Math.max(1, ...r.semanas.map((s) => U ? s.unidades : s.cajas));
-  const total = U ? r.totalUnidades : r.totalCajas;
+  const maxS = Math.max(1, ...r.semanas.map((s) => pick(s.cajas, s.unidades, s.hl)));
+  const total = pick(r.totalCajas, r.totalUnidades, r.totalHl);
 
   /* EL PEOR, ARRIBA Y GRANDE. Un tablero que empieza por cinco cifras
      iguales obliga a buscar cuál importa; este empieza por la que
@@ -85,7 +92,7 @@ export function Riesgo({ r, bodega, sinContar, ultimo, activas, barra }: {
     [enRiesgoL]);
   const contados = activas != null ? Math.max(0, activas - sinContar) : null;
   const pctBodega = (v: number) => total ? (v / total) * 100 : 0;
-  const vF = (k: Franja) => U ? r.franjas[k].unidades : r.franjas[k].cajas;
+  const vF = (k: Franja) => pick(r.franjas[k].cajas, r.franjas[k].unidades, r.franjas[k].hl);
   const vOk = vF("ok");
   const vRiesgo = ALERTAS.reduce((a, k) => a + vF(k), 0);
   /* Las barras comparan solo los estados en riesgo entre sí: la mayor es la barra llena. */
@@ -112,8 +119,9 @@ export function Riesgo({ r, bodega, sinContar, ultimo, activas, barra }: {
         </div>
         <div className="ir-acc">
           <div className="ir-seg" role="group" aria-label="Contar en">
-            <button type="button" className={!U ? "on" : ""} onClick={() => setUnidad("cajas")}>Cajas</button>
+            <button type="button" className={unidad === "cajas" ? "on" : ""} onClick={() => setUnidad("cajas")}>Cajas</button>
             <button type="button" className={U ? "on" : ""} onClick={() => setUnidad("unidades")}>Unidades</button>
+            <button type="button" className={H ? "on" : ""} onClick={() => setUnidad("hl")}>Hectolitros</button>
           </div>
           <button type="button" className="ir-btn" onClick={() => informe()} disabled={pdf}>
             <svg viewBox="0 0 24 24" aria-hidden><path d="M12 4v11M7 10l5 5 5-5M5 20h14" /></svg>{pdf ? "Armando…" : "Informe PDF"}
@@ -160,17 +168,23 @@ export function Riesgo({ r, bodega, sinContar, ultimo, activas, barra }: {
           Se corrige en <b>Maestro › Materiales</b>.
         </p>
       )}
+      {H && sinHl > 0 && (
+        <p className="ir-ojo">
+          <b>{sinHl} {sinHl === 1 ? "renglón" : "renglones"}</b> de materiales sin «unidades por caja» o sin HL por unidad en el maestro: no suman en hectolitros.
+          Se corrige en <b>Maestro › Materiales</b>.
+        </p>
+      )}
 
       {/* ---------- LA TABLA POR TIEMPO PARA VENCER Y EL MARGEN DE LA BODEGA ---------- */}
       <div className="ir-g">
         <section className="ir-card ir-tabla">
-          <div className="ir-h"><h2>{U ? "Unidades" : "Cajas"} por tiempo para vencer</h2><span>{nf.format(total)} {U ? "unidades" : "cajas"} · {nf.format(r.ubicaciones)} ubicaciones</span></div>
+          <div className="ir-h"><h2>{Palabra} por tiempo para vencer</h2><span>{fmt(total)} {palabra} · {nf.format(r.ubicaciones)} ubicaciones</span></div>
           <div className="ir-scroll">
             <table>
-              <thead><tr><th>Estado</th><th>{U ? "Unidades" : "Cajas"}</th><th>% bodega</th><th className="bar" aria-hidden /><th className="mu">Materiales · ubicaciones</th></tr></thead>
+              <thead><tr><th>Estado</th><th>{Palabra}</th><th>% bodega</th><th className="bar" aria-hidden /><th className="mu">Materiales · ubicaciones</th></tr></thead>
               <tbody>
                 {FRANJAS.map((f) => {
-                  const x = r.franjas[f.clave]; const v = U ? x.unidades : x.cajas;
+                  const x = r.franjas[f.clave]; const v = pick(x.cajas, x.unidades, x.hl);
                   const filtra = ALERTAS.includes(f.clave);
                   const on = filtro === f.clave;
                   const pc = pctBodega(v);
@@ -180,7 +194,7 @@ export function Riesgo({ r, bodega, sinContar, ultimo, activas, barra }: {
                           onClick: () => setFiltro(on ? "riesgo" : f.clave),
                           onKeyDown: (e: React.KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setFiltro(on ? "riesgo" : f.clave) } } } : {})}>
                       <td><span className="cat"><i />{TXT[f.clave].n}{TXT[f.clave].r && <small>{TXT[f.clave].r}</small>}</span></td>
-                      <td className="cj">{nf.format(v)}</td>
+                      <td className="cj">{fmt(v)}</td>
                       <td className="pc">{v > 0 && pc < 0.005 ? "<0,01 %" : `${pc.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %`}</td>
                       <td className="bar">{f.clave === "ok" ? (v > 0 ? <span className="fuera">fuera de escala</span> : null)
                         : f.clave === "sinfecha" ? null
@@ -200,21 +214,21 @@ export function Riesgo({ r, bodega, sinContar, ultimo, activas, barra }: {
             <div className="big">
               <span className="lb">Con margen · más de 30 días</span>
               <div className="v">{pctBodega(vOk).toLocaleString("es-CO", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}<small> %</small></div>
-              <p className="s"><b>{nf.format(vOk)}</b> de {nf.format(total)} {U ? "unidades" : "cajas"}</p>
+              <p className="s"><b>{fmt(vOk)}</b> de {fmt(total)} {palabra}</p>
               <div className="split" aria-hidden>
                 {(["ok", "mes", "quince", "semana", "pasado", "vencido"] as Franja[]).map((k) => {
-                  const v = U ? r.franjas[k].unidades : r.franjas[k].cajas;
+                  const v = pick(r.franjas[k].cajas, r.franjas[k].unidades, r.franjas[k].hl);
                   return v > 0 ? <i key={k} className={k} style={{ width: `${Math.max(0.6, pctBodega(v))}%` }} /> : null;
                 })}
               </div>
               <div className="leg"><span>Con margen</span><span>En riesgo <b>{pctBodega(vRiesgo).toLocaleString("es-CO", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %</b></span></div>
             </div>
             <div className="desg">
-              <div className="vencido"><span><i />Vencido y bajo mínimo</span><b>{nf.format(vF("vencido") + vF("pasado"))}</b></div>
-              <div className="semana"><span><i />Sale en 0–15 días</span><b>{nf.format(vF("semana") + vF("quince"))}</b></div>
-              <div className="mes"><span><i />Sale en 16–30 días</span><b>{nf.format(vF("mes"))}</b></div>
+              <div className="vencido"><span><i />Vencido y fuera de despacho</span><b>{fmt(vF("vencido") + vF("pasado"))}</b></div>
+              <div className="semana"><span><i />Sale en 0–15 días</span><b>{fmt(vF("semana") + vF("quince"))}</b></div>
+              <div className="mes"><span><i />Sale en 16–30 días</span><b>{fmt(vF("mes"))}</b></div>
             </div>
-            <div className="risk"><span className="lb">En riesgo · vencido a 30 días</span><b>{nf.format(vRiesgo)}</b></div>
+            <div className="risk"><span className="lb">En riesgo · vencido a 30 días</span><b>{fmt(vRiesgo)}</b></div>
           </section>
         </aside>
       </div>
@@ -225,8 +239,8 @@ export function Riesgo({ r, bodega, sinContar, ultimo, activas, barra }: {
           <span className="k" aria-hidden />
           <div className="num">
             <small>REFERENCIA MÁS CRÍTICA</small>
-            <b>{cant(peor.enRiesgoCajas, peor.enRiesgoUnidades)}</b>
-            <small>{U ? "UNIDADES" : <>CAJAS{peor.enRiesgoUnidades != null && <> · {nf.format(peor.enRiesgoUnidades)} UNIDADES</>}</>}</small>
+            <b>{cant(peor.enRiesgoCajas, peor.enRiesgoUnidades, peor.enRiesgoHl)}</b>
+            <small>{H ? "HECTOLITROS" : U ? "UNIDADES" : <>CAJAS{peor.enRiesgoUnidades != null && <> · {nf.format(peor.enRiesgoUnidades)} UNIDADES</>}{peor.enRiesgoHl != null && <> · {fh(peor.enRiesgoHl)} HL</>}</>}</small>
           </div>
           <div className="inf">
             <div className="t1"><span className="chip">{info(peor.franja).corto.toUpperCase()}</span><h3>{peor.nombre}</h3><span className="cod">{peor.codigo}{peor.familia ? ` · ${peor.familia}` : ""}</span></div>
@@ -245,7 +259,7 @@ export function Riesgo({ r, bodega, sinContar, ultimo, activas, barra }: {
               </div>
               <div>Dónde está<b>{peor.sitios[0] ? (peor.sitios[0].calle && peor.sitios[0].modulo ? `${peor.sitios[0].calle}${peor.sitios[0].modulo} · módulo ${peor.sitios[0].modulo}` : peor.sitios[0].ubicacion) : "—"}</b></div>
               <div>Ubicaciones<b>{peor.sitios.length}</b></div>
-              <div>De la bodega<b>{pctBodega(U ? (peor.enRiesgoUnidades ?? 0) : peor.enRiesgoCajas).toLocaleString("es-CO", { maximumFractionDigits: 1 })} %</b></div>
+              <div>De la bodega<b>{pctBodega(pick(peor.enRiesgoCajas, peor.enRiesgoUnidades, peor.enRiesgoHl)).toLocaleString("es-CO", { maximumFractionDigits: 1 })} %</b></div>
             </div>
           </div>
           <div className="go"><button type="button" className="ver" onClick={() => verPeor()}>Ver ubicaciones →</button></div>
@@ -255,16 +269,16 @@ export function Riesgo({ r, bodega, sinContar, ultimo, activas, barra }: {
       {/* ---------- CUÁNDO TIENE QUE SALIR ----------
           Solo cuando hay algo que sacar: con la bodega limpia es una
           rejilla de ceros que no dice nada. */}
-      {r.semanas.some((s) => (U ? s.unidades : s.cajas) > 0) && (
+      {r.semanas.some((s) => pick(s.cajas, s.unidades, s.hl) > 0) && (
         <section className="ir-card ir-sem-caja">
-          <div className="ir-h"><h2>Calendario de salida</h2><span>{U ? "unidades" : "cajas"} por semana de despacho</span></div>
+          <div className="ir-h"><h2>Calendario de salida</h2><span>{palabra} por semana de despacho</span></div>
           <div className="ir-sem" role="img" aria-label="Cantidad a despachar por semana">
             {r.semanas.map((s, i) => {
-              const v = U ? s.unidades : s.cajas;
+              const v = pick(s.cajas, s.unidades, s.hl);
               const t = i === 0 ? "r" : i === 1 ? "n" : i <= 3 ? "a" : "g";
               return (
                 <div key={s.rot} className="col">
-                  <span className="bar-e">{v > 0 && <b>{nf.format(v)}</b>}<i className={v ? t : "cero"} style={{ height: v ? `${Math.max(3, (v / maxS) * 100)}%` : 3 }} /></span>
+                  <span className="bar-e">{v > 0 && <b>{fmt(v)}</b>}<i className={v ? t : "cero"} style={{ height: v ? `${Math.max(3, (v / maxS) * 100)}%` : 3 }} /></span>
                   <span className="x">{s.rot}</span>
                 </div>
               );
@@ -295,7 +309,7 @@ export function Riesgo({ r, bodega, sinContar, ultimo, activas, barra }: {
                     <span className="que"><b>{m.nombre}</b><small>{m.codigo}{m.familia ? ` · ${m.familia}` : ""}</small></span>
                     <span className="dato d1"><small>Sale</small><b>{dias(m.diasSalir)}</b></span>
                     <span className="dato d2"><small>Vence</small><b>{corta(m.vence)}</b></span>
-                    <span className="dato d3"><small>En riesgo</small><b className={m.enRiesgoCajas ? "mal" : ""}>{cant(m.enRiesgoCajas, m.enRiesgoUnidades)}</b></span>
+                    <span className="dato d3"><small>En riesgo</small><b className={m.enRiesgoCajas ? "mal" : ""}>{cant(m.enRiesgoCajas, m.enRiesgoUnidades, m.enRiesgoHl)}</b></span>
                     <span className="dato d4"><small>Ubicaciones</small><b>{m.sitios.length}</b></span>
                     <svg className="fl" viewBox="0 0 24 24" aria-hidden><path d="M9 6l6 6-6 6" /></svg>
                   </button>
@@ -303,8 +317,8 @@ export function Riesgo({ r, bodega, sinContar, ultimo, activas, barra }: {
                     <div className="ir-det" role="region" aria-label={`Dónde está ${m.nombre}`}>
                       {m.uxc ? <p className="ir-dsub">{m.uxc} unidades por caja</p> : null}
         <div className="ir-pk">
-          <div><small>Total</small><b>{nf.format(m.cajas)}</b><span>cajas{m.unidades != null && ` · ${nf.format(m.unidades)} und`}</span></div>
-          <div className={m.enRiesgoCajas ? "mal" : ""}><small>En riesgo</small><b>{nf.format(m.enRiesgoCajas)}</b><span>cajas{m.enRiesgoUnidades != null && ` · ${nf.format(m.enRiesgoUnidades)} und`}</span></div>
+          <div><small>Total</small><b>{nf.format(m.cajas)}</b><span>cajas{m.unidades != null && ` · ${nf.format(m.unidades)} und`}{m.hl != null && ` · ${fh(m.hl)} HL`}</span></div>
+          <div className={m.enRiesgoCajas ? "mal" : ""}><small>En riesgo</small><b>{nf.format(m.enRiesgoCajas)}</b><span>cajas{m.enRiesgoUnidades != null && ` · ${nf.format(m.enRiesgoUnidades)} und`}{m.enRiesgoHl != null && ` · ${fh(m.enRiesgoHl)} HL`}</span></div>
           <div><small>Ubicaciones</small><b>{m.sitios.length}</b><span>la primera en salir, arriba</span></div>
         </div>
         <div className="ir-sitios">
@@ -321,7 +335,7 @@ export function Riesgo({ r, bodega, sinContar, ultimo, activas, barra }: {
                       <div><dt>Para salir</dt><dd className={s.dias_para_salir != null && s.dias_para_salir < 0 ? "mal" : ""}>{dias(s.dias_para_salir)}</dd></div>
                       <div><dt>Fabricado</dt><dd>{fecha(s.fabricacion)}</dd></div>
                       <div><dt>Estibas · cajas · saldo</dt><dd>{nf.format(s.estibas)} · {nf.format(s.cajas)} · {nf.format(s.saldo)}</dd></div>
-                      <div><dt>Total</dt><dd><b>{nf.format(s.total_cajas)} cajas</b>{s.unidades != null && <> · {nf.format(s.unidades)} und</>}</dd></div>
+                      <div><dt>Total</dt><dd><b>{nf.format(s.total_cajas)} cajas</b>{s.unidades != null && <> · {nf.format(s.unidades)} und</>}{s.hl != null && <> · {fh(s.hl)} HL</>}</dd></div>
                     </dl>
                     {(s.averia || s.pnc || s.nota) && (
                       <p className="tags">{s.averia && <span className="t">Avería</span>}{s.pnc && <span className="t">PNC</span>}{s.nota && <em>{s.nota}</em>}</p>

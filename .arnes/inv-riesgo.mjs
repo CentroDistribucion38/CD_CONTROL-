@@ -39,13 +39,17 @@ const LIN = [
   L({ u: "D01IZQ", tipo: "ENVASE", t: 999, sku: "E1", nom: "Canasta 30" }),
 ];
 const UXC = { P1: 30, P2: 24, P3: 30 }; // P4 sin unidades por caja
-const r = medirRiesgo(LIN, CONT, UXC);
+const HLU = { P1: 0.0033, P2: 0.00264, P3: 0.0033 };  // hectolitros de UNA unidad (330 ml = 0,0033 HL); P4 sin dato
+const r = medirRiesgo(LIN, CONT, UXC, HLU);
 ok(r.foto.length === 8, `foto: ${r.foto.length} renglones (8: el A01DER viejo fuera, Z09 dentro)`);
 ok(r.totalCajas === 80 + 40 + 160 + 80 + 80 + 20 + 100, `total cajas ${r.totalCajas} (560, sin envases)`);
 ok(r.franjas.vencido.cajas === 40 && r.franjas.pasado.cajas === 80 && r.franjas.semana.cajas === 160 && r.franjas.quince.cajas === 80 && r.franjas.mes.cajas === 80 && r.franjas.ok.cajas === 100 && r.franjas.sinfecha.cajas === 20, `franjas: ${JSON.stringify(Object.fromEntries(Object.entries(r.franjas).map(([k, v]) => [k, v.cajas])))}`);
 ok(r.franjas.semana.unidades === 160 * 30 && r.franjas.sinfecha.sinUxc === 1, "unidades por caja mal");
+ok(Math.abs(r.franjas.semana.hl - 160 * 30 * 0.0033) < 1e-9 && r.franjas.sinfecha.sinHl === 1, `hectolitros: semana ${r.franjas.semana.hl} (15,84), sin HL ${r.franjas.sinfecha.sinHl}`);
+ok(Math.abs(r.totalHl - (80 * 30 * 0.0033 + 40 * 30 * 0.0033 + 160 * 30 * 0.0033 + 160 * 24 * 0.00264 + 100 * 30 * 0.0033)) < 1e-6, `total HL ${r.totalHl}`);
 const p1 = r.materiales.find((m) => m.codigo === "P1");
 ok(r.materiales[0].codigo === "P1" && p1.franja === "vencido" && p1.sitios.length === 3 && p1.sitios[0].ubicacion === "A02DER", `P1: ${p1.franja} ${p1.sitios.map((s) => s.ubicacion)}`);
+ok(Math.abs(p1.enRiesgoHl - 280 * 30 * 0.0033) < 1e-9 && Math.abs(p1.sitios[0].hl - 40 * 30 * 0.0033) < 1e-9, `P1 en HL ${p1.enRiesgoHl}`);
 ok(p1.enRiesgoCajas === 280 && p1.enRiesgoUnidades === 280 * 30, `P1 en riesgo ${p1.enRiesgoCajas}`);
 ok(r.semanas[0].cajas === 120 && r.semanas[1].cajas === 160 && r.semanas[2].cajas === 80, `semanas: ${r.semanas.map((s) => s.cajas)}`);
 ok(r.recorridos === 2 && r.desde === "2026-09-15" && r.hasta === "2026-09-21", "recorridos/fechas");
@@ -68,7 +72,7 @@ const NOMS = ["Águila Original 330 ml x 30", "Águila Light 330 ml x 30", "Club
 const GR = [];
 NOMS.forEach((nom, i) => { const k = 2 + Math.floor(az() * 5); for (let j = 0; j < k; j++) { const ds = Math.round(az() * 70 - 12);
   GR.push(L({ sku: "M" + (100 + i), nom, u: "ABCDEFGH"[Math.floor(az() * 8)] + String(1 + Math.floor(az() * 30)).padStart(2, "0") + (az() < .5 ? "IZQ" : "DER"), ds, dv: ds + 8, t: 20 + Math.floor(az() * 300), av: az() < .08 })) } });
-const RR = (() => { const { foto, ...x } = medirRiesgo(GR, CONT, Object.fromEntries(NOMS.map((_, i) => ["M" + (100 + i), i === 4 ? null : 24]))); return x })();
+const RR = (() => { const { foto, ...x } = medirRiesgo(GR, CONT, Object.fromEntries(NOMS.map((_, i) => ["M" + (100 + i), i === 4 ? null : 24])), Object.fromEntries(NOMS.map((_, i) => ["M" + (100 + i), 0.0033]))); return x })();
 
 const { chromium } = await import("playwright");
 const nav = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
@@ -102,6 +106,18 @@ await pg.fill(".ir-th input", "");
 const u1 = await pg.textContent(".ir-tabla tr.semana td.cj");
 await pg.click(".ir-seg button:has-text('Unidades')");
 ok((await pg.textContent(".ir-tabla tr.semana td.cj")) !== u1 && /sin «unidades por caja»/.test(await pg.textContent(".ir")), "el cambio a unidades no cambia las cifras o no avisa de lo que falta");
+await pg.click(".ir-seg button:has-text('Hectolitros')");
+{
+  const t = await pg.textContent(".ir");
+  ok(/Hectolitros por tiempo para vencer/.test(t) && /sin «unidades por caja» o sin HL/.test(t), "el botón Hectolitros no cambia el título o no avisa de lo que falta");
+  const cj = await pg.textContent(".ir-tabla tr.semana td.cj");
+  ok(/,|^\d+$/.test(cj.trim()) && cj !== "—", `la tabla en HL no trae cifra: «${cj}»`);
+  const [dh] = await Promise.all([pg.waitForEvent("download", { timeout: 20000 }), pg.click(".ir-top .ir-btn")]);
+  const bh = readFileSync(await dh.path());
+  ok(bh.subarray(0, 4).toString() === "%PDF" && bh.length > 6000, `el PDF en hectolitros no sale: ${bh.length}`);
+  if (process.env.FOTO) writeFileSync(`${process.env.FOTO}/riesgo-hl.pdf`, bh);
+  ok((await pg.$eval(".ir-seg button:has-text('Hectolitros')", (b) => b.className)) === "on" && (await pg.$$(".ir-seg button")).length === 3, "el selector no tiene tres botones o no marca Hectolitros");
+}
 await pg.click(".ir-seg button:has-text('Cajas')");
 await pg.click(".ir-m >> nth=0");
 const sitiosPanel = await pg.$$(".ir-s");
