@@ -25,7 +25,7 @@ import { leerPaleta } from "../informe";
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const hora = (iso: string) => new Date(iso).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Bogota" });
 type Rango = "hoy" | "ayer" | "7" | "30" | "otro";
-const MAX_FOTOS = 60, MAX_CALOR = 40, MAX_ANEXO = 600, MAX_PANTALLA = 300;
+const MAX_FOTOS = 24, MAX_ANEXO = 600, MAX_PANTALLA = 300;
 const rgbHex = (c: [number, number, number]) => "#" + c.map((v) => Math.round(v).toString(16).padStart(2, "0")).join("");
 
 export function Evidencias() {
@@ -78,7 +78,7 @@ export function Evidencias() {
   const an = useMemo(() => analizar(novs ?? [], cob, desde, hasta, tipos), [novs, cob, desde, hasta, tipos]);
 
   /* Las gráficas se dibujan en un lienzo: solo en el navegador, y las mismas van al informe. */
-  useEffect(() => { setImgs(novs ? armarGraficas(an, MAX_CALOR) : null) }, [an, novs]);
+  useEffect(() => { setImgs(novs ? armarGraficas(an) : null) }, [an, novs]);
 
   const verFoto = async (ruta: string, clave: string) => {
     if (fotoAbierta === clave) { setFotoAbierta(null); return }
@@ -95,7 +95,7 @@ export function Evidencias() {
     try {
       const fotos = await cargarFotos(supabase, vistas, MAX_FOTOS, (h, t) => setAvance(t ? `Bajando fotos ${h} de ${t}…` : "Armando…"));
       setAvance("Armando el informe…");
-      const g = armarGraficas(an, MAX_CALOR);
+      const g = armarGraficas(an);
       let quien = "—";
       try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -103,7 +103,7 @@ export function Evidencias() {
       } catch { /* sin nombre */ }
       const generado = new Date().toLocaleString("es-CO", { dateStyle: "long", timeStyle: "short", timeZone: "America/Bogota" });
       const tiposTxt = tipos.length === TIPOS.length ? "avería, PNC, módulo mezclado y módulo sin acceso" : TIPOS.filter((t) => tipos.includes(t.k)).map((t) => t.nombre.toLowerCase()).join(", ");
-      const bloques = construirInforme(an, vistas, { desde, hasta, tiposTxt, quien, generado, graficas: g, fotos, maxFotos: MAX_FOTOS, maxFilasCalor: MAX_CALOR, maxFilasAnexo: MAX_ANEXO });
+      const bloques = construirInforme(an, vistas, { desde, hasta, tiposTxt, quien, generado, graficas: g, fotos, maxFotos: MAX_FOTOS, maxFilasAnexo: MAX_ANEXO });
       const comoDataUrl = async (url: string) => {
         try {
           const r = await fetch(url); if (!r.ok) return null;

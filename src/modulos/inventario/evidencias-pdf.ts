@@ -162,7 +162,7 @@ export function dibujarEvidencias(JsPDFCtor: typeof JsPDF, bloques: Bloque[], x:
   const tabla = (b: Extract<Bloque, { t: "tabla" }>) => {
     const suma = b.cols.reduce((s, c) => s + c.w, 0);
     const anchos = b.cols.map((c) => (c.w / suma) * CW);
-    const TAM = 8, PAD = 1.8, LH = lh(TAM);
+    const TAM = b.compacta ? 7 : 8, PAD = b.compacta ? 1.4 : 1.8, LH = lh(TAM), RELLENO = b.compacta ? 1.8 : 2.6, BASE = b.compacta ? 3.2 : 3.9;
     const pintaEncabezado = () => {
       fuente("bold", 7.2);
       const lineas = b.cols.map((c, i) => partir(c.h, anchos[i] - 2 * PAD));
@@ -184,7 +184,7 @@ export function dibujarEvidencias(JsPDFCtor: typeof JsPDF, bloques: Bloque[], x:
       fuente("normal", TAM);
       const lineas = fila.map((c, i) => { fuente(typeof c !== "string" && c.bold ? "bold" : "normal", TAM); return partir(texto(c), anchos[i] - 2 * PAD) });
       const nl = Math.max(...lineas.map((l) => l.length));
-      const alto = nl * LH + 2.6;
+      const alto = nl * LH + RELLENO;
       if (y + alto > TOPE) { hojaNueva(); pintaEncabezado() }
       if (r % 2 === 1) { doc.setFillColor(...TENUE); doc.rect(M, y, CW, alto, "F") }
       let xx = M;
@@ -195,7 +195,7 @@ export function dibujarEvidencias(JsPDFCtor: typeof JsPDF, bloques: Bloque[], x:
         if (obj?.color) doc.setTextColor(...hexRGB(obj.color)); else tinta();
         const al = b.cols[i].al;
         const tx = al === "r" ? xx + anchos[i] - PAD : al === "c" ? xx + anchos[i] / 2 : xx + PAD;
-        doc.text(lineas[i], tx, y + 3.9, { align: al === "r" ? "right" : al === "c" ? "center" : "left" });
+        doc.text(lineas[i], tx, y + BASE, { align: al === "r" ? "right" : al === "c" ? "center" : "left" });
         xx += anchos[i];
       });
       doc.setDrawColor(226, 231, 238); doc.setLineWidth(0.15); doc.line(M, y + alto, W - M, y + alto);
@@ -207,7 +207,7 @@ export function dibujarEvidencias(JsPDFCtor: typeof JsPDF, bloques: Bloque[], x:
   };
 
   const fotos = (b: Extract<Bloque, { t: "fotos" }>) => {
-    const COLS = 5, gap = 4, w = (CW - gap * (COLS - 1)) / COLS, FH = 36, TXT = 14;
+    const COLS = 6, gap = 3.5, w = (CW - gap * (COLS - 1)) / COLS, FH = 27, TXT = 13;
     b.items.forEach((it, i) => {
       const col = i % COLS;
       if (col === 0) cabe(FH + TXT + 3);
@@ -216,8 +216,8 @@ export function dibujarEvidencias(JsPDFCtor: typeof JsPDF, bloques: Bloque[], x:
       let iw = w, ih = (it.foto.h / it.foto.w) * iw;
       if (ih > FH) { ih = FH; iw = (it.foto.w / it.foto.h) * ih }
       try { doc.addImage(it.foto.jpg, "JPEG", xx + (w - iw) / 2, y + (FH - ih) / 2, iw, ih, undefined, "FAST") } catch { /* foto dañada */ }
-      fuente("bold", 7.4); tinta(); doc.text(partir(it.titulo, w)[0], xx, y + FH + 3.6);
-      fuente("normal", 6.6); gris(); doc.text(partir(it.detalle, w).slice(0, 3), xx, y + FH + 7.1);
+      fuente("bold", 7); tinta(); doc.text(partir(it.titulo, w)[0], xx, y + FH + 3.4);
+      fuente("normal", 6.2); gris(); doc.text(partir(it.detalle, w).slice(0, 3), xx, y + FH + 6.6);
       if (col === COLS - 1 || i === b.items.length - 1) y += FH + TXT;
     });
     if (b.nota) { fuente("normal", 8.5); gris(); cabe(8); doc.text(b.nota, M, y + 3); y += 7 }

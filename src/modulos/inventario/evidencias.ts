@@ -19,10 +19,10 @@
 export type TipoNovedad = "averia" | "pnc" | "mezclado" | "sin_acceso";
 
 export const TIPOS: { k: TipoNovedad; nombre: string; letra: string; color: string }[] = [
-  { k: "averia", nombre: "Avería", letra: "A", color: "#D9822B" },
-  { k: "pnc", nombre: "PNC", letra: "P", color: "#3B6FB6" },
-  { k: "mezclado", nombre: "Módulo mezclado", letra: "M", color: "#7A5AA6" },
-  { k: "sin_acceso", nombre: "Módulo sin acceso", letra: "S", color: "#5E6B73" },
+  { k: "averia", nombre: "Avería", letra: "A", color: "#FF7A1A" },
+  { k: "pnc", nombre: "PNC", letra: "P", color: "#1F6FD0" },
+  { k: "mezclado", nombre: "Módulo mezclado", letra: "M", color: "#7A3FD0" },
+  { k: "sin_acceso", nombre: "Módulo sin acceso", letra: "S", color: "#55606B" },
 ];
 export const TIPO = Object.fromEntries(TIPOS.map((t) => [t.k, t])) as Record<TipoNovedad, (typeof TIPOS)[number]>;
 
@@ -42,10 +42,10 @@ export type Cobertura = {
 export type EstadoCelda = "novedad" | "limpia" | "sin";
 export type Tendencia = "nueva" | "persiste" | "reincide" | "ya_no";
 export const TENDENCIAS: { k: Tendencia; nombre: string; frase: string; color: string }[] = [
-  { k: "persiste", nombre: "Persiste", frase: "sigue con novedad en el último día contado", color: "#B3470F" },
-  { k: "reincide", nombre: "Reincide", frase: "se había ido y volvió", color: "#8A5A00" },
-  { k: "nueva", nombre: "Nueva", frase: "apareció en el último día contado", color: "#D9822B" },
-  { k: "ya_no", nombre: "Ya no", frase: "tuvo novedad y en el último día contado salió limpia", color: "#2E7D4F" },
+  { k: "persiste", nombre: "Persiste", frase: "sigue con novedad en el último día contado", color: "#EF3B2C" },
+  { k: "reincide", nombre: "Reincide", frase: "se había ido y volvió", color: "#B0102A" },
+  { k: "nueva", nombre: "Nueva", frase: "apareció en el último día contado", color: "#FFC21A" },
+  { k: "ya_no", nombre: "Ya no", frase: "tuvo novedad y en el último día contado salió limpia", color: "#22A45D" },
 ];
 export const TEND = Object.fromEntries(TENDENCIAS.map((t) => [t.k, t])) as Record<Tendencia, (typeof TENDENCIAS)[number]>;
 

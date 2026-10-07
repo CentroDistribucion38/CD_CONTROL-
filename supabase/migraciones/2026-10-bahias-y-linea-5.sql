@@ -9,8 +9,11 @@
 --           ya tenga) y el módulo en dos cifras (01…06), como el resto del maestro.
 --           No toca la BAHIA_6 ni ninguna que ya exista (si alguna ya está, se deja como está).
 --
---   FÁBRICA: tres ubicaciones nuevas en la calle FABRICA: el módulo «SORTING L2-L4-L6» (el sorting de las líneas 2, 4 y 6),
---           y también los módulos «PATIO 1» y «PATIO 2», en la misma bodega que la BAHIA_6. Sin lado y sin capacidad: es un sitio con nombre, como EST07 o JAULA_PNC.
+--   FÁBRICA: es la CALLE, y comprende varios módulos, cada uno aparte: «SORTING L2», «SORTING L4»,
+--           «SORTING L6», «PATIO 1» y «PATIO 2» (cinco ubicaciones en la calle FABRICA, en la misma
+--           bodega que la BAHIA_6). Sin lado y sin capacidad: son sitios con nombre, como EST07 o JAULA_PNC.
+--           Si ya se había corrido una versión anterior que creó el módulo junto «SORTING L2-L4-L6»,
+--           se elimina (o, si ya tiene movimiento, se desactiva).
 --
 --   LÍNEA 5: el corte de líneas lee `inv_lineas`; una fila nueva y la pantalla ya la ofrece.
 --
@@ -28,13 +31,23 @@ on conflict (bodega_id, clave) do nothing;
 insert into public.ubicaciones (bodega_id, clave, calle, modulo, lado, familia, capacidad, activa)
 select b6.bodega_id, 'FABRICA_' || replace(m, ' ', '_'), 'FABRICA', m, null, null, null, true
   from public.ubicaciones b6
- cross join (values ('SORTING L2-L4-L6'), ('PATIO 1'), ('PATIO 2')) as v(m)
+ cross join (values ('SORTING L2'), ('SORTING L4'), ('SORTING L6'), ('PATIO 1'), ('PATIO 2')) as v(m)
  where b6.clave = 'BAHIA_6'
 on conflict (bodega_id, clave) do nothing;
+
+-- Limpieza del módulo junto de la versión anterior.
+do $$
+begin
+  begin
+    delete from public.ubicaciones where calle = 'FABRICA' and modulo = 'SORTING L2-L4-L6';
+  exception when foreign_key_violation then
+    update public.ubicaciones set activa = false where calle = 'FABRICA' and modulo = 'SORTING L2-L4-L6';
+  end;
+end $$;
 
 insert into public.inv_lineas (clave, nombre, orden, activa)
 values ('L5', 'Línea 5', 5, true)
 on conflict (clave) do nothing;
 
 commit;
--- LISTO · bahías 1 a 6, fábrica (sorting) y línea 5
+-- LISTO · bahías 1 a 6, fábrica (sorting L2, L4, L6, patio 1 y patio 2) y línea 5

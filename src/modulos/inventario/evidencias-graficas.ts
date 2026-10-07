@@ -6,9 +6,7 @@
  *
  * REGLAS DE LECTURA (para que se entienda sin la leyenda a la vista):
  *   · el color del tipo siempre es el mismo (Avería ámbar, PNC azul, Mezclado morado, Sin acceso pizarra);
- *   · en el mapa de calor la celda lleva la LETRA del tipo: no depende solo del color;
- *   · «limpia» (se contó y no había nada) es verde claro; «sin conteo» es gris rayado: no es lo mismo;
- *   · el rojo no se usa: queda para errores.
+ *   · los colores son los vivos del tablero de riesgo (naranja, azul, verde, rojo): se leen igual en pantalla, en papel y en el Word.
  */
 import { TENDENCIAS, TEND, TIPOS, diaCorto, letrasTipos, type Analisis, type FilaUbicacion } from "./evidencias";
 import type { Graficas } from "./evidencias-informe";
@@ -16,8 +14,6 @@ import type { Graficas } from "./evidencias-informe";
 export type Imagen = { png: string; w: number; h: number };
 
 const TINTA = "#12263A", GRIS = "#5B6B7F", LINEA = "#E3E8EF", FONDO = "#FFFFFF";
-const LIMPIA = "#D9EBDD", SIN = "#F1F2F4";
-const CALOR = ["#F6C65B", "#EE9B2F", "#C4601A"];
 const FUENTE = "system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif";
 const ESC = 2;
 
@@ -40,14 +36,13 @@ function tope(max: number): { tope: number; paso: number } {
   for (const m of base) { const p = m * mag / 2; if (p * 5 >= max) return { tope: Math.ceil(max / p) * p, paso: p }; }
   return { tope: Math.ceil(max / mag) * mag, paso: mag };
 }
-const colorCalor = (n: number) => CALOR[Math.min(n, 3) - 1];
 
 /** Las marcas del eje X: todas si caben, si no una de cada k. */
 const cadaK = (n: number, ancho: number, minPx: number) => Math.max(1, Math.ceil((n * minPx) / ancho));
 
 /* ============ 1 · NOVEDADES POR DÍA, apiladas por tipo ============ */
 export function graficaDias(a: Analisis): Imagen {
-  const W = 920, H = 310, L = 44, R = 16, T = 42, B = 50;
+  const W = 700, H = 214, L = 40, R = 16, T = 36, B = 48;
   const l = lienzo(W, H), g = l.g;
   const n = a.porDia.length, max = Math.max(1, ...a.porDia.map((d) => d.total));
   const { tope: top, paso } = tope(max);
@@ -82,7 +77,7 @@ export function graficaDias(a: Analisis): Imagen {
 
 /* ============ 2 · UBICACIONES CONTADAS vs. CON NOVEDAD (una sola escala) ============ */
 export function graficaCobertura(a: Analisis): Imagen {
-  const W = 920, H = 270, L = 44, R = 22, T = 40, B = 46;
+  const W = 700, H = 209, L = 40, R = 56, T = 36, B = 47; // R: sitio a la derecha para el último valor (hasta 5 cifras)
   const l = lienzo(W, H), g = l.g;
   const n = a.porDia.length;
   const max = Math.max(1, ...a.porDia.map((d) => d.contadas));
@@ -91,8 +86,8 @@ export function graficaCobertura(a: Analisis): Imagen {
   const x = (i: number) => L + (n === 1 ? ancho / 2 : (ancho * i) / (n - 1));
   const y = (v: number) => T + alto - (v / top) * alto;
   const series = [
-    { nombre: "Ubicaciones contadas", color: "#5E6B73", v: a.porDia.map((d) => d.contadas), dash: [6, 4] as number[] },
-    { nombre: "Ubicaciones con novedad", color: "#D9822B", v: a.porDia.map((d) => d.conNovedad), dash: [] as number[] },
+    { nombre: "Ubicaciones contadas", color: "#55606B", v: a.porDia.map((d) => d.contadas), dash: [6, 4] as number[] },
+    { nombre: "Ubicaciones con novedad", color: "#FF7A1A", v: a.porDia.map((d) => d.conNovedad), dash: [] as number[] },
   ];
   let lx = L; fuente(g, 600, 12);
   for (const s of series) { g.strokeStyle = s.color; g.lineWidth = 3; g.setLineDash(s.dash); g.beginPath(); g.moveTo(lx, 20); g.lineTo(lx + 22, 20); g.stroke(); g.setLineDash([]); g.fillStyle = TINTA; g.textAlign = "left"; g.fillText(s.nombre, lx + 28, 20); lx += 28 + g.measureText(s.nombre).width + 26 }
@@ -109,7 +104,10 @@ export function graficaCobertura(a: Analisis): Imagen {
       if (n <= 31 || ult) { const r = ult ? 5 : 3.4; g.fillStyle = FONDO; g.fillRect(x(i) - r, y(v) - r, 2 * r, 2 * r); g.strokeStyle = s.color; g.lineWidth = 2; g.strokeRect(x(i) - r, y(v) - r, 2 * r, 2 * r); }
     });
     /* el último valor, rotulado */
-    const u = s.v[n - 1]; fuente(g, 700, 12); g.fillStyle = TINTA; g.textAlign = "left"; g.fillText(String(u), Math.min(x(n - 1) + 9, W - 16), y(u) - (s === series[0] ? 11 : -11));
+    const u = s.v[n - 1]; fuente(g, 700, 12); g.fillStyle = TINTA; g.textAlign = "left"; /* Cada rótulo junto a su punto; si las dos líneas terminan casi juntas, el de las contadas sube
+       (nunca se baja uno: abajo está el eje con las fechas). */
+    const cerca = Math.abs(y(series[0].v[n - 1]) - y(series[1].v[n - 1])) < 18;
+    g.fillText(String(u), Math.min(x(n - 1) + 10, W - 6 - g.measureText(String(u)).width), y(u) - (s === series[0] && cerca ? 13 : 0));
   }
   const k = cadaK(n, ancho, 44);
   fuente(g, 500, 11); g.fillStyle = GRIS; g.textAlign = "center";
@@ -123,8 +121,10 @@ export function graficaDona(a: Analisis): Imagen {
   const W = 520, H = 250;
   const l = lienzo(W, H), g = l.g;
   const tot = a.total || 1;
+  /* El ancho del número se mide CON la letra grande: medido con la chica, el rótulo caía encima de la cifra. */
   g.textAlign = "left"; fuente(g, 800, 38); g.fillStyle = TINTA; g.fillText(String(a.total), 16, 34);
-  fuente(g, 600, 12); g.fillStyle = GRIS; g.fillText("NOVEDADES EN EL PERIODO", 16 + g.measureText(String(a.total)).width + 12 + 0, 36);
+  const anchoTotal = g.measureText(String(a.total)).width;
+  fuente(g, 600, 12); g.fillStyle = GRIS; g.fillText("NOVEDADES EN EL PERIODO", 16 + anchoTotal + 12, 36);
   const bx = 16, bw = W - 32, by = 66, bh = 30;
   g.fillStyle = LINEA; g.fillRect(bx, by, bw, bh);
   let x = bx;
@@ -143,64 +143,8 @@ export function graficaDona(a: Analisis): Imagen {
   return salir(l);
 }
 
-/* ============ 4 · MAPA DE CALOR: ubicación × día ============ */
-export function mapaCalor(a: Analisis, maxFilas = 40): Imagen {
-  const filas = a.filas.slice(0, maxFilas);
-  const n = a.dias.length;
-  const LAB = 170, DER = 54, T = 56, RH = 24, B = 66;
-  const cw = Math.max(15, Math.min(46, Math.floor((900 - LAB - DER) / n)));
-  const W = LAB + cw * n + DER, H = T + RH * Math.max(filas.length, 1) + B;
-  const l = lienzo(W, H), g = l.g;
-  /* encabezado de días */
-  const k = cadaK(n, cw * n, 30);
-  g.textAlign = "center"; fuente(g, 700, 11); g.fillStyle = TINTA;
-  a.dias.forEach((d, i) => {
-    if (i % k === 0 || n <= 16) {
-      g.fillText(String(Number(d.slice(8))), LAB + cw * i + cw / 2, T - 28);
-      fuente(g, 500, 9.5); g.fillStyle = GRIS; g.fillText(diaCorto(d).split(" ")[1], LAB + cw * i + cw / 2, T - 15); fuente(g, 700, 11); g.fillStyle = TINTA;
-    }
-  });
-  g.textAlign = "left"; fuente(g, 700, 10.5); g.fillStyle = GRIS; g.fillText("UBICACIÓN · TENDENCIA", 8, T - 15);
-  g.textAlign = "right"; g.fillText("TOTAL", W - 10, T - 15);
-  filas.forEach((f: FilaUbicacion, r) => {
-    const y0 = T + RH * r;
-    fuente(g, 800, 12.5); g.textAlign = "left"; g.fillStyle = TINTA; g.fillText(f.clave, 8, y0 + RH / 2);
-    const col = TEND[f.tendencia].color;
-    g.fillStyle = col; g.fillRect(84, y0 + 6, 10, 12);
-    fuente(g, 600, 11); g.fillStyle = TINTA; g.fillText(TEND[f.tendencia].nombre, 100, y0 + RH / 2);
-    f.celdas.forEach((c, i) => {
-      const x0 = LAB + cw * i;
-      if (c.estado === "novedad") {
-        g.fillStyle = colorCalor(c.n); g.fillRect(x0 + 1, y0 + 1, cw - 2, RH - 2);
-        fuente(g, 800, cw >= 28 ? 10.5 : 9.5); g.textAlign = "center"; g.fillStyle = c.n >= 3 ? "#FFFFFF" : TINTA;
-        g.fillText(cw >= 28 ? letrasTipos(c.tipos) : (c.tipos.length ? TIPOS.find((t) => t.k === c.tipos[0])!.letra : ""), x0 + cw / 2, y0 + RH / 2 + 0.5);
-      } else if (c.estado === "limpia") {
-        g.fillStyle = LIMPIA; g.fillRect(x0 + 1, y0 + 1, cw - 2, RH - 2);
-      } else {
-        g.fillStyle = SIN; g.fillRect(x0 + 1, y0 + 1, cw - 2, RH - 2);
-        g.save(); g.beginPath(); g.rect(x0 + 1, y0 + 1, cw - 2, RH - 2); g.clip();
-        g.strokeStyle = "#CDD2D9"; g.lineWidth = 1;
-        for (let s = -RH; s < cw; s += 6) { g.beginPath(); g.moveTo(x0 + s, y0 + RH); g.lineTo(x0 + s + RH, y0); g.stroke() }
-        g.restore();
-      }
-    });
-    fuente(g, 800, 12); g.textAlign = "right"; g.fillStyle = TINTA; g.fillText(String(f.total), W - 10, y0 + RH / 2);
-  });
-  if (!filas.length) { fuente(g, 600, 13); g.textAlign = "left"; g.fillStyle = GRIS; g.fillText("Sin novedades en el periodo.", 8, T + RH / 2) }
-  /* leyenda */
-  let lx = 8; const ly = H - 36; fuente(g, 600, 11); g.textAlign = "left";
-  const cuadro = (fill: string, txt: string, hatch = false) => {
-    g.fillStyle = fill; g.fillRect(lx, ly - 7, 16, 14);
-    if (hatch) { g.save(); g.beginPath(); g.rect(lx, ly - 7, 16, 14); g.clip(); g.strokeStyle = "#CDD2D9"; for (let s = -14; s < 16; s += 5) { g.beginPath(); g.moveTo(lx + s, ly + 7); g.lineTo(lx + s + 14, ly - 7); g.stroke() } g.restore() }
-    g.fillStyle = TINTA; g.fillText(txt, lx + 22, ly); lx += 22 + g.measureText(txt).width + 18;
-  };
-  cuadro(CALOR[0], "1 novedad"); cuadro(CALOR[1], "2"); cuadro(CALOR[2], "3 o más"); cuadro(LIMPIA, "Contada, sin novedad"); cuadro(SIN, "No se contó ese día", true);
-  g.fillStyle = GRIS; g.fillText("Letras:  " + TIPOS.map((t) => `${t.letra} = ${t.nombre}`).join("   "), 8, H - 12);
-  return salir(l);
-}
-
 /* ============ 5 · UBICACIONES CON MÁS NOVEDADES (apiladas por tipo) ============ */
-export function graficaTop(a: Analisis, cuantas = 12): Imagen {
+export function graficaTop(a: Analisis, cuantas = 8): Imagen {
   const top = [...a.filas].sort((x, y) => y.total - x.total || y.diasConNovedad - x.diasConNovedad).slice(0, cuantas);
   const LAB = 80, R = 90, T = 52, RH = 26;
   const W = 580, H = T + RH * Math.max(top.length, 1) + 16;
@@ -241,6 +185,6 @@ export function graficaTendencias(a: Analisis): Imagen {
 }
 
 /** Todas las gráficas del informe (y de la pantalla) de una vez. */
-export function armarGraficas(a: Analisis, maxFilasCalor = 40): Graficas {
-  return { dias: graficaDias(a), cobertura: graficaCobertura(a), dona: graficaDona(a), calor: mapaCalor(a, maxFilasCalor), top: graficaTop(a), tendencias: graficaTendencias(a) };
+export function armarGraficas(a: Analisis): Graficas {
+  return { dias: graficaDias(a), cobertura: graficaCobertura(a), dona: graficaDona(a), top: graficaTop(a), tendencias: graficaTendencias(a) };
 }

@@ -23,10 +23,10 @@ export type Bloque =
   | { t: "kpis"; items: { rotulo: string; valor: string; detalle?: string; color?: string }[] }
   | { t: "img"; img: Imagen; ancho?: number; pie?: string }
   | { t: "imgs2"; a: Imagen; b: Imagen; pieA?: string; pieB?: string }
-  | { t: "tabla"; cols: Col[]; filas: CeldaT[][]; nota?: string }
+  | { t: "tabla"; cols: Col[]; filas: CeldaT[][]; nota?: string; compacta?: boolean }
   | { t: "fotos"; items: { foto: Foto; titulo: string; detalle: string }[]; nota?: string };
 
-export type Graficas = { dias: Imagen; cobertura: Imagen; dona: Imagen; calor: Imagen; top: Imagen; tendencias: Imagen };
+export type Graficas = { dias: Imagen; cobertura: Imagen; dona: Imagen; top: Imagen; tendencias: Imagen };
 
 export type OpcionesInforme = {
   desde: string; hasta: string; tiposTxt: string; quien: string; generado: string;
@@ -34,7 +34,6 @@ export type OpcionesInforme = {
   /** Fotos ya bajadas y achicadas, por ruta del bucket. */
   fotos: Map<string, Foto>;
   maxFotos: number;
-  maxFilasCalor: number;
   maxFilasAnexo: number;
 };
 
@@ -82,14 +81,14 @@ export function construirInforme(a: Analisis, novs: Novedad[], o: OpcionesInform
     t: "lista", items: [
       "Una ubicación «persiste» si tuvo novedad en el último día en que se contó y también en el día contado anterior; «reincide» si se había ido y volvió; «es nueva» si aparece por primera vez en el último día contado; «ya no» si tuvo novedad y en el último día contado salió limpia.",
       "Los días en que una ubicación NO se contó no cuentan como limpios: se muestran en gris rayado y no cambian su tendencia.",
-      "Módulos del informe: 1 Tendencia por día · 2 Mapa de calor · 3 Tendencia por ubicación · 4 Dónde se concentra · 5 PNC y política de bloqueo · 6 Evidencias fotográficas · Anexo con el detalle.",
+      "Módulos del informe: 1 Tendencia por día · 2 Tendencia por ubicación · 3 Dónde se concentra · 4 PNC y política de bloqueo · 5 Evidencias fotográficas · Anexo con el detalle.",
     ],
   });
 
   /* ---------- MÓDULO 1 · POR DÍA ---------- */
   B.push({ t: "modulo", n: "MÓDULO 1", titulo: "Tendencia por día", sub: "Cuántas novedades hubo cada día, de qué tipo, y cuántas ubicaciones se miraron." });
-  B.push({ t: "img", img: G.dias, ancho: 0.8 });
-  B.push({ t: "img", img: G.cobertura, ancho: 0.8 });
+  B.push({ t: "img", img: G.dias, ancho: 0.6 });
+  B.push({ t: "img", img: G.cobertura, ancho: 0.6 });
   B.push({
     t: "tabla", cols: [
       { h: "Día", w: 14, al: "l" }, { h: "Ubic. contadas", w: 11, al: "r" }, { h: "Ubic. con novedad", w: 12, al: "r" },
@@ -99,15 +98,11 @@ export function construirInforme(a: Analisis, novs: Novedad[], o: OpcionesInform
       { x: diaTxt(d.dia), bold: true }, d.contadas ? nf.format(d.contadas) : { x: "no se contó", color: "#5B6B7F" }, nf.format(d.conNovedad),
       ...TIPOS.map((t) => (d.porTipo[t.k] ? nf.format(d.porTipo[t.k]) : "·")), { x: nf.format(d.total), bold: true },
     ]),
+    compacta: true,
   });
 
-  /* ---------- MÓDULO 2 · MAPA DE CALOR ---------- */
-  B.push({ t: "modulo", n: "MÓDULO 2", titulo: "Mapa de calor: ubicación × día", sub: "Cada fila es una ubicación con novedad; cada columna, un día. Ayer sí, hoy no, hoy sí otra vez: se ve de un vistazo." });
-  B.push({ t: "img", img: G.calor });
-  if (a.filas.length > o.maxFilasCalor) B.push({ t: "p", texto: `Se muestran las ${o.maxFilasCalor} ubicaciones más críticas de ${a.filas.length}. El resto está en el anexo.`, gris: true });
-
-  /* ---------- MÓDULO 3 · TENDENCIA POR UBICACIÓN ---------- */
-  B.push({ t: "modulo", n: "MÓDULO 3", titulo: "Tendencia por ubicación", sub: "En qué va cada ubicación: si la novedad persiste, volvió, es nueva o ya se resolvió." });
+  /* ---------- MÓDULO 2 · TENDENCIA POR UBICACIÓN ---------- */
+  B.push({ t: "modulo", n: "MÓDULO 2", titulo: "Tendencia por ubicación", sub: "En qué va cada ubicación: si la novedad persiste, volvió, es nueva o ya se resolvió." });
   B.push({ t: "img", img: G.tendencias, ancho: 0.42 });
   B.push({ t: "lista", items: TENDENCIAS.map((t) => `${t.nombre}: ${t.frase}.`) });
   B.push({
@@ -120,23 +115,25 @@ export function construirInforme(a: Analisis, novs: Novedad[], o: OpcionesInform
       nf.format(f.diasConNovedad), f.tendencia === "ya_no" ? "0" : nf.format(f.racha), tiposDe(f), f.ultimoVisto ? diaTxt(f.ultimoVisto) : "—", { x: nf.format(f.total), bold: true },
     ]),
     nota: a.filas.length ? undefined : "Sin novedades en el periodo.",
+    compacta: true,
   });
 
-  /* ---------- MÓDULO 4 · DÓNDE SE CONCENTRA ---------- */
-  B.push({ t: "modulo", n: "MÓDULO 4", titulo: "Dónde se concentra", sub: "Las ubicaciones y los módulos con más novedades en el periodo." });
+  /* ---------- MÓDULO 3 · DÓNDE SE CONCENTRA ---------- */
+  B.push({ t: "modulo", n: "MÓDULO 3", titulo: "Dónde se concentra", sub: "Las ubicaciones y los módulos con más novedades en el periodo." });
   B.push({ t: "imgs2", a: G.dona, b: G.top, pieA: "Proporción por tipo de novedad", pieB: "Ubicaciones con más novedades" });
   B.push({
     t: "tabla", cols: [{ h: "Módulo (calle + número)", w: 30, al: "l" }, { h: "Ubicaciones afectadas", w: 20, al: "r" }, { h: "Novedades", w: 14, al: "r" }],
-    filas: a.modulos.slice(0, 10).map((m) => [{ x: m.modulo, bold: true }, nf.format(m.ubicaciones), { x: nf.format(m.total), bold: true }]),
+    filas: a.modulos.slice(0, 6).map((m) => [{ x: m.modulo, bold: true }, nf.format(m.ubicaciones), { x: nf.format(m.total), bold: true }]),
+    compacta: true,
   });
   if (a.personas.length) {
     B.push({ t: "sub", texto: "Quién las anotó" });
-    B.push({ t: "tabla", cols: [{ h: "Persona", w: 30, al: "l" }, { h: "Novedades anotadas", w: 20, al: "r" }], filas: a.personas.slice(0, 8).map((p) => [{ x: p.persona, bold: true }, nf.format(p.total)]) });
+    B.push({ t: "tabla", cols: [{ h: "Persona", w: 30, al: "l" }, { h: "Novedades anotadas", w: 20, al: "r" }], filas: a.personas.slice(0, 5).map((p) => [{ x: p.persona, bold: true }, nf.format(p.total)]), compacta: true });
   }
 
-  /* ---------- MÓDULO 5 · PNC ---------- */
+  /* ---------- MÓDULO 4 · PNC ---------- */
   const pnc = novs.filter((n) => n.tipo === "pnc");
-  B.push({ t: "modulo", n: "MÓDULO 5", titulo: "PNC y política de bloqueo", sub: "Para cada PNC: ¿tiene rótulo? ¿tiene bloqueo mecánico? Cumple la política si tiene los dos." });
+  B.push({ t: "modulo", n: "MÓDULO 4", titulo: "PNC y política de bloqueo", sub: "Para cada PNC: ¿tiene rótulo? ¿tiene bloqueo mecánico? Cumple la política si tiene los dos." });
   B.push({
     t: "kpis", items: [
       { rotulo: "PNC encontrados", valor: nf.format(a.pnc.total) },
@@ -155,14 +152,14 @@ export function construirInforme(a: Analisis, novs: Novedad[], o: OpcionesInform
     filas: pnc.map((n) => [
       diaCorto(n.dia), { x: mod(n), bold: true }, `${n.codigo ?? ""} ${n.material ?? ""}`.trim() || "—", n.cajas != null ? nf.format(n.cajas) : "—",
       si(n.pnc_rotulo), si(n.pnc_bloqueo_mecanico),
-      n.cumple == null ? { x: "Sin responder", color: "#5B6B7F" } : n.cumple ? { x: "Cumple", fill: "#D9EBDD", bold: true } : { x: "No cumple", fill: "#F6C65B", bold: true },
+      n.cumple == null ? { x: "Sin responder", color: "#5B6B7F" } : n.cumple ? { x: "Cumple", fill: "#CDEBD8", bold: true } : { x: "No cumple", fill: "#FFC21A", bold: true },
       n.persona ?? "—",
     ]),
     nota: pnc.length ? undefined : "No hubo PNC en el periodo (o no se escogió ese tipo).",
   });
 
-  /* ---------- MÓDULO 6 · FOTOS ---------- */
-  B.push({ t: "modulo", n: "MÓDULO 6", titulo: "Evidencias fotográficas", sub: "Una foto por novedad, en miniatura: ubicación, tipo, material, día, hora y quién la anotó." });
+  /* ---------- MÓDULO 5 · FOTOS ---------- */
+  B.push({ t: "modulo", n: "MÓDULO 5", titulo: "Evidencias fotográficas", sub: "Una foto por novedad, en miniatura: ubicación, tipo, material, día, hora y quién la anotó." });
   const conFoto = novs.filter((n) => n.ruta && o.fotos.has(n.ruta)).sort((x, y) => y.dia.localeCompare(x.dia) || orden(mod(x), mod(y)));
   const unicas: Novedad[] = []; const vistas = new Set<string>();
   for (const n of conFoto) { const k = n.ruta + "|" + n.tipo; if (vistas.has(k)) continue; vistas.add(k); unicas.push(n) }
@@ -202,7 +199,7 @@ export function construirInforme(a: Analisis, novs: Novedad[], o: OpcionesInform
 }
 
 const orden = (a: string, b: string) => a.localeCompare(b, "es", { numeric: true });
-/** Un color mezclado con blanco (para fondos de celda que dejen leer el texto): «#D9822B» → «#F7E6D5». */
+/** Un color mezclado con blanco (para fondos de celda que dejen leer el texto): «#FF7A1A» → «#FFE4D1». */
 export function suave(hex: string, k = 0.2): string {
   const v = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
   return "#" + v.map((c) => Math.round(255 - (255 - c) * k).toString(16).padStart(2, "0")).join("").toUpperCase();

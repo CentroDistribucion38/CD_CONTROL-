@@ -36,7 +36,7 @@ export function dataUrlABytes(url: string): { bytes: Uint8Array; ext: "png" | "j
 }
 
 export function armarWord(bloques: Bloque[], x: ExtraWord): Uint8Array {
-  const TINTA = hex(x.tinta ?? "#12263A"), ACENTO = hex(x.acento ?? "#D9822B");
+  const TINTA = hex(x.tinta ?? "#12263A"), ACENTO = hex(x.acento ?? "#FF7A1A");
   const media: Record<string, Uint8Array> = {};
   const rels: string[] = [];
   let nImg = 0;
@@ -81,7 +81,7 @@ export function armarWord(bloques: Bloque[], x: ExtraWord): Uint8Array {
         break;
       }
       case "modulo": {
-        body.push(para([{ t: b.n + "  ", b: true, sz: 17, color: "F6C65B" }, { t: b.titulo, b: true, sz: 30, color: "FFFFFF" }], { salto: true, sombra: TINTA, antes: 0, despues: 80, keep: true, sangria: 120 }));
+        body.push(para([{ t: b.n + "  ", b: true, sz: 17, color: "FFC21A" }, { t: b.titulo, b: true, sz: 30, color: "FFFFFF" }], { salto: true, sombra: TINTA, antes: 0, despues: 80, keep: true, sangria: 120 }));
         if (b.sub) body.push(para([{ t: b.sub, sz: 19, color: "5F6B79" }], { despues: 140 }));
         break;
       }
@@ -116,7 +116,7 @@ export function armarWord(bloques: Bloque[], x: ExtraWord): Uint8Array {
         const enc = b.cols.map((c, i) => celda(para([{ t: c.h, b: true, sz: 15, color: "FFFFFF" }], { al: al(c.al), despues: 0 }), anchos[i], { fill: TINTA })).join("");
         const filas = b.filas.map((f, r) => f.map((c: CeldaT, i) => {
           const o = typeof c === "string" ? null : c;
-          return celda(para([{ t: typeof c === "string" ? c : c.x, b: !!o?.bold, sz: 16, color: o?.color ? hex(o.color) : TINTA }], { al: al(b.cols[i].al), despues: 0 }), anchos[i], { fill: o?.fill ? hex(o.fill) : r % 2 === 1 ? "F4F6F9" : undefined, mar: 30 });
+          return celda(para([{ t: typeof c === "string" ? c : c.x, b: !!o?.bold, sz: b.compacta ? 14 : 16, color: o?.color ? hex(o.color) : TINTA }], { al: al(b.cols[i].al), despues: 0 }), anchos[i], { fill: o?.fill ? hex(o.fill) : r % 2 === 1 ? "F4F6F9" : undefined, mar: b.compacta ? 15 : 30 });
         }).join(""));
         body.push(tabla(anchos, [enc, ...filas]));
         if (!b.filas.length && b.nota) body.push(para([{ t: b.nota, sz: 18, color: "5F6B79" }], { antes: 60 }));
@@ -125,12 +125,12 @@ export function armarWord(bloques: Bloque[], x: ExtraWord): Uint8Array {
         break;
       }
       case "fotos": {
-        const COLS = 5, w = CW / COLS;
+        const COLS = 6, w = CW / COLS;
         for (let i = 0; i < b.items.length; i += COLS) {
           const grupo = b.items.slice(i, i + COLS);
           const celdas = grupo.map((it) => celda(
-            `<w:p>${ppr({ al: "center", despues: 20 })}${imagen(it.foto.jpg, it.foto.w, it.foto.h, w - 220, 2300)}</w:p>` +
-            para([{ t: it.titulo, b: true, sz: 15, color: TINTA }], { despues: 0 }) + para([{ t: it.detalle, sz: 13, color: "5F6B79" }], { despues: 0 }), w, { v: "top", mar: 60 }));
+            `<w:p>${ppr({ al: "center", despues: 20 })}${imagen(it.foto.jpg, it.foto.w, it.foto.h, w - 200, 1750)}</w:p>` +
+            para([{ t: it.titulo, b: true, sz: 14, color: TINTA }], { despues: 0 }) + para([{ t: it.detalle, sz: 12, color: "5F6B79" }], { despues: 0 }), w, { v: "top", mar: 60 }));
           while (celdas.length < COLS) celdas.push(celda(sinTexto(), w));
           body.push(tabla(Array(COLS).fill(w), [celdas.join("")], false, false));
         }
