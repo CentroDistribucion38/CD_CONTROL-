@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { elegirConteos } from "./fecha-tablero";
+import { todas, porTandas } from "./paginas";
 
 /**
  * INVENTARIO · lo que leen el maestro y la plantilla de conteo.
@@ -395,7 +396,6 @@ export type ConteoFefo = {
    devuelve `tope: true` para que la pantalla lo diga en vez de dejar a
    alguien cuadrando contra una lista incompleta.
    ===================================================================== */
-const TOPE_BASE = 20000;
 const TOPE_RECORRIDOS = 500;
 
 export async function baseFefo(bodegaId: string | null) {
@@ -429,9 +429,8 @@ export async function baseFefo(bodegaId: string | null) {
   const ids = [...enviados, ...abiertos].map((x) => x.id);
   if (ids.length === 0) return { ...vacio, conteos };
 
-  const { data: l } = await supabase.from("v_conteo_fefo").select("*")
-    .in("conteo_id", ids).limit(TOPE_BASE);
-  const lineas = (l ?? []) as Renglon[];
+  const { data: lineas } = await porTandas<Renglon>(ids, (t, d, h) =>
+    supabase.from("v_conteo_fefo").select("*").in("conteo_id", t).order("id").range(d, h));
 
   const deEnviados = new Set(enviados.map((x) => x.id));
   return {
@@ -439,7 +438,7 @@ export async function baseFefo(bodegaId: string | null) {
     conteos,
     enviadas: lineas.filter((r) => deEnviados.has(r.conteo_id)),
     abiertas: lineas.filter((r) => !deEnviados.has(r.conteo_id)),
-    tope: lineas.length === TOPE_BASE,
+    tope: false,
   };
 }
 
@@ -461,8 +460,8 @@ export async function baseFefo(bodegaId: string | null) {
    ===================================================================== */
 export async function pasadosBase(): Promise<{ ids: string[]; ok: boolean }> {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("conteo_lineas_pasadas")
-    .select("linea_id").limit(TOPE_BASE);
+  const { data, error } = await todas<{ linea_id: string }>((d, h) =>
+    supabase.from("conteo_lineas_pasadas").select("linea_id").order("linea_id").range(d, h));
   if (error) return { ids: [], ok: false };
-  return { ids: ((data ?? []) as { linea_id: string }[]).map((x) => x.linea_id), ok: true };
+  return { ids: data.map((x) => x.linea_id), ok: true };
 }

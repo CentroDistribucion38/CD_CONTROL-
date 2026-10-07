@@ -1,4 +1,5 @@
 import type { Renglon, ConteoFefo } from "./fefo";
+import { cruzar } from "./base-cruce";
 
 /**
  * RIESGO DE VENCIMIENTO — las cuentas del tablero de inventario.
@@ -104,14 +105,11 @@ const num = (x: unknown) => { const n = Number(x); return Number.isFinite(n) ? n
 
 export function medirRiesgo(lineas: Renglon[], conteos: ConteoFefo[], uxcPorSku: Record<string, number | null>): Riesgo {
   /* ---------- LA FOTO ---------- */
-  const cuando = new Map(conteos.map((c) => [c.id, c.enviado_en ?? c.fecha_analisis ?? ""]));
-  const ultimoPorSitio = new Map<string, string>();
-  for (const l of lineas) {
-    const k = l.ubicacion_id ?? l.ubicacion ?? "—";
-    const actual = ultimoPorSitio.get(k);
-    if (!actual || (cuando.get(l.conteo_id) ?? "") > (cuando.get(actual) ?? "")) ultimoPorSitio.set(k, l.conteo_id);
-  }
-  const foto = lineas.filter((l) => ultimoPorSitio.get(l.ubicacion_id ?? l.ubicacion ?? "—") === l.conteo_id);
+  /* LA MISMA REGLA QUE LA PANTALLA «LA BASE» (`cruzar`): de cada ubicación, el último recorrido que pasó por
+     ella. Tener dos copias de la regla —con desempates distintos— es cómo el Excel y la pantalla terminan
+     con renglones distintos. Se conserva el orden de llegada de los renglones. */
+  const vigentes = new Set(cruzar(lineas, conteos).vigentes.map((l) => l.id));
+  const foto = lineas.filter((l) => vigentes.has(l.id));
   const usados = new Set(foto.map((l) => l.conteo_id));
   const fechas = conteos.filter((c) => usados.has(c.id)).map((c) => c.fecha_analisis).filter(Boolean).sort();
 

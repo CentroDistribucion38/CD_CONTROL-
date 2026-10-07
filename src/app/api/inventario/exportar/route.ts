@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/server";
 import { misPermisos } from "@/lib/permisos";
 import { maestroInventario, type Renglon, type ConteoFefo } from "@/modulos/inventario/fefo";
 import { armarLibroDia, type EvidenciaRenglon } from "@/modulos/inventario/libro";
+import { todas, porTandas } from "@/modulos/inventario/paginas";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -22,18 +23,6 @@ export const maxDuration = 60;
 const MAX_FOTOS_LIBRO = 150;
 const MAX_BYTES_FOTO = 3 * 1024 * 1024;
 
-/* TODO, SIN TOPE OCULTO. PostgREST corta cada respuesta en su máximo de filas (1.000 por defecto) aunque se pida
-   `limit(20000)`: con más renglones el Excel salía recortado y sin avisar. Se pide por páginas hasta que se acaben. */
-const PAGINA = 1000;
-async function todas<T>(pedir: (desde: number, hasta: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>): Promise<{ data: T[]; error: string | null }> {
-  const out: T[] = [];
-  for (let d = 0; ; d += PAGINA) {
-    const { data, error } = await pedir(d, d + PAGINA - 1);
-    if (error) return { data: out, error: error.message };
-    out.push(...(data ?? []));
-    if (!data || data.length < PAGINA) return { data: out, error: null };
-  }
-}
 /** «20261007-1136»: la fecha y la hora de Colombia, para que cada descarga tenga su propio nombre. */
 const sello = () => new Date().toLocaleString("sv", { timeZone: "America/Bogota" }).replace(/[-:]/g, "").replace(" ", "-").slice(0, 13);
 
@@ -70,22 +59,8 @@ export async function GET(req: Request) {
   const conteos = ids.length ? delDia.filter((x) => ids.includes(x.id)) : delDia;
   if (!conteos.length) return NextResponse.json({ error: ids.length ? "Ninguno de los FEFO escogidos es de ese día." : (fecha === hasta ? `El ${fecha} no tiene recorridos enviados.` : `Del ${fecha} al ${hasta} no hay recorridos enviados.`) }, { status: 404 });
 
-  /* Los renglones, por tandas de recorridos y por páginas: ninguno se queda por fuera. */
-  const renglonesDe = async (idsC: string[]): Promise<{ data: Renglon[]; error: string | null }> => {
-    const out: Renglon[] = [];
-    for (let i = 0; i < idsC.length; i += 25) {
-      const r = await todas<Renglon>((d, h) => supabase.from("v_conteo_fefo").select("*").in("conteo_id", idsC.slice(i, i + 25)).order("id").range(d, h));
-      if (r.error) return { data: out, error: r.error };
-      out.push(...r.data);
-    }
-    return { data: out, error: null };
-  };
-  const { data: l, error: eL } = await renglonesDe(conteos.map((x) => x.id));
+  const { data: l, error: eL } = await porTandas<Renglon>(conteos.map((x) => x.id), (t, d, h) => supabase.from("v_conteo_fefo").select("*").in("conteo_id", t).order("id").range(d, h));
   if (eL) return NextResponse.json({ error: eL }, { status: 400 });
-  /* LOS BORRADORES (recorridos abiertos con algo anotado) van a la hoja «Todos los renglones», marcados. */
-  const ab = await todas<ConteoFefo>((d, h) => supabase.from("v_conteos_fefo").select("*")
-    .eq("bodega_id", bodega.id).in("estado", ["en_proceso", "borrador"]).gt("renglones", 0).order("id").range(d, h));
-  const abiertos = ab.error ? { conteos: [] as ConteoFefo[], lineas: [] as Renglon[] } : { conteos: ab.data, lineas: (await renglonesDe(ab.data.map((x) => x.id))).data };
   /* LAS FOTOS DE LOS RENGLONES (la camarita de Contar). Van a su propia hoja
      «Evidencias». Si la tabla todavía no existe —falta correr el SQL— o no
      hay fotos, el libro sale exactamente como siempre. Se baja a lo más
@@ -121,7 +96,7 @@ export async function GET(req: Request) {
 
   const archivo = await armarLibroDia({
     fecha, hasta, bodega: bodega.codigo, quien: yo?.nombre || yo?.usuario || "—",
-    conteos, lineas, abiertos, evidencias, fotosRecortadas: recortadas, materiales: m.materiales,
+    conteos, lineas, evidencias, fotosRecortadas: recortadas, materiales: m.materiales,
     ubicaciones: m.ubicaciones.filter((u) => u.bodega_id === bodega.id), logo, colores, totalDelDia: delDia.length,
   });
   const nombre = `inventario-consolidado-${bodega.codigo}-${fecha}${hasta !== fecha ? `_${hasta}` : ""}${conteos.length < delDia.length ? `-${conteos.length}de${delDia.length}` : ""}-${sello()}.xlsx`;
