@@ -58,11 +58,18 @@ export function Riesgo({ r, bodega, sinContar, ultimo, activas, barra }: {
   }, [r.materiales, filtro, buscar]);
   const vistos = todos ? lista : lista.slice(0, 40);
 
+  /* «Ver ubicaciones» de arriba: abre ese material en su fila de la lista,
+     y baja hasta ella. Se asegura de que la fila se vea (sin buscar, en riesgo). */
+  const [bajar, setBajar] = useState<string | null>(null);
+  const verPeor = () => {
+    if (!peor) return;
+    setBuscar(""); setFiltro("riesgo"); setTodos(true); setAbierto(peor); setBajar(peor.codigo);
+  };
   useEffect(() => {
-    if (!abierto) return;
-    const k = (e: KeyboardEvent) => { if (e.key === "Escape") setAbierto(null) };
-    addEventListener("keydown", k); return () => removeEventListener("keydown", k);
-  }, [abierto]);
+    if (!bajar) return;
+    document.getElementById("ir-" + bajar)?.scrollIntoView({ block: "start", behavior: "smooth" });
+    setBajar(null);
+  }, [bajar, abierto]);
 
   const urgentes = r.franjas.vencido.materiales + r.franjas.pasado.materiales;
   const semana = r.franjas.semana;
@@ -241,7 +248,7 @@ export function Riesgo({ r, bodega, sinContar, ultimo, activas, barra }: {
               <div>De la bodega<b>{pctBodega(U ? (peor.enRiesgoUnidades ?? 0) : peor.enRiesgoCajas).toLocaleString("es-CO", { maximumFractionDigits: 1 })} %</b></div>
             </div>
           </div>
-          <div className="go"><button type="button" className="ver" onClick={() => setAbierto(peor)}>Ver ubicaciones →</button></div>
+          <div className="go"><button type="button" className="ver" onClick={() => verPeor()}>Ver ubicaciones →</button></div>
         </section>
       )}
 
@@ -279,72 +286,65 @@ export function Riesgo({ r, bodega, sinContar, ultimo, activas, barra }: {
         </div>
         {vistos.length === 0 ? <p className="ir-vacio">{buscar ? "Nada coincide con la búsqueda." : "Nada en esta franja."}</p> : (
           <div className="ir-lista">
-            {vistos.map((m) => (
-              <button type="button" key={m.codigo} className="ir-m" onClick={() => setAbierto(m)}>
-                <span className={"ir-pill " + m.franja}>{info(m.franja).corto}</span>
-                <span className="que"><b>{m.nombre}</b><small>{m.codigo}{m.familia ? ` · ${m.familia}` : ""}</small></span>
-                <span className="dato d1"><small>Sale</small><b>{dias(m.diasSalir)}</b></span>
-                <span className="dato d2"><small>Vence</small><b>{corta(m.vence)}</b></span>
-                <span className="dato d3"><small>En riesgo</small><b className={m.enRiesgoCajas ? "mal" : ""}>{cant(m.enRiesgoCajas, m.enRiesgoUnidades)}</b></span>
-                <span className="dato d4"><small>Ubicaciones</small><b>{m.sitios.length}</b></span>
-                <svg className="fl" viewBox="0 0 24 24" aria-hidden><path d="M9 6l6 6-6 6" /></svg>
-              </button>
-            ))}
+            {vistos.map((m) => {
+              const on = abierto?.codigo === m.codigo;
+              return (
+                <div key={m.codigo} className={"ir-fila" + (on ? " abierta" : "")} id={"ir-" + m.codigo}>
+                  <button type="button" className="ir-m" aria-expanded={on} onClick={() => setAbierto(on ? null : m)}>
+                    <span className={"ir-pill " + m.franja}>{info(m.franja).corto}</span>
+                    <span className="que"><b>{m.nombre}</b><small>{m.codigo}{m.familia ? ` · ${m.familia}` : ""}</small></span>
+                    <span className="dato d1"><small>Sale</small><b>{dias(m.diasSalir)}</b></span>
+                    <span className="dato d2"><small>Vence</small><b>{corta(m.vence)}</b></span>
+                    <span className="dato d3"><small>En riesgo</small><b className={m.enRiesgoCajas ? "mal" : ""}>{cant(m.enRiesgoCajas, m.enRiesgoUnidades)}</b></span>
+                    <span className="dato d4"><small>Ubicaciones</small><b>{m.sitios.length}</b></span>
+                    <svg className="fl" viewBox="0 0 24 24" aria-hidden><path d="M9 6l6 6-6 6" /></svg>
+                  </button>
+                  {on && (
+                    <div className="ir-det" role="region" aria-label={`Dónde está ${m.nombre}`}>
+                      {m.uxc ? <p className="ir-dsub">{m.uxc} unidades por caja</p> : null}
+        <div className="ir-pk">
+          <div><small>Total</small><b>{nf.format(m.cajas)}</b><span>cajas{m.unidades != null && ` · ${nf.format(m.unidades)} und`}</span></div>
+          <div className={m.enRiesgoCajas ? "mal" : ""}><small>En riesgo</small><b>{nf.format(m.enRiesgoCajas)}</b><span>cajas{m.enRiesgoUnidades != null && ` · ${nf.format(m.enRiesgoUnidades)} und`}</span></div>
+          <div><small>Ubicaciones</small><b>{m.sitios.length}</b><span>la primera en salir, arriba</span></div>
+        </div>
+        <div className="ir-sitios">
+          {m.sitios.map((s) => (
+                  <div key={s.id} className={"ir-s " + s.franja}>
+                    <div className="cab">
+                      <b className="ub">{s.ubicacion}</b>
+                      <span className={"ir-pill " + s.franja}>{info(s.franja).corto}</span>
+                    </div>
+                    {(s.calle || s.modulo) && <p className="donde">Calle {s.calle ?? "—"} · Módulo {s.modulo ?? "—"}{s.lado ? ` · ${s.lado === "IZQ" ? "izquierda" : "derecha"}` : ""}</p>}
+                    <dl>
+                      <div><dt>Vence</dt><dd>{fecha(s.vencimiento)}</dd></div>
+                      <div><dt>Para vencer</dt><dd>{dias(s.dias_para_vencer)}</dd></div>
+                      <div><dt>Para salir</dt><dd className={s.dias_para_salir != null && s.dias_para_salir < 0 ? "mal" : ""}>{dias(s.dias_para_salir)}</dd></div>
+                      <div><dt>Fabricado</dt><dd>{fecha(s.fabricacion)}</dd></div>
+                      <div><dt>Estibas · cajas · saldo</dt><dd>{nf.format(s.estibas)} · {nf.format(s.cajas)} · {nf.format(s.saldo)}</dd></div>
+                      <div><dt>Total</dt><dd><b>{nf.format(s.total_cajas)} cajas</b>{s.unidades != null && <> · {nf.format(s.unidades)} und</>}</dd></div>
+                    </dl>
+                    {(s.averia || s.pnc || s.nota) && (
+                      <p className="tags">{s.averia && <span className="t">Avería</span>}{s.pnc && <span className="t">PNC</span>}{s.nota && <em>{s.nota}</em>}</p>
+                    )}
+                    <p className="quien">Contó {s.conto ?? "—"} · {cuando(s.contado_en)} · {s.conteo}</p>
+                  </div>
+          ))}
+        </div>
+        <div className="ir-pp">
+          <button type="button" className="ir-btn" onClick={() => informe(m)} disabled={pdf}>
+                  <svg viewBox="0 0 24 24" aria-hidden><path d="M12 4v11M7 10l5 5 5-5M5 20h14" /></svg>{pdf ? "Armando…" : "PDF de este material"}
+          </button>
+        </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
         {lista.length > 40 && !todos && <button type="button" className="ir-mas" onClick={() => setTodos(true)}>Ver los {lista.length}</button>}
       </section>
 
-      {/* ---------- EL PANEL: DÓNDE ESTÁ ---------- */}
-      {abierto && (
-        <div className="ir-velo" onClick={() => setAbierto(null)}>
-          <aside className="ir-panel" role="dialog" aria-modal="true" aria-label={`Dónde está ${abierto.nombre}`} onClick={(e) => e.stopPropagation()}>
-            <div className="ir-pc">
-              <div>
-                <span className={"ir-pill " + abierto.franja}>{info(abierto.franja).rot}</span>
-                <h3>{abierto.nombre}</h3>
-                <p>{abierto.codigo}{abierto.familia ? ` · ${abierto.familia}` : ""}{abierto.uxc ? ` · ${abierto.uxc} unidades por caja` : ""}</p>
-              </div>
-              <button type="button" className="ir-x" onClick={() => setAbierto(null)} aria-label="Cerrar">
-                <svg viewBox="0 0 24 24" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>
-              </button>
-            </div>
-            <div className="ir-pk">
-              <div><small>Total</small><b>{nf.format(abierto.cajas)}</b><span>cajas{abierto.unidades != null && ` · ${nf.format(abierto.unidades)} und`}</span></div>
-              <div className={abierto.enRiesgoCajas ? "mal" : ""}><small>En riesgo</small><b>{nf.format(abierto.enRiesgoCajas)}</b><span>cajas{abierto.enRiesgoUnidades != null && ` · ${nf.format(abierto.enRiesgoUnidades)} und`}</span></div>
-              <div><small>Ubicaciones</small><b>{abierto.sitios.length}</b><span>la primera en salir, arriba</span></div>
-            </div>
-            <div className="ir-sitios">
-              {abierto.sitios.map((s) => (
-                <div key={s.id} className={"ir-s " + s.franja}>
-                  <div className="cab">
-                    <b className="ub">{s.ubicacion}</b>
-                    <span className={"ir-pill " + s.franja}>{info(s.franja).corto}</span>
-                  </div>
-                  {(s.calle || s.modulo) && <p className="donde">Calle {s.calle ?? "—"} · Módulo {s.modulo ?? "—"}{s.lado ? ` · ${s.lado === "IZQ" ? "izquierda" : "derecha"}` : ""}</p>}
-                  <dl>
-                    <div><dt>Vence</dt><dd>{fecha(s.vencimiento)}</dd></div>
-                    <div><dt>Para vencer</dt><dd>{dias(s.dias_para_vencer)}</dd></div>
-                    <div><dt>Para salir</dt><dd className={s.dias_para_salir != null && s.dias_para_salir < 0 ? "mal" : ""}>{dias(s.dias_para_salir)}</dd></div>
-                    <div><dt>Fabricado</dt><dd>{fecha(s.fabricacion)}</dd></div>
-                    <div><dt>Estibas · cajas · saldo</dt><dd>{nf.format(s.estibas)} · {nf.format(s.cajas)} · {nf.format(s.saldo)}</dd></div>
-                    <div><dt>Total</dt><dd><b>{nf.format(s.total_cajas)} cajas</b>{s.unidades != null && <> · {nf.format(s.unidades)} und</>}</dd></div>
-                  </dl>
-                  {(s.averia || s.pnc || s.nota) && (
-                    <p className="tags">{s.averia && <span className="t">Avería</span>}{s.pnc && <span className="t">PNC</span>}{s.nota && <em>{s.nota}</em>}</p>
-                  )}
-                  <p className="quien">Contó {s.conto ?? "—"} · {cuando(s.contado_en)} · {s.conteo}</p>
-                </div>
-              ))}
-            </div>
-            <div className="ir-pp">
-              <button type="button" className="ir-btn" onClick={() => informe(abierto)} disabled={pdf}>
-                <svg viewBox="0 0 24 24" aria-hidden><path d="M12 4v11M7 10l5 5 5-5M5 20h14" /></svg>{pdf ? "Armando…" : "PDF de este material"}
-              </button>
-            </div>
-          </aside>
-        </div>
-      )}
     </div>
   );
 }

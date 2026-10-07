@@ -368,11 +368,16 @@ export function Base({
   const recorridosDe = pestania === "base" ? incluidos
     : conteos.filter((c) => (c.estado === "en_proceso" || c.estado === "borrador") && conRenglones.has(c.id));
 
+  /* EN ORDEN: las calles de una letra (A, B, C…) en su orden, y después las que tienen nombre
+     (ALAR, BAHIA, CARPA, EST…). Los módulos, por número: C2 antes que C10. */
   const calles = useMemo(
-    () => [...new Set(crudas.map((r) => r.calle).filter(Boolean))].sort() as string[], [crudas]);
+    () => [...new Set(crudas.map((r) => r.calle).filter(Boolean))].sort((a, b) => {
+      const la = (a as string).length === 1, lb = (b as string).length === 1;
+      return la !== lb ? (la ? -1 : 1) : (a as string).localeCompare(b as string, "es", { numeric: true });
+    }) as string[], [crudas]);
   const modulos = useMemo(
     () => [...new Set(crudas.filter((r) => fCalle === "" || r.calle === fCalle)
-      .map((r) => r.ubicacion).filter(Boolean))].sort() as string[], [crudas, fCalle]);
+      .map((r) => r.ubicacion).filter(Boolean))].sort((a, b) => (a as string).localeCompare(b as string, "es", { numeric: true })) as string[], [crudas, fCalle]);
 
   /* Lo que pasa los demás filtros, SIN mirar quién: de ahí salen los números de cada persona. */
   const sinQuien = useMemo(() => {

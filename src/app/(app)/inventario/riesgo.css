@@ -111,25 +111,21 @@
 .ir-vacio { margin: 0; padding: 22px; color: var(--fe-gris) }
 .ir-mas { display: block; width: calc(100% - 44px); margin: 14px 22px 18px; min-height: 44px; border-radius: 2px; border: 1.5px dashed var(--ir-ln); background: none; cursor: pointer; font: 700 14px var(--fe-texto); color: var(--fe-tinta) }
 
-/* ---- Panel: dónde está ---- */
-.ir-velo { position: fixed; inset: 0; z-index: 80; background: rgba(8, 14, 24, .45); display: flex; justify-content: flex-end }
-.ir-panel {
-  width: min(560px, 100%); height: 100%; background: #F6F7F9; color: var(--fe-tinta); display: flex; flex-direction: column;
-  box-shadow: -20px 0 50px -20px rgba(0,0,0,.4); animation: ir-entra .18s ease-out;
-}
-@keyframes ir-entra { from { transform: translateX(24px); opacity: .6 } }
-@media (prefers-reduced-motion: reduce) { .ir-panel { animation: none } }
-.ir-pc { display: flex; justify-content: space-between; gap: 12px; padding: 20px 22px 14px; background: #fff; border-bottom: 1px solid var(--ir-ln) }
-.ir-pc h3 { margin: 10px 0 0; font: 900 22px/1.15 var(--fe-titulo); letter-spacing: -.02em }
-.ir-pc p { margin: 5px 0 0; font-size: 13px; color: var(--fe-gris) }
-.ir-x { flex: none; width: 44px; height: 44px; border-radius: 3px; border: 1.5px solid var(--ir-ln); background: #fff; cursor: pointer; display: grid; place-items: center; color: var(--fe-tinta) }
-.ir-pk { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 14px 22px }
+/* ---- Detalle de la fila: dónde está (se abre en su sitio) ---- */
+.ir-fila.abierta { border-top: 1px solid var(--ir-ln); border-bottom: 1px solid var(--ir-ln) }
+.ir-fila.abierta > .ir-m { background: #FFFDF5; border-top-color: transparent }
+.ir-fila .ir-m .fl { transition: transform .15s }
+.ir-fila.abierta .ir-m .fl { transform: rotate(90deg) }
+@media (prefers-reduced-motion: reduce) { .ir-fila .ir-m .fl { transition: none } }
+.ir-det { background: #F6F7F9; padding: 4px 22px 18px; border-top: 1px solid #F2F2EF }
+.ir-dsub { margin: 10px 0 0; font-size: 12.5px; color: var(--fe-gris) }
+.ir-pk { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 12px 0 }
 .ir-pk > div { background: #fff; border-radius: 3px; padding: 12px 14px; min-width: 0 }
 .ir-pk small { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--fe-gris) }
 .ir-pk b { display: block; margin-top: 4px; font: 900 24px var(--fe-titulo); font-variant-numeric: tabular-nums }
 .ir-pk span { display: block; font-size: 12px; color: var(--fe-gris) }
 .ir-pk .mal b { color: var(--ir-pt) }
-.ir-sitios { flex: 1; overflow: auto; padding: 0 22px 14px; display: flex; flex-direction: column; gap: 10px }
+.ir-sitios { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; padding: 0 0 14px }
 .ir-s { background: #fff; border-radius: 3px; padding: 14px 16px; border-left: 5px solid var(--c) }
 .ir-s .cab { display: flex; justify-content: space-between; align-items: center; gap: 10px }
 .ir-s .ub { font: 900 19px var(--fe-titulo); letter-spacing: -.01em; overflow-wrap: anywhere }
@@ -143,7 +139,7 @@
 .ir-s .t { padding: 3px 8px; border-radius: 3px; background: #FDEBEB; color: var(--ir-pt); font-weight: 700; font-size: 12px }
 .ir-s .tags em { color: var(--fe-gris) }
 .ir-s .quien { margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--ir-ln); font-size: 12.5px; color: var(--fe-gris) }
-.ir-pp { padding: 14px 22px 18px; background: #fff; border-top: 1px solid var(--ir-ln) }
+.ir-pp { padding: 0 }
 .ir-pp .ir-btn { width: 100% }
 
 @media (max-width: 1100px) {
@@ -177,7 +173,7 @@
   .ir-m .d1 { display: none }
   .ir-m .fl { grid-column: 3; grid-row: 1 / 3 }
   .ir-mas { width: calc(100% - 32px); margin: 0 16px 16px }
-  .ir-pc, .ir-pk, .ir-pp { padding-left: 16px; padding-right: 16px } .ir-sitios { padding: 0 16px 14px }
+  .ir-det { padding: 4px 16px 16px } .ir-sitios { grid-template-columns: minmax(0, 1fr) }
   .ir-pk b { font-size: 20px }
   .ir-s dl { grid-template-columns: repeat(2, minmax(0, 1fr)) }
 }

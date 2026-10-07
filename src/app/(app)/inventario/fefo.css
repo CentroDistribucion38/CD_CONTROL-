@@ -1763,6 +1763,7 @@
 .fe .fe-plegable:not([open]) > summary { border-bottom: 0 }
 .fe .fe-plegable > summary .fe-pleg-h { display: block }
 .fe .fe-plegable .fe-pleg-t { min-width: 0 }
+.fe .fe-plegable .fe-pleg-t > small { display: block; margin-top: 3px; font-size: 13px; color: var(--fe-gris) }
 .fe .fe-pleg-n { flex: none; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; font: 600 13px var(--fe-texto); color: var(--fe-gris-panel) }
 .fe .fe-pleg-n b { font: 800 15px var(--fe-titulo); color: var(--fe-tinta) }
 .fe .fe-pleg-ver { flex: none; width: 9px; height: 9px; border: solid var(--fe-tinta); border-width: 0 2px 2px 0; transform: rotate(45deg); margin: -4px 4px 0 6px; transition: transform .15s }

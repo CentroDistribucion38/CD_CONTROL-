@@ -3,11 +3,14 @@
 /**
  * BORRAR DATOS — tres pasos, en el orden en que se hacen:
  *
- *   1. QUÉ     un punto específico de la lista, agrupado por módulo.
+ *   1. QUÉ     cada módulo es una tira PLEGADA; al abrirla salen todos sus
+ *              datos y se marcan, en casillas cuadradas, los que se quieren
+ *              borrar (uno, varios o todo el módulo; de varios módulos a la vez).
  *   2. CUÁNDO  todo, o un rango de fechas. Al cambiar, se cuenta solo:
  *              se ve cuántas filas y archivos se van ANTES de hacer nada.
- *   3. BORRAR  primero se baja la copia en Excel —sin eso no se habilita—
- *              y después se escribe BORRAR. El botón dice cuántas filas.
+ *   3. BORRAR  primero se baja la copia en Excel (una hoja por dato marcado)
+ *              —sin eso no se habilita— y después se escribe BORRAR.
+ *              El botón dice cuántas filas.
  *
  * La base vuelve a contar al borrar: si alguien registró algo mientras
  * se miraba, no borra y pide contar otra vez.
@@ -32,11 +35,12 @@ export function BorrarDatos({ puntos, historial, hoy, hayLlave }: {
 }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
-  const [clave, setClave] = useState<string | null>(null);
+  const [sel, setSel] = useState<string[]>([]);
+  const [abiertos, setAbiertos] = useState<string[]>([]);   // módulos desplegados: al entrar, todos plegados
   const [todo, setTodo] = useState(false);
   const [desde, setDesde] = useState(hoy.slice(0, 8) + "01");
   const [hasta, setHasta] = useState(hoy);
-  const [conteo, setConteo] = useState<Conteo | null>(null);
+  const [conteosC, setConteos] = useState<Record<string, Conteo> | null>(null);
   const [contando, setContando] = useState(false);
   const [copia, setCopia] = useState(false);
   const [escrito, setEscrito] = useState("");
@@ -44,53 +48,86 @@ export function BorrarDatos({ puntos, historial, hoy, hayLlave }: {
   const [aviso, setAviso] = useState<{ bien: boolean; texto: string } | null>(null);
   const [vuelta, setVuelta] = useState(0);
 
-  const punto = puntos.find((p) => p.clave === clave) ?? null;
   const grupos = useMemo(() => {
     const m = new Map<string, Punto[]>();
     for (const p of puntos) (m.get(p.modulo) ?? m.set(p.modulo, []).get(p.modulo)!).push(p);
     return [...m.entries()];
   }, [puntos]);
+  // En el orden de la lista, no en el orden en que se fueron marcando.
+  const elegidos = useMemo(() => puntos.filter((p) => sel.includes(p.clave)), [puntos, sel]);
+  const clavesKey = elegidos.map((p) => p.clave).join(",");
   const rangoMalo = !todo && (!desde || !hasta || desde > hasta);
   const pD = todo ? null : desde, pH = todo ? null : hasta;
 
-  /* CUENTA SOLO al elegir o cambiar el rango. Lo que se ve es lo que se
-     va: la copia y el BORRAR se reinician, porque eran de otro conteo. */
+  const alternar = (clave: string) => { setSel((a) => a.includes(clave) ? a.filter((x) => x !== clave) : [...a, clave]); setAviso(null) };
+  const alternarModulo = (ps: Punto[]) => {
+    const todos = ps.every((p) => sel.includes(p.clave));
+    setSel((a) => todos ? a.filter((c) => !ps.some((p) => p.clave === c)) : [...new Set([...a, ...ps.map((p) => p.clave)])]);
+    setAviso(null);
+  };
+  const plegar = (mod: string) => setAbiertos((a) => a.includes(mod) ? a.filter((x) => x !== mod) : [...a, mod]);
+
+  /* CUENTA SOLO al marcar, al desmarcar o al cambiar el rango. Lo que se ve
+     es lo que se va: la copia y el BORRAR se reinician, porque eran de otro conteo. */
   useEffect(() => {
-    setCopia(false); setEscrito(""); setConteo(null);
-    if (!clave || rangoMalo) return;
+    setCopia(false); setEscrito(""); setConteos(null);
+    if (!clavesKey || rangoMalo) return;
     let vivo = true;
     setContando(true);
     const t = setTimeout(async () => {
-      const { data, error } = await supabase.rpc("admin_borrado_contar", { p_clave: clave, p_desde: pD, p_hasta: pH });
+      const res = await Promise.all(clavesKey.split(",").map(async (c) => {
+        const { data, error } = await supabase.rpc("admin_borrado_contar", { p_clave: c, p_desde: pD, p_hasta: pH });
+        return { c, data, error };
+      }));
       if (!vivo) return;
       setContando(false);
-      if (error) { setAviso({ bien: false, texto: error.message }); return }
-      const r = (Array.isArray(data) ? data[0] : data) as Conteo;
-      setConteo({ filas: Number(r.filas), archivos: Number(r.archivos), primera: r.primera, ultima: r.ultima });
+      const mal = res.find((x) => x.error);
+      if (mal?.error) { setAviso({ bien: false, texto: mal.error.message }); return }
+      const o: Record<string, Conteo> = {};
+      for (const { c, data } of res) {
+        const r = (Array.isArray(data) ? data[0] : data) as Conteo;
+        o[c] = { filas: Number(r.filas), archivos: Number(r.archivos), primera: r.primera, ultima: r.ultima };
+      }
+      setConteos(o);
     }, 250);
     return () => { vivo = false; clearTimeout(t) };
-  }, [clave, pD, pH, rangoMalo, supabase, vuelta]);
+  }, [clavesKey, pD, pH, rangoMalo, supabase, vuelta]);
 
-  const qs = new URLSearchParams({ clave: clave ?? "", ...(pD ? { desde: pD } : {}), ...(pH ? { hasta: pH } : {}) });
-  const puedeBorrar = !!conteo && conteo.filas > 0 && copia && escrito === "BORRAR" && !borrando;
+  /* Entre marcar y que la base conteste hay un instante en que el conteo es de la marca anterior:
+     si falta alguno de los marcados, todavía no se cuenta nada. */
+  const conteos = conteosC && elegidos.every((p) => conteosC[p.clave]) ? conteosC : null;
+  const con = conteos ? elegidos.filter((p) => (conteos[p.clave]?.filas ?? 0) > 0) : [];
+  const filasT = con.reduce((a, p) => a + (conteos?.[p.clave]?.filas ?? 0), 0);
+  const archT = con.reduce((a, p) => a + (conteos?.[p.clave]?.archivos ?? 0), 0);
+  const hayAlgo = !!conteos && filasT > 0;
+
+  const qs = new URLSearchParams({ claves: con.map((p) => p.clave).join(","), ...(pD ? { desde: pD } : {}), ...(pH ? { hasta: pH } : {}) });
+  const puedeBorrar = hayAlgo && copia && escrito === "BORRAR" && !borrando;
 
   async function borrar() {
-    if (!conteo || !punto) return;
+    if (!conteos || !hayAlgo) return;
     setBorrando(true); setAviso(null);
+    const esperadas = Object.fromEntries(con.map((p) => [p.clave, conteos[p.clave].filas]));
     const r = await fetch("/api/admin/datos", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clave, desde: pD, hasta: pH, confirmacion: escrito, esperadas: conteo.filas }),
+      body: JSON.stringify({ claves: con.map((p) => p.clave), desde: pD, hasta: pH, confirmacion: escrito, esperadas }),
     });
     const j = await r.json().catch(() => ({} as Record<string, unknown>));
     setBorrando(false);
-    if (!r.ok) { setAviso({ bien: false, texto: String(j.error ?? "No se pudo borrar.") }); setVuelta((v) => v + 1); return }
-    const filas = Number(j.filas ?? 0), arch = Number(j.archivos ?? 0), quedaron = Number(j.quedaron ?? 0);
-    setAviso({
-      bien: quedaron === 0,
-      texto: `Listo: se borraron ${nf(filas)} ${filas === 1 ? "fila" : "filas"} de ${punto.modulo} · ${punto.nombre}` +
-        (arch ? ` y ${nf(arch)} ${arch === 1 ? "archivo" : "archivos"}` : "") + "." +
-        (quedaron ? ` ${nf(quedaron)} archivos quedaron en Storage${hayLlave ? " (Storage no respondió)" : " porque falta la llave del servidor"}; los datos sí se borraron.` : ""),
-    });
+    const res = (Array.isArray(j.resultados) ? j.resultados : []) as { clave: string; filas?: number; archivos?: number; quedaron?: number; error?: string }[];
+    if (!r.ok && !res.length) { setAviso({ bien: false, texto: String(j.error ?? "No se pudo borrar.") }); setVuelta((v) => v + 1); return }
+    const nombre = (c: string) => { const p = puntos.find((x) => x.clave === c); return p ? `${p.modulo} · ${p.nombre}` : c };
+    const buenos = res.filter((x) => !x.error), malos = res.filter((x) => x.error);
+    const filas = buenos.reduce((a, x) => a + Number(x.filas ?? 0), 0);
+    const arch = buenos.reduce((a, x) => a + Number(x.archivos ?? 0), 0);
+    const quedaron = buenos.reduce((a, x) => a + Number(x.quedaron ?? 0), 0);
+    let texto = buenos.length
+      ? `Listo: se borraron ${nf(filas)} ${filas === 1 ? "fila" : "filas"} de ${buenos.map((x) => nombre(x.clave)).join(", ")}` +
+        (arch ? ` y ${nf(arch)} ${arch === 1 ? "archivo" : "archivos"}` : "") + "."
+      : "No se borró nada.";
+    if (quedaron) texto += ` ${nf(quedaron)} archivos quedaron en Storage${hayLlave ? " (Storage no respondió)" : " porque falta la llave del servidor"}; los datos sí se borraron.`;
+    if (malos.length) texto += " No se pudo borrar: " + malos.map((x) => `${nombre(x.clave)} (${x.error})`).join("; ") + ".";
+    setAviso({ bien: !malos.length && quedaron === 0, texto });
     setVuelta((v) => v + 1);
     router.refresh();
   }
@@ -102,22 +139,43 @@ export function BorrarDatos({ puntos, historial, hoy, hayLlave }: {
         <section className="tarjeta bd-paso">
           <div className="cab"><div>
             <h2><span className="bd-n">1</span> Qué quieres borrar</h2>
-            <p>Un punto específico. Lo que cuelga de él se va con él: un viaje se lleva sus tipos y
-              sus correcciones; un reporte, sus fotos.</p>
+            <p>Abre un módulo y marca, en las casillas, lo que quieres borrar: uno, varios o todo el
+              módulo. Lo que cuelga de cada dato se va con él: un viaje se lleva sus tipos y sus
+              correcciones; un reporte, sus fotos.</p>
           </div></div>
           <div className="bd-grupos">
-            {grupos.map(([mod, ps]) => (
-              <fieldset key={mod} className="bd-grupo">
-                <legend>{mod}</legend>
-                {ps.map((p) => (
-                  <label key={p.clave} className={"bd-punto" + (p.clave === clave ? " aqui" : "")}>
-                    <input type="radio" name="punto" value={p.clave} checked={p.clave === clave}
-                           onChange={() => { setClave(p.clave); setAviso(null) }} />
-                    <span><b>{p.nombre}</b><i>{p.detalle}</i></span>
-                  </label>
-                ))}
-              </fieldset>
-            ))}
+            {grupos.map(([mod, ps]) => {
+              const abierto = abiertos.includes(mod);
+              const marcados = ps.filter((p) => sel.includes(p.clave)).length;
+              return (
+                <div key={mod} className={"bd-mod" + (abierto ? " abierto" : "") + (marcados ? " con" : "")}>
+                  <button type="button" className="bd-mod-cab" aria-expanded={abierto} onClick={() => plegar(mod)}>
+                    <span className="nom">{mod}</span>
+                    <span className="cuantos">{marcados ? <b>{marcados} de {ps.length} marcados</b> : `${ps.length} ${ps.length === 1 ? "dato" : "datos"}`}</span>
+                    <svg className="bd-chev" viewBox="0 0 24 24" aria-hidden><path d="M6 9l6 6 6-6" /></svg>
+                  </button>
+                  {abierto && (
+                    <div className="bd-mod-cuerpo" role="group" aria-label={`Datos de ${mod}`}>
+                      {ps.length > 1 && (
+                        <label className="bd-punto bd-todos">
+                          <input type="checkbox" className="bd-cuadro" checked={marcados === ps.length}
+                                 ref={(el) => { if (el) el.indeterminate = marcados > 0 && marcados < ps.length }}
+                                 onChange={() => alternarModulo(ps)} />
+                          <span><b>Marcar todo {mod}</b></span>
+                        </label>
+                      )}
+                      {ps.map((p) => (
+                        <label key={p.clave} className={"bd-punto" + (sel.includes(p.clave) ? " aqui" : "")}>
+                          <input type="checkbox" className="bd-cuadro" name="punto" value={p.clave} checked={sel.includes(p.clave)}
+                                 onChange={() => alternar(p.clave)} />
+                          <span><b>{p.nombre}</b><i>{p.detalle}</i></span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </section>
 
@@ -144,29 +202,39 @@ export function BorrarDatos({ puntos, historial, hoy, hayLlave }: {
           </section>
 
           {/* 3 · BORRAR */}
-          <section className={"tarjeta bd-paso bd-final" + (conteo && conteo.filas > 0 ? " listo" : "")}>
+          <section className={"tarjeta bd-paso bd-final" + (hayAlgo ? " listo" : "")}>
             <div className="cab"><div>
               <h2><span className="bd-n">3</span> Copia y borrar</h2>
               <p>Primero baja la copia en Excel. Después escribe BORRAR.</p>
             </div></div>
             <div className="bd-cuenta" aria-live="polite">
-              {!punto ? <p className="bd-vacio">Elige qué borrar en el paso 1.</p>
-                : contando || !conteo ? <p className="bd-vacio">{rangoMalo ? "Corrige las fechas." : "Contando…"}</p>
-                : conteo.filas === 0 ? <p className="bd-vacio">No hay nada de <b>{punto.nombre}</b> {todo ? "" : `del ${dia(desde)} al ${dia(hasta)}`}. No hay qué borrar.</p>
+              {!elegidos.length ? <p className="bd-vacio">Marca qué borrar en el paso 1.</p>
+                : contando || !conteos ? <p className="bd-vacio">{rangoMalo ? "Corrige las fechas." : "Contando…"}</p>
+                : filasT === 0 ? <p className="bd-vacio">No hay nada de {elegidos.length === 1 ? <b>{elegidos[0].nombre}</b> : "lo marcado"} {todo ? "" : `del ${dia(desde)} al ${dia(hasta)}`}. No hay qué borrar.</p>
                 : (
                   <>
-                    <p className="bd-cifra"><b>{nf(conteo.filas)}</b> {conteo.filas === 1 ? "fila" : "filas"}
-                      {conteo.archivos > 0 && <> · <b>{nf(conteo.archivos)}</b> {conteo.archivos === 1 ? "archivo" : "archivos"}</>}</p>
-                    <p className="bd-que">{punto.modulo} · {punto.nombre}
-                      {conteo.primera && <> — del {dia(conteo.primera)} al {dia(conteo.ultima ?? conteo.primera)}</>}</p>
+                    <p className="bd-cifra"><b>{nf(filasT)}</b> {filasT === 1 ? "fila" : "filas"}
+                      {archT > 0 && <> · <b>{nf(archT)}</b> {archT === 1 ? "archivo" : "archivos"}</>}</p>
+                    <ul className="bd-lista">
+                      {elegidos.map((p) => {
+                        const c = conteos[p.clave];
+                        return (
+                          <li key={p.clave} className={c.filas === 0 ? "cero" : ""}>
+                            <span>{p.modulo} · {p.nombre}
+                              {c.filas > 0 && c.primera && <small> — del {dia(c.primera)} al {dia(c.ultima ?? c.primera)}</small>}</span>
+                            <b>{c.filas === 0 ? "nada" : `${nf(c.filas)}${c.archivos ? ` · ${nf(c.archivos)} arch.` : ""}`}</b>
+                          </li>
+                        );
+                      })}
+                    </ul>
                   </>
                 )}
             </div>
             <div className="bd-acciones">
               <a className={"btn bd-copia" + (copia ? " hecha" : "")}
-                 aria-disabled={!conteo || conteo.filas === 0}
-                 href={conteo && conteo.filas > 0 ? `/api/admin/datos?${qs}` : undefined}
-                 onClick={(e) => { if (!conteo || conteo.filas === 0) { e.preventDefault(); return } setCopia(true) }}>
+                 aria-disabled={!hayAlgo}
+                 href={hayAlgo ? `/api/admin/datos?${qs}` : undefined}
+                 onClick={(e) => { if (!hayAlgo) { e.preventDefault(); return } setCopia(true) }}>
                 {copia ? "Copia bajada ✓ (bajar otra vez)" : "1 · Bajar copia en Excel"}
               </a>
               <label className="bd-escribe">
@@ -176,7 +244,7 @@ export function BorrarDatos({ puntos, historial, hoy, hayLlave }: {
                        aria-label="Escribe BORRAR para confirmar" />
               </label>
               <button type="button" className="btn bd-borrar" disabled={!puedeBorrar} onClick={borrar}>
-                {borrando ? "Borrando…" : conteo && conteo.filas > 0 ? `Borrar ${nf(conteo.filas)} ${conteo.filas === 1 ? "fila" : "filas"}` : "Borrar"}
+                {borrando ? "Borrando…" : hayAlgo ? `Borrar ${nf(filasT)} ${filasT === 1 ? "fila" : "filas"}` : "Borrar"}
               </button>
             </div>
             {aviso && <p className={"aviso " + (aviso.bien ? "bien" : "mal")} role="status">{aviso.texto}</p>}

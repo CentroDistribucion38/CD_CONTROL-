@@ -84,6 +84,8 @@
 .fe .ev-cuerpo[hidden] { display: none }
 @media (prefers-reduced-motion: reduce) { .fe .ev-chev { transition: none } }
 
-/* Las tablas no se estiran a todo el ancho de una pantalla grande: las de pocas columnas quedan angostas. */
-.fe .ev-cuerpo .tp-tabla { max-width: 1280px }
-.fe .ev-cuerpo .tp-tabla.ev-chica { max-width: 640px }
+/* Las tablas ocupan TODO el ancho de su módulo y sus columnas miden lo mismo:
+   ninguna más grande que otra. En pantallas angostas se desplazan, no se aprietan. */
+.fe .ev-cuerpo .tp-tabla { width: 100%; max-width: none }
+.fe .ev-cuerpo .tp-tabla table { table-layout: fixed; width: 100%; min-width: 640px }
+.fe .ev-cuerpo .tp-tabla th, .fe .ev-cuerpo .tp-tabla td { white-space: normal; overflow-wrap: anywhere }

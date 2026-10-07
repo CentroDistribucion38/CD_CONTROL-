@@ -16,9 +16,10 @@ const hoyLocal = () => new Date(Date.now() - 5 * 3600_000).toISOString().slice(0
  * «Algo donde pueda elegir algo en específico y borrar la data con el fin
  * de empezar de cero. No módulos en general, sino puntos específicos.»
  *
- * Se elige UN punto (los viajes de Traspasos, las pesadas de Rotura de
- * línea…), un rango de fechas o todo, se ve cuánto se va, se baja la
- * copia en Excel y se escribe BORRAR. Solo quien administra.
+ * Cada módulo es una tira plegada; al abrirla salen todos sus datos y se
+ * marcan, en casillas cuadradas, los que se quieren borrar. Después un
+ * rango de fechas o todo, se ve cuánto se va, se baja la copia en Excel y
+ * se escribe BORRAR. Solo quien administra.
  */
 export default async function DatosPage() {
   const permisos = await misPermisos();
@@ -56,8 +57,9 @@ export default async function DatosPage() {
       {cat.error ? (
         <section className="sin-tablas">
           <h2>Falta correr un archivo en Supabase</h2>
-          <p>Ejecuta <code>supabase/migraciones/2026-09-admin-borrar-datos.sql</code> en el SQL Editor.
-            Crea la lista de lo que se puede borrar y el registro de quién borró qué.</p>
+          <p>Ejecuta <code>supabase/migraciones/2026-09-admin-borrar-datos.sql</code> y después{" "}
+            <code>supabase/migraciones/2026-10-admin-borrar-todo.sql</code> en el SQL Editor.
+            Crean la lista de lo que se puede borrar y el registro de quién borró qué.</p>
         </section>
       ) : (
         <BorrarDatos puntos={(cat.data ?? []) as Punto[]} historial={(hist.data ?? []) as Borrado[]}

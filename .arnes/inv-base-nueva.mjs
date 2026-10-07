@@ -209,7 +209,7 @@ ok(await pg.locator(".ba-t th").count() === 7, "volver a la corta");
 await pg.click('.ba-seg button:has-text("Envase")');
 const xl = await bajaXlsx('.ba-acc button:has-text("Bajar esta vista")');
 const cab = xl.filas[0], datos = xl.filas.slice(1, -1), tot = xl.filas[xl.filas.length - 1];
-ok(/^conteo-base-.*-envase-\d{4}-\d{2}-\d{2}\.xlsx$/.test(xl.nombre), "el archivo es un .xlsx y dice qué trae: " + xl.nombre);
+ok(/^conteo-base-.*-envase-(\d{4}-\d{2}-\d{2}|\d{8}-\d{4})\.xlsx$/.test(xl.nombre), "el archivo es un .xlsx y dice qué trae: " + xl.nombre);
 ok(cab.length === 27 && cab[0] === "Calle" && cab.includes("Módulo") && cab.includes("Ubicación") && cab[26] === "Estado", "el Excel trae las 26 columnas más Estado, con sus tildes: " + cab.join("|"));
 ok(datos.length === 4, "el Excel baja lo que se ve (4 envases): " + datos.length);
 const iEst = cab.indexOf("Estado"), iUb = cab.indexOf("Ubicación"), iCajas = cab.indexOf("Total cajas");

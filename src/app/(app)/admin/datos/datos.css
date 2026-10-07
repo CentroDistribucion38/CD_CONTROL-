@@ -6,22 +6,48 @@
   border-radius: 2px; background: var(--rl-tinta); color: #fff; font-size: 12px; vertical-align: 2px;
 }
 
-/* 1 · la lista */
-.rl.bd .bd-grupos { display: flex; flex-direction: column; gap: 4px; padding: 0 12px 14px }
-.rl.bd .bd-grupo { border: 0; margin: 0; padding: 6px 0 0; min-width: 0 }
-.rl.bd .bd-grupo legend {
-  padding: 6px 8px 4px; font: 700 10.5px var(--rl-texto); letter-spacing: .14em; text-transform: uppercase; color: var(--rl-gris);
+/* 1 · la lista: un módulo es una tira plegada; abierta, sus datos con casilla cuadrada */
+.rl.bd .bd-grupos { display: flex; flex-direction: column; gap: 8px; padding: 0 16px 16px }
+.rl.bd .bd-mod { border: 1.5px solid var(--rl-linea); border-radius: 3px; background: #fff; min-width: 0 }
+.rl.bd .bd-mod.con { border-color: var(--rl-tinta) }
+.rl.bd .bd-mod-cab {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 8px 14px;
+  border: 0; background: none; text-align: left; cursor: pointer; font: inherit; color: inherit;
 }
+.rl.bd .bd-mod-cab:hover { background: var(--c-f7f9fc) }
+.rl.bd .bd-mod-cab:focus-visible { outline: 3px solid var(--rl-rojo); outline-offset: -3px }
+.rl.bd .bd-mod-cab .nom { flex: 1 1 auto; min-width: 0; font: 800 14.5px var(--rl-titulo); letter-spacing: -.005em }
+.rl.bd .bd-mod-cab .cuantos { flex: none; font-size: 12.5px; color: var(--rl-gris); white-space: nowrap }
+.rl.bd .bd-mod-cab .cuantos b { color: var(--rl-rojo); font-weight: 800 }
+.rl.bd .bd-chev { flex: none; width: 20px; height: 20px; fill: none; stroke: var(--rl-tinta); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; transition: transform .15s }
+.rl.bd .bd-mod.abierto .bd-chev { transform: rotate(180deg) }
+@media (prefers-reduced-motion: reduce) { .rl.bd .bd-chev { transition: none } }
+.rl.bd .bd-mod.abierto > .bd-mod-cab { border-bottom: 1.5px solid var(--rl-linea) }
+.rl.bd .bd-mod-cuerpo { display: flex; flex-direction: column; padding: 6px }
 .rl.bd .bd-punto {
-  display: flex; gap: 10px; align-items: flex-start; padding: 10px 10px; min-height: 48px;
-  border-radius: 3px; cursor: pointer; border: 1.5px solid transparent;
+  display: flex; gap: 12px; align-items: flex-start; padding: 10px 10px; min-height: 48px;
+  border-radius: 2px; cursor: pointer; border: 1.5px solid transparent;
 }
 .rl.bd .bd-punto:hover { background: var(--c-f7f9fc) }
 .rl.bd .bd-punto.aqui { border-color: var(--rl-rojo); background: #FFF5F6 }
-.rl.bd .bd-punto input { width: 18px; height: 18px; margin: 2px 0 0; flex: 0 0 18px; accent-color: var(--rl-rojo); box-shadow: none }
+.rl.bd .bd-todos { border-bottom: 1px dashed var(--rl-linea); border-radius: 0; margin-bottom: 4px }
 .rl.bd .bd-punto span { display: flex; flex-direction: column; gap: 2px; min-width: 0 }
 .rl.bd .bd-punto b { font: 700 14px var(--rl-titulo) }
 .rl.bd .bd-punto i { font-style: normal; font-size: 12.5px; line-height: 1.4; color: var(--rl-gris) }
+
+/* LA CASILLA ES UN CUADRITO, no un círculo: cuadrada, de borde grueso, con su palomita. */
+.rl.bd .bd-cuadro {
+  appearance: none; -webkit-appearance: none; flex: 0 0 22px; width: 22px; height: 22px; margin: 0; padding: 0;
+  border: 2px solid var(--rl-tinta); border-radius: 2px; background: #fff; box-shadow: none; cursor: pointer; position: relative;
+}
+.rl.bd .bd-cuadro:checked { background: var(--rl-rojo); border-color: var(--rl-rojo) }
+.rl.bd .bd-cuadro:checked::after {
+  content: ""; position: absolute; left: 6px; top: 1px; width: 6px; height: 12px;
+  border: solid #fff; border-width: 0 2.5px 2.5px 0; transform: rotate(45deg);
+}
+.rl.bd .bd-cuadro:indeterminate { background: var(--rl-tinta); border-color: var(--rl-tinta) }
+.rl.bd .bd-cuadro:indeterminate::after { content: ""; position: absolute; left: 3px; top: 8px; width: 12px; height: 2.5px; background: #fff }
+.rl.bd .bd-cuadro:focus-visible { outline: 3px solid var(--rl-rojo); outline-offset: 2px }
 
 /* 2 · el rango */
 .rl.bd .bd-rango { display: flex; flex-direction: column; gap: 12px; padding: 0 20px 18px }
@@ -46,7 +72,13 @@
 .rl.bd .bd-cuenta { padding: 0 20px 14px }
 .rl.bd .bd-cifra { margin: 0; font-size: 15px }
 .rl.bd .bd-cifra b { font: 900 30px var(--rl-titulo); letter-spacing: -.03em; font-variant-numeric: tabular-nums }
-.rl.bd .bd-que { margin: 4px 0 0; font-size: 13px; color: var(--rl-gris) }
+.rl.bd .bd-lista { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; border-top: 1px solid var(--c-edf1f6) }
+.rl.bd .bd-lista li { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--c-edf1f6); font-size: 13px }
+.rl.bd .bd-lista li span { min-width: 0; overflow-wrap: anywhere }
+.rl.bd .bd-lista li small { color: var(--rl-gris); font-size: 12px }
+.rl.bd .bd-lista li b { flex: none; font-variant-numeric: tabular-nums; font-weight: 800 }
+.rl.bd .bd-lista li.cero { color: var(--rl-gris) }
+.rl.bd .bd-lista li.cero b { font-weight: 600 }
 .rl.bd .bd-vacio { margin: 0; font-size: 13px; line-height: 1.5; color: var(--rl-gris) }
 .rl.bd .bd-pad { padding: 0 20px 18px }
 .rl.bd .bd-acciones { display: flex; flex-direction: column; gap: 12px; padding: 0 20px 18px }
@@ -87,8 +119,9 @@
    ===================================================================== */
 @media (max-width: 700px) {
   .rl.bd .bd-punto { min-height: 56px; align-items: center; padding: 10px }
-  .rl.bd .bd-punto input { width: 22px; height: 22px; flex-basis: 22px; margin: 0 }
   .rl.bd .bd-punto:not(.aqui) i { display: none }
+  .rl.bd .bd-mod-cab { min-height: 56px }
+  .rl.bd .bd-grupos { padding: 0 12px 14px }
 
   .rl.bd .bd-tabla-env { overflow-x: visible }
   .rl.bd .bd-tabla, .rl.bd .bd-tabla thead, .rl.bd .bd-tabla tbody { display: block; min-width: 0; width: 100% }

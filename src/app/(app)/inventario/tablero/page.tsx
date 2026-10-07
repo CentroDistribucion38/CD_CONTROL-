@@ -452,11 +452,18 @@ export default async function InventarioTableroPage({ searchParams }: { searchPa
             </details>
           )}
 
-          <section className="fe-caja">
-            <div className="fe-caja-cab">
-              <h2>Conteos enviados</h2>
-              <p>Quién caminó qué, y cuándo lo firmó.</p>
-            </div>
+          {/* PLEGADA, cerrada al entrar: se abre al tocarla. */}
+          <details className="fe-caja fe-plegable">
+            <summary className="fe-caja-cab">
+              <span className="fe-pleg-t">
+                <span className="fe-pleg-h" role="heading" aria-level={2}>Conteos enviados</span>
+                <small>Quién caminó qué, y cuándo lo firmó.</small>
+              </span>
+              <span className="fe-pleg-n">
+                <b>{t.conteos.length}</b> {t.conteos.length === 1 ? "conteo" : "conteos"}
+                <i className="fe-pleg-ver" aria-hidden="true" />
+              </span>
+            </summary>
             <div className="fe-tabla">
               <table>
                 <thead>
@@ -485,7 +492,7 @@ export default async function InventarioTableroPage({ searchParams }: { searchPa
                 </tbody>
               </table>
             </div>
-          </section>
+          </details>
         </>
       )}
     </div>

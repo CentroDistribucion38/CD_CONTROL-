@@ -109,8 +109,9 @@ ok(sitiosPanel.length >= 2 && /Contó Génesis/.test(await pg.textContent(".ir-s
 if (process.env.FOTO) { await pg.waitForTimeout(400); await pg.screenshot({ path: `${process.env.FOTO}/ir-panel.png` }) }
 const [d1] = await Promise.all([pg.waitForEvent("download", { timeout: 20000 }), pg.click(".ir-pp .ir-btn")]);
 ok(/^riesgo-M\d+-\d{4}-\d{2}-\d{2}\.pdf$/.test(d1.suggestedFilename()), `PDF material: ${d1.suggestedFilename()}`);
-await pg.keyboard.press("Escape");
-ok(!(await pg.$(".ir-panel")), "Escape no cierra el panel");
+ok(!!(await pg.$(".ir-det")) && (await pg.getAttribute(".ir-m >> nth=0", "aria-expanded")) === "true", "la fila no se abre en su sitio");
+await pg.click(".ir-m >> nth=0");
+ok(!(await pg.$(".ir-det")), "otro clic no cierra la fila");
 const [d2] = await Promise.all([pg.waitForEvent("download", { timeout: 20000 }), pg.click(".ir-top .ir-btn")]);
 const b2 = readFileSync(await d2.path());
 ok(d2.suggestedFilename().startsWith("riesgo-vencimiento-AG01-") && b2.subarray(0, 4).toString() === "%PDF" && b2.length > 6000, `PDF general ${d2.suggestedFilename()} ${b2.length}`);
@@ -126,8 +127,8 @@ for (const ancho of [1300, 820, 390, 360]) {
   for (const paso of ["lista", "panel"]) {
     if (paso === "panel") await pg.click(".ir-m >> nth=0");
     const g = await pg.evaluate((p) => {
-      const raiz = document.querySelector(p === "panel" ? ".ir-panel" : ".ir").getBoundingClientRect();
-      const fuera = [...document.querySelectorAll(p === "panel" ? ".ir-panel *" : ".ir *")].filter((e) => { const r = e.getBoundingClientRect();
+      const raiz = document.querySelector(p === "panel" ? ".ir-det" : ".ir").getBoundingClientRect();
+      const fuera = [...document.querySelectorAll(p === "panel" ? ".ir-det *" : ".ir *")].filter((e) => { const r = e.getBoundingClientRect();
         return r.width && !e.closest("svg") && (r.right > raiz.right + 1 || r.left < raiz.left - 1) }).map((e) => (e.className?.baseVal ?? e.className) + "").slice(0, 5);
       const chicos = [...document.querySelectorAll(".ir button")].filter((b) => { const r = b.getBoundingClientRect(); return r.width && r.height < 40 }).map((b) => b.className + ":" + b.textContent.slice(0, 20));
       return { lado: document.documentElement.scrollWidth - innerWidth, fuera, chicos };
@@ -136,7 +137,7 @@ for (const ancho of [1300, 820, 390, 360]) {
     ok(!g.fuera.length, `${ancho} ${paso}: se sale ${g.fuera.join(", ")}`);
     ok(!g.chicos.length, `${ancho} ${paso}: botones chicos ${g.chicos}`);
   }
-  if (process.env.FOTO && ancho === 390) { await pg.waitForTimeout(400); await pg.screenshot({ path: `${process.env.FOTO}/ir-390-panel.png` }); await pg.keyboard.press("Escape"); await pg.screenshot({ path: `${process.env.FOTO}/ir-390.png`, fullPage: true }) }
+  if (process.env.FOTO && ancho === 390) { await pg.waitForTimeout(400); await pg.screenshot({ path: `${process.env.FOTO}/ir-390-panel.png` }); await pg.screenshot({ path: `${process.env.FOTO}/ir-390.png`, fullPage: true }) }
 }
 
 const lum = (c) => { const k = c.startsWith("color(srgb") ? 1 : 255; const v = c.match(/[\d.]+/g).slice(0, 3).map(Number).map((x) => { x /= k; return x <= .03928 ? x / 12.92 : ((x + .055) / 1.055) ** 2.4 }); return .2126 * v[0] + .7152 * v[1] + .0722 * v[2] };
