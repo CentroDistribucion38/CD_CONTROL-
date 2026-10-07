@@ -194,11 +194,15 @@
 }
 .ai-step button:hover:not(:disabled) { background: var(--ai-ojo); color: var(--ai-sobre) }
 .ai-step button:disabled { opacity: .35; cursor: default }
-.ai-step output {
+.ai-step output, .ai-step input.ai-n {
   min-width: 46px; display: grid; place-items: center; background: var(--ai-papel);
   font: 900 17px var(--sd-titulo, system-ui); font-variant-numeric: tabular-nums;
   color: var(--ai-tinta);
 }
+.ai-step input.ai-n {
+  width: 56px; border: 0; border-radius: 0; padding: 0; text-align: center; min-height: 44px;
+}
+.ai-step input.ai-n:focus { outline: 2px solid var(--ai-ojo); outline-offset: -2px; background: #fff }
 
 .ai-coment { display: grid; gap: 7px; margin-top: 20px }
 .ai-coment > span {

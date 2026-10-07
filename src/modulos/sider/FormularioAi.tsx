@@ -132,7 +132,8 @@ export function FormularioAi({
      trae, o ya no vale, el campo se escoge como siempre. */
   const canalFijo = !!canalViaje && (canalViaje !== "socios" || !!socioViaje);
   const envaseFijo = !!envaseViaje;
-  const [certificado, setCertificado] = useState(revision?.certificado ?? false);
+  /* «Venía certificado por el socio» ya no se pregunta en pantalla: se conserva lo que ya traía la revisión (o «no»). */
+  const certificado = revision?.certificado ?? false;
   const [recibidas, setRecibidas] = useState(revision ? String(revision.recibidas) : "");
   const [revisadas, setRevisadas] = useState(revision ? String(revision.revisadas) : "");
   const [comentarios, setComentarios] = useState(revision?.comentarios ?? "");
@@ -157,6 +158,15 @@ export function FormularioAi({
   const deTarjeta = viaje.unidades != null && viaje.unidades > 0 ? viaje.unidades : null;
   const rec = deTarjeta ?? num(recibidas), rev = num(revisadas);
 
+  /* ESCRIBIR EL NÚMERO DIRECTO: además del + y el −, el contador acepta teclado (se abre el teclado numérico).
+     Vacío = 0; solo dígitos; tope razonable para que un dedazo no meta un millón. */
+  const poner = (clave: string, texto: string) => {
+    const n = Math.min(99999, Number(texto.replace(/\D/g, "") || "0"));
+    setConteos((c) => {
+      if (n === 0) { const { [clave]: _, ...resto } = c; return resto }
+      return { ...c, [clave]: n };
+    });
+  };
   const mover = (clave: string, paso: number) =>
     setConteos((c) => {
       const n = Math.max(0, (c[clave] ?? 0) + paso);
@@ -244,10 +254,12 @@ export function FormularioAi({
 
   /* Un contador. Es lo único que se toca catorce veces seguidas, así que
      es lo único que mide 44 px de verdad y no «casi». */
-  const Contador = ({ d, nc }: { d: Defecto; nc?: boolean }) => {
+  /* Se llama como función y NO como componente: un componente definido aquí adentro se rehace en cada tecla
+     y la casilla perdería el cursor a cada dígito. */
+  const contador = (d: Defecto, nc?: boolean) => {
     const n = conteos[d.clave] ?? 0;
     return (
-      <div className={"ai-def" + (n > 0 ? " hay" : "") + (nc ? " nc" : "")}>
+      <div key={d.clave} className={"ai-def" + (n > 0 ? " hay" : "") + (nc ? " nc" : "")}>
         <span className="ai-nd">{d.nombre}</span>
         <div className="ai-step">
           <button type="button" aria-label={`Quitar una de ${d.nombre}`}
@@ -255,7 +267,9 @@ export function FormularioAi({
           {/* `output` y no `span`: un lector de pantalla anuncia el
               número nuevo al cambiar, que es justo lo que hace falta
               cuando no se está mirando la pantalla. */}
-          <output aria-label={`${d.nombre}: ${n}`}>{n}</output>
+          <input className="ai-n" inputMode="numeric" pattern="[0-9]*" autoComplete="off" aria-label={`${d.nombre}: cantidad`}
+                 value={String(n)} onFocus={(e) => e.target.select()}
+                 onChange={(e) => poner(d.clave, e.target.value)} />
           <button type="button" aria-label={`Sumar una de ${d.nombre}`}
                   onClick={() => mover(d.clave, +1)}>+</button>
         </div>
@@ -453,14 +467,6 @@ export function FormularioAi({
                   <input id="ai-rev" className="num" inputMode="numeric" value={revisadas}
                          placeholder="0" onChange={(e) => setRevisadas(e.target.value)} />
                 </div>
-
-                <div className="ai-campo ai-check">
-                  <label htmlFor="ai-cert" className="plano">
-                    <input id="ai-cert" type="checkbox" checked={certificado}
-                           onChange={(e) => setCertificado(e.target.checked)} />
-                    <span>Venía certificado por el socio</span>
-                  </label>
-                </div>
               </div>
             </div>
           </section>
@@ -476,12 +482,12 @@ export function FormularioAi({
             <div className="ai-cuerpo">
               <div className="ai-rot">ENTRAN AL COBRO</div>
               <div className="ai-grid">
-                {cobran.map((d) => <Contador key={d.clave} d={d} />)}
+                {cobran.map((d) => contador(d))}
               </div>
 
               <div className="ai-rot mal">SE REGISTRAN · NO COBRAN</div>
               <div className="ai-grid">
-                {noCobran.map((d) => <Contador key={d.clave} d={d} nc />)}
+                {noCobran.map((d) => contador(d, true))}
               </div>
 
               <label className="ai-coment">

@@ -754,7 +754,7 @@ for (const [sel, viaje, tipo, aviso] of [
     : await pg.inputValue("#ai-rec") === "82080";
   ok(recVis && await pg.inputValue("#ai-rev") === "4104",
      "el formulario de corrección no trae lo ya guardado");
-  ok(/37/.test(await pg.$eval(".ai-def.hay", (e) => e.textContent)), "no trajo los conteos (el 37 de «rota»)");
+  ok(/37/.test(await pg.$eval(".ai-def.hay", (e) => e.textContent + " " + [...e.querySelectorAll("input")].map((i) => i.value).join(" "))), "no trajo los conteos (el 37 de «rota»)");
   await pg.locator("button.b1:not([disabled])").first().click();
   await pg.waitForFunction(() => window.__rpc.length > 0);
   const l = (await rpcs())[0];

@@ -87,12 +87,54 @@ type Previo = {
 const ESTADOS_ENVASE = ["RETORNO", "LAVADO", "NUEVO", "BAJA", "EXTRASUCIO"] as const;
 type MarcaModulo = { mezclado: boolean; sin_acceso: boolean; ruta: string | null };
 
+/* LA CALCULADORA: las casillas de cantidad aceptan una cuenta —3×40+5, 12+8, (2+1)*40— además del número solo.
+   Se evalúa a mano (suma, resta, multiplicación, división y paréntesis); no se usa eval. */
+const OPERADOR = /[+\-−*/×÷xX()]/;
+const calcular = (texto: string): number | null => {
+  const t = texto.replace(/[×xX]/g, "*").replace(/÷/g, "/").replace(/−/g, "-").replace(/[\s,]/g, "");
+  if (t === "" || !/^[0-9+\-*/().]+$/.test(t)) return null;
+  let i = 0;
+  const num = (): number | null => {
+    if (t[i] === "(") { i++; const v = suma(); if (v == null || t[i] !== ")") return null; i++; return v }
+    const ini = i;
+    while (i < t.length && /[0-9.]/.test(t[i])) i++;
+    if (i === ini) return null;
+    const v = Number(t.slice(ini, i));
+    return Number.isFinite(v) ? v : null;
+  };
+  const prod = (): number | null => {
+    let v = num();
+    while (v != null && (t[i] === "*" || t[i] === "/")) {
+      const op = t[i++]; const w = num();
+      if (w == null || (op === "/" && w === 0)) return null;
+      v = op === "*" ? v * w : v / w;
+    }
+    return v;
+  };
+  const suma = (): number | null => {
+    let v = prod();
+    while (v != null && (t[i] === "+" || t[i] === "-")) {
+      const op = t[i++]; const w = prod();
+      if (w == null) return null;
+      v = op === "+" ? v + w : v - w;
+    }
+    return v;
+  };
+  const r = suma();
+  return r != null && i === t.length && Number.isFinite(r) ? r : null;
+};
 const ent = (s: string): number | null => {
   const t = s.trim();
   if (t === "") return null;
+  if (OPERADOR.test(t) && /[0-9]/.test(t) && !/^[xX]+$/.test(t)) {
+    const r = calcular(t);
+    return r != null && Number.isInteger(r) && r > 0 ? r : null;
+  }
   const n = Number(t.replace(/\D/g, ""));
   return Number.isFinite(n) && n > 0 ? n : null;
 };
+/** ¿Lo escrito es una cuenta (y no solo un número)? */
+const esCuenta = (s: string) => OPERADOR.test(s.trim()) && /[0-9]/.test(s);
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const DIA = 86_400_000;
 
@@ -314,6 +356,8 @@ export function Contar({
      salta, y ese `if` se olvida el día que aparezca un tercer modo. */
   const campoCantidad = useRef<HTMLInputElement>(null);
   const campoSaldo = useRef<HTMLInputElement>(null);
+  /* LA CASILLA DE CANTIDAD EN LA QUE ESTÁ EL CURSOR: a ella van los signos de la calculadora. */
+  const campoActivo = useRef<"estibas" | "saldo" | "cajas">("estibas");
   /* Sube de uno cada vez que hay que mandar el cursor a la cantidad.
      Es un contador y no un `true/false` porque hay que poder pedirlo
      dos veces seguidas: editar una tarjeta, arrepentirse, editar otra. */
@@ -434,6 +478,34 @@ export function Contar({
      OJO: el teclado numérico de iPhone no trae Enter. Por eso ESTE
      salto es el de conveniencia y el de la fecha es el que de verdad
      encadena el renglón — ese sí funciona en todos. */
+  /** Resuelve la cuenta de una casilla: «3×40+5» queda en «125». Lo que no es una cuenta válida se deja como está. */
+  function resolverCuenta(k: "estibas" | "saldo" | "cajas") {
+    setB((x) => {
+      const t = x[k];
+      if (!esCuenta(t)) return x;
+      const r = ent(t);
+      return r == null ? x : { ...x, [k]: String(r) };
+    });
+  }
+  /** Un signo de la calculadora, donde está el cursor de la casilla activa. */
+  function signo(op: string) {
+    const k = campoActivo.current;
+    const el = k === "saldo" ? campoSaldo.current : campoCantidad.current;
+    if (op === "=") { resolverCuenta(k); el?.focus(); return }
+    const ini = el?.selectionStart ?? b[k].length, fin = el?.selectionEnd ?? ini;
+    const nuevo = b[k].slice(0, ini) + op + b[k].slice(fin);
+    pon(k, nuevo);
+    setTimeout(() => { el?.focus(); el?.setSelectionRange(ini + op.length, ini + op.length) }, 0);
+  }
+  function borrarUno() {
+    const k = campoActivo.current;
+    const el = k === "saldo" ? campoSaldo.current : campoCantidad.current;
+    const ini = el?.selectionStart ?? b[k].length, fin = el?.selectionEnd ?? ini;
+    const desde = fin > ini ? ini : Math.max(0, ini - 1);
+    pon(k, b[k].slice(0, desde) + b[k].slice(fin));
+    setTimeout(() => { el?.focus(); el?.setSelectionRange(desde, desde) }, 0);
+  }
+
   function saltaCon(e: KeyboardEvent<HTMLInputElement>,
                     destino?: RefObject<HTMLInputElement | null>) {
     if (e.key !== "Enter") return;
@@ -569,7 +641,10 @@ export function Contar({
   const material = useMemo(() => materialDe(b),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [materiales, b.codigo]);
-  const esEnvase = material?.tipo_material === "ENVASE";
+  /* EL CILINDRO (CO2) TAMBIÉN PIDE ESTADO, pero no es RETORNO/LAVADO…: es LLENO o VACÍO. Sin fecha de vencimiento. */
+  const esCilindro = /cilindro/i.test(material?.tipo_envase ?? "");
+  const esEnvase = material?.tipo_material === "ENVASE" || esCilindro;
+  const OPCIONES_ESTADO: readonly string[] = esCilindro ? ["LLENO", "VACÍO"] : ESTADOS_ENVASE;
 
   /* ---------- LA LISTA DEL CÓDIGO, FILTRADA MIENTRAS SE TECLEA ---------- */
   const [sugAbierta, setSugAbierta] = useState(false);
@@ -807,7 +882,8 @@ export function Contar({
 
   function revisar(bb: Borrador): string | null {
     const mat = materialDe(bb);
-    const env = mat?.tipo_material === "ENVASE";
+    const cil = /cilindro/i.test(mat?.tipo_envase ?? "");
+    const env = mat?.tipo_material === "ENVASE" || cil;
     if (!bb.base) return "Escoge el módulo.";
     /* SE MIRA EL LADO ESCOGIDO Y NO LA FILA DEL MAESTRO. Desde que la
        pantalla ofrece siempre los dos, el derecho de un módulo cargado
@@ -817,7 +893,9 @@ export function Contar({
     if (mod.sinAcceso) return "Este módulo está marcado «sin acceso»: usa «Anotar módulo sin acceso».";
     if (mod.mezclado && !fotoMod && !marcaGuardada?.ruta) return "Módulo mezclado: falta la foto de evidencia.";
     if (!mat) return `El código «${bb.codigo}» no está en el maestro.`;
-    if (env && bb.estado.trim() === "") return "Falta el estado del envase.";
+    if (env && bb.estado.trim() === "") return cil ? "Falta decir si el cilindro está lleno o vacío." : "Falta el estado del envase.";
+    if (bb.modo === "cajas" ? (bb.cajas.trim() !== "" && ent(bb.cajas) == null) : ((bb.estibas.trim() !== "" && ent(bb.estibas) == null) || (bb.saldo.trim() !== "" && ent(bb.saldo) == null)))
+      return "No entiendo la cuenta: revisa los números y los signos (+ − × ÷), y que el resultado sea un entero.";
     if (bb.averia && !fotoNueva && !(corrigiendo && fotosDe[corrigiendo])) return "Avería: falta la foto de evidencia.";
     if (bb.pnc && (bb.pncRotulo == null || bb.pncBloqueo == null)) return "PNC: falta contestar si tiene rótulo y si tiene bloqueo mecánico.";
     if (env && estadosUsados.has(bb.estado.trim().toUpperCase())) return `Ya contaste ${bb.codigo.trim()} como ${bb.estado.trim()} en ${claveEscogida}: escoge otro estado o corrige ese renglón.`;
@@ -1979,22 +2057,22 @@ export function Contar({
             no se escoja, «Cuánto» sigue apagado. */}
         <div className={"fe-bloque fe-estenv" + (pasoEstado ? "" : " fe-apagado")} inert={!pasoEstado} aria-disabled={!pasoEstado}>
           <p className="fe-bloque-cab">Estado del envase</p>
-          {pasoEstado && esEnvase && <p className="fe-obliga">Obligatorio: escoge uno para pasar a «Cuánto».</p>}
+          {pasoEstado && esEnvase && <p className="fe-obliga">Obligatorio: {esCilindro ? "escoge lleno o vacío" : "escoge uno"} para pasar a «Cuánto».</p>}
           {!pasoEstado ? (
             <p className="fe-paso-aviso">{!claveEscogida ? "Escoge el módulo para continuar." : !fotoModOk ? "Falta la foto del módulo mezclado." : "Escribe el código para continuar."}</p>
           ) : !esEnvase ? (
             <p className="fe-paso-aviso">No aplica: lo que cuentas es producto, no envase.</p>
           ) : (
             <>
-              <div className="fe-estados" role="group" aria-label="Estado del envase">
-                {[...ESTADOS_ENVASE.filter((e) => !estadosUsados.has(e)), ...(b.estado && !(ESTADOS_ENVASE as readonly string[]).includes(b.estado) ? [b.estado] : [])].map((e) => (
+              <div className="fe-estados" role="group" aria-label={esCilindro ? "Cilindro lleno o vacío" : "Estado del envase"}>
+                {[...OPCIONES_ESTADO.filter((e) => !estadosUsados.has(e)), ...(b.estado && !OPCIONES_ESTADO.includes(b.estado) ? [b.estado] : [])].map((e) => (
                   <button key={e} type="button" className={b.estado === e ? "on" : ""} aria-pressed={b.estado === e}
                           onClick={() => { pon("estado", b.estado === e ? "" : e); if (b.estado !== e) setTimeout(() => campoCantidad.current?.focus(), 60) }}>{e}</button>
                 ))}
               </div>
               {estadosUsados.size > 0 && (
                 <p className="fe-paso-aviso">Ya contado aquí para este código: <b>{[...estadosUsados].join(", ")}</b>.
-                  {estadosUsados.size >= ESTADOS_ENVASE.length ? " Ya no queda otro estado: para cambiar algo, corrige ese renglón." : ""}</p>
+                  {estadosUsados.size >= OPCIONES_ESTADO.length ? esCilindro ? " Ya contaste lleno y vacío: para cambiar algo, corrige ese renglón." : " Ya no queda otro estado: para cambiar algo, corrige ese renglón." : ""}</p>
               )}
             </>
           )}
@@ -2031,16 +2109,19 @@ export function Contar({
               <>
                 <label className="fe-cuanto-campo"><span>Estibas completas</span>
                   <input ref={campoCantidad} inputMode="numeric" value={b.estibas}
+                         onFocus={() => { campoActivo.current = "estibas" }} onBlur={() => resolverCuenta("estibas")}
                          onChange={(e) => pon("estibas", e.target.value)}
                          onKeyDown={(e) => saltaCon(e, campoSaldo)} /></label>
                 <label className="fe-cuanto-campo"><span>Saldo · cajas</span>
                   <input ref={campoSaldo} inputMode="numeric" value={b.saldo}
+                         onFocus={() => { campoActivo.current = "saldo" }} onBlur={() => resolverCuenta("saldo")}
                          onChange={(e) => pon("saldo", e.target.value)}
                          onKeyDown={(e) => saltaCon(e)} /></label>
               </>
             ) : (
               <label className="fe-cuanto-campo ancho"><span>Cajas</span>
                 <input ref={campoCantidad} inputMode="numeric" value={b.cajas}
+                       onFocus={() => { campoActivo.current = "cajas" }} onBlur={() => resolverCuenta("cajas")}
                        onChange={(e) => pon("cajas", e.target.value)}
                        onKeyDown={(e) => saltaCon(e)} /></label>
             )}
@@ -2051,6 +2132,23 @@ export function Contar({
               </output>
             </div>
           </div>
+          {/* LA CALCULADORA: el teclado numérico del celular no trae signos. Estos botones los ponen en la casilla donde
+              está el cursor; con el teclado de un computador también se pueden escribir. «=» deja el resultado en la casilla
+              (también pasa solo al salir de ella). */}
+          <div className="fe-calc" role="group" aria-label="Calculadora para las cantidades">
+            <span>Cuenta</span>
+            {[["+", "+"], ["−", "−"], ["×", "×"], ["÷", "÷"]].map(([txt, op]) => (
+              <button key={op} type="button" aria-label={`Signo ${txt}`} onMouseDown={(e) => e.preventDefault()} onClick={() => signo(op)}>{txt}</button>
+            ))}
+            <button type="button" aria-label="Borrar el último carácter" onMouseDown={(e) => e.preventDefault()} onClick={borrarUno}>⌫</button>
+            <button type="button" className="igual" aria-label="Resolver la cuenta" onMouseDown={(e) => e.preventDefault()} onClick={() => signo("=")}>=</button>
+          </div>
+          {(["estibas", "saldo", "cajas"] as const).map((k) => esCuenta(b[k]) && (
+            <p key={k} className="fe-calc-vista">
+              {b[k].trim()} = {ent(b[k]) != null ? <b>{nf.format(ent(b[k])!)}</b> : <b className="ojo">no entiendo la cuenta</b>}
+            </p>
+          ))}
+
           {/* LA CUENTA A LA VISTA: el resultado solo hay que creérselo, la
               cuenta —12 × 45 + 8— se mira contra la estiba. */}
           {cuenta && (

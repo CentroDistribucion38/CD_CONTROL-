@@ -1793,3 +1793,15 @@
 .fe .fe-pnc-veredicto { margin: 0; font-size: 13px; font-weight: 600 }
 .fe .fe-pnc-veredicto.cumple { color: var(--fe-bien) }
 .fe .fe-pnc-veredicto.falta { color: var(--fe-ojo) }
+
+/* CALCULADORA DE LAS CANTIDADES: signos para la casilla activa. */
+.fe .fe-calc { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 8px 0 0 }
+.fe .fe-calc > span { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--fe-gris-panel); margin-right: 4px }
+.fe .fe-calc button {
+  min-width: 48px; min-height: 44px; padding: 0 10px; border: 1.5px solid var(--fe-linea); border-radius: 2px;
+  background: var(--fe-papel); color: var(--fe-tinta); font: 800 18px var(--fe-titulo); cursor: pointer;
+}
+.fe .fe-calc button.igual { background: var(--fe-tinta); border-color: var(--fe-tinta); color: var(--fe-papel) }
+.fe .fe-calc button:focus-visible { outline: 2px solid var(--fe-tinta); outline-offset: 2px }
+.fe .fe-calc-vista { margin: 6px 0 0; font-size: 14px; color: var(--fe-tinta) }
+.fe .fe-calc-vista .ojo { color: var(--fe-ojo) }

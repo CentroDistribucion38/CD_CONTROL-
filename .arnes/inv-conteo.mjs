@@ -1594,6 +1594,9 @@ createRoot(document.getElementById("r")!).render(<Contar bodegaId="b1"
       unidades_por_caja: 6, cajas_por_estiba: 45, unidades_por_estiba: 270, contenido: null,
       familia: null, presentacion: null, vida_util: 180, f_limite_desp: null, dias_minimo: 30,
       origen: null, foraneo: null, tipo_material: "PRODUCTO", activo: true },
+      { id: "cil", sku: "3500024", nombre: "CILINDRO CO2", unidades_por_caja: 1, cajas_por_estiba: 1, unidades_por_estiba: 1, contenido: null,
+        familia: null, presentacion: null, vida_util: null, f_limite_desp: null, dias_minimo: null, origen: null, foraneo: null,
+        tipo_material: "PRODUCTO", tipo_envase: "Cilindro", activo: true },
       ...["3500005", "3500006"].map((sku, i) => ({ id: "e" + i, sku, nombre: "CANASTILLA PLASTICA " + (i + 1),
         unidades_por_caja: 1, cajas_por_estiba: 20, unidades_por_estiba: 20, contenido: null, familia: null, presentacion: null,
         vida_util: null, f_limite_desp: null, dias_minimo: null, origen: null, foraneo: null, tipo_material: "ENVASE", activo: true }))];
@@ -1805,6 +1808,30 @@ createRoot(document.getElementById("r")!).render(<Contar bodegaId="b1"
     ok2(llp.some((c) => c.fn === "conteo_fefo_agregar" && c.args.p_pnc === true), "con las dos respuestas el renglón PNC no se anotó");
     const pol = llp.find((c) => c.fn === "conteo_fefo_pnc_politica")?.args;
     ok2(!!pol && pol.p_rotulo === true && pol.p_bloqueo === false, "las respuestas del PNC no viajaron a la base: " + JSON.stringify(pol));
+    /* CILINDRO: en vez de los cinco estados del envase se pregunta LLENO o VACÍO; y las cantidades aceptan una cuenta. */
+    await pgm.click(ladoIzq);
+    await pgm.fill(cod, "3500024");
+    ok2((await pgm.locator(".fe-estenv .fe-estados button").allTextContents()).join() === "LLENO,VACÍO", "un cilindro debía ofrecer LLENO y VACÍO: " + (await pgm.locator(".fe-estenv .fe-estados button").allTextContents()).join());
+    ok2(await pgm.locator(".fe-cuanto-bloque.fe-apagado").count() === 1, "sin escoger lleno o vacío «Cuánto» debía seguir apagado");
+    await pgm.click('.fe-estenv .fe-estados button:has-text("LLENO")');
+    ok2(await pgm.locator(".fe-cuanto-bloque.fe-apagado").count() === 0, "con LLENO escogido «Cuánto» debía encenderse");
+    ok2(await pgm.locator(".fe-que-vence.opcional").count() === 1, "el cilindro no debía pedir fecha de vencimiento");
+    /* CALCULADORA: 3 × 4 con los botones, se ve «= 12» y «=» deja el 12 en la casilla. */
+    await pgm.click(".fe-cuanto-campo input >> nth=0");
+    await pgm.keyboard.type("3");
+    await pgm.click('.fe-calc button[aria-label="Signo ×"]');
+    await pgm.keyboard.type("4");
+    ok2((await pgm.inputValue(".fe-cuanto-campo input >> nth=0")) === "3×4", "la casilla no quedó con 3×4: " + await pgm.inputValue(".fe-cuanto-campo input >> nth=0"));
+    ok2(/3×4 = 12/.test(await pgm.textContent(".fe-calc-vista")), "no muestra el resultado de la cuenta: " + await pgm.textContent(".fe-calc-vista").catch(() => "(nada)"));
+    await pgm.click('.fe-calc button[aria-label="Resolver la cuenta"]');
+    ok2((await pgm.inputValue(".fe-cuanto-campo input >> nth=0")) === "12", "«=» no dejó el resultado en la casilla");
+    await pgm.fill(".fe-cuanto-campo input >> nth=0", "2+3*4");   /* con el teclado de un computador, y se resuelve al salir de la casilla */
+    await pgm.locator(".fe-cuanto-campo input").nth(1).focus();
+    ok2((await pgm.inputValue(".fe-cuanto-campo input >> nth=0")) === "14", "2+3*4 debía quedar en 14 al salir de la casilla: " + await pgm.inputValue(".fe-cuanto-campo input >> nth=0"));
+    await pgm.evaluate(() => { window.__llamadas = [] });
+    await pgm.click(".fe-anotar .btn.grande"); await pgm.waitForTimeout(400);
+    const cil = await pgm.evaluate(() => (window.__llamadas ?? []).find((c) => c.fn === "conteo_fefo_agregar")?.args ?? null);
+    ok2(!!cil && cil.p_estado === "LLENO" && cil.p_estibas === 14 && cil.p_venc_anio == null, "el cilindro no se anotó como LLENO con 14 estibas: " + JSON.stringify(cil));
     /* SIN ACCESO: no hay renglón, solo el módulo y su foto. Otro lado: el izquierdo ya tiene su foto. */
     await pgm.click('[aria-labelledby=fe-rot-lado] button:has-text("Derecho")');
     await pgm.click('.fe-acceso .fe-si-no button:has-text("No")');
