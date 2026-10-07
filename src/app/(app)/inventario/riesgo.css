@@ -5,7 +5,7 @@
    en su tono oscuro para que se lea en los siete temas.
    ===================================================================== */
 .ir {
-  --ir-v: #B0102A; --ir-p: #EF3B2C; --ir-s: #FF7A1A; --ir-q: #FFC21A; --ir-m: #8BC34A; --ir-o: #22A45D; --ir-n: #9AA5B1;
+  --ir-v: #7E0F1D; --ir-p: #D9142B; --ir-s: #E8761A; --ir-q: #EBA61B; --ir-m: #7BB342; --ir-o: #1E9E5A; --ir-n: #C9CBC6;
   --ir-vt: #A00D26; --ir-pt: #C8161D; --ir-st: #B84A00; --ir-qt: #8A5A00; --ir-mt: #4E7A12; --ir-ot: #137A40; --ir-nt: #55606B;
   --ir-ln: #E6E9EE; --ir-fondo: #F2F4F7;
   display: flex; flex-direction: column; gap: 16px; min-width: 0; color: var(--fe-tinta);
@@ -49,60 +49,6 @@
 .ir-aviso .prog .t { font: 700 11.5px var(--fe-titulo); color: #7A5C00; letter-spacing: .04em }
 .ir-aviso .prog .p { height: 8px; background: #F2DE9A; margin-top: 6px; overflow: hidden }
 .ir-aviso .prog .p i { display: block; height: 100%; background: #8A6A00 }
-
-/* ---- Arriba: el peor, grande, y el aro de la bodega ---- */
-.ir-duo { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 16px; align-items: start }
-.ir-hero { padding: 22px 24px; border-left: 5px solid var(--c, var(--ir-o)) }
-.ir-hero-1 { display: flex; align-items: center; gap: 12px; flex-wrap: wrap }
-.ir-hero-1 > span:not(.ir-pill) { font-size: 13px; color: var(--fe-gris) }
-.ir-hero-2 { display: flex; align-items: flex-end; gap: 16px 28px; margin-top: 18px; flex-wrap: wrap }
-.ir-hero-2 .n {
-  margin: 0; font: 900 clamp(40px, 5vw, 60px)/.9 var(--fe-titulo); letter-spacing: -.045em;
-  color: color-mix(in srgb, var(--c, var(--ir-o)) 62%, #000); font-variant-numeric: tabular-nums;
-}
-.ir-hero-2 .n.bien { color: var(--ir-ot) }
-.ir-hero-2 .n small { display: block; margin-top: 9px; font: 700 10.5px var(--fe-titulo); letter-spacing: .13em; color: var(--fe-gris) }
-.ir-hero-2 .qu { flex: 1 1 220px; min-width: 0 }
-.ir-hero-2 h2 { margin: 0; font: 900 clamp(18px, 2vw, 23px) var(--fe-titulo); letter-spacing: -.02em; overflow-wrap: anywhere }
-.ir-hero-2 .meta { margin: 6px 0 0; font: 500 13px var(--fe-mono, ui-monospace, monospace); color: var(--fe-gris) }
-.ir-hero-3 { display: flex; align-items: center; gap: 16px 30px; flex-wrap: wrap; margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--ir-ln) }
-.ir-hero-3 .k { font: 700 9.5px var(--fe-titulo); letter-spacing: .14em; color: var(--fe-gris) }
-.ir-hero-3 .v { margin-top: 5px; font: 800 17px var(--fe-titulo) }
-.ir-hero-3 .v.mal { color: var(--ir-pt) }
-.ir-hero-3 .ver {
-  margin-left: auto; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 2px;
-  background: #141414; color: #fff; border: 0; cursor: pointer; font: 800 13.5px var(--fe-texto);
-}
-.ir-hero-3 .ver svg { width: 15px; height: 15px }
-
-.ir-bod { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; padding: 20px 22px }
-.ir-bod .aro { width: 150px; height: 150px; flex: none }
-.ir-bod .aro circle { fill: none; stroke-width: 20 }
-.ir-bod .aro .pista { stroke: var(--ir-fondo) }
-.ir-bod .aro .pc { font-family: var(--fe-titulo); font-weight: 900; fill: var(--fe-tinta); stroke: none }
-.ir-bod .aro .pcr { font-family: var(--fe-texto); font-weight: 600; fill: var(--fe-gris); stroke: none; letter-spacing: .04em }
-.ir-bod .lado { flex: 1 1 220px; min-width: 0 }
-.ir-bod h3 { margin: 0; font: 900 17px var(--fe-titulo) }
-.ir-bod .sub { margin: 4px 0 10px; font-size: 12.5px; color: var(--fe-gris) }
-.ir-bod .l { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: 13.5px; border-bottom: 1px solid var(--ir-ln) }
-.ir-bod .l:last-child { border-bottom: 0 }
-.ir-bod .l i { flex: none; width: 11px; height: 11px; border-radius: 3px; background: var(--c, var(--ir-fondo)) }
-.ir-bod .l i.nada { background: #DEDED8 }
-.ir-bod .l b { margin-left: auto; font: 800 14px var(--fe-titulo); font-variant-numeric: tabular-nums }
-.ir-bod .l span { width: 42px; text-align: right; font-size: 12.5px; color: var(--fe-gris); font-variant-numeric: tabular-nums }
-
-/* ---- Las otras franjas, de contexto y de filtro ---- */
-.ir-fr { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--ir-ln); border: 1px solid var(--ir-ln); border-radius: 2px; overflow: hidden }
-.ir-frb { display: block; text-align: left; padding: 14px 18px; background: var(--fe-papel); border: 0; cursor: pointer; font: inherit; color: inherit; min-width: 0 }
-.ir-frb .k { display: block; font: 700 9.5px var(--fe-titulo); letter-spacing: .13em; text-transform: uppercase; color: var(--fe-gris) }
-.ir-frb .v { display: block; margin-top: 5px; font: 900 22px var(--fe-titulo); color: #B2B2AC; font-variant-numeric: tabular-nums }
-.ir-frb .v.pasado { color: var(--ir-pt) } .ir-frb .v.semana { color: var(--ir-st) }
-.ir-frb .v.quince { color: var(--ir-qt) } .ir-frb .v.mes { color: var(--ir-mt) } .ir-frb .v.vencido { color: var(--ir-vt) }
-.ir-frb .s { display: block; margin-top: 4px; font-size: 12px; color: var(--fe-gris) }
-.ir-frb:hover:not(.cero) { background: #FFFDF5 }
-.ir-frb.on { background: #141414 } .ir-frb.on .k, .ir-frb.on .s { color: #C9CCD1 } .ir-frb.on .v { color: #fff }
-
-.ir-al:focus-visible, .ir-m:focus-visible, .ir-btn:focus-visible, .ir-seg button:focus-visible, .ir-chips button:focus-visible { outline: 3px solid var(--fe-acento); outline-offset: 2px }
 
 /* ---- Dos tarjetas ---- */
 .ir-dos { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px }
@@ -259,3 +205,128 @@
 .ir .fe-fecha-x { align-self: center; font: 700 13px var(--fe-texto); color: var(--fe-gris); text-decoration: underline }
 .ir .fe-fecha-aviso { flex-basis: 100%; margin: 0; padding: 8px 10px; background: #FFF6D6; font-size: 13px }
 @media (max-width: 700px) { .ir .fe-fecha select { width: 100%; min-width: 0 } .ir .fe-fecha label:first-child { flex-basis: 100% } }
+
+.ir-al:focus-visible, .ir-m:focus-visible, .ir-btn:focus-visible, .ir-seg button:focus-visible, .ir-chips button:focus-visible, .ir-tabla tr.tocable:focus-visible, .ir-ref .ver:focus-visible { outline: 3px solid var(--fe-acento); outline-offset: 2px }
+
+/* =====================================================================
+   NUEVO ARRANQUE DE LA PANTALLA (como el diseño): cabecera, caja de control, tabla por
+   tiempo para vencer + margen de la bodega, y la referencia más crítica.
+   ===================================================================== */
+.ir .lb { font: 600 10.5px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase; color: var(--fe-gris) }
+.ir-top h1 { font: 900 30px/1.1 var(--fe-titulo); letter-spacing: -.02em }
+.ir-frase { margin-top: 6px; font-size: 13.5px }
+
+/* caja de control: el día de la foto (izquierda) y la cobertura del conteo (derecha) */
+.ir-ctl { display: flex; align-items: stretch; background: var(--fe-papel); border: 1px solid var(--ir-ln) }
+.ir-ctl-1 { padding: 12px 18px; display: flex; align-items: center }
+.ir-ctl-2 { flex: 1; border-left: 1px solid var(--ir-ln) !important }
+.ir-ctl .fe-fecha { margin: 0; padding: 0; border: 0; background: none; align-items: center; gap: 10px 14px }
+.ir-ctl .fe-fecha label { flex-direction: row; align-items: center; gap: 12px }
+.ir-ctl .fe-fecha label > span { font: 600 10.5px var(--fe-texto); letter-spacing: .1em; color: var(--fe-gris) }
+.ir-ctl .fe-fecha select { min-height: 44px; min-width: 240px; border: 1px solid var(--ir-ln); font: 600 13.5px var(--fe-texto) }
+.ir-ctl .fe-fecha-chk span { font: 400 13px var(--fe-texto) !important; color: var(--fe-gris-panel) !important }
+.ir-ctl .fe-fecha button { min-height: 44px; padding: 0 18px; background: var(--fe-papel); color: var(--fe-tinta); border: 1.5px solid var(--fe-tinta); font: 700 13.5px var(--fe-texto) }
+.ir-ctl .fe-fecha-aviso { flex-basis: 100% }
+.ir-ctl .ir-aviso { border: 0; border-left: 1px solid var(--ir-ln); border-radius: 0; background: var(--fe-papel); padding: 12px 18px; gap: 14px; justify-content: flex-end; flex-wrap: nowrap }
+.ir-aviso .ic { width: 28px; height: 28px; background: #FFF3C4; color: #8A5A00; font: 800 14px var(--fe-titulo) }
+.ir-aviso .tx { text-align: right; font-size: 12.5px; color: var(--fe-gris-panel); line-height: 1.35 }
+.ir-aviso .tx b { font-size: 12.5px; color: #8A5A00; font-weight: 700 }
+.ir-aviso .tx span { display: block; margin: 0; font-size: 12.5px; color: var(--fe-gris-panel) }
+.ir-aviso .prog { margin: 0; width: 200px; min-width: 0; text-align: left }
+.ir-aviso .prog .p { height: 6px; background: #F2E6B8; margin: 0 }
+.ir-aviso .prog .p i { background: #8A5A00 }
+.ir-aviso .prog .t { display: flex; justify-content: space-between; margin-top: 4px; font: 500 11px var(--fe-mono, ui-monospace, monospace); letter-spacing: 0; color: var(--fe-gris) }
+.ir-aviso .prog .t span { display: inline; margin: 0; font: inherit; color: inherit }
+.ir-aviso.solo { background: #FFF6D6; border: 1px solid #F0CE4E; border-left: 4px solid var(--ir-q); border-radius: 0 }
+
+/* tabla + lado */
+.ir-g { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; align-items: stretch }
+.ir-tabla { display: flex; flex-direction: column }
+.ir-tabla .ir-h { padding: 14px 18px; border-bottom: 1px solid var(--ir-ln); align-items: baseline }
+.ir-tabla .ir-h h2 { font: 800 15px var(--fe-titulo); letter-spacing: 0 }
+.ir-tabla .ir-h > span { font-size: 12.5px; color: var(--fe-gris) }
+.ir-scroll { overflow-x: auto }
+.ir-tabla table { width: 100%; border-collapse: collapse }
+.ir-tabla th { font: 600 10.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase; color: var(--fe-gris); text-align: right; padding: 9px 18px; border-bottom: 1px solid var(--ir-ln); white-space: nowrap }
+.ir-tabla th:first-child, .ir-tabla td:first-child { text-align: left }
+.ir-tabla td { padding: 11px 18px; border-bottom: 1px solid var(--ir-ln); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums }
+.ir-tabla tbody tr:last-child td { border-bottom: 0 }
+.ir-tabla .cat { display: flex; align-items: center; gap: 10px; font-weight: 600 }
+.ir-tabla .cat i { width: 10px; height: 10px; flex: none; background: var(--c) }
+.ir-tabla .cat small { font-weight: 400; color: var(--fe-gris); margin-left: 4px; font-size: 12.5px }
+.ir-tabla td.cj { font: 700 15px var(--fe-texto) }
+.ir-tabla td.pc { color: var(--fe-gris-panel); font: 500 12.5px var(--fe-mono, ui-monospace, monospace) }
+.ir-tabla td.bar { width: 28% }
+.ir-tabla .br { height: 8px; background: #F2F2EF; position: relative }
+.ir-tabla .br i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--c) }
+.ir-tabla .fuera { font-size: 11.5px; color: var(--fe-gris) }
+.ir-tabla td.mu { color: var(--fe-gris-panel); font-size: 12.5px }
+.ir-tabla tr.margen td { background: #F7FBF8 }
+.ir-tabla tr.cero .cat { color: var(--fe-gris) }
+.ir-tabla tr.tocable { cursor: pointer }
+.ir-tabla tr.tocable:hover td { background: #FFFDF5 }
+.ir-tabla tr.on td { background: #141414; color: #fff }
+.ir-tabla tr.on td small, .ir-tabla tr.on td.pc, .ir-tabla tr.on td.mu { color: #C9CCD1 }
+.ir-nota { margin: auto 0 0; padding: 10px 18px; font-size: 11.5px; color: var(--fe-gris); border-top: 1px solid var(--ir-ln) }
+
+.ir-lado { display: flex; flex-direction: column }
+.ir-margen { flex: 1; display: flex; flex-direction: column }
+.ir-margen .big { padding: 18px }
+.ir-margen .v { margin-top: 8px; font: 900 52px/1 var(--fe-titulo); letter-spacing: -.03em; color: var(--ir-ot); font-variant-numeric: tabular-nums }
+.ir-margen .v small { font: 800 22px var(--fe-titulo) }
+.ir-margen .s { margin: 6px 0 0; font-size: 13px; color: var(--fe-gris-panel) }
+.ir-margen .s b { color: var(--fe-tinta) }
+.ir-margen .split { height: 14px; display: flex; margin-top: 14px; background: var(--ir-fondo) }
+.ir-margen .split i { display: block; height: 100%; background: var(--c) }
+.ir-margen .leg { display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; color: var(--fe-gris-panel) }
+.ir-margen .leg b { color: var(--fe-tinta) }
+.ir-margen .desg { border-top: 1px solid var(--ir-ln); padding: 6px 18px; margin-top: auto }
+.ir-margen .desg > div { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; font-size: 13px; color: var(--fe-gris-panel) }
+.ir-margen .desg > div + div { border-top: 1px solid var(--ir-ln) }
+.ir-margen .desg span { display: flex; align-items: center; gap: 8px }
+.ir-margen .desg i { width: 9px; height: 9px; background: var(--c) }
+.ir-margen .desg b { font: 700 14px var(--fe-texto); color: var(--fe-tinta); font-variant-numeric: tabular-nums }
+.ir-margen .risk { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 16px 18px; border-top: 1px solid var(--ir-ln); background: #FDF3F4 }
+.ir-margen .risk b { font: 900 26px var(--fe-titulo); color: var(--ir-pt); font-variant-numeric: tabular-nums }
+
+/* la referencia más crítica */
+.ir-ref { display: grid; grid-template-columns: 6px auto 1fr auto; align-items: stretch; background: var(--fe-papel); border: 1px solid var(--ir-ln) }
+.ir-ref .k { background: var(--c, var(--ir-v)) }
+.ir-ref .num { padding: 16px 22px; border-right: 1px solid var(--ir-ln) }
+.ir-ref .num b { display: block; font: 900 40px/1 var(--fe-titulo); color: color-mix(in srgb, var(--c, var(--ir-v)) 70%, #000); font-variant-numeric: tabular-nums }
+.ir-ref .num small { font: 600 10.5px var(--fe-texto); letter-spacing: .08em; color: var(--fe-gris) }
+.ir-ref .inf { padding: 14px 22px; display: flex; flex-direction: column; justify-content: center; gap: 8px; min-width: 0 }
+.ir-ref .t1 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap }
+.ir-ref .chip { font: 700 10px var(--fe-texto); letter-spacing: .1em; padding: 3px 8px; background: color-mix(in srgb, var(--c, var(--ir-v)) 14%, #fff); color: color-mix(in srgb, var(--c, var(--ir-v)) 80%, #000) }
+.ir-ref h3 { margin: 0; font: 800 19px var(--fe-titulo) }
+.ir-ref .cod { font: 500 12px var(--fe-mono, ui-monospace, monospace); color: var(--fe-gris) }
+.ir-ref .dl { display: flex; gap: 28px; flex-wrap: wrap; font-size: 13px; color: var(--fe-gris-panel) }
+.ir-ref .dl b { display: block; font: 700 14px var(--fe-texto); color: var(--fe-tinta) }
+.ir-ref .go { display: flex; align-items: center; padding: 0 20px }
+.ir-ref .ver { min-height: 44px; padding: 0 16px; border: 0; background: #141414; color: #fff; font: 700 13px var(--fe-texto); cursor: pointer }
+
+@media (max-width: 1000px) {
+  .ir-ctl { flex-wrap: wrap }
+  .ir-ctl-1, .ir-ctl-2 { flex-basis: 100% }
+  .ir-ctl .ir-aviso { border-left: 0; border-top: 1px solid var(--ir-ln); justify-content: flex-start; flex-wrap: wrap }
+  .ir-aviso .tx { text-align: left }
+  .ir-g { grid-template-columns: 1fr }
+  .ir-tabla td.bar, .ir-tabla th.bar, .ir-tabla td.mu, .ir-tabla th.mu { display: none }
+  .ir-ref { grid-template-columns: 6px 1fr }
+  .ir-ref .num, .ir-ref .inf, .ir-ref .go { grid-column: 2 }
+  .ir-ref .num { border-right: 0 }
+  .ir-ref .go { padding: 0 22px 16px }
+  .ir-ref .dl { gap: 14px }
+}
+.ir-tabla td { font-size: 14px }
+@media (max-width: 600px) {
+  .ir-tabla th, .ir-tabla td { padding: 10px 8px }
+  .ir-tabla th:first-child, .ir-tabla td:first-child { padding-left: 14px; white-space: normal }
+  .ir-tabla th:last-child, .ir-tabla td:last-child { padding-right: 14px }
+  .ir-tabla .cat { flex-wrap: wrap; gap: 2px 8px }
+  .ir-tabla .cat small { margin-left: 0 }
+  .ir-ref .num, .ir-ref .inf { padding-left: 16px; padding-right: 16px }
+  .ir-margen .v { font-size: 44px }
+  .ir-ctl .fe-fecha select { min-width: 0; width: 100% }
+  .ir-ctl .fe-fecha label { flex-wrap: wrap }
+}

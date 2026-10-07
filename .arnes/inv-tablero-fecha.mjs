@@ -56,7 +56,7 @@ writeFileSync(R(".arnes/_ft-entrada.tsx"), `
 import { createRoot } from "react-dom/client";
 import { Riesgo } from "../src/app/(app)/inventario/Riesgo";
 const w = window as any;
-const barra = <form className="fe-fecha"><label><span>Ver el FEFO al día</span><select name="fecha"><option>Último inventario (01/10/2026)</option></select></label></form>;
+const barra = <form className="fe-fecha"><label><span>FEFO al día</span><select name="fecha"><option>Último inventario (01/10/2026)</option></select></label></form>;
 createRoot(document.getElementById("r")!).render(<Riesgo r={w.RR} bodega="AG01" sinContar={0} ultimo="INV" barra={barra} />);
 `);
 const js = buildSync({ entryPoints: [R(".arnes/_ft-entrada.tsx")], bundle: true, write: false, format: "iife", jsx: "automatic", alias: { "@": R("src") }, define: { "process.env.NODE_ENV": '"production"' }, logLevel: "silent" }).outputFiles[0].text;
@@ -76,7 +76,7 @@ await monta(soloEnvase);
 const t = (await pg.textContent(".ir")).replace(/\s+/g, " ");
 ok(/Esta foto no trae producto terminado/.test(t) && /Solo hay 3 renglones de envase en 3 ubicaciones/.test(t), "avisa que la foto es solo de envase: " + t.slice(0, 400));
 ok(!/La bodega está con margen/.test(t) && /no hay vencimientos que medir/.test(t), "no dice «con margen» cuando no hay producto");
-ok(await pg.locator(".fe-fecha select").count() === 1 && /Ver el FEFO al día/.test(t), "la barra para escoger el día se pinta");
+ok(await pg.locator(".fe-fecha select").count() === 1 && /FEFO al día/.test(t), "la barra para escoger el día se pinta");
 await monta(vacio);
 ok(/No hay renglones en esta foto/.test(await pg.textContent(".ir")), "foto sin renglones: lo dice");
 for (const w of [1300, 820, 390]) {

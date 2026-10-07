@@ -83,25 +83,25 @@ const monta = async (ancho, tema, rr = RR, sc = 7) => {
   await pg.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>*,::before,::after{margin:0;padding:0;box-sizing:border-box;border:0 solid}${glob}${shell}${css}</style></head>
     <body><div class="sh"${tema ? ` data-tema="${tema}"` : ""}><div class="sh-marco sin-riel"><main class="sh-main"><div class="fe" id="r"></div></main></div></div>
     <script>window.RR=${JSON.stringify(rr)};window.SC=${sc};</script><script>${js}</script></body></html>`);
-  await pg.waitForSelector(".ir-duo");
+  await pg.waitForSelector(".ir-g");
 };
 
 await monta(1300);
-ok((await pg.$$(".ir-frb")).length === 4, `no salen las 4 franjas de contexto: ${(await pg.$$(".ir-frb")).length}`);
-ok(/VENCIDO|Vencido/.test(await pg.textContent(".ir-hero")), "el peor material no sale arriba, grande");
+ok((await pg.$$(".ir-tabla tr.tocable")).length === 5 && (await pg.$$(".ir-tabla tbody tr")).length === 7, "la tabla debe traer los 7 estados y 5 que filtran");
+ok(/VENCIDO|Vencido/.test(await pg.textContent(".ir-ref")), "la referencia más crítica no sale");
 ok(/sin contar/.test(await pg.textContent(".ir-aviso")), "no avisa de lo que quedó sin contar");
 const enRiesgo = (await pg.$$(".ir-m")).length;
-await pg.click(".ir-frb.semana");
+await pg.click(".ir-tabla tr.semana");
 const soloV = await pg.$$eval(".ir-m", (x) => x.length);
-ok(soloV > 0 && soloV <= enRiesgo && (await pg.$eval(".ir-frb.semana", (b) => b.getAttribute("aria-pressed"))) === "true", `la franja no filtra (${soloV} de ${enRiesgo})`);
+ok(soloV > 0 && soloV <= enRiesgo && (await pg.$eval(".ir-tabla tr.semana", (b) => b.getAttribute("aria-pressed"))) === "true", `la franja no filtra (${soloV} de ${enRiesgo})`);
 await pg.click(".ir-chips button:has-text('Todos')");
 ok((await pg.$$(".ir-m")).length === NOMS.length, `todos: ${(await pg.$$(".ir-m")).length}`);
 await pg.fill(".ir-th input", "club");
 ok((await pg.$$(".ir-m")).length === 1, "buscar no filtra");
 await pg.fill(".ir-th input", "");
-const u1 = await pg.textContent(".ir-frb.semana .v");
+const u1 = await pg.textContent(".ir-tabla tr.semana td.cj");
 await pg.click(".ir-seg button:has-text('Unidades')");
-ok((await pg.textContent(".ir-frb.semana .v")) !== u1 && /sin «unidades por caja»/.test(await pg.textContent(".ir")), "el cambio a unidades no cambia las cifras o no avisa de lo que falta");
+ok((await pg.textContent(".ir-tabla tr.semana td.cj")) !== u1 && /sin «unidades por caja»/.test(await pg.textContent(".ir")), "el cambio a unidades no cambia las cifras o no avisa de lo que falta");
 await pg.click(".ir-seg button:has-text('Cajas')");
 await pg.click(".ir-m >> nth=0");
 const sitiosPanel = await pg.$$(".ir-s");
@@ -149,9 +149,8 @@ for (const t of [null, "tinta", "pizarra", "ambar", "negro", "gris", "halo"]) {
     const par = (s) => { const e = document.querySelector(s); if (!e) return null; return [getComputedStyle(e).color, fondo(e)] };
     const o = {};
     for (const s of [".ir-o", ".ir-frase", ".ir-frase b.mal", ".ir-top h1", ".ir-seg button:not(.on)", ".ir-seg button.on", ".ir-btn", ".ir-ojo",
-      ".ir-aviso b", ".ir-aviso span", ".ir-aviso .prog .t", ".ir-frb .k", ".ir-frb .s", ".ir-frb.pasado .v", ".ir-frb.semana .v", ".ir-frb.quince .v", ".ir-frb.mes .v",
-      ".ir-hero-1 > span:not(.ir-pill)", ".ir-hero-2 .n", ".ir-hero-2 .meta", ".ir-hero-3 .k", ".ir-hero-3 .v", ".ir-hero-3 .v.mal", ".ir-hero-3 .ver",
-      ".ir-bod .sub", ".ir-bod .l", ".ir-bod .l span",
+      ".ir-aviso b", ".ir-aviso span", ".ir-aviso .prog .t", ".ir .lb", ".ir-tabla th", ".ir-tabla td.cj", ".ir-tabla td.pc", ".ir-tabla td.mu", ".ir-tabla .cat small", ".ir-nota", ".ir-aviso .tx", ".ir-aviso .tx b",
+      ".ir-margen .v", ".ir-margen .s", ".ir-margen .leg", ".ir-margen .desg > div", ".ir-margen .risk b", ".ir-ref .num b", ".ir-ref .num small", ".ir-ref .cod", ".ir-ref .chip", ".ir-ref .dl", ".ir-ref .ver",
       ".ir-h > span", ".ir-sem .x", ".ir-dice", ".ir-m .que small", ".ir-m .dato small", ".ir-m .dato b",
       ".ir-pill.vencido", ".ir-pill.pasado", ".ir-pill.semana", ".ir-pill.quince", ".ir-pill.mes", ".ir-pill.ok",
       ".ir-pc p", ".ir-pk small", ".ir-pk span", ".ir-s .donde", ".ir-s dt", ".ir-s dd", ".ir-s .quien", ".ir-s .t", ".ir-chips button:not(.on)"]) o[s] = par(s);

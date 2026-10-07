@@ -217,7 +217,7 @@ export default async function InventarioTableroPage({ searchParams }: { searchPa
   const barraFecha = (
     <form className="fe-fecha" method="get" action="/inventario/tablero">
       <label>
-        <span>Ver el FEFO al día</span>
+        <span>FEFO al día</span>
         <select name="fecha" defaultValue={fecha}>
           <option value="">Último inventario{t.dias[0] ? ` (${fechaCorta(t.dias[0].dia)})` : ""}</option>
           {t.dias.map((d) => (
@@ -229,7 +229,7 @@ export default async function InventarioTableroPage({ searchParams }: { searchPa
       </label>
       <label className="fe-fecha-chk">
         <input type="checkbox" name="borradores" value="1" defaultChecked={conBorradores} />
-        <span>Incluir lo que se está contando (borradores)</span>
+        <span title="Incluye recorridos que todavía no se envían">Incluir borradores</span>
       </label>
       <button type="submit">Ver</button>
       {(fecha || conBorradores) && <Link href="/inventario/tablero" className="fe-fecha-x">Volver al último</Link>}
