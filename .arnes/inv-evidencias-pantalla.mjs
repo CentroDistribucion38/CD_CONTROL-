@@ -141,13 +141,15 @@ ok(/Cumple/.test(txtPnc) && /No cumple/.test(txtPnc) && /Sin responder/.test(txt
 {
   const p = novs.filter((n) => n.tipo === "pnc" && n.dia >= D(0) && n.dia <= D(6));
   const cj = p.reduce((t, n) => t + (n.cajas ?? 0), 0), un = cj * 24, hl = un * 0.0033;
-  const med = await pg.locator(".ev-med-t").textContent();
+  const med = await pg.locator(".ev-med .ev-total").textContent();
   const num = (x) => x.toLocaleString("es-CO", { maximumFractionDigits: 0 });
   const hlf = (x) => x.toLocaleString("es-CO", { maximumFractionDigits: x < 10 ? 2 : 1 });
   ok(med.includes(num(cj)) && med.includes(num(un)) && med.includes(hlf(hl)), `el resumen del PNC debía traer ${num(cj)} cajas, ${num(un)} unidades y ${hlf(hl)} hl: ` + med);
   const heads = await pg.locator(".tp-tabla[aria-label='PNC y política de bloqueo'] thead th").allTextContents();
   ok(heads.includes("Unidades") && heads.includes("Hl"), "la tabla del PNC debía tener Unidades y Hl: " + heads.join());
-  const tot = await pg.locator(".ev-total").textContent();
+  const tot = await pg.locator(".tp-tabla[aria-label='PNC y política de bloqueo'] .ev-total").textContent();
+  const filasS = await pg.locator(".ev-med tbody tr").allTextContents();
+  ok(filasS.length === 3 && /Cumplen/.test(filasS[0]) && /No cumplen/.test(filasS[1]) && /Sin responder/.test(filasS[2]), "la tabla de situación debía traer Cumplen, No cumplen y Sin responder: " + filasS.join(" | "));
   ok(tot.includes(num(cj)) && tot.includes(num(un)) && tot.includes(hlf(hl)), "la fila «Total PNC» no suma las tres medidas: " + tot);
 }
 const verFotos = pg.locator(".tp-tabla[aria-label='Detalle de las novedades'] .tp-ver");

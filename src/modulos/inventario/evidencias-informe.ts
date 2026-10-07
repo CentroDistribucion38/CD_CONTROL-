@@ -143,15 +143,19 @@ export function construirInforme(a: Analisis, novs: Novedad[], o: OpcionesInform
       { rotulo: "Sin responder", valor: nf.format(a.pnc.sinRespuesta), detalle: "renglones anteriores a la pregunta" },
     ],
   });
-  /* LO QUE ES ESE PNC: cajas, unidades y hectolitros, con lo que cumple y lo que no. */
+  /* LO QUE ES ESE PNC, UNA SOLA TABLA QUE SUMA: cuántos son y cuántas cajas, unidades y hectolitros, por situación. */
   const Mm = a.pnc.medidas;
+  const filaS = (txt: string, n: number, m: typeof Mm, fill?: string, bold?: boolean): CeldaT[] => [
+    { x: txt, fill, bold: true }, { x: nf.format(n), bold }, { x: nf.format(m.cajas), bold }, { x: nf.format(m.unidades), bold }, { x: hlTxt(m.hl), bold },
+  ];
   B.push({
-    t: "kpis", items: [
-      { rotulo: "PNC en cajas", valor: nf.format(Mm.cajas), color: TIPO.pnc.color },
-      { rotulo: "PNC en unidades", valor: nf.format(Mm.unidades), color: TIPO.pnc.color },
-      { rotulo: "PNC en hectolitros", valor: hlTxt(Mm.hl), color: TIPO.pnc.color },
-      { rotulo: "No cumplen", valor: `${hlTxt(a.pnc.medidasNoCumplen.hl)} hl`, color: TEND.persiste.color, detalle: `${nf.format(a.pnc.medidasNoCumplen.cajas)} cajas · ${nf.format(a.pnc.medidasNoCumplen.unidades)} unid.` },
-      { rotulo: "Cumplen", valor: `${hlTxt(a.pnc.medidasCumplen.hl)} hl`, color: TEND.ya_no.color, detalle: `${nf.format(a.pnc.medidasCumplen.cajas)} cajas · ${nf.format(a.pnc.medidasCumplen.unidades)} unid.` },
+    t: "tabla", compacta: true,
+    cols: [{ h: "PNC por situación", w: 26, al: "l" }, { h: "PNC", w: 12, al: "r" }, { h: "Cajas", w: 16, al: "r" }, { h: "Unidades", w: 18, al: "r" }, { h: "Hectolitros", w: 16, al: "r" }],
+    filas: [
+      filaS("Cumplen la política", a.pnc.cumplen, a.pnc.medidasCumplen, "#CFE0F5"),
+      filaS("No cumplen", a.pnc.noCumplen, a.pnc.medidasNoCumplen, "#F9C6CF"),
+      filaS("Sin responder", a.pnc.sinRespuesta, a.pnc.medidasSinRespuesta),
+      filaS("Total PNC", a.pnc.total, Mm, undefined, true),
     ],
   });
   if (Mm.sinDato) B.push({ t: "p", gris: true, texto: `${Mm.sinDato} renglón(es) de PNC no traen unidades por caja o hectolitros en el maestro de materiales: no suman en esas dos medidas.` });

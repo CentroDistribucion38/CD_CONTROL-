@@ -118,7 +118,7 @@ export type Analisis = {
   ubicacionesAfectadas: number;
   conteoTendencia: Record<Tendencia, number>;
   pnc: { total: number; respondidos: number; cumplen: number; noCumplen: number; sinRespuesta: number; sinRotulo: number; sinBloqueo: number;
-         medidas: Medidas; medidasCumplen: Medidas; medidasNoCumplen: Medidas };
+         medidas: Medidas; medidasCumplen: Medidas; medidasNoCumplen: Medidas; medidasSinRespuesta: Medidas };
   /** Cajas, unidades y hectolitros de cada tipo de novedad (los de módulo no traen material: quedan en cero). */
   medidasPorTipo: Record<TipoNovedad, Medidas>;
   modulos: { modulo: string; total: number; ubicaciones: number }[];   // calle+módulo, p. ej. «A01»
@@ -225,6 +225,7 @@ export function analizar(novs: Novedad[], cob: Cobertura[], desde: string, hasta
     medidas: sumaMedidas(pn),
     medidasCumplen: sumaMedidas(pn.filter((n) => n.cumple === true)),
     medidasNoCumplen: sumaMedidas(pn.filter((n) => n.cumple === false)),
+    medidasSinRespuesta: sumaMedidas(pn.filter((n) => n.cumple == null)),
   };
   const medidasPorTipo = Object.fromEntries(TIPOS.map((t) => [t.k, sumaMedidas(vistas.filter((n) => n.tipo === t.k))])) as Record<TipoNovedad, Medidas>;
 

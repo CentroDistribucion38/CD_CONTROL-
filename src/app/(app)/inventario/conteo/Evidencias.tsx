@@ -311,14 +311,16 @@ export function Evidencias() {
           <h2 className="tp-h ev-mod"><button type="button" className="ev-mb" aria-expanded={ab.has(4)} aria-controls="ev-m4" onClick={() => alt(4)}><span>Módulo 4</span> PNC y política de bloqueo <small>cumple si tiene rótulo y bloqueo mecánico</small><svg className="ev-chev" viewBox="0 0 24 24" aria-hidden><path d="M6 9l6 6 6-6" /></svg></button></h2>
           <div id="ev-m4" className="ev-cuerpo" hidden={!ab.has(4)}>
           {pnc.length > 0 && (
-            <div className="ev-med" aria-label="Cuánto PNC hay, en cajas, unidades y hectolitros">
-              <div className="ev-med-t"><span>PNC del periodo</span>
-                <div><b>{nf.format(an.pnc.medidas.cajas)}</b><small>cajas</small></div>
-                <div><b>{nf.format(an.pnc.medidas.unidades)}</b><small>unidades</small></div>
-                <div><b>{hlTxt(an.pnc.medidas.hl)}</b><small>hectolitros</small></div>
-              </div>
-              <div className="ev-med-s"><span>Cumplen</span><b>{nf.format(an.pnc.medidasCumplen.cajas)} cj · {nf.format(an.pnc.medidasCumplen.unidades)} un · {hlTxt(an.pnc.medidasCumplen.hl)} hl</b></div>
-              <div className="ev-med-s"><span>No cumplen</span><b>{nf.format(an.pnc.medidasNoCumplen.cajas)} cj · {nf.format(an.pnc.medidasNoCumplen.unidades)} un · {hlTxt(an.pnc.medidasNoCumplen.hl)} hl</b></div>
+            <div className="tp-tabla ev-med" tabIndex={0} aria-label="Cuánto PNC hay, en cajas, unidades y hectolitros">
+              <table>
+                <thead><tr><th className="tp-izq">PNC por situación</th><th>PNC</th><th>Cajas</th><th>Unidades</th><th>Hectolitros</th></tr></thead>
+                <tbody>
+                  {([["Cumplen la política", an.pnc.cumplen, an.pnc.medidasCumplen], ["No cumplen", an.pnc.noCumplen, an.pnc.medidasNoCumplen], ["Sin responder", an.pnc.sinRespuesta, an.pnc.medidasSinRespuesta]] as const).map(([t, n, m]) => (
+                    <tr key={t}><th scope="row" className="tp-izq">{t}</th><td>{nf.format(n)}</td><td>{nf.format(m.cajas)}</td><td>{nf.format(m.unidades)}</td><td>{hlTxt(m.hl)}</td></tr>
+                  ))}
+                </tbody>
+                <tfoot><tr className="ev-total"><th scope="row" className="tp-izq">Total PNC</th><td>{nf.format(an.pnc.total)}</td><td>{nf.format(an.pnc.medidas.cajas)}</td><td>{nf.format(an.pnc.medidas.unidades)}</td><td>{hlTxt(an.pnc.medidas.hl)}</td></tr></tfoot>
+              </table>
               {an.pnc.medidas.sinDato > 0 && <p className="ev-nota">{an.pnc.medidas.sinDato} renglón(es) de PNC no traen unidades por caja o hectolitros en el maestro de materiales: no suman en esas dos medidas.</p>}
             </div>
           )}
