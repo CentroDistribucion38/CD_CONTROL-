@@ -5,6 +5,8 @@ const R = (p) => new URL("../" + p, import.meta.url).pathname;
 const fallas = []; const ok = (c, m) => { if (!c) fallas.push(m) };
 buildSync({ entryPoints: [R("src/modulos/inventario/evidencias.ts")], bundle: true, format: "esm", platform: "node", outfile: R(".arnes/tmp/evidencias.mjs"), logLevel: "error" });
 const E = await import(R(".arnes/tmp/evidencias.mjs"));
+ok(E.TIPO.pnc.color.toUpperCase() === "#E4002B", "el PNC SIEMPRE es rojo: " + E.TIPO.pnc.color);
+ok(E.TIPO.averia.color.toUpperCase() !== "#E4002B", "la avería no puede compartir el rojo del PNC");
 
 const nov = (dia, ub, tipo, extra = {}) => ({ dia, conteo_id: "c" + dia, conteo: "C", ubicacion_id: ub, ubicacion: ub, calle: ub[0], modulo: ub.slice(1, 3), lado: "DER",
   tipo, linea_id: null, codigo: null, material: null, cajas: null, persona: "Ana", hora: dia + "T13:00:00Z", ruta: null, pnc_rotulo: null, pnc_bloqueo_mecanico: null, cumple: null, ...extra });

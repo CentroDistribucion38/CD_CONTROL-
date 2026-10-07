@@ -19,8 +19,8 @@
 export type TipoNovedad = "averia" | "pnc" | "mezclado" | "sin_acceso";
 
 export const TIPOS: { k: TipoNovedad; nombre: string; letra: string; color: string }[] = [
-  { k: "averia", nombre: "Avería", letra: "A", color: "#E4002B" },
-  { k: "pnc", nombre: "PNC", letra: "P", color: "#0B4EA2" },
+  { k: "averia", nombre: "Avería", letra: "A", color: "#0B4EA2" },
+  { k: "pnc", nombre: "PNC", letra: "P", color: "#E4002B" },
   { k: "mezclado", nombre: "Módulo mezclado", letra: "M", color: "#E9A81F" },
   { k: "sin_acceso", nombre: "Módulo sin acceso", letra: "S", color: "#5B6B7F" },
 ];
