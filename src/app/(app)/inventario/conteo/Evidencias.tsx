@@ -79,6 +79,9 @@ export function Evidencias() {
 
   /* Las gráficas se dibujan en un lienzo: solo en el navegador, y las mismas van al informe. */
   /* Las dos gráficas anchas se dibujan al ancho de su tarjeta: letra natural y barras que llenan el espacio. */
+  /* Los módulos arrancan CERRADOS: solo el encabezado; se abre el que se toca. */
+  const [ab, setAb] = useState<Set<number>>(new Set());
+  const alt = (n: number) => setAb((a) => { const b = new Set(a); if (!b.delete(n)) b.add(n); return b });
   const cajaG = useRef<HTMLDivElement>(null);
   const [anchoG, setAnchoG] = useState(0);
   useEffect(() => {
@@ -223,7 +226,8 @@ export function Evidencias() {
       {cargando ? <p className="fe-vacio">Cargando…</p> : (
         <>
           {/* ===== MÓDULO 1 ===== */}
-          <h2 className="tp-h ev-mod"><span>Módulo 1</span> Tendencia por día <small>cuántas novedades hubo cada día y cuántas ubicaciones se miraron</small></h2>
+          <h2 className="tp-h ev-mod"><button type="button" className="ev-mb" aria-expanded={ab.has(1)} aria-controls="ev-m1" onClick={() => alt(1)}><span>Módulo 1</span> Tendencia por día <small>cuántas novedades hubo cada día y cuántas ubicaciones se miraron</small><svg className="ev-chev" viewBox="0 0 24 24" aria-hidden><path d="M6 9l6 6 6-6" /></svg></button></h2>
+          <div id="ev-m1" className="ev-cuerpo" hidden={!ab.has(1)}>
           {imgs && (
             <div className="ev-graficas" ref={cajaG}>
               <div className="ev-scroll"><img className="ev-img" src={imgs.dias.png} alt="Novedades por día, apiladas por tipo" width={imgs.dias.w} height={imgs.dias.h} /></div>
@@ -247,8 +251,10 @@ export function Evidencias() {
             </table>
           </div>
 
+          </div>
           {/* ===== MÓDULO 2 ===== */}
-          <h2 className="tp-h ev-mod"><span>Módulo 2</span> Tendencia por ubicación <small>si la novedad persiste, volvió, es nueva o ya se resolvió</small></h2>
+          <h2 className="tp-h ev-mod"><button type="button" className="ev-mb" aria-expanded={ab.has(2)} aria-controls="ev-m2" onClick={() => alt(2)}><span>Módulo 2</span> Tendencia por ubicación <small>si la novedad persiste, volvió, es nueva o ya se resolvió</small><svg className="ev-chev" viewBox="0 0 24 24" aria-hidden><path d="M6 9l6 6 6-6" /></svg></button></h2>
+          <div id="ev-m2" className="ev-cuerpo" hidden={!ab.has(2)}>
           <ul className="ev-defs">
             {TENDENCIAS.map((t) => <li key={t.k}><span className="ev-chip" style={{ ["--ev-c" as string]: t.color }}>{t.nombre}</span> {t.frase}</li>)}
           </ul>
@@ -274,8 +280,10 @@ export function Evidencias() {
           )}
           {an.filas.length > 0 && <p className="ev-leyenda"><span className="ev-letras">{TIPOS.map((t) => `${t.letra} = ${t.nombre}`).join(" · ")}</span></p>}
 
+          </div>
           {/* ===== MÓDULO 3 ===== */}
-          <h2 className="tp-h ev-mod"><span>Módulo 3</span> Dónde se concentra <small>las ubicaciones y los módulos con más novedades</small></h2>
+          <h2 className="tp-h ev-mod"><button type="button" className="ev-mb" aria-expanded={ab.has(3)} aria-controls="ev-m3" onClick={() => alt(3)}><span>Módulo 3</span> Dónde se concentra <small>las ubicaciones y los módulos con más novedades</small><svg className="ev-chev" viewBox="0 0 24 24" aria-hidden><path d="M6 9l6 6 6-6" /></svg></button></h2>
+          <div id="ev-m3" className="ev-cuerpo" hidden={!ab.has(3)}>
           {imgs && (
             <div className="ev-graficas dos">
               <div className="ev-scroll"><img className="ev-img corto" style={{ maxWidth: imgs.dona.w }} src={imgs.dona.png} alt="Proporción de novedades por tipo" width={imgs.dona.w} height={imgs.dona.h} /></div>
@@ -283,7 +291,7 @@ export function Evidencias() {
             </div>
           )}
           {an.modulos.length > 0 && (
-            <div className="tp-tabla" tabIndex={0} aria-label="Novedades por módulo">
+            <div className="tp-tabla ev-chica" tabIndex={0} aria-label="Novedades por módulo">
               <table>
                 <thead><tr><th className="tp-izq">Módulo (calle + número)</th><th>Ubicaciones afectadas</th><th>Novedades</th></tr></thead>
                 <tbody>{an.modulos.slice(0, 25).map((m) => <tr key={m.modulo}><th scope="row" className="tp-izq">{m.modulo}</th><td>{nf.format(m.ubicaciones)}</td><td className="tp-rph">{nf.format(m.total)}</td></tr>)}</tbody>
@@ -291,8 +299,10 @@ export function Evidencias() {
             </div>
           )}
 
+          </div>
           {/* ===== MÓDULO 4 ===== */}
-          <h2 className="tp-h ev-mod"><span>Módulo 4</span> PNC y política de bloqueo <small>cumple si tiene rótulo y bloqueo mecánico</small></h2>
+          <h2 className="tp-h ev-mod"><button type="button" className="ev-mb" aria-expanded={ab.has(4)} aria-controls="ev-m4" onClick={() => alt(4)}><span>Módulo 4</span> PNC y política de bloqueo <small>cumple si tiene rótulo y bloqueo mecánico</small><svg className="ev-chev" viewBox="0 0 24 24" aria-hidden><path d="M6 9l6 6 6-6" /></svg></button></h2>
+          <div id="ev-m4" className="ev-cuerpo" hidden={!ab.has(4)}>
           {pnc.length === 0 ? <p className="fe-vacio">No hubo PNC en este periodo{tipos.includes("pnc") ? "" : " (el tipo PNC no está escogido)"}.</p> : (
             <div className="tp-tabla" tabIndex={0} aria-label="PNC y política de bloqueo">
               <table>
@@ -313,8 +323,10 @@ export function Evidencias() {
             </div>
           )}
 
+          </div>
           {/* ===== MÓDULO 5 ===== */}
-          <h2 className="tp-h ev-mod"><span>Módulo 5</span> Evidencias <small>cada novedad con su foto{an.fotos ? ` · ${an.fotos} con foto` : ""}</small></h2>
+          <h2 className="tp-h ev-mod"><button type="button" className="ev-mb" aria-expanded={ab.has(5)} aria-controls="ev-m5" onClick={() => alt(5)}><span>Módulo 5</span> Evidencias <small>cada novedad con su foto{an.fotos ? ` · ${an.fotos} con foto` : ""}</small><svg className="ev-chev" viewBox="0 0 24 24" aria-hidden><path d="M6 9l6 6 6-6" /></svg></button></h2>
+          <div id="ev-m5" className="ev-cuerpo" hidden={!ab.has(5)}>
           {vistas.length === 0 ? <p className="fe-vacio">Sin novedades en este periodo.</p> : (
             <div className="tp-tabla" tabIndex={0} aria-label="Detalle de las novedades">
               <table>
@@ -351,6 +363,7 @@ export function Evidencias() {
             </div>
           )}
           {vistas.length > lista.length && <p className="ev-nota">Se muestran las primeras {lista.length} de {nf.format(vistas.length)}. Acota el periodo para ver el resto; el informe lleva hasta {MAX_ANEXO} en el anexo.</p>}
+          </div>
         </>
       )}
     </section>

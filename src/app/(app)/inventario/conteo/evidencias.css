@@ -71,3 +71,19 @@
   .fe .ev-seg { overflow-x: auto; max-width: 100% }
   .fe .ev-seg button { padding: 0 11px }
 }
+
+/* ---- Módulos plegables: cerrados al abrir, se abren al tocar el encabezado ---- */
+.fe .ev-mod { margin: 0 }
+.fe .ev-mb { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; width: 100%; min-height: 44px; padding: 8px 40px 8px 0; position: relative; border: 0; background: none; text-align: left; font: inherit; color: inherit; cursor: pointer }
+.fe .ev-mb > span { font: 800 11px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase; padding: 3px 8px; background: var(--fe-tinta); color: var(--fe-papel) }
+.fe .ev-mb small { font-weight: 400 }
+.fe .ev-mb:focus-visible { outline: 3px solid var(--fe-acento); outline-offset: 2px }
+.fe .ev-chev { position: absolute; right: 8px; top: 50%; width: 20px; height: 20px; margin-top: -10px; fill: none; stroke: var(--fe-tinta); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; transition: transform .15s }
+.fe .ev-mb[aria-expanded="true"] .ev-chev { transform: rotate(180deg) }
+.fe .ev-cuerpo { display: flex; flex-direction: column; gap: 14px }
+.fe .ev-cuerpo[hidden] { display: none }
+@media (prefers-reduced-motion: reduce) { .fe .ev-chev { transition: none } }
+
+/* Las tablas no se estiran a todo el ancho de una pantalla grande: las de pocas columnas quedan angostas. */
+.fe .ev-cuerpo .tp-tabla { max-width: 1280px }
+.fe .ev-cuerpo .tp-tabla.ev-chica { max-width: 640px }

@@ -69,8 +69,18 @@ const rotos = []; pg.on("pageerror", (e) => rotos.push(e.message)); pg.on("conso
 const monta = async (ancho = 1440, hash = "", espera = ".ev-kpis") => {
   await pg.goto("about:blank"); await pg.setViewportSize({ width: ancho, height: 1000 });
   await pg.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>${P}${css}</style></head><body><div class="sh"><div class="sh-marco sin-riel"><main class="sh-main"><div class="fe"><nav class="tp-tabs"><a href="#">Qué se vence</a><a href="#">Tiempos de conteo</a><a class="on" aria-current="page" href="#">Evidencias</a></nav><div id="r"></div></div></main></div></div><script>history.replaceState(null,"","#${hash}")</script><script>${parche}</script><script>${js}</script></body></html>`);
-  await pg.waitForSelector(espera, { timeout: 8000 }).catch(() => { throw new Error("no montó: " + rotos.join(" | ")) });
+  await pg.waitForSelector(espera, { timeout: 8000, state: "attached" }).catch(() => { throw new Error("no montó: " + rotos.join(" | ")) });
   await pg.waitForTimeout(500);
+  /* los módulos arrancan cerrados: solo el encabezado. Se prueba y luego se abren para medir lo de adentro. */
+  if (await pg.locator(".ev-mb").count()) {
+    ok(await pg.locator(".ev-mb[aria-expanded=false]").count() === 5, "los 5 módulos debían abrir cerrados");
+    ok(await pg.locator(".ev-cuerpo:visible").count() === 0, "con los módulos cerrados no debía verse ningún cuerpo");
+    if (process.env.FOTO) await pg.screenshot({ path: `${process.env.FOTO}/ev-cerrado.png`, fullPage: true });
+    await pg.locator(".ev-mb").first().click();
+    ok(await pg.locator(".ev-cuerpo:visible").count() === 1, "tocar el encabezado debía abrir solo ese módulo");
+    while (await pg.locator(".ev-mb[aria-expanded=false]").count()) await pg.locator(".ev-mb[aria-expanded=false]").first().click();
+    await pg.waitForTimeout(400);
+  }
 };
 const kpi = async (tx) => (await pg.locator(".tp-kpi", { has: pg.locator("span", { hasText: tx }) }).locator("b").textContent()).trim();
 const fila = (u) => pg.locator(".tp-tabla[aria-label='Tendencia de cada ubicación'] tbody tr", { has: pg.locator("th", { hasText: new RegExp("^" + u + "$") }) });
