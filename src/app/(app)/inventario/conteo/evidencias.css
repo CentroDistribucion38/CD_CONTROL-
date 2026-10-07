@@ -23,7 +23,7 @@
 .fe .ev-graficas { display: flex; flex-direction: column; gap: 10px }
 .fe .ev-graficas.dos { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 10px }
 .fe .ev-scroll { overflow-x: auto; background: #fff; border: 1px solid var(--fe-linea) }
-.fe .ev-img { display: block; width: 100%; max-width: 1000px; height: auto; min-width: 560px }
+.fe .ev-img { display: block; width: 100%; height: auto; min-width: 560px }
 .fe .ev-img.corto { min-width: 420px }
 .fe .ev-chip { display: inline-block; padding: 3px 9px; font: 800 11.5px var(--fe-texto); letter-spacing: .03em; color: var(--fe-tinta); background: color-mix(in srgb, var(--ev-c) 18%, #fff); border-left: 4px solid var(--ev-c) }
 .fe .ev-defs { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 6px 18px; font-size: 13.5px; color: var(--fe-gris-panel) }

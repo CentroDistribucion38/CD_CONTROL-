@@ -78,7 +78,15 @@ export function Evidencias() {
   const an = useMemo(() => analizar(novs ?? [], cob, desde, hasta, tipos), [novs, cob, desde, hasta, tipos]);
 
   /* Las gráficas se dibujan en un lienzo: solo en el navegador, y las mismas van al informe. */
-  useEffect(() => { setImgs(novs ? armarGraficas(an) : null) }, [an, novs]);
+  /* Las dos gráficas anchas se dibujan al ancho de su tarjeta: letra natural y barras que llenan el espacio. */
+  const cajaG = useRef<HTMLDivElement>(null);
+  const [anchoG, setAnchoG] = useState(0);
+  useEffect(() => {
+    const el = cajaG.current; if (!el) return;
+    const medir = () => { const w = Math.round(el.clientWidth / 20) * 20; if (w > 0) setAnchoG((a) => (a === w ? a : w)) };
+    medir(); const ro = new ResizeObserver(medir); ro.observe(el); return () => ro.disconnect();
+  }, [imgs !== null]);
+  useEffect(() => { setImgs(novs ? armarGraficas(an, anchoG || undefined) : null) }, [an, novs, anchoG]);
 
   const verFoto = async (ruta: string, clave: string) => {
     if (fotoAbierta === clave) { setFotoAbierta(null); return }
@@ -211,7 +219,7 @@ export function Evidencias() {
           {/* ===== MÓDULO 1 ===== */}
           <h2 className="tp-h ev-mod"><span>Módulo 1</span> Tendencia por día <small>cuántas novedades hubo cada día y cuántas ubicaciones se miraron</small></h2>
           {imgs && (
-            <div className="ev-graficas">
+            <div className="ev-graficas" ref={cajaG}>
               <div className="ev-scroll"><img className="ev-img" src={imgs.dias.png} alt="Novedades por día, apiladas por tipo" width={imgs.dias.w} height={imgs.dias.h} /></div>
               <div className="ev-scroll"><img className="ev-img" src={imgs.cobertura.png} alt="Ubicaciones contadas y ubicaciones con novedad, por día" width={imgs.cobertura.w} height={imgs.cobertura.h} /></div>
             </div>
@@ -264,8 +272,8 @@ export function Evidencias() {
           <h2 className="tp-h ev-mod"><span>Módulo 3</span> Dónde se concentra <small>las ubicaciones y los módulos con más novedades</small></h2>
           {imgs && (
             <div className="ev-graficas dos">
-              <div className="ev-scroll"><img className="ev-img corto" src={imgs.dona.png} alt="Proporción de novedades por tipo" width={imgs.dona.w} height={imgs.dona.h} /></div>
-              <div className="ev-scroll"><img className="ev-img" src={imgs.top.png} alt="Ubicaciones con más novedades" width={imgs.top.w} height={imgs.top.h} /></div>
+              <div className="ev-scroll"><img className="ev-img corto" style={{ maxWidth: imgs.dona.w }} src={imgs.dona.png} alt="Proporción de novedades por tipo" width={imgs.dona.w} height={imgs.dona.h} /></div>
+              <div className="ev-scroll"><img className="ev-img" style={{ maxWidth: imgs.top.w }} src={imgs.top.png} alt="Ubicaciones con más novedades" width={imgs.top.w} height={imgs.top.h} /></div>
             </div>
           )}
           {an.modulos.length > 0 && (

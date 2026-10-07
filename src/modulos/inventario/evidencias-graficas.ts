@@ -41,8 +41,8 @@ function tope(max: number): { tope: number; paso: number } {
 const cadaK = (n: number, ancho: number, minPx: number) => Math.max(1, Math.ceil((n * minPx) / ancho));
 
 /* ============ 1 · NOVEDADES POR DÍA, apiladas por tipo ============ */
-export function graficaDias(a: Analisis): Imagen {
-  const W = 700, H = 214, L = 40, R = 16, T = 36, B = 48;
+export function graficaDias(a: Analisis, W = 700, H = 214): Imagen {
+  const L = 40, R = 16, T = 36, B = 48;
   const l = lienzo(W, H), g = l.g;
   const n = a.porDia.length, max = Math.max(1, ...a.porDia.map((d) => d.total));
   const { tope: top, paso } = tope(max);
@@ -76,8 +76,8 @@ export function graficaDias(a: Analisis): Imagen {
 }
 
 /* ============ 2 · UBICACIONES CONTADAS vs. CON NOVEDAD (una sola escala) ============ */
-export function graficaCobertura(a: Analisis): Imagen {
-  const W = 700, H = 209, L = 40, R = 56, T = 36, B = 47; // R: sitio a la derecha para el último valor (hasta 5 cifras)
+export function graficaCobertura(a: Analisis, W = 700, H = 209): Imagen {
+  const L = 40, R = 56, T = 36, B = 47; // R: sitio a la derecha para el último valor (hasta 5 cifras)
   const l = lienzo(W, H), g = l.g;
   const n = a.porDia.length;
   const max = Math.max(1, ...a.porDia.map((d) => d.contadas));
@@ -185,6 +185,11 @@ export function graficaTendencias(a: Analisis): Imagen {
 }
 
 /** Todas las gráficas del informe (y de la pantalla) de una vez. */
-export function armarGraficas(a: Analisis): Graficas {
-  return { dias: graficaDias(a), cobertura: graficaCobertura(a), dona: graficaDona(a), top: graficaTop(a), tendencias: graficaTendencias(a) };
+/** `ancho`: el de la tarjeta en pantalla, para que las dos gráficas anchas se dibujen a su medida (sin agrandarlas y
+ *  con la letra de siempre). Sin `ancho`, el tamaño de papel (PDF y Word). */
+export function armarGraficas(a: Analisis, ancho?: number): Graficas {
+  const W = ancho ? Math.max(560, Math.min(1400, Math.round(ancho))) : 700;
+  const hD = ancho ? Math.round(Math.max(214, Math.min(340, W * 0.28))) : 214;
+  const hC = ancho ? Math.round(Math.max(209, Math.min(320, W * 0.26))) : 209;
+  return { dias: graficaDias(a, W, hD), cobertura: graficaCobertura(a, W, hC), dona: graficaDona(a), top: graficaTop(a), tendencias: graficaTendencias(a) };
 }

@@ -73,8 +73,8 @@ const monta = async (ancho = 1440, hash = "", espera = ".ev-kpis") => {
   await pg.waitForTimeout(500);
 };
 const kpi = async (tx) => (await pg.locator(".tp-kpi", { has: pg.locator("span", { hasText: tx }) }).locator("b").textContent()).trim();
-const fila = (u) => pg.locator(".ev-mapa tbody tr", { has: pg.locator("th", { hasText: new RegExp("^" + u + "$") }) });
-const estados = async (u) => (await fila(u).locator("td.ev-c").evaluateAll((els) => els.map((e) => e.classList.contains("nov") ? "N" + [...e.classList].find((c) => /^n\d$/.test(c))?.[1] : e.classList.contains("limpia") ? "L" : "S"))).join(",");
+const fila = (u) => pg.locator(".tp-tabla[aria-label='Tendencia de cada ubicación'] tbody tr", { has: pg.locator("th", { hasText: new RegExp("^" + u + "$") }) });
+const dias = async (u) => (await fila(u).locator("td").nth(1).textContent()).trim();
 const chip = async (u) => (await fila(u).locator(".ev-chip").first().textContent()).trim();
 
 console.log("paso 1 · 7 días, todos los tipos");
@@ -82,20 +82,17 @@ await monta();
 ok(rotos.length === 0, "error de página: " + rotos[0]);
 ok(await kpi("Novedades") === String(novs.length), "KPI novedades " + await kpi("Novedades") + " ≠ " + novs.length);
 ok(await kpi("Ubicaciones afectadas") === "12", "ubicaciones afectadas: " + await kpi("Ubicaciones afectadas"));
-ok(await estados("A01_DER") === "N1,N1,S,N1,N1,N1,N2", "A01_DER: " + await estados("A01_DER"));
+ok(await dias("A01_DER") === "6 de 7", "A01_DER días con novedad: " + await dias("A01_DER"));
 ok(await chip("A01_DER") === "Persiste", "A01_DER debía persistir aunque un día no se contó: " + await chip("A01_DER"));
 ok(/lleva 6 días contados seguidos/.test(await pg.locator(".ev-lectura").textContent()), "la racha de A01_DER cuenta solo días contados: " + await pg.locator(".ev-lectura").textContent());
-ok(await estados("A01_IZQ") === "L,L,S,L,N1,N1,L", "A01_IZQ: " + await estados("A01_IZQ"));
+ok(await dias("A01_IZQ") === "2 de 7", "A01_IZQ días con novedad: " + await dias("A01_IZQ"));
 ok(await chip("A01_IZQ") === "Ya no", "A01_IZQ ya no: " + await chip("A01_IZQ"));
 ok(await chip("A02_DER") === "Persiste" || await chip("A02_DER") === "Reincide", "A02_DER (d1,d3,d6): " + await chip("A02_DER"));
 ok(await chip("A02_DER") === "Reincide", "A02_DER debía reincidir (d5 limpia, d6 vuelve): " + await chip("A02_DER"));
 ok(await chip("B03_IZQ") === "Nueva", "B03_IZQ nueva: " + await chip("B03_IZQ"));
 ok(await chip("B04_DER") === "Ya no", "B04_DER ya no (d4 limpio): " + await chip("B04_DER"));
 ok(await chip("C06_IZQ") === "Persiste", "C06_IZQ persiste (d5,d6)");
-const celdaS = await pg.locator(".ev-mapa td.ev-c.sin").count();
-ok(celdaS > 0, "debía haber celdas «no se contó»");
-/* el día 2 nadie contó: las celdas de ese día que no tienen novedad deben ser «sin», no «limpia» */
-ok((await estados("A01_IZQ")).split(",")[2] === "S", "A01_IZQ día 2 debía ser «no se contó»: " + await estados("A01_IZQ"));
+ok(await pg.locator(".ev-mapa").count() === 0 && !/Mapa de calor/.test(await pg.locator("main").textContent()), "el mapa de calor ya no debe estar");
 const t3 = await pg.locator("table").nth(0).locator("tbody tr").count(); ok(t3 === 7, "tabla por día debía tener 7 filas: " + t3);
 ok(/No se contó/.test(await pg.locator("table").nth(0).locator("tbody tr").nth(2).textContent()), "el día 2 debía decir «No se contó»");
 const imgs = await pg.locator("img.ev-img").evaluateAll((l) => l.map((i) => ({ ok: i.naturalWidth > 100 && i.src.startsWith("data:image/png"), w: i.naturalWidth })));
@@ -159,7 +156,7 @@ ok(/Sin novedades en este periodo/.test(await pg.textContent(".ev")), "falta el 
 ok(/ninguna novedad/.test(await pg.textContent(".ev-lectura")), "la lectura del vacío");
 
 console.log("paso 6 · anchos y forma");
-for (const w of [360, 390, 820, 1440]) {
+for (const w of [360, 390, 820, 1440, 1900]) {
   await monta(w);
   const d = await pg.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }));
   ok(d.sw <= d.cw, `a ${w}px la página se desborda (${d.sw} > ${d.cw}) por: ` + (d.sw > d.cw ? await pg.evaluate((cw) => [...document.querySelectorAll("body *")].filter((e) => e.getBoundingClientRect().right > cw + 1 && !e.closest(".tp-tabla, .ev-scroll")).slice(0, 6).map((e) => e.tagName + "." + e.className + ":" + Math.round(e.getBoundingClientRect().right)).join(" | ") + " || anchos: " + [".sh-main", ".fe", ".tp-tabs", ".ev", ".tp-panel", ".ev-kpis"].map((q) => q + "=" + Math.round((document.querySelector(q)?.getBoundingClientRect().width) ?? -1)).join(" "), d.cw) : ""));
@@ -167,7 +164,7 @@ for (const w of [360, 390, 820, 1440]) {
   ok(chicos.length === 0, `a ${w}px hay controles de menos de 44 px: ` + chicos.join(","));
   const redondos = await pg.evaluate(() => [...document.querySelectorAll(".ev *")].filter((e) => parseFloat(getComputedStyle(e).borderTopLeftRadius) > 3).length);
   ok(redondos === 0, `a ${w}px hay ${redondos} elementos con esquinas redondeadas`);
-  if (w === 390) await pg.screenshot({ path: R(`.arnes/_ev-${w}.png`), fullPage: true });
+  if (w === 390 || w === 1900) await pg.screenshot({ path: R(`.arnes/_ev-${w}.png`), fullPage: true });
 }
 await nav.close();
 if (fallas.length) { fallas.forEach((x) => console.log("✗ " + x)); process.exit(1) }
