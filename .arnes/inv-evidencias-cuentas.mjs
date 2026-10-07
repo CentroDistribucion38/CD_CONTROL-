@@ -60,6 +60,18 @@ const vacio = E.analizar([], [], "2026-10-01", "2026-10-03");
 ok(vacio.total === 0 && E.lecturas(vacio)[0].includes("ninguna novedad"), "vacío");
 const L = E.lecturas(a);
 ok(L.length >= 4 && L[0].includes("11 novedades en 5 ubicaciones"), "lectura: " + L[0]);
+/* LAS TRES MEDIDAS: cajas × unidades por caja × hl de una unidad; sin dato en el maestro queda en null y se avisa */
+{
+  const maestro = [{ sku: "3128", unidades_por_caja: 24, hl: "0.0033" }, { sku: "9999", unidades_por_caja: null, hl: null }];
+  const m = E.conMedidas([nov("2026-10-01", "B02", "pnc", { codigo: "3128", cajas: 100 }), nov("2026-10-01", "B03", "pnc", { codigo: "9999", cajas: 10 }), nov("2026-10-01", "B04", "mezclado")], maestro);
+  ok(m[0].unidades === 2400 && Math.abs(m[0].hl - 7.92) < 1e-9, "100 cajas × 24 × 0,0033 debía dar 2.400 unidades y 7,92 hl: " + JSON.stringify([m[0].unidades, m[0].hl]));
+  ok(m[1].unidades === null && m[1].hl === null && m[2].unidades === null, "sin dato en el maestro (o sin material) debía quedar en null");
+  const s2 = E.sumaMedidas(m);
+  ok(s2.cajas === 110 && s2.unidades === 2400 && Math.abs(s2.hl - 7.92) < 1e-9 && s2.sinDato === 1, "suma de medidas " + JSON.stringify(s2));
+  ok(E.medidasTxt({ cajas: 100, unidades: 2400, hl: 7.92 }) === "100 cajas · 2.400 unid. · 7,92 hl", "texto de medidas: " + E.medidasTxt({ cajas: 100, unidades: 2400, hl: 7.92 }));
+  const an2 = E.analizar(m, [], "2026-10-01", "2026-10-01");
+  ok(an2.pnc.medidas.cajas === 110 && an2.pnc.medidas.unidades === 2400, "analizar no trae las medidas del PNC: " + JSON.stringify(an2.pnc.medidas));
+}
 ok(E.letrasTipos(["pnc", "averia"]) === "A·P", "letras");
 ok(E.rangoDias("2026-09-29", "2026-10-02").join() === "2026-09-29,2026-09-30,2026-10-01,2026-10-02", "rango cruza el mes");
 if (fallas.length) { fallas.forEach((x) => console.log("✗ " + x)); process.exit(1) }

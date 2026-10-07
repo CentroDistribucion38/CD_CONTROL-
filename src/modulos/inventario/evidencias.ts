@@ -32,7 +32,48 @@ export type Novedad = {
   tipo: TipoNovedad; linea_id: string | null; codigo: string | null; material: string | null; cajas: number | null;
   persona: string | null; hora: string; ruta: string | null;
   pnc_rotulo: boolean | null; pnc_bloqueo_mecanico: boolean | null; cumple: boolean | null;
+  /** Lo que esas cajas son en unidades y en hectolitros (se calcula con el maestro: ver `conMedidas`). */
+  unidades?: number | null; hl?: number | null;
 };
+
+/** Lo que pesa un grupo de novedades en las tres medidas. `sinDato` = renglones cuyo material no trae unidades por caja o hl en el maestro. */
+export type Medidas = { cajas: number; unidades: number; hl: number; sinDato: number };
+
+/**
+ * LAS TRES MEDIDAS DE CADA NOVEDAD: cajas (lo que cuenta la base), unidades (cajas × unidades por caja) y hectolitros
+ * (unidades × los hl de UNA unidad), con el mismo maestro y la misma cuenta del riesgo de vencimiento.
+ */
+export function conMedidas(novs: Novedad[], maestro: { sku: string; unidades_por_caja: number | null; hl: number | string | null }[]): Novedad[] {
+  const m = new Map(maestro.map((x) => [String(x.sku), x]));
+  return novs.map((n) => {
+    if (n.cajas == null) return { ...n, unidades: null, hl: null };
+    const p = n.codigo != null ? m.get(String(n.codigo)) : undefined;
+    const uxc = p?.unidades_por_caja ? Number(p.unidades_por_caja) : null;
+    const hu = p?.hl != null && Number(p.hl) > 0 ? Number(p.hl) : null;
+    const unidades = uxc ? n.cajas * uxc : null;
+    return { ...n, unidades, hl: unidades != null && hu ? unidades * hu : null };
+  });
+}
+
+/** Suma las tres medidas de una lista de novedades (las de módulo —sin material— no suman). */
+export function sumaMedidas(lista: Novedad[]): Medidas {
+  const r: Medidas = { cajas: 0, unidades: 0, hl: 0, sinDato: 0 };
+  for (const n of lista) {
+    if (n.cajas == null) continue;
+    r.cajas += n.cajas;
+    if (n.unidades != null) r.unidades += n.unidades;
+    if (n.hl != null) r.hl += n.hl;
+    if (n.unidades == null || n.hl == null) r.sinDato++;
+  }
+  return r;
+}
+
+const nfm = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
+/** Hectolitros: dos decimales si son pocos. */
+export const hlTxt = (n: number | null | undefined) => n == null ? "—" : n.toLocaleString("es-CO", { maximumFractionDigits: n < 10 ? 2 : 1 });
+export const unTxt = (n: number | null | undefined) => n == null ? "—" : nfm.format(n);
+/** «1.272 cajas · 38.160 unid. · 76,3 hl». */
+export const medidasTxt = (m: Pick<Medidas, "cajas" | "unidades" | "hl">) => `${nfm.format(m.cajas)} cajas · ${nfm.format(m.unidades)} unid. · ${hlTxt(m.hl)} hl`;
 
 export type Cobertura = {
   dia: string; ubicacion_id: string | null; ubicacion: string | null; calle: string | null; modulo: string | null; lado: string | null;
@@ -76,7 +117,10 @@ export type Analisis = {
   total: number;
   ubicacionesAfectadas: number;
   conteoTendencia: Record<Tendencia, number>;
-  pnc: { total: number; respondidos: number; cumplen: number; noCumplen: number; sinRespuesta: number; sinRotulo: number; sinBloqueo: number };
+  pnc: { total: number; respondidos: number; cumplen: number; noCumplen: number; sinRespuesta: number; sinRotulo: number; sinBloqueo: number;
+         medidas: Medidas; medidasCumplen: Medidas; medidasNoCumplen: Medidas };
+  /** Cajas, unidades y hectolitros de cada tipo de novedad (los de módulo no traen material: quedan en cero). */
+  medidasPorTipo: Record<TipoNovedad, Medidas>;
   modulos: { modulo: string; total: number; ubicaciones: number }[];   // calle+módulo, p. ej. «A01»
   fotos: number;                   // novedades que traen foto
   personas: { persona: string; total: number }[];
@@ -178,7 +222,11 @@ export function analizar(novs: Novedad[], cob: Cobertura[], desde: string, hasta
     sinRespuesta: pn.length - resp.length,
     sinRotulo: resp.filter((n) => n.pnc_rotulo === false).length,
     sinBloqueo: resp.filter((n) => n.pnc_bloqueo_mecanico === false).length,
+    medidas: sumaMedidas(pn),
+    medidasCumplen: sumaMedidas(pn.filter((n) => n.cumple === true)),
+    medidasNoCumplen: sumaMedidas(pn.filter((n) => n.cumple === false)),
   };
+  const medidasPorTipo = Object.fromEntries(TIPOS.map((t) => [t.k, sumaMedidas(vistas.filter((n) => n.tipo === t.k))])) as Record<TipoNovedad, Medidas>;
 
   const mod = new Map<string, { total: number; ubis: Set<string> }>();
   for (const n of vistas) {
@@ -195,7 +243,7 @@ export function analizar(novs: Novedad[], cob: Cobertura[], desde: string, hasta
 
   return {
     dias, filas, porDia, porTipo, total: vistas.length, ubicacionesAfectadas: filas.length, conteoTendencia,
-    pnc, modulos, fotos: vistas.filter((n) => n.ruta).length, personas,
+    pnc, medidasPorTipo, modulos, fotos: vistas.filter((n) => n.ruta).length, personas,
   };
 }
 
@@ -230,6 +278,7 @@ export function lecturas(a: Analisis): string[] {
     out.push(a.pnc.respondidos
       ? `PNC: ${a.pnc.cumplen} de ${a.pnc.respondidos} con la política de bloqueo cumplida (rótulo y bloqueo mecánico).${a.pnc.sinRespuesta ? ` ${a.pnc.sinRespuesta} sin responder.` : ""}`
       : `PNC: ${a.pnc.total} sin respuesta sobre la política de bloqueo.`);
+    if (a.pnc.medidas.cajas) out.push(`El PNC del periodo son ${medidasTxt(a.pnc.medidas)}.`);
   }
   const sinCont = a.porDia.filter((d) => d.contadas === 0).length;
   if (sinCont) out.push(`Hubo ${sinCont} ${sinCont === 1 ? "día" : "días"} del periodo sin ningún conteo: ahí «sin novedad» no significa «limpio», significa «no se contó».`);

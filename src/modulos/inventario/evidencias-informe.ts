@@ -8,7 +8,7 @@
  * NO CALCULA: recibe el análisis ya hecho (`analizar`) y las gráficas ya dibujadas.
  * Es pura: se prueba sin navegador.
  */
-import { TENDENCIAS, TEND, TIPOS, TIPO, diaCorto, diaTxt, lecturas, type Analisis, type Novedad, type FilaUbicacion } from "./evidencias";
+import { TENDENCIAS, TEND, TIPOS, TIPO, diaCorto, diaTxt, hlTxt, lecturas, unTxt, type Analisis, type Novedad, type FilaUbicacion } from "./evidencias";
 import type { Imagen } from "./evidencias-graficas";
 
 export type CeldaT = string | { x: string; fill?: string; color?: string; bold?: boolean };
@@ -46,7 +46,7 @@ export const periodoTxt = (desde: string, hasta: string) => (desde === hasta ? d
 
 export function detalleNovedad(n: Novedad): string {
   const base = [diaCorto(n.dia) + " " + hora(n.hora), n.persona ?? "—"];
-  if (n.material) base.push(`${n.codigo ?? ""} ${n.material}`.trim() + (n.cajas != null ? ` · ${nf.format(n.cajas)} cj` : ""));
+  if (n.material) base.push(`${n.codigo ?? ""} ${n.material}`.trim() + (n.cajas != null ? ` · ${nf.format(n.cajas)} cj · ${unTxt(n.unidades)} un · ${hlTxt(n.hl)} hl` : ""));
   if (n.tipo === "pnc") base.push(n.cumple == null ? "Política sin responder" : n.cumple ? "Cumple política" : "No cumple política");
   return base.join(" · ");
 }
@@ -143,17 +143,29 @@ export function construirInforme(a: Analisis, novs: Novedad[], o: OpcionesInform
       { rotulo: "Sin responder", valor: nf.format(a.pnc.sinRespuesta), detalle: "renglones anteriores a la pregunta" },
     ],
   });
+  /* LO QUE ES ESE PNC: cajas, unidades y hectolitros, con lo que cumple y lo que no. */
+  const Mm = a.pnc.medidas;
+  B.push({
+    t: "kpis", items: [
+      { rotulo: "PNC en cajas", valor: nf.format(Mm.cajas), color: TIPO.pnc.color },
+      { rotulo: "PNC en unidades", valor: nf.format(Mm.unidades), color: TIPO.pnc.color },
+      { rotulo: "PNC en hectolitros", valor: hlTxt(Mm.hl), color: TIPO.pnc.color },
+      { rotulo: "No cumplen", valor: `${hlTxt(a.pnc.medidasNoCumplen.hl)} hl`, color: TEND.persiste.color, detalle: `${nf.format(a.pnc.medidasNoCumplen.cajas)} cajas · ${nf.format(a.pnc.medidasNoCumplen.unidades)} unid.` },
+      { rotulo: "Cumplen", valor: `${hlTxt(a.pnc.medidasCumplen.hl)} hl`, color: TEND.ya_no.color, detalle: `${nf.format(a.pnc.medidasCumplen.cajas)} cajas · ${nf.format(a.pnc.medidasCumplen.unidades)} unid.` },
+    ],
+  });
+  if (Mm.sinDato) B.push({ t: "p", gris: true, texto: `${Mm.sinDato} renglón(es) de PNC no traen unidades por caja o hectolitros en el maestro de materiales: no suman en esas dos medidas.` });
   B.push({
     t: "tabla", cols: [
-      { h: "Día", w: 10, al: "l" }, { h: "Ubicación", w: 10, al: "l" }, { h: "Material", w: 30, al: "l" }, { h: "Cajas", w: 7, al: "r" },
+      { h: "Día", w: 10, al: "l" }, { h: "Ubicación", w: 10, al: "l" }, { h: "Material", w: 26, al: "l" }, { h: "Cajas", w: 7, al: "r" }, { h: "Unidades", w: 9, al: "r" }, { h: "Hl", w: 6, al: "r" },
       { h: "Rótulo", w: 8, al: "c" }, { h: "Bloqueo mecánico", w: 11, al: "c" }, { h: "¿Cumple?", w: 10, al: "c" }, { h: "Persona", w: 14, al: "l" },
     ],
     filas: pnc.map((n) => [
-      diaCorto(n.dia), { x: mod(n), bold: true }, `${n.codigo ?? ""} ${n.material ?? ""}`.trim() || "—", n.cajas != null ? nf.format(n.cajas) : "—",
+      diaCorto(n.dia), { x: mod(n), bold: true }, `${n.codigo ?? ""} ${n.material ?? ""}`.trim() || "—", n.cajas != null ? nf.format(n.cajas) : "—", unTxt(n.unidades), hlTxt(n.hl),
       si(n.pnc_rotulo), si(n.pnc_bloqueo_mecanico),
       n.cumple == null ? { x: "Sin responder", color: "#5B6B7F" } : n.cumple ? { x: "Cumple", fill: "#CFE0F5", bold: true } : { x: "No cumple", fill: "#F9C6CF", bold: true },
       n.persona ?? "—",
-    ]),
+    ]).concat(pnc.length ? [[{ x: "Total PNC", bold: true }, "", "", { x: nf.format(Mm.cajas), bold: true }, { x: nf.format(Mm.unidades), bold: true }, { x: hlTxt(Mm.hl), bold: true }, "", "", "", ""]] : []),
     nota: pnc.length ? undefined : "No hubo PNC en el periodo (o no se escogió ese tipo).",
   });
 
@@ -186,11 +198,11 @@ export function construirInforme(a: Analisis, novs: Novedad[], o: OpcionesInform
   B.push({
     t: "tabla", cols: [
       { h: "Día", w: 8, al: "l" }, { h: "Hora", w: 6, al: "l" }, { h: "Ubicación", w: 9, al: "l" }, { h: "Tipo", w: 12, al: "l" }, { h: "Material", w: 30, al: "l" },
-      { h: "Cajas", w: 6, al: "r" }, { h: "Persona", w: 13, al: "l" }, { h: "Conteo", w: 11, al: "l" }, { h: "Foto", w: 5, al: "c" },
+      { h: "Cajas", w: 6, al: "r" }, { h: "Unid.", w: 7, al: "r" }, { h: "Hl", w: 5, al: "r" }, { h: "Persona", w: 12, al: "l" }, { h: "Conteo", w: 10, al: "l" }, { h: "Foto", w: 5, al: "c" },
     ],
     filas: lista.map((n) => [
       diaCorto(n.dia), hora(n.hora), { x: mod(n), bold: true }, { x: TIPO[n.tipo].nombre, fill: suave(TIPO[n.tipo].color) },
-      `${n.codigo ?? ""} ${n.material ?? ""}`.trim() || "—", n.cajas != null ? nf.format(n.cajas) : "—", n.persona ?? "—", n.conteo, n.ruta ? "Sí" : "·",
+      `${n.codigo ?? ""} ${n.material ?? ""}`.trim() || "—", n.cajas != null ? nf.format(n.cajas) : "—", unTxt(n.unidades), hlTxt(n.hl), n.persona ?? "—", n.conteo, n.ruta ? "Sí" : "·",
     ]),
     nota: novs.length > lista.length ? `Se muestran las primeras ${lista.length} de ${novs.length} novedades. Acota el periodo para ver el resto.` : undefined,
   });

@@ -4,8 +4,8 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { createClient } from "@/lib/supabase/client";
 import { hoyCo, sumarDias } from "@/modulos/inventario/tiempos";
 import {
-  analizar, diaTxt, filtrarNovedades, lecturas, TEND, TENDENCIAS, TIPO, TIPOS,
-  type Cobertura, type Novedad, type TipoNovedad,
+  analizar, conMedidas, diaTxt, filtrarNovedades, hlTxt, lecturas, TEND, TENDENCIAS, TIPO, TIPOS,
+  unTxt, type Cobertura, type Novedad, type TipoNovedad,
 } from "@/modulos/inventario/evidencias";
 import { armarGraficas } from "@/modulos/inventario/evidencias-graficas";
 import { cargarFotos } from "@/modulos/inventario/evidencias-fotos";
@@ -69,7 +69,14 @@ export function Evidencias() {
       setNovs([]); setCob([]); return;
     }
     setFalta(false);
-    setNovs((e.data ?? []) as Novedad[]);
+    /* Las unidades y los hectolitros salen del maestro (unidades por caja y hl de una unidad), como en el riesgo.
+       Si no se alcanza a leer, las novedades se muestran igual, con «—» en esas dos columnas. */
+    let maestro: { sku: string; unidades_por_caja: number | null; hl: number | string | null }[] = [];
+    try {
+      const r = await supabase.from("productos").select("sku,unidades_por_caja,hl").limit(5000);
+      if (!r.error && r.data) maestro = r.data as typeof maestro;
+    } catch { /* sin maestro */ }
+    setNovs(conMedidas((e.data ?? []) as Novedad[], maestro));
     setCob((c.data ?? []) as Cobertura[]);
   }, [supabase, desde, hasta]);
   useEffect(() => { void cargar() }, [cargar]);
@@ -303,22 +310,35 @@ export function Evidencias() {
           {/* ===== MÓDULO 4 ===== */}
           <h2 className="tp-h ev-mod"><button type="button" className="ev-mb" aria-expanded={ab.has(4)} aria-controls="ev-m4" onClick={() => alt(4)}><span>Módulo 4</span> PNC y política de bloqueo <small>cumple si tiene rótulo y bloqueo mecánico</small><svg className="ev-chev" viewBox="0 0 24 24" aria-hidden><path d="M6 9l6 6 6-6" /></svg></button></h2>
           <div id="ev-m4" className="ev-cuerpo" hidden={!ab.has(4)}>
+          {pnc.length > 0 && (
+            <div className="ev-med" aria-label="Cuánto PNC hay, en cajas, unidades y hectolitros">
+              <div className="ev-med-t"><span>PNC del periodo</span>
+                <div><b>{nf.format(an.pnc.medidas.cajas)}</b><small>cajas</small></div>
+                <div><b>{nf.format(an.pnc.medidas.unidades)}</b><small>unidades</small></div>
+                <div><b>{hlTxt(an.pnc.medidas.hl)}</b><small>hectolitros</small></div>
+              </div>
+              <div className="ev-med-s"><span>Cumplen</span><b>{nf.format(an.pnc.medidasCumplen.cajas)} cj · {nf.format(an.pnc.medidasCumplen.unidades)} un · {hlTxt(an.pnc.medidasCumplen.hl)} hl</b></div>
+              <div className="ev-med-s"><span>No cumplen</span><b>{nf.format(an.pnc.medidasNoCumplen.cajas)} cj · {nf.format(an.pnc.medidasNoCumplen.unidades)} un · {hlTxt(an.pnc.medidasNoCumplen.hl)} hl</b></div>
+              {an.pnc.medidas.sinDato > 0 && <p className="ev-nota">{an.pnc.medidas.sinDato} renglón(es) de PNC no traen unidades por caja o hectolitros en el maestro de materiales: no suman en esas dos medidas.</p>}
+            </div>
+          )}
           {pnc.length === 0 ? <p className="fe-vacio">No hubo PNC en este periodo{tipos.includes("pnc") ? "" : " (el tipo PNC no está escogido)"}.</p> : (
             <div className="tp-tabla" tabIndex={0} aria-label="PNC y política de bloqueo">
               <table>
-                <thead><tr><th className="tp-izq">Día</th><th className="tp-izq">Ubicación</th><th className="tp-izq">Material</th><th>Cajas</th><th>Rótulo</th><th>Bloqueo mecánico</th><th>¿Cumple?</th><th className="tp-izq">Persona</th></tr></thead>
+                <thead><tr><th className="tp-izq">Día</th><th className="tp-izq">Ubicación</th><th className="tp-izq">Material</th><th>Cajas</th><th>Unidades</th><th>Hl</th><th>Rótulo</th><th>Bloqueo mecánico</th><th>¿Cumple?</th><th className="tp-izq">Persona</th></tr></thead>
                 <tbody>
                   {pnc.map((n, i) => (
                     <tr key={i}>
                       <td className="tp-izq">{diaTxt(n.dia)}</td><th scope="row" className="tp-izq">{n.ubicacion ?? "—"}</th>
                       <td className="tp-izq tp-mat">{`${n.codigo ?? ""} ${n.material ?? ""}`.trim() || "—"}</td>
-                      <td>{n.cajas == null ? "—" : nf.format(n.cajas)}</td>
+                      <td>{n.cajas == null ? "—" : nf.format(n.cajas)}</td><td>{unTxt(n.unidades)}</td><td>{hlTxt(n.hl)}</td>
                       <td>{n.pnc_rotulo == null ? "—" : n.pnc_rotulo ? "Sí" : "No"}</td><td>{n.pnc_bloqueo_mecanico == null ? "—" : n.pnc_bloqueo_mecanico ? "Sí" : "No"}</td>
                       <td>{n.cumple == null ? <span className="tp-sin">Sin responder</span> : n.cumple ? <span className="ev-chip" style={{ ["--ev-c" as string]: "#2E7D4F" }}>Cumple</span> : <span className="ev-chip" style={{ ["--ev-c" as string]: "#B3470F" }}>No cumple</span>}</td>
                       <td className="tp-izq">{n.persona ?? "—"}</td>
                     </tr>
                   ))}
                 </tbody>
+                <tfoot><tr className="ev-total"><th scope="row" className="tp-izq" colSpan={3}>Total PNC</th><td>{nf.format(an.pnc.medidas.cajas)}</td><td>{nf.format(an.pnc.medidas.unidades)}</td><td>{hlTxt(an.pnc.medidas.hl)}</td><td colSpan={4}></td></tr></tfoot>
               </table>
             </div>
           )}
@@ -330,7 +350,7 @@ export function Evidencias() {
           {vistas.length === 0 ? <p className="fe-vacio">Sin novedades en este periodo.</p> : (
             <div className="tp-tabla" tabIndex={0} aria-label="Detalle de las novedades">
               <table>
-                <thead><tr><th className="tp-izq">Día</th><th>Hora</th><th className="tp-izq">Ubicación</th><th className="tp-izq">Tipo</th><th className="tp-izq">Material</th><th>Cajas</th><th className="tp-izq">Persona</th><th className="tp-izq">Foto</th></tr></thead>
+                <thead><tr><th className="tp-izq">Día</th><th>Hora</th><th className="tp-izq">Ubicación</th><th className="tp-izq">Tipo</th><th className="tp-izq">Material</th><th>Cajas</th><th>Unidades</th><th>Hl</th><th className="tp-izq">Persona</th><th className="tp-izq">Foto</th></tr></thead>
                 <tbody>
                   {lista.map((n, i) => {
                     const clave = `${i}`;
@@ -341,12 +361,12 @@ export function Evidencias() {
                           <th scope="row" className="tp-izq">{n.ubicacion ?? "—"}</th>
                           <td className="tp-izq"><span className="ev-chip" style={{ ["--ev-c" as string]: TIPO[n.tipo].color }}>{TIPO[n.tipo].nombre}</span></td>
                           <td className="tp-izq tp-mat">{`${n.codigo ?? ""} ${n.material ?? ""}`.trim() || "—"}</td>
-                          <td>{n.cajas == null ? "—" : nf.format(n.cajas)}</td>
+                          <td>{n.cajas == null ? "—" : nf.format(n.cajas)}</td><td>{unTxt(n.unidades)}</td><td>{hlTxt(n.hl)}</td>
                           <td className="tp-izq">{n.persona ?? "—"}</td>
                           <td className="tp-izq">{n.ruta ? <button type="button" className="tp-ver" aria-expanded={fotoAbierta === clave} onClick={() => void verFoto(n.ruta!, clave)}>{fotoAbierta === clave ? "Ocultar" : "Ver foto"}</button> : <span className="tp-sinubi">Sin foto</span>}</td>
                         </tr>
                         {fotoAbierta === clave && n.ruta && (
-                          <tr className="tp-detalle"><td colSpan={8}>
+                          <tr className="tp-detalle"><td colSpan={10}>
                             <div className="ev-foto">
                               {urls[n.ruta] === "cargando" || urls[n.ruta] === undefined ? <p className="fe-vacio">Cargando la foto…</p>
                                 : urls[n.ruta] === "mal" ? <p className="tp-error">No se pudo abrir la foto.</p>

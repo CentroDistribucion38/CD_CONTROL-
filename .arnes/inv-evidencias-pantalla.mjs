@@ -137,6 +137,19 @@ console.log("paso 3 · fotos y PNC");
 const filasPnc = await pg.locator("table[aria-label], .tp-tabla[aria-label='PNC y política de bloqueo'] tbody tr").count();
 const txtPnc = await pg.locator(".tp-tabla[aria-label='PNC y política de bloqueo']").textContent();
 ok(/Cumple/.test(txtPnc) && /No cumple/.test(txtPnc) && /Sin responder/.test(txtPnc), "el módulo PNC debía mostrar Cumple, No cumple y Sin responder: " + txtPnc.slice(0, 200));
+/* PNC EN LAS TRES MEDIDAS: el resumen y la fila de total salen de las cajas × 24 unidades × 0,0033 hl del maestro de la prueba */
+{
+  const p = novs.filter((n) => n.tipo === "pnc" && n.dia >= D(0) && n.dia <= D(6));
+  const cj = p.reduce((t, n) => t + (n.cajas ?? 0), 0), un = cj * 24, hl = un * 0.0033;
+  const med = await pg.locator(".ev-med-t").textContent();
+  const num = (x) => x.toLocaleString("es-CO", { maximumFractionDigits: 0 });
+  const hlf = (x) => x.toLocaleString("es-CO", { maximumFractionDigits: x < 10 ? 2 : 1 });
+  ok(med.includes(num(cj)) && med.includes(num(un)) && med.includes(hlf(hl)), `el resumen del PNC debía traer ${num(cj)} cajas, ${num(un)} unidades y ${hlf(hl)} hl: ` + med);
+  const heads = await pg.locator(".tp-tabla[aria-label='PNC y política de bloqueo'] thead th").allTextContents();
+  ok(heads.includes("Unidades") && heads.includes("Hl"), "la tabla del PNC debía tener Unidades y Hl: " + heads.join());
+  const tot = await pg.locator(".ev-total").textContent();
+  ok(tot.includes(num(cj)) && tot.includes(num(un)) && tot.includes(hlf(hl)), "la fila «Total PNC» no suma las tres medidas: " + tot);
+}
 const verFotos = pg.locator(".tp-tabla[aria-label='Detalle de las novedades'] .tp-ver");
 const nFotos = await verFotos.count(); ok(nFotos === novs.filter((n) => n.ruta).length, "botones «Ver foto»: " + nFotos);
 await verFotos.first().click(); await pg.waitForSelector(".ev-foto img", { timeout: 4000 });

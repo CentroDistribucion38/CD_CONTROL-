@@ -89,3 +89,14 @@
 .fe .ev-cuerpo .tp-tabla { width: 100%; max-width: none }
 .fe .ev-cuerpo .tp-tabla table { table-layout: fixed; width: 100%; min-width: 640px }
 .fe .ev-cuerpo .tp-tabla th, .fe .ev-cuerpo .tp-tabla td { white-space: normal; overflow-wrap: anywhere }
+
+/* PNC EN CAJAS, UNIDADES Y HECTOLITROS */
+.fe .ev-med { display: grid; gap: 8px; margin: 0 0 12px; padding: 12px 14px; border: 1px solid var(--fe-linea); background: var(--fe-papel) }
+.fe .ev-med-t { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 28px }
+.fe .ev-med-t > span, .fe .ev-med-s > span { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--fe-gris-panel) }
+.fe .ev-med-t > div { display: flex; align-items: baseline; gap: 6px }
+.fe .ev-med-t b { font: 800 26px var(--fe-titulo); color: #E4002B; font-variant-numeric: tabular-nums }
+.fe .ev-med-t small { font-size: 12px; color: var(--fe-gris-panel) }
+.fe .ev-med-s { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; font-size: 13px }
+.fe .ev-med-s b { font-variant-numeric: tabular-nums; color: var(--fe-tinta) }
+.fe .ev-total th, .fe .ev-total td { font-weight: 800; border-top: 2px solid var(--fe-tinta) }
