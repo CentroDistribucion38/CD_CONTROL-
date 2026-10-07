@@ -326,3 +326,17 @@
   .ir-ctl .fe-fecha select { min-width: 0; width: 100% }
   .ir-ctl .fe-fecha label { flex-wrap: wrap }
 }
+
+/* ---- La lista de materiales: plegada hasta que se quiera ver ---- */
+.ir-plegable .ir-th { border-bottom: 1px solid var(--ir-ln) }
+.ir-plegable:not(.abierta) .ir-th { border-bottom: 0; padding-top: 0; padding-bottom: 0 }
+.ir-tgl { display: flex; align-items: center; gap: 12px; flex: 0 1 auto; min-height: 64px; padding: 0; border: 0; background: none; cursor: pointer; font: inherit; color: inherit; text-align: left }
+.ir-plegable:not(.abierta) .ir-tgl { flex: 1 1 100%; padding: 0 0; min-height: 68px }
+.ir-tgl:focus-visible { outline: 3px solid var(--fe-acento); outline-offset: 2px }
+.ir-tgl b { font: 900 clamp(17px, 1.5vw, 19px) var(--fe-titulo); letter-spacing: -.01em }
+.ir-tgl-n { font-size: 13px; color: var(--fe-gris) }
+.ir-tgl-chev { flex: none; width: 20px; height: 20px; margin-left: auto; fill: none; stroke: var(--fe-tinta); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; transition: transform .15s }
+.ir-plegable.abierta .ir-tgl-chev { transform: rotate(180deg) }
+.ir-plegable.abierta .ir-tgl { flex: none; min-height: 44px }
+.ir-plegable.abierta .ir-tgl-chev { margin-left: 4px }
+@media (prefers-reduced-motion: reduce) { .ir-tgl-chev { transition: none } }

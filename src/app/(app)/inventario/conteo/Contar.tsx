@@ -358,6 +358,11 @@ export function Contar({
   const campoSaldo = useRef<HTMLInputElement>(null);
   /* LA CASILLA DE CANTIDAD EN LA QUE ESTÁ EL CURSOR: a ella van los signos de la calculadora. */
   const campoActivo = useRef<"estibas" | "saldo" | "cajas">("estibas");
+  /* LA CALCULADORA SE VE: al tocar una cantidad sube un panel fijo al pie con el teclado completo (el del celular se
+     suprime con `inputMode="none"`). `calcBajo` es lo que hay que subirlo si el navegador deja una barra o un teclado debajo. */
+  const [calcAbierta, setCalcAbierta] = useState(false);
+  const [calcBajo, setCalcBajo] = useState(0);
+  const [calcActiva, setCalcActiva] = useState<"estibas" | "saldo" | "cajas">("estibas");
   /* Sube de uno cada vez que hay que mandar el cursor a la cantidad.
      Es un contador y no un `true/false` porque hay que poder pedirlo
      dos veces seguidas: editar una tarjeta, arrepentirse, editar otra. */
@@ -505,6 +510,36 @@ export function Contar({
     pon(k, b[k].slice(0, desde) + b[k].slice(fin));
     setTimeout(() => { el?.focus(); el?.setSelectionRange(desde, desde) }, 0);
   }
+
+  function abrirCalc(k: "estibas" | "saldo" | "cajas", el: HTMLInputElement) {
+    campoActivo.current = k;
+    setCalcActiva(k);
+    setCalcAbierta(true);
+    /* con el panel arriba, la casilla tiene que quedar a la vista y no detrás de él */
+    setTimeout(() => el.scrollIntoView({ block: "center" }), 60);
+  }
+  /** Al salir de una cantidad: se resuelve la cuenta y, si el cursor no pasó a otra cantidad, la calculadora baja. */
+  function soltarCalc(k: "estibas" | "saldo" | "cajas") {
+    resolverCuenta(k);
+    setTimeout(() => {
+      if (!(document.activeElement as HTMLElement | null)?.closest?.(".fe-cuanto-campo")) setCalcAbierta(false);
+    }, 0);
+  }
+  function listoCalc() {
+    const k = campoActivo.current;
+    resolverCuenta(k);
+    setCalcAbierta(false);
+    (document.activeElement as HTMLElement | null)?.blur?.();
+  }
+  useEffect(() => {
+    if (!calcAbierta) { setCalcBajo(0); return }
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const medir = () => setCalcBajo(Math.max(0, Math.round(window.innerHeight - (vv.height + vv.offsetTop))));
+    medir();
+    vv.addEventListener("resize", medir); vv.addEventListener("scroll", medir);
+    return () => { vv.removeEventListener("resize", medir); vv.removeEventListener("scroll", medir) };
+  }, [calcAbierta]);
 
   function saltaCon(e: KeyboardEvent<HTMLInputElement>,
                     destino?: RefObject<HTMLInputElement | null>) {
@@ -2108,20 +2143,20 @@ export function Contar({
             {b.modo === "estibas" ? (
               <>
                 <label className="fe-cuanto-campo"><span>Estibas completas</span>
-                  <input ref={campoCantidad} inputMode="numeric" value={b.estibas}
-                         onFocus={() => { campoActivo.current = "estibas" }} onBlur={() => resolverCuenta("estibas")}
+                  <input ref={campoCantidad} inputMode="none" value={b.estibas}
+                         onFocus={(e) => abrirCalc("estibas", e.currentTarget)} onBlur={() => soltarCalc("estibas")}
                          onChange={(e) => pon("estibas", e.target.value)}
                          onKeyDown={(e) => saltaCon(e, campoSaldo)} /></label>
                 <label className="fe-cuanto-campo"><span>Saldo · cajas</span>
-                  <input ref={campoSaldo} inputMode="numeric" value={b.saldo}
-                         onFocus={() => { campoActivo.current = "saldo" }} onBlur={() => resolverCuenta("saldo")}
+                  <input ref={campoSaldo} inputMode="none" value={b.saldo}
+                         onFocus={(e) => abrirCalc("saldo", e.currentTarget)} onBlur={() => soltarCalc("saldo")}
                          onChange={(e) => pon("saldo", e.target.value)}
                          onKeyDown={(e) => saltaCon(e)} /></label>
               </>
             ) : (
               <label className="fe-cuanto-campo ancho"><span>Cajas</span>
-                <input ref={campoCantidad} inputMode="numeric" value={b.cajas}
-                       onFocus={() => { campoActivo.current = "cajas" }} onBlur={() => resolverCuenta("cajas")}
+                <input ref={campoCantidad} inputMode="none" value={b.cajas}
+                       onFocus={(e) => abrirCalc("cajas", e.currentTarget)} onBlur={() => soltarCalc("cajas")}
                        onChange={(e) => pon("cajas", e.target.value)}
                        onKeyDown={(e) => saltaCon(e)} /></label>
             )}
@@ -2132,22 +2167,34 @@ export function Contar({
               </output>
             </div>
           </div>
-          {/* LA CALCULADORA: el teclado numérico del celular no trae signos. Estos botones los ponen en la casilla donde
-              está el cursor; con el teclado de un computador también se pueden escribir. «=» deja el resultado en la casilla
-              (también pasa solo al salir de ella). */}
-          <div className="fe-calc" role="group" aria-label="Calculadora para las cantidades">
-            <span>Cuenta</span>
-            {[["+", "+"], ["−", "−"], ["×", "×"], ["÷", "÷"]].map(([txt, op]) => (
-              <button key={op} type="button" aria-label={`Signo ${txt}`} onMouseDown={(e) => e.preventDefault()} onClick={() => signo(op)}>{txt}</button>
-            ))}
-            <button type="button" aria-label="Borrar el último carácter" onMouseDown={(e) => e.preventDefault()} onClick={borrarUno}>⌫</button>
-            <button type="button" className="igual" aria-label="Resolver la cuenta" onMouseDown={(e) => e.preventDefault()} onClick={() => signo("=")}>=</button>
-          </div>
-          {(["estibas", "saldo", "cajas"] as const).map((k) => esCuenta(b[k]) && (
-            <p key={k} className="fe-calc-vista">
-              {b[k].trim()} = {ent(b[k]) != null ? <b>{nf.format(ent(b[k])!)}</b> : <b className="ojo">no entiendo la cuenta</b>}
-            </p>
-          ))}
+          {/* LA CALCULADORA: un panel fijo al pie que se abre al tocar Estibas, Saldo o Cajas (el teclado del celular
+              no trae signos y se suprime). Los botones escriben donde está el cursor de la casilla activa; «=» deja el
+              resultado en la casilla (también pasa solo al salir de ella) y «Listo» cierra el panel. Con el teclado de un
+              computador también se puede escribir. */}
+          {calcAbierta && (
+            <div className="fe-calc fe-calc-fija" role="group" aria-label="Calculadora para las cantidades"
+                 style={{ bottom: calcBajo }}>
+              <div className="fe-calc-cab">
+                <span>{calcActiva === "estibas" ? "Estibas completas" : calcActiva === "saldo" ? "Saldo · cajas" : "Cajas"}</span>
+                <p className="fe-calc-vista" aria-live="polite">
+                  {b[calcActiva].trim() === "" ? <i>toca los números</i>
+                    : esCuenta(b[calcActiva])
+                      ? <>{b[calcActiva].trim()} = {ent(b[calcActiva]) != null ? <b>{nf.format(ent(b[calcActiva])!)}</b> : <b className="ojo">no entiendo la cuenta</b>}</>
+                      : <b>{b[calcActiva].trim()}</b>}
+                </p>
+              </div>
+              <div className="fe-calc-teclas">
+                {["7", "8", "9", "÷", "4", "5", "6", "×", "1", "2", "3", "−", "0", "+"].map((t) => (
+                  <button key={t} type="button" className={/\d/.test(t) ? "num" : "op"}
+                          aria-label={/\d/.test(t) ? `Número ${t}` : `Signo ${t}`}
+                          onMouseDown={(e) => e.preventDefault()} onClick={() => signo(t)}>{t}</button>
+                ))}
+                <button type="button" aria-label="Borrar el último carácter" onMouseDown={(e) => e.preventDefault()} onClick={borrarUno}>⌫</button>
+                <button type="button" className="igual" aria-label="Resolver la cuenta" onMouseDown={(e) => e.preventDefault()} onClick={() => signo("=")}>=</button>
+                <button type="button" className="listo" aria-label="Cerrar la calculadora" onMouseDown={(e) => e.preventDefault()} onClick={listoCalc}>Listo</button>
+              </div>
+            </div>
+          )}
 
           {/* LA CUENTA A LA VISTA: el resultado solo hay que creérselo, la
               cuenta —12 × 45 + 8— se mira contra la estiba. */}

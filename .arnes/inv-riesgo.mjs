@@ -81,15 +81,24 @@ const pg = await ctx.newPage();
 await pg.route("https://control.prueba/**", (q) => q.request().url().endsWith(".png")
   ? q.fulfill({ status: 200, contentType: "image/png", body: readFileSync(R("public" + new URL(q.request().url()).pathname)) })
   : q.fulfill({ status: 200, contentType: "text/html", body: "<!doctype html><html></html>" }));
-const monta = async (ancho, tema, rr = RR, sc = 7) => {
+const monta = async (ancho, tema, rr = RR, sc = 7, abrir = true) => {
   await pg.setViewportSize({ width: ancho, height: 900 });
   await pg.goto("https://control.prueba/inventario");
   await pg.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>*,::before,::after{margin:0;padding:0;box-sizing:border-box;border:0 solid}${glob}${shell}${css}</style></head>
     <body><div class="sh"${tema ? ` data-tema="${tema}"` : ""}><div class="sh-marco sin-riel"><main class="sh-main"><div class="fe" id="r"></div></main></div></div>
     <script>window.RR=${JSON.stringify(rr)};window.SC=${sc};</script><script>${js}</script></body></html>`);
   await pg.waitForSelector(".ir-g");
+  if (abrir) await pg.click(".ir-tgl");
 };
 
+/* LA LISTA DE MATERIALES ENTRA CERRADA y se abre al querer. */
+await monta(1300, null, RR, 7, false);
+ok((await pg.$$(".ir-m")).length === 0 && (await pg.getAttribute(".ir-tgl", "aria-expanded")) === "false" && (await pg.$$(".ir-th input")).length === 0, "la lista de materiales no entra cerrada");
+ok(/\d+ materiales/.test(await pg.textContent(".ir-tgl")), "cerrada no dice cuántos materiales tiene");
+await pg.click(".ir-ref .ver");
+ok((await pg.$$(".ir-m")).length > 0 && (await pg.$$(".ir-det")).length === 1, "«Ver ubicaciones» no abre la lista ni el material");
+await pg.click(".ir-tgl");
+ok((await pg.$$(".ir-m")).length === 0, "tocar el título no cierra la lista");
 await monta(1300);
 ok((await pg.$$(".ir-tabla tr.tocable")).length === 5 && (await pg.$$(".ir-tabla tbody tr")).length === 7, "la tabla debe traer los 7 estados y 5 que filtran");
 ok(/VENCIDO|Vencido/.test(await pg.textContent(".ir-ref")), "la referencia más crítica no sale");

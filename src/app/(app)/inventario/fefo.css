@@ -1795,14 +1795,29 @@
 .fe .fe-pnc-veredicto.cumple { color: var(--fe-bien) }
 .fe .fe-pnc-veredicto.falta { color: var(--fe-ojo) }
 
-/* CALCULADORA DE LAS CANTIDADES: signos para la casilla activa. */
-.fe .fe-calc { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 8px 0 0 }
-.fe .fe-calc > span { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--fe-gris-panel); margin-right: 4px }
-.fe .fe-calc button {
-  min-width: 48px; min-height: 44px; padding: 0 10px; border: 1.5px solid var(--fe-linea); border-radius: 2px;
-  background: var(--fe-papel); color: var(--fe-tinta); font: 800 18px var(--fe-titulo); cursor: pointer;
+/* CALCULADORA DE LAS CANTIDADES: panel fijo al pie que se abre al tocar Estibas / Saldo / Cajas. */
+.fe .fe-calc-fija {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; margin: 0;
+  display: block; padding: 10px 12px calc(12px + env(safe-area-inset-bottom));
+  background: var(--fe-papel); border-top: 3px solid var(--fe-tinta);
+  box-shadow: 0 -10px 28px rgba(0, 0, 0, .28);
+  max-width: 560px; margin-inline: auto;
 }
-.fe .fe-calc button.igual { background: var(--fe-tinta); border-color: var(--fe-tinta); color: var(--fe-papel) }
-.fe .fe-calc button:focus-visible { outline: 2px solid var(--fe-tinta); outline-offset: 2px }
-.fe .fe-calc-vista { margin: 6px 0 0; font-size: 14px; color: var(--fe-tinta) }
-.fe .fe-calc-vista .ojo { color: var(--fe-ojo) }
+/* con el panel arriba la página gana espacio al final para poder subir la casilla por encima de él */
+.fe:has(.fe-calc-fija) { padding-bottom: 330px }
+.fe .fe-calc-cab { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 0 8px }
+.fe .fe-calc-cab > span { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--fe-gris-panel); white-space: nowrap }
+.fe .fe-calc-vista { margin: 0; font: 800 22px var(--fe-titulo); color: var(--fe-tinta); text-align: right; min-width: 0; overflow-wrap: anywhere }
+.fe .fe-calc-vista i { font: 500 14px var(--fe-cuerpo, inherit); color: var(--fe-gris-panel) }
+.fe .fe-calc-vista .ojo { color: var(--fe-ojo); font-size: 14px }
+.fe .fe-calc-teclas { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px }
+.fe .fe-calc-teclas button {
+  min-height: 48px; padding: 0 6px; border: 1.5px solid var(--fe-linea); border-radius: 2px;
+  background: var(--fe-papel); color: var(--fe-tinta); font: 800 22px var(--fe-titulo); cursor: pointer;
+  touch-action: manipulation;
+}
+.fe .fe-calc-teclas button.op { background: var(--fe-fondo, #eef1f5) }
+.fe .fe-calc-teclas button.igual { background: var(--fe-tinta); border-color: var(--fe-tinta); color: var(--fe-papel) }
+.fe .fe-calc-teclas button.listo { grid-column: 1 / -1; font-size: 17px; letter-spacing: .06em; text-transform: uppercase }
+.fe .fe-calc-teclas button:active { filter: brightness(.9) }
+.fe .fe-calc-teclas button:focus-visible { outline: 2px solid var(--fe-tinta); outline-offset: 2px }

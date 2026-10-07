@@ -41,6 +41,8 @@ export function Riesgo({ r, bodega, sinContar, ultimo, activas, barra }: {
   const [filtro, setFiltro] = useState<Franja | "riesgo" | "todos">("riesgo");
   const [buscar, setBuscar] = useState("");
   const [abierto, setAbierto] = useState<MaterialRiesgo | null>(null);
+  /* LA LISTA DE MATERIALES entra CERRADA: se abre si se quiere. */
+  const [lista_, setLista_] = useState(false);
   const [todos, setTodos] = useState(false);
   const [pdf, setPdf] = useState(false);
   const caja = useRef<HTMLDivElement>(null);
@@ -70,7 +72,7 @@ export function Riesgo({ r, bodega, sinContar, ultimo, activas, barra }: {
   const [bajar, setBajar] = useState<string | null>(null);
   const verPeor = () => {
     if (!peor) return;
-    setBuscar(""); setFiltro("riesgo"); setTodos(true); setAbierto(peor); setBajar(peor.codigo);
+    setBuscar(""); setFiltro("riesgo"); setTodos(true); setLista_(true); setAbierto(peor); setBajar(peor.codigo);
   };
   useEffect(() => {
     if (!bajar) return;
@@ -289,16 +291,20 @@ export function Riesgo({ r, bodega, sinContar, ultimo, activas, barra }: {
       )}
 
       {/* ---------- LOS MATERIALES ---------- */}
-      <section className="ir-card">
+      <section className={"ir-card ir-plegable" + (lista_ ? " abierta" : "")}>
         <div className="ir-th">
-          <b>{filtro === "riesgo" ? "Materiales en riesgo" : filtro === "todos" ? "Todos los materiales" : info(filtro).rot}</b>
-          <input type="search" placeholder="Buscar código, material o ubicación" value={buscar} onChange={(e) => setBuscar(e.target.value)} aria-label="Buscar" />
-          <div className="ir-chips">
+          <button type="button" className="ir-tgl" aria-expanded={lista_} onClick={() => setLista_((v) => !v)}>
+            <b>{filtro === "riesgo" ? "Materiales en riesgo" : filtro === "todos" ? "Todos los materiales" : info(filtro).rot}</b>
+            <span className="ir-tgl-n">{nf.format(lista.length)} {lista.length === 1 ? "material" : "materiales"}</span>
+            <svg className="ir-tgl-chev" viewBox="0 0 24 24" aria-hidden><path d="M6 9l6 6 6-6" /></svg>
+          </button>
+          {lista_ && <input type="search" placeholder="Buscar código, material o ubicación" value={buscar} onChange={(e) => setBuscar(e.target.value)} aria-label="Buscar" />}
+          {lista_ && <div className="ir-chips">
             <button type="button" className={filtro === "riesgo" ? "on" : ""} onClick={() => setFiltro("riesgo")}>En riesgo <em>{enRiesgoL.length}</em></button>
             <button type="button" className={filtro === "todos" ? "on" : ""} onClick={() => setFiltro("todos")}>Todos <em>{r.materiales.length}</em></button>
-          </div>
+          </div>}
         </div>
-        {vistos.length === 0 ? <p className="ir-vacio">{buscar ? "Nada coincide con la búsqueda." : "Nada en esta franja."}</p> : (
+        {lista_ && (vistos.length === 0 ? <p className="ir-vacio">{buscar ? "Nada coincide con la búsqueda." : "Nada en esta franja."}</p> : (
           <div className="ir-lista">
             {vistos.map((m) => {
               const on = abierto?.codigo === m.codigo;
@@ -355,8 +361,8 @@ export function Riesgo({ r, bodega, sinContar, ultimo, activas, barra }: {
               );
             })}
           </div>
-        )}
-        {lista.length > 40 && !todos && <button type="button" className="ir-mas" onClick={() => setTodos(true)}>Ver los {lista.length}</button>}
+        ))}
+        {lista_ && lista.length > 40 && !todos && <button type="button" className="ir-mas" onClick={() => setTodos(true)}>Ver los {lista.length}</button>}
       </section>
 
     </div>

@@ -1609,6 +1609,13 @@ createRoot(document.getElementById("r")!).render(<Contar bodegaId="b1"
 
     paso = "montarla";
     const pgm = await navegador.newPage();
+    /* El panel de la calculadora tapa la barra de abajo mientras hay una cantidad en edición, igual que un teclado:
+       quien cuenta toca «Listo» antes de «Anotar». La prueba hace lo mismo. */
+    const clickOriginal = pgm.click.bind(pgm);
+    pgm.click = async (sel, ...r) => {
+      if (!/fe-calc|fe-cuanto-campo/.test(String(sel)) && await pgm.locator(".fe-calc-fija").count()) await clickOriginal(".fe-calc-fija button.listo");
+      return clickOriginal(sel, ...r);
+    };
     await pgm.setViewportSize({ width: 390, height: 900 });
     await pgm.setContent(`<!doctype html><html><head><meta charset="utf-8">
       <style>${glob}${shell}${fefo} html,body{margin:0}</style></head>
@@ -1817,6 +1824,28 @@ createRoot(document.getElementById("r")!).render(<Contar bodegaId="b1"
     ok2(await pgm.locator(".fe-cuanto-bloque.fe-apagado").count() === 0, "con LLENO escogido «Cuánto» debía encenderse");
     ok2(await pgm.locator(".fe-que-vence.opcional").count() === 1, "el cilindro no debía pedir fecha de vencimiento");
     /* CALCULADORA: 3 × 4 con los botones, se ve «= 12» y «=» deja el 12 en la casilla. */
+    ok2(await pgm.locator(".fe-calc-fija").count() === 0, "la calculadora no debía estar abierta antes de tocar la cantidad");
+    await pgm.click(".fe-cuanto-campo input >> nth=0");
+    await pgm.waitForTimeout(250);
+    ok2(await pgm.locator(".fe-calc-fija").isVisible(), "al tocar Estibas la calculadora NO se abrió");
+    ok2((await pgm.getAttribute(".fe-cuanto-campo input >> nth=0", "inputmode")) === "none", "la cantidad debía suprimir el teclado del celular (inputmode=none)");
+    if (process.env.FOTO_CALC) await pgm.screenshot({ path: process.env.FOTO_CALC });
+    const caja = await pgm.locator(".fe-calc-fija").boundingBox(), vp = pgm.viewportSize();
+    ok2(!!caja && caja.y >= 0 && caja.y + caja.height <= vp.height + 1 && caja.height >= 200, "la calculadora no queda completa a la vista: " + JSON.stringify(caja) + " vs " + JSON.stringify(vp));
+    const cx = await pgm.locator(".fe-cuanto-campo input").first().boundingBox();
+    ok2(cx.y + cx.height <= caja.y + 1, "la casilla de Estibas quedó tapada por la calculadora: casilla " + JSON.stringify(cx) + " panel " + JSON.stringify(caja));
+    /* con los botones del panel, sin teclado: 7 × 6 */
+    await pgm.click('.fe-calc-fija button[aria-label="Número 7"]');
+    await pgm.click('.fe-calc-fija button[aria-label="Signo ×"]');
+    await pgm.click('.fe-calc-fija button[aria-label="Número 6"]');
+    ok2((await pgm.inputValue(".fe-cuanto-campo input >> nth=0")) === "7×6", "los botones del panel no escribieron 7×6: " + await pgm.inputValue(".fe-cuanto-campo input >> nth=0"));
+    ok2(/7×6 = 42/.test(await pgm.textContent(".fe-calc-vista")), "el panel no muestra 7×6 = 42");
+    await pgm.click('.fe-calc-fija button[aria-label="Borrar el último carácter"]');
+    await pgm.click('.fe-calc-fija button[aria-label="Borrar el último carácter"]');
+    await pgm.click('.fe-calc-fija button[aria-label="Borrar el último carácter"]');
+    ok2((await pgm.inputValue(".fe-cuanto-campo input >> nth=0")) === "", "⌫ no vació la casilla");
+    await pgm.click('.fe-calc-fija button.listo'); await pgm.waitForTimeout(100);
+    ok2(await pgm.locator(".fe-calc-fija").count() === 0, "«Listo» no cerró la calculadora");
     await pgm.click(".fe-cuanto-campo input >> nth=0");
     await pgm.keyboard.type("3");
     await pgm.click('.fe-calc button[aria-label="Signo ×"]');
@@ -1828,6 +1857,7 @@ createRoot(document.getElementById("r")!).render(<Contar bodegaId="b1"
     await pgm.fill(".fe-cuanto-campo input >> nth=0", "2+3*4");   /* con el teclado de un computador, y se resuelve al salir de la casilla */
     await pgm.locator(".fe-cuanto-campo input").nth(1).focus();
     ok2((await pgm.inputValue(".fe-cuanto-campo input >> nth=0")) === "14", "2+3*4 debía quedar en 14 al salir de la casilla: " + await pgm.inputValue(".fe-cuanto-campo input >> nth=0"));
+    await pgm.click('.fe-calc-fija button.listo'); await pgm.waitForTimeout(100);
     await pgm.evaluate(() => { window.__llamadas = [] });
     await pgm.click(".fe-anotar .btn.grande"); await pgm.waitForTimeout(400);
     const cil = await pgm.evaluate(() => (window.__llamadas ?? []).find((c) => c.fn === "conteo_fefo_agregar")?.args ?? null);
