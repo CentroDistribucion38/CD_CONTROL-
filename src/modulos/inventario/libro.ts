@@ -243,7 +243,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
   for (const x of porUbi.values()) if (x.capacidad && x.estibas > x.capacidad)
     ojos.push({ tipo: "Sobre capacidad", grave: false, ubicacion: x.ubicacion, codigo: "", material: "", detalle: `Hay ${x.estibas} estibas y caben ${x.capacidad}.`, recorrido: "" });
   for (const l of reemplazados)
-    ojos.push({ tipo: "Reemplazado", grave: false, ubicacion: ub(l), codigo: l.codigo, material: l.material, detalle: `Esa ubicación se volvió a contar ese día: vale el recorrido más reciente. Aquí decía ${Number(l.total_cajas)} cajas.`, recorrido: l.conteo });
+    ojos.push({ tipo: "Reemplazado", grave: false, ubicacion: ub(l), codigo: l.codigo, material: l.material, detalle: `Esa ubicación (y zona) se volvió a contar: vale el recorrido más reciente. Aquí decía ${Number(l.total_cajas)} cajas.`, recorrido: l.conteo });
   const graves = ojos.filter((o) => o.grave).length;
 
   /* Lo que nadie caminó ese día. */
@@ -406,7 +406,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
       letra(10, graves ? ROJO : VERDE, true, false), { alignment: { vertical: "middle" }, border: { left: { style: "thick", color: { argb: graves ? ROJO : VERDE } } } });
     if (graves) h.getCell(f, 2).font = { ...letra(10, ROJO, true), underline: true };
     f += 1; alto(f, 43); unir(f, 2, 9);
-    pon(f, 2, "La base toma, de cada ubicación, el ÚLTIMO recorrido del día que pasó por ella: una calle caminada dos veces no se suma dos veces. El detalle está en las hojas Base, Por material, Por ubicación y Sin contar. Solo cuenta lo ya ENVIADO (los borradores, que alguien está contando ahora, no entran). La hoja Base trae los mismos renglones que «La base» de la pantalla, sin recortar. Las horas son de Colombia.",
+    pon(f, 2, "La base toma, de cada ubicación y zona (RETORNO, BAJA, LAVADO…), el ÚLTIMO recorrido que pasó por ella: una calle caminada dos veces no se suma dos veces, pero contar el producto de un módulo no borra el envase que otro contó en su zona. El detalle está en las hojas Base, Por material, Por ubicación y Sin contar. Solo cuenta lo ya ENVIADO (los borradores, que alguien está contando ahora, no entran). La hoja Base trae los mismos renglones que «La base» de la pantalla, sin recortar. Las horas son de Colombia.",
       letra(8, GRIS, false, true), { alignment: { wrapText: true, vertical: "top" } });
     h.pageSetup = { orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 1, horizontalCentered: true };
     h.pageSetup.printArea = `A1:J${f}`;

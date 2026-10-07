@@ -11,9 +11,13 @@ import type { Renglon, ConteoFefo } from "./fefo";
    a qué: «Reemplazó a -01 (9:12)» y «antes 216».
 
    «Último» se mide por cuándo se ENVIÓ el recorrido (si no, por su fecha).
-   La ubicación se reemplaza ENTERA: si el recorrido más nuevo la contó, los
-   renglones de los anteriores en esa ubicación dejan de valer, tengan o no
-   el mismo material.
+   SE REEMPLAZA POR UBICACIÓN Y ZONA. Una ubicación tiene su sitio y, a veces,
+   una zona dentro de él: la pila de envase en RETORNO, en BAJA, en LAVADO… (la
+   «condición del envase» que se anota al contar). Son cosas distintas que
+   conviven en el mismo módulo: volver a contar C02_DER con producto NO borra
+   las 60 cajas sueltas que otro recorrido contó en «C02_DER RETORNO». Dentro de
+   la misma ubicación y la misma zona sí se reemplaza ENTERA: el recorrido más
+   nuevo manda, tenga o no el mismo material.
    =================================================================== */
 export type Vigente = Renglon & {
   /** El recorrido más reciente de los que ESTE dejó sin valor en esa ubicación; null si nadie. */
@@ -33,7 +37,7 @@ export type Cruce = {
   actualiza: Map<string, { ubicaciones: number; de: string[] }>;
 };
 
-const clave = (l: Renglon) => l.ubicacion_id ?? l.ubicacion ?? "—";
+const clave = (l: Renglon) => `${l.ubicacion_id ?? l.ubicacion ?? "—"}|${l.estado_envase ?? ""}`;
 const num = (x: unknown) => { const n = Number(x); return Number.isFinite(n) ? n : 0 };
 
 export function cruzar(lineas: Renglon[], conteos: ConteoFefo[]): Cruce {
