@@ -183,8 +183,8 @@ export async function informeRiesgo(r: DatosRiesgo, o: { bodega: string; unidad:
     /* ---------- LA FRASE ---------- */
     const urg = r.franjas.vencido.materiales + r.franjas.pasado.materiales;
     pdf.setFont("helvetica", "normal"); pdf.setFontSize(9.5); pdf.setTextColor(...TINTA);
-    const frase = `${urg ? `${urg} material${urg === 1 ? "" : "es"} ya ${urg === 1 ? "está vencido o no alcanza" : "están vencidos o no alcanzan"} a salir con la vida útil mínima.` : "Nada vencido ni pasado de salida."} `
-      + `${r.franjas.semana.materiales ? `${r.franjas.semana.materiales} tienen que salir esta semana. ` : ""}`
+    const frase = `${urg ? `${urg} material${urg === 1 ? "" : "es"} ${urg === 1 ? "vencido o por debajo" : "vencidos o por debajo"} de la vida útil mínima de despacho.` : "Sin producto vencido ni por debajo de la vida útil mínima."} `
+      + `${r.franjas.semana.materiales ? `${r.franjas.semana.materiales} con salida crítica (0–7 días). ` : ""}`
       + `En total hay ${nf.format(U ? r.totalUnidades : r.totalCajas)} ${o.unidad} contadas en ${r.ubicaciones} ubicaciones.`;
     pdf.text(pdf.splitTextToSize(frase, AN), M, y); y += 13;
 

@@ -36,13 +36,13 @@ import { cruzar } from "./base-cruce";
 export type Franja = "vencido" | "pasado" | "semana" | "quince" | "mes" | "ok" | "sinfecha";
 
 export const FRANJAS: { clave: Franja; rot: string; corto: string; que: string }[] = [
-  { clave: "vencido", rot: "Ya vencido", corto: "Vencido", que: "pasó su fecha de vencimiento: no se puede despachar" },
-  { clave: "pasado", rot: "Ya no alcanza a salir", corto: "Pasó de salida", que: "no llega al cliente con la vida útil mínima" },
-  { clave: "semana", rot: "Sale esta semana", corto: "0–7 días", que: "tiene que salir en los próximos 7 días" },
-  { clave: "quince", rot: "Sale en 8 a 15 días", corto: "8–15 días", que: "hay que programarlo" },
-  { clave: "mes", rot: "Sale en 16 a 30 días", corto: "16–30 días", que: "vigilar" },
-  { clave: "ok", rot: "Con margen", corto: "+30 días", que: "más de un mes para salir" },
-  { clave: "sinfecha", rot: "Sin fecha", corto: "Sin fecha", que: "no se le puede calcular cuándo sale" },
+  { clave: "vencido", rot: "Vencido · fuera de fecha", corto: "Vencido", que: "superó su fecha de vencimiento: no se puede despachar" },
+  { clave: "pasado", rot: "Bajo vida útil mínima", corto: "Bajo mínimo", que: "llegaría al cliente con menos vida útil que la mínima exigida" },
+  { clave: "semana", rot: "Salida crítica · 0–7 d", corto: "0–7 días", que: "debe despacharse dentro de los próximos 7 días" },
+  { clave: "quince", rot: "Salida próxima · 8–15 d", corto: "8–15 días", que: "requiere programación de despacho" },
+  { clave: "mes", rot: "Seguimiento · 16–30 d", corto: "16–30 días", que: "monitorear rotación" },
+  { clave: "ok", rot: "Cobertura > 30 d", corto: "+30 días", que: "más de 30 días de margen para despacho" },
+  { clave: "sinfecha", rot: "Sin fecha de vencimiento", corto: "Sin fecha", que: "no es posible calcular la fecha límite de despacho" },
 ];
 
 export function franja(r: Pick<Renglon, "dias_para_vencer" | "dias_para_salir">): Franja {
@@ -172,7 +172,7 @@ export function medirRiesgo(lineas: Renglon[], conteos: ConteoFefo[], uxcPorSku:
   const materiales = todos.filter((m) => !envases.has(m.codigo));
 
   /* ---------- LAS PRÓXIMAS 8 SEMANAS ---------- */
-  const semanas = Array.from({ length: 9 }, (_, i) => ({ rot: i === 0 ? "Pasó" : i === 1 ? "Esta" : `S+${i - 1}`, cajas: 0, unidades: 0 }));
+  const semanas = Array.from({ length: 9 }, (_, i) => ({ rot: i === 0 ? "Vencidas" : i === 1 ? "S0" : `S+${i - 1}`, cajas: 0, unidades: 0 }));
   for (const l of foto) {
     if (l.tipo_material === "ENVASE" || l.dias_para_salir == null) continue;
     const i = l.dias_para_salir < 0 || franja(l) === "vencido" ? 0 : Math.floor(l.dias_para_salir / 7) + 1;

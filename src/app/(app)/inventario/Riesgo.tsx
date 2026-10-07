@@ -98,24 +98,24 @@ export function Riesgo({ r, bodega, sinContar, ultimo, activas, barra }: {
       <header className="ir-top">
         <div>
           <p className="ir-o">INVENTARIO · RIESGO DE VENCIMIENTO · {bodega}</p>
-          <h1>Qué se vence y dónde está</h1>
+          <h1>Riesgo de vencimiento por ubicación</h1>
           {/* LA FRASE DICE LO QUE PASA HOY, en palabras. «Una sola
               referencia está vencida: Poker R 330cc X30, 540 cajas, en
               una ubicación»: eso se entiende sin mirar ninguna cifra. */}
           <p className="ir-frase">
             {peor ? (
               <>
-                {enRiesgoL.length === 1 ? "Una sola referencia" : `${enRiesgoL.length} referencias`}{" "}
-                {peor.franja === "vencido" ? (enRiesgoL.length === 1 ? "está vencida" : "están en riesgo")
-                  : enRiesgoL.length === 1 ? "está en riesgo" : "están en riesgo"}:{" "}
+                {enRiesgoL.length === 1 ? "1 referencia" : `${enRiesgoL.length} referencias`}{" "}
+                {peor.franja === "vencido" ? (enRiesgoL.length === 1 ? "con producto vencido" : "con riesgo de vencimiento")
+                  : enRiesgoL.length === 1 ? "con riesgo de vencimiento" : "con riesgo de vencimiento"}:{" "}
                 <b className="mal">{peor.nombre}, {cant(peor.enRiesgoCajas, peor.enRiesgoUnidades)} {U ? "unidades" : "cajas"}</b>,
                 {" "}en {peor.sitios.length === 1 ? "una ubicación" : `${peor.sitios.length} ubicaciones`}.
-                {enRiesgoL.length === 1 && <> Nada más entra a riesgo en los próximos 30 días.</>}
+                {enRiesgoL.length === 1 && <> Sin otras referencias con vencimiento en los próximos 30 días.</>}
               </>
             ) : r.totalCajas === 0 ? (
               <>No hay producto terminado en esta foto, así que no hay vencimientos que medir.</>
             ) : (
-              <>Nada vencido ni por salir en los próximos 30 días. La bodega está con margen.</>
+              <>Sin producto vencido ni con salida programada en los próximos 30 días: cobertura adecuada.</>
             )}
             {" "}Foto de {r.recorridos} recorrido{r.recorridos === 1 ? "" : "s"}{r.desde && <> · {fecha(r.desde)}{r.hasta !== r.desde && <> al {fecha(r.hasta)}</>}</>}.
           </p>
@@ -213,16 +213,16 @@ export function Riesgo({ r, bodega, sinContar, ultimo, activas, barra }: {
                   <div className="v mal">{pctBodega(U ? (peor.enRiesgoUnidades ?? 0) : peor.enRiesgoCajas).toLocaleString("es-CO", { maximumFractionDigits: 1 })} %</div></div>
                 <button type="button" className="ver" onClick={() => setAbierto(peor)}>
                   <svg viewBox="0 0 24 24" aria-hidden><path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z" /><circle cx="12" cy="10" r="2.6" /></svg>
-                  Ver dónde está ›
+                  Ver ubicaciones ›
                 </button>
               </div>
             </>
           ) : (
             <>
-              <div className="ir-hero-1"><span className="ir-pill ok">Con margen</span><span>nada que sacar con afán</span></div>
+              <div className="ir-hero-1"><span className="ir-pill ok">Cobertura {">"} 30 d</span><span>sin despachos urgentes por vencimiento</span></div>
               <div className="ir-hero-2">
                 <p className="n bien">{cant(r.totalCajas, r.totalUnidades)}<small>{U ? "UNIDADES" : "CAJAS"} EN LA BODEGA</small></p>
-                <div className="qu"><h2>Nada vencido ni por salir</h2>
+                <div className="qu"><h2>Sin vencidos ni salidas próximas</h2>
                   <p className="meta">{r.materiales.length} materiales · {r.ubicaciones} ubicaciones</p></div>
               </div>
             </>
@@ -277,8 +277,8 @@ export function Riesgo({ r, bodega, sinContar, ultimo, activas, barra }: {
           rejilla de ceros que no dice nada. */}
       {r.semanas.some((s) => (U ? s.unidades : s.cajas) > 0) && (
         <section className="ir-card ir-sem-caja">
-          <div className="ir-h"><h2>Cuándo tiene que salir</h2><span>{U ? "unidades" : "cajas"} por semana de salida</span></div>
-          <div className="ir-sem" role="img" aria-label="Cantidad que tiene que salir por semana">
+          <div className="ir-h"><h2>Calendario de salida</h2><span>{U ? "unidades" : "cajas"} por semana de despacho</span></div>
+          <div className="ir-sem" role="img" aria-label="Cantidad a despachar por semana">
             {r.semanas.map((s, i) => {
               const v = U ? s.unidades : s.cajas;
               const t = i === 0 ? "r" : i === 1 ? "n" : i <= 3 ? "a" : "g";
@@ -290,7 +290,7 @@ export function Riesgo({ r, bodega, sinContar, ultimo, activas, barra }: {
               );
             })}
           </div>
-          <p className="ir-dice">«Pasó» es lo que ya debió salir. «Esta» son los próximos 7 días.</p>
+          <p className="ir-dice">«Vencidas»: fecha de salida superada. «S0»: próximos 7 días; S1…: semanas siguientes.</p>
         </section>
       )}
 

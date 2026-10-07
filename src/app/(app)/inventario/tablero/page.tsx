@@ -44,7 +44,7 @@ const dia = (s: string | null) =>
 function Hojas({ vista }: { vista: "fefo" | "tiempos" | "evidencias" }) {
   return (
     <nav className="tp-tabs" aria-label="Hojas del tablero">
-      <Link href="/inventario/tablero" aria-current={vista === "fefo" ? "page" : undefined} className={vista === "fefo" ? "on" : ""}>Qué se vence</Link>
+      <Link href="/inventario/tablero" aria-current={vista === "fefo" ? "page" : undefined} className={vista === "fefo" ? "on" : ""}>Riesgo de vencimiento</Link>
       <Link href="/inventario/tablero?vista=tiempos" aria-current={vista === "tiempos" ? "page" : undefined} className={vista === "tiempos" ? "on" : ""}>Tiempos de conteo</Link>
       <Link href="/inventario/tablero?vista=evidencias" aria-current={vista === "evidencias" ? "page" : undefined} className={vista === "evidencias" ? "on" : ""}>Evidencias</Link>
     </nav>
@@ -249,7 +249,7 @@ export default async function InventarioTableroPage({ searchParams }: { searchPa
         <section className="cabeza">
           <div>
             <p className="ojo">INVENTARIO · FEFO{bodega ? ` · ${bodega.codigo}` : ""}</p>
-            <h1>Qué se vence y dónde está</h1>
+            <h1>Riesgo de vencimiento por ubicación</h1>
           </div>
         </section>
       )}
