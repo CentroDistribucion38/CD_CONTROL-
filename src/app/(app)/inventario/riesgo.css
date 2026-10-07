@@ -92,7 +92,7 @@
 .ir-chips button.on { background: #141414; border-color: #141414; color: #fff } .ir-chips button.on em { color: #FFC000 }
 .ir-lista { display: flex; flex-direction: column }
 .ir-m {
-  display: grid; grid-template-columns: 124px minmax(0, 2fr) repeat(4, minmax(72px, .75fr)) 20px; gap: 14px; align-items: center; text-align: left;
+  display: grid; grid-template-columns: 156px minmax(0, 2fr) repeat(4, minmax(72px, .75fr)) 20px; gap: 14px; align-items: center; text-align: left;
   padding: 12px 22px; border: 0; border-top: 1px solid #F2F2EF; background: none; cursor: pointer; font: inherit; color: inherit; width: 100%;
 }
 .ir-m:hover { background: #FFFDF5 }
@@ -146,7 +146,7 @@
   .ir-alertas { grid-template-columns: repeat(3, minmax(0, 1fr)) }
   .ir-dos, .ir-duo { grid-template-columns: minmax(0, 1fr) }
   .ir-fr { grid-template-columns: repeat(2, minmax(0, 1fr)) }
-  .ir-m { grid-template-columns: 124px minmax(0, 1fr) repeat(3, minmax(64px, auto)) 20px }
+  .ir-m { grid-template-columns: 156px minmax(0, 1fr) repeat(3, minmax(64px, auto)) 20px }
   .ir-m .d2 { display: none }
 }
 @media (max-width: 700px) {

@@ -149,6 +149,12 @@ for (const ancho of [1300, 820, 390, 360]) {
       const chicos = [...document.querySelectorAll(".ir button")].filter((b) => { const r = b.getBoundingClientRect(); return r.width && r.height < 40 }).map((b) => b.className + ":" + b.textContent.slice(0, 20));
       return { lado: document.documentElement.scrollWidth - innerWidth, fuera, chicos };
     }, paso);
+    if (paso === "lista") {
+      const pisa = await pg.evaluate(() => [...document.querySelectorAll(".ir-m")].filter((m) => {
+        const p = m.querySelector(".ir-pill").getBoundingClientRect(), q = m.querySelector(".que").getBoundingClientRect();
+        return p.width && p.bottom > q.top + 1 && p.top < q.bottom - 1 && p.right > q.left + 0.5 }).length);
+      ok(pisa === 0, `${ancho}: la chapa de la franja se sobrepone al nombre en ${pisa} filas`);
+    }
     ok(g.lado <= 0, `${ancho} ${paso}: la página se arrastra ${g.lado} px`);
     ok(!g.fuera.length, `${ancho} ${paso}: se sale ${g.fuera.join(", ")}`);
     ok(!g.chicos.length, `${ancho} ${paso}: botones chicos ${g.chicos}`);
