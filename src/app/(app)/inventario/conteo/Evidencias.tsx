@@ -311,6 +311,14 @@ export function Evidencias() {
           <h2 className="tp-h ev-mod"><button type="button" className="ev-mb" aria-expanded={ab.has(4)} aria-controls="ev-m4" onClick={() => alt(4)}><span>Módulo 4</span> PNC y política de bloqueo <small>cumple si tiene rótulo y bloqueo mecánico</small><svg className="ev-chev" viewBox="0 0 24 24" aria-hidden><path d="M6 9l6 6 6-6" /></svg></button></h2>
           <div id="ev-m4" className="ev-cuerpo" hidden={!ab.has(4)}>
           {pnc.length > 0 && (
+            <div className="ev-kpis ev-kpis-pnc" aria-label="Total de PNC">
+              <div className="tp-kpi"><span>PNC encontrados</span><b>{nf.format(an.pnc.total)}</b></div>
+              <div className="tp-kpi ev-k-pnc"><span>Total en cajas</span><b>{nf.format(an.pnc.medidas.cajas)}</b></div>
+              <div className="tp-kpi ev-k-pnc"><span>Total en unidades</span><b>{nf.format(an.pnc.medidas.unidades)}</b></div>
+              <div className="tp-kpi ev-k-pnc"><span>Total en hectolitros</span><b>{hlTxt(an.pnc.medidas.hl)}</b></div>
+            </div>
+          )}
+          {pnc.length > 0 && (
             <div className="tp-tabla ev-med" tabIndex={0} aria-label="Cuánto PNC hay, en cajas, unidades y hectolitros">
               <table>
                 <thead><tr><th className="tp-izq">PNC por situación</th><th>PNC</th><th>Cajas</th><th>Unidades</th><th>Hectolitros</th></tr></thead>

@@ -133,18 +133,25 @@ export function construirInforme(a: Analisis, novs: Novedad[], o: OpcionesInform
   /* ---------- MÓDULO 4 · PNC ---------- */
   const pnc = novs.filter((n) => n.tipo === "pnc");
   B.push({ t: "modulo", n: "MÓDULO 4", titulo: "PNC y política de bloqueo", sub: "Para cada PNC: ¿tiene rótulo? ¿tiene bloqueo mecánico? Cumple la política si tiene los dos." });
+  /* LO PRIMERO: cuánto PNC hay en total, en cajas, unidades y hectolitros. */
+  const Mm = a.pnc.medidas;
   B.push({
     t: "kpis", items: [
-      { rotulo: "PNC encontrados", valor: nf.format(a.pnc.total) },
+      { rotulo: "PNC encontrados", valor: nf.format(a.pnc.total), detalle: "renglones" },
+      { rotulo: "Total en cajas", valor: nf.format(Mm.cajas), color: TIPO.pnc.color },
+      { rotulo: "Total en unidades", valor: nf.format(Mm.unidades), color: TIPO.pnc.color },
+      { rotulo: "Total en hectolitros", valor: hlTxt(Mm.hl), color: TIPO.pnc.color },
+    ],
+  });
+  B.push({
+    t: "kpis", items: [
       { rotulo: "Cumplen la política", valor: nf.format(a.pnc.cumplen), color: TEND.ya_no.color },
       { rotulo: "No cumplen", valor: nf.format(a.pnc.noCumplen), color: TEND.persiste.color },
       { rotulo: "Sin rótulo", valor: nf.format(a.pnc.sinRotulo) },
       { rotulo: "Sin bloqueo mecánico", valor: nf.format(a.pnc.sinBloqueo) },
-      { rotulo: "Sin responder", valor: nf.format(a.pnc.sinRespuesta), detalle: "renglones anteriores a la pregunta" },
     ],
   });
   /* LO QUE ES ESE PNC, UNA SOLA TABLA QUE SUMA: cuántos son y cuántas cajas, unidades y hectolitros, por situación. */
-  const Mm = a.pnc.medidas;
   const filaS = (txt: string, n: number, m: typeof Mm, fill?: string, bold?: boolean): CeldaT[] => [
     { x: txt, fill, bold: true }, { x: nf.format(n), bold }, { x: nf.format(m.cajas), bold }, { x: nf.format(m.unidades), bold }, { x: hlTxt(m.hl), bold },
   ];
