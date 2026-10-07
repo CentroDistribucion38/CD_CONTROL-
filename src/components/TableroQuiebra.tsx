@@ -744,53 +744,76 @@ function Barras({ datos, total }: {
 }
 
 /* ==================== Gráfico mensual ==================== */
+/* Se dibuja a la medida de su tarjeta: el viewBox es el tamaño real en píxeles, así
+   la letra no se encoge y las barras llenan todo el ancho y el alto disponibles
+   (antes tenía un viewBox fijo de 720×300 y quedaba chico, centrado, con vacío a los lados). */
 function GraficoMes({ prodMes, perdMes, metaDe }: {
   prodMes: Map<number, number>; perdMes: Map<number, number>; metaDe: (m: number) => number;
 }) {
-  const W = 720, H = 300, m = { t: 20, r: 12, b: 32, l: 64 };
+  const caja = useRef<HTMLDivElement>(null);
+  const [tam, setTam] = useState({ w: 720, h: 300 });
+  useEffect(() => {
+    const el = caja.current; if (!el) return;
+    const medir = () => {
+      const w = Math.round(el.clientWidth), h = Math.round(el.clientHeight);
+      if (w > 0 && h > 0) setTam((t) => (t.w === w && t.h === h ? t : { w, h }));
+    };
+    medir();
+    const ro = new ResizeObserver(medir); ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const { w: W, h: H } = tam;
+  const chico = W < 480;
+  const m = { t: 30, r: chico ? 8 : 16, b: 36, l: chico ? 46 : 60 };
   const iw = W - m.l - m.r, ih = H - m.t - m.b;
   const meses = [...prodMes.keys()].sort((a, b) => a - b);
   const filas = meses.map((mm) => {
     const prod = prodMes.get(mm) ?? 0, perd = perdMes.get(mm) ?? 0;
     return { mm, prod, perd, pct: prod ? perd / prod : 0, meta: metaDe(mm) };
   });
-  const max = Math.max(0.01, ...filas.map((f) => Math.max(f.pct, f.meta))) * 1.16;
+  const max = Math.max(0.01, ...filas.map((f) => Math.max(f.pct, f.meta))) * 1.14;
   const y = (v: number) => m.t + ih - (v / max) * ih;
   const paso = iw / Math.max(1, filas.length);
-  const an = Math.min(34, paso * 0.42);
+  const an = Math.min(64, paso * 0.58);
+  const sale = Math.max(2, Math.min(8, (paso - an) / 2 - 2));
+  const verVal = paso >= 44;
+  const fuente = chico ? 11 : 13;
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="grafico g-mes" role="img"
-         aria-label="Quiebra mensual contra la meta">
-      {[0, 1, 2, 3, 4].map((i) => {
-        const v = (max * i) / 4;
-        return (
-          <g key={i}>
-            <line x1={m.l} x2={W - m.r} y1={y(v)} y2={y(v)} className="rejilla" />
-            <text x={m.l - 10} y={y(v) + 4} className="eje" textAnchor="end">{pf(v, 1)}</text>
-          </g>
-        );
-      })}
-      {filas.map((f, i) => {
-        const cx = m.l + paso * i + paso / 2;
-        const alto = Math.max(2, m.t + ih - y(f.pct));
-        const encima = f.pct > f.meta;
-        return (
-          <g key={f.mm}>
-            <rect x={cx - an / 2} y={y(f.pct)} width={an} height={alto}
-                  fill={encima ? "#E4002B" : "#0B4EA2"}>
-              <title>{`${MESES[f.mm - 1]}\nQuiebra ${pf(f.pct)} · Meta ${pf(f.meta)}\n${nf.format(f.perd)} de ${nf.format(f.prod)} und`}</title>
-            </rect>
-            <text x={cx} y={y(f.pct) - 8} className="val" textAnchor="middle">{pf(f.pct, 2)}</text>
-            <line x1={cx - an / 2 - 8} x2={cx + an / 2 + 8} y1={y(f.meta)} y2={y(f.meta)} className="meta" />
-            <text x={cx} y={H - 14} className="eje" textAnchor="middle">{MESES[f.mm - 1]}</text>
-          </g>
-        );
-      })}
-      {!filas.length && (
-        <text x={W / 2} y={H / 2} className="eje" textAnchor="middle">Sin datos con este filtro</text>
-      )}
-    </svg>
+    <div className="g-caja" ref={caja}>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="grafico g-mes" role="img"
+           aria-label="Quiebra mensual contra la meta">
+        {[0, 1, 2, 3, 4].map((i) => {
+          const v = (max * i) / 4;
+          return (
+            <g key={i}>
+              <line x1={m.l} x2={W - m.r} y1={y(v)} y2={y(v)} className="rejilla" />
+              <text x={m.l - 10} y={y(v) + 4} className="eje" textAnchor="end" style={{ fontSize: fuente }}>{pf(v, 1)}</text>
+            </g>
+          );
+        })}
+        {filas.map((f, i) => {
+          const cx = m.l + paso * i + paso / 2;
+          const alto = Math.max(2, m.t + ih - y(f.pct));
+          const encima = f.pct > f.meta;
+          return (
+            <g key={f.mm}>
+              <rect x={cx - an / 2} y={y(f.pct)} width={an} height={alto} rx={3}
+                    fill={encima ? "#E4002B" : "#0B4EA2"}>
+                <title>{`${MESES[f.mm - 1]}\nQuiebra ${pf(f.pct)} · Meta ${pf(f.meta)}\n${nf.format(f.perd)} de ${nf.format(f.prod)} und`}</title>
+              </rect>
+              {verVal && <text x={cx} y={Math.min(y(f.pct), y(f.meta)) - 9} className="val" textAnchor="middle" style={{ fontSize: fuente }}>{pf(f.pct, 2)}</text>}
+              <line x1={cx - an / 2 - sale} x2={cx + an / 2 + sale} y1={y(f.meta)} y2={y(f.meta)} className="meta" />
+              <text x={cx} y={H - 12} className="eje" textAnchor="middle" style={{ fontSize: fuente }}>{MESES[f.mm - 1]}</text>
+            </g>
+          );
+        })}
+        {!filas.length && (
+          <text x={W / 2} y={H / 2} className="eje" textAnchor="middle" style={{ fontSize: fuente }}>Sin datos con este filtro</text>
+        )}
+      </svg>
+    </div>
   );
 }
 

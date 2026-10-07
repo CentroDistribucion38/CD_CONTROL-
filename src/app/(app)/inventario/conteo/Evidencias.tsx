@@ -4,7 +4,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { createClient } from "@/lib/supabase/client";
 import { hoyCo, sumarDias } from "@/modulos/inventario/tiempos";
 import {
-  analizar, diaCorto, diaTxt, filtrarNovedades, letrasTipos, lecturas, TEND, TENDENCIAS, TIPO, TIPOS,
+  analizar, diaTxt, filtrarNovedades, lecturas, TEND, TENDENCIAS, TIPO, TIPOS,
   type Cobertura, type Novedad, type TipoNovedad,
 } from "@/modulos/inventario/evidencias";
 import { armarGraficas } from "@/modulos/inventario/evidencias-graficas";
@@ -234,45 +234,7 @@ export function Evidencias() {
           </div>
 
           {/* ===== MÓDULO 2 ===== */}
-          <h2 className="tp-h ev-mod"><span>Módulo 2</span> Mapa de calor: ubicación × día <small>ayer sí, hoy no, hoy sí otra vez</small></h2>
-          {an.filas.length === 0 ? <p className="fe-vacio">Sin novedades en este periodo.</p> : (
-            <>
-              <div className="tp-tabla ev-mapa" tabIndex={0} aria-label="Mapa de calor de novedades por ubicación y día">
-                <table>
-                  <thead>
-                    <tr>
-                      <th className="tp-izq ev-fija">Ubicación</th><th className="tp-izq">Tendencia</th>
-                      {an.dias.map((d) => <th key={d} className="ev-dia" title={diaTxt(d)}><span>{Number(d.slice(8))}</span><small>{diaCorto(d).split(" ")[1]}</small></th>)}
-                      <th>Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {an.filas.map((f) => (
-                      <tr key={f.id}>
-                        <th scope="row" className="tp-izq ev-fija">{f.clave}</th>
-                        <td className="tp-izq"><span className="ev-chip" style={{ ["--ev-c" as string]: TEND[f.tendencia].color }}>{TEND[f.tendencia].nombre}</span></td>
-                        {f.celdas.map((ce, i) => (
-                          <td key={i} className={"ev-c " + (ce.estado === "novedad" ? `nov n${Math.min(ce.n, 3)}` : ce.estado)}
-                            title={`${f.clave} · ${diaTxt(an.dias[i])} · ${ce.estado === "novedad" ? ce.tipos.map((t) => TIPO[t].nombre).join(", ") + (ce.n > 1 ? ` (${ce.n})` : "") : ce.estado === "limpia" ? "contada, sin novedad" : "no se contó"}`}>
-                            {ce.estado === "novedad" ? letrasTipos(ce.tipos) : <span className="ev-v">{ce.estado === "limpia" ? "Sin novedad" : "No se contó"}</span>}
-                          </td>
-                        ))}
-                        <td className="tp-rph">{nf.format(f.total)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <p className="ev-leyenda">
-                <span><i className="ev-q n1" />1 novedad</span><span><i className="ev-q n2" />2</span><span><i className="ev-q n3" />3 o más</span>
-                <span><i className="ev-q limpia" />Contada, sin novedad</span><span><i className="ev-q sin" />No se contó ese día</span>
-                <span className="ev-letras">{TIPOS.map((t) => `${t.letra} = ${t.nombre}`).join(" · ")}</span>
-              </p>
-            </>
-          )}
-
-          {/* ===== MÓDULO 3 ===== */}
-          <h2 className="tp-h ev-mod"><span>Módulo 3</span> Tendencia por ubicación <small>si la novedad persiste, volvió, es nueva o ya se resolvió</small></h2>
+          <h2 className="tp-h ev-mod"><span>Módulo 2</span> Tendencia por ubicación <small>si la novedad persiste, volvió, es nueva o ya se resolvió</small></h2>
           <ul className="ev-defs">
             {TENDENCIAS.map((t) => <li key={t.k}><span className="ev-chip" style={{ ["--ev-c" as string]: t.color }}>{t.nombre}</span> {t.frase}</li>)}
           </ul>
@@ -296,9 +258,10 @@ export function Evidencias() {
               </table>
             </div>
           )}
+          {an.filas.length > 0 && <p className="ev-leyenda"><span className="ev-letras">{TIPOS.map((t) => `${t.letra} = ${t.nombre}`).join(" · ")}</span></p>}
 
-          {/* ===== MÓDULO 4 ===== */}
-          <h2 className="tp-h ev-mod"><span>Módulo 4</span> Dónde se concentra <small>las ubicaciones y los módulos con más novedades</small></h2>
+          {/* ===== MÓDULO 3 ===== */}
+          <h2 className="tp-h ev-mod"><span>Módulo 3</span> Dónde se concentra <small>las ubicaciones y los módulos con más novedades</small></h2>
           {imgs && (
             <div className="ev-graficas dos">
               <div className="ev-scroll"><img className="ev-img corto" src={imgs.dona.png} alt="Proporción de novedades por tipo" width={imgs.dona.w} height={imgs.dona.h} /></div>
@@ -314,8 +277,8 @@ export function Evidencias() {
             </div>
           )}
 
-          {/* ===== MÓDULO 5 ===== */}
-          <h2 className="tp-h ev-mod"><span>Módulo 5</span> PNC y política de bloqueo <small>cumple si tiene rótulo y bloqueo mecánico</small></h2>
+          {/* ===== MÓDULO 4 ===== */}
+          <h2 className="tp-h ev-mod"><span>Módulo 4</span> PNC y política de bloqueo <small>cumple si tiene rótulo y bloqueo mecánico</small></h2>
           {pnc.length === 0 ? <p className="fe-vacio">No hubo PNC en este periodo{tipos.includes("pnc") ? "" : " (el tipo PNC no está escogido)"}.</p> : (
             <div className="tp-tabla" tabIndex={0} aria-label="PNC y política de bloqueo">
               <table>
@@ -336,8 +299,8 @@ export function Evidencias() {
             </div>
           )}
 
-          {/* ===== MÓDULO 6 ===== */}
-          <h2 className="tp-h ev-mod"><span>Módulo 6</span> Evidencias <small>cada novedad con su foto{an.fotos ? ` · ${an.fotos} con foto` : ""}</small></h2>
+          {/* ===== MÓDULO 5 ===== */}
+          <h2 className="tp-h ev-mod"><span>Módulo 5</span> Evidencias <small>cada novedad con su foto{an.fotos ? ` · ${an.fotos} con foto` : ""}</small></h2>
           {vistas.length === 0 ? <p className="fe-vacio">Sin novedades en este periodo.</p> : (
             <div className="tp-tabla" tabIndex={0} aria-label="Detalle de las novedades">
               <table>

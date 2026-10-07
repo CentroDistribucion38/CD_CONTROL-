@@ -230,6 +230,9 @@
 
 .qb .cuerpo { padding: 6px 26px 22px; flex: 1; display: flex; flex-direction: column; justify-content: flex-start }
 .qb .grafico { width: 100%; height: 252px; display: block }
+/* El gráfico mensual mide su caja y se dibuja a ese tamaño: la caja crece con la tarjeta. */
+.qb .g-caja { position: relative; flex: 1 1 auto; min-height: 260px }
+.qb .g-caja .grafico { position: absolute; inset: 0; width: 100%; height: 100% }
 .qb .grafico .rejilla { stroke: var(--c-e7ecf2); stroke-width: 1 }
 .qb .grafico .meta { stroke: var(--c-8494a8); stroke-width: 2; stroke-dasharray: 5 4 }
 .qb .grafico .eje { font: 500 11.5px var(--qb-texto); fill: var(--c-8494a8) }
@@ -577,12 +580,9 @@ body.capturando .qb .acciones-informe { visibility: hidden }
 @media (max-width: 720px) {
   .qb .grafico { height: 230px }
 
-  .qb .g-mes .eje, .qb .g-mes .val { font-size: 22px }
   .qb .g-dia .eje, .qb .g-dia .val { font-size: 28px }
   .qb .g-apilado .eje, .qb .g-apilado .val { font-size: 20px }
 
-  /* con la letra más grande, el % encima de cada barra ya no cabe */
-  .qb .g-mes .val { display: none }
 
   .qb .grafico .rejilla { stroke-width: 1.6 }
   .qb .grafico .meta { stroke-width: 3 }
