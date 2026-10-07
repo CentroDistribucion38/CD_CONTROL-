@@ -87,8 +87,7 @@ export function construirInforme(a: Analisis, novs: Novedad[], o: OpcionesInform
 
   /* ---------- MÓDULO 1 · POR DÍA ---------- */
   B.push({ t: "modulo", n: "MÓDULO 1", titulo: "Tendencia por día", sub: "Cuántas novedades hubo cada día, de qué tipo, y cuántas ubicaciones se miraron." });
-  B.push({ t: "img", img: G.dias, ancho: 0.6 });
-  B.push({ t: "img", img: G.cobertura, ancho: 0.6 });
+  B.push({ t: "imgs2", a: G.dias, b: G.cobertura });
   B.push({
     t: "tabla", cols: [
       { h: "Día", w: 14, al: "l" }, { h: "Ubic. contadas", w: 11, al: "r" }, { h: "Ubic. con novedad", w: 12, al: "r" },

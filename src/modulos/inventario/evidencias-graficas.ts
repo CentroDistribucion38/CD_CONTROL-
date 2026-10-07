@@ -71,7 +71,7 @@ export function graficaDias(a: Analisis, W = 700, H = 214): Imagen {
     if (d.total > 0 && n <= 20) { fuente(g, 700, 12); g.fillStyle = TINTA; g.textAlign = "center"; g.fillText(String(d.total), x + bw / 2, y(d.total) - 9) }
     if (i % k === 0) { fuente(g, 500, 11); g.fillStyle = GRIS; g.textAlign = "center"; g.fillText(diaCorto(d.dia), x + bw / 2, T + alto + 16) }
   });
-  fuente(g, 500, 11); g.fillStyle = GRIS; g.textAlign = "left"; g.fillText("Novedades encontradas por día", L, H - 12);
+  fuente(g, 500, 11); g.fillStyle = GRIS; g.textAlign = "left"; g.fillText(W < 640 ? "Novedades por día" : "Novedades encontradas por día", L, H - 12);
   return salir(l);
 }
 
@@ -112,7 +112,7 @@ export function graficaCobertura(a: Analisis, W = 700, H = 209): Imagen {
   const k = cadaK(n, ancho, 44);
   fuente(g, 500, 11); g.fillStyle = GRIS; g.textAlign = "center";
   a.porDia.forEach((d, i) => { if (i % k === 0) g.fillText(diaCorto(d.dia), x(i), T + alto + 16) });
-  g.textAlign = "left"; g.fillText("Mismo eje para las dos líneas: cuántas ubicaciones se miraron y en cuántas hubo novedad.", L, H - 10);
+  g.textAlign = "left"; g.fillText(W < 640 ? "Mismo eje para las dos líneas." : "Mismo eje para las dos líneas: cuántas ubicaciones se miraron y en cuántas hubo novedad.", L, H - 10);
   return salir(l);
 }
 
@@ -191,5 +191,8 @@ export function armarGraficas(a: Analisis, ancho?: number): Graficas {
   const W = ancho ? Math.max(560, Math.min(1400, Math.round(ancho))) : 700;
   const hD = ancho ? Math.round(Math.max(214, Math.min(340, W * 0.28))) : 214;
   const hC = ancho ? Math.round(Math.max(209, Math.min(320, W * 0.26))) : 209;
+  /* PAPEL (PDF y Word): las dos van lado a lado, cada una a media hoja; se dibujan a 520 px para que la letra
+     salga legible a ese tamaño y las dos ocupen una franja baja, no una hoja entera. */
+  if (!ancho) return { dias: graficaDias(a, 520, 236), cobertura: graficaCobertura(a, 520, 236), dona: graficaDona(a), top: graficaTop(a), tendencias: graficaTendencias(a) };
   return { dias: graficaDias(a, W, hD), cobertura: graficaCobertura(a, W, hC), dona: graficaDona(a), top: graficaTop(a), tendencias: graficaTendencias(a) };
 }
