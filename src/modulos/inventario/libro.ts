@@ -386,7 +386,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
   };
   const SUMAS_B = ["estibas", "saldo", "cajas", "fisicas", "plast", "unid", "hl"];
   {
-    const h = wb.addWorksheet("Conteo consolidado", { properties: { tabColor: { argb: "FFD97706" } } });
+    const h = wb.addWorksheet("Conteo consolidado", { properties: { tabColor: { argb: "FFFF9100" } } });
     h.columns = CB.map((c) => ({ width: c.w }));
     cabecera(h, "Conteo consolidado del día", `${base.length.toLocaleString("es-CO")} renglones: los mismos que «La base» de la pantalla para este período  ·  ${sub}`, CB.length);
     const nums = CB.map((c, i) => (c.num ? i + 1 : 0)).filter(Boolean);
@@ -448,9 +448,9 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     wb.definedNames.add(`'${nombre}'!$A$6:$${col(cs.length)}$${fn}`, nombreRango);
   };
   const comunes = ["rec", "conto", "cuando", "calle", "modulo", "lado", "ubic", "cod", "mat", "tipo", "fam", "clase", "estibas", "saldo", "factor", "cajas", "fisicas"];
-  derivada("Conteo envase", "Conteo de envase", "FFF59E0B", (x) => x.clase !== "Producto",
+  derivada("Conteo envase", "Conteo de envase", "FFFFB000", (x) => x.clase !== "Producto",
     [...comunes, "plast", "uxc", "unid", "estenv", "averia", "pnc", "nota", "hl"], "ConteoEnvase");
-  derivada("Conteo producto", "Conteo de producto", "FFFBBF24", (x) => x.clase === "Producto",
+  derivada("Conteo producto", "Conteo de producto", "FFFFD000", (x) => x.clase === "Producto",
     [...comunes, "uxc", "unid", "fab", "venc", "dvenc", "dsal", "franja", "rota", "averia", "pnc", "nota", "hl"], "ConteoProducto");
 
   /* ================= 2c · ANÁLISIS: LAS TABLAS DINÁMICAS CON FÓRMULAS =================
