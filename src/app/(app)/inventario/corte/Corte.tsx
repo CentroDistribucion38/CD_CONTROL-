@@ -815,6 +815,18 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
                         <div><b>Dónde quedó ubicado</b><small>el módulo donde queda lo que sale · obligatorio</small></div>
                       </div>
                       <div className="cl-sb">
+                        {/* El producto que queda ubicado (el de arriba), a la vista: alinea esta columna con la del envase. */}
+                        <div className="cl-mat">
+                          <span className="cl-mat-t">Producto <em>(el que queda ubicado · el de arriba)</em></span>
+                          {matDe(f.material) ? (
+                            <div className="cl-mae">
+                              <span className="cl-mae-ic" aria-hidden>▮</span>
+                              <div><b>{matDe(f.material)!.nombre}</b><small>{matDe(f.material)!.sku}</small></div>
+                            </div>
+                          ) : (
+                            <div className="cl-mae cl-mae-vacio"><div><small>Escoge el producto arriba, en «Lo que está corriendo»</small></div></div>
+                          )}
+                        </div>
                         <div className="cl-r2 una">
                           {bloque(linea.clave, "destino", "Ubicados en", "el módulo donde queda lo que sale", true)}
                         </div>

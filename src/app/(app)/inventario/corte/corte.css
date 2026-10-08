@@ -340,7 +340,16 @@
 .fe .cl-s2 .cl-cant-c input, .fe .cl-s3 .cl-cant-c input { font-size: 16px }
 .fe .cl-s2 .cl-mas, .fe .cl-s3 .cl-mas { min-height: 34px; padding: 0 10px }
 .fe .cl-s2 .cl-mod-cab, .fe .cl-s3 .cl-mod-cab { margin-bottom: -2px }
-@media (max-width: 1180px) { .fe .cl-dos { grid-template-columns: 1fr } }
+/* ALINEADAS: las dos secciones comparten filas (título · material · módulo), así calle, módulo, lado y cantidad quedan a la misma altura. */
+.fe .cl-dos { grid-template-rows: auto auto auto }
+.fe .cl-dos > .cl-sec { grid-row: span 3; display: grid; grid-template-rows: subgrid }
+.fe .cl-dos > .cl-sec > .cl-sb { grid-row: span 2; display: grid; grid-template-rows: subgrid; align-content: start }
+.fe .cl-mae-vacio { min-height: 38px; align-items: center; color: var(--fe-gris) }
+@media (max-width: 1180px) {
+  .fe .cl-dos { grid-template-columns: 1fr; grid-template-rows: none }
+  .fe .cl-dos > .cl-sec { grid-row: auto; display: block; grid-template-rows: none }
+  .fe .cl-dos > .cl-sec > .cl-sb { grid-row: auto; display: flex; flex-direction: column; grid-template-rows: none }
+}
 
 @media (max-width: 900px) {
   .fe .cl-grid { grid-template-columns: 1fr }
