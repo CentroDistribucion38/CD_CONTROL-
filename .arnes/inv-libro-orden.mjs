@@ -50,7 +50,7 @@ for (const [col, nombre] of [[13, "Estibas completas"], [16, "Total cajas"], [20
   ok(al(base, col, 7) === "right", `«${nombre}» en datos no está a la derecha: ${al(base, col, 7)}`);
   ok(al(base, col, 6) === "right", `el título «${nombre}» no está a la derecha: ${al(base, col, 6)}`);
 }
-for (const h of wb.worksheets.filter((x) => x.name !== "Resumen"))
+for (const h of wb.worksheets.filter((x) => x.name !== "Tablero"))
   for (let c = 1; c <= 3; c++) ok(al(h, c, 6) !== "center", `hoja ${h.name}: el título de la columna ${c} sigue centrado`);
 if (fallas.length) { fallas.forEach((f) => console.log("✗ " + f)); process.exit(1) }
 console.log("✓ Excel del consolidado: ordenado por calle, módulo (01…10, luego PASILLO), lado y código; texto a la izquierda y cifras a la derecha, títulos incluidos.");

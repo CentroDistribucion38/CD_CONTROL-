@@ -56,25 +56,22 @@ o["imgs"] = len([n for n in zipfile.ZipFile("${dest}").namelist() if n.startswit
 o["total"] = b.cell(b.max_row, 1).value
 o["hora"] = str(b.cell(7, 3).value)
 o["filtro"] = bf.auto_filter.ref
-z = wb2["Resumen"]
-o["contado"] = {"cajas": z.cell(13, 2).value, "unidades": z.cell(13, 4).value, "estibas": z.cell(13, 6).value, "renglones": z.cell(13, 8).value}
-o["rotulos"] = [z.cell(12, c).value for c in (2, 4, 6, 8)]
-o["estibas_tarjetas"] = [[z.cell(12, c).value for c in (11, 13, 15, 17)], [z.cell(13, c).value for c in (11, 13, 15, 17)]]
-o["espacio"] = [[z.cell(16, c).value for c in (2, 4, 6, 8)], [z.cell(17, c).value for c in (2, 4, 6, 8)]]
-o["plastico"] = [[z.cell(16, c).value for c in (11, 13, 15, 17)], [z.cell(17, c).value for c in (11, 13, 15, 17)]]
-o["unidades"] = [[z.cell(20, c).value for c in (11, 13, 15, 17)], [z.cell(21, c).value for c in (11, 13, 15, 17)]]
-col = [z.cell(r, 2).value for r in range(1, z.max_row + 1)]
-def fila(txt, desde=1, c=2):
-    for r in range(desde, z.max_row + 1):
-        if z.cell(r, c).value == txt: return r
-rr = fila("Riesgo de vencimiento"); rt = fila("Total", rr)
-o["aclara"] = z.cell(rr, 5).value
-o["riesgo"] = {"cajas": z.cell(rt, 4).value, "rot": z.cell(rt, 2).value}
-rc = fila("Clase"); rct = fila("Total", rc)
-o["clases"] = {z.cell(r, 2).value: [z.cell(r, c).value for c in range(4, 10)] for r in range(rc + 1, rct + 1)}
-rk = fila("Calle", 1, 11); rkt = fila("Total", rk, 11)
-o["calles"] = {z.cell(r, 11).value: [z.cell(r, c).value for c in range(13, 19)] for r in range(rk + 1, rkt + 1)}
-cu = fila("Cuadre de cajas", 1, 11); o["cuadre"] = [str(z.cell(cu, 17).value), str(wb["Resumen"].cell(cu, 17).value)]
+z = wb2["Tablero"]; zf = wb["Tablero"]
+o["contado"] = {"cajas": z["R9"].value, "unidades": z["W9"].value, "estibas": z["AB9"].value, "renglones": z["M12"].value, "plast": z["AG9"].value}
+o["rotulos"] = [z[a].value for a in ("R8", "W8", "AB8", "AG8")]
+o["estibas_tarjetas"] = [[z[a].value for a in ("V17", "V18", "V19", "V20")], [z[a].value for a in ("AA17", "AA18", "AA19", "AA20")]]
+o["espacio"] = [[z[a].value for a in ("AK17", "AK18", "AK19", "AK20")], [z[a].value for a in ("AQ17", "AQ18", "AQ19", "AQ20")]]
+o["aclara"] = z["K36"].value
+o["riesgo"] = {"cajas": sum((z.cell(r, 14).value or 0) for r in range(37, 44)), "filas": [z.cell(r, 4).value for r in range(37, 44)]}
+o["clases"] = {z.cell(r, 2).value: [z[f"{L}{r}"].value for L in ("E", "H", "K", "N", "R", "U", "X")] for r in range(25, 30)}
+o["calles"] = {z.cell(r, 27).value: [z[f"{L}{r}"].value for L in ("AD", "AH", "AU")] for r in range(25, 32) if z.cell(r, 27).value}
+o["cuadre"] = [str(z["R43"].value), str(zf["R43"].value), str(zf["BA15"].value)]
+o["focos"] = [str(z["AL37"].value), str(z["AL40"].value), str(z["AL43"].value), str(z["AL46"].value)]
+o["titulo"] = [str(z["M2"].value), str(z["AO3"].value), z["AO3"].number_format]
+o["navegacion"] = [str(zf[a].value) for a in ("E6", "AM6")]
+o["cf"] = len(zf.conditional_formatting)
+o["area"] = str(zf.print_area)
+o["charts"] = [n for n in zipfile.ZipFile("${dest}").namelist() if n.startswith("xl/charts/chart")]
 m = wb2["Por material"]
 o["mats"] = [[m.cell(r, 1).value, m.cell(r, 3).value, m.cell(r, 8).value] for r in range(7, m.max_row + 1)]
 u = wb2["Por ubicación"]
@@ -87,7 +84,7 @@ o["maestro"] = [[wb2["Maestro"].cell(r, c).value for c in range(1, 7)] for r in 
 print(json.dumps(o, default=str))
 P`).toString();
 const x = JSON.parse(py);
-ok(x.hojas.join() === "Resumen,Base consolidada,Base envase,Base producto,Análisis,Por material,Por ubicación,Validar,Sin contar,Maestro", `hojas: ${x.hojas}`);
+ok(x.hojas.join() === "Tablero,Base consolidada,Base envase,Base producto,Análisis,Por material,Por ubicación,Validar,Sin contar,Maestro,Cómo leer", `hojas: ${x.hojas}`);
 ok(x.imgs === 1, "el libro no trae el logo");
 /* LA HORA ES LA DE COLOMBIA: 14:00 UTC = 09:00 en Bogotá (antes salía 14:00, cinco horas adelantada). */
 ok(x.hora === "2026-09-22 09:00:00", `«Contado» en la hoja Base consolidada: ${x.hora} (debe ser 2026-09-22 09:00:00, hora de Colombia)`);
@@ -128,21 +125,28 @@ ok(x.filtro === "A6:AE14", `filtro de la base: ${x.filtro}`);
    1.360, o el Excel enseña 17 estibas al lado de 1.200 cajas y nadie
    sabe cuál de las dos está mala. Este es el defecto que traía PRUEBA:
    un día de solo envase salía en ceros con las estibas puestas. */
-ok(JSON.stringify(x.rotulos) === JSON.stringify(["CAJAS", "UNIDADES", "ESTIBAS FÍSICAS", "RENGLONES"]), `las tarjetas de LO CONTADO se movieron de fila: ${x.rotulos}`);
+ok(JSON.stringify(x.rotulos) === JSON.stringify(["CAJAS", "UNIDADES", "ESTIBAS FÍSICAS", "CAJAS PLÁSTICAS"]), `las cifras grandes del Tablero se movieron: ${x.rotulos}`);
 ok(x.contado.cajas === 1360, `LO CONTADO · cajas: ${x.contado.cajas} (1360 con el envase)`);
+ok(x.contado.renglones === 8, `renglones: ${x.contado.renglones}`);
 ok(x.contado.estibas === 17, `LO CONTADO · estibas: ${x.contado.estibas}`);
 ok(x.contado.renglones === 8, `LO CONTADO · renglones: ${x.contado.renglones}`);
 /* 1.040 cajas traen factor (las 160 de Póker y las 160 del código fuera
    del maestro no), y 160 de esas 1.040 son canastas: si el envase se
    volviera a quedar por fuera, esto cae a 26.400. */
 ok(x.contado.unidades === 31200, `LO CONTADO · unidades: ${x.contado.unidades} (31200 = 1040 cajas con factor × 30, envase incluido)`);
-ok(x.riesgo.rot === "Total", `no se halló el total del riesgo: ${x.riesgo.rot}`);
-ok(x.riesgo.cajas === 1200, `riesgo · total de cajas: ${x.riesgo.cajas} (1200: sin las 160 del envase)`);
-ok(/envase/i.test(x.aclara ?? ""), `falta la aclaración de que el riesgo es solo producto: ${x.aclara}`);
-/* EL CUADRE APUNTA A LA TARJETA, NO A LA TABLA DE RIESGO. Con «D29» la
-   diferencia salía de 160 cajas que nadie perdió. */
-const cuadre = x.cuadre[1];
-ok(!!cuadre && cuadre.includes("B13") && !cuadre.includes("D29"), `el cuadre no compara contra LO CONTADO: ${cuadre}`);
+ok(x.riesgo.cajas === 1200, `riesgo · total de cajas: ${x.riesgo.cajas} (1200: sin las 160 del envase; incluye las 160 de producto sin fecha)`);
+ok(/producto terminado/i.test(x.aclara ?? ""), `falta la aclaración de que el riesgo es solo producto: ${x.aclara}`);
+/* EL CUADRE: recorridos contra el consolidado (lo de «LO CONTADO»), no contra la tabla de riesgo (solo producto). */
+ok(x.cuadre[1].includes("$BA$15") && x.cuadre[1].includes("Base consolidada") && !x.cuadre[1].includes("$N$"), `el cuadre no compara contra el consolidado: ${x.cuadre[1]}`);
+ok(x.cuadre[2].includes("Base consolidada") && x.cuadre[2].includes("$AE$41"), `la diferencia de recorridos no sale de la base: ${x.cuadre[2]}`);
+ok(/No cuadra|Se volvió a contar|Cuadra/.test(x.cuadre[0]), `mensaje de cuadre: ${x.cuadre[0]}`);
+ok(x.contado.plast === 1360, `cajas plásticas (todo menos barriles y madera): ${x.contado.plast}`);
+ok(x.titulo[0] === "INVENTARIO CONSOLIDADO · AG01", `título del Tablero: ${x.titulo[0]}`);
+ok(x.navegacion[0].includes("Base consolidada") && x.navegacion[1].includes("Sin contar"), `barra de enlaces: ${x.navegacion}`);
+ok(x.focos[0].startsWith("Calle ") && x.focos[2] === "Vencimiento sin fecha" && x.focos[3] === "Conteo pendiente", `focos de atención: ${x.focos}`);
+ok(x.cf >= 8, `semáforos (formato condicional) del Tablero: ${x.cf}`);
+ok(/Tablero.*\$A\$1:\$AX\$52/.test(x.area) || x.area.includes("A1:AX52"), `área de impresión del Tablero: ${x.area}`);
+ok(x.charts.length === 2, `las dos donas del Tablero: ${x.charts}`);
 const mats = x.mats.slice(0, -1);   // la última es la fila de totales
 const m900 = mats.find((m) => m[0] === "900");
 ok(!!m900, `«Por material» se saltó el envase: ${mats.map((m) => m[0])}`);
@@ -158,20 +162,18 @@ ok(/\*/.test(x.formulas_base[2]), "el total de cajas no es estibas × factor + s
 /* La fórmula tiene que dar lo mismo que guardó la aplicación (las 8 de la base). */
 ok(!x.validar.includes("No cuadra con la aplicación"), "la fórmula del total de cajas no cuadra con la aplicación");
 /* Clases: producto 6 renglones (A01IZQ, A01DER, A02IZQ×2, B01IZQ, C02IZQ), envase 1 (la canasta). */
-ok(x.clases.Producto?.[5] === 7, `clase Producto: ${JSON.stringify(x.clases.Producto)}`);
-ok(x.clases.Envase?.[5] === 1 && x.clases.Envase?.[1] === 160, `clase Envase: ${JSON.stringify(x.clases.Envase)}`);
-ok(Math.abs(x.clases.Total?.[2] - 1) < 1e-9 && !JSON.stringify(x.clases).includes("plást"), `la tabla por clase repite cajas plásticas o no suma 100%: ${JSON.stringify(x.clases)}`);
-ok(x.clases.Libre?.[5] === 0, `la clase Libre no aparece en la tabla: ${JSON.stringify(x.clases)}`);
-ok(x.calles.A && x.calles.A.join() === "9,0,9,0,9,3", `estibas por calle (capacidad de A): ${JSON.stringify(x.calles)}`);
+/* La tabla por clase: [estibas, cajas, plásticas, unidades, hl, % cajas, renglones] — los renglones van de último. */
+ok(x.clases.Producto?.[6] === 7 && x.clases.Producto?.[2] === 1200, `clase Producto: ${JSON.stringify(x.clases.Producto)}`);
+ok(x.clases.Envase?.[6] === 1 && x.clases.Envase?.[1] === 160 && x.clases.Envase?.[2] === 160, `clase Envase: ${JSON.stringify(x.clases.Envase)}`);
+ok(Math.abs(x.clases.Total?.[5] - 1) < 1e-9 && x.clases.Total?.[2] === 1360, `la tabla por clase no suma 100% o las plásticas no suman 1360: ${JSON.stringify(x.clases.Total)}`);
+ok(x.clases.Libre?.[6] === 0 && x.clases["Otro envase"]?.[6] === 0, `las clases Libre y Otro envase deben salir (en cero): ${JSON.stringify(x.clases)}`);
+ok(x.calles.A && x.calles.A.join() === "9,9,1", `ocupación por calle (A: capacidad, ocupadas, %): ${JSON.stringify(x.calles)}`);
 ok(x.clases.Total?.[1] === 1360, `total cajas en la tabla por clase: ${JSON.stringify(x.clases.Total)}`);
 /* Estibas físicas: las completas, y 0 por saldo (en esta prueba no hay saldos). */
 ok(x.clases.Total?.[0] === 17, `estibas físicas: ${JSON.stringify(x.clases.Total)}`);
-ok(x.estibas_tarjetas[0].join() === "LIBRES (LAS QUE CONTASTE),CON ENVASE,CON PRODUCTO,TOTAL ESTIBAS", `tarjetas de estibas: ${x.estibas_tarjetas}`);
-ok(x.estibas_tarjetas[1].join() === "0,2,15,17", `libres/envase/producto/total (17 = las estibas físicas): ${x.estibas_tarjetas[1]}`);
-ok(x.plastico[1].join() === "0,160,1200,1360", `plástico libres/envase/producto/total: ${x.plastico[1]}`);
-ok(x.plastico[0].join() === "LIBRES (LAS QUE CONTASTE),CON ENVASE,CON PRODUCTO,TOTAL", `rótulos de plástico: ${x.plastico[0]}`);
-ok(x.unidades[0].every((v) => v == null), `no debe haber bloque de UNIDADES: ${x.unidades[0]}`);
-ok(x.espacio[0].join() === "CAPACIDAD (ESTIBAS),SIN USAR,OCUPACIÓN,MÓDULOS SOBRE CAPACIDAD", `tarjetas de espacio: ${x.espacio[0]}`);
+ok(x.estibas_tarjetas[0].join() === "Con envase,Libres,Con producto,Total", `tarjeta de estibas: ${x.estibas_tarjetas}`);
+ok(x.estibas_tarjetas[1].join() === "2,0,15,17", `envase/libres/producto/total (17 = las estibas físicas): ${x.estibas_tarjetas[1]}`);
+ok(x.espacio[0].join() === "Capacidad,Sin usar,Sobre capacidad,Por validar", `tarjeta de espacio: ${x.espacio[0]}`);
 ok(x.ubi["C01IZQ"] && x.ubi["C01IZQ"][1] === 2 && x.ubi["C01IZQ"][5] === 1, `C01IZQ: ${JSON.stringify(x.ubi["C01IZQ"])} (2 con envase, 1 libre... capacidad 3)`);
 ok(x.ubi["B01IZQ"] && x.ubi["B01IZQ"][2] === 2 && x.ubi["B01IZQ"][5] === 1, `B01IZQ: ${JSON.stringify(x.ubi["B01IZQ"])} (2 con producto, 1 libre)`);
 ok(x["Base envase"].length === 1 && x["Base envase"][0][0] === "900", `Base envase: ${JSON.stringify(x["Base envase"])}`);
@@ -222,4 +224,4 @@ P`).toString();
 try { execSync(`cd ${process.env.FOTO ?? "/tmp"} && timeout 90 soffice --headless --convert-to pdf inventario-dia.xlsx >/dev/null 2>&1`); }
 catch { fallas.push("LibreOffice no pudo abrir el archivo") }
 if (fallas.length) { fallas.forEach((f) => console.log("✗ " + f)); process.exit(1) }
-console.log("✓ Consolidado del día en Excel: 10 hojas con logo, todo formulado, base sin duplicar recorridos, totales que siguen al filtro, validación y sin contar; abre en LibreOffice.");
+console.log("✓ Consolidado del día en Excel: 11 hojas con logo y Tablero de gerencia, todo formulado, base sin duplicar recorridos, totales que siguen al filtro, validación y sin contar; abre en LibreOffice.");
