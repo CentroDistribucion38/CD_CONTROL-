@@ -913,29 +913,20 @@ export function Contar({
     setDesdeTarjeta(null);
     setMas(false);
     setFotoNueva((x) => { if (x) URL.revokeObjectURL(x.url); return null });
-    /* «TANTO LA CALLE COMO EL MÓDULO IGUAL AL ANTERIOR, Y YA EMPIEZO CON
-       EL LADO; APENAS ESCOJA LADO, SE SALE AL CÓDIGO.» Calle y módulo se
-       quedan; el lado se vuelve a escoger en cada renglón —salvo que el
-       módulo tenga uno solo, que no hay nada que escoger—. */
-    const unLado = lados.length === 1;
+    /* «ME TOCA AGREGAR COMO ANTES DONDE UBICO EL PRODUCTO.» En un módulo caben varios códigos (y el mismo se puede
+       volver a poner), así que después de anotar se queda TODA la ubicación —calle, módulo y lado— y el cursor va
+       derecho al código. Para otro módulo se cambia la ubicación, no antes. */
     setB((x) => dejarSitio
-      ? { ...VACIO, calle: x.calle, base: x.base, lado: unLado ? x.lado : "" }
+      ? { ...VACIO, calle: x.calle, base: x.base, lado: x.lado }
       : VACIO);
     /* Y se borra el guardado: el renglón ya quedó en la base, así que
        restaurarlo mañana sería ofrecer volver a anotar algo que ya está
        anotado. */
     try { if (llave) localStorage.removeItem(llave) } catch { /* da igual */ }
-    /* EL CURSOR VUELVE A CALLE, no al código: «apenas yo guarde el
-       registro me debe llevar el cursor automáticamente a calle». Es
-       además el único campo que no levanta teclado, así que volver no
-       tapa las tarjetas de la pre-anotación que hay justo debajo. */
-    if (dejarSitio && b.base) {
-      /* El cursor va al LADO; si el módulo tiene uno solo, derecho al código. */
-      setTimeout(() => {
-        if (unLado) campoCodigo.current?.focus();
-        else grupoLado.current?.querySelector("button")?.focus();
-      }, 0);
-    } else campoCalle.current?.focus();
+    /* Con la ubicación puesta, el cursor va al CÓDIGO; si se limpió todo, vuelve a calle (el único campo que no
+       levanta teclado, así no tapa las tarjetas de la pre-anotación que hay justo debajo). */
+    if (dejarSitio && b.base) setTimeout(() => campoCodigo.current?.focus(), 0);
+    else campoCalle.current?.focus();
   }
 
   /* LA UBICACIÓN DE QUIEN EMPIEZA. Se pide al tocar «Empezar a contar» —sin otro botón— y se manda UNA vez
@@ -1667,19 +1658,18 @@ export function Contar({
 
   /* LOS ESTADOS DEL ENVASE QUE YA SE CONTARON PARA ESTE CÓDIGO EN ESTE MÓDULO, dentro del mismo recorrido, no
      vuelven a salir: con otro código sí. Al corregir un renglón, el suyo no cuenta como usado. */
-  /* LA EXCEPCIÓN DE FÁBRICA: en la calle FABRICA (líneas L2, L4 y L6) el envase llega por tandas y CUALQUIER estado se
-     puede volver a poner —no se oculta aunque ya se haya contado—. Lo que se anota se SUMA al renglón de ese mismo
-     estado que ya había (lo hace la base, en conteo_fefo_agregar). Corregir un renglón sí sigue la regla de siempre. */
-  const enFabrica = b.base.split("|")[0].toUpperCase() === "FABRICA";
+  /* EL MISMO CÓDIGO SE PUEDE VOLVER A PONER en el mismo módulo, con cualquier estado: lo que se anota se SUMA al renglón
+     que ya había (lo hace la base, en conteo_fefo_agregar). Por eso ningún estado se oculta al anotar. Solo al CORREGIR un
+     renglón sí cuenta la regla de siempre: no se puede dejar igual a otro que ya está. */
   const estadoAqui = useMemo(() => renglones.find((r) =>
     r.ubicacion === claveEscogida && r.codigo === b.codigo.trim() && b.estado !== ""
     && (r.estado_envase ?? "").toUpperCase() === b.estado.toUpperCase()), [renglones, claveEscogida, b.codigo, b.estado]);
   const estadosUsados = useMemo(() => new Set(
-    enFabrica && !corrigiendo ? [] :
+    !corrigiendo ? [] :
     renglones
       .filter((r) => r.ubicacion === claveEscogida && r.codigo === b.codigo.trim() && r.estado_envase && r.id !== corrigiendo)
       .map((r) => (r.estado_envase ?? "").toUpperCase())),
-  [renglones, claveEscogida, b.codigo, corrigiendo, enFabrica]);
+  [renglones, claveEscogida, b.codigo, corrigiendo]);
   /* Si el estado escogido ya se contó para este código aquí (o el material no es envase), se suelta. */
   useEffect(() => {
     if (b.estado && (estadosUsados.has(b.estado.toUpperCase()) || (material && !esEnvase))) setB((x) => ({ ...x, estado: "" }));
@@ -2208,8 +2198,8 @@ export function Contar({
                           onClick={() => { pon("estado", b.estado === e ? "" : e); if (b.estado !== e) setTimeout(() => campoCantidad.current?.focus(), 60) }}>{e}</button>
                 ))}
               </div>
-              {enFabrica && !corrigiendo && estadoAqui && (
-                <p className="fe-paso-aviso">En fábrica un estado se puede volver a poner: esto se suma a las <b>{nf.format(Number(estadoAqui.total_cajas))} cajas</b> de {estadoAqui.estado_envase} que ya anotaste aquí.</p>
+              {!corrigiendo && estadoAqui && (
+                <p className="fe-paso-aviso">Este estado ya lo anotaste aquí para este código: lo nuevo se suma a las <b>{nf.format(Number(estadoAqui.total_cajas))} cajas</b> de {estadoAqui.estado_envase} que ya anotaste aquí.</p>
               )}
               {estadosUsados.size > 0 && (
                 <p className="fe-paso-aviso">Ya contado aquí para este código: <b>{[...estadosUsados].join(", ")}</b>.

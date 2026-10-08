@@ -26,6 +26,8 @@ export const MODULOS_DE_LA_HOJA: Record<string, string[]> = {
   E: [...numerados(36), "DEPA", "PALE", "H", "TANDEM", "TUNEL"],
   EST: [...numerados(36), "TUNEL", "H", "PASILLO"],
   P: numerados(49),
+  /* La calle H: módulos 01 a 04, con sus dos lados como las demás calles numeradas. */
+  H: numerados(4),
   ALAR: ["A", "B", "C", "D", "E", "P", "BAHIA 6"],
   /* FÁBRICA es una calle y sus módulos son las líneas de producción: L2, L4 y L6.
      Sin lado: una línea se cuenta como una sola posición. */

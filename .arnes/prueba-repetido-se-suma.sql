@@ -51,16 +51,26 @@ begin
   /* y los estados siguen separados entre sí */
   if (select count(*) from public.conteo_lineas where conteo_id = v_c and ubicacion_id = v_l2 and producto_id = (select id from public.productos where sku = v_sku)) <> 2
     then v_falla := v_falla || ' 9b(RETORNO y LAVADO debían ser dos renglones)'; end if;
-  /* 8 · fuera de FABRICA cualquier estado repetido sigue rechazándose */
+  /* 8 · AHORA TAMBIÉN FUERA DE FABRICA: el mismo código con el mismo estado se suma */
   foreach v_e in array array['RETORNO','LAVADO'] loop
-    perform public.conteo_fefo_agregar(v_c, v_sku, v_a, false, 1, null, null, null, null, false, false, v_e, null, null);
-    v_ok := false;
-    begin
-      perform public.conteo_fefo_agregar(v_c, v_sku, v_a, false, 1, null, null, null, null, false, false, v_e, null, null);
-    exception when unique_violation then v_ok := true; end;
-    if not v_ok then v_falla := v_falla || ' 10(' || v_e || ' repetido fuera de FABRICA debía rechazarse)'; end if;
+    v_id1 := public.conteo_fefo_agregar(v_c, v_sku, v_a, false, 1, null, null, null, null, false, false, v_e, null, null);
+    v_id2 := public.conteo_fefo_agregar(v_c, v_sku, v_a, false, 2, null, null, null, null, false, false, v_e, null, null);
+    if v_id1 is distinct from v_id2 or (select estibas from public.conteo_lineas where id = v_id1) <> 3
+      then v_falla := v_falla || ' 10(' || v_e || ' repetido en A05 debía sumarse)'; end if;
   end loop;
+  /* 9 · varios códigos en el mismo módulo siguen siendo renglones distintos */
+  v_id1 := public.conteo_fefo_agregar(v_c, v_sku2, v_a, false, null, 4, null, null, null, false, false, 'NUEVO', null, null);
+  if (select count(distinct producto_id) from public.conteo_lineas where conteo_id = v_c and ubicacion_id = v_a) <> 2
+    then v_falla := v_falla || ' 11(dos códigos en el mismo módulo debían ser dos renglones)'; end if;
+  /* 10 · sin estado (producto) y con otro vencimiento: mismo vencimiento suma, otro vencimiento es otro renglón */
+  update public.productos set tipo_material = 'PRODUCTO' where sku = v_sku2;
+  v_id1 := public.conteo_fefo_agregar(v_c, v_sku2, v_l2, false, null, 10, 15::smallint, 6::smallint, 27::smallint, false, false, null, null, null);
+  v_id2 := public.conteo_fefo_agregar(v_c, v_sku2, v_l2, false, null, 5, 15::smallint, 6::smallint, 27::smallint, false, false, null, null, null);
+  v_id3 := public.conteo_fefo_agregar(v_c, v_sku2, v_l2, false, null, 7, 20::smallint, 7::smallint, 27::smallint, false, false, null, null, null);
+  if v_id1 is distinct from v_id2 or (select cajas from public.conteo_lineas where id = v_id1) <> 15
+    then v_falla := v_falla || ' 12(mismo código y mismo vencimiento debía sumar 15)'; end if;
+  if v_id3 = v_id1 then v_falla := v_falla || ' 13(otro vencimiento debía ser otro renglón)'; end if;
 
   if v_falla <> '' then raise exception 'FALLA:%', v_falla; end if;
-  raise notice 'FABRICA RETORNO: todo en orden';
+  raise notice 'EL MISMO CODIGO SE SUMA: todo en orden';
 end $$;

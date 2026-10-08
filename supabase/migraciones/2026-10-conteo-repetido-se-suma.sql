@@ -1,23 +1,20 @@
 -- =====================================================================
--- FÁBRICA · CUALQUIER ESTADO DEL ENVASE SE PUEDE VOLVER A PONER
+-- CONTEO · EL MISMO CÓDIGO EN EL MISMO MÓDULO SE PUEDE VOLVER A PONER
 --
--- «Y en fábrica que sea la excepción de que si escojo retorno se oculte,
---  o sea, lo puedo volver a poner.» … «Para todos los estados en fábrica.»
+-- «Se debe dejar poner varios códigos en el mismo módulo… Si es el mismo
+--  código debería dejar.»
 --
--- LA REGLA DE SIEMPRE: en un mismo módulo, un mismo código solo tiene UN
--- renglón por estado del envase; el estado que ya se contó deja de
--- ofrecerse, y la llave única de la tabla rechaza el repetido.
+-- ANTES: en un módulo, el mismo código con el mismo vencimiento y el mismo
+-- estado era «renglón repetido» y la base lo rechazaba (salvo en FABRICA).
+-- AHORA: en cualquier módulo, lo que se anota SE SUMA al renglón que ya había
+-- de ese código con ese mismo vencimiento, avería, PNC y estado del envase.
+-- Códigos distintos siguen siendo renglones distintos. La llave única de la
+-- tabla no se toca.
 --
--- LA EXCEPCIÓN: en la calle FABRICA (las líneas L2, L4 y L6) el envase llega
--- por tandas. Ahí TODOS los estados (RETORNO, LAVADO, NUEVO, BAJA…) se
--- vuelven a ofrecer, y lo que se anota se SUMA al renglón que ya había de ese
--- código, con ese mismo estado, en esa línea (mismo recorrido, mismo
--- vencimiento, avería y PNC). Nada se pierde y
--- la llave única no se toca.
---
--- QUÉ HACE ESTE ARCHIVO: reemplaza `conteo_fefo_agregar` con la misma
--- función de siempre —copiada literal de 2026-09-conteo-estibas-y-saldo.sql—
--- y UN solo bloque agregado antes del insert. La firma no cambia.
+-- QUÉ HACE: reemplaza `conteo_fefo_agregar` con la misma función de siempre
+-- —copiada de 2026-09-conteo-estibas-y-saldo.sql— cambiando solo la condición
+-- de la suma (ya no exige la calle FABRICA ni un estado). Reemplaza a ese archivo:
+-- si ya lo corriste, este lo sustituye; si no, corre este y listo.
 --
 -- ORDEN: después de 2026-09-conteo-estibas-y-saldo.sql. SE PUEDE CORRER VARIAS VECES.
 -- =====================================================================
@@ -169,16 +166,15 @@ begin
     raise exception 'Falta la fecha: el vencimiento, o la de fabricación para calcularlo.';
   end if;
 
-  /* ---------- FÁBRICA · CUALQUIER ESTADO SE PUEDE VOLVER A PONER ----------
-     En la calle FABRICA el envase llega por tandas al mismo sitio (la línea
-     L2, L4 o L6) y se cuenta varias veces en el mismo recorrido. Es la
-     EXCEPCIÓN a «un estado, un renglón»: si ya hay un renglón de ese código,
-     en esa línea, con ESE MISMO estado, lo que se anota ahora SE SUMA a ese
-     renglón —no se rechaza como repetido y no se pierde nada—.
-     Todo lo demás (otras calles) sigue igual que antes. */
+  /* ---------- EL MISMO CÓDIGO, EN EL MISMO MÓDULO, SE PUEDE VOLVER A PONER ----------
+     En un módulo caben varios códigos —cada uno es su renglón— y el mismo
+     código también se puede anotar más de una vez (otra estiba, otra tanda).
+     Si ya hay un renglón de ese código, en ese módulo, con el MISMO
+     vencimiento, avería, PNC y estado del envase, lo que se anota ahora SE
+     SUMA a ese renglón: no se rechaza como repetido y no se pierde nada.
+     (La llave única de la tabla no se toca: nunca llega a haber dos iguales.) */
   v_estado_txt := upper(nullif(trim(coalesce(p_estado, '')), ''));
-  if v_estado_txt is not null
-     and exists (select 1 from public.ubicaciones where id = p_ubicacion and upper(calle) = 'FABRICA') then
+  if true then
     select cl.id, cl.estibas, cl.cajas, cl.saldo, cl.nota into v_ex
       from public.conteo_lineas cl
      where cl.conteo_id = p_conteo and cl.producto_id = v_prod and cl.ubicacion_id = p_ubicacion
@@ -186,7 +182,7 @@ begin
        and cl.venc_mes  is not distinct from v_vm
        and cl.venc_anio is not distinct from v_va
        and cl.averia = coalesce(p_averia, false) and cl.pnc = coalesce(p_pnc, false)
-       and upper(coalesce(cl.estado_envase, '')) = v_estado_txt
+       and upper(coalesce(cl.estado_envase, '')) = coalesce(v_estado_txt, '')
      order by cl.contado_en desc limit 1;
     if found then
       if v_ex.cajas is not null and p_cajas is not null then
@@ -251,10 +247,10 @@ begin
   if (select count(*) from pg_proc where proname = 'conteo_fefo_agregar' and pronamespace = 'public'::regnamespace) <> 1 then
     raise exception 'Quedó más de una versión de conteo_fefo_agregar.';
   end if;
-  if pg_get_functiondef('public.conteo_fefo_agregar(uuid, text, uuid, boolean, integer, integer, smallint, smallint, smallint, boolean, boolean, text, text, integer, smallint, smallint, smallint)'::regprocedure) not like '%FABRICA%' then
-    raise exception 'No quedó la excepción de FABRICA.';
+  if pg_get_functiondef('public.conteo_fefo_agregar(uuid, text, uuid, boolean, integer, integer, smallint, smallint, smallint, boolean, boolean, text, text, integer, smallint, smallint, smallint)'::regprocedure) not like '%EL MISMO CÓDIGO, EN EL MISMO MÓDULO, SE PUEDE%' then
+    raise exception 'No quedó la suma del repetido.';
   end if;
-  raise notice 'LISTO · En FABRICA cualquier estado se puede volver a poner y se suma al renglón que ya había.';
+  raise notice 'LISTO · El mismo código en el mismo módulo se suma al renglón que ya había.';
 end $$;
 
 commit;

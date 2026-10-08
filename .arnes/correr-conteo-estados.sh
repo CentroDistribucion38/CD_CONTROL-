@@ -3,7 +3,7 @@
 #   bash .arnes/correr-conteo-estados.sh        (M=archivo para probar un mutante)
 set -e
 export DB=${1:-conteoestados}
-export EXCLUIR="conteo-estados-distintos"
+export EXCLUIR="conteo-estados-distintos|conteo-fabrica-estados|conteo-repetido-se-suma"  # esta prueba mide la regla de la TABLA; la suma del repetido va en su propia prueba
 source .arnes/_base-completa.sh >/tmp/claude-0/cest-base.txt 2>&1 || { tail -8 /tmp/claude-0/cest-base.txt; echo "✗ la base no salió"; exit 1; }
 if grep -q "^FALLA [^ ]*inventario" /tmp/claude-0/cest-base.txt; then grep "^FALLA [^ ]*inventario" /tmp/claude-0/cest-base.txt | cut -c1-200; echo "✗ la base no salió"; exit 1; fi
 PSQL="sudo -u postgres psql -q -v ON_ERROR_STOP=1"

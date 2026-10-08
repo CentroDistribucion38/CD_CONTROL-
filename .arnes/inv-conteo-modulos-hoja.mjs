@@ -65,6 +65,13 @@ ok(!mods.includes("PASILLO") && !mods.includes("TANDEM") && mods.includes("TUNEL
 await escoger(0, "P");
 mods = await opciones(1);
 ok(mods.length === 49 && mods.includes("49"), "la calle P no llega al 49: " + mods.length);
+/* La calle H: módulos 01 a 04, con izquierdo y derecho. */
+ok(calles.includes("H"), "la calle H no sale: " + calles.join(","));
+await escoger(0, "H");
+mods = await opciones(1);
+ok(mods.join(",") === "01,02,03,04", "la calle H debe ofrecer 01, 02, 03 y 04: " + mods.join(","));
+await escoger(1, "03");
+ok(await pg.locator("[aria-labelledby=fe-rot-lado] button").count() === 2, "un módulo de la calle H debe ofrecer izquierdo y derecho");
 /* FABRICA es una calle y sus módulos son las líneas L2, L4 y L6, sin lados. */
 ok(calles.includes("FABRICA"), "la calle FABRICA no sale: " + calles.join(","));
 await escoger(0, "FABRICA");
@@ -107,17 +114,17 @@ ok(est.includes("RETORNO"), "en FABRICA el RETORNO ya contado se oculta: " + est
 /* Y TODOS los estados: el de otro código tampoco se oculta, y un estado nuevo no avisa suma. */
 ok(est.length === 7 && est.includes("LAVADO"), "en FABRICA deben salir los siete estados: " + est.join(","));
 await pg.locator(".fe-estados button", { hasText: /^LAVADO$/ }).click();
-ok(/se puede volver a poner/i.test(await pg.locator(".fe-estenv").textContent()), "LAVADO ya contado en FABRICA no avisa que se suma");
+ok(/ya lo anotaste aquí/i.test(await pg.locator(".fe-estenv").textContent()), "LAVADO ya contado en FABRICA no avisa que se suma");
 await pg.locator(".fe-estados button", { hasText: /^LAVADO$/ }).click();
 await pg.locator(".fe-estados button", { hasText: /^RETORNO$/ }).click();
-ok(/se puede volver a poner/i.test(await pg.locator(".fe-estenv").textContent()), "no avisa que el RETORNO se suma al anterior");
-/* Fuera de FÁBRICA (A05) el RETORNO ya contado sigue oculto. */
+ok(/ya lo anotaste aquí/i.test(await pg.locator(".fe-estenv").textContent()), "no avisa que el RETORNO se suma al anterior");
+/* Y en A05 también: el mismo código se puede volver a poner en cualquier módulo. */
 await escoger(0, "A"); await escoger(1, "05");
 await pg.locator("[aria-labelledby=fe-rot-lado] button", { hasText: /Izq/i }).first().click().catch(() => {});
 await pg.fill('input[placeholder="Teclea el código"]', "");
 await pg.fill('input[placeholder="Teclea el código"]', "900");
 est = await pg.locator(".fe-estados button").allTextContents();
-ok(!est.includes("RETORNO") && est.includes("NUEVO") && !est.includes("LAVADO"), "fuera de FABRICA los estados ya contados debían seguir ocultos: " + est.join(","));
+ok(est.length === 7 && est.includes("RETORNO") && est.includes("LAVADO"), "en cualquier calle los estados ya contados deben seguir saliendo: " + est.join(","));
 await nav.close();
 if (fallas.length) { fallas.forEach((x) => console.log("✗ " + x)); process.exit(1) }
 console.log("✓ Conteo: cada calle ofrece los módulos de la hoja (01–36 y PASILLO, TANDEM, DEPA, PALE, H, TUNEL según la calle), lo que ya estaba sale igual y una sola vez, los especiales no tienen lados y se dan de alta al anotar.");

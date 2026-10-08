@@ -50,11 +50,9 @@ await renglon("Izquierdo");
 const calle = await pg.locator(".bs-campo").nth(0).inputValue();
 const modulo = await pg.locator(".bs-campo").nth(1).inputValue();
 ok(/A/.test(calle) && /01/.test(modulo), `después de anotar no quedan calle y módulo: «${calle}» «${modulo}»`);
-ok(!(await pg.$("[aria-labelledby=fe-rot-lado] button.on")), "después de anotar el lado sigue escogido: hay que escogerlo en cada renglón");
-ok(await pg.evaluate(() => document.activeElement?.closest("[aria-labelledby=fe-rot-lado]") != null), "después de anotar el cursor no está en el lado");
-await pg.click('[aria-labelledby=fe-rot-lado] button:has-text("Derecho")');
-await pg.waitForTimeout(50);
-ok(await pg.evaluate(() => document.activeElement?.getAttribute("placeholder") === "Teclea el código"), "al escoger el lado el cursor no salta al código");
+/* Se queda TODA la ubicación: el lado también, y el cursor va derecho al código. */
+ok(!!(await pg.$("[aria-labelledby=fe-rot-lado] button.on")), "después de anotar el lado no se quedó: hay que volver a ubicar el producto");
+ok(await pg.evaluate(() => document.activeElement?.getAttribute("placeholder") === "Teclea el código"), "después de anotar el cursor no está en el código");
 /* Módulo de UN solo lado: no se pregunta, y el cursor va derecho al código. */
 await pg.fill('input[placeholder="Teclea el código"]', "900");
 /* EL FLUJO: un envase pide estado antes de «Cuánto». */
@@ -143,4 +141,4 @@ await pg.screenshot({ path: (process.env.FOTO ?? "/tmp") + "/cs-pendientes.png",
 await pg.screenshot({ path: (process.env.FOTO ?? "/tmp") + "/cs-tarjeta.png", fullPage: true });
 await nav.close();
 if (fallas.length) { fallas.forEach((f) => console.log("✗ " + f)); process.exit(1) }
-console.log("✓ Conteo: la tarjeta de la última vez no guarda sola (sigue igual / cambió cantidad / otro SKU); después de anotar quedan calle y módulo, el cursor va al lado y al escoger lado salta al código; con un solo lado, derecho al código.");
+console.log("✓ Conteo: la tarjeta de la última vez no guarda sola (sigue igual / cambió cantidad / otro SKU); después de anotar queda toda la ubicación (calle, módulo y lado) y el cursor va al código, para poner otro código en el mismo módulo; con un solo lado, igual.");
