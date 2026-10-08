@@ -157,6 +157,20 @@ export function traducirError(m: string | undefined | null): string {
     return "Ya existe uno con esa clave o ese código. Escoge otro.";
   }
 
+  /* EL ESTADO LLENO / VACÍO DEL CILINDRO: la pantalla lo ofrece, pero la clave tiene que estar en
+     `envase_estados` para guardarse. Sin ella Postgres rechaza el INSERT con «violates foreign key
+     constraint conteo_lineas_estado_envase_fkey», y antes eso se leía «No se puede borrar» — un aviso
+     de borrar cuando lo que se hacía era anotar. */
+  if (t.includes("conteo_lineas_estado_envase_fkey")) {
+    return "El estado del envase (lleno / vacío) todavía no está creado en Supabase. Abre el SQL Editor y ejecuta " +
+           "supabase/migraciones/2026-10-envase-estado-cilindro.sql — se puede correr varias veces sin romper nada.";
+  }
+  /* AL GUARDAR (insert/update), una llave foránea rota NO es «borrar»: es que lo escogido no existe en su lista. */
+  if (t.includes("foreign key") && t.includes("insert or update")) {
+    return "Algo de lo que escogiste no existe en la lista de la base (o está desactivado). Revisa lo escogido; " +
+           "si no aparece donde debería, avisa a quien administra.";
+  }
+
   if (t.includes("foreign key")) {
     return "No se puede borrar: hay cosas que apuntan a esto. Desactívalo en vez de borrarlo — " +
            "borrarlo se llevaría por delante el histórico.";
