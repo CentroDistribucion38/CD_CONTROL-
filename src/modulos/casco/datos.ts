@@ -79,3 +79,15 @@ export async function materialesCasco(): Promise<MaterialCasco[]> {
   }
   return out;
 }
+
+/**
+ * LOS PUESTOS YA USADOS (columna «Ubicaciones»), para ofrecerlos en el desplegable junto a los
+ * de `PUESTOS_BASE`. Si la migración 2026-10-casco-puesto-calidad.sql no se ha corrido, la
+ * columna no existe y esto devuelve vacío en vez de romper la pantalla.
+ */
+export async function puestosUsados(): Promise<string[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("casco_registros").select("puesto").not("puesto", "is", null).limit(6000);
+  if (error) return [];
+  return [...new Set((data ?? []).map((r) => String(r.puesto)).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es", { numeric: true }));
+}

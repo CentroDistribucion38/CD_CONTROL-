@@ -1,0 +1,85 @@
+/* =====================================================================
+   TABLERO DE CASCO DE VIDRIO — encima del vocabulario de Inventario.
+   Todo lleva `cvt-`. Los colores son la gama ámbar de la hoja PARTIR.
+   ===================================================================== */
+.cvt {
+  --cvt-b38: #B58200;   /* oro oscuro */
+  --cvt-fab: #FFC300;   /* ámbar */
+  --cvt-car: #FFDCA3;   /* durazno claro */
+  --cvt-pal: #3B3B3B;   /* grafito: el cuarto sitio, que no se confunda con el ámbar */
+}
+.cvt .cvt-lb { font: 700 10.5px var(--fe-texto); letter-spacing: .13em; color: var(--fe-gris); text-transform: uppercase }
+
+/* FILTROS ------------------------------------------------------------ */
+.cvt .cvt-filtros {
+  display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: flex-end;
+  background: var(--fe-papel); border: 1px solid var(--fe-linea); border-radius: 3px; padding: 14px 16px;
+}
+.cvt .cvt-grupo { display: flex; flex-direction: column; gap: 6px; min-width: 0 }
+.cvt .cvt-seg { display: flex; flex-wrap: wrap; border: 1px solid var(--fe-linea); border-radius: 3px; overflow: hidden }
+.cvt .cvt-seg button {
+  min-height: 42px; padding: 0 14px; border: 0; border-right: 1px solid var(--fe-linea); background: #fff;
+  font: 700 13px var(--fe-texto); color: var(--fe-tinta); cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+}
+.cvt .cvt-seg button:last-child { border-right: 0 }
+.cvt .cvt-seg button.on { background: color-mix(in srgb, var(--fe-acento) 22%, #fff); box-shadow: inset 0 -3px 0 var(--fe-acento) }
+.cvt .cvt-pt { display: inline-block; width: 12px; height: 12px; border-radius: 2px; flex: none }
+.cvt .cvt-grupo select, .cvt .cvt-fechas input, .cvt .cvt-sub select {
+  min-height: 42px; padding: 0 10px; font: 500 14px var(--fe-texto); color: var(--fe-tinta);
+  background: #fff; border: 1px solid var(--fe-linea); border-radius: 3px; max-width: 360px;
+}
+.cvt .cvt-fechas { display: inline-flex; align-items: center; gap: 8px; margin-top: 6px }
+
+/* CIFRAS ------------------------------------------------------------- */
+.cvt .cvt-cifras { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px }
+.cvt .cvt-cif {
+  background: var(--fe-papel); border: 1px solid var(--fe-linea); border-radius: 3px; padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 4px; min-width: 0;
+}
+.cvt .cvt-cif.sube { border-left: 4px solid var(--fe-mal) }
+.cvt .cvt-cif b { font: 900 28px/1.05 var(--fe-titulo); letter-spacing: -.03em; font-variant-numeric: tabular-nums }
+.cvt .cvt-cif i { font-style: normal; font-size: 12px; line-height: 1.4; color: var(--fe-gris) }
+.cvt .cvt-serpro { background: var(--fe-acento); color: var(--fe-sobre); border-color: var(--fe-acento) }
+.cvt .cvt-serpro .cvt-lb, .cvt .cvt-serpro i { color: inherit; opacity: .85 }
+
+/* CAJAS -------------------------------------------------------------- */
+.cvt .cvt-caja { background: var(--fe-papel); border: 1px solid var(--fe-linea); border-radius: 3px; padding: 16px; display: flex; flex-direction: column; gap: 12px }
+.cvt .cvt-cab { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap }
+.cvt .cvt-cab h2 { margin: 0; font: 900 18px/1.1 var(--fe-titulo); letter-spacing: -.01em; color: var(--fe-gris-panel) }
+.cvt .cvt-sub { font-size: 13px; color: var(--fe-gris); display: inline-flex; align-items: center; gap: 8px }
+.cvt .cvt-leyenda { list-style: none; margin: 0; padding: 0; display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px }
+.cvt .cvt-leyenda li { display: inline-flex; align-items: center; gap: 6px }
+.cvt .cvt-vacio { padding: 28px; text-align: center; color: var(--fe-gris); background: var(--fe-papel); border: 1px dashed var(--fe-linea) }
+
+/* GRÁFICA ------------------------------------------------------------ */
+.cvt .cvt-lienzo { position: relative; overflow-x: auto }
+.cvt .cvt-lienzo svg { display: block }
+.cvt .cvt-rej { stroke: var(--fe-linea); stroke-width: 1 }
+.cvt .cvt-eje { font: 500 12px var(--fe-texto); fill: var(--fe-gris) }
+.cvt .cvt-seg-txt { font: 600 11.5px var(--fe-texto); font-variant-numeric: tabular-nums }
+.cvt .cvt-total-txt { font: 800 12px var(--fe-texto); fill: var(--fe-tinta); font-variant-numeric: tabular-nums }
+.cvt .cvt-tip {
+  position: absolute; z-index: 5; pointer-events: none; min-width: 180px;
+  background: var(--fe-tinta); color: #fff; border-radius: 3px; padding: 10px 12px; font-size: 12.5px;
+  display: flex; flex-direction: column; gap: 4px; box-shadow: 0 6px 18px rgba(0,0,0,.25);
+}
+.cvt .cvt-tip b { font-size: 12.5px }
+.cvt .cvt-tip span { display: flex; align-items: center; gap: 6px }
+.cvt .cvt-tip em { margin-left: auto; font-style: normal; font-weight: 800; font-variant-numeric: tabular-nums }
+.cvt .cvt-tip-tot { border-top: 1px solid rgba(255,255,255,.3); padding-top: 4px }
+
+/* TABLAS ------------------------------------------------------------- */
+.cvt .cvt-tabla-caja { overflow: auto; max-height: 460px; border: 1px solid var(--fe-linea) }
+.cvt .cvt-tabla { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 520px }
+.cvt .cvt-tabla th {
+  position: sticky; top: 0; text-align: left; padding: 10px 12px; background: var(--fe-acento); color: var(--fe-sobre);
+  font: 800 12px var(--fe-texto); letter-spacing: .05em; white-space: nowrap;
+}
+.cvt .cvt-tabla td { padding: 8px 12px; border-top: 1px solid var(--fe-linea) }
+.cvt .cvt-tabla .n { text-align: right; font-variant-numeric: tabular-nums }
+.cvt .cvt-tabla .tot { font-weight: 800 }
+.cvt .cvt-tabla .cod { font: 600 13px ui-monospace, "IBM Plex Mono", monospace; white-space: nowrap }
+.cvt .cvt-tabla tfoot td { position: sticky; bottom: 0; background: color-mix(in srgb, var(--fe-acento) 22%, #fff); font-weight: 800; border-top: 2px solid var(--fe-tinta) }
+
+@media (max-width: 900px) { .cvt .cvt-cifras { grid-template-columns: repeat(2, 1fr) } }
+@media (max-width: 520px) { .cvt .cvt-cifras { grid-template-columns: 1fr } }

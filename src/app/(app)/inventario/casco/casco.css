@@ -11,7 +11,7 @@
   padding: 12px 14px; display: flex; flex-direction: column; gap: 3px; min-width: 0;
   text-align: left; font: inherit; color: var(--fe-tinta); cursor: pointer;
 }
-.cas .cas-sitio.on { border-color: var(--fe-tinta); border-left: 5px solid var(--fe-acento) }
+.cas .cas-sitio:hover { border-color: var(--fe-tinta) }
 .cas .cas-total { cursor: default; background: var(--fe-tinta); color: #fff; border-color: var(--fe-tinta) }
 .cas .cas-total .cas-rot, .cas .cas-total i { color: rgba(255,255,255,.78) }
 .cas .cas-rot {
@@ -98,3 +98,30 @@
   .cas .cas-campos { grid-template-columns: 1fr 1fr }
   .cas .cas-campos .cas-ancho { grid-column: 1 / -1 }
 }
+
+/* LOS CUATRO BLOQUES -------------------------------------------------- */
+.cas .cas-bloque {
+  display: flex; flex-direction: column; gap: 12px; scroll-margin-top: 12px;
+  background: var(--fe-papel); border: 1px solid var(--fe-linea); border-left: 5px solid var(--fe-acento);
+  border-radius: 3px; padding: 16px;
+}
+.cas .cas-bloque-cab { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap }
+.cas .cas-bloque-cab h2 { margin: 0; font: 900 22px/1.1 var(--fe-titulo); letter-spacing: -.02em }
+.cas .cas-bloque-hl { text-align: right; display: flex; flex-direction: column }
+.cas .cas-bloque-hl b { font: 900 26px/1.05 var(--fe-titulo); letter-spacing: -.03em; font-variant-numeric: tabular-nums }
+.cas .cas-bloque-hl i { font-style: normal; font-size: 12px; color: var(--fe-gris) }
+.cas .cas-herencia { background: color-mix(in srgb, var(--fe-acento) 14%, #fff); padding: 8px 12px; border-radius: 3px }
+.cas .cas-agregar { max-width: 560px }
+.cas .cas-bloque .cas-tabla-caja { border: 1px solid var(--fe-linea) }
+.cas .cas-tabla { min-width: 1000px }
+.cas .cas-txt {
+  width: 190px; min-height: 40px; padding: 0 10px; font: 500 14px var(--fe-texto); color: var(--fe-tinta);
+  background: #fff; border: 1px solid var(--fe-linea); border-radius: 3px;
+}
+.cas .cas-txt-ancho { width: 200px }
+.cas .cas-txt:disabled { background: transparent; border-color: transparent }
+.cas .cas-pie-bloque { display: flex; flex-direction: column; gap: 8px; align-items: flex-start }
+.cas .cas-pie-bloque .btn { min-height: 40px }
+.cas .cas-pie { position: sticky; bottom: 0; background: var(--fe-fondo); padding: 10px 0; max-width: none }
+.cas .cas-campos { grid-template-columns: 200px 1fr }
+@media (max-width: 700px) { .cas .cas-campos { grid-template-columns: 1fr } .cas .cas-tabla { min-width: 900px } }

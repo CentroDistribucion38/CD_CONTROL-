@@ -667,6 +667,7 @@ export const MODULOS: Modulo[] = [
          calcula la base con el maestro) y de esos registros sale el
          análisis. Es el mismo orden del proceso. */
       { nombre: "Registrar", ruta: "/inventario/casco", rama: "casco" },
+      { nombre: "Tablero", ruta: "/inventario/casco/tablero", rama: "casco" },
     ],
   },
 ];

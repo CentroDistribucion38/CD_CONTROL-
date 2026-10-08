@@ -76,7 +76,7 @@ if (!/return \[\.\.\.vistas\]\.sort/.test(limpio))
                 "/inventario/base", "/inventario/tablero", "/inventario/maestro", "/inventario/recibir",
                 "/inventario/averias", "/inventario/averias/tablero",
                 "/inventario/averias/analisis", "/inventario/averias/maestro",
-                "/inventario/casco"];
+                "/inventario/casco", "/inventario/casco/tablero"];
   /* Y VAN EN DOS RAMAS, no en una lista de ocho. Comparten tema —lo
      que hay en la bodega— y no comparten cifras: los conteos miden
      EXISTENCIAS y las averías lo que ya no se puede vender. Con las

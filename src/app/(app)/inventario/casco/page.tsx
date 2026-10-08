@@ -1,5 +1,6 @@
 import { misPermisos } from "@/lib/permisos";
-import { materialesCasco, sitiosCasco } from "@/modulos/casco/datos";
+import { materialesCasco, puestosUsados, sitiosCasco } from "@/modulos/casco/datos";
+import { PUESTOS_BASE } from "@/modulos/casco/puestos";
 import "../fefo.css";
 import "./casco.css";
 import { Casco } from "./Casco";
@@ -18,9 +19,10 @@ export const dynamic = "force-dynamic";
  * cada quien copia con un factor distinto.
  */
 export default async function CascoPage() {
-  const [permisos, sitios, materiales] = await Promise.all([
-    misPermisos(), sitiosCasco(), materialesCasco(),
+  const [permisos, sitios, materiales, usados] = await Promise.all([
+    misPermisos(), sitiosCasco(), materialesCasco(), puestosUsados(),
   ]);
+  const puestos = [...new Set([...PUESTOS_BASE, ...usados])];
 
   if (sitios.sinTabla) {
     return (
@@ -31,7 +33,7 @@ export default async function CascoPage() {
             <h1>Falta crear esta parte en Supabase</h1>
             <p className="sub">
               Abre el editor de SQL y corre <b>supabase/migraciones/2026-10-casco-de-vidrio.sql</b>
-              y, después, <b>2026-10-casco-historial-partir.sql</b> para cargar tu historial.
+              luego <b>2026-10-casco-puesto-calidad.sql</b> y, al final, <b>2026-10-casco-historial-partir.sql</b> para cargar tu historial.
               Se pueden correr varias veces sin romper nada.
             </p>
           </div>
@@ -50,6 +52,7 @@ export default async function CascoPage() {
         sitios={sitios.lista}
         materiales={materiales}
         hoy={hoy}
+        puestos={puestos}
         puedeEditar={permisos.puedeEditar("/inventario/casco")}
       />
     </div>
