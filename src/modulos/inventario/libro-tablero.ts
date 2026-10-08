@@ -156,8 +156,8 @@ export function armarTablero(d: InsumosTablero): DonaDatos[] {
   /* ---------- LA TABLA POR CLASE (fila 24 = encabezado; 25..28 clases; 29 total) ---------- */
   const cl = (c: string, k: keyof FilaTablero) => suma(k, (x) => x.clase === c);
   const colsT: { L: string; k: keyof FilaTablero | "pct" | "reng"; t: string; fmt: string }[] = [
-    { L: "E", k: "fisicas", t: "ESTIBAS", fmt: NUM }, { L: "H", k: "cajas", t: "CAJAS", fmt: NUM }, { L: "K", k: "plast", t: "PLÁSTICAS", fmt: NUM },
-    { L: "N", k: "unid", t: "UNIDADES", fmt: NUM }, { L: "R", k: "hl", t: "HL", fmt: HL1 }, { L: "U", k: "pct", t: "% CAJAS", fmt: "0.0%" }, { L: "X", k: "reng", t: "RENGL.", fmt: NUM },
+    { L: "F", k: "fisicas", t: "ESTIBAS", fmt: NUM }, { L: "I", k: "cajas", t: "CAJAS", fmt: NUM }, { L: "L", k: "plast", t: "PLÁSTICAS", fmt: NUM },
+    { L: "O", k: "unid", t: "UNIDADES", fmt: NUM }, { L: "R", k: "hl", t: "HL", fmt: HL1 }, { L: "U", k: "pct", t: "% CAJAS", fmt: "0.0%" }, { L: "X", k: "reng", t: "RENGL.", fmt: NUM },
   ];
   V("B24", "CLASE"); colsT.forEach((c) => V(`${c.L}24`, c.t));
   const crit: Record<string, string> = { fisicas: "fisicas", cajas: "cajas", plast: "plast", unid: "unid", hl: "hl" };
@@ -165,7 +165,7 @@ export function armarTablero(d: InsumosTablero): DonaDatos[] {
     const r = 25 + i;
     V(`B${r}`, c);
     for (const t of colsT) {
-      if (t.k === "pct") V(`${t.L}${r}`, fx(`IF($H$29=0,0,$H${r}/$H$29)`, totCajas ? cl(c, "cajas") / totCajas : 0), t.fmt);
+      if (t.k === "pct") V(`${t.L}${r}`, fx(`IF($I$29=0,0,$I${r}/$I$29)`, totCajas ? cl(c, "cajas") / totCajas : 0), t.fmt);
       else if (t.k === "reng") V(`${t.L}${r}`, fx(`COUNTIFS(${rb("clase")},$B${r})`, filas.filter((x) => x.clase === c).length), t.fmt);
       else V(`${t.L}${r}`, fx(`SUMIFS(${rb(crit[t.k])},${rb("clase")},$B${r})`, cl(c, t.k)), t.fmt);
     }
@@ -182,9 +182,9 @@ export function armarTablero(d: InsumosTablero): DonaDatos[] {
   orden4.forEach((c, i) => {
     const r = 17 + i, rt = 25 + clases.indexOf(c);
     V(`J${r}`, c);
-    V(`M${r}`, fx(`IF($H$29=0,0,H${rt}/$H$29)`, totCajas ? cl(c, "cajas") / totCajas : 0));
-    V(`P${r}`, fx(`H${rt}`, cl(c, "cajas")), NUM);
-    apoyo(`AZ${8 + i}`, c); apoyo(`BA${8 + i}`, fx(`H${rt}`, cl(c, "cajas")), "#,##0");
+    V(`M${r}`, fx(`IF($I$29=0,0,I${rt}/$I$29)`, totCajas ? cl(c, "cajas") / totCajas : 0));
+    V(`P${r}`, fx(`I${rt}`, cl(c, "cajas")), NUM);
+    apoyo(`AZ${8 + i}`, c); apoyo(`BA${8 + i}`, fx(`I${rt}`, cl(c, "cajas")), "#,##0");
   });
   apoyo("AZ7", "Composición por cajas");
   V("AC15", fx('TEXT($AA$20,"#,##0")&" físicas"', fm(suma("fisicas")) + " físicas"));
@@ -304,8 +304,7 @@ export function armarTablero(d: InsumosTablero): DonaDatos[] {
   V("AD50", "Solo cuenta lo ya enviado · horas de Colombia");
 
   /* La tabla por clase: el nombre más largo cabe, y la última columna no pega con el borde. */
-  for (let r = 25; r <= 29; r++) { const c = h.getCell(`B${r}`); c.font = { ...c.font, size: 9 } }
-  for (let r = 24; r <= 29; r++) { const c = h.getCell(`X${r}`); c.alignment = { ...c.alignment, horizontal: "right", indent: 1 } }
+    for (let r = 24; r <= 29; r++) { const c = h.getCell(`X${r}`); c.alignment = { ...c.alignment, horizontal: "right", indent: 1 } }
   /* El % de los focos: un punto más chico para que "220%" quepa en su celda. */
   for (const a of ["AU37", "AU40"]) { const c = h.getCell(a); c.font = { ...c.font, size: 12 } }
 
@@ -328,6 +327,12 @@ export function armarTablero(d: InsumosTablero): DonaDatos[] {
     { type: "expression", formulae: ["$BA$15<0"], priority: 10, style: f(ROJO, true) },
     { type: "expression", formulae: ["$BA$15>0"], priority: 11, style: f(AMBAR, true) }] });
   h.addConditionalFormatting({ ref: "AU43", rules: [{ type: "expression", formulae: ["$BA$13=0"], priority: 12, style: f(VERDE) }] });
+
+  /* NADA SE CORTA: si un texto o una cifra no cabe en su casilla, Excel la achica sola (así no salen «###» ni letras cortadas). */
+  h.eachRow((r) => r.eachCell((c) => {
+    if (c.fullAddress.col > 50 || c.value == null || c.value === "" || c.alignment?.wrapText) return;
+    c.alignment = { ...c.alignment, shrinkToFit: true };
+  }));
 
   h.pageSetup = { orientation: "landscape", paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 1, horizontalCentered: true, verticalCentered: false,
     margins: { left: 0.2, right: 0.2, top: 0.2, bottom: 0.2, header: 0, footer: 0 }, printArea: "A1:AX52" };

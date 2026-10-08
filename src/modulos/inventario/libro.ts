@@ -690,6 +690,34 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     h.views = [{ state: "frozen", ySplit: 6, showGridLines: false }];
   }
 
+  /* ANCHOS A LA MEDIDA: cada columna se ensancha hasta que quepa lo más largo que trae (título, texto o cifra
+     con su formato). Así se abre y se ve todo, sin tener que estirar nada. Las columnas con texto en varias
+     líneas (Detalle, Nota…) y la hoja Análisis (que mezcla tablas) se dejan como están. */
+  const mide = (v: ExcelJS.CellValue, fmt?: string): number => {
+    if (v == null) return 0;
+    if (typeof v === "object" && "result" in v) return mide(v.result as ExcelJS.CellValue, fmt);
+    if (typeof v === "object" && "text" in v) return String((v as { text: string }).text).length;
+    if (v instanceof Date) return /h/.test(fmt ?? "") ? 14 : 10;
+    if (typeof v === "number") { const dec = /0\.(0+)/.exec(fmt ?? "")?.[1].length ?? 0; return v.toLocaleString("en-US", { minimumFractionDigits: dec, maximumFractionDigits: dec }).length + 1 }
+    return String(v).length;
+  };
+  for (const h of wb.worksheets) {
+    if (["Tablero", "Análisis", "Cómo leer", "Evidencias"].includes(h.name)) continue;
+    const n = h.columnCount;
+    for (let c = 1; c <= n; c++) {
+      let largo = 0, ajusta = false;
+      h.eachRow({ includeEmpty: false }, (r, f) => {
+        if (f < 6) return;
+        const cel = r.getCell(c);
+        if (cel.alignment?.wrapText && f > 6) { ajusta = true; return }
+        largo = Math.max(largo, f === 6 ? Math.max(...String(cel.value ?? "").split(/\s+/).map((w) => w.length), 0) + 4 : mide(cel.value, cel.numFmt) * 1.1 + 2);
+      });
+      if (ajusta) continue;
+      const col = h.getColumn(c);
+      col.width = Math.min(70, Math.max(col.width ?? 8, Math.ceil(largo)));
+    }
+  }
+
   /* Cada hoja cabe a lo ancho de la página al imprimir. */
   for (const h of wb.worksheets) if (h.name !== "Tablero") h.pageSetup = { ...h.pageSetup, fitToPage: true, fitToWidth: 1, fitToHeight: 0,
     orientation: "landscape", margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 } };
