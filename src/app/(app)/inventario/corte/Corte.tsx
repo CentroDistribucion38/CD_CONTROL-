@@ -792,33 +792,35 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
                       <p className="cl-nt">El contador de la depa cuenta las cajas de <b>este producto</b>.</p>
                     </div>
                   </section>
-                  {/* 2 · DE DÓNDE TOMA EL ENVASE. */}
-                  <section className="cl-sec cl-s2" aria-label="De dónde toma el envase">
-                    <div className="cl-sh">
-                      <span className="cl-sic" aria-hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M13 6l6 6-6 6" /></svg></span>
-                      <div><b>De dónde toma el envase</b><small>el módulo de donde saca la línea</small></div>
-                    </div>
-                    <div className="cl-sb">
-                      <MaterialCampo lista={envases} valor={f.envase} etiqueta={etiqueta} resolver={envDe}
-                                     titulo="Envase" nota="del maestro · lo que entra a la línea" sin="Sin envase"
-                                     onCambia={(v) => cambia(linea.clave, (x) => ({ ...x, envase: v }))} />
-                      <div className="cl-r2 una">
-                        {bloque(linea.clave, "origen", "Tomando de", "el módulo de donde saca la línea", true)}
+                  <div className="cl-dos">
+                    {/* 2 · DE DÓNDE TOMA EL ENVASE. */}
+                    <section className="cl-sec cl-s2" aria-label="De dónde toma el envase">
+                      <div className="cl-sh">
+                        <span className="cl-sic" aria-hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M13 6l6 6-6 6" /></svg></span>
+                        <div><b>De dónde toma el envase</b><small>el módulo de donde saca la línea</small></div>
                       </div>
-                    </div>
-                  </section>
-                  {/* 3 · DÓNDE QUEDÓ UBICADO el producto que sale: OBLIGATORIO. */}
-                  <section className="cl-sec cl-s3" aria-label="Dónde quedó ubicado">
-                    <div className="cl-sh">
-                      <span className="cl-sic" aria-hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 3v14M6 11l6 6 6-6M5 21h14" /></svg></span>
-                      <div><b>Dónde quedó ubicado</b><small>el módulo donde queda lo que sale · obligatorio</small></div>
-                    </div>
-                    <div className="cl-sb">
-                      <div className="cl-r2 una">
-                        {bloque(linea.clave, "destino", "Ubicados en", "el módulo donde queda lo que sale", true)}
+                      <div className="cl-sb">
+                        <MaterialCampo lista={envases} valor={f.envase} etiqueta={etiqueta} resolver={envDe}
+                                       titulo="Envase" nota="del maestro · lo que entra a la línea" sin="Sin envase"
+                                       onCambia={(v) => cambia(linea.clave, (x) => ({ ...x, envase: v }))} />
+                        <div className="cl-r2 una">
+                          {bloque(linea.clave, "origen", "Tomando de", "el módulo de donde saca la línea", true)}
+                        </div>
                       </div>
-                    </div>
-                  </section>
+                    </section>
+                    {/* 3 · DÓNDE QUEDÓ UBICADO el producto que sale: OBLIGATORIO. */}
+                    <section className="cl-sec cl-s3" aria-label="Dónde quedó ubicado">
+                      <div className="cl-sh">
+                        <span className="cl-sic" aria-hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 3v14M6 11l6 6 6-6M5 21h14" /></svg></span>
+                        <div><b>Dónde quedó ubicado</b><small>el módulo donde queda lo que sale · obligatorio</small></div>
+                      </div>
+                      <div className="cl-sb">
+                        <div className="cl-r2 una">
+                          {bloque(linea.clave, "destino", "Ubicados en", "el módulo donde queda lo que sale", true)}
+                        </div>
+                      </div>
+                    </section>
+                  </div>
                 </>
               )}
             </div>

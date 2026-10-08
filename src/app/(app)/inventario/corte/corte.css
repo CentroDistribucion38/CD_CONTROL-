@@ -320,6 +320,28 @@
 .fe .cl-s3 .cl-mas { min-height: 44px; border-color: #BDBDB6; background: var(--fe-papel); font: 800 12.5px var(--fe-titulo) }
 .fe .cl-opc { align-self: flex-start; min-height: 44px; padding: 0; background: none; border: 0; font: 700 12.5px var(--fe-texto); color: var(--fe-gris); text-decoration: underline; cursor: pointer }
 
+/* COMPACTO: «de dónde toma» y «dónde quedó ubicado» van lado a lado en pantalla ancha, con menos aire. */
+.fe .cl-cuerpo { gap: 10px; padding: 12px 14px 14px }
+.fe .cl-dos { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: start }
+.fe .cl-sh { padding: 6px 12px; gap: 10px }
+.fe .cl-sh > div { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 10px; min-width: 0 }
+.fe .cl-sh b { font-size: 14px }
+.fe .cl-sh small { display: inline; font-size: 11.5px }
+.fe .cl-sic { width: 26px; height: 26px }
+.fe .cl-sb { padding: 10px 12px; gap: 8px }
+.fe .cl-prodepa .cl-busca input, .fe .cl-prodepa .cl-cont input { min-height: 44px }
+.fe .cl-prodepa .cl-cont input { font-size: 20px }
+.fe .cl-flecha { height: 44px; margin-top: 19px }
+.fe .cl-prodepa .cl-busca ul, .fe .cl-prodepa .cl-nada { top: 46px }
+.fe .cl-s2 .cl-sitio, .fe .cl-s3 .cl-sitio { padding: 8px 10px; gap: 6px }
+.fe .cl-s2 input, .fe .cl-s2 select, .fe .cl-s3 input, .fe .cl-s3 select { min-height: 38px }
+.fe .cl-s2 .cl-mod, .fe .cl-s3 .cl-mod { grid-template-columns: repeat(3, minmax(0, 1fr)) 118px; gap: 8px }
+.fe .cl-s2 .cl-cant-c > span, .fe .cl-s3 .cl-cant-c > span { white-space: nowrap; font-size: 11px }
+.fe .cl-s2 .cl-cant-c input, .fe .cl-s3 .cl-cant-c input { font-size: 16px }
+.fe .cl-s2 .cl-mas, .fe .cl-s3 .cl-mas { min-height: 34px; padding: 0 10px }
+.fe .cl-s2 .cl-mod-cab, .fe .cl-s3 .cl-mod-cab { margin-bottom: -2px }
+@media (max-width: 1180px) { .fe .cl-dos { grid-template-columns: 1fr } }
+
 @media (max-width: 900px) {
   .fe .cl-grid { grid-template-columns: 1fr }
   .fe .cl-r1, .fe .cl-r2 { grid-template-columns: 1fr }
