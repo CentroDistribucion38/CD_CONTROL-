@@ -429,7 +429,7 @@
 
 .tp .turnos {
   background: var(--tp-papel); border: 1px solid var(--tp-linea); border-radius: 3px;
-  padding: 18px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  padding: 18px; display: grid; grid-template-columns: repeat(var(--n-anillos, 3), minmax(0, 1fr)); gap: 8px;
 }
 /* LA COLUMNA DE LOS TURNOS: los anillos, la selección y el botón del
    día, apilados. Va en una caja porque el medidor es una rejilla de dos
@@ -1100,6 +1100,25 @@
 .tp .cel-step input:focus { outline: none; background: color-mix(in srgb, var(--tp-ojo) 18%, #fff) }
 .tp .cel-step.vacia input { color: var(--tp-linea) }
 .tp .solo-ver { font-family: var(--tp-titulo); font-weight: 900; font-size: 15px }
+
+/* PLAN GENERAL DEL DÍA. Cuando un tipo va general, sus celdas por turno
+   se atenúan (siguen siendo tocables: escribir en una vuelve a repartir
+   por turno y borra el general). */
+.tp .matriz td.apagada .cel-step { opacity: .38 }
+.tp .matriz td.apagada .cel-step:focus-within,
+.tp .matriz td.apagada .cel-step:hover { opacity: 1 }
+.tp .dia-suma, .tp .dia-general {
+  display: inline-flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.tp .gen-etiqueta {
+  font: 700 9.5px var(--tp-texto); letter-spacing: .08em; text-transform: uppercase;
+  color: var(--tp-sobre-ojo); background: var(--tp-ojo); padding: 1px 6px; border-radius: 2px;
+}
+.tp .dia-suma .pasar {
+  border: 0; background: none; padding: 0; cursor: pointer; text-decoration: underline;
+  font: 500 10.5px var(--tp-texto); color: var(--tp-gris);
+}
+.tp .dia-suma .pasar:hover { color: var(--tp-tinta) }
 .tp .hecho {
   display: block; margin-top: 5px; font-size: 10.5px; color: var(--tp-bien); font-weight: 700;
 }

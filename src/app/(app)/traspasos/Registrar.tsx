@@ -40,6 +40,8 @@ const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
  */
 export type PlanTipo = {
   tipo: string; nombre: string; planeado: number; cumplido: number;
+  /** Planeado general del día, sin repartir por turno. */
+  general?: boolean;
 };
 
 export function Registrar({ tipos, puntos, placas, placasM,
@@ -588,7 +590,9 @@ export function Registrar({ tipos, puntos, placas, placasM,
                                   : sobra > 0 ? `+${sobra} sobre el plan`
                                   : "Completo"}
                               </span>
-                              <span className="prog">{p.cumplido} / {p.planeado}</span>
+                              <span className="prog">
+                                {p.cumplido} / {p.planeado}{p.general ? " · del día" : ""}
+                              </span>
                             </button>
                           );
                         })}

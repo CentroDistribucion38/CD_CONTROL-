@@ -13,6 +13,13 @@ type Vacios  = Record<string, number>;      // "A"     → 2
 
 const k = (turno: string, tipo: string) => `${turno}|${tipo}`;
 
+/* «D» ES EL DÍA COMPLETO. Un tipo se planea de UNA de dos maneras: por
+   turno (C, A, B) o general del día (D), nunca las dos. La base lo exige
+   igual (traspaso_plan_revisar); aquí la pantalla lo hace imposible de
+   escribir: poner un número en una forma borra el de la otra. */
+const DIA = "D";
+const CON_DIA = [DIA, ...TURNOS] as string[];
+
 /**
  * EL PLAN DEL DÍA, EN UNA SOLA REJILLA.
  *
@@ -111,17 +118,59 @@ export function Plan({ tipos, publicadas, borrador, vaciosGuardados, control,
   }, [control]);
 
   const val = (t: string, tipo: string) => rejilla[k(t, tipo)] ?? 0;
+
+  /* UN TIPO, UNA FORMA. Escribir en el general borra el reparto por
+     turno de ese tipo, y escribir en un turno borra el general. Sin esto
+     quedarían «12 en el día» y «6 en el C» a la vez y nadie sabría si el
+     plan es 12 o 18. */
   const poner = (t: string, tipo: string, n: number) =>
-    setRejilla((r) => ({ ...r, [k(t, tipo)]: Math.max(0, n) }));
+    setRejilla((r) => {
+      const v = Math.max(0, n);
+      const sig = { ...r, [k(t, tipo)]: v };
+      if (v > 0) {
+        for (const o of CON_DIA) {
+          if ((o === DIA) !== (t === DIA)) sig[k(o, tipo)] = 0;
+        }
+      }
+      return sig;
+    });
+
+  /* Lo mismo con los vacíos: «general» o por turno. */
+  const ponerVac = (t: string, n: number) =>
+    setVacios((vv) => {
+      const v = Math.max(0, n);
+      const sig = { ...vv, [t]: v };
+      if (v > 0) {
+        for (const o of CON_DIA) {
+          if ((o === DIA) !== (t === DIA)) sig[o] = 0;
+        }
+      }
+      return sig;
+    });
+
+  /* En qué forma está cada tipo: «dia» si tiene general, «turnos» si lo
+     reparte, «libre» si todavía no tiene nada y puede ir como sea. */
+  const porTurnos = (tipo: string) => TURNOS.reduce((a, t) => a + val(t, tipo), 0);
+  const modo = (tipo: string): "dia" | "turnos" | "libre" =>
+    val(DIA, tipo) > 0 ? "dia" : porTurnos(tipo) > 0 ? "turnos" : "libre";
+  const vacPorTurnos = TURNOS.reduce((a, t) => a + (vacios[t] ?? 0), 0);
+  const modoVac = (): "dia" | "turnos" | "libre" =>
+    (vacios[DIA] ?? 0) > 0 ? "dia" : vacPorTurnos > 0 ? "turnos" : "libre";
+
+  /* «PASAR A GENERAL»: el total que ya tiene el tipo repartido se
+     convierte en el general del día. Se pierde el reparto, no el total. */
+  const pasarAGeneral = (tipo: string) => poner(DIA, tipo, porTurnos(tipo));
+  const pasarVacAGeneral = () => ponerVac(DIA, vacPorTurnos);
 
   const totTurno = (t: string) => tipos.reduce((a, x) => a + val(t, x.clave), 0);
-  const totTipo = (tipo: string) => TURNOS.reduce((a, t) => a + val(t, tipo), 0);
+  const totGeneral = tipos.reduce((a, x) => a + val(DIA, x.clave), 0);
+  const totTipo = (tipo: string) => porTurnos(tipo) + val(DIA, tipo);
   const totalConCarga = tipos.reduce((a, x) => a + totTipo(x.clave), 0);
-  const totalVacios = TURNOS.reduce((a, t) => a + (vacios[t] ?? 0), 0);
+  const totalVacios = vacPorTurnos + (vacios[DIA] ?? 0);
 
   const lineas = () => {
     const l: { turno: string; tipo: string; planeado: number }[] = [];
-    for (const t of TURNOS) for (const x of tipos) {
+    for (const t of CON_DIA) for (const x of tipos) {
       const n = val(t, x.clave);
       if (n > 0) l.push({ turno: t, tipo: x.clave, planeado: n });
     }
@@ -159,7 +208,7 @@ export function Plan({ tipos, publicadas, borrador, vaciosGuardados, control,
     const { error } = await supabase.rpc("traspaso_guardar_plan", {
       p_fecha: fecha,
       p_lineas: lineas(),
-      p_vacios: TURNOS.map((t) => ({ turno: t, vacios: vacios[t] ?? 0 })),
+      p_vacios: CON_DIA.map((t) => ({ turno: t, vacios: vacios[t] ?? 0 })),
     });
     if (error) { setMandando(false); avisar.mal(error.message); return }
 
@@ -228,7 +277,10 @@ export function Plan({ tipos, publicadas, borrador, vaciosGuardados, control,
                         <span className="hor">{HORARIO[t]}</span>
                       </th>
                     ))}
-                    <th className="cen dia">Día</th>
+                    <th className="cen dia">
+                      Día
+                      <span className="hor">general o suma</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -236,7 +288,7 @@ export function Plan({ tipos, publicadas, borrador, vaciosGuardados, control,
                     <tr key={x.clave}>
                       <td className="tipo">{x.nombre}</td>
                       {TURNOS.map((t) => (
-                        <td key={t} className="cen">
+                        <td key={t} className={"cen" + (modo(x.clave) === "dia" ? " apagada" : "")}>
                           <Celda n={val(t, x.clave)} puedeEditar={editaDia}
                                  onCambio={(n) => poner(t, x.clave, n)} />
                           {/* Lo hecho, debajo y en verde. Planear el
@@ -247,7 +299,15 @@ export function Plan({ tipos, publicadas, borrador, vaciosGuardados, control,
                           )}
                         </td>
                       ))}
-                      <td className="cen tot">{totTipo(x.clave) || "—"}</td>
+                      <td className="cen tot">
+                        <CeldaDia n={modo(x.clave) === "dia" ? val(DIA, x.clave) : porTurnos(x.clave)}
+                                  modo={modo(x.clave)} puedeEditar={editaDia}
+                                  onCambio={(n) => poner(DIA, x.clave, n)}
+                                  onPasar={() => pasarAGeneral(x.clave)} />
+                        {esHoy && (hecho[k(DIA, x.clave)] ?? 0) > 0 && (
+                          <span className="hecho">{hecho[k(DIA, x.clave)]} hechos</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -273,10 +333,15 @@ export function Plan({ tipos, publicadas, borrador, vaciosGuardados, control,
                     {TURNOS.map((t) => (
                       <td className="cen" key={t}>
                         <Celda n={vacios[t] ?? 0} puedeEditar={editaDia}
-                               onCambio={(n) => setVacios((v) => ({ ...v, [t]: Math.max(0, n) }))} />
+                               onCambio={(n) => ponerVac(t, n)} />
                       </td>
                     ))}
-                    <td className="cen tot">{totalVacios || "—"}</td>
+                    <td className="cen tot">
+                      <CeldaDia n={modoVac() === "dia" ? (vacios[DIA] ?? 0) : vacPorTurnos}
+                                modo={modoVac()} puedeEditar={editaDia}
+                                onCambio={(n) => ponerVac(DIA, n)}
+                                onPasar={pasarVacAGeneral} />
+                    </td>
                   </tr>
                 </tfoot>
               </table>
@@ -297,7 +362,7 @@ export function Plan({ tipos, publicadas, borrador, vaciosGuardados, control,
                     ÚLTIMA decisión —ya miraste la rejilla y te cuadra—,
                     no una forma de empezarla. */}
                 <Repetir fecha={fecha} hoy={hoy} lineas={lineas}
-                         vacios={() => TURNOS.map((t) => ({ turno: t, vacios: vacios[t] ?? 0 }))}
+                         vacios={() => CON_DIA.map((t) => ({ turno: t, vacios: vacios[t] ?? 0 }))}
                          totalViajes={totalConCarga} avisar={avisar} />
                 <span className="aviso-cambios">
                   {cambios === 0
@@ -354,7 +419,8 @@ export function Plan({ tipos, publicadas, borrador, vaciosGuardados, control,
             <div className="barras-turno">
               {TURNOS.map((t) => {
                 const n = totTurno(t) + (vacios[t] ?? 0);
-                const tope = Math.max(1, ...TURNOS.map((o) => totTurno(o) + (vacios[o] ?? 0)));
+                const tope = Math.max(1, totGeneral + (vacios[DIA] ?? 0),
+                                      ...TURNOS.map((o) => totTurno(o) + (vacios[o] ?? 0)));
                 return (
                   <div className="bt" key={t}>
                     <span>Turno {t}</span>
@@ -363,6 +429,18 @@ export function Plan({ tipos, publicadas, borrador, vaciosGuardados, control,
                   </div>
                 );
               })}
+              {/* LO QUE SE PLANEÓ SIN REPARTIR. Va como una barra más,
+                  del mismo tamaño que las de los turnos, para que se
+                  vea cuánto del día quedó sin turno. */}
+              {(totGeneral + (vacios[DIA] ?? 0)) > 0 && (
+                <div className="bt">
+                  <span>General</span>
+                  <span className="pista">
+                    <i style={{ width: `${((totGeneral + (vacios[DIA] ?? 0)) / Math.max(1, totGeneral + (vacios[DIA] ?? 0), ...TURNOS.map((o) => totTurno(o) + (vacios[o] ?? 0)))) * 100}%` }} />
+                  </span>
+                  <span className="v">{totGeneral + (vacios[DIA] ?? 0)}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -410,6 +488,44 @@ export function Plan({ tipos, publicadas, borrador, vaciosGuardados, control,
 
 function totalHechos(h: Rejilla) {
   return Object.values(h).reduce((a, n) => a + n, 0);
+}
+
+/**
+ * LA CELDA DE LA COLUMNA «DÍA».
+ *
+ * Tiene dos oficios: ser la SUMA de lo repartido por turno, o ser el
+ * plan GENERAL del día cuando no se quiere repartir.
+ *
+ *   · libre / dia ..... se escribe aquí: es el general del día.
+ *   · turnos .......... es la suma, de solo lectura. Escribir encima
+ *                       borraría el reparto sin avisar, así que el paso
+ *                       a general es un botón aparte y explícito.
+ */
+function CeldaDia({ n, modo, puedeEditar, onCambio, onPasar }: {
+  n: number; modo: "dia" | "turnos" | "libre"; puedeEditar: boolean;
+  onCambio: (n: number) => void; onPasar: () => void;
+}) {
+  if (!puedeEditar || modo === "turnos") {
+    return (
+      <span className="dia-suma">
+        <span className="solo-ver">{n || "—"}</span>
+        {puedeEditar && (
+          <button type="button" className="pasar" onClick={onPasar}
+                  title="Pasar este total a general del día: se borra el reparto por turno"
+                  aria-label="Pasar el total a general del día">
+            pasar a general
+          </button>
+        )}
+        {!puedeEditar && modo === "dia" && <span className="gen-etiqueta">general</span>}
+      </span>
+    );
+  }
+  return (
+    <span className="dia-general">
+      <Celda n={n} puedeEditar onCambio={onCambio} />
+      {modo === "dia" && <span className="gen-etiqueta">general</span>}
+    </span>
+  );
 }
 
 /** La celda de la rejilla. Con guantes, dos botones grandes ganan a

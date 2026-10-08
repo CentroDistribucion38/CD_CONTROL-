@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import type { TipoViaje } from "@/modulos/traspasos/datos";
-import { TURNOS } from "@/modulos/traspasos/formato";
+import { TURNOS, TURNO_DIA } from "@/modulos/traspasos/formato";
 import { PALETA_MARCA, paletaDeTema, aRGB } from "@/modulos/rotlinea/hoja";
 
 /** Los colores del tema de quien exporta, para que el Excel salga con
@@ -294,7 +294,8 @@ export function Barra({ tipos, soloBotones, soloFiltros, hoy, dia, desde, hasta 
           </div>
 
           <Grupo rotulo="Turno" clave="turno" vacio="Todos"
-                 opciones={TURNOS.map((t) => ({ id: t, nombre: t }))}
+                 opciones={[...TURNOS.map((t) => ({ id: t, nombre: t as string })),
+                              { id: TURNO_DIA, nombre: "Día (plan general)" }]}
                  puestos={lista("turno")} alternar={alternar} poner={poner} />
 
           <Grupo rotulo="Tipo de viaje" clave="tipo" vacio="Todos"

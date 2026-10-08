@@ -31,6 +31,7 @@
 import { useEffect, useState } from "react";
 import type { Control } from "@/modulos/traspasos/datos";
 import { Cierre } from "./Cierre";
+import { TURNO_DIA, rotuloTurno } from "@/modulos/traspasos/formato";
 
 export type Anillo = {
   turno: string; planeado: number; adheridos: number; pct: number; hay: boolean;
@@ -85,14 +86,19 @@ export function Turnos({ anillos, filas, desde, hasta, rotulo, adherencia, adher
      los apila. */
   return (
     <div className="tp-turnos-caja">
-      <div className="turnos">
+      <div className="turnos" style={{ "--n-anillos": anillos.length } as React.CSSProperties}>
         {anillos.map((x) => {
           const on = marcados.includes(x.turno);
+          /* EL PLAN GENERAL DEL DÍA no es un turno: se abre como el cierre
+             del día (sus viajes están repartidos por turno) y no se suma a
+             una selección de turnos. */
+          const general = x.turno === TURNO_DIA;
           return (
-            <div className={"turno" + (on ? " marcado" : "")} key={x.turno}>
+            <div className={"turno" + (on ? " marcado" : "") + (general ? " general" : "")} key={x.turno}>
               {/* LA CASILLA VA PRIMERO EN EL ORDEN DEL TECLADO: con el
                   tabulador se recorre marcar A, abrir A, marcar B… que
                   es como se arma una selección sin ratón. */}
+              {!general && (
               <button type="button" className="tp-marca" aria-pressed={on}
                       onClick={() => marcar(x.turno)}
                       aria-label={`${on ? "Quitar" : "Sumar"} el turno ${x.turno} a la selección`}>
@@ -100,9 +106,11 @@ export function Turnos({ anillos, filas, desde, hasta, rotulo, adherencia, adher
                   {on && <svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>}
                 </i>
               </button>
+              )}
 
-              <button type="button" className="tp-abrir" onClick={() => setAbierto([x.turno])}
-                      aria-label={`Ver el cierre del turno ${x.turno}`}>
+              <button type="button" className="tp-abrir" onClick={() => setAbierto(general ? [] : [x.turno])}
+                      aria-label={general ? "Ver el cierre del día, con el plan general"
+                                          : `Ver el cierre del turno ${x.turno}`}>
                 <svg viewBox="0 0 86 86" aria-hidden>
                   <circle cx="43" cy="43" r={R} fill="none" stroke="var(--tp-fondo)" strokeWidth="10" />
                   <circle cx="43" cy="43" r={R} fill="none" stroke={color(x.hay ? x.pct : null)}
@@ -114,7 +122,7 @@ export function Turnos({ anillos, filas, desde, hasta, rotulo, adherencia, adher
                     {x.hay ? `${x.pct}%` : "—"}
                   </text>
                 </svg>
-                <b>Turno {x.turno}</b>
+                <b>{rotuloTurno(x.turno)}</b>
                 <span>{x.hay ? `${x.adheridos} de ${x.planeado}` : "sin plan"}</span>
                 <i className="tp-ver" aria-hidden>
                   <svg viewBox="0 0 24 24"><path d="M4 12h15" /><path d="M13 6l6 6-6 6" /></svg>

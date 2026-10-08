@@ -30,10 +30,21 @@
 export const TURNOS = ["C", "A", "B"] as const;
 export type Turno = (typeof TURNOS)[number];
 
+/**
+ * «D» = EL DÍA COMPLETO. No es un turno: es el plan que se escribió
+ * general, sin repartir. Vive en el plan y en el control (nunca en un
+ * viaje), y por eso NO está en TURNOS: lo que recorre TURNOS dibuja los
+ * tres turnos de la bodega, y el día completo se agrega aparte donde hace
+ * falta.
+ */
+export const TURNO_DIA = "D";
+export const rotuloTurno = (t: string) => (t === TURNO_DIA ? "Día completo" : `Turno ${t}`);
+
 export const HORARIO: Record<string, string> = {
   C: "22:00 · 06:00",
   A: "06:00 · 14:00",
   B: "14:00 · 22:00",
+  D: "Todo el día",
 };
 
 /** Qué turno va según la hora de Colombia. Se PROPONE, no se impone:

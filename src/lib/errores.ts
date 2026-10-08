@@ -70,6 +70,10 @@ const PREFIJOS: [RegExp, string][] = [
    "supabase/migraciones/2026-09-traspasos-plan-varios-dias.sql"],
   [/\b(traspaso_parecido|traspaso_unir_punto|traspaso_agregar_punto|v_traspasos_uso)/,
    "supabase/migraciones/2026-09-traspasos-maestro.sql"],
+  /* El plan «general del día» (turno D) lo trae su propia migración: sin
+     ella la base rechaza el turno D con esta restricción. */
+  [/\b(traspaso_plan_revisar|traspasos_plan_turno_valido|traspasos_plan_vacios_turno_valido)/,
+   "supabase/migraciones/2026-10-traspasos-plan-general.sql"],
   [/\b(traspasos_plan_vacios|traspaso_guardar_plan|traspaso_publicar_plan)/,
    "supabase/migraciones/2026-09-traspasos-plan-rejilla.sql"],
   [/\b(traspasos?_|v_traspasos)/, "supabase/modulos/traspasos.sql"],

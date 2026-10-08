@@ -5,7 +5,7 @@ import {
   tipos as leerTipos, puntos as leerPuntos, viajesDelDia, control,
   placasRecientes, hoyLocal, placasMaestro, diaAbierto, vidrioEsperando,
 } from "@/modulos/traspasos/datos";
-import { turnoDeAhora, TURNOS, conDia, DIAS_ADELANTE, topeAdelante }
+import { turnoDeAhora, TURNOS, TURNO_DIA, conDia, DIAS_ADELANTE, topeAdelante }
   from "@/modulos/traspasos/formato";
 import "./traspasos.css";
 import { AlDia, SinTablas } from "./comunes";
@@ -83,11 +83,13 @@ export default async function TraspasosPage({ searchParams }: {
   /* Por turno, para los cuadritos del panel de la derecha. */
   const planTurno: Record<string, number> = {};
   const hechosTurno: Record<string, number> = {};
+  /* EL PLAN GENERAL DEL DÍA (turno D) cuenta para TODOS los turnos: el
+     plan no dice en cuál se hace, así que desde el A, el B o el C lo que
+     falta es lo mismo. */
   for (const tu of TURNOS) {
-    planTurno[tu] = ctl.filas.filter((f) => f.turno === tu)
-      .reduce((a, f) => a + f.planeado, 0);
-    hechosTurno[tu] = ctl.filas.filter((f) => f.turno === tu)
-      .reduce((a, f) => a + f.cumplido, 0);
+    const delTurno = ctl.filas.filter((f) => f.turno === tu || f.turno === TURNO_DIA);
+    planTurno[tu] = delTurno.reduce((a, f) => a + f.planeado, 0);
+    hechosTurno[tu] = delTurno.reduce((a, f) => a + f.cumplido, 0);
   }
 
   /* EL PLAN DEL TURNO, TIPO POR TIPO. Es lo que convierte "escoger el
@@ -99,15 +101,16 @@ export default async function TraspasosPage({ searchParams }: {
      exactamente esto. Pedirlo otra vez sería preguntar dos veces lo
      mismo y arriesgarse a que las dos respuestas no coincidan. */
   const planPorTipo: Record<string, {
-    tipo: string; nombre: string; planeado: number; cumplido: number;
+    tipo: string; nombre: string; planeado: number; cumplido: number; general: boolean;
   }[]> = {};
   for (const tu of TURNOS) {
     planPorTipo[tu] = ctl.filas
-      .filter((f) => f.turno === tu && f.planeado > 0)
+      .filter((f) => (f.turno === tu || f.turno === TURNO_DIA) && f.planeado > 0)
       .sort((a, b) => (a.tipo_orden ?? 99) - (b.tipo_orden ?? 99))
       .map((f) => ({
         tipo: f.tipo, nombre: f.tipo_nombre,
         planeado: f.planeado, cumplido: f.cumplido,
+        general: f.turno === TURNO_DIA,
       }));
   }
 

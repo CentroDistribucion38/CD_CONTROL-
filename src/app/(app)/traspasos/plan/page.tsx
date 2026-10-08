@@ -43,8 +43,9 @@ export default async function PlanPage({ searchParams }: {
           <h1>Plan del día</h1>
           <p className="sub" style={{ textTransform: "none" }}>
             <span style={{ textTransform: "capitalize" }}>{fechaLarga(dia)}</span>. Los tres
-            turnos y los nueve tipos en una sola rejilla. Lo cumplido no se escribe aquí: lo
-            cuenta la base sobre los viajes que se registran.
+            turnos y los nueve tipos en una sola rejilla. Cada tipo se planea por turno o, si no
+            quieres repartirlo, <b>general del día</b> en la columna Día. Lo cumplido no se
+            escribe aquí: lo cuenta la base sobre los viajes que se registran.
           </p>
         </div>
         <div className="der-ctl">

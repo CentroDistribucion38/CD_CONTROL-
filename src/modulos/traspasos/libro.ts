@@ -28,7 +28,7 @@
 import ExcelJS from "exceljs";
 import { unzipSync, zipSync } from "fflate";
 import type { Control, Viaje } from "./datos";
-import { TURNOS } from "./formato";
+import { TURNOS, TURNO_DIA } from "./formato";
 
 type BufferDeExcel = Parameters<ExcelJS.Workbook["addImage"]>[0]["buffer"];
 
@@ -206,7 +206,10 @@ export async function armarInformeTraspasos(d: InsumosInforme): Promise<Buffer> 
   const tipos = [...porTipo.values()].sort((a, b) => a.orden - b.orden || a.nombre.localeCompare(b.nombre, "es"));
 
   /* Por turno, en el orden de la bodega. */
-  const porTurno = TURNOS.map((tu) => {
+  /* El plan GENERAL del día (turno D) va como una fila más cuando lo hay:
+     sin ella, la suma por turno no daría el total del día. */
+  const hayGeneral = d.filas.some((f) => f.turno === TURNO_DIA);
+  const porTurno = (hayGeneral ? [...TURNOS, TURNO_DIA] : [...TURNOS]).map((tu) => {
     const l = d.filas.filter((f) => f.turno === tu);
     const pl = sum(l, "planeado"), ad = sum(l, "adheridos"), ex = sum(l, "adicionales");
     return { turno: tu, planeado: pl, adheridos: ad, adicionales: ex, faltan: pl - ad,
@@ -320,7 +323,7 @@ export async function armarInformeTraspasos(d: InsumosInforme): Promise<Buffer> 
     pon(f, 2, "CÓMO VA POR TURNO", letra(8, P.TINTA, true)); alto(f, 15.75); f++;
     fila(f++, ["TURNO", "PLANEADO", "CUMPLIDO", "ADICIONAL", "FALTAN", "% ADHER.", ""], "cabeza");
     for (const t of porTurno) {
-      fila(f, [t.turno + (t.hay ? "" : "  (sin movimiento)"), t.planeado, t.adheridos, t.adicionales, t.faltan,
+      fila(f, [(t.turno === TURNO_DIA ? "DÍA (plan general)" : t.turno) + (t.hay ? "" : "  (sin movimiento)"), t.planeado, t.adheridos, t.adicionales, t.faltan,
                t.pct == null ? "—" : t.pct / 100, ""], "dato",
            [undefined, NUM, NUM, NUM, NUM, t.pct == null ? "@" : "0%"]);
       h.getCell(f, 8).font = letra(10, colorPct(t.pct, P), true);
@@ -370,7 +373,7 @@ export async function armarInformeTraspasos(d: InsumosInforme): Promise<Buffer> 
       const r = h.getRow(7 + i);
       const ad = x.planeado > 0 ? x.adheridos / x.planeado : null;
       const cu = x.planeado > 0 ? x.cumplido / x.planeado : null;
-      r.values = [aFecha(x.fecha), x.turno, x.planeado, x.adheridos, x.adicionales, x.faltan,
+      r.values = [aFecha(x.fecha), x.turno === TURNO_DIA ? "Día (general)" : x.turno, x.planeado, x.adheridos, x.adicionales, x.faltan,
                   ad, cu, x.carga, x.registros, x.tipos, x.sinPlanear];
       filaDatos(r, C.length, i % 2 === 1,
         { 3: NUM, 4: NUM, 5: NUM, 6: NUM, 7: PCT, 8: PCT, 9: NUM, 10: NUM, 11: "0", 12: "0" });

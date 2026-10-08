@@ -3,7 +3,7 @@ import {
   controlRango, vaciosRango, tipos as leerTipos, hoyLocal, cruceDelDia, fueraDelPlanRango,
   type Control,
 } from "@/modulos/traspasos/datos";
-import { fecha as fechaLarga, TURNOS } from "@/modulos/traspasos/formato";
+import { fecha as fechaLarga, TURNOS, TURNO_DIA } from "@/modulos/traspasos/formato";
 import { nombresTodos } from "@/modulos/sider/datos";
 import "../traspasos.css";
 import "../cruce/cruce.css";
@@ -167,7 +167,11 @@ export default async function ControlPage({ searchParams }: {
   const pFalta = Math.max(0, 100 - pOk - pExtra);
 
   /* Por turno, en el orden de la bodega: C abre el día. */
-  const porTurno = TURNOS.map((tu) => {
+  /* EL PLAN GENERAL DEL DÍA, como un anillo más cuando lo hay: lo que se
+     planeó sin repartir por turno no es de ningún turno y, sin anillo,
+     el parcial por turno no sumaría el total del día. */
+  const hayGeneral = filas.some((f) => f.turno === TURNO_DIA);
+  const porTurno = (hayGeneral ? [...TURNOS, TURNO_DIA] : [...TURNOS]).map((tu) => {
     const l = filas.filter((f) => f.turno === tu);
     const pl = sum(l, "planeado");
     const ad = sum(l, "adheridos");
@@ -470,7 +474,7 @@ export default async function ControlPage({ searchParams }: {
                       {f.sin_planear && <> <span className="eti ojo">SIN PLANEAR</span></>}
                     </td>
                     {!unDia && <td>{f.fecha}</td>}
-                    <td>{f.turno}</td>
+                    <td>{f.turno === TURNO_DIA ? "Día" : f.turno}</td>
                     <td className="n">{f.planeado || "—"}</td>
                     <td>
                       <span className="cuenta">{f.cumplido}</span>
