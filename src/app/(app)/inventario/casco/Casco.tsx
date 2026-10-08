@@ -118,7 +118,7 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar }:
     const hlE = dato[f.sku]?.hl_estiba ?? null;
     const total = inv != null && baja != null ? inv + baja : null;
     return { inv, baja, hl: total != null && hlE != null ? total * hlE : null,
-             malInv: inv == null || inv < 0, malBaja: baja == null || baja < 0, sinFactor: hlE == null };
+             malInv: inv == null || inv < 0, malBaja: baja == null, sinFactor: hlE == null };
   });
   const conError = (s: SitioCasco, b: Bloque) => calcular(s, b).some((c) => c.malInv || c.malBaja || c.sinFactor);
 

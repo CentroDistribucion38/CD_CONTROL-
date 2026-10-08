@@ -28,7 +28,7 @@ const fila = (sku, texto) => tab1.find((r) => r[2] === sku && r[4] === texto);
 const f1 = fila("3500005", "BAJA SORTING JG");
 ok(f1 && f1[1] === "AG18 EER Fábrica" && f1[5] === "Inventario" && f1[6] === "116.280" && f1[7] === "56,67", "116.280 UN de 3500005 = 56,67 est. en AG18: " + JSON.stringify(f1));
 const lav = fila("3501430", "BAJA LAVADO");
-ok(lav && lav[1] === "AG18 EER Fábrica" && lav[5] === "Lavado con baja" && lav[7] === "14,47", "LAVADO → Lavado con baja: " + JSON.stringify(lav));
+ok(lav && lav[1] === "AG18 EER Fábrica" && lav[5] === "Lavado con baja" && lav[7] === "−14,47", "LAVADO → Lavado con baja: " + JSON.stringify(lav));
 const ext = fila("3501430", "BAJA EXTRASUCIO");
 ok(ext && ext[1] === "AG22 EER Barranquilla" && ext[5] === "Extrasucio con baja", "EXTRASUCIO → Extrasucio con baja en AG22: " + JSON.stringify(ext));
 const sinF = tab1.filter((r) => r[2] === "3501225");
@@ -52,6 +52,33 @@ ok(ap && ap.a.p_fecha === "2026-10-07", "suma al día de Control escogido (hoy p
 ok(ap && ap.a.p_filas.every((f) => f.centro && f.sku && f.llave && f.unidades > 0 && /^\d{4}-\d{2}-\d{2}$/.test(f.fecha)), "cada fila lleva centro, sku, llave, unidades positivas y fecha ISO");
 ok(ap && new Set(ap.a.p_filas.map((f) => f.llave)).size === 37, "las llaves son únicas (el documento repetido no se pisa)");
 await pag.screenshot({ path: R(".arnes/tmp/reg/aplicado.png"), fullPage: true });
+/* HISTORIAL DE ARCHIVOS Y FILTROS */
+ok(ap && ap.a.p_archivo && /\.xlsx$/i.test(ap.a.p_archivo) && ap.a.p_hoja && ap.a.p_leidas === 42, "manda nombre de archivo, hoja y filas leídas: " + JSON.stringify([ap?.a.p_archivo, ap?.a.p_hoja, ap?.a.p_leidas]));
+await pag.waitForFunction(() => document.body.innerText.includes("ana@x.co"), null, { timeout: 3000 }).catch(() => fallas.push("el archivo no aparece en «Archivos subidos»"));
+const tablas = async () => pag.evaluate(() => [...document.querySelectorAll("section.cas-bloque")].map((s) => ({ h: s.querySelector("h2")?.textContent, filas: [...s.querySelectorAll("table tbody tr")].map((r) => [...r.cells].map((c) => c.textContent.trim())) })));
+let t = await tablas();
+const arch = t.find((x) => x.h === "Archivos subidos");
+ok(arch && arch.filas.length === 1 && arch.filas[0][3].includes("2026") && arch.filas[0][4] === "37", "1 archivo con 37 filas y su día de Control: " + JSON.stringify(arch?.filas));
+const reg = t.find((x) => /registradas/i.test(x.h ?? ""));
+ok(reg && reg.filas.length === 37, "37 bajas registradas en el historial: " + reg?.filas.length);
+/* filtro de archivos por nombre */
+await pag.fill('input[placeholder="Buscar por nombre…"]', "zzz");
+t = await tablas(); ok(t.find((x) => x.h === "Archivos subidos").filas[0][0].includes("Ningún archivo"), "filtro por nombre sin coincidencias");
+await pag.fill('input[placeholder="Buscar por nombre…"]', "");
+/* filtros de las bajas */
+const etqs = await pag.$$eval("#reg-bajas .reg-filtros label > span", (x) => x.map((e) => e.textContent.trim()));
+console.log("filtros de bajas:", etqs.join(" | "));
+await pag.fill('#reg-bajas .reg-filtros input[type=search]', "LAVADO");
+t = await tablas(); const rl = t.find((x) => /registradas/i.test(x.h ?? "")).filas;
+ok(rl.length > 0 && rl.length < 37, "filtro de texto LAVADO deja solo esas: " + rl.length);
+await pag.fill('#reg-bajas .reg-filtros input[type=search]', "");
+/* deshacer el archivo entero */
+await pag.click("button:has-text('Deshacer archivo')");
+await pag.waitForSelector(".cf-botones", { timeout: 3000 });
+await pag.click(".cf-botones .cf-btn:not(.plano)");
+await pag.waitForFunction(() => document.body.innerText.includes("Todavía no has subido archivos"), null, { timeout: 3000 }).catch(() => fallas.push("deshacer archivo no vació el historial"));
+ok((await pag.evaluate(() => window.llamadas)).some((l) => l.f === "casco_quitar_archivo"), "llamó casco_quitar_archivo");
+
 ok(errs.length === 0, "errores en consola: " + errs.join(" | "));
 await b.close();
 if (fallas.length) { fallas.forEach((f) => console.log("✗ " + f)); process.exit(1) }
