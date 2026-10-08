@@ -158,19 +158,19 @@ ok(/\*/.test(x.formulas_base[2]), "el total de cajas no es estibas × factor + s
 /* La fórmula tiene que dar lo mismo que guardó la aplicación (las 8 de la base). */
 ok(!x.validar.includes("No cuadra con la aplicación"), "la fórmula del total de cajas no cuadra con la aplicación");
 /* Clases: producto 6 renglones (A01IZQ, A01DER, A02IZQ×2, B01IZQ, C02IZQ), envase 1 (la canasta). */
-ok(x.clases.Producto?.[0] === 7, `clase Producto: ${JSON.stringify(x.clases.Producto)}`);
-ok(x.clases.Envase?.[0] === 1 && x.clases.Envase?.[2] === 160, `clase Envase: ${JSON.stringify(x.clases.Envase)}`);
-ok(Math.abs(x.clases.Total?.[3] - 1) < 1e-9 && !JSON.stringify(x.clases).includes("plást"), `la tabla por clase repite cajas plásticas o no suma 100%: ${JSON.stringify(x.clases)}`);
-ok(x.clases.Libre?.[0] === 0, `la clase Libre no aparece en la tabla: ${JSON.stringify(x.clases)}`);
+ok(x.clases.Producto?.[5] === 7, `clase Producto: ${JSON.stringify(x.clases.Producto)}`);
+ok(x.clases.Envase?.[5] === 1 && x.clases.Envase?.[1] === 160, `clase Envase: ${JSON.stringify(x.clases.Envase)}`);
+ok(Math.abs(x.clases.Total?.[2] - 1) < 1e-9 && !JSON.stringify(x.clases).includes("plást"), `la tabla por clase repite cajas plásticas o no suma 100%: ${JSON.stringify(x.clases)}`);
+ok(x.clases.Libre?.[5] === 0, `la clase Libre no aparece en la tabla: ${JSON.stringify(x.clases)}`);
 ok(x.calles.A && x.calles.A.join() === "9,0,9,0,9,3", `estibas por calle (capacidad de A): ${JSON.stringify(x.calles)}`);
-ok(x.clases.Total?.[2] === 1360, `total cajas en la tabla por clase: ${JSON.stringify(x.clases.Total)}`);
+ok(x.clases.Total?.[1] === 1360, `total cajas en la tabla por clase: ${JSON.stringify(x.clases.Total)}`);
 /* Estibas físicas: las completas, y 0 por saldo (en esta prueba no hay saldos). */
-ok(x.clases.Total?.[1] === 17, `estibas físicas: ${JSON.stringify(x.clases.Total)}`);
+ok(x.clases.Total?.[0] === 17, `estibas físicas: ${JSON.stringify(x.clases.Total)}`);
 ok(x.estibas_tarjetas[0].join() === "LIBRES (LAS QUE CONTASTE),CON ENVASE,CON PRODUCTO,TOTAL ESTIBAS", `tarjetas de estibas: ${x.estibas_tarjetas}`);
 ok(x.estibas_tarjetas[1].join() === "0,2,15,17", `libres/envase/producto/total (17 = las estibas físicas): ${x.estibas_tarjetas[1]}`);
 ok(x.plastico[1].join() === "0,160,1200,1360", `plástico libres/envase/producto/total: ${x.plastico[1]}`);
 ok(x.plastico[0].join() === "LIBRES (LAS QUE CONTASTE),CON ENVASE,CON PRODUCTO,TOTAL", `rótulos de plástico: ${x.plastico[0]}`);
-ok(x.unidades[1].join() === "0,4800,26400,31200", `unidades libres/envase/producto/total: ${x.unidades[1]}`);
+ok(x.unidades[0].every((v) => v == null), `no debe haber bloque de UNIDADES: ${x.unidades[0]}`);
 ok(x.espacio[0].join() === "CAPACIDAD (ESTIBAS),SIN USAR,OCUPACIÓN,MÓDULOS SOBRE CAPACIDAD", `tarjetas de espacio: ${x.espacio[0]}`);
 ok(x.ubi["C01IZQ"] && x.ubi["C01IZQ"][1] === 2 && x.ubi["C01IZQ"][5] === 1, `C01IZQ: ${JSON.stringify(x.ubi["C01IZQ"])} (2 con envase, 1 libre... capacidad 3)`);
 ok(x.ubi["B01IZQ"] && x.ubi["B01IZQ"][2] === 2 && x.ubi["B01IZQ"][5] === 1, `B01IZQ: ${JSON.stringify(x.ubi["B01IZQ"])} (2 con producto, 1 libre)`);

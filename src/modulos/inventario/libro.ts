@@ -424,7 +424,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
       ["CON PRODUCTO", fx(`SUM(${ru(7)})`, sumaU((x) => x.producto)), NUM, BANDA],
       ["TOTAL ESTIBAS", fx(`SUM(${ru(6)})+SUM(${ru(7)})+SUM(${ru(8)})`, sumaU((x) => x.envase) + sumaU((x) => x.producto) + sumaU((x) => x.libre)), NUM, TINTA],
     ], 9);
-    /* LO MISMO QUE LAS ESTIBAS, PERO EN CAJAS PLÁSTICAS Y EN UNIDADES: libres,
+    /* LO MISMO QUE LAS ESTIBAS, PERO EN CAJAS PLÁSTICAS: libres,
        con envase, con producto y el total (la suma de los tres). */
     const porClase = (k: keyof Fila, cl: Clase[]) => filas.filter((x) => cl.includes(x.clase)).reduce((a, x) => a + Number(x[k]), 0);
     const grupo = (rk: string, k: keyof Fila): [string, ExcelJS.CellValue, string, string, string?][] => {
@@ -454,7 +454,6 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
       ["POR VALIDAR", graves, NUM, graves ? ROJO : VERDE, graves ? ROJO : VERDE],
       ["CON MARGEN", margen, PCT, VERDE, VERDE],
     ]);
-    tarjetas(19, "UNIDADES", grupo("unid", "unid"), 9);
     alto(22, 13.5);
 
     /* Una tabla del tablero: encabezado claro, raya fina, total con la
@@ -485,21 +484,21 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     /* ---------- PANEL IZQUIERDO · del conteo a cajas, plástico y unidades ---------- */
     let f = 23;
     panel(f, 0, "Del conteo a cajas, plástico y unidades", "estibas × cajas por estiba + saldo = cajas · cajas × unidades por caja = unidades");
-    f += 1; fila(f, ["Clase", "Renglones", "Estibas físicas", "Total cajas", "% de cajas", "Unidades", "Hectolitros"], "cabeza");
+    f += 1; fila(f, ["Clase", "Estibas físicas", "Total cajas", "% de cajas", "Unidades", "Hectolitros", "Renglones"], "cabeza");
     const c1 = f + 1, c2 = f + CLASES.length, HL1 = "#,##0.0;\\-#,##0.0;\\–";
     const sumaClase = (c: Clase, k: keyof Fila) => filas.filter((x) => x.clase === c).reduce((a, x) => a + Number(x[k]), 0);
     for (const c of CLASES) {
       f += 1;
       const pc = tot("cajas") ? sumaClase(c, "cajas") / tot("cajas") : 0;
-      fila(f, [c, fx(`COUNTIFS(${rb("clase")},$B${f})`, filas.filter((x) => x.clase === c).length),
-        fx(`SUMIFS(${rb("fisicas")},${rb("clase")},$B${f})`, sumaClase(c, "fisicas")), fx(`SUMIFS(${rb("cajas")},${rb("clase")},$B${f})`, sumaClase(c, "cajas")),
-        fx(`IF(SUM(F$${c1}:F$${c2})=0,0,F${f}/SUM(F$${c1}:F$${c2}))`, pc), fx(`SUMIFS(${rb("unid")},${rb("clase")},$B${f})`, sumaClase(c, "unid")),
-        fx(`SUMIFS(${rb("hl")},${rb("clase")},$B${f})`, sumaClase(c, "hl"))], "dato", [, N1, N1, N1, "0.0%", N1, HL1]);
+      fila(f, [c, fx(`SUMIFS(${rb("fisicas")},${rb("clase")},$B${f})`, sumaClase(c, "fisicas")), fx(`SUMIFS(${rb("cajas")},${rb("clase")},$B${f})`, sumaClase(c, "cajas")),
+        fx(`IF(SUM(E$${c1}:E$${c2})=0,0,E${f}/SUM(E$${c1}:E$${c2}))`, pc), fx(`SUMIFS(${rb("unid")},${rb("clase")},$B${f})`, sumaClase(c, "unid")),
+        fx(`SUMIFS(${rb("hl")},${rb("clase")},$B${f})`, sumaClase(c, "hl")), fx(`COUNTIFS(${rb("clase")},$B${f})`, filas.filter((x) => x.clase === c).length)],
+        "dato", [, N1, N1, "0.0%", N1, HL1, N1]);
       h.getCell(f, 2).font = letra(9.5, TINTA, true);
     }
     f += 1;
-    const totClase = [filas.length, tot("fisicas"), tot("cajas"), tot("cajas") ? 1 : 0, tot("unid"), tot("hl")];
-    fila(f, ["Total", ...["D", "E", "F", "G", "H", "I"].map((L, i) => fx(`SUM(${L}${c1}:${L}${c2})`, totClase[i]))], "total", [, N1, N1, N1, "0.0%", N1, HL1]);
+    const totClase = [tot("fisicas"), tot("cajas"), tot("cajas") ? 1 : 0, tot("unid"), tot("hl"), filas.length];
+    fila(f, ["Total", ...["D", "E", "F", "G", "H", "I"].map((L, i) => fx(`SUM(${L}${c1}:${L}${c2})`, totClase[i]))], "total", [, N1, N1, "0.0%", N1, HL1, N1]);
 
     /* RIESGO DE VENCIMIENTO, por franja, con su barrita. */
     f += 1; alto(f, 13.5);
