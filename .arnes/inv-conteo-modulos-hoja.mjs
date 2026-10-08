@@ -105,7 +105,7 @@ await pg.fill('input[placeholder="Teclea el código"]', "900");
 let est = await pg.locator(".fe-estados button").allTextContents();
 ok(est.includes("RETORNO"), "en FABRICA el RETORNO ya contado se oculta: " + est.join(","));
 /* Y TODOS los estados: el de otro código tampoco se oculta, y un estado nuevo no avisa suma. */
-ok(est.length === 6 && est.includes("LAVADO"), "en FABRICA deben salir los seis estados: " + est.join(","));
+ok(est.length === 7 && est.includes("LAVADO"), "en FABRICA deben salir los siete estados: " + est.join(","));
 await pg.locator(".fe-estados button", { hasText: /^LAVADO$/ }).click();
 ok(/se puede volver a poner/i.test(await pg.locator(".fe-estenv").textContent()), "LAVADO ya contado en FABRICA no avisa que se suma");
 await pg.locator(".fe-estados button", { hasText: /^LAVADO$/ }).click();

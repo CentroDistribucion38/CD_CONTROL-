@@ -90,7 +90,7 @@ type Previo = {
 
 /* LOS CINCO ESTADOS DEL ENVASE, en el orden del proceso. Salen de la pregunta
    que va justo debajo de «Dónde» y ya no de «Datos adicionales». */
-const ESTADOS_ENVASE = ["RETORNO", "LAVADO", "NUEVO", "BAJA", "EXTRASUCIO", "OTROS"] as const;
+const ESTADOS_ENVASE = ["RETORNO", "LAVADO", "NUEVO", "BAJA", "EXTRASUCIO", "OTROS", "MAL ESTADO"] as const;
 type MarcaModulo = { mezclado: boolean; sin_acceso: boolean; ruta: string | null };
 
 /* LA CALCULADORA: las casillas de cantidad aceptan una cuenta —3×40+5, 12+8, (2+1)*40— además del número solo.
