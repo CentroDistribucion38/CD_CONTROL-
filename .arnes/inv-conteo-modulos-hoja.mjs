@@ -12,7 +12,7 @@ import { createRoot } from "react-dom/client";
 import { Contar } from "../src/app/(app)/inventario/conteo/Contar";
 const w = window as any;
 createRoot(document.getElementById("r")!).render(<Contar bodegaId="b1" conteoInicial={{ id: "c1", codigo: "INV-1", estado: "en_proceso", iniciado_en: null }}
-  renglonesIniciales={[]} materiales={w.MAT} ubicaciones={w.UBI} estados={[]} />);
+  renglonesIniciales={w.REN} materiales={w.MAT} ubicaciones={w.UBI} estados={[]} />);
 `);
 const js = buildSync({ entryPoints: [R(".arnes/_mh-entrada.tsx")], bundle: true, write: false, format: "iife", jsx: "automatic",
   alias: { "@/lib/supabase/client": R(".arnes/_sb-conteo.js"), "next/navigation": R(".arnes/stub-nav.js"), "@": R("src") },
@@ -23,11 +23,15 @@ const MAT = [PROD("m2", "3128"), PROD("m3", "3129"), { id: "m1", sku: "900", nom
   familia: null, presentacion: null, vida_util: null, f_limite_desp: null, dias_minimo: 0, origen: null, foraneo: null, tipo_material: "ENVASE", activo: true }];
 const U = (calle, modulo, lado) => ({ id: `${calle}${modulo}${lado ?? ""}`, bodega_id: "b1", clave: `${calle}${modulo}${lado ? "_" + lado : ""}`, calle, modulo, lado, familia: null, capacidad: 10, activa: true });
 const UBI = [U("A", "01", "IZQ"), U("A", "01", "DER"), U("B", "02", null), U("C", "01", "IZQ"), U("C", "01", "DER"), U("C", "18A", null), U("EST", "07", null)];
+/* Ya hay un RETORNO del 900 en la línea L2 de fábrica y otro en A05: en fábrica se puede volver a poner, en A05 no. */
+const RR = (id, ubicacion) => ({ id, conteo_id: "c1", conteo: "INV-1", estado: "en_proceso", codigo: "900", material: "Canasta 30", tipo_material: "ENVASE",
+  ubicacion, estibas: 2, cajas: null, saldo: null, total_cajas: 80, total_estibas: 2, estado_envase: "RETORNO", contado_en: "2026-10-06T12:00:00Z" });
+const REN = [RR("r1", "FABRICAL2"), RR("r2", "A05_IZQ")];
 const { chromium } = await import("playwright");
 const nav = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
 const pg = await nav.newPage();
 await pg.setViewportSize({ width: 390, height: 900 });
-await pg.setContent(`<!doctype html><html><body><div id="r"></div><script>window.MAT=${JSON.stringify(MAT)};window.UBI=${JSON.stringify(UBI)};</script><script>${js}</script></body></html>`);
+await pg.setContent(`<!doctype html><html><body><div id="r"></div><script>window.MAT=${JSON.stringify(MAT)};window.UBI=${JSON.stringify(UBI)};window.REN=${JSON.stringify(REN)};window.__DATOS={v_conteo_fefo:window.REN};</script><script>${js}</script></body></html>`);
 await pg.waitForSelector(".fe-anotar");
 
 const escoger = async (n, texto) => {
@@ -95,6 +99,20 @@ ok(await pg.locator("[aria-labelledby=fe-rot-lado] button").count() === 2, "un m
 /* Lo que el maestro dice que no tiene lados (EST07) sigue igual. */
 await escoger(0, "EST"); await escoger(1, "07");
 ok(/no tiene lados/i.test(await pg.locator(".fe-lado").textContent()), "EST07 dejó de ser un solo sitio");
+/* FÁBRICA · RETORNO: aunque ya se contó para este código, el botón sigue y avisa que se suma. */
+await escoger(0, "FABRICA"); await escoger(1, "L2");
+await pg.fill('input[placeholder="Teclea el código"]', "900");
+let est = await pg.locator(".fe-estados button").allTextContents();
+ok(est.includes("RETORNO"), "en FABRICA el RETORNO ya contado se oculta: " + est.join(","));
+await pg.locator(".fe-estados button", { hasText: /^RETORNO$/ }).click();
+ok(/se puede volver a poner/i.test(await pg.locator(".fe-estenv").textContent()), "no avisa que el RETORNO se suma al anterior");
+/* Fuera de FÁBRICA (A05) el RETORNO ya contado sigue oculto. */
+await escoger(0, "A"); await escoger(1, "05");
+await pg.locator("[aria-labelledby=fe-rot-lado] button", { hasText: /Izq/i }).first().click().catch(() => {});
+await pg.fill('input[placeholder="Teclea el código"]', "");
+await pg.fill('input[placeholder="Teclea el código"]', "900");
+est = await pg.locator(".fe-estados button").allTextContents();
+ok(!est.includes("RETORNO") && est.includes("LAVADO"), "fuera de FABRICA el RETORNO ya contado debía seguir oculto: " + est.join(","));
 await nav.close();
 if (fallas.length) { fallas.forEach((x) => console.log("✗ " + x)); process.exit(1) }
 console.log("✓ Conteo: cada calle ofrece los módulos de la hoja (01–36 y PASILLO, TANDEM, DEPA, PALE, H, TUNEL según la calle), lo que ya estaba sale igual y una sola vez, los especiales no tienen lados y se dan de alta al anotar.");
