@@ -47,8 +47,8 @@ const COLS = "ubicacion, sku, inventario, inv_expr, baja, baja_expr, hl, fecha, 
 
 /** Campo de la cuenta tipo Excel: cerrado es una celda corta; al seleccionarlo se abre
  *  (flotando, sin que la tabla lo recorte) y muestra TODA la fórmula en varias líneas. */
-function CampoCuenta({ valor, cambiar, deshabilitado, mal, rotulo }: {
-  valor: string; cambiar: (v: string) => void; deshabilitado: boolean; mal: boolean; rotulo: string;
+function CampoCuenta({ valor, resultado, cambiar, deshabilitado, mal, rotulo }: {
+  valor: string; resultado: number | null; cambiar: (v: string) => void; deshabilitado: boolean; mal: boolean; rotulo: string;
 }) {
   const caja = useRef<HTMLSpanElement>(null);
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -64,6 +64,10 @@ function CampoCuenta({ valor, cambiar, deshabilitado, mal, rotulo }: {
     t.style.height = "";
     if (abierto) t.style.height = Math.max(t.scrollHeight, 40) + "px";
   }, [valor, abierto]);
+  useLayoutEffect(() => {
+    // al abrir, el cursor va al final de la cuenta para seguir sumando
+    if (abierto && ref.current) { const n = ref.current.value.length; ref.current.setSelectionRange(n, n); }
+  }, [abierto]);
   useEffect(() => {
     if (!abierto) return;
     window.addEventListener("scroll", medir, true);
@@ -72,10 +76,12 @@ function CampoCuenta({ valor, cambiar, deshabilitado, mal, rotulo }: {
   }, [abierto, medir]);
   return (
     <span ref={caja} className={"cas-campo" + (abierto ? " abierto" : "")}>
-      <textarea ref={ref} rows={1} value={valor} disabled={deshabilitado} spellCheck={false}
-                aria-label={rotulo} className={mal ? "mal" : ""}
+      <textarea ref={ref} rows={1} spellCheck={false} disabled={deshabilitado}
+                value={abierto || resultado == null ? valor : nf0.format(resultado)}
+                title={abierto ? undefined : "Toca para ver o seguir la cuenta"}
+                aria-label={rotulo} className={(mal ? "mal" : "") + (abierto ? "" : " cerrado")}
                 style={abierto && pos ? { top: pos.top, right: pos.right } : undefined}
-                onFocus={(e) => { medir(); setAbierto(true); const n = e.target.value.length; e.target.setSelectionRange(n, n); }}
+                onFocus={() => { medir(); setAbierto(true); }}
                 onBlur={() => setAbierto(false)}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } }}
                 onChange={(e) => cambiar(e.target.value.replace(/[\r\n]+/g, ""))} />
@@ -302,19 +308,17 @@ export function Casco({ sitios, materiales, hoy, puestos, puedeEditar }: {
                         </td>
                         <td className="n">
                           <span className="cas-cuenta">
-                            <CampoCuenta valor={f.inv} deshabilitado={!puedeEditar} mal={x.malInv}
+                            <CampoCuenta valor={f.inv} resultado={x.inv} deshabilitado={!puedeEditar} mal={x.malInv}
                                          rotulo={`Inventario de ${f.sku} en ${s.nombre}`}
                                          cambiar={(v) => cambiar(s.clave, i, "inv", v)} />
-                            <b>{x.inv == null ? "?" : "= " + nf0.format(x.inv)}</b>
                           </span>
                         </td>
                         {s.baja_rotulo && (
                           <td className="n">
                             <span className="cas-cuenta">
-                              <CampoCuenta valor={f.baja} deshabilitado={!puedeEditar} mal={x.malBaja}
+                              <CampoCuenta valor={f.baja} resultado={x.baja} deshabilitado={!puedeEditar} mal={x.malBaja}
                                            rotulo={`${s.baja_rotulo} de ${f.sku} en ${s.nombre}`}
                                            cambiar={(v) => cambiar(s.clave, i, "baja", v)} />
-                              <b>{x.baja == null ? "?" : "= " + nf0.format(x.baja)}</b>
                             </span>
                           </td>
                         )}
