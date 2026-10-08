@@ -79,13 +79,29 @@ export async function materialesCasco(): Promise<MaterialCasco[]> {
   ]);
   const yaUsados = new Set((usados.data ?? []).map((r) => String(r.sku)));
 
+  /* UN «CAJÓN» DE CASCO CON EL MISMO CÓDIGO QUE UN MATERIAL DEL MAESTRO MANDA SOBRE SU FACTOR (igual que en la base:
+     `casco_hl_estiba` mira primero casco_extras). Es como las botellas de 250 cc miden 1.350 por estiba en el Excel
+     aunque el maestro de inventario diga 38 por caja. */
+  const deProds = new Set((prods.data ?? []).map((p) => String(p.sku)));
+  const factorExtra = new Map((extras.data ?? []).map((e) => [String(e.sku), e]));
   const out: MaterialCasco[] = [];
   for (const e of extras.data ?? []) {
+    if (deProds.has(String(e.sku))) continue;     // este sale abajo, con el nombre y el «corto» del maestro
     out.push({ sku: e.sku as string, nombre: e.nombre as string, corto: true,
       hl_estiba: Number(e.unidades_por_estiba) * Number(e.hl_unidad),
       botellas_estiba: Number(e.unidades_por_estiba) || null });
   }
   for (const p of prods.data ?? []) {
+    const x = factorExtra.get(String(p.sku));
+    if (x) {
+      out.push({
+        sku: p.sku as string, nombre: p.nombre as string,
+        hl_estiba: Number(x.unidades_por_estiba) * Number(x.hl_unidad),
+        botellas_estiba: Number(x.unidades_por_estiba) || null,
+        corto: p.tipo_material === "ENVASE" || yaUsados.has(String(p.sku)),
+      });
+      continue;
+    }
     const botellas = p.unidades_por_estiba != null ? Number(p.unidades_por_estiba)
       : p.cajas_por_estiba != null && p.unidades_por_caja != null
         ? Number(p.cajas_por_estiba) * Number(p.unidades_por_caja) : null;
