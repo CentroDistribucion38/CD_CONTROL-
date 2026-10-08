@@ -466,8 +466,8 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
     }
     return o;
   }
-  /* POR DEFECTO SE PIDE LA DEPA, EL PRODUCTO Y DE DÓNDE SE TOMA EL ENVASE. Dónde queda ubicado no se pide: no entra al análisis. */
-  const [manual, setManual] = useState(manualInicial);
+  /* SE PIDE LA DEPA, EL PRODUCTO, DE DÓNDE SE TOMA EL ENVASE Y DÓNDE QUEDÓ UBICADO: las dos ubicaciones son obligatorias. */
+  const [manual] = useState(manualInicial);
   const [cuando, setCuando] = useState(() => aInput(ahora));
   const [nota, setNota] = useState("");
   const [sel, setSel] = useState(lineas[0]?.clave ?? "");
@@ -500,11 +500,10 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
        extra que se dejó en blanco no dice nada y se ignora. El mismo módulo
        dos veces en un lado es un error: sumaría dos veces lo mismo. */
     const sitios: Record<string, unknown> = {};
-    for (const [k, lista, nom, donde] of (manual ? [
+    /* DÓNDE QUEDÓ UBICADO ES OBLIGATORIO, igual que de dónde se toma: sin las dos no se guarda la línea. */
+    for (const [k, lista, nom, donde] of ([
       ["origenes", f.origen, "de dónde tomaba", "donde tomaba"],
       ["destinos", f.destino, "dónde estaba ubicado", "donde estaba ubicado"],
-    ] : [
-      ["origenes", f.origen, "de dónde tomaba", "donde tomaba"],
     ]) as readonly (readonly ["origenes" | "destinos", SitioF[], string, string])[]) {
       const vistos = new Set<string>();
       const salen: { ubicacion_id: string; cant: number | null; unidad: Unidad | null }[] = [];
@@ -523,7 +522,6 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
       });
       sitios[k] = salen;
     }
-    if (!manual) sitios.destinos = [];
     if (!manual && !f.material.trim()) aqui.push("el producto (la referencia que sale de la línea)");
     if (f.envase.trim() && !envDe(f.envase)) aqui.push("el envase (escoge uno de la lista o déjalo vacío)");
     if (f.material.trim() && !matDe(f.material)) aqui.push("el producto (escoge uno de la lista)");
@@ -641,7 +639,7 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
           <MaterialCampo lista={envases} valor={filas[clave].envase} etiqueta={etiqueta} resolver={envDe}
                          titulo="Envase" nota="lo que entra a la línea" sin="Sin envase"
                          onCambia={(v) => cambia(clave, (x) => ({ ...x, envase: v }))} />
-        ) : (
+        ) : (!plano &&
           <MaterialCampo lista={productos} valor={filas[clave].material} etiqueta={etiqueta} resolver={matDe}
                          titulo="Material" nota="el producto que sale" sin="Sin material"
                          onCambia={(v) => cambia(clave, (x) => ({ ...x, material: v }))} />
@@ -721,7 +719,7 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
     <div className="cl">
       <p className="cl-sub">
         {tipo === "inicial"
-          ? "Anota cada línea como está AHORA: lo que marca el contador de la depa, el producto y de dónde toma el envase. Las líneas que no toques no se cortan."
+          ? "Anota cada línea como está AHORA: lo que marca el contador de la depa, el producto, de dónde toma el envase y dónde quedó ubicado el producto. Las líneas que no toques no se cortan."
           : `Corte final del inicial de las ${hora(inicial!.cortado_en)}: el producto y los módulos vienen puestos; cambia los que hayan cambiado y anota lo que marca la depa. Cuántas estibas quedan en cada módulo es opcional: si lo dejas vacío se toma del último inventario de la base.`}
       </p>
 
@@ -774,9 +772,6 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
                     {bloque(linea.clave, "origen", "Tomando de", "el módulo de donde saca la línea")}
                     {bloque(linea.clave, "destino", "Ubicados en", "el módulo donde queda lo que sale")}
                   </div>
-                  <button type="button" className="btn plano cl-manual" onClick={() => setManual(false)}>
-                    Quitar «dónde quedó ubicado»
-                  </button>
                 </>
               ) : (
                 <>
@@ -812,9 +807,18 @@ function FormCorte({ tipo, inicial, bodegaId, lineas, ubicaciones, materiales, a
                       </div>
                     </div>
                   </section>
-                  <button type="button" className="cl-opc" onClick={() => setManual(true)}>
-                    + Anotar también dónde quedó ubicado (opcional)
-                  </button>
+                  {/* 3 · DÓNDE QUEDÓ UBICADO el producto que sale: OBLIGATORIO. */}
+                  <section className="cl-sec cl-s3" aria-label="Dónde quedó ubicado">
+                    <div className="cl-sh">
+                      <span className="cl-sic" aria-hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 3v14M6 11l6 6 6-6M5 21h14" /></svg></span>
+                      <div><b>Dónde quedó ubicado</b><small>el módulo donde queda lo que sale · obligatorio</small></div>
+                    </div>
+                    <div className="cl-sb">
+                      <div className="cl-r2 una">
+                        {bloque(linea.clave, "destino", "Ubicados en", "el módulo donde queda lo que sale", true)}
+                      </div>
+                    </div>
+                  </section>
                 </>
               )}
             </div>

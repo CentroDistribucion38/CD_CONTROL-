@@ -150,13 +150,13 @@ const monta = async (query, ancho = 1440) => {
 };
 const txt = () => pg.$eval("#r", (e) => e.textContent.replace(/\s+/g, " "));
 
-/* El formulario: la depa, el producto y de dónde se toma el envase. NO dónde queda ubicado. */
+/* El formulario: la depa, el producto, de dónde se toma el envase Y dónde quedó ubicado (obligatorio). */
 await monta("c=vacio");
 await pg.click('button:has-text("Nuevo corte inicial")');
-ok(await pg.locator("fieldset.cl-sitio").count() === 1 && /Tomando de/.test(await pg.locator("fieldset.cl-sitio").textContent()), "pide de dónde toma y NO dónde ubica (un solo bloque: «Tomando de»)");
-ok(!/Ubicados en/.test(await txt()), "no aparece «Ubicados en»");
+ok(await pg.locator("fieldset.cl-sitio").count() === 2 && /Tomando de/.test(await pg.locator(".cl-s2 fieldset.cl-sitio").textContent()) && /Ubicados en/.test(await pg.locator(".cl-s3 fieldset.cl-sitio").textContent()), "pide de dónde toma Y dónde ubica (dos bloques: «Tomando de» y «Ubicados en»)");
+ok(/obligatorio/.test(await pg.locator(".cl-s3").textContent()) && await pg.locator(".cl-opc").count() === 0 && await pg.locator('button:has-text("Anotar también dónde quedó ubicado")').count() === 0, "«dónde quedó ubicado» ya no es opcional ni se esconde tras un botón");
 ok(await pg.locator(".cl-prodepa .cl-depa input").count() === 1 && await pg.locator(".cl-prodepa .cl-mat").count() === 1 && await pg.locator(".cl-mat").count() === 2 && /Producto/.test(await pg.locator(".cl-mat-t").first().textContent()) && /Envase/.test(await pg.locator(".cl-mat-t").nth(1).textContent()), "arriba PRODUCTO → cajas de la depa en una fila; debajo el ENVASE que se toma");
-ok(await pg.locator(".cl-unidad").count() === 0 && /¿Cuántas estibas\?/.test(await pg.locator("fieldset.cl-sitio .cl-cant-c").textContent()) && await pg.locator("fieldset.cl-sitio .cl-mat").count() === 0, "el envase va en estibas, y no se pide dos veces");
+ok(await pg.locator(".cl-unidad").count() === 0 && /¿Cuántas estibas\?/.test(await pg.locator(".cl-s2 fieldset.cl-sitio .cl-cant-c").textContent()) && await pg.locator("fieldset.cl-sitio .cl-mat").count() === 0, "el envase va en estibas, y no se pide dos veces");
 if (process.env.SHOT) await pg.screenshot({ path: process.env.SHOT + "-form.png", fullPage: true });
 { /* COMPACTO Y ALINEADO: envase y depa arrancan a la misma altura, sus campos miden lo mismo, y calle/módulo/lado/cajas van en una sola fila. */
   const r = await pg.evaluate(() => { const b = (q) => document.querySelector(q).getBoundingClientRect();
@@ -168,9 +168,15 @@ if (process.env.SHOT) await pg.screenshot({ path: process.env.SHOT + "-form.png"
   ok(Math.abs((r.fl.top + r.fl.height / 2) - (r.ei.top + r.ei.height / 2)) < 3, "la flecha queda a la altura de los campos");
 }
 await pg.fill(".cl-depa input", "1234");
-await pg.locator("fieldset.cl-sitio select").nth(0).selectOption("A");
-await pg.locator("fieldset.cl-sitio select").nth(1).selectOption("01");
-await pg.locator("fieldset.cl-sitio .cl-cant-c input").fill("40");
+await pg.locator(".cl-s2 fieldset.cl-sitio select").nth(0).selectOption("A");
+await pg.locator(".cl-s2 fieldset.cl-sitio select").nth(1).selectOption("01");
+await pg.locator(".cl-s2 fieldset.cl-sitio .cl-cant-c input").fill("40");
+/* Sin dónde quedó ubicado NO guarda. */
+await pg.click(".cl-guardar .cl-go");
+ok(/dónde estaba ubicado/.test(await pg.locator(".cl-mal").textContent()) && await pg.evaluate(() => window.__rpc.length) === 0, "sin dónde quedó ubicado no guarda y lo pide");
+await pg.locator(".cl-s3 fieldset.cl-sitio select").nth(0).selectOption("A");
+await pg.locator(".cl-s3 fieldset.cl-sitio select").nth(1).selectOption("01");
+await pg.locator(".cl-s3 fieldset.cl-sitio .cl-cant-c input").fill("60");
 /* El ENVASE (abajo) se escoge primero; sin el producto no guarda. */
 await pg.locator(".cl-s2 .cl-mat .cl-busca input").fill("flint"); await pg.locator(".cl-s2 .cl-mat .cl-busca li button").click();
 await pg.click(".cl-guardar .cl-go");
@@ -186,11 +192,7 @@ await pg.click(".cl-guardar .cl-go");
 await pg.waitForFunction(() => window.__rpc.length === 1);
 const rpc = await pg.evaluate(() => window.__rpc[0]);
 const r0 = rpc.a.p_renglones[0];
-ok(rpc.n === "inv_corte_guardar" && r0.cajas_depa === 1234 && r0.envase_id === "E1" && r0.material_id === "P1" && r0.origenes.length === 1 && r0.origenes[0].ubicacion_id === "uA" && r0.destinos.length === 0, "se manda la depa, el producto, el envase y de dónde toma; sin dónde ubica: " + JSON.stringify(r0));
-await pg.reload(); await pg.waitForSelector("#r > *");
-await pg.click('button:has-text("Nuevo corte inicial")');
-await pg.click('button:has-text("Anotar también dónde quedó ubicado")');
-ok(await pg.locator("fieldset.cl-sitio").count() === 2, "«Anotar también dónde quedó ubicado» sigue disponible, cerrado de entrada");
+ok(rpc.n === "inv_corte_guardar" && r0.cajas_depa === 1234 && r0.envase_id === "E1" && r0.material_id === "P1" && r0.origenes.length === 1 && r0.origenes[0].ubicacion_id === "uA" && r0.destinos.length === 1 && r0.destinos[0].ubicacion_id === "uA" && r0.destinos[0].cant === 60, "se manda la depa, el producto, el envase, de dónde toma y dónde quedó ubicado: " + JSON.stringify(r0));
 
 /* La diferencia y el flujo. */
 await monta("c=todo");
