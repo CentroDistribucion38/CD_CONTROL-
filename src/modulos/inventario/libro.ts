@@ -240,7 +240,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
   const CLASES: Clase[] = ["Producto", "Envase", "Libre", "Otro envase"];
   const esCajaPlastica = (l: Renglon) => /CAJA PL/i.test(l.material);
   const claseDe = (l: Renglon): Clase =>
-    l.tipo_material !== "ENVASE" || esCajaPlastica(l) ? "Producto" : /ESTIBA/i.test(l.material) ? "Libre" : /BARRIL/i.test(l.material) ? "Otro envase" : "Envase";
+    l.tipo_material !== "ENVASE" ? "Producto" : esCajaPlastica(l) ? "Libre" : /BARRIL|ESTIBA/i.test(l.material) ? "Otro envase" : "Envase";
   /* El factor de estibado de cada código: el que usó la aplicación para
      su total; si no vino, el del maestro; y si tampoco, el que se deduce. */
   const factorDe = new Map<string, number>();
@@ -579,7 +579,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
       letra(10, graves ? ROJO : VERDE, true, false), { alignment: { vertical: "middle" }, border: { left: { style: "thick", color: { argb: graves ? ROJO : VERDE } } } });
     if (graves) h.getCell(f, 2).font = { ...letra(10, ROJO, true), underline: true };
     f += 1; alto(f, 58); unir(f, 2, ULT);
-    pon(f, 2, "CÓMO LEER ESTE TABLERO. Clase: Producto = producto terminado (y las cajas plásticas); Envase = botellas y envase en general; Libre = las estibas que cuentas como libres (material «Estiba…»); Otro envase = barriles. La clase sale del nombre del material (columna Clase de «Base consolidada»). Estibas físicas = completas + una por cada saldo. Plástico = las cajas plásticas: las del producto, las del envase y las de las estibas libres (cajas = estibas × cajas por estiba, del Maestro); los barriles no. " +
+    pon(f, 2, "CÓMO LEER ESTE TABLERO. Clase: Producto = producto terminado; Envase = botellas y envase en general; Libre = los plásticos (cajas plásticas) que cuentas como libres; Otro envase = barriles y estibas de madera. La clase sale del nombre del material (columna Clase de «Base consolidada»). Estibas físicas = completas + una por cada saldo. Plástico = las cajas plásticas del producto, del envase y las libres (cajas = estibas × cajas por estiba, del Maestro); los barriles y las estibas de madera no. " +
       "La base toma, de cada ubicación y zona (RETORNO, BAJA, LAVADO…), el ÚLTIMO recorrido que pasó por ella: una calle caminada dos veces no se suma dos veces, pero contar el producto de un módulo no borra el envase que otro contó en su zona. Solo cuenta lo ya ENVIADO. Casi todas las cifras son fórmulas (sobre Base consolidada, Por ubicación y Maestro) para que se vea de dónde salen; Base envase y Base producto son la misma base apartada por clase. Las horas son de Colombia.",
       letra(8, GRIS, false, true), { alignment: { wrapText: true, vertical: "top" } });
     h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 1, horizontalCentered: true };
@@ -596,7 +596,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
   const formulaB = (k: string, n: number): string | null => {
     const c = (x: string) => `${LB(x)}${n}`;
     switch (k) {
-      case "clase": return `IF(OR(${c("tipo")}="PRODUCTO",ISNUMBER(SEARCH("CAJA PL",${c("mat")}))),"Producto",IF(ISNUMBER(SEARCH("ESTIBA",${c("mat")})),"Libre",IF(ISNUMBER(SEARCH("BARRIL",${c("mat")})),"Otro envase","Envase")))`;
+      case "clase": return `IF(${c("tipo")}="PRODUCTO","Producto",IF(ISNUMBER(SEARCH("CAJA PL",${c("mat")})),"Libre",IF(OR(ISNUMBER(SEARCH("BARRIL",${c("mat")})),ISNUMBER(SEARCH("ESTIBA",${c("mat")}))),"Otro envase","Envase")))`;
       case "factor": return buscar("D", n);
       case "cajas": return `${c("estibas")}*${c("factor")}+${c("saldo")}`;
       case "fisicas": return `${c("estibas")}+IF(${c("saldo")}>0,1,0)`;
