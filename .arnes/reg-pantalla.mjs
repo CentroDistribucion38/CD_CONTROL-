@@ -17,7 +17,7 @@ const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-119
 const pag = await b.newPage({ viewport: { width: 1400, height: 1000 } });
 const errs = []; pag.on("pageerror", (e) => errs.push(String(e))); pag.on("console", (m) => { if (m.type() === "error") errs.push(m.text()) });
 await pag.goto("file://" + R(".arnes/tmp/reg/p.html"));
-await pag.setInputFiles('input[type=file]', XLSX_PATH);
+await pag.setInputFiles("input[type=file]", XLSX_PATH);
 await pag.waitForSelector("table.cas-tabla tbody tr td.cod");
 const filas = await pag.$$eval("table.cas-tabla:first-of-type tbody tr", (t) => t.map((r) => [...r.cells].map((c) => c.textContent.trim())));
 const primera = (await pag.$$eval(".reg-bloque, .cas-bloque", (x) => x.length));
@@ -54,7 +54,7 @@ ok(ap && new Set(ap.a.p_filas.map((f) => f.llave)).size === 37, "las llaves son 
 await pag.screenshot({ path: R(".arnes/tmp/reg/aplicado.png"), fullPage: true });
 /* HISTORIAL DE ARCHIVOS Y FILTROS — cada vista es una hoja aparte */
 ok(ap && ap.a.p_archivo && /\.xlsx$/i.test(ap.a.p_archivo) && ap.a.p_hoja && ap.a.p_leidas === 42, "manda nombre de archivo, hoja y filas leídas: " + JSON.stringify([ap?.a.p_archivo, ap?.a.p_hoja, ap?.a.p_leidas]));
-const hojasTop = await pag.$$eval(".reg-hojas button, .reg-sub button", (x) => x.map((e) => e.textContent.trim()));
+const hojasTop = await pag.$$eval(".reg-hojas button", (x) => x.map((e) => e.textContent.trim()));
 console.log("hojas:", hojasTop.join(" | "));
 ok(await pag.locator(".reg-sub button:has-text('Archivos subidos')").count() === 1 && await pag.locator(".reg-sub button:has-text('Bajas registradas')").count() === 1, "Baja tiene tres hojas: subir, archivos, bajas");
 ok(await pag.locator("text=Archivos subidos").count() > 0 && await pag.locator("table:has(th:text-is('Archivo'))").count() === 0, "al estar en «Subir» no se ve la tabla de archivos (compacto)");

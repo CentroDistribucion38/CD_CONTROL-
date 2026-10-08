@@ -144,3 +144,12 @@
 }
 .cas-pop footer b { font-size: 16px; color: #111; font-variant-numeric: tabular-nums }
 .cas-pop footer b.mal { color: #b3261e; font-size: 13px }
+
+/* ---- FILTROS DE CONTROL: un material en todas las bodegas ---- */
+.cas .cas-filtros { display: grid; grid-template-columns: minmax(240px, 2fr) minmax(180px, 1fr) minmax(140px, 1fr) auto auto; gap: 12px 14px; align-items: end }
+.cas .cas-check { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-size: 14px; cursor: pointer; white-space: nowrap }
+.cas .cas-check input { width: 20px; height: 20px; min-height: 0; margin: 0 }
+.cas .cas-resumen { min-width: 560px }
+.cas .cas-resumen tr.cas-sin td { color: var(--fe-gris) }
+.cas .cas-resumen a { color: inherit; font-weight: 700 }
+@media (max-width: 900px) { .cas .cas-filtros { grid-template-columns: 1fr 1fr } .cas .cas-filtros .cas-f-mat { grid-column: 1 / -1 } }

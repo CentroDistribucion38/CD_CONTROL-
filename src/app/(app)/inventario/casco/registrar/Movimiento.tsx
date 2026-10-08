@@ -209,7 +209,7 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
         {materiales.map((m) => <option key={m.sku} value={m.sku}>{m.nombre}</option>)}
       </datalist>
 
-      <div className="fe-pes reg-sub" role="tablist" aria-label="Movimiento">
+      <div className="reg-hojas reg-sub" role="tablist" aria-label="Movimiento">
         <button type="button" role="tab" aria-selected={vista === "registrar"} className={vista === "registrar" ? "on" : ""} onClick={() => setVista("registrar")}>Registrar</button>
         <button type="button" role="tab" aria-selected={vista === "historial"} className={vista === "historial" ? "on" : ""} onClick={() => setVista("historial")}>
           Movimientos registrados{movs !== null && <em>{movs.length}</em>}

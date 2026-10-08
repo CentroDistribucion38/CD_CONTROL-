@@ -296,7 +296,7 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
         </p>
       )}
 
-      <div className="fe-pes reg-sub" role="tablist" aria-label="Baja">
+      <div className="reg-hojas reg-sub" role="tablist" aria-label="Baja">
         {([["subir", "Subir archivo", null], ["archivos", "Archivos subidos", archivos?.length ?? null], ["bajas", "Bajas registradas", hechas?.length ?? null]] as const).map(([k, rot, n]) => (
           <button key={k} type="button" role="tab" aria-selected={hoja === k} className={hoja === k ? "on" : ""} onClick={() => setHoja(k)}>
             {rot}{n !== null && <em>{n}</em>}

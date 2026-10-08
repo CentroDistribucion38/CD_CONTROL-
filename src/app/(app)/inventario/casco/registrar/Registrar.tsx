@@ -26,6 +26,16 @@ export function Registrar({ sitios, materiales, puedeEditar, hoy }: {
 
   return (
     <>
+      {/* DOS HOJAS: la baja de SAP y el movimiento entre almacenes. Una a la vez. */}
+      <div className="reg-hojas" role="tablist" aria-label="Qué vas a registrar">
+        <button type="button" role="tab" aria-selected={tipo === "baja"} className={tipo === "baja" ? "on" : ""} onClick={() => setTipo("baja")}>
+          Baja
+        </button>
+        <button type="button" role="tab" aria-selected={tipo === "movimiento"} className={tipo === "movimiento" ? "on" : ""} onClick={() => setTipo("movimiento")}>
+          Movimiento
+        </button>
+      </div>
+
       <section className="cabeza reg-cabeza">
         <div>
           <p className="ojo">INVENTARIO · CASCO DE VIDRIO · REGISTRAR</p>
@@ -36,16 +46,6 @@ export function Registrar({ sitios, materiales, puedeEditar, hoy }: {
           </p>
         </div>
       </section>
-
-      {/* DOS HOJAS: la baja de SAP y el movimiento entre almacenes. Una a la vez. */}
-      <div className="fe-pes reg-hojas" role="tablist" aria-label="Qué vas a registrar">
-        <button type="button" role="tab" aria-selected={tipo === "baja"} className={tipo === "baja" ? "on" : ""} onClick={() => setTipo("baja")}>
-          Baja
-        </button>
-        <button type="button" role="tab" aria-selected={tipo === "movimiento"} className={tipo === "movimiento" ? "on" : ""} onClick={() => setTipo("movimiento")}>
-          Movimiento
-        </button>
-      </div>
 
       {tipo === "baja"
         ? <Baja sitios={sitios} materiales={materiales} puedeEditar={puedeEditar} hoy={hoy} />

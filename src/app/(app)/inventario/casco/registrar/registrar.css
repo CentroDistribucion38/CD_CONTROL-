@@ -79,9 +79,6 @@
 .reg .reg-cabeza { padding-bottom: 0; margin-bottom: 4px }
 .reg .reg-cabeza h1 { font-size: 28px; margin: 2px 0 }
 .reg .reg-cabeza .sub { margin: 0; max-width: none }
-.reg .reg-hojas { margin: 8px 0 }
-.reg .reg-sub { margin: 0 0 8px }
-.reg .reg-sub button { padding: 7px 12px; font-size: 13px }
 .reg .reg-compacto { padding-top: 12px; margin-top: 0 }
 .reg .reg-fila-subir { display: flex; flex-wrap: wrap; align-items: end; gap: 12px 18px }
 .reg .reg-fila-subir .reg-dia { max-width: 190px }
@@ -97,3 +94,16 @@
 .reg .reg-nombre.hay { color: var(--fe-tinta); font-weight: 700 }
 .reg .reg-fila-subir .reg-archivo { flex: 0 1 auto; min-width: 280px }
 .reg .reg-fila-subir .reg-archivo { align-items: flex-start; gap: 6px }
+
+/* ---- PESTAÑAS TIPO HOJA, como las del Tablero: la activa es de papel, con el filo de acento arriba ---- */
+.reg .reg-hojas { display: flex; gap: 0; border-bottom: 1px solid var(--fe-linea); margin: 0 0 14px; overflow-x: auto }
+.reg .reg-hojas button {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 22px; white-space: nowrap; cursor: pointer;
+  font: 700 14px var(--fe-texto); color: var(--fe-gris-panel, var(--fe-gris)); background: transparent;
+  border: 1px solid transparent; border-bottom: 0; border-radius: 0; box-shadow: none; margin: 0;
+}
+.reg .reg-hojas button.on { color: var(--fe-tinta); background: var(--fe-papel); border-color: var(--fe-linea); box-shadow: inset 0 3px 0 var(--fe-acento) }
+.reg .reg-hojas button em { font-style: normal; font-size: 12px; font-weight: 700; color: var(--fe-gris) }
+.reg .reg-hojas button:focus-visible { outline: 3px solid var(--fe-acento); outline-offset: -3px }
+.reg .reg-hojas.reg-sub { margin: 0 0 12px }
+.reg .reg-hojas.reg-sub button { min-height: 40px; padding: 0 16px; font-size: 13px }

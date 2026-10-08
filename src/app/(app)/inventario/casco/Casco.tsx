@@ -56,6 +56,12 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar }:
   const [bloques, setBloques] = useState<Record<string, Bloque>>({});
   const [errorLectura, setErrorLectura] = useState<string | null>(null);
   const [delDia, setDelDia] = useState<Record<string, number>>({});
+  /* LOS FILTROS: ver un material en las cuatro tablas a la vez, una sola bodega, o solo lo que tiene saldo.
+     Solo esconden filas: lo que se guarda sigue siendo la tabla entera. */
+  const [fMat, setFMat] = useState("");
+  const [fSitio, setFSitio] = useState("");
+  const [fPuesto, setFPuesto] = useState("");
+  const [fConSaldo, setFConSaldo] = useState(false);
   const dato = useMemo(() => Object.fromEntries(materiales.map((m) => [m.sku, m])), [materiales]);
 
   const poner = useCallback((clave: string, cambio: Partial<Bloque> | ((b: Bloque) => Partial<Bloque>)) =>
@@ -121,6 +127,35 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar }:
              malInv: inv == null || inv < 0, malBaja: baja == null, sinFactor: hlE == null };
   });
   const conError = (s: SitioCasco, b: Bloque) => calcular(s, b).some((c) => c.malInv || c.malBaja || c.sinFactor);
+
+  /* QUÉ FILA PASA LOS FILTROS. Códigos (uno o varios, separados por espacio o coma) o palabras del nombre
+     («marron 330»: deben estar todas). */
+  const sinTilde = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const terminos = sinTilde(fMat).split(/[\s,;]+/).filter(Boolean);
+  const todosCodigos = terminos.length > 0 && terminos.every((t) => /^\d+$/.test(t));
+  const qPuesto = sinTilde(fPuesto.trim());
+  const hayFiltro = terminos.length > 0 || qPuesto !== "" || fSitio !== "" || fConSaldo;
+  const pasa = (f: Fila, x: { inv: number | null; baja: number | null }) => {
+    if (terminos.length) {
+      const nombre = sinTilde(dato[f.sku]?.nombre ?? "");
+      const ok = todosCodigos ? terminos.some((t) => f.sku.includes(t)) : terminos.every((t) => f.sku.includes(t) || nombre.includes(t));
+      if (!ok) return false;
+    }
+    if (qPuesto && !sinTilde(f.puesto).includes(qPuesto)) return false;
+    if (fConSaldo && (x.inv ?? 0) + (x.baja ?? 0) <= 0) return false;
+    return true;
+  };
+  const limpiarFiltros = () => { setFMat(""); setFSitio(""); setFPuesto(""); setFConSaldo(false) };
+  /* LO QUE SE VE, SITIO POR SITIO: el resumen del filtro. */
+  const resumen = hayFiltro ? sitios.filter((t) => !fSitio || t.clave === fSitio).map((t) => {
+    const bb = bloques[t.clave] ?? VACIO, cc = calcular(t, bb);
+    const v = bb.filas.map((_, i) => i).filter((i) => pasa(bb.filas[i], cc[i]));
+    return {
+      s: t, n: v.length, cargando: bb.cargando,
+      inv: v.reduce((a, i) => a + (cc[i].inv ?? 0), 0), baja: v.reduce((a, i) => a + (cc[i].baja ?? 0), 0),
+      hl: v.reduce((a, i) => a + (cc[i].hl ?? 0), 0),
+    };
+  }) : [];
 
   const guardarSitio = async (s: SitioCasco): Promise<boolean> => {
     const b = bloques[s.clave]; if (!b || b.guardando || conError(s, b)) return false;
@@ -214,12 +249,78 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar }:
         {errorLectura && <p className="cas-aviso mal">{errorLectura}</p>}
       </div>
 
+      {/* LOS FILTROS: un material en todas las bodegas, una bodega, una ubicación, o solo lo que tiene saldo. */}
+      <div className="cas-form cas-filtros-caja">
+        <div className="cas-filtros">
+          <label className="cas-c cas-f-mat">
+            <span>Material (código o nombre)</span>
+            <input type="search" value={fMat} placeholder="3500005 · 3500162 · marron 330…" onChange={(e) => setFMat(e.target.value)} />
+          </label>
+          <label className="cas-c">
+            <span>Bodega</span>
+            <select value={fSitio} onChange={(e) => setFSitio(e.target.value)}>
+              <option value="">Todas</option>
+              {sitios.map((x) => <option key={x.clave} value={x.clave}>{x.nombre}</option>)}
+            </select>
+          </label>
+          <label className="cas-c">
+            <span>Ubicación</span>
+            <input type="search" value={fPuesto} placeholder="Ej. P19" onChange={(e) => setFPuesto(e.target.value)} />
+          </label>
+          <label className="cas-check">
+            <input type="checkbox" checked={fConSaldo} onChange={(e) => setFConSaldo(e.target.checked)} />
+            <span>Solo con estibas</span>
+          </label>
+          {hayFiltro && <button type="button" className="btn" onClick={limpiarFiltros}>Limpiar filtros</button>}
+        </div>
+
+        {hayFiltro && (
+          <div className="cas-tabla-caja">
+            <table className="cas-tabla cas-resumen">
+              <thead>
+                <tr>
+                  <th>Lo que se ve · {fecha.split("-").reverse().join("/")}</th>
+                  <th className="n">Materiales</th><th className="n">Inventario (est)</th><th className="n">Baja (est)</th><th className="n">HL</th>
+                </tr>
+              </thead>
+              <tbody>
+                {resumen.map((r) => (
+                  <tr key={r.s.clave} className={r.n === 0 ? "cas-sin" : ""}>
+                    <td><a href={"#cas-b-" + r.s.clave}>{r.s.nombre}</a></td>
+                    <td className="n">{r.cargando ? "…" : r.n}</td>
+                    <td className="n">{nf0.format(r.inv)}</td>
+                    <td className="n">{r.s.baja_rotulo ? nf0.format(r.baja) : "—"}</td>
+                    <td className="n hl">{nf2.format(r.hl)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              {resumen.length > 1 && (
+                <tfoot>
+                  <tr>
+                    <td>TOTAL</td>
+                    <td className="n">{resumen.reduce((a, r) => a + r.n, 0)}</td>
+                    <td className="n">{nf0.format(resumen.reduce((a, r) => a + r.inv, 0))}</td>
+                    <td className="n">{nf0.format(resumen.reduce((a, r) => a + r.baja, 0))}</td>
+                    <td className="n hl">{nf2.format(resumen.reduce((a, r) => a + r.hl, 0))}</td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        )}
+      </div>
+
       {/* LAS SUGERENCIAS DE LA COLUMNA UBICACIONES: se puede escoger o escribir. */}
       <datalist id="cas-puestos">{puestos.map((p) => <option key={p} value={p} />)}</datalist>
 
       {sitios.map((s) => {
+        if (fSitio && s.clave !== fSitio) return null;
         const b = bloques[s.clave] ?? VACIO;
         const c = calcular(s, b);
+        const vis = b.filas.map((_, i) => i).filter((i) => pasa(b.filas[i], c[i]));
+        const visInv = vis.reduce((t, i) => t + (c[i].inv ?? 0), 0);
+        const visBaja = vis.reduce((t, i) => t + (c[i].baja ?? 0), 0);
+        const visHl = vis.reduce((t, i) => t + (c[i].hl ?? 0), 0);
         const totInv = c.reduce((t, x) => t + (x.inv ?? 0), 0);
         const totBaja = c.reduce((t, x) => t + (x.baja ?? 0), 0);
         const totHl = c.reduce((t, x) => t + (x.hl ?? 0), 0);
@@ -273,7 +374,11 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar }:
                   {!b.cargando && b.filas.length === 0 && (
                     <tr><td colSpan={cols} className="cas-vacio">Sin materiales. Agrégalos arriba.</td></tr>
                   )}
-                  {!b.cargando && b.filas.map((f, i) => {
+                  {!b.cargando && b.filas.length > 0 && vis.length === 0 && (
+                    <tr><td colSpan={cols} className="cas-vacio">Ningún material de esta tabla con esos filtros.</td></tr>
+                  )}
+                  {!b.cargando && vis.map((i) => {
+                    const f = b.filas[i];
                     const x = c[i];
                     return (
                       <tr key={f.sku}>
@@ -324,10 +429,10 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar }:
                 {!b.cargando && b.filas.length > 0 && (
                   <tfoot>
                     <tr>
-                      <td colSpan={2}>TOTAL · {s.nombre}</td>
-                      <td className="n">{nf0.format(totInv)} estibas</td>
-                      {s.baja_rotulo && <td className="n">{nf0.format(totBaja)} estibas</td>}
-                      <td className="n hl">{nf2.format(totHl)}</td>
+                      <td colSpan={2}>{hayFiltro ? `LO QUE SE VE (${vis.length} de ${b.filas.length}) · ${s.nombre}` : `TOTAL · ${s.nombre}`}</td>
+                      <td className="n">{nf0.format(hayFiltro ? visInv : totInv)} estibas</td>
+                      {s.baja_rotulo && <td className="n">{nf0.format(hayFiltro ? visBaja : totBaja)} estibas</td>}
+                      <td className="n hl">{nf2.format(hayFiltro ? visHl : totHl)}</td>
                       <td colSpan={3} />
                     </tr>
                   </tfoot>
