@@ -22,7 +22,7 @@ import { FRANJAS } from "./riesgo";
 
 export type FilaTablero = { clase: string; tipo: string; franja: string; tieneVenc: boolean; fisicas: number; cajas: number; plast: number; unid: number; hl: number };
 export type UbiTablero = { calle: string | null; capacidad: number | null; estibas: number; envase: number; producto: number; libre: number };
-export type RecorridoTablero = { codigo: string; enviado: string; renglones: number; ubicaciones: number; cajas: number };
+export type RecorridoTablero = { codigo: string; enviado: Date | null; renglones: number; ubicaciones: number; cajas: number };
 export type DonaDatos = { hoja: string; cat: string; val: string; nombres: string[]; valores: number[]; colores: string[]; borde: string; fondo: string; hueco: number; ancla: string; lado: number };
 
 export type InsumosTablero = {
@@ -266,11 +266,11 @@ export function armarTablero(d: InsumosTablero): DonaDatos[] {
   let rec = d.recorridos;
   if (rec.length > 3) {
     const resto = rec.slice(2);
-    rec = [...rec.slice(0, 2), { codigo: `+ ${resto.length} recorridos más`, enviado: "", renglones: resto.reduce((a, x) => a + x.renglones, 0), ubicaciones: resto.reduce((a, x) => a + x.ubicaciones, 0), cajas: resto.reduce((a, x) => a + x.cajas, 0) }];
+    rec = [...rec.slice(0, 2), { codigo: `+ ${resto.length} recorridos más`, enviado: null, renglones: resto.reduce((a, x) => a + x.renglones, 0), ubicaciones: resto.reduce((a, x) => a + x.ubicaciones, 0), cajas: resto.reduce((a, x) => a + x.cajas, 0) }];
   }
   rec.forEach((x, i) => {
     const r = 38 + i;
-    V(`R${r}`, x.codigo); V(`X${r}`, x.enviado); V(`AA${r}`, x.renglones, NUM); V(`AC${r}`, x.ubicaciones, NUM); V(`AE${r}`, x.cajas, NUM);
+    V(`R${r}`, x.codigo); V(`X${r}`, x.enviado, "dd/mm hh:mm"); h.getCell(`X${r}`).alignment = { ...h.getCell(`X${r}`).alignment, horizontal: "left" }; V(`AA${r}`, x.renglones, NUM); V(`AC${r}`, x.ubicaciones, NUM); V(`AE${r}`, x.cajas, NUM);
   });
   const rT = rec.reduce((a, x) => ({ r: a.r + x.renglones, u: a.u + x.ubicaciones, c: a.c + x.cajas }), { r: 0, u: 0, c: 0 });
   V("AA41", fx("SUM(AA38:AA40)", rT.r), NUM); V("AC41", fx("SUM(AC38:AC40)", rT.u), NUM); V("AE41", fx("SUM(AE38:AE40)", rT.c), NUM);

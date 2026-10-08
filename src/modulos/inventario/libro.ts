@@ -112,10 +112,13 @@ const fechaLarga = (s: string) => new Date(s + "T12:00:00").toLocaleDateString("
 const UTC_COLOMBIA_MS = 5 * 3600 * 1000;
 const aFecha = (s: string | null) => {
   if (!s) return null;
-  if (s.length === 10) return new Date(s + "T12:00:00Z");
+  if (s.length === 10) return new Date(s + "T00:00:00Z");
   const t = Date.parse(s);
   return Number.isNaN(t) ? null : new Date(t - UTC_COLOMBIA_MS);
 };
+/* Un DÍA (fabricación, vencimiento…): fecha entera, sin horas, para que Excel la reconozca como fecha y no como texto
+   ni como fecha-con-hora. Si llega con hora (AAAA-MM-DDTHH…), se toma solo el día que trae. */
+const aDia = (s: string | null) => (s ? aFecha(s.slice(0, 10)) : null);
 const col = (n: number) => { let s = ""; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26) } return s };
 const letra = (size: number, color: string, bold = false, italic = false): Partial<ExcelJS.Font> => ({ name: "Calibri", size, bold, italic, color: { argb: color } });
 /** Un vínculo a otra hoja que se ve bien aunque no se recalcule. */
@@ -286,7 +289,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     return {
       rec: l.conteo, conto: l.conto ?? "", cuando: aFecha(l.contado_en), calle: l.calle ?? "", modulo: l.modulo ?? "", lado: l.lado ?? "", ubic: l.ubicacion_combinada ?? l.ubicacion ?? "Sin ubicación",
       cod: l.codigo, mat: l.material, tipo: l.tipo_material, fam: l.familia ?? "Sin familia", clase: x.clase, estibas: x.estibas, saldo: x.saldo, factor: x.factor, cajas: x.cajas,
-      fisicas: x.fisicas, plast: x.plast, uxc: x.uxc, unid: x.unid, fab: aFecha(l.fabricacion), venc: aFecha(l.vencimiento), dvenc: l.dias_para_vencer, dsal: l.dias_para_salir,
+      fisicas: x.fisicas, plast: x.plast, uxc: x.uxc, unid: x.unid, fab: aDia(l.fabricacion), venc: aDia(l.vencimiento), dvenc: l.dias_para_vencer, dsal: l.dias_para_salir,
       franja: rotFr(franja(l)), rota: siNo(l.rotacion), averia: siNo(l.averia), pnc: siNo(l.pnc), estenv: l.estado_envase ?? "", nota: l.nota ?? "", hl: x.hl,
     };
   };
@@ -358,7 +361,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
       fisicas: x.fisicas, cajas: x.cajas, plast: x.plast, unid: x.unid, hl: x.hl })),
     us: us.map((x) => ({ calle: x.calle, capacidad: x.capacidad, estibas: x.estibas, envase: x.envase, producto: x.producto, libre: x.libre })),
     recorridos: d.conteos.map((c) => ({ codigo: c.codigo, cajas: Number(c.total_cajas), renglones: c.renglones, ubicaciones: c.ubicaciones,
-      enviado: c.enviado_en ? new Date(c.enviado_en).toLocaleString("es-CO", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Bogota" }).replace(",", "") : "—" })),
+      enviado: aFecha(c.enviado_en) })),
     graves, rb, ru, rv: `Validar!$B$7:$B$${finV}`, vinculo, clases: CLASES, natural: (a, b) => natural(a, b),
   });
 
@@ -608,7 +611,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
       r.values = [m.codigo, m.nombre, matPorSku.get(m.codigo)?.tipo_material ?? "",
         fx(`IFERROR(INDEX(${rb("clase")},MATCH($A${n},${rb("cod")},0)),"")`, delCodigo[0]?.clase ?? ""), m.familia ?? "",
         fx(`COUNTIFS(${crit})`, delCodigo.length), fx(`SUMIFS(${rb("fisicas")},${crit})`, sm("fisicas")), fx(`SUMIFS(${rb("cajas")},${crit})`, sm("cajas")),
-        fx(`SUMIFS(${rb("unid")},${crit})`, sm("unid")), aFecha(m.vence), m.diasSalir, rotFr(m.franja), m.enRiesgoCajas, fx(`SUMIFS(${rb("hl")},${crit})`, sm("hl"))];
+        fx(`SUMIFS(${rb("unid")},${crit})`, sm("unid")), aDia(m.vence), m.diasSalir, rotFr(m.franja), m.enRiesgoCajas, fx(`SUMIFS(${rb("hl")},${crit})`, sm("hl"))];
       filaDatos(r, C.length, i % 2 === 1, { 6: "#,##0", 7: "#,##0", 8: "#,##0", 9: "#,##0", 10: "dd/mm/yyyy", 11: "0", 13: "#,##0", 14: "#,##0.00" }, [6, 7, 8, 9, 11, 13, 14]);
       r.getCell(1).font = letra(9.5, TINTA, true);
       pintarFranja(r.getCell(12), m.franja);
