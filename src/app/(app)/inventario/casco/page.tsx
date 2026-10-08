@@ -8,7 +8,7 @@ import { Casco } from "./Casco";
 export const dynamic = "force-dynamic";
 
 /**
- * INVENTARIO · CASCO DE VIDRIO · REGISTRAR.
+ * INVENTARIO · CASCO DE VIDRIO · CONTROL (antes «Registrar»; ahora Registrar es donde entran las bajas y los movimientos).
  *
  * «Dentro de inventario un módulo que se llame CASCO DE VIDRIO: COD, la
  *  descripción la traes del maestro, el inventario, extrasucio con baja,
@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
  * el Excel (24+15-36) y el HL sale del maestro, no de una fórmula que
  * cada quien copia con un factor distinto.
  */
-export default async function CascoPage() {
+export default async function CascoPage({ searchParams }: { searchParams: Promise<{ fecha?: string }> }) {
   const [permisos, sitios, materiales, usados] = await Promise.all([
     misPermisos(), sitiosCasco(), materialesCasco(), puestosUsados(),
   ]);
@@ -29,7 +29,7 @@ export default async function CascoPage() {
       <div className="fe">
         <section className="cabeza">
           <div>
-            <p className="ojo">INVENTARIO · CASCO DE VIDRIO</p>
+            <p className="ojo">INVENTARIO · CASCO DE VIDRIO · CONTROL</p>
             <h1>Falta crear esta parte en Supabase</h1>
             <p className="sub">
               Abre el editor de SQL y corre <b>supabase/migraciones/2026-10-casco-de-vidrio.sql</b>
@@ -45,6 +45,9 @@ export default async function CascoPage() {
   /* LA FECHA DE HOY, EN HORA DE COLOMBIA. `new Date()` del servidor es
      UTC y después de las 7 p. m. ya sería «mañana». */
   const hoy = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Bogota" }).format(new Date());
+  /* `?fecha=2026-09-24` abre Control en ese día (el enlace que deja Registrar tras aplicar una baja). */
+  const pedida = (await searchParams).fecha;
+  const inicio = pedida && /^\d{4}-\d{2}-\d{2}$/.test(pedida) && pedida <= hoy ? pedida : hoy;
 
   return (
     <div className="fe cas">
@@ -52,6 +55,7 @@ export default async function CascoPage() {
         sitios={sitios.lista}
         materiales={materiales}
         hoy={hoy}
+        inicio={inicio}
         puestos={puestos}
         puedeEditar={permisos.puedeEditar("/inventario/casco")}
       />

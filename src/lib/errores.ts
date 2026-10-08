@@ -43,6 +43,10 @@ const PREFIJOS: [RegExp, string][] = [
   [/\bv_rotlinea_uso/, "supabase/migraciones/2026-09-rotura-linea-maestro.sql"],
   [/\b(rotlinea_|v_rotlinea)/, "supabase/modulos/rotura-linea.sql"],
 
+  /* Casco de vidrio · Registrar (la baja de SAP). Lo nuevo antes que el módulo entero. */
+  [/\b(casco_registrar_bajas|casco_quitar_baja|casco_bajas|v_casco_bajas|casco_botellas_estiba|casco_registrar_puede_editar)\b/,
+   "supabase/migraciones/2026-10-casco-registrar-baja.sql"],
+
   /* Traspasos, igual: lo fino antes que lo grueso. Este módulo faltaba
      entero en la lista y mandaba al mensaje genérico —el que dice "el
      archivo del módulo" y deja a quien lo lee con la mitad del trabajo.

@@ -47,12 +47,12 @@ const aTexto = (n: number | null) => (n == null ? "" : String(Number(n)));
 const VACIO: Bloque = { filas: [], sucio: false, cargando: true, arranque: null, guardado: false, guardando: false, aviso: null };
 const COLS = "ubicacion, sku, inventario, inv_expr, baja, baja_expr, hl, fecha, puesto, calidad";
 
-export function Casco({ sitios, materiales, hoy, puestos, puedeEditar }: {
-  sitios: SitioCasco[]; materiales: MaterialCasco[]; hoy: string; puestos: string[]; puedeEditar: boolean;
+export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar }: {
+  sitios: SitioCasco[]; materiales: MaterialCasco[]; hoy: string; inicio?: string; puestos: string[]; puedeEditar: boolean;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [pedir, dialogo] = useConfirmar();
-  const [fecha, setFecha] = useState(hoy);
+  const [fecha, setFecha] = useState(inicio ?? hoy);
   const [bloques, setBloques] = useState<Record<string, Bloque>>({});
   const [errorLectura, setErrorLectura] = useState<string | null>(null);
   const [delDia, setDelDia] = useState<Record<string, number>>({});
@@ -171,13 +171,16 @@ export function Casco({ sitios, materiales, hoy, puestos, puedeEditar }: {
       {dialogo}
       <section className="cabeza">
         <div>
-          <p className="ojo">INVENTARIO · CASCO DE VIDRIO · REGISTRAR</p>
-          <h1>Casco de vidrio</h1>
+          <p className="ojo">INVENTARIO · CASCO DE VIDRIO · CONTROL</p>
+          <h1>Control</h1>
           <p className="sub">
             Las cuatro tablas del Excel, juntas. Tecleas las cuentas como allá (<b className="cas-sub-cuenta">24+15-36</b>),
             escoges la ubicación de cada material y el HL sale solo, con el factor del maestro.
           </p>
-          <p className="sub"><Link href="/inventario/casco/tablero">Ver el tablero de control →</Link></p>
+          <p className="sub">
+            Las bajas y los movimientos se registran en <Link href="/inventario/casco/registrar">Registrar</Link> y se suman aquí.
+            {" "}<Link href="/inventario/casco/tablero">Ver el tablero →</Link>
+          </p>
         </div>
       </section>
 

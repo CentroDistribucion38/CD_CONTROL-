@@ -16,6 +16,8 @@ export type SitioCasco = {
   /** Rótulo de la segunda cantidad («Extrasucio con baja»), o null si ese sitio no la lleva. */
   baja_rotulo: string | null;
   orden: number | null;
+  /** Código del almacén en SAP (AG22, AG18, AG07, CA22): con él la hoja de baja encuentra su tabla. */
+  centro?: string | null;
 };
 
 export type MaterialCasco = {
@@ -23,6 +25,8 @@ export type MaterialCasco = {
   nombre: string;
   /** HL de una estiba; null si el maestro no trae botellas por estiba o HL. */
   hl_estiba: number | null;
+  /** Botellas por estiba (para pasar UNIDADES a ESTIBAS); null si el maestro no la trae. */
+  botellas_estiba: number | null;
   /** Sale de entrada en el desplegable (los envases y los que ya se han registrado). */
   corto: boolean;
 };
@@ -34,11 +38,14 @@ function sinTablas(msg: string | undefined) {
 
 export async function sitiosCasco(): Promise<{ lista: SitioCasco[]; sinTabla: boolean }> {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("casco_ubicaciones").select("clave, nombre, baja_rotulo, orden")
+  const leer = (cols: string) => supabase
+    .from("casco_ubicaciones").select(cols)
     .eq("activo", true).order("orden", { ascending: true, nullsFirst: false });
+  let { data, error } = await leer("clave, nombre, baja_rotulo, orden, centro");
+  /* SIN LA COLUMNA `centro` (falta correr 2026-10-casco-registrar-baja.sql) Control sigue funcionando. */
+  if (error && /centro/i.test(error.message)) ({ data, error } = await leer("clave, nombre, baja_rotulo, orden"));
   if (error) return { lista: [], sinTabla: sinTablas(error.message) };
-  return { lista: (data ?? []) as SitioCasco[], sinTabla: false };
+  return { lista: (data ?? []) as unknown as SitioCasco[], sinTabla: false };
 }
 
 /**
@@ -64,7 +71,8 @@ export async function materialesCasco(): Promise<MaterialCasco[]> {
   const out: MaterialCasco[] = [];
   for (const e of extras.data ?? []) {
     out.push({ sku: e.sku as string, nombre: e.nombre as string, corto: true,
-      hl_estiba: Number(e.unidades_por_estiba) * Number(e.hl_unidad) });
+      hl_estiba: Number(e.unidades_por_estiba) * Number(e.hl_unidad),
+      botellas_estiba: Number(e.unidades_por_estiba) || null });
   }
   for (const p of prods.data ?? []) {
     const botellas = p.unidades_por_estiba != null ? Number(p.unidades_por_estiba)
@@ -74,6 +82,7 @@ export async function materialesCasco(): Promise<MaterialCasco[]> {
     out.push({
       sku: p.sku as string, nombre: p.nombre as string,
       hl_estiba: botellas && hlBotella ? botellas * hlBotella : null,
+      botellas_estiba: botellas || null,
       corto: p.tipo_material === "ENVASE" || yaUsados.has(String(p.sku)),
     });
   }

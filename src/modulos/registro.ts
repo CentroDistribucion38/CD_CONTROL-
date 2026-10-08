@@ -614,8 +614,8 @@ export const MODULOS: Modulo[] = [
         eyebrow: "ESTIBAS · HL",
         ruta: "/inventario/casco",
         descripcion:
-          "El vidrio vacío que hay en Bodega 38, Fábrica y Carnaval, en estibas y en HL. " +
-          "Se registra por día y sitio, y de ahí sale el análisis de PARTIR.",
+          "El vidrio vacío que hay en AG22, AG18, AG07 y CA22, en estibas y en HL. " +
+          "Se registran las bajas y los movimientos, Control lleva el saldo por día y almacén, y de ahí sale el análisis de PARTIR.",
       },
     ],
     secciones: [
@@ -666,7 +666,12 @@ export const MODULOS: Modulo[] = [
       /* CASCO DE VIDRIO: se registra el saldo del día por sitio (el HL lo
          calcula la base con el maestro) y de esos registros sale el
          análisis. Es el mismo orden del proceso. */
-      { nombre: "Registrar", ruta: "/inventario/casco", rama: "casco" },
+      /* REGISTRAR → CONTROL → TABLERO. Registrar es donde ENTRA lo que mueve el casco (la baja de SAP en
+         unidades, que se pasa a estibas con el maestro, y después los movimientos); Control son las cuatro
+         tablas por almacén que esas entradas alimentan; el tablero sale de Control. Control conserva la
+         dirección de siempre (/inventario/casco) para no mover permisos ni registros. */
+      { nombre: "Registrar", ruta: "/inventario/casco/registrar", rama: "casco" },
+      { nombre: "Control", ruta: "/inventario/casco", rama: "casco" },
       { nombre: "Tablero", ruta: "/inventario/casco/tablero", rama: "casco" },
     ],
   },

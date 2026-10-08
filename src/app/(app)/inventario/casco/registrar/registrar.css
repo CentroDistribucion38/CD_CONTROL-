@@ -1,0 +1,47 @@
+/* =====================================================================
+   CASCO DE VIDRIO · REGISTRAR — lo suyo. Todo lleva `reg-` y vive dentro de `.reg`.
+   Reusa de casco.css las tablas (`cas-tabla`), avisos (`cas-aviso`) y bloques (`cas-bloque`).
+   ===================================================================== */
+
+.reg .reg-tipos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; max-width: 760px }
+.reg .reg-tipo {
+  display: flex; flex-direction: column; gap: 4px; text-align: left; cursor: pointer;
+  background: var(--fe-papel); border: 1px solid var(--fe-linea); border-radius: 3px; padding: 14px 16px;
+  font: inherit; color: var(--fe-tinta);
+}
+.reg .reg-tipo b { font: 900 20px/1.1 var(--fe-titulo); letter-spacing: -.02em }
+.reg .reg-tipo span { font-size: 13px; line-height: 1.4; color: var(--fe-gris) }
+.reg .reg-tipo[aria-pressed="true"] { border-color: var(--fe-tinta); box-shadow: inset 0 0 0 1px var(--fe-tinta) }
+.reg .reg-tipo:disabled { cursor: not-allowed; opacity: .6 }
+.reg .reg-tipo em {
+  align-self: flex-start; font-style: normal; font-size: 11px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--fe-gris); border: 1px solid var(--fe-linea); border-radius: 2px; padding: 1px 6px;
+}
+
+.reg .reg-archivo { display: flex; flex-wrap: wrap; align-items: center; gap: 12px }
+.reg .reg-archivo input[type="file"] { max-width: 100%; font: 500 14px var(--fe-texto) }
+.reg .reg-regla { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.55; color: var(--fe-gris) }
+.reg .reg-regla b { color: var(--fe-tinta) }
+
+.reg .reg-resumen { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px }
+.reg .reg-sitio { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; background: #fff; border: 1px solid var(--fe-linea); border-radius: 3px }
+.reg .reg-sitio .cas-rot { margin-bottom: 2px }
+.reg .reg-sitio b { font: 800 18px/1.1 var(--fe-titulo); font-variant-numeric: tabular-nums }
+.reg .reg-sitio i { font-style: normal; font-size: 12px; color: var(--fe-gris) }
+
+.reg .cas-tabla { min-width: 880px }
+.reg .reg-tabla-alta { max-height: 520px; overflow: auto }
+.reg .cas-tabla .tex { max-width: 260px }
+.reg .cas-tabla .est { font-weight: 800; font-variant-numeric: tabular-nums }
+.reg .cas-tabla tr.reg-fuera td { color: var(--fe-gris) }
+.reg .reg-etq { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 2px; border: 1px solid var(--fe-linea); white-space: nowrap }
+.reg .reg-etq.baja { border-color: var(--fe-acento); background: color-mix(in srgb, var(--fe-acento) 16%, #fff) }
+.reg .reg-etq.mal { color: var(--fe-mal); border-color: var(--fe-mal) }
+.reg .reg-etq.ya { color: var(--fe-gris) }
+.reg .reg-lista { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.6 }
+.reg details summary { cursor: pointer; font-size: 13px; color: var(--fe-gris) }
+
+@media (max-width: 700px) {
+  .reg .reg-tipos { grid-template-columns: 1fr }
+  .reg .cas-tabla { min-width: 760px }
+}
