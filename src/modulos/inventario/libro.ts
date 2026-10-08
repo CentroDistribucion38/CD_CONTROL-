@@ -386,7 +386,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
   };
   const SUMAS_B = ["estibas", "saldo", "cajas", "fisicas", "plast", "unid", "hl"];
   {
-    const h = wb.addWorksheet("Base consolidada", { properties: { tabColor: { argb: TINTA } } });
+    const h = wb.addWorksheet("Base consolidada", { properties: { tabColor: { argb: "FF1D4ED8" } } });
     h.columns = CB.map((c) => ({ width: c.w }));
     cabecera(h, "Base consolidada del día", `${base.length.toLocaleString("es-CO")} renglones: los mismos que «La base» de la pantalla para este período  ·  ${sub}`, CB.length);
     const nums = CB.map((c, i) => (c.num ? i + 1 : 0)).filter(Boolean);
@@ -448,9 +448,9 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     wb.definedNames.add(`'${nombre}'!$A$6:$${col(cs.length)}$${fn}`, nombreRango);
   };
   const comunes = ["rec", "conto", "cuando", "calle", "modulo", "lado", "ubic", "cod", "mat", "tipo", "fam", "clase", "estibas", "saldo", "factor", "cajas", "fisicas"];
-  derivada("Base envase", "Base de envase", "FF8A6A00", (x) => x.clase !== "Producto",
+  derivada("Base envase", "Base de envase", "FFFF7A00", (x) => x.clase !== "Producto",
     [...comunes, "plast", "uxc", "unid", "estenv", "averia", "pnc", "nota", "hl"], "BaseEnvase");
-  derivada("Base producto", "Base de producto", "FF1F7A45", (x) => x.clase === "Producto",
+  derivada("Base producto", "Base de producto", "FF16A34A", (x) => x.clase === "Producto",
     [...comunes, "uxc", "unid", "fab", "venc", "dvenc", "dsal", "franja", "rota", "averia", "pnc", "nota", "hl"], "BaseProducto");
 
   /* ================= 2c · ANÁLISIS: LAS TABLAS DINÁMICAS CON FÓRMULAS =================
@@ -460,7 +460,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
      que se recalculan solos: cambia la medida en la celda de arriba y
      todas las tablas siguen. */
   {
-    const h = wb.addWorksheet("Análisis", { properties: { tabColor: { argb: "FF7A4FA0" } } });
+    const h = wb.addWorksheet("Análisis", { properties: { tabColor: { argb: "FF9333EA" } } });
     h.columns = [30, 14, 14, 14, 14, 14, 14, 14].map((w) => ({ width: w }));
     cabecera(h, "Análisis · cruces con fórmula", `Cambia la medida y todas las tablas se recalculan · ${sub}`, 8);
     const medidaRango = `INDEX(${BC}!$A$7:$${col(CB.length)}$${fin},0,MATCH($B$7,${BC}!$A$6:$${col(CB.length)}$6,0))`;
@@ -518,7 +518,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
 
   /* ================= 3 · POR MATERIAL ================= */
   {
-    const h = wb.addWorksheet("Por material", { properties: { tabColor: { argb: VERDE } } });
+    const h = wb.addWorksheet("Por material", { properties: { tabColor: { argb: "FF14B8A6" } } });
     const C = ["Código", "Material", "Tipo", "Clase", "Familia", "Ubicaciones", "Estibas físicas", "Cajas", "Unidades", "Vence primero", "Días p/salir", "Franja", "En riesgo (cajas)", "Hectolitros"];
     h.columns = [10, 36, 11, 12, 14, 12, 11, 11, 12, 13, 11, 20, 14, 13].map((w) => ({ width: w }));
     cabecera(h, "Por material", `${sub}  ·  las cifras son fórmulas sobre «Base consolidada»`, C.length);
@@ -551,7 +551,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
      módulo, cuántas caben, cuántas tienen envase, plástico o producto y
      cuántas están libres. */
   {
-    const h = wb.addWorksheet("Por ubicación", { properties: { tabColor: { argb: "FF2E6DA4" } } });
+    const h = wb.addWorksheet("Por ubicación", { properties: { tabColor: { argb: "FF0EA5E9" } } });
     const C = ["Ubicación", "Calle", "Módulo", "Lado", "Capacidad (estibas)", "Con envase", "Con producto", "Libres", "Estibas ocupadas", "Sin usar", "Ocupación", "Cajas", "Materiales", "Renglones"];
     h.columns = [16, 8, 9, 8, 12, 10, 10, 10, 11, 9, 11, 11, 11, 11].map((w) => ({ width: w }));
     cabecera(h, "Por ubicación", `${sub}  ·  Libres = estibas contadas como libres · Sin usar = capacidad − estibas ocupadas · cifras con fórmula sobre «Base consolidada»`, C.length);
@@ -575,7 +575,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
 
   /* ================= 5 · VALIDAR ================= */
   {
-    const h = wb.addWorksheet("Validar", { properties: { tabColor: { argb: ROJO } } });
+    const h = wb.addWorksheet("Validar", { properties: { tabColor: { argb: "FFEF4444" } } });
     const C = ["Qué", "Grave", "Ubicación", "Código", "Material", "Detalle", "Recorrido", "Revisado ✓"];
     h.columns = [22, 8, 14, 10, 32, 60, 14, 12].map((w) => ({ width: w }));
     cabecera(h, "Para validar", `${graves} grave(s) · ${ojos.length - graves} para mirar · ${sub}`, C.length);
@@ -598,7 +598,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
 
   /* ================= 6 · SIN CONTAR ================= */
   {
-    const h = wb.addWorksheet("Sin contar", { properties: { tabColor: { argb: GRIS } } });
+    const h = wb.addWorksheet("Sin contar", { properties: { tabColor: { argb: "FFEC4899" } } });
     const C = ["Ubicación", "Calle", "Módulo", "Lado", "Familia", "Capacidad"];
     h.columns = [14, 8, 9, 8, 18, 12].map((w) => ({ width: w }));
     cabecera(h, "Sin contar ese día", `${sinContar.length} de ${activas} posiciones activas · ${sub}`, C.length);
@@ -619,7 +619,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
      consolidada» lo busca aquí con BUSCAR: si un factor está mal, se
      corrige en esta hoja y todo el libro se recalcula. */
   {
-    const h = wb.addWorksheet("Maestro", { properties: { tabColor: { argb: GRIS } } });
+    const h = wb.addWorksheet("Maestro", { properties: { tabColor: { argb: "FF6366F1" } } });
     const C = ["Código", "Material", "Tipo", "Cajas por estiba", "Unidades por caja", "Hectolitros por unidad"];
     h.columns = [10, 40, 11, 14, 14, 16].map((w) => ({ width: w }));
     cabecera(h, "Maestro de la base", `${codigosBase.length} códigos · de aquí leen «Base consolidada» el factor de estibado, las unidades por caja y los hectolitros  ·  ${sub}`, C.length);
@@ -637,7 +637,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
 
   /* ================= 6B · CÓMO LEER (las notas que antes iban al pie del resumen) ================= */
   {
-    const h = wb.addWorksheet("Cómo leer", { properties: { tabColor: { argb: GRIS } } });
+    const h = wb.addWorksheet("Cómo leer", { properties: { tabColor: { argb: "FF84CC16" } } });
     h.columns = [130].map((w) => ({ width: w }));
     cabecera(h, "Cómo leer este libro", sub, 1);
     const notas: [string, string][] = [
@@ -663,7 +663,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
   const evid = (d.evidencias ?? []).filter((e) => e.foto?.byteLength);
   if (evid.length) {
     const porLinea = new Map(d.lineas.map((l) => [l.id, l]));
-    const h = wb.addWorksheet("Evidencias", { properties: { tabColor: { argb: ROJO } } });
+    const h = wb.addWorksheet("Evidencias", { properties: { tabColor: { argb: "FFDC2626" } } });
     const C = ["Recorrido", "Ubicación", "Código", "Material", "Total cajas", "Estado envase", "Marca", "Nota", "Foto tomada", "Foto"];
     h.columns = [12, 14, 10, 30, 11, 14, 10, 30, 16, 40].map((w) => ({ width: w }));
     cabecera(h, "Evidencias del conteo", `${evid.length} foto${evid.length === 1 ? "" : "s"}${d.fotosRecortadas ? ` (otras ${d.fotosRecortadas} no entraron: exporta por días para verlas)` : ""} · ${sub}`, C.length);

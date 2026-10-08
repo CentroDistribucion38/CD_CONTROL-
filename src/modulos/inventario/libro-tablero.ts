@@ -90,7 +90,16 @@ export function armarTablero(d: InsumosTablero): DonaDatos[] {
 
   /* ---------- LA BANDA NEGRA: el sello, el título, el día ---------- */
   if (d.logoId != null) h.addImage(d.logoId, { tl: { col: 1, row: 1 } as ExcelJS.Anchor, ext: { width: 46, height: 46 }, editAs: "oneCell" });
-  V("F2", "BAVARIA");
+  /* El sello, el nombre y el título van JUNTOS: el nombre pegado al sello y la raya amarilla pegada al nombre. */
+  for (const u of ["F2:K3", "M2:AN2", "M3:AN3"]) h.unMergeCells(u);
+  const copiar = (de: string, a: string) => { h.getCell(a).style = { ...h.getCell(de).style } };
+  copiar("F2", "D2"); copiar("L2", "H2"); copiar("L3", "H3"); copiar("M2", "I2"); copiar("M3", "I3");
+  copiar("K2", "L2"); copiar("K3", "L3"); copiar("K2", "F2");
+  for (const a of ["E2", "E3", "F3", "G2", "G3", "J2", "J3"]) copiar("K2", a);
+  copiar("K2", "M2"); copiar("K2", "M3");
+  h.mergeCells("D2:G3"); h.mergeCells("I2:AN2"); h.mergeCells("I3:AN3");
+  h.getCell("D2").alignment = { horizontal: "left", vertical: "middle", indent: 0 };
+  V("D2", "BAVARIA");
   /* Los rótulos que no cambian nunca. */
   const ROTULOS: Record<string, string> = {
     AO2: "UBICACIONES DEL ALMACÉN", I8: "AVANCE DEL CONTEO", R8: "CAJAS", W8: "UNIDADES", AB8: "ESTIBAS FÍSICAS", AG8: "CAJAS PLÁSTICAS", I13: "pendientes", M13: "renglones",
@@ -101,8 +110,8 @@ export function armarTablero(d: InsumosTablero): DonaDatos[] {
     R37: "RECORRIDO", X37: "ENVIADO", AA37: "RENGL.", AC37: "UBIC.", AE37: "CAJAS", R41: "Total", AJ37: "1", AJ40: "2", AJ43: "3", AJ46: "4", AL43: "Vencimiento sin fecha", AL46: "Conteo pendiente",
   };
   for (const [a, t] of Object.entries(ROTULOS)) V(a, t);
-  V("M2", d.titulo);
-  V("M3", d.sub);
+  V("I2", d.titulo);
+  V("I3", d.sub);
   V("AO3", fx("$BA$3", d.activas));
   [["B6", "Tablero"], ["E6", "Base consolidada"], ["K6", "Base envase"], ["P6", "Base producto"], ["U6", "Análisis"], ["Y6", "Por material"], ["AD6", "Por ubicación"], ["AI6", "Validar"], ["AM6", "Sin contar"]]
     .forEach(([a, hoja]) => { if (hoja !== "Tablero") V(a, vinculo(hoja, hoja)); else V(a, hoja); });
