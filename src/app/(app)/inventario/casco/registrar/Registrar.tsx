@@ -26,25 +26,24 @@ export function Registrar({ sitios, materiales, puedeEditar, hoy }: {
 
   return (
     <>
-      <section className="cabeza">
+      <section className="cabeza reg-cabeza">
         <div>
           <p className="ojo">INVENTARIO · CASCO DE VIDRIO · REGISTRAR</p>
           <h1>Registrar</h1>
           <p className="sub">
-            Aquí entra lo que mueve el casco: una <b>baja</b> o un <b>movimiento</b>. Lo que registres se suma o se resta
-            en <Link href="/inventario/casco">Control</Link>, y de Control sale el <Link href="/inventario/casco/tablero">tablero</Link>.
+            Lo que registres se suma o se resta en <Link href="/inventario/casco">Control</Link>, y de Control sale el{" "}
+            <Link href="/inventario/casco/tablero">tablero</Link>.
           </p>
         </div>
       </section>
 
-      <div className="reg-tipos" role="group" aria-label="Qué vas a registrar">
-        <button type="button" className="reg-tipo" aria-pressed={tipo === "baja"} onClick={() => setTipo("baja")}>
-          <b>Baja</b>
-          <span>La hoja «Baja» de SAP: viene en unidades y aquí se pasa a estibas con el maestro. Guarda el historial de archivos.</span>
+      {/* DOS HOJAS: la baja de SAP y el movimiento entre almacenes. Una a la vez. */}
+      <div className="fe-pes reg-hojas" role="tablist" aria-label="Qué vas a registrar">
+        <button type="button" role="tab" aria-selected={tipo === "baja"} className={tipo === "baja" ? "on" : ""} onClick={() => setTipo("baja")}>
+          Baja
         </button>
-        <button type="button" className="reg-tipo" aria-pressed={tipo === "movimiento"} onClick={() => setTipo("movimiento")}>
-          <b>Movimiento</b>
-          <span>Origen → almacén receptor o cliente, con material, estibas, entrega y placa.</span>
+        <button type="button" role="tab" aria-selected={tipo === "movimiento"} className={tipo === "movimiento" ? "on" : ""} onClick={() => setTipo("movimiento")}>
+          Movimiento
         </button>
       </div>
 

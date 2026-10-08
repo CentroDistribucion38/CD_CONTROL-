@@ -57,6 +57,8 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
   const [fecha, setFecha] = useState(hoy);
   const [lineas, setLineas] = useState<Linea[]>([]);
   const [guardando, setGuardando] = useState(false);
+  /* UNA HOJA A LA VEZ: registrar o ver lo registrado. */
+  const [vista, setVista] = useState<"registrar" | "historial">("registrar");
   const [fm, setFm] = useState(FILTROS_VACIOS);
 
   const dato = useMemo(() => Object.fromEntries(materiales.map((m) => [m.sku, m])), [materiales]);
@@ -207,18 +209,22 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
         {materiales.map((m) => <option key={m.sku} value={m.sku}>{m.nombre}</option>)}
       </datalist>
 
+      <div className="fe-pes reg-sub" role="tablist" aria-label="Movimiento">
+        <button type="button" role="tab" aria-selected={vista === "registrar"} className={vista === "registrar" ? "on" : ""} onClick={() => setVista("registrar")}>Registrar</button>
+        <button type="button" role="tab" aria-selected={vista === "historial"} className={vista === "historial" ? "on" : ""} onClick={() => setVista("historial")}>
+          Movimientos registrados{movs !== null && <em>{movs.length}</em>}
+        </button>
+      </div>
+
+      {aviso && <p className={"cas-aviso " + aviso.tipo} role="status">{aviso.texto}</p>}
+
       {/* ---------------- LAS LÍNEAS DE HOY ---------------- */}
-      <section className="cas-bloque">
-        <header className="cas-bloque-cab">
-          <div>
-            <h2>Registrar movimiento</h2>
-            <p className="cas-nota">
-              Una línea por material. Escoge el origen y el receptor o cliente; el código trae la descripción.
-              AG22 o AG18 → AG07 resta del origen y suma a AG07; AG07 → cliente resta de AG07.
-              ¿Falta un almacén o un cliente en la lista? Se agrega en el <Link href="/inventario/maestro">Maestro</Link>.
-            </p>
-          </div>
-        </header>
+      {vista === "registrar" && (
+      <section className="cas-bloque reg-compacto">
+        <p className="cas-nota">
+          Una línea por material; el código trae la descripción. AG22 o AG18 → AG07 resta del origen y suma a AG07; AG07 → cliente resta de AG07.
+          ¿Falta un almacén o cliente? Se agrega en el <Link href="/inventario/maestro">Maestro</Link>.
+        </p>
 
         <label className="cas-c reg-dia">
           <span>Fecha del movimiento</span>
@@ -291,7 +297,6 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
         )}
 
         <div className="cas-pie-bloque">
-          {aviso && <p className={"cas-aviso " + aviso.tipo} role="status">{aviso.texto}</p>}
           {puedeEditar ? (
             <button type="button" className="btn grande" disabled={!llenas.length || conProblema.length > 0 || guardando} onClick={() => void registrar()}>
               {guardando ? "Registrando…"
@@ -302,12 +307,13 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
           ) : <p className="cas-nota">Tu rol puede ver los movimientos pero no registrarlos.</p>}
         </div>
       </section>
+      )}
 
       {/* ---------------- EL HISTORIAL ---------------- */}
-      <section className="cas-bloque">
+      {vista === "historial" && (
+      <section className="cas-bloque reg-compacto">
         <header className="cas-bloque-cab">
           <div>
-            <h2>Movimientos registrados</h2>
             <p className="cas-nota">
               {movs === null ? "Cargando…" : <>{visibles.length} de {movs.length} movimiento{movs.length === 1 ? "" : "s"} · <b>{nf2.format(totalEst)}</b> estibas</>}
             </p>
@@ -376,6 +382,7 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
           </table>
         </div>
       </section>
+      )}
     </>
   );
 }

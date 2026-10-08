@@ -26,8 +26,9 @@ await pag.addInitScript(() => {
   ];
 });
 await pag.goto("file://" + R(".arnes/tmp/reg/m.html"));
-await pag.click("button.reg-tipo:has-text('Movimiento')");
+await pag.click(".reg-hojas button:has-text('Movimiento')");
 await pag.waitForSelector("table.reg-lineas tbody tr");
+ok(await pag.locator("a[href='/inventario/maestro']").count() === 1, "avisa que se agregan en el Maestro, con su enlace");
 ok(await pag.$("text=Siguiente paso") === null, "ya no dice «Siguiente paso»");
 const fecha0 = await pag.inputValue('.reg-dia input[type=date]');
 ok(fecha0 === "2026-10-08", "fecha automática = hoy: " + fecha0);
@@ -80,7 +81,9 @@ const rpc = (await pag.evaluate(() => window.llamadas)).find((l) => l.f === "cas
 ok(rpc && rpc.a.p_fecha === "2026-10-08" && rpc.a.p_filas.length === 3, "mandó 3 filas con la fecha");
 ok(rpc && rpc.a.p_filas[0].placa === "SNR719" && rpc.a.p_filas[0].entrega === "7690228620" && rpc.a.p_filas[2].afecta === false, "entrega, placa y afecta viajan: " + JSON.stringify(rpc?.a.p_filas[2]));
 
-/* historial */
+/* historial: es otra hoja */
+ok(await pag.locator("h2:text-is('Movimientos registrados')").count() === 0, "compacto: ya no hay títulos grandes");
+await pag.click(".reg-sub button:has-text('Movimientos registrados')");
 await pag.waitForSelector("text=7689057353");
 const filasH = async () => pag.evaluate(() => { const t = [...document.querySelectorAll("table.cas-tabla")].find((x) => /N° entrega/.test(x.tHead?.textContent ?? "") && !x.classList.contains("reg-lineas")); return t ? [...t.tBodies[0].rows].map((r) => [...r.cells].map((c) => c.textContent.trim())) : [] });
 let h = await filasH();
@@ -111,7 +114,6 @@ await pag.locator('.reg-filtros label:has-text("Desde") input').fill("");
 /* LOS DESPLEGABLES YA NO SE EDITAN AQUÍ: viven en Inventario · Maestro. Registrar solo registra y muestra el historial. */
 ok(await pag.locator("h2:text-is('Desplegables')").count() === 0, "Registrar ya no trae la sección «Desplegables»");
 ok(await pag.locator("button:has-text('Agregar a')").count() === 0 && await pag.locator("button:text-is('Borrar')").count() === 0, "Registrar no trae botones de agregar/borrar del maestro");
-ok(await pag.locator("a[href='/inventario/maestro']").count() === 1, "avisa que se agregan en el Maestro, con su enlace");
 await pag.screenshot({ path: R(".arnes/tmp/reg/mov-maestro.png"), fullPage: true });
 
 /* deshacer */

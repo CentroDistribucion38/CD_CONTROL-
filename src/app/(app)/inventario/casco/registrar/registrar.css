@@ -74,3 +74,18 @@
   .reg .reg-filtros .reg-f-ancho { grid-column: 1 / -1 }
   .reg .reg-lineas { min-width: 980px }
 }
+
+/* ---- COMPACTO: dos hojas (Baja | Movimiento) y, dentro de cada una, una vista a la vez ---- */
+.reg .reg-cabeza { padding-bottom: 0; margin-bottom: 4px }
+.reg .reg-cabeza h1 { font-size: 28px; margin: 2px 0 }
+.reg .reg-cabeza .sub { margin: 0; max-width: none }
+.reg .reg-hojas { margin: 8px 0 }
+.reg .reg-sub { margin: 0 0 8px }
+.reg .reg-sub button { padding: 7px 12px; font-size: 13px }
+.reg .reg-compacto { padding-top: 12px; margin-top: 0 }
+.reg .reg-fila-subir { display: flex; flex-wrap: wrap; align-items: end; gap: 12px 18px }
+.reg .reg-fila-subir .reg-dia { max-width: 190px }
+.reg .reg-fila-subir .reg-archivo { display: flex; flex-direction: column; flex: 1 1 280px }
+.reg .reg-fila-subir .reg-archivo input[type="file"] { min-height: 40px; display: flex; align-items: center }
+.reg .reg-reglas { margin: 8px 0 }
+.reg .reg-fila-subir .reg-archivo > span { text-align: left }

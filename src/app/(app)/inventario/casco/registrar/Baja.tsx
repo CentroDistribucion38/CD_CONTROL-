@@ -76,6 +76,8 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
   const [fb, setFb] = useState(FILTROS_VACIOS);                       // filtros de las bajas registradas
   const [fa, setFa] = useState({ desde: "", hasta: "", texto: "" });  // filtros de los archivos subidos
   const [falla, setFalla] = useState<string | null>(null);
+  /* UNA HOJA A LA VEZ: subir el archivo, los archivos subidos o las bajas registradas. */
+  const [hoja, setHoja] = useState<"subir" | "archivos" | "bajas">("subir");
 
   const dato = useMemo(() => Object.fromEntries(materiales.map((m) => [m.sku, m])), [materiales]);
   const sinCentros = sitios.length > 0 && sitios.every((s) => !s.centro);
@@ -294,31 +296,39 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
         </p>
       )}
 
-      <section className="cas-bloque">
-          <header className="cas-bloque-cab">
-            <div>
-              <h2>Baja de SAP</h2>
-              <p className="cas-nota">Escoge el Excel con la hoja «Baja». Primero se ve qué hará cada fila; nada se guarda hasta aplicar.</p>
-            </div>
-          </header>
+      <div className="fe-pes reg-sub" role="tablist" aria-label="Baja">
+        {([["subir", "Subir archivo", null], ["archivos", "Archivos subidos", archivos?.length ?? null], ["bajas", "Bajas registradas", hechas?.length ?? null]] as const).map(([k, rot, n]) => (
+          <button key={k} type="button" role="tab" aria-selected={hoja === k} className={hoja === k ? "on" : ""} onClick={() => setHoja(k)}>
+            {rot}{n !== null && <em>{n}</em>}
+          </button>
+        ))}
+      </div>
 
-          <ul className="reg-regla">
-            <li>El <b>Texto cab.documento</b> manda: «BAJA LAVADO» se <b>resta</b> en <b>Lavado con baja</b> y «BAJA EXTRASUCIO» en <b>Extrasucio con baja</b>.</li>
-            <li>Cualquier otro texto (sorting, presorting, rotura de máquina…) se <b>suma al inventario</b> del almacén de la fila.</li>
-            <li>Cada fila va a la tabla de su <b>Almacén</b>, en el día de Control que escojas aquí abajo. Las unidades se dividen por las botellas por estiba del maestro.</li>
-          </ul>
+      {hoja !== "subir" && aviso && <p className={"cas-aviso " + aviso.tipo} role="status">{aviso.texto}</p>}
 
-          <label className="cas-c reg-dia">
-            <span>Sumar al Control del día</span>
-            <input type="date" value={diaControl} max={hoy} disabled={aplicando}
-                   onChange={(e) => { if (e.target.value) setDiaControl(e.target.value) }} />
-          </label>
-
-          <div className="reg-archivo">
-            <input ref={entrada} type="file" accept=".xlsx,.xlsm,.xls" disabled={!puedeEditar || leyendo || aplicando}
-                   onChange={(e) => { const f = e.target.files?.[0]; if (f) void leer(f) }} />
+      {hoja === "subir" && (
+      <section className="cas-bloque reg-compacto">
+          <div className="reg-fila-subir">
+            <label className="cas-c reg-dia">
+              <span>Sumar al Control del día</span>
+              <input type="date" value={diaControl} max={hoy} disabled={aplicando}
+                     onChange={(e) => { if (e.target.value) setDiaControl(e.target.value) }} />
+            </label>
+            <label className="cas-c reg-archivo">
+              <span>Excel con la hoja «Baja»</span>
+              <input ref={entrada} type="file" accept=".xlsx,.xlsm,.xls" disabled={!puedeEditar || leyendo || aplicando}
+                     onChange={(e) => { const f = e.target.files?.[0]; if (f) void leer(f) }} />
+            </label>
             {archivo && <button type="button" className="btn" onClick={limpiar} disabled={aplicando}>Quitar archivo</button>}
           </div>
+          <details className="reg-reglas">
+            <summary>Cómo se aplica cada fila</summary>
+            <ul className="reg-regla">
+              <li>El <b>Texto cab.documento</b> manda: «BAJA LAVADO» se <b>resta</b> en <b>Lavado con baja</b> y «BAJA EXTRASUCIO» en <b>Extrasucio con baja</b>.</li>
+              <li>Cualquier otro texto (sorting, presorting, rotura de máquina…) se <b>suma al inventario</b> del almacén de la fila.</li>
+              <li>Cada fila va a la tabla de su <b>Almacén</b>, en el día de Control escogido. Las unidades se dividen por las botellas por estiba del maestro.</li>
+            </ul>
+          </details>
           {!puedeEditar && <p className="cas-nota">Tu rol puede ver las bajas pero no registrarlas.</p>}
           {leyendo && <p className="cas-nota">Leyendo el archivo…</p>}
 
@@ -418,15 +428,12 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
 
           {!lectura && aviso && <p className={"cas-aviso " + aviso.tipo} role="status">{aviso.texto}</p>}
       </section>
+      )}
 
       {/* EL HISTORIAL DE ARCHIVOS: cada Excel que se aplicó queda anotado, con quién y cuándo. */}
-      <section className="cas-bloque">
-        <header className="cas-bloque-cab">
-          <div>
-            <h2>Archivos subidos</h2>
-            <p className="cas-nota">Cada Excel que aplicas queda aquí, con quién lo subió, cuándo y a qué día de Control. Puedes deshacer un archivo entero.</p>
-          </div>
-        </header>
+      {hoja === "archivos" && (
+      <section className="cas-bloque reg-compacto">
+        <p className="cas-nota">Cada Excel que aplicas queda aquí, con quién lo subió, cuándo y a qué día de Control. Puedes deshacer un archivo entero.</p>
         <div className="reg-filtros">
           <label className="cas-c"><span>Subido desde</span><input type="date" value={fa.desde} onChange={(e) => setFa({ ...fa, desde: e.target.value })} /></label>
           <label className="cas-c"><span>Hasta</span><input type="date" value={fa.hasta} onChange={(e) => setFa({ ...fa, hasta: e.target.value })} /></label>
@@ -454,7 +461,7 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
                   <td className="n">{a.vigentes}{a.vigentes !== a.aplicadas && <small> de {a.aplicadas}</small>}</td>
                   <td className="n est">{nf2.format(a.estibas)}</td>
                   <td className="reg-acc">
-                    <button type="button" className="btn" onClick={() => { setFb({ ...FILTROS_VACIOS, archivo: a.id }); document.getElementById("reg-bajas")?.scrollIntoView({ behavior: "smooth" }) }}>Ver filas</button>
+                    <button type="button" className="btn" onClick={() => { setFb({ ...FILTROS_VACIOS, archivo: a.id }); setHoja("bajas") }}>Ver filas</button>
                     {puedeEditar && <button type="button" className="btn reg-peligro" onClick={() => void deshacerArchivo(a)}>Deshacer archivo</button>}
                   </td>
                 </tr>
@@ -463,12 +470,13 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
           </table>
         </div>
       </section>
+      )}
 
       {/* LO YA REGISTRADO, CON FILTROS: se puede deshacer fila por fila o lo que dejen los filtros. */}
-      <section className="cas-bloque" id="reg-bajas">
+      {hoja === "bajas" && (
+      <section className="cas-bloque reg-compacto" id="reg-bajas">
         <header className="cas-bloque-cab">
           <div>
-            <h2>Bajas registradas</h2>
             <p className="cas-nota">
               {hechas === null ? "Cargando…" : <>
                 {visibles.length} de {hechas.length} baja{hechas.length === 1 ? "" : "s"} · <b>+{nf2.format(totVis.inv)}</b> est. al inventario
@@ -542,6 +550,7 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
           </table>
         </div>
       </section>
+      )}
     </>
   );
 }

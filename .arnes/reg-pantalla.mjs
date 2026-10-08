@@ -52,26 +52,31 @@ ok(ap && ap.a.p_fecha === "2026-10-07", "suma al día de Control escogido (hoy p
 ok(ap && ap.a.p_filas.every((f) => f.centro && f.sku && f.llave && f.unidades > 0 && /^\d{4}-\d{2}-\d{2}$/.test(f.fecha)), "cada fila lleva centro, sku, llave, unidades positivas y fecha ISO");
 ok(ap && new Set(ap.a.p_filas.map((f) => f.llave)).size === 37, "las llaves son únicas (el documento repetido no se pisa)");
 await pag.screenshot({ path: R(".arnes/tmp/reg/aplicado.png"), fullPage: true });
-/* HISTORIAL DE ARCHIVOS Y FILTROS */
+/* HISTORIAL DE ARCHIVOS Y FILTROS — cada vista es una hoja aparte */
 ok(ap && ap.a.p_archivo && /\.xlsx$/i.test(ap.a.p_archivo) && ap.a.p_hoja && ap.a.p_leidas === 42, "manda nombre de archivo, hoja y filas leídas: " + JSON.stringify([ap?.a.p_archivo, ap?.a.p_hoja, ap?.a.p_leidas]));
+const hojasTop = await pag.$$eval(".reg-hojas button, .reg-sub button", (x) => x.map((e) => e.textContent.trim()));
+console.log("hojas:", hojasTop.join(" | "));
+ok(await pag.locator(".reg-sub button:has-text('Archivos subidos')").count() === 1 && await pag.locator(".reg-sub button:has-text('Bajas registradas')").count() === 1, "Baja tiene tres hojas: subir, archivos, bajas");
+ok(await pag.locator("text=Archivos subidos").count() > 0 && await pag.locator("table:has(th:text-is('Archivo'))").count() === 0, "al estar en «Subir» no se ve la tabla de archivos (compacto)");
+await pag.click(".reg-sub button:has-text('Archivos subidos')");
 await pag.waitForFunction(() => document.body.innerText.includes("ana@x.co"), null, { timeout: 3000 }).catch(() => fallas.push("el archivo no aparece en «Archivos subidos»"));
-const tablas = async () => pag.evaluate(() => [...document.querySelectorAll("section.cas-bloque")].map((s) => ({ h: s.querySelector("h2")?.textContent, filas: [...s.querySelectorAll("table tbody tr")].map((r) => [...r.cells].map((c) => c.textContent.trim())) })));
-let t = await tablas();
-const arch = t.find((x) => x.h === "Archivos subidos");
-ok(arch && arch.filas.length === 1 && arch.filas[0][3].includes("2026") && arch.filas[0][4] === "37", "1 archivo con 37 filas y su día de Control: " + JSON.stringify(arch?.filas));
-const reg = t.find((x) => /registradas/i.test(x.h ?? ""));
-ok(reg && reg.filas.length === 37, "37 bajas registradas en el historial: " + reg?.filas.length);
-/* filtro de archivos por nombre */
+const filasDe = async () => pag.evaluate(() => [...document.querySelectorAll("section.cas-bloque table tbody tr")].map((r) => [...r.cells].map((c) => c.textContent.trim())));
+let ft = await filasDe();
+ok(ft.length === 1 && ft[0][3].includes("2026") && ft[0][4] === "37", "1 archivo con 37 filas y su día de Control: " + JSON.stringify(ft));
 await pag.fill('input[placeholder="Buscar por nombre…"]', "zzz");
-t = await tablas(); ok(t.find((x) => x.h === "Archivos subidos").filas[0][0].includes("Ningún archivo"), "filtro por nombre sin coincidencias");
+ft = await filasDe(); ok(ft[0][0].includes("Ningún archivo"), "filtro por nombre sin coincidencias");
 await pag.fill('input[placeholder="Buscar por nombre…"]', "");
-/* filtros de las bajas */
+/* «Ver filas» salta a la hoja de bajas filtrada por ese archivo */
+await pag.click("button:has-text('Ver filas')");
+await pag.waitForSelector("#reg-bajas");
+ft = await filasDe(); ok(ft.length === 37, "«Ver filas» abre las 37 bajas de ese archivo: " + ft.length);
 const etqs = await pag.$$eval("#reg-bajas .reg-filtros label > span", (x) => x.map((e) => e.textContent.trim()));
 console.log("filtros de bajas:", etqs.join(" | "));
+await pag.selectOption('#reg-bajas .reg-filtros label:has-text("Archivo") select', { index: 0 });
 await pag.fill('#reg-bajas .reg-filtros input[type=search]', "LAVADO");
-t = await tablas(); const rl = t.find((x) => /registradas/i.test(x.h ?? "")).filas;
-ok(rl.length > 0 && rl.length < 37, "filtro de texto LAVADO deja solo esas: " + rl.length);
+ft = await filasDe(); ok(ft.length > 0 && ft.length < 37, "filtro de texto LAVADO deja solo esas: " + ft.length);
 await pag.fill('#reg-bajas .reg-filtros input[type=search]', "");
+await pag.click(".reg-sub button:has-text('Archivos subidos')");
 /* deshacer el archivo entero */
 await pag.click("button:has-text('Deshacer archivo')");
 await pag.waitForSelector(".cf-botones", { timeout: 3000 });
