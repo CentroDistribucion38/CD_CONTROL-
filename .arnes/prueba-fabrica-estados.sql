@@ -1,6 +1,6 @@
 \set ON_ERROR_STOP on
 set client_min_messages = notice;
--- FÁBRICA · RETORNO se puede volver a poner y se suma. Fuera de FABRICA, o con otro estado, el repetido se rechaza como siempre.
+-- FÁBRICA · cualquier estado se puede volver a poner y se suma. Fuera de FABRICA el repetido se rechaza como siempre.
 set request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
 set role probador;
 
@@ -8,7 +8,7 @@ do $$
 declare
   v_falla text := '';
   v_bod uuid; v_l2 uuid; v_a uuid; v_c uuid; v_id1 uuid; v_id2 uuid; v_id3 uuid; v_r record; v_n int;
-  v_sku text; v_sku2 text; v_ok boolean;
+  v_sku text; v_sku2 text; v_ok boolean; v_e text;
 begin
   select id into v_bod from public.bodegas order by creado_en limit 1;
   select sku into v_sku from public.productos where activo order by sku limit 1;
@@ -43,20 +43,23 @@ begin
   perform public.conteo_fefo_agregar(v_c, v_sku2, v_l2, false, 1, null, null, null, null, false, false, 'RETORNO', null, 3);
   if (select cajas from public.conteo_lineas where id = v_id3) <> 50 + (select cajas_por_estiba from public.productos where sku = v_sku2) + 3
     then v_falla := v_falla || ' 8(estibas sobre cajas)'; end if;
-  /* 7 · otro estado en FABRICA sigue sin repetirse */
-  perform public.conteo_fefo_agregar(v_c, v_sku, v_l2, false, 1, null, null, null, null, false, false, 'LAVADO', null, null);
-  v_ok := false;
-  begin
-    perform public.conteo_fefo_agregar(v_c, v_sku, v_l2, false, 1, null, null, null, null, false, false, 'LAVADO', null, null);
-  exception when unique_violation then v_ok := true; end;
-  if not v_ok then v_falla := v_falla || ' 9(LAVADO repetido en FABRICA debía rechazarse)'; end if;
-  /* 8 · RETORNO en otra calle sigue rechazándose */
-  perform public.conteo_fefo_agregar(v_c, v_sku, v_a, false, 1, null, null, null, null, false, false, 'RETORNO', null, null);
-  v_ok := false;
-  begin
-    perform public.conteo_fefo_agregar(v_c, v_sku, v_a, false, 1, null, null, null, null, false, false, 'RETORNO', null, null);
-  exception when unique_violation then v_ok := true; end;
-  if not v_ok then v_falla := v_falla || ' 10(RETORNO repetido fuera de FABRICA debía rechazarse)'; end if;
+  /* 7 · OTRO ESTADO en FABRICA también se suma (todos los estados) */
+  v_id1 := public.conteo_fefo_agregar(v_c, v_sku, v_l2, false, 1, null, null, null, null, false, false, 'LAVADO', null, null);
+  v_id2 := public.conteo_fefo_agregar(v_c, v_sku, v_l2, false, 2, null, null, null, null, false, false, 'LAVADO', null, null);
+  if v_id1 is distinct from v_id2 or (select estibas from public.conteo_lineas where id = v_id1) <> 3
+    then v_falla := v_falla || ' 9(LAVADO repetido en FABRICA debía sumarse)'; end if;
+  /* y los estados siguen separados entre sí */
+  if (select count(*) from public.conteo_lineas where conteo_id = v_c and ubicacion_id = v_l2 and producto_id = (select id from public.productos where sku = v_sku)) <> 2
+    then v_falla := v_falla || ' 9b(RETORNO y LAVADO debían ser dos renglones)'; end if;
+  /* 8 · fuera de FABRICA cualquier estado repetido sigue rechazándose */
+  foreach v_e in array array['RETORNO','LAVADO'] loop
+    perform public.conteo_fefo_agregar(v_c, v_sku, v_a, false, 1, null, null, null, null, false, false, v_e, null, null);
+    v_ok := false;
+    begin
+      perform public.conteo_fefo_agregar(v_c, v_sku, v_a, false, 1, null, null, null, null, false, false, v_e, null, null);
+    exception when unique_violation then v_ok := true; end;
+    if not v_ok then v_falla := v_falla || ' 10(' || v_e || ' repetido fuera de FABRICA debía rechazarse)'; end if;
+  end loop;
 
   if v_falla <> '' then raise exception 'FALLA:%', v_falla; end if;
   raise notice 'FABRICA RETORNO: todo en orden';

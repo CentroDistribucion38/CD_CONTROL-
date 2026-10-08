@@ -1,17 +1,18 @@
 -- =====================================================================
--- FÁBRICA · EL ENVASE EN «RETORNO» SE PUEDE VOLVER A PONER
+-- FÁBRICA · CUALQUIER ESTADO DEL ENVASE SE PUEDE VOLVER A PONER
 --
 -- «Y en fábrica que sea la excepción de que si escojo retorno se oculte,
---  o sea, lo puedo volver a poner.»
+--  o sea, lo puedo volver a poner.» … «Para todos los estados en fábrica.»
 --
 -- LA REGLA DE SIEMPRE: en un mismo módulo, un mismo código solo tiene UN
 -- renglón por estado del envase; el estado que ya se contó deja de
 -- ofrecerse, y la llave única de la tabla rechaza el repetido.
 --
 -- LA EXCEPCIÓN: en la calle FABRICA (las líneas L2, L4 y L6) el envase llega
--- en RETORNO por tandas. Ahí el estado RETORNO se vuelve a ofrecer, y lo que
--- se anota se SUMA al renglón RETORNO que ya había de ese código en esa
--- línea (mismo recorrido, mismo vencimiento, avería y PNC). Nada se pierde y
+-- por tandas. Ahí TODOS los estados (RETORNO, LAVADO, NUEVO, BAJA…) se
+-- vuelven a ofrecer, y lo que se anota se SUMA al renglón que ya había de ese
+-- código, con ese mismo estado, en esa línea (mismo recorrido, mismo
+-- vencimiento, avería y PNC). Nada se pierde y
 -- la llave única no se toca.
 --
 -- QUÉ HACE ESTE ARCHIVO: reemplaza `conteo_fefo_agregar` con la misma
@@ -168,15 +169,15 @@ begin
     raise exception 'Falta la fecha: el vencimiento, o la de fabricación para calcularlo.';
   end if;
 
-  /* ---------- FÁBRICA · RETORNO: SE PUEDE VOLVER A PONER ----------
-     En la calle FABRICA el envase en RETORNO llega por tandas al mismo
-     sitio (la línea L2, L4 o L6) y se cuenta varias veces en el mismo
-     recorrido. Es la EXCEPCIÓN a «un estado, un renglón»: si ya hay un
-     renglón de ese código, en esa línea, con RETORNO, lo que se anota ahora
-     SE SUMA a ese renglón —no se rechaza como repetido y no se pierde nada—.
-     Todo lo demás (otras calles, otros estados) sigue igual que antes. */
+  /* ---------- FÁBRICA · CUALQUIER ESTADO SE PUEDE VOLVER A PONER ----------
+     En la calle FABRICA el envase llega por tandas al mismo sitio (la línea
+     L2, L4 o L6) y se cuenta varias veces en el mismo recorrido. Es la
+     EXCEPCIÓN a «un estado, un renglón»: si ya hay un renglón de ese código,
+     en esa línea, con ESE MISMO estado, lo que se anota ahora SE SUMA a ese
+     renglón —no se rechaza como repetido y no se pierde nada—.
+     Todo lo demás (otras calles) sigue igual que antes. */
   v_estado_txt := upper(nullif(trim(coalesce(p_estado, '')), ''));
-  if v_estado_txt = 'RETORNO'
+  if v_estado_txt is not null
      and exists (select 1 from public.ubicaciones where id = p_ubicacion and upper(calle) = 'FABRICA') then
     select cl.id, cl.estibas, cl.cajas, cl.saldo, cl.nota into v_ex
       from public.conteo_lineas cl
@@ -185,7 +186,7 @@ begin
        and cl.venc_mes  is not distinct from v_vm
        and cl.venc_anio is not distinct from v_va
        and cl.averia = coalesce(p_averia, false) and cl.pnc = coalesce(p_pnc, false)
-       and upper(coalesce(cl.estado_envase, '')) = 'RETORNO'
+       and upper(coalesce(cl.estado_envase, '')) = v_estado_txt
      order by cl.contado_en desc limit 1;
     if found then
       if v_ex.cajas is not null and p_cajas is not null then
@@ -253,7 +254,7 @@ begin
   if pg_get_functiondef('public.conteo_fefo_agregar(uuid, text, uuid, boolean, integer, integer, smallint, smallint, smallint, boolean, boolean, text, text, integer, smallint, smallint, smallint)'::regprocedure) not like '%FABRICA%' then
     raise exception 'No quedó la excepción de FABRICA.';
   end if;
-  raise notice 'LISTO · En FABRICA el RETORNO se puede volver a poner y se suma al renglón que ya había.';
+  raise notice 'LISTO · En FABRICA cualquier estado se puede volver a poner y se suma al renglón que ya había.';
 end $$;
 
 commit;

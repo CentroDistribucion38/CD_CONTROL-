@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# FÁBRICA · RETORNO se puede volver a poner (se suma): la migración dos veces y la prueba, contra Postgres de verdad.
-#   bash .arnes/correr-fabrica-retorno.sh
+# FÁBRICA · cualquier estado se puede volver a poner (se suma): la migración dos veces y la prueba, contra Postgres de verdad.
+#   bash .arnes/correr-fabrica-estados.sh
 set -e
 export DB=fab_ret
 bash .arnes/_base-completa.sh | grep -E "FALLA|quedan 0" || true
@@ -16,6 +16,6 @@ insert into public.bodegas (codigo, nombre) values ('CD38', 'CD38') on conflict 
 insert into public.productos (sku, nombre, cajas_por_estiba, unidades_por_caja, hl, tipo_material)
   select s, 'ENVASE ' || s, 60, 24, 0.0033, 'ENVASE' from unnest(array['900','901']) s on conflict (sku) do nothing;
 SQL
-for i in 1 2; do $PSQL -d $DB -f supabase/migraciones/2026-10-conteo-fabrica-retorno.sql 2>&1 | grep -E "ERROR|LISTO" ; done
-salida=$($PSQL -d $DB -f .arnes/prueba-fabrica-retorno.sql 2>&1) || true; echo "$salida" | grep -E "NOTICE|ERROR|FALLA" || true
+for i in 1 2; do $PSQL -d $DB -f supabase/migraciones/2026-10-conteo-fabrica-estados.sql 2>&1 | grep -E "ERROR|LISTO" ; done
+salida=$($PSQL -d $DB -f .arnes/prueba-fabrica-estados.sql 2>&1) || true; echo "$salida" | grep -E "NOTICE|ERROR|FALLA" || true
 if echo "$salida" | grep -qE "FALLA:|^psql.*ERROR"; then exit 1; fi

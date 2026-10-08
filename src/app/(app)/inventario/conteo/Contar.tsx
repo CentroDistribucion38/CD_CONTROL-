@@ -1667,17 +1667,18 @@ export function Contar({
 
   /* LOS ESTADOS DEL ENVASE QUE YA SE CONTARON PARA ESTE CÓDIGO EN ESTE MÓDULO, dentro del mismo recorrido, no
      vuelven a salir: con otro código sí. Al corregir un renglón, el suyo no cuenta como usado. */
-  /* LA EXCEPCIÓN DE FÁBRICA: en la calle FABRICA (líneas L2, L4 y L6) el RETORNO llega por tandas y se puede volver a
-     poner —no se oculta aunque ya se haya contado—. Lo que se anota se SUMA al renglón RETORNO que ya había (lo hace la
-     base, en conteo_fefo_agregar). Corregir un renglón sí sigue la regla de siempre. */
+  /* LA EXCEPCIÓN DE FÁBRICA: en la calle FABRICA (líneas L2, L4 y L6) el envase llega por tandas y CUALQUIER estado se
+     puede volver a poner —no se oculta aunque ya se haya contado—. Lo que se anota se SUMA al renglón de ese mismo
+     estado que ya había (lo hace la base, en conteo_fefo_agregar). Corregir un renglón sí sigue la regla de siempre. */
   const enFabrica = b.base.split("|")[0].toUpperCase() === "FABRICA";
-  const retornoAqui = useMemo(() => renglones.find((r) =>
-    r.ubicacion === claveEscogida && r.codigo === b.codigo.trim() && (r.estado_envase ?? "").toUpperCase() === "RETORNO"), [renglones, claveEscogida, b.codigo]);
+  const estadoAqui = useMemo(() => renglones.find((r) =>
+    r.ubicacion === claveEscogida && r.codigo === b.codigo.trim() && b.estado !== ""
+    && (r.estado_envase ?? "").toUpperCase() === b.estado.toUpperCase()), [renglones, claveEscogida, b.codigo, b.estado]);
   const estadosUsados = useMemo(() => new Set(
+    enFabrica && !corrigiendo ? [] :
     renglones
       .filter((r) => r.ubicacion === claveEscogida && r.codigo === b.codigo.trim() && r.estado_envase && r.id !== corrigiendo)
-      .map((r) => (r.estado_envase ?? "").toUpperCase())
-      .filter((e) => !(enFabrica && !corrigiendo && e === "RETORNO"))),
+      .map((r) => (r.estado_envase ?? "").toUpperCase())),
   [renglones, claveEscogida, b.codigo, corrigiendo, enFabrica]);
   /* Si el estado escogido ya se contó para este código aquí (o el material no es envase), se suelta. */
   useEffect(() => {
@@ -2207,8 +2208,8 @@ export function Contar({
                           onClick={() => { pon("estado", b.estado === e ? "" : e); if (b.estado !== e) setTimeout(() => campoCantidad.current?.focus(), 60) }}>{e}</button>
                 ))}
               </div>
-              {enFabrica && !corrigiendo && b.estado.toUpperCase() === "RETORNO" && retornoAqui && (
-                <p className="fe-paso-aviso">En fábrica el RETORNO se puede volver a poner: esto se suma a las <b>{nf.format(Number(retornoAqui.total_cajas))} cajas</b> que ya anotaste aquí.</p>
+              {enFabrica && !corrigiendo && estadoAqui && (
+                <p className="fe-paso-aviso">En fábrica un estado se puede volver a poner: esto se suma a las <b>{nf.format(Number(estadoAqui.total_cajas))} cajas</b> de {estadoAqui.estado_envase} que ya anotaste aquí.</p>
               )}
               {estadosUsados.size > 0 && (
                 <p className="fe-paso-aviso">Ya contado aquí para este código: <b>{[...estadosUsados].join(", ")}</b>.
