@@ -461,18 +461,92 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
      todas las tablas siguen. */
   {
     const h = wb.addWorksheet("Análisis", { properties: { tabColor: { argb: "FF475569" } } });
-    h.columns = [30, 14, 14, 14, 14, 14, 14, 14].map((w) => ({ width: w }));
-    cabecera(h, "Análisis · cruces con fórmula", `Cambia la medida y todas las tablas se recalculan · ${sub}`, 8);
+    h.columns = [38, 14, 14, 14, 14, 14, 14, 14, 14, 14, 3, 3, ...Array(12).fill(20)].map((w) => ({ width: w }));
+    cabecera(h, "Análisis · cruces con fórmula", `Escoge la medida, las filas y las columnas: la tabla se arma sola · ${sub}`, 10);
     const medidaRango = `INDEX(${BC}!$A$7:$${col(CB.length)}$${fin},0,MATCH($B$7,${BC}!$A$6:$${col(CB.length)}$6,0))`;
     const lab = h.getCell(7, 1); lab.value = "MEDIDA"; lab.font = letra(9, GRIS, true); lab.alignment = { vertical: "middle", indent: 1 };
     const sel = h.getCell(7, 2); sel.value = "Total cajas"; sel.font = letra(11, TINTA, true); sel.fill = relleno(FR.quince.fondo);
     sel.border = { top: raya(), bottom: raya(), left: raya(), right: raya() };
     sel.dataValidation = { type: "list", allowBlank: false, formulae: [`"${MEDIDAS.map((m) => m.t).join(",")}"`] };
     h.mergeCells(7, 2, 7, 3);
-    const nota = h.getCell(7, 4); nota.value = "◄ escoge: estibas físicas, total cajas, cajas plásticas, unidades u hectolitros"; nota.font = letra(8.5, GRIS, false, true);
+    const nota = h.getCell(7, 4); nota.value = "◄ escoge: estibas físicas, total cajas, cajas plásticas, unidades u hectolitros (vale para todas las tablas)"; nota.font = letra(8.5, GRIS, false, true);
     h.getRow(7).height = 24;
     const medida = MEDIDAS.find((m) => m.t === "Total cajas")!.k;
-    let f = 8;
+    /* ---------- TU CRUCE: tú escoges qué va en las filas y qué en las columnas ----------
+       «Que pueda colocar material, estado y así.» Las listas de valores de cada campo
+       (material, estado del envase, franja, calle…) salen de la base y van a la derecha,
+       en las columnas M:X escondidas (mostrar columnas para verlas); la tabla lee la lista del campo escogido y suma con SUMIFS. */
+    const DIMS: { t: string; k: string; lista: () => string[] }[] = [
+      { t: "Material", k: "mat", lista: () => [] }, { t: "Código", k: "cod", lista: () => [] }, { t: "Clase", k: "clase", lista: () => [...CLASES] },
+      { t: "Tipo", k: "tipo", lista: () => [] }, { t: "Familia", k: "fam", lista: () => [] }, { t: "Calle", k: "calle", lista: () => [] },
+      { t: "Módulo", k: "modulo", lista: () => [] }, { t: "Ubicación", k: "ubic", lista: () => [] }, { t: "Estado envase", k: "estenv", lista: () => [] },
+      { t: "Franja", k: "franja", lista: () => FRANJAS.map((x) => x.rot) }, { t: "Recorrido", k: "rec", lista: () => [] }, { t: "Contó", k: "conto", lista: () => [] },
+    ];
+    const valoresDe = (k: string) => planos.map((p) => String(p[k] ?? "")).filter((v) => v !== "");
+    const listas = DIMS.map((dm) => {
+      const fija = dm.lista();
+      const reales = new Set(valoresDe(dm.k));
+      return (fija.length ? fija.filter((v) => reales.has(v)) : [...reales].sort(natural)).slice(0, 400);
+    });
+    const LISTA_INI = 8, LISTA_FIN = LISTA_INI + 399, C0 = 13;                   // columnas M..X
+    const rl = `$${col(C0)}$${LISTA_INI}:$${col(C0 + DIMS.length - 1)}$${LISTA_FIN}`, rn = `$${col(C0)}$7:$${col(C0 + DIMS.length - 1)}$7`;
+    const gris9 = { ...letra(8.5, GRIS) };
+    h.getCell(6, C0).value = "Listas del selector (salen de la base; no tocar)"; h.getCell(6, C0).font = letra(8.5, GRIS, true, true);
+    DIMS.forEach((dm, i) => {
+      const c = h.getCell(7, C0 + i); c.value = dm.t; c.font = letra(8.5, GRIS, true);
+      listas[i].forEach((v, j) => { const x = h.getCell(LISTA_INI + j, C0 + i); x.value = v; x.font = gris9 });
+    });
+    for (let c = C0; c < C0 + DIMS.length; c++) h.getColumn(c).hidden = true;      // las listas trabajan escondidas
+    const dimRango = (celda: string) => `INDEX(${BC}!$A$7:$${col(CB.length)}$${fin},0,MATCH(${celda},${BC}!$A$6:$${col(CB.length)}$6,0))`;
+    const listaDe = (celda: string) => `INDEX(${rl},0,MATCH(${celda},${rn},0))`;
+    const selector = (fila: number, rotulo: string, ini: string) => {
+      const a = h.getCell(fila, 1); a.value = rotulo; a.font = letra(9, GRIS, true); a.alignment = { vertical: "middle", indent: 1 };
+      const b = h.getCell(fila, 2); b.value = ini; b.font = letra(11, TINTA, true); b.fill = relleno(FR.quince.fondo);
+      b.border = { top: raya(), bottom: raya(), left: raya(), right: raya() };
+      b.dataValidation = { type: "list", allowBlank: false, formulae: [`"${DIMS.map((dm) => dm.t).join(",")}"`] };
+      h.mergeCells(fila, 2, fila, 3); h.getRow(fila).height = 24;
+    };
+    selector(8, "FILAS", "Material"); selector(9, "COLUMNAS", "Clase");
+    const nF = h.getCell(8, 4); nF.value = "◄ escoge: material, código, clase, tipo, familia, calle, módulo, ubicación, estado del envase, franja, recorrido o quién contó"; nF.font = letra(8.5, GRIS, false, true);
+    const nC = h.getCell(9, 4); nC.value = "◄ lo mismo para las columnas (se muestran hasta 8 valores; la columna Total suma todos)"; nC.font = letra(8.5, GRIS, false, true);
+    const FIL = 40, NC = 8;                                                       // filas y columnas de la tabla
+    const TT = 11, HD = 12, TOT = 13, FUE = 14, B0 = 15, B1 = B0 + FIL - 1;
+    const tt = h.getCell(TT, 1); tt.value = { formula: '"Tu cruce: "&$B$8&" por "&$B$9&" · "&LOWER($B$7)', result: "Tu cruce: Material por Clase · total cajas" }; tt.font = letra(11, TINTA, true); h.getRow(TT).height = 22;
+    const dFil = DIMS.find((dm) => dm.t === "Material")!, dCol = DIMS.find((dm) => dm.t === "Clase")!;
+    const lFil = listas[DIMS.indexOf(dFil)], lCol = listas[DIMS.indexOf(dCol)];
+    const medIni = MEDIDAS.find((m) => m.t === "Total cajas")!.k;
+    const cel = (kf: string, vf: string, kc?: string, vc?: string) => planos.reduce((a, p2, i) => a + (String(p2[kf] ?? "") === vf && (kc == null || String(p2[kc!] ?? "") === vc) ? Number(filas[i][medIni]) : 0), 0);
+    const totalGlobal = filas.reduce((a, x) => a + Number(x[medIni]), 0);
+    const hd = h.getRow(HD); hd.height = 21;
+    const cab = (c: number, v: ExcelJS.CellValue) => { const x = h.getCell(HD, c); x.value = v; x.font = letra(9, TINTA, true); x.fill = relleno(CABEZA); x.alignment = { vertical: "middle", horizontal: c === 1 ? "left" : "right", indent: 1, wrapText: true } };
+    cab(1, { formula: '$B$8', result: "Material" });
+    for (let j = 1; j <= NC; j++) cab(j + 1, { formula: `IFERROR(INDEX(${listaDe("$B$9")},${j})&"","")`, result: lCol[j - 1] ?? "" });
+    cab(NC + 2, "Total");
+    const fmtN = "#,##0;\\-#,##0;\\–";
+    /* La fila de total (arriba, como en una dinámica) y la que dice cuánto quedó fuera de la tabla. */
+    const filaTot = h.getRow(TOT); filaTot.height = 20;
+    filaTot.getCell(1).value = "Total"; 
+    for (let j = 1; j <= NC; j++) { const L = col(j + 1);
+      filaTot.getCell(j + 1).value = { formula: `IF(${L}$${HD}="","",SUMIFS(${dimRango("$B$7")},${dimRango("$B$9")},${L}$${HD}))`, result: lCol[j - 1] != null ? cel(dCol.k, lCol[j - 1]) : "" } }
+    filaTot.getCell(NC + 2).value = { formula: `SUM(${dimRango("$B$7")})`, result: totalGlobal };
+    for (let c = 1; c <= NC + 2; c++) { const x = filaTot.getCell(c); x.fill = relleno(FR.quince.fondo); x.border = { top: { style: "medium", color: { argb: TINTA } }, bottom: raya() }; x.font = letra(9.5, TINTA, true); x.numFmt = fmtN; x.alignment = { horizontal: c === 1 ? "left" : "right", indent: 1, vertical: "middle" } }
+    const filaFue = h.getRow(FUE); filaFue.height = 16;
+    filaFue.getCell(1).value = "Fuera de la tabla (más de 40 filas o sin dato)";
+    for (let c = 2; c <= NC + 2; c++) { const L = col(c);
+      filaFue.getCell(c).value = { formula: `IF(${L}$${HD}="","",${L}${TOT}-SUM(${L}${B0}:${L}${B1}))`, result: c === NC + 2 ? 0 : (lCol[c - 2] != null ? 0 : "") } }
+    for (let c = 1; c <= NC + 2; c++) { const x = filaFue.getCell(c); x.font = letra(8.5, GRIS, false, true); x.numFmt = fmtN; x.alignment = { horizontal: c === 1 ? "left" : "right", indent: 1, vertical: "middle" } }
+    for (let i = 0; i < FIL; i++) {
+      const r = B0 + i, row = h.getRow(r); row.height = 18;
+      row.getCell(1).value = { formula: `IFERROR(INDEX(${listaDe("$B$8")},${i + 1})&"","")`, result: lFil[i] ?? "" };
+      for (let j = 1; j <= NC; j++) { const L = col(j + 1);
+        row.getCell(j + 1).value = { formula: `IF(OR($A${r}="",${L}$${HD}=""),"",SUMIFS(${dimRango("$B$7")},${dimRango("$B$8")},$A${r},${dimRango("$B$9")},${L}$${HD}))`,
+          result: lFil[i] != null && lCol[j - 1] != null ? cel(dFil.k, lFil[i], dCol.k, lCol[j - 1]) : "" } }
+      row.getCell(NC + 2).value = { formula: `IF($A${r}="","",SUMIFS(${dimRango("$B$7")},${dimRango("$B$8")},$A${r}))`, result: lFil[i] != null ? cel(dFil.k, lFil[i]) : "" };
+      for (let c = 1; c <= NC + 2; c++) { const x = row.getCell(c); x.border = { bottom: raya() }; x.numFmt = fmtN; x.font = letra(9.5, TINTA, c === 1 || c === NC + 2); x.alignment = { horizontal: c === 1 ? "left" : "right", indent: 1, vertical: "middle" }; if (i % 2 === 1) x.fill = relleno(FONDO) }
+    }
+    /* Con hectolitros las cifras llevan un decimal. */
+    h.addConditionalFormatting({ ref: `B${TOT}:${col(NC + 2)}${B1}`, rules: [{ type: "expression", formulae: ['$B$7="Hectolitros"'], priority: 1, style: { numFmt: "#,##0.0;\\-#,##0.0;\\–" } }] });
+    let f = B1 + 1;
     /* Un cruce: filas = valores de una columna de la base; columnas = las clases (o una sola). */
     const cruce = (titulo: string, dim: string, etiquetas: string[], clases: Clase[], porColumna?: (x: Fila) => string, solo?: Clase) => {
       if (!etiquetas.length) return;          // nada que cruzar: sin tabla vacía
@@ -493,7 +567,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
           r.getCell(i + 2).value = { formula: `SUMIFS(${medidaRango},${rb(dim === "Franja" ? "franja" : dimKey[dim])},$A${f},${rb("clase")},${col(i + 2)}$${hd})`, result: v };
         });
         if (clases.length > 1) { const L = col(clases.length + 1); r.getCell(clases.length + 2).value = { formula: `SUM(B${f}:${L}${f})`, result: filas.filter((x) => dimK!(x) === e).reduce((s2, x) => s2 + Number(x[medida]), 0) } }
-        for (let c = 1; c <= cab.length; c++) { const cel = r.getCell(c); cel.border = { bottom: raya() }; if (c > 1) { cel.numFmt = "#,##0.##;\\-#,##0.##;\\–"; cel.alignment = { horizontal: "right", indent: 1 } } else cel.alignment = { indent: 1 }; if (c === 1) cel.font = letra(9.5, TINTA, true); else cel.font = letra(9.5, TINTA, c === cab.length && clases.length > 1) }
+        for (let c = 1; c <= cab.length; c++) { const cel = r.getCell(c); cel.border = { bottom: raya() }; if (c > 1) { cel.numFmt = "#,##0;\\-#,##0;\\–"; cel.alignment = { horizontal: "right", indent: 1 } } else cel.alignment = { indent: 1 }; if (c === 1) cel.font = letra(9.5, TINTA, true); else cel.font = letra(9.5, TINTA, c === cab.length && clases.length > 1) }
       }
       const b = f; f += 1;
       const tr = h.getRow(f); tr.height = 20;
@@ -502,7 +576,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
         const L = col(c), v = filas.filter((x) => (!solo || x.clase === solo) && etiquetas.includes(dimK!(x)) && (c > clases.length + 1 || x.clase === clases[c - 2])).reduce((s2, x) => s2 + Number(x[medida]), 0);
         tr.getCell(c).value = { formula: `SUM(${L}${a}:${L}${b})`, result: v };
       }
-      for (let c = 1; c <= cab.length; c++) { const cel = tr.getCell(c); cel.fill = relleno(FONDO); cel.border = { top: { style: "medium", color: { argb: TINTA } } }; cel.font = letra(9.5, TINTA, true); if (c > 1) { cel.numFmt = "#,##0.##;\\-#,##0.##;\\–"; cel.alignment = { horizontal: "right", indent: 1 } } else cel.alignment = { indent: 1 } }
+      for (let c = 1; c <= cab.length; c++) { const cel = tr.getCell(c); cel.fill = relleno(FONDO); cel.border = { top: { style: "medium", color: { argb: TINTA } } }; cel.font = letra(9.5, TINTA, true); if (c > 1) { cel.numFmt = "#,##0;\\-#,##0;\\–"; cel.alignment = { horizontal: "right", indent: 1 } } else cel.alignment = { indent: 1 } }
     };
     const dimKey: Record<string, string> = { Calle: "calle", Familia: "fam", Contó: "conto", Recorrido: "rec", "Estado envase": "estenv", Franja: "franja" };
     const unicos = (g: (x: Fila) => string) => [...new Set(filas.map(g))].sort(natural);
@@ -513,7 +587,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     cruce("Por recorrido y clase", "Recorrido", unicos((x) => x.l.conteo), todas, (x) => x.l.conteo);
     cruce("Envase por estado (retorno, lavado…)", "Estado envase", unicos((x) => x.l.tipo_material !== "ENVASE" ? "" : (x.l.estado_envase ?? "")).filter((e) => e !== ""), ["Envase", "Libre", "Otro envase"], (x) => x.l.estado_envase ?? "", undefined);
     cruce("Producto por franja de vencimiento", "Franja", FRANJAS.map((x) => x.rot), ["Producto"], (x) => rotFr(franja(x.l)), "Producto");
-    h.views = [{ showGridLines: false, state: "frozen", ySplit: 7 }];
+    h.views = [{ showGridLines: false, state: "frozen", ySplit: 9 }];
   }
 
   /* ================= 3 · POR MATERIAL ================= */

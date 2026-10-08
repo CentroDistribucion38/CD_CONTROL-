@@ -79,6 +79,7 @@ o["ubi"] = {u.cell(r, 1).value: [u.cell(r, c).value for c in range(5, 15)] for r
 for nom in ("Conteo envase", "Conteo producto"):
     t = wb2[nom]; o[nom] = [[t.cell(r, c).value for c in (8, 12, 16)] for r in range(7, t.max_row)]
 a = wb2["Análisis"]
+o["cruce"] = [a["B8"].value, a["B9"].value, a["A13"].value, a["J13"].value, a["B12"].value, a["A15"].value, a["A11"].value]
 o["analisis"] = [[a.cell(r, c).value for c in range(1, 8)] for r in range(1, a.max_row + 1)]
 o["maestro"] = [[wb2["Maestro"].cell(r, c).value for c in range(1, 7)] for r in range(7, wb2["Maestro"].max_row + 1)]
 print(json.dumps(o, default=str))
@@ -178,6 +179,7 @@ ok(x.ubi["C01IZQ"] && x.ubi["C01IZQ"][1] === 2 && x.ubi["C01IZQ"][5] === 1, `C01
 ok(x.ubi["B01IZQ"] && x.ubi["B01IZQ"][2] === 2 && x.ubi["B01IZQ"][5] === 1, `B01IZQ: ${JSON.stringify(x.ubi["B01IZQ"])} (2 con producto, 1 libre)`);
 ok(x["Conteo envase"].length === 1 && x["Conteo envase"][0][0] === "900", `Conteo envase: ${JSON.stringify(x["Conteo envase"])}`);
 ok(x["Conteo producto"].length === 7, `Conteo producto: ${x["Conteo producto"].length} renglones (7)`);
+ok(x.cruce[0] === "Material" && x.cruce[1] === "Clase" && x.cruce[2] === "Total" && x.cruce[3] === 1360 && x.cruce[4] === "Producto", `«Tu cruce» (filas, columnas, total): ${JSON.stringify(x.cruce)}`);
 ok(x.analisis.some((f) => f[0] === "Por calle y clase") && x.analisis.some((f) => f[0] === "Producto por franja de vencimiento"), "faltan las tablas del Análisis");
 ok(x.maestro.some((m) => m[0] === "3128" && m[3] === 80 && m[4] === 30), `Maestro: ${JSON.stringify(x.maestro)}`);
 
