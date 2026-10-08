@@ -49,6 +49,7 @@ import { useConfirmar } from "@/components/Confirmar";
 import { useAvisos } from "@/components/Aviso";
 import type { Material, Ubicacion, Renglon } from "@/modulos/inventario/fefo";
 import { cifraDeTarjeta, soloElUltimo, type Cifra } from "@/modulos/inventario/ultimo-conteo";
+import { hoyCo } from "@/modulos/inventario/tiempos";
 import {
   AVISO_REPETIDO, esDuplicado, esFalloDeRed, guardarCola, leerCola, vaciarCola, yaEstaEnLaBase, type BorradorCola, type ItemCola, type Resultado,
 } from "@/modulos/inventario/cola";
@@ -63,6 +64,11 @@ type Conteo = { id: string; codigo: string; estado: string; iniciado_en: string 
    conteo que tocó ese módulo, venga de ayer o de hace tres días. */
 type Previo = {
   linea_id: string;
+  producto_id?: string;
+  /** Las cajas sueltas de «estibas + saldo» (la vista las trae aparte de `cajas`). */
+  saldo?: number | null;
+  /** El día de Bogotá en que se contó ESE renglón («aaaa-mm-dd»): lo contado hoy ya no falta. */
+  linea_dia?: string;
   conteo_id: string;
   conteo_codigo: string | null;
   factor_estibado: number | null;
@@ -827,7 +833,8 @@ export function Contar({
     anio: p.venc_anio == null ? "" : String(p.venc_anio).padStart(2, "0"),
     modo: p.cajas != null ? "cajas" : "estibas",
     estibas: p.estibas == null ? "" : String(p.estibas),
-    saldo: "",
+    /* EL SALDO VIAJA CON LA TARJETA: antes se perdía al confirmar «sigue igual». */
+    saldo: p.saldo == null ? "" : String(p.saldo),
     cajas: p.cajas == null ? "" : String(p.cajas),
     rot: p.rotacion,
     averia: p.averia, pnc: p.pnc,
@@ -842,6 +849,44 @@ export function Contar({
     r.ubicacion === claveEscogida && r.codigo === p.codigo &&
     (r.venc_dia ?? null) === p.venc_dia && (r.venc_mes ?? null) === p.venc_mes &&
     (r.venc_anio ?? null) === p.venc_anio);
+
+  /* LO PENDIENTE DE LA UBICACIÓN. La pre-anotación trae el último renglón de cada material de ahí, venga del conteo que
+     venga. Lo que YA se contó hoy no falta: se dice aparte («1 ya contado hoy») y las tarjetas son solo las que faltan
+     —de cuatro, si se confirma uno, salen los tres—. Mañana vuelven a salir los cuatro. */
+  const hoyDia = hoyCo();
+  const diaDe = (p: Previo) => p.linea_dia
+    ?? new Date(p.contado_en).toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
+  const hechoHoy = (p: Previo) => diaDe(p) >= hoyDia || yaHoy(p);
+  const cifraPrevia = (p: Previo) => cifraDeTarjeta({ ...p, cajas: p.cajas ?? p.saldo ?? null });
+  const pendientes = previo.filter((p) => !hechoHoy(p));
+  const hechosHoy = previo.filter((p) => hechoHoy(p));
+  const masReciente = previo.reduce<Previo | null>((m, p) => (!m || Date.parse(p.contado_en) > Date.parse(m.contado_en) ? p : m), null);
+
+  /** «YA NO ESTÁ»: el material salió de la ubicación. Deja de salir como pendiente hasta que se vuelva a contar. */
+  async function yaNoEsta(pv: Previo) {
+    if (!conteo || !ubicacion || !pv.producto_id) return;
+    const ok = await pedir({
+      titulo: "¿Ya no está aquí?",
+      dice: <>{pv.codigo} · {pv.material} salió de {claveEscogida}. Deja de aparecer como pendiente en esta ubicación hasta que se vuelva a contar.</>,
+      confirmar: "Ya no está",
+    });
+    if (!ok) return;
+    setGuardando(true);
+    const { error } = await supabase.from("conteo_retirados").insert({
+      conteo_id: conteo.id, ubicacion_id: ubicacion.id, producto_id: pv.producto_id,
+      venc_dia: pv.venc_dia, venc_mes: pv.venc_mes, venc_anio: pv.venc_anio,
+      estado_envase: pv.estado_envase, averia: pv.averia, pnc: pv.pnc,
+    });
+    setGuardando(false);
+    if (error) {
+      avisar.mal(/does not exist|schema cache|Could not find/i.test(error.message)
+        ? "Falta correr el SQL 2026-10-conteo-pendientes-por-ubicacion.sql para poder marcar «ya no está»."
+        : error.message);
+      return;
+    }
+    setPrevio((x) => x.filter((p) => p.linea_id !== pv.linea_id));
+    avisar.bien("Listo: ya no sale como pendiente aquí.");
+  }
 
   /**
    * DESPUÉS DE ANOTAR SE VACÍA EL RENGLÓN Y SE QUEDA EL SITIO.
@@ -1943,13 +1988,24 @@ export function Contar({
                   renglón: es la pregunta que se hace antes de empezarlo. */}
               <p className="fe-previo-rot">
                 La última vez en {claveEscogida}
-                {diasDesde(previo[0].contado_en) != null && (
-                  <em>{previo[0].conteo_codigo ? `${previo[0].conteo_codigo} · ` : ""}{textoHace(diasDesde(previo[0].contado_en)!)}</em>
+                {hechosHoy.length === 0 && masReciente && diasDesde(masReciente.contado_en) != null && (
+                  <em>{masReciente.conteo_codigo ? `${masReciente.conteo_codigo} · ` : ""}{textoHace(diasDesde(masReciente.contado_en)!)}</em>
                 )}
               </p>
+              {hechosHoy.length > 0 && pendientes.length > 0 && (
+                <p className="fe-previo-faltan" role="status">
+                  Faltan <b>{pendientes.length}</b> de {previo.length}: {hechosHoy.length === 1 ? "el otro ya se contó" : `los otros ${hechosHoy.length} ya se contaron`} hoy.
+                </p>
+              )}
             </div>
 
-            {previo.map((pv) => {
+            {pendientes.length === 0 && (
+              <p className="fe-previo-fin" role="status">
+                Todo lo que había en {claveEscogida} ya se contó hoy. Si hay algo más, anótalo abajo.
+              </p>
+            )}
+
+            {pendientes.map((pv) => {
               const hecho = yaHoy(pv);
               return (
                 <div key={pv.linea_id} className={"fe-tarjeta" + (hecho ? " hecha" : "")}>
@@ -1957,14 +2013,17 @@ export function Contar({
                     <b>{pv.codigo}</b> <span>{pv.material}</span>
                   </p>
                   <p className="fe-tarjeta-cifra">
-                    {textoCifra(cifraDeTarjeta(pv))}
-                    {cifraDeTarjeta(pv).total != null && (cifraDeTarjeta(pv).estibas ?? 0) > 0 && (
-                      <em>= {nf.format(cifraDeTarjeta(pv).total!)} cajas</em>
+                    {textoCifra(cifraPrevia(pv))}
+                    {cifraPrevia(pv).total != null && (cifraPrevia(pv).estibas ?? 0) > 0 && (
+                      <em>= {nf.format(cifraPrevia(pv).total!)} cajas</em>
                     )}
                     {pv.venc_dia != null && (
                       <em>vence {dd(pv.venc_dia)}/{dd(pv.venc_mes)}/{dd(pv.venc_anio)}</em>
                     )}
                   </p>
+                  {diasDesde(pv.contado_en) != null && diasDesde(pv.contado_en)! > 0 && (
+                    <p className="fe-tarjeta-cuando">Contado {textoHace(diasDesde(pv.contado_en)!)}</p>
+                  )}
                   {(pv.rotacion || pv.averia || pv.pnc || pv.estado_envase) && (
                     <p className="fe-tarjeta-marcas">
                       {pv.rotacion && <span>Rota</span>}
@@ -1994,9 +2053,29 @@ export function Contar({
                       </button>
                     </div>
                   )}
+                  {!hecho && pv.producto_id && (
+                    <button type="button" className="fe-ya-no-esta" disabled={guardando} onClick={() => void yaNoEsta(pv)}>
+                      Ya no está aquí
+                    </button>
+                  )}
                 </div>
               );
             })}
+
+            {/* LO YA CONTADO HOY SE DICE: así se ve que nada se perdió. */}
+            {hechosHoy.length > 0 && (
+              <details className="fe-previo-hechos">
+                <summary>{hechosHoy.length} ya contado{hechosHoy.length === 1 ? "" : "s"} hoy</summary>
+                <ul>
+                  {hechosHoy.map((pv) => (
+                    <li key={pv.linea_id}>
+                      <b>{pv.codigo}</b> {pv.material} · {textoCifra(cifraPrevia(pv))}
+                      {pv.venc_dia != null && <> · vence {dd(pv.venc_dia)}/{dd(pv.venc_mes)}/{dd(pv.venc_anio)}</>}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
           </div>
         )}
 

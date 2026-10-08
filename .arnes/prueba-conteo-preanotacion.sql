@@ -145,13 +145,48 @@ begin
   select v_c2, p.id, v_izq, 80, 15, 6, 27, true
     from public.productos p where p.activo order by p.sku limit 1;
 
+  /* LO QUE SE PIDIÓ: de los dos materiales de ayer, hoy se contó UNO. La
+     pre-anotación sigue trayendo los dos —el de hoy con su cantidad nueva y
+     el otro, que falta, tal como estaba—. Antes traía solo el de hoy y el
+     otro se perdía aunque seguía en la estiba. */
   select count(*) into v_n from public.v_conteo_ultimo_por_ubicacion where ubicacion_id = v_izq;
-  if v_n <> 1 then
-    v_falla := v_falla || ' 5(después de contar hoy la pre-anotación trae ' || v_n
-                       || ' renglones: mezcló el conteo de hoy con el de ayer)'; end if;
+  if v_n <> 2 then
+    v_falla := v_falla || ' 5(después de contar UNO hoy la pre-anotación trae ' || v_n
+                       || ' renglones y son 2: el que falta por contar se perdió)'; end if;
   if not exists (select 1 from public.v_conteo_ultimo_por_ubicacion
                   where ubicacion_id = v_izq and estibas = 80) then
     v_falla := v_falla || ' 5b(sigue trayendo el de ayer y no el de hoy)'; end if;
+  if exists (select 1 from public.v_conteo_ultimo_por_ubicacion
+              where ubicacion_id = v_izq and estibas = 96) then
+    v_falla := v_falla || ' 5c(trae a la vez el renglón de ayer y el de hoy del mismo material)'; end if;
+  /* Y SE PUEDE DISTINGUIR cuál se contó hoy y cuál falta: es lo que hace que la
+     pantalla enseñe solo «los que faltan». */
+  select count(*) into v_n from public.v_conteo_ultimo_por_ubicacion
+   where ubicacion_id = v_izq and linea_dia = to_char(now() at time zone 'America/Bogota', 'YYYY-MM-DD');
+  if v_n <> 1 then
+    v_falla := v_falla || ' 5d(de los renglones traídos ' || v_n || ' dicen ser de hoy y es 1)'; end if;
+  select count(*) into v_n from public.v_conteo_ultimo_por_ubicacion
+   where ubicacion_id = v_izq and linea_dia < to_char(now() at time zone 'America/Bogota', 'YYYY-MM-DD');
+  if v_n <> 1 then
+    v_falla := v_falla || ' 5e(los que faltan por contar hoy son ' || v_n || ' y es 1)'; end if;
+
+  /* 5f · «YA NO ESTÁ»: el que falta se dice retirado y deja de traerse; una cuenta
+     más nueva lo hace reaparecer. */
+  insert into public.conteo_retirados (conteo_id, ubicacion_id, producto_id, venc_dia, venc_mes, venc_anio, averia, pnc)
+  select v_c2, v_izq, producto_id, venc_dia, venc_mes, venc_anio, averia, pnc
+    from public.v_conteo_ultimo_por_ubicacion where ubicacion_id = v_izq and cajas = 12;
+  select count(*) into v_n from public.v_conteo_ultimo_por_ubicacion where ubicacion_id = v_izq;
+  if v_n <> 1 then
+    v_falla := v_falla || ' 5f(después de «ya no está» la pre-anotación trae ' || v_n || ' renglones y es 1)'; end if;
+  insert into public.conteo_lineas (conteo_id, producto_id, ubicacion_id, cajas, venc_dia, venc_mes, venc_anio, rotacion)
+  select v_c2, p.id, v_izq, 7, 20, 7, 27, false
+    from public.productos p where p.activo order by p.sku offset 1 limit 1;
+  select count(*) into v_n from public.v_conteo_ultimo_por_ubicacion where ubicacion_id = v_izq;
+  if v_n <> 2 then
+    v_falla := v_falla || ' 5g(el material retirado, contado otra vez, no reapareció: ' || v_n || ')'; end if;
+  /* Y la suma del renglón incluye el saldo (cajas sueltas). */
+  delete from public.conteo_lineas where conteo_id = v_c2 and cajas = 7;
+  delete from public.conteo_retirados where conteo_id = v_c2;
 
   /* 6 · Y LA POSICIÓN QUE NO SE CONTÓ HOY SIGUE TRAYENDO LA DE AYER.
          Salir en blanco por un día sin contar sería un formulario

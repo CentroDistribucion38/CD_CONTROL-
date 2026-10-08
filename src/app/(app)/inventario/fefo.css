@@ -1836,3 +1836,18 @@
 .fe .fe-calc-fija.en-linea .fe-calc-teclas button.listo { display: none }
 .fe .fe-calc-fija.en-linea .fe-calc-teclas { order: 1 }
 .fe .fe-calc-fija.en-linea .fe-calc-vista i { display: none }
+
+/* LO PENDIENTE DE LA UBICACIÓN: de cuatro, si se cuenta uno, salen los tres que faltan. */
+.fe .fe-previo-faltan { margin: 6px 0 0; font-size: 14px; color: var(--fe-gris-panel) }
+.fe .fe-previo-faltan b { color: var(--fe-tinta) }
+.fe .fe-previo-fin { margin: 0 0 10px; padding: 10px 12px; border-left: 4px solid var(--fe-bien); background: var(--fe-papel); font-size: 14px }
+.fe .fe-tarjeta-cuando { margin: 2px 0 0; font-size: 12px; color: var(--fe-gris-panel) }
+.fe .fe-ya-no-esta {
+  margin: 8px 0 0; padding: 6px 2px; min-height: 36px; border: 0; background: none; cursor: pointer;
+  font: 600 13px var(--fe-titulo); color: var(--fe-gris-panel); text-decoration: underline; text-underline-offset: 3px;
+}
+.fe .fe-ya-no-esta:disabled { opacity: .55; cursor: default }
+.fe .fe-previo-hechos { margin: 6px 0 0; font-size: 13px; color: var(--fe-gris-panel) }
+.fe .fe-previo-hechos summary { cursor: pointer; font-weight: 700; padding: 6px 0 }
+.fe .fe-previo-hechos ul { margin: 4px 0 0; padding: 0 0 0 18px }
+.fe .fe-previo-hechos li { margin: 2px 0 }

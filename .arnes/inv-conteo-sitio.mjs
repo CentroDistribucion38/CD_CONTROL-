@@ -106,6 +106,40 @@ await pg.click(".fe-tarjeta-pie button:has-text('Otro SKU')");
 await pg.waitForTimeout(150);
 ok((await pg.inputValue('input[placeholder="Teclea el código"]')) === "" && /A/.test(await pg.locator(".bs-campo").nth(0).inputValue())
    && await pg.evaluate(() => document.activeElement?.getAttribute("placeholder") === "Teclea el código"), "«Otro SKU» no vacía el renglón dejando el sitio y el cursor en el código");
+/* LO PENDIENTE DE LA UBICACIÓN: cuatro materiales, uno ya contado HOY → salen los TRES que faltan (y se dice cuál se contó);
+   si ya se contaron todos, no sale ninguna tarjeta; y «Ya no está aquí» saca el material de la lista. */
+const hoyBogota = await pg.evaluate(() => new Date().toLocaleDateString("en-CA", { timeZone: "America/Bogota" }));
+const fila = (i, extra = {}) => ({ linea_id: "q" + i, producto_id: "prod" + i, codigo: "90" + i, material: "Material " + i,
+  contado_en: new Date(Date.now() - 864e5).toISOString(), linea_dia: "2020-01-01", estibas: 5 + i, cajas: null, saldo: i === 2 ? 11 : null, venc_dia: 5, venc_mes: 11, venc_anio: 26, rotacion: null,
+  averia: false, pnc: false, estado_envase: null, nota: null, total_cajas: 100, ...extra });
+const cuatro = [fila(1), fila(2), fila(3, { contado_en: new Date().toISOString(), linea_dia: hoyBogota }), fila(4)];
+const verLaUbicacion = async (datos) => {
+  await pg.evaluate((d) => { window.__DATOS = { v_conteo_ultimo_por_ubicacion: d }; window.__inserts = [] }, datos);
+  await pg.click('[aria-labelledby=fe-rot-lado] button:has-text("Derecho")'); await pg.waitForTimeout(150);
+  await pg.click('[aria-labelledby=fe-rot-lado] button:has-text("Izquierdo")'); await pg.waitForTimeout(250);
+};
+await verLaUbicacion(cuatro);
+await pg.locator(".fe-previo").screenshot({ path: (process.env.FOTO ?? "/tmp") + "/cs-faltan3.png" });
+ok((await pg.locator(".fe-tarjeta").count()) === 3, "de cuatro materiales, con uno ya contado hoy, debían salir 3 tarjetas y salen " + await pg.locator(".fe-tarjeta").count());
+ok(!(await pg.locator(".fe-tarjeta").allTextContents()).join().includes("903"), "la tarjeta del material contado hoy (903) sigue saliendo como pendiente");
+ok(/Faltan\s*3\s*de 4/.test(await pg.textContent(".fe-previo-faltan").catch(() => "")), "no dice «Faltan 3 de 4»: " + await pg.textContent(".fe-previo-faltan").catch(() => "(nada)"));
+ok(/1 ya contado hoy/.test(await pg.textContent(".fe-previo-hechos summary").catch(() => "")), "no dice que 1 ya se contó hoy");
+ok((await pg.textContent(".fe-previo-hechos").catch(() => "")).includes("903"), "la lista de lo contado hoy no trae el 903: nada debe verse perdido");
+ok(/11 cajas/.test((await pg.locator(".fe-tarjeta").nth(1).textContent())), "el saldo (11 cajas sueltas) no se ve en la tarjeta: " + await pg.locator(".fe-tarjeta").nth(1).textContent());
+/* «Sigue igual» lleva el saldo al renglón */
+await pg.locator(".fe-tarjeta").nth(1).locator(".fe-si").click(); await pg.waitForTimeout(150);
+ok((await pg.locator(".fe-cuanto-campo input").nth(1).inputValue()) === "11", "«Sigue igual» perdió el saldo: " + await pg.locator(".fe-cuanto-campo input").nth(1).inputValue());
+await verLaUbicacion(cuatro);
+/* YA NO ESTÁ */
+await pg.locator(".fe-tarjeta").first().locator(".fe-ya-no-esta").click(); await pg.waitForTimeout(150);
+await pg.locator('[role=dialog] button:has-text("Ya no está"), .cf-ventana button:has-text("Ya no está")').first().click().catch(() => {}); await pg.waitForTimeout(250);
+const ins = await pg.evaluate(() => window.__inserts ?? []);
+ok(ins.length === 1 && ins[0].tabla === "conteo_retirados" && ins[0].row.producto_id === "prod1" && ins[0].row.venc_anio === 26, "«Ya no está» no guardó el retiro: " + JSON.stringify(ins));
+ok((await pg.locator(".fe-tarjeta").count()) === 2, "después de «Ya no está» debían quedar 2 tarjetas y quedan " + await pg.locator(".fe-tarjeta").count());
+/* TODO CONTADO HOY: ninguna tarjeta, y lo dice */
+await verLaUbicacion(cuatro.map((f) => ({ ...f, contado_en: new Date().toISOString(), linea_dia: hoyBogota })));
+ok((await pg.locator(".fe-tarjeta").count()) === 0 && /ya se contó hoy/.test(await pg.textContent(".fe-previo-fin").catch(() => "")), "con todo contado hoy debía decirlo y no mostrar tarjetas");
+await pg.screenshot({ path: (process.env.FOTO ?? "/tmp") + "/cs-pendientes.png", fullPage: true });
 await pg.screenshot({ path: (process.env.FOTO ?? "/tmp") + "/cs-tarjeta.png", fullPage: true });
 await nav.close();
 if (fallas.length) { fallas.forEach((f) => console.log("✗ " + f)); process.exit(1) }

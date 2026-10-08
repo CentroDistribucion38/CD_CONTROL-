@@ -1,6 +1,7 @@
 const consulta = (tabla) => { const p = new Proxy(function () {}, {
   get: (_, k) => k === "then" ? (ok) => ok({ data: (window.__DATOS ?? {})[tabla] ?? [], error: null })
     : k === "upsert" ? (row) => { (window.__upserts ??= []).push({ tabla, row }); return p }
+    : k === "insert" ? (row) => { (window.__inserts ??= []).push({ tabla, row }); return p }
     : k === "maybeSingle" ? () => Promise.resolve({ data: null, error: null }) : () => p,
   apply: () => p }); return p };
 /* SE GUARDA TAMBIÉN LO QUE SE MANDA, no solo a quién. `__rpc` son los

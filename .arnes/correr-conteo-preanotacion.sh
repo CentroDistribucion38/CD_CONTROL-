@@ -91,6 +91,9 @@ $PSQL -d $DB -f supabase/migraciones/2026-09-conteo-preanotacion.sql 2>&1 | grep
 echo "--- segunda vuelta"
 $PSQL -d $DB -f supabase/migraciones/2026-09-conteo-preanotacion.sql 2>&1 | grep -E "^ERROR|psql:.*ERROR" && exit 1
 
+echo "--- lo pendiente por ubicación, dos veces"
+$PSQL -d $DB -f supabase/migraciones/2026-10-conteo-pendientes-por-ubicacion.sql 2>&1 | grep -E "NOTICE|ERROR" || true
+$PSQL -d $DB -f supabase/migraciones/2026-10-conteo-pendientes-por-ubicacion.sql 2>&1 | grep -E "^ERROR|psql:.*ERROR" && exit 1
 echo "--- las pruebas"
 salida=$($PSQL -d $DB -f .arnes/prueba-conteo-preanotacion.sql 2>&1) || true; echo "$salida" | grep -E "NOTICE|ERROR" || true
 # Y SE FALLA DE VERDAD: ver la palabra FALLA en pantalla y que el
