@@ -6,7 +6,7 @@
  * barras de ocupación, focos de atención) viene de la plantilla
  * `tablero-plantilla.ts`; aquí se le escribe QUÉ DICE cada celda.
  *
- * Todas las cifras son FÓRMULAS sobre «Base consolidada» y «Por ubicación»
+ * Todas las cifras son FÓRMULAS sobre «Conteo consolidado» y «Por ubicación»
  * (con su resultado ya calculado, para que se vea bien aunque el programa
  * no recalcule al abrir). Lo único que no sale de la base son los
  * recorridos (los trae la aplicación) y el total de ubicaciones activas.
@@ -38,7 +38,7 @@ export type InsumosTablero = {
   recorridos: RecorridoTablero[];
   graves: number;
   /** Rangos de las hojas de datos, tal como los arma libro.ts. */
-  rb: (k: string) => string;       // columna de «Base consolidada»
+  rb: (k: string) => string;       // columna de «Conteo consolidado»
   ru: (c: number) => string;       // columna (número) de «Por ubicación»
   rv: string;                      // columna «Grave» de «Validar»
   vinculo: (hoja: string, texto: string) => { formula: string; result: string };
@@ -80,7 +80,7 @@ function aplicarPlantilla(h: ExcelJS.Worksheet, col: (n: number) => string) {
 export function armarTablero(d: InsumosTablero): DonaDatos[] {
   const { wb, filas, us, rb, ru, vinculo, clases } = d;
   const col = (n: number) => { let s = ""; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26) } return s };
-  const h = wb.addWorksheet("Tablero", { properties: { tabColor: { argb: "FFFFC400" } }, views: [{ showGridLines: false, state: "normal", zoomScale: 100 }] });
+  const h = wb.addWorksheet("Tablero", { properties: { tabColor: { argb: "FFFFC400" } }, views: [{ showGridLines: false, showRowColHeaders: false, state: "normal", zoomScale: 100 }] });
   aplicarPlantilla(h, col);
   const V = (a: string, v: ExcelJS.CellValue, fmt?: string) => { const c = h.getCell(a); c.value = v; if (fmt) c.numFmt = fmt; return c };
   const fx = (formula: string, result: number | string) => ({ formula, result });
@@ -113,7 +113,7 @@ export function armarTablero(d: InsumosTablero): DonaDatos[] {
   V("I2", d.titulo);
   V("I3", d.sub);
   V("AO3", fx("$BA$3", d.activas));
-  [["B6", "Tablero"], ["E6", "Base consolidada"], ["K6", "Base envase"], ["P6", "Base producto"], ["U6", "Análisis"], ["Y6", "Por material"], ["AD6", "Por ubicación"], ["AI6", "Validar"], ["AM6", "Sin contar"]]
+  [["B6", "Tablero"], ["E6", "Conteo consolidado"], ["K6", "Conteo envase"], ["P6", "Conteo producto"], ["U6", "Análisis"], ["Y6", "Por material"], ["AD6", "Por ubicación"], ["AI6", "Validar"], ["AM6", "Sin contar"]]
     .forEach(([a, hoja]) => { if (hoja !== "Tablero") V(a, vinculo(hoja, hoja)); else V(a, hoja); });
 
   /* ---------- CELDAS DE APOYO (fuera del área de impresión) ---------- */

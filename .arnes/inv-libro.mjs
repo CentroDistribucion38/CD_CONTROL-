@@ -45,7 +45,7 @@ warnings.filterwarnings("ignore")
 wb = openpyxl.load_workbook("${dest}")
 wb2 = openpyxl.load_workbook("${dest}", data_only=True)
 o = {"hojas": wb.sheetnames}
-b = wb2["Base consolidada"]; bf = wb["Base consolidada"]
+b = wb2["Conteo consolidado"]; bf = wb["Conteo consolidado"]
 o["base"] = [[b.cell(r, 7).value, b.cell(r, 8).value, b.cell(r, 16).value, b.cell(r, 25).value] for r in range(7, b.max_row + 1)]
 o["formulas_base"] = [bf.cell(7, c).value for c in (12, 15, 16, 17, 18, 19, 20, 31)]
 o["cabeza_base"] = [bf.cell(6, c).value for c in range(1, 32)]
@@ -76,7 +76,7 @@ m = wb2["Por material"]
 o["mats"] = [[m.cell(r, 1).value, m.cell(r, 3).value, m.cell(r, 8).value] for r in range(7, m.max_row + 1)]
 u = wb2["Por ubicación"]
 o["ubi"] = {u.cell(r, 1).value: [u.cell(r, c).value for c in range(5, 15)] for r in range(7, u.max_row)}
-for nom in ("Base envase", "Base producto"):
+for nom in ("Conteo envase", "Conteo producto"):
     t = wb2[nom]; o[nom] = [[t.cell(r, c).value for c in (8, 12, 16)] for r in range(7, t.max_row)]
 a = wb2["Análisis"]
 o["analisis"] = [[a.cell(r, c).value for c in range(1, 8)] for r in range(1, a.max_row + 1)]
@@ -84,10 +84,10 @@ o["maestro"] = [[wb2["Maestro"].cell(r, c).value for c in range(1, 7)] for r in 
 print(json.dumps(o, default=str))
 P`).toString();
 const x = JSON.parse(py);
-ok(x.hojas.join() === "Tablero,Base consolidada,Base envase,Base producto,Análisis,Por material,Por ubicación,Validar,Sin contar,Maestro,Cómo leer", `hojas: ${x.hojas}`);
+ok(x.hojas.join() === "Tablero,Conteo consolidado,Conteo envase,Conteo producto,Análisis,Por material,Por ubicación,Validar,Sin contar,Maestro,Cómo leer", `hojas: ${x.hojas}`);
 ok(x.imgs === 1, "el libro no trae el logo");
 /* LA HORA ES LA DE COLOMBIA: 14:00 UTC = 09:00 en Bogotá (antes salía 14:00, cinco horas adelantada). */
-ok(x.hora === "2026-09-22 09:00:00", `«Contado» en la hoja Base consolidada: ${x.hora} (debe ser 2026-09-22 09:00:00, hora de Colombia)`);
+ok(x.hora === "2026-09-22 09:00:00", `«Contado» en la hoja Conteo consolidado: ${x.hora} (debe ser 2026-09-22 09:00:00, hora de Colombia)`);
 /* LA HOJA BASE ES LA MISMA «LA BASE» DE LA PANTALLA: se compara con el cruce que usa la pantalla (base-cruce.ts). */
 const jc = buildSync({ entryPoints: [R("src/modulos/inventario/base-cruce.ts")], bundle: true, write: false, format: "esm", platform: "node", logLevel: "silent" }).outputFiles[0].text;
 writeFileSync(R(".arnes/_cruce.mjs"), jc);
@@ -137,12 +137,12 @@ ok(x.contado.unidades === 31200, `LO CONTADO · unidades: ${x.contado.unidades} 
 ok(x.riesgo.cajas === 1200, `riesgo · total de cajas: ${x.riesgo.cajas} (1200: sin las 160 del envase; incluye las 160 de producto sin fecha)`);
 ok(/producto terminado/i.test(x.aclara ?? ""), `falta la aclaración de que el riesgo es solo producto: ${x.aclara}`);
 /* EL CUADRE: recorridos contra el consolidado (lo de «LO CONTADO»), no contra la tabla de riesgo (solo producto). */
-ok(x.cuadre[1].includes("$BA$15") && x.cuadre[1].includes("Base consolidada") && !x.cuadre[1].includes("$N$"), `el cuadre no compara contra el consolidado: ${x.cuadre[1]}`);
-ok(x.cuadre[2].includes("Base consolidada") && x.cuadre[2].includes("$AE$41"), `la diferencia de recorridos no sale de la base: ${x.cuadre[2]}`);
+ok(x.cuadre[1].includes("$BA$15") && x.cuadre[1].includes("Conteo consolidado") && !x.cuadre[1].includes("$N$"), `el cuadre no compara contra el consolidado: ${x.cuadre[1]}`);
+ok(x.cuadre[2].includes("Conteo consolidado") && x.cuadre[2].includes("$AE$41"), `la diferencia de recorridos no sale de la base: ${x.cuadre[2]}`);
 ok(/No cuadra|Se volvió a contar|Cuadra/.test(x.cuadre[0]), `mensaje de cuadre: ${x.cuadre[0]}`);
 ok(x.contado.plast === 1360, `cajas plásticas (todo menos barriles y madera): ${x.contado.plast}`);
 ok(x.titulo[0] === "INVENTARIO CONSOLIDADO · AG01", `título del Tablero: ${x.titulo[0]}`);
-ok(x.navegacion[0].includes("Base consolidada") && x.navegacion[1].includes("Sin contar"), `barra de enlaces: ${x.navegacion}`);
+ok(x.navegacion[0].includes("Conteo consolidado") && x.navegacion[1].includes("Sin contar"), `barra de enlaces: ${x.navegacion}`);
 ok(x.focos[0].startsWith("Calle ") && x.focos[2] === "Vencimiento sin fecha" && x.focos[3] === "Conteo pendiente", `focos de atención: ${x.focos}`);
 ok(x.cf >= 8, `semáforos (formato condicional) del Tablero: ${x.cf}`);
 ok(/Tablero.*\$A\$1:\$AX\$52/.test(x.area) || x.area.includes("A1:AX52"), `área de impresión del Tablero: ${x.area}`);
@@ -176,8 +176,8 @@ ok(x.estibas_tarjetas[1].join() === "2,0,15,17", `envase/libres/producto/total (
 ok(x.espacio[0].join() === "Capacidad,Sin usar,Sobre capacidad,Por validar", `tarjeta de espacio: ${x.espacio[0]}`);
 ok(x.ubi["C01IZQ"] && x.ubi["C01IZQ"][1] === 2 && x.ubi["C01IZQ"][5] === 1, `C01IZQ: ${JSON.stringify(x.ubi["C01IZQ"])} (2 con envase, 1 libre... capacidad 3)`);
 ok(x.ubi["B01IZQ"] && x.ubi["B01IZQ"][2] === 2 && x.ubi["B01IZQ"][5] === 1, `B01IZQ: ${JSON.stringify(x.ubi["B01IZQ"])} (2 con producto, 1 libre)`);
-ok(x["Base envase"].length === 1 && x["Base envase"][0][0] === "900", `Base envase: ${JSON.stringify(x["Base envase"])}`);
-ok(x["Base producto"].length === 7, `Base producto: ${x["Base producto"].length} renglones (7)`);
+ok(x["Conteo envase"].length === 1 && x["Conteo envase"][0][0] === "900", `Conteo envase: ${JSON.stringify(x["Conteo envase"])}`);
+ok(x["Conteo producto"].length === 7, `Conteo producto: ${x["Conteo producto"].length} renglones (7)`);
 ok(x.analisis.some((f) => f[0] === "Por calle y clase") && x.analisis.some((f) => f[0] === "Producto por franja de vencimiento"), "faltan las tablas del Análisis");
 ok(x.maestro.some((m) => m[0] === "3128" && m[3] === 80 && m[4] === 30), `Maestro: ${JSON.stringify(x.maestro)}`);
 
