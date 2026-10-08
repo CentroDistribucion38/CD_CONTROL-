@@ -59,19 +59,22 @@ o["filtro"] = bf.auto_filter.ref
 z = wb2["Resumen"]
 o["contado"] = {"cajas": z.cell(13, 2).value, "unidades": z.cell(13, 4).value, "estibas": z.cell(13, 6).value, "renglones": z.cell(13, 8).value}
 o["rotulos"] = [z.cell(12, c).value for c in (2, 4, 6, 8)]
-o["estibas_tarjetas"] = [[z.cell(20, c).value for c in (2, 4, 6, 8)], [z.cell(21, c).value for c in (2, 4, 6, 8)]]
+o["estibas_tarjetas"] = [[z.cell(12, c).value for c in (11, 13, 15, 17)], [z.cell(13, c).value for c in (11, 13, 15, 17)]]
+o["espacio"] = [[z.cell(16, c).value for c in (2, 4, 6, 8)], [z.cell(17, c).value for c in (2, 4, 6, 8)]]
+o["plastico"] = [[z.cell(16, c).value for c in (11, 13, 15, 17)], [z.cell(17, c).value for c in (11, 13, 15, 17)]]
+o["unidades"] = [[z.cell(20, c).value for c in (11, 13, 15, 17)], [z.cell(21, c).value for c in (11, 13, 15, 17)]]
 col = [z.cell(r, 2).value for r in range(1, z.max_row + 1)]
-def fila(txt, desde=1):
+def fila(txt, desde=1, c=2):
     for r in range(desde, z.max_row + 1):
-        if z.cell(r, 2).value == txt: return r
+        if z.cell(r, c).value == txt: return r
 rr = fila("Riesgo de vencimiento"); rt = fila("Total", rr)
 o["aclara"] = z.cell(rr, 5).value
 o["riesgo"] = {"cajas": z.cell(rt, 4).value, "rot": z.cell(rt, 2).value}
 rc = fila("Clase"); rct = fila("Total", rc)
 o["clases"] = {z.cell(r, 2).value: [z.cell(r, c).value for c in range(4, 10)] for r in range(rc + 1, rct + 1)}
-rk = fila("Calle"); rkt = fila("Total", rk)
-o["calles"] = {z.cell(r, 2).value: [z.cell(r, c).value for c in range(4, 10)] for r in range(rk + 1, rkt + 1)}
-cu = fila("Cuadre de cajas"); o["cuadre"] = [str(z.cell(cu, 8).value), str(wb["Resumen"].cell(cu, 8).value)]
+rk = fila("Calle", 1, 11); rkt = fila("Total", rk, 11)
+o["calles"] = {z.cell(r, 11).value: [z.cell(r, c).value for c in range(13, 19)] for r in range(rk + 1, rkt + 1)}
+cu = fila("Cuadre de cajas", 1, 11); o["cuadre"] = [str(z.cell(cu, 17).value), str(wb["Resumen"].cell(cu, 17).value)]
 m = wb2["Por material"]
 o["mats"] = [[m.cell(r, 1).value, m.cell(r, 3).value, m.cell(r, 8).value] for r in range(7, m.max_row + 1)]
 u = wb2["Por ubicación"]
@@ -157,14 +160,20 @@ ok(!x.validar.includes("No cuadra con la aplicación"), "la fórmula del total d
 /* Clases: producto 6 renglones (A01IZQ, A01DER, A02IZQ×2, B01IZQ, C02IZQ), envase 1 (la canasta). */
 ok(x.clases.Producto?.[0] === 7, `clase Producto: ${JSON.stringify(x.clases.Producto)}`);
 ok(x.clases.Envase?.[0] === 1 && x.clases.Envase?.[2] === 160, `clase Envase: ${JSON.stringify(x.clases.Envase)}`);
-ok(x.clases.Envase?.[3] === 160, `cajas plásticas del envase: ${JSON.stringify(x.clases.Envase)}`);
+ok(Math.abs(x.clases.Total?.[3] - 1) < 1e-9 && !JSON.stringify(x.clases).includes("plást"), `la tabla por clase repite cajas plásticas o no suma 100%: ${JSON.stringify(x.clases)}`);
+ok(x.clases.Libre?.[0] === 0, `la clase Libre no aparece en la tabla: ${JSON.stringify(x.clases)}`);
+ok(x.calles.A && x.calles.A.join() === "9,0,9,0,9,3", `estibas por calle (capacidad de A): ${JSON.stringify(x.calles)}`);
 ok(x.clases.Total?.[2] === 1360, `total cajas en la tabla por clase: ${JSON.stringify(x.clases.Total)}`);
 /* Estibas físicas: las completas, y 0 por saldo (en esta prueba no hay saldos). */
 ok(x.clases.Total?.[1] === 17, `estibas físicas: ${JSON.stringify(x.clases.Total)}`);
-ok(x.estibas_tarjetas[0].join() === "LIBRES,CON ENVASE,CON PLÁSTICO,CON PRODUCTO", `tarjetas de estibas: ${x.estibas_tarjetas}`);
-ok(x.estibas_tarjetas[1][1] === 2 && x.estibas_tarjetas[1][3] === 15, `estibas con envase/producto: ${x.estibas_tarjetas[1]}`);
+ok(x.estibas_tarjetas[0].join() === "LIBRES (LAS QUE CONTASTE),CON ENVASE,CON PRODUCTO,TOTAL ESTIBAS", `tarjetas de estibas: ${x.estibas_tarjetas}`);
+ok(x.estibas_tarjetas[1].join() === "0,2,15,17", `libres/envase/producto/total (17 = las estibas físicas): ${x.estibas_tarjetas[1]}`);
+ok(x.plastico[1].join() === "0,160,1200,1360", `plástico libres/envase/producto/total: ${x.plastico[1]}`);
+ok(x.plastico[0].join() === "LIBRES (LAS QUE CONTASTE),CON ENVASE,CON PRODUCTO,TOTAL", `rótulos de plástico: ${x.plastico[0]}`);
+ok(x.unidades[1].join() === "0,4800,26400,31200", `unidades libres/envase/producto/total: ${x.unidades[1]}`);
+ok(x.espacio[0].join() === "CAPACIDAD (ESTIBAS),SIN USAR,OCUPACIÓN,MÓDULOS SOBRE CAPACIDAD", `tarjetas de espacio: ${x.espacio[0]}`);
 ok(x.ubi["C01IZQ"] && x.ubi["C01IZQ"][1] === 2 && x.ubi["C01IZQ"][5] === 1, `C01IZQ: ${JSON.stringify(x.ubi["C01IZQ"])} (2 con envase, 1 libre... capacidad 3)`);
-ok(x.ubi["B01IZQ"] && x.ubi["B01IZQ"][3] === 2 && x.ubi["B01IZQ"][5] === 1, `B01IZQ: ${JSON.stringify(x.ubi["B01IZQ"])} (2 con producto, 1 libre)`);
+ok(x.ubi["B01IZQ"] && x.ubi["B01IZQ"][2] === 2 && x.ubi["B01IZQ"][5] === 1, `B01IZQ: ${JSON.stringify(x.ubi["B01IZQ"])} (2 con producto, 1 libre)`);
 ok(x["Base envase"].length === 1 && x["Base envase"][0][0] === "900", `Base envase: ${JSON.stringify(x["Base envase"])}`);
 ok(x["Base producto"].length === 7, `Base producto: ${x["Base producto"].length} renglones (7)`);
 ok(x.analisis.some((f) => f[0] === "Por calle y clase") && x.analisis.some((f) => f[0] === "Producto por franja de vencimiento"), "faltan las tablas del Análisis");
