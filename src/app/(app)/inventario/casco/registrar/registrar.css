@@ -89,3 +89,11 @@
 .reg .reg-fila-subir .reg-archivo input[type="file"] { min-height: 40px; display: flex; align-items: center }
 .reg .reg-reglas { margin: 8px 0 }
 .reg .reg-fila-subir .reg-archivo > span { text-align: left }
+
+/* ---- el botón de elegir archivo ---- */
+.reg .reg-elegir { display: flex; align-items: center; gap: 12px; min-width: 0 }
+.reg .reg-elegir .btn { min-height: 40px; white-space: nowrap; flex: none }
+.reg .reg-nombre { font-size: 13px; color: var(--fe-gris); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0 }
+.reg .reg-nombre.hay { color: var(--fe-tinta); font-weight: 700 }
+.reg .reg-fila-subir .reg-archivo { flex: 0 1 auto; min-width: 280px }
+.reg .reg-fila-subir .reg-archivo { align-items: flex-start; gap: 6px }

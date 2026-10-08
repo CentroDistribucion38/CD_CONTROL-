@@ -314,11 +314,19 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
               <input type="date" value={diaControl} max={hoy} disabled={aplicando}
                      onChange={(e) => { if (e.target.value) setDiaControl(e.target.value) }} />
             </label>
-            <label className="cas-c reg-archivo">
+            {/* UN BOTÓN VISIBLE, al lado de la fecha: el campo de archivo del navegador es una línea de texto que nadie ve. */}
+            <div className="cas-c reg-archivo">
               <span>Excel con la hoja «Baja»</span>
-              <input ref={entrada} type="file" accept=".xlsx,.xlsm,.xls" disabled={!puedeEditar || leyendo || aplicando}
+              <div className="reg-elegir">
+                <button type="button" className="btn" disabled={!puedeEditar || leyendo || aplicando}
+                        onClick={() => entrada.current?.click()}>
+                  {leyendo ? "Leyendo…" : archivo ? "Cambiar archivo" : "Seleccionar archivo"}
+                </button>
+                <span className={"reg-nombre" + (archivo ? " hay" : "")} title={archivo ?? undefined}>{archivo ?? "Ningún archivo seleccionado"}</span>
+              </div>
+              <input ref={entrada} type="file" accept=".xlsx,.xlsm,.xls" hidden disabled={!puedeEditar || leyendo || aplicando}
                      onChange={(e) => { const f = e.target.files?.[0]; if (f) void leer(f) }} />
-            </label>
+            </div>
             {archivo && <button type="button" className="btn" onClick={limpiar} disabled={aplicando}>Quitar archivo</button>}
           </div>
           <details className="reg-reglas">
