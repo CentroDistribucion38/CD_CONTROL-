@@ -420,7 +420,7 @@ const pantallas = readdirSync(new URL("../src/app/(app)/inventario/", import.met
    guardados contra `/inventario/recibir`, y cambiar la ruta deja a todo
    el mundo sin acceso hasta que se vuelvan a abrir los roles. El nombre
    que se ve es el del menú, no el de la carpeta. */
-if (pantallas.join(",") !== "averias,base,conteo,corte,fiscal,maestro,recibir,tablero")
+if (pantallas.join(",") !== "averias,base,casco,conteo,corte,fiscal,maestro,recibir,tablero")
   fallas.push(`bajo /inventario las carpetas son [${pantallas.join(", ")}] ` +
               "y deben ser [averias, base, conteo, corte, fiscal, maestro, recibir, tablero]");
 
@@ -438,14 +438,15 @@ const secciones = [...(bloqueInv.match(/secciones: \[[\s\S]*$/) ?? [""])[0]
 const espera = ["/inventario/fiscal", "/inventario/corte", "/inventario/conteo",
                 "/inventario/base", "/inventario/tablero", "/inventario/maestro", "/inventario/recibir",
                 "/inventario/averias", "/inventario/averias/tablero",
-                "/inventario/averias/analisis", "/inventario/averias/maestro"];
+                "/inventario/averias/analisis", "/inventario/averias/maestro",
+                "/inventario/casco/registrar", "/inventario/casco", "/inventario/casco/tablero"];
 if (secciones.join(" ") !== espera.join(" "))
   fallas.push(`el menú de Inventario dice [${secciones.join(", ")}] y el proceso es ` +
-              `[${espera.join(", ")}] — fiscal, corte, contar, la base, tablero, maestro, recepción; y después averías`);
+              `[${espera.join(", ")}] — fiscal, corte, contar, la base, tablero, maestro, recepción; después averías y casco de vidrio`);
 
-const pes = [...tsx.matchAll(/\["materiales", "ubicaciones", "bodegas"\]/g)];
+const pes = [...tsx.matchAll(/\["materiales", "ubicaciones", "bodegas", "casco"\]/g)];
 if (pes.length === 0)
-  fallas.push("las tres pestañas del maestro no están en el orden materiales · ubicaciones · bodegas");
+  fallas.push("las tres pestañas del maestro no están en el orden materiales · ubicaciones · bodegas · casco");
 
 /* ---------- 8. DOS BLOQUES CON EL MISMO NOMBRE Y DISTINTO `display` ----------
    Esto es lo que se rompió hoy y no se vio en ningún TSX: el tablero

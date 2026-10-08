@@ -1,4 +1,4 @@
-/* REGISTRAR · MOVIMIENTO: desplegables del maestro, material trae descripción, registrar, historial con filtros, deshacer, editar desplegables. */
+/* REGISTRAR · MOVIMIENTO: desplegables que vienen del Maestro, material trae descripción, registrar, historial con filtros, deshacer, editar desplegables. */
 import { buildSync } from "esbuild";
 import { writeFileSync, readFileSync } from "node:fs";
 import { chromium } from "playwright";
@@ -108,24 +108,10 @@ await pag.locator('.reg-filtros label:has-text("Desde") input').fill("2026-10-09
 await pag.waitForTimeout(100); h = await filasH(); ok(h.length === 1 && /Ningún movimiento/.test(h[0][0]), "desde 9 de oct no hay nada");
 await pag.locator('.reg-filtros label:has-text("Desde") input').fill("");
 
-/* desplegables: agregar un cliente, editarlo, borrarlo */
-await pag.click("button:has-text('Agregar a cliente')");
-await pag.locator("tr.reg-edicion input.reg-cod").fill("0009999");
-await pag.locator("tr.reg-edicion input.reg-nom").fill("DISTRIBUIDORA PRUEBA");
-await pag.locator("tr.reg-edicion button:has-text('Guardar')").click();
-await pag.waitForSelector("td:text-is('DISTRIBUIDORA PRUEBA')", { timeout: 3000 }).catch(() => fallas.push("el cliente nuevo no apareció en la lista"));
-const sel2 = await pag.$$eval("table.reg-lineas tbody tr:first-child select:nth-of-type(1) ~ *, table.reg-lineas tbody tr:first-child td:nth-child(2) option", (o) => o.map((x) => x.textContent));
-ok(sel2.some((t) => /DISTRIBUIDORA PRUEBA/.test(t)), "el cliente nuevo ya está en el desplegable de la línea");
-const g = (await pag.evaluate(() => window.llamadas)).filter((l) => l.f === "casco_mov_maestro_guardar");
-ok(g.length === 1 && g[0].a.p_tipo === "cliente" && g[0].a.p_codigo === "0009999", "guardó el cliente con su código: " + JSON.stringify(g[0]?.a));
-await pag.locator("tr:has(td:text-is('DISTRIBUIDORA PRUEBA')) button:has-text('Editar')").click();
-await pag.locator("tr.reg-edicion input.reg-nom").fill("DISTRIBUIDORA PRUEBA 2");
-await pag.locator("tr.reg-edicion button:has-text('Guardar')").click();
-await pag.waitForSelector("td:text-is('DISTRIBUIDORA PRUEBA 2')", { timeout: 3000 }).catch(() => fallas.push("el cambio de nombre no se vio"));
-await pag.locator("tr:has(td:text-is('DISTRIBUIDORA PRUEBA 2')) button:has-text('Borrar')").click();
-await pag.waitForSelector(".cf-botones", { timeout: 3000 });
-await pag.click(".cf-botones .cf-btn:not(.plano)");
-await pag.waitForSelector("td:text-is('DISTRIBUIDORA PRUEBA 2')", { state: "detached", timeout: 3000 }).catch(() => fallas.push("el cliente no se borró"));
+/* LOS DESPLEGABLES YA NO SE EDITAN AQUÍ: viven en Inventario · Maestro. Registrar solo registra y muestra el historial. */
+ok(await pag.locator("h2:text-is('Desplegables')").count() === 0, "Registrar ya no trae la sección «Desplegables»");
+ok(await pag.locator("button:has-text('Agregar a')").count() === 0 && await pag.locator("button:text-is('Borrar')").count() === 0, "Registrar no trae botones de agregar/borrar del maestro");
+ok(await pag.locator("a[href='/inventario/maestro']").count() === 1, "avisa que se agregan en el Maestro, con su enlace");
 await pag.screenshot({ path: R(".arnes/tmp/reg/mov-maestro.png"), fullPage: true });
 
 /* deshacer */
@@ -137,4 +123,4 @@ h = await filasH(); ok(h.length === 2, "tras deshacer quedan 2: " + h.length);
 ok(errs.length === 0, "errores en consola: " + errs.join(" | "));
 await b.close();
 if (fallas.length) { fallas.forEach((f) => console.log("✗ " + f)); process.exit(1) }
-console.log("✓ Registrar · Movimiento: desplegables, material → descripción, efecto en Control, validación, registrar, historial, filtro y deshacer.");
+console.log("✓ Registrar · Movimiento: desplegables, material → descripción, efecto en Control, validación, registrar, historial, filtro y deshacer; sin edición de maestro.");

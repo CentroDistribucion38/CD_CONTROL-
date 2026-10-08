@@ -27,6 +27,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useConfirmar } from "@/components/Confirmar";
 import { useAvisos } from "@/components/Aviso";
 import type { Material, Ubicacion, Bodega } from "@/modulos/inventario/fefo";
+import { MaestroCasco } from "./MaestroCasco";
 
 /** Los cc con separador de miles: «50.000» se lee, «50000» hay que
  *  contarlo con el dedo. */
@@ -36,7 +37,13 @@ const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
    —herencia de la plantilla de demostración— y era el tercer sitio donde
    se editaba lo mismo. Un maestro que deja fuera una de sus bases obliga
    a salir del maestro para completarlo. */
-type Pestania = "materiales" | "ubicaciones" | "bodegas";
+type Pestania = "materiales" | "ubicaciones" | "bodegas" | "casco";
+
+/* LOS DESPLEGABLES DE CASCO DE VIDRIO también son del maestro: de dónde sale el casco, a qué almacén llega y a qué
+   cliente se despacha. Registrar · Movimiento solo los usa; aquí se agregan, se cambian y se borran. */
+const ROTULO: Record<Pestania, string> = {
+  materiales: "Materiales", ubicaciones: "Ubicaciones", bodegas: "Bodegas", casco: "Casco · movimientos",
+};
 
 /* Se exporta para poder medirla en el arnés junto con `producto` y
    `pelea`: las tres son la misma cuenta. */
@@ -120,6 +127,8 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
   const [verInactivos, setVerInactivos] = useState(false);
   const [editando, setEditando] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
+  /* Cada «Agregar» en la pestaña de casco sube este número; MaestroCasco lo ve y abre su formulario. */
+  const [nuevoCasco, setNuevoCasco] = useState(0);
 
   const [materiales, setMateriales] = useState(matIni);
   const [ubicaciones, setUbicaciones] = useState(ubiIni);
@@ -419,13 +428,15 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
 
       <section className="fe-barra">
         <div className="fe-pes" role="tablist">
-          {(["materiales", "ubicaciones", "bodegas"] as Pestania[]).map((p) => (
+          {(["materiales", "ubicaciones", "bodegas", "casco"] as Pestania[]).map((p) => (
             <button key={p} type="button" role="tab" aria-selected={pestania === p}
                     className={pestania === p ? "on" : ""}
                     onClick={() => { setPestania(p); setEditando(null); setBusca(""); setFCalle("") }}>
-              {p === "materiales" ? "Materiales" : p === "ubicaciones" ? "Ubicaciones" : "Bodegas"}
-              <em>{p === "materiales" ? materiales.length
-                   : p === "ubicaciones" ? ubicaciones.length : bods.length}</em>
+              {ROTULO[p]}
+              {p !== "casco" && (
+                <em>{p === "materiales" ? materiales.length
+                     : p === "ubicaciones" ? ubicaciones.length : bods.length}</em>
+              )}
             </button>
           ))}
         </div>
@@ -437,7 +448,9 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
                    ? "Código, descripción o familia — 3128, aguila, lata…"
                    : pestania === "ubicaciones"
                      ? "Calle, clave o familia — P, A01, EST…"
-                     : "Código o nombre — CD38…"} />
+                     : pestania === "casco"
+                       ? "Código o nombre — AG22, PELDAR, cliente…"
+                       : "Código o nombre — CD38…"} />
         </label>
 
         {pestania === "ubicaciones" && calles.length > 1 && (
@@ -451,7 +464,7 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
           </label>
         )}
 
-        {inactivos > 0 && (
+        {pestania !== "casco" && inactivos > 0 && (
           <label className="fe-check">
             <input type="checkbox" checked={verInactivos}
                    onChange={(e) => setVerInactivos(e.target.checked)} />
@@ -461,7 +474,7 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
 
         {esEditor && (
           <button type="button" className="btn"
-                  onClick={() => abrir("nuevo", pestania === "materiales"
+                  onClick={() => pestania === "casco" ? setNuevoCasco((n) => n + 1) : abrir("nuevo", pestania === "materiales"
                     ? { tipo_material: "PRODUCTO" }
                     : pestania === "ubicaciones"
                       ? { lado: "", bodega_id: bods[0]?.id ?? "" }
@@ -474,6 +487,9 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
       {/* CUÁNTOS SE ESTÁN VIENDO, SIEMPRE. Sin esta línea, ver 60 de 494
           se lee como «el maestro tiene 60», que es una afirmación falsa
           sobre la que alguien puede decidir. */}
+      {pestania === "casco" ? (
+        <MaestroCasco busca={busca} esEditor={esEditor} nuevo={nuevoCasco} pedir={pedir} avisar={avisar} />
+      ) : (<>
       <p className="fe-cuenta">
         {lista.length === total ? <>Los {total}.</> : <>{lista.length} de {total}.</>}
         {calleUsada && <> Calle <b>{calleUsada}</b>, toda.</>}
@@ -900,6 +916,7 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
           );
         })}
       </div>
+      </>)}
     </>
   );
 }

@@ -6,9 +6,10 @@ w.archivos = w.archivos ?? [];   // v_casco_archivos
 w.llaves = w.llaves ?? [];
 w.maestro = w.maestro ?? [];     // casco_mov_maestro
 w.movs = w.movs ?? [];           // v_casco_movimientos
+w.ubic = w.ubic ?? [];           // casco_ubicaciones
 let n = 1;
 const tablas: Record<string, () => any[]> = {
-  v_casco_bajas: () => w.hechas, v_casco_archivos: () => w.archivos, casco_mov_maestro: () => w.maestro,
+  v_casco_bajas: () => w.hechas, v_casco_archivos: () => w.archivos, casco_mov_maestro: () => w.maestro, casco_ubicaciones: () => w.ubic,
   v_casco_movimientos: () => w.movs, casco_bajas: () => w.llaves.map((l: string) => ({ llave: l })),
 };
 const respuesta = (t: string) => {

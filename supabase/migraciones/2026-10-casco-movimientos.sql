@@ -61,7 +61,8 @@ drop policy if exists casco_mov_maestro_ver on public.casco_mov_maestro;
 create policy casco_mov_maestro_ver on public.casco_mov_maestro
   for select to authenticated
   using (public.mi_nivel_pantalla('/inventario/casco/registrar') in ('ver', 'editar')
-      or public.mi_nivel_pantalla('/inventario/casco') in ('ver', 'editar'));
+      or public.mi_nivel_pantalla('/inventario/casco') in ('ver', 'editar')
+      or public.mi_nivel_pantalla('/inventario/maestro') in ('ver', 'editar'));
 revoke insert, update, delete on public.casco_mov_maestro from authenticated;
 grant select on public.casco_mov_maestro to authenticated;
 
@@ -269,6 +270,16 @@ grant execute on function public.casco_movimiento_quitar(uuid) to authenticated;
 -- ---------------------------------------------------------------------
 -- 6. EDITAR EL MAESTRO DE LOS DESPLEGABLES
 -- ---------------------------------------------------------------------
+/* Los desplegables se editan en INVENTARIO · MAESTRO (lo ve y lo edita quien edita el maestro); quien registra
+   movimientos solo los usa. Por si alguien ya tenía permiso de editar Registrar, también puede. */
+create or replace function public.casco_mov_maestro_puede_editar()
+returns boolean
+language sql stable security definer
+set search_path = public
+as $$ select public.mi_nivel_pantalla('/inventario/maestro') = 'editar'
+          or public.mi_nivel_pantalla('/inventario/casco/registrar') = 'editar' $$;
+grant execute on function public.casco_mov_maestro_puede_editar() to authenticated;
+
 drop function if exists public.casco_mov_maestro_guardar(uuid, text, text, text, text);
 create or replace function public.casco_mov_maestro_guardar(
   p_id uuid, p_tipo text, p_codigo text, p_nombre text, p_ubicacion text, p_descuenta boolean default true)
@@ -280,7 +291,7 @@ as $$
 declare v_id uuid; v_nombre text := btrim(coalesce(p_nombre, ''));
         v_ubic text := nullif(btrim(coalesce(p_ubicacion, '')), '');
 begin
-  if not public.casco_registrar_puede_editar() then
+  if not public.casco_mov_maestro_puede_editar() then
     raise exception 'No tienes permiso para editar los desplegables de movimientos';
   end if;
   if p_tipo not in ('origen', 'receptor', 'cliente') then raise exception 'Tipo de desplegable no válido'; end if;
@@ -318,7 +329,7 @@ security definer
 set search_path = public
 as $$
 begin
-  if not public.casco_registrar_puede_editar() then
+  if not public.casco_mov_maestro_puede_editar() then
     raise exception 'No tienes permiso para editar los desplegables de movimientos';
   end if;
   delete from public.casco_mov_maestro where id = p_id;

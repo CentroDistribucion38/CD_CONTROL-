@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import * as XLSX from "xlsx";
 import { createClient } from "@/lib/supabase/client";
 import { useConfirmar } from "@/components/Confirmar";
@@ -42,7 +43,6 @@ const corto = (iso: string) =>
   new Date(iso + "T12:00:00").toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" });
 const sinTilde = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const FILTROS_VACIOS = { desde: "", hasta: "", origen: "", destino: "", efecto: "", texto: "" };
-const TITULOS = { origen: "Almacén origen", receptor: "Almacén receptor", cliente: "Cliente" } as const;
 let contador = 1;
 
 export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
@@ -199,32 +199,6 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
     XLSX.writeFile(libro, `movimientos-casco-${hoy}.xlsx`);
   };
 
-  /* ---------- EL MAESTRO DE LOS DESPLEGABLES ---------- */
-  const guardarItem = async (i: Partial<Item> & { tipo: Item["tipo"] }) => {
-    const { error } = await supabase.rpc("casco_mov_maestro_guardar", {
-      p_id: i.id ?? null, p_tipo: i.tipo, p_codigo: i.codigo ?? "", p_nombre: i.nombre ?? "",
-      p_ubicacion: i.ubicacion ?? "", p_descuenta: i.descuenta ?? true,
-    });
-    if (error) { setAviso({ tipo: "mal", texto: traducirError(error.message) }); return false }
-    setAviso(null);
-    await cargarItems();
-    return true;
-  };
-  const borrarItem = async (i: Item) => {
-    const ok = await pedir({
-      titulo: `¿Borrar «${i.nombre}» de ${TITULOS[i.tipo].toLowerCase()}?`,
-      dice: <>Sale del desplegable. Los movimientos que ya registraste con él no cambian: guardan el nombre tal como estaba.</>,
-      confirmar: "Borrar", cancelar: "Cancelar", peligro: true,
-    });
-    if (!ok) return;
-    const { error } = await supabase.rpc("casco_mov_maestro_borrar", { p_id: i.id });
-    if (error) { setAviso({ tipo: "mal", texto: traducirError(error.message) }); return }
-    setLineas((ls) => ls.map((l) => ({
-      ...l, origen_id: l.origen_id === i.id ? "" : l.origen_id, destino_id: l.destino_id === i.id ? "" : l.destino_id,
-    })));
-    await cargarItems();
-  };
-
   return (
     <>
       {dialogo}
@@ -241,6 +215,7 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
             <p className="cas-nota">
               Una línea por material. Escoge el origen y el receptor o cliente; el código trae la descripción.
               AG22 o AG18 → AG07 resta del origen y suma a AG07; AG07 → cliente resta de AG07.
+              ¿Falta un almacén o un cliente en la lista? Se agrega en el <Link href="/inventario/maestro">Maestro</Link>.
             </p>
           </div>
         </header>
@@ -328,23 +303,6 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
         </div>
       </section>
 
-      {/* ---------------- EL MAESTRO DE LOS DESPLEGABLES ---------------- */}
-      <section className="cas-bloque">
-        <header className="cas-bloque-cab">
-          <div>
-            <h2>Desplegables</h2>
-            <p className="cas-nota">
-              Los almacenes y el cliente que ofrecen las líneas. Puedes agregar, cambiar y borrar. «Tabla de Control» dice a
-              cuál de las cuatro tablas suma o resta ese almacén; el cliente no tiene.
-            </p>
-          </div>
-        </header>
-        {(["origen", "receptor", "cliente"] as const).map((t) => (
-          <ListaMaestro key={t} tipo={t} items={(items ?? []).filter((i) => i.tipo === t)} sitios={sitios}
-                        puedeEditar={puedeEditar} guardar={guardarItem} borrar={borrarItem} />
-        ))}
-      </section>
-
       {/* ---------------- EL HISTORIAL ---------------- */}
       <section className="cas-bloque">
         <header className="cas-bloque-cab">
@@ -419,80 +377,5 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
         </div>
       </section>
     </>
-  );
-}
-
-/** UNA DE LAS TRES LISTAS DEL MAESTRO: ver, agregar, cambiar y borrar. */
-function ListaMaestro({ tipo, items, sitios, puedeEditar, guardar, borrar }: {
-  tipo: Item["tipo"]; items: Item[]; sitios: SitioCasco[]; puedeEditar: boolean;
-  guardar: (i: Partial<Item> & { tipo: Item["tipo"] }) => Promise<boolean>; borrar: (i: Item) => Promise<void>;
-}) {
-  const [edit, setEdit] = useState<(Partial<Item> & { tipo: Item["tipo"] }) | null>(null);
-  const [ocupado, setOcupado] = useState(false);
-  const conTabla = tipo !== "cliente";
-  const nuevo = () => setEdit({ tipo, codigo: "", nombre: "", ubicacion: "", descuenta: true });
-  const ok = async () => {
-    if (!edit || ocupado) return;
-    setOcupado(true);
-    if (await guardar(edit)) setEdit(null);
-    setOcupado(false);
-  };
-  return (
-    <div className="reg-lista-maestro">
-      <h3>{TITULOS[tipo]}</h3>
-      <table className="cas-tabla reg-mini">
-        <thead>
-          <tr><th>Código</th><th>Nombre</th>{conTabla && <th>Tabla de Control</th>}{tipo === "origen" && <th>Descuenta por defecto</th>}<th /></tr>
-        </thead>
-        <tbody>
-          {items.length === 0 && !edit && <tr><td colSpan={5} className="cas-vacio">Sin renglones. Agrega el primero.</td></tr>}
-          {items.map((i) => edit?.id === i.id ? (
-            <FilaEdicion key={i.id} edit={edit} setEdit={setEdit} sitios={sitios} tipo={tipo} ok={ok} ocupado={ocupado} />
-          ) : (
-            <tr key={i.id}>
-              <td className="cod">{i.codigo}</td>
-              <td>{i.nombre}</td>
-              {conTabla && <td>{i.ubicacion ? sitios.find((s) => s.clave === i.ubicacion)?.nombre ?? i.ubicacion : <span className="reg-tenue">Ninguna</span>}</td>}
-              {tipo === "origen" && <td>{i.descuenta ? "Sí" : "No, solo registro"}</td>}
-              <td className="reg-acc">
-                {puedeEditar && <>
-                  <button type="button" className="btn" onClick={() => setEdit({ ...i })}>Editar</button>
-                  <button type="button" className="btn reg-peligro" onClick={() => void borrar(i)}>Borrar</button>
-                </>}
-              </td>
-            </tr>
-          ))}
-          {edit && !edit.id && <FilaEdicion edit={edit} setEdit={setEdit} sitios={sitios} tipo={tipo} ok={ok} ocupado={ocupado} />}
-        </tbody>
-      </table>
-      {puedeEditar && !edit && <button type="button" className="btn" onClick={nuevo}>Agregar a {TITULOS[tipo].toLowerCase()}</button>}
-    </div>
-  );
-}
-
-function FilaEdicion({ edit, setEdit, sitios, tipo, ok, ocupado }: {
-  edit: Partial<Item> & { tipo: Item["tipo"] }; setEdit: (e: (Partial<Item> & { tipo: Item["tipo"] }) | null) => void;
-  sitios: SitioCasco[]; tipo: Item["tipo"]; ok: () => void; ocupado: boolean;
-}) {
-  return (
-    <tr className="reg-edicion">
-      <td><input className="cas-txt reg-cod" value={edit.codigo ?? ""} placeholder="Código" onChange={(e) => setEdit({ ...edit, codigo: e.target.value })} /></td>
-      <td><input className="cas-txt reg-nom" value={edit.nombre ?? ""} placeholder="Nombre" autoFocus onChange={(e) => setEdit({ ...edit, nombre: e.target.value })} /></td>
-      {tipo !== "cliente" && (
-        <td>
-          <select className="cas-txt" value={edit.ubicacion ?? ""} onChange={(e) => setEdit({ ...edit, ubicacion: e.target.value })}>
-            <option value="">Ninguna</option>
-            {sitios.map((s) => <option key={s.clave} value={s.clave}>{s.nombre}</option>)}
-          </select>
-        </td>
-      )}
-      {tipo === "origen" && (
-        <td><label className="reg-chk"><input type="checkbox" checked={edit.descuenta ?? true} onChange={(e) => setEdit({ ...edit, descuenta: e.target.checked })} /><span>{edit.descuenta ?? true ? "Sí" : "No"}</span></label></td>
-      )}
-      <td className="reg-acc">
-        <button type="button" className="btn" disabled={ocupado || !(edit.nombre ?? "").trim()} onClick={ok}>{ocupado ? "Guardando…" : "Guardar"}</button>
-        <button type="button" className="btn" disabled={ocupado} onClick={() => setEdit(null)}>Cancelar</button>
-      </td>
-    </tr>
   );
 }
