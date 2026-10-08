@@ -66,6 +66,19 @@
 
 /* LA CUENTA: el campo y su resultado ---------------------------------- */
 .cas .cas-cuenta { display: inline-flex; align-items: center; justify-content: flex-end; gap: 8px }
+.cas .cas-campo { position: relative; display: inline-block; width: 180px; max-width: 34vw; height: 40px }
+.cas .cas-campo textarea {
+  position: absolute; top: 0; right: 0; width: 100%; height: 40px; min-height: 40px; resize: none; overflow: hidden;
+  box-sizing: border-box; padding: 9px 10px; white-space: nowrap; text-align: right;
+  font: 600 14px/20px ui-monospace, "IBM Plex Mono", monospace; color: var(--fe-tinta);
+  background: #fff; border: 1px solid var(--fe-linea); border-radius: 3px;
+}
+.cas .cas-campo textarea:disabled { background: transparent; border-color: transparent }
+.cas .cas-campo textarea.mal { border-color: var(--fe-mal); background: color-mix(in srgb, var(--fe-mal) 8%, #fff) }
+.cas .cas-campo.abierto textarea {
+  position: fixed; z-index: 60; width: min(440px, 88vw); white-space: pre-wrap; overflow-wrap: anywhere;
+  text-align: left; border-color: var(--fe-tinta); box-shadow: 0 6px 22px rgba(0,0,0,.22); outline: none;
+}
 .cas .cas-cuenta input {
   width: 180px; max-width: 34vw; min-height: 40px; padding: 0 10px; text-align: right;
   font: 600 14px ui-monospace, "IBM Plex Mono", monospace; color: var(--fe-tinta);
@@ -89,6 +102,7 @@
   .cas .cas-tabla th, .cas .cas-tabla td { padding-left: 8px; padding-right: 8px }
   .cas .cas-cuenta { flex-direction: column; align-items: flex-end; gap: 2px }
   .cas .cas-cuenta input { width: 104px; max-width: 30vw }
+  .cas .cas-campo { width: 104px; max-width: 30vw }
   .cas .cas-cuenta b { min-width: 0; font-size: 12px; color: var(--fe-gris) }
   .cas .cas-tabla th { font-size: 10px; letter-spacing: .06em; white-space: normal }
 }

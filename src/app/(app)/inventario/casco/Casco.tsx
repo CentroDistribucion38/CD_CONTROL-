@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { BuscarEnLista } from "@/components/BuscarEnLista";
@@ -44,6 +44,44 @@ const largo = (iso: string) =>
 const aTexto = (n: number | null) => (n == null ? "" : String(Number(n)));
 const VACIO: Bloque = { filas: [], sucio: false, cargando: true, arranque: null, guardado: false, guardando: false, aviso: null };
 const COLS = "ubicacion, sku, inventario, inv_expr, baja, baja_expr, hl, fecha, puesto, calidad";
+
+/** Campo de la cuenta tipo Excel: cerrado es una celda corta; al seleccionarlo se abre
+ *  (flotando, sin que la tabla lo recorte) y muestra TODA la fórmula en varias líneas. */
+function CampoCuenta({ valor, cambiar, deshabilitado, mal, rotulo }: {
+  valor: string; cambiar: (v: string) => void; deshabilitado: boolean; mal: boolean; rotulo: string;
+}) {
+  const caja = useRef<HTMLSpanElement>(null);
+  const ref = useRef<HTMLTextAreaElement>(null);
+  const [abierto, setAbierto] = useState(false);
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
+  const medir = useCallback(() => {
+    const r = caja.current?.getBoundingClientRect();
+    if (r) setPos({ top: r.top, right: Math.max(8, window.innerWidth - r.right) });
+  }, []);
+  useLayoutEffect(() => {
+    const t = ref.current;
+    if (!t) return;
+    t.style.height = "";
+    if (abierto) t.style.height = Math.max(t.scrollHeight, 40) + "px";
+  }, [valor, abierto]);
+  useEffect(() => {
+    if (!abierto) return;
+    window.addEventListener("scroll", medir, true);
+    window.addEventListener("resize", medir);
+    return () => { window.removeEventListener("scroll", medir, true); window.removeEventListener("resize", medir); };
+  }, [abierto, medir]);
+  return (
+    <span ref={caja} className={"cas-campo" + (abierto ? " abierto" : "")}>
+      <textarea ref={ref} rows={1} value={valor} disabled={deshabilitado} spellCheck={false}
+                aria-label={rotulo} className={mal ? "mal" : ""}
+                style={abierto && pos ? { top: pos.top, right: pos.right } : undefined}
+                onFocus={(e) => { medir(); setAbierto(true); const n = e.target.value.length; e.target.setSelectionRange(n, n); }}
+                onBlur={() => setAbierto(false)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } }}
+                onChange={(e) => cambiar(e.target.value.replace(/[\r\n]+/g, ""))} />
+    </span>
+  );
+}
 
 export function Casco({ sitios, materiales, hoy, puestos, puedeEditar }: {
   sitios: SitioCasco[]; materiales: MaterialCasco[]; hoy: string; puestos: string[]; puedeEditar: boolean;
@@ -264,18 +302,18 @@ export function Casco({ sitios, materiales, hoy, puestos, puedeEditar }: {
                         </td>
                         <td className="n">
                           <span className="cas-cuenta">
-                            <input value={f.inv} disabled={!puedeEditar} inputMode="text" spellCheck={false}
-                                   aria-label={`Inventario de ${f.sku} en ${s.nombre}`} className={x.malInv ? "mal" : ""}
-                                   onChange={(e) => cambiar(s.clave, i, "inv", e.target.value)} />
+                            <CampoCuenta valor={f.inv} deshabilitado={!puedeEditar} mal={x.malInv}
+                                         rotulo={`Inventario de ${f.sku} en ${s.nombre}`}
+                                         cambiar={(v) => cambiar(s.clave, i, "inv", v)} />
                             <b>{x.inv == null ? "?" : "= " + nf0.format(x.inv)}</b>
                           </span>
                         </td>
                         {s.baja_rotulo && (
                           <td className="n">
                             <span className="cas-cuenta">
-                              <input value={f.baja} disabled={!puedeEditar} inputMode="text" spellCheck={false}
-                                     aria-label={`${s.baja_rotulo} de ${f.sku} en ${s.nombre}`} className={x.malBaja ? "mal" : ""}
-                                     onChange={(e) => cambiar(s.clave, i, "baja", e.target.value)} />
+                              <CampoCuenta valor={f.baja} deshabilitado={!puedeEditar} mal={x.malBaja}
+                                           rotulo={`${s.baja_rotulo} de ${f.sku} en ${s.nombre}`}
+                                           cambiar={(v) => cambiar(s.clave, i, "baja", v)} />
                               <b>{x.baja == null ? "?" : "= " + nf0.format(x.baja)}</b>
                             </span>
                           </td>
