@@ -25,7 +25,10 @@ import { leerPaleta } from "../informe";
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const hora = (iso: string) => new Date(iso).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Bogota" });
 type Rango = "hoy" | "ayer" | "7" | "30" | "otro";
-const MAX_FOTOS = 24, MAX_ANEXO = 600, MAX_PANTALLA = 300;
+/* EL INFORME LLEVA TODAS LAS FOTOS Y TODAS LAS NOVEDADES, sin tope: «hay más de 50 y solo se ven 24, no lo
+   limites». Cada foto va en miniatura (~25 KB), así que cien fotos siguen siendo un archivo de pocos MB. Lo único que
+   sigue con tope es la LISTA DE LA PANTALLA, que se dibuja entera en el navegador. */
+const MAX_FOTOS = Infinity, MAX_ANEXO = Infinity, MAX_PANTALLA = 300;
 const rgbHex = (c: [number, number, number]) => "#" + c.map((v) => Math.round(v).toString(16).padStart(2, "0")).join("");
 
 export function Evidencias() {
@@ -392,7 +395,7 @@ export function Evidencias() {
               </table>
             </div>
           )}
-          {vistas.length > lista.length && <p className="ev-nota">Se muestran las primeras {lista.length} de {nf.format(vistas.length)}. Acota el periodo para ver el resto; el informe lleva hasta {MAX_ANEXO} en el anexo.</p>}
+          {vistas.length > lista.length && <p className="ev-nota">Se muestran las primeras {lista.length} de {nf.format(vistas.length)}. Acota el periodo para ver el resto; el informe (PDF y Word) lleva todas.</p>}
           </div>
         </>
       )}
