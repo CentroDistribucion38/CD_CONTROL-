@@ -1,0 +1,100 @@
+/* =====================================================================
+   CASCO DE VIDRIO — lo suyo, encima del vocabulario de Inventario.
+   Todo lleva `cas-`. Se reusa de fefo.css: `.cabeza`, `.btn`, y las
+   variables --fe-*.
+   ===================================================================== */
+
+/* LOS SITIOS DEL DÍA ------------------------------------------------- */
+.cas .cas-sitios { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px }
+.cas .cas-sitio {
+  background: var(--fe-papel); border: 1px solid var(--fe-linea); border-radius: 3px;
+  padding: 12px 14px; display: flex; flex-direction: column; gap: 3px; min-width: 0;
+  text-align: left; font: inherit; color: var(--fe-tinta); cursor: pointer;
+}
+.cas .cas-sitio.on { border-color: var(--fe-tinta); border-left: 5px solid var(--fe-acento) }
+.cas .cas-total { cursor: default; background: var(--fe-tinta); color: #fff; border-color: var(--fe-tinta) }
+.cas .cas-total .cas-rot, .cas .cas-total i { color: rgba(255,255,255,.78) }
+.cas .cas-rot {
+  font: 700 10.5px var(--fe-texto); letter-spacing: .13em; color: var(--fe-gris); text-transform: uppercase;
+}
+.cas .cas-sitio b {
+  font: 900 24px/1.05 var(--fe-titulo); letter-spacing: -.03em; font-variant-numeric: tabular-nums;
+}
+.cas .cas-sitio i { font-style: normal; font-size: 12px; color: var(--fe-gris) }
+
+/* EL FORMULARIO ------------------------------------------------------ */
+.cas .cas-form {
+  background: var(--fe-papel); border: 1px solid var(--fe-linea); border-radius: 3px;
+  padding: 16px; display: flex; flex-direction: column; gap: 12px;
+}
+.cas .cas-campos { display: grid; grid-template-columns: 200px 240px 1fr; gap: 14px; align-items: end }
+.cas .cas-campos > * { min-width: 0 }
+.cas .cas-c { display: flex; flex-direction: column; gap: 6px; min-width: 0 }
+.cas .cas-c > span {
+  font: 700 10.5px var(--fe-texto); letter-spacing: .12em; color: var(--fe-gris); text-transform: uppercase;
+}
+/* 44 px, porque esto se llena con guante en una bodega. */
+.cas .cas-c input, .cas .cas-c select {
+  width: 100%; min-height: 44px; padding: 0 12px; font: 500 15px var(--fe-texto);
+  color: var(--fe-tinta); background: #fff; border: 1px solid var(--fe-linea); border-radius: 3px;
+}
+.cas .cas-nota { margin: 0; font-size: 13px; line-height: 1.5; color: var(--fe-gris) }
+
+/* LA TABLA ----------------------------------------------------------- */
+.cas .cas-tabla-caja { overflow-x: auto; background: var(--fe-papel); border: 1px solid var(--fe-linea); border-radius: 3px }
+.cas .cas-tabla { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 720px }
+.cas .cas-tabla th {
+  text-align: left; padding: 11px 12px; background: var(--fe-tinta); color: #fff;
+  font: 700 11px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase; white-space: nowrap;
+}
+.cas .cas-tabla td { padding: 6px 12px; border-top: 1px solid var(--fe-linea); vertical-align: middle }
+.cas .cas-tabla .n { text-align: right }
+.cas .cas-tabla th.n { text-align: right }
+.cas .cas-tabla .cod { font: 600 13px ui-monospace, "IBM Plex Mono", monospace; white-space: nowrap }
+.cas .cas-tabla .hl { font-weight: 800; font-variant-numeric: tabular-nums }
+.cas .cas-tabla .x { width: 44px; text-align: center }
+.cas .cas-tabla .x button {
+  width: 32px; height: 32px; border: 0; background: transparent; font-size: 20px; line-height: 1;
+  color: var(--fe-gris); cursor: pointer; border-radius: 3px;
+}
+.cas .cas-tabla .x button:hover { color: var(--fe-mal) }
+.cas .cas-tabla tfoot td {
+  background: color-mix(in srgb, var(--fe-acento) 22%, #fff); font-weight: 800; border-top: 2px solid var(--fe-tinta);
+}
+.cas .cas-vacio { text-align: center; color: var(--fe-gris); padding: 22px 12px !important }
+.cas .cas-mal { display: block; font-style: normal; font-size: 12px; color: var(--fe-mal); margin-top: 2px }
+
+/* LA CUENTA: el campo y su resultado ---------------------------------- */
+.cas .cas-cuenta { display: inline-flex; align-items: center; justify-content: flex-end; gap: 8px }
+.cas .cas-cuenta input {
+  width: 180px; max-width: 34vw; min-height: 40px; padding: 0 10px; text-align: right;
+  font: 600 14px ui-monospace, "IBM Plex Mono", monospace; color: var(--fe-tinta);
+  background: #fff; border: 1px solid var(--fe-linea); border-radius: 3px;
+}
+.cas .cas-cuenta input:disabled { background: transparent; border-color: transparent }
+.cas .cas-cuenta input.mal { border-color: var(--fe-mal); background: color-mix(in srgb, var(--fe-mal) 8%, #fff) }
+.cas .cas-cuenta b { min-width: 64px; text-align: right; font-variant-numeric: tabular-nums }
+
+/* EL PIE ------------------------------------------------------------- */
+.cas .cas-pie { display: flex; flex-direction: column; gap: 10px; max-width: 640px }
+.cas .cas-aviso { margin: 0; padding: 10px 12px; font-size: 14px; border-radius: 3px; border: 1px solid }
+.cas .cas-aviso.ok { color: var(--fe-bien); border-color: var(--fe-bien); background: color-mix(in srgb, var(--fe-bien) 8%, #fff) }
+.cas .cas-aviso.mal { color: var(--fe-mal); border-color: var(--fe-mal); background: color-mix(in srgb, var(--fe-mal) 7%, #fff) }
+
+.cas .cas-sub-cuenta { white-space: nowrap }
+
+@media (max-width: 700px) {
+  .cas .cas-total { grid-column: 1 / -1 }
+  .cas .cas-tabla { min-width: 0; font-size: 13px }
+  .cas .cas-tabla th, .cas .cas-tabla td { padding-left: 8px; padding-right: 8px }
+  .cas .cas-cuenta { flex-direction: column; align-items: flex-end; gap: 2px }
+  .cas .cas-cuenta input { width: 104px; max-width: 30vw }
+  .cas .cas-cuenta b { min-width: 0; font-size: 12px; color: var(--fe-gris) }
+  .cas .cas-tabla th { font-size: 10px; letter-spacing: .06em; white-space: normal }
+}
+
+@media (max-width: 900px) {
+  .cas .cas-sitios { grid-template-columns: repeat(2, 1fr) }
+  .cas .cas-campos { grid-template-columns: 1fr 1fr }
+  .cas .cas-campos .cas-ancho { grid-column: 1 / -1 }
+}

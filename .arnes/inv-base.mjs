@@ -75,7 +75,8 @@ if (!/return \[\.\.\.vistas\]\.sort/.test(limpio))
   const debe = ["/inventario/fiscal", "/inventario/corte", "/inventario/conteo",
                 "/inventario/base", "/inventario/tablero", "/inventario/maestro", "/inventario/recibir",
                 "/inventario/averias", "/inventario/averias/tablero",
-                "/inventario/averias/analisis", "/inventario/averias/maestro"];
+                "/inventario/averias/analisis", "/inventario/averias/maestro",
+                "/inventario/casco"];
   /* Y VAN EN DOS RAMAS, no en una lista de ocho. Comparten tema —lo
      que hay en la bodega— y no comparten cifras: los conteos miden
      EXISTENCIAS y las averías lo que ya no se puede vender. Con las
@@ -85,8 +86,8 @@ if (!/return \[\.\.\.vistas\]\.sort/.test(limpio))
     .map((m) => m[2]);
   if (conRama.length !== rutas.length)
     fallas.push(`${rutas.length - conRama.length} pantallas de Inventario sin rama: el menú las pone todas juntas`);
-  if (new Set(conRama).size !== 2)
-    fallas.push(`Inventario tiene ${new Set(conRama).size} ramas y deben ser dos: conteos y averías`);
+  if (new Set(conRama).size !== 3)
+    fallas.push(`Inventario tiene ${new Set(conRama).size} ramas y deben ser tres: conteos, averías y casco de vidrio`);
   if (rutas.join("|") !== debe.join("|"))
     fallas.push(`las pantallas de Inventario salen [${rutas.join(", ")}] y deben salir ` +
                 `[${debe.join(", ")}]: la base va antes que el tablero porque el tablero ` +
@@ -123,9 +124,9 @@ if (!/return \[\.\.\.vistas\]\.sort/.test(limpio))
     if (rutasRama.includes("/inventario"))
       fallas.push("una rama de Inventario entra por /inventario, que es la portada: " +
                   "la tarjeta se devuelve a sí misma");
-    if (rutasRama.join("|") !== "/inventario/tablero|/inventario/averias")
+    if (rutasRama.join("|") !== "/inventario/tablero|/inventario/averias|/inventario/casco")
       fallas.push(`las ramas de Inventario entran por [${rutasRama.join(", ")}] y deben ` +
-                  "entrar por [/inventario/tablero, /inventario/averias]");
+                  "entrar por [/inventario/tablero, /inventario/averias, /inventario/casco]");
   }
 }
 

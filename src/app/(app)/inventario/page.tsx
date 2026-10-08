@@ -40,7 +40,7 @@ const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
  * nombres es un clic de peaje: quien entra ya sabía adónde iba.
  */
 export default async function InventarioPortada() {
-  const [permisos, conteo, aver] = await Promise.all([
+  const [permisos, conteo, aver, casco] = await Promise.all([
     misPermisos(),
 
     /* SOLO EL ÚLTIMO RECORRIDO ENVIADO, una fila. El tablero trae los
@@ -77,6 +77,23 @@ export default async function InventarioPortada() {
       if (error) return null;
       return (data ?? []) as { cajas: number; dias_baja: number | null }[];
     })(),
+
+    /* EL ÚLTIMO DÍA DE CASCO REGISTRADO: se pide el día más reciente y
+       luego sus renglones (como mucho unas decenas). Si la migración
+       aún no se corrió, esto devuelve null y la tarjeta sale sin cifra. */
+    (async () => {
+      const supabase = await createClient();
+      const { data: ult, error } = await supabase
+        .from("casco_registros").select("fecha").order("fecha", { ascending: false }).limit(1);
+      if (error || !ult?.length) return null;
+      const fecha = ult[0].fecha as string;
+      const { data } = await supabase.from("casco_registros").select("hl, ubicacion").eq("fecha", fecha);
+      return {
+        fecha,
+        hl: (data ?? []).reduce((t, r) => t + Number(r.hl || 0), 0),
+        sitios: new Set((data ?? []).map((r) => r.ubicacion as string)).size,
+      };
+    })(),
   ]);
 
   const modulo = MODULOS.find((m) => m.id === "inventario")!;
@@ -98,6 +115,9 @@ export default async function InventarioPortada() {
   const cajasAv = (aver ?? []).reduce((t, a) => t + Number(a.cajas || 0), 0);
   const masVieja = (aver ?? []).reduce<number | null>(
     (m, a) => (a.dias_baja == null ? m : m == null || a.dias_baja > m ? a.dias_baja : m), null);
+
+  /* ---------- LA CIFRA DE CASCO ---------- */
+  const diasCasco = casco ? diasDesde(casco.fecha) : null;
 
   const CIFRA: Record<string, { n: string; u: string; pie: string; mal: boolean } | null> = {
     conteos: conteo == null ? null : {
@@ -132,13 +152,23 @@ export default async function InventarioPortada() {
     },
   };
 
+  CIFRA.casco = casco == null ? null : {
+    n: nf.format(Math.round(casco.hl)),
+    u: "HL",
+    pie: (diasCasco == null || diasCasco <= 0 ? "de casco registrado hoy" : `de casco · último registro hace ${diasCasco} día${diasCasco === 1 ? "" : "s"}`) +
+      ` · ${casco.sitios} sitio${casco.sitios === 1 ? "" : "s"}`,
+    /* LO MISMO QUE EL CONTEO: una foto de hace más de dos semanas ya no
+       dice lo que hay. */
+    mal: diasCasco != null && diasCasco > 14,
+  };
+
   return (
     <div className="fe inv-p">
       <section className="inv-cabeza">
         <p className="ojo">INVENTARIO · LO QUE HAY EN LA BODEGA · CD38 AG01</p>
         <h1>¿Qué vas a mirar?</h1>
         <p className="sub">
-          Dos cosas que viven en la misma estiba y se miden aparte: los <b>conteos</b> dicen
+          Tres cosas que se miden aparte: el <b>casco de vidrio</b> se cuenta en estibas y en HL; los <b>conteos</b> dicen
           qué hay y qué sale primero; las <b>averías</b>, qué ya no se puede vender. No se
           restan — una avería sigue en su posición y <b>ya está contada</b> hasta que llegue
           el documento de baja de SAP.

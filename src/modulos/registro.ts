@@ -608,6 +608,15 @@ export const MODULOS: Modulo[] = [
           "Lo que se dañó y sigue en la estiba. Mientras no tenga documento de baja " +
           "cuenta en el inventario: contesta cuánto hay apartado y desde cuándo.",
       },
+      {
+        id: "casco",
+        nombre: "Casco de vidrio",
+        eyebrow: "ESTIBAS · HL",
+        ruta: "/inventario/casco",
+        descripcion:
+          "El vidrio vacío que hay en Bodega 38, Fábrica y Carnaval, en estibas y en HL. " +
+          "Se registra por día y sitio, y de ahí sale el análisis de PARTIR.",
+      },
     ],
     secciones: [
       /* EL ORDEN LO PUSO QUIEN LA USA («organicemos esto»): se corta lo que
@@ -654,6 +663,10 @@ export const MODULOS: Modulo[] = [
       { nombre: "Tablero", ruta: "/inventario/averias/tablero", rama: "averias" },
       { nombre: "Análisis", ruta: "/inventario/averias/analisis", rama: "averias" },
       { nombre: "Maestro", ruta: "/inventario/averias/maestro", rama: "averias" },
+      /* CASCO DE VIDRIO: se registra el saldo del día por sitio (el HL lo
+         calcula la base con el maestro) y de esos registros sale el
+         análisis. Es el mismo orden del proceso. */
+      { nombre: "Registrar", ruta: "/inventario/casco", rama: "casco" },
     ],
   },
 ];
