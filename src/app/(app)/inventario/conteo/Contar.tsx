@@ -1077,6 +1077,79 @@ export function Contar({
   });
 
   /**
+   * «OTRA VEZ LO MISMO EN EL MISMO SITIO»: SE SUMA, NO SE RECHAZA.
+   *
+   * Caso real: en A01 izquierda hay 30 estibas de 3500888 y, más allá, otras 25 del mismo material,
+   * mismo estado y misma fecha. La base no deja DOS renglones iguales —esa llave única es lo que
+   * evita contar dos veces lo mismo cuando se corta la señal y el teléfono reenvía—, y por eso antes
+   * solo se rechazaba con «corrige el que ya está». Ahora se pregunta: «ya hay 30; con 25 quedan 55»,
+   * y si quien cuenta dice que sí, se corrige ese renglón con la suma. La llave sigue intacta.
+   * Solo se suma estibas con estibas (y saldo con saldo) o cajas con cajas: mezclar las dos formas
+   * de contar no tiene una suma honesta, y eso se dice.
+   */
+  async function sumarAlQueYaEsta(bb: Borrador, mat: Material, idU: string, foto: Foto | null) {
+    if (!conteo) return;
+    const lista = (await releer(conteo.id)) ?? renglones;
+    const anio = bb.anio.trim() !== "" ? Number(bb.anio.trim()) : null;
+    const ex = lista.find((x) =>
+      x.codigo === mat.sku && x.ubicacion_id === idU &&
+      (x.estado_envase ?? "") === (bb.estado || "") &&
+      (x.venc_dia ?? null) === ent(bb.dia) && (x.venc_mes ?? null) === ent(bb.mes) && (x.venc_anio ?? null) === anio &&
+      !!x.averia === !!bb.averia && !!x.pnc === !!bb.pnc);
+    if (!ex) { avisar.mal(AVISO_REPETIDO); return }
+
+    const nuevoEst = bb.modo === "estibas" ? ent(bb.estibas) : null;
+    const nuevoSal = bb.modo === "estibas" ? ent(bb.saldo) : null;
+    const nuevoCaj = bb.modo === "cajas" ? ent(bb.cajas) : null;
+    if (nuevoEst == null && nuevoSal == null && nuevoCaj == null) { avisar.mal(AVISO_REPETIDO); return }
+    const dePuestas = (ex.cajas != null) && ex.estibas == null && ex.saldo == null;
+    if ((bb.modo === "estibas" && dePuestas) || (bb.modo === "cajas" && !dePuestas)) {
+      avisar.mal("El renglón que ya está se contó de otra forma (" + (dePuestas ? "en cajas" : "en estibas") +
+        ") y este de la otra: no se pueden sumar. Corrige uno en «El borrador».");
+      return;
+    }
+    const suma = (a: number | null, b: number | null) => (a == null && b == null ? null : (a ?? 0) + (b ?? 0));
+    const sEst = suma(ex.estibas, nuevoEst), sSal = suma(ex.saldo, nuevoSal), sCaj = suma(ex.cajas, nuevoCaj);
+    const dice = (e: number | null, sa: number | null, c: number | null) =>
+      bb.modo === "cajas" ? `${nf.format(c ?? 0)} cajas` : `${nf.format(e ?? 0)} estibas${sa != null ? ` + saldo ${nf.format(sa)}` : ""}`;
+    const ok = await pedir({
+      titulo: "Ya hay uno igual: ¿sumarlo?",
+      dice: (<>
+        En <b>{ex.ubicacion_combinada ?? ex.ubicacion ?? "ese módulo"}</b> ya está anotado <b>{mat.sku}</b>
+        {bb.estado ? <> ({bb.estado})</> : null} con <b>{dice(ex.estibas, ex.saldo, ex.cajas)}</b>.
+        Con lo que acabas de poner (<b>{dice(nuevoEst, nuevoSal, nuevoCaj)}</b>) quedaría en <b>{dice(sEst, sSal, sCaj)}</b>.
+      </>),
+      confirmar: "Sumar", cancelar: "No sumar",
+    });
+    if (!ok) return;
+
+    const unido: Borrador = {
+      ...bb,
+      estibas: sEst == null ? "" : String(sEst), saldo: sSal == null ? "" : String(sSal), cajas: sCaj == null ? "" : String(sCaj),
+      rot: bb.rot ?? ex.rotacion ?? null,
+      nota: [ex.nota, bb.nota.trim()].filter((t, i, a) => t && a.indexOf(t) === i).join(" · "),
+    };
+    setGuardando(true);
+    const { error } = await supabase.rpc("conteo_fefo_editar", { p_linea: ex.id, ...argumentos(unido, mat, idU) });
+    setGuardando(false);
+    if (error) {
+      avisar.mal(esFalloDeRed(error.message) ? "Sin señal: sumar a un renglón que ya está necesita conexión. Intenta de nuevo con señal." : error.message);
+      return;
+    }
+    if (bb.pnc) {
+      const malP = await guardarPoliticaPnc(ex.id, bb);
+      if (malP) avisar.mal(`${mat.sku} quedó sumado, pero ${malP.charAt(0).toLowerCase()}${malP.slice(1)} Corrígelo en «El borrador».`);
+    }
+    if (foto) {
+      const malF = await subirFoto(ex.id, foto);
+      if (malF) avisar.mal(`${mat.sku} quedó sumado, pero ${malF.charAt(0).toLowerCase()}${malF.slice(1)} Agrégala desde «El borrador».`);
+    }
+    await releer(conteo.id);
+    avisar.bien(`${mat.sku} · sumado: ahora ${dice(sEst, sSal, sCaj)}.`);
+    limpiar(true);
+  }
+
+  /**
    * ANOTAR Y CONFIRMAR SON EL MISMO GUARDADO, con distinto borrador.
    *
    * Confirmar una pre-anotación no pasa por las casillas: la tarjeta se
@@ -1425,6 +1498,7 @@ export function Contar({
         if (corrigiendo) avisar.mal(SIN_SENAL_CORREGIR); else encolar(bb, mat, idU, foto);
         return;
       }
+      if (esDuplicado(error.message) && !corrigiendo) { await sumarAlQueYaEsta(bb, mat, idU, foto); return }
       avisar.mal(esDuplicado(error.message) ? AVISO_REPETIDO : error.message); return;
     }
 
