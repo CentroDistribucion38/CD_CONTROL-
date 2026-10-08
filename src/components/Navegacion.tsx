@@ -314,6 +314,23 @@ const IconoBase = () => (
   </svg>
 );
 
+/* CASCO DE VIDRIO: Registrar (entra la baja o el movimiento), Control (las cuatro tablas por almacén) y
+   Tablero. Los tres caían al icono por defecto y se veían iguales. */
+const IconoEntrada = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <path d="M12 3.5v10M8 9.8l4 4 4-4" />
+    <path d="M4.5 14.5V19a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5v-4.5" />
+  </svg>
+);
+const IconoCuatroTablas = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <rect x="3.5" y="3.5" width="7.5" height="7.5" rx="1.4" />
+    <rect x="13" y="3.5" width="7.5" height="7.5" rx="1.4" />
+    <rect x="3.5" y="13" width="7.5" height="7.5" rx="1.4" />
+    <rect x="13" y="13" width="7.5" height="7.5" rx="1.4" />
+  </svg>
+);
+
 const ICONO_MODULO: Record<string, () => React.ReactElement> = {
   /* Roturas ya no es un módulo: se mudó dentro de Quiebra. Su dibujo
      sigue vivo como icono de las ramas «En sitio» y «Salida» y de sus
@@ -381,6 +398,9 @@ const ICONO_RUTA: Record<string, () => React.ReactElement> = {
   "/inventario/corte": IconoAnalisis,
   "/inventario/fiscal": IconoUsuarios,
   "/inventario/conteo": IconoCaja,
+  "/inventario/casco/registrar": IconoEntrada,
+  "/inventario/casco": IconoCuatroTablas,
+  "/inventario/casco/tablero": IconoTablero,
   "/acciones/todas": IconoLista,
   "/acciones/abi": IconoHallazgo,
   "/acciones/abi/hallazgos": IconoLista,

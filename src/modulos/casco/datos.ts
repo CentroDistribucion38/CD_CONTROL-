@@ -36,6 +36,15 @@ function sinTablas(msg: string | undefined) {
   return t.includes("does not exist") || t.includes("schema cache");
 }
 
+/* LOS NOMBRES DE SAP POR CLAVE. Si todavía no se corrió 2026-10-casco-registrar-baja.sql (la base conserva «Bodega 38»,
+   «Fábrica»…), la pantalla igual muestra el nombre que corresponde. Cuando la base ya trae `centro`, manda la base. */
+const SAP: Record<string, { centro: string; nombre: string }> = {
+  "BODEGA 38": { centro: "AG22", nombre: "AG22 EER Barranquilla" },
+  "FABRICA": { centro: "AG18", nombre: "AG18 EER Fábrica" },
+  "CARNAVAL": { centro: "AG07", nombre: "AG07 Alm. Bodega Carnaval" },
+  "CARNAVAL PALMAR": { centro: "CA22", nombre: "CA22 ERR Atlántico" },
+};
+
 export async function sitiosCasco(): Promise<{ lista: SitioCasco[]; sinTabla: boolean }> {
   const supabase = await createClient();
   const leer = (cols: string) => supabase
@@ -45,7 +54,9 @@ export async function sitiosCasco(): Promise<{ lista: SitioCasco[]; sinTabla: bo
   /* SIN LA COLUMNA `centro` (falta correr 2026-10-casco-registrar-baja.sql) Control sigue funcionando. */
   if (error && /centro/i.test(error.message)) ({ data, error } = await leer("clave, nombre, baja_rotulo, orden"));
   if (error) return { lista: [], sinTabla: sinTablas(error.message) };
-  return { lista: (data ?? []) as unknown as SitioCasco[], sinTabla: false };
+  const lista = ((data ?? []) as unknown as SitioCasco[]).map((x) =>
+    !x.centro && SAP[x.clave] ? { ...x, ...SAP[x.clave] } : x);
+  return { lista, sinTabla: false };
 }
 
 /**
