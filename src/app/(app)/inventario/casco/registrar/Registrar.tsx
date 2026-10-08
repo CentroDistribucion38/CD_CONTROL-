@@ -33,7 +33,7 @@ type Vista = FilaBaja & {
   yaEsta: boolean;            // ya se registró antes
 };
 type Entrada = {
-  id: string; fecha: string; centro: string; ubicacion: string; ubicacion_nombre: string; sku: string;
+  id: string; fecha: string; fecha_sap: string | null; centro: string; ubicacion: string; ubicacion_nombre: string; sku: string;
   descripcion: string; unidades: number; estibas: number; destino: string; texto: string | null;
   documento: string | null; clase: string | null;
 };
@@ -47,13 +47,17 @@ const nf2 = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 2, maximumFr
 const corto = (iso: string) =>
   new Date(iso + "T12:00:00").toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" });
 
-export function Registrar({ sitios, materiales, puedeEditar }: {
-  sitios: SitioCasco[]; materiales: MaterialCasco[]; puedeEditar: boolean;
+export function Registrar({ sitios, materiales, puedeEditar, hoy }: {
+  sitios: SitioCasco[]; materiales: MaterialCasco[]; puedeEditar: boolean; hoy: string;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [pedir, dialogo] = useConfirmar();
   const entrada = useRef<HTMLInputElement>(null);
   const [tipo, setTipo] = useState<Tipo>("baja");
+  /* EL DÍA DE CONTROL AL QUE SE SUMA lo escoge quien registra (por defecto, hoy). La fecha del Excel
+     (Fe.contabilización) queda guardada aparte, pero no manda: cada día de Control guarda su propio saldo y
+     una baja con fecha de hace dos semanas no cambiaría el Control de hoy. */
+  const [diaControl, setDiaControl] = useState(hoy);
   const [archivo, setArchivo] = useState<string | null>(null);
   const [lectura, setLectura] = useState<LecturaBaja | null>(null);
   const [leyendo, setLeyendo] = useState(false);
@@ -76,6 +80,17 @@ export function Registrar({ sitios, materiales, puedeEditar }: {
   }, [supabase]);
   useEffect(() => { void cargarHechas() }, [cargarHechas]);
 
+  /** Cuáles llaves del archivo ya están en el libro (la llave es única en todo el libro, sin importar el día). */
+  const consultarYa = useCallback(async (filas: FilaBaja[]) => {
+    const llaves = filas.map((f) => f.llave);
+    const hay = new Set<string>();
+    for (let i = 0; i < llaves.length; i += 100) {
+      const { data } = await supabase.from("casco_bajas").select("llave").in("llave", llaves.slice(i, i + 100));
+      for (const x of data ?? []) hay.add(String(x.llave));
+    }
+    setYaEstan(hay);
+  }, [supabase]);
+
   /* ---------- LEER EL ARCHIVO ---------- */
   const leer = async (f: File) => {
     setLeyendo(true); setAviso(null); setResultado(null); setLectura(null); setArchivo(f.name);
@@ -89,12 +104,7 @@ export function Registrar({ sitios, materiales, puedeEditar }: {
       const matriz = XLSX.utils.sheet_to_json<unknown[]>(libro.Sheets[nombre], { header: 1, raw: true, defval: null });
       const l = leerBaja(matriz, nombre);
       setLectura(l);
-      if (l.filas.length) {
-        const fechas = l.filas.map((x) => x.fecha).sort();
-        const { data } = await supabase.from("casco_bajas").select("llave")
-          .gte("fecha", fechas[0]).lte("fecha", fechas[fechas.length - 1]).limit(5000);
-        setYaEstan(new Set((data ?? []).map((x) => String(x.llave))));
-      }
+      if (l.filas.length) await consultarYa(l.filas);
     } catch (e) {
       setLectura({ hoja: null, filas: [], descartadas: [], error: "No pude abrir el archivo: " + (e instanceof Error ? e.message : String(e)) });
     } finally { setLeyendo(false) }
@@ -133,16 +143,14 @@ export function Registrar({ sitios, materiales, puedeEditar }: {
     return [...m.values()];
   }, [aplicables]);
 
-  const fechasAplicables = [...new Set(aplicables.map((v) => v.fecha))].sort();
 
   /* ---------- APLICAR ---------- */
   const aplicar = async () => {
     if (!aplicables.length || aplicando) return;
-    const dias = fechasAplicables.map(corto).join(" y ");
     const ok = await pedir({
       titulo: `¿Aplicar ${aplicables.length} fila${aplicables.length === 1 ? "" : "s"} de baja a Control?`,
       dice: (<>
-        Se suman en estibas a las tablas de Control, en el día de cada baja ({dias}).
+        Se suman, en estibas, a las tablas de Control del <b>{corto(diaControl)}</b>.
         {repetidas.length > 0 && <> {repetidas.length} fila{repetidas.length === 1 ? "" : "s"} ya estaba{repetidas.length === 1 ? "" : "n"} registrada{repetidas.length === 1 ? "" : "s"} y no se suma{repetidas.length === 1 ? "" : "n"} otra vez.</>}
         {conProblema.length > 0 && <> {conProblema.length} no se pueden aplicar todavía y se quedan fuera.</>}
         {" "}Si te equivocas, cada fila se puede deshacer abajo.
@@ -152,6 +160,7 @@ export function Registrar({ sitios, materiales, puedeEditar }: {
     if (!ok) return;
     setAplicando(true); setAviso(null); setResultado(null);
     const { data, error } = await supabase.rpc("casco_registrar_bajas", {
+      p_fecha: diaControl,
       p_filas: aplicables.map((v) => ({
         fecha: v.fecha, centro: v.centro, sku: v.sku, unidades: v.unidades, texto: v.texto,
         documento: v.documento, clase: v.clase, llave: v.llave,
@@ -182,13 +191,27 @@ export function Registrar({ sitios, materiales, puedeEditar }: {
     if (error) { setAviso({ tipo: "mal", texto: traducirError(error.message) }); return }
     setAviso({ tipo: "ok", texto: `Se deshizo la baja de ${e.sku} del ${corto(e.fecha)}.` });
     void cargarHechas();
-    // la llave de esa fila vuelve a estar libre: si el archivo sigue abierto se vuelve a leer su estado
-    if (lectura?.filas.length) {
-      const fechas = lectura.filas.map((x) => x.fecha).sort();
-      const { data } = await supabase.from("casco_bajas").select("llave")
-        .gte("fecha", fechas[0]).lte("fecha", fechas[fechas.length - 1]).limit(5000);
-      setYaEstan(new Set((data ?? []).map((x) => String(x.llave))));
-    }
+    // la llave de esa fila vuelve a estar libre: si el archivo sigue abierto se vuelve a mirar su estado
+    if (lectura?.filas.length) await consultarYa(lectura.filas);
+  };
+
+  const deshacerTodas = async () => {
+    if (!hechas?.length) return;
+    const ok = await pedir({
+      titulo: `¿Deshacer las ${hechas.length} bajas de la lista?`,
+      dice: (<>
+        Se restan sus estibas de Control, cada una en su día y su tabla, y salen de esta lista. Después puedes
+        importar el archivo otra vez y escoger el día de Control correcto. Si una no se puede deshacer
+        (por ejemplo porque la celda ya tiene menos estibas), no se deshace ninguna.
+      </>),
+      confirmar: `Deshacer las ${hechas.length}`, cancelar: "Cancelar", peligro: true,
+    });
+    if (!ok) return;
+    const { data, error } = await supabase.rpc("casco_quitar_bajas", { p_ids: hechas.map((e) => e.id) });
+    if (error) { setAviso({ tipo: "mal", texto: traducirError(error.message) }); return }
+    setAviso({ tipo: "ok", texto: `Se deshicieron ${data ?? hechas.length} bajas.` });
+    void cargarHechas();
+    if (lectura?.filas.length) await consultarYa(lectura.filas);
   };
 
   const limpiar = () => {
@@ -243,8 +266,14 @@ export function Registrar({ sitios, materiales, puedeEditar }: {
           <ul className="reg-regla">
             <li>El <b>Texto cab.documento</b> manda: «BAJA LAVADO» va a <b>Lavado con baja</b> y «BAJA EXTRASUCIO» a <b>Extrasucio con baja</b>.</li>
             <li>Cualquier otro texto (sorting, presorting, rotura de máquina…) se <b>suma al inventario</b> del almacén de la fila.</li>
-            <li>Cada fila va a la tabla de su <b>Almacén</b>, en el día de su <b>Fe.contabilización</b>. Las unidades se dividen por las botellas por estiba del maestro.</li>
+            <li>Cada fila va a la tabla de su <b>Almacén</b>, en el día de Control que escojas aquí abajo. Las unidades se dividen por las botellas por estiba del maestro.</li>
           </ul>
+
+          <label className="cas-c reg-dia">
+            <span>Sumar al Control del día</span>
+            <input type="date" value={diaControl} max={hoy} disabled={aplicando}
+                   onChange={(e) => { if (e.target.value) setDiaControl(e.target.value) }} />
+          </label>
 
           <div className="reg-archivo">
             <input ref={entrada} type="file" accept=".xlsx,.xlsm,.xls" disabled={!puedeEditar || leyendo || aplicando}
@@ -297,7 +326,7 @@ export function Registrar({ sitios, materiales, puedeEditar }: {
                 <table className="cas-tabla">
                   <thead>
                     <tr>
-                      <th>Fecha</th><th>Tabla de Control</th><th>COD</th><th>Descripción</th><th>Texto</th>
+                      <th>Fecha SAP</th><th>Tabla de Control</th><th>COD</th><th>Descripción</th><th>Texto</th>
                       <th>Va a</th><th className="n">Unidades</th><th className="n">Estibas</th><th>Estado</th>
                     </tr>
                   </thead>
@@ -332,8 +361,8 @@ export function Registrar({ sitios, materiales, puedeEditar }: {
                     {resultado.sin_sitio.length > 0 && <p className="cas-aviso mal">Almacén sin tabla en Control: {resultado.sin_sitio.join(", ")}.</p>}
                     {resultado.sin_columna.length > 0 && <p className="cas-aviso mal">Almacén sin columna de baja: {resultado.sin_columna.join(", ")}.</p>}
                     {resultado.futuras > 0 && <p className="cas-aviso mal">{resultado.futuras} fila(s) con fecha que todavía no llega: no se aplicaron.</p>}
-                    {resultado.aplicadas > 0 && fechasAplicables[0] && (
-                      <p className="cas-nota"><Link href={`/inventario/casco?fecha=${fechasAplicables[0]}`}>Ver Control del {corto(fechasAplicables[0])} →</Link></p>
+                    {resultado.aplicadas > 0 && (
+                      <p className="cas-nota"><Link href={`/inventario/casco?fecha=${diaControl}`}>Ver Control del {corto(diaControl)} →</Link></p>
                     )}
                   </>
                 )}
@@ -359,12 +388,17 @@ export function Registrar({ sitios, materiales, puedeEditar }: {
             <h2>Bajas registradas</h2>
             <p className="cas-nota">Las últimas {hechas ? hechas.length : "…"} que entraron a Control. Deshacer una resta sus estibas de la celda.</p>
           </div>
+          {puedeEditar && !!hechas?.length && (
+            <button type="button" className="btn" disabled={aplicando} onClick={() => void deshacerTodas()}>
+              Deshacer las {hechas.length}
+            </button>
+          )}
         </header>
         <div className="cas-tabla-caja reg-tabla-alta">
           <table className="cas-tabla">
             <thead>
               <tr>
-                <th>Fecha</th><th>Tabla de Control</th><th>COD</th><th>Descripción</th><th>Texto</th><th>Va a</th>
+                <th>Control del</th><th>Tabla de Control</th><th>COD</th><th>Descripción</th><th>Texto</th><th>Va a</th>
                 <th className="n">Unidades</th><th className="n">Estibas</th><th>Documento</th>{puedeEditar && <th className="x" />}
               </tr>
             </thead>

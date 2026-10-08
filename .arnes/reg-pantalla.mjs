@@ -38,6 +38,7 @@ const btn = await pag.textContent("button.btn.grande");
 ok(/Aplicar a Control \(37 filas\)/.test(btn), "botón: " + btn);
 await pag.screenshot({ path: R(".arnes/tmp/reg/previa.png"), fullPage: true });
 /* APLICAR */
+await pag.fill('.reg-dia input[type=date]', "2026-10-07");
 await pag.click("button.btn.grande");
 await pag.waitForSelector(".cf-caja, [role=dialog], [role=alertdialog]", { timeout: 3000 }).catch(() => {});
 const dlg = await pag.evaluate(() => document.body.innerText.match(/¿Aplicar[^\n]*/)?.[0]);
@@ -47,6 +48,7 @@ await pag.waitForSelector("text=Listo: 37 filas", { timeout: 3000 }).catch(() =>
 const llamadas = await pag.evaluate(() => window.llamadas);
 const ap = llamadas.find((l) => l.f === "casco_registrar_bajas");
 ok(ap && ap.a.p_filas.length === 37, "mandó 37 filas a la base");
+ok(ap && ap.a.p_fecha === "2026-10-07", "suma al día de Control escogido (hoy por defecto), no al del Excel: " + ap?.a.p_fecha);
 ok(ap && ap.a.p_filas.every((f) => f.centro && f.sku && f.llave && f.unidades > 0 && /^\d{4}-\d{2}-\d{2}$/.test(f.fecha)), "cada fila lleva centro, sku, llave, unidades positivas y fecha ISO");
 ok(ap && new Set(ap.a.p_filas.map((f) => f.llave)).size === 37, "las llaves son únicas (el documento repetido no se pisa)");
 await pag.screenshot({ path: R(".arnes/tmp/reg/aplicado.png"), fullPage: true });

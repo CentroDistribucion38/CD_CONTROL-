@@ -15,4 +15,4 @@ const materiales = [
   /* 3501225 SIN FACTOR a propósito: tiene que salir en rojo. */
   M("3501225", "Flint 250", null, null),
 ];
-createRoot(document.getElementById("raiz")!).render(<Registrar sitios={sitios as any} materiales={materiales as any} puedeEditar={true} />);
+createRoot(document.getElementById("raiz")!).render(<Registrar sitios={sitios as any} materiales={materiales as any} puedeEditar={true} hoy="2026-10-08" />);

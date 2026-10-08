@@ -94,6 +94,8 @@ create table if not exists public.casco_bajas (
   creado_por uuid references public.perfiles(id) on delete set null,
   creado_en  timestamptz not null default now()
 );
+-- `fecha` es el día de CONTROL al que se sumó; `fecha_sap` es la Fe.contabilización que traía el Excel.
+alter table public.casco_bajas add column if not exists fecha_sap date;
 create index if not exists casco_bajas_fecha_idx on public.casco_bajas (fecha desc);
 
 alter table public.casco_bajas enable row level security;
@@ -120,7 +122,7 @@ with (security_invoker = true) as
   select b.id, b.fecha, b.centro, b.ubicacion, u.nombre as ubicacion_nombre,
          b.sku, coalesce(p.nombre, e.nombre, b.sku) as descripcion,
          b.unidades, b.botellas_estiba, b.estibas, b.destino, b.texto,
-         b.documento, b.clase, b.creado_en
+         b.documento, b.clase, b.creado_en, b.fecha_sap
     from public.casco_bajas b
     join public.casco_ubicaciones u on u.clave = b.ubicacion
     left join public.productos p on p.sku = b.sku
@@ -165,7 +167,9 @@ $$;
 --            sin_sitio:[centro…], sin_columna:[centro…] }.
 -- Lo que no se pudo aplicar NO queda en el libro: se puede volver a
 -- importar el mismo archivo cuando se complete el maestro o el sitio.
-create or replace function public.casco_registrar_bajas(p_filas jsonb)
+-- La versión anterior (solo p_filas) se quita: dos funciones con el mismo nombre confunden a la API.
+drop function if exists public.casco_registrar_bajas(jsonb);
+create or replace function public.casco_registrar_bajas(p_filas jsonb, p_fecha date default null)
 returns jsonb
 language plpgsql
 security definer
@@ -174,7 +178,7 @@ as $$
 declare
   r record;
   v_hoy date := (now() at time zone 'America/Bogota')::date;
-  v_fecha date; v_centro text; v_sku text; v_uni numeric; v_texto text; v_llave text;
+  v_fecha date; v_fecha_sap date; v_centro text; v_sku text; v_uni numeric; v_texto text; v_llave text;
   v_ubic text; v_rotulo text; v_dest text; v_bot numeric; v_hl numeric; v_est numeric;
   v_id uuid; v_prev date; v_reg public.casco_registros%rowtype;
   v_apl int := 0; v_rep int := 0; v_fut int := 0;
@@ -188,13 +192,14 @@ begin
     raise exception 'Las filas tienen que venir como lista';
   end if;
 
-  -- Por fecha: el 25 arranca con lo que dejó el 24 ya aplicado.
   for r in
     select x.value as fila
       from jsonb_array_elements(coalesce(p_filas, '[]'::jsonb)) with ordinality as x(value, n)
-     order by (x.value->>'fecha'), x.n
+     order by x.n
   loop
-    v_fecha := nullif(r.fila->>'fecha', '')::date;
+    -- p_fecha = el día de Control que escogió quien registra; sin él, el día del Excel.
+    v_fecha_sap := nullif(r.fila->>'fecha', '')::date;
+    v_fecha := coalesce(p_fecha, v_fecha_sap);
     v_centro := upper(btrim(coalesce(r.fila->>'centro', '')));
     v_sku := btrim(coalesce(r.fila->>'sku', ''));
     v_uni := abs(coalesce(nullif(r.fila->>'unidades', '')::numeric, 0));
@@ -230,10 +235,10 @@ begin
     -- El libro primero: si esa fila ya entró, no se suma otra vez.
     v_id := null;
     insert into public.casco_bajas
-      (fecha, centro, ubicacion, sku, unidades, botellas_estiba, estibas, destino,
+      (fecha, fecha_sap, centro, ubicacion, sku, unidades, botellas_estiba, estibas, destino,
        texto, documento, clase, llave, creado_por)
     values
-      (v_fecha, v_centro, v_ubic, v_sku, v_uni, v_bot, v_est, v_dest,
+      (v_fecha, v_fecha_sap, v_centro, v_ubic, v_sku, v_uni, v_bot, v_est, v_dest,
        nullif(v_texto, ''), nullif(btrim(coalesce(r.fila->>'documento', '')), ''),
        nullif(btrim(coalesce(r.fila->>'clase', '')), ''), v_llave, auth.uid())
     on conflict (llave) do nothing
@@ -293,7 +298,7 @@ begin
     'sin_factor', to_jsonb(v_sin_factor), 'sin_sitio', to_jsonb(v_sin_sitio),
     'sin_columna', to_jsonb(v_sin_col));
 end $$;
-grant execute on function public.casco_registrar_bajas(jsonb) to authenticated;
+grant execute on function public.casco_registrar_bajas(jsonb, date) to authenticated;
 
 -- ---------------------------------------------------------------------
 -- 6. DESHACER UNA FILA IMPORTADA
@@ -346,6 +351,26 @@ begin
   delete from public.casco_bajas where id = p_id;
 end $$;
 grant execute on function public.casco_quitar_baja(uuid) to authenticated;
+
+-- Varias a la vez (todo o nada: si una no se puede deshacer, no se deshace ninguna).
+create or replace function public.casco_quitar_bajas(p_ids uuid[])
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_id uuid; v_n integer := 0;
+begin
+  if not public.casco_registrar_puede_editar() then
+    raise exception 'No tienes permiso para quitar bajas de casco de vidrio';
+  end if;
+  foreach v_id in array coalesce(p_ids, '{}'::uuid[]) loop
+    perform public.casco_quitar_baja(v_id);
+    v_n := v_n + 1;
+  end loop;
+  return v_n;
+end $$;
+grant execute on function public.casco_quitar_bajas(uuid[]) to authenticated;
 
 -- ---------------------------------------------------------------------
 -- 7. EL PERMISO DE LA PANTALLA NUEVA

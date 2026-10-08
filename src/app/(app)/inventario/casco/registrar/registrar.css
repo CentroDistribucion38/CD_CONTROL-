@@ -45,3 +45,6 @@
   .reg .reg-tipos { grid-template-columns: 1fr }
   .reg .cas-tabla { min-width: 760px }
 }
+
+.reg .reg-dia { max-width: 240px }
+.reg .reg-dia input { min-height: 40px }

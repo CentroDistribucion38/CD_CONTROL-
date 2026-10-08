@@ -35,12 +35,16 @@ export default async function RegistrarCascoPage() {
     );
   }
 
+  /* HOY, EN HORA DE COLOMBIA: es el día de Control al que se suma por defecto. */
+  const hoy = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Bogota" }).format(new Date());
+
   return (
     <div className="fe cas reg">
       <Registrar
         sitios={sitios.lista}
         materiales={materiales}
         puedeEditar={permisos.puedeEditar("/inventario/casco/registrar")}
+        hoy={hoy}
       />
     </div>
   );
