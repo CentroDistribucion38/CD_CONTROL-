@@ -27,7 +27,7 @@ const CONT = [
 const LIN = [
   L({ c: "c1", u: "A01IZQ", t: 999 }),              // reemplazado por c2
   L({ c: "c1", u: "Z09DER", sku: "3129", nom: "Águila Light 330", dv: 90 }),
-  L({ u: "A01IZQ", t: 160 }), L({ u: "A01DER", dv: -3, t: 80 }), L({ u: "A02IZQ", dv: 32, e: 5, t: 400 }),
+  L({ u: "A01IZQ", t: 160 }), L({ u: "A01DER", dv: -3, e: 1, t: 80 }), L({ u: "A02IZQ", dv: 32, e: 5, t: 400 }),
   L({ u: "A02IZQ", dv: 32, e: 1, t: 80 }),         // repetido + sobre capacidad (6 > 3)
   L({ u: "B01IZQ", sinf: true, sku: "3130", nom: "Póker 330" }), L({ u: "C01IZQ", tipo: "ENVASE", sku: "900", nom: "Canasta 30", sinf: true, av: true, nota: "rota" }),
   L({ u: "C02IZQ", sku: "7777", nom: "Fuera del maestro" }),
@@ -45,31 +45,49 @@ warnings.filterwarnings("ignore")
 wb = openpyxl.load_workbook("${dest}")
 wb2 = openpyxl.load_workbook("${dest}", data_only=True)
 o = {"hojas": wb.sheetnames}
-b = wb["Base"]; o["base"] = [[b.cell(r, 7).value, b.cell(r, 8).value, b.cell(r, 15).value, b.cell(r, 21).value] for r in range(7, b.max_row + 1)]
+b = wb2["Base consolidada"]; bf = wb["Base consolidada"]
+o["base"] = [[b.cell(r, 7).value, b.cell(r, 8).value, b.cell(r, 16).value, b.cell(r, 25).value] for r in range(7, b.max_row + 1)]
+o["formulas_base"] = [bf.cell(7, c).value for c in (12, 15, 16, 17, 18, 19, 20, 31)]
+o["cabeza_base"] = [bf.cell(6, c).value for c in range(1, 32)]
 v = wb["Validar"]; o["validar"] = [v.cell(r, 1).value for r in range(7, v.max_row + 1)]
 s = wb["Sin contar"]; o["sin"] = [s.cell(r, 1).value for r in range(7, s.max_row + 1)]
 import zipfile
 o["imgs"] = len([n for n in zipfile.ZipFile("${dest}").namelist() if n.startswith("xl/media/") and not n.endswith("/")])
 o["total"] = b.cell(b.max_row, 1).value
 o["hora"] = str(b.cell(7, 3).value)
-o["filtro"] = b.auto_filter.ref
-# LO CONTADO: las cuatro tarjetas van en la fila 13 (rótulo en la 12).
-z = wb["Resumen"]
+o["filtro"] = bf.auto_filter.ref
+z = wb2["Resumen"]
 o["contado"] = {"cajas": z.cell(13, 2).value, "unidades": z.cell(13, 4).value, "estibas": z.cell(13, 6).value, "renglones": z.cell(13, 8).value}
 o["rotulos"] = [z.cell(12, c).value for c in (2, 4, 6, 8)]
-o["aclara"] = z.cell(20, 5).value
-# La tabla de riesgo: 7 franjas desde la 22, el total en la 29.
-o["riesgo"] = {"cajas": wb2["Resumen"].cell(29, 4).value, "rot": z.cell(29, 2).value}
-o["cuadre"] = [str(z.cell(r, 8).value) for r in range(30, 40)]
-m = wb["Por material"]
-o["mats"] = [[m.cell(r, 1).value, m.cell(r, 3).value, m.cell(r, 7).value] for r in range(7, m.max_row + 1)]
+o["estibas_tarjetas"] = [[z.cell(20, c).value for c in (2, 4, 6, 8)], [z.cell(21, c).value for c in (2, 4, 6, 8)]]
+col = [z.cell(r, 2).value for r in range(1, z.max_row + 1)]
+def fila(txt, desde=1):
+    for r in range(desde, z.max_row + 1):
+        if z.cell(r, 2).value == txt: return r
+rr = fila("Riesgo de vencimiento"); rt = fila("Total", rr)
+o["aclara"] = z.cell(rr, 5).value
+o["riesgo"] = {"cajas": z.cell(rt, 4).value, "rot": z.cell(rt, 2).value}
+rc = fila("Clase"); rct = fila("Total", rc)
+o["clases"] = {z.cell(r, 2).value: [z.cell(r, c).value for c in range(4, 10)] for r in range(rc + 1, rct + 1)}
+rk = fila("Calle"); rkt = fila("Total", rk)
+o["calles"] = {z.cell(r, 2).value: [z.cell(r, c).value for c in range(4, 10)] for r in range(rk + 1, rkt + 1)}
+cu = fila("Cuadre de cajas"); o["cuadre"] = [str(z.cell(cu, 8).value), str(wb["Resumen"].cell(cu, 8).value)]
+m = wb2["Por material"]
+o["mats"] = [[m.cell(r, 1).value, m.cell(r, 3).value, m.cell(r, 8).value] for r in range(7, m.max_row + 1)]
+u = wb2["Por ubicación"]
+o["ubi"] = {u.cell(r, 1).value: [u.cell(r, c).value for c in range(5, 15)] for r in range(7, u.max_row)}
+for nom in ("Base envase", "Base producto"):
+    t = wb2[nom]; o[nom] = [[t.cell(r, c).value for c in (8, 12, 16)] for r in range(7, t.max_row)]
+a = wb2["Análisis"]
+o["analisis"] = [[a.cell(r, c).value for c in range(1, 8)] for r in range(1, a.max_row + 1)]
+o["maestro"] = [[wb2["Maestro"].cell(r, c).value for c in range(1, 7)] for r in range(7, wb2["Maestro"].max_row + 1)]
 print(json.dumps(o, default=str))
 P`).toString();
 const x = JSON.parse(py);
-ok(x.hojas.join() === "Resumen,Base,Por material,Por ubicación,Validar,Sin contar", `hojas: ${x.hojas}`);
+ok(x.hojas.join() === "Resumen,Base consolidada,Base envase,Base producto,Análisis,Por material,Por ubicación,Validar,Sin contar,Maestro", `hojas: ${x.hojas}`);
 ok(x.imgs === 1, "el libro no trae el logo");
 /* LA HORA ES LA DE COLOMBIA: 14:00 UTC = 09:00 en Bogotá (antes salía 14:00, cinco horas adelantada). */
-ok(x.hora === "2026-09-22 09:00:00", `«Contado» en la hoja Base: ${x.hora} (debe ser 2026-09-22 09:00:00, hora de Colombia)`);
+ok(x.hora === "2026-09-22 09:00:00", `«Contado» en la hoja Base consolidada: ${x.hora} (debe ser 2026-09-22 09:00:00, hora de Colombia)`);
 /* LA HOJA BASE ES LA MISMA «LA BASE» DE LA PANTALLA: se compara con el cruce que usa la pantalla (base-cruce.ts). */
 const jc = buildSync({ entryPoints: [R("src/modulos/inventario/base-cruce.ts")], bundle: true, write: false, format: "esm", platform: "node", logLevel: "silent" }).outputFiles[0].text;
 writeFileSync(R(".arnes/_cruce.mjs"), jc);
@@ -98,37 +116,101 @@ ok(x.total === "TOTAL (lo filtrado)", "no hay fila de totales");
 for (const t of ["Repetido", "Sin fecha", "Vencido", "Código fuera del maestro", "Sobre capacidad", "Reemplazado", "Avería"])
   ok(x.validar.includes(t), `Validar no avisa «${t}»: ${x.validar}`);
 ok(JSON.stringify(x.sin) === JSON.stringify(["D01IZQ", "D02DER"]), `sin contar: ${x.sin}`);
-ok(x.filtro === "A6:AA14", `filtro de la base: ${x.filtro}`);
+ok(x.filtro === "A6:AE14", `filtro de la base: ${x.filtro}`);
 
 /* ---------- EL ENVASE CUENTA EN LO CONTADO Y NO CUENTA EN EL RIESGO ----
-   La foto son 8 renglones: 1.360 cajas y 18 estibas, de las cuales 160
+   La foto son 8 renglones: 1.360 cajas y 17 estibas, de las cuales 160
    cajas y 2 estibas son canastas (ENVASE). La canasta no se vence, así
    que la tabla de riesgo suma 1.200 — pero «LO CONTADO» tiene que decir
-   1.360, o el Excel enseña 18 estibas al lado de 1.200 cajas y nadie
+   1.360, o el Excel enseña 17 estibas al lado de 1.200 cajas y nadie
    sabe cuál de las dos está mala. Este es el defecto que traía PRUEBA:
    un día de solo envase salía en ceros con las estibas puestas. */
-ok(JSON.stringify(x.rotulos) === JSON.stringify(["CAJAS", "UNIDADES", "ESTIBAS", "RENGLONES"]), `las tarjetas de LO CONTADO se movieron de fila: ${x.rotulos}`);
+ok(JSON.stringify(x.rotulos) === JSON.stringify(["CAJAS", "UNIDADES", "ESTIBAS FÍSICAS", "RENGLONES"]), `las tarjetas de LO CONTADO se movieron de fila: ${x.rotulos}`);
 ok(x.contado.cajas === 1360, `LO CONTADO · cajas: ${x.contado.cajas} (1360 con el envase)`);
-ok(x.contado.estibas === 18, `LO CONTADO · estibas: ${x.contado.estibas}`);
+ok(x.contado.estibas === 17, `LO CONTADO · estibas: ${x.contado.estibas}`);
 ok(x.contado.renglones === 8, `LO CONTADO · renglones: ${x.contado.renglones}`);
 /* 1.040 cajas traen factor (las 160 de Póker y las 160 del código fuera
    del maestro no), y 160 de esas 1.040 son canastas: si el envase se
    volviera a quedar por fuera, esto cae a 26.400. */
 ok(x.contado.unidades === 31200, `LO CONTADO · unidades: ${x.contado.unidades} (31200 = 1040 cajas con factor × 30, envase incluido)`);
-ok(x.riesgo.rot === "Total", `la fila 29 del Resumen ya no es el total del riesgo: ${x.riesgo.rot}`);
+ok(x.riesgo.rot === "Total", `no se halló el total del riesgo: ${x.riesgo.rot}`);
 ok(x.riesgo.cajas === 1200, `riesgo · total de cajas: ${x.riesgo.cajas} (1200: sin las 160 del envase)`);
 ok(/envase/i.test(x.aclara ?? ""), `falta la aclaración de que el riesgo es solo producto: ${x.aclara}`);
 /* EL CUADRE APUNTA A LA TARJETA, NO A LA TABLA DE RIESGO. Con «D29» la
    diferencia salía de 160 cajas que nadie perdió. */
-const cuadre = x.cuadre.find((c) => c.includes("-"));
+const cuadre = x.cuadre[1];
 ok(!!cuadre && cuadre.includes("B13") && !cuadre.includes("D29"), `el cuadre no compara contra LO CONTADO: ${cuadre}`);
 const mats = x.mats.slice(0, -1);   // la última es la fila de totales
 const m900 = mats.find((m) => m[0] === "900");
 ok(!!m900, `«Por material» se saltó el envase: ${mats.map((m) => m[0])}`);
 ok(m900 && m900[1] === "ENVASE" && m900[2] === 160, `el envase en «Por material» salió mal: ${JSON.stringify(m900)}`);
 ok(mats.length === 5, `«Por material»: ${mats.length} materiales (5 con el envase y el que está fuera del maestro)`);
+
+/* ---------- TODO FORMULADO: de dónde sale cada cifra ---------- */
+ok(!JSON.stringify(x.cabeza_base).includes("Cajas sueltas"), "«Cajas sueltas» sigue como columna");
+ok(x.cabeza_base.includes("Cajas por estiba") && x.cabeza_base.includes("Estibas físicas") && x.cabeza_base.includes("Cajas plásticas"), `faltan columnas de factor/estibas/plástico: ${x.cabeza_base}`);
+ok(x.formulas_base.every((f) => typeof f === "string" && f.startsWith("=")), `la base no está formulada: ${JSON.stringify(x.formulas_base)}`);
+ok(/Maestro!/.test(x.formulas_base[1]), "el factor de estibado no sale de Maestro");
+ok(/\*/.test(x.formulas_base[2]), "el total de cajas no es estibas × factor + saldo");
+/* La fórmula tiene que dar lo mismo que guardó la aplicación (las 8 de la base). */
+ok(!x.validar.includes("No cuadra con la aplicación"), "la fórmula del total de cajas no cuadra con la aplicación");
+/* Clases: producto 6 renglones (A01IZQ, A01DER, A02IZQ×2, B01IZQ, C02IZQ), envase 1 (la canasta). */
+ok(x.clases.Producto?.[0] === 7, `clase Producto: ${JSON.stringify(x.clases.Producto)}`);
+ok(x.clases.Envase?.[0] === 1 && x.clases.Envase?.[2] === 160, `clase Envase: ${JSON.stringify(x.clases.Envase)}`);
+ok(x.clases.Envase?.[3] === 160, `cajas plásticas del envase: ${JSON.stringify(x.clases.Envase)}`);
+ok(x.clases.Total?.[2] === 1360, `total cajas en la tabla por clase: ${JSON.stringify(x.clases.Total)}`);
+/* Estibas físicas: las completas, y 0 por saldo (en esta prueba no hay saldos). */
+ok(x.clases.Total?.[1] === 17, `estibas físicas: ${JSON.stringify(x.clases.Total)}`);
+ok(x.estibas_tarjetas[0].join() === "LIBRES,CON ENVASE,CON PLÁSTICO,CON PRODUCTO", `tarjetas de estibas: ${x.estibas_tarjetas}`);
+ok(x.estibas_tarjetas[1][1] === 2 && x.estibas_tarjetas[1][3] === 15, `estibas con envase/producto: ${x.estibas_tarjetas[1]}`);
+ok(x.ubi["C01IZQ"] && x.ubi["C01IZQ"][1] === 2 && x.ubi["C01IZQ"][5] === 1, `C01IZQ: ${JSON.stringify(x.ubi["C01IZQ"])} (2 con envase, 1 libre... capacidad 3)`);
+ok(x.ubi["B01IZQ"] && x.ubi["B01IZQ"][3] === 2 && x.ubi["B01IZQ"][5] === 1, `B01IZQ: ${JSON.stringify(x.ubi["B01IZQ"])} (2 con producto, 1 libre)`);
+ok(x["Base envase"].length === 1 && x["Base envase"][0][0] === "900", `Base envase: ${JSON.stringify(x["Base envase"])}`);
+ok(x["Base producto"].length === 7, `Base producto: ${x["Base producto"].length} renglones (7)`);
+ok(x.analisis.some((f) => f[0] === "Por calle y clase") && x.analisis.some((f) => f[0] === "Producto por franja de vencimiento"), "faltan las tablas del Análisis");
+ok(x.maestro.some((m) => m[0] === "3128" && m[3] === 80 && m[4] === 30), `Maestro: ${JSON.stringify(x.maestro)}`);
+
+/* ---------- LAS FÓRMULAS CALCULAN SOLAS ----------
+   Se quitan los resultados guardados y LibreOffice recalcula: si una
+   fórmula estuviera mal escrita, el valor no sería el que se guardó. */
+{
+  const { unzipSync, zipSync } = await import("fflate");
+  const z = unzipSync(new Uint8Array(buf));
+  for (const k of Object.keys(z)) if (/^xl\/worksheets\/sheet\d+\.xml$/.test(k)) {
+    let t = new TextDecoder().decode(z[k]);
+    t = t.replace(/(<f>[^<]*<\/f>)<v>[^<]*<\/v>/g, "$1").replace(/(<c [^>]*?) t="str"([^>]*>)(<f>)/g, "$1$2$3");
+    z[k] = new TextEncoder().encode(t);
+  }
+  const dir = (process.env.FOTO ?? "/tmp") + "/recalc"; execSync(`rm -rf ${dir} && mkdir -p ${dir}/out`);
+  writeFileSync(dir + "/sin-cache.xlsx", Buffer.from(zipSync(z)));
+  try { execSync(`cd ${dir} && timeout 120 soffice --headless --convert-to xlsx --outdir out sin-cache.xlsx >/dev/null 2>&1`); } catch { fallas.push("LibreOffice no recalculó el libro sin resultados guardados") }
+  const cmp = execSync(`python3 - <<'P'
+import openpyxl, json, warnings
+warnings.filterwarnings("ignore")
+a = openpyxl.load_workbook("${dest}", data_only=True)
+b = openpyxl.load_workbook("${dir}/out/sin-cache.xlsx", data_only=True)
+f = openpyxl.load_workbook("${dest}")
+malas = []; n = 0
+for ws in f.worksheets:
+    for row in ws.iter_rows():
+        for c in row:
+            if isinstance(c.value, str) and c.value.startswith("=") and "HYPERLINK" not in c.value:
+                n += 1
+                x = a[ws.title][c.coordinate].value; y = b[ws.title][c.coordinate].value
+                if x in (None, "") and y in (None, ""): continue
+                try:
+                    ok = abs(float(x) - float(y)) < 0.01
+                except Exception:
+                    ok = str(x) == str(y)
+                if not ok: malas.append([ws.title, c.coordinate, c.value[:70], x, y])
+print(json.dumps({"n": n, "malas": malas[:12], "total_malas": len(malas)}, default=str))
+P`).toString();
+  const rc = JSON.parse(cmp);
+  ok(rc.n > 200, `pocas fórmulas en el libro: ${rc.n}`);
+  ok(rc.total_malas === 0, `fórmulas que recalculadas dan otra cosa (${rc.total_malas} de ${rc.n}): ${JSON.stringify(rc.malas)}`);
+}
 /* LibreOffice lo abre sin quejarse y lo pasa a PDF. */
 try { execSync(`cd ${process.env.FOTO ?? "/tmp"} && timeout 90 soffice --headless --convert-to pdf inventario-dia.xlsx >/dev/null 2>&1`); }
 catch { fallas.push("LibreOffice no pudo abrir el archivo") }
 if (fallas.length) { fallas.forEach((f) => console.log("✗ " + f)); process.exit(1) }
-console.log("✓ Consolidado del día en Excel: 6 hojas con logo, base sin duplicar recorridos, totales que siguen al filtro, validación y sin contar; abre en LibreOffice.");
+console.log("✓ Consolidado del día en Excel: 10 hojas con logo, todo formulado, base sin duplicar recorridos, totales que siguen al filtro, validación y sin contar; abre en LibreOffice.");

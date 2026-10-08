@@ -31,7 +31,7 @@ const UBI = LIN.map((l) => ({ id: l.ubicacion_id, bodega_id: "b", clave: l.ubica
 const CONT = [{ id: "c1", codigo: "FEFO-01", estado: "cerrado", bodega: "AG01", responsable: "Ana", fecha_analisis: "2026-10-01", enviado_en: "2026-10-01T18:00:00Z", envio_nombre: null, renglones: LIN.length, ubicaciones: 9, total_cajas: 800 }];
 const buf = await armarLibroDia({ fecha: "2026-10-01", bodega: "AG01", quien: "Cristian", conteos: CONT, lineas: LIN, materiales: MAT, ubicaciones: UBI });
 const wb = new ExcelJS.Workbook(); await wb.xlsx.load(buf);
-const base = wb.getWorksheet("Base");
+const base = wb.getWorksheet("Base consolidada");
 const filas = []; for (let f = 7; f < 7 + LIN.length; f++) filas.push([base.getCell(f, 4).value, base.getCell(f, 5).value, base.getCell(f, 6).value, base.getCell(f, 8).value].join("/"));
 const esperado = ["A/01/DER/3128", "A/01/IZQ/3128", "A/02/IZQ/3128", "A/02/IZQ/3129", "A/9/IZQ/3128", "A/10/DER/3128", "A/PASILLO//3128", "B/01/DER/3128", "B/02/IZQ/3128", "EST/01/DER/3128"];
 ok(JSON.stringify(filas) === JSON.stringify(esperado), "orden de la hoja Base:\n  " + filas.join("\n  ") + "\n  (debía ser)\n  " + esperado.join("\n  "));
@@ -46,7 +46,7 @@ for (const [col, nombre] of [[9, "Material"], [1, "Recorrido"], [4, "Calle"], [7
   ok(al(base, col, 7) === "left", `«${nombre}» en datos no está a la izquierda: ${al(base, col, 7)}`);
   ok(al(base, col, 6) === "left", `el título «${nombre}» no está a la izquierda: ${al(base, col, 6)}`);
 }
-for (const [col, nombre] of [[12, "Estibas"], [15, "Total cajas"], [16, "Unidades"]]) {
+for (const [col, nombre] of [[13, "Estibas completas"], [16, "Total cajas"], [20, "Unidades"]]) {
   ok(al(base, col, 7) === "right", `«${nombre}» en datos no está a la derecha: ${al(base, col, 7)}`);
   ok(al(base, col, 6) === "right", `el título «${nombre}» no está a la derecha: ${al(base, col, 6)}`);
 }

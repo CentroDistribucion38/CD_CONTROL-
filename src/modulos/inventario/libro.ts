@@ -156,7 +156,7 @@ function filaDatos(r: ExcelJS.Row, n: number, par: boolean, fmts: Record<number,
 }
 
 /** Totales que SIGUEN AL FILTRO (SUBTOTAL 109): filtras y la cifra cambia. */
-function totales(h: ExcelJS.Worksheet, fila: number, desde: number, hasta: number, cols: number[], ancho: number, rotulo = "TOTAL (lo filtrado)") {
+function totales(h: ExcelJS.Worksheet, fila: number, desde: number, hasta: number, cols: number[], ancho: number, rotulo = "TOTAL (lo filtrado)", fmt: Record<number, string> = {}) {
   const r = h.getRow(fila); r.height = 22;
   for (let c = 1; c <= ancho; c++) { const cel = r.getCell(c); cel.fill = relleno(FONDO); cel.border = { top: { style: "medium", color: { argb: TINTA } } }; cel.font = letra(9.5, TINTA, true); cel.alignment = { vertical: "middle" } }
   r.getCell(1).value = rotulo;
@@ -165,9 +165,13 @@ function totales(h: ExcelJS.Worksheet, fila: number, desde: number, hasta: numbe
     /* El resultado va calculado: así se ve bien aunque el programa no
        recalcule al abrir (vista previa del correo, LibreOffice). */
     let suma = 0;
-    for (let f = desde; f <= hasta; f++) { const v = h.getRow(f).getCell(c).value; if (typeof v === "number") suma += v }
+    for (let f = desde; f <= hasta; f++) {
+      const v = h.getRow(f).getCell(c).value;
+      if (typeof v === "number") suma += v;
+      else if (v && typeof v === "object" && "result" in v && typeof v.result === "number") suma += v.result;
+    }
     r.getCell(c).value = { formula: `SUBTOTAL(109,${L}${desde}:${L}${hasta})`, result: suma };
-    r.getCell(c).numFmt = NUM;
+    r.getCell(c).numFmt = fmt[c] ?? NUM;
   }
 }
 
@@ -216,6 +220,80 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     (parcial ? `${d.conteos.length} de ${d.totalDelDia} FEFO ${periodo ? "del período" : "del día"} (escogidos: ${d.conteos.map((c) => c.codigo).join(", ")})`
              : `${d.conteos.length} FEFO enviado${d.conteos.length === 1 ? "" : "s"}`) + ` · exportó ${d.quien} el ${new Date().toLocaleString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Bogota" }).replace(",", "")}`;
 
+
+  /* ================= LAS CUENTAS, UNA SOLA VEZ =================
+     «Quiero que esté formulado para saber de dónde sale la información.»
+     Cada cifra derivada del libro es una FÓRMULA de Excel sobre la hoja
+     «Base consolidada» (y esta, sobre «Maestro»): aquí se calcula también
+     el resultado, para que el archivo se vea bien aunque el programa no
+     recalcule al abrir (vista previa del correo, LibreOffice).
+
+         Total cajas     = estibas completas × cajas por estiba + saldo
+         Estibas físicas = estibas completas + 1 si hay saldo (la estiba
+                           incompleta también ocupa un puesto)
+         Unidades        = total cajas × unidades por caja
+         Cajas plásticas = el total de cajas de lo que viaja en cajas
+                           plásticas (el envase con botella y la caja vacía)
+     «Cajas sueltas» ya no es una columna: las sueltas y el saldo son lo
+     mismo —lo que no alcanza a ser una estiba completa— y van juntas. */
+  type Clase = "Producto" | "Envase" | "Plástico" | "Otro envase";
+  const CLASES: Clase[] = ["Producto", "Envase", "Plástico", "Otro envase"];
+  const claseDe = (l: Renglon): Clase =>
+    l.tipo_material !== "ENVASE" ? "Producto" : /CAJA PL/i.test(l.material) ? "Plástico" : /BARRIL|ESTIBA/i.test(l.material) ? "Otro envase" : "Envase";
+  /* El factor de estibado de cada código: el que usó la aplicación para
+     su total; si no vino, el del maestro; y si tampoco, el que se deduce. */
+  const factorDe = new Map<string, number>();
+  for (const l of base) {
+    if (factorDe.get(l.codigo)) continue;
+    const est = Number(l.estibas ?? 0), resto = Number(l.cajas ?? 0) + Number(l.saldo ?? 0);
+    const f = Number(l.factor_estibado) || Number(matPorSku.get(l.codigo)?.cajas_por_estiba) || (est > 0 ? (Number(l.total_cajas) - resto) / est : 0);
+    factorDe.set(l.codigo, f > 0 ? f : 0);
+  }
+  type Fila = { l: Renglon; clase: Clase; estibas: number; saldo: number; factor: number; cajas: number; fisicas: number; plast: number; uxc: number; unid: number; hl: number };
+  const filas: Fila[] = base.map((l) => {
+    const estibas = Number(l.estibas ?? 0), saldo = Number(l.cajas ?? 0) + Number(l.saldo ?? 0), factor = factorDe.get(l.codigo) ?? 0;
+    const cajas = estibas * factor + saldo, clase = claseDe(l), u = Number(uxc[l.codigo] ?? 0);
+    return { l, clase, estibas, saldo, factor, cajas, fisicas: estibas + (saldo > 0 ? 1 : 0), plast: clase === "Envase" || clase === "Plástico" ? cajas : 0,
+      uxc: u, unid: cajas * u, hl: cajas * u * Number(hlu[l.codigo] ?? 0) };
+  });
+  const codigosBase = [...new Set(base.map((l) => l.codigo))].sort((a, b) => a.localeCompare(b, "es", { numeric: true }));
+  const finM = 6 + Math.max(codigosBase.length, 1);
+  const fin = 6 + Math.max(base.length, 1);      // última fila de «Base consolidada»
+  const BC = "'Base consolidada'";
+  /* Las columnas de la base. `k` es el nombre con que se les llama aquí. */
+  type ColB = { k: string; t: string; w: number; fmt?: string; num?: boolean };
+  const CB: ColB[] = [
+    { k: "rec", t: "Recorrido", w: 12 }, { k: "conto", t: "Contó", w: 18 }, { k: "cuando", t: "Contado", w: 16, fmt: "dd/mm/yy hh:mm" },
+    { k: "calle", t: "Calle", w: 8 }, { k: "modulo", t: "Módulo", w: 8 }, { k: "lado", t: "Lado", w: 7 }, { k: "ubic", t: "Ubicación", w: 14 },
+    { k: "cod", t: "Código", w: 10 }, { k: "mat", t: "Material", w: 34 }, { k: "tipo", t: "Tipo", w: 11 }, { k: "fam", t: "Familia", w: 13 },
+    { k: "clase", t: "Clase", w: 13 },
+    { k: "estibas", t: "Estibas completas", w: 11, fmt: "#,##0", num: true }, { k: "saldo", t: "Saldo (cajas)", w: 10, fmt: "#,##0", num: true },
+    { k: "factor", t: "Cajas por estiba", w: 10, fmt: "#,##0", num: true }, { k: "cajas", t: "Total cajas", w: 11, fmt: "#,##0", num: true },
+    { k: "fisicas", t: "Estibas físicas", w: 10, fmt: "#,##0", num: true }, { k: "plast", t: "Cajas plásticas", w: 11, fmt: "#,##0", num: true },
+    { k: "uxc", t: "Unidades por caja", w: 10, fmt: "#,##0", num: true }, { k: "unid", t: "Unidades", w: 12, fmt: "#,##0", num: true },
+    { k: "fab", t: "Fabricación", w: 12, fmt: "dd/mm/yyyy" }, { k: "venc", t: "Vencimiento", w: 12, fmt: "dd/mm/yyyy" },
+    { k: "dvenc", t: "Días p/vencer", w: 10, fmt: "0", num: true }, { k: "dsal", t: "Días p/salir", w: 10, fmt: "0", num: true },
+    { k: "franja", t: "Franja", w: 22 }, { k: "rota", t: "Rota", w: 6 }, { k: "averia", t: "Avería", w: 7 }, { k: "pnc", t: "PNC", w: 6 },
+    { k: "estenv", t: "Estado envase", w: 14 }, { k: "nota", t: "Nota", w: 30 }, { k: "hl", t: "Hectolitros", w: 12, fmt: "#,##0.00", num: true },
+  ];
+  const K = Object.fromEntries(CB.map((c, i) => [c.k, i + 1])) as Record<string, number>;
+  const LB = (k: string) => col(K[k]);
+  const rb = (k: string) => `${BC}!$${LB(k)}$7:$${LB(k)}$${fin}`;      // el rango de una columna de la base
+  const filaVal = (x: Fila): Record<string, string | number | Date | null> => {
+    const l = x.l;
+    return {
+      rec: l.conteo, conto: l.conto ?? "", cuando: aFecha(l.contado_en), calle: l.calle ?? "", modulo: l.modulo ?? "", lado: l.lado ?? "", ubic: l.ubicacion_combinada ?? l.ubicacion ?? "Sin ubicación",
+      cod: l.codigo, mat: l.material, tipo: l.tipo_material, fam: l.familia ?? "Sin familia", clase: x.clase, estibas: x.estibas, saldo: x.saldo, factor: x.factor, cajas: x.cajas,
+      fisicas: x.fisicas, plast: x.plast, uxc: x.uxc, unid: x.unid, fab: aFecha(l.fabricacion), venc: aFecha(l.vencimiento), dvenc: l.dias_para_vencer, dsal: l.dias_para_salir,
+      franja: rotFr(franja(l)), rota: siNo(l.rotacion), averia: siNo(l.averia), pnc: siNo(l.pnc), estenv: l.estado_envase ?? "", nota: l.nota ?? "", hl: x.hl,
+    };
+  };
+  const planos = filas.map(filaVal);
+  /* La medida que escoge quien mira: el título de la columna de la base. */
+  const MEDIDAS: { t: string; k: keyof Fila }[] = [
+    { t: "Estibas físicas", k: "fisicas" }, { t: "Total cajas", k: "cajas" }, { t: "Cajas plásticas", k: "plast" }, { t: "Unidades", k: "unid" }, { t: "Hectolitros", k: "hl" },
+  ];
+
   /* ================= VALIDAR (se arma primero: el resumen la cuenta) ================= */
   type Ojo = { tipo: string; grave: boolean; ubicacion: string; codigo: string; material: string; detalle: string; recorrido: string };
   const ojos: Ojo[] = [];
@@ -234,13 +312,19 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     if (l.averia || l.pnc) ojos.push({ tipo: l.averia ? "Avería" : "PNC", grave: false, ubicacion: ub(l), codigo: l.codigo, material: l.material, detalle: l.nota ?? "Marcado en el conteo.", recorrido: l.conteo });
   }
   /* Módulos por encima de su capacidad (en estibas, como el maestro). */
-  const porUbi = new Map<string, { ubicacion: string; calle: string | null; modulo: string | null; lado: string | null; capacidad: number | null; estibas: number; cajas: number; renglones: number; materiales: Set<string> }>();
-  for (const l of base) {
-    const k = ub(l);
-    const x = porUbi.get(k) ?? { ubicacion: k, calle: l.calle, modulo: l.modulo, lado: l.lado, capacidad: l.capacidad, estibas: 0, cajas: 0, renglones: 0, materiales: new Set<string>() };
-    x.estibas += Number(l.total_estibas ?? 0); x.cajas += Number(l.total_cajas ?? 0); x.renglones += 1; x.materiales.add(l.codigo);
+  type UbiX = { ubicacion: string; calle: string | null; modulo: string | null; lado: string | null; capacidad: number | null; estibas: number; envase: number; plastico: number; producto: number; cajas: number; renglones: number; materiales: Set<string> };
+  const porUbi = new Map<string, UbiX>();
+  for (const x0 of filas) {
+    const l = x0.l, k = ub(l);
+    const x = porUbi.get(k) ?? { ubicacion: k, calle: l.calle, modulo: l.modulo, lado: l.lado, capacidad: l.capacidad, estibas: 0, envase: 0, plastico: 0, producto: 0, cajas: 0, renglones: 0, materiales: new Set<string>() };
+    x.estibas += x0.fisicas; x.cajas += x0.cajas; x.renglones += 1; x.materiales.add(l.codigo);
+    if (x0.clase === "Producto") x.producto += x0.fisicas; else if (x0.clase === "Plástico") x.plastico += x0.fisicas; else x.envase += x0.fisicas;
     porUbi.set(k, x);
   }
+  /* Lo que la aplicación guardó contra lo que sale de la fórmula. Si no coinciden, el factor de estibado del maestro está mal. */
+  for (const x of filas) if (Math.abs(x.cajas - Number(x.l.total_cajas)) > 0.5)
+    ojos.push({ tipo: "No cuadra con la aplicación", grave: true, ubicacion: ub(x.l), codigo: x.l.codigo, material: x.l.material,
+      detalle: `La fórmula da ${x.cajas.toLocaleString("es-CO")} cajas (${x.estibas} estibas × ${x.factor} + ${x.saldo}) y la aplicación guardó ${Number(x.l.total_cajas).toLocaleString("es-CO")}. Revisa el factor de estibado.`, recorrido: x.l.conteo });
   for (const x of porUbi.values()) if (x.capacidad && x.estibas > x.capacidad)
     ojos.push({ tipo: "Sobre capacidad", grave: false, ubicacion: x.ubicacion, codigo: "", material: "", detalle: `Hay ${x.estibas} estibas y caben ${x.capacidad}.`, recorrido: "" });
   for (const l of reemplazados)
@@ -252,6 +336,14 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
   const sinContar = d.ubicaciones.filter((u) => u.activa && !contadas.has(u.id))
     .sort((a, b) => porSitio(a, b, (x) => x.clave));
   const activas = d.ubicaciones.filter((u) => u.activa).length;
+  /* «Por ubicación» se calcula aquí: el resumen suma sus columnas. */
+  const us = [...porUbi.values()].sort((a, b) => porSitio(a, b, (x) => x.ubicacion));
+  const finU = 6 + Math.max(us.length, 1);
+  const PU = "'Por ubicación'";
+  const ru = (c: number) => `${PU}!$${col(c)}$7:$${col(c)}$${finU}`;
+  const libresDe = (x: UbiX) => (x.capacidad ? Math.max(0, x.capacidad - x.estibas) : null);
+  const sumaU = (f: (x: UbiX) => number | null) => us.reduce((a, x) => a + (f(x) ?? 0), 0);
+  const fx = (formula: string, result: number | string) => ({ formula, result });
 
   /* ================= 1 · RESUMEN =================
      Como el que mandó «gris claro»: la banda, el sello, el avance del
@@ -292,7 +384,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
 
     /* LAS TARJETAS: rótulo chiquito arriba, la cifra grande abajo, y la
        raya de la izquierda que dice de qué color es la noticia. */
-    const tarjetas = (f: number, titulo: string, cs: [string, number, string, string, string?][]) => {
+    const tarjetas = (f: number, titulo: string, cs: [string, ExcelJS.CellValue, string, string, string?][]) => {
       alto(f - 1, 13.5); alto(f, 15.75); alto(f + 1, 18); alto(f + 2, 33.75);
       pon(f, 2, titulo, letra(8, TINTA, true));
       cs.forEach(([rot, v, fmt, raya, color], i) => {
@@ -308,8 +400,9 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
        estibas se sumaban aquí sobre la base y las cajas venían del
        riesgo: por eso un día de solo envase decía 150 estibas y 0 cajas.
        Cuatro cifras de la misma foto o ninguna. */
-    tarjetas(11, "LO CONTADO", [["CAJAS", inventario.cajas, NUM, BANDA], ["UNIDADES", inventario.unidades, NUM, BANDA],
-      ["ESTIBAS", inventario.estibas, NUM, BANDA], ["RENGLONES", inventario.renglones, NUM, BANDA]]);
+    const tot = (k: keyof Fila) => filas.reduce((a, x) => a + Number(x[k]), 0);
+    tarjetas(11, "LO CONTADO", [["CAJAS", fx(`SUM(${rb("cajas")})`, tot("cajas")), NUM, BANDA], ["UNIDADES", fx(`SUM(${rb("unid")})`, tot("unid")), NUM, BANDA],
+      ["ESTIBAS FÍSICAS", fx(`SUM(${rb("fisicas")})`, tot("fisicas")), NUM, BANDA], ["RENGLONES", fx(`COUNTA(${rb("cod")})`, filas.length), NUM, BANDA]]);
     const vencidas = franjas.vencido.cajas + franjas.pasado.cajas;
     const margen = totalCajas ? franjas.ok.cajas / totalCajas : 0;
     tarjetas(15, "PARA REVISAR", [
@@ -318,7 +411,15 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
       ["POR VALIDAR", graves, NUM, graves ? ROJO : VERDE, graves ? ROJO : VERDE],
       ["CON MARGEN", margen, PCT, VERDE, VERDE],
     ]);
-    alto(18, 13.5); alto(19, 6);
+    /* LAS ESTIBAS DE LOS MÓDULOS CONTADOS: cada estiba que se coloca —de
+       envase, de plástico o de producto— ocupa un puesto del módulo. */
+    tarjetas(19, "ESTIBAS DE LOS MÓDULOS CONTADOS", [
+      ["LIBRES", fx(`SUM(${ru(10)})`, sumaU(libresDe)), NUM, VERDE, VERDE],
+      ["CON ENVASE", fx(`SUM(${ru(6)})`, sumaU((x) => x.envase)), NUM, BANDA],
+      ["CON PLÁSTICO", fx(`SUM(${ru(7)})`, sumaU((x) => x.plastico)), NUM, BANDA],
+      ["CON PRODUCTO", fx(`SUM(${ru(8)})`, sumaU((x) => x.producto)), NUM, BANDA],
+    ]);
+    alto(22, 13.5);
 
     /* Una tabla del resumen: encabezado claro, raya fina, total con la
        raya de la tinta encima. B:C van juntas en la primera columna. */
@@ -341,31 +442,85 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
       }
     };
 
+    /* DEL CONTEO A CAJAS, PLÁSTICO Y UNIDADES: cada columna es una
+       fórmula sobre «Base consolidada», así se ve de dónde sale. */
+    let f = 22;
+    f += 1; alto(f, 19.5); pon(f, 2, "Del conteo a cajas, plástico y unidades", letra(11, TINTA, true));
+    unir(f, 5, 9);
+    pon(f, 5, "estibas × cajas por estiba + saldo = cajas  ·  cajas × unidades por caja = unidades", letra(8.5, GRIS, false, true), { alignment: { horizontal: "right", vertical: "middle" } });
+    f += 1; fila(f, ["Clase", "Renglones", "Estibas físicas", "Total cajas", "Cajas plásticas", "Unidades", "Hectolitros"], "cabeza");
+    for (let c = 4; c <= 9; c++) h.getCell(f, c).alignment = { horizontal: "right", vertical: "middle", indent: 1, wrapText: true };
+    const c1 = f + 1;
+    const sumaClase = (c: Clase, k: keyof Fila) => filas.filter((x) => x.clase === c).reduce((a, x) => a + Number(x[k]), 0);
+    for (const c of CLASES) {
+      f += 1;
+      fila(f, [c, fx(`COUNTIFS(${rb("clase")},$B${f})`, filas.filter((x) => x.clase === c).length),
+        fx(`SUMIFS(${rb("fisicas")},${rb("clase")},$B${f})`, sumaClase(c, "fisicas")), fx(`SUMIFS(${rb("cajas")},${rb("clase")},$B${f})`, sumaClase(c, "cajas")),
+        fx(`SUMIFS(${rb("plast")},${rb("clase")},$B${f})`, sumaClase(c, "plast")), fx(`SUMIFS(${rb("unid")},${rb("clase")},$B${f})`, sumaClase(c, "unid")),
+        fx(`SUMIFS(${rb("hl")},${rb("clase")},$B${f})`, sumaClase(c, "hl"))], "dato", [, NUM, NUM, NUM, NUM, NUM, "#,##0.0;\\-#,##0.0;\\–"]);
+      h.getCell(f, 2).font = letra(9.5, TINTA, true);
+    }
+    const c2 = f; f += 1;
+    fila(f, ["Total", ...(["D", "E", "F", "G", "H", "I"] as const).map((L, i) => fx(`SUM(${L}${c1}:${L}${c2})`,
+      (["renglones", "fisicas", "cajas", "plast", "unid", "hl"] as const)[i] === "renglones" ? filas.length : tot((["renglones", "fisicas", "cajas", "plast", "unid", "hl"] as const)[i] as keyof Fila)))], "total",
+      [, NUM, NUM, NUM, NUM, NUM, "#,##0.0;\\-#,##0.0;\\–"]);
+    f += 1; alto(f, 36); unir(f, 2, 9);
+    pon(f, 2, "Estibas físicas = estibas completas + una por cada saldo (la estiba incompleta también ocupa su puesto). «Cajas plásticas» = las cajas del envase con botella y de la caja plástica vacía; barriles y estibas de madera no cuentan. La clase sale del nombre del material (columna Clase de «Base consolidada»).",
+      letra(8, GRIS, false, true), { alignment: { wrapText: true, vertical: "top" } });
+    f += 1; alto(f, 13.5);
+
     /* EL RIESGO DE VENCIMIENTO, por franja, con su barrita. */
-    alto(20, 19.5); pon(20, 2, "Riesgo de vencimiento", letra(11, TINTA, true));
+    f += 1; alto(f, 19.5); pon(f, 2, "Riesgo de vencimiento", letra(11, TINTA, true));
     /* SI HAY ENVASE, DECIRLO AQUÍ. Si no, el que lee ve «LO CONTADO
        2.800 cajas» y tres renglones más abajo un total de riesgo en cero
        y piensa que el archivo está malo. La tabla está bien: el envase no
        se vence, y por eso no está en ella. */
     if (inventario.renglonesEnvase) {
       const cajasEnv = inventario.cajas - totalCajas;
-      unir(20, 5, 9);
-      pon(20, 5, `solo producto terminado — el envase (${inventario.renglonesEnvase} ${inventario.renglonesEnvase === 1 ? "renglón" : "renglones"}, ${cajasEnv.toLocaleString("es-CO")} cajas) no se vence  `,
+      unir(f, 5, 9);
+      pon(f, 5, `solo producto terminado — el envase (${inventario.renglonesEnvase} ${inventario.renglonesEnvase === 1 ? "renglón" : "renglones"}, ${cajasEnv.toLocaleString("es-CO")} cajas) no se vence  `,
         letra(8.5, GRIS, false, true), { alignment: { horizontal: "right", vertical: "middle" } });
     }
-    fila(21, ["Franja", "Cajas", "Unidades", "Materiales", "Ubicaciones", "% de cajas", ""], "cabeza");
-    let f = 21;
+    f += 1; fila(f, ["Franja", "Cajas", "Unidades", "Materiales", "Ubicaciones", "% de cajas", ""], "cabeza");
+    const d1 = f + 1, d2 = f + FRANJAS.length;
     for (const x of FRANJAS) {
       f += 1; const s = franjas[x.clave], pc = totalCajas ? s.cajas / totalCajas : 0;
-      fila(f, [x.rot, s.cajas, s.unidades, s.materiales, s.renglones, pc, pc > 0 ? "█".repeat(Math.max(1, Math.round(pc * 8))) : ""], "dato", [, NUM, NUM, NUM, NUM, PCT]);
+      const crit = `${rb("franja")},$B${f},${rb("clase")},"Producto"`;
+      fila(f, [x.rot, fx(`SUMIFS(${rb("cajas")},${crit})`, s.cajas), fx(`SUMIFS(${rb("unid")},${crit})`, s.unidades), s.materiales,
+        fx(`COUNTIFS(${crit})`, s.renglones), fx(`IF(SUM(D$${d1}:D$${d2})=0,0,D${f}/SUM(D$${d1}:D$${d2}))`, pc), pc > 0 ? "█".repeat(Math.max(1, Math.round(pc * 8))) : ""], "dato", [, NUM, NUM, NUM, NUM, PCT]);
       pintarFranja(h.getCell(f, 2), x.clave);
       h.getCell(f, 8).font = letra(9.5, TINTA, true);
       const barra = h.getCell(f, 9); barra.font = letra(10, FR[x.clave].tinta); barra.alignment = { horizontal: "left", vertical: "middle" };
     }
-    const d1 = 22, d2 = f; f += 1;
+    f += 1;
     fila(f, ["Total", { formula: `SUM(D${d1}:D${d2})`, result: totalCajas }, { formula: `SUM(E${d1}:E${d2})`, result: totalUnidades },
       `${materiales.length} distintos`, undefined, { formula: `SUM(H${d1}:H${d2})`, result: totalCajas ? 1 : 0 }, undefined], "total", [, NUM, NUM, , , PCT]);
     h.getCell(f, 6).font = letra(8.5, GRIS);
+
+    /* LAS ESTIBAS POR CALLE: cuántas caben, cuántas hay de cada cosa y
+       cuántas quedan libres en los módulos que se contaron. */
+    f += 1; alto(f, 13.5);
+    f += 1; alto(f, 19.5); pon(f, 2, "Estibas por calle", letra(11, TINTA, true));
+    unir(f, 5, 9);
+    pon(f, 5, "solo módulos contados · % ocupado: solo los que tienen capacidad en el maestro · detalle en «Por ubicación»", letra(8.5, GRIS, false, true), { alignment: { horizontal: "right", vertical: "middle" } });
+    f += 1; fila(f, ["Calle", "Capacidad", "Con envase", "Con plástico", "Con producto", "Libres", "% ocupado"], "cabeza");
+    for (let c = 4; c <= 9; c++) h.getCell(f, c).alignment = { horizontal: "right", vertical: "middle", indent: 1, wrapText: true };
+    const calles = [...new Set(us.map((x) => x.calle ?? ""))].sort(natural);
+    const k1 = f + 1;
+    for (const ca of calles) {
+      f += 1;
+      const xs = us.filter((x) => (x.calle ?? "") === ca), cap = xs.reduce((a, x) => a + (x.capacidad ?? 0), 0);
+      const env = xs.reduce((a, x) => a + x.envase, 0), pla = xs.reduce((a, x) => a + x.plastico, 0), pro = xs.reduce((a, x) => a + x.producto, 0);
+      const lib = xs.reduce((a, x) => a + (libresDe(x) ?? 0), 0);
+      fila(f, [ca || "(sin calle)", fx(`SUMIFS(${ru(5)},${ru(2)},$B${f})`, cap), fx(`SUMIFS(${ru(6)},${ru(2)},$B${f})`, env), fx(`SUMIFS(${ru(7)},${ru(2)},$B${f})`, pla),
+        fx(`SUMIFS(${ru(8)},${ru(2)},$B${f})`, pro), fx(`SUMIFS(${ru(10)},${ru(2)},$B${f})`, lib),
+        fx(`IF(D${f}=0,"",SUMIFS(${ru(9)},${ru(2)},$B${f},${ru(5)},">0")/D${f})`, cap ? xs.filter((x) => x.capacidad).reduce((a2, x) => a2 + x.estibas, 0) / cap : "")], "dato", [, NUM, NUM, NUM, NUM, NUM, "0%"]);
+      h.getCell(f, 2).font = letra(9.5, TINTA, true);
+    }
+    const k2 = f; f += 1;
+    const cap0 = sumaU((x) => x.capacidad), env0 = sumaU((x) => x.envase), pla0 = sumaU((x) => x.plastico), pro0 = sumaU((x) => x.producto);
+    fila(f, ["Total", ...(["D", "E", "F", "G", "H"] as const).map((L, i) => fx(`SUM(${L}${k1}:${L}${k2})`, [cap0, env0, pla0, pro0, sumaU(libresDe)][i])),
+      fx(`IF(D${f}=0,"",SUMIFS(${ru(9)},${ru(5)},">0")/D${f})`, cap0 ? us.filter((x) => x.capacidad).reduce((a2, x) => a2 + x.estibas, 0) / cap0 : "")], "total", [, NUM, NUM, NUM, NUM, NUM, "0%"]);
 
     /* LOS RECORRIDOS QUE ENTRAN, y el cuadre: lo que sumaban contra lo
        que quedó en la base (la diferencia es lo que se volvió a contar). */
@@ -407,89 +562,219 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
       letra(10, graves ? ROJO : VERDE, true, false), { alignment: { vertical: "middle" }, border: { left: { style: "thick", color: { argb: graves ? ROJO : VERDE } } } });
     if (graves) h.getCell(f, 2).font = { ...letra(10, ROJO, true), underline: true };
     f += 1; alto(f, 43); unir(f, 2, 9);
-    pon(f, 2, "La base toma, de cada ubicación y zona (RETORNO, BAJA, LAVADO…), el ÚLTIMO recorrido que pasó por ella: una calle caminada dos veces no se suma dos veces, pero contar el producto de un módulo no borra el envase que otro contó en su zona. El detalle está en las hojas Base, Por material, Por ubicación y Sin contar. Solo cuenta lo ya ENVIADO (los borradores, que alguien está contando ahora, no entran). La hoja Base trae los mismos renglones que «La base» de la pantalla, sin recortar. Las horas son de Colombia.",
+    pon(f, 2, "La base toma, de cada ubicación y zona (RETORNO, BAJA, LAVADO…), el ÚLTIMO recorrido que pasó por ella: una calle caminada dos veces no se suma dos veces, pero contar el producto de un módulo no borra el envase que otro contó en su zona. El detalle está en las hojas Base consolidada, Base envase, Base producto, Análisis, Por material, Por ubicación, Sin contar y Maestro (de donde la base toma el factor de estibado). Solo cuenta lo ya ENVIADO (los borradores, que alguien está contando ahora, no entran). La hoja Base consolidada trae los mismos renglones que «La base» de la pantalla, sin recortar; casi todas sus cifras son fórmulas, para que se vea de dónde salen. Las horas son de Colombia.",
       letra(8, GRIS, false, true), { alignment: { wrapText: true, vertical: "top" } });
     h.pageSetup = { orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 1, horizontalCentered: true };
     h.pageSetup.printArea = `A1:J${f}`;
   }
 
-  /* ================= 2 · BASE ================= */
+  /* ================= 2 · BASE CONSOLIDADA =================
+     Los datos que salen de la aplicación (recorrido, ubicación, estibas
+     completas, saldo, fechas…) van como valores; todo lo demás es fórmula:
+     clase, cajas por estiba (de «Maestro»), total cajas, estibas físicas,
+     cajas plásticas, unidades y hectolitros. */
+  const M = (c: string) => `Maestro!$${c}$7:$${c}$${finM}`;
+  const buscar = (colM: string, n: number) => `IFERROR(INDEX(${M(colM)},MATCH($${LB("cod")}${n},${M("A")},0)),0)`;
+  const formulaB = (k: string, n: number): string | null => {
+    const c = (x: string) => `${LB(x)}${n}`;
+    switch (k) {
+      case "clase": return `IF(${c("tipo")}="PRODUCTO","Producto",IF(ISNUMBER(SEARCH("CAJA PL",${c("mat")})),"Plástico",IF(OR(ISNUMBER(SEARCH("BARRIL",${c("mat")})),ISNUMBER(SEARCH("ESTIBA",${c("mat")}))),"Otro envase","Envase")))`;
+      case "factor": return buscar("D", n);
+      case "cajas": return `${c("estibas")}*${c("factor")}+${c("saldo")}`;
+      case "fisicas": return `${c("estibas")}+IF(${c("saldo")}>0,1,0)`;
+      case "plast": return `IF(OR(${c("clase")}="Envase",${c("clase")}="Plástico"),${c("cajas")},0)`;
+      case "uxc": return buscar("E", n);
+      case "unid": return `${c("cajas")}*${c("uxc")}`;
+      case "hl": return `${c("unid")}*${buscar("F", n)}`;
+      default: return null;
+    }
+  };
+  const SUMAS_B = ["estibas", "saldo", "cajas", "fisicas", "plast", "unid", "hl"];
   {
-    const h = wb.addWorksheet("Base", { properties: { tabColor: { argb: TINTA } } });
-    const C = ["Recorrido", "Contó", "Contado", "Calle", "Módulo", "Lado", "Ubicación", "Código", "Material", "Tipo", "Familia",
-      "Estibas", "Cajas sueltas", "Saldo", "Total cajas", "Unidades", "Fabricación", "Vencimiento", "Días p/vencer", "Días p/salir",
-      "Franja", "Rota", "Avería", "PNC", "Estado envase", "Nota", "Hectolitros"];
-    h.columns = [12, 18, 16, 7, 8, 7, 13, 10, 34, 11, 14, 9, 10, 8, 11, 12, 12, 12, 10, 10, 18, 6, 7, 6, 14, 30, 12].map((w) => ({ width: w }));
-    cabecera(h, "Base consolidada del día", `${base.length.toLocaleString("es-CO")} renglones: los mismos que «La base» de la pantalla para este período  ·  ${sub}`, C.length);
-    encabezado(h, 6, C, [12, 13, 14, 15, 16, 19, 20, 27]);
+    const h = wb.addWorksheet("Base consolidada", { properties: { tabColor: { argb: TINTA } } });
+    h.columns = CB.map((c) => ({ width: c.w }));
+    cabecera(h, "Base consolidada del día", `${base.length.toLocaleString("es-CO")} renglones: los mismos que «La base» de la pantalla para este período  ·  ${sub}`, CB.length);
+    const nums = CB.map((c, i) => (c.num ? i + 1 : 0)).filter(Boolean);
+    encabezado(h, 6, CB.map((c) => c.t), nums);
+    const fmts = Object.fromEntries(CB.map((c, i) => [i + 1, c.fmt]).filter(([, f]) => f));
     base.forEach((l, i) => {
-      const u = uxc[l.codigo];
-      const r = h.getRow(7 + i);
-      r.values = [l.conteo, l.conto ?? "", aFecha(l.contado_en), l.calle ?? "", l.modulo ?? "", l.lado ?? "", ub(l), l.codigo, l.material,
-        l.tipo_material, l.familia ?? "", Number(l.estibas ?? 0), Number(l.cajas ?? 0), Number(l.saldo ?? 0), Number(l.total_cajas),
-        u ? Number(l.total_cajas) * u : null, aFecha(l.fabricacion), aFecha(l.vencimiento), l.dias_para_vencer, l.dias_para_salir,
-        rotFr(franja(l)), siNo(l.rotacion), siNo(l.averia), siNo(l.pnc), l.estado_envase ?? "", l.nota ?? "",
-        u && hlu[l.codigo] ? Number(l.total_cajas) * u * (hlu[l.codigo] as number) : null];
-      filaDatos(r, C.length, i % 2 === 1, { 3: "dd/mm/yy hh:mm", 12: "#,##0", 13: "#,##0", 14: "#,##0", 15: "#,##0", 16: "#,##0", 17: "dd/mm/yyyy", 18: "dd/mm/yyyy", 19: "0", 20: "0", 27: "#,##0.00" }, [12, 13, 14, 15, 16, 19, 20, 27]);
-      r.getCell(8).font = letra(9.5, TINTA, true);
-      r.getCell(15).font = letra(9.5, TINTA, true);
-      if (l.tipo_material !== "ENVASE") pintarFranja(r.getCell(21), franja(l));
-      if ((l.dias_para_salir ?? 0) < 0) r.getCell(20).font = letra(9.5, ROJO, true);
+      const n = 7 + i, r = h.getRow(n);
+      CB.forEach((c, ci) => {
+        const f = formulaB(c.k, n), v = planos[i][c.k];
+        r.getCell(ci + 1).value = f ? { formula: f, result: v as number | string } : v;
+      });
+      filaDatos(r, CB.length, i % 2 === 1, fmts as Record<number, string>, nums);
+      r.getCell(K.cod).font = letra(9.5, TINTA, true);
+      r.getCell(K.cajas).font = letra(9.5, TINTA, true);
+      if (l.tipo_material !== "ENVASE") pintarFranja(r.getCell(K.franja), franja(l));
+      if ((l.dias_para_salir ?? 0) < 0) r.getCell(K.dsal).font = letra(9.5, ROJO, true);
     });
-    const fin = 6 + Math.max(base.length, 1);
-    totales(h, fin + 1, 7, fin, [12, 13, 14, 15, 16, 27], C.length);
-    h.autoFilter = `A6:${col(C.length)}${fin}`;
-    h.views = [{ state: "frozen", xSplit: 8, ySplit: 6, showGridLines: false }];
+    totales(h, fin + 1, 7, fin, SUMAS_B.map((k) => K[k]), CB.length, "TOTAL (lo filtrado)", { [K.hl]: "#,##0.00" });
+    h.autoFilter = `A6:${col(CB.length)}${fin}`;
+    h.views = [{ state: "frozen", xSplit: 9, ySplit: 6, showGridLines: false }];
     h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: "6:6" };
+    /* Los nombres con que se arma una tabla dinámica en dos clics:
+       Insertar › Tabla dinámica › escribir el nombre. */
+    wb.definedNames.add(`${BC}!$A$6:$${col(CB.length)}$${fin}`, "BaseConsolidada");
+  }
+
+  /* ================= 2b · BASE ENVASE y BASE PRODUCTO =================
+     Los mismos renglones de «Base consolidada», apartados por clase. Cada
+     celda es una referencia a la fila de origen: tocas la base y estas
+     hojas siguen. Cada una trae solo las columnas que le sirven. */
+  const derivada = (nombre: string, titulo: string, tab: string, quien: (x: Fila) => boolean, keys: string[], nombreRango: string) => {
+    const idx = filas.map((x, i) => (quien(x) ? i : -1)).filter((i) => i >= 0);
+    const h = wb.addWorksheet(nombre, { properties: { tabColor: { argb: tab } } });
+    const cs = keys.map((k) => CB[K[k] - 1]);
+    h.columns = cs.map((c) => ({ width: c.w }));
+    cabecera(h, titulo, `${idx.length.toLocaleString("es-CO")} renglones, tomados de «Base consolidada» (cada celda apunta a su fila)  ·  ${sub}`, cs.length);
+    const nums = cs.map((c, i) => (c.num ? i + 1 : 0)).filter(Boolean);
+    encabezado(h, 6, cs.map((c) => c.t), nums);
+    const fmts = Object.fromEntries(cs.map((c, i) => [i + 1, c.fmt]).filter(([, f]) => f)) as Record<number, string>;
+    idx.forEach((bi, i) => {
+      const r = h.getRow(7 + i), orig = 7 + bi;
+      keys.forEach((k, ci) => {
+        const ref = `${BC}!${LB(k)}${orig}`, v = planos[bi][k];
+        r.getCell(ci + 1).value = { formula: `IF(${ref}="","",${ref})`, result: (v ?? "") as number | string };
+      });
+      filaDatos(r, cs.length, i % 2 === 1, fmts, nums);
+      r.getCell(keys.indexOf("cod") + 1).font = letra(9.5, TINTA, true);
+      r.getCell(keys.indexOf("cajas") + 1).font = letra(9.5, TINTA, true);
+      const fi = keys.indexOf("franja");
+      if (fi >= 0) pintarFranja(r.getCell(fi + 1), franja(filas[bi].l));
+      const di = keys.indexOf("dsal");
+      if (di >= 0 && (filas[bi].l.dias_para_salir ?? 0) < 0) r.getCell(di + 1).font = letra(9.5, ROJO, true);
+    });
+    const fn = 6 + Math.max(idx.length, 1);
+    totales(h, fn + 1, 7, fn, SUMAS_B.filter((k) => keys.includes(k)).map((k) => keys.indexOf(k) + 1), cs.length, "TOTAL (lo filtrado)", { [keys.indexOf("hl") + 1]: "#,##0.00" });
+    h.autoFilter = `A6:${col(cs.length)}${fn}`;
+    h.views = [{ state: "frozen", xSplit: 9, ySplit: 6, showGridLines: false }];
+    h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: "6:6" };
+    wb.definedNames.add(`'${nombre}'!$A$6:$${col(cs.length)}$${fn}`, nombreRango);
+  };
+  const comunes = ["rec", "conto", "cuando", "calle", "modulo", "lado", "ubic", "cod", "mat", "tipo", "fam", "clase", "estibas", "saldo", "factor", "cajas", "fisicas"];
+  derivada("Base envase", "Base de envase", "FF8A6A00", (x) => x.clase !== "Producto",
+    [...comunes, "plast", "uxc", "unid", "estenv", "averia", "pnc", "nota", "hl"], "BaseEnvase");
+  derivada("Base producto", "Base de producto", "FF1F7A45", (x) => x.clase === "Producto",
+    [...comunes, "uxc", "unid", "fab", "venc", "dvenc", "dsal", "franja", "rota", "averia", "pnc", "nota", "hl"], "BaseProducto");
+
+  /* ================= 2c · ANÁLISIS: LAS TABLAS DINÁMICAS CON FÓRMULAS =================
+     «Quiero que esa base me sirva para muchísimos análisis.» Una tabla
+     dinámica de verdad hay que armarla en Excel (Insertar › Tabla
+     dinámica › BaseConsolidada); estas son cruces ya armados con SUMIFS
+     que se recalculan solos: cambia la medida en la celda de arriba y
+     todas las tablas siguen. */
+  {
+    const h = wb.addWorksheet("Análisis", { properties: { tabColor: { argb: "FF7A4FA0" } } });
+    h.columns = [30, 14, 14, 14, 14, 14, 14, 14].map((w) => ({ width: w }));
+    cabecera(h, "Análisis · cruces con fórmula", `Cambia la medida y todas las tablas se recalculan · ${sub}`, 8);
+    const medidaRango = `INDEX(${BC}!$A$7:$${col(CB.length)}$${fin},0,MATCH($B$7,${BC}!$A$6:$${col(CB.length)}$6,0))`;
+    const lab = h.getCell(7, 1); lab.value = "MEDIDA"; lab.font = letra(9, GRIS, true); lab.alignment = { vertical: "middle", indent: 1 };
+    const sel = h.getCell(7, 2); sel.value = "Total cajas"; sel.font = letra(11, TINTA, true); sel.fill = relleno(FR.quince.fondo);
+    sel.border = { top: raya(), bottom: raya(), left: raya(), right: raya() };
+    sel.dataValidation = { type: "list", allowBlank: false, formulae: [`"${MEDIDAS.map((m) => m.t).join(",")}"`] };
+    h.mergeCells(7, 2, 7, 3);
+    const nota = h.getCell(7, 4); nota.value = "◄ escoge: estibas físicas, total cajas, cajas plásticas, unidades u hectolitros"; nota.font = letra(8.5, GRIS, false, true);
+    h.getRow(7).height = 24;
+    const medida = MEDIDAS.find((m) => m.t === "Total cajas")!.k;
+    let f = 8;
+    /* Un cruce: filas = valores de una columna de la base; columnas = las clases (o una sola). */
+    const cruce = (titulo: string, dim: string, etiquetas: string[], clases: Clase[], porColumna?: (x: Fila) => string, solo?: Clase) => {
+      if (!etiquetas.length) return;          // nada que cruzar: sin tabla vacía
+      f += 2; h.getRow(f).height = 20;
+      const t = h.getCell(f, 1); t.value = titulo; t.font = letra(11, TINTA, true);
+      f += 1; const hd = f;
+      const cab = [dim, ...clases, ...(clases.length > 1 ? ["Total"] : [])];
+      cab.forEach((x, i) => { const c = h.getCell(hd, i + 1); c.value = x; c.font = letra(9, TINTA, true); c.fill = relleno(CABEZA); c.alignment = { vertical: "middle", horizontal: i === 0 ? "left" : "right", indent: 1 } });
+      h.getRow(hd).height = 21;
+      const a = f + 1;
+      const dimK = porColumna;
+      for (const e of etiquetas) {
+        f += 1;
+        const r = h.getRow(f); r.height = 18;
+        r.getCell(1).value = e; r.getCell(1).font = letra(9.5, TINTA, true);
+        clases.forEach((cl, i) => {
+          const v = filas.filter((x) => dimK!(x) === e && x.clase === cl).reduce((s2, x) => s2 + Number(x[medida]), 0);
+          r.getCell(i + 2).value = { formula: `SUMIFS(${medidaRango},${rb(dim === "Franja" ? "franja" : dimKey[dim])},$A${f},${rb("clase")},${col(i + 2)}$${hd})`, result: v };
+        });
+        if (clases.length > 1) { const L = col(clases.length + 1); r.getCell(clases.length + 2).value = { formula: `SUM(B${f}:${L}${f})`, result: filas.filter((x) => dimK!(x) === e).reduce((s2, x) => s2 + Number(x[medida]), 0) } }
+        for (let c = 1; c <= cab.length; c++) { const cel = r.getCell(c); cel.border = { bottom: raya() }; if (c > 1) { cel.numFmt = "#,##0.##;\\-#,##0.##;\\–"; cel.alignment = { horizontal: "right", indent: 1 } } else cel.alignment = { indent: 1 }; if (c === 1) cel.font = letra(9.5, TINTA, true); else cel.font = letra(9.5, TINTA, c === cab.length && clases.length > 1) }
+      }
+      const b = f; f += 1;
+      const tr = h.getRow(f); tr.height = 20;
+      tr.getCell(1).value = "Total";
+      for (let c = 2; c <= cab.length; c++) {
+        const L = col(c), v = filas.filter((x) => (!solo || x.clase === solo) && etiquetas.includes(dimK!(x)) && (c > clases.length + 1 || x.clase === clases[c - 2])).reduce((s2, x) => s2 + Number(x[medida]), 0);
+        tr.getCell(c).value = { formula: `SUM(${L}${a}:${L}${b})`, result: v };
+      }
+      for (let c = 1; c <= cab.length; c++) { const cel = tr.getCell(c); cel.fill = relleno(FONDO); cel.border = { top: { style: "medium", color: { argb: TINTA } } }; cel.font = letra(9.5, TINTA, true); if (c > 1) { cel.numFmt = "#,##0.##;\\-#,##0.##;\\–"; cel.alignment = { horizontal: "right", indent: 1 } } else cel.alignment = { indent: 1 } }
+    };
+    const dimKey: Record<string, string> = { Calle: "calle", Familia: "fam", Contó: "conto", Recorrido: "rec", "Estado envase": "estenv", Franja: "franja" };
+    const unicos = (g: (x: Fila) => string) => [...new Set(filas.map(g))].sort(natural);
+    const todas: Clase[] = ["Producto", "Envase", "Plástico", "Otro envase"];
+    cruce("Por calle y clase", "Calle", unicos((x) => x.l.calle ?? ""), todas, (x) => x.l.calle ?? "");
+    cruce("Por familia y clase", "Familia", unicos((x) => x.l.familia ?? "Sin familia"), todas, (x) => x.l.familia ?? "Sin familia");
+    cruce("Por quién contó y clase", "Contó", unicos((x) => x.l.conto ?? ""), todas, (x) => x.l.conto ?? "");
+    cruce("Por recorrido y clase", "Recorrido", unicos((x) => x.l.conteo), todas, (x) => x.l.conteo);
+    cruce("Envase por estado (retorno, lavado…)", "Estado envase", unicos((x) => x.clase === "Producto" ? "" : (x.l.estado_envase ?? "")).filter((e) => e !== ""), ["Envase", "Plástico", "Otro envase"], (x) => x.l.estado_envase ?? "", undefined);
+    cruce("Producto por franja de vencimiento", "Franja", FRANJAS.map((x) => x.rot), ["Producto"], (x) => rotFr(franja(x.l)), "Producto");
+    h.views = [{ showGridLines: false, state: "frozen", ySplit: 7 }];
   }
 
   /* ================= 3 · POR MATERIAL ================= */
   {
     const h = wb.addWorksheet("Por material", { properties: { tabColor: { argb: VERDE } } });
-    const C = ["Código", "Material", "Tipo", "Familia", "Ubicaciones", "Estibas", "Cajas", "Unidades", "Vence primero", "Días p/salir", "Franja", "En riesgo (cajas)", "Hectolitros"];
-    h.columns = [10, 36, 11, 14, 12, 10, 11, 12, 13, 11, 20, 14, 13].map((w) => ({ width: w }));
-    cabecera(h, "Por material", sub, C.length);
-    encabezado(h, 6, C, [5, 6, 7, 8, 10, 12, 13]);
-    const est = new Map<string, number>();
-    for (const l of base) est.set(l.codigo, (est.get(l.codigo) ?? 0) + Number(l.total_estibas ?? 0));
+    const C = ["Código", "Material", "Tipo", "Clase", "Familia", "Ubicaciones", "Estibas físicas", "Cajas", "Unidades", "Vence primero", "Días p/salir", "Franja", "En riesgo (cajas)", "Hectolitros"];
+    h.columns = [10, 36, 11, 12, 14, 12, 11, 11, 12, 13, 11, 20, 14, 13].map((w) => ({ width: w }));
+    cabecera(h, "Por material", `${sub}  ·  las cifras son fórmulas sobre «Base consolidada»`, C.length);
+    encabezado(h, 6, C, [6, 7, 8, 9, 11, 13, 14]);
     /* TODO LO CONTADO, envase incluido: esta hoja es el inventario del
        día, no el riesgo. El envase sale con su tipo y su franja «Sin
        fecha», que es exactamente lo que es. */
     const mats = [...inventario.materiales].sort((a, b) => a.codigo.localeCompare(b.codigo, "es", { numeric: true }));
     mats.forEach((m, i) => {
-      const r = h.getRow(7 + i);
-      r.values = [m.codigo, m.nombre, matPorSku.get(m.codigo)?.tipo_material ?? "", m.familia ?? "", m.sitios.length, est.get(m.codigo) ?? 0, m.cajas, m.unidades,
-        aFecha(m.vence), m.diasSalir, rotFr(m.franja), m.enRiesgoCajas, m.hl];
-      filaDatos(r, C.length, i % 2 === 1, { 5: "#,##0", 6: "#,##0", 7: "#,##0", 8: "#,##0", 9: "dd/mm/yyyy", 10: "0", 12: "#,##0", 13: "#,##0.00" }, [5, 6, 7, 8, 10, 12, 13]);
+      const n = 7 + i, r = h.getRow(n);
+      const delCodigo = filas.filter((x) => x.l.codigo === m.codigo), sm = (k: keyof Fila) => delCodigo.reduce((a, x) => a + Number(x[k]), 0);
+      const crit = `${rb("cod")},$A${n}`;
+      r.values = [m.codigo, m.nombre, matPorSku.get(m.codigo)?.tipo_material ?? "",
+        fx(`IFERROR(INDEX(${rb("clase")},MATCH($A${n},${rb("cod")},0)),"")`, delCodigo[0]?.clase ?? ""), m.familia ?? "",
+        fx(`COUNTIFS(${crit})`, delCodigo.length), fx(`SUMIFS(${rb("fisicas")},${crit})`, sm("fisicas")), fx(`SUMIFS(${rb("cajas")},${crit})`, sm("cajas")),
+        fx(`SUMIFS(${rb("unid")},${crit})`, sm("unid")), aFecha(m.vence), m.diasSalir, rotFr(m.franja), m.enRiesgoCajas, fx(`SUMIFS(${rb("hl")},${crit})`, sm("hl"))];
+      filaDatos(r, C.length, i % 2 === 1, { 6: "#,##0", 7: "#,##0", 8: "#,##0", 9: "#,##0", 10: "dd/mm/yyyy", 11: "0", 13: "#,##0", 14: "#,##0.00" }, [6, 7, 8, 9, 11, 13, 14]);
       r.getCell(1).font = letra(9.5, TINTA, true);
-      pintarFranja(r.getCell(11), m.franja);
+      pintarFranja(r.getCell(12), m.franja);
     });
-    const fin = 6 + Math.max(mats.length, 1);
-    totales(h, fin + 1, 7, fin, [5, 6, 7, 8, 12, 13], C.length);
-    h.autoFilter = `A6:${col(C.length)}${fin}`;
+    const fm = 6 + Math.max(mats.length, 1);
+    totales(h, fm + 1, 7, fm, [6, 7, 8, 9, 13, 14], C.length, "TOTAL (lo filtrado)", { 14: "#,##0.00" });
+    h.autoFilter = `A6:${col(C.length)}${fm}`;
     h.views = [{ state: "frozen", xSplit: 2, ySplit: 6, showGridLines: false }];
     h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: "6:6" };
   }
 
-  /* ================= 4 · POR UBICACIÓN ================= */
+  /* ================= 4 · POR UBICACIÓN =================
+     Cada puesto de un módulo es una estiba: aquí se ve, módulo por
+     módulo, cuántas caben, cuántas tienen envase, plástico o producto y
+     cuántas están libres. */
   {
     const h = wb.addWorksheet("Por ubicación", { properties: { tabColor: { argb: "FF2E6DA4" } } });
-    const C = ["Ubicación", "Calle", "Módulo", "Lado", "Capacidad (estibas)", "Estibas", "Ocupación", "Cajas", "Materiales", "Renglones"];
-    h.columns = [14, 8, 9, 8, 12, 10, 11, 11, 11, 11].map((w) => ({ width: w }));
-    cabecera(h, "Por ubicación", sub, C.length);
-    encabezado(h, 6, C, [5, 6, 7, 8, 9, 10]);
-    const us = [...porUbi.values()].sort((a, b) => porSitio(a, b, (x) => x.ubicacion));
+    const C = ["Ubicación", "Calle", "Módulo", "Lado", "Capacidad (estibas)", "Con envase", "Con plástico", "Con producto", "Estibas ocupadas", "Libres", "Ocupación", "Cajas", "Materiales", "Renglones"];
+    h.columns = [16, 8, 9, 8, 12, 10, 10, 10, 11, 9, 11, 11, 11, 11].map((w) => ({ width: w }));
+    cabecera(h, "Por ubicación", `${sub}  ·  estibas = puestos ocupados en el módulo; las cifras son fórmulas sobre «Base consolidada»`, C.length);
+    encabezado(h, 6, C, [5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
     us.forEach((x, i) => {
-      const r = h.getRow(7 + i);
-      const occ = x.capacidad ? x.estibas / x.capacidad : null;
-      r.values = [x.ubicacion, x.calle ?? "", x.modulo ?? "", x.lado ?? "", x.capacidad, x.estibas, occ, x.cajas, x.materiales.size, x.renglones];
-      filaDatos(r, C.length, i % 2 === 1, { 5: "#,##0", 6: "#,##0", 7: "0%", 8: "#,##0", 9: "0", 10: "0" }, [5, 6, 7, 8, 9, 10]);
+      const n = 7 + i, r = h.getRow(n);
+      const occ = x.capacidad ? x.estibas / x.capacidad : "";
+      const sf = (cl: string) => `SUMIFS(${rb("fisicas")},${rb("ubic")},$A${n},${rb("clase")},"${cl}")`;
+      r.values = [x.ubicacion, x.calle ?? "", x.modulo ?? "", x.lado ?? "", x.capacidad,
+        fx(`${sf("Envase")}+${sf("Otro envase")}`, x.envase), fx(sf("Plástico"), x.plastico), fx(sf("Producto"), x.producto),
+        fx(`SUM(F${n}:H${n})`, x.estibas), fx(`IF(N(E${n})=0,"",MAX(0,E${n}-I${n}))`, libresDe(x) ?? ""), fx(`IF(N(E${n})=0,"",I${n}/E${n})`, occ),
+        fx(`SUMIFS(${rb("cajas")},${rb("ubic")},$A${n})`, x.cajas), x.materiales.size, fx(`COUNTIFS(${rb("ubic")},$A${n})`, x.renglones)];
+      filaDatos(r, C.length, i % 2 === 1, { 5: "#,##0", 6: "#,##0", 7: "#,##0", 8: "#,##0", 9: "#,##0", 10: "#,##0", 11: "0%", 12: "#,##0", 13: "0", 14: "0" }, [5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
       r.getCell(1).font = letra(9.5, TINTA, true);
-      if (occ != null && occ > 1) { r.getCell(7).fill = relleno(FR.pasado.fondo); r.getCell(7).font = letra(9.5, FR.pasado.tinta, true) }
+      if (typeof occ === "number" && occ > 1) { r.getCell(11).fill = relleno(FR.pasado.fondo); r.getCell(11).font = letra(9.5, FR.pasado.tinta, true) }
     });
-    const fin = 6 + Math.max(us.length, 1);
-    totales(h, fin + 1, 7, fin, [6, 8, 10], C.length);
-    h.autoFilter = `A6:${col(C.length)}${fin}`;
+    totales(h, finU + 1, 7, finU, [5, 6, 7, 8, 9, 10, 12, 14], C.length);
+    h.autoFilter = `A6:${col(C.length)}${finU}`;
     h.views = [{ state: "frozen", ySplit: 6, showGridLines: false }];
   }
 
@@ -530,6 +815,28 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     });
     const fin = 6 + Math.max(sinContar.length, 1);
     h.autoFilter = `A6:${col(C.length)}${fin}`;
+    h.views = [{ state: "frozen", ySplit: 6, showGridLines: false }];
+  }
+
+  /* ================= MAESTRO · lo que la base consulta =================
+     Por cada código de la base: cuántas cajas lleva una estiba, cuántas
+     unidades lleva una caja y cuántos hectolitros es una unidad. «Base
+     consolidada» lo busca aquí con BUSCAR: si un factor está mal, se
+     corrige en esta hoja y todo el libro se recalcula. */
+  {
+    const h = wb.addWorksheet("Maestro", { properties: { tabColor: { argb: GRIS } } });
+    const C = ["Código", "Material", "Tipo", "Cajas por estiba", "Unidades por caja", "Hectolitros por unidad"];
+    h.columns = [10, 40, 11, 14, 14, 16].map((w) => ({ width: w }));
+    cabecera(h, "Maestro de la base", `${codigosBase.length} códigos · de aquí leen «Base consolidada» el factor de estibado, las unidades por caja y los hectolitros  ·  ${sub}`, C.length);
+    encabezado(h, 6, C, [4, 5, 6]);
+    codigosBase.forEach((cod, i) => {
+      const l = base.find((x) => x.codigo === cod)!, r = h.getRow(7 + i);
+      r.values = [cod, l.material, l.tipo_material, factorDe.get(cod) ?? 0, Number(uxc[cod] ?? 0), Number(hlu[cod] ?? 0)];
+      filaDatos(r, C.length, i % 2 === 1, { 4: "#,##0", 5: "#,##0", 6: "0.0000" }, [4, 5, 6]);
+      r.getCell(1).font = letra(9.5, TINTA, true);
+      for (const c of [4, 5, 6]) r.getCell(c).fill = relleno(FR.quince.fondo);   // lo que se puede corregir
+    });
+    h.autoFilter = `A6:${col(C.length)}${finM}`;
     h.views = [{ state: "frozen", ySplit: 6, showGridLines: false }];
   }
 
