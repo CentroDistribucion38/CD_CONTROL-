@@ -66,20 +66,6 @@
 
 /* LA CUENTA: el campo y su resultado ---------------------------------- */
 .cas .cas-cuenta { display: inline-flex; align-items: center; justify-content: flex-end; gap: 8px }
-.cas .cas-campo { position: relative; display: inline-block; width: 120px; max-width: 34vw; height: 40px }
-.cas .cas-campo textarea {
-  position: absolute; top: 0; right: 0; width: 100%; height: 40px; min-height: 40px; resize: none; overflow: hidden;
-  box-sizing: border-box; padding: 9px 10px; white-space: nowrap; text-align: right;
-  font: 600 14px/20px ui-monospace, "IBM Plex Mono", monospace; color: var(--fe-tinta);
-  background: #fff; border: 1px solid var(--fe-linea); border-radius: 3px;
-}
-.cas .cas-campo textarea.cerrado { cursor: text; font-size: 15px }
-.cas .cas-campo textarea:disabled { background: transparent; border-color: transparent }
-.cas .cas-campo textarea.mal { border-color: var(--fe-mal); background: color-mix(in srgb, var(--fe-mal) 8%, #fff) }
-.cas .cas-campo.abierto textarea {
-  position: fixed; z-index: 60; width: min(440px, 88vw); white-space: pre-wrap; overflow-wrap: anywhere;
-  text-align: left; border-color: var(--fe-tinta); box-shadow: 0 6px 22px rgba(0,0,0,.22); outline: none;
-}
 .cas .cas-cuenta input {
   width: 180px; max-width: 34vw; min-height: 40px; padding: 0 10px; text-align: right;
   font: 600 14px ui-monospace, "IBM Plex Mono", monospace; color: var(--fe-tinta);
@@ -87,6 +73,8 @@
 }
 .cas .cas-cuenta input:disabled { background: transparent; border-color: transparent }
 .cas .cas-cuenta input.mal { border-color: var(--fe-mal); background: color-mix(in srgb, var(--fe-mal) 8%, #fff) }
+.cas .cas-cuenta input.cas-res { width: 120px; max-width: 34vw; cursor: text; font-size: 15px; caret-color: transparent }
+.cas .cas-cuenta input.cas-res:focus-visible { outline: 2px solid var(--fe-tinta); outline-offset: 0 }
 .cas .cas-cuenta b { min-width: 64px; text-align: right; font-variant-numeric: tabular-nums }
 
 /* EL PIE ------------------------------------------------------------- */
@@ -103,7 +91,6 @@
   .cas .cas-tabla th, .cas .cas-tabla td { padding-left: 8px; padding-right: 8px }
   .cas .cas-cuenta { flex-direction: column; align-items: flex-end; gap: 2px }
   .cas .cas-cuenta input { width: 104px; max-width: 30vw }
-  .cas .cas-campo { width: 104px; max-width: 30vw }
   .cas .cas-cuenta b { min-width: 0; font-size: 12px; color: var(--fe-gris) }
   .cas .cas-tabla th { font-size: 10px; letter-spacing: .06em; white-space: normal }
 }
@@ -140,3 +127,20 @@
 .cas .cas-pie { position: sticky; bottom: 0; background: var(--fe-fondo); padding: 10px 0; max-width: none }
 .cas .cas-campos { grid-template-columns: 200px 1fr }
 @media (max-width: 700px) { .cas .cas-campos { grid-template-columns: 1fr } .cas .cas-tabla { min-width: 900px } }
+
+/* LA CUENTA ABIERTA (cuelga del <body>, por eso no va dentro de .cas) ------ */
+.cas-pop {
+  position: fixed; z-index: 400; width: min(440px, 88vw); display: flex; flex-direction: column;
+  background: #fff; color: #111; border: 2px solid #111; border-radius: 4px; box-shadow: 0 10px 30px rgba(0,0,0,.3);
+}
+.cas-pop textarea {
+  display: block; width: 100%; box-sizing: border-box; min-height: 40px; resize: none; overflow: hidden;
+  padding: 10px 12px; border: 0; outline: 0; background: transparent; color: inherit;
+  font: 600 14px/20px ui-monospace, "IBM Plex Mono", monospace; overflow-wrap: anywhere; white-space: pre-wrap;
+}
+.cas-pop footer {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 6px 12px;
+  border-top: 1px solid #ddd; font-family: inherit; font-size: 12px; line-height: 1.3; color: #666;
+}
+.cas-pop footer b { font-size: 16px; color: #111; font-variant-numeric: tabular-nums }
+.cas-pop footer b.mal { color: #b3261e; font-size: 13px }

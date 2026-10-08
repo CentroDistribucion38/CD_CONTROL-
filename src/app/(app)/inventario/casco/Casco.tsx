@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { BuscarEnLista } from "@/components/BuscarEnLista";
+import { CampoCuenta } from "./CampoCuenta";
+import { useConfirmar } from "@/components/Confirmar";
 import { esCuenta, suma } from "@/modulos/casco/suma";
 import type { MaterialCasco, SitioCasco } from "@/modulos/casco/datos";
 
@@ -45,54 +47,11 @@ const aTexto = (n: number | null) => (n == null ? "" : String(Number(n)));
 const VACIO: Bloque = { filas: [], sucio: false, cargando: true, arranque: null, guardado: false, guardando: false, aviso: null };
 const COLS = "ubicacion, sku, inventario, inv_expr, baja, baja_expr, hl, fecha, puesto, calidad";
 
-/** Campo de la cuenta tipo Excel: cerrado es una celda corta; al seleccionarlo se abre
- *  (flotando, sin que la tabla lo recorte) y muestra TODA la fórmula en varias líneas. */
-function CampoCuenta({ valor, resultado, cambiar, deshabilitado, mal, rotulo }: {
-  valor: string; resultado: number | null; cambiar: (v: string) => void; deshabilitado: boolean; mal: boolean; rotulo: string;
-}) {
-  const caja = useRef<HTMLSpanElement>(null);
-  const ref = useRef<HTMLTextAreaElement>(null);
-  const [abierto, setAbierto] = useState(false);
-  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
-  const medir = useCallback(() => {
-    const r = caja.current?.getBoundingClientRect();
-    if (r) setPos({ top: r.top, right: Math.max(8, window.innerWidth - r.right) });
-  }, []);
-  useLayoutEffect(() => {
-    const t = ref.current;
-    if (!t) return;
-    t.style.height = "";
-    if (abierto) t.style.height = Math.max(t.scrollHeight, 40) + "px";
-  }, [valor, abierto]);
-  useLayoutEffect(() => {
-    // al abrir, el cursor va al final de la cuenta para seguir sumando
-    if (abierto && ref.current) { const n = ref.current.value.length; ref.current.setSelectionRange(n, n); }
-  }, [abierto]);
-  useEffect(() => {
-    if (!abierto) return;
-    window.addEventListener("scroll", medir, true);
-    window.addEventListener("resize", medir);
-    return () => { window.removeEventListener("scroll", medir, true); window.removeEventListener("resize", medir); };
-  }, [abierto, medir]);
-  return (
-    <span ref={caja} className={"cas-campo" + (abierto ? " abierto" : "")}>
-      <textarea ref={ref} rows={1} spellCheck={false} disabled={deshabilitado}
-                value={abierto || resultado == null ? valor : nf0.format(resultado)}
-                title={abierto ? undefined : "Toca para ver o seguir la cuenta"}
-                aria-label={rotulo} className={(mal ? "mal" : "") + (abierto ? "" : " cerrado")}
-                style={abierto && pos ? { top: pos.top, right: pos.right } : undefined}
-                onFocus={() => { medir(); setAbierto(true); }}
-                onBlur={() => setAbierto(false)}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } }}
-                onChange={(e) => cambiar(e.target.value.replace(/[\r\n]+/g, ""))} />
-    </span>
-  );
-}
-
 export function Casco({ sitios, materiales, hoy, puestos, puedeEditar }: {
   sitios: SitioCasco[]; materiales: MaterialCasco[]; hoy: string; puestos: string[]; puedeEditar: boolean;
 }) {
   const supabase = useMemo(() => createClient(), []);
+  const [pedir, dialogo] = useConfirmar();
   const [fecha, setFecha] = useState(hoy);
   const [bloques, setBloques] = useState<Record<string, Bloque>>({});
   const [errorLectura, setErrorLectura] = useState<string | null>(null);
@@ -189,6 +148,18 @@ export function Casco({ sitios, materiales, hoy, puestos, puedeEditar }: {
     poner(s, (b) => b.filas.some((f) => f.sku === sku) || !sku ? {} :
       { filas: [...b.filas, { sku, inv: "", baja: "", puesto: "", calidad: "" }], sucio: true, aviso: null });
   const quitar = (s: string, i: number) => poner(s, (b) => ({ filas: b.filas.filter((_, j) => j !== i), sucio: true }));
+  /** La × pregunta primero: dice QUÉ material se va, de QUÉ tabla y cuánto tenía. */
+  const quitarConfirmado = async (s: SitioCasco, i: number, sku: string, resumen: string) => {
+    const ok = await pedir({
+      titulo: `¿Quitar ${sku} de ${s.nombre}?`,
+      dice: (<>
+        <b>{dato[sku]?.nombre ?? sku}</b> — {resumen}. Sale de esta tabla y se borra de la base cuando guardes;
+        si recargas la página antes de guardar, vuelve.
+      </>),
+      confirmar: "Quitar", cancelar: "Cancelar", peligro: true,
+    });
+    if (ok) quitar(s.clave, i);
+  };
 
   const totalDia = Object.values(delDia).reduce((t, v) => t + v, 0);
   const nSucios = Object.values(bloques).filter((b) => b.sucio).length;
@@ -197,6 +168,7 @@ export function Casco({ sitios, materiales, hoy, puestos, puedeEditar }: {
 
   return (
     <>
+      {dialogo}
       <section className="cabeza">
         <div>
           <p className="ojo">INVENTARIO · CASCO DE VIDRIO · REGISTRAR</p>
@@ -334,7 +306,13 @@ export function Casco({ sitios, materiales, hoy, puestos, puedeEditar }: {
                                  onChange={(e) => cambiar(s.clave, i, "calidad", e.target.value)} />
                         </td>
                         <td className="x">
-                          {puedeEditar && <button type="button" onClick={() => quitar(s.clave, i)} aria-label={`Quitar ${f.sku}`}>×</button>}
+                          {puedeEditar && (
+                            <button type="button" aria-label={`Quitar ${f.sku}`} title="Quitar este material de la tabla"
+                                    onClick={() => quitarConfirmado(s, i, f.sku,
+                                      (x.inv ?? 0) + (x.baja ?? 0) > 0
+                                        ? `tiene ${nf0.format((x.inv ?? 0) + (x.baja ?? 0))} estibas · ${x.hl == null ? "—" : nf2.format(x.hl)} HL`
+                                        : "no tiene estibas")}>×</button>
+                          )}
                         </td>
                       </tr>
                     );
