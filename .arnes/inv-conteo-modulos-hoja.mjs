@@ -61,6 +61,13 @@ ok(!mods.includes("PASILLO") && !mods.includes("TANDEM") && mods.includes("TUNEL
 await escoger(0, "P");
 mods = await opciones(1);
 ok(mods.length === 49 && mods.includes("49"), "la calle P no llega al 49: " + mods.length);
+/* FABRICA es una calle y sus módulos son las líneas L2, L4 y L6, sin lados. */
+ok(calles.includes("FABRICA"), "la calle FABRICA no sale: " + calles.join(","));
+await escoger(0, "FABRICA");
+mods = await opciones(1);
+ok(mods.length === 3 && ["L2", "L4", "L6"].every((m) => mods.includes(m)), "FABRICA debe ofrecer L2, L4 y L6: " + mods.join(","));
+await escoger(1, "L4");
+ok(/no tiene lados/i.test(await pg.locator(".fe-lado").textContent()), "una línea de fábrica ofrece izquierdo y derecho: " + await pg.locator(".fe-lado").textContent());
 /* Sin calle, cada módulo dice su calle. */
 await escoger(0, "Todas");
 const todos = await pg.locator(".bs-campo").nth(1).click().then(() => pg.locator(".bs-lista [role=option]").count());
