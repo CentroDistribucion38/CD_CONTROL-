@@ -271,27 +271,6 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura }: {
             </div>
           </section>
 
-          {/* ---------- DINÁMICA ---------- */}
-          <section className="cvt-caja" aria-label="HL pendiente por disposición">
-            <header className="cvt-cab"><h2>HL PENDIENTE POR DISPOSICIÓN</h2><span className="cvt-sub">{sku ? `SKU ${sku}` : "SKU (Todas)"} · el día más nuevo arriba</span></header>
-            <div className="cvt-tabla-caja">
-              <table className="cvt-tabla">
-                <thead>
-                  <tr><th>FECHA</th>{claves.map((k) => <th key={k} className="n">{nombreSitio(k).toUpperCase()}</th>)}<th className="n">TOTAL GENERAL</th></tr>
-                </thead>
-                <tbody>
-                  {[...serie].reverse().map((d) => (
-                    <tr key={d.fecha}>
-                      <td>{corta(d.fecha)}</td>
-                      {claves.map((k) => <td key={k} className="n">{d.porSitio[k] != null ? nf0.format(d.porSitio[k]) : "—"}</td>)}
-                      <td className="n tot">{nf0.format(d.total)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
           {/* ---------- POR MATERIAL ---------- */}
           <section className="cvt-caja" aria-label="Por material">
             <header className="cvt-cab">
@@ -328,6 +307,27 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura }: {
               </table>
             </div>
           </section>
+          {/* ---------- DINÁMICA ---------- */}
+          <section className="cvt-caja" aria-label="HL pendiente por disposición">
+            <header className="cvt-cab"><h2>HL PENDIENTE POR DISPOSICIÓN</h2><span className="cvt-sub">{sku ? `SKU ${sku}` : "SKU (Todas)"} · el día más nuevo arriba</span></header>
+            <div className="cvt-tabla-caja">
+              <table className="cvt-tabla">
+                <thead>
+                  <tr><th>FECHA</th>{claves.map((k) => <th key={k} className="n">{nombreSitio(k).toUpperCase()}</th>)}<th className="n">TOTAL GENERAL</th></tr>
+                </thead>
+                <tbody>
+                  {[...serie].reverse().map((d) => (
+                    <tr key={d.fecha}>
+                      <td>{corta(d.fecha)}</td>
+                      {claves.map((k) => <td key={k} className="n">{d.porSitio[k] != null ? nf0.format(d.porSitio[k]) : "—"}</td>)}
+                      <td className="n tot">{nf0.format(d.total)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
         </>
       )}
     </>
