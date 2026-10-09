@@ -73,7 +73,7 @@
 .fe .ba .ba-link:disabled { opacity: .45; cursor: default; text-decoration: none }
 
 /* ---------- Las cuatro cifras ---------- */
-.fe .ba-kp { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: #fff; border: 1px solid var(--fe-linea) }
+.fe .ba-kp { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); background: #fff; border: 1px solid var(--fe-linea) }
 .fe .ba-kp > div { padding: 10px 16px; min-width: 0 }
 .fe .ba-kp > div + div { border-left: 1px solid var(--fe-linea) }
 .fe .ba-kp b { display: block; margin-top: 6px; font: 900 24px/1.1 var(--fe-titulo); letter-spacing: -.02em; color: var(--fe-tinta); font-variant-numeric: tabular-nums }
@@ -156,7 +156,7 @@
   .fe .ba-ctrl { grid-template-columns: minmax(0, 1fr) }
   .fe .ba-ctrl > div + div { border-left: 0; border-top: 1px solid var(--fe-linea) }
   .fe .ba-kp { grid-template-columns: repeat(2, minmax(0, 1fr)) }
-  .fe .ba-kp > div:nth-child(3) { border-left: 0 }
+  .fe .ba-kp > div:nth-child(odd) { border-left: 0 }
   .fe .ba-kp > div:nth-child(n+3) { border-top: 1px solid var(--fe-linea) }
   .fe .ba-cab { align-items: flex-start }
 }
@@ -292,3 +292,10 @@
 .fe .ba-tabla .ba-chk input { width: 22px; height: 22px; margin: 0; vertical-align: middle; accent-color: #A30D25; cursor: pointer }
 .fe .ba-tabla td.ba-chk { padding: 0 }
 .fe .ba-tabla tbody tr.marcado, .fe .ba-tabla tbody tr.marcado:nth-child(even) { background: color-mix(in srgb, #A30D25 8%, #fff) }
+
+/* «+ se suma con …»: la ubicación la contó otra persona y las dos cantidades valen. */
+.fe .ba-con {
+  display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 999px; white-space: nowrap;
+  font: 700 11px var(--fe-texto); color: var(--fe-tinta);
+  background: color-mix(in srgb, var(--fe-acento) 28%, #fff); border: 1px solid var(--fe-acento);
+}

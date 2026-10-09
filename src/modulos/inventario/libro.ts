@@ -5,9 +5,10 @@
  * espectacular, con el logo, como lo del sider: un Excel donde yo pueda
  * validar todo.»
  *
- * UNA BASE, NO LA SUMA DE LOS RECORRIDOS. Si ese día se caminó la calle A
- * dos veces, vale el último recorrido que pasó por cada ubicación (la
- * misma regla del tablero, medirRiesgo). Los renglones que quedaron
+ * UNA BASE, NO LA SUMA DE LOS RECORRIDOS. Si la misma persona caminó la
+ * calle A dos veces, vale su último recorrido en cada ubicación; si la
+ * contaron personas distintas, se suman (la misma regla del tablero,
+ * medirRiesgo → cruzar). Los renglones que quedaron
  * reemplazados no se pierden: salen en «Validar», para ver qué cambió.
  *
  * Seis hojas:

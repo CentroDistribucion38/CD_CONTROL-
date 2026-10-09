@@ -10,9 +10,10 @@
  *
  * LA PREGUNTA DE ARRIBA ES «¿QUÉ RECORRIDOS?». Un calendario y una fila
  * de fichas —una por recorrido enviado de esos días— que se marcan o se
- * desmarcan. Lo que se ve debajo es UNA base, no la suma: si una
- * ubicación se contó en dos recorridos VALE EL ÚLTIMO (la misma regla del
- * tablero y del Excel consolidado; ver `base-cruce.ts`). Por eso cada
+ * desmarcan. Lo que se ve debajo es UNA base: si la MISMA persona contó
+ * una ubicación dos veces VALE SU ÚLTIMO conteo; si la contaron personas
+ * DISTINTAS, se suman y se ven los dos renglones («+ se suma con …»). Es
+ * la misma regla del tablero y del Excel consolidado; ver `base-cruce.ts`. Por eso cada
  * renglón dice qué recorrido es el que vale, a quién reemplazó y cuánto
  * decía antes: sin eso la cifra cambia sin que nadie sepa por qué.
  *
@@ -127,11 +128,20 @@ type Col<T> = {
   pinta?: (r: T) => ReactNode;
 };
 
+/* «SE SUMA CON …»: la misma ubicación la contó otra persona y las dos cantidades valen (ver
+   `base-cruce.ts`). Se dice en el renglón para que nadie crea que es un renglón repetido. */
+function Sumado({ r }: { r: Renglon }) {
+  const con = (r as Partial<Vigente>).con;
+  if (!con || con.length === 0) return null;
+  return <span className="ba-con" title={`Esta ubicación también la contó ${con.join(" y ")}: las dos cantidades se suman.`}>+ se suma con {con.join(", ")}</span>;
+}
+
 const COLUMNAS: Col<Renglon>[] = [
   { k: "calle", t: "Calle", texto: (r) => r.calle ?? "" },
   { k: "modulo", t: "Módulo", texto: (r) => r.modulo ?? "" },
   { k: "lado", t: "Lado", texto: (r) => r.lado ?? "" },
-  { k: "ubicacion_combinada", t: "Ubicación", texto: (r) => r.ubicacion_combinada ?? r.ubicacion ?? "" },
+  { k: "ubicacion_combinada", t: "Ubicación", texto: (r) => r.ubicacion_combinada ?? r.ubicacion ?? "",
+    pinta: (r) => <>{r.ubicacion_combinada ?? r.ubicacion ?? ""}<Sumado r={r} /></> },
   { k: "codigo", t: "Código", texto: (r) => r.codigo },
   { k: "material", t: "Material", texto: (r) => r.material },
   { k: "familia", t: "Familia", texto: (r) => r.familia ?? "" },
@@ -207,7 +217,7 @@ const COLUMNAS: Col<Renglon>[] = [
 /* Las columnas de la tabla CORTA. Las veintiséis están en COLUMNAS. */
 const ubi = (r: Renglon) => r.ubicacion_combinada ?? r.ubicacion ?? "";
 const CORTAS: Col<Fila>[] = [
-  { k: "ub", t: "Ubicación", texto: ubi, pinta: (r) => <span className="ba-ub">{ubi(r) || "—"}</span> },
+  { k: "ub", t: "Ubicación", texto: ubi, pinta: (r) => <span className="ba-ub">{ubi(r) || "—"}<Sumado r={r} /></span> },
   { k: "material", t: "Material", texto: (r) => r.material,
     pinta: (r) => (
       <span className="ba-mat">
@@ -320,7 +330,7 @@ export function Base({
   const alterna = (id: string) =>
     setQuitados((x) => { const y = new Set(x); if (y.has(id)) y.delete(id); else y.add(id); return y });
 
-  /* EL CRUCE: de cada ubicación vale el último recorrido que pasó por ella. */
+  /* EL CRUCE: de cada ubicación vale el último recorrido DE CADA PERSONA; personas distintas se suman. */
   const cruce = useMemo(() => {
     const ids = new Set(incluidos.map((c) => c.id));
     return cruzar(enviadas.filter((r) => ids.has(r.conteo_id)), incluidos);
@@ -445,6 +455,7 @@ export function Base({
     cajas: cruce.vigentes.reduce((a, r) => a + Number(r.total_cajas), 0),
     ubicaciones: new Set(cruce.vigentes.map((r) => r.ubicacion_id ?? r.ubicacion ?? "—")).size,
     repetidas: cruce.repetidas,
+    compartidas: cruce.compartidas,
   }), [cruce]);
 
   /* ============== SELECCIÓN ============== */
@@ -601,7 +612,8 @@ export function Base({
           <div><span className="ba-eti">Renglones</span><b>{nf.format(kp.renglones)}</b><small>después de cruzar</small></div>
           <div><span className="ba-eti">Cajas</span><b>{nf.format(kp.cajas)}</b><small>en la base</small></div>
           <div><span className="ba-eti">Ubicaciones</span><b>{nf.format(kp.ubicaciones)}</b><small>distintas</small></div>
-          <div className="az"><span className="ba-eti">Repetidas</span><b>{nf.format(kp.repetidas)}</b><small>vale el último conteo</small></div>
+          <div className="az"><span className="ba-eti">Repetidas</span><b>{nf.format(kp.repetidas)}</b><small>misma persona: vale su último conteo</small></div>
+          <div><span className="ba-eti">Contadas por 2+</span><b>{nf.format(kp.compartidas)}</b><small>personas distintas: se suman</small></div>
         </section>
       )}
 
