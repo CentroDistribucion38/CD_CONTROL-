@@ -79,7 +79,7 @@ export function medirCobro(lista: Rotura[]): Cobro {
       const falta = [
         r.precio_envase == null ? "precio del envase" : null,
         r.tipo === "producto_terminado" && (r.contaminadas ?? 0) > 0 && r.precio_producto == null ? "precio del producto" : null,
-        r.factor_caja == null ? "factor (unidades por caja)" : null,
+        r.factor_caja == null ? "unidades por caja" : null,
       ].filter(Boolean).join(" y ") || "precio";
       const x = m.get(r.material) ?? { material: r.material, nombre: r.material_nombre, falta, roturas: 0 };
       x.roturas += 1; m.set(r.material, x); return m;

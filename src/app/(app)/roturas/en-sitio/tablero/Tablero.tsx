@@ -384,11 +384,11 @@ export function Tablero({ roturas, nombres, manda }: {
                         <div className="tb-ficha">
                           <div className="tb-datos">
                             <div><b>Área</b> {r.area_nombre ?? "—"}</div>
-                            {/* LO QUE SE PERDIÓ Y LO QUE SE COBRA: cajas reportadas × factor × precio de la botella (v_roturas). */}
+                            {/* LO QUE SE PERDIÓ Y LO QUE SE COBRA: cajas × unid. por caja × precio de la botella (v_roturas). */}
                             <div><b>Se perdió</b>{" "}
                               {`${r.unidades} caja${r.unidades === 1 ? "" : "s"} ${r.tipo === "eer" ? "de envase" : "rotas"}`
                                 + (r.contaminadas ? ` y ${r.contaminadas} contaminada${r.contaminadas === 1 ? "" : "s"}` : "")
-                                + (r.factor_caja ? ` · factor ${r.factor_caja} por caja` : " · sin factor en el maestro")}
+                                + (r.factor_caja ? ` · ${r.factor_caja} por caja` : " · sin unid. por caja en el maestro")}
                             </div>
                             <div><b>Cobro</b>{" "}
                               {r.cobro_total != null
