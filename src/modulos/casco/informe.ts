@@ -384,8 +384,10 @@ export function dibujarInformeCasco(
   });
   y += KH + 3;
   fuente("normal", 7); gris();
-  doc.text("Viajes SERPRO = estibas del último conteo ÷ 100 en Carnaval y ÷ 36 en Fábrica y Bodega. El % es la parte de cada almacén en el total del último día. En rojo: subió contra su conteo anterior; en verde: bajó.", M, y + 1);
-  y += 8;
+  /* LA NOTA SE PARTE AL ANCHO DE LA HOJA: en un solo renglón se salía por la derecha y se cortaba. */
+  const notaPie = doc.splitTextToSize("Viajes SERPRO = estibas del último conteo ÷ 100 en Carnaval y ÷ 36 en Fábrica y Bodega. El % es la parte de cada almacén en el total del último día. En rojo: subió contra su conteo anterior; en verde: bajó.", ANCHO) as string[];
+  doc.text(notaPie, M, y + 1, { lineHeightFactor: 1.3 });
+  y += 5 + (notaPie.length - 1) * 3.2 + 3;
 
   /* ---------------- LA GRÁFICA ---------------- */
   cabe(GRAFICA.alto + 16);
