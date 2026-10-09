@@ -33,13 +33,19 @@ export default async function TableroCascoPage() {
   }
 
   const supabase = await createClient();
-  const r = await todas<{ fecha: string; ubicacion: string; sku: string; hl: number | string; inventario: number | string | null; baja: number | string | null }>((d, h) =>
-    supabase.from("casco_registros").select("fecha, ubicacion, sku, hl, inventario, baja")
-      .order("fecha").order("ubicacion").order("sku").range(d, h));
+  type Fila = { fecha: string; ubicacion: string; sku: string; hl: number | string; inventario: number | string | null; baja: number | string | null; puesto?: string | null; calidad?: string | null };
+  const leer = (cols: string) => todas<Fila>((d, h) =>
+    supabase.from("casco_registros").select(cols)
+      .order("fecha").order("ubicacion").order("sku").range(d, h) as unknown as PromiseLike<{ data: Fila[] | null; error: { message: string } | null }>);
+  /* PUESTO Y CALIDAD van al informe (la columna UBICACIONES de tu Excel). Si la base todavía no los
+     tiene (falta 2026-10-casco-puesto-calidad.sql), el tablero sigue igual sin ellos. */
+  let r = await leer("fecha, ubicacion, sku, hl, inventario, baja, puesto, calidad");
+  if (r.error && /puesto|calidad/i.test(r.error)) r = await leer("fecha, ubicacion, sku, hl, inventario, baja");
 
   const puntos: Punto[] = r.data.map((x) => ({
     fecha: x.fecha, ubicacion: x.ubicacion, sku: x.sku, hl: Number(x.hl),
     inventario: x.inventario == null ? null : Number(x.inventario), baja: x.baja == null ? null : Number(x.baja),
+    puesto: x.puesto ?? null, calidad: x.calidad ?? null,
   }));
   const nombres = Object.fromEntries(materiales.map((m) => [m.sku, m.nombre]));
 

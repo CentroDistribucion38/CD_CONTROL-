@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { SitioCasco } from "@/modulos/casco/datos";
-import { ejeNice, estibasDelDia, filtrar, porFecha, porMaterial, viajesSerpro, type Punto } from "@/modulos/casco/serie";
+import { ejeNice, estadoAlmacen, estibasDelDia, filtrar, porFecha, porMaterial, viajesSerpro, type Punto } from "@/modulos/casco/serie";
+import { media, type DatosInformeCasco } from "@/modulos/casco/informe";
+import { BotonesInforme } from "./BotonesInforme";
 
 /**
  * TABLERO DE CASCO DE VIDRIO — la hoja PARTIR, viva.
@@ -30,7 +32,14 @@ const nf1 = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 1, maximumFr
 const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 const corta = (iso: string) => `${Number(iso.slice(8, 10))}-${MESES[Number(iso.slice(5, 7)) - 1]}`;
 const larga = (iso: string) => new Date(iso + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-const sumaDias = (iso: string, n: number) => { const d = new Date(iso + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10) };
+/* SIN FECHA NO HAY CUENTA: con la base vacía o sin poder leerla, `ultima` llega vacía y
+   `toISOString` de una fecha inválida tumba la pantalla entera («RangeError: Invalid time value»)
+   en vez de decir qué pasó. */
+const sumaDias = (iso: string, n: number) => {
+  const d = new Date(iso + "T12:00:00Z");
+  if (Number.isNaN(d.getTime())) return iso;
+  d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10);
+};
 
 type Rango = "30" | "90" | "todo" | "fechas";
 
@@ -82,6 +91,42 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura }: {
   const pico = serie.reduce<typeof hoyD | undefined>((m, d) => (!m || d.total > m.total ? d : m), undefined);
   const estibasHoy = ultima ? estibasDelDia(puntos, ultima) : 0;
 
+  /* ---------- EL INFORME (PDF y Word) ----------
+     Con los mismos cortes de la pantalla: lo que se ve es lo que sale. Cada almacén va con SU último
+     conteo dentro del periodo, y solo los materiales con algo (estibas, baja o HL). */
+  const datosInforme = useMemo<DatosInformeCasco | null>(() => {
+    if (!serie.length) return null;
+    const claves = sitios.map((s) => s.clave).filter((k) => sitiosVis.includes(k));
+    const corte = serie[serie.length - 1].fecha;
+    const filtros = [
+      sitiosVis.length < sitios.length ? `Ubicación: ${sitios.filter((s) => sitiosVis.includes(s.clave)).map((s) => s.centro ?? s.nombre).join(", ")}` : "",
+      sku ? `SKU ${sku} · ${nombres[sku] ?? sku}` : "",
+    ].filter(Boolean).join(" · ");
+    const ant = serie[serie.length - 2];
+    const pk = serie.reduce((m, d) => (d.total > m.total ? d : m), serie[0]);
+    return {
+      hoy: new Date().toLocaleDateString("sv-SE"),
+      corte,
+      periodo: `del ${media(serie[0].fecha)} al ${media(corte)} de ${corte.slice(0, 4)}`,
+      filtros,
+      total: serie[serie.length - 1].total,
+      anterior: ant ? { fecha: ant.fecha, total: ant.total } : null,
+      pico: { fecha: pk.fecha, total: pk.total },
+      viajes: viajesSerpro(estibasHoy),
+      claves,
+      serie,
+      sitios: claves.map((k) => {
+        const s = sitios.find((x) => x.clave === k)!;
+        const e = estadoAlmacen(vistos, k);
+        return {
+          clave: k, centro: s.centro ?? k, nombre: s.nombre, rotuloBaja: s.baja_rotulo,
+          fecha: e.fecha, total: e.total, estibas: e.estibas, anterior: e.anterior,
+          filas: e.filas.map((f) => ({ ...f, nombre: nombres[f.sku] ?? f.sku })),
+        };
+      }),
+    };
+  }, [serie, vistos, sitiosVis, sku, estibasHoy, sitios, nombres]);
+
   const alternar = (k: string) => setSitiosVis((v) => (v.includes(k) ? (v.length > 1 ? v.filter((x) => x !== k) : v) : [...v, k]));
 
   /* ---------- LA GRÁFICA ---------- */
@@ -111,6 +156,7 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura }: {
           </p>
           <p className="sub"><Link href="/inventario/casco">← Registrar casco de vidrio</Link></p>
         </div>
+        <BotonesInforme datos={datosInforme} />
       </section>
 
       {/* ---------- FILTROS ---------- */}
