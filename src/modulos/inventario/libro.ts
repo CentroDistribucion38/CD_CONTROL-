@@ -641,70 +641,101 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
       (m.get(x.l.codigo) ?? m.set(x.l.codigo, []).get(x.l.codigo)!).push(x);
     }
     const estados = [...porEstado.keys()].sort(natural);
-    const listas = estados.map((e) => [...porEstado.get(e)!.values()].map((xs) => ({
-      cod: xs[0].l.codigo, desc: xs[0].l.material.toUpperCase(),
-      ubic: ordenarUbicaciones(xs),
-      est: xs.reduce((t, x) => t + x.fisicas, 0), cajas: xs.reduce((t, x) => t + x.cajas, 0),
-    })).sort((x, y) => natural(x.cod, y.cod)));
+    /* Y POR UBICACIÓN: «faltaría ubicaciones, pero específico para colocar FÁBRICA… y poner el resto».
+       FABRICA = las que se llaman FABRICA_… (patios, líneas de sorting); RESTO = todas las demás (la
+       bodega). Cada combinación estado × ubicación lleva su propia lista escondida, con sus estibas y
+       cajas contadas SOLO en esas ubicaciones. */
+    const ZONAS = ["FABRICA", "RESTO", "TODAS"] as const;
+    const esFab = (x: Fila) => /^\s*FABRICA/i.test(x.l.ubicacion ?? x.l.ubicacion_combinada ?? "");
+    const enZona = (x: Fila, z: string) => z === "TODAS" || (z === "FABRICA" ? esFab(x) : !esFab(x));
+    type Item = { cod: string; desc: string; ubic: string; est: number; cajas: number };
+    const claves: string[] = [];
+    const listas: Item[][] = [];
+    for (const e of estados) for (const z of ZONAS) {
+      const items: Item[] = [];
+      for (const xs0 of porEstado.get(e)!.values()) {
+        const xs = xs0.filter((x) => enZona(x, z));
+        if (!xs.length) continue;
+        items.push({ cod: xs[0].l.codigo, desc: xs[0].l.material.toUpperCase(), ubic: ordenarUbicaciones(xs),
+                     est: xs.reduce((t, x) => t + x.fisicas, 0), cajas: xs.reduce((t, x) => t + x.cajas, 0) });
+      }
+      claves.push(`${e}|${z}`);
+      listas.push(items.sort((x, y) => natural(x.cod, y.cod)));
+    }
     const N = Math.max(1, ...listas.map((l) => l.length));
-    const elegido = estados.includes("BAJA") ? "BAJA" : estados[0] ?? "";
-    const iSel = Math.max(0, estados.indexOf(elegido));
 
+    /* «REPLICARLO AL LADO PARA TENER LOS DOS»: dos tablas lado a lado, cada una con SUS dos selectores.
+       Abren como las tablas del casco: la de la izquierda en LAVADO · FABRICA (AG18) y la de la
+       derecha en BAJA · RESTO (AG22, la bodega). */
+    const est = (pref: string) => (estados.includes(pref) ? pref : estados[0] ?? "");
+    const TABLAS = [
+      { c0: 1, estado: est("LAVADO"), zona: "FABRICA" },
+      { c0: 7, estado: est("BAJA"), zona: "RESTO" },
+    ];
+    const G = 5, C0 = 14;                                    // tablas A:E y G:K · listas escondidas desde N
+    const ANCHO = 11;
     const h = wb.addWorksheet("Ubicaciones por estado", { properties: { tabColor: { argb: "FFFFC000" } } });
-    const ANCHO = 5, G = 5, C0 = 8;                          // tabla A:E · listas escondidas desde H
-    h.columns = [14, 52, 70, 12, 12].map((w) => ({ width: w }));
-    cabecera(h, "Ubicaciones por estado", `Escoge el estado y la tabla se arma sola · ${sub}`, ANCHO);
-    /* EL SELECTOR, fuera de la tabla. */
-    h.getRow(7).height = 28;
-    const lab = h.getCell(7, 1); lab.value = "ESTADO"; lab.font = letra(10, TINTA, true); lab.alignment = { vertical: "middle", horizontal: "center" };
-    const sel = h.getCell(7, 2); sel.value = elegido; sel.font = letra(13, "FF000000", true); sel.fill = relleno("FFFFE699");
-    sel.alignment = { vertical: "middle", horizontal: "center" };
-    sel.border = { top: { style: "medium" }, bottom: { style: "medium" }, left: { style: "medium" }, right: { style: "medium" } };
-    sel.dataValidation = { type: "list", allowBlank: false, formulae: [`"${estados.join(",")}"`], showErrorMessage: true, errorTitle: "Estado", error: "Escoge un estado de la lista." };
-    const nota = h.getCell(7, 3); nota.value = "◄ toca la celda amarilla y escoge: " + estados.join(" · "); nota.font = letra(9, GRIS, false, true); nota.alignment = { vertical: "middle" };
-    /* Cuántos materiales y estibas hay en ese estado. */
-    const F0 = 10, F1 = F0 + N - 1;
-    h.getRow(8).height = 18;
-    const r8 = h.getCell(8, 2);
-    r8.value = { formula: `COUNTIF(A${F0}:A${F1},"?*")&" material(es) · "&TEXT(SUM(D${F0}:D${F1}),"#,##0")&" estibas · "&TEXT(SUM(E${F0}:E${F1}),"#,##0")&" cajas"`,
-                 result: `${listas[iSel]?.length ?? 0} material(es) · ${(listas[iSel] ?? []).reduce((t, x) => t + x.est, 0)} estibas · ${(listas[iSel] ?? []).reduce((t, x) => t + x.cajas, 0)} cajas` };
-    r8.font = letra(9.5, GRIS, true); r8.alignment = { horizontal: "center" };
-
-    /* LA TABLA, como la hoja del casco: rejilla, encabezado gris y todo centrado. */
+    h.columns = [14, 40, 58, 11, 11, 3, 14, 40, 58, 11, 11].map((w) => ({ width: w }));
+    cabecera(h, "Ubicaciones por estado", `Escoge el estado y la ubicación de cada tabla y se arma sola · ${sub}`, ANCHO);
+    const F0 = 11, F1 = F0 + N - 1;
     const borde = { top: raya(), bottom: raya(), left: raya(), right: raya() };
+    const marco = { top: { style: "medium" as const }, bottom: { style: "medium" as const }, left: { style: "medium" as const }, right: { style: "medium" as const } };
     const CAB = ["COD", "DESCRIPCIÓN", "UBICACIONES", "ESTIBAS", "CAJAS"];
-    h.getRow(F0 - 1).height = 30;
-    CAB.forEach((t, i) => { const c = h.getCell(F0 - 1, i + 1); c.value = t; c.font = letra(11, "FF000000", true); c.fill = relleno("FFD9D9D9"); c.border = borde; c.alignment = { vertical: "middle", horizontal: "center", wrapText: true } });
-    /* Las listas escondidas: por estado, 5 columnas (cod, descripción, ubicaciones, estibas, cajas). */
-    const ult = col(C0 + estados.length * G - 1);
-    estados.forEach((e, j) => {
-      h.getCell(F0 - 1, C0 + j * G).value = e;
-      listas[j].forEach((m, k) => {
-        const r = F0 + k;
+
+    /* Las listas escondidas: por estado × ubicación, 5 columnas (cod, descripción, ubicaciones, estibas, cajas). */
+    const ult = col(C0 + claves.length * G - 1);
+    claves.forEach((k, j) => {
+      h.getCell(F0 - 1, C0 + j * G).value = k;
+      listas[j].forEach((m, i) => {
+        const r = F0 + i;
         h.getCell(r, C0 + j * G).value = m.cod; h.getCell(r, C0 + j * G + 1).value = m.desc; h.getCell(r, C0 + j * G + 2).value = m.ubic;
         h.getCell(r, C0 + j * G + 3).value = m.est; h.getCell(r, C0 + j * G + 4).value = m.cajas;
       });
     });
-    for (let c = C0; c <= C0 + estados.length * G - 1; c++) h.getColumn(c).hidden = true;
+    for (let c = C0; c <= C0 + claves.length * G - 1; c++) h.getColumn(c).hidden = true;
     const rango = `$${col(C0)}$${F0}:$${ult}$${F1}`, cab = `$${col(C0)}$${F0 - 1}:$${ult}$${F0 - 1}`;
-    for (let k = 0; k < N; k++) {
-      const r = F0 + k, fila = h.getRow(r);
-      const m = listas[iSel]?.[k];
-      const largo = Math.max((m?.ubic ?? "").split("\n").reduce((t, l) => t + Math.max(1, Math.ceil(l.length / 66)), 0), Math.ceil((m?.desc.length ?? 0) / 50), 1);
-      fila.height = Math.max(20, 6 + 14 * largo);
-      for (let c = 0; c < G; c++) {
-        const idx = `INDEX(${rango},${k + 1},MATCH($B$7,${cab},0)+${c})`;
-        const res = m ? [m.cod, m.desc, m.ubic, m.est, m.cajas][c] : "";
-        const x = fila.getCell(c + 1);
-        x.value = { formula: `IFERROR(IF(${idx}="","",${idx}),"")`, result: res };
-        x.border = borde; x.font = letra(11, "FF000000", c === 0);
-        x.alignment = { vertical: "middle", horizontal: c === 2 ? "left" : "center", wrapText: c === 1 || c === 2, indent: c === 2 ? 1 : 0 };
-        if (c >= 3) x.numFmt = "#,##0;\\-#,##0;";
+
+    h.getRow(7).height = 26; h.getRow(8).height = 26; h.getRow(9).height = 18; h.getRow(F0 - 1).height = 30;
+    const altos: number[] = Array(N).fill(20);
+    for (const t of TABLAS) {
+      const cE = col(t.c0 + 1);                              // la celda del estado (B o H)
+      const sel = (fila: number, rot: string, valor: string, lista: string[], ayuda: string) => {
+        const l = h.getCell(fila, t.c0); l.value = rot; l.font = letra(10, TINTA, true); l.alignment = { vertical: "middle", horizontal: "center" };
+        const s = h.getCell(fila, t.c0 + 1); s.value = valor; s.font = letra(12.5, "FF000000", true); s.fill = relleno("FFFFE699");
+        s.alignment = { vertical: "middle", horizontal: "center" }; s.border = marco;
+        s.dataValidation = { type: "list", allowBlank: false, formulae: [`"${lista.join(",")}"`], showErrorMessage: true, errorTitle: rot, error: "Escoge uno de la lista." };
+        const n = h.getCell(fila, t.c0 + 2); n.value = ayuda; n.font = letra(9, GRIS, false, true); n.alignment = { vertical: "middle", wrapText: true };
+      };
+      sel(7, "ESTADO", t.estado, estados, "◄ escoge: " + estados.join(" · "));
+      sel(8, "UBICACIÓN", t.zona, [...ZONAS], "◄ FABRICA (patios y sorting de Fábrica) · RESTO (la bodega, lo que no es Fábrica) · TODAS");
+      const llave = `$${cE}$7&"|"&$${cE}$8`;
+      const iSel = Math.max(0, claves.indexOf(`${t.estado}|${t.zona}`));
+      const A = col(t.c0), D = col(t.c0 + 3), E = col(t.c0 + 4);
+      const r9 = h.getCell(9, t.c0 + 1);
+      r9.value = { formula: `COUNTIF(${A}${F0}:${A}${F1},"?*")&" material(es) · "&TEXT(SUM(${D}${F0}:${D}${F1}),"#,##0")&" estibas · "&TEXT(SUM(${E}${F0}:${E}${F1}),"#,##0")&" cajas"`,
+                   result: `${listas[iSel]?.length ?? 0} material(es) · ${(listas[iSel] ?? []).reduce((x, m) => x + m.est, 0)} estibas · ${(listas[iSel] ?? []).reduce((x, m) => x + m.cajas, 0)} cajas` };
+      r9.font = letra(9.5, GRIS, true); r9.alignment = { horizontal: "center" };
+      CAB.forEach((tt, i) => { const c = h.getCell(F0 - 1, t.c0 + i); c.value = tt; c.font = letra(11, "FF000000", true); c.fill = relleno("FFD9D9D9"); c.border = borde; c.alignment = { vertical: "middle", horizontal: "center", wrapText: true } });
+      for (let k = 0; k < N; k++) {
+        const r = F0 + k, fila = h.getRow(r);
+        const m = listas[iSel]?.[k];
+        const largo = Math.max((m?.ubic ?? "").split("\n").reduce((x, l) => x + Math.max(1, Math.ceil(l.length / 54)), 0), Math.ceil((m?.desc.length ?? 0) / 38), 1);
+        altos[k] = Math.max(altos[k], 6 + 14 * largo);
+        for (let c = 0; c < G; c++) {
+          const idx = `INDEX(${rango},${k + 1},MATCH(${llave},${cab},0)+${c})`;
+          const res = m ? [m.cod, m.desc, m.ubic, m.est, m.cajas][c] : "";
+          const x = fila.getCell(t.c0 + c);
+          x.value = { formula: `IFERROR(IF(${idx}="","",${idx}),"")`, result: res };
+          x.border = borde; x.font = letra(11, "FF000000", c === 0);
+          x.alignment = { vertical: "middle", horizontal: c === 2 ? "left" : "center", wrapText: c === 1 || c === 2, indent: c === 2 ? 1 : 0 };
+          if (c >= 3) x.numFmt = "#,##0;\\-#,##0;";
+        }
       }
     }
+    altos.forEach((a, k) => { h.getRow(F0 + k).height = Math.min(409, a) });
     h.views = [{ state: "frozen", ySplit: F0 - 1, showGridLines: false }];
     h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: `${F0 - 1}:${F0 - 1}` };
-    h.pageSetup.printArea = `A1:E${F1}`;
+    h.pageSetup.printArea = `A1:K${F1}`;
   }
 
   /* ================= 3 · POR MATERIAL ================= */
