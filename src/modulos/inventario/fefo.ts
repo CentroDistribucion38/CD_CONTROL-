@@ -147,6 +147,10 @@ export type Renglon = {
      adivinar qué ubicación y qué material eran. */
   producto_id: string;
   ubicacion_id: string | null;
+  /** FIFO del envase: desde qué día está ese material en esa ubicación (la pone la base). */
+  fecha_fifo?: string | null;
+  /** Días que lleva en la posición (hoy − fecha FIFO). */
+  dias_en_posicion?: number | null;
 };
 
 /* Se reconoce que falta correr el SQL por el error de Postgres, no por

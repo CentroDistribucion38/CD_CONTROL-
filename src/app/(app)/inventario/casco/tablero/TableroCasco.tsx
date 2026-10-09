@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { SitioCasco } from "@/modulos/casco/datos";
 import type { UbicacionesInventario } from "@/modulos/casco/ubicaciones-inventario";
 import { limpiarPuesto } from "@/modulos/casco/ubicacion-sitio";
+import { ubicacionDeFila } from "@/modulos/casco/ubicaciones-armar";
 import { ejeNice, estadoAlmacen, filtrar, porFecha, porMaterial, viajesDelDia, viajesSerpro, type Punto } from "@/modulos/casco/serie";
 import { enOrdenInforme, media, type DatosInformeCasco } from "@/modulos/casco/informe";
 import { BotonesInforme } from "./BotonesInforme";
@@ -152,7 +153,11 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura, delInventa
                material, va vacía (nada de un P19 viejo escrito a mano). Sin inventario que aplique,
                la guardada, sin lo de la otra tabla. */
             const aplica = !!inv && !!e.fecha && e.fecha >= inv.fecha;
-            const puesto = aplica ? (inv!.mapa[f.sku] ?? null) : (limpiarPuesto(s.centro, f.puesto) || null);
+            /* Y SOLO LA DEL ESTADO DE LA COLUMNA donde tiene estibas: si el Casco tiene 1 estiba en
+               inventario y el conteo lo tiene como EXTRASUCIO, no cuadra → vacía (el aviso va al
+               Análisis del Excel, no aquí, para no confundir). */
+            const r = aplica ? ubicacionDeFila(delInventario!, s.centro ?? k, f.sku, f.inventario, f.baja, s.baja_rotulo ?? undefined) : null;
+            const puesto = aplica ? (r?.puesto || null) : (limpiarPuesto(s.centro, f.puesto) || null);
             return { ...f, puesto, nombre: nombres[f.sku] ?? f.sku };
           }),
         };

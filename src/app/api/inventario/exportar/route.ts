@@ -15,6 +15,7 @@ import { misPermisos } from "@/lib/permisos";
 import { maestroInventario, type Renglon, type ConteoFefo } from "@/modulos/inventario/fefo";
 import { armarLibroDia, type EvidenciaRenglon } from "@/modulos/inventario/libro";
 import { todas, porTandas } from "@/modulos/inventario/paginas";
+import { validarCasco } from "@/modulos/casco/validar-casco";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -94,7 +95,10 @@ export async function GET(req: Request) {
   const q = new URL(req.url).searchParams, esHex = (x: string | null) => !!x && /^[0-9a-f]{6}$/i.test(x);
   const colores = esHex(q.get("tinta")) && esHex(q.get("banda")) ? { tinta: q.get("tinta")!, banda: q.get("banda")! } : undefined;
 
+  /* LA VALIDACIÓN CON EL CASCO DE VIDRIO (lo que no cuadra va como comentario en «Análisis»). */
+  const validacionCasco = await validarCasco(lineas, new Map(conteos.map((c) => [c.id, String(c.fecha_analisis).slice(0, 10)])), hasta);
   const archivo = await armarLibroDia({
+    validacionCasco: validacionCasco ?? undefined,
     fecha, hasta, bodega: bodega.codigo, quien: yo?.nombre || yo?.usuario || "—",
     conteos, lineas, evidencias, fotosRecortadas: recortadas, materiales: m.materiales,
     ubicaciones: m.ubicaciones.filter((u) => u.bodega_id === bodega.id), logo, colores, totalDelDia: delDia.length,

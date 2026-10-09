@@ -53,6 +53,9 @@ export type InsumosDia = {
   evidencias?: EvidenciaRenglon[];
   /** Fotos que no se pudieron meter (techo de peso o no bajaron): la hoja lo dice. */
   fotosRecortadas?: number;
+  /** Lo que no cuadra entre el Casco de vidrio y este conteo (va como comentario en «Análisis»).
+   *  Sin el dato (el rol no ve el Casco), el bloque no sale. */
+  validacionCasco?: { almacen: string; fecha: string; cod: string; material: string; comentario: string }[];
 };
 
 export type EvidenciaRenglon = {
@@ -281,6 +284,9 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     { k: "dvenc", t: "Días p/vencer", w: 10, fmt: "0", num: true }, { k: "dsal", t: "Días p/salir", w: 10, fmt: "0", num: true },
     { k: "franja", t: "Franja", w: 22 }, { k: "rota", t: "Rota", w: 6 }, { k: "averia", t: "Avería", w: 7 }, { k: "pnc", t: "PNC", w: 6 },
     { k: "estenv", t: "Estado envase", w: 14 }, { k: "nota", t: "Nota", w: 30 }, { k: "hl", t: "Hectolitros", w: 12, fmt: "#,##0.00", num: true },
+    /* FIFO DEL ENVASE (al final, para no mover las columnas que usan las fórmulas): desde qué día
+       está ese material en esa posición y cuántos días lleva. La pone la base; nadie la escribe. */
+    { k: "fifo", t: "Fecha FIFO (en posición desde)", w: 14, fmt: "dd/mm/yyyy" }, { k: "dfifo", t: "Días en posición", w: 10, fmt: "0", num: true },
   ];
   const K = Object.fromEntries(CB.map((c, i) => [c.k, i + 1])) as Record<string, number>;
   const LB = (k: string) => col(K[k]);
@@ -292,6 +298,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
       cod: l.codigo, mat: l.material, tipo: l.tipo_material, fam: l.familia ?? "Sin familia", clase: x.clase, estibas: x.estibas, saldo: x.saldo, factor: x.factor, cajas: x.cajas,
       fisicas: x.fisicas, plast: x.plast, uxc: x.uxc, unid: x.unid, fab: aDia(l.fabricacion), venc: aDia(l.vencimiento), dvenc: l.dias_para_vencer, dsal: l.dias_para_salir,
       franja: rotFr(franja(l)), rota: siNo(l.rotacion), averia: siNo(l.averia), pnc: siNo(l.pnc), estenv: l.estado_envase ?? "", nota: l.nota ?? "", hl: x.hl,
+      fifo: aDia(l.fecha_fifo ?? null), dfifo: l.dias_en_posicion ?? null,
     };
   };
   const planos = filas.map(filaVal);
@@ -453,7 +460,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
   };
   const comunes = ["rec", "conto", "cuando", "calle", "modulo", "lado", "ubic", "cod", "mat", "tipo", "fam", "clase", "estibas", "saldo", "factor", "cajas", "fisicas"];
   derivada("Conteo envase", "Conteo de envase", "FFFFB000", (x) => x.clase !== "Producto",
-    [...comunes, "plast", "uxc", "unid", "estenv", "averia", "pnc", "nota", "hl"], "ConteoEnvase");
+    [...comunes, "plast", "uxc", "unid", "estenv", "averia", "pnc", "nota", "hl", "fifo", "dfifo"], "ConteoEnvase");
   derivada("Conteo producto", "Conteo de producto", "FFFFD000", (x) => x.clase === "Producto",
     [...comunes, "uxc", "unid", "fab", "venc", "dvenc", "dsal", "franja", "rota", "averia", "pnc", "nota", "hl"], "ConteoProducto");
 
@@ -556,6 +563,39 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
        «El filtro no iría dentro de la misma tabla.» Aquí solo queda el enlace a la hoja. */
     f += 2;
     { const c = h.getCell(f, 1); c.value = vinculo("Ubicaciones por estado", "► Ubicaciones por estado: escoge BAJA, LAVADO, RETORNO… y ve dónde está cada material"); c.font = letra(10.5, ENLACE, true) }
+
+    /* ---------- VALIDACIÓN CON EL CASCO DE VIDRIO ----------
+       «En el informe la ubicación va vacía, pero en el Excel, en el Análisis, como comentario.»
+       Un renglón por material que el Casco tiene en una columna (Inventario / Extrasucio con baja /
+       Lavado con baja) y el conteo NO lo tiene en el estado que le corresponde. */
+    if (d.validacionCasco) {
+      const vc = d.validacionCasco;
+      f += 2; h.getRow(f).height = 22;
+      const t = h.getCell(f, 1); t.value = "Validación con Casco de vidrio"; t.font = letra(11, TINTA, true);
+      const st = h.getCell(f, 2);
+      st.value = vc.length ? `${vc.length} material${vc.length === 1 ? "" : "es"} no cuadra${vc.length === 1 ? "" : "n"}: en el informe del Casco su ubicación sale vacía` : "Todo cuadra: cada estiba del Casco está en el conteo con el estado de su columna";
+      st.font = letra(9.5, vc.length ? ROJO : GRIS, true);
+      if (vc.length) {
+        f += 1; const hd = f; h.getRow(hd).height = 21;
+        ["Almacén", "Código", "Material", "Comentario"].forEach((x, i) => {
+          const c = h.getCell(hd, [1, 2, 3, 5][i]); c.value = x; c.font = letra(9, TINTA, true); c.fill = relleno(CABEZA);
+          c.alignment = { vertical: "middle", indent: 1 };
+        });
+        h.mergeCells(hd, 3, hd, 4); h.mergeCells(hd, 5, hd, 10);
+        for (const v of vc) {
+          f += 1;
+          const r = h.getRow(f);
+          r.getCell(1).value = `${v.almacen} · ${v.fecha.slice(8, 10)}/${v.fecha.slice(5, 7)}`;
+          r.getCell(2).value = v.cod; r.getCell(3).value = v.material; r.getCell(5).value = v.comentario;
+          h.mergeCells(f, 3, f, 4); h.mergeCells(f, 5, f, 10);
+          for (const c of [1, 2, 3, 5]) {
+            const x = r.getCell(c); x.font = letra(9.5, TINTA, c === 2); x.border = { bottom: raya() };
+            x.alignment = { vertical: "middle", indent: 1, wrapText: c === 3 || c === 5 };
+          }
+          r.height = Math.max(18, 6 + 13 * Math.ceil(v.comentario.length / 95));
+        }
+      }
+    }
 
     /* Un cruce: filas = valores de una columna de la base; columnas = las clases (o una sola). */
     const cruce = (titulo: string, dim: string, etiquetas: string[], clases: Clase[], porColumna?: (x: Fila) => string, solo?: Clase) => {

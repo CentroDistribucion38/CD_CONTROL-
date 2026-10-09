@@ -283,8 +283,9 @@ export function celda(c: Columna, f: FilaInformeCasco): string {
   switch (c.id) {
     case "cod": return f.sku;
     case "mat": return f.nombre;
-    case "inv": return f.inventario ? fmt.est(f.inventario) : "—";
-    case "baja": return f.baja ? fmt.est(f.baja) : "—";
+    /* EN CERO, VACÍO: «el guion no lo muestres, para que no se confundan». */
+    case "inv": return f.inventario ? fmt.est(f.inventario) : "";
+    case "baja": return f.baja ? fmt.est(f.baja) : "";
     case "hl": return fmt.hl(f.hl);
     case "ubi": return gruposDeUbicacion(f.puesto).join("\n");
     case "cal": return f.calidad ?? "";

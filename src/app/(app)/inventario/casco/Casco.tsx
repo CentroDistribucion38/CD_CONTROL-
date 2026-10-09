@@ -9,9 +9,10 @@ import { useConfirmar } from "@/components/Confirmar";
 import { esCuenta, suma } from "@/modulos/casco/suma";
 import type { MaterialCasco, SitioCasco } from "@/modulos/casco/datos";
 import type { UbicacionesInventario } from "@/modulos/casco/ubicaciones-inventario";
+import { ubicacionDeFila } from "@/modulos/casco/ubicaciones-armar";
 
 /** Qué estado del inventario alimenta las ubicaciones de cada tabla (igual que ESTADO_POR_CENTRO). */
-const ESTADO_UBIC: Record<string, string> = { AG18: "LAVADO", AG22: "BAJA y EXTRASUCIO" };
+const ESTADO_UBIC: Record<string, string> = { AG18: "LAVADO", AG22: "BAJA (inventario) y EXTRASUCIO (extrasucio con baja)" };
 
 /**
  * CASCO DE VIDRIO — LAS CUATRO TABLAS DEL EXCEL, UNA DEBAJO DE OTRA.
@@ -134,13 +135,14 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar, d
     const alimentar = (s: SitioCasco, base: Partial<Bloque>): Partial<Bloque> => {
       const centro = (s.centro ?? "").toUpperCase();
       const inv = delInventario?.porCentro[centro];
-      const mapa = inv?.mapa;
-      if (!inv || !mapa || f < inv.fecha || !base.filas) return base;
+      if (!delInventario || !inv || f < inv.fecha || !base.filas) return base;
       let n = 0;
       const filas = base.filas.map((x) => {
-        /* «Si no hay ubicación en el inventario, que no aparezca»: si el inventario no trae ese
-           material en este estado, la ubicación queda VACÍA (no se deja un P19 viejo). */
-        const u = mapa[x.sku] ?? "";
+        /* LA UBICACIÓN ES LA DEL ESTADO QUE LE TOCA A LA COLUMNA DONDE TIENE ESTIBAS (en Bodega:
+           inventario ← BAJA, extrasucio con baja ← EXTRASUCIO). Lo que no cuadra queda VACÍO
+           —nada de un P19 viejo— y se avisa arriba de la tabla. */
+        const r = ubicacionDeFila(delInventario, centro, x.sku, suma(x.inv) ?? 0, s.baja_rotulo ? suma(x.baja) ?? 0 : 0, s.baja_rotulo ?? undefined);
+        const u = r?.puesto ?? "";
         if (u === x.puesto.trim() || u === x.puesto) return x;
         n++; return { ...x, puesto: u };
       });
@@ -427,16 +429,27 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar, d
               if (!inv) return (
                 <p className="cas-nota cas-rojo">Ningún inventario enviado de las últimas semanas trae material en <b>{est}</b>: las ubicaciones van a mano.</p>
               );
-              const total = Object.keys(inv.mapa).length;
-              const aqui = b.filas.filter((x) => inv.mapa[x.sku]).length;
-              const fuera = Object.keys(inv.mapa).filter((k) => !b.filas.some((x) => x.sku === k));
+              /* LO QUE NO CUADRA ENTRE EL CASCO Y EL CONTEO, renglón por renglón (con lo que hay tecleado ahora). */
+              const centro = (s.centro ?? "").toUpperCase();
+              const revisar = b.filas.flatMap((x) => {
+                const r = ubicacionDeFila(delInventario, centro, x.sku, suma(x.inv) ?? 0, s.baja_rotulo ? suma(x.baja) ?? 0 : 0, s.baja_rotulo ?? undefined);
+                return (r?.avisos ?? []).map((a) => ({ sku: x.sku, a }));
+              });
               return (
-                <p className="cas-nota">
-                  Las <b>ubicaciones</b> salen del inventario del <b>{largo(inv.fecha)}</b>, de lo que está en <b>{est}</b>:{" "}
-                  {total} material{total === 1 ? "" : "es"}, {aqui} de ellos en esta tabla.
-                  {fuera.length > 0 && <> No están en la tabla: {fuera.slice(0, 8).join(", ")}{fuera.length > 8 ? "…" : ""}.</>}
-                  {" "}Las puedes corregir aquí; el próximo inventario las vuelve a poner.
-                </p>
+                <>
+                  <p className="cas-nota">
+                    Las <b>ubicaciones</b> salen del inventario del <b>{largo(inv.fecha)}</b>: {est}. Cada renglón lleva solo las del estado
+                    que le toca a la columna donde tiene estibas; si no cuadra, queda vacía.
+                  </p>
+                  {revisar.length > 0 && (
+                    <div className="cas-aviso mal">
+                      <b>No cuadra con el conteo ({revisar.length}):</b>
+                      <ul className="cas-revisar">
+                        {revisar.map((x, i) => <li key={x.sku + i}><b>{x.sku}</b> {dato[x.sku]?.nombre ?? ""} — {x.a}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                </>
               );
             })()}
 

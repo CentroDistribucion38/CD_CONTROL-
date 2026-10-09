@@ -166,3 +166,6 @@
 .cas .cas-rojo { color: var(--fe-mal) !important; font-weight: 800 }
 .cas .cas-aviso.neg { color: var(--fe-mal); border-color: var(--fe-mal); background: color-mix(in srgb, var(--fe-mal) 5%, #fff) }
 .cas .cas-descartar { background: var(--fe-papel); color: var(--fe-tinta); border-color: var(--fe-linea) }
+/* Lo que no cuadra entre el Casco y el conteo: una línea por material. */
+.cas .cas-revisar { margin: 6px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.45 }
+.cas .cas-revisar li + li { margin-top: 3px }
