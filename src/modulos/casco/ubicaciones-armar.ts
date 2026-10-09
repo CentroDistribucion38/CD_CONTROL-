@@ -111,11 +111,31 @@ export function armarUbicaciones(rs: RenglonUbic[]): UbicacionesInventario {
   return { fecha, porCentro, todo };
 }
 
+/** Lo que no cuadra de un renglón, en partes cortas (para el Excel) y en una frase (para la pantalla). */
+export type AvisoFila = {
+  /** «1 est. en Inventario» */
+  casco: string;
+  /** «BAJA · Bodega» */
+  debe: string;
+  /** «EXTRASUCIO: P_16_IZQ» · «No está» */
+  conteo: string;
+  /** Todo junto, corto: «1 est. en Inventario → debe estar en BAJA · Bodega. Conteo: EXTRASUCIO: P_16_IZQ.» */
+  texto: string;
+};
+
 export type ResultadoFila = {
   /** La ubicación que le toca al renglón (vacía si no cuadra con el conteo). */
   puesto: string;
-  /** Lo que no cuadra, en palabras, para el Análisis y la pantalla (no para el informe). */
-  avisos: string[];
+  /** Lo que no cuadra (para el Análisis y la pantalla; no para el informe). */
+  avisos: AvisoFila[];
+};
+
+/** Estados que importan al casco: los de sus columnas. RETORNO, LLENO, OTROS… no se listan (solo se nombran). */
+const ESTADOS_CASCO = ["BAJA", "EXTRASUCIO", "LAVADO"];
+/** Hasta 3 ubicaciones y «+N más»: una lista de veinte no se lee. */
+const pocas = (linea: string) => {
+  const us = linea.split(/\s+-\s+/).filter(Boolean);
+  return us.length <= 3 ? us.join(", ") : `${us.slice(0, 3).join(", ")} +${us.length - 3} más`;
 };
 
 /**
@@ -123,7 +143,8 @@ export type ResultadoFila = {
  *   inventario ≠ 0 → las del estado de «Inventario casco de vidrio»;
  *   baja ≠ 0       → las del estado de la columna de baja.
  * Si una columna con estibas no tiene ese material en su estado en el conteo, esa parte queda vacía
- * y se avisa (diciendo, si lo hay, cómo SÍ está en el conteo).
+ * y se avisa CORTO: cuánto tiene el Casco, dónde debería estar y dónde SÍ está en el conteo
+ * (solo los estados del casco —BAJA, EXTRASUCIO, LAVADO—; los demás solo se nombran).
  */
 export function ubicacionDeFila(
   u: UbicacionesInventario, centro: string, sku: string, inv: number, baja: number,
@@ -135,20 +156,29 @@ export function ubicacionDeFila(
   if (!cfg || !sitio) return null;
   const zona = DE_FABRICA[c] ? "Fábrica" : "Bodega";
   const partes: string[] = [];
-  const avisos: string[] = [];
+  const avisos: AvisoFila[] = [];
   const pide = (valor: number, estados: string[], columna: string) => {
     if (!valor) return;
     const ls = estados.map((e) => sitio.porEstado[e]?.[sku]).filter((l): l is string => !!l);
     if (ls.length) { partes.push(...ls); return }
     const otros = (u.todo[sku] ?? []).filter((o) => !(estados.includes(o.estado) && o.fabrica === DE_FABRICA[c]));
-    avisos.push(
-      `Casco tiene ${nf.format(valor)} est. en «${columna}», pero el conteo no lo tiene en ${estados.join("/")} en ${zona}` +
-      (otros.length
-        ? `: lo tiene como ${otros.map((o) => `${o.estado}${o.fabrica !== DE_FABRICA[c] ? ` (${o.fabrica ? "Fábrica" : "Bodega"})` : ""} en ${o.ubic}`).join("; ")}.`
-        : ": no aparece en el conteo."),
-    );
+    /* LO MÁS CERCANO PRIMERO, Y NADA MÁS: el mismo almacén con otro estado del casco (en Bodega:
+       «EXTRASUCIO: P_16_IZQ»); si no hay, el otro almacén; si tampoco, solo el nombre de los otros
+       estados («solo en RETORNO»). */
+    const delCasco = otros.filter((o) => ESTADOS_CASCO.includes(o.estado));
+    const aqui = delCasco.filter((o) => o.fabrica === DE_FABRICA[c]);
+    const alla = delCasco.filter((o) => o.fabrica !== DE_FABRICA[c]);
+    const resto = [...new Set(otros.filter((o) => !ESTADOS_CASCO.includes(o.estado)).map((o) => o.estado))];
+    const conteo = aqui.length
+      ? aqui.map((o) => `${o.estado}: ${pocas(o.ubic)}`).join(" | ")
+      : alla.length
+        ? alla.map((o) => `${o.estado} en ${o.fabrica ? "Fábrica" : "Bodega"}: ${pocas(o.ubic)}`).join(" | ")
+        : resto.length ? `No está en ${estados.join("/")} (solo en ${resto.join(", ")})` : "No está en el conteo";
+    const casco = `${nf.format(valor)} est. en ${columna}`;
+    const debe = `${estados.join("/")} · ${zona}`;
+    avisos.push({ casco, debe, conteo, texto: `${casco} → debe estar en ${debe}. Conteo: ${conteo}.` });
   };
-  pide(inv, cfg.inv, "Inventario casco de vidrio");
+  pide(inv, cfg.inv, "Inventario");
   pide(baja, cfg.baja, rotuloBaja);
   return { puesto: juntarLineas(partes), avisos };
 }

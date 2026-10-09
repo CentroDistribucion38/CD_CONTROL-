@@ -12,7 +12,13 @@ import { armarUbicaciones, COLUMNAS_CENTRO, ubicacionDeFila, type RenglonUbic } 
  * Bodega) hasta ese día, y devuelve una línea por cada material que no cuadra. Si el rol no ve el
  * Casco, o falta la tabla, devuelve null y el Excel sale como siempre.
  */
-export type AvisoCasco = { almacen: string; centro: string; fecha: string; cod: string; material: string; comentario: string };
+export type AvisoCasco = {
+  almacen: string; centro: string; fecha: string; cod: string; material: string;
+  /** «1 est. en Inventario» · «BAJA · Bodega» · «EXTRASUCIO: P_16_IZQ» */
+  casco: string; debe: string; conteo: string;
+  /** Todo junto y corto, para la columna VALIDACIÓN CASCO. */
+  comentario: string;
+};
 
 export async function validarCasco(
   renglones: (Omit<RenglonUbic, "fecha"> & { conteo_id: string; material?: string })[],
@@ -38,7 +44,8 @@ export async function validarCasco(
         .eq("ubicacion", s.clave).eq("fecha", dia).order("sku");
       for (const r of (rs ?? []) as { sku: string; inventario: number | null; baja: number | null }[]) {
         const v = ubicacionDeFila(u, centro, r.sku, Number(r.inventario ?? 0), Number(r.baja ?? 0), s.baja_rotulo ?? undefined);
-        for (const a of v?.avisos ?? []) out.push({ almacen: s.nombre, centro, fecha: dia, cod: r.sku, material: nombres.get(r.sku) ?? "", comentario: a });
+        for (const a of v?.avisos ?? []) out.push({ almacen: s.nombre, centro, fecha: dia, cod: r.sku, material: nombres.get(r.sku) ?? "",
+          casco: a.casco, debe: a.debe, conteo: a.conteo, comentario: a.texto });
       }
     }
     return { avisos: out, error: null };

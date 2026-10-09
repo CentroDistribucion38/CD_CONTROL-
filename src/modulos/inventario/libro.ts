@@ -55,7 +55,7 @@ export type InsumosDia = {
   fotosRecortadas?: number;
   /** Lo que no cuadra entre el Casco de vidrio y este conteo (va como comentario en «Análisis»).
    *  Sin el dato (el rol no ve el Casco), el bloque no sale. */
-  validacionCasco?: { almacen: string; centro: string; fecha: string; cod: string; material: string; comentario: string }[];
+  validacionCasco?: { almacen: string; centro: string; fecha: string; cod: string; material: string; casco: string; debe: string; conteo: string; comentario: string }[];
   /** Si la validación con el Casco no se pudo hacer, por qué (sale escrito en «Análisis»). */
   validacionError?: string;
 };
@@ -584,22 +584,26 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
       st.font = letra(9.5, vc.length ? ROJO : GRIS, true);
       if (vc.length) {
         f += 1; const hd = f; h.getRow(hd).height = 21;
-        ["Almacén", "Código", "Material", "Comentario"].forEach((x, i) => {
-          const c = h.getCell(hd, [1, 2, 3, 5][i]); c.value = x; c.font = letra(9, TINTA, true); c.fill = relleno(CABEZA);
-          c.alignment = { vertical: "middle", indent: 1 };
+        /* EN COLUMNAS Y CORTO: qué tiene el Casco, dónde debería estar y dónde lo tiene el conteo
+           (máximo 3 ubicaciones por estado; las demás, «+N más»). */
+        const COLS: [string, number, number][] = [["Almacén", 1, 1], ["Código", 2, 2], ["Material", 3, 4], ["Casco tiene", 5, 5], ["Debe estar en", 6, 7], ["En el conteo está en", 8, 10]];
+        COLS.forEach(([x, a, b]) => {
+          const c = h.getCell(hd, a); c.value = x; c.font = letra(9, TINTA, true); c.fill = relleno(CABEZA);
+          c.alignment = { vertical: "middle", indent: 1, wrapText: true };
+          if (b > a) h.mergeCells(hd, a, hd, b);
         });
-        h.mergeCells(hd, 3, hd, 4); h.mergeCells(hd, 5, hd, 10);
         for (const v of vc) {
           f += 1;
           const r = h.getRow(f);
-          r.getCell(1).value = `${v.almacen} · ${v.fecha.slice(8, 10)}/${v.fecha.slice(5, 7)}`;
-          r.getCell(2).value = v.cod; r.getCell(3).value = v.material; r.getCell(5).value = v.comentario;
-          h.mergeCells(f, 3, f, 4); h.mergeCells(f, 5, f, 10);
-          for (const c of [1, 2, 3, 5]) {
-            const x = r.getCell(c); x.font = letra(9.5, TINTA, c === 2); x.border = { bottom: raya() };
-            x.alignment = { vertical: "middle", indent: 1, wrapText: c === 3 || c === 5 };
-          }
-          r.height = Math.max(18, 6 + 13 * Math.ceil(v.comentario.length / 95));
+          const vals = [`${v.almacen} · ${v.fecha.slice(8, 10)}/${v.fecha.slice(5, 7)}`, v.cod, v.material, v.casco, v.debe, v.conteo];
+          COLS.forEach(([, a, b], i) => {
+            const x = r.getCell(a); x.value = vals[i];
+            x.font = letra(9.5, i === 5 ? ROJO : TINTA, i === 1 || i === 4);
+            x.alignment = { vertical: "middle", indent: 1, wrapText: true };
+            if (b > a) h.mergeCells(f, a, f, b);
+            for (let c = a; c <= b; c++) r.getCell(c).border = { bottom: raya() };
+          });
+          r.height = Math.max(20, 6 + 13 * Math.max(Math.ceil(v.conteo.length / 40), Math.ceil(v.material.length / 26), Math.ceil(v.casco.length / 13), 1));
         }
       }
     }

@@ -433,7 +433,7 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar, d
               const centro = (s.centro ?? "").toUpperCase();
               const revisar = b.filas.flatMap((x) => {
                 const r = ubicacionDeFila(delInventario, centro, x.sku, suma(x.inv) ?? 0, s.baja_rotulo ? suma(x.baja) ?? 0 : 0, s.baja_rotulo ?? undefined);
-                return (r?.avisos ?? []).map((a) => ({ sku: x.sku, a }));
+                return (r?.avisos ?? []).map((a) => ({ sku: x.sku, a: a.texto }));
               });
               return (
                 <>
