@@ -15,6 +15,11 @@
  *   «BAJA LAVADO»      → columna «Lavado con baja» del almacén de la fila (Fábrica).
  *   «BAJA EXTRASUCIO»  → columna «Extrasucio con baja» del almacén de la fila (Bodega 38).
  *   cualquier otro (SORTING, PRESORTING, ROTURA DE MAQUINA…) → se SUMA al inventario del almacén.
+ *
+ * LA NOTA «NO HAGA NADA» GANA A TODO. Si en CUALQUIER celda de la fila alguien escribió
+ * «QUEDE EN EL REGISTRO - NO HAGA NADA EN EL KARDEX» (o «no hacer nada», «solo registro»), la fila
+ * se guarda en el libro de bajas para que conste, pero NO mueve ni el inventario ni la columna de
+ * baja. Suele venir en una columna sin encabezado al final de la hoja, por eso se busca en toda la fila.
  */
 
 export type FilaBaja = {
@@ -28,7 +33,9 @@ export type FilaBaja = {
   texto: string;
   documento: string;
   clase: string;
-  destino: "inventario" | "baja";
+  destino: "inventario" | "baja" | "registro";
+  /** La nota que la dejó en «solo registro», tal como vino en el Excel. */
+  nota: string | null;
   /** Identifica la fila para no sumarla dos veces si se importa el mismo archivo otra vez. */
   llave: string;
 };
@@ -47,6 +54,18 @@ const norm = (v: unknown) =>
 export function destinoDeTexto(texto: string): "inventario" | "baja" {
   return /(LAVADO|EXTRASUCIO)/.test(texto.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase())
     ? "baja" : "inventario";
+}
+
+/** La regla de «solo registro». Tiene que decir lo mismo que `casco_registrar_bajas`. */
+export const NOTA_SOLO_REGISTRO = /(no haga nada|no hacer nada|no hace nada|solo registro|quede en el registro|queda en el registro)/;
+
+/** La celda de la fila que pide no tocar el kárdex, o null. */
+export function notaSoloRegistro(fila: unknown[]): string | null {
+  for (const c of fila) {
+    if (typeof c !== "string") continue;
+    if (NOTA_SOLO_REGISTRO.test(norm(c))) return c.trim();
+  }
+  return null;
 }
 
 /** Fecha de una celda de Excel: número de serie, Date o texto (2026-09-24 · 24/09/2026). */
@@ -145,10 +164,11 @@ export function leerBaja(filas: unknown[][], hoja: string | null = null): Lectur
     const k = (vistas.get(base) ?? 0) + 1;
     vistas.set(base, k);
 
+    const nota = notaSoloRegistro(r);
     out.push({
-      fila: n, fecha, centro, sku, descripcion: cDesc >= 0 ? String(r[cDesc] ?? "").trim() : "",
+      fila: n, nota, fecha, centro, sku, descripcion: cDesc >= 0 ? String(r[cDesc] ?? "").trim() : "",
       unidades, texto, documento, clase: cClase >= 0 ? String(r[cClase] ?? "").trim() : "",
-      destino: destinoDeTexto(texto), llave: `${base}|${k}`,
+      destino: nota ? "registro" : destinoDeTexto(texto), llave: `${base}|${k}`,
     });
   }
   if (!out.length && !descartadas.length) return vacio("La hoja no trae filas debajo de los encabezados.");

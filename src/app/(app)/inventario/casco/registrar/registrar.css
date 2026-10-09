@@ -32,6 +32,9 @@
 .reg .reg-etq.baja { border-color: var(--fe-acento); background: color-mix(in srgb, var(--fe-acento) 16%, #fff) }
 .reg .reg-etq.mal { color: var(--fe-mal); border-color: var(--fe-mal) }
 .reg .reg-etq.ya { color: var(--fe-gris) }
+/* SOLO REGISTRO: la fila consta pero no mueve el kárdex. Borde punteado y gris: «está, pero no cuenta». */
+.reg .reg-etq.solo { color: var(--fe-gris); border-style: dashed }
+.reg .reg-nota { display: block; margin-top: 2px; font-size: 11px; font-weight: 700; color: var(--fe-gris); letter-spacing: .01em }
 .reg .reg-lista { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.6 }
 .reg details summary { cursor: pointer; font-size: 13px; color: var(--fe-gris) }
 

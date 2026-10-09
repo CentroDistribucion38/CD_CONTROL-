@@ -33,7 +33,7 @@ type Vista = FilaBaja & {
 };
 type Entrada = {
   id: string; fecha: string; fecha_sap: string | null; signo: number; centro: string; ubicacion: string; ubicacion_nombre: string; sku: string;
-  descripcion: string; unidades: number; estibas: number; destino: string; texto: string | null;
+  descripcion: string; unidades: number; estibas: number; destino: string; texto: string | null; nota?: string | null;
   documento: string | null; clase: string | null; archivo_id: string | null;
 };
 type ArchivoReg = {
@@ -41,7 +41,7 @@ type ArchivoReg = {
   aplicadas: number; repetidas: number; creado_en: string; usuario: string | null; vigentes: number; estibas: number;
 };
 type Resultado = {
-  aplicadas: number; repetidas: number; futuras: number; archivo: string | null;
+  aplicadas: number; repetidas: number; futuras: number; archivo: string | null; solo_registro?: number;
   sin_factor: string[]; sin_sitio: string[]; sin_columna: string[];
 };
 
@@ -142,12 +142,14 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
     const estibas = botellas ? Math.round((f.unidades / botellas) * 100) / 100 : null;
     let problema: string | null = null;
     if (!sitio) problema = `El almacén ${f.centro} no tiene tabla en Control`;
+    /* SOLO REGISTRO no toca ninguna celda: no hace falta columna de baja ni factor para guardarla. */
+    else if (f.destino === "registro") problema = null;
     else if (f.destino === "baja" && !sitio.baja_rotulo) problema = `${sitio.nombre} no tiene columna de baja`;
     else if (!m) problema = "El material no está en el maestro";
     else if (!botellas || !m.hl_estiba) problema = "Al maestro le falta botellas por estiba o HL";
     return {
       ...f, sitio, estibas, problema, yaEsta: yaEstan.has(f.llave),
-      columna: f.destino === "baja" ? (sitio?.baja_rotulo ?? "baja") : "Inventario",
+      columna: f.destino === "registro" ? "Solo registro" : f.destino === "baja" ? (sitio?.baja_rotulo ?? "baja") : "Inventario",
     };
   }), [lectura, sitios, dato, yaEstan]);
 
@@ -155,9 +157,11 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
   const conProblema = vista.filter((v) => v.problema && !v.yaEsta);
   const repetidas = vista.filter((v) => v.yaEsta);
 
+  const soloRegistro = aplicables.filter((v) => v.destino === "registro");
   const porSitio = useMemo(() => {
     const m = new Map<string, { nombre: string; inv: number; baja: number; rotuloBaja: string | null; filas: number }>();
     for (const v of aplicables) {
+      if (v.destino === "registro") continue;
       const k = v.sitio!.clave;
       const x = m.get(k) ?? { nombre: v.sitio!.nombre, inv: 0, baja: 0, rotuloBaja: v.sitio!.baja_rotulo, filas: 0 };
       if (v.destino === "baja") x.baja -= v.estibas ?? 0; else x.inv += v.estibas ?? 0;
@@ -176,6 +180,7 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
       dice: (<>
         Se suman al inventario o se restan en la columna de baja, en estibas, en las tablas de Control del <b>{corto(diaControl)}</b>.
         {repetidas.length > 0 && <> {repetidas.length} fila{repetidas.length === 1 ? "" : "s"} ya estaba{repetidas.length === 1 ? "" : "n"} registrada{repetidas.length === 1 ? "" : "s"} y no se suma{repetidas.length === 1 ? "" : "n"} otra vez.</>}
+        {soloRegistro.length > 0 && <> {soloRegistro.length} fila{soloRegistro.length === 1 ? "" : "s"} dice{soloRegistro.length === 1 ? "" : "n"} «no haga nada»: queda{soloRegistro.length === 1 ? "" : "n"} en el registro sin mover el kárdex.</>}
         {conProblema.length > 0 && <> {conProblema.length} no se pueden aplicar todavía y se quedan fuera.</>}
         {" "}Si te equivocas, cada fila se puede deshacer abajo.
       </>),
@@ -188,14 +193,16 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
       p_leidas: (lectura?.filas.length ?? 0) + (lectura?.descartadas.length ?? 0),
       p_filas: aplicables.map((v) => ({
         fecha: v.fecha, centro: v.centro, sku: v.sku, unidades: v.unidades, texto: v.texto,
-        documento: v.documento, clase: v.clase, llave: v.llave,
+        documento: v.documento, clase: v.clase, llave: v.llave, nota: v.nota,
       })),
     });
     setAplicando(false);
     if (error) { setAviso({ tipo: "mal", texto: traducirError(error.message) }); return }
     const r = data as Resultado;
     setResultado(r);
-    setAviso({ tipo: "ok", texto: `Listo: ${r.aplicadas} fila${r.aplicadas === 1 ? "" : "s"} sumada${r.aplicadas === 1 ? "" : "s"} a Control.` });
+    const sr = r.solo_registro ?? 0;
+    setAviso({ tipo: "ok", texto: `Listo: ${r.aplicadas} fila${r.aplicadas === 1 ? "" : "s"} sumada${r.aplicadas === 1 ? "" : "s"} a Control.`
+      + (sr ? ` ${sr} quedó${sr === 1 ? "" : "aron"} solo en el registro, sin mover el kárdex.` : "") });
     // Ya quedaron en el libro: se marcan como registradas y se refresca la lista de abajo.
     setYaEstan((s) => new Set([...s, ...aplicables.map((v) => v.llave)]));
     void cargarHechas();
@@ -203,7 +210,14 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
   };
 
   const deshacer = async (e: Entrada) => {
-    const ok = await pedir({
+    const ok = await pedir(e.destino === "registro" ? {
+      titulo: `¿Quitar esta fila del registro (${e.sku})?`,
+      dice: (<>
+        <b>{e.descripcion}</b> · {corto(e.fecha)} · {e.ubicacion_nombre}. Era «solo registro»: no movió el kárdex,
+        así que solo sale de esta lista. Si después vuelves a importar el archivo, entra de nuevo.
+      </>),
+      confirmar: "Quitar", cancelar: "Cancelar", peligro: true,
+    } : {
       titulo: `¿Deshacer esta baja de ${e.sku}?`,
       dice: (<>
         <b>{e.descripcion}</b> · {corto(e.fecha)} · {e.ubicacion_nombre}. Se revierten <b>{nf2.format(e.estibas)} estibas</b> en{" "}
@@ -231,6 +245,7 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
       (!q || sinTilde([e.sku, e.descripcion, e.texto ?? "", e.documento ?? ""].join(" ")).includes(q)));
   }, [hechas, fb]);
   const totVis = useMemo(() => visibles.reduce((t, e) => {
+    if (e.destino === "registro") return t;
     if (e.destino === "baja") t.baja += e.signo * e.estibas; else t.inv += e.estibas;
     return t;
   }, { inv: 0, baja: 0 }), [visibles]);
@@ -334,6 +349,7 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
             <ul className="reg-regla">
               <li>El <b>Texto cab.documento</b> manda: «BAJA LAVADO» se <b>resta</b> en <b>Lavado con baja</b> y «BAJA EXTRASUCIO» en <b>Extrasucio con baja</b>.</li>
               <li>Cualquier otro texto (sorting, presorting, rotura de máquina…) se <b>suma al inventario</b> del almacén de la fila.</li>
+              <li>Si en la fila alguien escribió <b>«NO HAGA NADA»</b> (por ejemplo «QUEDE EN EL REGISTRO - NO HAGA NADA EN EL KARDEX»), la fila <b>queda en el registro</b> pero <b>no mueve</b> el inventario ni la columna de baja.</li>
               <li>Cada fila va a la tabla de su <b>Almacén</b>, en el día de Control escogido. Las unidades se dividen por las botellas por estiba del maestro.</li>
             </ul>
           </details>
@@ -394,10 +410,10 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
                         <td>{v.sitio?.nombre ?? v.centro}</td>
                         <td className="cod">{v.sku}</td>
                         <td>{dato[v.sku]?.nombre ?? v.descripcion}</td>
-                        <td className="tex">{v.texto}</td>
-                        <td><span className={"reg-etq" + (v.destino === "baja" ? " baja" : "")}>{v.columna}</span></td>
+                        <td className="tex">{v.texto}{v.nota && <small className="reg-nota">{v.nota}</small>}</td>
+                        <td><span className={"reg-etq" + (v.destino === "baja" ? " baja" : v.destino === "registro" ? " solo" : "")}>{v.columna}</span></td>
                         <td className="n">{nf0.format(v.unidades)}</td>
-                        <td className="n est">{v.estibas != null ? (v.destino === "baja" ? "−" : "") + nf2.format(v.estibas) : "—"}</td>
+                        <td className="n est">{v.destino === "registro" ? "0" : v.estibas != null ? (v.destino === "baja" ? "−" : "") + nf2.format(v.estibas) : "—"}</td>
                         <td>
                           {v.yaEsta ? <span className="reg-etq ya">Ya registrada</span>
                             : v.problema ? <span className="reg-etq mal">{v.problema}</span>
@@ -510,7 +526,7 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
           </label>
           <label className="cas-c"><span>Va a</span>
             <select value={fb.destino} onChange={(e) => setFb({ ...fb, destino: e.target.value })}>
-              <option value="">Todo</option><option value="inventario">Inventario</option><option value="baja">Columna de baja</option>
+              <option value="">Todo</option><option value="inventario">Inventario</option><option value="baja">Columna de baja</option><option value="registro">Solo registro</option>
             </select>
           </label>
           <label className="cas-c"><span>Archivo</span>
@@ -543,10 +559,11 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
                   <td>{e.ubicacion_nombre}</td>
                   <td className="cod">{e.sku}</td>
                   <td>{e.descripcion}</td>
-                  <td className="tex">{e.texto}</td>
-                  <td><span className={"reg-etq" + (e.destino === "baja" ? " baja" : "")}>{e.destino === "baja" ? "Con baja" : "Inventario"}</span></td>
+                  <td className="tex">{e.texto}{e.nota && <small className="reg-nota">{e.nota}</small>}</td>
+                  <td><span className={"reg-etq" + (e.destino === "baja" ? " baja" : e.destino === "registro" ? " solo" : "")}>
+                    {e.destino === "baja" ? "Con baja" : e.destino === "registro" ? "Solo registro" : "Inventario"}</span></td>
                   <td className="n">{nf0.format(e.unidades)}</td>
-                  <td className="n est">{(e.destino === "baja" && e.signo < 0 ? "−" : "") + nf2.format(e.estibas)}</td>
+                  <td className="n est">{e.destino === "registro" ? "0" : (e.destino === "baja" && e.signo < 0 ? "−" : "") + nf2.format(e.estibas)}</td>
                   <td className="cod">{e.documento}</td>
                   <td>{e.fecha_sap ? corto(e.fecha_sap) : "—"}</td>
                   {puedeEditar && (
