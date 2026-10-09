@@ -34,7 +34,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Control, Viaje } from "@/modulos/traspasos/datos";
-import { HORARIO } from "@/modulos/traspasos/formato";
+import { HORARIO, placaClave } from "@/modulos/traspasos/formato";
 import { armarFoto, dibujarFoto, entregarFoto } from "@/modulos/traspasos/foto";
 
 type Props = {
@@ -137,6 +137,43 @@ export function Cierre({ filas, desde, hasta, turnos, rotulo, cerrar }: Props) {
   }, [mias]);
 
   const vivos = useMemo(() => (viajes ?? []).filter((v) => v.estado === "registrado"), [viajes]);
+
+  /* EN ORDEN LÓGICO: del primero al último, por día y hora. Así se lee cómo se fueron moviendo las
+     placas a lo largo del turno, y no al revés. */
+  const enOrden = useMemo(() => [...(viajes ?? [])].sort((a, b) =>
+    a.fecha.localeCompare(b.fecha) || (a.hora ?? "").localeCompare(b.hora ?? "")
+    || (a.codigo ?? "").localeCompare(b.codigo ?? "", "es", { numeric: true })), [viajes]);
+
+  /* POR PLACA: «quiero por placa poder evaluar Traspasos». Cada placa con sus viajes en orden de hora,
+     y el aviso cuando un viaje sale de un sitio distinto a donde llegó el anterior de esa placa
+     (falta un viaje por registrar, o se registró mal la ruta). Los anulados no entran. */
+  const porPlaca = useMemo(() => {
+    const m = new Map<string, { placa: string; vs: Viaje[] }>();
+    for (const v of enOrden) {
+      if (v.estado !== "registrado") continue;
+      const k = placaClave(v.placa) || "SIN PLACA";
+      (m.get(k) ?? m.set(k, { placa: v.placa?.trim() || "Sin placa", vs: [] }).get(k)!).vs.push(v);
+    }
+    return [...m.values()].map((g) => ({
+      ...g,
+      carga: g.vs.reduce((a, v) => a + (v.carga ?? 0), 0),
+      saltos: g.vs.map((v, i) => {
+        const prev = g.vs[i - 1];
+        if (!prev) return null;
+        const llego = (prev.destino_nombre ?? prev.destino ?? "").trim().toUpperCase();
+        const sale = (v.origen_nombre ?? v.origen ?? "").trim().toUpperCase();
+        return llego && sale && llego !== sale ? (prev.destino_nombre ?? prev.destino) : null;
+      }),
+    })).sort((a, b) => b.vs.length - a.vs.length || a.placa.localeCompare(b.placa, "es"));
+  }, [enOrden]);
+  const nSaltos = porPlaca.reduce((a, g) => a + g.saltos.filter(Boolean).length, 0);
+
+  /* EL DOCUMENTO ES EL DE FACTURACIÓN (el que cruza con SAP), con la hora en que confirmó la salida.
+     No es la orden de cargue del patio. */
+  const docDe = (v: Viaje) =>
+    v.vacio ? { txt: "—", sin: false, hora: null as string | null }
+    : v.factura_documento ? { txt: v.factura_documento, sin: false, hora: v.salida_en ?? null }
+    : { txt: "sin documento", sin: v.estado === "registrado", hora: null };
 
   /* CÓMO SE LLAMA ESTO. Un turno, su letra; dos o más, las letras
      juntas; ninguno, el día entero. Escrito como se dice en la bodega:
@@ -441,11 +478,11 @@ export function Cierre({ filas, desde, hasta, turnos, rotulo, cerrar }: Props) {
               <table className="tp-ci-t tp-ci-viajes">
                 <thead>
                   <tr><th>Código</th>{desde !== hasta && <th>Fecha</th>}<th>Hora</th><th>Placa</th>
-                    <th>Tipo</th><th>Ruta</th><th>Orden de cargue</th>
+                    <th>Tipo</th><th>Ruta</th><th>Documento</th>
                     <th className="ci-num">Carga</th><th>Registró</th></tr>
                 </thead>
                 <tbody>
-                  {viajes.map((v) => (
+                  {enOrden.map((v) => (
                     <tr key={v.id} className={v.estado === "anulado" ? "anulado" : undefined}>
                       <td className="ci-cod">
                         {v.codigo ?? "—"}
@@ -459,8 +496,9 @@ export function Cierre({ filas, desde, hasta, turnos, rotulo, cerrar }: Props) {
                       <td className="ci-ruta">
                         {(v.origen_nombre ?? v.origen ?? "—")} → {(v.destino_nombre ?? v.destino ?? "—")}
                       </td>
-                      <td className={v.sin_documento ? "ci-sin" : "ci-cod"}>
-                        {v.documento ?? (v.vacio ? "—" : "sin orden")}
+                      <td className={docDe(v).sin ? "ci-sin" : "ci-cod"}>
+                        {docDe(v).txt}
+                        {docDe(v).hora && <small className="ci-sal">salió {hhmm(docDe(v).hora!)}</small>}
                       </td>
                       <td className="ci-num">{v.carga == null ? "—" : nf.format(v.carga)}</td>
                       <td>{quien(v)}</td>
@@ -470,6 +508,42 @@ export function Cierre({ filas, desde, hasta, turnos, rotulo, cerrar }: Props) {
               </table>
               </div>
             )}
+
+          {/* ─ POR PLACA ─ */}
+          {porPlaca.length > 0 && (
+            <>
+              <div className="tp-ci-sec">
+                <b>Por placa</b>
+                <span>
+                  {porPlaca.length} placa{porPlaca.length === 1 ? "" : "s"}, sus viajes en orden de hora
+                  {nSaltos > 0 && <> · <em className="ci-salto-n">{nSaltos} salto{nSaltos === 1 ? "" : "s"} de ruta</em></>}
+                </span>
+              </div>
+              <div className="tp-ci-placas">
+                {porPlaca.map((g) => (
+                  <div className="ci-placa" key={g.placa}>
+                    <div className="ci-placa-cab">
+                      <b>{g.placa}</b>
+                      <span>{g.vs.length} viaje{g.vs.length === 1 ? "" : "s"} · carga {nf.format(g.carga)}</span>
+                    </div>
+                    <ol>
+                      {g.vs.map((v, i) => (
+                        <li key={v.id} className={g.saltos[i] ? "salto" : undefined}>
+                          {g.saltos[i] && (
+                            <span className="ci-salto">Había llegado a {g.saltos[i]}: falta un viaje o la ruta está mal</span>
+                          )}
+                          <span className="h">{v.hora ? hhmm(v.hora) : "—"}{desde !== hasta && ` · ${ddmm(v.fecha)}`}</span>
+                          <span className="r">{(v.origen_nombre ?? v.origen ?? "—")} → {(v.destino_nombre ?? v.destino ?? "—")}</span>
+                          <span className={"d" + (docDe(v).sin ? " sin" : "")}>{docDe(v).txt}</span>
+                          <span className="t">{v.tipo_nombre ?? v.tipo ?? "—"}{v.vacio ? " · vacío" : v.carga != null ? ` · ${nf.format(v.carga)}` : ""}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
           <div className="tp-ci-fin">{pie}</div>
         </div>
 
@@ -487,7 +561,7 @@ export function Cierre({ filas, desde, hasta, turnos, rotulo, cerrar }: Props) {
             {mal ? <p className="tp-ci-mal" role="alert">{mal}</p>
               : viajes == null ? <p className="tp-ci-nada">Trayendo los viajes…</p>
               : viajes.length === 0 ? <p className="tp-ci-nada">No hay viajes en este turno.</p>
-              : viajes.map((v) => (
+              : enOrden.map((v) => (
                 <div className={"vcard" + (v.estado === "anulado" ? " anulado" : "")} key={v.id}>
                   <div>
                     <div className="ci-c">{v.codigo ?? "—"} · {v.placa ?? "—"}</div>
@@ -498,14 +572,37 @@ export function Cierre({ filas, desde, hasta, turnos, rotulo, cerrar }: Props) {
                     </div>
                   </div>
                   <div className="ci-dcha">
-                    <div className={"ci-oc" + (v.sin_documento ? " sin" : "")}>
-                      {v.documento ?? (v.vacio ? "vacío" : "sin orden")}
+                    <div className={"ci-oc" + (docDe(v).sin ? " sin" : "")}>
+                      {v.vacio ? "vacío" : docDe(v).txt}
                     </div>
                     <div className="ci-r">{v.carga == null ? "—" : nf.format(v.carga)} · {quien(v)}</div>
                   </div>
                 </div>
               ))}
           </details>
+
+          {porPlaca.length > 0 && (
+            <details className="tp-ci-acor">
+              <summary>Por placa<em>{porPlaca.length}{nSaltos ? ` · ${nSaltos} salto${nSaltos === 1 ? "" : "s"}` : ""} ›</em></summary>
+              <div className="tp-ci-placas">
+                {porPlaca.map((g) => (
+                  <div className="ci-placa" key={g.placa}>
+                    <div className="ci-placa-cab"><b>{g.placa}</b><span>{g.vs.length} · carga {nf.format(g.carga)}</span></div>
+                    <ol>
+                      {g.vs.map((v, i) => (
+                        <li key={v.id} className={g.saltos[i] ? "salto" : undefined}>
+                          {g.saltos[i] && <span className="ci-salto">Había llegado a {g.saltos[i]}</span>}
+                          <span className="h">{v.hora ? hhmm(v.hora) : "—"}</span>
+                          <span className="r">{(v.origen_nombre ?? v.origen ?? "—")} → {(v.destino_nombre ?? v.destino ?? "—")}</span>
+                          <span className={"d" + (docDe(v).sin ? " sin" : "")}>{docDe(v).txt}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
 
           <div className="tp-ci-fin">{pie}</div>
 
