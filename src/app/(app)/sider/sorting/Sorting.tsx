@@ -81,7 +81,7 @@ function SelloTipo({ tipo }: { tipo: TipoRevision }) {
 
 export function Sorting({
   ahora, pendientes, detalle, hechos, nombres, maestros, puedeEditar,
-  puedeCrear = false, manda = false, origenes = [], skus = [], socios = [], estibasPorSider = 36,
+  puedeCrear = false, puedeCorregir = false, manda = false, origenes = [], skus = [], socios = [], estibasPorSider = 36,
 }: {
   ahora: string;
   pendientes: PendienteRevision[];
@@ -93,6 +93,8 @@ export function Sorting({
   puedeEditar: boolean;
   /** Tiene el permiso «Vh Interno (+)» de Roles: ve el botón flotante. */
   puedeCrear?: boolean;
+  /** Tiene «Corregir revisión AI» de Roles: ve «Corregir» en las hechas. */
+  puedeCorregir?: boolean;
   /** Administra la plataforma: puede escoger camiones y anularlos, igual
    *  que en Tránsito. El candado de verdad está en la base (`manda()`). */
   manda?: boolean;
@@ -338,7 +340,7 @@ export function Sorting({
         <em>{cuando(r.revisado_en)}{r.ediciones > 0 ? ` · corregida ${r.ediciones} ${r.ediciones === 1 ? "vez" : "veces"}` : ""}</em>
       </span>
       <span className="so-h-tipo"><SelloTipo tipo={tipoDe(r)} /></span>
-      {puedeOperar && r.viaje_id && (
+      {puedeOperar && puedeCorregir && r.viaje_id && (
         <button type="button" className="tr-so-btn"
                 disabled={cargando === r.id} onClick={() => corregir(r)}>
           {cargando === r.id ? "…" : "Corregir"}

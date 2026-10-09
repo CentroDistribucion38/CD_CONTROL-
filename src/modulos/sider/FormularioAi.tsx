@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { traducirError } from "@/lib/errores";
+import { useConfirmar } from "@/components/Confirmar";
 import type {
   Defecto, EnvaseAi, SocioAi, CanalAi, Revision, DetalleAi,
 } from "@/modulos/sider/ai";
@@ -110,6 +111,7 @@ export function FormularioAi({
   const esSorting = tipo === "sorting";
   const [mandando, setMandando] = useState(false);
   const [falla, setFalla] = useState<string | null>(null);
+  const [pedir, dialogo] = useConfirmar();
 
   /* LO QUE EL VIAJE YA TRAE, y solo si sigue siendo válido: un canal, un
      socio o un envase que el maestro ya apagó no se precargan. Al CORREGIR
@@ -212,6 +214,53 @@ export function FormularioAi({
     malos.push(`Hay ${nf.format(cuentas.cobran + cuentas.otros)} botellas marcadas de ${nf.format(rev)} revisadas.`);
 
   const puedeCerrar = faltan.length === 0 && malos.length === 0;
+
+  /* ANTES DE CERRAR, SE MIRA UNA VEZ MÁS. Cerrar manda el cobro al socio
+     y, cerrada, quien contó ya no la puede cambiar: «Corregir» es de otro
+     permiso. Por eso la última pantalla repite lo que va a quedar —la
+     muestra, los defectos que cobran y el abono— y el foco abre en
+     «Volver a revisar», no en cerrar. */
+  async function confirmarYGuardar() {
+    if (mandando || !puedeCerrar) return;
+    const marcados = defectos
+      .filter((d) => (conteos[d.clave] ?? 0) > 0)
+      .map((d) => ({ d, n: conteos[d.clave] ?? 0 }));
+    const ok = await pedir({
+      titulo: revision
+        ? `¿Guardar la corrección de ${viaje.placa}?`
+        : `¿Cerrar la revisión de ${viaje.placa}?`,
+      dice: (
+        <div className="ai-conf">
+          <dl>
+            <div><dt>Envase</dt><dd>{envases.find((e) => e.clave === envase)?.descripcion ?? envase}</dd></div>
+            <div><dt>Recibidas</dt><dd>{nf.format(rec)}</dd></div>
+            <div><dt>Revisadas</dt><dd>{nf.format(rev)}</dd></div>
+            <div><dt>Índice de cobro</dt><dd><b>{(cuentas.indice * 100).toFixed(2)} %</b></dd></div>
+            <div><dt>Abono final SAP</dt><dd><b>{nf.format(cuentas.abono)}</b></dd></div>
+          </dl>
+          {marcados.length === 0 ? (
+            <p className="ai-conf-cero">Sin ningún defecto marcado.</p>
+          ) : (
+            <ul>
+              {marcados.map(({ d, n }) => (
+                <li key={d.clave} className={d.cobra ? "" : "nc"}>
+                  <span>{d.nombre}{d.cobra ? "" : " · no cobra"}</span><b>{nf.format(n)}</b>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="ai-conf-ojo">
+            {revision
+              ? "La corrección reemplaza lo que estaba guardado y queda registrado quién la hizo."
+              : "Una vez cerrada, solo quien tiene el permiso «Corregir revisión AI» puede cambiarla."}
+          </p>
+        </div>
+      ),
+      confirmar: revision ? "Sí, guardar la corrección" : "Sí, cerrar la revisión",
+      cancelar: "Volver a revisar",
+    });
+    if (ok) await guardar();
+  }
 
   async function guardar() {
     setFalla(null);
@@ -316,7 +365,7 @@ export function FormularioAi({
 
       <div className="ai-p-acciones">
         <button type="button" className="b1" disabled={mandando || !puedeCerrar}
-                onClick={guardar}>
+                onClick={confirmarYGuardar}>
           {mandando ? "Guardando…" : revision ? "Guardar la corrección" : "Cerrar revisión"}
         </button>
         <button type="button" className="b2" onClick={alCancelar}>
@@ -519,11 +568,12 @@ export function FormularioAi({
                 : `falta${faltan.length === 1 ? "" : "n"} ${faltan.length} dato${faltan.length === 1 ? "" : "s"}`}
             </span>
           )}
-          <button type="button" disabled={mandando || !puedeCerrar} onClick={guardar}>
+          <button type="button" disabled={mandando || !puedeCerrar} onClick={confirmarYGuardar}>
             {mandando ? "Guardando…" : "Cerrar"}
           </button>
         </div>
       </div>
+      {dialogo}
     </div>
   );
 }

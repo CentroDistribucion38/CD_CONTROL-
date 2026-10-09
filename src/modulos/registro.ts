@@ -391,6 +391,11 @@ export const MODULOS: Modulo[] = [
          —«Vh Interno (+)»—: no todos los que hacen revisiones pueden crear
          un camión. Su página redirige a Revisión AI. */
       { nombre: "Vh Interno (+)", ruta: "/sider/sorting/nuevo", oculto: true },
+      /* CORREGIR UNA REVISIÓN YA CERRADA TAMPOCO ES UNA PANTALLA: es el
+         botón «Corregir» de «Hechas». Tiene su casilla para que quien
+         cuenta pueda cerrar sin poder cambiar después lo que ya cobró. El
+         administrador la tiene siempre; el candado está en la base. */
+      { nombre: "Corregir revisión AI", ruta: "/sider/sorting/corregir", oculto: true },
       /* EL INFORME AI VA DETRÁS DE LA REVISIÓN: es lo que sale de ella, el
          cobro al socio. Después, Fuente principal, donde queda el viaje
          completo. */

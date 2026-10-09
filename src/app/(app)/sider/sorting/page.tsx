@@ -43,6 +43,9 @@ export default async function SortingPage() {
      quien puede cerrar revisiones no necesariamente puede crear camiones.
      Aquí solo se decide si se pinta el «+»; el candado está en la base. */
   const puedeCrear = permisos.puedeEditar("/sider/sorting/nuevo");
+  /* CORREGIR UNA YA CERRADA es otra casilla de Roles («Corregir revisión
+     AI»): cerrar no da derecho a cambiar después lo que ya cobró. */
+  const puedeCorregir = permisos.puedeEditar("/sider/sorting/corregir");
 
   const [pend, hechos, nombres, maestros, maestro] = await Promise.all([
     revisionesPendientes(),
@@ -100,6 +103,7 @@ export default async function SortingPage() {
           ? maestros.socios.map((x) => ({ clave: x.clave, nombre: x.nombre })) : []}
         puedeEditar={puedeEditar}
         puedeCrear={puedeCrear}
+        puedeCorregir={puedeEditar && puedeCorregir}
         manda={permisos.manda}
         origenes={maestro?.origenes.filter((o) => o.activo)
           .map((o) => ({ planta: o.planta, cd_origen: o.cd_origen })) ?? []}

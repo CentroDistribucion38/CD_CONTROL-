@@ -44,6 +44,9 @@ const COLS_EXCEL: [string, string][] = [
   ["cristalizado", "% CRISTALIZADO METEORIZADA"],
   ["hongo", "% HONGO"],
   ["etiq_asoleada", "% ETIQUETA ASOLEADA"],
+  /* No está en el Excel: entró después. Va al final para no correr las
+     columnas que sí se cuadran contra la hoja. */
+  ["oxido", "% ÓXIDO"],
 ];
 
 /**

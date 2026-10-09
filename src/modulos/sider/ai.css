@@ -325,3 +325,22 @@
   .ai-cinta .c { padding: 10px 16px }
   .ai-p-ind { font-size: 42px }
 }
+
+/* ---------- La última mirada antes de cerrar ----------
+   El cuadro de confirmar repite lo que va a quedar guardado: la muestra,
+   el índice, el abono y los defectos marcados. Cifras alineadas a la
+   derecha y en números tabulares, para leerlas como una cuenta. */
+.ai-conf { display: grid; gap: 10px; margin-top: 4px }
+.ai-conf dl { margin: 0; display: grid; gap: 2px }
+.ai-conf dl div, .ai-conf li {
+  display: flex; justify-content: space-between; gap: 12px;
+  padding: 4px 0; border-bottom: 1px dashed var(--ai-linea);
+  font-variant-numeric: tabular-nums;
+}
+.ai-conf dt { color: var(--ai-gris) }
+.ai-conf dd { margin: 0; color: var(--ai-tinta); text-align: right }
+.ai-conf ul { list-style: none; margin: 0; padding: 8px 10px; background: var(--ai-fondo); border-radius: 3px }
+.ai-conf li:last-child, .ai-conf dl div:last-child { border-bottom: 0 }
+.ai-conf li.nc span { color: var(--ai-gris) }
+.ai-conf-cero { margin: 0; color: var(--ai-gris) }
+.ai-conf-ojo { margin: 0; font-size: 12.5px; color: var(--ai-tinta); font-weight: 600 }
