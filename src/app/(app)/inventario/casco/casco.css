@@ -121,6 +121,11 @@
   background: #fff; border: 1px solid var(--fe-linea); border-radius: 3px;
 }
 .cas .cas-txt-ancho { width: 200px }
+/* La ubicación que viene del inventario: ancha, crece con el texto y parte entre nombres. */
+.cas .cas-ubi {
+  display: block; width: 280px; padding: 9px 10px; resize: vertical; line-height: 1.35;
+  font-weight: 600; white-space: pre-wrap; overflow-wrap: normal; field-sizing: content; min-height: 40px;
+}
 .cas .cas-txt:disabled { background: transparent; border-color: transparent }
 .cas .cas-pie-bloque { display: flex; flex-direction: column; gap: 8px; align-items: flex-start }
 .cas .cas-pie-bloque .btn { min-height: 40px }

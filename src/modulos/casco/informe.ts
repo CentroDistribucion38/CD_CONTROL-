@@ -230,7 +230,9 @@ export function columnasAlmacen(s: SitioInforme, ancho = 182): Columna[] {
   ];
   if (conBaja) cols.push({ id: "baja", titulo: (s.rotuloBaja ?? "Con baja").toUpperCase(), mm: 25, num: true });
   cols.push({ id: "hl", titulo: "HL", mm: 17, num: true });
-  if (conUbi) cols.push({ id: "ubi", titulo: "UBICACIÓN", mm: 27, num: false });
+  /* LA UBICACIÓN, BIEN CLARA: columna ancha y cada ubicación entera (se parte entre nombres, nunca
+     a la mitad de «FABRICA_PATIO_1»). */
+  if (conUbi) cols.push({ id: "ubi", titulo: "UBICACIÓN", mm: 50, num: false });
   /* CALIDAD NO VA EN EL INFORME («quita esto»): es una nota de trabajo de la pantalla Control. */
   const resto = ancho - cols.reduce((t, c) => t + c.mm, 0);
   cols[1].mm = Math.max(34, resto);
@@ -243,7 +245,7 @@ export function celda(c: Columna, f: FilaInformeCasco): string {
     case "inv": return f.inventario ? fmt.est(f.inventario) : "—";
     case "baja": return f.baja ? fmt.est(f.baja) : "—";
     case "hl": return fmt.hl(f.hl);
-    case "ubi": return f.puesto ?? "";
+    case "ubi": return (f.puesto ?? "").split(/\s+-\s+/).map((u) => u.trim()).filter(Boolean).join("  ·  ");
     case "cal": return f.calidad ?? "";
   }
 }
@@ -374,12 +376,15 @@ export function dibujarInformeCasco(
     const nota = `HL al ${s.fecha ? corta(s.fecha) : "—"}${d.total > 0 ? ` · ${nf0.format(s.total / d.total * 100)} %` : ""} · ` +
       (dl == null ? `${s.filas.length} mat.` : `${conSigno(dl, fmt.hl)} vs ${corta(s.anterior!.fecha)}`);
     fuente("normal", 6.2);
-    if (dl != null && dl > 0.05) doc.setTextColor(200, 16, 46); else gris();
+    /* SUBIÓ en rojo (hay más casco por partir), BAJÓ en verde; igual o sin anterior, en gris. */
+    if (dl != null && dl > 0.05) doc.setTextColor(200, 16, 46);
+    else if (dl != null && dl < -0.05) doc.setTextColor(0, 122, 61);
+    else gris();
     doc.text(doc.splitTextToSize(nota, kw - 6), x + 3, y + 20);
   });
   y += KH + 3;
   fuente("normal", 7); gris();
-  doc.text("Viajes SERPRO = estibas del último conteo ÷ 100 en Carnaval y ÷ 36 en Fábrica y Bodega. El % es la parte de cada almacén en el total del último día. En rojo: subió contra su conteo anterior.", M, y + 1);
+  doc.text("Viajes SERPRO = estibas del último conteo ÷ 100 en Carnaval y ÷ 36 en Fábrica y Bodega. El % es la parte de cada almacén en el total del último día. En rojo: subió contra su conteo anterior; en verde: bajó.", M, y + 1);
   y += 8;
 
   /* ---------------- LA GRÁFICA ---------------- */
@@ -455,8 +460,8 @@ export function dibujarInformeCasco(
       if (i % 2 === 1) { doc.setFillColor(247, 249, 251); doc.rect(M, y, ANCHO, alto, "F") }
       let x = M;
       cols.forEach((c, j) => {
-        if (c.id === "hl") fuente("bold", 8.3); else if (c.id === "cod" || c.id === "ubi" || c.id === "cal") fuente("normal", 7.6); else fuente("normal", 8.3);
-        if (c.id === "cod" || c.id === "ubi" || c.id === "cal") gris(); else tinta();
+        if (c.id === "hl" || c.id === "ubi") fuente("bold", 8.3); else if (c.id === "cod" || c.id === "cal") fuente("normal", 7.6); else fuente("normal", 8.3);
+        if (c.id === "cod" || c.id === "cal") gris(); else tinta();
         /* Igual en los renglones: si el material ocupa dos líneas, los demás datos van a la mitad. */
         const nl = c.num ? 1 : lineas[j].length;
         const yb = y + alto / 2 - (nl - 1) * 1.8 + 1;

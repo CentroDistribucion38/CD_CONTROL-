@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { todas } from "@/modulos/inventario/paginas";
 import { sitiosCasco, materialesCasco } from "@/modulos/casco/datos";
+import { ubicacionesDelInventario } from "@/modulos/casco/ubicaciones-inventario";
 import type { Punto } from "@/modulos/casco/serie";
 import "../../fefo.css";
 import "./tablero.css";
@@ -19,7 +20,7 @@ export const dynamic = "force-dynamic";
  * el navegador, para que cambiar un filtro no espere a la red.
  */
 export default async function TableroCascoPage() {
-  const [sitios, materiales] = await Promise.all([sitiosCasco(), materialesCasco()]);
+  const [sitios, materiales, delInventario] = await Promise.all([sitiosCasco(), materialesCasco(), ubicacionesDelInventario()]);
   if (sitios.sinTabla) {
     return (
       <div className="fe">
@@ -65,7 +66,7 @@ export default async function TableroCascoPage() {
 
   return (
     <div className="fe cvt">
-      <TableroCasco puntos={puntos} sitios={sitios.lista} nombres={nombres} errorLectura={errorLectura} />
+      <TableroCasco puntos={puntos} sitios={sitios.lista} nombres={nombres} errorLectura={errorLectura} delInventario={delInventario} />
     </div>
   );
 }

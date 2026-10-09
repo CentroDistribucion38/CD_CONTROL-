@@ -37,6 +37,10 @@
   display: flex; flex-direction: column; gap: 4px; min-width: 0;
 }
 .cvt .cvt-cif.sube { border-left: 4px solid var(--fe-mal) }
+.cvt .cvt-cif.sube b { color: var(--fe-mal) }
+/* Bajó: hay menos casco por partir, en verde. */
+.cvt .cvt-cif.bajo { border-left: 4px solid var(--fe-bien) }
+.cvt .cvt-cif.bajo b { color: var(--fe-bien) }
 .cvt .cvt-cif b { font: 900 28px/1.05 var(--fe-titulo); letter-spacing: -.03em; font-variant-numeric: tabular-nums }
 .cvt .cvt-cif i { font-style: normal; font-size: 12px; line-height: 1.4; color: var(--fe-gris) }
 .cvt .cvt-serpro { background: var(--fe-acento); color: var(--fe-sobre); border-color: var(--fe-acento) }

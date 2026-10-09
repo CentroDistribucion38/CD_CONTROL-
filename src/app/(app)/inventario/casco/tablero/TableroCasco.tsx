@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { SitioCasco } from "@/modulos/casco/datos";
+import type { UbicacionesInventario } from "@/modulos/casco/ubicaciones-inventario";
 import { ejeNice, estadoAlmacen, filtrar, porFecha, porMaterial, viajesDelDia, viajesSerpro, type Punto } from "@/modulos/casco/serie";
 import { enOrdenInforme, media, type DatosInformeCasco } from "@/modulos/casco/informe";
 import { BotonesInforme } from "./BotonesInforme";
@@ -41,17 +42,26 @@ const sumaDias = (iso: string, n: number) => {
   d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10);
 };
 
-type Rango = "30" | "90" | "todo" | "fechas";
+type Rango = "mes" | "30" | "90" | "todo" | "fechas";
 
-export function TableroCasco({ puntos, sitios, nombres, errorLectura }: {
+/* «TRATA DE MANTENER EL MES ACTUAL»: el tablero abre en el mes del último conteo, del día 1 al último
+   día con datos. Y si se toca «Fechas», las casillas también arrancan en ese mes. */
+const inicioDeMes = (iso: string) => (iso ? iso.slice(0, 8) + "01" : iso);
+const MESES_LARGOS = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+
+export function TableroCasco({ puntos, sitios, nombres, errorLectura, delInventario = null }: {
   puntos: Punto[]; sitios: SitioCasco[]; nombres: Record<string, string>; errorLectura: string | null;
+  /** Las ubicaciones del último inventario (AG18 ← LAVADO, AG22 ← BAJA): el informe las usa aunque
+   *  Control todavía no las haya guardado. */
+  delInventario?: UbicacionesInventario | null;
 }) {
   const fechas = useMemo(() => [...new Set(puntos.map((p) => p.fecha))].sort(), [puntos]);
   const ultima = fechas[fechas.length - 1] ?? "";
   const primera = fechas[0] ?? "";
 
-  const [rango, setRango] = useState<Rango>("30");
-  const [desde, setDesde] = useState(primera);
+  const mes = inicioDeMes(ultima) < primera ? primera : inicioDeMes(ultima);
+  const [rango, setRango] = useState<Rango>("mes");
+  const [desde, setDesde] = useState(mes);
   const [hasta, setHasta] = useState(ultima);
   const [sitiosVis, setSitiosVis] = useState<string[]>(sitios.map((s) => s.clave));
   const [sku, setSku] = useState<string>("");
@@ -70,9 +80,10 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura }: {
 
   const ventana = useMemo(() => {
     if (rango === "todo") return { d: primera, h: ultima };
+    if (rango === "mes") return { d: mes, h: ultima };
     if (rango === "fechas") return { d: desde || primera, h: hasta || ultima };
     return { d: sumaDias(ultima, -(Number(rango) - 1)), h: ultima };
-  }, [rango, desde, hasta, primera, ultima]);
+  }, [rango, desde, hasta, primera, ultima, mes]);
 
   /* LOS DOS CORTES: con filtros (gráfica y dinámica) y sin ellos (viajes, que tu hoja calcula de todo). */
   const vistos = useMemo(() => filtrar(puntos, { desde: ventana.d, hasta: ventana.h, sitios: sitiosVis, sku: sku || null }), [puntos, ventana, sitiosVis, sku]);
@@ -131,11 +142,17 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura }: {
         return {
           clave: k, centro: s.centro ?? k, nombre: s.nombre, rotuloBaja: s.baja_rotulo,
           fecha: e.fecha, total: e.total, estibas: e.estibas, viajes: viajesSerpro(e.estibas, s.centro ?? k), anterior: e.anterior,
-          filas: e.filas.map((f) => ({ ...f, nombre: nombres[f.sku] ?? f.sku })),
+          /* LA UBICACIÓN DEL INFORME SALE DEL INVENTARIO (la misma que pone Control), si el conteo del
+             almacén es de ese día o después; si el inventario no trae ese material, va la guardada. */
+          filas: e.filas.map((f) => {
+            const inv = delInventario?.porCentro[(s.centro ?? "").toUpperCase()];
+            const u = inv && e.fecha && e.fecha >= inv.fecha ? inv.mapa[f.sku] : undefined;
+            return { ...f, puesto: u ?? f.puesto, nombre: nombres[f.sku] ?? f.sku };
+          }),
         };
       }),
     };
-  }, [serie, vistos, sitiosVis, sku, viajesHoy, sitios, nombres, filasMat, diaMat]);
+  }, [serie, vistos, sitiosVis, sku, viajesHoy, sitios, nombres, filasMat, diaMat, delInventario]);
 
   const alternar = (k: string) => setSitiosVis((v) => (v.includes(k) ? (v.length > 1 ? v.filter((x) => x !== k) : v) : [...v, k]));
 
@@ -174,7 +191,7 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura }: {
         <div className="cvt-grupo">
           <span className="cvt-lb">Periodo</span>
           <div className="cvt-seg" role="radiogroup" aria-label="Periodo">
-            {([["30", "30 días"], ["90", "90 días"], ["todo", "Todo"], ["fechas", "Fechas"]] as [Rango, string][]).map(([k, t]) => (
+            {([["mes", ultima ? MESES_LARGOS[Number(ultima.slice(5, 7)) - 1] : "Este mes"], ["30", "30 días"], ["90", "90 días"], ["todo", "Todo"], ["fechas", "Fechas"]] as [Rango, string][]).map(([k, t]) => (
               <button key={k} type="button" role="radio" aria-checked={rango === k} className={rango === k ? "on" : ""} onClick={() => setRango(k)}>{t}</button>
             ))}
           </div>
@@ -212,7 +229,7 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura }: {
           {/* ---------- CIFRAS ---------- */}
           <div className="cvt-cifras">
             <div className="cvt-cif"><span className="cvt-lb">Último día · {corta(hoyD!.fecha)}</span><b>{nf0.format(hoyD!.total)}</b><i>HL pendientes</i></div>
-            <div className={"cvt-cif" + (delta != null && delta > 0 ? " sube" : "")}>
+            <div className={"cvt-cif" + (delta != null && delta > 0 ? " sube" : delta != null && delta < 0 ? " bajo" : "")}>
               <span className="cvt-lb">Contra el día anterior</span>
               <b>{delta == null ? "—" : (delta > 0 ? "+" : delta < 0 ? "−" : "") + nf0.format(Math.abs(delta))}</b>
               <i>{antes ? `HL desde el ${corta(antes.fecha)}` : "no hay día anterior en el periodo"}</i>

@@ -124,10 +124,10 @@ export function armarWordCasco(
     fila((s) => {
       const dl = s.anterior ? s.total - s.anterior.total : null;
       return [{ t: `HL al ${s.fecha ? corta(s.fecha) : "—"}${d.total > 0 ? ` · ${Math.round(s.total / d.total * 100)} %` : ""} · ` +
-        (dl == null ? `${s.filas.length} mat.` : `${conSigno(dl, fmt.hl)} vs ${corta(s.anterior!.fecha)}`), tam: 6.5, color: dl != null && dl > 0.05 ? "C8102E" : G }];
+        (dl == null ? `${s.filas.length} mat.` : `${conSigno(dl, fmt.hl)} vs ${corta(s.anterior!.fecha)}`), tam: 6.5, color: dl != null && dl > 0.05 ? "C8102E" : dl != null && dl < -0.05 ? "007A3D" : G }];
     }),
   ], { bordes: false }));
-  cuerpo.push(par([{ t: "Viajes SERPRO = estibas del último conteo ÷ 100 en Carnaval y ÷ 36 en Fábrica y Bodega. El % es la parte de cada almacén en el total del último día. En rojo: subió contra su conteo anterior.", tam: 7, color: G }], { antes: 60, despues: 200 }));
+  cuerpo.push(par([{ t: "Viajes SERPRO = estibas del último conteo ÷ 100 en Carnaval y ÷ 36 en Fábrica y Bodega. El % es la parte de cada almacén en el total del último día. En rojo: subió contra su conteo anterior; en verde: bajó.", tam: 7, color: G }], { antes: 60, despues: 200 }));
 
   /* ---------- GRÁFICA ---------- */
   titulo("Envases pendientes por partir (HL)");
@@ -149,7 +149,7 @@ export function armarWordCasco(
     const cab = { cabecera: true, celdas: cols.map((c) => ({ fondo: T, al: c.num ? "right" as const : "left" as const, runs: [{ t: c.titulo, b: true, tam: 8, color: "FFFFFF" }] })) };
     const filas = s.filas.map((f, i) => ({ celdas: cols.map((c) => ({
       fondo: i % 2 ? RAYA : undefined, al: c.num ? "right" as const : "left" as const,
-      runs: [{ t: celda(c, f), b: c.id === "hl", tam: c.id === "cod" || c.id === "ubi" || c.id === "cal" ? 8 : 8.5, color: c.id === "cod" || c.id === "ubi" || c.id === "cal" ? G : T }],
+      runs: [{ t: celda(c, f), b: c.id === "hl" || c.id === "ubi", tam: c.id === "cod" || c.id === "cal" ? 8 : 8.5, color: c.id === "cod" || c.id === "cal" ? G : T }],
     })) }));
     const tot = { celdas: cols.map((c) => {
       const v = c.id === "cod" ? "TOTAL" : c.id === "mat" ? `${s.filas.length} material${s.filas.length === 1 ? "" : "es"} con inventario`

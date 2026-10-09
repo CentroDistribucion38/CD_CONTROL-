@@ -502,9 +502,18 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar, d
                         )}
                         <td className={"n hl" + (x.hl != null && x.hl < 0 ? " cas-rojo" : "")}>{x.hl == null ? "—" : nf2.format(x.hl)}</td>
                         <td>
-                          <input className="cas-txt" list="cas-puestos" value={f.puesto} disabled={!puedeEditar}
-                                 placeholder="Ej. P19" aria-label={`Ubicaciones de ${f.sku} en ${s.nombre}`}
-                                 onChange={(e) => cambiar(s.clave, i, "puesto", e.target.value)} />
+                          {/* EN FÁBRICA Y BODEGA LA UBICACIÓN VIENE DEL INVENTARIO y puede ser larga
+                              («FABRICA_PATIO_1 - FABRICA_PATIO_2 - A01_IZQ»): se ve COMPLETA, en
+                              varias líneas, en vez de cortada en una casilla de una línea. */}
+                          {ESTADO_UBIC[(s.centro ?? "").toUpperCase()] ? (
+                            <textarea className="cas-txt cas-ubi" rows={1} value={f.puesto} disabled={!puedeEditar}
+                                      placeholder="Ej. P19" aria-label={`Ubicaciones de ${f.sku} en ${s.nombre}`} title={f.puesto || undefined}
+                                      onChange={(e) => cambiar(s.clave, i, "puesto", e.target.value.replace(/\n/g, " "))} />
+                          ) : (
+                            <input className="cas-txt" list="cas-puestos" value={f.puesto} disabled={!puedeEditar}
+                                   placeholder="Ej. P19" aria-label={`Ubicaciones de ${f.sku} en ${s.nombre}`}
+                                   onChange={(e) => cambiar(s.clave, i, "puesto", e.target.value)} />
+                          )}
                         </td>
                         <td>
                           <input className="cas-txt cas-txt-ancho" value={f.calidad} disabled={!puedeEditar} maxLength={240}
