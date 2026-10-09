@@ -2,13 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { PorDefecto, PorSocio, PorSemana } from "@/modulos/sider/informe-ai";
+import type { PorDefecto, PorSocio, PorSemana, PorOrigen } from "@/modulos/sider/informe-ai";
 import type { Revision } from "@/modulos/sider/ai";
 import { NOMBRE_TIPO, type TipoRevision } from "@/modulos/sider/comun";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const nf2 = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const nf3 = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 const pct = (x: number) => nf2.format(x * 100) + " %";
 const dia = (s: string) =>
   new Date(s + "T00:00:00").toLocaleDateString("es-CO", { day: "numeric", month: "short" });
@@ -18,6 +17,7 @@ type Datos = {
   defectos: PorDefecto[];
   socios: PorSocio[];
   semanas: PorSemana[];
+  origenes: PorOrigen[];
   total: {
     revisiones: number; recibidas: number; revisadas: number; defectos: number;
     otros: number; no_abono: number; hl: number; socios: number;
@@ -27,44 +27,17 @@ type Datos = {
   porRevision: Map<string, Record<string, { pct: number; hl: number }>>;
 };
 
-/* EL ORDEN DE LAS COLUMNAS DEL EXCEL, tal cual. Doce de % y doce de Hl,
-   y NO son la misma lista: la de % no tiene mezclado, cajas ni estibas;
-   la de Hl tampoco, pero sí tiene cuerpo extraño en otro sitio. Se
-   escriben aquí para poder poner la pantalla al lado de la hoja y
-   cuadrar columna por columna sin ir traduciendo nombres. */
-const COLS_EXCEL: [string, string][] = [
-  ["rota", "% DESPICADO"],
-  ["faltante", "% FALTANTE"],
-  ["cemento", "% CEMENTO /PINTURA"],
-  ["no_retorn", "% NO RETORNABLE"],
-  ["otras_cias", "% OTRAS COMPAÑIAS"],
-  ["antiguo", "% PRODUCCIÓN ANTIGUA"],
-  ["cuerpo_extra", "% CUERPO EXTRAÑO"],
-  ["extrasucio", "% EXTRASUCIO"],
-  ["cristalizado", "% CRISTALIZADO METEORIZADA"],
-  ["hongo", "% HONGO"],
-  ["etiq_asoleada", "% ETIQUETA ASOLEADA"],
-  /* No está en el Excel: entró después. Va al final para no correr las
-     columnas que sí se cuadran contra la hoja. */
-  ["oxido", "% ÓXIDO"],
-];
-
 /**
  * EL INFORME DE LA REVISIÓN AI.
  *
- * TRES PREGUNTAS Y UNA TABLA. Cuánto se está cobrando, qué defecto lo
- * explica, y a qué socio llamar. La tabla va abajo para el detalle, que
- * es donde se va a mirar la fila concreta cuando el socio reclame.
+ * «Quitar del informe de AI todo lo de cobro y abono: solo dejar unidades revisadas, unidades en
+ *  mal estado y %AI. Más bien dejar la tabla de %AI por origen.»
  *
- * TODO VA EN UN SOLO TONO. Nada aquí distingue COSAS por color —no hay
- * cuatro series que haya que poder decir una de otra—: las barras miden
- * MAGNITUD, y para magnitud el color correcto es uno solo, más oscuro
- * cuanto más pesa. Meter una paleta de colores por categoría obligaría a
- * ir a la leyenda para leer una barra que ya tiene su nombre al lado.
+ * TRES CIFRAS, LA SEMANA Y EL ORIGEN. %AI = unidades en mal estado / unidades revisadas, sumadas
+ * (no el promedio de los porcentajes de cada revisión). La tabla de abajo es el detalle de cada
+ * revisión, para cuando haya que mirar una fila concreta.
  *
- * Lo único que sí es semáforo es «cobra / no cobra», y va con la palabra
- * escrita, no solo con el color: la mitad de una bodega mira esto en un
- * celular con el sol de frente.
+ * TODO VA EN UN SOLO TONO: las barras miden magnitud, y para magnitud el color es uno solo.
  */
 export function Informe({
   datos, opciones, filtro,
@@ -79,11 +52,7 @@ export function Informe({
 }) {
   const router = useRouter();
   const [busca, setBusca] = useState("");
-  const [orden, setOrden] = useState<"fecha" | "indice" | "no_abono">("fecha");
-  /* «COMO EL EXCEL» pone las veinticuatro columnas del archivo. No es el
-     modo por defecto porque veinticuatro columnas no se leen: se
-     cuadran. Para leer está el resumen; para cuadrar, esto. */
-  const [ancha, setAncha] = useState(false);
+  const [orden, setOrden] = useState<"fecha" | "indice">("fecha");
 
   function filtrar(k: string, v: string) {
     const p = new URLSearchParams();
@@ -91,26 +60,18 @@ export function Informe({
     router.push(`/sider/seguimiento/ai?${p.toString()}`);
   }
 
-  const { total, defectos, socios, semanas, revisiones } = datos;
-  const cobran = defectos.filter((d) => d.cobra);
-  const noCobran = defectos.filter((d) => !d.cobra);
+  const { total, semanas, origenes, revisiones } = datos;
 
-  /* El tope de las barras nunca puede ser cero: `width: NaN%` no lanza
-     ningún error —el navegador descarta la declaración— y un bloque sin
-     ancho se estira hasta llenar la pista. El fallo no se vería como una
-     barra que falta sino como TODAS LLENAS, que parece un dato. */
-  const topeDef = Math.max(1, ...cobran.map((d) => d.unidades));
-  const topeSoc = Math.max(1, ...socios.map((s) => s.no_abono));
+  /* El tope de las barras nunca puede ser cero: `width: NaN%` se descarta y la barra se llena. */
+  const topeOri = Math.max(0.0001, ...origenes.map((o) => o.indice));
 
   const tabla = useMemo(() => {
     const q = busca.trim().toLowerCase();
     const xs = q === "" ? revisiones : revisiones.filter((r) =>
-      `${r.placa} ${r.socio_nombre ?? ""} ${r.envase} ${r.zcl3 ?? ""} ${r.comentarios ?? ""}`
+      `${r.placa} ${r.planta ?? ""} ${r.socio_nombre ?? ""} ${r.envase} ${r.zcl3 ?? ""} ${r.comentarios ?? ""}`
         .toLowerCase().includes(q));
     return [...xs].sort((a, b) =>
-      orden === "fecha" ? b.fecha.localeCompare(a.fecha)
-      : orden === "indice" ? b.indice - a.indice
-      : b.no_abono - a.no_abono);
+      orden === "fecha" ? b.fecha.localeCompare(a.fecha) : b.indice - a.indice);
   }, [revisiones, busca, orden]);
 
   return (
@@ -155,222 +116,110 @@ export function Informe({
         </section>
       ) : (
         <>
-          {/* ---------- LA CIFRA ----------
-              UN NÚMERO GRANDE Y NO UNA GRÁFICA: es una sola cifra, y una
-              cifra sola dibujada es una gráfica que dice menos que el
-              número.
-
-              Y NO ES EL PROMEDIO DE LOS ÍNDICES: es la suma de defectos
-              sobre la suma de revisadas. Promediar porcentajes le da el
-              mismo peso a una muestra de 200 botellas que a una de
-              4.104, y una sola muestra chica mueve el número del mes. */}
+          {/* ---------- LAS TRES CIFRAS ----------
+              %AI = suma de unidades en mal estado / suma de unidades revisadas. Promediar
+              porcentajes le daría el mismo peso a una muestra de 200 que a una de 4.104. */}
           <section className="ia-cifras">
             <div className="ia-hero">
-              <p className="rot">ÍNDICE DE COBRO DEL PERÍODO</p>
+              <p className="rot">%AI DEL PERÍODO</p>
               <p className="num">{pct(total.indice)}</p>
               <p className="pie">
-                {nf.format(total.defectos)} botellas que cobran de{" "}
-                {nf.format(total.revisadas)} revisadas · {total.revisiones} revisiones ·{" "}
-                {total.socios} socios
+                {nf.format(total.defectos)} en mal estado de {nf.format(total.revisadas)} revisadas
+                {" "}· {total.revisiones} revisiones
               </p>
             </div>
             <div className="ia-dato">
-              <p className="rot">NO ABONADO</p>
-              <p className="num">{nf.format(total.no_abono)}</p>
-              <p className="pie">botellas · de {nf.format(total.recibidas)} recibidas</p>
+              <p className="rot">UNIDADES REVISADAS</p>
+              <p className="num">{nf.format(total.revisadas)}</p>
+              <p className="pie">en {total.revisiones} revisiones</p>
             </div>
             <div className="ia-dato">
-              <p className="rot">EN HECTOLITROS</p>
-              <p className="num">{nf3.format(total.hl)}</p>
-              <p className="pie">Hl con defecto que cobra</p>
-            </div>
-            <div className="ia-dato">
-              <p className="rot">CONTADAS Y NO COBRADAS</p>
-              <p className="num">{nf.format(total.otros)}</p>
-              <p className="pie">hongo, etiqueta asoleada, cuerpo extraño, cajas y estibas</p>
+              <p className="rot">UNIDADES EN MAL ESTADO</p>
+              <p className="num">{nf.format(total.defectos)}</p>
+              <p className="pie">de las revisadas</p>
             </div>
           </section>
 
-          {/* ---------- LOS TRES TOTALES DE LA HOJA ----------
-              ESTO ES LO QUE NO CUADRABA. El archivo trae tres sumas de
-              botellas con defecto en la misma fila, se llaman casi
-              igual, y no coinciden en 252 de las 296. Puestas una al
-              lado de la otra, con la fórmula escrita, deja de ser un
-              misterio y pasa a ser una decisión. */}
+          {/* ---------- %AI POR ORIGEN ---------- */}
           <section className="ia-caja">
             <div className="ia-caja-cab">
-              <h2>Por qué hay tres cifras distintas</h2>
+              <h2>%AI por origen</h2>
               <p>
-                Tu hoja calcula tres totales de «botellas con defectos» en la misma fila, con
-                tres listas de categorías distintas. Aquí están los tres con su fórmula.
+                La planta de donde viene el camión, del %AI más alto al más bajo. Cada %AI es la suma
+                de unidades en mal estado sobre la suma de revisadas de ese origen.
               </p>
             </div>
-            <div className="ia-tres">
-              <div className="ia-tres-uno manda">
-                <p className="rot">% ÍNDICE DE COBRO · columnas M y BG</p>
-                <p className="n">{pct(total.indice)}</p>
-                <p className="f">(U+V+W+X+Y+Z+AA+AB+AE) / S — nueve categorías</p>
-                <p className="u">
-                  {nf.format(total.defectos)} botellas. <b>Es la que factura</b>: multiplicada
-                  por las recibidas da las {nf.format(total.no_abono)} unidades no abonadas.
-                </p>
-              </div>
-              <div className="ia-tres-uno">
-                <p className="rot">% TOTAL BOTELLAS CON DEFECTOS · columna AI</p>
-                <p className="n">{pct(total.pct_hoja)}</p>
-                <p className="f">SUM(U:AD) / S — diez categorías</p>
-                <p className="u">
-                  {nf.format(total.defectos_hoja)} botellas. Suma hongo y etiqueta asoleada, y
-                  NO suma mezclado. <b>No es la que cobra.</b>
-                </p>
-              </div>
-              <div className="ia-tres-uno">
-                <p className="rot">TOTAL BOTELLAS CON DEFECTOS (Hl) · columna AU</p>
-                <p className="n">{nf3.format(total.hl_hoja)}</p>
-                <p className="f">SUM(AV:BF) — once categorías</p>
-                <p className="u">
-                  Las diez de arriba más cuerpo extraño. En Hl de cobro son{" "}
-                  <b>{nf3.format(total.hl)}</b>, que salen de las nueve.
-                </p>
-              </div>
+            <div className="ia-tabla">
+              <table className="ia-origen">
+                <thead>
+                  <tr>
+                    <th>Origen</th>
+                    <th className="n">Revisiones</th>
+                    <th className="n">Unid. revisadas</th>
+                    <th className="n">Unid. en mal estado</th>
+                    <th className="n">%AI</th>
+                    <th className="ia-col-barra"><span className="sr">Barra del %AI</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {origenes.map((o) => (
+                    <tr key={o.origen}>
+                      <td><b>{o.origen}</b></td>
+                      <td className="n">{nf.format(o.revisiones)}</td>
+                      <td className="n">{nf.format(o.revisadas)}</td>
+                      <td className="n">{nf.format(o.malas)}</td>
+                      <td className="n destaca">{pct(o.indice)}</td>
+                      <td className="ia-col-barra">
+                        <span className="pista"><i style={{ width: `${(o.indice / topeOri) * 100}%` }} /></span>
+                      </td>
+                    </tr>
+                  ))}
+                  <tr className="ia-total">
+                    <td>Total</td>
+                    <td className="n">{nf.format(total.revisiones)}</td>
+                    <td className="n">{nf.format(total.revisadas)}</td>
+                    <td className="n">{nf.format(total.defectos)}</td>
+                    <td className="n destaca">{pct(total.indice)}</td>
+                    <td className="ia-col-barra" />
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </section>
 
           {/* ---------- LA TENDENCIA ---------- */}
           <Tendencia semanas={semanas} />
 
-          <div className="ia-dos">
-            {/* ---------- QUÉ DEFECTO LO EXPLICA ---------- */}
-            <section className="ia-caja">
-              <div className="ia-caja-cab">
-                <h2>Qué defecto lo explica</h2>
-                <p>
-                  Las nueve que cobran, de la que más pesa a la que menos. El porcentaje es
-                  sobre las {nf.format(total.revisadas)} botellas revisadas del período.
-                </p>
-              </div>
-              <div className="ia-barras">
-                {cobran.map((d) => (
-                  <div key={d.clave} className="ia-bar">
-                    <span className="nom">{d.nombre}</span>
-                    <span className="pista">
-                      <i style={{ width: `${(d.unidades / topeDef) * 100}%` }} />
-                    </span>
-                    <span className="val">
-                      {nf.format(d.unidades)}
-                      <em>{pct(d.pct)} · {nf3.format(d.hl)} Hl</em>
-                    </span>
-                  </div>
-                ))}
-                {cobran.length === 0 && <p className="ia-nada">Ninguna botella con defecto que cobre.</p>}
-              </div>
-
-              {noCobran.length > 0 && (
-                <div className="ia-nocobra">
-                  <p className="rot">SE CUENTAN Y NO COBRAN</p>
-                  <ul>
-                    {noCobran.map((d) => (
-                      <li key={d.clave}>
-                        <b>{nf.format(d.unidades)}</b> {d.nombre}
-                        <em>{pct(d.pct)}</em>
-                      </li>
-                    ))}
-                  </ul>
-                  <p className="nota">
-                    Están aquí porque alguien las contó y son botellas de verdad. No entran
-                    en el índice: así está la fórmula de cobro del archivo, idéntica en las
-                    296 filas.
-                  </p>
-                </div>
-              )}
-            </section>
-
-            {/* ---------- A QUIÉN LLAMAR ---------- */}
-            <section className="ia-caja">
-              <div className="ia-caja-cab">
-                <h2>A quién llamar</h2>
-                <p>
-                  Por socio, ordenado por lo que NO se le abona — que es la conversación que
-                  hay que tener. El índice de al lado dice si es un problema suyo o si
-                  simplemente manda mucho.
-                </p>
-              </div>
-              <div className="ia-barras">
-                {socios.slice(0, 12).map((s) => (
-                  <div key={s.clave} className="ia-bar">
-                    <span className="nom">
-                      <button type="button" onClick={() => filtrar("socio", s.clave)}
-                              title={`Ver solo ${s.nombre}`}>
-                        {s.nombre}
-                      </button>
-                    </span>
-                    <span className="pista">
-                      <i style={{ width: `${(s.no_abono / topeSoc) * 100}%` }} />
-                    </span>
-                    <span className="val">
-                      {nf.format(s.no_abono)}
-                      <em>{pct(s.indice)} · {s.revisiones} rev.</em>
-                    </span>
-                  </div>
-                ))}
-              </div>
-              {socios.length > 12 && (
-                <p className="ia-mas">
-                  Se muestran los 12 que más pesan, de {socios.length}. Filtra por socio para
-                  ver el resto.
-                </p>
-              )}
-            </section>
-          </div>
-
           {/* ---------- REVISIÓN POR REVISIÓN ---------- */}
           <section className="ia-caja">
             <div className="ia-caja-cab con-busca">
               <div>
                 <h2>Revisión por revisión</h2>
-                <p>Es donde se mira la fila concreta cuando un socio reclama.</p>
+                <p>El detalle de cada revisión, para mirar una fila concreta.</p>
               </div>
               <div className="ia-herramientas">
                 <label className="ia-busca">
                   <span className="sr">Buscar</span>
                   <input value={busca} onChange={(e) => setBusca(e.target.value)}
-                         placeholder="Placa, socio…" />
+                         placeholder="Placa, origen, socio…" />
                 </label>
                 <label className="ia-ordenar">
                   <span className="sr">Ordenar por</span>
                   <select value={orden} onChange={(e) => setOrden(e.target.value as typeof orden)}>
                     <option value="fecha">Más reciente</option>
-                    <option value="indice">Índice más alto</option>
-                    <option value="no_abono">No abono más alto</option>
-                  </select>
-                </label>
-                <label className="ia-ordenar">
-                  <span className="sr">Columnas</span>
-                  <select value={ancha ? "excel" : "resumen"}
-                          onChange={(e) => setAncha(e.target.value === "excel")}>
-                    <option value="resumen">Columnas: resumen</option>
-                    <option value="excel">Columnas: como el Excel</option>
+                    <option value="indice">%AI más alto</option>
                   </select>
                 </label>
               </div>
             </div>
-            <div className={"ia-tabla" + (ancha ? " ancha" : "")}>
+            <div className="ia-tabla">
               <table>
                 <thead>
                   <tr>
-                    <th>Fecha</th><th>Placa</th><th>Revisión</th><th>Socio</th><th>Envase</th>
-                    <th className="n">Recibidas</th><th className="n">Revisadas</th>
-                    {/* Los nombres son los DE LA HOJA, no los míos: quien
-                        cuadra tiene el Excel abierto al lado y traducir
-                        nombres de columna es donde se pierde el hilo. */}
-                    <th className="n">% ÍNDICE DE COBRO</th>
-                    <th className="n">Unid. no abonadas</th>
-                    <th className="n">% TOTAL BOT. CON DEFECTOS</th>
-                    <th className="n">TOTAL (Hl)</th>
-                    {ancha && COLS_EXCEL.map(([k, n]) => <th key={"p" + k} className="n">{n}</th>)}
-                    {ancha && COLS_EXCEL.map(([k, n]) =>
-                      <th key={"h" + k} className="n">{n.replace("% ", "Hl ")}</th>)}
-                    <th>Origen</th>
+                    <th>Fecha</th><th>Placa</th><th>Revisión</th><th>Origen</th><th>Socio</th><th>Envase</th>
+                    <th className="n">Unid. revisadas</th>
+                    <th className="n">Unid. en mal estado</th>
+                    <th className="n">%AI</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -384,33 +233,16 @@ export function Informe({
                           {NOMBRE_TIPO[(r.tipo ?? "ai") as TipoRevision]}
                         </span>
                       </td>
+                      <td>{(r.planta ?? "").trim() || "—"}</td>
                       <td>{r.socio_nombre ?? "—"}</td>
                       <td>{r.envase}</td>
-                      <td className="n">{nf.format(r.recibidas)}</td>
                       <td className="n">{nf.format(r.revisadas)}</td>
+                      <td className="n">{nf.format(r.defectos)}</td>
                       <td className="n destaca">{pct(r.indice)}</td>
-                      <td className="n destaca">{nf.format(r.no_abono)}</td>
-                      <td className="n">{pct(Number((r as Revision & { pct_hoja?: number }).pct_hoja ?? 0))}</td>
-                      <td className="n">{nf3.format(Number((r as Revision & { hl_hoja?: number }).hl_hoja ?? 0))}</td>
-                      {ancha && COLS_EXCEL.map(([k]) => (
-                        <td key={"p" + k} className="n">
-                          {pct(datos.porRevision.get(r.id)?.[k]?.pct ?? 0)}
-                        </td>
-                      ))}
-                      {ancha && COLS_EXCEL.map(([k]) => (
-                        <td key={"h" + k} className="n">
-                          {nf3.format(datos.porRevision.get(r.id)?.[k]?.hl ?? 0)}
-                        </td>
-                      ))}
-                      <td>
-                        {(r as Revision & { origen?: string }).origen === "importado"
-                          ? <span className="ia-sello">Excel</span>
-                          : <span className="ia-sello propio">Contada aquí</span>}
-                      </td>
                     </tr>
                   ))}
                   {tabla.length === 0 && (
-                    <tr><td colSpan={ancha ? 34 : 12} className="nada">Nada coincide con «{busca.trim()}».</td></tr>
+                    <tr><td colSpan={9} className="nada">Nada coincide con «{busca.trim()}».</td></tr>
                   )}
                 </tbody>
               </table>
@@ -419,7 +251,6 @@ export function Informe({
               {tabla.length > 200
                 ? <>Se muestran las 200 primeras de {tabla.length} — afina la búsqueda o el rango.</>
                 : <>{tabla.length} revisión{tabla.length === 1 ? "" : "es"}.</>}
-              {total.importadas > 0 && <> {total.importadas} vienen del Excel histórico.</>}
               {!filtro.tipo && (() => {
                 const n = revisiones.filter((r) => (r.tipo ?? "ai") === "sorting").length;
                 return n > 0
@@ -437,7 +268,7 @@ export function Informe({
 /**
  * LA TENDENCIA, POR SEMANA.
  *
- * POR SEMANA Y NO POR DÍA: hay días con una sola revisión, y un índice
+ * POR SEMANA Y NO POR DÍA: hay días con una sola revisión, y un %AI
  * sacado de una muestra sube y baja por azar — la línea diría «se
  * disparó el martes» cuando lo que pasó es que el martes se revisó un
  * solo camión. Y no por mes: cuatro meses darían cuatro puntos.
@@ -453,7 +284,7 @@ function Tendencia({ semanas }: { semanas: PorSemana[] }) {
     return (
       <section className="ia-caja">
         <div className="ia-caja-cab">
-          <h2>Cómo va el índice, semana a semana</h2>
+          <h2>Cómo va el %AI, semana a semana</h2>
           <p>
             Con una sola semana no hay tendencia que dibujar. Amplía el rango de fechas.
           </p>
@@ -488,16 +319,16 @@ function Tendencia({ semanas }: { semanas: PorSemana[] }) {
   return (
     <section className="ia-caja">
       <div className="ia-caja-cab">
-        <h2>Cómo va el índice, semana a semana</h2>
+        <h2>Cómo va el %AI, semana a semana</h2>
         <p>
-          Cada punto es una semana completa: defectos que cobran sobre botellas revisadas de
-          esa semana. La escala arranca en cero — empezarla en el valor más bajo convertiría
+          Cada punto es una semana completa: unidades en mal estado sobre unidades revisadas
+          de esa semana. La escala arranca en cero — empezarla en el valor más bajo convertiría
           dos décimas en un precipicio.
         </p>
       </div>
       <div className="ia-linea">
         <svg viewBox={`0 0 ${ANCHO} ${ALTO}`} preserveAspectRatio="none" role="img"
-             aria-label={`Índice de cobro por semana, de ${semanas[0].semana} a ${semanas[semanas.length - 1].semana}`}>
+             aria-label={`%AI por semana, de ${semanas[0].semana} a ${semanas[semanas.length - 1].semana}`}>
           <path className="area" d={area} />
           <polyline className="traza" points={linea} />
           {semanas.map((s, i) => (

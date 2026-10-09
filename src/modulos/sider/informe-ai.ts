@@ -40,6 +40,9 @@ export type PorSocio = {
   defectos: number; no_abono: number; hl: number; indice: number;
 };
 
+/** %AI por ORIGEN (la planta de donde viene el camión). */
+export type PorOrigen = { origen: string; revisiones: number; revisadas: number; malas: number; indice: number };
+
 export type PorSemana = {
   /** El lunes de esa semana, para ordenar y rotular. */
   semana: string;
@@ -88,7 +91,7 @@ export async function informeAi(f: FiltroAi = {}) {
     return {
       falta: sinTablas(error.message),
       revisiones: [] as Revision[], defectos: [] as PorDefecto[],
-      socios: [] as PorSocio[], semanas: [] as PorSemana[],
+      socios: [] as PorSocio[], semanas: [] as PorSemana[], origenes: [] as PorOrigen[],
       total: vacio(),
       porRevision: new Map<string, Record<string, { pct: number; hl: number }>>(),
     };
@@ -98,7 +101,7 @@ export async function informeAi(f: FiltroAi = {}) {
   if (revisiones.length === 0) {
     return {
       falta: false, revisiones, defectos: [] as PorDefecto[],
-      socios: [] as PorSocio[], semanas: [] as PorSemana[], total: vacio(),
+      socios: [] as PorSocio[], semanas: [] as PorSemana[], origenes: [] as PorOrigen[], total: vacio(),
       porRevision: new Map<string, Record<string, { pct: number; hl: number }>>(),
     };
   }
@@ -188,6 +191,20 @@ export async function informeAi(f: FiltroAi = {}) {
     ...x, indice: x.revisadas > 0 ? x.defectos / x.revisadas : 0,
   })).sort((a, b) => b.no_abono - a.no_abono);
 
+  /* ---------- POR ORIGEN ----------
+     «Dejar la tabla de %AI por origen»: la planta de donde viene el camión. Mismo cálculo que el
+     del período —en mal estado sobre revisadas—, no el promedio de los porcentajes. */
+  const porOrigen = new Map<string, PorOrigen>();
+  for (const r of revisiones) {
+    const k = (r.planta ?? "").trim() || "Sin origen";
+    const x = porOrigen.get(k) ?? { origen: k, revisiones: 0, revisadas: 0, malas: 0, indice: 0 };
+    x.revisiones += 1; x.revisadas += r.revisadas; x.malas += r.defectos;
+    porOrigen.set(k, x);
+  }
+  const origenes = [...porOrigen.values()]
+    .map((x) => ({ ...x, indice: x.revisadas > 0 ? x.malas / x.revisadas : 0 }))
+    .sort((a, b) => b.indice - a.indice || b.revisadas - a.revisadas);
+
   /* ---------- POR SEMANA ----------
      En orden CRONOLÓGICO aunque la tabla venga al revés: una tendencia
      dibujada de derecha a izquierda se lee al revés sin que nadie lo
@@ -217,7 +234,7 @@ export async function informeAi(f: FiltroAi = {}) {
     porRevision.set(d.revision_id, x);
   }
 
-  return { falta: false, revisiones, defectos, socios, semanas, total, porRevision };
+  return { falta: false, revisiones, defectos, socios, semanas, origenes, total, porRevision };
 }
 
 function vacio() {

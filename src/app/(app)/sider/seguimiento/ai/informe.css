@@ -53,7 +53,7 @@
 }
 
 .sd .ia-cifras {
-  display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; gap: 10px;
+  display: grid; grid-template-columns: 1.6fr 1fr 1fr; gap: 10px;
 }
 .sd .ia-hero, .sd .ia-dato {
   background: var(--sd-papel); border: 1px solid var(--sd-linea); border-radius: 3px;
@@ -227,6 +227,7 @@
 
 @media (max-width: 1100px) {
   .sd .ia-cifras { grid-template-columns: 1fr 1fr }
+  .sd .ia-cifras .ia-hero { grid-column: 1 / -1 }
   .sd .ia-dos { grid-template-columns: 1fr }
 }
 @media (max-width: 560px) {
@@ -278,4 +279,15 @@
 
 @media (max-width: 900px) {
   .sd .ia-tres { grid-template-columns: 1fr }
+}
+
+/* %AI POR ORIGEN: la tabla con su barra (un solo tono, mide magnitud). */
+.sd .ia-tabla table.ia-origen { min-width: 640px }
+.sd .ia-col-barra { width: 30%; min-width: 120px }
+.sd .ia-col-barra .pista {
+  display: block; height: 12px; background: var(--ia-ramp-suave); border-radius: 2px; overflow: hidden;
+}
+.sd .ia-col-barra .pista i { display: block; height: 100%; background: var(--ia-ramp); border-radius: 0 3px 3px 0 }
+.sd .ia-tabla tr.ia-total td {
+  border-top: 1.5px solid var(--sd-linea); font-weight: 800; background: var(--c-edf1f6);
 }

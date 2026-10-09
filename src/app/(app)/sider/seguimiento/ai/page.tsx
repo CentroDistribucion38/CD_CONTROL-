@@ -12,15 +12,8 @@ const FECHA = /^\d{4}-\d{2}-\d{2}$/;
 /**
  * SIDER · AI — EL INFORME DE LA REVISIÓN DE ENVASE.
  *
- * ES LA HOJA QUE EL EXCEL NO TENÍA. El archivo traía cincuenta y ocho
- * columnas por fila —el conteo, su porcentaje y su hectolitro, catorce
- * veces— y ninguna pantalla que dijera cuánto se está cobrando, por qué
- * defecto, ni a qué socio llamar. Para saberlo había que armar una tabla
- * dinámica a mano cada mes.
- *
- * LAS CIFRAS NO SE RECALCULAN AQUÍ. El índice, el no-abono y los Hl
- * salen de `v_sider_ai`, con las nueve categorías que cobran —las mismas
- * de la columna M del archivo—. Esta pantalla agrupa y dibuja.
+ * Solo unidades revisadas, unidades en mal estado y %AI, por período, semana y origen.
+ * Las cifras de cada revisión salen de `v_sider_ai`; esta pantalla agrupa y dibuja.
  */
 export default async function InformeAiPage({
   searchParams,
@@ -70,11 +63,10 @@ export default async function InformeAiPage({
       <section className="cabeza">
         <div>
           <p className="ojo">SIDER · INFORME AI</p>
-          <h1>Qué se le cobra al socio, y por qué</h1>
+          <h1>%AI de la revisión de envase</h1>
           <p className="sub">
-            El índice de cobro sale de las <b>nueve categorías que cobran</b> —las mismas de
-            la columna «% ÍNDICE DE COBRO» del archivo— sobre las botellas revisadas. No es
-            el «% total de botellas con defectos», que suma diez y da otra cifra.{" "}
+            <b>%AI = unidades en mal estado / unidades revisadas</b>, sumadas en el período (no el
+            promedio de cada revisión), y abajo por origen.{" "}
             Entran las dos clases de revisión —<b>certificada</b> y <b>normal</b>— cada una
             marcada con su nombre; con el filtro «Revisión» se ve una sola.{" "}
             <Link href="/sider/seguimiento">Volver al seguimiento de envase</Link>
