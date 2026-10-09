@@ -34,7 +34,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Control, Viaje } from "@/modulos/traspasos/datos";
-import { HORARIO, placaClave } from "@/modulos/traspasos/formato";
+import { HORARIO } from "@/modulos/traspasos/formato";
+import { armarPorPlaca, documentoDe, enOrdenLogico } from "@/modulos/traspasos/por-placa";
 import { armarFoto, dibujarFoto, entregarFoto } from "@/modulos/traspasos/foto";
 
 type Props = {
@@ -138,42 +139,12 @@ export function Cierre({ filas, desde, hasta, turnos, rotulo, cerrar }: Props) {
 
   const vivos = useMemo(() => (viajes ?? []).filter((v) => v.estado === "registrado"), [viajes]);
 
-  /* EN ORDEN LÓGICO: del primero al último, por día y hora. Así se lee cómo se fueron moviendo las
-     placas a lo largo del turno, y no al revés. */
-  const enOrden = useMemo(() => [...(viajes ?? [])].sort((a, b) =>
-    a.fecha.localeCompare(b.fecha) || (a.hora ?? "").localeCompare(b.hora ?? "")
-    || (a.codigo ?? "").localeCompare(b.codigo ?? "", "es", { numeric: true })), [viajes]);
-
-  /* POR PLACA: «quiero por placa poder evaluar Traspasos». Cada placa con sus viajes en orden de hora,
-     y el aviso cuando un viaje sale de un sitio distinto a donde llegó el anterior de esa placa
-     (falta un viaje por registrar, o se registró mal la ruta). Los anulados no entran. */
-  const porPlaca = useMemo(() => {
-    const m = new Map<string, { placa: string; vs: Viaje[] }>();
-    for (const v of enOrden) {
-      if (v.estado !== "registrado") continue;
-      const k = placaClave(v.placa) || "SIN PLACA";
-      (m.get(k) ?? m.set(k, { placa: v.placa?.trim() || "Sin placa", vs: [] }).get(k)!).vs.push(v);
-    }
-    return [...m.values()].map((g) => ({
-      ...g,
-      carga: g.vs.reduce((a, v) => a + (v.carga ?? 0), 0),
-      saltos: g.vs.map((v, i) => {
-        const prev = g.vs[i - 1];
-        if (!prev) return null;
-        const llego = (prev.destino_nombre ?? prev.destino ?? "").trim().toUpperCase();
-        const sale = (v.origen_nombre ?? v.origen ?? "").trim().toUpperCase();
-        return llego && sale && llego !== sale ? (prev.destino_nombre ?? prev.destino) : null;
-      }),
-    })).sort((a, b) => b.vs.length - a.vs.length || a.placa.localeCompare(b.placa, "es"));
-  }, [enOrden]);
-  const nSaltos = porPlaca.reduce((a, g) => a + g.saltos.filter(Boolean).length, 0);
-
-  /* EL DOCUMENTO ES EL DE FACTURACIÓN (el que cruza con SAP), con la hora en que confirmó la salida.
-     No es la orden de cargue del patio. */
-  const docDe = (v: Viaje) =>
-    v.vacio ? { txt: "—", sin: false, hora: null as string | null }
-    : v.factura_documento ? { txt: v.factura_documento, sin: false, hora: v.salida_en ?? null }
-    : { txt: "sin documento", sin: v.estado === "registrado", hora: null };
+  /* EN ORDEN LÓGICO y POR PLACA: la cuenta vive en modulos/traspasos/por-placa.ts (la usa también
+     el tablero). El documento es el de facturación, con la hora de salida. */
+  const enOrden = useMemo(() => enOrdenLogico(viajes ?? []), [viajes]);
+  const porPlaca = useMemo(() => armarPorPlaca(viajes ?? []), [viajes]);
+  const nSaltos = porPlaca.reduce((a, g) => a + g.nSaltos, 0);
+  const docDe = documentoDe;
 
   /* CÓMO SE LLAMA ESTO. Un turno, su letra; dos o más, las letras
      juntas; ninguno, el día entero. Escrito como se dice en la bodega:
@@ -521,7 +492,7 @@ export function Cierre({ filas, desde, hasta, turnos, rotulo, cerrar }: Props) {
               </div>
               <div className="tp-ci-placas">
                 {porPlaca.map((g) => (
-                  <div className="ci-placa" key={g.placa}>
+                  <div className="ci-placa" key={g.clave}>
                     <div className="ci-placa-cab">
                       <b>{g.placa}</b>
                       <span>{g.vs.length} viaje{g.vs.length === 1 ? "" : "s"} · carga {nf.format(g.carga)}</span>
@@ -586,7 +557,7 @@ export function Cierre({ filas, desde, hasta, turnos, rotulo, cerrar }: Props) {
               <summary>Por placa<em>{porPlaca.length}{nSaltos ? ` · ${nSaltos} salto${nSaltos === 1 ? "" : "s"}` : ""} ›</em></summary>
               <div className="tp-ci-placas">
                 {porPlaca.map((g) => (
-                  <div className="ci-placa" key={g.placa}>
+                  <div className="ci-placa" key={g.clave}>
                     <div className="ci-placa-cab"><b>{g.placa}</b><span>{g.vs.length} · carga {nf.format(g.carga)}</span></div>
                     <ol>
                       {g.vs.map((v, i) => (

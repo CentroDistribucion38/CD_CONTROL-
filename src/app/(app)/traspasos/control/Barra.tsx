@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import type { TipoViaje } from "@/modulos/traspasos/datos";
 import { TURNOS, TURNO_DIA } from "@/modulos/traspasos/formato";
+import { Rango, type Dia } from "../../sider/seguimiento/Rango";
 import { PALETA_MARCA, paletaDeTema, aRGB } from "@/modulos/rotlinea/hoja";
 
 /** Los colores del tema de quien exporta, para que el Excel salga con
@@ -42,7 +43,7 @@ function coloresDelTema(dentro: Element | null) {
  * abre la ficha del día, que es la misma de los turnos, y de ahí salen
  * el PDF y la foto.
  */
-export function Barra({ tipos, soloBotones, soloFiltros, hoy, dia, desde, hasta }: {
+export function Barra({ tipos, soloBotones, soloFiltros, hoy, dia, desde, hasta, primera }: {
   tipos: TipoViaje[];
   /** El día de hoy y el día en el que está parada la pantalla. */
   hoy?: string;
@@ -59,6 +60,8 @@ export function Barra({ tipos, soloBotones, soloFiltros, hoy, dia, desde, hasta 
      repetir el manejo de la dirección en los dos. */
   soloBotones?: boolean;
   soloFiltros?: boolean;
+  /** El primer día con viajes: el calendario deja escoger desde ahí hasta mañana. */
+  primera?: string | null;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -172,19 +175,17 @@ export function Barra({ tipos, soloBotones, soloFiltros, hoy, dia, desde, hasta 
   const rDesde = valorDe("desde") || desde || dia || hoy || "";
   const rHasta = valorDe("hasta") || hasta || dia || hoy || "";
 
-  /* Las dos fechas se mandan juntas y con espera: escribir una fecha a
-     mano pasa por estados a medio escribir («0002-08-…»), y sin la
-     espera cada uno de esos sería una consulta. */
-  function rango(cual: "desde" | "hasta", v: string) {
-    const otro = cual === "desde" ? rHasta : rDesde;
-    const nuevo = { ...pendiente.current,
-      desde: cual === "desde" ? v : otro, hasta: cual === "hasta" ? v : otro,
-      d: "", dias: "" };
-    pendiente.current = nuevo;
-    setLocal(nuevo);
-    if (reloj.current) clearTimeout(reloj.current);
-    reloj.current = setTimeout(() => mandar(nuevo), ESPERA);
-  }
+  /* Los días que se pueden escoger: del primer día con viajes hasta mañana (el plan de mañana se
+     revisa antes de que empiece el turno). */
+  const diasCal: Dia[] = (() => {
+    const fin = mañana || hoy || "";
+    const ini = primera && fin && primera <= fin ? primera : (hoy || fin);
+    const out: Dia[] = [];
+    if (!ini || !fin) return out;
+    for (let t = Date.parse(ini + "T12:00:00"); t <= Date.parse(fin + "T12:00:00") && out.length < 4000; t += 86400_000)
+      out.push({ fecha: new Date(t).toISOString().slice(0, 10), hl_zlde: 0, viajes: 0 });
+    return out;
+  })();
   const unDia = (f: string) => {
     if (reloj.current) clearTimeout(reloj.current);
     const nuevo = { ...pendiente.current, desde: f, hasta: f, d: "", dias: "" };
@@ -268,25 +269,15 @@ export function Barra({ tipos, soloBotones, soloFiltros, hoy, dia, desde, hasta 
           {/* EL RANGO, A LA IZQUIERDA DE TODO: es lo primero que se
               escoge en un informe —qué días— y después ya se afina por
               turno y por tipo. */}
-          <div className="rango-f" role="group" aria-label="Rango de fechas">
-            <label className="sel fecha">
-              <span>Desde</span>
-              <input type="date" value={rDesde} max={rHasta || undefined}
-                     onChange={(e) => rango("desde", e.target.value)} />
-            </label>
-            <label className="sel fecha">
-              <span>Hasta</span>
-              <input type="date" value={rHasta} min={rDesde || undefined}
-                     onChange={(e) => rango("hasta", e.target.value)} />
-            </label>
-            {/* DOS ATAJOS Y NO CINCO. «Hoy» es a donde se vuelve, y
-                «Mañana» es la única fecha del futuro que tiene sentido
-                mirar: el plan antes de que empiece el turno. Todo lo
-                demás se escribe en los dos campos de al lado. */}
-            {hoy && (
-              <button type="button" className={"atajo" + (rDesde === hoy && rHasta === hoy ? " on" : "")}
-                      onClick={() => unDia(hoy)}>Hoy</button>
-            )}
+          {/* EL CALENDARIO DE RANGO, el mismo de T1 / T2: Días, Meses, Años y los atajos (Hoy, Este
+              mes, Mes pasado, Este año). Abre en HOY; un solo día es tocar dos veces el mismo. */}
+          <div className="sd tp-rango" role="group" aria-label="Rango de fechas">
+            <Rango desde={rDesde} hasta={rHasta} dias={diasCal} rotulo="Fechas"
+                   alElegir={(d, h) => {
+                     if (reloj.current) clearTimeout(reloj.current);
+                     const nuevo = { ...pendiente.current, desde: d, hasta: h, d: "", dias: "" };
+                     pendiente.current = nuevo; setLocal(nuevo); mandar(nuevo);
+                   }} />
             {mañana && (
               <button type="button" className={"atajo" + (rDesde === mañana && rHasta === mañana ? " on" : "")}
                       onClick={() => unDia(mañana)}>Mañana</button>

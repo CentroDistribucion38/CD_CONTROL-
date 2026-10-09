@@ -271,6 +271,14 @@ export async function viajesRango(desde: string, hasta: string) {
   return { viajes: (data ?? []) as Viaje[], falta: false };
 }
 
+/** El primer día con viajes registrados: desde ahí se puede escoger en el calendario. */
+export async function primerDiaViajes(): Promise<string | null> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("v_traspasos_viajes").select("fecha")
+    .order("fecha", { ascending: true }).limit(1);
+  return (data?.[0]?.fecha as string | undefined) ?? null;
+}
+
 /** El plan contra lo real, de un día. Es la pantalla del turno. */
 export async function control(fecha: string) {
   const supabase = await createClient();

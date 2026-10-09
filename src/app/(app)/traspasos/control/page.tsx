@@ -1,10 +1,12 @@
 import { misPermisos } from "@/lib/permisos";
 import {
   controlRango, vaciosRango, tipos as leerTipos, hoyLocal, cruceDelDia, fueraDelPlanRango,
+  viajesRango, primerDiaViajes,
   type Control,
 } from "@/modulos/traspasos/datos";
 import { fecha as fechaLarga, TURNOS, TURNO_DIA } from "@/modulos/traspasos/formato";
 import { nombresTodos } from "@/modulos/sider/datos";
+import "../../sider/sider.css";
 import "../traspasos.css";
 import "../cruce/cruce.css";
 import { AlDia, SinTablas } from "../comunes";
@@ -12,7 +14,7 @@ import { Barra } from "./Barra";
 import { Turnos } from "./Turnos";
 import { TarjetaKpi } from "./TarjetaKpi";
 import { Diferencias } from "./Diferencias";
-import { Fechas } from "../plan/Fechas";
+import { PorPlaca } from "./PorPlaca";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +46,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function ControlPage({ searchParams }: {
   searchParams: Promise<{ dias?: string; turno?: string; tipo?: string; d?: string;
-                          desde?: string; hasta?: string }>;
+                          desde?: string; hasta?: string; placa?: string }>;
 }) {
   const q = await searchParams;
   const hoy = hoyLocal();
@@ -56,7 +58,7 @@ export default async function ControlPage({ searchParams }: {
      nada. Un plan que no se puede revisar antes de que empiece el turno
      es un plan que solo se revisa cuando ya no se puede arreglar. */
   const dia = esFecha(q.d) ? q.d! : hoy;
-  const esHoy = dia === hoy;
+
 
   /* ==================================================================
      EL RANGO: DESDE Y HASTA, COMO SE PIDA.
@@ -80,14 +82,17 @@ export default async function ControlPage({ searchParams }: {
     : new Date(Date.parse(dia + "T12:00:00") - dias * 86400_000).toISOString().slice(0, 10);
   const hasta = rangoLibre ? (a <= b ? b : a) : dia;
 
-  const [permisos, ctl, vacios, t, cruce, nombres, fuera] = await Promise.all([
+  /* EL CALENDARIO MANDA: el día que se mira (el cruce, el «todavía no ha llegado», el refresco
+     solo) es el último del rango. Por defecto el rango es HOY. */
+  const diaVista = hasta;
+  const [permisos, ctl, vacios, t, cruce, nombres, fuera, vj, primera] = await Promise.all([
     misPermisos(), controlRango(desde, hasta), vaciosRango(desde, hasta), leerTipos(),
     /* EL CRUCE DEL DÍA QUE SE ESTÁ MIRANDO. Ya no hay pantalla de cruce:
        Importar solo sube el corte, y las diferencias salen aquí abajo,
        que es donde se miran los números del día. Se trae solo el día
        —no el corte entero— porque esta consulta se paga en cada carga
        del tablero, y el tablero se queda puesto en la oficina. */
-    cruceDelDia(dia),
+    cruceDelDia(diaVista),
     /* Para poner NOMBRE a quien registró el viaje sin documento. Un id
        no sirve para ir a preguntarle. */
     nombresTodos(),
@@ -96,6 +101,9 @@ export default async function ControlPage({ searchParams }: {
        meterlo en la misma vista que el cumplido es cómo alguien termina
        sumando tolvas al plan «porque estaban ahí». */
     fueraDelPlanRango(desde, hasta),
+    /* Los viajes del rango, para la sección «Por placa». */
+    viajesRango(desde, hasta),
+    primerDiaViajes(),
   ]);
   void permisos;
 
@@ -199,14 +207,9 @@ export default async function ControlPage({ searchParams }: {
           minutos porque esta pantalla se queda puesta en la oficina.
           Un día que no es hoy no se mueve solo: refrescarlo sería
           gastar consultas para volver a pintar lo mismo. */}
-      <AlDia cada={esHoy ? 120 : 0} />
+      <AlDia cada={diaVista === hoy ? 120 : 0} />
 
-      {/* El día en el que termina la ventana. Sirve para mirar un día
-          de atrás y, sobre todo, para mirar MAÑANA: revisar el plan
-          antes de que empiece el turno, que es cuando todavía se puede
-          arreglar. */}
-      <Fechas dia={rangoLibre ? hasta : dia} hoy={hoy} esHoy={esHoy && !rangoLibre}
-              ruta="/traspasos/control" param="d" limpia={["desde", "hasta"]} />
+      {/* El día y el rango se escogen en el calendario de la barra de filtros. */}
 
       {/* 1 ─ LA CIFRA QUE MANDA */}
       <section className="cabeza-ctl">
@@ -216,7 +219,7 @@ export default async function ControlPage({ searchParams }: {
           </p>
           <h1>Control y ejecución</h1>
           <p className="sub">
-            {dia > hoy
+            {diaVista > hoy
               ? <>Este día todavía no ha llegado: lo que se ve es <b>el plan</b>, sin nada
                 cumplido todavía. Sirve para revisarlo antes de que empiece el turno.</>
               : <>Lo que se planeó contra lo que de verdad salió, turno por turno y tipo por tipo.</>}
@@ -236,7 +239,7 @@ export default async function ControlPage({ searchParams }: {
       {/* LOS FILTROS, a lo ancho y debajo del título: son de toda la
           pantalla, no del panel de la derecha. Metidos en la columna
           derecha le comían el ancho al título. */}
-      <Barra tipos={t.tipos} soloFiltros hoy={hoy} dia={dia} desde={desde} hasta={hasta} />
+      <Barra tipos={t.tipos} soloFiltros hoy={hoy} dia={dia} desde={desde} hasta={hasta} primera={primera} />
 
       {/* LA MISMA INFORMACIÓN, EN UNA SOLA TARJETA, para el celular.
           Solo se ve por debajo de 900 px; ahí el CSS esconde el panel
@@ -530,12 +533,17 @@ export default async function ControlPage({ searchParams }: {
           que mirar el día de ayer trae las diferencias de ayer sin
           tocar nada más.
           ================================================================= */}
+      {/* POR PLACA: cada placa con sus viajes en orden de hora, del rango, turnos y tipos de arriba. */}
+      <PorPlaca varios={desde !== hasta} placaInicial={(q.placa ?? "").toUpperCase()}
+                viajes={vj.viajes.filter((v) =>
+                  (!turnos.size || turnos.has(v.turno)) && (!tipos.size || !v.tipo || tipos.has(v.tipo)))} />
+
       {/* SE PINTA AUNQUE NO HAYA CORTE: el control de los viajes sin
           documento no depende de SAP, y esconderlo los días que nadie
           importó sería esconder el agujero más grande de los dos. */}
       {!cruce.falta && (
         <Diferencias lineas={cruce.lineas} hayCorte={cruce.hayCorte}
-                     rotulo={fechaLarga(dia)} desde={cruce.desde} hasta={cruce.hasta}
+                     rotulo={fechaLarga(diaVista)} desde={cruce.desde} hasta={cruce.hasta}
                      tope={cruce.tope} sinDocumento={cruce.sinDocumento}
                      conDocumento={cruce.conDocumento} nombres={nombres}
                      puedeDepurar={permisos.manda} />
