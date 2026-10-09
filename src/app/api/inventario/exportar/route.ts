@@ -96,9 +96,9 @@ export async function GET(req: Request) {
   const colores = esHex(q.get("tinta")) && esHex(q.get("banda")) ? { tinta: q.get("tinta")!, banda: q.get("banda")! } : undefined;
 
   /* LA VALIDACIÓN CON EL CASCO DE VIDRIO (lo que no cuadra va como comentario en «Análisis»). */
-  const validacionCasco = await validarCasco(lineas, new Map(conteos.map((c) => [c.id, String(c.fecha_analisis).slice(0, 10)])), hasta);
+  const validacion = await validarCasco(lineas, new Map(conteos.map((c) => [c.id, String(c.fecha_analisis).slice(0, 10)])), hasta);
   const archivo = await armarLibroDia({
-    validacionCasco: validacionCasco ?? undefined,
+    validacionCasco: validacion.avisos, validacionError: validacion.error ?? undefined,
     fecha, hasta, bodega: bodega.codigo, quien: yo?.nombre || yo?.usuario || "—",
     conteos, lineas, evidencias, fotosRecortadas: recortadas, materiales: m.materiales,
     ubicaciones: m.ubicaciones.filter((u) => u.bodega_id === bodega.id), logo, colores, totalDelDia: delDia.length,

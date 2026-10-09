@@ -12,16 +12,16 @@ import { armarUbicaciones, COLUMNAS_CENTRO, ubicacionDeFila, type RenglonUbic } 
  * Bodega) hasta ese día, y devuelve una línea por cada material que no cuadra. Si el rol no ve el
  * Casco, o falta la tabla, devuelve null y el Excel sale como siempre.
  */
-export type AvisoCasco = { almacen: string; fecha: string; cod: string; material: string; comentario: string };
+export type AvisoCasco = { almacen: string; centro: string; fecha: string; cod: string; material: string; comentario: string };
 
 export async function validarCasco(
   renglones: (Omit<RenglonUbic, "fecha"> & { conteo_id: string; material?: string })[],
   diaDeConteo: Map<string, string>,
   hasta: string,
-): Promise<AvisoCasco[] | null> {
+): Promise<{ avisos: AvisoCasco[]; error: string | null }> {
   try {
     const sitios = await sitiosCasco();
-    if (sitios.sinTabla) return null;
+    if (sitios.sinTabla) return { avisos: [], error: "no encontré las tablas del Casco de vidrio" };
     const u = armarUbicaciones(renglones.map((x) => ({ ...x, fecha: diaDeConteo.get(x.conteo_id) ?? "" })));
     const nombres = new Map(renglones.map((x) => [String(x.codigo), x.material ?? ""]));
     const supabase = await createClient();
@@ -29,19 +29,20 @@ export async function validarCasco(
     for (const s of sitios.lista) {
       const centro = (s.centro ?? "").toUpperCase();
       if (!COLUMNAS_CENTRO[centro]) continue;
-      const { data: ult } = await supabase.from("v_casco").select("fecha")
+      const { data: ult, error: eU } = await supabase.from("v_casco").select("fecha")
         .eq("ubicacion", s.clave).lte("fecha", hasta).order("fecha", { ascending: false }).limit(1);
+      if (eU) return { avisos: out, error: `no pude leer el Casco (${eU.message})` };
       const dia = ult?.[0]?.fecha as string | undefined;
       if (!dia) continue;
       const { data: rs } = await supabase.from("v_casco").select("sku, inventario, baja")
         .eq("ubicacion", s.clave).eq("fecha", dia).order("sku");
       for (const r of (rs ?? []) as { sku: string; inventario: number | null; baja: number | null }[]) {
         const v = ubicacionDeFila(u, centro, r.sku, Number(r.inventario ?? 0), Number(r.baja ?? 0), s.baja_rotulo ?? undefined);
-        for (const a of v?.avisos ?? []) out.push({ almacen: s.nombre, fecha: dia, cod: r.sku, material: nombres.get(r.sku) ?? "", comentario: a });
+        for (const a of v?.avisos ?? []) out.push({ almacen: s.nombre, centro, fecha: dia, cod: r.sku, material: nombres.get(r.sku) ?? "", comentario: a });
       }
     }
-    return out;
-  } catch {
-    return null;
+    return { avisos: out, error: null };
+  } catch (e) {
+    return { avisos: [], error: e instanceof Error ? e.message : String(e) };
   }
 }

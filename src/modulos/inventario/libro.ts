@@ -55,7 +55,9 @@ export type InsumosDia = {
   fotosRecortadas?: number;
   /** Lo que no cuadra entre el Casco de vidrio y este conteo (va como comentario en «Análisis»).
    *  Sin el dato (el rol no ve el Casco), el bloque no sale. */
-  validacionCasco?: { almacen: string; fecha: string; cod: string; material: string; comentario: string }[];
+  validacionCasco?: { almacen: string; centro: string; fecha: string; cod: string; material: string; comentario: string }[];
+  /** Si la validación con el Casco no se pudo hacer, por qué (sale escrito en «Análisis»). */
+  validacionError?: string;
 };
 
 export type EvidenciaRenglon = {
@@ -569,7 +571,11 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
        «En el informe la ubicación va vacía, pero en el Excel, en el Análisis, como comentario.»
        Un renglón por material que el Casco tiene en una columna (Inventario / Extrasucio con baja /
        Lavado con baja) y el conteo NO lo tiene en el estado que le corresponde. */
-    if (d.validacionCasco) {
+    if (d.validacionError) {
+      f += 2;
+      const t = h.getCell(f, 1); t.value = "Validación con Casco de vidrio"; t.font = letra(11, TINTA, true);
+      const st = h.getCell(f, 2); st.value = `No se pudo hacer: ${d.validacionError}`; st.font = letra(9.5, ROJO, true);
+    } else if (d.validacionCasco) {
       const vc = d.validacionCasco;
       f += 2; h.getRow(f).height = 22;
       const t = h.getCell(f, 1); t.value = "Validación con Casco de vidrio"; t.font = letra(11, TINTA, true);
@@ -722,17 +728,19 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     const est = (pref: string) => (estados.includes(pref) ? pref : estados[0] ?? "");
     const TABLAS = [
       { c0: 1, estado: est("LAVADO"), zona: "FABRICA" },
-      { c0: 7, estado: estados.includes(COMBO) ? COMBO : est("BAJA"), zona: "BODEGA" },
+      { c0: 8, estado: estados.includes(COMBO) ? COMBO : est("BAJA"), zona: "BODEGA" },
     ];
-    const G = 5, C0 = 14;                                    // tablas A:E y G:K · listas escondidas desde N
-    const ANCHO = 11;
+    /* Cada tabla: COD · DESCRIPCIÓN · UBICACIONES · ESTIBAS · CAJAS · VALIDACIÓN CASCO.
+       Tablas A:F y H:M · listas escondidas desde O. */
+    const G = 5, C0 = 15;
+    const ANCHO = 13;
     const h = wb.addWorksheet("Ubicaciones por estado", { properties: { tabColor: { argb: "FFFFC000" } } });
-    h.columns = [14, 40, 58, 11, 11, 3, 14, 40, 58, 11, 11].map((w) => ({ width: w }));
+    h.columns = [14, 36, 52, 10, 10, 46, 3, 14, 36, 52, 10, 10, 46].map((w) => ({ width: w }));
     cabecera(h, "Ubicaciones por estado", `Escoge el estado y la ubicación de cada tabla y se arma sola · ${sub}`, ANCHO);
     const F0 = 11, F1 = F0 + N - 1;
     const borde = { top: raya(), bottom: raya(), left: raya(), right: raya() };
     const marco = { top: { style: "medium" as const }, bottom: { style: "medium" as const }, left: { style: "medium" as const }, right: { style: "medium" as const } };
-    const CAB = ["COD", "DESCRIPCIÓN", "UBICACIONES", "ESTIBAS", "CAJAS"];
+    const CAB = ["COD", "DESCRIPCIÓN", "UBICACIONES", "ESTIBAS", "CAJAS", "VALIDACIÓN CASCO"];
 
     /* Las listas escondidas: por estado × ubicación, 5 columnas (cod, descripción, ubicaciones, estibas, cajas). */
     const ult = col(C0 + claves.length * G - 1);
@@ -744,7 +752,17 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
         h.getCell(r, C0 + j * G + 3).value = m.est; h.getCell(r, C0 + j * G + 4).value = m.cajas;
       });
     });
-    for (let c = C0; c <= C0 + claves.length * G - 1; c++) h.getColumn(c).hidden = true;
+    /* LA VALIDACIÓN CON EL CASCO, escondida al lado: llave «AG22|3501226» → comentario. La columna
+       VALIDACIÓN CASCO de cada tabla la busca según la UBICACIÓN escogida (FABRICA → AG18,
+       BODEGA → AG22, TODAS → las dos). */
+    const vc = d.validacionCasco ?? [];
+    const VK = C0 + claves.length * G, VC = VK + 1;
+    const nV = Math.max(1, vc.length);
+    h.getCell(F0 - 1, VK).value = "LLAVE"; h.getCell(F0 - 1, VC).value = "COMENTARIO";
+    vc.forEach((v, i) => { h.getCell(F0 + i, VK).value = `${v.centro}|${v.cod}`; h.getCell(F0 + i, VC).value = v.comentario });
+    const valK = `$${col(VK)}$${F0}:$${col(VK)}$${F0 + nV - 1}`, valC = `$${col(VC)}$${F0}:$${col(VC)}$${F0 + nV - 1}`;
+    const comentarioDe = (centro: string, cod: string) => vc.filter((v) => v.centro === centro && v.cod === cod).map((v) => v.comentario).join(" / ");
+    for (let c = C0; c <= VC; c++) h.getColumn(c).hidden = true;
     const rango = `$${col(C0)}$${F0}:$${ult}$${F1}`, cab = `$${col(C0)}$${F0 - 1}:$${ult}$${F0 - 1}`;
 
     h.getRow(6).height = 30; h.getRow(7).height = 26; h.getRow(8).height = 26; h.getRow(9).height = 18; h.getRow(F0 - 1).height = 30;
@@ -762,7 +780,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
       sel(8, "UBICACIÓN", t.zona, [...ZONAS], "◄ FABRICA (patios y sorting de Fábrica) · BODEGA (lo que no es Fábrica) · TODAS");
       /* EL TÍTULO DE LA TABLA dice lo escogido: «ESTADO LAVADO · FABRICA», «ESTADO BAJA · BODEGA».
          Es fórmula: si cambias las casillas, el título cambia con ellas. */
-      h.mergeCells(6, t.c0, 6, t.c0 + 4);
+      h.mergeCells(6, t.c0, 6, t.c0 + 5);
       const tit = h.getCell(6, t.c0);
       tit.value = { formula: `"ESTADO "&$${cE}$7&"  ·  "&$${cE}$8`, result: `ESTADO ${t.estado}  ·  ${t.zona}` };
       tit.font = letra(14, "FF000000", true); tit.fill = relleno("FFFFC000");
@@ -774,11 +792,14 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
       r9.value = { formula: `COUNTIF(${A}${F0}:${A}${F1},"?*")&" material(es) · "&TEXT(SUM(${D}${F0}:${D}${F1}),"#,##0")&" estibas · "&TEXT(SUM(${E}${F0}:${E}${F1}),"#,##0")&" cajas"`,
                    result: `${listas[iSel]?.length ?? 0} material(es) · ${(listas[iSel] ?? []).reduce((x, m) => x + m.est, 0)} estibas · ${(listas[iSel] ?? []).reduce((x, m) => x + m.cajas, 0)} cajas` };
       r9.font = letra(9.5, GRIS, true); r9.alignment = { horizontal: "center" };
-      CAB.forEach((tt, i) => { const c = h.getCell(F0 - 1, t.c0 + i); c.value = tt; c.font = letra(11, "FF000000", true); c.fill = relleno("FFD9D9D9"); c.border = borde; c.alignment = { vertical: "middle", horizontal: "center", wrapText: true } });
+      CAB.forEach((tt, i) => { const c = h.getCell(F0 - 1, t.c0 + i); c.value = tt; c.font = letra(11, "FF000000", true); c.fill = relleno(i === 5 ? "FFF8D7DA" : "FFD9D9D9"); c.border = borde; c.alignment = { vertical: "middle", horizontal: "center", wrapText: true } });
+      const zonaCel = `$${cE}$8`;
+      const centroZ = (z: string) => (z === "FABRICA" ? "AG18" : z === "BODEGA" ? "AG22" : "");
       for (let k = 0; k < N; k++) {
         const r = F0 + k, fila = h.getRow(r);
         const m = listas[iSel]?.[k];
-        const largo = Math.max((m?.ubic ?? "").split("\n").reduce((x, l) => x + Math.max(1, Math.ceil(l.length / 54)), 0), Math.ceil((m?.desc.length ?? 0) / 38), 1);
+        const com = m ? (t.zona === "TODAS" ? [comentarioDe("AG22", m.cod), comentarioDe("AG18", m.cod)].filter(Boolean).join(" / ") : comentarioDe(centroZ(t.zona), m.cod)) : "";
+        const largo = Math.max((m?.ubic ?? "").split("\n").reduce((x, l) => x + Math.max(1, Math.ceil(l.length / 50)), 0), Math.ceil((m?.desc.length ?? 0) / 34), Math.ceil(com.length / 44), 1);
         altos[k] = Math.max(altos[k], 6 + 14 * largo);
         for (let c = 0; c < G; c++) {
           const idx = `INDEX(${rango},${k + 1},MATCH(${llave},${cab},0)+${c})`;
@@ -789,12 +810,22 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
           x.alignment = { vertical: "middle", horizontal: c === 2 ? "left" : "center", wrapText: c === 1 || c === 2, indent: c === 2 ? 1 : 0 };
           if (c >= 3) x.numFmt = "#,##0;\\-#,##0;";
         }
+        /* VALIDACIÓN CASCO: lo que no cuadra entre el Casco de vidrio y este conteo para ese material. */
+        {
+          const cod = `${col(t.c0)}${r}`;
+          const busca = (cen: string) => `INDEX(${valC},MATCH(${cen}&"|"&${cod},${valK},0))`;
+          const cen = `IF(${zonaCel}="FABRICA","AG18",IF(${zonaCel}="BODEGA","AG22",""))`;
+          const x = fila.getCell(t.c0 + 5);
+          x.value = { formula: `IF(${cod}="","",IFERROR(${busca(cen)},IF(${zonaCel}="TODAS",IFERROR(${busca('"AG22"')},IFERROR(${busca('"AG18"')},"")),"")))`, result: com };
+          x.border = borde; x.font = letra(9.5, ROJO, true);
+          x.alignment = { vertical: "middle", horizontal: "left", wrapText: true, indent: 1 };
+        }
       }
     }
     altos.forEach((a, k) => { h.getRow(F0 + k).height = Math.min(409, a) });
     h.views = [{ state: "frozen", ySplit: F0 - 1, showGridLines: false }];
     h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: `${F0 - 1}:${F0 - 1}` };
-    h.pageSetup.printArea = `A1:K${F1}`;
+    h.pageSetup.printArea = `A1:M${F1}`;
   }
 
   /* ================= 3 · POR MATERIAL ================= */
