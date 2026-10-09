@@ -2094,10 +2094,11 @@ export function Contar({
                     {pv.venc_dia != null && (
                       <em>vence {dd(pv.venc_dia)}/{dd(pv.venc_mes)}/{dd(pv.venc_anio)}</em>
                     )}
-                    {/* LA FECHA FIFO DEL ENVASE SE MUESTRA, NO SE PIDE: «Sigue igual» o «Cambió
-                        cantidad» la conservan; si es otro material, la base le pone la de hoy. */}
+                    {/* LA FECHA DEL ENVASE SE MUESTRA, NO SE PIDE: es su recepción (sale como fabricación).
+                        «Sigue igual» o «Cambió cantidad» la conservan; si es otro material, la base le
+                        pone la de hoy. El vencimiento lo calcula la base con la vida útil. */}
                     {pv.fecha_fifo && (
-                      <em>FIFO desde {pv.fecha_fifo.slice(8, 10)}/{pv.fecha_fifo.slice(5, 7)}/{pv.fecha_fifo.slice(2, 4)}</em>
+                      <em>recepción {pv.fecha_fifo.slice(8, 10)}/{pv.fecha_fifo.slice(5, 7)}/{pv.fecha_fifo.slice(2, 4)}</em>
                     )}
                   </p>
                   {diasDesde(pv.contado_en) != null && diasDesde(pv.contado_en)! > 0 && (

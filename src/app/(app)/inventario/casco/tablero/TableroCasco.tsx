@@ -135,12 +135,20 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura, delInventa
       porMaterial: {
         fecha: diaMat,
         filas: filasMat
-          .filter((r) => Math.abs(r.total) >= 0.005 || r.estibas !== 0)
+          /* Lo negativo no va en el informe (sale más de lo contado: se ve en Control, en rojo). */
+          .filter((r) => (Math.abs(r.total) >= 0.005 || r.estibas !== 0) && r.total >= 0 && r.estibas >= 0)
           .map((r) => ({ sku: r.sku, nombre: nombres[r.sku] ?? r.sku, porSitio: r.porSitio, estibas: r.estibas, total: r.total })),
       },
       sitios: claves.map((k) => {
         const s = sitios.find((x) => x.clave === k)!;
-        const e = estadoAlmacen(vistos, k);
+        const e0 = estadoAlmacen(vistos, k);
+        /* «SI ES NEGATIVO NO DEBE MOSTRARSE EN EL INFORME»: el renglón con estibas o HL en negativo
+           (salió más de lo contado) se queda en Control, en rojo; aquí no sale, y los totales del
+           almacén son los de lo que se ve. */
+        const filasPos = e0.filas.filter((f) => f.inventario >= 0 && f.baja >= 0 && f.hl >= 0);
+        const e = { ...e0, filas: filasPos,
+          total: filasPos.reduce((t, f) => t + f.hl, 0),
+          estibas: filasPos.reduce((t, f) => t + f.inventario + f.baja, 0) };
         return {
           clave: k, centro: s.centro ?? k, nombre: s.nombre, rotuloBaja: s.baja_rotulo,
           fecha: e.fecha, total: e.total, estibas: e.estibas, viajes: viajesSerpro(e.estibas, s.centro ?? k), anterior: e.anterior,

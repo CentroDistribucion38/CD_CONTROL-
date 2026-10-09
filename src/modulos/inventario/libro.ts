@@ -284,9 +284,10 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     { k: "dvenc", t: "Días p/vencer", w: 10, fmt: "0", num: true }, { k: "dsal", t: "Días p/salir", w: 10, fmt: "0", num: true },
     { k: "franja", t: "Franja", w: 22 }, { k: "rota", t: "Rota", w: 6 }, { k: "averia", t: "Avería", w: 7 }, { k: "pnc", t: "PNC", w: 6 },
     { k: "estenv", t: "Estado envase", w: 14 }, { k: "nota", t: "Nota", w: 30 }, { k: "hl", t: "Hectolitros", w: 12, fmt: "#,##0.00", num: true },
-    /* FIFO DEL ENVASE (al final, para no mover las columnas que usan las fórmulas): desde qué día
-       está ese material en esa posición y cuántos días lleva. La pone la base; nadie la escribe. */
-    { k: "fifo", t: "Fecha FIFO (en posición desde)", w: 14, fmt: "dd/mm/yyyy" }, { k: "dfifo", t: "Días en posición", w: 10, fmt: "0", num: true },
+    /* EL ENVASE: su recepción sale en «Fabricación» y su vencimiento calculado en «Vencimiento»
+       (los pone la base; nadie los escribe). Aquí, al final para no mover las columnas que usan
+       las fórmulas, cuántos días lleva desde que se recibió en esa posición. */
+    { k: "dfifo", t: "Días desde recepción", w: 10, fmt: "0", num: true },
   ];
   const K = Object.fromEntries(CB.map((c, i) => [c.k, i + 1])) as Record<string, number>;
   const LB = (k: string) => col(K[k]);
@@ -298,7 +299,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
       cod: l.codigo, mat: l.material, tipo: l.tipo_material, fam: l.familia ?? "Sin familia", clase: x.clase, estibas: x.estibas, saldo: x.saldo, factor: x.factor, cajas: x.cajas,
       fisicas: x.fisicas, plast: x.plast, uxc: x.uxc, unid: x.unid, fab: aDia(l.fabricacion), venc: aDia(l.vencimiento), dvenc: l.dias_para_vencer, dsal: l.dias_para_salir,
       franja: rotFr(franja(l)), rota: siNo(l.rotacion), averia: siNo(l.averia), pnc: siNo(l.pnc), estenv: l.estado_envase ?? "", nota: l.nota ?? "", hl: x.hl,
-      fifo: aDia(l.fecha_fifo ?? null), dfifo: l.dias_en_posicion ?? null,
+      dfifo: l.dias_en_posicion ?? null,
     };
   };
   const planos = filas.map(filaVal);
@@ -460,7 +461,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
   };
   const comunes = ["rec", "conto", "cuando", "calle", "modulo", "lado", "ubic", "cod", "mat", "tipo", "fam", "clase", "estibas", "saldo", "factor", "cajas", "fisicas"];
   derivada("Conteo envase", "Conteo de envase", "FFFFB000", (x) => x.clase !== "Producto",
-    [...comunes, "plast", "uxc", "unid", "estenv", "averia", "pnc", "nota", "hl", "fifo", "dfifo"], "ConteoEnvase");
+    [...comunes, "plast", "uxc", "unid", "estenv", "averia", "pnc", "nota", "fab", "venc", "dvenc", "dfifo", "hl"], "ConteoEnvase");
   derivada("Conteo producto", "Conteo de producto", "FFFFD000", (x) => x.clase === "Producto",
     [...comunes, "uxc", "unid", "fab", "venc", "dvenc", "dsal", "franja", "rota", "averia", "pnc", "nota", "hl"], "ConteoProducto");
 

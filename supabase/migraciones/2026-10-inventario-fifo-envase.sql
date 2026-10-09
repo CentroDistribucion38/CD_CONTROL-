@@ -1,30 +1,32 @@
 -- =====================================================================
--- INVENTARIO · FECHA FIFO DEL ENVASE, SIN QUE NADIE LA ESCRIBA
+-- INVENTARIO · FECHA DEL ENVASE AUTOMÁTICA: FABRICACIÓN = RECEPCIÓN, Y
+-- EL VENCIMIENTO CALCULADO
 --
 -- «Eso lo va a pedir la auditoría: fue uno de los hallazgos de la pasada.
---  Que los pelados no ingresen la fecha: al conteo de hoy, a todos los
---  envases se les pone la fecha de hoy. Mañana, al recontar, si ponen
---  "sigue igual" o "cambia cantidad", se deja la misma fecha FIFO; y si es
---  otro (no estaba), entra con la fecha del día.»
+--  Que los pelados no ingresen la fecha. Con lo que está, pon la de HOY.
+--  Se pone fecha de fabricación, que sería la de la recepción, y la de
+--  vencimiento se debe calcular. En el registro de conteo eso siempre se
+--  generará automático: no lo tomaremos ni nada.»
 --
 -- LA REGLA (la hace la base, no la pantalla: nadie la puede saltar ni olvidar)
---   Cada renglón de ENVASE con ubicación lleva `fecha_fifo`:
---   · Si en esa misma ubicación ya estaba ese material (el renglón anterior
---     de ese código ahí, de cualquier conteo no anulado) y nadie dijo
---     «Ya no está» después, HEREDA su fecha FIFO. Da igual si la cantidad
---     subió o bajó: se queda la más vieja (lo seguro para FIFO).
+--   Cada renglón de ENVASE con ubicación lleva su fecha de RECEPCIÓN
+--   (`fecha_fifo`), que se muestra como FABRICACIÓN:
+--   · Si en esa misma ubicación ya estaba ese material (su renglón anterior,
+--     de cualquier conteo no anulado) y nadie dijo «Ya no está» después,
+--     HEREDA su fecha: «Sigue igual» o «Cambió cantidad» no la tocan, suba o
+--     baje la cantidad.
 --   · Si no estaba (nuevo ahí, «Otro SKU», o volvió después de un «Ya no
---     está»), su fecha FIFO es el DÍA DEL CONTEO (hora de Colombia).
---   Primero se busca el mismo material con el mismo estado/avería/PNC; si
---   no hay, el mismo material en esa ubicación con cualquier estado (si
---   solo le cambiaron el estado, sigue siendo la misma estiba).
+--     está»), su fecha es la DEL DÍA del conteo (hora de Colombia).
+--   VENCIMIENTO = recepción + vida útil del material en el Maestro (igual que
+--   el producto). Si el envase no tiene vida útil en el Maestro, el
+--   vencimiento queda vacío hasta que se la pongan: la recepción sí queda.
 --
--- EL HISTORIAL: lo ya contado se recorre en orden de fecha y se le calcula
--- su fecha FIFO con la misma regla. Así el primer reporte ya trae la
--- antigüedad real de cada posición, no todo con la fecha de hoy.
+-- LO YA CONTADO arranca con la fecha de HOY (el día que se corre esto), y
+-- de ahí en adelante corre la regla.
 --
--- Producto (no envase) no lleva fecha FIFO: ese va por vencimiento (FEFO).
--- Se puede correr dos veces.
+-- Se guarda aparte de las casillas de vencimiento del renglón (no toca la
+-- llave única ni la suma de lo repetido). Producto no cambia: sigue con
+-- la fecha que se teclea. Se puede correr dos veces.
 -- =====================================================================
 begin;
 
@@ -118,11 +120,12 @@ security definer
 set search_path = public
 as $$
 begin
+  /* Al corregir un renglón sin cambiarle la ubicación ni el material, la fecha se queda
+     (corregir la cantidad o el estado no la mueve). */
   if tg_op = 'UPDATE'
      and new.ubicacion_id is not distinct from old.ubicacion_id
      and new.producto_id = old.producto_id
-     and old.fecha_fifo is not null then
-    new.fecha_fifo := old.fecha_fifo;
+     and new.fecha_fifo is not null then
     return new;
   end if;
   new.fecha_fifo := public.conteo_fifo_para(new.id, new.ubicacion_id, new.producto_id,
@@ -137,27 +140,18 @@ create trigger conteo_lineas_fifo
   for each row execute function public.conteo_lineas_fifo();
 
 -- ---------------------------------------------------------------------
--- 3 · EL HISTORIAL: en orden de fecha, cada renglón de envase con su FIFO
+-- 3 · LO YA CONTADO ARRANCA CON LA FECHA DE HOY
 -- ---------------------------------------------------------------------
 do $$
-declare r record; n int := 0;
+declare n int;
 begin
-  for r in
-    select cl.id, cl.ubicacion_id, cl.producto_id, cl.venc_dia, cl.venc_mes, cl.venc_anio,
-           cl.estado_envase, cl.averia, cl.pnc,
-           coalesce(cl.contado_en, c.cerrado_en, c.iniciado_en, c.creado_en) as en
-      from public.conteo_lineas cl
-      join public.conteos c on c.id = cl.conteo_id
-      join public.productos p on p.id = cl.producto_id
-     where p.tipo_material = 'ENVASE'
-     order by coalesce(cl.contado_en, c.cerrado_en, c.iniciado_en, c.creado_en), cl.id
-  loop
-    update public.conteo_lineas set fecha_fifo = public.conteo_fifo_para(r.id, r.ubicacion_id, r.producto_id,
-        r.venc_dia, r.venc_mes, r.venc_anio, r.estado_envase, r.averia, r.pnc, r.en)
-     where id = r.id;
-    n := n + 1;
-  end loop;
-  raise notice 'Historial: % renglones de envase con su fecha FIFO.', n;
+  update public.conteo_lineas cl
+     set fecha_fifo = (now() at time zone 'America/Bogota')::date
+    from public.productos p
+   where p.id = cl.producto_id and p.tipo_material = 'ENVASE'
+     and cl.fecha_fifo is distinct from (now() at time zone 'America/Bogota')::date;
+  get diagnostics n = row_count;
+  raise notice 'Lo ya contado: % renglones de envase quedan con la fecha de hoy.', n;
 end $$;
 
 -- ---------------------------------------------------------------------
@@ -179,18 +173,11 @@ select
 
   cl.venc_dia, cl.venc_mes, cl.venc_anio,
   cl.fab_dia, cl.fab_mes, cl.fab_anio,
-  case when cl.fab_anio is null then null::date
-       else make_date(2000 + cl.fab_anio, cl.fab_mes::integer, cl.fab_dia::integer) end as fabricacion,
-  case when cl.venc_anio is null then null::date
-       else make_date(2000 + cl.venc_anio, cl.venc_mes::integer, cl.venc_dia::integer) end as vencimiento,
-  case when cl.venc_anio is null then null::integer
-       when p.tipo_material = 'ENVASE' then 0
-       else make_date(2000 + cl.venc_anio, cl.venc_mes::integer, cl.venc_dia::integer) - current_date
-  end as dias_para_vencer,
-  case when cl.venc_anio is null then null::integer
-       else make_date(2000 + cl.venc_anio, cl.venc_mes::integer, cl.venc_dia::integer)
-            - current_date - coalesce(p.dias_minimo, 0)
-  end as dias_para_salir,
+  /* EL ENVASE: fabricación = su recepción (la pone la base) y vencimiento = recepción + vida útil. */
+  f.fab as fabricacion,
+  f.ven as vencimiento,
+  (f.ven - current_date)::integer as dias_para_vencer,
+  (f.ven - current_date - coalesce(p.dias_minimo, 0))::integer as dias_para_salir,
 
   cl.rotacion, cl.averia, cl.pnc, cl.estado_envase, cl.nota,
   u.clave as ubicacion_texto,
@@ -210,7 +197,17 @@ from public.conteo_lineas cl
 join public.conteos c on c.id = cl.conteo_id
 join public.productos p on p.id = cl.producto_id
 left join public.ubicaciones u on u.id = cl.ubicacion_id
-left join public.perfiles per on per.id = cl.contado_por;
+left join public.perfiles per on per.id = cl.contado_por
+left join lateral (
+  select
+    case when cl.fab_anio is not null
+           then make_date(2000 + cl.fab_anio, cl.fab_mes::integer, cl.fab_dia::integer)
+         when p.tipo_material = 'ENVASE' then cl.fecha_fifo end as fab,
+    case when cl.venc_anio is not null
+           then make_date(2000 + cl.venc_anio, cl.venc_mes::integer, cl.venc_dia::integer)
+         when p.tipo_material = 'ENVASE' and cl.fecha_fifo is not null and coalesce(p.vida_util, 0) > 0
+           then cl.fecha_fifo + p.vida_util end as ven
+) f on true;
 
 grant select on public.v_conteo_fefo to authenticated;
 
@@ -289,7 +286,7 @@ begin
   select count(*) into v_sin from public.conteo_lineas cl join public.productos p on p.id = cl.producto_id
    where p.tipo_material = 'ENVASE' and cl.fecha_fifo is null;
   if v_sin > 0 then raise exception 'Quedaron % renglones de envase sin fecha FIFO.', v_sin; end if;
-  raise notice 'LISTO · El envase lleva su fecha FIFO sola: hereda la de su posición o entra con la del día.';
+  raise notice 'LISTO · El envase lleva su fecha sola: fabricación = recepción (hereda la de su posición o entra con la del día) y vencimiento = recepción + vida útil.';
 end $$;
 
 commit;
