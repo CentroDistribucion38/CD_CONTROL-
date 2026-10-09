@@ -37,11 +37,14 @@ export default async function TableroCascoPage() {
   const leer = (cols: string) => todas<Fila>((d, h) =>
     supabase.from("casco_registros").select(cols)
       .order("fecha").order("ubicacion").order("sku").range(d, h) as unknown as PromiseLike<{ data: Fila[] | null; error: { message: string } | null }>);
-  /* PUESTO Y CALIDAD van al informe (la columna UBICACIONES de tu Excel). Si esa lectura falla por lo
-     que sea (falta 2026-10-casco-puesto-calidad.sql, un permiso), se lee como antes, sin ellos: el
-     tablero nunca se cae por una columna del informe. */
+  /* PUESTO Y CALIDAD van al informe (la columna UBICACIONES de tu Excel). Si la base todavía no los
+     tiene (falta 2026-10-casco-puesto-calidad.sql), se lee como antes, sin ellos: el tablero nunca
+     se cae por una columna del informe. */
   let r = await leer("fecha, ubicacion, sku, hl, inventario, baja, puesto, calidad");
-  if (r.error) r = await leer("fecha, ubicacion, sku, hl, inventario, baja");
+  /* Solo se reintenta si lo que falló fue una COLUMNA. Si fue el tiempo límite, reintentar
+     solo duplica la espera para terminar en el mismo error. */
+  if (r.error && /puesto|calidad|column|does not exist|schema cache/i.test(r.error))
+    r = await leer("fecha, ubicacion, sku, hl, inventario, baja");
 
   const puntos: Punto[] = r.data.map((x) => ({
     fecha: x.fecha, ubicacion: x.ubicacion, sku: x.sku, hl: Number(x.hl),
