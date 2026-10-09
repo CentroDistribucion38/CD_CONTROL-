@@ -15,7 +15,8 @@ import { DE_FABRICA, esUbicacionFabrica } from "./ubicacion-sitio";
  *
  * Solo las dos tablas que tienen un estado propio. Carnaval y Atlántico se siguen escribiendo a mano.
  */
-export const ESTADO_POR_CENTRO: Record<string, string> = { AG18: "LAVADO", AG22: "BAJA" };
+/* «En Bodega no solo es BAJA: es BAJA y EXTRASUCIO.» */
+export const ESTADO_POR_CENTRO: Record<string, string[]> = { AG18: ["LAVADO"], AG22: ["BAJA", "EXTRASUCIO"] };
 
 /* Y cada tabla solo con lo suyo: Fábrica (FABRICA_…) en AG18, lo de Bodega en AG22 (ubicacion-sitio.ts). */
 
@@ -34,9 +35,10 @@ type R = {
 const natural = (a: string, b: string) => a.localeCompare(b, "es", { numeric: true });
 
 /** Las ubicaciones de unos renglones, en una línea, por calle y sin la palabra del estado. */
-export function lineaDeUbicaciones(rs: R[], estado: string): string {
+export function lineaDeUbicaciones(rs: R[]): string {
   const nombres = new Set<string>();
   for (const x of rs) {
+    const estado = (x.estado_envase ?? "").trim().toUpperCase();
     const base = (x.ubicacion ?? x.ubicacion_combinada ?? "").trim();
     const comb = (x.ubicacion_combinada ?? base).trim();
     /* Lo que la ubicación combinada trae después del nombre («BAJA», «BAJA Andina»). La palabra del
@@ -57,20 +59,26 @@ export function lineaDeUbicaciones(rs: R[], estado: string): string {
  */
 export function armarPorCentro(rs: (R & { fecha: string })[]): UbicacionesInventario["porCentro"] {
   const out: UbicacionesInventario["porCentro"] = {};
-  for (const [centro, estado] of Object.entries(ESTADO_POR_CENTRO)) {
-    const suyos = rs.filter((x) => (x.estado_envase ?? "").trim().toUpperCase() === estado && String(x.codigo ?? "").trim()
-      && esUbicacionFabrica(x.ubicacion ?? x.ubicacion_combinada) === DE_FABRICA[centro]);
-    const fecha = suyos.reduce((m, x) => (x.fecha > m ? x.fecha : m), "");
-    if (!fecha) continue;
+  for (const [centro, estados] of Object.entries(ESTADO_POR_CENTRO)) {
+    /* Cada estado con SU último día (BAJA del día que se contó BAJA, EXTRASUCIO del suyo), y se juntan. */
     const porSku = new Map<string, R[]>();
-    for (const x of suyos) {
-      if (x.fecha !== fecha) continue;
-      const sku = String(x.codigo).trim();
-      (porSku.get(sku) ?? porSku.set(sku, []).get(sku)!).push(x);
+    let fecha = "";
+    for (const estado of estados) {
+      const suyos = rs.filter((x) => (x.estado_envase ?? "").trim().toUpperCase() === estado && String(x.codigo ?? "").trim()
+        && esUbicacionFabrica(x.ubicacion ?? x.ubicacion_combinada) === DE_FABRICA[centro]);
+      const dia = suyos.reduce((m, x) => (x.fecha > m ? x.fecha : m), "");
+      if (!dia) continue;
+      if (dia > fecha) fecha = dia;
+      for (const x of suyos) {
+        if (x.fecha !== dia) continue;
+        const sku = String(x.codigo).trim();
+        (porSku.get(sku) ?? porSku.set(sku, []).get(sku)!).push(x);
+      }
     }
+    if (!fecha) continue;
     const mapa: Record<string, string> = {};
     for (const [sku, xs] of porSku) {
-      const linea = lineaDeUbicaciones(xs, estado);
+      const linea = lineaDeUbicaciones(xs);
       if (linea) mapa[sku] = linea;
     }
     out[centro] = { fecha, mapa };

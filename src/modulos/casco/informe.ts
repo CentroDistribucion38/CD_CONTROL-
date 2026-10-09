@@ -225,14 +225,16 @@ export function columnasAlmacen(s: SitioInforme, ancho = 182): Columna[] {
   const conUbi = s.filas.some((f) => f.puesto);
   const cols: Columna[] = [
     { id: "cod", titulo: "COD", mm: 19, num: false },
-    { id: "mat", titulo: "MATERIAL", mm: 0, num: false },
-    { id: "inv", titulo: "ESTIBAS", mm: 17, num: true },
+    /* Los rótulos como en Control: «DESCRIPCIÓN CASCO VIDRIO · AG18 EER FÁBRICA». */
+    { id: "mat", titulo: `DESCRIPCIÓN CASCO VIDRIO · ${s.nombre.toUpperCase()}`, mm: 0, num: false },
+    /* «Donde dice ESTIBAS agrégale CASCO DE VIDRIO… así»: el mismo rótulo de Control. */
+    { id: "inv", titulo: "INVENTARIO CASCO DE VIDRIO", mm: 30, num: true },
   ];
   if (conBaja) cols.push({ id: "baja", titulo: (s.rotuloBaja ?? "Con baja").toUpperCase(), mm: 25, num: true });
   cols.push({ id: "hl", titulo: "HL", mm: 17, num: true });
   /* LA UBICACIÓN, BIEN CLARA: columna ancha y cada ubicación entera (se parte entre nombres, nunca
      a la mitad de «FABRICA_PATIO_1»). */
-  if (conUbi) cols.push({ id: "ubi", titulo: "UBICACIÓN", mm: 50, num: false });
+  if (conUbi) cols.push({ id: "ubi", titulo: "UBICACIONES", mm: 48, num: false });
   /* CALIDAD NO VA EN EL INFORME («quita esto»): es una nota de trabajo de la pantalla Control. */
   const resto = ancho - cols.reduce((t, c) => t + c.mm, 0);
   cols[1].mm = Math.max(34, resto);
@@ -462,7 +464,8 @@ export function dibujarInformeCasco(
        cortado en «EXTRASUCIO» se pierde de qué es esa columna. */
     fuente("bold", 8);
     const titCols = cols.map((c) => doc.splitTextToSize(c.titulo, c.mm - 3) as string[]);
-    const ALTO_CAB = titCols.some((l) => l.length > 1) ? 9.4 : FILA;
+    const maxL = Math.min(3, Math.max(...titCols.map((l) => l.length)));
+    const ALTO_CAB = maxL >= 3 ? 12.8 : maxL === 2 ? 9.4 : FILA;
     const cab = (sigue: boolean) => {
       titulo(`${s.nombre}${sigue ? " (continúa)" : ""}`,
              s.fecha ? `conteo del ${larga(s.fecha)} · ${fmt.hl(s.total)} HL · ${fmt.viajes(s.viajes)} viajes` : "sin conteo en el periodo",
@@ -473,7 +476,7 @@ export function dibujarInformeCasco(
       cols.forEach((col, i) => {
         /* CENTRADO EN ALTO: un título de un renglón va a la mitad de la franja, no pegado abajo
            al lado del que ocupa dos. (8 pt a 1,2 de interlínea = 3,4 mm por renglón.) */
-        const l = titCols[i].slice(0, 2), y0 = y + ALTO_CAB / 2 - (l.length - 1) * 1.7 + 1;
+        const l = titCols[i].slice(0, 3), y0 = y + ALTO_CAB / 2 - (l.length - 1) * 1.7 + 1;
         if (col.num) doc.text(l, x + col.mm - 2, y0, { align: "right", lineHeightFactor: 1.2 });
         else doc.text(l, x + 2, y0, { lineHeightFactor: 1.2 });
         x += col.mm;

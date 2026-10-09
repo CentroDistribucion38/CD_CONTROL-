@@ -624,9 +624,12 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
       for (const x of xs) {
         const base = (x.l.ubicacion ?? x.l.ubicacion_combinada ?? "").trim();
         const comb = (x.l.ubicacion_combinada ?? base).trim();
-        const zona = comb.startsWith(base) ? comb.slice(base.length).trim().toUpperCase() : "";
+        /* «P_16_IZQ BAJA Andina verde» → «P_16_IZQ (Andina verde)»: la palabra del estado sobra y lo
+           demás va entre paréntesis, para no confundirlo con otra ubicación. */
+        const zona = comb.startsWith(base) ? comb.slice(base.length).trim() : "";
         const estadoFila = (x.l.estado_envase ?? "").trim().toUpperCase();
-        const nombre = zona && zona !== estadoFila ? comb : base;
+        const resto = zona.toUpperCase().startsWith(estadoFila) ? zona.slice(estadoFila.length).trim() : zona;
+        const nombre = base ? (resto ? `${base} (${resto})` : base) : comb;
         if (!nombre) continue;
         const calle = (x.l.calle ?? nombre.match(/^[A-Za-zÑñ]+/)?.[0] ?? "—").toUpperCase();
         (porCalle.get(calle) ?? porCalle.set(calle, new Set()).get(calle)!).add(nombre);
@@ -635,10 +638,17 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
         .map(([calle, us]) => `${calle}:  ${[...us].sort(natural).join(" - ")}`).join("\n");
     };
     const porEstado = new Map<string, Map<string, Fila[]>>();
+    /* «En Bodega no solo es BAJA: es BAJA y EXTRASUCIO.» Además de cada estado suelto, la opción
+       que junta los dos, que es la que mira AG22. */
+    const COMBO = "BAJA Y EXTRASUCIO";
     for (const x of filas) {
       const e = estadoDe(x);
-      const m = porEstado.get(e) ?? porEstado.set(e, new Map()).get(e)!;
-      (m.get(x.l.codigo) ?? m.set(x.l.codigo, []).get(x.l.codigo)!).push(x);
+      const llaves = [e];
+      if (["BAJA", "EXTRASUCIO"].includes((x.l.estado_envase ?? "").trim().toUpperCase())) llaves.push(COMBO);
+      for (const k of llaves) {
+        const m = porEstado.get(k) ?? porEstado.set(k, new Map()).get(k)!;
+        (m.get(x.l.codigo) ?? m.set(x.l.codigo, []).get(x.l.codigo)!).push(x);
+      }
     }
     const estados = [...porEstado.keys()].sort(natural);
     /* Y POR UBICACIÓN: «faltaría ubicaciones, pero específico para colocar FÁBRICA… y poner el resto».
@@ -671,7 +681,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     const est = (pref: string) => (estados.includes(pref) ? pref : estados[0] ?? "");
     const TABLAS = [
       { c0: 1, estado: est("LAVADO"), zona: "FABRICA" },
-      { c0: 7, estado: est("BAJA"), zona: "BODEGA" },
+      { c0: 7, estado: estados.includes(COMBO) ? COMBO : est("BAJA"), zona: "BODEGA" },
     ];
     const G = 5, C0 = 14;                                    // tablas A:E y G:K · listas escondidas desde N
     const ANCHO = 11;
