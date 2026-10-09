@@ -136,6 +136,32 @@ export function armarWordCasco(
   if (extra.grafica) cuerpo.push(par(imagen("rIdGrafica", 2, GRAFICA.ancho, GRAFICA.alto, "Gráfica")));
   cuerpo.push(par([{ t: `Una barra por día con registros, del ${corta(d.serie[0]?.fecha ?? d.corte)} al ${corta(d.corte)}: cada color es un almacén y encima va el total del día.`, tam: 7, color: G }], { antes: 60, despues: 240 }));
 
+  /* ---------- DETALLE DE CADA ALMACÉN ---------- */
+  for (const s of d.sitios) {
+    const cols = columnasAlmacen(s, ANCHO_MM);
+    /* EL TÍTULO DEL ALMACÉN es el de todas las partes (párrafo con «mantener con el siguiente»,
+       así nunca queda solo al pie de una hoja), con el cuadrito en SU color de la gráfica. */
+    titulo(s.nombre, s.fecha ? `conteo del ${larga(s.fecha)} · ${fmt.hl(s.total)} HL` : "sin conteo en el periodo", colorSitio(s.clave).fondo.slice(1));
+    if (!s.filas.length) {
+      cuerpo.push(par([{ t: "Sin casco con inventario en este conteo.", tam: 9, color: G }], { despues: 240 }));
+      continue;
+    }
+    const cab = { cabecera: true, celdas: cols.map((c) => ({ fondo: T, al: c.num ? "right" as const : "left" as const, runs: [{ t: c.titulo, b: true, tam: 8, color: "FFFFFF" }] })) };
+    const filas = s.filas.map((f, i) => ({ celdas: cols.map((c) => ({
+      fondo: i % 2 ? RAYA : undefined, al: c.num ? "right" as const : "left" as const,
+      runs: [{ t: celda(c, f), b: c.id === "hl", tam: c.id === "cod" || c.id === "ubi" || c.id === "cal" ? 8 : 8.5, color: c.id === "cod" || c.id === "ubi" || c.id === "cal" ? G : T }],
+    })) }));
+    const tot = { celdas: cols.map((c) => {
+      const v = c.id === "cod" ? "TOTAL" : c.id === "mat" ? `${s.filas.length} material${s.filas.length === 1 ? "" : "es"} con inventario`
+        : c.id === "inv" ? fmt.est(s.filas.reduce((t, r) => t + r.inventario, 0))
+        : c.id === "baja" ? fmt.est(s.filas.reduce((t, r) => t + r.baja, 0))
+        : c.id === "hl" ? fmt.hl(s.total) : "";
+      return { arriba: T, al: c.num ? "right" as const : "left" as const, runs: [{ t: v, b: c.id !== "mat", tam: c.id === "mat" ? 8 : 8.5, color: c.id === "mat" ? G : T }] };
+    }) };
+    cuerpo.push(tabla(cols.map((c) => c.mm), [cab, ...filas, tot], { junta: filas.length <= 30 }));
+    cuerpo.push(par("", { despues: 280 }));
+  }
+
   /* ---------- POR MATERIAL (la tabla del tablero) ---------- */
   const pm = d.porMaterial;
   if (pm && pm.filas.length) {
@@ -169,32 +195,6 @@ export function armarWordCasco(
         { arriba: T, al: "right", runs: [{ t: fmt.hl0(pm.filas.reduce((t, f) => t + f.total, 0)), b: true, tam: 8.5, color: T }] },
       ] },
     ], { junta: pm.filas.length <= 30 }));
-    cuerpo.push(par("", { despues: 280 }));
-  }
-
-  /* ---------- DETALLE DE CADA ALMACÉN ---------- */
-  for (const s of d.sitios) {
-    const cols = columnasAlmacen(s, ANCHO_MM);
-    /* EL TÍTULO DEL ALMACÉN es el de todas las partes (párrafo con «mantener con el siguiente»,
-       así nunca queda solo al pie de una hoja), con el cuadrito en SU color de la gráfica. */
-    titulo(s.nombre, s.fecha ? `conteo del ${larga(s.fecha)} · ${fmt.hl(s.total)} HL` : "sin conteo en el periodo", colorSitio(s.clave).fondo.slice(1));
-    if (!s.filas.length) {
-      cuerpo.push(par([{ t: "Sin casco con inventario en este conteo.", tam: 9, color: G }], { despues: 240 }));
-      continue;
-    }
-    const cab = { cabecera: true, celdas: cols.map((c) => ({ fondo: T, al: c.num ? "right" as const : "left" as const, runs: [{ t: c.titulo, b: true, tam: 8, color: "FFFFFF" }] })) };
-    const filas = s.filas.map((f, i) => ({ celdas: cols.map((c) => ({
-      fondo: i % 2 ? RAYA : undefined, al: c.num ? "right" as const : "left" as const,
-      runs: [{ t: celda(c, f), b: c.id === "hl", tam: c.id === "cod" || c.id === "ubi" || c.id === "cal" ? 8 : 8.5, color: c.id === "cod" || c.id === "ubi" || c.id === "cal" ? G : T }],
-    })) }));
-    const tot = { celdas: cols.map((c) => {
-      const v = c.id === "cod" ? "TOTAL" : c.id === "mat" ? `${s.filas.length} material${s.filas.length === 1 ? "" : "es"} con inventario`
-        : c.id === "inv" ? fmt.est(s.filas.reduce((t, r) => t + r.inventario, 0))
-        : c.id === "baja" ? fmt.est(s.filas.reduce((t, r) => t + r.baja, 0))
-        : c.id === "hl" ? fmt.hl(s.total) : "";
-      return { arriba: T, al: c.num ? "right" as const : "left" as const, runs: [{ t: v, b: c.id !== "mat", tam: c.id === "mat" ? 8 : 8.5, color: c.id === "mat" ? G : T }] };
-    }) };
-    cuerpo.push(tabla(cols.map((c) => c.mm), [cab, ...filas, tot], { junta: filas.length <= 30 }));
     cuerpo.push(par("", { despues: 280 }));
   }
 

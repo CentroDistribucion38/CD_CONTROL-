@@ -396,57 +396,6 @@ export function dibujarInformeCasco(
 
   const FILA = 6.2;
 
-  /* ---------------- POR MATERIAL ----------------
-     La tabla «POR MATERIAL» del tablero: cada material con lo que hay en cada almacén, sus estibas
-     y el total. Es la que se compara de un vistazo; el detalle de cada almacén va después. */
-  const pm = d.porMaterial;
-  if (pm && pm.filas.length) {
-    const c = columnasPorMaterial(d, ANCHO);
-    const xs: number[] = []; { let x = M + c.cod + c.mat; d.claves.forEach(() => { x += c.sitio; xs.push(x) }) }
-    const xEst = xs[xs.length - 1] + c.est, xTot = W - M;
-    const cabPM = (sigue: boolean) => {
-      titulo(`Por material${sigue ? " (continúa)" : ""}`, `${larga(pm.fecha)} · HL`);
-      doc.setFillColor(...TINTA); doc.rect(M, y, ANCHO, FILA, "F");
-      doc.setTextColor(255, 255, 255); fuente("bold", 8);
-      doc.text("COD", M + 2, y + 4.2); doc.text("MATERIAL", M + c.cod + 2, y + 4.2);
-      d.claves.forEach((k, i) => doc.text(d.sitios.find((s) => s.clave === k)?.centro ?? k, xs[i] - 2, y + 4.2, { align: "right" }));
-      doc.text("ESTIBAS", xEst - 2, y + 4.2, { align: "right" });
-      doc.text("TOTAL HL", xTot - 2, y + 4.2, { align: "right" });
-      y += FILA;
-    };
-    fuente("normal", 8.3);
-    const altoPM = (f: FilaPorMaterial) => Math.max(FILA, 2.4 + 3.6 * (doc.splitTextToSize(f.nombre, c.mat - 3.5) as string[]).length);
-    const todoPM = 7 + FILA * 2 + pm.filas.reduce((t, f) => t + altoPM(f), 0) + 1;
-    if (todoPM <= TOPE - 25) cabe(todoPM); else cabe(7 + FILA * 5);
-    cabPM(false);
-    pm.filas.forEach((f, i) => {
-      fuente("normal", 8.3);
-      const ln = doc.splitTextToSize(f.nombre, c.mat - 3.5) as string[];
-      const alto = altoPM(f);
-      if (y + alto > TOPE) { hojaNueva(); cabPM(true) }
-      if (i % 2 === 1) { doc.setFillColor(247, 249, 251); doc.rect(M, y, ANCHO, alto, "F") }
-      const yb = y + alto / 2 + 1, ybm = y + alto / 2 - (ln.length - 1) * 1.8 + 1;
-      fuente("normal", 7.6); gris(); doc.text(f.sku, M + 2, yb);
-      fuente("normal", 8.3); tinta(); doc.text(ln, M + c.cod + 2, ybm, { lineHeightFactor: 1.2 });
-      d.claves.forEach((k, j) => {
-        const t = hlCelda(f.porSitio[k]);
-        if (t === "—") gris(); else tinta();
-        doc.text(t, xs[j] - 2, yb, { align: "right" });
-      });
-      tinta(); doc.text(fmt.est(f.estibas), xEst - 2, yb, { align: "right" });
-      fuente("bold", 8.3); doc.text(fmt.hl0(f.total), xTot - 2, yb, { align: "right" });
-      y += alto;
-    });
-    if (y + FILA + 1 > TOPE) { hojaNueva(); cabPM(true) }
-    doc.setDrawColor(...TINTA); doc.setLineWidth(0.4); doc.line(M, y, W - M, y);
-    fuente("bold", 8.5); tinta();
-    doc.text("TOTAL", M + 2, y + 4.4);
-    d.claves.forEach((k, j) => doc.text(hlCelda(pm.filas.reduce((t, f) => t + (f.porSitio[k] ?? 0), 0)), xs[j] - 2, y + 4.4, { align: "right" }));
-    doc.text(fmt.est(pm.filas.reduce((t, f) => t + f.estibas, 0)), xEst - 2, y + 4.4, { align: "right" });
-    doc.text(fmt.hl0(pm.filas.reduce((t, f) => t + f.total, 0)), xTot - 2, y + 4.4, { align: "right" });
-    y += FILA + 9;
-  }
-
   /* ---------------- EL DETALLE DE CADA ALMACÉN ---------------- */
   for (const s of d.sitios) {
     const cols = columnasAlmacen(s, ANCHO);
@@ -517,6 +466,58 @@ export function dibujarInformeCasco(
       if (c.id === "hl") doc.text(fmt.hl(s.total), x + c.mm - 2, y + 4.4, { align: "right" });
       x += c.mm;
     });
+    y += FILA + 9;
+  }
+
+  /* ---------------- POR MATERIAL ----------------
+     La tabla «POR MATERIAL» del tablero: cada material con lo que hay en cada almacén, sus estibas
+     y el total. ORDEN DEL INFORME: primero cada almacén (AG22, AG18, AG07, CA22), después Por
+     material y al final HL pendiente por disposición. */
+  const pm = d.porMaterial;
+  if (pm && pm.filas.length) {
+    const c = columnasPorMaterial(d, ANCHO);
+    const xs: number[] = []; { let x = M + c.cod + c.mat; d.claves.forEach(() => { x += c.sitio; xs.push(x) }) }
+    const xEst = xs[xs.length - 1] + c.est, xTot = W - M;
+    const cabPM = (sigue: boolean) => {
+      titulo(`Por material${sigue ? " (continúa)" : ""}`, `${larga(pm.fecha)} · HL`);
+      doc.setFillColor(...TINTA); doc.rect(M, y, ANCHO, FILA, "F");
+      doc.setTextColor(255, 255, 255); fuente("bold", 8);
+      doc.text("COD", M + 2, y + 4.2); doc.text("MATERIAL", M + c.cod + 2, y + 4.2);
+      d.claves.forEach((k, i) => doc.text(d.sitios.find((s) => s.clave === k)?.centro ?? k, xs[i] - 2, y + 4.2, { align: "right" }));
+      doc.text("ESTIBAS", xEst - 2, y + 4.2, { align: "right" });
+      doc.text("TOTAL HL", xTot - 2, y + 4.2, { align: "right" });
+      y += FILA;
+    };
+    fuente("normal", 8.3);
+    const altoPM = (f: FilaPorMaterial) => Math.max(FILA, 2.4 + 3.6 * (doc.splitTextToSize(f.nombre, c.mat - 3.5) as string[]).length);
+    const todoPM = 7 + FILA * 2 + pm.filas.reduce((t, f) => t + altoPM(f), 0) + 1;
+    if (todoPM <= TOPE - 25) cabe(todoPM); else cabe(7 + FILA * 5);
+    cabPM(false);
+    pm.filas.forEach((f, i) => {
+      fuente("normal", 8.3);
+      const ln = doc.splitTextToSize(f.nombre, c.mat - 3.5) as string[];
+      const alto = altoPM(f);
+      if (y + alto > TOPE) { hojaNueva(); cabPM(true) }
+      if (i % 2 === 1) { doc.setFillColor(247, 249, 251); doc.rect(M, y, ANCHO, alto, "F") }
+      const yb = y + alto / 2 + 1, ybm = y + alto / 2 - (ln.length - 1) * 1.8 + 1;
+      fuente("normal", 7.6); gris(); doc.text(f.sku, M + 2, yb);
+      fuente("normal", 8.3); tinta(); doc.text(ln, M + c.cod + 2, ybm, { lineHeightFactor: 1.2 });
+      d.claves.forEach((k, j) => {
+        const t = hlCelda(f.porSitio[k]);
+        if (t === "—") gris(); else tinta();
+        doc.text(t, xs[j] - 2, yb, { align: "right" });
+      });
+      tinta(); doc.text(fmt.est(f.estibas), xEst - 2, yb, { align: "right" });
+      fuente("bold", 8.3); doc.text(fmt.hl0(f.total), xTot - 2, yb, { align: "right" });
+      y += alto;
+    });
+    if (y + FILA + 1 > TOPE) { hojaNueva(); cabPM(true) }
+    doc.setDrawColor(...TINTA); doc.setLineWidth(0.4); doc.line(M, y, W - M, y);
+    fuente("bold", 8.5); tinta();
+    doc.text("TOTAL", M + 2, y + 4.4);
+    d.claves.forEach((k, j) => doc.text(hlCelda(pm.filas.reduce((t, f) => t + (f.porSitio[k] ?? 0), 0)), xs[j] - 2, y + 4.4, { align: "right" }));
+    doc.text(fmt.est(pm.filas.reduce((t, f) => t + f.estibas, 0)), xEst - 2, y + 4.4, { align: "right" });
+    doc.text(fmt.hl0(pm.filas.reduce((t, f) => t + f.total, 0)), xTot - 2, y + 4.4, { align: "right" });
     y += FILA + 9;
   }
 
