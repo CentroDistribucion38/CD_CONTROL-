@@ -551,6 +551,12 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     /* Con hectolitros las cifras llevan un decimal. */
     h.addConditionalFormatting({ ref: `B${TOT}:${col(NC + 2)}${B1}`, rules: [{ type: "expression", formulae: ['$B$7="Hectolitros"'], priority: 1, style: { numFmt: "#,##0.0;\\-#,##0.0;\\–" } }] });
     let f = B1 + 1;
+
+    /* ---------- UBICACIONES POR ESTADO: el selector y la tabla van en su propia hoja ----------
+       «El filtro no iría dentro de la misma tabla.» Aquí solo queda el enlace a la hoja. */
+    f += 2;
+    { const c = h.getCell(f, 1); c.value = vinculo("Ubicaciones por estado", "► Ubicaciones por estado: escoge BAJA, LAVADO, RETORNO… y ve dónde está cada material"); c.font = letra(10.5, ENLACE, true) }
+
     /* Un cruce: filas = valores de una columna de la base; columnas = las clases (o una sola). */
     const cruce = (titulo: string, dim: string, etiquetas: string[], clases: Clase[], porColumna?: (x: Fila) => string, solo?: Clase) => {
       if (!etiquetas.length) return;          // nada que cruzar: sin tabla vacía
@@ -594,17 +600,102 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     h.views = [{ showGridLines: false, state: "frozen", ySplit: 9 }];
   }
 
+  /* ================= UBICACIONES POR ESTADO =================
+     «Lo quiero así (como la hoja de casco: COD · DESCRIPCIÓN · UBICACIONES), con el filtro de BAJA y
+     después evalúo el de LAVADO.» «El filtro no va dentro de la tabla.» «Y en UBICACIONES van todas las
+     que estén bajo ese filtro, de una.»
+     Arriba se ESCOGE EL ESTADO (una celda con lista) y la tabla de abajo se rehace sola: un renglón por
+     material que tenga algo en ese estado, con TODAS sus ubicaciones en una celda separadas con « - ».
+     Funciona en cualquier Excel (sin FILTER ni TEXTJOIN): las listas de cada estado ya van armadas en
+     columnas escondidas a la derecha y la tabla las lee con INDEX según el estado escogido.
+     El estado es la condición del envase (BAJA, LAVADO, RETORNO…); sin condición, NORMAL. Avería y
+     PNC, si se marcaron, van pegados («LAVADO + AVERÍA»). */
+  {
+    const estadoDe = (x: Fila) => [x.l.estado_envase?.trim().toUpperCase() || "", x.l.averia ? "AVERÍA" : "", x.l.pnc ? "PNC" : ""]
+      .filter(Boolean).join(" + ") || "NORMAL";
+    const porEstado = new Map<string, Map<string, Fila[]>>();
+    for (const x of filas) {
+      const e = estadoDe(x);
+      const m = porEstado.get(e) ?? porEstado.set(e, new Map()).get(e)!;
+      (m.get(x.l.codigo) ?? m.set(x.l.codigo, []).get(x.l.codigo)!).push(x);
+    }
+    const estados = [...porEstado.keys()].sort(natural);
+    const listas = estados.map((e) => [...porEstado.get(e)!.values()].map((xs) => ({
+      cod: xs[0].l.codigo, desc: xs[0].l.material.toUpperCase(),
+      ubic: [...new Set(xs.map((x) => (x.l.ubicacion_combinada ?? x.l.ubicacion ?? "").trim()).filter(Boolean))].sort(natural).join(" - "),
+      est: xs.reduce((t, x) => t + x.fisicas, 0), cajas: xs.reduce((t, x) => t + x.cajas, 0),
+    })).sort((x, y) => natural(x.cod, y.cod)));
+    const N = Math.max(1, ...listas.map((l) => l.length));
+    const elegido = estados.includes("BAJA") ? "BAJA" : estados[0] ?? "";
+    const iSel = Math.max(0, estados.indexOf(elegido));
+
+    const h = wb.addWorksheet("Ubicaciones por estado", { properties: { tabColor: { argb: "FFFFC000" } } });
+    const ANCHO = 5, G = 5, C0 = 8;                          // tabla A:E · listas escondidas desde H
+    h.columns = [14, 52, 70, 12, 12].map((w) => ({ width: w }));
+    cabecera(h, "Ubicaciones por estado", `Escoge el estado y la tabla se arma sola · ${sub}`, ANCHO);
+    /* EL SELECTOR, fuera de la tabla. */
+    h.getRow(7).height = 28;
+    const lab = h.getCell(7, 1); lab.value = "ESTADO"; lab.font = letra(10, TINTA, true); lab.alignment = { vertical: "middle", horizontal: "center" };
+    const sel = h.getCell(7, 2); sel.value = elegido; sel.font = letra(13, "FF000000", true); sel.fill = relleno("FFFFE699");
+    sel.alignment = { vertical: "middle", horizontal: "center" };
+    sel.border = { top: { style: "medium" }, bottom: { style: "medium" }, left: { style: "medium" }, right: { style: "medium" } };
+    sel.dataValidation = { type: "list", allowBlank: false, formulae: [`"${estados.join(",")}"`], showErrorMessage: true, errorTitle: "Estado", error: "Escoge un estado de la lista." };
+    const nota = h.getCell(7, 3); nota.value = "◄ toca la celda amarilla y escoge: " + estados.join(" · "); nota.font = letra(9, GRIS, false, true); nota.alignment = { vertical: "middle" };
+    /* Cuántos materiales y estibas hay en ese estado. */
+    const F0 = 10, F1 = F0 + N - 1;
+    h.getRow(8).height = 18;
+    const r8 = h.getCell(8, 2);
+    r8.value = { formula: `COUNTIF(A${F0}:A${F1},"?*")&" material(es) · "&TEXT(SUM(D${F0}:D${F1}),"#,##0")&" estibas · "&TEXT(SUM(E${F0}:E${F1}),"#,##0")&" cajas"`,
+                 result: `${listas[iSel]?.length ?? 0} material(es) · ${(listas[iSel] ?? []).reduce((t, x) => t + x.est, 0)} estibas · ${(listas[iSel] ?? []).reduce((t, x) => t + x.cajas, 0)} cajas` };
+    r8.font = letra(9.5, GRIS, true); r8.alignment = { horizontal: "center" };
+
+    /* LA TABLA, como la hoja del casco: rejilla, encabezado gris y todo centrado. */
+    const borde = { top: raya(), bottom: raya(), left: raya(), right: raya() };
+    const CAB = ["COD", "DESCRIPCIÓN", "UBICACIONES", "ESTIBAS", "CAJAS"];
+    h.getRow(F0 - 1).height = 30;
+    CAB.forEach((t, i) => { const c = h.getCell(F0 - 1, i + 1); c.value = t; c.font = letra(11, "FF000000", true); c.fill = relleno("FFD9D9D9"); c.border = borde; c.alignment = { vertical: "middle", horizontal: "center", wrapText: true } });
+    /* Las listas escondidas: por estado, 5 columnas (cod, descripción, ubicaciones, estibas, cajas). */
+    const ult = col(C0 + estados.length * G - 1);
+    estados.forEach((e, j) => {
+      h.getCell(F0 - 1, C0 + j * G).value = e;
+      listas[j].forEach((m, k) => {
+        const r = F0 + k;
+        h.getCell(r, C0 + j * G).value = m.cod; h.getCell(r, C0 + j * G + 1).value = m.desc; h.getCell(r, C0 + j * G + 2).value = m.ubic;
+        h.getCell(r, C0 + j * G + 3).value = m.est; h.getCell(r, C0 + j * G + 4).value = m.cajas;
+      });
+    });
+    for (let c = C0; c <= C0 + estados.length * G - 1; c++) h.getColumn(c).hidden = true;
+    const rango = `$${col(C0)}$${F0}:$${ult}$${F1}`, cab = `$${col(C0)}$${F0 - 1}:$${ult}$${F0 - 1}`;
+    for (let k = 0; k < N; k++) {
+      const r = F0 + k, fila = h.getRow(r);
+      const m = listas[iSel]?.[k];
+      const largo = Math.max(Math.ceil((m?.ubic.length ?? 0) / 70), Math.ceil((m?.desc.length ?? 0) / 50), 1);
+      fila.height = Math.max(20, 6 + 14 * largo);
+      for (let c = 0; c < G; c++) {
+        const idx = `INDEX(${rango},${k + 1},MATCH($B$7,${cab},0)+${c})`;
+        const res = m ? [m.cod, m.desc, m.ubic, m.est, m.cajas][c] : "";
+        const x = fila.getCell(c + 1);
+        x.value = { formula: `IFERROR(IF(${idx}="","",${idx}),"")`, result: res };
+        x.border = borde; x.font = letra(11, "FF000000", c === 0);
+        x.alignment = { vertical: "middle", horizontal: "center", wrapText: c === 1 || c === 2 };
+        if (c >= 3) x.numFmt = "#,##0;\\-#,##0;";
+      }
+    }
+    h.views = [{ state: "frozen", ySplit: F0 - 1, showGridLines: false }];
+    h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: `${F0 - 1}:${F0 - 1}` };
+    h.pageSetup.printArea = `A1:E${F1}`;
+  }
+
   /* ================= 3 · POR MATERIAL ================= */
   {
     const h = wb.addWorksheet("Por material", { properties: { tabColor: { argb: "FF64748B" } } });
-    /* «DÓNDE ESTÁ» Y «ESTADOS», EN UNA CELDA CADA UNO: «quiero ver los materiales, los estados y en una
-       celda las ubicaciones donde se encuentra, separadas con un guion». Las ubicaciones van con su zona
-       (D11_IZQ RETORNO) y en orden natural (A2 antes que A10); los estados son la condición del envase
-       (RETORNO, LAVADO…) y las marcas del conteo (Avería, PNC). Sin nada de eso, «Normal». */
-    const C = ["Código", "Material", "Tipo", "Clase", "Familia", "Ubicaciones", "Dónde está", "Estados", "Estibas físicas", "Cajas", "Unidades", "Vence primero", "Días p/salir", "Franja", "En riesgo (cajas)", "Hectolitros"];
-    h.columns = [10, 36, 11, 12, 14, 11, 46, 22, 11, 11, 12, 13, 11, 20, 14, 13].map((w) => ({ width: w }));
-    cabecera(h, "Por material", `${sub}  ·  las cifras son fórmulas sobre «Conteo consolidado»`, C.length);
-    encabezado(h, 6, C, [6, 9, 10, 11, 13, 15, 16]);
+    /* «DÓNDE ESTÁ», EN UNA CELDA: las ubicaciones del material separadas con un guion, con su zona
+       (D11_IZQ RETORNO) y en orden natural (A2 antes que A10). EL ESTADO NO SE MEZCLA AQUÍ: «el estado
+       lo quiero como filtro» — va en la hoja «Análisis», un renglón por material y estado. */
+    const C = ["Código", "Material", "Tipo", "Clase", "Familia", "Ubicaciones", "Dónde está", "Estibas físicas", "Cajas", "Unidades", "Vence primero", "Días p/salir", "Franja", "En riesgo (cajas)", "Hectolitros"];
+    h.columns = [10, 36, 11, 12, 14, 11, 46, 11, 11, 12, 13, 11, 20, 14, 13].map((w) => ({ width: w }));
+    cabecera(h, "Por material", `${sub}  ·  las cifras son fórmulas sobre «Conteo consolidado» · por estado, en la hoja «Análisis»`, C.length);
+    encabezado(h, 6, C, [6, 8, 9, 10, 12, 14, 15]);
     /* TODO LO CONTADO, envase incluido: esta hoja es el inventario del
        día, no el riesgo. El envase sale con su tipo y su franja «Sin
        fecha», que es exactamente lo que es. */
@@ -614,29 +705,21 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
       const delCodigo = filas.filter((x) => x.l.codigo === m.codigo), sm = (k: keyof Fila) => delCodigo.reduce((a, x) => a + Number(x[k]), 0);
       const crit = `${rb("cod")},$A${n}`;
       const donde = [...new Set(delCodigo.map((x) => (x.l.ubicacion_combinada ?? x.l.ubicacion ?? "").trim()).filter(Boolean))].sort(natural);
-      const marcas = new Set<string>();
-      for (const x of delCodigo) {
-        if (x.l.estado_envase?.trim()) marcas.add(x.l.estado_envase.trim().toUpperCase());
-        if (x.l.averia) marcas.add("Avería");
-        if (x.l.pnc) marcas.add("PNC");
-      }
-      const estados = [...marcas].sort(natural).join(" - ") || "Normal";
       r.values = [m.codigo, m.nombre, matPorSku.get(m.codigo)?.tipo_material ?? "",
         fx(`IFERROR(INDEX(${rb("clase")},MATCH($A${n},${rb("cod")},0)),"")`, delCodigo[0]?.clase ?? ""), m.familia ?? "",
-        fx(`COUNTIFS(${crit})`, delCodigo.length), donde.join(" - "), estados,
+        fx(`COUNTIFS(${crit})`, delCodigo.length), donde.join(" - "),
         fx(`SUMIFS(${rb("fisicas")},${crit})`, sm("fisicas")), fx(`SUMIFS(${rb("cajas")},${crit})`, sm("cajas")),
         fx(`SUMIFS(${rb("unid")},${crit})`, sm("unid")), aDia(m.vence), m.diasSalir, rotFr(m.franja), m.enRiesgoCajas, fx(`SUMIFS(${rb("hl")},${crit})`, sm("hl"))];
-      filaDatos(r, C.length, i % 2 === 1, { 6: "#,##0", 9: "#,##0", 10: "#,##0", 11: "#,##0", 12: "dd/mm/yyyy", 13: "0", 15: "#,##0", 16: "#,##0.00" }, [6, 9, 10, 11, 13, 15, 16]);
+      filaDatos(r, C.length, i % 2 === 1, { 6: "#,##0", 8: "#,##0", 9: "#,##0", 10: "#,##0", 11: "dd/mm/yyyy", 12: "0", 14: "#,##0", 15: "#,##0.00" }, [6, 8, 9, 10, 12, 14, 15]);
       r.getCell(1).font = letra(9.5, TINTA, true);
       /* La lista larga se parte en renglones dentro de la celda y la fila crece (≈ 46 caracteres por línea). */
-      for (const c of [7, 8]) r.getCell(c).alignment = { vertical: "middle", horizontal: "left", indent: 1, wrapText: true };
-      const lineas = Math.max(Math.ceil(donde.join(" - ").length / 46), Math.ceil(estados.length / 22), 1);
+      r.getCell(7).alignment = { vertical: "middle", horizontal: "left", indent: 1, wrapText: true };
+      const lineas = Math.max(Math.ceil(donde.join(" - ").length / 46), 1);
       if (lineas > 1) r.height = Math.min(409, 6 + 13 * lineas);
-      if (estados !== "Normal") r.getCell(8).font = letra(9.5, TINTA, true);
-      pintarFranja(r.getCell(14), m.franja);
+      pintarFranja(r.getCell(13), m.franja);
     });
     const fm = 6 + Math.max(mats.length, 1);
-    totales(h, fm + 1, 7, fm, [6, 9, 10, 11, 15, 16], C.length, "TOTAL (lo filtrado)", { 16: "#,##0.00" });
+    totales(h, fm + 1, 7, fm, [6, 8, 9, 10, 14, 15], C.length, "TOTAL (lo filtrado)", { 15: "#,##0.00" });
     h.autoFilter = `A6:${col(C.length)}${fm}`;
     h.views = [{ state: "frozen", xSplit: 2, ySplit: 6, showGridLines: false }];
     h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: "6:6" };
@@ -798,7 +881,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     return String(v).length;
   };
   for (const h of wb.worksheets) {
-    if (["Tablero", "Análisis", "Cómo leer", "Evidencias"].includes(h.name)) continue;
+    if (["Tablero", "Análisis", "Ubicaciones por estado", "Cómo leer", "Evidencias"].includes(h.name)) continue;
     const n = h.columnCount;
     for (let c = 1; c <= n; c++) {
       let largo = 0, ajusta = false;

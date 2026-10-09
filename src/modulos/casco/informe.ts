@@ -223,7 +223,6 @@ export type Columna = { id: "cod" | "mat" | "inv" | "baja" | "hl" | "ubi" | "cal
 export function columnasAlmacen(s: SitioInforme, ancho = 182): Columna[] {
   const conBaja = !!s.rotuloBaja || s.filas.some((f) => f.baja !== 0);
   const conUbi = s.filas.some((f) => f.puesto);
-  const conCal = s.filas.some((f) => f.calidad);
   const cols: Columna[] = [
     { id: "cod", titulo: "COD", mm: 19, num: false },
     { id: "mat", titulo: "MATERIAL", mm: 0, num: false },
@@ -232,7 +231,7 @@ export function columnasAlmacen(s: SitioInforme, ancho = 182): Columna[] {
   if (conBaja) cols.push({ id: "baja", titulo: (s.rotuloBaja ?? "Con baja").toUpperCase(), mm: 25, num: true });
   cols.push({ id: "hl", titulo: "HL", mm: 17, num: true });
   if (conUbi) cols.push({ id: "ubi", titulo: "UBICACIÓN", mm: 27, num: false });
-  if (conCal) cols.push({ id: "cal", titulo: "CALIDAD", mm: 30, num: false });
+  /* CALIDAD NO VA EN EL INFORME («quita esto»): es una nota de trabajo de la pantalla Control. */
   const resto = ancho - cols.reduce((t, c) => t + c.mm, 0);
   cols[1].mm = Math.max(34, resto);
   return cols;
