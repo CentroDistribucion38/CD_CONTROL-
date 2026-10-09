@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { porTandas, todas } from "@/modulos/inventario/paginas";
+import { DE_FABRICA, esUbicacionFabrica } from "./ubicacion-sitio";
 
 /**
  * LAS UBICACIONES DE CONTROL SALEN DEL ÚLTIMO INVENTARIO.
@@ -15,6 +16,8 @@ import { porTandas, todas } from "@/modulos/inventario/paginas";
  * Solo las dos tablas que tienen un estado propio. Carnaval y Atlántico se siguen escribiendo a mano.
  */
 export const ESTADO_POR_CENTRO: Record<string, string> = { AG18: "LAVADO", AG22: "BAJA" };
+
+/* Y cada tabla solo con lo suyo: Fábrica (FABRICA_…) en AG18, lo de Bodega en AG22 (ubicacion-sitio.ts). */
 
 export type UbicacionesInventario = {
   /** El día del último inventario enviado (el más reciente de los dos estados). */
@@ -55,7 +58,8 @@ export function lineaDeUbicaciones(rs: R[], estado: string): string {
 export function armarPorCentro(rs: (R & { fecha: string })[]): UbicacionesInventario["porCentro"] {
   const out: UbicacionesInventario["porCentro"] = {};
   for (const [centro, estado] of Object.entries(ESTADO_POR_CENTRO)) {
-    const suyos = rs.filter((x) => (x.estado_envase ?? "").trim().toUpperCase() === estado && String(x.codigo ?? "").trim());
+    const suyos = rs.filter((x) => (x.estado_envase ?? "").trim().toUpperCase() === estado && String(x.codigo ?? "").trim()
+      && esUbicacionFabrica(x.ubicacion ?? x.ubicacion_combinada) === DE_FABRICA[centro]);
     const fecha = suyos.reduce((m, x) => (x.fecha > m ? x.fecha : m), "");
     if (!fecha) continue;
     const porSku = new Map<string, R[]>();

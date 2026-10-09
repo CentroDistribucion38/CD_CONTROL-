@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { SitioCasco } from "@/modulos/casco/datos";
 import type { UbicacionesInventario } from "@/modulos/casco/ubicaciones-inventario";
+import { limpiarPuesto } from "@/modulos/casco/ubicacion-sitio";
 import { ejeNice, estadoAlmacen, filtrar, porFecha, porMaterial, viajesDelDia, viajesSerpro, type Punto } from "@/modulos/casco/serie";
 import { enOrdenInforme, media, type DatosInformeCasco } from "@/modulos/casco/informe";
 import { BotonesInforme } from "./BotonesInforme";
@@ -147,7 +148,8 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura, delInventa
           filas: e.filas.map((f) => {
             const inv = delInventario?.porCentro[(s.centro ?? "").toUpperCase()];
             const u = inv && e.fecha && e.fecha >= inv.fecha ? inv.mapa[f.sku] : undefined;
-            return { ...f, puesto: u ?? f.puesto, nombre: nombres[f.sku] ?? f.sku };
+            /* Y nunca lo de otra tabla: en Bodega no sale lo de Fábrica, ni al revés. */
+            return { ...f, puesto: u ?? (limpiarPuesto(s.centro, f.puesto) || null), nombre: nombres[f.sku] ?? f.sku };
           }),
         };
       }),
