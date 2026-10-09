@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { sellar, type Foto, type Ubicacion } from "@/lib/evidencia";
 import { traducirError } from "@/lib/errores";
 import { useConfirmar } from "@/components/Confirmar";
 import type {
@@ -111,6 +112,63 @@ export function FormularioAi({
   const esSorting = tipo === "sorting";
   const [mandando, setMandando] = useState(false);
   const [falla, setFalla] = useState<string | null>(null);
+
+  /* ---------- LA FOTO DE LO QUE SE EVIDENCIÓ ----------
+     «Aquí debería poder adjuntar foto de lo que evidenció, solo 1, con marca de agua y todo.»
+     Una sola, opcional, sellada al tomarla (placa, revisión, fecha y hora, coordenadas) con el
+     mismo sellado de la certificación. Se sube DESPUÉS de guardar la revisión, porque su ruta
+     lleva el id de la revisión. */
+  const [foto, setFoto] = useState<Foto | null>(null);
+  const [sellando, setSellando] = useState(false);
+  const [fotoMal, setFotoMal] = useState<string | null>(null);
+  const [fotoGuardada, setFotoGuardada] = useState<string | null>(null);
+  /** La revisión ya quedó guardada pero la foto no subió: se puede reintentar o seguir sin ella. */
+  const [quedo, setQuedo] = useState<string | null>(null);
+  useEffect(() => {
+    if (!revision?.id) return;
+    const cli = createClient();
+    cli.from("sider_ai_revisiones").select("foto_ruta").eq("id", revision.id).maybeSingle()
+      .then(async ({ data }) => {
+        const ruta = (data as { foto_ruta?: string | null } | null)?.foto_ruta;
+        if (!ruta) return;
+        const { data: u } = await cli.storage.from("sider").createSignedUrl(ruta, 3600);
+        if (u?.signedUrl) setFotoGuardada(u.signedUrl);
+      });
+  }, [revision?.id]);
+
+  /* La ubicación para el sello: se pide al tomar la foto y no se espera más de 8 s; sin señal la
+     foto sale igual, con «sin ubicación» en la banda. */
+  const ubicar = () => new Promise<Ubicacion | null>((ok) => {
+    if (typeof navigator === "undefined" || !("geolocation" in navigator)) return ok(null);
+    navigator.geolocation.getCurrentPosition(
+      (p) => ok({ lat: p.coords.latitude, lng: p.coords.longitude, precision: p.coords.accuracy, en: new Date().toISOString() }),
+      () => ok(null), { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 });
+  });
+  async function tomarFoto(archivo: File | undefined) {
+    if (!archivo) return;
+    setFotoMal(null); setSellando(true);
+    try {
+      const ubi = await ubicar();
+      const f = await sellar(archivo, {
+        titulo: viaje.placa, ubi, direccion: "",
+        etiqueta: `${esSorting ? "REVISIÓN AI NORMAL" : "REVISIÓN AI CERTIFICADA"} · EVIDENCIA`,
+      });
+      if (foto) URL.revokeObjectURL(foto.url);
+      setFoto(f);
+    } catch (e) {
+      setFotoMal(e instanceof Error ? e.message : "No se pudo procesar esa foto. Vuelve a tomarla.");
+    } finally { setSellando(false) }
+  }
+  async function subirFoto(revId: string): Promise<string | null> {
+    if (!foto) return null;
+    const cli = createClient();
+    const ruta = `ai/${revId}/${Date.now()}.jpg`;
+    const { error } = await cli.storage.from("sider").upload(ruta, foto.blob, { contentType: "image/jpeg" });
+    if (error) return `la foto no subió: ${error.message}`;
+    const { error: e2 } = await cli.rpc("sider_ai_foto", { p_revision: revId, p_ruta: ruta });
+    if (e2) return `la foto subió pero no quedó registrada: ${traducirError(e2.message)}`;
+    return null;
+  }
   const [pedir, dialogo] = useConfirmar();
 
   /* LO QUE EL VIAJE YA TRAE, y solo si sigue siendo válido: un canal, un
@@ -237,6 +295,7 @@ export function FormularioAi({
             <div><dt>Revisadas</dt><dd>{nf.format(rev)}</dd></div>
             <div><dt>Índice de cobro</dt><dd><b>{(cuentas.indice * 100).toFixed(2)} %</b></dd></div>
             <div><dt>Abono final SAP</dt><dd><b>{nf.format(cuentas.abono)}</b></dd></div>
+            <div><dt>Foto</dt><dd>{foto ? "Sí, con marca de agua" : "Sin foto"}</dd></div>
           </dl>
           {marcados.length === 0 ? (
             <p className="ai-conf-cero">Sin ningún defecto marcado.</p>
@@ -271,7 +330,7 @@ export function FormularioAi({
       const n = conteos[d.clave] ?? 0;
       if (n > 0) limpio[d.clave] = n;
     }
-    const { error } = await supabase.rpc("sider_ai_guardar", {
+    const { data: revId, error } = await supabase.rpc("sider_ai_guardar", {
       /* `p_tipo` SOLO VA CUANDO ES LA NORMAL. La certificada se guarda
          exactamente como antes, sin el parámetro: así sigue funcionando
          el día que se sube este código y ANTES de correr las migraciones
@@ -292,8 +351,20 @@ export function FormularioAi({
       p_zcl3: revision?.zcl3 ?? null,
       p_comentarios: comentarios.trim() || null,
     });
+    if (error) { setMandando(false); setFalla(traducirError(error.message)); return }
+    if (foto && revId) {
+      const mal = await subirFoto(String(revId));
+      setMandando(false);
+      if (mal) { setQuedo(String(revId)); setFalla(`La revisión quedó guardada, pero ${mal}`); return }
+    } else setMandando(false);
+    alGuardar();
+  }
+  async function reintentarFoto() {
+    if (!quedo) return;
+    setMandando(true); setFalla(null);
+    const mal = await subirFoto(quedo);
     setMandando(false);
-    if (error) { setFalla(traducirError(error.message)); return }
+    if (mal) { setFalla(`La revisión quedó guardada, pero ${mal}`); return }
     alGuardar();
   }
 
@@ -363,6 +434,14 @@ export function FormularioAi({
 
       {falla && <p className="ai-p-falla">{falla}</p>}
 
+      {quedo ? (
+      <div className="ai-p-acciones">
+        <button type="button" className="b1" disabled={mandando} onClick={reintentarFoto}>
+          {mandando ? "Subiendo…" : "Reintentar la foto"}
+        </button>
+        <button type="button" className="b2" onClick={alGuardar}>Seguir sin foto</button>
+      </div>
+      ) : (
       <div className="ai-p-acciones">
         <button type="button" className="b1" disabled={mandando || !puedeCerrar}
                 onClick={confirmarYGuardar}>
@@ -372,6 +451,7 @@ export function FormularioAi({
           {rotuloCancelar ?? "Después"}
         </button>
       </div>
+      )}
       {revision && (
         <p className="ai-p-ya">
           Ya estaba revisado{revision.ediciones > 0
@@ -544,6 +624,44 @@ export function FormularioAi({
                 <textarea rows={2} value={comentarios}
                           onChange={(e) => setComentarios(e.target.value)} />
               </label>
+
+              <div className="ai-foto">
+                <span className="ai-foto-rot">FOTO DE LO QUE SE EVIDENCIÓ · UNA</span>
+                {foto ? (
+                  <div className="ai-foto-hay">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={foto.url} alt={`Evidencia de ${viaje.placa}`} />
+                    <div>
+                      <b>Lista, con la marca de agua.</b>
+                      <span>Se sube al cerrar la revisión.</span>
+                      <label className="ai-foto-btn sec">
+                        Cambiarla
+                        <input type="file" accept="image/*" capture="environment" hidden
+                               onChange={(e) => { tomarFoto(e.target.files?.[0]); e.target.value = "" }} />
+                      </label>
+                      <button type="button" className="ai-foto-btn sec"
+                              onClick={() => { URL.revokeObjectURL(foto.url); setFoto(null) }}>Quitarla</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="ai-foto-vacia">
+                    {fotoGuardada && (
+                      <a href={fotoGuardada} target="_blank" rel="noreferrer" className="ai-foto-ya">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={fotoGuardada} alt={`Evidencia guardada de ${viaje.placa}`} />
+                        <span>Ya tiene foto · tomar otra la reemplaza</span>
+                      </a>
+                    )}
+                    <label className={"ai-foto-btn" + (sellando ? " ocupado" : "")}>
+                      {sellando ? "Sellando la foto…" : "Tomar foto"}
+                      <input type="file" accept="image/*" capture="environment" hidden disabled={sellando}
+                             onChange={(e) => { tomarFoto(e.target.files?.[0]); e.target.value = "" }} />
+                    </label>
+                    <span className="ai-foto-nota">Opcional. Sale con placa, fecha, hora y ubicación quemadas en la foto.</span>
+                  </div>
+                )}
+                {fotoMal && <p className="ai-foto-mal">{fotoMal}</p>}
+              </div>
             </div>
           </section>
         </div>

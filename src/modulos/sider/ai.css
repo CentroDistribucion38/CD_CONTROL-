@@ -344,3 +344,19 @@
 .ai-conf li.nc span { color: var(--ai-gris) }
 .ai-conf-cero { margin: 0; color: var(--ai-gris) }
 .ai-conf-ojo { margin: 0; font-size: 12.5px; color: var(--ai-tinta); font-weight: 600 }
+
+/* ---------- La foto de lo que se evidenció (una) ---------- */
+.ai-foto { margin-top: 16px; display: flex; flex-direction: column; gap: 8px }
+.ai-foto-rot { font: 700 10.5px var(--sd-texto, inherit); letter-spacing: .12em; color: #5b6573 }
+.ai-foto-vacia, .ai-foto-hay { display: flex; flex-wrap: wrap; align-items: center; gap: 12px }
+.ai-foto-hay img, .ai-foto-ya img { width: 160px; height: 120px; object-fit: cover; border: 1px solid #d9dde3; display: block }
+.ai-foto-hay > div { display: flex; flex-direction: column; gap: 6px; font-size: 13px }
+.ai-foto-hay span, .ai-foto-nota { font-size: 12px; color: #5b6573 }
+.ai-foto-ya { display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; font-size: 12px }
+.ai-foto-btn {
+  display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 18px;
+  background: #ffc400; color: #111; font-weight: 800; font-size: 14px; cursor: pointer; border: 0;
+}
+.ai-foto-btn.sec { background: #fff; border: 1px solid #c9ced6; min-height: 36px; font-weight: 700; font-size: 13px }
+.ai-foto-btn.ocupado { opacity: .6; cursor: progress }
+.ai-foto-mal { margin: 0; color: #A30D25; font-size: 12.5px; font-weight: 700 }
