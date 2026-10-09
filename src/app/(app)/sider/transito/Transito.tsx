@@ -682,7 +682,9 @@ export function Transito({ viajes, nombres, esEditor, puedePedirAi, manda, orige
           y la lista van juntos dentro de .tr-cuerpo y nada se queda
           inmovilizado arriba ni rueda en una caja con barra propia. */}
       <div className="tr-cuerpo">
-      {viajes.length > 1 && (
+      {/* LOS FILTROS SIEMPRE, aunque haya un solo vehículo: la lista de placas pegadas
+          sirve justo para saber cuáles de las que espero NO vienen. */}
+      {viajes.length > 0 && (
         <button type="button" className="tr-abrir" aria-expanded={verFiltros}
                 onClick={() => setVerFiltros((v) => !v)}>
           {hayFiltro ? `Filtrando · ${filtrados.length} de ${viajes.length}` : "Filtrar"}
@@ -690,7 +692,7 @@ export function Transito({ viajes, nombres, esEditor, puedePedirAi, manda, orige
         </button>
       )}
 
-      {viajes.length > 1 && (
+      {viajes.length > 0 && (
         <div className={"tr-filtros" + (verFiltros ? "" : " plegado")}>
           {lista ? (
             <div className="tr-placa tr-lista-on">
