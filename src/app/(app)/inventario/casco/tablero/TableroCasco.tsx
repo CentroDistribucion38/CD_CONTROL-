@@ -115,6 +115,13 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura }: {
       viajes: viajesSerpro(estibasHoy),
       claves,
       serie,
+      /* «POR MATERIAL» del día que esté escogido en esa tabla, sin los renglones en cero. */
+      porMaterial: {
+        fecha: diaMat,
+        filas: filasMat
+          .filter((r) => Math.abs(r.total) >= 0.005 || r.estibas !== 0)
+          .map((r) => ({ sku: r.sku, nombre: nombres[r.sku] ?? r.sku, porSitio: r.porSitio, estibas: r.estibas, total: r.total })),
+      },
       sitios: claves.map((k) => {
         const s = sitios.find((x) => x.clave === k)!;
         const e = estadoAlmacen(vistos, k);
@@ -125,7 +132,7 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura }: {
         };
       }),
     };
-  }, [serie, vistos, sitiosVis, sku, estibasHoy, sitios, nombres]);
+  }, [serie, vistos, sitiosVis, sku, estibasHoy, sitios, nombres, filasMat, diaMat]);
 
   const alternar = (k: string) => setSitiosVis((v) => (v.includes(k) ? (v.length > 1 ? v.filter((x) => x !== k) : v) : [...v, k]));
 

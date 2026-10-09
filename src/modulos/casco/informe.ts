@@ -140,8 +140,31 @@ export function pintarGrafica(ctx: CanvasRenderingContext2D, d: DatosInformeCasc
 
   const PASO = (W - ML - MR) / n;
   const BW = Math.max(3, Math.min(16 * K, PASO * 0.72));
-  const verTotales = PASO >= 7.5 * K;
-  const cadaK = Math.max(1, Math.ceil((9 * K) / PASO));
+
+  /* UN SOLO TAMAÑO DE LETRA PARA TODOS LOS NÚMEROS DE UNA CLASE. Achicar cada número hasta que
+     quepa dejaba «967» grande al lado de «1.716» diminuto: se veía desordenado. Ahora se mide el
+     número MÁS ANCHO y con ese tamaño van todos (los de adentro, los totales y las fechas). */
+  const anchoA1mm = (textos: string[], peso: number) => {
+    letra(peso, 10); return Math.max(1, ...textos.map((t) => ctx.measureText(t).width)) / 10;
+  };
+  const tamano = (textos: string[], peso: number, cabe: number, tope: number) =>
+    Math.min(tope, Math.floor((cabe / anchoA1mm(textos, peso)) * 10) / 10);
+
+  const segs = s.flatMap((dia) => d.claves.map((k) => dia.porSitio[k] ?? 0).filter((v) => v > 0).map((v) => nf0.format(v)));
+  const fSeg = tamano(segs, 700, BW - 0.8 * K, 2.4);
+  const fTot = tamano(s.map((x) => nf0.format(x.total)), 800, PASO - 0.5 * K, 2.6);
+  let fFec = tamano(s.map((x) => corta(x.fecha)), 500, PASO - 0.5 * K, 2.5);
+  /* Las fechas: todas si caben con una letra legible; si no, una de cada tantas, del mismo tamaño. */
+  let cadaK = 1;
+  if (fFec < 1.9) { fFec = 2.2; cadaK = Math.max(1, Math.ceil((anchoA1mm(s.map((x) => corta(x.fecha)), 500) * fFec + 1.2 * K) / PASO)) }
+  /* CON MUCHOS DÍAS la barra es angosta y el número no cabe acostado: entonces va PARADO
+     (girado 90°), todos del mismo tamaño. Así con 30 o 60 días se sigue viendo cuánto pone cada
+     almacén, que es lo que se pidió. */
+  const parado = fSeg < 1.9;
+  const fSegP = Math.min(2.2, Math.floor(((BW - 0.5 * K) / K) * 10 / 1.05) / 10);
+  const tamSeg = parado ? fSegP : fSeg;
+  const conSeg = tamSeg >= 1.5, conTot = fTot >= 1.5;
+
   s.forEach((dia, i) => {
     const x = ML + i * PASO + (PASO - BW) / 2;
     let base = 0;
@@ -152,26 +175,24 @@ export function pintarGrafica(ctx: CanvasRenderingContext2D, d: DatosInformeCasc
       ctx.fillStyle = c.fondo;
       /* 2 px de papel entre segmentos: así se separan sin raya. */
       ctx.fillRect(x, y1, BW, Math.max(0, y0 - y1 - 2));
-      /* EL VALOR DENTRO DE CADA PEDAZO, como en el tablero: así se ve cuánto pone cada almacén
-         y no solo el total. La letra se achica hasta caber en la barra; si ni así cabe, no se pone. */
-      if (y0 - y1 >= 3.2 * K) {
+      /* EL VALOR DENTRO DE CADA PEDAZO, como en el tablero, si el pedazo tiene alto para la letra. */
+      if (conSeg) {
         const t = nf0.format(v);
-        let mm = 2.5;
-        letra(700, mm);
-        while (ctx.measureText(t).width > BW - 0.6 * K && mm > 1.6) { mm -= 0.1; letra(700, mm) }
-        if (ctx.measureText(t).width <= BW - 0.4 * K) {
-          ctx.fillStyle = c.tinta; ctx.textAlign = "center";
-          ctx.fillText(t, x + BW / 2, (y0 + y1) / 2);
+        letra(700, tamSeg); ctx.fillStyle = c.tinta; ctx.textAlign = "center";
+        if (!parado && y0 - y1 >= tamSeg * K * 1.6) ctx.fillText(t, x + BW / 2, (y0 + y1) / 2);
+        else if (parado && y0 - y1 >= ctx.measureText(t).width + 1.2 * K) {
+          ctx.save(); ctx.translate(x + BW / 2, (y0 + y1) / 2); ctx.rotate(-Math.PI / 2);
+          ctx.fillText(t, 0, 0); ctx.restore();
         }
       }
     }
-    if (verTotales) {
-      letra(800, 2.6); ctx.fillStyle = T; ctx.textAlign = "center";
-      ctx.fillText(nf0.format(dia.total), x + BW / 2, y(dia.total) - 2 * K);
+    if (conTot) {
+      letra(800, fTot); ctx.fillStyle = T; ctx.textAlign = "center";
+      ctx.fillText(nf0.format(dia.total), x + BW / 2, y(dia.total) - fTot * K * 0.75);
     }
-    /* La fecha cada tantas barras, y la última siempre (sin pisar la de antes). */
+    /* La fecha: la última siempre y en negrita, sin pisar la de antes. */
     if (i === n - 1 || (i % cadaK === 0 && n - 1 - i >= cadaK * 0.6)) {
-      letra(i === n - 1 ? 800 : 500, 2.5); ctx.fillStyle = i === n - 1 ? T : "#5F6B79"; ctx.textAlign = "center";
+      letra(i === n - 1 ? 800 : 500, fFec); ctx.fillStyle = i === n - 1 ? T : "#5F6B79"; ctx.textAlign = "center";
       ctx.fillText(corta(dia.fecha), x + BW / 2, H - MB + 4 * K);
     }
   });

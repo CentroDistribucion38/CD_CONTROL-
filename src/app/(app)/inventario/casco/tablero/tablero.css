@@ -89,7 +89,7 @@
 .cvt .cvt-inf-bts { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end }
 .cvt .cvt-inf-bt {
   display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; cursor: pointer;
-  border-radius: 3px; border: 1.5px solid var(--fe-acento); background: var(--fe-acento); color: var(--fe-sobre);
+  border-radius: 0; border: 1.5px solid var(--fe-acento); background: var(--fe-acento); color: var(--fe-sobre);
   font: 800 14px var(--fe-texto);
 }
 .cvt .cvt-inf-bt.alt { background: var(--fe-papel); color: var(--fe-tinta); border-color: var(--fe-tinta) }

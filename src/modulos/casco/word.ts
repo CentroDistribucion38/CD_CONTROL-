@@ -14,7 +14,7 @@
 import { zipSync, strToU8 } from "fflate";
 import { PALETA_MARCA, type Paleta } from "@/modulos/rotlinea/hoja";
 import {
-  celda, colorSitio, columnasAlmacen, conSigno, corta, fmt, larga, rgbHex,
+  celda, colorSitio, columnasAlmacen, columnasPorMaterial, hlCelda, conSigno, corta, fmt, larga, rgbHex,
   type DatosInformeCasco, GRAFICA,
 } from "./informe";
 
@@ -135,6 +135,42 @@ export function armarWordCasco(
     run({ t: `${d.sitios.find((s) => s.clave === k)?.nombre ?? k}     `, tam: 8, color: G })).join(""), { despues: 60 }));
   if (extra.grafica) cuerpo.push(par(imagen("rIdGrafica", 2, GRAFICA.ancho, GRAFICA.alto, "Gráfica")));
   cuerpo.push(par([{ t: `Una barra por día con registros, del ${corta(d.serie[0]?.fecha ?? d.corte)} al ${corta(d.corte)}: cada color es un almacén y encima va el total del día.`, tam: 7, color: G }], { antes: 60, despues: 240 }));
+
+  /* ---------- POR MATERIAL (la tabla del tablero) ---------- */
+  const pm = d.porMaterial;
+  if (pm && pm.filas.length) {
+    const c = columnasPorMaterial(d, ANCHO_MM);
+    const centroDe = (k: string) => d.sitios.find((s) => s.clave === k)?.centro ?? k;
+    const suma = (k: string) => pm.filas.reduce((t, f) => t + (f.porSitio[k] ?? 0), 0);
+    titulo("Por material", `${larga(pm.fecha)} · HL`);
+    cuerpo.push(tabla([c.cod, c.mat, ...d.claves.map(() => c.sitio), c.est, c.tot], [
+      { cabecera: true, celdas: [
+        { fondo: T, runs: [{ t: "COD", b: true, tam: 8, color: "FFFFFF" }] },
+        { fondo: T, runs: [{ t: "MATERIAL", b: true, tam: 8, color: "FFFFFF" }] },
+        ...d.claves.map((k) => ({ fondo: T, al: "right" as const, runs: [{ t: centroDe(k), b: true, tam: 8, color: "FFFFFF" }] })),
+        { fondo: T, al: "right", runs: [{ t: "ESTIBAS", b: true, tam: 8, color: "FFFFFF" }] },
+        { fondo: T, al: "right", runs: [{ t: "TOTAL HL", b: true, tam: 8, color: "FFFFFF" }] },
+      ] },
+      ...pm.filas.map((f, i) => {
+        const fo = i % 2 ? RAYA : undefined;
+        return { celdas: [
+          { fondo: fo, runs: [{ t: f.sku, tam: 8, color: G }] },
+          { fondo: fo, runs: [{ t: f.nombre, tam: 8.5, color: T }] },
+          ...d.claves.map((k) => { const t = hlCelda(f.porSitio[k]); return { fondo: fo, al: "right" as const, runs: [{ t, tam: 8.5, color: t === "—" ? G : T }] } }),
+          { fondo: fo, al: "right" as const, runs: [{ t: fmt.est(f.estibas), tam: 8.5, color: T }] },
+          { fondo: fo, al: "right" as const, runs: [{ t: fmt.hl0(f.total), b: true, tam: 8.5, color: T }] },
+        ] };
+      }),
+      { celdas: [
+        { arriba: T, runs: [{ t: "TOTAL", b: true, tam: 8.5, color: T }] },
+        { arriba: T, runs: [] },
+        ...d.claves.map((k) => ({ arriba: T, al: "right" as const, runs: [{ t: hlCelda(suma(k)), b: true, tam: 8.5, color: T }] })),
+        { arriba: T, al: "right", runs: [{ t: fmt.est(pm.filas.reduce((t, f) => t + f.estibas, 0)), b: true, tam: 8.5, color: T }] },
+        { arriba: T, al: "right", runs: [{ t: fmt.hl0(pm.filas.reduce((t, f) => t + f.total, 0)), b: true, tam: 8.5, color: T }] },
+      ] },
+    ], { junta: pm.filas.length <= 30 }));
+    cuerpo.push(par("", { despues: 280 }));
+  }
 
   /* ---------- DETALLE DE CADA ALMACÉN ---------- */
   for (const s of d.sitios) {
