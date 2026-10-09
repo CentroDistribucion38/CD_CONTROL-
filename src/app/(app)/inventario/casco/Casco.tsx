@@ -28,6 +28,8 @@ import type { MaterialCasco, SitioCasco } from "@/modulos/casco/datos";
 type Fila = { sku: string; inv: string; baja: string; puesto: string; calidad: string };
 type Bloque = {
   filas: Fila[]; sucio: boolean; cargando: boolean;
+  recuperado?: string | null;       // hora en que se dejó el borrador que se recuperó
+  de?: string;                      // el día al que pertenecen estas filas (para que el borrador no cambie de día)
   arranque: string | null;          // día del que se heredó el saldo
   guardado: boolean;                // ya hay registro de este día en este sitio
   guardando: boolean;
@@ -46,6 +48,20 @@ const largo = (iso: string) =>
 const aTexto = (n: number | null) => (n == null ? "" : String(Number(n)));
 const VACIO: Bloque = { filas: [], sucio: false, cargando: true, arranque: null, guardado: false, guardando: false, aviso: null };
 const COLS = "ubicacion, sku, inventario, inv_expr, baja, baja_expr, hl, fecha, puesto, calidad";
+
+/* EL BORRADOR: «si me salgo de Registrar para revisar, que no se borre nada». Lo que se teclea y no
+   se ha guardado queda en ESTE equipo (por día y por tabla) y vuelve al regresar. Se borra al
+   guardar o al tocar «Descartar». Si el navegador no deja guardar (modo privado), sigue igual. */
+const llaveBorrador = (fecha: string, clave: string) => `cd38:casco:borrador:${fecha}:${clave}`;
+type Borrador = { filas: Fila[]; en: string };
+const leerBorrador = (fecha: string, clave: string): Borrador | null => {
+  try { const t = localStorage.getItem(llaveBorrador(fecha, clave)); return t ? JSON.parse(t) as Borrador : null } catch { return null }
+};
+const guardarBorrador = (fecha: string, clave: string, filas: Fila[]) => {
+  try { localStorage.setItem(llaveBorrador(fecha, clave), JSON.stringify({ filas, en: new Date().toISOString() })) } catch { /* sin espacio o modo privado */ }
+};
+const borrarBorrador = (fecha: string, clave: string) => { try { localStorage.removeItem(llaveBorrador(fecha, clave)) } catch { /* nada */ } };
+const hora = (iso: string) => new Date(iso).toLocaleString("es-CO", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
 export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar }: {
   sitios: SitioCasco[]; materiales: MaterialCasco[]; hoy: string; inicio?: string; puestos: string[]; puedeEditar: boolean;
@@ -80,7 +96,7 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar }:
   /* ---------- LAS CUATRO TABLAS DE ESTE DÍA ---------- */
   const cargar = useCallback(async (f: string) => {
     setErrorLectura(null);
-    setBloques(Object.fromEntries(sitios.map((s) => [s.clave, { ...VACIO }])));
+    setBloques(Object.fromEntries(sitios.map((s) => [s.clave, { ...VACIO, de: f }])));
     const { data: delD, error } = await supabase.from("v_casco").select(COLS).eq("fecha", f).order("sku");
     if (error) {
       setErrorLectura(/puesto|calidad/i.test(error.message)
@@ -89,17 +105,30 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar }:
       setBloques(Object.fromEntries(sitios.map((s) => [s.clave, { ...VACIO, cargando: false }])));
       return;
     }
-    const aFilas = (rs: Reg[], heredado: boolean): Fila[] => rs.map((r) => ({
+    /* LA CUENTA COMPLETA, TAMBIÉN AL ARRANCAR CON EL SALDO DE AYER: «cuando selecciono no me muestra
+       toda mi operación, todas mis partidas + y −». Se trae la cuenta (24+15-36…) y se sigue sumando
+       encima, como en el Excel. Solo si la cuenta da el mismo saldo que está guardado; si no (la
+       cuenta quedó vieja), va el saldo solo, que es el que manda. */
+    const conCuenta = (expr: string | null, valor: number | null) => {
+      if (!expr) return null;
+      const r = suma(expr);
+      return r != null && Math.abs(r - Number(valor ?? 0)) < 0.005 ? expr : null;
+    };
+    const aFilas = (rs: Reg[]): Fila[] => rs.map((r) => ({
       sku: r.sku,
-      /* HEREDADO = solo el saldo: la cuenta larga de ayer no se arrastra. */
-      inv: heredado || !r.inv_expr ? aTexto(r.inventario) : r.inv_expr,
-      baja: heredado || !r.baja_expr ? (Number(r.baja) ? aTexto(r.baja) : "") : r.baja_expr,
+      inv: conCuenta(r.inv_expr, r.inventario) ?? aTexto(r.inventario),
+      baja: conCuenta(r.baja_expr, r.baja) ?? (Number(r.baja) ? aTexto(r.baja) : ""),
       puesto: r.puesto ?? "", calidad: r.calidad ?? "",
     }));
+    /* Si hay un borrador de este día y esta tabla, manda el borrador (y se dice). */
+    const conBorrador = (clave: string, base: Partial<Bloque>): Partial<Bloque> => {
+      const br = leerBorrador(f, clave);
+      return br ? { ...base, filas: br.filas, sucio: true, recuperado: br.en } : { ...base, recuperado: null };
+    };
     await Promise.all(sitios.map(async (s) => {
       const hoyRows = ((delD ?? []) as Reg[]).filter((r) => r.ubicacion === s.clave);
       if (hoyRows.length) {
-        poner(s.clave, { filas: aFilas(hoyRows, false), arranque: null, guardado: true, cargando: false, sucio: false });
+        poner(s.clave, conBorrador(s.clave, { filas: aFilas(hoyRows), arranque: null, guardado: true, cargando: false, sucio: false }));
         return;
       }
       /* SIN REGISTRO ESE DÍA EN ESTE SITIO: se arranca con su último saldo. */
@@ -108,15 +137,30 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar }:
       const dia = (ult?.[0]?.fecha as string | undefined) ?? null;
       if (dia) {
         const { data: prev } = await supabase.from("v_casco").select(COLS).eq("ubicacion", s.clave).eq("fecha", dia).order("sku");
-        poner(s.clave, { filas: aFilas((prev ?? []) as Reg[], true), arranque: dia, guardado: false, cargando: false, sucio: false });
-      } else poner(s.clave, { filas: [], arranque: null, guardado: false, cargando: false, sucio: false });
+        poner(s.clave, conBorrador(s.clave, { filas: aFilas((prev ?? []) as Reg[]), arranque: dia, guardado: false, cargando: false, sucio: false }));
+      } else poner(s.clave, conBorrador(s.clave, { filas: [], arranque: null, guardado: false, cargando: false, sucio: false }));
     }));
   }, [supabase, sitios, poner]);
 
   useEffect(() => { void cargar(fecha); void totalesDelDia(fecha) }, [fecha, cargar, totalesDelDia]);
 
-  const hayCambios = Object.values(bloques).some((b) => b.sucio);
-  const confirmarSalida = () => !hayCambios || window.confirm("Tienes cambios sin guardar. ¿Los descartas?");
+  /* CADA CAMBIO SIN GUARDAR SE COPIA AL BORRADOR de su día y su tabla. */
+  useEffect(() => {
+    /* Con el día DE LAS FILAS (b.de), no con el del calendario: al cambiar de fecha, las filas viejas
+       no deben quedar guardadas como borrador del día nuevo. */
+    for (const [clave, b] of Object.entries(bloques)) if (b.sucio && !b.cargando && b.de) guardarBorrador(b.de, clave, b.filas);
+  }, [bloques]);
+  /** «Descartar»: se borra el borrador y la tabla vuelve a lo guardado. */
+  const descartar = async (s: SitioCasco) => {
+    const ok = await pedir({
+      titulo: `¿Descartar los cambios de ${s.nombre}?`,
+      dice: <>La tabla vuelve a lo que está guardado para el {largo(fecha)}. Lo que tecleaste y no guardaste se pierde.</>,
+      confirmar: "Descartar", cancelar: "Seguir editando", peligro: true,
+    });
+    if (!ok) return;
+    borrarBorrador(fecha, s.clave);
+    void cargar(fecha);
+  };
 
   /* ---------- LAS CUENTAS DE UN SITIO ---------- */
   const calcular = (s: SitioCasco, b: Bloque) => b.filas.map((f) => {
@@ -124,7 +168,9 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar }:
     const hlE = dato[f.sku]?.hl_estiba ?? null;
     const total = inv != null && baja != null ? inv + baja : null;
     return { inv, baja, hl: total != null && hlE != null ? total * hlE : null,
-             malInv: inv == null || inv < 0, malBaja: baja == null, sinFactor: hlE == null };
+             /* NEGATIVO SE PERMITE (salió más de lo contado: 26 − 80 = −54) y se pinta en rojo. */
+             malInv: inv == null, malBaja: baja == null, sinFactor: hlE == null,
+             negInv: inv != null && inv < 0, negBaja: baja != null && baja < 0 };
   });
   const conError = (s: SitioCasco, b: Bloque) => calcular(s, b).some((c) => c.malInv || c.malBaja || c.sinFactor);
 
@@ -168,7 +214,8 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar }:
     }));
     const { data, error } = await supabase.rpc("casco_guardar", { p_fecha: fecha, p_ubicacion: s.clave, p_filas: payload });
     if (error) { poner(s.clave, { guardando: false, aviso: { tipo: "mal", texto: error.message } }); return false }
-    poner(s.clave, { guardando: false, sucio: false, guardado: true, arranque: null,
+    borrarBorrador(fecha, s.clave);
+    poner(s.clave, { guardando: false, sucio: false, guardado: true, arranque: null, recuperado: null,
       aviso: { tipo: "ok", texto: `Guardado: ${data ?? payload.length} material${payload.length === 1 ? "" : "es"} en ${s.nombre}.` } });
     return true;
   };
@@ -240,10 +287,11 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar }:
           <label className="cas-c">
             <span>Fecha</span>
             <input type="date" value={fecha} max={hoy}
-                   onChange={(e) => { if (e.target.value && confirmarSalida()) setFecha(e.target.value) }} />
+                   onChange={(e) => { if (e.target.value) setFecha(e.target.value) }} />
           </label>
           <p className="cas-nota">
             Estás viendo <b>{largo(fecha)}</b>. Cada tabla guarda por separado; arriba y abajo hay un botón para guardar todo.
+            {" "}Lo que no guardes queda como borrador en este equipo: puedes salir a revisar y al volver sigue ahí.
           </p>
         </div>
         {errorLectura && <p className="cas-aviso mal">{errorLectura}</p>}
@@ -334,7 +382,7 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar }:
               <div>
                 <h2>{s.nombre}</h2>
                 <p className="cas-nota">
-                  {b.cargando ? "Cargando…" : b.sucio ? "Cambios sin guardar" : b.guardado ? "Guardado" : b.arranque ? `Arrancó con el saldo del ${largo(b.arranque)}` : "Sin registros"}
+                  {b.cargando ? "Cargando…" : b.sucio ? (b.recuperado ? `Borrador recuperado (lo dejaste el ${hora(b.recuperado)}) · sin guardar` : "Cambios sin guardar · quedan como borrador") : b.guardado ? "Guardado" : b.arranque ? `Arrancó con el saldo del ${largo(b.arranque)}` : "Sin registros"}
                 </p>
               </div>
               <div className="cas-bloque-hl"><b>{nf2.format(totHl)}</b><i>HL · {nf0.format(totInv + totBaja)} estibas</i></div>
@@ -381,14 +429,14 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar }:
                     const f = b.filas[i];
                     const x = c[i];
                     return (
-                      <tr key={f.sku}>
+                      <tr key={f.sku} className={x.negInv || x.negBaja ? "cas-neg" : undefined}>
                         <td className="cod">{f.sku}</td>
                         <td>{dato[f.sku]?.nombre ?? f.sku}
                           {x.sinFactor && <em className="cas-mal">sin botellas por estiba o HL en el maestro</em>}
                         </td>
                         <td className="n">
                           <span className="cas-cuenta">
-                            <CampoCuenta valor={f.inv} resultado={x.inv} deshabilitado={!puedeEditar} mal={x.malInv}
+                            <CampoCuenta valor={f.inv} resultado={x.inv} deshabilitado={!puedeEditar} mal={x.malInv} negativo={x.negInv}
                                          rotulo={`Inventario de ${f.sku} en ${s.nombre}`}
                                          cambiar={(v) => cambiar(s.clave, i, "inv", v)} />
                           </span>
@@ -396,13 +444,13 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar }:
                         {s.baja_rotulo && (
                           <td className="n">
                             <span className="cas-cuenta">
-                              <CampoCuenta valor={f.baja} resultado={x.baja} deshabilitado={!puedeEditar} mal={x.malBaja}
+                              <CampoCuenta valor={f.baja} resultado={x.baja} deshabilitado={!puedeEditar} mal={x.malBaja} negativo={x.negBaja}
                                            rotulo={`${s.baja_rotulo} de ${f.sku} en ${s.nombre}`}
                                            cambiar={(v) => cambiar(s.clave, i, "baja", v)} />
                             </span>
                           </td>
                         )}
-                        <td className="n hl">{x.hl == null ? "—" : nf2.format(x.hl)}</td>
+                        <td className={"n hl" + (x.hl != null && x.hl < 0 ? " cas-rojo" : "")}>{x.hl == null ? "—" : nf2.format(x.hl)}</td>
                         <td>
                           <input className="cas-txt" list="cas-puestos" value={f.puesto} disabled={!puedeEditar}
                                  placeholder="Ej. P19" aria-label={`Ubicaciones de ${f.sku} en ${s.nombre}`}
@@ -430,9 +478,9 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar }:
                   <tfoot>
                     <tr>
                       <td colSpan={2}>{hayFiltro ? `LO QUE SE VE (${vis.length} de ${b.filas.length}) · ${s.nombre}` : `TOTAL · ${s.nombre}`}</td>
-                      <td className="n">{nf0.format(hayFiltro ? visInv : totInv)} estibas</td>
-                      {s.baja_rotulo && <td className="n">{nf0.format(hayFiltro ? visBaja : totBaja)} estibas</td>}
-                      <td className="n hl">{nf2.format(hayFiltro ? visHl : totHl)}</td>
+                      <td className={"n" + ((hayFiltro ? visInv : totInv) < 0 ? " cas-rojo" : "")}>{nf0.format(hayFiltro ? visInv : totInv)} estibas</td>
+                      {s.baja_rotulo && <td className={"n" + ((hayFiltro ? visBaja : totBaja) < 0 ? " cas-rojo" : "")}>{nf0.format(hayFiltro ? visBaja : totBaja)} estibas</td>}
+                      <td className={"n hl" + ((hayFiltro ? visHl : totHl) < 0 ? " cas-rojo" : "")}>{nf2.format(hayFiltro ? visHl : totHl)}</td>
                       <td colSpan={3} />
                     </tr>
                   </tfoot>
@@ -442,7 +490,13 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar }:
 
             <div className="cas-pie-bloque">
               {b.aviso && <p className={"cas-aviso " + b.aviso.tipo} role="status">{b.aviso.texto}</p>}
-              {err && b.sucio && <p className="cas-aviso mal">Revisa los campos en rojo: una cuenta no se entiende, quedó negativa o falta el factor del maestro.</p>}
+              {err && b.sucio && <p className="cas-aviso mal">Revisa los campos marcados: una cuenta no se entiende o falta el factor del maestro.</p>}
+              {c.some((x) => x.negInv || x.negBaja) && (
+                <p className="cas-aviso neg">Hay {c.filter((x) => x.negInv || x.negBaja).length} material{c.filter((x) => x.negInv || x.negBaja).length === 1 ? "" : "es"} en negativo (en rojo): salió más de lo contado. Se puede guardar así; revísalo.</p>
+              )}
+              {puedeEditar && b.sucio && (
+                <button type="button" className="btn cas-descartar" disabled={b.guardando} onClick={() => void descartar(s)}>Descartar cambios</button>
+              )}
               {puedeEditar && (
                 <button type="button" className="btn" disabled={!b.sucio || err || b.guardando || b.cargando} onClick={() => void guardarSitio(s).then(() => totalesDelDia(fecha))}>
                   {b.guardando ? "Guardando…" : `Guardar ${s.nombre}`}

@@ -153,3 +153,11 @@
 .cas .cas-resumen tr.cas-sin td { color: var(--fe-gris) }
 .cas .cas-resumen a { color: inherit; font-weight: 700 }
 @media (max-width: 900px) { .cas .cas-filtros { grid-template-columns: 1fr 1fr } .cas .cas-filtros .cas-f-mat { grid-column: 1 / -1 } }
+
+/* NEGATIVOS: se permiten (salió más de lo contado) y se pintan en rojo para que se vean de lejos. */
+.cas .cas-cuenta input.cas-res.neg { color: var(--fe-mal); font-weight: 800; border-color: var(--fe-mal); background: color-mix(in srgb, var(--fe-mal) 9%, #fff) }
+.cas .cas-tabla tr.cas-neg td { background: color-mix(in srgb, var(--fe-mal) 5%, transparent) }
+.cas .cas-tabla tr.cas-neg td.cod { box-shadow: inset 4px 0 0 var(--fe-mal) }
+.cas .cas-rojo { color: var(--fe-mal) !important; font-weight: 800 }
+.cas .cas-aviso.neg { color: var(--fe-mal); border-color: var(--fe-mal); background: color-mix(in srgb, var(--fe-mal) 5%, #fff) }
+.cas .cas-descartar { background: var(--fe-papel); color: var(--fe-tinta); border-color: var(--fe-linea) }

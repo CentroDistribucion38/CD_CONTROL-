@@ -16,8 +16,10 @@ const nf0 = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 });
  * La celda de la tabla NUNCA cambia de forma: lo que se abre es otra pieza, colgada del <body>,
  * así ninguna regla de la tabla la puede deformar ni dejarla "abierta" por error.
  */
-export function CampoCuenta({ valor, resultado, cambiar, deshabilitado, mal, rotulo }: {
+export function CampoCuenta({ valor, resultado, cambiar, deshabilitado, mal, rotulo, negativo = false }: {
   valor: string; resultado: number | null; cambiar: (v: string) => void; deshabilitado: boolean; mal: boolean; rotulo: string;
+  /** Saldo negativo: se permite, pero en rojo para que se vea. */
+  negativo?: boolean;
 }) {
   const celda = useRef<HTMLInputElement>(null);
   const flota = useRef<HTMLDivElement>(null);
@@ -68,7 +70,7 @@ export function CampoCuenta({ valor, resultado, cambiar, deshabilitado, mal, rot
 
   return (
     <>
-      <input ref={celda} readOnly className={"cas-res" + (mal ? " mal" : "")} disabled={deshabilitado}
+      <input ref={celda} readOnly className={"cas-res" + (mal ? " mal" : "") + (negativo ? " neg" : "")} disabled={deshabilitado}
              value={resultado == null ? valor : nf0.format(resultado)} aria-label={rotulo}
              title="Toca para ver o seguir la cuenta"
              onFocus={() => { if (callar.current) { callar.current = false; return; } medir(); }}
@@ -83,7 +85,7 @@ export function CampoCuenta({ valor, resultado, cambiar, deshabilitado, mal, rot
                       else if (e.key === "Enter") { e.preventDefault(); callar.current = true; cerrar(); celda.current?.focus(); }
                       else if (e.key === "Tab") { e.preventDefault(); cerrar(); siguiente(e.shiftKey); }
                     }} />
-          <footer><span>Se suma o se resta con + y −</span><b className={resultado == null ? "mal" : ""}>{resultado == null ? "revisa la cuenta" : "= " + nf0.format(resultado)}</b></footer>
+          <footer><span>Se suma o se resta con + y −</span><b className={resultado == null || (resultado ?? 0) < 0 ? "mal" : ""}>{resultado == null ? "revisa la cuenta" : "= " + nf0.format(resultado)}</b></footer>
         </div>, document.body)}
     </>
   );
