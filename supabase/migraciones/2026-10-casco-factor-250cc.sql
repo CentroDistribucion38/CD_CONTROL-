@@ -18,6 +18,10 @@
 -- =====================================================================
 begin;
 
+do $reemplazado$ begin
+  raise exception 'Este archivo quedó reemplazado por 2026-10-casco-factor-250cc-maestro.sql: no se corre (el 250 cc va con el factor del maestro, 38 botellas por caja).';
+end $reemplazado$;
+
 insert into public.casco_extras (sku, nombre, unidades_por_estiba, hl_unidad)
 select v.sku, coalesce(p.nombre, v.nombre), 1350, 0.0025
   from (values ('3501225', 'BOTELLA FLINT 250 CC'), ('3501226', 'BOTELLA MARRON 250 CC')) v(sku, nombre)
