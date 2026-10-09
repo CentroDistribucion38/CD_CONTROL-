@@ -375,7 +375,7 @@ export default async function AnalisisEnSitioPage(
       {cobro.aCobro > 0 && (
         <DeDondeSale c={{
           total: plata, rotas: plataRotas, contaminadas: plataCont,
-          sinPrecio, porCausa: plataPorCausa,
+          sinPrecio, porCausa: plataPorCausa, faltan: cobro.faltan,
         }} />
       )}
 

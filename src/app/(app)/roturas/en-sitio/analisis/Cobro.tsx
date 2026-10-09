@@ -35,6 +35,7 @@ export type Cobro = {
   contaminadas: number;
   sinPrecio: number;
   porCausa: { nombre: string; grupo: "asumida" | "no_asumida"; valor: number }[];
+  faltan?: { material: string; nombre: string; falta: string; roturas: number }[];
 };
 
 export function DeDondeSale({ c }: { c: Cobro }) {
@@ -168,6 +169,16 @@ export function DeDondeSale({ c }: { c: Cobro }) {
             material le falta el precio o el factor (unidades por caja) en el maestro, así que no entra en esta cuenta — el total
             de arriba se queda corto hasta que se llene en Inventario → Maestro.
           </p>
+        )}
+        {(c.faltan?.length ?? 0) > 0 && (
+          <ul className="rq-faltan">
+            {c.faltan!.map((f) => (
+              <li key={f.material}>
+                <b>{f.material}</b> {f.nombre} — le falta <b>{f.falta}</b>
+                {" "}· {f.roturas} rotura{f.roturas === 1 ? "" : "s"}
+              </li>
+            ))}
+          </ul>
         )}
       </div>
     </section>

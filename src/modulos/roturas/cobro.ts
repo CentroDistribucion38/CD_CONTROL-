@@ -46,6 +46,8 @@ export type Cobro = {
   contaminadas: number;
   /** De mayor a menor, que es como se lee. */
   porCausa: { nombre: string; grupo: "asumida" | "no_asumida"; valor: number }[];
+  /** Los materiales a cobro que se quedan por fuera, y QUÉ les falta en el maestro. */
+  faltan: { material: string; nombre: string; falta: string; roturas: number }[];
 };
 
 const num = (x: unknown) => { const n = Number(x); return Number.isFinite(n) ? n : 0 };
@@ -73,5 +75,14 @@ export function medirCobro(lista: Rotura[]): Cobro {
     rotas: cobrables.reduce((s, r) => s + num(r.cobro_rotas), 0),
     contaminadas: cobrables.reduce((s, r) => s + num(r.cobro_contaminadas), 0),
     porCausa,
+    faltan: [...aCobro.filter((r) => r.cobro_total == null).reduce((m, r) => {
+      const falta = [
+        r.precio_envase == null ? "precio del envase" : null,
+        r.tipo === "producto_terminado" && (r.contaminadas ?? 0) > 0 && r.precio_producto == null ? "precio del producto" : null,
+        r.factor_caja == null ? "factor (unidades por caja)" : null,
+      ].filter(Boolean).join(" y ") || "precio";
+      const x = m.get(r.material) ?? { material: r.material, nombre: r.material_nombre, falta, roturas: 0 };
+      x.roturas += 1; m.set(r.material, x); return m;
+    }, new Map<string, { material: string; nombre: string; falta: string; roturas: number }>()).values()],
   };
 }

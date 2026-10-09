@@ -2922,3 +2922,7 @@
   .rt-rep .pie.con-res { grid-template-columns: auto minmax(0, 1fr) }
   .rt-rep .pie.con-res .res { grid-column: 1 / -1 }
 }
+
+/* Qué material a cobro se queda por fuera y qué le falta en el maestro. */
+.rt .rq-faltan { margin: 0; padding: 0 24px 16px 40px; font-size: 12.5px; line-height: 1.6; color: #A30D25 }
+.rt .rq-faltan b { font-weight: 800 }
