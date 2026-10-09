@@ -147,9 +147,13 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura, delInventa
              almacén es de ese día o después; si el inventario no trae ese material, va la guardada. */
           filas: e.filas.map((f) => {
             const inv = delInventario?.porCentro[(s.centro ?? "").toUpperCase()];
-            const u = inv && e.fecha && e.fecha >= inv.fecha ? inv.mapa[f.sku] : undefined;
-            /* Y nunca lo de otra tabla: en Bodega no sale lo de Fábrica, ni al revés. */
-            return { ...f, puesto: u ?? (limpiarPuesto(s.centro, f.puesto) || null), nombre: nombres[f.sku] ?? f.sku };
+            /* «SI NO HAY UBICACIÓN EN EL INVENTARIO, QUE NO APAREZCA»: cuando el inventario aplica a
+               ese conteo, la ubicación es SOLO la del inventario; si el inventario no tiene ese
+               material, va vacía (nada de un P19 viejo escrito a mano). Sin inventario que aplique,
+               la guardada, sin lo de la otra tabla. */
+            const aplica = !!inv && !!e.fecha && e.fecha >= inv.fecha;
+            const puesto = aplica ? (inv!.mapa[f.sku] ?? null) : (limpiarPuesto(s.centro, f.puesto) || null);
+            return { ...f, puesto, nombre: nombres[f.sku] ?? f.sku };
           }),
         };
       }),

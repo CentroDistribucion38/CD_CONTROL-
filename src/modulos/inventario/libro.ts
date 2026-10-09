@@ -642,10 +642,11 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     }
     const estados = [...porEstado.keys()].sort(natural);
     /* Y POR UBICACIÓN: «faltaría ubicaciones, pero específico para colocar FÁBRICA… y poner el resto».
-       FABRICA = las que se llaman FABRICA_… (patios, líneas de sorting); RESTO = todas las demás (la
+       FABRICA = las que se llaman FABRICA_… (patios, líneas de sorting); BODEGA = todas las demás (la
        bodega). Cada combinación estado × ubicación lleva su propia lista escondida, con sus estibas y
        cajas contadas SOLO en esas ubicaciones. */
-    const ZONAS = ["FABRICA", "RESTO", "TODAS"] as const;
+    /* «Resto es Bodega»: la opción se llama BODEGA. */
+    const ZONAS = ["FABRICA", "BODEGA", "TODAS"] as const;
     const esFab = (x: Fila) => /^\s*FABRICA/i.test(x.l.ubicacion ?? x.l.ubicacion_combinada ?? "");
     const enZona = (x: Fila, z: string) => z === "TODAS" || (z === "FABRICA" ? esFab(x) : !esFab(x));
     type Item = { cod: string; desc: string; ubic: string; est: number; cajas: number };
@@ -666,11 +667,11 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
 
     /* «REPLICARLO AL LADO PARA TENER LOS DOS»: dos tablas lado a lado, cada una con SUS dos selectores.
        Abren como las tablas del casco: la de la izquierda en LAVADO · FABRICA (AG18) y la de la
-       derecha en BAJA · RESTO (AG22, la bodega). */
+       derecha en BAJA · BODEGA (AG22). */
     const est = (pref: string) => (estados.includes(pref) ? pref : estados[0] ?? "");
     const TABLAS = [
       { c0: 1, estado: est("LAVADO"), zona: "FABRICA" },
-      { c0: 7, estado: est("BAJA"), zona: "RESTO" },
+      { c0: 7, estado: est("BAJA"), zona: "BODEGA" },
     ];
     const G = 5, C0 = 14;                                    // tablas A:E y G:K · listas escondidas desde N
     const ANCHO = 11;
@@ -695,7 +696,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     for (let c = C0; c <= C0 + claves.length * G - 1; c++) h.getColumn(c).hidden = true;
     const rango = `$${col(C0)}$${F0}:$${ult}$${F1}`, cab = `$${col(C0)}$${F0 - 1}:$${ult}$${F0 - 1}`;
 
-    h.getRow(7).height = 26; h.getRow(8).height = 26; h.getRow(9).height = 18; h.getRow(F0 - 1).height = 30;
+    h.getRow(6).height = 30; h.getRow(7).height = 26; h.getRow(8).height = 26; h.getRow(9).height = 18; h.getRow(F0 - 1).height = 30;
     const altos: number[] = Array(N).fill(20);
     for (const t of TABLAS) {
       const cE = col(t.c0 + 1);                              // la celda del estado (B o H)
@@ -707,7 +708,14 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
         const n = h.getCell(fila, t.c0 + 2); n.value = ayuda; n.font = letra(9, GRIS, false, true); n.alignment = { vertical: "middle", wrapText: true };
       };
       sel(7, "ESTADO", t.estado, estados, "◄ escoge: " + estados.join(" · "));
-      sel(8, "UBICACIÓN", t.zona, [...ZONAS], "◄ FABRICA (patios y sorting de Fábrica) · RESTO (la bodega, lo que no es Fábrica) · TODAS");
+      sel(8, "UBICACIÓN", t.zona, [...ZONAS], "◄ FABRICA (patios y sorting de Fábrica) · BODEGA (lo que no es Fábrica) · TODAS");
+      /* EL TÍTULO DE LA TABLA dice lo escogido: «ESTADO LAVADO · FABRICA», «ESTADO BAJA · BODEGA».
+         Es fórmula: si cambias las casillas, el título cambia con ellas. */
+      h.mergeCells(6, t.c0, 6, t.c0 + 4);
+      const tit = h.getCell(6, t.c0);
+      tit.value = { formula: `"ESTADO "&$${cE}$7&"  ·  "&$${cE}$8`, result: `ESTADO ${t.estado}  ·  ${t.zona}` };
+      tit.font = letra(14, "FF000000", true); tit.fill = relleno("FFFFC000");
+      tit.alignment = { vertical: "middle", horizontal: "center" }; tit.border = marco;
       const llave = `$${cE}$7&"|"&$${cE}$8`;
       const iSel = Math.max(0, claves.indexOf(`${t.estado}|${t.zona}`));
       const A = col(t.c0), D = col(t.c0 + 3), E = col(t.c0 + 4);
