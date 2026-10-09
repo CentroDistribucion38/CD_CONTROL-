@@ -36,8 +36,12 @@ export function lineaDeUbicaciones(rs: R[], estado: string): string {
   for (const x of rs) {
     const base = (x.ubicacion ?? x.ubicacion_combinada ?? "").trim();
     const comb = (x.ubicacion_combinada ?? base).trim();
-    const zona = comb.startsWith(base) ? comb.slice(base.length).trim().toUpperCase() : "";
-    const nombre = zona && zona !== estado ? comb : base;
+    /* Lo que la ubicación combinada trae después del nombre («BAJA», «BAJA Andina»). La palabra del
+       estado sobra —la tabla ya es de ese estado—; lo que queda se deja entre paréntesis:
+       «P_16_IZQ BAJA Andina» → «P_16_IZQ (Andina)». */
+    const zona = comb.startsWith(base) ? comb.slice(base.length).trim() : "";
+    const resto = zona.toUpperCase().startsWith(estado) ? zona.slice(estado.length).trim() : zona;
+    const nombre = base && resto ? `${base} (${resto})` : base || comb;
     if (nombre) nombres.add(nombre);
   }
   return [...nombres].sort(natural).join(" - ");

@@ -28,7 +28,7 @@ const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
 
 type Texto = { t: string; b?: boolean; tam?: number; color?: string; may?: boolean };
 const run = ({ t, b, tam = 9, color, may }: Texto) =>
-  `<w:r><w:rPr>${b ? "<w:b/>" : ""}${may ? "<w:caps/>" : ""}${color ? `<w:color w:val="${color}"/>` : ""}<w:sz w:val="${Math.round(tam * 2)}"/></w:rPr><w:t xml:space="preserve">${esc(t)}</w:t></w:r>`;
+  `<w:r><w:rPr>${b ? "<w:b/>" : ""}${may ? "<w:caps/>" : ""}${color ? `<w:color w:val="${color}"/>` : ""}<w:sz w:val="${Math.round(tam * 2)}"/></w:rPr><w:t xml:space="preserve">${t.split("\n").map(esc).join('</w:t><w:br/><w:t xml:space="preserve">')}</w:t></w:r>`;
 const par = (runs: Texto[] | string, o: { al?: "left" | "right" | "center"; antes?: number; despues?: number; keep?: boolean } = {}) =>
   `<w:p><w:pPr>${o.keep ? "<w:keepNext/>" : ""}<w:spacing w:before="${o.antes ?? 0}" w:after="${o.despues ?? 0}"/>${o.al && o.al !== "left" ? `<w:jc w:val="${o.al}"/>` : ""}</w:pPr>${typeof runs === "string" ? runs : runs.map(run).join("")}</w:p>`;
 

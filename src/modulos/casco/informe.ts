@@ -238,6 +238,45 @@ export function columnasAlmacen(s: SitioInforme, ancho = 182): Columna[] {
   cols[1].mm = Math.max(34, resto);
   return cols;
 }
+/**
+ * LA UBICACIÓN, ORGANIZADA: un renglón por ZONA, y dentro de cada zona sus ubicaciones en orden.
+ *     FABRICA_PATIO_1 · FABRICA_PATIO_2
+ *     FABRICA_SORTING_L2
+ *     P_16_DER · P_16_IZQ (Andina) · P_18_IZQ
+ * La zona es el nombre hasta el primer pedazo con número («FABRICA_PATIO_1» → FABRICA_PATIO,
+ * «P_16_DER» → P, «A01_IZQ» → A). Así no se mezclan patios, líneas de sorting y posiciones.
+ */
+export function zonaDeUbicacion(nombre: string): string {
+  const limpio = nombre.replace(/\s*\(.*\)\s*$/, "").trim().toUpperCase();
+  const partes = limpio.split("_");
+  const i = partes.findIndex((p) => /\d/.test(p));
+  if (i > 0) return partes.slice(0, i).join("_");
+  if (i === 0) return partes[0].match(/^[A-ZÑ]+/)?.[0] ?? partes[0];
+  return limpio;
+}
+/** Las ubicaciones por zona. `cortos` es cada una sin el nombre de la zona: P_16_DER → «16 DER». */
+export function zonasDeUbicacion(texto: string | null | undefined): { zona: string; nombres: string[]; cortos: string[] }[] {
+  const nat = (a: string, b: string) => a.localeCompare(b, "es", { numeric: true });
+  const nombres = [...new Set((texto ?? "").split(/\s+-\s+/).map((u) => u.trim()).filter(Boolean))];
+  const porZona = new Map<string, string[]>();
+  for (const n of nombres) {
+    const z = zonaDeUbicacion(n);
+    (porZona.get(z) ?? porZona.set(z, []).get(z)!).push(n);
+  }
+  return [...porZona.entries()].sort((a, b) => nat(a[0], b[0])).map(([zona, ns]) => {
+    const orden = ns.sort(nat);
+    const cortos = orden.map((n) => {
+      const sin = n.toUpperCase().startsWith(zona) ? n.slice(zona.length).replace(/^_/, "") : n;
+      return (sin || n).replace(/_/g, " ");
+    });
+    return { zona, nombres: orden, cortos };
+  });
+}
+/** En texto (Word): un renglón por zona — «P: 16 DER · 16 IZQ (Andina)»; si la zona tiene una sola, el nombre entero. */
+export function gruposDeUbicacion(texto: string | null | undefined): string[] {
+  return zonasDeUbicacion(texto).map((g) => (g.nombres.length > 1 || g.nombres[0].includes("_") ? `${g.zona.replace(/_/g, " ")}:  ${g.cortos.join("  ·  ")}` : g.nombres[0]));
+}
+
 export function celda(c: Columna, f: FilaInformeCasco): string {
   switch (c.id) {
     case "cod": return f.sku;
@@ -245,7 +284,7 @@ export function celda(c: Columna, f: FilaInformeCasco): string {
     case "inv": return f.inventario ? fmt.est(f.inventario) : "—";
     case "baja": return f.baja ? fmt.est(f.baja) : "—";
     case "hl": return fmt.hl(f.hl);
-    case "ubi": return (f.puesto ?? "").split(/\s+-\s+/).map((u) => u.trim()).filter(Boolean).join("  ·  ");
+    case "ubi": return gruposDeUbicacion(f.puesto).join("\n");
     case "cal": return f.calidad ?? "";
   }
 }
@@ -443,9 +482,35 @@ export function dibujarInformeCasco(
     };
     /* UN ALMACÉN NO SE PARTE si cabe entero en una hoja: mejor empezarlo arriba de la siguiente
        que dejar cinco renglones aquí y cuatro allá. Si no cabe ni en una hoja, sí se parte. */
+    /* LA UBICACIÓN, POR ZONA Y CON SANGRÍA: la zona en negrita a la izquierda («P:») y sus posiciones
+       al lado; si no caben en un renglón, siguen DEBAJO de las posiciones, no debajo de la zona, para
+       que se vea dónde empieza la zona siguiente. */
+    type LineaUbi = { et: string; tx: string; sangria: number };
+    const lineasUbi = (texto: string | null, ancho: number): LineaUbi[] => {
+      const out: LineaUbi[] = [];
+      for (const g of zonasDeUbicacion(texto)) {
+        /* Una sola y sin zona que separar («P19», «SORTING»): va tal cual. Las demás, «ZONA: posiciones». */
+        if (g.nombres.length === 1 && !g.nombres[0].includes("_")) {
+          fuente("bold", 8.3);
+          for (const l of doc.splitTextToSize(g.nombres[0], ancho) as string[]) out.push({ et: l, tx: "", sangria: 0 });
+          continue;
+        }
+        const et = g.zona.replace(/_/g, " ") + ":";
+        fuente("bold", 8.3); const sangria = doc.getTextWidth(et) + 1.6;
+        fuente("normal", 8.3);
+        const partes = doc.splitTextToSize(g.cortos.join("  ·  "), Math.max(12, ancho - sangria)) as string[];
+        partes.forEach((tx, k) => out.push({ et: k === 0 ? et : "", tx, sangria }));
+      }
+      return out;
+    };
+    const nLineas = (c: Columna, f: FilaInformeCasco) => {
+      if (c.num) return 1;
+      if (c.id === "ubi") return Math.max(1, lineasUbi(f.puesto, c.mm - 3.5).length);
+      fuente("normal", 8.3);
+      return (doc.splitTextToSize(celda(c, f), c.mm - 3.5) as string[]).length;
+    };
     fuente("normal", 8.3);
-    const altoFila = (f: FilaInformeCasco) => Math.max(FILA, 2.4 + 3.6 * Math.max(...cols.map((c) =>
-      (c.num ? 1 : (doc.splitTextToSize(celda(c, f), c.mm - 3.5) as string[]).length))));
+    const altoFila = (f: FilaInformeCasco) => Math.max(FILA, 2.4 + 3.6 * Math.max(...cols.map((c) => nLineas(c, f))));
     const altoTodo = 7 + ALTO_CAB + s.filas.reduce((t, f) => t + altoFila(f), 0) + FILA + 1;
     if (altoTodo <= TOPE - 25) cabe(altoTodo); else cabe(7 + ALTO_CAB + FILA * 4);
     cab(false);
@@ -457,7 +522,9 @@ export function dibujarInformeCasco(
       /* Renglones que crecen si el material o la ubicación no caben: no se corta el dato. */
       fuente("normal", 8.3);
       const lineas = cols.map((c) => (c.num ? [celda(c, f)] : doc.splitTextToSize(celda(c, f), c.mm - 3.5) as string[]));
-      const alto = Math.max(FILA, 2.4 + 3.6 * Math.max(...lineas.map((l) => l.length)));
+      const ubiCol = cols.find((c) => c.id === "ubi");
+      const ubi = ubiCol ? lineasUbi(f.puesto, ubiCol.mm - 3.5) : [];
+      const alto = Math.max(FILA, 2.4 + 3.6 * Math.max(...cols.map((c, j) => (c.id === "ubi" ? Math.max(1, ubi.length) : lineas[j].length))));
       if (y + alto > TOPE) { hojaNueva(); cab(true) }
       if (i % 2 === 1) { doc.setFillColor(247, 249, 251); doc.rect(M, y, ANCHO, alto, "F") }
       let x = M;
@@ -465,9 +532,16 @@ export function dibujarInformeCasco(
         if (c.id === "hl" || c.id === "ubi") fuente("bold", 8.3); else if (c.id === "cod" || c.id === "cal") fuente("normal", 7.6); else fuente("normal", 8.3);
         if (c.id === "cod" || c.id === "cal") gris(); else tinta();
         /* Igual en los renglones: si el material ocupa dos líneas, los demás datos van a la mitad. */
-        const nl = c.num ? 1 : lineas[j].length;
+        const nl = c.num ? 1 : c.id === "ubi" ? Math.max(1, ubi.length) : lineas[j].length;
         const yb = y + alto / 2 - (nl - 1) * 1.8 + 1;
-        if (c.num) doc.text(lineas[j][0], x + c.mm - 2, yb, { align: "right" });
+        if (c.id === "ubi") {
+          tinta();
+          ubi.forEach((l, k) => {
+            const yl = yb + k * 3.6;
+            if (l.et) { fuente("bold", 8.3); doc.text(l.et, x + 2, yl) }
+            if (l.tx) { fuente("normal", 8.3); doc.text(l.tx, x + 2 + l.sangria, yl) }
+          });
+        } else if (c.num) doc.text(lineas[j][0], x + c.mm - 2, yb, { align: "right" });
         else doc.text(lineas[j], x + 2, yb, { lineHeightFactor: 1.2 });
         x += c.mm;
       });
