@@ -22,7 +22,8 @@ import type { MaterialCasco, SitioCasco } from "@/modulos/casco/datos";
  *   · sale de un almacén con tabla de Control → se RESTA de esa tabla;
  *   · llega a un almacén con tabla de Control → se SUMA a esa tabla;
  *   · el cliente no tiene tabla: lo que se le despacha solo se resta del origen;
- *   · si «Descuenta inventario» está apagada, el movimiento se REGISTRA y no toca Control.
+ *   · si «Descuenta inventario» está apagada, el movimiento se REGISTRA y no toca Control;
+ *   · EXCEPCIÓN: de CA22 a AG07 no se resta de CA22 ni se suma a AG07: se SUMA a CA22.
  */
 
 type Item = {
@@ -106,12 +107,17 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
   const poner = (k: number, c: Partial<Linea>) => setLineas((ls) => ls.map((l) => (l.k === k ? { ...l, ...c } : l)));
   const escogerOrigen = (k: number, id: string) => poner(k, { origen_id: id, afecta: id ? porId[id]?.descuenta ?? true : true });
 
+  /** El centro SAP de un almacén del maestro: el de su tabla de Control o, si no tiene, su código. */
+  const centroDe = (x: Item) => ((x.ubicacion && sitioPorClave[x.ubicacion]?.centro) || x.codigo || "").toUpperCase();
+
   /** Qué hará la línea en Control, dicho en palabras. */
   const efecto = (l: Linea) => {
     const o = porId[l.origen_id], d = porId[l.destino_id];
     const n = Number(l.estibas.replace(",", "."));
     if (!o || !d) return "";
     if (!l.afecta) return "Solo se registra: no mueve Control";
+    /* LA EXCEPCIÓN CA22 → AG07: se SUMA a CA22 y AG07 no se toca (igual en la base). */
+    if (centroDe(o) === "CA22" && centroDe(d) === "AG07") return `CA22 +${Number.isFinite(n) && n > 0 ? n : "N"} (excepción: AG07 no cambia)`;
     const partes: string[] = [];
     if (o.ubicacion) partes.push(`${o.codigo ?? o.nombre} −${Number.isFinite(n) && n > 0 ? n : "N"}`);
     if (d.ubicacion) partes.push(`${d.codigo ?? d.nombre} +${Number.isFinite(n) && n > 0 ? n : "N"}`);
