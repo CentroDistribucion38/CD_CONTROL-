@@ -597,10 +597,14 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
   /* ================= 3 · POR MATERIAL ================= */
   {
     const h = wb.addWorksheet("Por material", { properties: { tabColor: { argb: "FF64748B" } } });
-    const C = ["Código", "Material", "Tipo", "Clase", "Familia", "Ubicaciones", "Estibas físicas", "Cajas", "Unidades", "Vence primero", "Días p/salir", "Franja", "En riesgo (cajas)", "Hectolitros"];
-    h.columns = [10, 36, 11, 12, 14, 12, 11, 11, 12, 13, 11, 20, 14, 13].map((w) => ({ width: w }));
+    /* «DÓNDE ESTÁ» Y «ESTADOS», EN UNA CELDA CADA UNO: «quiero ver los materiales, los estados y en una
+       celda las ubicaciones donde se encuentra, separadas con un guion». Las ubicaciones van con su zona
+       (D11_IZQ RETORNO) y en orden natural (A2 antes que A10); los estados son la condición del envase
+       (RETORNO, LAVADO…) y las marcas del conteo (Avería, PNC). Sin nada de eso, «Normal». */
+    const C = ["Código", "Material", "Tipo", "Clase", "Familia", "Ubicaciones", "Dónde está", "Estados", "Estibas físicas", "Cajas", "Unidades", "Vence primero", "Días p/salir", "Franja", "En riesgo (cajas)", "Hectolitros"];
+    h.columns = [10, 36, 11, 12, 14, 11, 46, 22, 11, 11, 12, 13, 11, 20, 14, 13].map((w) => ({ width: w }));
     cabecera(h, "Por material", `${sub}  ·  las cifras son fórmulas sobre «Conteo consolidado»`, C.length);
-    encabezado(h, 6, C, [6, 7, 8, 9, 11, 13, 14]);
+    encabezado(h, 6, C, [6, 9, 10, 11, 13, 15, 16]);
     /* TODO LO CONTADO, envase incluido: esta hoja es el inventario del
        día, no el riesgo. El envase sale con su tipo y su franja «Sin
        fecha», que es exactamente lo que es. */
@@ -609,16 +613,30 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
       const n = 7 + i, r = h.getRow(n);
       const delCodigo = filas.filter((x) => x.l.codigo === m.codigo), sm = (k: keyof Fila) => delCodigo.reduce((a, x) => a + Number(x[k]), 0);
       const crit = `${rb("cod")},$A${n}`;
+      const donde = [...new Set(delCodigo.map((x) => (x.l.ubicacion_combinada ?? x.l.ubicacion ?? "").trim()).filter(Boolean))].sort(natural);
+      const marcas = new Set<string>();
+      for (const x of delCodigo) {
+        if (x.l.estado_envase?.trim()) marcas.add(x.l.estado_envase.trim().toUpperCase());
+        if (x.l.averia) marcas.add("Avería");
+        if (x.l.pnc) marcas.add("PNC");
+      }
+      const estados = [...marcas].sort(natural).join(" - ") || "Normal";
       r.values = [m.codigo, m.nombre, matPorSku.get(m.codigo)?.tipo_material ?? "",
         fx(`IFERROR(INDEX(${rb("clase")},MATCH($A${n},${rb("cod")},0)),"")`, delCodigo[0]?.clase ?? ""), m.familia ?? "",
-        fx(`COUNTIFS(${crit})`, delCodigo.length), fx(`SUMIFS(${rb("fisicas")},${crit})`, sm("fisicas")), fx(`SUMIFS(${rb("cajas")},${crit})`, sm("cajas")),
+        fx(`COUNTIFS(${crit})`, delCodigo.length), donde.join(" - "), estados,
+        fx(`SUMIFS(${rb("fisicas")},${crit})`, sm("fisicas")), fx(`SUMIFS(${rb("cajas")},${crit})`, sm("cajas")),
         fx(`SUMIFS(${rb("unid")},${crit})`, sm("unid")), aDia(m.vence), m.diasSalir, rotFr(m.franja), m.enRiesgoCajas, fx(`SUMIFS(${rb("hl")},${crit})`, sm("hl"))];
-      filaDatos(r, C.length, i % 2 === 1, { 6: "#,##0", 7: "#,##0", 8: "#,##0", 9: "#,##0", 10: "dd/mm/yyyy", 11: "0", 13: "#,##0", 14: "#,##0.00" }, [6, 7, 8, 9, 11, 13, 14]);
+      filaDatos(r, C.length, i % 2 === 1, { 6: "#,##0", 9: "#,##0", 10: "#,##0", 11: "#,##0", 12: "dd/mm/yyyy", 13: "0", 15: "#,##0", 16: "#,##0.00" }, [6, 9, 10, 11, 13, 15, 16]);
       r.getCell(1).font = letra(9.5, TINTA, true);
-      pintarFranja(r.getCell(12), m.franja);
+      /* La lista larga se parte en renglones dentro de la celda y la fila crece (≈ 46 caracteres por línea). */
+      for (const c of [7, 8]) r.getCell(c).alignment = { vertical: "middle", horizontal: "left", indent: 1, wrapText: true };
+      const lineas = Math.max(Math.ceil(donde.join(" - ").length / 46), Math.ceil(estados.length / 22), 1);
+      if (lineas > 1) r.height = Math.min(409, 6 + 13 * lineas);
+      if (estados !== "Normal") r.getCell(8).font = letra(9.5, TINTA, true);
+      pintarFranja(r.getCell(14), m.franja);
     });
     const fm = 6 + Math.max(mats.length, 1);
-    totales(h, fm + 1, 7, fm, [6, 7, 8, 9, 13, 14], C.length, "TOTAL (lo filtrado)", { 14: "#,##0.00" });
+    totales(h, fm + 1, 7, fm, [6, 9, 10, 11, 15, 16], C.length, "TOTAL (lo filtrado)", { 16: "#,##0.00" });
     h.autoFilter = `A6:${col(C.length)}${fm}`;
     h.views = [{ state: "frozen", xSplit: 2, ySplit: 6, showGridLines: false }];
     h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: "6:6" };

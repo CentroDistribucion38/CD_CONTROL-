@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { traducirError } from "@/lib/errores";
-import type { Renglon } from "@/modulos/inventario/fefo";
+import type { ConteoFefo, Renglon } from "@/modulos/inventario/fefo";
 
 /* ===================================================================
    ELIMINAR RENGLONES SUELTOS DE LO ENVIADO — solo quien administra.
@@ -17,13 +17,21 @@ import type { Renglon } from "@/modulos/inventario/fefo";
    sea administrador, que sean renglones de FEFO y que ningún FEFO se quede
    vacío. Queda en el registro de Administración.
 
+   SI LO MARCADO ES TODO LO QUE TIENE UN FEFO (un recorrido de un solo renglón,
+   como el -08 con D11_IZQ RETORNO), quitar renglones lo dejaría vacío y la base
+   no lo deja. Antes eso terminaba en un error y había que ir a «Eliminar FEFO»;
+   ahora la pregunta lo dice («se elimina el FEFO completo») y, al confirmar, se
+   elimina ese FEFO entero y los demás renglones marcados, en una sola acción.
+
    Vive en su propio archivo a propósito: Base.tsx es una pantalla de LECTURA (de
    los borradores no se toca nada) y no habla con la base; esto solo se monta
    para el administrador y solo en la pestaña de lo enviado.
    =================================================================== */
-export function QuitarRenglones({ elegidos, alQuitar }: {
+export function QuitarRenglones({ elegidos, conteos, alQuitar }: {
   /** Los renglones marcados que se ven ahora. */
   elegidos: Renglon[];
+  /** Los recorridos, para saber cuántos renglones tiene cada uno. */
+  conteos: ConteoFefo[];
   /** Se llama cuando la base ya los eliminó (para limpiar las marcas). */
   alQuitar: () => void;
 }) {
@@ -40,14 +48,38 @@ export function QuitarRenglones({ elegidos, alQuitar }: {
     if (firma !== "") { setMal(null); setAviso(null) }
   }, [firma]);
 
+  /* LOS FEFO QUE SE QUEDARÍAN VACÍOS: los marcados son todos los renglones que tienen. */
+  const porConteo = new Map<string, number>();
+  for (const r of elegidos) porConteo.set(r.conteo_id, (porConteo.get(r.conteo_id) ?? 0) + 1);
+  const enteros = conteos.filter((c) => porConteo.has(c.id) && porConteo.get(c.id)! >= Number(c.renglones ?? 0) && Number(c.renglones ?? 0) > 0);
+  const idsEnteros = new Set(enteros.map((c) => c.id));
+  const sueltos = elegidos.filter((r) => !idsEnteros.has(r.conteo_id));
+
   async function quitar() {
     setMal(null); setAviso(null); setOcupado(true);
-    const ids = elegidos.map((r) => r.id);
-    const { data, error } = await createClient().rpc("conteo_fefo_lineas_eliminar", { p_lineas: ids });
+    const supabase = createClient();
+    const hechos: string[] = [];
+    /* Primero los renglones sueltos (todo o nada en una llamada)… */
+    if (sueltos.length) {
+      const { data, error } = await supabase.rpc("conteo_fefo_lineas_eliminar", { p_lineas: sueltos.map((r) => r.id) });
+      if (error) { setOcupado(false); setPide(false); setMal(`No se eliminó ningún renglón: ${traducirError(error.message)}`); return }
+      const por = ((data ?? []) as { codigo: string; eliminados: number }[]).map((x) => `${x.codigo} (${x.eliminados})`).join(", ");
+      hechos.push(`${sueltos.length === 1 ? "se eliminó 1 renglón" : `se eliminaron ${sueltos.length} renglones`}${por ? ` de ${por}` : ""}`);
+    }
+    /* …y después los FEFO que quedaban vacíos, enteros. */
+    for (const c of enteros) {
+      const { error } = await supabase.rpc("conteo_fefo_eliminar", { p_conteo: c.id, p_codigo: c.codigo });
+      if (error) {
+        setOcupado(false); setPide(false);
+        setMal(`${hechos.length ? hechos.join("; ") + ". Pero " : ""}no se pudo eliminar el FEFO ${c.codigo}: ${traducirError(error.message)}`);
+        if (hechos.length) { alQuitar(); router.refresh() }
+        return;
+      }
+      hechos.push(`se eliminó el FEFO ${c.codigo} completo (era su único renglón${porConteo.get(c.id)! > 1 ? "es" : ""})`);
+    }
     setOcupado(false); setPide(false);
-    if (error) { setMal(`No se eliminó ningún renglón: ${traducirError(error.message)}`); return }
-    const por = ((data ?? []) as { codigo: string; eliminados: number }[]).map((x) => `${x.codigo} (${x.eliminados})`).join(", ");
-    setAviso(`${ids.length === 1 ? "Se eliminó 1 renglón" : `Se eliminaron ${ids.length} renglones`}${por ? ` de ${por}` : ""}.`);
+    const t = hechos.join("; ");
+    setAviso(t.charAt(0).toUpperCase() + t.slice(1) + ".");
     alQuitar();
     router.refresh();
   }
@@ -68,7 +100,9 @@ export function QuitarRenglones({ elegidos, alQuitar }: {
       )}
       {pide && n > 0 && (
         <span className="ba-quitar-conf" role="alertdialog" aria-label="Confirmar eliminación de renglones">
-          ¿Eliminar {n === 1 ? "este renglón" : `estos ${n} renglones`}? No se puede deshacer.
+          {enteros.length > 0
+            ? <>{enteros.map((c) => c.codigo).join(", ")} {enteros.length === 1 ? "se quedaría" : "se quedarían"} sin renglones: se {enteros.length === 1 ? "elimina ese FEFO completo" : "eliminan esos FEFO completos"}{sueltos.length ? ` y ${sueltos.length === 1 ? "1 renglón más" : `${sueltos.length} renglones más`}` : ""}. No se puede deshacer.</>
+            : <>¿Eliminar {n === 1 ? "este renglón" : `estos ${n} renglones`}? No se puede deshacer.</>}
           <button type="button" className="btn plano mal" disabled={ocupado} onClick={quitar}>
             {ocupado ? "Eliminando…" : "Sí, eliminar"}
           </button>
