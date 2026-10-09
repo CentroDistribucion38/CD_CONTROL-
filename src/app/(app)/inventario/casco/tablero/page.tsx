@@ -33,29 +33,39 @@ export default async function TableroCascoPage() {
   }
 
   const supabase = await createClient();
-  type Fila = { fecha: string; ubicacion: string; sku: string; hl: number | string; inventario: number | string | null; baja: number | string | null; puesto?: string | null; calidad?: string | null };
-  const leer = (cols: string) => todas<Fila>((d, h) =>
-    supabase.from("casco_registros").select(cols)
-      .order("fecha").order("ubicacion").order("sku").range(d, h) as unknown as PromiseLike<{ data: Fila[] | null; error: { message: string } | null }>);
-  /* PUESTO Y CALIDAD van al informe (la columna UBICACIONES de tu Excel). Si la base todavía no los
-     tiene (falta 2026-10-casco-puesto-calidad.sql), se lee como antes, sin ellos: el tablero nunca
-     se cae por una columna del informe. */
-  let r = await leer("fecha, ubicacion, sku, hl, inventario, baja, puesto, calidad");
-  /* Solo se reintenta si lo que falló fue una COLUMNA. Si fue el tiempo límite, reintentar
-     solo duplica la espera para terminar en el mismo error. */
-  if (r.error && /puesto|calidad|column|does not exist|schema cache/i.test(r.error))
-    r = await leer("fecha, ubicacion, sku, hl, inventario, baja");
 
-  const puntos: Punto[] = r.data.map((x) => ({
-    fecha: x.fecha, ubicacion: x.ubicacion, sku: x.sku, hl: Number(x.hl),
-    inventario: x.inventario == null ? null : Number(x.inventario), baja: x.baja == null ? null : Number(x.baja),
-    puesto: x.puesto ?? null, calidad: x.calidad ?? null,
-  }));
+  /* TODO EL CASCO EN UNA SOLA LECTURA: `casco_tablero_datos()` revisa el permiso una vez y devuelve
+     todos los renglones en un paquete. Leer la tabla por páginas, con el permiso revisado en cada
+     renglón, se pasaba del tiempo límite («statement timeout») con todo el historial. */
+  type Crudo = [string, string, string, number | string, number | string | null, number | string | null, string | null, string | null];
+  const num = (v: number | string | null) => (v == null ? null : Number(v));
+  let puntos: Punto[] = [];
+  let errorLectura: string | null = null;
+  const rpc = await supabase.rpc("casco_tablero_datos");
+  if (!rpc.error) {
+    puntos = ((rpc.data ?? []) as Crudo[]).map((x) => ({
+      fecha: x[0], ubicacion: x[1], sku: x[2], hl: Number(x[3]),
+      inventario: num(x[4]), baja: num(x[5]), puesto: x[6] ?? null, calidad: x[7] ?? null,
+    }));
+  } else if (/casco_tablero_datos|PGRST202|could not find the function/i.test(`${rpc.error.code} ${rpc.error.message}`)) {
+    /* Todavía no se corrió 2026-10-casco-tablero-rapido.sql: se lee como antes, por páginas. */
+    type Fila = { fecha: string; ubicacion: string; sku: string; hl: number | string; inventario: number | string | null; baja: number | string | null };
+    const r = await todas<Fila>((d, h) =>
+      supabase.from("casco_registros").select("fecha, ubicacion, sku, hl, inventario, baja")
+        .order("fecha").order("ubicacion").order("sku").range(d, h));
+    errorLectura = r.error ? `${r.error}. Corre en Supabase supabase/migraciones/2026-10-casco-tablero-rapido.sql` : null;
+    puntos = r.data.map((x) => ({
+      fecha: x.fecha, ubicacion: x.ubicacion, sku: x.sku, hl: Number(x.hl),
+      inventario: num(x.inventario), baja: num(x.baja), puesto: null, calidad: null,
+    }));
+  } else {
+    errorLectura = rpc.error.message;
+  }
   const nombres = Object.fromEntries(materiales.map((m) => [m.sku, m.nombre]));
 
   return (
     <div className="fe cvt">
-      <TableroCasco puntos={puntos} sitios={sitios.lista} nombres={nombres} errorLectura={r.error} />
+      <TableroCasco puntos={puntos} sitios={sitios.lista} nombres={nombres} errorLectura={errorLectura} />
     </div>
   );
 }
