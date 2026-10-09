@@ -120,14 +120,14 @@ export function armarWordCasco(
   }) });
   cuerpo.push(tabla(anchos, [
     fila((s) => [{ t: "■ ", color: colorSitio(s.clave).fondo.slice(1), tam: 8 }, { t: s.nombre.toUpperCase(), b: true, tam: 6.3, color: G }]),
-    fila((s) => [{ t: fmt.hl(s.total), b: true, tam: 16, color: T }]),
+    fila((s) => [{ t: fmt.hl(s.total), b: true, tam: 16, color: T }, { t: `   ${fmt.viajes(s.viajes)}`, b: true, tam: 12, color: T }, { t: " viajes", tam: 7, color: G }]),
     fila((s) => {
       const dl = s.anterior ? s.total - s.anterior.total : null;
       return [{ t: `HL al ${s.fecha ? corta(s.fecha) : "—"}${d.total > 0 ? ` · ${Math.round(s.total / d.total * 100)} %` : ""} · ` +
         (dl == null ? `${s.filas.length} mat.` : `${conSigno(dl, fmt.hl)} vs ${corta(s.anterior!.fecha)}`), tam: 6.5, color: dl != null && dl > 0.05 ? "C8102E" : G }];
     }),
   ], { bordes: false }));
-  cuerpo.push(par([{ t: "El % es la parte de cada almacén en el total del último día. En rojo: subió contra su conteo anterior.", tam: 7, color: G }], { antes: 60, despues: 200 }));
+  cuerpo.push(par([{ t: "Viajes SERPRO = estibas del último conteo ÷ 100. El % es la parte de cada almacén en el total del último día. En rojo: subió contra su conteo anterior.", tam: 7, color: G }], { antes: 60, despues: 200 }));
 
   /* ---------- GRÁFICA ---------- */
   titulo("Envases pendientes por partir (HL)");
@@ -141,7 +141,7 @@ export function armarWordCasco(
     const cols = columnasAlmacen(s, ANCHO_MM);
     /* EL TÍTULO DEL ALMACÉN es el de todas las partes (párrafo con «mantener con el siguiente»,
        así nunca queda solo al pie de una hoja), con el cuadrito en SU color de la gráfica. */
-    titulo(s.nombre, s.fecha ? `conteo del ${larga(s.fecha)} · ${fmt.hl(s.total)} HL` : "sin conteo en el periodo", colorSitio(s.clave).fondo.slice(1));
+    titulo(s.nombre, s.fecha ? `conteo del ${larga(s.fecha)} · ${fmt.hl(s.total)} HL · ${fmt.viajes(s.viajes)} viajes` : "sin conteo en el periodo", colorSitio(s.clave).fondo.slice(1));
     if (!s.filas.length) {
       cuerpo.push(par([{ t: "Sin casco con inventario en este conteo.", tam: 9, color: G }], { despues: 240 }));
       continue;

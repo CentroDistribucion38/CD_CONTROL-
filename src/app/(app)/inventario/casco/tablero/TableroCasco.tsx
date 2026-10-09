@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { SitioCasco } from "@/modulos/casco/datos";
 import { ejeNice, estadoAlmacen, estibasDelDia, filtrar, porFecha, porMaterial, viajesSerpro, type Punto } from "@/modulos/casco/serie";
-import { media, type DatosInformeCasco } from "@/modulos/casco/informe";
+import { enOrdenInforme, media, type DatosInformeCasco } from "@/modulos/casco/informe";
 import { BotonesInforme } from "./BotonesInforme";
 
 /**
@@ -96,7 +96,8 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura }: {
      conteo dentro del periodo, y solo los materiales con algo (estibas, baja o HL). */
   const datosInforme = useMemo<DatosInformeCasco | null>(() => {
     if (!serie.length) return null;
-    const claves = sitios.map((s) => s.clave).filter((k) => sitiosVis.includes(k));
+    /* EN EL INFORME, los almacenes van Carnaval, Bodega, Fábrica y Atlántico (en pantalla, como siempre). */
+    const claves = sitios.map((s) => s.clave).filter((k) => sitiosVis.includes(k)).sort(enOrdenInforme);
     const corte = serie[serie.length - 1].fecha;
     const filtros = [
       sitiosVis.length < sitios.length ? `Ubicación: ${sitios.filter((s) => sitiosVis.includes(s.clave)).map((s) => s.centro ?? s.nombre).join(", ")}` : "",
@@ -127,7 +128,7 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura }: {
         const e = estadoAlmacen(vistos, k);
         return {
           clave: k, centro: s.centro ?? k, nombre: s.nombre, rotuloBaja: s.baja_rotulo,
-          fecha: e.fecha, total: e.total, estibas: e.estibas, anterior: e.anterior,
+          fecha: e.fecha, total: e.total, estibas: e.estibas, viajes: viajesSerpro(e.estibas), anterior: e.anterior,
           filas: e.filas.map((f) => ({ ...f, nombre: nombres[f.sku] ?? f.sku })),
         };
       }),

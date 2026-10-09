@@ -31,6 +31,14 @@ export const COLOR_SITIO: Record<string, { fondo: string; tinta: string }> = {
 };
 export const colorSitio = (k: string) => COLOR_SITIO[k] ?? { fondo: "#999999", tinta: "#FFFFFF" };
 
+/* EL ORDEN DE LOS ALMACENES EN EL INFORME: «Carnaval, Bodega, Fábrica y Atlántico». Manda en las
+   tarjetas, en las secciones, en las columnas de las tablas y en la leyenda de la gráfica. */
+export const ORDEN_INFORME = ["CARNAVAL", "BODEGA 38", "FABRICA", "CARNAVAL PALMAR"];
+export const enOrdenInforme = (a: string, b: string) => {
+  const i = (k: string) => { const n = ORDEN_INFORME.indexOf(k); return n < 0 ? 99 : n };
+  return i(a) - i(b);
+};
+
 export type FilaInformeCasco = {
   sku: string; nombre: string;
   inventario: number; baja: number; hl: number;
@@ -47,6 +55,8 @@ export type SitioInforme = {
   rotuloBaja: string | null;
   fecha: string | null;
   total: number; estibas: number;
+  /** Viajes SERPRO de ESTE almacén: sus estibas del último conteo ÷ 100 (la misma regla del total). */
+  viajes: number;
   anterior: { fecha: string; total: number } | null;
   filas: FilaInformeCasco[];
 };
@@ -357,6 +367,10 @@ export function dibujarInformeCasco(
     /* El nombre entero, en dos renglones si hace falta: «AG07 ALM. BODEGA» a secas no dice cuál es. */
     doc.text((doc.splitTextToSize(s.nombre.toUpperCase(), kw - 10) as string[]).slice(0, 2), x + 7, y + 5, { lineHeightFactor: 1.15 });
     fuente("bold", 16); tinta(); doc.text(fmt.hl(s.total), x + 3, y + 15.5);
+    /* LOS VIAJES DE ESTE ALMACÉN, a la derecha de su HL. */
+    fuente("bold", 12); tinta(); doc.text(fmt.viajes(s.viajes), x + kw - 3, y + 15.5, { align: "right" });
+    const anchoV = doc.getTextWidth(fmt.viajes(s.viajes));
+    fuente("normal", 6.2); gris(); doc.text("viajes", x + kw - 4 - anchoV, y + 15.5, { align: "right" });
     const dl = s.anterior ? s.total - s.anterior.total : null;
     const nota = `HL al ${s.fecha ? corta(s.fecha) : "—"}${d.total > 0 ? ` · ${nf0.format(s.total / d.total * 100)} %` : ""} · ` +
       (dl == null ? `${s.filas.length} mat.` : `${conSigno(dl, fmt.hl)} vs ${corta(s.anterior!.fecha)}`);
@@ -366,7 +380,7 @@ export function dibujarInformeCasco(
   });
   y += KH + 3;
   fuente("normal", 7); gris();
-  doc.text("El % es la parte de cada almacén en el total del último día. En rojo: subió contra su conteo anterior.", M, y + 1);
+  doc.text("Viajes SERPRO = estibas del último conteo ÷ 100. El % es la parte de cada almacén en el total del último día. En rojo: subió contra su conteo anterior.", M, y + 1);
   y += 8;
 
   /* ---------------- LA GRÁFICA ---------------- */
@@ -406,7 +420,7 @@ export function dibujarInformeCasco(
     const ALTO_CAB = titCols.some((l) => l.length > 1) ? 9.4 : FILA;
     const cab = (sigue: boolean) => {
       titulo(`${s.nombre}${sigue ? " (continúa)" : ""}`,
-             s.fecha ? `conteo del ${larga(s.fecha)} · ${fmt.hl(s.total)} HL` : "sin conteo en el periodo",
+             s.fecha ? `conteo del ${larga(s.fecha)} · ${fmt.hl(s.total)} HL · ${fmt.viajes(s.viajes)} viajes` : "sin conteo en el periodo",
              hexRGB(colorSitio(s.clave).fondo));
       doc.setFillColor(...TINTA); doc.rect(M, y, ANCHO, ALTO_CAB, "F");
       doc.setTextColor(255, 255, 255); fuente("bold", 8);
