@@ -38,10 +38,13 @@ export type Rotura = {
   /** Rotas + contaminadas. Las dos pierden el líquido. Cero en EER. */
   unidades_liquido: number;
   /* ---- LO QUE VALE ESTA ROTURA ----
-     Sale de los precios del MM60, que son POR BOTELLA. La regla:
+     LO REPORTADO SON CAJAS. Los precios del MM60 son POR BOTELLA, así
+     que se multiplica por el factor (unidades por caja del maestro):
 
-       ROTA         solo el envase.      unidades × precio del envase
-       CONTAMINADA  envase y producto.   contaminadas × (envase + producto)
+       ROTA         solo el envase.      cajas × factor × precio del envase
+       CONTAMINADA  envase y producto.   cajas × factor × (envase + producto)
+
+     (2026-10-roturas-cobro-por-caja.sql)
 
      En producto terminado el envase es el que el maestro le asocia; en
      EER el material ES el envase y no hay producto que sumar.
@@ -53,6 +56,10 @@ export type Rotura = {
   cobro_rotas?: number | null;
   cobro_contaminadas?: number | null;
   cobro_total?: number | null;
+  /** Unidades por caja del material (maestro de Inventario). Sin él, el cobro sale nulo. */
+  factor_caja?: number | null;
+  precio_caja_envase?: number | null;
+  precio_caja_producto?: number | null;
   /** Botellas rotas (PT) o unidades (EER). Las contaminadas NO entran. */
   unidades_vidrio: number;
   proceso: string;

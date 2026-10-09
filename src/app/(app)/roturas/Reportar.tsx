@@ -742,12 +742,12 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
 
             <div className="linea-campos">
               <div>
-                <span className="rot-campo">Unidades rotas</span>
+                <span className="rot-campo">Cajas rotas</span>
                 <div className="conteo">
                   <span className="cel-step grande">
                     <button type="button" onClick={() => setUnidades((n) => Math.max(0, n - 1))}
                             aria-label="una menos">−</button>
-                    <input value={unidades} inputMode="numeric" aria-label="unidades rotas"
+                    <input value={unidades} inputMode="numeric" aria-label="cajas rotas"
                            onChange={(e) =>
                              setUnidades(Math.max(0, Number(e.target.value.replace(/\D/g, "")) || 0))} />
                     <button type="button" onClick={() => setUnidades((n) => n + 1)}
@@ -765,12 +765,12 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
                   envase retornable vacío no tiene líquido que contaminar. */}
               {esPT && (
                 <div>
-                  <span className="rot-campo">Unidades contaminadas</span>
+                  <span className="rot-campo">Cajas contaminadas</span>
                   <div className="conteo">
                     <span className="cel-step grande">
                       <button type="button" onClick={() => setContaminadas((n) => Math.max(0, n - 1))}
                               aria-label="una menos">−</button>
-                      <input value={contaminadas} inputMode="numeric" aria-label="unidades contaminadas"
+                      <input value={contaminadas} inputMode="numeric" aria-label="cajas contaminadas"
                              onChange={(e) =>
                                setContaminadas(Math.max(0, Number(e.target.value.replace(/\D/g, "")) || 0))} />
                       <button type="button" onClick={() => setContaminadas((n) => n + 1)}

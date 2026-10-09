@@ -384,29 +384,16 @@ export function Tablero({ roturas, nombres, manda }: {
                         <div className="tb-ficha">
                           <div className="tb-datos">
                             <div><b>Área</b> {r.area_nombre ?? "—"}</div>
-                            {/* LO QUE SE PERDIÓ, EN LAS UNIDADES QUE LA
-                                BASE DE VERDAD TIENE. Aquí decía «se
-                                pierde X de líquido y Y de envase» y eso
-                                se quedó corto el día que se supo la
-                                regla de cobro: en una contaminada el
-                                envase TAMBIÉN se pierde —no se lava ni
-                                vuelve a la línea—, y ese envase no está
-                                contado en `unidades_vidrio`, que solo
-                                mira las rotas.
-
-                                Falta además el dato para cobrarlo: los
-                                precios van por BOTELLA y de las
-                                contaminadas solo se guardan los
-                                empaques, no las botellas de adentro.
-                                Mientras eso no exista, este renglón dice
-                                lo que se contó y no lo que se cobra:
-                                inventar el número sería peor que no
-                                darlo. */}
+                            {/* LO QUE SE PERDIÓ Y LO QUE SE COBRA: cajas reportadas × factor × precio de la botella (v_roturas). */}
                             <div><b>Se perdió</b>{" "}
-                              {r.tipo === "eer"
-                                ? `${r.unidades} de envase`
-                                : `${r.unidades} rotas (${r.unidades_vidrio} botellas)`
-                                  + (r.contaminadas ? ` y ${r.contaminadas} contaminadas` : "")}
+                              {`${r.unidades} caja${r.unidades === 1 ? "" : "s"} ${r.tipo === "eer" ? "de envase" : "rotas"}`
+                                + (r.contaminadas ? ` y ${r.contaminadas} contaminada${r.contaminadas === 1 ? "" : "s"}` : "")
+                                + (r.factor_caja ? ` · factor ${r.factor_caja} por caja` : " · sin factor en el maestro")}
+                            </div>
+                            <div><b>Cobro</b>{" "}
+                              {r.cobro_total != null
+                                ? new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(Number(r.cobro_total))
+                                : "sin precio o sin factor"}
                             </div>
                             <div><b>Fotos</b> {r.fotos}</div>
                             {r.ol_nota && <div><b>Dice el OL</b> «{r.ol_nota}»</div>}

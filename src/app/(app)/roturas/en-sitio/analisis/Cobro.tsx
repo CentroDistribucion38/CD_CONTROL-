@@ -47,10 +47,10 @@ export function DeDondeSale({ c }: { c: Cobro }) {
   const formas = [
     { id: "rotas", nom: "Rotas", valor: c.rotas,
       que: "El producto se pierde en sitio: se le cobra reponer la botella.",
-      formula: "unidades × precio del envase", chip: "SOLO ENVASE" },
+      formula: "cajas × factor × precio botella del envase", chip: "SOLO ENVASE" },
     { id: "cont", nom: "Contaminadas", valor: c.contaminadas,
       que: "El envase contaminado no vuelve a la línea: se cobra envase y producto.",
-      formula: "unidades × (precio del envase + precio del producto)",
+      formula: "cajas × factor × (precio botella del envase + del producto)",
       chip: "ENVASE + PRODUCTO" },
   ].sort((x, z) => z.valor - x.valor);
 
@@ -72,7 +72,7 @@ export function DeDondeSale({ c }: { c: Cobro }) {
             <small>$</small>
             {new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 }).format(c.total)}
           </div>
-          <p className="rq-cobro-sub">Valorizado con los precios del maestro, por botella.</p>
+          <p className="rq-cobro-sub">Valorizado por caja: lo reportado son cajas, y el precio de la caja es el de la botella del maestro × su factor (unidades por caja).</p>
         </div>
         <div className={"rq-cobro-quien" + (nAsum === 0 && nNo > 0 ? " no" : "")}>
           <p className="rot">LO ASUME</p>
@@ -165,7 +165,7 @@ export function DeDondeSale({ c }: { c: Cobro }) {
         {c.sinPrecio > 0 && (
           <p className="rq-mas">
             <b>{c.sinPrecio} rotura{c.sinPrecio === 1 ? "" : "s"} a cobro sin precio.</b> Al
-            material le falta el suyo en el maestro, así que no entra en esta cuenta — el total
+            material le falta el precio o el factor (unidades por caja) en el maestro, así que no entra en esta cuenta — el total
             de arriba se queda corto hasta que se llene en Inventario → Maestro.
           </p>
         )}

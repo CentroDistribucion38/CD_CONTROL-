@@ -342,10 +342,10 @@ export function dibujarInformeSitio(
   const formas = [
     { nom: "Rotas", valor: d.plataRotas, oro: true,
       que: "El producto se pierde en sitio: se le cobra reponer la botella.",
-      formula: "unidades x precio del envase", chip: "SOLO ENVASE" },
+      formula: "cajas x factor x precio botella del envase", chip: "SOLO ENVASE" },
     { nom: "Contaminadas", valor: d.plataCont, oro: false,
       que: "El envase contaminado no vuelve a la línea: se cobra envase y producto.",
-      formula: "unidades x (precio del envase + precio del producto)",
+      formula: "cajas x factor x (precio botella del envase + del producto)",
       chip: "ENVASE + PRODUCTO" },
   ].sort((x, z) => z.valor - x.valor);
   /* EL DORADO ES FIJO Y NO EL ACENTO DEL TEMA: en el tema OFICIAL el
@@ -359,7 +359,7 @@ export function dibujarInformeSitio(
   const BARRA_PK: RGB = [107, 126, 149];
 
   cabe(34 + 30 + Math.min(d.porCausa.length, 4) * 6);
-  titulo(`De dónde salen ${money(d.plata)}`, "precios del maestro, por botella");
+  titulo(`De dónde salen ${money(d.plata)}`, "por caja: precio de la botella del maestro x factor");
 
   /* LA BARRA: cuál de las dos formas es el problema, sin restar de
      cabeza. Con cero a cobro no se pinta nada y no se divide. */
