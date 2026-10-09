@@ -61,7 +61,11 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
   const [vista, setVista] = useState<"registrar" | "historial">("registrar");
   const [fm, setFm] = useState(FILTROS_VACIOS);
 
-  const dato = useMemo(() => Object.fromEntries(materiales.map((m) => [m.sku, m])), [materiales]);
+  /* SOLO ENVASES: «que aquí solo aparezca lo de envase, no producto». El desplegable y la validación
+     usan la misma lista, así que un código de producto escrito a mano tampoco pasa. */
+  const envases = useMemo(() => materiales.filter((m) => m.envase), [materiales]);
+  const dato = useMemo(() => Object.fromEntries(envases.map((m) => [m.sku, m])), [envases]);
+  const todos = useMemo(() => Object.fromEntries(materiales.map((m) => [m.sku, m])), [materiales]);
   const origenes = useMemo(() => (items ?? []).filter((i) => i.tipo === "origen"), [items]);
   const receptores = useMemo(() => (items ?? []).filter((i) => i.tipo === "receptor"), [items]);
   const clientes = useMemo(() => (items ?? []).filter((i) => i.tipo === "cliente"), [items]);
@@ -117,7 +121,7 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
     if (!l.origen_id) return "Falta el origen";
     if (!l.destino_id) return "Falta el receptor o el cliente";
     if (!l.sku.trim()) return "Falta el material";
-    if (!dato[l.sku.trim()]) return "Ese código no está en el maestro";
+    if (!dato[l.sku.trim()]) return todos[l.sku.trim()] ? "Ese código es un producto, no un envase" : "Ese código no está en el maestro";
     const n = Number(l.estibas.replace(",", "."));
     if (!(n > 0)) return "Falta la cantidad";
     const o = porId[l.origen_id], d = porId[l.destino_id];
@@ -206,7 +210,7 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
       {dialogo}
       {falla && <p className="cas-aviso mal">{falla}</p>}
       <datalist id="reg-materiales">
-        {materiales.map((m) => <option key={m.sku} value={m.sku}>{m.nombre}</option>)}
+        {envases.map((m) => <option key={m.sku} value={m.sku}>{m.nombre}</option>)}
       </datalist>
 
       <div className="reg-hojas reg-sub" role="tablist" aria-label="Movimiento">
@@ -262,7 +266,7 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
                       <input className="cas-txt reg-sku" list="reg-materiales" inputMode="numeric" placeholder="Código" value={l.sku}
                              disabled={!puedeEditar} onChange={(e) => poner(l.k, { sku: e.target.value })} />
                     </td>
-                    <td className="tex">{dato[l.sku.trim()]?.nombre ?? <span className="reg-tenue">{l.sku.trim() ? "No está en el maestro" : "—"}</span>}</td>
+                    <td className="tex">{dato[l.sku.trim()]?.nombre ?? <span className="reg-tenue">{!l.sku.trim() ? "—" : todos[l.sku.trim()] ? "Es producto, no envase" : "No está en el maestro"}</span>}</td>
                     <td className="n">
                       <input className="cas-txt reg-num" inputMode="decimal" placeholder="0" value={l.estibas}
                              disabled={!puedeEditar} onChange={(e) => poner(l.k, { estibas: e.target.value })} />

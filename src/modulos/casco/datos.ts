@@ -29,6 +29,9 @@ export type MaterialCasco = {
   botellas_estiba: number | null;
   /** Sale de entrada en el desplegable (los envases y los que ya se han registrado). */
   corto: boolean;
+  /** Es un ENVASE (tipo de material ENVASE en el maestro) o un cajón del casco (ANDINA, HEINEKEN…).
+   *  Movimiento solo ofrece estos: el casco es envase, no producto. */
+  envase?: boolean;
 };
 
 function sinTablas(msg: string | undefined) {
@@ -87,7 +90,7 @@ export async function materialesCasco(): Promise<MaterialCasco[]> {
   const out: MaterialCasco[] = [];
   for (const e of extras.data ?? []) {
     if (deProds.has(String(e.sku))) continue;     // este sale abajo, con el nombre y el «corto» del maestro
-    out.push({ sku: e.sku as string, nombre: e.nombre as string, corto: true,
+    out.push({ sku: e.sku as string, nombre: e.nombre as string, corto: true, envase: true,
       hl_estiba: Number(e.unidades_por_estiba) * Number(e.hl_unidad),
       botellas_estiba: Number(e.unidades_por_estiba) || null });
   }
@@ -99,6 +102,7 @@ export async function materialesCasco(): Promise<MaterialCasco[]> {
         hl_estiba: Number(x.unidades_por_estiba) * Number(x.hl_unidad),
         botellas_estiba: Number(x.unidades_por_estiba) || null,
         corto: p.tipo_material === "ENVASE" || yaUsados.has(String(p.sku)),
+        envase: true,
       });
       continue;
     }
@@ -111,6 +115,7 @@ export async function materialesCasco(): Promise<MaterialCasco[]> {
       hl_estiba: botellas && hlBotella ? botellas * hlBotella : null,
       botellas_estiba: botellas || null,
       corto: p.tipo_material === "ENVASE" || yaUsados.has(String(p.sku)),
+      envase: p.tipo_material === "ENVASE",
     });
   }
   return out;
