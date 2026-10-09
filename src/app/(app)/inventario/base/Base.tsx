@@ -128,20 +128,12 @@ type Col<T> = {
   pinta?: (r: T) => ReactNode;
 };
 
-/* «SE SUMA CON …»: la misma ubicación la contó otra persona y las dos cantidades valen (ver
-   `base-cruce.ts`). Se dice en el renglón para que nadie crea que es un renglón repetido. */
-function Sumado({ r }: { r: Renglon }) {
-  const con = (r as Partial<Vigente>).con;
-  if (!con || con.length === 0) return null;
-  return <span className="ba-con" title={`Esta ubicación también la contó ${con.join(" y ")}: las dos cantidades se suman.`}>+ se suma con {con.join(", ")}</span>;
-}
-
 const COLUMNAS: Col<Renglon>[] = [
   { k: "calle", t: "Calle", texto: (r) => r.calle ?? "" },
   { k: "modulo", t: "Módulo", texto: (r) => r.modulo ?? "" },
   { k: "lado", t: "Lado", texto: (r) => r.lado ?? "" },
   { k: "ubicacion_combinada", t: "Ubicación", texto: (r) => r.ubicacion_combinada ?? r.ubicacion ?? "",
-    pinta: (r) => <>{r.ubicacion_combinada ?? r.ubicacion ?? ""}<Sumado r={r} /></> },
+    pinta: (r) => <>{r.ubicacion_combinada ?? r.ubicacion ?? ""}</> },
   { k: "codigo", t: "Código", texto: (r) => r.codigo },
   { k: "material", t: "Material", texto: (r) => r.material },
   { k: "familia", t: "Familia", texto: (r) => r.familia ?? "" },
@@ -217,7 +209,7 @@ const COLUMNAS: Col<Renglon>[] = [
 /* Las columnas de la tabla CORTA. Las veintiséis están en COLUMNAS. */
 const ubi = (r: Renglon) => r.ubicacion_combinada ?? r.ubicacion ?? "";
 const CORTAS: Col<Fila>[] = [
-  { k: "ub", t: "Ubicación", texto: ubi, pinta: (r) => <span className="ba-ub">{ubi(r) || "—"}<Sumado r={r} /></span> },
+  { k: "ub", t: "Ubicación", texto: ubi, pinta: (r) => <span className="ba-ub">{ubi(r) || "—"}</span> },
   { k: "material", t: "Material", texto: (r) => r.material,
     pinta: (r) => (
       <span className="ba-mat">
@@ -249,6 +241,13 @@ const CORTAS: Col<Fila>[] = [
       </span>
     ) },
 ];
+/* «CONTÓ», AL LADO DE LA UBICACIÓN: si dos personas contaron la misma ubicación, cada una sale en su
+   renglón con su nombre y lo que ella contó, sin chip ni suma en la celda. Solo en pantalla: el Excel ya
+   trae «Quién contó». */
+const CONTO: Col<Fila> = {
+  k: "conto_quien", t: "Contó", texto: (r) => r.quien,
+  pinta: (r) => <span className="ba-quien">{r.quien}</span>,
+};
 const ESTADO: Col<Fila> = {
   k: "estado", t: "Estado", texto: (r) => (r.pasado ? "PASADO" : "POR PASAR"), valor: (r) => (r.pasado ? 1 : 0),
   pinta: (r) => <span className={r.pasado ? "ba-pas" : "ba-pen"}>{r.pasado ? "PASADO" : "POR PASAR"}</span>,
@@ -421,7 +420,9 @@ export function Base({
   } as Record<string, number>;
 
   const columnas: Col<Fila>[] = useMemo(() => {
-    const base: Col<Fila>[] = completa ? (COLUMNAS as Col<Fila>[]) : CORTAS;
+    const base0: Col<Fila>[] = completa ? (COLUMNAS as Col<Fila>[]) : CORTAS;
+    const i = base0.findIndex((c) => c.k === "ub" || c.k === "ubicacion_combinada");
+    const base = [...base0.slice(0, i + 1), CONTO, ...base0.slice(i + 1)];
     return pestania === "base" ? [...base, ESTADO] : base;
   }, [completa, pestania]);
 
@@ -613,7 +614,7 @@ export function Base({
           <div><span className="ba-eti">Cajas</span><b>{nf.format(kp.cajas)}</b><small>en la base</small></div>
           <div><span className="ba-eti">Ubicaciones</span><b>{nf.format(kp.ubicaciones)}</b><small>distintas</small></div>
           <div className="az"><span className="ba-eti">Repetidas</span><b>{nf.format(kp.repetidas)}</b><small>misma persona: vale su último conteo</small></div>
-          <div><span className="ba-eti">Contadas por 2+</span><b>{nf.format(kp.compartidas)}</b><small>personas distintas: se suman</small></div>
+          <div><span className="ba-eti">Contadas por 2+</span><b>{nf.format(kp.compartidas)}</b><small>personas distintas: cada una en su renglón</small></div>
         </section>
       )}
 

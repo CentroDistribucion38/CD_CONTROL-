@@ -299,3 +299,6 @@
   font: 700 11px var(--fe-texto); color: var(--fe-tinta);
   background: color-mix(in srgb, var(--fe-acento) 28%, #fff); border: 1px solid var(--fe-acento);
 }
+
+/* «Contó»: quién contó el renglón, al lado de la ubicación. */
+.fe .ba-quien { font-weight: 700; color: var(--fe-tinta); white-space: nowrap }
