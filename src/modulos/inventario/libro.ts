@@ -613,6 +613,27 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
   {
     const estadoDe = (x: Fila) => [x.l.estado_envase?.trim().toUpperCase() || "", x.l.averia ? "AVERÍA" : "", x.l.pnc ? "PNC" : ""]
       .filter(Boolean).join(" + ") || "NORMAL";
+    /* LAS UBICACIONES, ENTENDIBLES: «que la división de ubicaciones no sea enredada». Una línea por
+       CALLE, en orden, y la ubicación SIN la palabra del estado (si el filtro es BAJA, «C04_IZQ BAJA»
+       dice lo mismo dos veces):
+           C:  C04_IZQ - C05_DER
+           D:  D11_IZQ
+       Si la zona de la ubicación no es la del estado escogido, se deja (dice algo distinto). */
+    const ordenarUbicaciones = (xs: Fila[]) => {
+      const porCalle = new Map<string, Set<string>>();
+      for (const x of xs) {
+        const base = (x.l.ubicacion ?? x.l.ubicacion_combinada ?? "").trim();
+        const comb = (x.l.ubicacion_combinada ?? base).trim();
+        const zona = comb.startsWith(base) ? comb.slice(base.length).trim().toUpperCase() : "";
+        const estadoFila = (x.l.estado_envase ?? "").trim().toUpperCase();
+        const nombre = zona && zona !== estadoFila ? comb : base;
+        if (!nombre) continue;
+        const calle = (x.l.calle ?? nombre.match(/^[A-Za-zÑñ]+/)?.[0] ?? "—").toUpperCase();
+        (porCalle.get(calle) ?? porCalle.set(calle, new Set()).get(calle)!).add(nombre);
+      }
+      return [...porCalle.entries()].sort((a, b) => natural(a[0], b[0]))
+        .map(([calle, us]) => `${calle}:  ${[...us].sort(natural).join(" - ")}`).join("\n");
+    };
     const porEstado = new Map<string, Map<string, Fila[]>>();
     for (const x of filas) {
       const e = estadoDe(x);
@@ -622,7 +643,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     const estados = [...porEstado.keys()].sort(natural);
     const listas = estados.map((e) => [...porEstado.get(e)!.values()].map((xs) => ({
       cod: xs[0].l.codigo, desc: xs[0].l.material.toUpperCase(),
-      ubic: [...new Set(xs.map((x) => (x.l.ubicacion_combinada ?? x.l.ubicacion ?? "").trim()).filter(Boolean))].sort(natural).join(" - "),
+      ubic: ordenarUbicaciones(xs),
       est: xs.reduce((t, x) => t + x.fisicas, 0), cajas: xs.reduce((t, x) => t + x.cajas, 0),
     })).sort((x, y) => natural(x.cod, y.cod)));
     const N = Math.max(1, ...listas.map((l) => l.length));
@@ -669,7 +690,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     for (let k = 0; k < N; k++) {
       const r = F0 + k, fila = h.getRow(r);
       const m = listas[iSel]?.[k];
-      const largo = Math.max(Math.ceil((m?.ubic.length ?? 0) / 70), Math.ceil((m?.desc.length ?? 0) / 50), 1);
+      const largo = Math.max((m?.ubic ?? "").split("\n").reduce((t, l) => t + Math.max(1, Math.ceil(l.length / 66)), 0), Math.ceil((m?.desc.length ?? 0) / 50), 1);
       fila.height = Math.max(20, 6 + 14 * largo);
       for (let c = 0; c < G; c++) {
         const idx = `INDEX(${rango},${k + 1},MATCH($B$7,${cab},0)+${c})`;
@@ -677,7 +698,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
         const x = fila.getCell(c + 1);
         x.value = { formula: `IFERROR(IF(${idx}="","",${idx}),"")`, result: res };
         x.border = borde; x.font = letra(11, "FF000000", c === 0);
-        x.alignment = { vertical: "middle", horizontal: "center", wrapText: c === 1 || c === 2 };
+        x.alignment = { vertical: "middle", horizontal: c === 2 ? "left" : "center", wrapText: c === 1 || c === 2, indent: c === 2 ? 1 : 0 };
         if (c >= 3) x.numFmt = "#,##0;\\-#,##0;";
       }
     }
