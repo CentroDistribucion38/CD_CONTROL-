@@ -8,6 +8,10 @@ import { CampoCuenta } from "./CampoCuenta";
 import { useConfirmar } from "@/components/Confirmar";
 import { esCuenta, suma } from "@/modulos/casco/suma";
 import type { MaterialCasco, SitioCasco } from "@/modulos/casco/datos";
+import type { UbicacionesInventario } from "@/modulos/casco/ubicaciones-inventario";
+
+/** Qué estado del inventario alimenta las ubicaciones de cada tabla (igual que ESTADO_POR_CENTRO). */
+const ESTADO_UBIC: Record<string, string> = { AG18: "LAVADO", AG22: "BAJA" };
 
 /**
  * CASCO DE VIDRIO — LAS CUATRO TABLAS DEL EXCEL, UNA DEBAJO DE OTRA.
@@ -63,8 +67,10 @@ const guardarBorrador = (fecha: string, clave: string, filas: Fila[]) => {
 const borrarBorrador = (fecha: string, clave: string) => { try { localStorage.removeItem(llaveBorrador(fecha, clave)) } catch { /* nada */ } };
 const hora = (iso: string) => new Date(iso).toLocaleString("es-CO", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
-export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar }: {
+export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar, delInventario = null }: {
   sitios: SitioCasco[]; materiales: MaterialCasco[]; hoy: string; inicio?: string; puestos: string[]; puedeEditar: boolean;
+  /** Las ubicaciones del último inventario, por centro y material (null si no hay o tu rol no lo ve). */
+  delInventario?: UbicacionesInventario | null;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [pedir, dialogo] = useConfirmar();
@@ -120,10 +126,29 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar }:
       baja: conCuenta(r.baja_expr, r.baja) ?? (Number(r.baja) ? aTexto(r.baja) : ""),
       puesto: r.puesto ?? "", calidad: r.calidad ?? "",
     }));
+    /* LAS UBICACIONES SALEN DEL ÚLTIMO INVENTARIO: Fábrica (AG18) de lo que está en LAVADO y
+       Bodega 38 (AG22) de lo que está en BAJA. Solo en días desde ese inventario, solo en los
+       materiales que el inventario trae en ese estado, y nunca encima de un borrador recuperado
+       (lo que la persona dejó tecleado manda). Si cambia algo, la tabla queda «sin guardar». */
+    const alimentar = (s: SitioCasco, base: Partial<Bloque>): Partial<Bloque> => {
+      const centro = (s.centro ?? "").toUpperCase();
+      const mapa = delInventario?.porCentro[centro];
+      if (!delInventario || !mapa || f < delInventario.fecha || base.recuperado || !base.filas) return base;
+      let n = 0;
+      const filas = base.filas.map((x) => {
+        const u = mapa[x.sku];
+        if (!u || u === x.puesto.trim()) return x;
+        n++; return { ...x, puesto: u };
+      });
+      if (!n) return base;
+      return { ...base, filas, sucio: true, aviso: { tipo: "ok", texto:
+        `${n} ubicaci${n === 1 ? "ón puesta" : "ones puestas"} del inventario del ${largo(delInventario.fecha)} (${ESTADO_UBIC[centro]}). Guarda para dejarla${n === 1 ? "" : "s"}.` } };
+    };
     /* Si hay un borrador de este día y esta tabla, manda el borrador (y se dice). */
     const conBorrador = (clave: string, base: Partial<Bloque>): Partial<Bloque> => {
       const br = leerBorrador(f, clave);
-      return br ? { ...base, filas: br.filas, sucio: true, recuperado: br.en } : { ...base, recuperado: null };
+      const s = sitios.find((x) => x.clave === clave)!;
+      return br ? { ...base, filas: br.filas, sucio: true, recuperado: br.en } : alimentar(s, { ...base, recuperado: null });
     };
     await Promise.all(sitios.map(async (s) => {
       const hoyRows = ((delD ?? []) as Reg[]).filter((r) => r.ubicacion === s.clave);
@@ -140,7 +165,7 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar }:
         poner(s.clave, conBorrador(s.clave, { filas: aFilas((prev ?? []) as Reg[]), arranque: dia, guardado: false, cargando: false, sucio: false }));
       } else poner(s.clave, conBorrador(s.clave, { filas: [], arranque: null, guardado: false, cargando: false, sucio: false }));
     }));
-  }, [supabase, sitios, poner]);
+  }, [supabase, sitios, poner, delInventario]);
 
   useEffect(() => { void cargar(fecha); void totalesDelDia(fecha) }, [fecha, cargar, totalesDelDia]);
 
@@ -387,6 +412,13 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar }:
               </div>
               <div className="cas-bloque-hl"><b>{nf2.format(totHl)}</b><i>HL · {nf0.format(totInv + totBaja)} estibas</i></div>
             </header>
+
+            {delInventario && ESTADO_UBIC[(s.centro ?? "").toUpperCase()] && (
+              <p className="cas-nota">
+                Las <b>ubicaciones</b> salen del inventario del <b>{largo(delInventario.fecha)}</b>, de lo que está en{" "}
+                <b>{ESTADO_UBIC[(s.centro ?? "").toUpperCase()]}</b>. Las puedes corregir aquí; el próximo inventario las vuelve a poner.
+              </p>
+            )}
 
             {b.arranque && !b.sucio && (
               <p className="cas-nota cas-herencia">

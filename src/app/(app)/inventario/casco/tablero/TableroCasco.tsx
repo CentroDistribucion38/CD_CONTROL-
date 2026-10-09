@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { SitioCasco } from "@/modulos/casco/datos";
-import { ejeNice, estadoAlmacen, estibasDelDia, filtrar, porFecha, porMaterial, viajesSerpro, type Punto } from "@/modulos/casco/serie";
+import { ejeNice, estadoAlmacen, filtrar, porFecha, porMaterial, viajesDelDia, viajesSerpro, type Punto } from "@/modulos/casco/serie";
 import { enOrdenInforme, media, type DatosInformeCasco } from "@/modulos/casco/informe";
 import { BotonesInforme } from "./BotonesInforme";
 
@@ -89,7 +89,9 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura }: {
   const hoyD = serie[serie.length - 1], antes = serie[serie.length - 2];
   const delta = hoyD && antes ? hoyD.total - antes.total : null;
   const pico = serie.reduce<typeof hoyD | undefined>((m, d) => (!m || d.total > m.total ? d : m), undefined);
-  const estibasHoy = ultima ? estibasDelDia(puntos, ultima) : 0;
+  /* Cada almacén con su divisor (Fábrica y Bodega ÷ 36, Carnaval y los demás ÷ 100), y se suman. */
+  const centroDe = useCallback((u: string) => sitios.find((s) => s.clave === u)?.centro ?? null, [sitios]);
+  const viajesHoy = useMemo(() => (ultima ? viajesDelDia(puntos, ultima, centroDe) : 0), [puntos, ultima, centroDe]);
 
   /* ---------- EL INFORME (PDF y Word) ----------
      Con los mismos cortes de la pantalla: lo que se ve es lo que sale. Cada almacén va con SU último
@@ -113,7 +115,7 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura }: {
       total: serie[serie.length - 1].total,
       anterior: ant ? { fecha: ant.fecha, total: ant.total } : null,
       pico: { fecha: pk.fecha, total: pk.total },
-      viajes: viajesSerpro(estibasHoy),
+      viajes: viajesHoy,
       claves,
       serie,
       /* «POR MATERIAL» del día que esté escogido en esa tabla, sin los renglones en cero. */
@@ -128,12 +130,12 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura }: {
         const e = estadoAlmacen(vistos, k);
         return {
           clave: k, centro: s.centro ?? k, nombre: s.nombre, rotuloBaja: s.baja_rotulo,
-          fecha: e.fecha, total: e.total, estibas: e.estibas, viajes: viajesSerpro(e.estibas), anterior: e.anterior,
+          fecha: e.fecha, total: e.total, estibas: e.estibas, viajes: viajesSerpro(e.estibas, s.centro ?? k), anterior: e.anterior,
           filas: e.filas.map((f) => ({ ...f, nombre: nombres[f.sku] ?? f.sku })),
         };
       }),
     };
-  }, [serie, vistos, sitiosVis, sku, estibasHoy, sitios, nombres, filasMat, diaMat]);
+  }, [serie, vistos, sitiosVis, sku, viajesHoy, sitios, nombres, filasMat, diaMat]);
 
   const alternar = (k: string) => setSitiosVis((v) => (v.includes(k) ? (v.length > 1 ? v.filter((x) => x !== k) : v) : [...v, k]));
 
@@ -216,7 +218,7 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura }: {
               <i>{antes ? `HL desde el ${corta(antes.fecha)}` : "no hay día anterior en el periodo"}</i>
             </div>
             <div className="cvt-cif"><span className="cvt-lb">Pico del periodo</span><b>{pico ? nf0.format(pico.total) : "—"}</b><i>{pico ? `HL el ${corta(pico.fecha)}` : ""}</i></div>
-            <div className="cvt-cif cvt-serpro"><span className="cvt-lb">Viajes SERPRO</span><b>{nf1.format(viajesSerpro(estibasHoy))}</b><i>estibas del {ultima ? corta(ultima) : "—"} ÷ 100, como tu hoja</i></div>
+            <div className="cvt-cif cvt-serpro"><span className="cvt-lb">Viajes SERPRO</span><b>{nf1.format(viajesHoy)}</b><i>estibas del {ultima ? corta(ultima) : "—"}: Carnaval ÷ 100, Fábrica y Bodega ÷ 36</i></div>
           </div>
 
           {/* ---------- GRÁFICA ---------- */}

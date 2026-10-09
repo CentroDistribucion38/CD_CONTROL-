@@ -1,6 +1,7 @@
 import { misPermisos } from "@/lib/permisos";
 import { materialesCasco, puestosUsados, sitiosCasco } from "@/modulos/casco/datos";
 import { PUESTOS_BASE } from "@/modulos/casco/puestos";
+import { ubicacionesDelInventario } from "@/modulos/casco/ubicaciones-inventario";
 import "../fefo.css";
 import "./casco.css";
 import { Casco } from "./Casco";
@@ -19,8 +20,10 @@ export const dynamic = "force-dynamic";
  * cada quien copia con un factor distinto.
  */
 export default async function CascoPage({ searchParams }: { searchParams: Promise<{ fecha?: string }> }) {
-  const [permisos, sitios, materiales, usados] = await Promise.all([
+  const [permisos, sitios, materiales, usados, delInventario] = await Promise.all([
     misPermisos(), sitiosCasco(), materialesCasco(), puestosUsados(),
+    /* Las ubicaciones de Fábrica (LAVADO) y Bodega 38 (BAJA) salen del último inventario. */
+    ubicacionesDelInventario(),
   ]);
   const puestos = [...new Set([...PUESTOS_BASE, ...usados])];
 
@@ -58,6 +61,7 @@ export default async function CascoPage({ searchParams }: { searchParams: Promis
         inicio={inicio}
         puestos={puestos}
         puedeEditar={permisos.puedeEditar("/inventario/casco")}
+        delInventario={delInventario}
       />
     </div>
   );

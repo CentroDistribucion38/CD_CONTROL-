@@ -55,7 +55,7 @@ export type SitioInforme = {
   rotuloBaja: string | null;
   fecha: string | null;
   total: number; estibas: number;
-  /** Viajes SERPRO de ESTE almacén: sus estibas del último conteo ÷ 100 (la misma regla del total). */
+  /** Viajes SERPRO de ESTE almacén: sus estibas del último conteo ÷ 36 (Fábrica, Bodega) o ÷ 100 (Carnaval y los demás). */
   viajes: number;
   anterior: { fecha: string; total: number } | null;
   filas: FilaInformeCasco[];
@@ -74,7 +74,7 @@ export type DatosInformeCasco = {
   total: number;
   anterior: { fecha: string; total: number } | null;
   pico: { fecha: string; total: number } | null;
-  /** Viajes SERPRO como los dice el tablero (estibas del último día ÷ 100). */
+  /** Viajes SERPRO como los dice el tablero (la suma de los viajes de cada almacén). */
   viajes: number;
   sitios: SitioInforme[];
   /** Los sitios visibles, en el orden de la gráfica (de abajo hacia arriba). */
@@ -379,7 +379,7 @@ export function dibujarInformeCasco(
   });
   y += KH + 3;
   fuente("normal", 7); gris();
-  doc.text("Viajes SERPRO = estibas del último conteo ÷ 100. El % es la parte de cada almacén en el total del último día. En rojo: subió contra su conteo anterior.", M, y + 1);
+  doc.text("Viajes SERPRO = estibas del último conteo ÷ 100 en Carnaval y ÷ 36 en Fábrica y Bodega. El % es la parte de cada almacén en el total del último día. En rojo: subió contra su conteo anterior.", M, y + 1);
   y += 8;
 
   /* ---------------- LA GRÁFICA ---------------- */

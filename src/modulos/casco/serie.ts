@@ -66,8 +66,23 @@ export function porMaterial(puntos: Punto[], fecha: string): FilaMaterial[] {
 export const estibasDelDia = (puntos: Punto[], fecha: string) =>
   puntos.reduce((t, p) => (p.fecha === fecha ? t + (p.inventario ?? 0) + (p.baja ?? 0) : t), 0);
 
-/** Viajes SERPRO como lo calcula tu hoja (Y1/100): estibas totales entre 100. */
-export const viajesSerpro = (estibas: number) => estibas / 100;
+/**
+ * VIAJES SERPRO: LAS ESTIBAS ENTRE LO QUE CABE EN UN VIAJE, Y NO ES IGUAL EN TODOS LOS ALMACENES.
+ * «Carnaval se divide entre 100 estibas, y lo que es Fábrica y Bodega, 36.»
+ * AG18 (Fábrica) y AG22 (Bodega 38) → 36; Carnaval (AG07) y los demás → 100.
+ */
+export const ESTIBAS_POR_VIAJE: Record<string, number> = { AG18: 36, AG22: 36 };
+export const estibasPorViaje = (centro: string | null | undefined) => ESTIBAS_POR_VIAJE[(centro ?? "").toUpperCase()] ?? 100;
+export const viajesSerpro = (estibas: number, centro?: string | null) => estibas / estibasPorViaje(centro);
+
+/** Viajes de un día, almacén por almacén con SU divisor, y sumados. `centroDe` da el centro SAP de cada tabla. */
+export function viajesDelDia(puntos: Punto[], fecha: string, centroDe: (ubicacion: string) => string | null | undefined): number {
+  const porSitio = new Map<string, number>();
+  for (const p of puntos) if (p.fecha === fecha) porSitio.set(p.ubicacion, (porSitio.get(p.ubicacion) ?? 0) + (p.inventario ?? 0) + (p.baja ?? 0));
+  let t = 0;
+  for (const [u, est] of porSitio) t += viajesSerpro(est, centroDe(u));
+  return t;
+}
 
 /** Un tope «redondo» para el eje de la gráfica y sus marcas: 0, 1000, 2000… */
 export function ejeNice(max: number, marcas = 5): { tope: number; paso: number; ticks: number[] } {

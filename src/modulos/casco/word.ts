@@ -127,7 +127,7 @@ export function armarWordCasco(
         (dl == null ? `${s.filas.length} mat.` : `${conSigno(dl, fmt.hl)} vs ${corta(s.anterior!.fecha)}`), tam: 6.5, color: dl != null && dl > 0.05 ? "C8102E" : G }];
     }),
   ], { bordes: false }));
-  cuerpo.push(par([{ t: "Viajes SERPRO = estibas del último conteo ÷ 100. El % es la parte de cada almacén en el total del último día. En rojo: subió contra su conteo anterior.", tam: 7, color: G }], { antes: 60, despues: 200 }));
+  cuerpo.push(par([{ t: "Viajes SERPRO = estibas del último conteo ÷ 100 en Carnaval y ÷ 36 en Fábrica y Bodega. El % es la parte de cada almacén en el total del último día. En rojo: subió contra su conteo anterior.", tam: 7, color: G }], { antes: 60, despues: 200 }));
 
   /* ---------- GRÁFICA ---------- */
   titulo("Envases pendientes por partir (HL)");
