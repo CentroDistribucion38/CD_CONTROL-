@@ -17,10 +17,10 @@ import { porTandas, todas } from "@/modulos/inventario/paginas";
 export const ESTADO_POR_CENTRO: Record<string, string> = { AG18: "LAVADO", AG22: "BAJA" };
 
 export type UbicacionesInventario = {
-  /** El día del inventario del que salieron (fecha de análisis de los recorridos). */
+  /** El día del último inventario enviado (el más reciente de los dos estados). */
   fecha: string;
-  /** centro (AG18, AG22) → sku → «C04_IZQ - C05_DER». */
-  porCentro: Record<string, Record<string, string>>;
+  /** centro (AG18, AG22) → del día más reciente que trae algo en ese estado, sku → «C04_IZQ - C05_DER». */
+  porCentro: Record<string, { fecha: string; mapa: Record<string, string> }>;
 };
 
 type R = {
@@ -43,29 +43,39 @@ export function lineaDeUbicaciones(rs: R[], estado: string): string {
   return [...nombres].sort(natural).join(" - ");
 }
 
-/** Agrupa los renglones del inventario por centro de Control y material. */
-export function armarPorCentro(rs: R[]): Record<string, Record<string, string>> {
-  const out: Record<string, Record<string, string>> = {};
+/**
+ * Agrupa los renglones por centro de Control y material. CADA ESTADO TOMA SU PROPIO ÚLTIMO DÍA:
+ * si el recorrido de hoy no pasó por la zona de BAJA, «el último inventario» de BAJA es el del día
+ * que sí pasó, y no una lista vacía que dejaría la columna sin nada.
+ */
+export function armarPorCentro(rs: (R & { fecha: string })[]): UbicacionesInventario["porCentro"] {
+  const out: UbicacionesInventario["porCentro"] = {};
   for (const [centro, estado] of Object.entries(ESTADO_POR_CENTRO)) {
+    const suyos = rs.filter((x) => (x.estado_envase ?? "").trim().toUpperCase() === estado && String(x.codigo ?? "").trim());
+    const fecha = suyos.reduce((m, x) => (x.fecha > m ? x.fecha : m), "");
+    if (!fecha) continue;
     const porSku = new Map<string, R[]>();
-    for (const x of rs) {
-      if ((x.estado_envase ?? "").trim().toUpperCase() !== estado) continue;
-      const sku = String(x.codigo ?? "").trim();
-      if (!sku) continue;
+    for (const x of suyos) {
+      if (x.fecha !== fecha) continue;
+      const sku = String(x.codigo).trim();
       (porSku.get(sku) ?? porSku.set(sku, []).get(sku)!).push(x);
     }
-    out[centro] = {};
+    const mapa: Record<string, string> = {};
     for (const [sku, xs] of porSku) {
       const linea = lineaDeUbicaciones(xs, estado);
-      if (linea) out[centro][sku] = linea;
+      if (linea) mapa[sku] = linea;
     }
+    out[centro] = { fecha, mapa };
   }
   return out;
 }
 
+/** Cuántos días hacia atrás se buscan inventarios enviados. */
+const DIAS_ATRAS = 45;
+
 /**
- * Del último día con recorridos enviados. Con la sesión de quien mira (RLS): si su rol no ve el
- * inventario, devuelve null y Control sigue igual que siempre, con las ubicaciones a mano.
+ * Los inventarios enviados de las últimas semanas. Con la sesión de quien mira (RLS): si su rol no ve
+ * el inventario, devuelve null y Control sigue igual que siempre, con las ubicaciones a mano.
  */
 export async function ubicacionesDelInventario(): Promise<UbicacionesInventario | null> {
   try {
@@ -74,16 +84,21 @@ export async function ubicacionesDelInventario(): Promise<UbicacionesInventario 
       .eq("estado", "cerrado").not("fecha_analisis", "is", null)
       .order("fecha_analisis", { ascending: false }).limit(1);
     if (error || !ult?.length) return null;
-    const fecha = String(ult[0].fecha_analisis).slice(0, 10);
-    const { data: cs, error: eC } = await todas<{ id: string }>((d, h) => supabase.from("v_conteos_fefo").select("id")
-      .eq("bodega_id", ult[0].bodega_id).eq("fecha_analisis", fecha).eq("estado", "cerrado").order("id").range(d, h));
+    const ultima = String(ult[0].fecha_analisis).slice(0, 10);
+    const desde = new Date(Date.parse(ultima + "T12:00:00Z") - DIAS_ATRAS * 86400000).toISOString().slice(0, 10);
+    const { data: cs, error: eC } = await todas<{ id: string; fecha_analisis: string }>((d, h) => supabase.from("v_conteos_fefo")
+      .select("id, fecha_analisis").eq("bodega_id", ult[0].bodega_id).eq("estado", "cerrado")
+      .gte("fecha_analisis", desde).lte("fecha_analisis", ultima).order("id").range(d, h));
     if (eC || !cs.length) return null;
-    const { data: rs, error: eR } = await porTandas<R>(cs.map((c) => c.id), (t, d, h) => supabase.from("v_conteo_fefo")
-      .select("codigo, ubicacion, ubicacion_combinada, calle, estado_envase")
-      .in("conteo_id", t).in("estado_envase", Object.values(ESTADO_POR_CENTRO))
+    const diaDe = new Map(cs.map((c) => [c.id, String(c.fecha_analisis).slice(0, 10)]));
+    /* El estado se compara sin mayúsculas ni espacios aquí, no en la consulta: «Baja» o «BAJA »
+       también cuentan. */
+    const { data: rs, error: eR } = await porTandas<R & { conteo_id: string }>(cs.map((c) => c.id), (t, d, h) => supabase.from("v_conteo_fefo")
+      .select("conteo_id, codigo, ubicacion, ubicacion_combinada, calle, estado_envase")
+      .in("conteo_id", t).not("estado_envase", "is", null)
       .order("id").range(d, h));
     if (eR) return null;
-    return { fecha, porCentro: armarPorCentro(rs) };
+    return { fecha: ultima, porCentro: armarPorCentro(rs.map((x) => ({ ...x, fecha: diaDe.get(x.conteo_id) ?? "" }))) };
   } catch {
     return null;
   }

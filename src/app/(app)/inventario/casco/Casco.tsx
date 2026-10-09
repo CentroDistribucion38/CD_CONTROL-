@@ -127,13 +127,15 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar, d
       puesto: r.puesto ?? "", calidad: r.calidad ?? "",
     }));
     /* LAS UBICACIONES SALEN DEL ÚLTIMO INVENTARIO: Fábrica (AG18) de lo que está en LAVADO y
-       Bodega 38 (AG22) de lo que está en BAJA. Solo en días desde ese inventario, solo en los
-       materiales que el inventario trae en ese estado, y nunca encima de un borrador recuperado
-       (lo que la persona dejó tecleado manda). Si cambia algo, la tabla queda «sin guardar». */
+       Bodega 38 (AG22) de lo que está en BAJA. Solo en días desde ese inventario y solo en los
+       materiales que el inventario trae en ese estado. TAMBIÉN ENCIMA DE UN BORRADOR: el borrador
+       guarda las cantidades tecleadas, que no se tocan; la ubicación la manda el inventario.
+       Si cambia algo, la tabla queda «sin guardar». */
     const alimentar = (s: SitioCasco, base: Partial<Bloque>): Partial<Bloque> => {
       const centro = (s.centro ?? "").toUpperCase();
-      const mapa = delInventario?.porCentro[centro];
-      if (!delInventario || !mapa || f < delInventario.fecha || base.recuperado || !base.filas) return base;
+      const inv = delInventario?.porCentro[centro];
+      const mapa = inv?.mapa;
+      if (!inv || !mapa || f < inv.fecha || !base.filas) return base;
       let n = 0;
       const filas = base.filas.map((x) => {
         const u = mapa[x.sku];
@@ -142,13 +144,13 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar, d
       });
       if (!n) return base;
       return { ...base, filas, sucio: true, aviso: { tipo: "ok", texto:
-        `${n} ubicaci${n === 1 ? "ón puesta" : "ones puestas"} del inventario del ${largo(delInventario.fecha)} (${ESTADO_UBIC[centro]}). Guarda para dejarla${n === 1 ? "" : "s"}.` } };
+        `${n} ubicaci${n === 1 ? "ón puesta" : "ones puestas"} del inventario del ${largo(inv.fecha)} (${ESTADO_UBIC[centro]}). Guarda para dejarla${n === 1 ? "" : "s"}.` } };
     };
     /* Si hay un borrador de este día y esta tabla, manda el borrador (y se dice). */
     const conBorrador = (clave: string, base: Partial<Bloque>): Partial<Bloque> => {
       const br = leerBorrador(f, clave);
       const s = sitios.find((x) => x.clave === clave)!;
-      return br ? { ...base, filas: br.filas, sucio: true, recuperado: br.en } : alimentar(s, { ...base, recuperado: null });
+      return alimentar(s, br ? { ...base, filas: br.filas, sucio: true, recuperado: br.en } : { ...base, recuperado: null });
     };
     await Promise.all(sitios.map(async (s) => {
       const hoyRows = ((delD ?? []) as Reg[]).filter((r) => r.ubicacion === s.clave);
@@ -413,12 +415,28 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar, d
               <div className="cas-bloque-hl"><b>{nf2.format(totHl)}</b><i>HL · {nf0.format(totInv + totBaja)} estibas</i></div>
             </header>
 
-            {delInventario && ESTADO_UBIC[(s.centro ?? "").toUpperCase()] && (
-              <p className="cas-nota">
-                Las <b>ubicaciones</b> salen del inventario del <b>{largo(delInventario.fecha)}</b>, de lo que está en{" "}
-                <b>{ESTADO_UBIC[(s.centro ?? "").toUpperCase()]}</b>. Las puedes corregir aquí; el próximo inventario las vuelve a poner.
-              </p>
-            )}
+            {ESTADO_UBIC[(s.centro ?? "").toUpperCase()] && (() => {
+              const est = ESTADO_UBIC[(s.centro ?? "").toUpperCase()];
+              const inv = delInventario?.porCentro[(s.centro ?? "").toUpperCase()];
+              /* LO QUE TRAJO EL INVENTARIO, CONTADO: si no llena, que se vea por qué. */
+              if (!delInventario) return (
+                <p className="cas-nota cas-rojo">No pude leer el inventario: las ubicaciones van a mano (¿tu rol ve Inventario?).</p>
+              );
+              if (!inv) return (
+                <p className="cas-nota cas-rojo">Ningún inventario enviado de las últimas semanas trae material en <b>{est}</b>: las ubicaciones van a mano.</p>
+              );
+              const total = Object.keys(inv.mapa).length;
+              const aqui = b.filas.filter((x) => inv.mapa[x.sku]).length;
+              const fuera = Object.keys(inv.mapa).filter((k) => !b.filas.some((x) => x.sku === k));
+              return (
+                <p className="cas-nota">
+                  Las <b>ubicaciones</b> salen del inventario del <b>{largo(inv.fecha)}</b>, de lo que está en <b>{est}</b>:{" "}
+                  {total} material{total === 1 ? "" : "es"}, {aqui} de ellos en esta tabla.
+                  {fuera.length > 0 && <> No están en la tabla: {fuera.slice(0, 8).join(", ")}{fuera.length > 8 ? "…" : ""}.</>}
+                  {" "}Las puedes corregir aquí; el próximo inventario las vuelve a poner.
+                </p>
+              );
+            })()}
 
             {b.arranque && !b.sucio && (
               <p className="cas-nota cas-herencia">
