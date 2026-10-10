@@ -49,7 +49,7 @@
    solo le abra una rama, con dos columnas fijas la vería ocupando media
    pantalla y un hueco al lado. */
 .inv-p .inv-ramas {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 16px; max-width: 1180px;
 }
 .inv-p .inv-rama {
