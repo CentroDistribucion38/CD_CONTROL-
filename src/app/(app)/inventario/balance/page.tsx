@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import "../../fefo.css";
+import "../fefo.css";
 import "./balance.css";
 import { Balance } from "./Balance";
 
