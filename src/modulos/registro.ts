@@ -622,6 +622,15 @@ export const MODULOS: Modulo[] = [
           "El vidrio vacío que hay en AG22, AG18, AG07 y CA22, en estibas y en HL. " +
           "Se registran las bajas y los movimientos, Control lleva el saldo por día y almacén, y de ahí sale el análisis de PARTIR.",
       },
+      {
+        id: "balance",
+        nombre: "Balance",
+        eyebrow: "CUADRE",
+        ruta: "/inventario/balance",
+        descripcion:
+          "El cruce del conteo físico contra el casco de vidrio: las cinco tablas de " +
+          "baja, lavado y extrasucio con el cuadre al lado. Lo que el Excel arma a mano, aquí sale del último conteo.",
+      },
     ],
     secciones: [
       /* EL ORDEN LO PUSO QUIEN LA USA («organicemos esto»): se corta lo que
@@ -678,6 +687,11 @@ export const MODULOS: Modulo[] = [
       { nombre: "Registrar", ruta: "/inventario/casco/registrar", rama: "casco" },
       { nombre: "Control", ruta: "/inventario/casco", rama: "casco" },
       { nombre: "Tablero", ruta: "/inventario/casco/tablero", rama: "casco" },
+      /* BALANCE: el cruce del último conteo FEFO contra el casco de vidrio.
+         Son las cinco tablas dinámicas que hoy se arman a mano en el Excel
+         (CONTEO FABRICA.xlsx), con la diferencia y la alerta al lado. Una
+         sola pantalla: no hay nada que registrar ni que configurar. */
+      { nombre: "Balance", ruta: "/inventario/balance", rama: "balance" },
     ],
   },
 ];
