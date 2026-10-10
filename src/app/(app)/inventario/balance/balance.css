@@ -1,155 +1,198 @@
-/* BALANCE — las cinco tablas de cuadre */
+/* =====================================================================
+   BALANCE — pestañas + tabla de cuadre
 
-.bal .cabeza select {
-  font: inherit;
-  font-size: 0.85rem;
-  padding: 0.35em 0.7em;
-  border: 1px solid var(--borde, #d1d5db);
-  border-radius: 6px;
-  background: var(--fondo-tarjeta, #fff);
+   LAS PESTAÑAS IMITAN LAS HOJAS DE EXCEL, porque el usuario lleva años
+   pasando de una hoja a otra en el consolidado y esa es la navegación que
+   ya tiene aprendida. Cinco pestañas: Baja·Fábrica, Baja·Bodega 38,
+   Lavado·Fábrica, Lavado·Bodega 38, Extrasucio.
+
+   El prefijo `bal-` evita choques con el resto del proyecto.
+   ===================================================================== */
+
+/* ---- selector de fecha ---- */
+.bal .cabeza { display: flex; align-items: start; justify-content: space-between; gap: 1rem; flex-wrap: wrap }
+.bal-sel-fecha {
+  font: inherit; font-size: 13px; padding: .35em .7em;
+  border: 1px solid var(--fe-linea); border-radius: 6px;
+  background: var(--fe-papel); color: var(--fe-tinta);
 }
 
-.bal-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  padding: 0 1rem 2rem;
+/* =====================================================================
+   PESTAÑAS
+   ===================================================================== */
+.bal-tabs {
+  display: flex; gap: 0; overflow-x: auto;
+  border-bottom: 2px solid var(--fe-linea);
+  padding: 0; margin: 0;
+  -webkit-overflow-scrolling: touch;
 }
+.bal-tab {
+  all: unset; box-sizing: border-box;
+  display: flex; align-items: center; gap: 6px;
+  padding: 10px 18px; cursor: pointer;
+  font-size: 13px; font-weight: 600; white-space: nowrap;
+  color: var(--fe-gris); border-bottom: 2px solid transparent;
+  margin-bottom: -2px; /* se monta sobre el borde de .bal-tabs */
+  transition: color .15s, border-color .15s;
+}
+.bal-tab:hover { color: var(--fe-tinta) }
+.bal-tab.activa {
+  color: var(--fe-tinta); border-bottom-color: var(--fe-banda);
+}
+.bal-tab-label { /* solo para poder truncar en móvil si hace falta */ }
+.bal-tab-badge {
+  font-size: 11px; font-weight: 700; color: var(--fe-gris);
+  background: color-mix(in srgb, var(--fe-linea) 60%, transparent);
+  padding: 1px 7px; border-radius: 10px;
+}
+.bal-tab.activa .bal-tab-badge { background: color-mix(in srgb, var(--fe-banda) 15%, transparent); color: var(--fe-banda) }
+.bal-tab-alerta { color: var(--fe-mal) }
+.bal-tab-alerta svg { vertical-align: -1px }
 
-/* --- bloque (acordeon) --- */
-.bal-bloque {
-  border: 1px solid var(--borde, #e3e6ea);
-  border-radius: 8px;
-  overflow: hidden;
-  background: var(--fondo-tarjeta, #fff);
+/* =====================================================================
+   RESUMEN DEL BLOQUE (barra entre pestañas y tabla)
+   ===================================================================== */
+.bal-resumen-bloque {
+  display: flex; flex-wrap: wrap; gap: 8px 20px;
+  padding: 12px 0 8px;
+  font-size: 13px; color: var(--fe-gris);
 }
-.bal-bloque + .bal-bloque { margin-top: 0.5rem; }
-.bal-bloque.abierto { border-color: var(--acento, #E9A81F); }
+.bal-resumen-bloque b { color: var(--fe-tinta); font-variant-numeric: tabular-nums }
 
-.bal-titulo {
-  all: unset;
-  box-sizing: border-box;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  cursor: pointer;
-  font-size: 0.85rem;
-  line-height: 1.3;
-}
-.bal-titulo:hover { background: var(--fondo-hover, #f9fafb); }
-
-.bal-estado {
-  font-weight: 700;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 0.15em 0.5em;
-  border-radius: 4px;
-  background: var(--fondo-tag, #f3f4f6);
-  white-space: nowrap;
-}
-
-.bal-alcance {
-  flex: 1;
-  min-width: 0;
-  font-weight: 500;
-}
-
-.bal-resumen {
-  display: flex;
-  gap: 1rem;
-  font-size: 0.8rem;
-  color: var(--texto-muted, #6b7280);
-  white-space: nowrap;
-}
-
-.bal-dif { color: var(--rojo, #dc2626); font-weight: 600; }
-.bal-alertas {
-  color: var(--naranja, #f59e0b);
-  font-weight: 600;
-}
-
-.bal-vacio {
-  font-size: 0.8rem;
-  color: var(--texto-muted, #6b7280);
-  font-style: italic;
-}
-
-.bal-flecha {
-  font-size: 0.7rem;
-  color: var(--texto-muted, #6b7280);
-}
-
-/* --- tabla de detalle --- */
-.bal-tabla-wrap {
-  overflow-x: auto;
-  border-top: 1px solid var(--borde, #e3e6ea);
-}
+/* =====================================================================
+   TABLA DE DETALLE
+   ===================================================================== */
+.bal-tabla-wrap { overflow-x: auto; margin-top: 4px }
 
 .bal-tabla {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.8rem;
-  font-variant-numeric: tabular-nums;
+  width: 100%; border-collapse: collapse;
+  font-size: 13px; font-variant-numeric: tabular-nums;
 }
 
 .bal-tabla th {
-  text-align: left;
-  font-weight: 600;
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--texto-muted, #6b7280);
-  padding: 0.5rem 0.6rem;
-  border-bottom: 2px solid var(--borde, #e3e6ea);
-  white-space: nowrap;
-  position: sticky;
-  top: 0;
-  background: var(--fondo-tarjeta, #fff);
+  text-align: left; font-weight: 700; font-size: 11px;
+  text-transform: uppercase; letter-spacing: .03em;
+  color: var(--fe-gris); padding: 8px 10px;
+  border-bottom: 2px solid var(--fe-linea);
+  white-space: nowrap; position: sticky; top: 0;
+  background: var(--fe-fondo, #f6f7f9);
 }
 
 .bal-tabla td {
-  padding: 0.4rem 0.6rem;
-  border-bottom: 1px solid var(--borde-suave, #f3f4f6);
+  padding: 6px 10px; border-bottom: 1px solid var(--fe-linea);
   vertical-align: top;
 }
 
-.bal-tabla .r { text-align: right; }
-.bal-tabla .mono { font-family: var(--mono, monospace); font-size: 0.78rem; }
+.bal-tabla .r { text-align: right }
+.bal-tabla .mono { font-family: var(--fe-mono, monospace); font-size: 12px }
 
-.bal-tabla tr.con-alerta td { background: color-mix(in srgb, var(--naranja, #f59e0b) 6%, transparent); }
+.bal-tabla tr.con-alerta td {
+  background: color-mix(in srgb, var(--fe-mal) 5%, transparent);
+}
 
 .bal-tabla tfoot td {
-  border-top: 2px solid var(--borde, #e3e6ea);
-  border-bottom: none;
-  padding-top: 0.5rem;
+  border-top: 2px solid var(--fe-linea); border-bottom: none;
+  padding-top: 8px; background: var(--fe-fondo, #f6f7f9);
 }
 
 .bal-alerta-cel {
-  font-size: 0.72rem;
-  color: var(--naranja, #d97706);
-  max-width: 200px;
+  font-size: 11.5px; color: var(--fe-mal); max-width: 200px;
 }
 
-.bal-nota {
-  color: var(--acento, #E9A81F);
-  cursor: help;
-  font-weight: 700;
-}
+.bal-nota { color: var(--fe-acento); cursor: help; font-weight: 700 }
 
 .bal-sin-filas {
-  padding: 1.5rem;
-  text-align: center;
-  color: var(--texto-muted, #6b7280);
-  font-size: 0.85rem;
-  border-top: 1px solid var(--borde, #e3e6ea);
+  padding: 3rem 1rem; text-align: center;
+  color: var(--fe-gris); font-size: 14px;
 }
 
-/* responsivo */
+.bal-dif { color: var(--fe-mal); font-weight: 700 }
+.bal-alertas { color: var(--fe-mal); font-weight: 600 }
+
+/* =====================================================================
+   BOTÓN RECLASIFICAR (en la última columna)
+   ===================================================================== */
+.bal-col-acc { width: 36px; text-align: center }
+.bal-btn-reclas {
+  all: unset; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 4px;
+  font-size: 14px; color: var(--fe-gris);
+  transition: background .15s, color .15s;
+}
+.bal-btn-reclas:hover { background: var(--fe-linea); color: var(--fe-tinta) }
+.bal-btn-reclas.revert { color: var(--fe-banda) }
+.bal-btn-reclas.revert:hover { background: color-mix(in srgb, var(--fe-banda) 12%, transparent) }
+.bal-btn-reclas:disabled { opacity: .4; pointer-events: none }
+
+/* =====================================================================
+   MODAL DE RECLASIFICACIÓN
+   ===================================================================== */
+.bal-modal-fondo {
+  position: fixed; inset: 0; z-index: 900;
+  background: rgba(0,0,0,.45);
+  display: flex; align-items: center; justify-content: center;
+  padding: 1rem;
+}
+.bal-modal {
+  background: var(--fe-papel); border-radius: 10px;
+  padding: 24px 28px; max-width: 420px; width: 100%;
+  box-shadow: 0 8px 30px rgba(0,0,0,.18);
+}
+.bal-modal h3 {
+  margin: 0 0 8px; font-size: 16px; font-weight: 800;
+  color: var(--fe-tinta); font-family: var(--fe-titulo);
+}
+.bal-modal-cod {
+  font-size: 14px; color: var(--fe-tinta); margin: 0 0 4px;
+}
+.bal-modal-cod b { font-family: var(--fe-mono, monospace) }
+.bal-modal-actual {
+  font-size: 13px; color: var(--fe-gris); margin: 0 0 16px;
+}
+
+.bal-modal-label {
+  display: block; font-size: 13px; font-weight: 600;
+  color: var(--fe-tinta); margin-bottom: 12px;
+}
+.bal-modal-label select,
+.bal-modal-label input {
+  display: block; width: 100%; margin-top: 4px;
+  font: inherit; font-size: 14px; padding: 8px 10px;
+  border: 1px solid var(--fe-linea); border-radius: 6px;
+  background: var(--fe-fondo, #f6f7f9); color: var(--fe-tinta);
+}
+.bal-modal-label input::placeholder { color: var(--fe-gris); opacity: .7 }
+
+.bal-modal-acciones {
+  display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;
+}
+
+.bal-btn {
+  all: unset; box-sizing: border-box; cursor: pointer;
+  padding: 8px 20px; border-radius: 6px;
+  font-size: 13px; font-weight: 700;
+  transition: background .15s, opacity .15s;
+}
+.bal-btn:disabled { opacity: .5; pointer-events: none }
+.bal-btn.cancelar {
+  color: var(--fe-gris); background: var(--fe-fondo, #f6f7f9);
+}
+.bal-btn.cancelar:hover { background: var(--fe-linea) }
+.bal-btn.confirmar {
+  color: #fff; background: var(--fe-banda);
+}
+.bal-btn.confirmar:hover { opacity: .85 }
+
+/* =====================================================================
+   RESPONSIVO
+   ===================================================================== */
 @media (max-width: 640px) {
-  .bal-resumen { display: none; }
-  .bal-tabla { font-size: 0.72rem; }
-  .bal-tabla th, .bal-tabla td { padding: 0.35rem 0.4rem; }
+  .bal-tabs { gap: 0 }
+  .bal-tab { padding: 8px 12px; font-size: 12px }
+  .bal-tab-badge { font-size: 10px; padding: 1px 5px }
+  .bal-resumen-bloque { font-size: 12px }
+  .bal-tabla { font-size: 12px }
+  .bal-tabla th, .bal-tabla td { padding: 5px 6px }
+  .bal-modal { padding: 20px }
 }

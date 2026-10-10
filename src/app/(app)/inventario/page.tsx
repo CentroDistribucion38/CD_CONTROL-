@@ -40,7 +40,7 @@ const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
  * nombres es un clic de peaje: quien entra ya sabía adónde iba.
  */
 export default async function InventarioPortada() {
-  const [permisos, conteo, aver, casco] = await Promise.all([
+  const [permisos, conteo, aver, casco, balance] = await Promise.all([
     misPermisos(),
 
     /* SOLO EL ÚLTIMO RECORRIDO ENVIADO, una fila. El tablero trae los
@@ -93,6 +93,26 @@ export default async function InventarioPortada() {
         hl: (data ?? []).reduce((t, r) => t + Number(r.hl || 0), 0),
         sitios: new Set((data ?? []).map((r) => r.ubicacion as string)).size,
       };
+    })(),
+
+    /* EL BALANCE: materiales con diferencia en el último conteo.
+       Si la vista no existe (no se ha corrido el SQL), devuelve null. */
+    (async () => {
+      const supabase = await createClient();
+      const { data, error } = await supabase
+        .from("v_balance_bloques")
+        .select("fecha, renglones, con_alerta, dif_cajas")
+        .order("fecha", { ascending: false })
+        .limit(10);
+      if (error) return null;
+      if (!data?.length) return null;
+      /* Solo la fecha más reciente. */
+      const fecha = (data[0] as { fecha: string }).fecha;
+      const del_dia = data.filter((b: { fecha: string }) => b.fecha === fecha);
+      const materiales = del_dia.reduce((t, b: { renglones: number }) => t + b.renglones, 0);
+      const alertas = del_dia.reduce((t, b: { con_alerta: number }) => t + b.con_alerta, 0);
+      const dif = del_dia.reduce((t, b: { dif_cajas: number }) => t + Math.abs(b.dif_cajas), 0);
+      return { fecha, materiales, alertas, dif };
     })(),
   ]);
 
@@ -160,6 +180,17 @@ export default async function InventarioPortada() {
     /* LO MISMO QUE EL CONTEO: una foto de hace más de dos semanas ya no
        dice lo que hay. */
     mal: diasCasco != null && diasCasco > 14,
+  };
+
+  /* ---------- LA CIFRA DE BALANCE ---------- */
+  CIFRA.balance = balance == null ? null : {
+    n: nf.format(balance.materiales),
+    u: balance.materiales === 1 ? "material" : "materiales",
+    pie: balance.alertas > 0
+      ? `${balance.alertas} alerta${balance.alertas === 1 ? "" : "s"} · dif absoluta ${nf.format(balance.dif)} cajas · conteo ${balance.fecha}`
+      : `sin alertas · conteo ${balance.fecha}`,
+    /* SI HAY ALERTAS, la tarjeta se pinta de rojo: algo no cuadra. */
+    mal: balance.alertas > 0,
   };
 
   return (
