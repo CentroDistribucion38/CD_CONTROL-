@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { sondear } from "@/lib/copia-offline";
-import { CADA_MS, esDeConsulta, haceCuanto, puedeActualizarSola, sinBoton } from "@/modulos/actualizar";
+import { haceCuanto, sinBoton } from "@/modulos/actualizar";
 
 /**
  * EL BOTÓN FLOTANTE DE ACTUALIZAR (abajo a la derecha, pequeño).
@@ -62,25 +62,8 @@ export function Actualizar() {
     eraPendiente.current = pendiente;
   }, [pendiente]);
 
-  /* Cada minuto, si toca; y al volver a la pestaña si ya pasó el minuto. */
-  useEffect(() => {
-    const estado = () => {
-      const a = document.activeElement as HTMLElement | null;
-      return {
-        pathname: vivo.current.pathname,
-        visible: document.visibilityState === "visible",
-        escribiendo: !!a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable),
-        dialogo: !!document.querySelector('dialog[open], [role="dialog"], [aria-modal="true"]'),
-        ocupado: vivo.current.pendiente,
-      };
-    };
-    const hora = setInterval(() => { if (puedeActualizarSola(estado())) actualizar(); }, CADA_MS);
-    const alVolver = () => {
-      if (Date.now() - ultima.current >= CADA_MS && puedeActualizarSola(estado())) actualizar();
-    };
-    document.addEventListener("visibilitychange", alVolver);
-    return () => { clearInterval(hora); document.removeEventListener("visibilitychange", alVolver); };
-  }, [actualizar]);
+  /* YA NO SE ACTUALIZA SOLA. Cada minuto volvía a pedir la pantalla al servidor mientras estuviera
+     abierta, y eso es lo que se come el uso de Vercel. Ahora se actualiza SOLO con este botón. */
 
   /* SOLO SE SUBE SI DE VERDAD HAY UN «+» FLOTANTE A LA VISTA (Roturas, Acciones, Vh Interno): un
      elemento con esa clase que no es flotante, o que está oculto, no cuenta. Si no, va pegado abajo. */
@@ -101,8 +84,7 @@ export function Actualizar() {
   /* Al cambiar de pantalla, el reloj de «hace cuánto» arranca de nuevo. */
   useEffect(() => { ultima.current = Date.now(); }, [pathname]);
 
-  const auto = esDeConsulta(pathname);
-  const titulo = `Actualizar · última vez ${haceCuanto(Date.now() - ultima.current)}${auto ? " · se actualiza sola cada minuto" : ""}`;
+  const titulo = `Actualizar · última vez ${haceCuanto(Date.now() - ultima.current)}`;
 
   /* En la portada y el perfil no hay botón: ahí abajo a la derecha va «Cerrar sesión». */
   if (sinBoton(pathname)) return null;

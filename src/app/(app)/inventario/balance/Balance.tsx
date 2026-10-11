@@ -7,19 +7,19 @@ import { reclasificar, quitarReclasificacion } from "./actions";
 /*  TIPOS                                                              */
 /* ------------------------------------------------------------------ */
 type Bloque = {
-  fecha: string;
   estado: string;
   alcance: string;
   renglones: number;
   con_alerta: number;
   fisico_cajas: number;
   estibas_casco: number;
+  cajas_casco: number;
   dif_cajas: number;
   unidades: number | null;
 };
 
 type Fila = {
-  fecha: string;
+  fecha: string | null;
   estado: string;
   alcance: string;
   codigo: string;
@@ -48,7 +48,7 @@ const HOJAS_FIJAS: { estado: string; alcance: string | null; label: string }[] =
   { estado: "BAJA",        alcance: "PRESORTING",  label: "Baja · Bodega 38" },
   { estado: "LAVADO",      alcance: "SORTING",    label: "Lavado · Fábrica" },
   { estado: "LAVADO",      alcance: "PRESORTING",  label: "Lavado · Bodega 38" },
-  { estado: "EXTRASUCIO",  alcance: "PRESORTING",  label: "Extrasucio" },
+  { estado: "EXTRASUCIO",  alcance: null,          label: "Extrasucio" },
 ];
 
 /** Estados que YA tienen su propia pestaña — los "otros" son el resto. */
@@ -79,15 +79,6 @@ export function Balance({
   detalle: Fila[];
   error: string | null;
 }) {
-  /* La fecha más reciente que haya en los datos. */
-  const fechas = useMemo(() => {
-    const s = new Set<string>();
-    for (const b of bloques) s.add(b.fecha);
-    for (const f of detalle) s.add(f.fecha);
-    return [...s].sort().reverse();
-  }, [bloques, detalle]);
-
-  const [fecha, setFecha] = useState(fechas[0] ?? "");
   const [hojaIdx, setHojaIdx] = useState(0);
   const [reclas, setReclas] = useState<Fila | null>(null);
   const [nuevoEstado, setNuevoEstado] = useState("");
@@ -97,8 +88,8 @@ export function Balance({
   /* Detectar si hay filas con estados "otros" (RETORNO, NUEVO, OTROS,
      LLENO, VACÍO, etc.) para mostrar la pestaña extra. */
   const hayOtros = useMemo(
-    () => detalle.some((f) => f.fecha === fecha && !ESTADOS_FIJOS.has(f.estado)),
-    [detalle, fecha],
+    () => detalle.some((f) => !ESTADOS_FIJOS.has(f.estado)),
+    [detalle],
   );
 
   /* La lista completa de hojas: las 5 fijas + "Otros estados" si hay. */
@@ -116,44 +107,43 @@ export function Balance({
     () => {
       if (esOtros) {
         /* Calcular resumen a mano para los "otros". */
-        const filas = detalle.filter((f) => f.fecha === fecha && !ESTADOS_FIJOS.has(f.estado));
+        const filas = detalle.filter((f) => !ESTADOS_FIJOS.has(f.estado));
         if (!filas.length) return undefined;
         return {
-          fecha,
           estado: "__OTROS__",
           alcance: "",
           renglones: filas.length,
           con_alerta: filas.filter((f) => f.alerta).length,
           fisico_cajas: filas.reduce((s, f) => s + f.fisico_cajas, 0),
           estibas_casco: filas.reduce((s, f) => s + f.estibas_casco, 0),
+          cajas_casco: filas.reduce((s, f) => s + f.cajas_casco, 0),
           dif_cajas: filas.reduce((s, f) => s + f.dif_cajas, 0),
           unidades: filas.reduce((s, f) => s + (f.unidades ?? 0), 0),
         } as Bloque;
       }
+      /* EXTRASUCIO: no filtra por alcance (alcance es null en la hoja). */
       return bloques.find(
         (b) =>
-          b.fecha === fecha &&
           b.estado === hoja.estado &&
-          b.alcance === hoja.alcance,
+          (hoja.alcance === null || b.alcance === hoja.alcance),
       );
     },
-    [bloques, detalle, fecha, hoja, esOtros],
+    [bloques, detalle, hoja, esOtros],
   );
 
   /* Filas de la hoja activa. */
   const filas = useMemo(
     () => {
       if (esOtros) {
-        return detalle.filter((f) => f.fecha === fecha && !ESTADOS_FIJOS.has(f.estado));
+        return detalle.filter((f) => !ESTADOS_FIJOS.has(f.estado));
       }
       return detalle.filter(
         (f) =>
-          f.fecha === fecha &&
           f.estado === hoja.estado &&
-          f.alcance === hoja.alcance,
+          (hoja.alcance === null || f.alcance === hoja.alcance),
       );
     },
-    [detalle, fecha, hoja, esOtros],
+    [detalle, hoja, esOtros],
   );
 
   /* ---- handlers reclasificación ---- */
@@ -170,7 +160,7 @@ export function Balance({
     startTransition(async () => {
       const fd = new FormData();
       fd.set("codigo", reclas.codigo);
-      fd.set("fecha", fecha);
+      fd.set("fecha", reclas.fecha ?? "");
       fd.set("estado_original", reclas.estado);
       fd.set("estado_nuevo", nuevoEstado);
       fd.set("motivo", motivo);
@@ -188,6 +178,8 @@ export function Balance({
     });
   }
 
+  const tieneData = detalle.length > 0 || bloques.length > 0;
+
   return (
     <>
       {/* ---- CABECERA ---- */}
@@ -197,27 +189,9 @@ export function Balance({
           <h1>Balance de materiales</h1>
           <p className="sub">
             Cruce del último conteo físico contra el casco de vidrio.
-            {fecha && (
-              <>
-                {" "}
-                Fecha del conteo: <b>{fecha}</b>.
-              </>
-            )}
+            Consolida todos los conteos cerrados.
           </p>
         </div>
-        {fechas.length > 1 && (
-          <select
-            className="bal-sel-fecha"
-            value={fecha}
-            onChange={(e) => setFecha(e.target.value)}
-          >
-            {fechas.map((f) => (
-              <option key={f} value={f}>
-                {f}
-              </option>
-            ))}
-          </select>
-        )}
       </section>
 
       {error && (
@@ -226,14 +200,14 @@ export function Balance({
         </p>
       )}
 
-      {!fecha && !error && (
+      {!tieneData && !error && (
         <p style={{ padding: "2rem 1rem", opacity: 0.5 }}>
           No hay datos de balance. Verifica que hayas corrido el conteo y el
           casco.
         </p>
       )}
 
-      {fecha && (
+      {tieneData && (
         <>
           {/* ---- PESTAÑAS ---- */}
           <nav className="bal-tabs" role="tablist">
@@ -243,15 +217,18 @@ export function Balance({
               /* Para la pestaña "otros" calculamos el badge a mano. */
               const b = esOtrosTab
                 ? (() => {
-                    const fs = detalle.filter((f) => f.fecha === fecha && !ESTADOS_FIJOS.has(f.estado));
+                    const fs = detalle.filter((f) => !ESTADOS_FIJOS.has(f.estado));
                     return fs.length ? { renglones: fs.length, con_alerta: fs.filter((f) => f.alerta).length } : null;
                   })()
-                : bloques.find(
-                    (bl) =>
-                      bl.fecha === fecha &&
-                      bl.estado === h.estado &&
-                      bl.alcance === h.alcance,
-                  );
+                : (() => {
+                    /* EXTRASUCIO: alcance null → no filtrar por alcance. */
+                    const match = bloques.find(
+                      (bl) =>
+                        bl.estado === h.estado &&
+                        (h.alcance === null || bl.alcance === h.alcance),
+                    );
+                    return match ? { renglones: match.renglones, con_alerta: match.con_alerta } : null;
+                  })();
               return (
                 <button
                   key={k}
@@ -296,6 +273,9 @@ export function Balance({
               </span>
               <span>
                 <b>{n(bloque.estibas_casco)}</b> estibas casco
+              </span>
+              <span>
+                <b>{n(bloque.cajas_casco)}</b> cajas casco
               </span>
               <span className={bloque.dif_cajas ? "bal-dif" : ""}>
                 dif <b>{n(bloque.dif_cajas)}</b> cajas
@@ -425,10 +405,9 @@ export function Balance({
           {filas.length === 0 && (
             <p className="bal-sin-filas">
               {esOtros
-                ? "No hay envases con otros estados para reclasificar en esta fecha."
+                ? "No hay envases con otros estados para reclasificar."
                 : <>No hay renglones de <b>{hoja.estado}</b> en{" "}
-                    <b>{hoja.alcance === "SORTING" ? "Fábrica (AG18)" : "Bodega 38 (AG22)"}</b>{" "}
-                    para esta fecha.</>}
+                    <b>{hoja.alcance === "SORTING" ? "Fábrica (AG18)" : hoja.alcance === "PRESORTING" ? "Bodega 38 (AG22)" : "todas las ubicaciones"}</b>.</>}
             </p>
           )}
         </>

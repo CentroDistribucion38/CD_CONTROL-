@@ -153,7 +153,7 @@ export function Barra({ tipos, soloBotones, soloFiltros, hoy, dia, desde, hasta,
     poner(clave, nuevos.join(","));
   }
 
-  const hay = valorDe("dias") || valorDe("turno") || valorDe("tipo") || params.get("d")
+  const hay = valorDe("dias") || valorDe("turno") || valorDe("tipo") || valorDe("placa") || params.get("d")
            || params.get("desde") || params.get("hasta");
 
   /* ==================================================================
@@ -266,43 +266,65 @@ export function Barra({ tipos, soloBotones, soloFiltros, hoy, dia, desde, hasta,
       {!soloBotones && (
       <section className={"filtros" + (cargando ? " cargando" : "")}>
         <div className="arriba">
-          {/* EL RANGO, A LA IZQUIERDA DE TODO: es lo primero que se
-              escoge en un informe —qué días— y después ya se afina por
-              turno y por tipo. */}
-          {/* EL CALENDARIO DE RANGO, el mismo de T1 / T2: Días, Meses, Años y los atajos (Hoy, Este
-              mes, Mes pasado, Este año). Abre en HOY; un solo día es tocar dos veces el mismo. */}
-          <div className="sd tp-rango" role="group" aria-label="Rango de fechas">
-            <Rango desde={rDesde} hasta={rHasta} dias={diasCal} rotulo="Fechas"
-                   alElegir={(d, h) => {
-                     if (reloj.current) clearTimeout(reloj.current);
-                     const nuevo = { ...pendiente.current, desde: d, hasta: h, d: "", dias: "" };
-                     pendiente.current = nuevo; setLocal(nuevo); mandar(nuevo);
-                   }} />
-            {mañana && (
-              <button type="button" className={"atajo" + (rDesde === mañana && rHasta === mañana ? " on" : "")}
-                      onClick={() => unDia(mañana)}>Mañana</button>
+          {/* ORDENADO EN DOS FILAS. Arriba lo que dice QUÉ se mira —las fechas y la placa— con el
+              Restablecer a la derecha; abajo los botones de turno y de tipo. Todos los rótulos con
+              la misma letra. */}
+          <div className="tp-f1">
+            {/* EL CALENDARIO DE RANGO, el mismo de T1 / T2: Días, Meses, Años y los atajos. Abre en
+                HOY; un solo día es tocar dos veces el mismo. */}
+            <div className="grupo-f" role="group" aria-label="Fechas">
+              <span className="grupo-r">Fechas</span>
+              <div className="sd tp-rango">
+                <Rango desde={rDesde} hasta={rHasta} dias={diasCal} rotulo=""
+                       alElegir={(d, h) => {
+                         if (reloj.current) clearTimeout(reloj.current);
+                         const nuevo = { ...pendiente.current, desde: d, hasta: h, d: "", dias: "" };
+                         pendiente.current = nuevo; setLocal(nuevo); mandar(nuevo);
+                       }} />
+                <div className="grupo-b">
+                  {hoy && (
+                    <button type="button" className={rDesde === hoy && rHasta === hoy ? "on" : ""}
+                            onClick={() => unDia(hoy)}>Hoy</button>
+                  )}
+                  {mañana && (
+                    <button type="button" className={rDesde === mañana && rHasta === mañana ? "on" : ""}
+                            onClick={() => unDia(mañana)}>Mañana</button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* LA PLACA: filtra la sección «Por placa» de abajo. Viaja en la dirección como los demás
+                filtros, así que se puede mandar el enlace de una placa. */}
+            <label className="grupo-f tp-placa-f">
+              <span className="grupo-r">Placa</span>
+              <input value={valorDe("placa")} placeholder="Todas · ej. SNR719" autoComplete="off" spellCheck={false}
+                     onChange={(e) => poner("placa", e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8))} />
+            </label>
+
+            {hay && (
+              <button type="button" className="limpiar" onClick={() => {
+                if (reloj.current) clearTimeout(reloj.current);
+                pendiente.current = {};
+                setLocal({ dias: "", turno: "", tipo: "", desde: "", hasta: "", placa: "" });
+                empezar(() => router.push(pathname));
+              }}>
+                Restablecer
+              </button>
             )}
           </div>
 
-          <Grupo rotulo="Turno" clave="turno" vacio="Todos"
+          <div className="tp-f2">
+            <Grupo rotulo="Turno" clave="turno" vacio="Todos"
                  opciones={[...TURNOS.map((t) => ({ id: t, nombre: t as string })),
                               { id: TURNO_DIA, nombre: "Día (plan general)" }]}
                  puestos={lista("turno")} alternar={alternar} poner={poner} />
 
-          <Grupo rotulo="Tipo de viaje" clave="tipo" vacio="Todos"
+            <Grupo rotulo="Tipo de viaje" clave="tipo" vacio="Todos"
                  opciones={tipos.map((t) => ({ id: t.clave, nombre: t.nombre }))}
                  puestos={lista("tipo")} alternar={alternar} poner={poner} />
 
-          {hay && (
-            <button type="button" className="limpiar" onClick={() => {
-              if (reloj.current) clearTimeout(reloj.current);
-              pendiente.current = {};
-              setLocal({ dias: "", turno: "", tipo: "", desde: "", hasta: "" });
-              empezar(() => router.push(pathname));
-            }}>
-              Restablecer
-            </button>
-          )}
+          </div>
         </div>
       </section>
       )}

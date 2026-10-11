@@ -2706,3 +2706,27 @@
 /* El calendario de rango (el de T1 / T2) en la barra de filtros. */
 .tp .tp-rango { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap }
 .tp .tp-rango .sg-mes .mes-campo { min-width: 220px }
+
+/* ---------- La barra de filtros, en dos filas ordenadas ---------- */
+.tp .filtros .arriba { flex-direction: column; align-items: stretch; gap: 16px }
+.tp .filtros .tp-f1 { display: flex; align-items: flex-end; gap: 22px; flex-wrap: wrap }
+.tp .filtros .tp-f2 { display: flex; align-items: flex-start; gap: 22px; flex-wrap: wrap;
+  padding-top: 14px; border-top: 1px solid var(--tp-linea) }
+.tp .filtros .tp-f1 .limpiar { margin-left: auto; height: 38px }
+.tp .tp-rango { display: flex; align-items: center; gap: 8px; flex-wrap: wrap }
+.tp .tp-rango .sg-mes { gap: 0 }
+.tp .tp-rango .sg-mes > span:first-child { display: none }
+.tp .tp-rango .sg-mes .mes-campo { height: 38px; min-width: 230px; font-size: 14px }
+.tp .tp-placa-f input {
+  height: 38px; width: 200px; padding: 0 12px; border-radius: 2px;
+  font: 600 14px var(--tp-texto); letter-spacing: .04em; color: var(--tp-tinta);
+  background: var(--tp-papel); border: 1.5px solid var(--tp-linea);
+}
+.tp .tp-placa-f input::placeholder { font-weight: 400; letter-spacing: 0; color: var(--tp-gris) }
+.tp .tp-placa-f input:focus-visible { outline: none; border-color: var(--tp-acento) }
+@media (max-width: 560px) {
+  .tp .filtros .tp-f1 { gap: 14px }
+  .tp .tp-placa-f, .tp .tp-placa-f input { width: 100% }
+  .tp .tp-rango .sg-mes, .tp .tp-rango .sg-mes .mes-campo { width: 100%; max-width: none }
+  .tp .filtros .tp-f1 .limpiar { margin-left: 0; width: 100% }
+}

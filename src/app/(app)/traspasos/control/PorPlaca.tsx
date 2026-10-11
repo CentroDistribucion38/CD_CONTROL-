@@ -18,13 +18,14 @@ const hhmm = (iso: string) => new Date(iso).toLocaleTimeString("es-CO", { hour: 
 const ddmm = (f: string) => f.slice(8, 10) + "/" + f.slice(5, 7);
 const PRIMERAS = 24;
 
-export function PorPlaca({ viajes, placaInicial = "", varios }: {
+export function PorPlaca({ viajes, placa = "", varios }: {
   viajes: Viaje[];
-  placaInicial?: string;
+  /** La placa del filtro de arriba (o parte de ella). Vacío = todas. */
+  placa?: string;
   /** El rango tiene más de un día: cada viaje dice su fecha. */
   varios: boolean;
 }) {
-  const [q, setQ] = useState(placaInicial);
+  const q = placa;
   const [todas, setTodas] = useState(false);
   const grupos = useMemo(() => armarPorPlaca(viajes), [viajes]);
   const buscado = placaClave(q);
@@ -43,15 +44,10 @@ export function PorPlaca({ viajes, placaInicial = "", varios }: {
             {nSaltos > 0 && <> · <b className="tp-pp-mal">{nSaltos} salto{nSaltos === 1 ? "" : "s"} de ruta</b></>}
           </p>
         </div>
-        <label className="sel tp-pp-busca">
-          <span>Placa</span>
-          <input value={q} onChange={(e) => setQ(e.target.value.toUpperCase())} placeholder="SNR719"
-                 autoComplete="off" spellCheck={false} />
-        </label>
       </div>
 
       {vistos.length === 0 ? (
-        <p className="tp-pp-nada">{buscado ? `Ninguna placa con «${q}» en este rango.` : "No hay viajes registrados en este rango."}</p>
+        <p className="tp-pp-nada">{buscado ? `Ninguna placa con «${q}» en este rango, turnos y tipos.` : "No hay viajes registrados en este rango."}</p>
       ) : (
         <div className="tp-ci-placas">
           {mostrar.map((g) => (

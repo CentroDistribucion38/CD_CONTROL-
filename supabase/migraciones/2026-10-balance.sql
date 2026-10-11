@@ -1,5 +1,5 @@
 /* =====================================================================
-   INVENTARIO · BALANCE — v3
+   INVENTARIO · BALANCE — v4  (FIXES CRÍTICOS: cajas, estibas, fechas)
    ===================================================================== */
 
 -- PRIMERO: borrar vistas viejas (las columnas cambiaron y CREATE OR
@@ -19,6 +19,14 @@ drop view if exists public.v_balance_casco cascade;
                          unidades_por_caja int, ...)
      casco_registros    (id uuid, fecha date, ubicacion text, sku text,
                          baja numeric, baja_expr text, hl numeric, ...)
+
+   BUGS CORREGIDOS EN v4:
+     1. fefo_lineas.cajas = SALDO (cajas sueltas), NO total.
+        Total = estibas × cajas_por_estiba + cajas.
+     2. casco_registros.baja = ESTIBAS, NO cajas.
+        cajas_casco = round(baja × cajas_por_estiba).
+     3. El balance consolida TODOS los conteos cerrados, no filtra por
+        fecha. Una ubicación contada dos veces usa el conteo más reciente.
    ===================================================================== */
 
 -- =====================================================================
@@ -107,70 +115,107 @@ create policy "bal_aj_ins" on public.balance_ajustes
 
 -- =====================================================================
 -- 4. VISTA — LADO FÍSICO (fefo_conteos + fefo_lineas + fefo_materiales)
+--
+--    CONSOLIDACIÓN: una misma ubicación (calle-modulo-lado) puede
+--    aparecer en varios conteos cerrados de distintas fechas.
+--    Se usa DISTINCT ON para quedarnos con el conteo MÁS RECIENTE
+--    de cada (calle, modulo, lado, codigo, estado_envase) y evitar
+--    doble conteo.
+--
+--    CAJAS: fefo_lineas.cajas = SALDO (cajas sueltas fuera de estiba).
+--    Total cajas = estibas × cajas_por_estiba + cajas.
 -- =====================================================================
 create or replace view public.v_balance_fisico as
+with lineas_unicas as (
+  /* Para cada combinación (calle, modulo, lado, codigo), quedarnos
+     solo con el conteo más reciente. Así si FABRICA se contó el 8
+     y Bodega 38 el 9, ambos aparecen sin pisarse. Y si una
+     ubicación se recontó, gana el último. */
+  select distinct on (e.calle, e.modulo, e.lado, e.codigo)
+    e.id,
+    e.conteo_id,
+    e.codigo,
+    e.calle,
+    e.modulo,
+    e.lado,
+    e.estibas,
+    e.cajas,
+    e.estado_envase,
+    cf.fecha
+  from public.fefo_lineas e
+  join public.fefo_conteos cf on cf.id = e.conteo_id
+  where cf.estado = 'cerrado'
+  order by e.calle, e.modulo, e.lado, e.codigo, cf.fecha desc, cf.cerrado_en desc nulls last
+)
 select
-  cf.fecha                                                        as fecha,
   coalesce(rc.estado_nuevo,
     case
-      when e.estado_envase ilike '%extrasucio%' then 'EXTRASUCIO'
-      when e.estado_envase ilike '%lavado%'     then 'LAVADO'
-      when e.estado_envase ilike '%baja%'       then 'BAJA'
-      else upper(e.estado_envase)
+      when lu.estado_envase ilike '%extrasucio%' then 'EXTRASUCIO'
+      when lu.estado_envase ilike '%lavado%'     then 'LAVADO'
+      when lu.estado_envase ilike '%baja%'       then 'BAJA'
+      else upper(lu.estado_envase)
     end)                                                          as estado,
-  case when e.calle = 'FABRICA' then 'SORTING' else 'PRESORTING' end as alcance,
-  e.codigo::text                                                  as codigo,
+  case when lu.calle = 'FABRICA' then 'SORTING' else 'PRESORTING' end as alcance,
+  lu.codigo::text                                                  as codigo,
   max(m.descripcion)                                              as material,
-  string_agg(distinct (e.calle || '-' || e.modulo || '-' || e.lado), ', '
-    order by (e.calle || '-' || e.modulo || '-' || e.lado))       as ubicacion,
+  string_agg(distinct (lu.calle || '-' || lu.modulo || '-' || lu.lado), ', '
+    order by (lu.calle || '-' || lu.modulo || '-' || lu.lado))    as ubicacion,
   max(m.cajas_por_estiba)                                         as cajas_estiba,
   max(m.unidades_por_caja)                                        as un_caja,
-  sum(e.cajas)                                                    as fisico_cajas,
+  /* FIX #1: Total cajas = estibas × cajas_por_estiba + saldo */
+  sum(lu.estibas * coalesce(m.cajas_por_estiba, 0) + lu.cajas)   as fisico_cajas,
+  max(lu.fecha)                                                   as fecha_conteo,
   max(rc.id)                                                      as reclasificacion_id
-from public.fefo_conteos cf
-join public.fefo_lineas e on e.conteo_id = cf.id
-left join public.fefo_materiales m on m.codigo = e.codigo
+from lineas_unicas lu
+left join public.fefo_materiales m on m.codigo = lu.codigo
 left join lateral (
   select r.estado_nuevo, r.id
     from public.balance_reclasificaciones r
-   where r.conteo_envase_id = e.id
+   where r.conteo_envase_id = lu.id
    order by r.creado_en desc
    limit 1
 ) rc on true
-where cf.estado = 'cerrado'
 group by
-  cf.fecha,
   coalesce(rc.estado_nuevo,
     case
-      when e.estado_envase ilike '%extrasucio%' then 'EXTRASUCIO'
-      when e.estado_envase ilike '%lavado%'     then 'LAVADO'
-      when e.estado_envase ilike '%baja%'       then 'BAJA'
-      else upper(e.estado_envase)
+      when lu.estado_envase ilike '%extrasucio%' then 'EXTRASUCIO'
+      when lu.estado_envase ilike '%lavado%'     then 'LAVADO'
+      when lu.estado_envase ilike '%baja%'       then 'BAJA'
+      else upper(lu.estado_envase)
     end),
-  case when e.calle = 'FABRICA' then 'SORTING' else 'PRESORTING' end,
-  e.codigo::text;
+  case when lu.calle = 'FABRICA' then 'SORTING' else 'PRESORTING' end,
+  lu.codigo::text;
 
 -- =====================================================================
 -- 5. VISTA — LADO CASCO (casco_registros)
+--
+--    FIX #2: casco_registros.baja = ESTIBAS, no cajas.
+--    Hay que multiplicar por cajas_por_estiba del material.
+--    Se joinea fefo_materiales con codigo::text = sku.
+--
+--    CONSOLIDACIÓN: sin filtro de fecha, suma todo el casco
+--    registrado (el casco normalmente tiene una sola foto vigente
+--    por SKU+ubicación, pero si hay varias fechas, se suman).
 -- =====================================================================
 create or replace view public.v_balance_casco as
 select
-  k.fecha,
   case
     when k.baja_expr ilike '%extrasucio%' then 'EXTRASUCIO'
     when k.baja_expr ilike '%lavado%'     then 'LAVADO'
     else 'BAJA'
-  end                                           as estado,
-  coalesce(s.alcance, 'PRESORTING')             as alcance,
-  k.sku                                         as codigo,
-  0::numeric                                    as estibas_casco,
-  sum(k.baja)                                   as cajas_casco
+  end                                                   as estado,
+  coalesce(s.alcance, 'PRESORTING')                     as alcance,
+  k.sku                                                 as codigo,
+  sum(k.baja)                                           as estibas_casco,
+  /* FIX #2: convertir estibas a cajas */
+  sum(round(k.baja * coalesce(m.cajas_por_estiba, 0)))  as cajas_casco,
+  max(k.fecha)                                          as fecha_casco
 from public.casco_registros k
 left join public.balance_sitios s on s.ubicacion = k.ubicacion
+left join public.fefo_materiales m on m.codigo::text = k.sku
 where k.baja_expr is not null
   and k.baja_expr <> ''
 group by
-  k.fecha,
   case
     when k.baja_expr ilike '%extrasucio%' then 'EXTRASUCIO'
     when k.baja_expr ilike '%lavado%'     then 'LAVADO'
@@ -181,33 +226,37 @@ group by
 
 -- =====================================================================
 -- 6. VISTA CRUZADA — Balance completo
+--
+--    FIX #3: ya no cruza por fecha — cruza solo por
+--    (estado, alcance, codigo). La fecha se muestra como referencia
+--    pero no es dimensión de cruce.
 -- =====================================================================
 create or replace view public.v_balance as
 select
-  coalesce(f.fecha, k.fecha)     as fecha,
-  coalesce(f.estado, k.estado)   as estado,
-  coalesce(f.alcance, k.alcance) as alcance,
-  coalesce(f.codigo, k.codigo)   as codigo,
+  coalesce(f.fecha_conteo, k.fecha_casco)  as fecha,
+  coalesce(f.estado, k.estado)             as estado,
+  coalesce(f.alcance, k.alcance)           as alcance,
+  coalesce(f.codigo, k.codigo)             as codigo,
   f.material,
   f.ubicacion,
   f.cajas_estiba,
   f.un_caja,
-  coalesce(f.fisico_cajas, 0)    as fisico_cajas,
-  coalesce(k.estibas_casco, 0)   as estibas_casco,
-  coalesce(k.cajas_casco, 0)     as cajas_casco,
+  coalesce(f.fisico_cajas, 0)              as fisico_cajas,
+  coalesce(k.estibas_casco, 0)             as estibas_casco,
+  coalesce(k.cajas_casco, 0)               as cajas_casco,
 
-  coalesce(a.cajas, 0)           as ajuste_cajas,
-  a.nota                         as ajuste_nota,
+  coalesce(a.cajas, 0)                     as ajuste_cajas,
+  a.nota                                   as ajuste_nota,
   a.calidad,
 
   coalesce(f.fisico_cajas, 0)
     - coalesce(k.cajas_casco, 0)
-    - coalesce(a.cajas, 0)       as dif_cajas,
+    - coalesce(a.cajas, 0)                 as dif_cajas,
 
   case when f.un_caja is not null and f.un_caja > 0
     then (coalesce(f.fisico_cajas, 0) - coalesce(k.cajas_casco, 0) - coalesce(a.cajas, 0)) * f.un_caja
     else null
-  end                            as unidades,
+  end                                      as unidades,
 
   case
     when f.codigo is null then 'En casco y no contado'
@@ -215,19 +264,17 @@ select
     when abs(coalesce(f.fisico_cajas, 0) - coalesce(k.cajas_casco, 0) - coalesce(a.cajas, 0)) > 0
       then 'Diferencia'
     else null
-  end                            as alerta,
+  end                                      as alerta,
 
   f.reclasificacion_id
 
 from public.v_balance_fisico f
 full join public.v_balance_casco k
-  on k.fecha = f.fecha
- and k.estado = f.estado
+  on k.estado = f.estado
  and k.alcance = f.alcance
  and k.codigo = f.codigo
 left join public.balance_ajustes a
-  on a.fecha = coalesce(f.fecha, k.fecha)
- and a.estado = coalesce(f.estado, k.estado)
+  on a.estado = coalesce(f.estado, k.estado)
  and a.alcance = coalesce(f.alcance, k.alcance)
  and a.codigo = coalesce(f.codigo, k.codigo);
 
@@ -236,15 +283,16 @@ left join public.balance_ajustes a
 -- =====================================================================
 create or replace view public.v_balance_bloques as
 select
-  fecha, estado, alcance,
+  estado, alcance,
   count(*)                                    as renglones,
   count(*) filter (where alerta is not null)  as con_alerta,
   sum(fisico_cajas)                           as fisico_cajas,
   sum(estibas_casco)                          as estibas_casco,
+  sum(cajas_casco)                            as cajas_casco,
   sum(dif_cajas)                              as dif_cajas,
   sum(unidades)                               as unidades
 from public.v_balance
-group by fecha, estado, alcance;
+group by estado, alcance;
 
 -- =====================================================================
 -- 8. RLS para balance_sitios

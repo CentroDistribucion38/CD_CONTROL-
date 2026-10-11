@@ -18,7 +18,7 @@ export default async function BalancePage() {
   const supabase = await createClient();
 
   /* Probar si la vista existe: si no, el usuario no ha corrido el SQL. */
-  const prueba = await supabase.from("v_balance_bloques").select("fecha").limit(1);
+  const prueba = await supabase.from("v_balance_bloques").select("estado").limit(1);
   if (prueba.error && /v_balance_bloques|PGRST|relation|does not exist/i.test(
     `${prueba.error.code} ${prueba.error.message}`)) {
     return (
@@ -35,14 +35,16 @@ export default async function BalancePage() {
     );
   }
 
-  /* Los bloques: un renglon por cada combinacion estado x alcance. */
+  /* Los bloques: un renglon por cada combinacion estado x alcance.
+     Ya no hay fecha como dimensión — la vista consolida todos los
+     conteos cerrados. */
   const { data: bloques, error: errBloques } = await supabase
     .from("v_balance_bloques")
     .select("*")
-    .order("fecha", { ascending: false })
-    .limit(10);
+    .order("estado")
+    .order("alcance");
 
-  /* El detalle: todos los renglones del ultimo conteo. */
+  /* El detalle: todos los renglones consolidados. */
   const { data: detalle, error: errDetalle } = await supabase
     .from("v_balance")
     .select("*")

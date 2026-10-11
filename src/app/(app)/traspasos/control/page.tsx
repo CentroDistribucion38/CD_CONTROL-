@@ -534,7 +534,7 @@ export default async function ControlPage({ searchParams }: {
           tocar nada más.
           ================================================================= */}
       {/* POR PLACA: cada placa con sus viajes en orden de hora, del rango, turnos y tipos de arriba. */}
-      <PorPlaca varios={desde !== hasta} placaInicial={(q.placa ?? "").toUpperCase()}
+      <PorPlaca varios={desde !== hasta} placa={(q.placa ?? "").toUpperCase()}
                 viajes={vj.viajes.filter((v) =>
                   (!turnos.size || turnos.has(v.turno)) && (!tipos.size || !v.tipo || tipos.has(v.tipo)))} />
 
