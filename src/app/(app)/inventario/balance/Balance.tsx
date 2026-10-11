@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { reclasificar, quitarReclasificacion } from "./actions";
 
 /* ------------------------------------------------------------------ */
@@ -70,15 +71,30 @@ function n(v: number | null | undefined, dec = 0): string {
 /* ------------------------------------------------------------------ */
 /*  COMPONENTE                                                         */
 /* ------------------------------------------------------------------ */
+const DIAS_SEM = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
+const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+/** «vie 10 oct 2026» */
+const diaLargo = (f: string) => {
+  const d = new Date(f + "T12:00:00Z");
+  return `${DIAS_SEM[d.getUTCDay()]} ${d.getUTCDate()} ${MESES[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+};
+
 export function Balance({
   bloques,
   detalle,
   error,
+  fecha,
+  dias,
 }: {
   bloques: Bloque[];
   detalle: Fila[];
   error: string | null;
+  /** El día del consolidado que se está mirando, y los días que tienen conteo enviado. */
+  fecha: string | null;
+  dias: string[];
 }) {
+  const router = useRouter();
+  const [cambiando, startCambio] = useTransition();
   const [hojaIdx, setHojaIdx] = useState(0);
   const [reclas, setReclas] = useState<Fila | null>(null);
   const [nuevoEstado, setNuevoEstado] = useState("");
@@ -173,7 +189,8 @@ export function Balance({
     if (!f.reclasificacion_id) return;
     startTransition(async () => {
       const fd = new FormData();
-      fd.set("id", String(f.reclasificacion_id));
+      fd.set("codigo", f.codigo);
+      fd.set("fecha", f.fecha ?? fecha ?? "");
       await quitarReclasificacion(fd);
     });
   }
@@ -188,10 +205,20 @@ export function Balance({
           <p className="ojo">INVENTARIO · BALANCE</p>
           <h1>Balance de materiales</h1>
           <p className="sub">
-            Cruce del último conteo físico contra el casco de vidrio.
-            Consolida todos los conteos cerrados.
+            El consolidado del conteo del día que escojas (el mismo de La base) contra el casco de
+            vidrio: Bodega 38 cruza BAJA y EXTRASUCIO; Fábrica cruza LAVADO.
           </p>
         </div>
+        {/* «PUEDO TOMAR EL CONSOLIDADO DEL VIERNES O DE CUALQUIER DÍA QUE QUIERA.» */}
+        <label className="bal-dia">
+          <span>Consolidado del día</span>
+          <select value={fecha ?? ""} disabled={cambiando || dias.length === 0}
+                  onChange={(e) => startCambio(() => router.push(`/inventario/balance?fecha=${e.target.value}`))}>
+            {dias.length === 0 && <option value="">Sin conteos enviados</option>}
+            {dias.map((d) => <option key={d} value={d}>{diaLargo(d)}</option>)}
+          </select>
+          {cambiando && <em>Trayendo…</em>}
+        </label>
       </section>
 
       {error && (

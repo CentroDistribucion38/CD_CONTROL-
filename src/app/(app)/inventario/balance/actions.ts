@@ -2,96 +2,61 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { consolidadoDelDia, diasConConteo } from "@/modulos/inventario/balance";
+
+const normEstado = (e: string | null | undefined) => {
+  const t = (e ?? "").trim().toUpperCase();
+  return t.includes("EXTRASUCIO") ? "EXTRASUCIO" : t.includes("LAVADO") ? "LAVADO" : t.includes("BAJA") ? "BAJA" : t;
+};
+
+/** Los renglones del consolidado de ese día de ese material (con sus ids). */
+async function renglones(codigo: string, fecha: string) {
+  const { conteos } = await diasConConteo();
+  const { vigentes } = await consolidadoDelDia(fecha, conteos);
+  return vigentes.filter((r) => String(r.codigo) === codigo);
+}
 
 /**
- * RECLASIFICAR — mover un envase de un estado a otro.
- *
- * Busca la fila en fefo_lineas por código + fecha (la del conteo
- * cerrado más reciente de esa fecha). Inserta en balance_reclasificaciones
- * con el envase_id (uuid) correspondiente.
+ * RECLASIFICAR — mover un material de un estado a otro en el consolidado de ese día.
+ * Se guarda por renglón del conteo (su id) en balance_reclasificaciones.
  */
 export async function reclasificar(fd: FormData) {
-  const codigo = fd.get("codigo") as string;
-  const fecha = fd.get("fecha") as string;
-  const estado_original = fd.get("estado_original") as string;
-  const estado_nuevo = fd.get("estado_nuevo") as string;
+  const codigo = String(fd.get("codigo") ?? "");
+  const fecha = String(fd.get("fecha") ?? "");
+  const estado_original = String(fd.get("estado_original") ?? "");
+  const estado_nuevo = String(fd.get("estado_nuevo") ?? "");
   const motivo = (fd.get("motivo") as string) || null;
-
-  if (!codigo || !fecha || !estado_original || !estado_nuevo) {
-    return { error: "Faltan datos" };
-  }
-  if (estado_original === estado_nuevo) {
-    return { error: "El estado nuevo es igual al actual" };
-  }
+  if (!codigo || !fecha || !estado_original || !estado_nuevo) return { error: "Faltan datos" };
+  if (estado_original === estado_nuevo) return { error: "El estado nuevo es igual al actual" };
 
   const supabase = await createClient();
+  const rs = await renglones(codigo, fecha);
+  /* Los renglones que HOY están en el estado original (ya reclasificados o tal como se contaron). */
+  const ids = rs.map((r) => r.id);
+  const { data: ya } = ids.length
+    ? await supabase.from("balance_reclasificaciones").select("conteo_envase_id, estado_nuevo, creado_en").in("conteo_envase_id", ids).order("creado_en")
+    : { data: [] as { conteo_envase_id: string; estado_nuevo: string }[] };
+  const actual = new Map<string, string>();
+  for (const x of ya ?? []) actual.set(x.conteo_envase_id, x.estado_nuevo);
+  const mover = rs.filter((r) => (actual.get(r.id) ?? normEstado(r.estado_envase)) === estado_original);
+  if (!mover.length) return { error: "No se encontró ese material con ese estado en el consolidado del día" };
 
-  /* fefo_lineas.codigo es bigint, el form manda texto → comparar directo.
-     fefo_conteos.fecha es date (no timestamptz). */
-  const { data: envase, error: errEnv } = await supabase
-    .from("fefo_lineas")
-    .select("id, conteo_id, fefo_conteos!inner(fecha, estado)")
-    .eq("codigo", codigo)
-    .eq("fefo_conteos.estado", "cerrado")
-    .eq("fefo_conteos.fecha", fecha)
-    .order("id", { ascending: false })
-    .limit(1)
-    .single();
-
-  if (errEnv || !envase) {
-    /* Intento alternativo: buscar solo por código y estado_envase. */
-    const { data: env2 } = await supabase
-      .from("fefo_lineas")
-      .select("id")
-      .eq("codigo", codigo)
-      .eq("estado_envase", estado_original)
-      .order("id", { ascending: false })
-      .limit(1)
-      .single();
-
-    if (!env2) return { error: "No se encontró el envase en el conteo" };
-
-    const { error: errIns } = await supabase
-      .from("balance_reclasificaciones")
-      .insert({
-        conteo_envase_id: env2.id,
-        estado_original,
-        estado_nuevo,
-        motivo,
-      });
-
-    if (errIns) return { error: errIns.message };
-    revalidatePath("/inventario/balance");
-    return { ok: true };
-  }
-
-  const { error: errIns } = await supabase
-    .from("balance_reclasificaciones")
-    .insert({
-      conteo_envase_id: envase.id,
-      estado_original,
-      estado_nuevo,
-      motivo,
-    });
-
-  if (errIns) return { error: errIns.message };
+  const { error } = await supabase.from("balance_reclasificaciones").insert(
+    mover.map((r) => ({ conteo_envase_id: r.id, estado_original, estado_nuevo, motivo })));
+  if (error) return { error: error.message };
   revalidatePath("/inventario/balance");
   return { ok: true };
 }
 
-/**
- * QUITAR RECLASIFICACIÓN — devolver el envase a su estado original.
- */
+/** QUITAR RECLASIFICACIÓN — el material vuelve a como se contó ese día. */
 export async function quitarReclasificacion(fd: FormData) {
-  const id = Number(fd.get("id"));
-  if (!id) return { error: "Falta el id" };
-
+  const codigo = String(fd.get("codigo") ?? "");
+  const fecha = String(fd.get("fecha") ?? "");
+  if (!codigo || !fecha) return { error: "Faltan datos" };
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("balance_reclasificaciones")
-    .delete()
-    .eq("id", id);
-
+  const ids = (await renglones(codigo, fecha)).map((r) => r.id);
+  if (!ids.length) return { error: "No se encontró el material en el consolidado del día" };
+  const { error } = await supabase.from("balance_reclasificaciones").delete().in("conteo_envase_id", ids);
   if (error) return { error: error.message };
   revalidatePath("/inventario/balance");
   return { ok: true };

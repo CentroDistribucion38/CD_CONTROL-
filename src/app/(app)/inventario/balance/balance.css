@@ -196,3 +196,9 @@
   .bal-tabla th, .bal-tabla td { padding: 5px 6px }
   .bal-modal { padding: 20px }
 }
+
+/* El día del consolidado, arriba a la derecha. */
+.bal .cabeza { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap }
+.bal .bal-dia { display: flex; flex-direction: column; gap: 6px; font-size: 11.5px; font-weight: 600 }
+.bal .bal-dia select { height: 42px; min-width: 220px; padding: 0 10px; font: 600 14px inherit; border: 1.5px solid var(--fe-linea, #d5dce5); background: #fff; text-transform: capitalize }
+.bal .bal-dia em { font-style: normal; font-weight: 400; color: var(--fe-gris, #6b7280) }
