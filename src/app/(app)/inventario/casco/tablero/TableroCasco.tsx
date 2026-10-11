@@ -6,7 +6,7 @@ import type { SitioCasco } from "@/modulos/casco/datos";
 import type { UbicacionesInventario } from "@/modulos/casco/ubicaciones-inventario";
 import { limpiarPuesto } from "@/modulos/casco/ubicacion-sitio";
 import { ubicacionDeFila } from "@/modulos/casco/ubicaciones-armar";
-import { ejeNice, estadoAlmacen, filtrar, porFecha, porMaterial, viajesDelDia, viajesSerpro, type Punto } from "@/modulos/casco/serie";
+import { arrastres, ejeNice, estadoAlmacen, filtrar, porFecha, porMaterial, viajesDelDia, viajesSerpro, type Punto } from "@/modulos/casco/serie";
 import { enOrdenInforme, media, type DatosInformeCasco } from "@/modulos/casco/informe";
 import { BotonesInforme } from "./BotonesInforme";
 
@@ -89,6 +89,8 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura, delInventa
 
   /* LOS DOS CORTES: con filtros (gráfica y dinámica) y sin ellos (viajes, que tu hoja calcula de todo). */
   const vistos = useMemo(() => filtrar(puntos, { desde: ventana.d, hasta: ventana.h, sitios: sitiosVis, sku: sku || null }), [puntos, ventana, sitiosVis, sku]);
+  /* Los sitios que un día no se registraron y muestran su último inventario: «fecha|sitio» → de qué día viene. */
+  const arr = useMemo(() => arrastres(vistos), [vistos]);
   const serie = useMemo(() => porFecha(vistos), [vistos]);
   const claves = sitios.map((s) => s.clave).filter((k) => sitiosVis.includes(k));
   const nombreSitio = (k: string) => sitios.find((s) => s.clave === k)?.nombre ?? k;
@@ -266,9 +268,18 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura, delInventa
                   <li key={k}><i className="cvt-pt" style={{ background: colorDe(k).fondo }} aria-hidden />{nombreSitio(k)}</li>
                 ))}
               </ul>
+              {arr.size > 0 && (
+                <p className="cvt-arr-nota">Rayado: ese día no se registró; sigue el último inventario de ese almacén.</p>
+              )}
             </header>
             <div className="cvt-lienzo" ref={lienzo} onMouseLeave={() => setTip(null)}>
               <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Barras apiladas por día, de ${corta(serie[0].fecha)} a ${corta(serie[n - 1].fecha)}`}>
+                <defs>
+                  <pattern id="cvt-raya" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                    <rect width="6" height="6" fill="rgba(255,255,255,.0)" />
+                    <line x1="0" y1="0" x2="0" y2="6" stroke="rgba(255,255,255,.55)" strokeWidth="2.5" />
+                  </pattern>
+                </defs>
                 {eje.ticks.map((t) => (
                   <g key={t}>
                     <line x1={ML} x2={W - MR} y1={y(t)} y2={y(t)} className="cvt-rej" />
@@ -285,9 +296,11 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura, delInventa
                         const v = d.porSitio[k] ?? 0; if (v <= 0) return null;
                         const y1 = y(base + v), y0 = y(base); base += v;
                         const alto = y0 - y1;
+                        const viene = arr.get(`${d.fecha}|${k}`);
                         return (
                           <g key={k}>
                             <rect x={x} y={y1} width={BW} height={Math.max(0, alto - 1.5)} fill={colorDe(k).fondo} />
+                            {viene && <rect x={x} y={y1} width={BW} height={Math.max(0, alto - 1.5)} fill="url(#cvt-raya)"><title>{`${nombreSitio(k)}: sin registro el ${corta(d.fecha)}, sigue el inventario del ${corta(viene)}`}</title></rect>}
                             {alto >= 15 && BW >= 36 && <text x={x + BW / 2} y={y1 + alto / 2 + 4} textAnchor="middle" className="cvt-seg-txt" fill={colorDe(k).tinta}>{nf0.format(v)}</text>}
                           </g>
                         );
@@ -302,7 +315,7 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura, delInventa
                 <div className="cvt-tip" style={{ left: Math.min(tip.x + 14, W - 200), top: Math.max(tip.y - 10, 4) }} role="status">
                   <b>{larga(serie[tip.i].fecha)}</b>
                   {claves.map((k) => (
-                    <span key={k}><i className="cvt-pt" style={{ background: colorDe(k).fondo }} aria-hidden />{nombreSitio(k)}<em>{nf0.format(serie[tip.i].porSitio[k] ?? 0)}</em></span>
+                    <span key={k}><i className="cvt-pt" style={{ background: colorDe(k).fondo }} aria-hidden />{nombreSitio(k)}{arr.get(`${serie[tip.i].fecha}|${k}`) && <small className="cvt-arr"> · del {corta(arr.get(`${serie[tip.i].fecha}|${k}`)!)}</small>}<em>{nf0.format(serie[tip.i].porSitio[k] ?? 0)}</em></span>
                   ))}
                   <span className="cvt-tip-tot">Total<em>{nf0.format(serie[tip.i].total)}</em></span>
                 </div>
@@ -322,7 +335,15 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura, delInventa
                   {[...serie].reverse().map((d) => (
                     <tr key={d.fecha}>
                       <td>{corta(d.fecha)}</td>
-                      {claves.map((k) => <td key={k} className="n">{d.porSitio[k] != null ? nf0.format(d.porSitio[k]) : "—"}</td>)}
+                      {claves.map((k) => {
+                        const viene = arr.get(`${d.fecha}|${k}`);
+                        return (
+                          <td key={k} className="n" title={viene ? `Sin registro este día: sigue el inventario del ${corta(viene)}` : undefined}>
+                            {d.porSitio[k] != null ? nf0.format(d.porSitio[k]) : "—"}
+                            {viene && <small className="cvt-arr"> del {corta(viene)}</small>}
+                          </td>
+                        );
+                      })}
                       <td className="n tot">{nf0.format(d.total)}</td>
                     </tr>
                   ))}

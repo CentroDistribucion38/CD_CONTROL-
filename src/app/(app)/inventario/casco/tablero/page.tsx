@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { todas } from "@/modulos/inventario/paginas";
 import { sitiosCasco, materialesCasco } from "@/modulos/casco/datos";
 import { ubicacionesDelInventario } from "@/modulos/casco/ubicaciones-inventario";
-import type { Punto } from "@/modulos/casco/serie";
+import { rellenarInventario, type Punto } from "@/modulos/casco/serie";
 import "../../fefo.css";
 import "./tablero.css";
 import { TableroCasco } from "./TableroCasco";
@@ -62,6 +62,8 @@ export default async function TableroCascoPage() {
   } else {
     errorLectura = rpc.error.message;
   }
+  /* Los sitios que un día no se registraron siguen mostrando su último inventario. */
+  puntos = rellenarInventario(puntos);
   const nombres = Object.fromEntries(materiales.map((m) => [m.sku, m.nombre]));
 
   return (

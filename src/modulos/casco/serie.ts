@@ -15,7 +15,43 @@ export type Punto = {
   /** Dónde está en la bodega («P13/16/17 - SORTING») y la nota de calidad («105 PICO ABAJO»). */
   puesto?: string | null;
   calidad?: string | null;
+  /** Si el sitio NO se registró ese día: el día del último registro que se está mostrando. */
+  arrastre?: string | null;
 };
+
+/**
+ * EL INVENTARIO NO SE VA A CERO PORQUE NADIE LO GUARDÓ.
+ *
+ * «Independiente de si se guarda o no, debe traer nuestro inventario.» Un sitio que un día no se
+ * registró sigue teniendo lo que tenía: para cada día con registros, cada sitio que ese día no
+ * tiene renglones toma los de SU último día registrado antes, marcados con `arrastre` (el día de
+ * donde vienen). Un sitio que nunca se ha registrado antes de ese día no aparece.
+ */
+export function rellenarInventario(puntos: Punto[]): Punto[] {
+  const dias = [...new Set(puntos.map((p) => p.fecha))].sort();
+  const porSitioDia = new Map<string, Map<string, Punto[]>>();
+  for (const p of puntos) {
+    const m = porSitioDia.get(p.ubicacion) ?? porSitioDia.set(p.ubicacion, new Map()).get(p.ubicacion)!;
+    (m.get(p.fecha) ?? m.set(p.fecha, []).get(p.fecha)!).push(p);
+  }
+  const out = [...puntos];
+  for (const [, m] of porSitioDia) {
+    let ultimo: string | null = null;
+    for (const d of dias) {
+      if (m.has(d)) { ultimo = d; continue }
+      if (!ultimo) continue;
+      for (const p of m.get(ultimo)!) out.push({ ...p, fecha: d, arrastre: ultimo });
+    }
+  }
+  return out;
+}
+
+/** «fecha|sitio» → día de donde viene, para los sitios que ese día se muestran arrastrados. */
+export function arrastres(puntos: Punto[]): Map<string, string> {
+  const m = new Map<string, string>();
+  for (const p of puntos) if (p.arrastre) m.set(`${p.fecha}|${p.ubicacion}`, p.arrastre);
+  return m;
+}
 
 export type Filtro = {
   desde?: string; hasta?: string;
