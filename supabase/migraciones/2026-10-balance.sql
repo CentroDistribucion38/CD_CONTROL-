@@ -63,8 +63,16 @@ on conflict (ubicacion) do nothing;
 -- =====================================================================
 -- 2. TABLA DE RECLASIFICACIONES (conteo_envase_id es UUID)
 -- =====================================================================
-drop table if exists public.balance_reclasificaciones cascade;
-create table public.balance_reclasificaciones (
+/* SE PUEDE CORRER VARIAS VECES: la tabla solo se rehace si es la versión vieja (conteo_envase_id
+   que no es uuid); si ya está bien, se conserva con lo que tenga. */
+do $$ begin
+  if exists (select 1 from information_schema.columns where table_schema = 'public'
+              and table_name = 'balance_reclasificaciones' and column_name = 'conteo_envase_id'
+              and data_type <> 'uuid') then
+    drop table public.balance_reclasificaciones cascade;
+  end if;
+end $$;
+create table if not exists public.balance_reclasificaciones (
   id              bigint generated always as identity primary key,
   conteo_envase_id uuid not null,
   estado_original text not null,
@@ -92,8 +100,8 @@ create policy "bal_reclas_del" on public.balance_reclasificaciones
 -- =====================================================================
 -- 3. TABLA DE AJUSTES — ANTES de las vistas porque v_balance la usa
 -- =====================================================================
-drop table if exists public.balance_ajustes cascade;
-create table public.balance_ajustes (
+/* Se conserva si ya existe: los ajustes son trabajo de la gente. */
+create table if not exists public.balance_ajustes (
   id       bigint generated always as identity primary key,
   fecha    date not null,
   estado   text not null,
