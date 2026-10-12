@@ -266,6 +266,13 @@ const IconoBalanza = () => (
     <path d="M5 7l-2.5 6h5z M19 7l-2.5 6h5z" />
   </svg>
 );
+/* PASIVOS (la rama): el candado — el EER que está bloqueado. */
+const IconoCandado = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <rect x="5" y="10.5" width="14" height="10" rx="1.5" />
+    <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3M12 14.5v2.5" />
+  </svg>
+);
 /* PASIVOS · BASE: la pila de datos (la hoja DATA). */
 const IconoBaseDatos = () => (
   <svg viewBox="0 0 24 24" {...P}>
@@ -365,6 +372,8 @@ const ICONO_RAMA: Record<string, () => React.ReactElement> = {
   envase: IconoBotella,
   "en-sitio": IconoRoturas,
   salida: IconoTolva,
+  balance: IconoBalanza,
+  pasivos: IconoCandado,
 };
 
 const ICONO_RUTA: Record<string, () => React.ReactElement> = {
