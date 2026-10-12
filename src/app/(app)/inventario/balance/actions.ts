@@ -61,3 +61,45 @@ export async function quitarReclasificacion(fd: FormData) {
   revalidatePath("/inventario/balance");
   return { ok: true };
 }
+
+/**
+ * REASIGNAR DESDE LA HOJA «CONSOLIDADO» — por renglones exactos del conteo (una o varias líneas
+ * escogidas), no por material completo. Si el estado nuevo es el mismo con que se contó, se quita la
+ * reasignación (vuelve a como se contó); si no, queda la nueva.
+ */
+export async function reasignarRenglones(fd: FormData) {
+  const fecha = String(fd.get("fecha") ?? "");
+  const estado_nuevo = String(fd.get("estado_nuevo") ?? "").trim().toUpperCase();
+  const motivo = (fd.get("motivo") as string) || null;
+  let pedidos: string[] = [];
+  try { pedidos = JSON.parse(String(fd.get("ids") ?? "[]")) } catch { /* nada */ }
+  if (!fecha || !estado_nuevo || !pedidos.length) return { error: "Faltan datos" };
+
+  const supabase = await createClient();
+  const { conteos } = await diasConConteo();
+  const { vigentes } = await consolidadoDelDia(fecha, conteos);
+  const pedidosSet = new Set(pedidos);
+  const rs = vigentes.filter((r) => pedidosSet.has(r.id));
+  if (!rs.length) return { error: "Esas líneas ya no están en el consolidado del día" };
+
+  const ids = rs.map((r) => r.id);
+  const { data: ya } = await supabase.from("balance_reclasificaciones")
+    .select("conteo_envase_id, estado_nuevo, creado_en").in("conteo_envase_id", ids).order("creado_en");
+  const actual = new Map<string, string>();
+  for (const x of ya ?? []) actual.set(x.conteo_envase_id, x.estado_nuevo);
+
+  const vuelven = rs.filter((r) => normEstado(r.estado_envase) === estado_nuevo).map((r) => r.id);
+  const mover = rs.filter((r) => normEstado(r.estado_envase) !== estado_nuevo && (actual.get(r.id) ?? "") !== estado_nuevo);
+
+  if (vuelven.length) {
+    const { error } = await supabase.from("balance_reclasificaciones").delete().in("conteo_envase_id", vuelven);
+    if (error) return { error: error.message };
+  }
+  if (mover.length) {
+    const { error } = await supabase.from("balance_reclasificaciones").insert(mover.map((r) => ({
+      conteo_envase_id: r.id, estado_original: actual.get(r.id) ?? normEstado(r.estado_envase), estado_nuevo, motivo })));
+    if (error) return { error: error.message };
+  }
+  revalidatePath("/inventario/balance");
+  return { ok: true, movidos: mover.length + vuelven.length };
+}

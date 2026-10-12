@@ -39,10 +39,18 @@ export type BloqueBalance = {
   fisico_cajas: number; estibas_casco: number; cajas_casco: number; dif_cajas: number; unidades: number | null;
 };
 
+/** Una línea de la hoja «Consolidado»: un material, en un estado, en una ubicación, con su cantidad.
+ *  `ids` son los renglones del conteo que la forman (lo que se reasigna). */
+export type LineaConsolidado = {
+  clave: string; codigo: string; material: string | null; estado: string; contado: string;
+  zona: "Fábrica" | "Bodega 38"; ubicacion: string; cajas: number; unidades: number | null;
+  ids: string[]; reasignado: boolean;
+};
+
 const TOPE = 500;
 /** Las cajas plásticas no son casco de vidrio: no entran al balance (en el libro van como «Libre»). */
 const esCajaPlastica = (nombre: string | null | undefined) => /CAJA\s+PL/i.test(nombre ?? "");
-const normEstado = (e: string | null | undefined) => {
+export const normEstado = (e: string | null | undefined) => {
   const t = (e ?? "").trim().toUpperCase();
   if (t.includes("EXTRASUCIO")) return "EXTRASUCIO";
   if (t.includes("LAVADO")) return "LAVADO";
@@ -109,7 +117,7 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
   const supabase = await createClient();
   const { dias, conteos, error: e0 } = await diasConConteo();
   const fecha = pedida && dias.includes(pedida) ? pedida : (dias[0] ?? null);
-  const vacio = { fecha, dias, fechaCasco: null as string | null, diasCasco: [] as string[], detalle: [] as FilaBalance[], bloques: [] as BloqueBalance[], error: e0 };
+  const vacio = { fecha, dias, consolidado: [] as LineaConsolidado[], fechaCasco: null as string | null, diasCasco: [] as string[], detalle: [] as FilaBalance[], bloques: [] as BloqueBalance[], error: e0 };
   if (!fecha) return vacio;
 
   const [{ vigentes, error: e1 }, maestro, sitiosR, cascoR, ajustesR] = await Promise.all([
@@ -150,6 +158,35 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
     }
     return f;
   };
+
+  /* LA HOJA «CONSOLIDADO»: todo lo contado ese día (también cajas plásticas), con el estado que
+     manda hoy (el reasignado si lo hay), por material · estado · zona · ubicación. */
+  const lineas = new Map<string, LineaConsolidado>();
+  for (const r of vigentes) {
+    const rc = reclas.get(r.id);
+    const contado = normEstado(r.estado_envase);
+    const estado = rc?.estado ?? contado;
+    const zonaR = zona(r) === "SORTING" ? "Fábrica" as const : "Bodega 38" as const;
+    const ubic = (r.ubicacion ?? r.ubicacion_combinada ?? "").trim() || "—";
+    const codigo = String(r.codigo);
+    const k = `${codigo}|${estado}|${zonaR}|${ubic}`;
+    let l = lineas.get(k);
+    if (!l) {
+      l = { clave: k, codigo, material: prod.get(codigo)?.nombre ?? r.material ?? null, estado, contado,
+        zona: zonaR, ubicacion: ubic, cajas: 0, unidades: null, ids: [], reasignado: false };
+      lineas.set(k, l);
+    }
+    l.cajas += Number(r.total_cajas) || 0;
+    l.ids.push(r.id);
+    if (rc) l.reasignado = true;
+    if (contado !== l.contado) l.contado = [...new Set([...l.contado.split(" / "), contado])].join(" / ");
+  }
+  const consolidado = [...lineas.values()].map((l) => {
+    const u = prod.get(l.codigo)?.unidades_por_caja;
+    return { ...l, unidades: u ? l.cajas * u : null };
+  }).sort((a, b) => a.codigo.localeCompare(b.codigo, "es", { numeric: true })
+    || a.estado.localeCompare(b.estado) || a.zona.localeCompare(b.zona)
+    || a.ubicacion.localeCompare(b.ubicacion, "es", { numeric: true }));
 
   /* FÍSICO */
   for (const r of vigentes) {
@@ -217,7 +254,7 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
     bloquesM.set(k, b);
   }
   return {
-    fecha, dias, fechaCasco, diasCasco, detalle, bloques: [...bloquesM.values()],
+    fecha, dias, consolidado, fechaCasco, diasCasco, detalle, bloques: [...bloquesM.values()],
     error: e0 ?? e1 ?? maestro.error?.message ?? cascoR.error ?? null,
   };
 }

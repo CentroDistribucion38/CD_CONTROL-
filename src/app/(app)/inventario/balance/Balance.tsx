@@ -2,6 +2,8 @@
 
 import { useState, useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import type { LineaConsolidado } from "@/modulos/inventario/balance";
+import { Consolidado } from "./Consolidado";
 import { reclasificar, quitarReclasificacion } from "./actions";
 
 /* ------------------------------------------------------------------ */
@@ -87,6 +89,7 @@ export function Balance({
   dias,
   fechaCasco,
   diasCasco,
+  consolidado,
 }: {
   bloques: Bloque[];
   detalle: Fila[];
@@ -97,10 +100,12 @@ export function Balance({
   /** El día del casco que se cruza (se escoge aparte del conteo), y los días que tiene el casco. */
   fechaCasco: string | null;
   diasCasco: string[];
+  /** La hoja «Consolidado»: todo lo contado el día, para filtrar y reasignar estados. */
+  consolidado: LineaConsolidado[];
 }) {
   const router = useRouter();
   const [cambiando, startCambio] = useTransition();
-  const [hojaIdx, setHojaIdx] = useState(0);
+  const [hojaIdx, setHojaIdx] = useState(-1);
   const [reclas, setReclas] = useState<Fila | null>(null);
   const [nuevoEstado, setNuevoEstado] = useState("");
   const [motivo, setMotivo] = useState("");
@@ -183,7 +188,7 @@ export function Balance({
     });
   }
 
-  const tieneData = detalle.length > 0 || bloques.length > 0;
+  const tieneData = detalle.length > 0 || bloques.length > 0 || consolidado.length > 0;
 
   return (
     <>
@@ -238,6 +243,11 @@ export function Balance({
         <>
           {/* ---- PESTAÑAS ---- */}
           <nav className="bal-tabs" role="tablist">
+            {/* PRIMERO EL CONSOLIDADO: ahí se reasignan los estados; después cada hoja del balance. */}
+            <button role="tab" aria-selected={hojaIdx < 0} className={`bal-tab ${hojaIdx < 0 ? "activa" : ""}`} onClick={() => setHojaIdx(-1)}>
+              <span className="bal-tab-label">Consolidado</span>
+              <span className="bal-tab-badge">{consolidado.length}</span>
+            </button>
             {HOJAS.map((h, i) => {
               const k = `${h.estado}|${h.alcance ?? "ALL"}`;
               const esOtrosTab = h.estado === "__OTROS__";
@@ -292,6 +302,7 @@ export function Balance({
             })}
           </nav>
 
+          {hojaIdx < 0 ? <Consolidado lineas={consolidado} fecha={fecha} /> : (<>
           {/* ---- RESUMEN DEL BLOQUE ---- */}
           {bloque && (
             <div className="bal-resumen-bloque">
@@ -490,6 +501,7 @@ export function Balance({
                     <b>{hoja.alcance === "SORTING" ? "Fábrica (AG18)" : hoja.alcance === "PRESORTING" ? "Bodega 38 (AG22)" : "todas las ubicaciones"}</b>.</>}
             </p>
           )}
+          </>)}
         </>
       )}
 
