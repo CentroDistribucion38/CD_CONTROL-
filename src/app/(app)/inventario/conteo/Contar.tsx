@@ -2649,56 +2649,80 @@ export function Contar({
         ) : (
           <>
             <input ref={camaraFila} type="file" accept="image/jpeg,image/png,image/webp,image/heic" capture="environment" hidden onChange={fotoDeFila} />
-            <div className="fe-lista">
-              {vistos.length === 0 && (
-                <p className="fe-vacio">Ningún renglón coincide con el filtro.</p>
-              )}
-              {vistos.map((r) => (
-                <article key={r.id}
-                         className={"fe-fila"
-                           + (r.dias_para_salir != null && r.dias_para_salir < 0 ? " urgente" : "")
-                           + (corrigiendo === r.id ? " tocando" : "")}>
-                  <div className="fe-cab">
-                    <b className="fe-cod">{r.codigo}</b>
-                    <span className="fe-desc">{r.material}</span>
-                    <span className="fe-ubi">{r.ubicacion_combinada ?? r.ubicacion}</span>
-                    {fotosDe[r.id] && (
-                      <button type="button" className="fe-mini fe-foto-ver" onClick={() => void verFoto(r.id)}>Ver foto</button>
-                    )}
-                    <button type="button" className="fe-mini" disabled={guardando || sellando}
-                            aria-label={fotosDe[r.id] ? "Cambiar la foto" : "Poner foto"}
-                            onClick={() => { filaDeFoto.current = r.id; pedirUbi(); camaraFila.current?.click() }}>
-                      {fotosDe[r.id] ? "Otra foto" : "Foto"}
-                    </button>
-                    <button type="button" className="fe-mini" disabled={guardando}
-                            onClick={() => corregir(r)}>Corregir</button>
-                    <button type="button" className="fe-quitar chico" disabled={guardando}
-                            onClick={() => borrar(r)}>Borrar</button>
-                  </div>
-                  <dl className="fe-cifras">
-                    <div><dt>Total cajas</dt><dd>{nf.format(Number(r.total_cajas))}</dd></div>
-                    {/* CÓMO SE CONTÓ, y no solo cuántas: «56» no dice si
-                        son estibas o cajas, y con el saldo al lado la
-                        diferencia entre 12 estibas y 12 cajas es de dos
-                        órdenes de magnitud. */}
-                    <div><dt>{r.cajas != null ? "Cajas" : r.saldo != null ? "Estibas + saldo" : "Estibas"}</dt>
-                      <dd>{r.cajas != null ? r.cajas
-                           : r.saldo != null ? `${r.estibas ?? 0} + ${r.saldo}`
-                           : r.estibas}</dd></div>
-                    <div><dt>Vence</dt>
-                      <dd>{r.vencimiento
-                        ? new Date(r.vencimiento + "T00:00:00").toLocaleDateString("es-CO")
-                        : "—"}</dd></div>
-                    {/* «DÍAS PARA SALIR» ES LA CIFRA DEL FEFO. No es cuándo
-                        vence: es cuándo TIENE QUE HABER SALIDO para llegar
-                        con vida útil suficiente. En negativo ya se pasó. */}
-                    <div><dt>Días para salir</dt>
-                      <dd className={r.dias_para_salir != null && r.dias_para_salir < 0 ? "falta" : undefined}>
-                        {r.dias_para_salir ?? "—"}</dd></div>
-                  </dl>
-                </article>
-              ))}
-            </div>
+            {/* EL BORRADOR EN TABLA, EN ORDEN («que estén en tabla para que se entienda mejor, organizada
+                en orden»): por ubicación —calle y módulo, en orden natural— y dentro de cada una por código.
+                Cada ubicación abre con su renglón de grupo (cuántos renglones y cuántas cajas). En el
+                celular la tabla se desliza de lado; la página no. */}
+            {vistos.length === 0 ? (
+              <p className="fe-vacio">Ningún renglón coincide con el filtro.</p>
+            ) : (
+              <div className="fe-tabla fe-bor-t">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Código</th><th>Descripción</th><th className="n">Cómo se contó</th>
+                      <th className="n">Total cajas</th><th>Vence</th><th className="n">Días para salir</th><th aria-label="Acciones" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      const ubiDe = (r: Renglon) => r.ubicacion_combinada ?? r.ubicacion ?? "Sin ubicación";
+                      const nat = (x: string, y: string) => x.localeCompare(y, "es", { numeric: true });
+                      const orden = [...vistos].sort((x, y) => nat(ubiDe(x), ubiDe(y)) || nat(String(x.codigo), String(y.codigo)));
+                      const porUbi = new Map<string, Renglon[]>();
+                      for (const r of orden) (porUbi.get(ubiDe(r)) ?? porUbi.set(ubiDe(r), []).get(ubiDe(r))!).push(r);
+                      return [...porUbi.entries()].flatMap(([u, rs]) => [
+                        <tr key={`u-${u}`} className="fe-bor-grupo">
+                          <td colSpan={7}>
+                            <b>{u}</b>
+                            <span>{rs.length} {rs.length === 1 ? "renglón" : "renglones"} · {nf.format(rs.reduce((t, r) => t + Number(r.total_cajas || 0), 0))} cajas</span>
+                          </td>
+                        </tr>,
+                        ...rs.map((r) => (
+                          <tr key={r.id}
+                              className={(r.dias_para_salir != null && r.dias_para_salir < 0 ? "mal" : "")
+                                + (corrigiendo === r.id ? " tocando" : "")}>
+                            <td><b className="fe-cod">{r.codigo}</b></td>
+                            <td className="fe-bor-desc">{r.material}</td>
+                            {/* CÓMO SE CONTÓ, y no solo cuántas: «56» no dice si son estibas o cajas. */}
+                            <td className="n">
+                              {r.cajas != null ? <>{r.cajas} <em>cajas</em></>
+                                : r.saldo != null ? <>{r.estibas ?? 0} <em>est.</em> + {r.saldo}</>
+                                : <>{r.estibas} <em>est.</em></>}
+                            </td>
+                            <td className="n"><b>{nf.format(Number(r.total_cajas))}</b></td>
+                            <td>{r.vencimiento ? new Date(r.vencimiento + "T00:00:00").toLocaleDateString("es-CO") : "—"}</td>
+                            {/* «DÍAS PARA SALIR» ES LA CIFRA DEL FEFO: cuándo tiene que haber salido. En negativo ya se pasó. */}
+                            <td className="n dias">{r.dias_para_salir ?? "—"}</td>
+                            <td className="fe-bor-acc">
+                              {fotosDe[r.id] && (
+                                <button type="button" className="fe-mini" onClick={() => void verFoto(r.id)}>Ver foto</button>
+                              )}
+                              <button type="button" className="fe-mini" disabled={guardando || sellando}
+                                      aria-label={fotosDe[r.id] ? "Cambiar la foto" : "Poner foto"}
+                                      onClick={() => { filaDeFoto.current = r.id; pedirUbi(); camaraFila.current?.click() }}>
+                                {fotosDe[r.id] ? "Otra foto" : "Foto"}
+                              </button>
+                              <button type="button" className="fe-mini" disabled={guardando}
+                                      onClick={() => corregir(r)}>Corregir</button>
+                              <button type="button" className="fe-quitar chico" disabled={guardando}
+                                      onClick={() => borrar(r)}>Borrar</button>
+                            </td>
+                          </tr>
+                        )),
+                      ]);
+                    })()}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colSpan={3}><b>{vistos.length} {vistos.length === 1 ? "renglón" : "renglones"}</b></td>
+                      <td className="n"><b>{nf.format(vistos.reduce((t, r) => t + Number(r.total_cajas || 0), 0))}</b></td>
+                      <td colSpan={3} />
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
 
             <div className="fe-enviar">
               <p>
