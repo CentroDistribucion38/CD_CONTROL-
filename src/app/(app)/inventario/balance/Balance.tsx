@@ -123,35 +123,6 @@ export function Balance({
   const hoja = HOJAS[hojaIdx] ?? HOJAS[0];
   const esOtros = hoja.estado === "__OTROS__";
 
-  /* Bloque resumen de la hoja activa. */
-  const bloque = useMemo(
-    () => {
-      if (esOtros) {
-        /* Calcular resumen a mano para los "otros". */
-        const filas = detalle.filter((f) => !ESTADOS_FIJOS.has(f.estado));
-        if (!filas.length) return undefined;
-        return {
-          estado: "__OTROS__",
-          alcance: "",
-          renglones: filas.length,
-          con_alerta: filas.filter((f) => f.alerta).length,
-          fisico_cajas: filas.reduce((s, f) => s + f.fisico_cajas, 0),
-          estibas_casco: filas.reduce((s, f) => s + f.estibas_casco, 0),
-          cajas_casco: filas.reduce((s, f) => s + f.cajas_casco, 0),
-          dif_cajas: filas.reduce((s, f) => s + f.dif_cajas, 0),
-          unidades: filas.reduce((s, f) => s + (f.unidades ?? 0), 0),
-        } as Bloque;
-      }
-      /* EXTRASUCIO: no filtra por alcance (alcance es null en la hoja). */
-      return bloques.find(
-        (b) =>
-          b.estado === hoja.estado &&
-          (hoja.alcance === null || b.alcance === hoja.alcance),
-      );
-    },
-    [bloques, detalle, hoja, esOtros],
-  );
-
   /* Filas de la hoja activa. */
   const filas = useMemo(
     () => {
@@ -166,6 +137,18 @@ export function Balance({
     },
     [detalle, hoja, esOtros],
   );
+
+  /* «SI EL FÍSICO ESTÁ EN 0, QUE NO LO MUESTRE»: arriba solo lo contado; lo que está en el casco y no
+     se contó va en una tabla aparte, abajo, como alerta para actualizar el casco. */
+  const principales = useMemo(() => filas.filter((f) => f.fisico_cajas !== 0), [filas]);
+  const sinFisico = useMemo(() => filas.filter((f) => f.fisico_cajas === 0), [filas]);
+  const suma = (rs: Fila[], k: "fisico_cajas" | "estibas_casco" | "cajas_casco" | "ajuste_cajas" | "dif_cajas") =>
+    rs.reduce((t, f) => t + (f[k] ?? 0), 0);
+  const bloque = principales.length ? {
+    fisico_cajas: suma(principales, "fisico_cajas"), estibas_casco: suma(principales, "estibas_casco"),
+    cajas_casco: suma(principales, "cajas_casco"), dif_cajas: suma(principales, "dif_cajas"),
+    con_alerta: principales.filter((f) => f.alerta).length,
+  } : undefined;
 
   /* ---- handlers reclasificación ---- */
   function abrirReclas(f: Fila) {
@@ -329,13 +312,18 @@ export function Balance({
                   {bloque.con_alerta} alertas
                 </span>
               )}
+              {sinFisico.length > 0 && (
+                <span className="bal-alertas">
+                  {sinFisico.length} en casco sin contar (abajo)
+                </span>
+              )}
             </div>
           )}
 
           {/* ---- TABLA ---- */}
-          {filas.length > 0 && (
+          {principales.length > 0 && (
             <div className="bal-tabla-wrap">
-              <table className="bal-tabla">
+              <table className="bal-tabla bal-hoja">
                 <thead>
                   <tr>
                     <th>Código</th>
@@ -351,7 +339,7 @@ export function Balance({
                   </tr>
                 </thead>
                 <tbody>
-                  {filas.map((f, i) => (
+                  {principales.map((f, i) => (
                     <tr key={i} className={f.alerta ? "con-alerta" : ""}>
                       <td className="mono">{f.codigo}</td>
                       <td>{f.material ?? "—"}</td>
@@ -396,7 +384,7 @@ export function Balance({
                     </tr>
                   ))}
                 </tbody>
-                {filas.length > 1 && (
+                {principales.length > 1 && (
                   <tfoot>
                     <tr>
                       <td colSpan={2}>
@@ -404,33 +392,33 @@ export function Balance({
                       </td>
                       <td className="r">
                         <b>
-                          {n(filas.reduce((s, f) => s + f.fisico_cajas, 0))}
+                          {n(principales.reduce((s, f) => s + f.fisico_cajas, 0))}
                         </b>
                       </td>
                       <td className="r">
                         <b>
-                          {n(filas.reduce((s, f) => s + f.estibas_casco, 0))}
+                          {n(principales.reduce((s, f) => s + f.estibas_casco, 0))}
                         </b>
                       </td>
                       <td className="r">
                         <b>
-                          {n(filas.reduce((s, f) => s + f.cajas_casco, 0))}
+                          {n(principales.reduce((s, f) => s + f.cajas_casco, 0))}
                         </b>
                       </td>
                       <td className="r">
                         <b>
-                          {n(filas.reduce((s, f) => s + f.ajuste_cajas, 0))}
+                          {n(principales.reduce((s, f) => s + f.ajuste_cajas, 0))}
                         </b>
                       </td>
                       <td className="r">
                         <b>
-                          {n(filas.reduce((s, f) => s + f.dif_cajas, 0))}
+                          {n(principales.reduce((s, f) => s + f.dif_cajas, 0))}
                         </b>
                       </td>
                       <td className="r">
                         <b>
                           {n(
-                            filas.reduce(
+                            principales.reduce(
                               (s, f) => s + (f.unidades ?? 0),
                               0,
                             ),
@@ -444,6 +432,54 @@ export function Balance({
                 )}
               </table>
             </div>
+          )}
+
+
+          {/* ---- EN CASCO Y SIN CONTAR: alerta para actualizar el casco ---- */}
+          {sinFisico.length > 0 && (
+            <section className="bal-pendientes">
+              <h3>
+                En casco y sin contar <span>{sinFisico.length}</span>
+              </h3>
+              <p>
+                El casco del {fechaCasco ? diaLargo(fechaCasco) : "día"} tiene estas estibas, pero en el conteo del{" "}
+                {fecha ? diaLargo(fecha) : "día"} no aparecen. Actualiza el casco (o revisa el conteo).
+              </p>
+              <div className="bal-tabla-wrap">
+                <table className="bal-tabla bal-hoja">
+                  <thead>
+                    <tr>
+                      <th>Código</th>
+                      <th>Material</th>
+                      <th className="r">Estibas casco</th>
+                      <th className="r">Cajas casco</th>
+                      <th className="r">Unidades</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sinFisico.map((f, i) => (
+                      <tr key={i} className="con-alerta">
+                        <td className="mono">{f.codigo}</td>
+                        <td>{f.material ?? "—"}</td>
+                        <td className="r">{n(f.estibas_casco)}</td>
+                        <td className="r">{n(f.cajas_casco)}</td>
+                        <td className="r">{n(f.un_caja ? f.cajas_casco * f.un_caja : null)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  {sinFisico.length > 1 && (
+                    <tfoot>
+                      <tr>
+                        <td colSpan={2}><b>Total</b></td>
+                        <td className="r"><b>{n(suma(sinFisico, "estibas_casco"))}</b></td>
+                        <td className="r"><b>{n(suma(sinFisico, "cajas_casco"))}</b></td>
+                        <td className="r"><b>{n(sinFisico.reduce((t, f) => t + (f.un_caja ? f.cajas_casco * f.un_caja : 0), 0))}</b></td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+            </section>
           )}
 
           {filas.length === 0 && (

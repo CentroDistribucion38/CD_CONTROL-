@@ -66,7 +66,6 @@ const guardarBorrador = (fecha: string, clave: string, filas: Fila[]) => {
   try { localStorage.setItem(llaveBorrador(fecha, clave), JSON.stringify({ filas, en: new Date().toISOString() })) } catch { /* sin espacio o modo privado */ }
 };
 const borrarBorrador = (fecha: string, clave: string) => { try { localStorage.removeItem(llaveBorrador(fecha, clave)) } catch { /* nada */ } };
-const hora = (iso: string) => new Date(iso).toLocaleString("es-CO", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
 export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar, delInventario = null }: {
   sitios: SitioCasco[]; materiales: MaterialCasco[]; hoy: string; inicio?: string; puestos: string[]; puedeEditar: boolean;
@@ -245,15 +244,43 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar, d
     }));
     const { data, error } = await supabase.rpc("casco_guardar", { p_fecha: fecha, p_ubicacion: s.clave, p_filas: payload });
     if (error) { poner(s.clave, { guardando: false, aviso: { tipo: "mal", texto: error.message } }); return false }
-    borrarBorrador(fecha, s.clave);
-    poner(s.clave, { guardando: false, sucio: false, guardado: true, arranque: null, recuperado: null,
-      aviso: { tipo: "ok", texto: `Guardado: ${data ?? payload.length} material${payload.length === 1 ? "" : "es"} en ${s.nombre}.` } });
+    const aviso = { tipo: "ok" as const, texto: `Guardado: ${data ?? payload.length} material${payload.length === 1 ? "" : "es"} en ${s.nombre}.` };
+    /* Si mientras guardaba se tecleó algo más, la tabla sigue «sucia» y se guarda en la siguiente vuelta. */
+    poner(s.clave, (cur) => {
+      const igual = cur.filas === b.filas;
+      if (igual) borrarBorrador(fecha, s.clave);
+      return igual
+        ? { guardando: false, sucio: false, guardado: true, arranque: null, recuperado: null, aviso }
+        : { guardando: false, guardado: true, arranque: null, recuperado: null };
+    });
     return true;
   };
   const guardarTodo = async () => {
     for (const s of sitios) if (bloques[s.clave]?.sucio) await guardarSitio(s);
     void totalesDelDia(fecha);
   };
+
+  /* SE GUARDA SOLO: «se debe guardar». Cada tabla con cambios se guarda a los 3 s del último cambio,
+     sin botón. No se guarda si tiene un dato malo (cuenta mal escrita o material sin factor) ni si
+     las filas son de otro día que el del calendario. El borrador local queda solo como respaldo
+     mientras se guarda o si no hay señal. */
+  const AUTO_MS = 3_000;
+  useEffect(() => {
+    if (!puedeEditar) return;
+    const listos = sitios.filter((x) => {
+      const b = bloques[x.clave];
+      return b && b.sucio && !b.cargando && !b.guardando && b.de === fecha && !conError(x, b);
+    });
+    if (!listos.length) return;
+    const t = setTimeout(() => {
+      void (async () => {
+        for (const x of listos) await guardarSitio(x);
+        void totalesDelDia(fecha);
+      })();
+    }, AUTO_MS);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bloques, fecha, puedeEditar]);
 
   const cambiar = (s: string, i: number, k: keyof Fila, v: string) =>
     poner(s, (b) => ({ filas: b.filas.map((f, j) => (j === i ? { ...f, [k]: v } : f)), sucio: true, aviso: null }));
@@ -321,8 +348,8 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar, d
                    onChange={(e) => { if (e.target.value) setFecha(e.target.value) }} />
           </label>
           <p className="cas-nota">
-            Estás viendo <b>{largo(fecha)}</b>. Cada tabla guarda por separado; arriba y abajo hay un botón para guardar todo.
-            {" "}Lo que no guardes queda como borrador en este equipo: puedes salir a revisar y al volver sigue ahí.
+            Estás viendo <b>{largo(fecha)}</b>. Cada cambio <b>se guarda solo</b> a los pocos segundos; el botón de abajo
+            guarda de una vez. Si se va la señal, lo tecleado queda en este equipo y se guarda al volver.
           </p>
         </div>
         {errorLectura && <p className="cas-aviso mal">{errorLectura}</p>}
@@ -413,7 +440,7 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar, d
               <div>
                 <h2>{s.nombre}</h2>
                 <p className="cas-nota">
-                  {b.cargando ? "Cargando…" : b.sucio ? (b.recuperado ? `Borrador recuperado (lo dejaste el ${hora(b.recuperado)}) · sin guardar` : "Cambios sin guardar · quedan como borrador") : b.guardado ? "Guardado" : b.arranque ? `Arrancó con el saldo del ${largo(b.arranque)}` : "Sin registros"}
+                  {b.cargando ? "Cargando…" : b.guardando ? "Guardando…" : b.sucio ? (conError(s, b) ? "Sin guardar: corrige el dato en rojo y se guarda solo" : "Guardando en unos segundos…") : b.guardado ? "Guardado" : b.arranque ? `Arrancó con el saldo del ${largo(b.arranque)}` : "Sin registros"}
                 </p>
               </div>
               <div className="cas-bloque-hl"><b>{nf2.format(totHl)}</b><i>HL · {nf0.format(totInv + totBaja)} estibas</i></div>
