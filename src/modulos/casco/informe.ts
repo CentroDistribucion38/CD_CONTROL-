@@ -535,6 +535,8 @@ export function dibujarInformeCasco(
       cols.forEach((c, j) => {
         if (c.id === "hl" || c.id === "ubi") fuente("bold", 8.3); else if (c.id === "cod" || c.id === "cal") fuente("normal", 7.6); else fuente("normal", 8.3);
         if (c.id === "cod" || c.id === "cal") gris(); else tinta();
+        /* LO NEGATIVO EN ROJO (salió más de lo contado): va en el informe para que cuadre con la gráfica. */
+        if (c.num && lineas[j][0]?.startsWith("-")) doc.setTextColor(200, 16, 46);
         /* Igual en los renglones: si el material ocupa dos líneas, los demás datos van a la mitad. */
         const nl = c.num ? 1 : c.id === "ubi" ? Math.max(1, ubi.length) : lineas[j].length;
         const yb = y + alto / 2 - (nl - 1) * 1.8 + 1;

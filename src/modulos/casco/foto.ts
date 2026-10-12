@@ -338,7 +338,7 @@ export function dibujarDetalleCasco(d: DatosInformeCasco, extra: Extra = {}): HT
         cols.forEach((cc, k) => {
           const t = cc.v(f);
           letra(ctx, cc.t === "HL" ? 800 : k === 0 ? 500 : 600, k === cols.length - 1 && cc.t === "UBICACIÓN" ? 12 : 13.5);
-          ctx.fillStyle = k === 0 || cc.t === "UBICACIÓN" ? GRIS : TINTA;
+          ctx.fillStyle = cc.num && t.startsWith("-") ? SUBE : k === 0 || cc.t === "UBICACIÓN" ? GRIS : TINTA;
           ctx.textAlign = cc.num ? "right" : "left";
           ctx.fillText(recortar(ctx, t, cc.w - 16), cc.num ? fx + cc.w - 8 : fx + 8, cy + FILA_T / 2);
           fx += cc.w;

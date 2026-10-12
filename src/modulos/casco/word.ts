@@ -149,7 +149,9 @@ export function armarWordCasco(
     const cab = { cabecera: true, celdas: cols.map((c) => ({ fondo: T, al: c.num ? "right" as const : "left" as const, runs: [{ t: c.titulo, b: true, tam: 8, color: "FFFFFF" }] })) };
     const filas = s.filas.map((f, i) => ({ celdas: cols.map((c) => ({
       fondo: i % 2 ? RAYA : undefined, al: c.num ? "right" as const : "left" as const,
-      runs: [{ t: celda(c, f), b: c.id === "hl" || c.id === "ubi", tam: c.id === "cod" || c.id === "cal" ? 8 : 8.5, color: c.id === "cod" || c.id === "cal" ? G : T }],
+      runs: [{ t: celda(c, f), b: c.id === "hl" || c.id === "ubi", tam: c.id === "cod" || c.id === "cal" ? 8 : 8.5,
+               /* Lo negativo en rojo, como en el PDF. */
+               color: c.num && celda(c, f).startsWith("-") ? "C8102E" : c.id === "cod" || c.id === "cal" ? G : T }],
     })) }));
     const tot = { celdas: cols.map((c) => {
       const v = c.id === "cod" ? "TOTAL" : c.id === "mat" ? `${s.filas.length} material${s.filas.length === 1 ? "" : "es"} con inventario`
