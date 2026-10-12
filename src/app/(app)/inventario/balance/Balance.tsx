@@ -238,7 +238,7 @@ export function Balance({
       {tieneData && (
         <>
           {/* ---- PESTAÑAS ---- */}
-          <nav className="bal-tabs" role="tablist">
+          <nav className="bal-tabs" role="tablist" aria-label="Estados del casco">
             {HOJAS.map((h, i) => {
               const k = `${h.estado}|${h.alcance ?? "ALL"}`;
               const esOtrosTab = h.estado === "__OTROS__";
@@ -263,38 +263,19 @@ export function Balance({
                   role="tab"
                   aria-selected={i === hojaIdx}
                   className={`bal-tab ${i === hojaIdx ? "activa" : ""}`}
-                  onClick={() => setHojaIdx(i)}
+                  onClick={(e) => { setHojaIdx(i); e.currentTarget.scrollIntoView({ inline: "nearest", block: "nearest" }) }}
                 >
                   <span className="bal-tab-label">{h.label}</span>
-                  {b && (
-                    <span className="bal-tab-badge">
-                      {b.renglones}
-                      {b.con_alerta > 0 && (
-                        <span className="bal-tab-alerta">
-                          {" "}
-                          · {b.con_alerta}
-                          <svg viewBox="0 0 16 16" width="11" height="11">
-                            <path
-                              d="M8 1l7 13H1z"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="1.4"
-                              strokeLinejoin="round"
-                            />
-                            <line x1="8" y1="6" x2="8" y2="9" stroke="currentColor" strokeWidth="1.4" />
-                            <circle cx="8" cy="11" r=".7" fill="currentColor" />
-                          </svg>
-                        </span>
-                      )}
-                    </span>
-                  )}
+                  {/* «QUE QUEDE ASÍ»: cuántos materiales en gris y, si hay, cuántos con alerta en rojo. */}
+                  {b && <span className="bal-tab-n" title="materiales">{b.renglones}</span>}
+                  {b && b.con_alerta > 0 && <span className="bal-tab-al" title="con alerta">{b.con_alerta}</span>}
                 </button>
               );
             })}
             {/* AL FINAL, DESPUÉS DE «OTROS ESTADOS»: el consolidado, donde se reasignan los estados. */}
-            <button role="tab" aria-selected={hojaIdx < 0} className={`bal-tab ${hojaIdx < 0 ? "activa" : ""}`} onClick={() => setHojaIdx(-1)}>
+            <button role="tab" aria-selected={hojaIdx < 0} className={`bal-tab ${hojaIdx < 0 ? "activa" : ""}`} onClick={(e) => { setHojaIdx(-1); e.currentTarget.scrollIntoView({ inline: "nearest", block: "nearest" }) }}>
               <span className="bal-tab-label">Consolidado</span>
-              <span className="bal-tab-badge">{consolidado.length}</span>
+              <span className="bal-tab-n" title="materiales">{consolidado.length}</span>
             </button>
           </nav>
 

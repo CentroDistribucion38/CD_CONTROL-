@@ -278,3 +278,27 @@
    borde derecho); en Pasivos van a la izquierda y abren hacia la derecha, si no se cortan. */
 .bal .cabeza .bal-cal .sg-mes .mes-panel { left: auto; right: 0 }
 .bal .pas-caja .bal-cal .sg-mes .mes-panel, .bal .pas-filtros .bal-cal .sg-mes .mes-panel { left: 0; right: auto }
+
+/* ---------- LAS PESTAÑAS, COMO EN LA MUESTRA («que quede así mejor») ----------
+   Barra blanca de una sola línea que se desliza de lado en el celular; la escogida en negrita con
+   la raya del acento; al lado de cada nombre, los materiales en gris y las alertas en una pastilla roja. */
+.bal .bal-tabs {
+  display: flex; flex-wrap: nowrap; gap: 0; margin: 0; overflow-x: auto; scrollbar-width: none;
+  -webkit-overflow-scrolling: touch; background: var(--fe-papel, #fff); border-bottom: 1px solid var(--fe-linea);
+}
+.bal .bal-tabs::-webkit-scrollbar { display: none }
+.bal .bal-tab {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 14px 18px 12px; margin-bottom: -1px;
+  background: none; border: 0; border-bottom: 3px solid transparent; border-radius: 0; cursor: pointer;
+  font: 600 14px var(--fe-texto); color: var(--fe-gris-panel, #4A4D4A); white-space: nowrap;
+}
+.bal .bal-tab:hover { color: var(--fe-tinta); background: color-mix(in srgb, var(--fe-fondo) 50%, transparent) }
+.bal .bal-tab.activa { color: var(--fe-tinta); font-weight: 700; background: none; border-bottom-color: var(--fe-acento, #FFC400) }
+.bal .bal-tab-n { font: 600 12px var(--fe-mono, ui-monospace, monospace); color: var(--fe-gris); font-variant-numeric: tabular-nums }
+.bal .bal-tab-al {
+  font: 700 11px var(--fe-mono, ui-monospace, monospace); background: var(--fe-mal, #E4002B); color: #fff;
+  padding: 2px 6px; min-width: 20px; text-align: center; font-variant-numeric: tabular-nums;
+}
+@media (max-width: 640px) {
+  .bal .bal-tab { padding: 12px 14px 10px; font-size: 13px }
+}
