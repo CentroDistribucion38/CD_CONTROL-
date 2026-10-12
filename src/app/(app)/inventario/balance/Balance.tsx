@@ -105,7 +105,7 @@ export function Balance({
 }) {
   const router = useRouter();
   const [cambiando, startCambio] = useTransition();
-  const [hojaIdx, setHojaIdx] = useState(-1);
+  const [hojaIdx, setHojaIdx] = useState(0);
   const [reclas, setReclas] = useState<Fila | null>(null);
   const [nuevoEstado, setNuevoEstado] = useState("");
   const [motivo, setMotivo] = useState("");
@@ -243,11 +243,6 @@ export function Balance({
         <>
           {/* ---- PESTAÑAS ---- */}
           <nav className="bal-tabs" role="tablist">
-            {/* PRIMERO EL CONSOLIDADO: ahí se reasignan los estados; después cada hoja del balance. */}
-            <button role="tab" aria-selected={hojaIdx < 0} className={`bal-tab ${hojaIdx < 0 ? "activa" : ""}`} onClick={() => setHojaIdx(-1)}>
-              <span className="bal-tab-label">Consolidado</span>
-              <span className="bal-tab-badge">{consolidado.length}</span>
-            </button>
             {HOJAS.map((h, i) => {
               const k = `${h.estado}|${h.alcance ?? "ALL"}`;
               const esOtrosTab = h.estado === "__OTROS__";
@@ -300,6 +295,11 @@ export function Balance({
                 </button>
               );
             })}
+            {/* AL FINAL, DESPUÉS DE «OTROS ESTADOS»: el consolidado, donde se reasignan los estados. */}
+            <button role="tab" aria-selected={hojaIdx < 0} className={`bal-tab ${hojaIdx < 0 ? "activa" : ""}`} onClick={() => setHojaIdx(-1)}>
+              <span className="bal-tab-label">Consolidado</span>
+              <span className="bal-tab-badge">{consolidado.length}</span>
+            </button>
           </nav>
 
           {hojaIdx < 0 ? <Consolidado lineas={consolidado} fecha={fecha} /> : (<>
