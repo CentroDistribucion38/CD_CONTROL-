@@ -2748,3 +2748,22 @@
 .ci-placa li .d small { font: 400 11px var(--tp-texto, inherit) }
 .ci-placa li .ci-salto { padding: 2px 0 }
 @media (max-width: 560px) { .tp-porplaca .tp-ci-placas { grid-template-columns: 1fr } .ci-placa li { grid-template-columns: 64px minmax(0, 1fr) } .ci-placa li .d { grid-column: 2; grid-row: auto; align-items: flex-start } }
+
+/* ---------- LA BARRA DE FILTROS, ALINEADA ----------
+   El calendario vive dentro de un `.sd`, que es columna: por eso Hoy y Mañana caían debajo del campo
+   y la placa quedaba más abajo que las fechas. Ahora la fila de arriba es una sola línea: el campo
+   de fechas con Hoy y Mañana al lado, la placa, y Restablecer a la derecha; todo a 38 px de alto. */
+.tp .filtros .tp-f1 { align-items: flex-end; gap: 18px 28px }
+.tp .filtros .tp-f1 > .grupo-f { gap: 8px }
+.tp .tp-rango { flex-direction: row; align-items: center; gap: 8px; flex-wrap: nowrap }
+.tp .tp-rango .sg-mes .mes-campo { height: 38px; background: var(--tp-papel, #fff) }
+.tp .tp-rango .grupo-b { display: flex; gap: 8px; margin: 0 }
+.tp .tp-rango .grupo-b button { height: 38px; min-width: 76px }
+.tp .filtros .tp-placa-f input { height: 38px; width: 220px }
+.tp .filtros .tp-f1 .limpiar { height: 38px; align-self: flex-end }
+.tp .filtros .tp-f2 { gap: 18px 28px }
+@media (max-width: 640px) {
+  .tp .tp-rango { flex-wrap: wrap }
+  .tp .filtros .tp-placa-f, .tp .filtros .tp-placa-f input { width: 100% }
+  .tp .filtros .tp-f1 .limpiar { margin-left: 0 }
+}

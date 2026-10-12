@@ -274,4 +274,7 @@
 .bal .bal-cal .sg-mes { display: flex; flex-direction: column; gap: 6px }
 .bal .bal-cal .sg-mes > span:first-child { font-size: 11.5px; font-weight: 600 }
 .bal .bal-cal .sg-mes .mes-campo { height: 42px; min-width: 220px }
-.bal .bal-cal .sg-mes .mes-panel { left: auto; right: 0 }
+/* El panel abre hacia la izquierda SOLO en la cabecera del Balance (los calendarios van pegados al
+   borde derecho); en Pasivos van a la izquierda y abren hacia la derecha, si no se cortan. */
+.bal .cabeza .bal-cal .sg-mes .mes-panel { left: auto; right: 0 }
+.bal .pas-caja .bal-cal .sg-mes .mes-panel, .bal .pas-filtros .bal-cal .sg-mes .mes-panel { left: 0; right: auto }
