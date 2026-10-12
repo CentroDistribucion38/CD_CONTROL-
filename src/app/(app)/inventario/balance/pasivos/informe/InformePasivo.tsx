@@ -4,6 +4,8 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { FilaPasivo } from "@/modulos/pasivos/datos";
 import { Rango } from "../../../../sider/seguimiento/Rango";
+import type { DatosInformePasivo } from "@/modulos/pasivos/informe";
+import { BotonesPasivo } from "./BotonesPasivo";
 
 /**
  * EL INFORME PASIVO EN PANTALLA (opción A): tarjetas arriba, el mes por día, el reparto por almacén,
@@ -27,6 +29,8 @@ const corto = (f: string) => `${Number(f.slice(8, 10))} ${MESES[Number(f.slice(5
 /* EL COLOR VA CON EL ESTADO, SIEMPRE EL MISMO (la gama ámbar del informe de casco). */
 const COLOR: Record<string, string> = { BAJA: "#B58200", LAVADO: "#FFC300", EXTRASUCIO: "#3B3B3B" };
 const colorDe = (e: string) => COLOR[e] ?? "#8C8C8C";
+/** La letra que se lee encima de cada color (blanco sobre el ámbar oscuro y el gris, negro sobre el amarillo). */
+const tintaSobre = (e: string) => (e === "LAVADO" ? "#1B1B1B" : "#FFFFFF");
 const ORDEN = ["BAJA", "LAVADO", "EXTRASUCIO"];
 const enOrden = (a: string, b: string) => {
   const i = (x: string) => { const k = ORDEN.indexOf(x); return k < 0 ? 9 : k };
@@ -85,6 +89,27 @@ export function InformePasivo({ dia, dias, filas, error, nombresCaja }: {
     }
     return [...m.values()].sort((a, b) => a.almacen.localeCompare(b.almacen) || b.hl - a.hl);
   }, [hoy]);
+  /* AG22 primero (izquierda), AG18 después (derecha), y los demás detrás. */
+  const almacenesHoy = useMemo(() => {
+    const ord = (x: string) => { const i = ["AG22", "AG18"].indexOf(x); return i < 0 ? 9 : i };
+    return [...new Set(consolidado.map((x) => x.almacen))].sort((a, b) => ord(a) - ord(b) || a.localeCompare(b));
+  }, [consolidado]);
+
+  /* LO QUE VA AL PDF / WORD: lo mismo que se ve, con los filtros puestos. */
+  const datos: DatosInformePasivo | null = useMemo(() => {
+    if (!dia) return null;
+    const costoDe = (a: string) => hoy.filter((f) => f.almacen === a).reduce((t, f) => t + (Number(f.costo) || 0), 0);
+    const filtros = [almacen && `Almacén ${almacen}`, estados.size ? `Estado ${[...estados].join(", ")}` : ""].filter(Boolean).join(" · ");
+    return {
+      dia, filtros, total: totHl, costo: totCosto, anterior: anterior ? { fecha: anterior.fecha, total: anterior.total } : null,
+      estados: estadosVistos,
+      almacenes: almacenesHoy.map((a) => { const x = porAlmacen.find((p) => p.a === a); return { a, nombre: ALMACEN[a] ?? a, e: x?.e ?? {}, total: x?.total ?? 0, costo: costoDe(a) } }),
+      porDia, sku: porSku.map((s) => ({ codigo: "", desc: s.desc, hl: s.hl, costo: s.costo, th: s.th, tc: s.tc })),
+      cajas: cajas.map(([c, v]) => ({ caja: c, nombre: nombresCaja[c] ?? "", cajas: v })),
+      consolidado,
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dia, hoy, mes, almacen, estados]);
 
   const alternar = (e: string) => setEstados((s) => { const x = new Set(s); if (x.has(e)) x.delete(e); else x.add(e); return x });
   const ley = (
@@ -111,6 +136,7 @@ export function InformePasivo({ dia, dias, filas, error, nombresCaja }: {
           <h1>Informe pasivo</h1>
           <p className="sub">EER bloqueados al <b>{largo(dia)}</b>{cargando && " · trayendo…"}</p>
         </div>
+        <BotonesPasivo datos={datos} />
       </section>
 
       {/* ---- FILTROS ---- */}
@@ -186,39 +212,45 @@ export function InformePasivo({ dia, dias, filas, error, nombresCaja }: {
         </section>
       </div>
 
-      {/* ---- CAJAS PLÁSTICAS + CONSOLIDADO ---- */}
-      <div className="ip-fila ip-1-2">
-        <section className="ip-p">
-          <h3>Cajas plásticas comprometidas</h3>
-          <table className="ip-t">
-            <thead><tr><th>Caja</th><th>Descripción</th><th className="r">Cajas</th></tr></thead>
-            <tbody>{cajas.map(([c, v]) => <tr key={c}><td className="mono">{c}</td><td>{nombresCaja[c] ?? "—"}</td><td className="r">{n0(v)}</td></tr>)}</tbody>
-            {cajas.length > 1 && <tfoot><tr><td colSpan={2}><b>Total</b></td><td className="r"><b>{n0(cajas.reduce((t, [, v]) => t + v, 0))}</b></td></tr></tfoot>}
-          </table>
-        </section>
-        <section className="ip-p">
-          <h3>Consolidado por almacén y SKU</h3>
-          <div className="ip-scroll">
-            <table className="ip-t">
-              <thead><tr><th>Almacén</th><th>Código</th><th>Material</th><th className="r">Unidades</th><th className="r">Cajas</th><th className="r">HL</th><th className="r">Costo</th></tr></thead>
-              <tbody>
-                {consolidado.map((x, i) => {
-                  const fin = consolidado[i + 1]?.almacen !== x.almacen;
-                  const sub = fin ? consolidado.filter((y) => y.almacen === x.almacen) : [];
-                  return [
-                    <tr key={x.almacen + x.codigo}><td>{x.almacen}</td><td className="mono">{x.codigo}</td><td>{x.desc}</td>
-                      <td className={`r ${x.und < 0 ? "neg" : ""}`}>{n0(x.und)}</td><td className="r">{n0(x.cajas)}</td><td className="r">{n1(x.hl)}</td><td className="r">{plata(x.costo)}</td></tr>,
-                    fin && <tr key={x.almacen + "-tot"} className="ip-sub"><td colSpan={3}>Total {x.almacen}</td>
-                      <td className="r">{n0(sub.reduce((t, y) => t + y.und, 0))}</td><td className="r">{n0(sub.reduce((t, y) => t + y.cajas, 0))}</td>
-                      <td className="r">{n1(sub.reduce((t, y) => t + y.hl, 0))}</td><td className="r">{plata(sub.reduce((t, y) => t + y.costo, 0))}</td></tr>,
-                  ];
-                })}
-              </tbody>
-              <tfoot><tr><td colSpan={3}><b>Total general</b></td><td className="r"><b>{n0(suma(hoy, "unidades"))}</b></td><td className="r"><b>{n0(suma(hoy, "cajas"))}</b></td><td className="r"><b>{n1(totHl)}</b></td><td className="r"><b>{plata(totCosto)}</b></td></tr></tfoot>
-            </table>
-          </div>
-        </section>
+      {/* ---- CONSOLIDADO: AG22 A LA IZQUIERDA, AG18 A LA DERECHA; DEBAJO LAS CAJAS PLÁSTICAS ---- */}
+      <div className={`ip-fila ${almacenesHoy.length > 1 ? "ip-1-1" : ""}`}>
+        {almacenesHoy.map((a) => {
+          const rs = consolidado.filter((x) => x.almacen === a);
+          return (
+            <section className="ip-p" key={a}>
+              <h3>{a} · {ALMACEN[a] ?? ""} <span className="ip-h-sub">{n1(rs.reduce((t, y) => t + y.hl, 0))} HL · {plata(rs.reduce((t, y) => t + y.costo, 0))}</span></h3>
+              <div className="ip-scroll">
+                <table className="ip-t">
+                  <thead><tr><th>Código</th><th>Material</th><th className="r">Unidades</th><th className="r">Cajas</th><th className="r">HL</th><th className="r">Costo</th></tr></thead>
+                  <tbody>{rs.map((x) => (
+                    <tr key={x.codigo}><td className="mono">{x.codigo}</td><td>{x.desc}</td>
+                      <td className={`r ${x.und < 0 ? "neg" : ""}`}>{n0(x.und)}</td><td className="r">{n0(x.cajas)}</td><td className="r">{n1(x.hl)}</td><td className="r">{plata(x.costo)}</td></tr>
+                  ))}</tbody>
+                  <tfoot><tr><td colSpan={2}><b>Total {a}</b></td>
+                    <td className="r"><b>{n0(rs.reduce((t, y) => t + y.und, 0))}</b></td><td className="r"><b>{n0(rs.reduce((t, y) => t + y.cajas, 0))}</b></td>
+                    <td className="r"><b>{n1(rs.reduce((t, y) => t + y.hl, 0))}</b></td><td className="r"><b>{plata(rs.reduce((t, y) => t + y.costo, 0))}</b></td></tr></tfoot>
+                </table>
+              </div>
+            </section>
+          );
+        })}
       </div>
+
+      <section className="ip-p ip-sola">
+        <h3>Cajas plásticas comprometidas</h3>
+        <div className="ip-cajas">
+          {cajas.map(([c, v]) => (
+            <div className="ip-caja" key={c}>
+              <span className="mono">{c}</span>
+              <b>{n0(v)}</b>
+              <i>{nombresCaja[c] ?? "—"}</i>
+            </div>
+          ))}
+          {cajas.length > 1 && (
+            <div className="ip-caja total"><span>Total</span><b>{n0(cajas.reduce((t, [, v]) => t + v, 0))}</b><i>cajas plásticas</i></div>
+          )}
+        </div>
+      </section>
     </>
   );
 }
@@ -242,7 +274,12 @@ function Columnas({ dias, estados, marcado }: { dias: DiaE[]; estados: string[];
         const capas = [...estados].reverse().map((e) => {
           const h = alto(d.e[e] ?? 0); if (h <= 0) return null;
           y -= h;
-          return <rect key={e} x={x} y={y} width={ancho} height={Math.max(0, h - 1)} fill={colorDe(e)}><title>{`${corto(d.fecha)} · ${e}: ${n0(d.e[e] ?? 0)} HL`}</title></rect>;
+          return (
+            <g key={e}>
+              <rect x={x} y={y} width={ancho} height={Math.max(0, h - 1)} fill={colorDe(e)}><title>{`${corto(d.fecha)} · ${e}: ${n0(d.e[e] ?? 0)} HL`}</title></rect>
+              {h >= 16 && <text x={x + ancho / 2} y={y + h / 2 + 4} textAnchor="middle" className="ip-seg" fill={tintaSobre(e)}>{n0(d.e[e] ?? 0)}</text>}
+            </g>
+          );
         });
         return (
           <g key={d.fecha} className={d.fecha === marcado ? "ip-marcado" : undefined}>
@@ -292,8 +329,18 @@ function Dona({ partes, total }: { partes: { k: string; v: number; c: string }[]
       <circle cx="60" cy="60" r={R} fill="none" className="ip-dona-fondo" strokeWidth="20" />
       {partes.map((p) => {
         const largo = total ? (p.v / total) * L : 0;
-        const el = <circle key={p.k} cx="60" cy="60" r={R} fill="none" stroke={p.c} strokeWidth="20"
-          strokeDasharray={`${largo} ${L}`} strokeDashoffset={-acum} transform="rotate(-90 60 60)"><title>{`${p.k}: ${n0(p.v)} HL`}</title></circle>;
+        const medio = ((acum + largo / 2) / L) * 2 * Math.PI - Math.PI / 2;
+        const pct = total ? Math.round((p.v / total) * 100) : 0;
+        const el = (
+          <g key={p.k}>
+            <circle cx="60" cy="60" r={R} fill="none" stroke={p.c} strokeWidth="20"
+              strokeDasharray={`${largo} ${L}`} strokeDashoffset={-acum} transform="rotate(-90 60 60)"><title>{`${p.k}: ${n0(p.v)} HL`}</title></circle>
+            {pct >= 6 && (
+              <text x={60 + R * Math.cos(medio)} y={60 + R * Math.sin(medio) + 3} textAnchor="middle" className="ip-dona-pct"
+                    fill={p.c === "#FFC300" ? "#1B1B1B" : "#FFFFFF"}>{pct}%</text>
+            )}
+          </g>
+        );
         acum += largo;
         return el;
       })}

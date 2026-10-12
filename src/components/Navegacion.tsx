@@ -259,6 +259,21 @@ const IconoInforme = () => (
     <path d="M9.5 17v-2.6M12.5 17v-4.6M15.5 17v-3.2" />
   </svg>
 );
+/* BALANCE: la balanza (dos platos), lo que cruza el conteo contra el casco. */
+const IconoBalanza = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <path d="M12 4v16M8 20h8M5 7h14" />
+    <path d="M5 7l-2.5 6h5z M19 7l-2.5 6h5z" />
+  </svg>
+);
+/* PASIVOS · BASE: la pila de datos (la hoja DATA). */
+const IconoBaseDatos = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <ellipse cx="12" cy="6" rx="7" ry="2.6" />
+    <path d="M5 6v12c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6V6" />
+    <path d="M5 12c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6" />
+  </svg>
+);
 const IconoNovedad = () => (
   <svg viewBox="0 0 24 24" {...P}>
     <path d="M12 3.6l9.2 16H2.8z" />
@@ -401,6 +416,10 @@ const ICONO_RUTA: Record<string, () => React.ReactElement> = {
   "/inventario/casco/registrar": IconoEntrada,
   "/inventario/casco": IconoCuatroTablas,
   "/inventario/casco/tablero": IconoTablero,
+  "/inventario/balance": IconoBalanza,
+  "/inventario/balance/pasivos": IconoBaseDatos,
+  "/inventario/balance/pasivos/informe": IconoInforme,
+  "/inventario/balance/pasivos/maestro": IconoLlave,
   "/acciones/todas": IconoLista,
   "/acciones/abi": IconoHallazgo,
   "/acciones/abi/hallazgos": IconoLista,
