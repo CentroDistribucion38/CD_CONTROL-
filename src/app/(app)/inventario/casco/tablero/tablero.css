@@ -97,6 +97,9 @@
   font: 800 14px var(--fe-texto);
 }
 .cvt .cvt-inf-bt.alt { background: var(--fe-papel); color: var(--fe-tinta); border-color: var(--fe-tinta) }
+/* DASHBOARD Y DETALLE: imágenes para copiar y pegar (la ventana está en components/foto-compartir.css). */
+.cvt .cvt-inf-bt.foto { background: var(--fe-tinta); border-color: var(--fe-tinta); color: var(--fe-papel); box-shadow: inset 0 -3px 0 var(--fe-acento) }
+.cvt .cvt-inf-bt svg rect { fill: none }
 .cvt .cvt-inf-bt:disabled { opacity: .55; cursor: progress }
 .cvt .cvt-inf-bt:focus-visible { outline: 3px solid var(--fe-tinta); outline-offset: 2px }
 .cvt .cvt-inf-bt svg { width: 17px; height: 17px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round }

@@ -2,11 +2,13 @@
 
 import { useRef, useState } from "react";
 import { leerPaleta } from "@/app/(app)/quiebra/rotura/HojaFirma";
+import { BotonesFoto, logoMarca, useFotoCompartir, type TipoFoto } from "@/components/FotoCompartir";
 import { PALETA_MARCA } from "@/modulos/rotlinea/hoja";
 import { graficaPNG, nombreInformeCasco, type DatosInformeCasco } from "@/modulos/casco/informe";
 
 /**
- * LOS DOS BOTONES DEL INFORME DEL CASCO: PDF y Word.
+ * LOS BOTONES DEL INFORME DEL CASCO: Dashboard y Detalle (cada uno una imagen para copiar y pegar
+ * en un correo o en WhatsApp, como en Pasivos) y el informe en PDF y Word.
  *
  * Igual que el de salida de vidrio: solo esto es de cliente pesado, y jsPDF / fflate se importan
  * cuando alguien toca el botón. Los colores salen del tema (`leerPaleta`), los logos no.
@@ -38,6 +40,15 @@ export function BotonesInforme({ datos }: { datos: DatosInformeCasco | null }) {
   const [mal, setMal] = useState(false);
   const caja = useRef<HTMLDivElement>(null);
 
+  const fotos = useFotoCompartir(async (tipo: TipoFoto) => {
+    if (!datos) throw new Error("sin datos");
+    const paleta = leerPaleta(caja.current) ?? PALETA_MARCA;
+    const [fo, logo] = await Promise.all([import("@/modulos/casco/foto"), logoMarca()]);
+    return tipo === "dashboard"
+      ? { lienzo: fo.dibujarDashboardCasco(datos, { paleta, logo }), nombre: fo.nombreDashboardCasco(datos.corte) }
+      : { lienzo: fo.dibujarDetalleCasco(datos, { paleta, logo }), nombre: fo.nombreDetalleCasco(datos.corte) };
+  }, "Casco de vidrio");
+
   async function armar(que: "pdf" | "word") {
     if (!datos) return;
     setMal(false); setArmando(que);
@@ -64,6 +75,7 @@ export function BotonesInforme({ datos }: { datos: DatosInformeCasco | null }) {
   return (
     <div className="cvt-inf" ref={caja}>
       <div className="cvt-inf-bts">
+        <BotonesFoto abrir={fotos.abrir} armando={fotos.armando} abierta={fotos.abierta} deshabilitado={!datos || armando != null} clase="cvt-inf-bt foto" />
         <button type="button" className="cvt-inf-bt" onClick={() => armar("pdf")} disabled={!datos || armando != null}>
           <svg viewBox="0 0 24 24" aria-hidden><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16" /></svg>
           {armando === "pdf" ? "Armando…" : "Informe PDF"}
@@ -74,7 +86,8 @@ export function BotonesInforme({ datos }: { datos: DatosInformeCasco | null }) {
         </button>
       </div>
       <p className="cvt-inf-nota">Sale con los filtros puestos y solo lo que tiene inventario.</p>
-      {mal && <p className="cvt-inf-mal">No se pudo armar el informe. Recarga la página y vuelve a intentar.</p>}
+      {(mal || fotos.mal) && <p className="cvt-inf-mal">No se pudo armar. Recarga la página y vuelve a intentar.</p>}
+      {fotos.vista}
     </div>
   );
 }
