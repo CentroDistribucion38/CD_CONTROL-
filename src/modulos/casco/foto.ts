@@ -243,6 +243,9 @@ export function dibujarDashboardCasco(d: DatosInformeCasco, extra: Extra = {}): 
 
 /** Las columnas de la tabla de un almacén: las mismas del PDF, con la ubicación por zona en renglones. */
 type FilaC = SitioInforme["filas"][number];
+/** EN LA FOTO EL RENGLÓN EN NEGATIVO NO SALE («en el PDF y Word sí; en la foto no»), pero el TOTAL
+ *  se saca de todos los renglones: sigue siendo el de la tarjeta y la gráfica. */
+const visibles = (s: SitioInforme) => s.filas.filter((f) => !(f.inventario < 0 || f.baja < 0 || f.hl < 0));
 function columnasCasco(s: SitioInforme): ColTabla<FilaC>[] {
   const conBaja = !!s.rotuloBaja || s.filas.some((f) => f.baja !== 0);
   const conUbi = s.filas.some((f) => f.puesto);
@@ -277,7 +280,7 @@ export function dibujarDetalleCasco(d: DatosInformeCasco, extra: Extra = {}): HT
   const columnas = new Map(sitios.map((s) => [s.clave, anchosTabla(columnasCasco(s), tw - 32)]));
   const pares: SitioInforme[][] = [];
   for (let i = 0; i < sitios.length; i += porFila) pares.push(sitios.slice(i, i + porFila));
-  const altoPar = (par: SitioInforme[]) => 62 + Math.max(...par.map((s) => altoTabla(med, columnas.get(s.clave)!, s.filas))) + 6;
+  const altoPar = (par: SitioInforme[]) => 62 + Math.max(...par.map((s) => altoTabla(med, columnas.get(s.clave)!, visibles(s)))) + 6;
   const yTab = yGraf + hGraf + G;
   const H = yTab + pares.reduce((t, p) => t + altoPar(p) + G, 0) - G + 34 + (pares.length ? 0 : 40);
 
@@ -320,9 +323,9 @@ export function dibujarDetalleCasco(d: DatosInformeCasco, extra: Extra = {}): HT
       const nota = `${s.fecha ? `conteo ${corta(s.fecha)} · ` : ""}${fmt.hl(s.total)} HL · ${fmt.viajes(s.viajes)} viajes`;
       const a = panel(ctx, TINTA, col.fondo, { x, y, w: tw, h }, titulo(s), { nota });
       const rotulo = (s.rotuloBaja ?? "Con baja").toUpperCase();
-      dibujarTabla(ctx, TINTA, a.x, a.y, a.w, columnas.get(s.clave)!, s.filas, (cc) => (
+      dibujarTabla(ctx, TINTA, a.x, a.y, a.w, columnas.get(s.clave)!, visibles(s), (cc) => (
         cc.t === "COD" ? "TOTAL"
-        : cc.t === "MATERIAL" ? `${s.filas.filter((f) => f.sku).length} materiales con inventario`
+        : cc.t === "MATERIAL" ? `${visibles(s).length} materiales con inventario`
         : cc.t === "INVENTARIO CASCO" ? fmt.est(s.filas.reduce((t, f) => t + f.inventario, 0))
         : cc.t === rotulo ? fmt.est(s.filas.reduce((t, f) => t + f.baja, 0))
         : cc.t === "HL" ? fmt.hl(s.total) : ""));
@@ -330,7 +333,7 @@ export function dibujarDetalleCasco(d: DatosInformeCasco, extra: Extra = {}): HT
     y += h + G;
   }
 
-  pie(ctx, W, H, extra.generado ?? new Date(), "Cada almacén con su último conteo del periodo. Lo negativo va junto en un renglón: el detalle está en Control.");
+  pie(ctx, W, H, extra.generado ?? new Date(), "Cada almacén con su último conteo del periodo. Lo negativo no se muestra, pero cuenta en el total (ver Control).");
   return c;
 }
 

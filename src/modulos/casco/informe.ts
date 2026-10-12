@@ -416,7 +416,7 @@ export function dibujarInformeCasco(
     fuente("normal", 6.2); gris(); doc.text("viajes", x + kw - 4 - anchoV, y + 15.5, { align: "right" });
     const dl = s.anterior ? s.total - s.anterior.total : null;
     const nota = `HL al ${s.fecha ? corta(s.fecha) : "—"}${d.total > 0 ? ` · ${nf0.format(s.total / d.total * 100)} %` : ""} · ` +
-      (dl == null ? `${s.filas.filter((f) => f.sku).length} mat.` : `${conSigno(dl, fmt.hl)} vs ${corta(s.anterior!.fecha)}`);
+      (dl == null ? `${s.filas.length} mat.` : `${conSigno(dl, fmt.hl)} vs ${corta(s.anterior!.fecha)}`);
     fuente("normal", 6.2);
     /* SUBIÓ en rojo (hay más casco por partir), BAJÓ en verde; igual o sin anterior, en gris. */
     if (dl != null && dl > 0.05) doc.setTextColor(200, 16, 46);
@@ -560,7 +560,7 @@ export function dibujarInformeCasco(
     fuente("bold", 8.5); tinta();
     cols.forEach((c) => {
       if (c.id === "cod") doc.text("TOTAL", x + 2, y + 4.4);
-      if (c.id === "mat") { fuente("normal", 7.6); gris(); doc.text(`${s.filas.filter((f) => f.sku).length} material${s.filas.filter((f) => f.sku).length === 1 ? "" : "es"} con inventario`, x + 2, y + 4.4); fuente("bold", 8.5); tinta() }
+      if (c.id === "mat") { fuente("normal", 7.6); gris(); doc.text(`${s.filas.length} material${s.filas.length === 1 ? "" : "es"} con inventario`, x + 2, y + 4.4); fuente("bold", 8.5); tinta() }
       if (c.id === "inv") doc.text(fmt.est(s.filas.reduce((t, r) => t + r.inventario, 0)), x + c.mm - 2, y + 4.4, { align: "right" });
       if (c.id === "baja") doc.text(fmt.est(s.filas.reduce((t, r) => t + r.baja, 0)), x + c.mm - 2, y + 4.4, { align: "right" });
       if (c.id === "hl") doc.text(fmt.hl(s.total), x + c.mm - 2, y + 4.4, { align: "right" });
