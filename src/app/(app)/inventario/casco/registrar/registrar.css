@@ -110,3 +110,8 @@
 .reg .reg-hojas button:focus-visible { outline: 3px solid var(--fe-acento); outline-offset: -3px }
 .reg .reg-hojas.reg-sub { margin: 0 0 12px }
 .reg .reg-hojas.reg-sub button { min-height: 40px; padding: 0 16px; font-size: 13px }
+
+/* Tarjetas con la sumatoria de lo filtrado en «Bajas registradas». */
+.reg .reg-tarjetas { margin: 0 0 12px }
+.reg .reg-sitio.reg-total { background: var(--fe-tinta, #111); border-color: var(--fe-tinta, #111); color: var(--fe-papel, #fff); box-shadow: inset 0 3px 0 var(--fe-acento, #f5b800) }
+.reg .reg-sitio.reg-total .cas-rot, .reg .reg-sitio.reg-total i { color: color-mix(in srgb, var(--fe-papel, #fff) 75%, transparent) }

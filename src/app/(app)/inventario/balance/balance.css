@@ -265,3 +265,6 @@
 .bal .bal-conso tbody tr.marcada td { background: color-mix(in srgb, var(--fe-acento, #f5b800) 20%, transparent) }
 .bal .bal-conso-antes { display: block; font-size: 11px; color: var(--fe-gris) }
 @media (max-width: 640px) { .bal .bal-conso-q input, .bal .bal-conso-barra input { min-width: 0; width: 100% } }
+
+/* Sin factor en el maestro no hay cajas ni unidades: se dice en rojo. */
+.bal .bal-tabla td.bal-falta { color: var(--fe-mal, #c8102e); font-weight: 700; font-size: 11px; text-transform: uppercase }

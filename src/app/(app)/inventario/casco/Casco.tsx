@@ -39,11 +39,16 @@ type Bloque = {
   guardado: boolean;                // ya hay registro de este día en este sitio
   guardando: boolean;
   aviso: { tipo: "ok" | "mal"; texto: string } | null;
+  /** La última hora en que la base cambió esta tabla cuando se trajo (bajas, movimientos o un guardado).
+   *  Si al guardar la base tiene otra, alguien la cambió mientras tanto: no se pisa. */
+  marca?: string | null;
+  /** Se cambió en la base mientras estaba abierta: no se guarda sola hasta traer lo actual. */
+  choque?: boolean;
 };
 type Reg = {
   ubicacion: string; sku: string; inventario: number | null; inv_expr: string | null;
   baja: number | null; baja_expr: string | null; hl: number; fecha: string;
-  puesto: string | null; calidad: string | null;
+  puesto: string | null; calidad: string | null; actualizado_en?: string | null;
 };
 
 const nf2 = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -52,18 +57,21 @@ const largo = (iso: string) =>
   new Date(iso + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 const aTexto = (n: number | null) => (n == null ? "" : String(Number(n)));
 const VACIO: Bloque = { filas: [], sucio: false, cargando: true, arranque: null, guardado: false, guardando: false, aviso: null };
-const COLS = "ubicacion, sku, inventario, inv_expr, baja, baja_expr, hl, fecha, puesto, calidad";
+const COLS = "ubicacion, sku, inventario, inv_expr, baja, baja_expr, hl, fecha, puesto, calidad, actualizado_en";
+/** La hora del último cambio de unas filas (la más nueva), o null si no hay filas. */
+const marcaDe = (rs: { actualizado_en?: string | null }[]) =>
+  rs.reduce<string | null>((m, r) => (r.actualizado_en && (!m || r.actualizado_en > m) ? r.actualizado_en : m), null);
 
 /* EL BORRADOR: «si me salgo de Registrar para revisar, que no se borre nada». Lo que se teclea y no
    se ha guardado queda en ESTE equipo (por día y por tabla) y vuelve al regresar. Se borra al
    guardar o al tocar «Descartar». Si el navegador no deja guardar (modo privado), sigue igual. */
 const llaveBorrador = (fecha: string, clave: string) => `cd38:casco:borrador:${fecha}:${clave}`;
-type Borrador = { filas: Fila[]; en: string };
+type Borrador = { filas: Fila[]; en: string; marca?: string | null };
 const leerBorrador = (fecha: string, clave: string): Borrador | null => {
   try { const t = localStorage.getItem(llaveBorrador(fecha, clave)); return t ? JSON.parse(t) as Borrador : null } catch { return null }
 };
-const guardarBorrador = (fecha: string, clave: string, filas: Fila[]) => {
-  try { localStorage.setItem(llaveBorrador(fecha, clave), JSON.stringify({ filas, en: new Date().toISOString() })) } catch { /* sin espacio o modo privado */ }
+const guardarBorrador = (fecha: string, clave: string, filas: Fila[], marca: string | null) => {
+  try { localStorage.setItem(llaveBorrador(fecha, clave), JSON.stringify({ filas, en: new Date().toISOString(), marca })) } catch { /* sin espacio o modo privado */ }
 };
 const borrarBorrador = (fecha: string, clave: string) => { try { localStorage.removeItem(llaveBorrador(fecha, clave)) } catch { /* nada */ } };
 
@@ -153,12 +161,17 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar, d
     const conBorrador = (clave: string, base: Partial<Bloque>): Partial<Bloque> => {
       const br = leerBorrador(f, clave);
       const s = sitios.find((x) => x.clave === clave)!;
-      return alimentar(s, br ? { ...base, filas: br.filas, sucio: true, recuperado: br.en } : { ...base, recuperado: null });
+      /* Un borrador hecho ANTES de que la base cambiara (bajas, movimientos u otro guardado) no se guarda
+         solo: pisaría lo nuevo. Se muestra y se avisa; «Descartar cambios» trae lo actual. */
+      const viejo = !!br && (br.marca === undefined || (br.marca ?? null) !== (base.marca ?? null));
+      return alimentar(s, br ? { ...base, filas: br.filas, sucio: true, recuperado: br.en, choque: viejo,
+        aviso: viejo ? { tipo: "mal", texto: "Este borrador es de antes de que se registraran bajas, movimientos o cambios en esta tabla. No se guarda solo para no borrarlos: toca «Descartar cambios» para traer lo actual y vuelve a teclear lo tuyo." } : base.aviso ?? null }
+        : { ...base, recuperado: null });
     };
     await Promise.all(sitios.map(async (s) => {
       const hoyRows = ((delD ?? []) as Reg[]).filter((r) => r.ubicacion === s.clave);
       if (hoyRows.length) {
-        poner(s.clave, conBorrador(s.clave, { filas: aFilas(hoyRows), arranque: null, guardado: true, cargando: false, sucio: false }));
+        poner(s.clave, conBorrador(s.clave, { filas: aFilas(hoyRows), arranque: null, guardado: true, cargando: false, sucio: false, marca: marcaDe(hoyRows), choque: false }));
         return;
       }
       /* SIN REGISTRO ESE DÍA EN ESTE SITIO: se arranca con su último saldo. */
@@ -167,8 +180,8 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar, d
       const dia = (ult?.[0]?.fecha as string | undefined) ?? null;
       if (dia) {
         const { data: prev } = await supabase.from("v_casco").select(COLS).eq("ubicacion", s.clave).eq("fecha", dia).order("sku");
-        poner(s.clave, conBorrador(s.clave, { filas: aFilas((prev ?? []) as Reg[]), arranque: dia, guardado: false, cargando: false, sucio: false }));
-      } else poner(s.clave, conBorrador(s.clave, { filas: [], arranque: null, guardado: false, cargando: false, sucio: false }));
+        poner(s.clave, conBorrador(s.clave, { filas: aFilas((prev ?? []) as Reg[]), arranque: dia, guardado: false, cargando: false, sucio: false, marca: null, choque: false }));
+      } else poner(s.clave, conBorrador(s.clave, { filas: [], arranque: null, guardado: false, cargando: false, sucio: false, marca: null, choque: false }));
     }));
   }, [supabase, sitios, poner, delInventario]);
 
@@ -178,7 +191,7 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar, d
   useEffect(() => {
     /* Con el día DE LAS FILAS (b.de), no con el del calendario: al cambiar de fecha, las filas viejas
        no deben quedar guardadas como borrador del día nuevo. */
-    for (const [clave, b] of Object.entries(bloques)) if (b.sucio && !b.cargando && b.de) guardarBorrador(b.de, clave, b.filas);
+    for (const [clave, b] of Object.entries(bloques)) if (b.sucio && !b.cargando && b.de) guardarBorrador(b.de, clave, b.filas, b.marca ?? null);
   }, [bloques]);
   /** «Descartar»: se borra el borrador y la tabla vuelve a lo guardado. */
   const descartar = async (s: SitioCasco) => {
@@ -236,6 +249,16 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar, d
   const guardarSitio = async (s: SitioCasco): Promise<boolean> => {
     const b = bloques[s.clave]; if (!b || b.guardando || conError(s, b)) return false;
     poner(s.clave, { guardando: true, aviso: null });
+    /* ¿LA BASE CAMBIÓ ESTA TABLA DESDE QUE SE TRAJO? (una baja importada, un movimiento, otro equipo que
+       guardó). Guardar ahora borraría eso, porque se guarda la tabla completa. Entonces no se guarda. */
+    const { data: ahora, error: eM } = await supabase.from("v_casco").select("actualizado_en")
+      .eq("fecha", fecha).eq("ubicacion", s.clave).order("actualizado_en", { ascending: false }).limit(1);
+    const marcaAhora = (ahora?.[0]?.actualizado_en as string | undefined) ?? null;
+    if (!eM && marcaAhora !== (b.marca ?? null)) {
+      poner(s.clave, { guardando: false, choque: true, aviso: { tipo: "mal", texto:
+        "Mientras tenías esta tabla abierta se registraron bajas, movimientos o alguien la guardó. No se guardó para no borrar eso: toca «Descartar cambios» para traer lo actual y vuelve a teclear lo tuyo." } });
+      return false;
+    }
     const c = calcular(s, b);
     const payload = b.filas.map((f, i) => ({
       sku: f.sku, inventario: c[i].inv ?? 0, inv_expr: esCuenta(f.inv) ? f.inv.replace(/^\s*=/, "").trim() : "",
@@ -245,13 +268,16 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar, d
     const { data, error } = await supabase.rpc("casco_guardar", { p_fecha: fecha, p_ubicacion: s.clave, p_filas: payload });
     if (error) { poner(s.clave, { guardando: false, aviso: { tipo: "mal", texto: error.message } }); return false }
     const aviso = { tipo: "ok" as const, texto: `Guardado: ${data ?? payload.length} material${payload.length === 1 ? "" : "es"} en ${s.nombre}.` };
+    const { data: tras } = await supabase.from("v_casco").select("actualizado_en")
+      .eq("fecha", fecha).eq("ubicacion", s.clave).order("actualizado_en", { ascending: false }).limit(1);
+    const marca = (tras?.[0]?.actualizado_en as string | undefined) ?? null;
     /* Si mientras guardaba se tecleó algo más, la tabla sigue «sucia» y se guarda en la siguiente vuelta. */
     poner(s.clave, (cur) => {
       const igual = cur.filas === b.filas;
       if (igual) borrarBorrador(fecha, s.clave);
       return igual
-        ? { guardando: false, sucio: false, guardado: true, arranque: null, recuperado: null, aviso }
-        : { guardando: false, guardado: true, arranque: null, recuperado: null };
+        ? { guardando: false, sucio: false, guardado: true, arranque: null, recuperado: null, aviso, marca, choque: false }
+        : { guardando: false, guardado: true, arranque: null, recuperado: null, marca, choque: false };
     });
     return true;
   };
@@ -269,7 +295,7 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar, d
     if (!puedeEditar) return;
     const listos = sitios.filter((x) => {
       const b = bloques[x.clave];
-      return b && b.sucio && !b.cargando && !b.guardando && b.de === fecha && !conError(x, b);
+      return b && b.sucio && !b.cargando && !b.guardando && !b.choque && b.de === fecha && !conError(x, b);
     });
     if (!listos.length) return;
     const t = setTimeout(() => {
@@ -440,7 +466,7 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar, d
               <div>
                 <h2>{s.nombre}</h2>
                 <p className="cas-nota">
-                  {b.cargando ? "Cargando…" : b.guardando ? "Guardando…" : b.sucio ? (conError(s, b) ? "Sin guardar: corrige el dato en rojo y se guarda solo" : "Guardando en unos segundos…") : b.guardado ? "Guardado" : b.arranque ? `Arrancó con el saldo del ${largo(b.arranque)}` : "Sin registros"}
+                  {b.cargando ? "Cargando…" : b.guardando ? "Guardando…" : b.sucio && b.choque ? "Sin guardar: la base cambió mientras la tenías abierta" : b.sucio ? (conError(s, b) ? "Sin guardar: corrige el dato en rojo y se guarda solo" : "Guardando en unos segundos…") : b.guardado ? "Guardado" : b.arranque ? `Arrancó con el saldo del ${largo(b.arranque)}` : "Sin registros"}
                 </p>
               </div>
               <div className="cas-bloque-hl"><b>{nf2.format(totHl)}</b><i>HL · {nf0.format(totInv + totBaja)} estibas</i></div>

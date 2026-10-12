@@ -339,12 +339,14 @@ export function Balance({
                   <tr>
                     <th>Código</th>
                     <th>Material</th>
+                    <th className="r" title="Cajas por estiba (maestro)">Factor estiba</th>
+                    <th className="r" title="Unidades por caja (maestro)">Factor caja</th>
                     <th className="r">Físico (cajas)</th>
                     <th className="r">Estibas casco</th>
                     <th className="r">Cajas casco</th>
                     <th className="r">Ajuste</th>
                     <th className="r">Dif cajas</th>
-                    <th className="r">Unidades</th>
+                    <th className="r" title="Dif cajas × factor caja">Dif unidades</th>
                     <th>Alerta</th>
                     <th className="bal-col-acc"></th>
                   </tr>
@@ -354,6 +356,8 @@ export function Balance({
                     <tr key={i} className={f.alerta ? "con-alerta" : ""}>
                       <td className="mono">{f.codigo}</td>
                       <td>{f.material ?? "—"}</td>
+                      <td className={`r ${f.cajas_estiba ? "" : "bal-falta"}`}>{f.cajas_estiba ? n(f.cajas_estiba) : "falta"}</td>
+                      <td className={`r ${f.un_caja ? "" : "bal-falta"}`}>{f.un_caja ? n(f.un_caja) : "falta"}</td>
                       <td className="r">{n(f.fisico_cajas)}</td>
                       <td className="r">{n(f.estibas_casco)}</td>
                       <td className="r">{n(f.cajas_casco)}</td>
@@ -398,7 +402,7 @@ export function Balance({
                 {principales.length > 1 && (
                   <tfoot>
                     <tr>
-                      <td colSpan={2}>
+                      <td colSpan={4}>
                         <b>Total</b>
                       </td>
                       <td className="r">

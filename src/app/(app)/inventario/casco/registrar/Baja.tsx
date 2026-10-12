@@ -250,6 +250,17 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
     return t;
   }, { inv: 0, baja: 0 }), [visibles]);
   const hayFiltro = JSON.stringify(fb) !== JSON.stringify(FILTROS_VACIOS);
+  /* LAS TARJETAS: la sumatoria de lo que dejan los filtros, para ver el total sin sumar a mano. */
+  const tarjetas = useMemo(() => {
+    const t = { estibas: 0, unidades: 0, inv: 0, nInv: 0, baja: 0, nBaja: 0, reg: 0, nReg: 0 };
+    for (const e of visibles) {
+      t.unidades += e.unidades;
+      if (e.destino === "registro") { t.reg += e.estibas; t.nReg++; continue }
+      t.estibas += e.estibas;
+      if (e.destino === "baja") { t.baja += e.signo * e.estibas; t.nBaja++ } else { t.inv += e.estibas; t.nInv++ }
+    }
+    return t;
+  }, [visibles]);
 
   const deshacerVisibles = async () => {
     if (!visibles.length) return;
@@ -540,6 +551,35 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
           </label>
           {hayFiltro && <button type="button" className="btn" onClick={() => setFb(FILTROS_VACIOS)}>Limpiar filtros</button>}
         </div>
+
+        {visibles.length > 0 && (
+          <div className="reg-resumen reg-tarjetas" aria-live="polite">
+            <div className="reg-sitio reg-total">
+              <span className="cas-rot">Total estibas{hayFiltro ? " · filtradas" : ""}</span>
+              <b>{nf2.format(tarjetas.estibas)} est.</b>
+              <i>{nf0.format(tarjetas.unidades)} unidades · {visibles.length} baja{visibles.length === 1 ? "" : "s"}</i>
+            </div>
+            <div className="reg-sitio">
+              <span className="cas-rot">Al inventario</span>
+              <b>+{nf2.format(tarjetas.inv)} est.</b>
+              <i>{tarjetas.nInv} fila{tarjetas.nInv === 1 ? "" : "s"}</i>
+            </div>
+            {tarjetas.nBaja > 0 && (
+              <div className="reg-sitio">
+                <span className="cas-rot">Columna de baja</span>
+                <b>{nf2.format(tarjetas.baja)} est.</b>
+                <i>{tarjetas.nBaja} fila{tarjetas.nBaja === 1 ? "" : "s"}</i>
+              </div>
+            )}
+            {tarjetas.nReg > 0 && (
+              <div className="reg-sitio">
+                <span className="cas-rot">Solo registro</span>
+                <b>{nf2.format(tarjetas.reg)} est.</b>
+                <i>{tarjetas.nReg} fila{tarjetas.nReg === 1 ? "" : "s"} · no mueven el kárdex</i>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="cas-tabla-caja reg-tabla-alta">
           <table className="cas-tabla">
