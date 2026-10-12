@@ -35,6 +35,50 @@ function anchoEspaciado(ctx: Ctx, t: string, aire = 0.8) { let w = 0; for (const
 
 type Caja = { x: number; y: number; w: number; h: number };
 
+const MARGEN = 16, HUECO = 12;
+/** La cabecera de las dos fotos: la cinta, el logo, el título y los filtros como chips. */
+function cabecera(ctx: Ctx, W: number, d: DatosInformePasivo, P: Paleta, logo: CanvasImageSource | null | undefined, titulo: string, sub: string) {
+  const TINTA = `rgb(${P.tinta.join(",")})`, ACENTO = `rgb(${P.acento.join(",")})`, M = MARGEN;
+  /* ---------- CABECERA ---------- */
+  // la cinta del tema arriba
+  const grad = ctx.createLinearGradient(0, 0, W, 0);
+  for (const [t, col] of P.cinta) grad.addColorStop(t, `rgb(${col.join(",")})`);
+  ctx.fillStyle = grad; ctx.fillRect(0, 0, W, 6);
+  ctx.fillStyle = "#FFFFFF"; ctx.fillRect(M, 18, W - 2 * M, 76);
+  ctx.strokeStyle = BORDE; ctx.strokeRect(M + .5, 18.5, W - 2 * M - 1, 75);
+  let tx = M + 22;
+  if (logo) {
+    try { const lh = 44, lw = lh * 540 / 160; ctx.drawImage(logo, tx, 34, lw, lh); tx += lw + 26 } catch { /* sin logo */ }
+  } else { letra(ctx, 900, 32); ctx.fillStyle = "#E30613"; ctx.textAlign = "left"; ctx.fillText("Bavaria", tx, 56); tx += ctx.measureText("Bavaria").width + 26 }
+  ctx.fillStyle = BORDE; ctx.fillRect(tx - 13, 34, 1, 44);
+  letra(ctx, 800, 30); ctx.fillStyle = TINTA; ctx.textAlign = "left"; ctx.fillText(titulo, tx, 46);
+  letra(ctx, 500, 16); ctx.fillStyle = GRIS;
+  ctx.fillText(sub, tx, 74);
+
+  // los filtros como chips, a la derecha
+  {
+    const partes = d.filtros ? d.filtros.split(" · ").filter(Boolean) : ["Todos los almacenes", "Todos los estados"];
+    letra(ctx, 700, 13.5);
+    let x = W - M - 22;
+    for (const p of [...partes].reverse()) {
+      const w = ctx.measureText(p).width + 26; x -= w;
+      ctx.fillStyle = SUAVE; ctx.fillRect(x, 42, w, 30);
+      ctx.fillStyle = ACENTO; ctx.fillRect(x, 42, 3, 30);
+      ctx.fillStyle = TINTA; ctx.textAlign = "left"; ctx.fillText(p, x + 14, 57);
+      x -= 8;
+    }
+    letra(ctx, 800, 11); ctx.fillStyle = GRIS; ctx.textAlign = "left";
+    espaciado(ctx, "FILTROS", W - M - 22 - anchoEspaciado(ctx, "FILTROS", 1.2), 30, 1.2);
+  }
+
+}
+/** El pie: quién la generó y cuándo. */
+function pie(ctx: Ctx, W: number, H: number, gen: Date, nota: string) {
+  letra(ctx, 500, 12.5); ctx.fillStyle = GRIS; ctx.textAlign = "left";
+  ctx.fillText(`CONTROL · CD38 — generado el ${gen.toLocaleDateString("es-CO")} ${gen.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}`, MARGEN, H - 16);
+  ctx.textAlign = "right"; ctx.fillText(nota, W - MARGEN, H - 16);
+}
+
 export function dibujarFotoPasivo(
   d: DatosInformePasivo,
   extra: { paleta?: Paleta; logo?: CanvasImageSource | null; generado?: Date } = {},
@@ -93,39 +137,8 @@ export function dibujarFotoPasivo(
     });
   };
 
-  /* ---------- CABECERA ---------- */
-  const M = 16, G = 12;
-  // la cinta del tema arriba
-  const grad = ctx.createLinearGradient(0, 0, W, 0);
-  for (const [t, col] of P.cinta) grad.addColorStop(t, `rgb(${col.join(",")})`);
-  ctx.fillStyle = grad; ctx.fillRect(0, 0, W, 6);
-  ctx.fillStyle = "#FFFFFF"; ctx.fillRect(M, 18, W - 2 * M, 76);
-  ctx.strokeStyle = BORDE; ctx.strokeRect(M + .5, 18.5, W - 2 * M - 1, 75);
-  let tx = M + 22;
-  if (extra.logo) {
-    try { const lh = 44, lw = lh * 540 / 160; ctx.drawImage(extra.logo, tx, 34, lw, lh); tx += lw + 26 } catch { /* sin logo */ }
-  } else { letra(ctx, 900, 32); ctx.fillStyle = "#E30613"; ctx.textAlign = "left"; ctx.fillText("Bavaria", tx, 56); tx += ctx.measureText("Bavaria").width + 26 }
-  ctx.fillStyle = BORDE; ctx.fillRect(tx - 13, 34, 1, 44);
-  letra(ctx, 800, 30); ctx.fillStyle = TINTA; ctx.textAlign = "left"; ctx.fillText("Pasivos BAQ AG01", tx, 46);
-  letra(ctx, 500, 16); ctx.fillStyle = GRIS;
-  const sub = `EER bloqueados al ${larga(d.dia)}`;
-  ctx.fillText(sub, tx, 74);
-
-  // los filtros como chips, a la derecha
-  {
-    const partes = d.filtros ? d.filtros.split(" · ").filter(Boolean) : ["Todos los almacenes", "Todos los estados"];
-    letra(ctx, 700, 13.5);
-    let x = W - M - 22;
-    for (const p of [...partes].reverse()) {
-      const w = ctx.measureText(p).width + 26; x -= w;
-      ctx.fillStyle = SUAVE; ctx.fillRect(x, 42, w, 30);
-      ctx.fillStyle = ACENTO; ctx.fillRect(x, 42, 3, 30);
-      ctx.fillStyle = TINTA; ctx.textAlign = "left"; ctx.fillText(p, x + 14, 57);
-      x -= 8;
-    }
-    letra(ctx, 800, 11); ctx.fillStyle = GRIS; ctx.textAlign = "left";
-    espaciado(ctx, "FILTROS", W - M - 22 - anchoEspaciado(ctx, "FILTROS", 1.2), 30, 1.2);
-  }
+  const M = MARGEN, G = HUECO;
+  cabecera(ctx, W, d, P, extra.logo, "Pasivos BAQ AG01", `EER bloqueados al ${larga(d.dia)}`);
 
   /* ---------- FILA 1 ---------- */
   const Y1 = 106, H1 = 440, Y2 = Y1 + H1 + G, H2 = H - Y2 - 34;
@@ -301,13 +314,193 @@ export function dibujarFotoPasivo(
     }
   }
 
-  /* ---------- PIE ---------- */
-  const gen = extra.generado ?? new Date();
-  letra(ctx, 500, 12.5); ctx.fillStyle = GRIS; ctx.textAlign = "left";
-  ctx.fillText(`CONTROL · CD38 — generado el ${gen.toLocaleDateString("es-CO")} ${gen.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}`, M, H - 16);
-  ctx.textAlign = "right";
-  ctx.fillText("Cifras en HL salvo donde dice $. El día del informe va resaltado.", W - M, H - 16);
+  pie(ctx, W, H, extra.generado ?? new Date(), "Cifras en HL salvo donde dice $. El día del informe va resaltado.");
   return c;
 }
 
 export const nombreFotoPasivo = (dia: string) => `pasivos-${dia}.png`;
+
+/* =====================================================================
+   LA SEGUNDA FOTO: EL DETALLE POR ALMACÉN
+   «Que se vea lo que está en el almacén AG22 – AG18, y le agregas una gráfica bacana para esas
+    dos tablas; así enviaría yo dos fotos.»
+   Arriba una tarjeta por almacén; en el medio la gráfica en espejo (AG22 a la izquierda, AG18 a
+   la derecha, material por material); abajo las dos tablas lado a lado, como en el PDF.
+   ===================================================================== */
+export function dibujarDetallePasivo(
+  d: DatosInformePasivo,
+  extra: { paleta?: Paleta; logo?: CanvasImageSource | null; generado?: Date } = {},
+): HTMLCanvasElement {
+  const P = extra.paleta ?? PALETA_MARCA;
+  const TINTA = `rgb(${P.tinta.join(",")})`, ACENTO = `rgb(${P.acento.join(",")})`;
+  const W = FOTO.ancho, S = FOTO.escala, M = MARGEN, G = HUECO;
+
+  /* lo que hay en cada almacén, en el orden de la pantalla (AG22 primero) */
+  const als = d.almacenes.map((a, i) => {
+    const filas = d.consolidado.filter((f) => f.almacen === a.a).sort((x, y) => y.hl - x.hl);
+    const suma = (k: "und" | "cajas" | "hl" | "costo") => filas.reduce((t, f) => t + (Number(f[k]) || 0), 0);
+    return { ...a, col: COLOR_ALMACEN[i] ?? "#8C8C8C", filas, und: suma("und"), cajas: suma("cajas"), hl: suma("hl"), cst: suma("costo") };
+  }).filter((a) => a.filas.length);
+  const n = Math.max(1, als.length);
+
+  /* los materiales de la gráfica: todos los que tienen algo, ordenados por el total de los dos */
+  const mats = new Map<string, { desc: string; v: number[] }>();
+  als.forEach((a, i) => a.filas.forEach((f) => {
+    if (!(f.hl >= 0.05)) return;
+    const k = f.codigo || f.desc;
+    const m = mats.get(k) ?? { desc: f.desc, v: als.map(() => 0) };
+    m.v[i] += f.hl; mats.set(k, m);
+  }));
+  const materiales = [...mats.values()].sort((x, y) => y.v.reduce((s, v) => s + v, 0) - x.v.reduce((s, v) => s + v, 0));
+
+  /* las medidas: la imagen crece con las filas */
+  const FILA_G = 30, FILA_T = 29;
+  const yCards = 106, hCards = 104;
+  const yGraf = yCards + hCards + G, hGraf = 62 + Math.max(1, materiales.length) * FILA_G * (n === 2 ? 1 : n) + 2;
+  const filasMax = Math.max(1, ...als.map((a) => a.filas.length));
+  const yTab = yGraf + hGraf + G, hTab = 62 + FILA_T * (filasMax + 2) + 8;
+  const H = yTab + hTab + 34;
+
+  const c = document.createElement("canvas");
+  c.width = W * S; c.height = H * S;
+  const ctx = c.getContext("2d")!;
+  ctx.scale(S, S); ctx.textBaseline = "middle";
+  ctx.fillStyle = FONDO; ctx.fillRect(0, 0, W, H);
+  cabecera(ctx, W, d, P, extra.logo, "Detalle por almacén", `Pasivos BAQ AG01 · EER bloqueados al ${larga(d.dia)}`);
+
+  const panel = (b: Caja, titulo: string, nota?: string, marca = ACENTO) => {
+    ctx.fillStyle = "#FFFFFF"; ctx.fillRect(b.x, b.y, b.w, b.h);
+    ctx.strokeStyle = BORDE; ctx.lineWidth = 1; ctx.strokeRect(b.x + .5, b.y + .5, b.w - 1, b.h - 1);
+    ctx.fillStyle = marca; ctx.fillRect(b.x + 16, b.y + 18, 10, 10);
+    letra(ctx, 800, 15); ctx.fillStyle = TINTA; ctx.textAlign = "left";
+    espaciado(ctx, titulo.toUpperCase(), b.x + 34, b.y + 24);
+    if (nota) { letra(ctx, 600, 13); ctx.fillStyle = GRIS; ctx.textAlign = "right"; ctx.fillText(nota, b.x + b.w - 16, b.y + 24) }
+    return { x: b.x + 16, y: b.y + 48, w: b.w - 32, h: b.h - 62 };
+  };
+  const colW = (W - 2 * M - G * (n - 1)) / n;
+
+  /* ---------- LAS TARJETAS ---------- */
+  if (!als.length) {
+    letra(ctx, 600, 18); ctx.fillStyle = GRIS; ctx.textAlign = "center"; ctx.fillText("Sin materiales con estos filtros", W / 2, yCards + 60);
+  }
+  als.forEach((a, i) => {
+    const x = M + i * (colW + G), y = yCards, w = colW, h = hCards;
+    ctx.fillStyle = TINTA; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = a.col; ctx.fillRect(x, y, 8, h);
+    letra(ctx, 900, 26); ctx.fillStyle = "#FFFFFF"; ctx.textAlign = "left"; ctx.fillText(a.a, x + 28, y + 34);
+    const aw = ctx.measureText(a.a).width;
+    letra(ctx, 500, 15); ctx.fillStyle = "rgba(255,255,255,.7)"; ctx.fillText(a.nombre, x + 28 + aw + 12, y + 36);
+    letra(ctx, 600, 13.5); ctx.fillStyle = "rgba(255,255,255,.7)";
+    const pct = d.total ? Math.round((a.total / d.total) * 100) : 0;
+    ctx.fillText(`${pct}% del total · ${a.filas.length} materiales`, x + 28, y + 72);
+    // las cifras a la derecha
+    const cifras: [string, string][] = [["HL", f1(a.hl)], ["Costo", plata(a.cst)], ["Cajas", f0(a.cajas)], ["Unidades", f0(a.und)]];
+    let cx = x + w - 24;
+    for (const [t, v] of [...cifras].reverse()) {
+      const grande = t === "HL";
+      letra(ctx, 900, grande ? 34 : 21); const vw = ctx.measureText(v).width;
+      letra(ctx, 800, 11); const tw = anchoEspaciado(ctx, t.toUpperCase(), 1);
+      const ancho = Math.max(vw, tw);
+      letra(ctx, 900, grande ? 34 : 21); ctx.fillStyle = grande ? a.col : "#FFFFFF"; ctx.textAlign = "right"; ctx.fillText(v, cx, y + 62);
+      letra(ctx, 800, 11); ctx.fillStyle = "rgba(255,255,255,.6)"; ctx.textAlign = "left"; espaciado(ctx, t.toUpperCase(), cx - tw, y + 28, 1);
+      cx -= ancho + 30;
+    }
+  });
+
+  /* ---------- LA GRÁFICA ---------- */
+  {
+    const titulo = n === 2 ? `${als[0].a} vs ${als[1].a} por material (HL)` : "HL por material";
+    const a = panel({ x: M, y: yGraf, w: W - 2 * M, h: hGraf }, titulo);
+    // leyenda
+    letra(ctx, 700, 13); let lx = a.x + a.w;
+    for (const al of [...als].reverse()) {
+      const t = `${al.a} · ${al.nombre}`; const tw = ctx.measureText(t).width; lx -= tw;
+      ctx.fillStyle = TINTA; ctx.textAlign = "left"; ctx.fillText(t, lx, yGraf + 24);
+      lx -= 18; ctx.fillStyle = al.col; ctx.fillRect(lx, yGraf + 18, 12, 12); lx -= 22;
+    }
+    if (!materiales.length) { letra(ctx, 500, 14); ctx.fillStyle = GRIS; ctx.textAlign = "center"; ctx.fillText("Sin datos con estos filtros", a.x + a.w / 2, a.y + a.h / 2) }
+    else if (n === 2) {
+      // EN ESPEJO: el material en el centro, AG22 crece a la izquierda y AG18 a la derecha
+      const NOM = 300, cx = a.x + a.w / 2, VAL = 74;
+      const L0 = cx - NOM / 2, R0 = cx + NOM / 2, largo = L0 - (a.x + VAL);
+      const max = Math.max(1e-9, ...materiales.flatMap((m) => m.v));
+      const bh = 20;
+      // las guías
+      ctx.strokeStyle = "#E6EAF0"; ctx.setLineDash([4, 5]); ctx.lineWidth = 1;
+      for (const t of [0.25, 0.5, 0.75, 1]) for (const x of [L0 - t * largo, R0 + t * largo]) { ctx.beginPath(); ctx.moveTo(Math.round(x) + .5, a.y - 4); ctx.lineTo(Math.round(x) + .5, a.y + materiales.length * FILA_G); ctx.stroke() }
+      ctx.setLineDash([]);
+      materiales.forEach((m, i) => {
+        const cy = a.y + i * FILA_G + FILA_G / 2;
+        if (i % 2 === 0) { ctx.fillStyle = "#F8F9FB"; ctx.fillRect(L0, cy - FILA_G / 2, NOM, FILA_G) }
+        letra(ctx, 600, 13.5); ctx.fillStyle = TINTA; ctx.textAlign = "center"; ctx.fillText(recortar(ctx, m.desc, NOM - 16), cx, cy);
+        [0, 1].forEach((k) => {
+          const v = m.v[k] >= 0.05 ? m.v[k] : 0; const w = (v / max) * largo, col = als[k].col;
+          const izq = k === 0;
+          if (v > 0) {
+            ctx.fillStyle = col;
+            const x = izq ? L0 - 6 - w : R0 + 6;
+            ctx.fillRect(x, cy - bh / 2, Math.max(2, w), bh);
+          }
+          letra(ctx, 800, 13); ctx.fillStyle = v > 0 ? TINTA : "#AAB3BE";
+          const t = v > 0 ? f1(v) : "—";
+          ctx.textAlign = izq ? "right" : "left";
+          ctx.fillText(t, izq ? L0 - 14 - w : R0 + 14 + w, cy);
+        });
+      });
+    } else {
+      // uno o más de dos almacenes: barras agrupadas por material
+      const NOM = 260, X0 = a.x + NOM + 12, X1 = a.x + a.w - 80;
+      const max = Math.max(1e-9, ...materiales.flatMap((m) => m.v)), bh = Math.min(20, FILA_G - 8);
+      materiales.forEach((m, i) => {
+        const y0 = a.y + i * FILA_G * n;
+        letra(ctx, 600, 13.5); ctx.fillStyle = TINTA; ctx.textAlign = "right"; ctx.fillText(recortar(ctx, m.desc, NOM), a.x + NOM, y0 + (FILA_G * n) / 2);
+        als.forEach((al, k) => {
+          const cy = y0 + k * FILA_G + FILA_G / 2, w = (m.v[k] / max) * (X1 - X0);
+          ctx.fillStyle = al.col; ctx.fillRect(X0, cy - bh / 2, Math.max(2, w), bh);
+          letra(ctx, 800, 13); ctx.fillStyle = TINTA; ctx.textAlign = "left"; ctx.fillText(f1(m.v[k]), X0 + w + 8, cy);
+        });
+      });
+    }
+  }
+
+  /* ---------- LAS TABLAS ---------- */
+  als.forEach((al, i) => {
+    const x = M + i * (colW + G);
+    const a = panel({ x, y: yTab, w: colW, h: hTab }, `${al.a} · ${al.nombre}`, `${f1(al.hl)} HL · ${plata(al.cst)}`, al.col);
+    const cols: { t: string; w: number; num?: boolean }[] = [
+      { t: "CÓDIGO", w: 88 }, { t: "MATERIAL", w: 0 }, { t: "UNIDADES", w: 112, num: true },
+      { t: "CAJAS", w: 90, num: true }, { t: "HL", w: 90, num: true }, { t: "COSTO", w: 146, num: true },
+    ];
+    cols[1].w = a.w - cols.reduce((s, c) => s + c.w, 0);
+    const celdas = (y: number, vals: string[], estilo: (j: number) => void) => {
+      let cx = a.x;
+      cols.forEach((col, j) => {
+        estilo(j);
+        if (col.num) { ctx.textAlign = "right"; ctx.fillText(vals[j], cx + col.w - 10, y) }
+        else { ctx.textAlign = "left"; ctx.fillText(recortar(ctx, vals[j], col.w - 18), cx + 10, y) }
+        cx += col.w;
+      });
+    };
+    let y = a.y;
+    ctx.fillStyle = TINTA; ctx.fillRect(a.x, y, a.w, FILA_T + 2);
+    letra(ctx, 800, 12.5); ctx.fillStyle = "#FFFFFF";
+    celdas(y + FILA_T / 2 + 1, cols.map((c) => c.t), () => { letra(ctx, 800, 12.5); ctx.fillStyle = "#FFFFFF" });
+    y += FILA_T + 2;
+    al.filas.forEach((f, r) => {
+      if (r % 2 === 1) { ctx.fillStyle = "#F6F8FA"; ctx.fillRect(a.x, y, a.w, FILA_T) }
+      const cero = !(f.hl >= 0.05);
+      celdas(y + FILA_T / 2, [f.codigo, f.desc, f0(f.und), f0(f.cajas), f1(f.hl), plata(f.costo)], (j) => {
+        letra(ctx, j === 5 ? 800 : j === 0 ? 500 : 600, 13.5);
+        ctx.fillStyle = cero ? "#AAB3BE" : j === 0 ? GRIS : TINTA;
+      });
+      y += FILA_T;
+    });
+    ctx.fillStyle = TINTA; ctx.fillRect(a.x, y, a.w, 2); y += 2;
+    celdas(y + FILA_T / 2 + 2, ["TOTAL", `${al.filas.length} materiales`, f0(al.und), f0(al.cajas), f1(al.hl), plata(al.cst)], () => { letra(ctx, 900, 14); ctx.fillStyle = TINTA });
+  });
+
+  pie(ctx, W, H, extra.generado ?? new Date(), "Cifras en HL. El costo es el de los pasivos del día.");
+  return c;
+}
+
+export const nombreDetallePasivo = (dia: string) => `pasivos-detalle-${dia}.png`;
