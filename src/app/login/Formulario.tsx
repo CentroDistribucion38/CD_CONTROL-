@@ -80,6 +80,8 @@ export function Formulario() {
     }
 
     setEntro(true);
+    // arranca de cero el reloj de los 10 min sin uso (CerrarSiQuieto)
+    try { localStorage.setItem("cd38-ultimo-toque", String(Date.now())) } catch {}
 
     // Si la persona eligió un módulo de arranque en Mi perfil, se abre ese.
     // El parámetro ?next= manda: significa que la traía una ruta concreta.
@@ -152,7 +154,9 @@ export function Formulario() {
               <div className="acc-cabeza">
                 <h2>Iniciar sesión</h2>
                 <p className="sub">
-                  Entra con el usuario que te asignó tu supervisor.
+                  {params.get("motivo") === "inactividad"
+                    ? "Se cerró tu sesión porque pasaron 10 minutos sin usar la app. Vuelve a entrar."
+                    : "Entra con el usuario que te asignó tu supervisor."}
                 </p>
               </div>
 

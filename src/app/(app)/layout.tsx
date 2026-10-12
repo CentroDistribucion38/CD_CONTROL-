@@ -9,6 +9,7 @@ import { RecordarTema } from "@/components/RecordarTema";
 import { AvisoCopia } from "@/components/AvisoCopia";
 import { PrepararSola } from "@/components/PrepararSola";
 import { MedirUso } from "@/components/MedirUso";
+import { CerrarSiQuieto } from "@/components/CerrarSiQuieto";
 import "./shell.css";
 
 function turnoActual(): string {
@@ -92,6 +93,7 @@ export default async function AppLayout({
       <AvisoCopia />
       <PrepararSola rutas={rutasParaCopia(permisos)} dueno={user.id} />
       <MedirUso />
+      <CerrarSiQuieto />
       <Marco permitidas={permitidas}>{children}</Marco>
     </div>
   );
