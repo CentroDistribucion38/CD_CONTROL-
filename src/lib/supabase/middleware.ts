@@ -43,9 +43,14 @@ export async function actualizarSesion(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  /**
+   * getUser() pregunta al servidor de Supabase. Si Supabase tarda, Vercel corta
+   * todo con «504 MIDDLEWARE_INVOCATION_TIMEOUT» y nadie puede entrar. Por eso
+   * se le dan 4 s; si no responde, se decide con la sesión guardada en la
+   * cookie del propio navegador (no sale a la red). Los datos siguen
+   * protegidos: cada consulta a la base vuelve a validar al usuario.
+   */
+  const user = await usuarioConTope(supabase);
 
   const esPublica = RUTAS_PUBLICAS.some((r) =>
     request.nextUrl.pathname.startsWith(r)
@@ -66,4 +71,24 @@ export async function actualizarSesion(request: NextRequest) {
   }
 
   return response;
+}
+
+const TOPE_MS = 4000;
+
+async function usuarioConTope(
+  supabase: ReturnType<typeof createServerClient>
+): Promise<{ id: string } | null> {
+  const tarde = new Promise<"tarde">((r) => setTimeout(() => r("tarde"), TOPE_MS));
+  try {
+    const r = await Promise.race([supabase.auth.getUser(), tarde]);
+    if (r !== "tarde") return r.data.user;
+  } catch {
+    /* sigue con la cookie */
+  }
+  try {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.user ?? null;
+  } catch {
+    return null;
+  }
 }
