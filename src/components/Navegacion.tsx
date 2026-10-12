@@ -373,7 +373,11 @@ const ICONO_RAMA: Record<string, () => React.ReactElement> = {
   "en-sitio": IconoRoturas,
   salida: IconoTolva,
   balance: IconoBalanza,
-  pasivos: IconoCandado,
+};
+
+/* EL ICONO DE UN SUBGRUPO del menú (Seccion.grupo): Pasivos es el candado, el EER bloqueado. */
+const ICONO_GRUPO: Record<string, () => React.ReactElement> = {
+  Pasivos: IconoCandado,
 };
 
 const ICONO_RUTA: Record<string, () => React.ReactElement> = {
@@ -552,14 +556,31 @@ export function Navegacion({ permitidas, anclado, alternar }: {
           );
         })}
 
-        {secciones.map((s) => {
+        {secciones.map((s, i) => {
+          /* EL SUBGRUPO (Pasivos dentro de Balance): la primera pantalla del grupo pinta antes la
+             entrada del grupo; sus pantallas solo se ven, sangradas, cuando uno está en alguna. */
+          const delGrupo = s.grupo ? secciones.filter((x) => x.grupo === s.grupo) : [];
+          const dentro = delGrupo.some((x) => pathname === x.ruta || pathname.startsWith(x.ruta + "/"));
+          const primeraDelGrupo = !!s.grupo && secciones.findIndex((x) => x.grupo === s.grupo) === i;
+          const IconoG = s.grupo ? ICONO_GRUPO[s.grupo] ?? IconoLista : IconoLista;
+          const cabeza = primeraDelGrupo && (
+            <Link key={`grupo-${s.grupo}`} href={s.ruta} prefetch={false}
+                  className={"hijo sub" + (dentro ? " abierto" : "")}
+                  onMouseEnter={() => adelantar(s.ruta)} onPointerDown={() => adelantar(s.ruta)} onFocus={() => adelantar(s.ruta)}>
+              <IconoG />
+              <span className="texto">{s.grupo}</span>
+              <svg className="flecha" viewBox="0 0 24 24" {...P} aria-hidden="true"><path d={dentro ? "M6 9l6 6 6-6" : "M9 6l6 6-6 6"} /></svg>
+              <span className="globo">{s.grupo}</span>
+            </Link>
+          );
+          if (s.grupo && !dentro) return cabeza || null;
           const Icono = ICONO_RUTA[s.ruta] ?? IconoTablero;
           const aqui = pathname === s.ruta;
-          return (
+          return [cabeza, (
             <Link
               key={s.ruta}
               href={s.ruta}
-              className={"hijo" + (aqui ? " on" : "")}
+              className={"hijo" + (s.grupo ? " nieto" : "") + (aqui ? " on" : "")}
               aria-current={aqui ? "page" : undefined}
               /* prefetch={false} apaga el automático, que dispara al
                  aparecer el enlace en pantalla: con el menú anclado eso
@@ -572,9 +593,9 @@ export function Navegacion({ permitidas, anclado, alternar }: {
             >
               <Icono />
               <span className="texto">{s.nombre}</span>
-              <span className="globo">{s.nombre}</span>
+              <span className="globo">{s.grupo ? `${s.grupo} · ${s.nombre}` : s.nombre}</span>
             </Link>
-          );
+          )];
         })}
 
         <div className="pie-riel">

@@ -868,3 +868,19 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
   font: inherit; font-weight: 600; cursor: pointer;
 }
 
+
+/* EL SUBGRUPO DEL MENÚ (Pasivos dentro de Balance): la entrada del grupo con su flechita, y sus
+   pantallas un nivel más adentro. Con el riel cerrado (64px) el icono del nieto sigue cabiendo. */
+.sh-lado .riel a.hijo.sub .flecha { width: 14px; height: 14px; margin-left: auto; margin-right: 16px; opacity: .7 }
+.sh-lado .riel a.hijo.sub.abierto { color: #fff; font-weight: 600 }
+.sh-lado .riel a.hijo.sub.abierto svg { stroke: #fff }
+.sh-lado .riel a.hijo.nieto { padding-left: 46px; height: 38px; font-size: 13.5px }
+.sh-lado .riel a.hijo.nieto svg { width: 16px; height: 16px }
+.sh-lado .riel a.hijo.nieto::after {
+  content: ""; position: absolute; left: 38px; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,.14);
+}
+.sh-lado .riel a.hijo.nieto.on::before { left: 37px; top: 9px; bottom: 9px }
+@media (max-width: 1180px) {
+  .sh-lado .riel a.hijo.nieto { padding-left: 18px; height: 46px }
+  .sh-lado .riel a.hijo.nieto::after, .sh-lado .riel a.hijo.sub .flecha { display: none }
+}

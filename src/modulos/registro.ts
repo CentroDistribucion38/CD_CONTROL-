@@ -37,6 +37,12 @@ export type Seccion = {
    * se lean como una sola lista.
    */
   rama?: string;
+  /**
+   * UN SUBGRUPO DENTRO DE LA RAMA, un nivel más adentro en el menú: «Pasivos va dentro del Balance,
+   * y dentro de sí Base, Informe y Maestro». El menú pinta el nombre del grupo como una entrada
+   * (lleva a su primera pantalla) y debajo, sangradas, sus pantallas cuando uno está en alguna.
+   */
+  grupo?: string;
 };
 
 /**
@@ -631,18 +637,6 @@ export const MODULOS: Modulo[] = [
           "El cruce del conteo físico contra el casco de vidrio: las cinco tablas de " +
           "baja, lavado y extrasucio con el cuadre al lado. Lo que el Excel arma a mano, aquí sale del último conteo.",
       },
-      /* PASIVOS ES SU PROPIA RAMA, al lado de Balance: «que salga Inventario, Balance y Pasivos, y
-         dentro de Pasivos Base, Informe y Maestro». Sus direcciones siguen bajo /inventario/balance/
-         pasivos para no mover permisos; la rama gana por ser la ruta más larga (ramaDeRuta). */
-      {
-        id: "pasivos",
-        nombre: "Pasivos",
-        eyebrow: "HL · $",
-        ruta: "/inventario/balance/pasivos",
-        descripcion:
-          "El EER bloqueado (BLOQUEADOS.xlsx): la base que se alimenta del balance y del archivo de " +
-          "baja proyectada y rotura de línea, el informe con su Dashboard y Detalle, y el maestro de costos.",
-      },
     ],
     secciones: [
       /* EL ORDEN LO PUSO QUIEN LA USA («organicemos esto»): se corta lo que
@@ -706,9 +700,9 @@ export const MODULOS: Modulo[] = [
       { nombre: "Balance", ruta: "/inventario/balance", rama: "balance" },
       /* PASIVOS (BLOQUEADOS.xlsx): la base se alimenta del balance y del archivo plano de la baja
          proyectada y la rotura de línea; el maestro va al final. El informe viene después. */
-      { nombre: "Base", ruta: "/inventario/balance/pasivos", rama: "pasivos" },
-      { nombre: "Informe", ruta: "/inventario/balance/pasivos/informe", rama: "pasivos" },
-      { nombre: "Maestro", ruta: "/inventario/balance/pasivos/maestro", rama: "pasivos" },
+      { nombre: "Base", ruta: "/inventario/balance/pasivos", rama: "balance", grupo: "Pasivos" },
+      { nombre: "Informe", ruta: "/inventario/balance/pasivos/informe", rama: "balance", grupo: "Pasivos" },
+      { nombre: "Maestro", ruta: "/inventario/balance/pasivos/maestro", rama: "balance", grupo: "Pasivos" },
     ],
   },
 ];
