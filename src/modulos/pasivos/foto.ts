@@ -13,11 +13,13 @@
  * el celular.
  */
 import { PALETA_MARCA, type Paleta } from "@/modulos/rotlinea/hoja";
-import { COLOR_ALMACEN, colorEstado, corta, f0, f1, larga, millones, plata, tintaSobre, type DatosInformePasivo } from "./informe";
+import { gruposDeUbicacion } from "@/modulos/casco/informe";
+import { COLOR_ALMACEN, colorEstado, corta, f0, f1, larga, millones, plata, tintaSobre, type DatosInformePasivo, type FilaConsolidado } from "./informe";
 
 import {
   BAJA_OK, BORDE, FONDO, FOTO, GRIS, HUECO, MARGEN, SUAVE, SUBE,
-  anchoEspaciado, cabecera, espaciado, letra, pie, recortar, type Caja,
+  altoTabla, anchoEspaciado, anchosTabla, cabecera, dibujarTabla, espaciado, letra, medidor, pie, recortar,
+  type Caja, type ColTabla,
 } from "@/modulos/foto";
 
 export { FOTO };
@@ -297,11 +299,14 @@ export function dibujarDetallePasivo(
   const materiales = [...mats.values()].sort((x, y) => y.v.reduce((s, v) => s + v, 0) - x.v.reduce((s, v) => s + v, 0));
 
   /* las medidas: la imagen crece con las filas */
-  const FILA_G = 30, FILA_T = 29;
+  const FILA_G = 30;
   const yCards = 106, hCards = 104;
   const yGraf = yCards + hCards + G, hGraf = 62 + Math.max(1, materiales.length) * FILA_G * (n === 2 ? 1 : n) + 2;
-  const filasMax = Math.max(1, ...als.map((a) => a.filas.length));
-  const yTab = yGraf + hGraf + G, hTab = 62 + FILA_T * (filasMax + 2) + 8;
+  /* LAS TABLAS CRECEN CON LA UBICACIÓN: cada zona en su renglón, y nada se corta. */
+  const colW0 = (W - 2 * M - G * (Math.max(1, als.length) - 1)) / Math.max(1, als.length);
+  const med = medidor();
+  const cols = anchosTabla(columnasPasivo(als.some((a) => a.filas.some((f) => f.ubic))), colW0 - 32);
+  const yTab = yGraf + hGraf + G, hTab = 62 + Math.max(0, ...als.map((a) => altoTabla(med, cols, a.filas))) + 6;
   const H = yTab + hTab + 34;
 
   const c = document.createElement("canvas");
@@ -410,36 +415,10 @@ export function dibujarDetallePasivo(
   als.forEach((al, i) => {
     const x = M + i * (colW + G);
     const a = panel({ x, y: yTab, w: colW, h: hTab }, `${al.a} · ${al.nombre}`, `${f1(al.hl)} HL · ${plata(al.cst)}`, al.col);
-    const cols: { t: string; w: number; num?: boolean }[] = [
-      { t: "CÓDIGO", w: 88 }, { t: "MATERIAL", w: 0 }, { t: "UNIDADES", w: 112, num: true },
-      { t: "CAJAS", w: 90, num: true }, { t: "HL", w: 90, num: true }, { t: "COSTO", w: 146, num: true },
-    ];
-    cols[1].w = a.w - cols.reduce((s, c) => s + c.w, 0);
-    const celdas = (y: number, vals: string[], estilo: (j: number) => void) => {
-      let cx = a.x;
-      cols.forEach((col, j) => {
-        estilo(j);
-        if (col.num) { ctx.textAlign = "right"; ctx.fillText(vals[j], cx + col.w - 10, y) }
-        else { ctx.textAlign = "left"; ctx.fillText(recortar(ctx, vals[j], col.w - 18), cx + 10, y) }
-        cx += col.w;
-      });
-    };
-    let y = a.y;
-    ctx.fillStyle = TINTA; ctx.fillRect(a.x, y, a.w, FILA_T + 2);
-    letra(ctx, 800, 12.5); ctx.fillStyle = "#FFFFFF";
-    celdas(y + FILA_T / 2 + 1, cols.map((c) => c.t), () => { letra(ctx, 800, 12.5); ctx.fillStyle = "#FFFFFF" });
-    y += FILA_T + 2;
-    al.filas.forEach((f, r) => {
-      if (r % 2 === 1) { ctx.fillStyle = "#F6F8FA"; ctx.fillRect(a.x, y, a.w, FILA_T) }
-      const cero = !(f.hl >= 0.05);
-      celdas(y + FILA_T / 2, [f.codigo, f.desc, f0(f.und), f0(f.cajas), f1(f.hl), plata(f.costo)], (j) => {
-        letra(ctx, j === 5 ? 800 : j === 0 ? 500 : 600, 13.5);
-        ctx.fillStyle = cero ? "#AAB3BE" : j === 0 ? GRIS : TINTA;
-      });
-      y += FILA_T;
-    });
-    ctx.fillStyle = TINTA; ctx.fillRect(a.x, y, a.w, 2); y += 2;
-    celdas(y + FILA_T / 2 + 2, ["TOTAL", `${al.filas.length} materiales`, f0(al.und), f0(al.cajas), f1(al.hl), plata(al.cst)], () => { letra(ctx, 900, 14); ctx.fillStyle = TINTA });
+    dibujarTabla(ctx, TINTA, a.x, a.y, a.w, cols, al.filas, (c) => (
+      c.t === "CÓDIGO" ? "TOTAL" : c.t === "MATERIAL" ? `${al.filas.length} materiales`
+      : c.t === "UNIDADES" ? f0(al.und) : c.t === "CAJAS" ? f0(al.cajas) : c.t === "HL" ? f1(al.hl) : c.t === "COSTO" ? plata(al.cst) : ""),
+    (f) => !(Math.abs(f.hl) >= 0.05));
   });
 
   pie(ctx, W, H, extra.generado ?? new Date(), "Cifras en HL. El costo es el de los pasivos del día.");
@@ -450,3 +429,17 @@ export const nombreDetallePasivo = (dia: string) => `pasivos-detalle-${dia}.png`
 
 /** Los filtros como chips; sin filtros, «todos». */
 const chipsPasivo = (d: DatosInformePasivo) => (d.filtros ? d.filtros.split(" · ").filter(Boolean) : ["Todos los almacenes", "Todos los estados"]);
+
+/** Las columnas del consolidado de un almacén; la ubicación (del conteo de ese día) solo si hay. */
+function columnasPasivo(conUbi: boolean): ColTabla<FilaConsolidado>[] {
+  const cols: ColTabla<FilaConsolidado>[] = [
+    { t: "CÓDIGO", w: 82, gris: true, v: (f) => f.codigo },
+    { t: "MATERIAL", w: 0, envuelve: true, v: (f) => f.desc },
+    { t: "UNIDADES", w: conUbi ? 98 : 112, num: true, rojoNegativo: true, v: (f) => f0(f.und) },
+    { t: "CAJAS", w: conUbi ? 76 : 90, num: true, rojoNegativo: true, v: (f) => f0(f.cajas) },
+    { t: "HL", w: conUbi ? 74 : 90, num: true, rojoNegativo: true, v: (f) => f1(f.hl) },
+    { t: "COSTO", w: conUbi ? 128 : 146, num: true, fuerte: true, rojoNegativo: true, v: (f) => plata(f.costo) },
+  ];
+  if (conUbi) cols.push({ t: "UBICACIÓN", w: 210, v: () => "", lineas: (f) => gruposDeUbicacion(f.ubic) });
+  return cols;
+}

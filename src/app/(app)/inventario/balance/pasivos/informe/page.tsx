@@ -1,4 +1,5 @@
 import { diasConPasivos, leerMaestroPasivos, leerPasivos } from "@/modulos/pasivos/datos";
+import { ubicacionesParaPasivos } from "@/modulos/pasivos/ubicaciones";
 import "../../../../sider/sider.css";
 import "../../../fefo.css";
 import "../../balance.css";
@@ -21,12 +22,16 @@ export default async function InformePasivoPage({ searchParams }: { searchParams
   const pedido = /^\d{4}-\d{2}-\d{2}$/.test(q.dia ?? "") ? q.dia! : null;
   const dia = pedido && dias.includes(pedido) ? pedido : (dias[dias.length - 1] ?? null);
   const desde = dia ? `${dia.slice(0, 7)}-01` : null;
-  const filas = dia && desde ? await leerPasivos(desde, dia) : { data: [], error: null };
+  /* LA UBICACIÓN de cada pasivo sale del conteo de ese día (Bodega 38 y Fábrica). */
+  const [filas, ubic] = await Promise.all([
+    dia && desde ? leerPasivos(desde, dia) : Promise.resolve({ data: [], error: null }),
+    dia ? ubicacionesParaPasivos(dia) : Promise.resolve({ fecha: null, mapa: {} }),
+  ]);
   const cajas = Object.fromEntries(maestro.data.map((m) => [m.codigo, m.descripcion]));
 
   return (
     <div className="fe bal pas ipas">
-      <InformePasivo dia={dia} dias={dias} filas={filas.data} error={filas.error} nombresCaja={cajas} />
+      <InformePasivo dia={dia} dias={dias} filas={filas.data} error={filas.error} nombresCaja={cajas} ubic={ubic} />
     </div>
   );
 }

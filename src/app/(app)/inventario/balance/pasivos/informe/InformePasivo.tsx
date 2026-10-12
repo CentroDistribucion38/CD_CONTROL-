@@ -4,7 +4,10 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { FilaPasivo } from "@/modulos/pasivos/datos";
 import { Rango } from "../../../../sider/seguimiento/Rango";
-import type { DatosInformePasivo } from "@/modulos/pasivos/informe";
+import { estadoDelConteo, type DatosInformePasivo } from "@/modulos/pasivos/informe";
+import { juntarLineas } from "@/modulos/casco/ubicaciones-armar";
+import { gruposDeUbicacion } from "@/modulos/casco/informe";
+import type { UbicPasivos } from "@/modulos/pasivos/ubicaciones";
 import { BotonesPasivo } from "./BotonesPasivo";
 
 /**
@@ -38,8 +41,10 @@ const enOrden = (a: string, b: string) => {
 };
 const ALMACEN: Record<string, string> = { AG22: "Bodega 38", AG18: "Fábrica", AG07: "Carnaval" };
 
-export function InformePasivo({ dia, dias, filas, error, nombresCaja }: {
+export function InformePasivo({ dia, dias, filas, error, nombresCaja, ubic = { fecha: null, mapa: {} } }: {
   dia: string | null; dias: string[]; filas: FilaPasivo[]; error: string | null; nombresCaja: Record<string, string>;
+  /** Dónde está cada pasivo en el conteo de ese día (Bodega 38 y Fábrica). */
+  ubic?: UbicPasivos;
 }) {
   const router = useRouter();
   const [cargando, start] = useTransition();
@@ -81,14 +86,19 @@ export function InformePasivo({ dia, dias, filas, error, nombresCaja }: {
     return [...m.entries()].sort((a, b) => b[1] - a[1]);
   }, [hoy]);
   const consolidado = useMemo(() => {
-    const m = new Map<string, { almacen: string; codigo: string; desc: string; und: number; hl: number; cajas: number; costo: number }>();
+    const m = new Map<string, { almacen: string; codigo: string; desc: string; und: number; hl: number; cajas: number; costo: number; estados: Set<string> }>();
     for (const f of hoy) {
       const k = `${f.almacen}|${f.codigo}`;
-      const x = m.get(k) ?? { almacen: f.almacen, codigo: f.codigo, desc: f.descripcion, und: 0, hl: 0, cajas: 0, costo: 0 };
-      x.und += Number(f.unidades) || 0; x.hl += Number(f.hl) || 0; x.cajas += Number(f.cajas) || 0; x.costo += Number(f.costo) || 0; m.set(k, x);
+      const x = m.get(k) ?? { almacen: f.almacen, codigo: f.codigo, desc: f.descripcion, und: 0, hl: 0, cajas: 0, costo: 0, estados: new Set<string>() };
+      x.und += Number(f.unidades) || 0; x.hl += Number(f.hl) || 0; x.cajas += Number(f.cajas) || 0; x.costo += Number(f.costo) || 0;
+      const e = estadoDelConteo(f.estado, f.causal); if (e) x.estados.add(e);
+      m.set(k, x);
     }
-    return [...m.values()].sort((a, b) => a.almacen.localeCompare(b.almacen) || b.hl - a.hl);
-  }, [hoy]);
+    /* LA UBICACIÓN: la del conteo, del estado que le toca a cada renglón de ese material en ese almacén. */
+    return [...m.values()].map(({ estados, ...x }) => ({
+      ...x, ubic: juntarLineas([...estados].map((e) => ubic.mapa[`${x.almacen}|${e}|${x.codigo}`]).filter((l): l is string => !!l)),
+    })).sort((a, b) => a.almacen.localeCompare(b.almacen) || b.hl - a.hl);
+  }, [hoy, ubic]);
   /* AG22 primero (izquierda), AG18 después (derecha), y los demás detrás. */
   const almacenesHoy = useMemo(() => {
     const ord = (x: string) => { const i = ["AG22", "AG18"].indexOf(x); return i < 0 ? 9 : i };
@@ -109,7 +119,7 @@ export function InformePasivo({ dia, dias, filas, error, nombresCaja }: {
       consolidado,
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dia, hoy, mes, almacen, estados]);
+  }, [dia, hoy, mes, almacen, estados, ubic]);
 
   const alternar = (e: string) => setEstados((s) => { const x = new Set(s); if (x.has(e)) x.delete(e); else x.add(e); return x });
   const ley = (
@@ -216,19 +226,21 @@ export function InformePasivo({ dia, dias, filas, error, nombresCaja }: {
       <div className={`ip-fila ${almacenesHoy.length > 1 ? "ip-1-1" : ""}`}>
         {almacenesHoy.map((a) => {
           const rs = consolidado.filter((x) => x.almacen === a);
+          const conUbi = rs.some((x) => x.ubic);
           return (
             <section className="ip-p" key={a}>
               <h3>{a} · {ALMACEN[a] ?? ""} <span className="ip-h-sub">{n1(rs.reduce((t, y) => t + y.hl, 0))} HL · {plata(rs.reduce((t, y) => t + y.costo, 0))}</span></h3>
               <div className="ip-scroll">
                 <table className="ip-t">
-                  <thead><tr><th>Código</th><th>Material</th><th className="r">Unidades</th><th className="r">Cajas</th><th className="r">HL</th><th className="r">Costo</th></tr></thead>
+                  <thead><tr><th>Código</th><th>Material</th><th className="r">Unidades</th><th className="r">Cajas</th><th className="r">HL</th><th className="r">Costo</th>{conUbi && <th>Ubicación</th>}</tr></thead>
                   <tbody>{rs.map((x) => (
                     <tr key={x.codigo}><td className="mono">{x.codigo}</td><td>{x.desc}</td>
-                      <td className={`r ${x.und < 0 ? "neg" : ""}`}>{n0(x.und)}</td><td className="r">{n0(x.cajas)}</td><td className="r">{n1(x.hl)}</td><td className="r">{plata(x.costo)}</td></tr>
+                      <td className={`r ${x.und < 0 ? "neg" : ""}`}>{n0(x.und)}</td><td className="r">{n0(x.cajas)}</td><td className="r">{n1(x.hl)}</td><td className="r">{plata(x.costo)}</td>
+                      {conUbi && <td className="ip-ubi">{gruposDeUbicacion(x.ubic).map((l) => <span key={l}>{l}</span>)}</td>}</tr>
                   ))}</tbody>
                   <tfoot><tr><td colSpan={2}><b>Total {a}</b></td>
                     <td className="r"><b>{n0(rs.reduce((t, y) => t + y.und, 0))}</b></td><td className="r"><b>{n0(rs.reduce((t, y) => t + y.cajas, 0))}</b></td>
-                    <td className="r"><b>{n1(rs.reduce((t, y) => t + y.hl, 0))}</b></td><td className="r"><b>{plata(rs.reduce((t, y) => t + y.costo, 0))}</b></td></tr></tfoot>
+                    <td className="r"><b>{n1(rs.reduce((t, y) => t + y.hl, 0))}</b></td><td className="r"><b>{plata(rs.reduce((t, y) => t + y.costo, 0))}</b></td>{conUbi && <td />}</tr></tfoot>
                 </table>
               </div>
             </section>

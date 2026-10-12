@@ -12,6 +12,7 @@
  * puestos. LAS GRÁFICAS SE PINTAN UNA VEZ en un lienzo a 12 px/mm y ese PNG va al PDF y al Word.
  */
 import type { jsPDF as JsPDF } from "jspdf";
+import { gruposDeUbicacion } from "@/modulos/casco/informe";
 import { PALETA_MARCA, type Marca, type Paleta } from "@/modulos/rotlinea/hoja";
 
 type RGB = [number, number, number];
@@ -19,7 +20,11 @@ type RGB = [number, number, number];
 export type AlmacenInforme = { a: string; nombre: string; e: Record<string, number>; total: number; costo: number };
 export type DiaInforme = { fecha: string; e: Record<string, number>; total: number };
 export type SkuInforme = { codigo: string; desc: string; hl: Record<string, number>; costo: Record<string, number>; th: number; tc: number };
-export type FilaConsolidado = { almacen: string; codigo: string; desc: string; und: number; cajas: number; hl: number; costo: number };
+export type FilaConsolidado = {
+  almacen: string; codigo: string; desc: string; und: number; cajas: number; hl: number; costo: number;
+  /** Dónde está en el conteo de ese día («P_16_DER - P_20_IZQ»), del estado que le toca. Vacío si no aparece. */
+  ubic?: string;
+};
 export type DatosInformePasivo = {
   /** El día del informe (AAAA-MM-DD). */
   dia: string;
@@ -33,6 +38,15 @@ export type DatosInformePasivo = {
   cajas: { caja: string; nombre: string; cajas: number }[];
   consolidado: FilaConsolidado[];
 };
+
+/** El estado del conteo que le toca a un renglón de Pasivos; null si no viene del conteo. */
+export function estadoDelConteo(estado: string, causal: string): string | null {
+  const e = (estado ?? "").trim().toUpperCase(), c = (causal ?? "").trim().toUpperCase();
+  if (c === "EXTRASUCIO") return "EXTRASUCIO";
+  if (e === "BAJA" && (c === "SORTING" || c === "PRESORTING")) return "BAJA";
+  if (e === "LAVADO" && c === "LAVADO") return "LAVADO";
+  return null;
+}
 
 /* ---------------- formatos ---------------- */
 const nf0 = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
@@ -247,7 +261,7 @@ export function dibujarInformePasivo(
     else { fuente("normal", 9); gris(); doc.text("La gráfica no se pudo dibujar en este equipo.", x, y + 8) }
   };
   /** Una tabla con cabecera oscura que se repite si salta de hoja. */
-  type Col = { t: string; mm: number; num?: boolean };
+  type Col = { t: string; mm: number; num?: boolean; envuelve?: boolean };
   const tablaPdf = (nombre: string, cols: Col[], filas: string[][], total?: string[], nota?: string) => {
     const cab = (sigue: boolean) => {
       titulo(nombre + (sigue ? " (continúa)" : ""), nota);
@@ -257,19 +271,28 @@ export function dibujarInformePasivo(
       y += FILA;
     };
     cabe(7 + FILA * Math.min(filas.length + 2, 8)); cab(false);
+    /* LAS COLUMNAS QUE SE PARTEN (material, ubicación) no se cortan: el renglón crece. Un «\n» en
+       el texto es un renglón aparte (cada zona de la ubicación). */
+    const lineasDe = (c: Col, t: string) => {
+      fuente("normal", 8.2);
+      if (!c.envuelve) return [(doc.splitTextToSize(t, c.mm - 3) as string[])[0] ?? ""];
+      return t.split("\n").flatMap((p) => doc.splitTextToSize(p, c.mm - 3) as string[]);
+    };
     filas.forEach((f, i) => {
-      if (y + FILA > TOPE) { hojaNueva(); cab(true) }
-      if (i % 2 === 1) { doc.setFillColor(247, 249, 251); doc.rect(M, y, ANCHO, FILA, "F") }
+      const ls = cols.map((c, j) => (c.num ? [f[j] ?? ""] : lineasDe(c, f[j] ?? "")));
+      const alto = Math.max(FILA, 2.4 + 3.4 * Math.max(...ls.map((l) => l.length)));
+      if (y + alto > TOPE) { hojaNueva(); cab(true) }
+      if (i % 2 === 1) { doc.setFillColor(247, 249, 251); doc.rect(M, y, ANCHO, alto, "F") }
       let x = M;
       cols.forEach((c, j) => {
-        fuente(j === cols.length - 1 && c.num ? "bold" : "normal", 8.2);
-        if (j === 0) gris(); else tinta();
-        if (f[j]?.startsWith("-")) doc.setTextColor(200, 16, 46);
-        const t = c.num ? f[j] : (doc.splitTextToSize(f[j] ?? "", c.mm - 3) as string[])[0] ?? "";
-        c.num ? doc.text(t, x + c.mm - 2, y + 4.2, { align: "right" }) : doc.text(t, x + 2, y + 4.2);
+        fuente(c.t === "COSTO" || (c.num && j === cols.length - 1) ? "bold" : "normal", 8.2);
+        if (j === 0 || c.t === "UBICACIÓN") gris(); else tinta();
+        if (c.num && f[j]?.startsWith("-")) doc.setTextColor(200, 16, 46);
+        const y0 = y + alto / 2 - (ls[j].length - 1) * 1.7 + 1;
+        c.num ? doc.text(ls[j][0], x + c.mm - 2, y0, { align: "right" }) : doc.text(ls[j], x + 2, y0, { lineHeightFactor: 1.2 });
         x += c.mm;
       });
-      y += FILA;
+      y += alto;
     });
     if (total) {
       if (y + FILA + 1 > TOPE) { hojaNueva(); cab(true) }
@@ -375,12 +398,16 @@ export function dibujarInformePasivo(
   imagen(G.skuCosto, bHl.ancho, bHl.alto); y += bHl.alto + 8;
 
   /* ---------------- CONSOLIDADO POR ALMACÉN (la TD) ---------------- */
-  const cols: Col[] = [{ t: "CÓDIGO", mm: 20 }, { t: "MATERIAL", mm: 66 }, { t: "UNIDADES", mm: 26, num: true }, { t: "CAJAS", mm: 20, num: true }, { t: "HL", mm: 20, num: true }, { t: "COSTO", mm: 30, num: true }];
+  /* Con UBICACIÓN (del conteo de ese día) si alguno la tiene: «para ver dónde está eso». */
+  const conUbi = d.consolidado.some((x) => x.ubic);
+  const cols: Col[] = conUbi
+    ? [{ t: "CÓDIGO", mm: 17 }, { t: "MATERIAL", mm: 46, envuelve: true }, { t: "UNIDADES", mm: 21, num: true }, { t: "CAJAS", mm: 16, num: true }, { t: "HL", mm: 16, num: true }, { t: "COSTO", mm: 27, num: true }, { t: "UBICACIÓN", mm: 39, envuelve: true }]
+    : [{ t: "CÓDIGO", mm: 20 }, { t: "MATERIAL", mm: 66, envuelve: true }, { t: "UNIDADES", mm: 26, num: true }, { t: "CAJAS", mm: 20, num: true }, { t: "HL", mm: 20, num: true }, { t: "COSTO", mm: 30, num: true }];
   for (const a of d.almacenes) {
     const rs = d.consolidado.filter((x) => x.almacen === a.a);
     if (!rs.length) continue;
     tablaPdf(`${a.a} · ${a.nombre}`, cols,
-      rs.map((x) => [x.codigo, x.desc, f0(x.und), f0(x.cajas), f1(x.hl), plata(x.costo)]),
+      rs.map((x) => [x.codigo, x.desc, f0(x.und), f0(x.cajas), f1(x.hl), plata(x.costo), ...(conUbi ? [gruposDeUbicacion(x.ubic).join("\n")] : [])]),
       ["TOTAL", `${rs.length} materiales`, f0(rs.reduce((t, x) => t + x.und, 0)), f0(rs.reduce((t, x) => t + x.cajas, 0)), f1(rs.reduce((t, x) => t + x.hl, 0)), plata(rs.reduce((t, x) => t + x.costo, 0))],
       `${f1(a.total)} HL · ${plata(a.costo)}`);
   }

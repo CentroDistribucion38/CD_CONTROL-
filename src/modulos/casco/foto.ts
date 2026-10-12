@@ -13,7 +13,8 @@
 import { PALETA_MARCA, type Paleta } from "@/modulos/rotlinea/hoja";
 import {
   BAJA_OK, BORDE, FONDO, FOTO, GRIS, HUECO, MARGEN, SUAVE, SUBE,
-  cabecera, espaciado, letra, pie, recortar, type Caja, type Ctx,
+  altoTabla, anchosTabla, cabecera, dibujarTabla, espaciado, letra, medidor, pie, recortar,
+  type Caja, type ColTabla, type Ctx,
 } from "@/modulos/foto";
 import { colorSitio, conSigno, corta, fmt, gruposDeUbicacion, larga, type DatosInformeCasco, type SitioInforme } from "./informe";
 
@@ -240,6 +241,22 @@ export function dibujarDashboardCasco(d: DatosInformeCasco, extra: Extra = {}): 
   return c;
 }
 
+/** Las columnas de la tabla de un almacén: las mismas del PDF, con la ubicación por zona en renglones. */
+type FilaC = SitioInforme["filas"][number];
+function columnasCasco(s: SitioInforme): ColTabla<FilaC>[] {
+  const conBaja = !!s.rotuloBaja || s.filas.some((f) => f.baja !== 0);
+  const conUbi = s.filas.some((f) => f.puesto);
+  const cols: ColTabla<FilaC>[] = [
+    { t: "COD", w: 86, gris: true, v: (f) => f.sku },
+    { t: "MATERIAL", w: 0, envuelve: true, v: (f) => f.nombre },
+    { t: "INVENTARIO CASCO", w: 100, num: true, rojoNegativo: true, v: (f) => (f.inventario ? fmt.est(f.inventario) : "") },
+  ];
+  if (conBaja) cols.push({ t: (s.rotuloBaja ?? "Con baja").toUpperCase(), w: 100, num: true, rojoNegativo: true, v: (f) => (f.baja ? fmt.est(f.baja) : "") });
+  cols.push({ t: "HL", w: 76, num: true, fuerte: true, rojoNegativo: true, v: (f) => fmt.hl(f.hl) });
+  if (conUbi) cols.push({ t: "UBICACIÓN", w: 250, v: () => "", lineas: (f) => gruposDeUbicacion(f.puesto) });
+  return cols;
+}
+
 /* =====================================================================
    DETALLE POR ALMACÉN
    ===================================================================== */
@@ -250,14 +267,17 @@ export function dibujarDetalleCasco(d: DatosInformeCasco, extra: Extra = {}): HT
   const sitios = d.sitios;
   const mats = [...(d.porMaterial?.filas ?? [])].sort((x, y) => y.total - x.total);
 
-  /* las medidas: la imagen crece con las filas */
-  const FILA_G = 30, FILA_T = 29, CAB_T = 42;
+  /* las medidas: la imagen crece con las filas (y con las ubicaciones, que se parten en renglones) */
+  const FILA_G = 30;
   const yCards = 106, hCards = 112;
   const yGraf = yCards + hCards + G, hGraf = 62 + Math.max(1, mats.length) * FILA_G + 2;
   const porFila = sitios.length === 1 ? 1 : 2;
+  const tw = (W - 2 * M - G * (porFila - 1)) / porFila;
+  const med = medidor();
+  const columnas = new Map(sitios.map((s) => [s.clave, anchosTabla(columnasCasco(s), tw - 32)]));
   const pares: SitioInforme[][] = [];
   for (let i = 0; i < sitios.length; i += porFila) pares.push(sitios.slice(i, i + porFila));
-  const altoPar = (par: SitioInforme[]) => 62 + CAB_T + FILA_T * (Math.max(1, ...par.map((s) => s.filas.length)) + 1) + 10;
+  const altoPar = (par: SitioInforme[]) => 62 + Math.max(...par.map((s) => altoTabla(med, columnas.get(s.clave)!, s.filas))) + 6;
   const yTab = yGraf + hGraf + G;
   const H = yTab + pares.reduce((t, p) => t + altoPar(p) + G, 0) - G + 34 + (pares.length ? 0 : 40);
 
@@ -294,76 +314,23 @@ export function dibujarDetalleCasco(d: DatosInformeCasco, extra: Extra = {}): HT
   /* ---------- LAS TABLAS ---------- */
   let y = yTab;
   for (const par of pares) {
-    const h = altoPar(par), tw = (W - 2 * M - G * (porFila - 1)) / porFila;
+    const h = altoPar(par);
     par.forEach((s, j) => {
       const x = M + j * (tw + G), col = colorSitio(s.clave);
       const nota = `${s.fecha ? `conteo ${corta(s.fecha)} · ` : ""}${fmt.hl(s.total)} HL · ${fmt.viajes(s.viajes)} viajes`;
       const a = panel(ctx, TINTA, col.fondo, { x, y, w: tw, h }, titulo(s), { nota });
-      const conBaja = !!s.rotuloBaja || s.filas.some((f) => f.baja !== 0);
-      const conUbi = s.filas.some((f) => f.puesto);
-      type Col = { t: string; w: number; num?: boolean; v: (f: SitioInforme["filas"][number]) => string };
-      const cols: Col[] = [
-        { t: "COD", w: 86, v: (f) => f.sku },
-        { t: "MATERIAL", w: 0, v: (f) => f.nombre },
-        { t: "INVENTARIO CASCO", w: 104, num: true, v: (f) => (f.inventario ? fmt.est(f.inventario) : "") },
-      ];
-      if (conBaja) cols.push({ t: (s.rotuloBaja ?? "Con baja").toUpperCase(), w: 104, num: true, v: (f) => (f.baja ? fmt.est(f.baja) : "") });
-      cols.push({ t: "HL", w: 78, num: true, v: (f) => fmt.hl(f.hl) });
-      if (conUbi) cols.push({ t: "UBICACIÓN", w: 200, v: (f) => gruposDeUbicacion(f.puesto).join(" · ") });
-      cols[1].w = Math.max(150, a.w - cols.reduce((t, cc) => t + cc.w, 0));
-
-      // la cabecera oscura, partida en dos renglones si no cabe
-      let cy = a.y;
-      ctx.fillStyle = TINTA; ctx.fillRect(a.x, cy, a.w, CAB_T);
-      let cx = a.x;
-      for (const cc of cols) {
-        letra(ctx, 800, 11.5); ctx.fillStyle = "#FFFFFF";
-        const cabe = cc.w - 16, pal = cc.t.split(" ");
-        let l1 = cc.t, l2 = "";
-        if (ctx.measureText(cc.t).width > cabe && pal.length > 1) {
-          let k = pal.length - 1;
-          while (k > 1 && ctx.measureText(pal.slice(0, k).join(" ")).width > cabe) k--;
-          l1 = pal.slice(0, k).join(" "); l2 = pal.slice(k).join(" ");
-        }
-        ctx.textAlign = cc.num ? "right" : "left";
-        const tx = cc.num ? cx + cc.w - 8 : cx + 8;
-        if (l2) { ctx.fillText(recortar(ctx, l1, cabe), tx, cy + 14); ctx.fillText(recortar(ctx, l2, cabe), tx, cy + 29) }
-        else ctx.fillText(recortar(ctx, l1, cabe), tx, cy + CAB_T / 2);
-        cx += cc.w;
-      }
-      cy += CAB_T;
-      s.filas.forEach((f, r) => {
-        if (r % 2 === 1) { ctx.fillStyle = "#F6F8FA"; ctx.fillRect(a.x, cy, a.w, FILA_T) }
-        let fx = a.x;
-        cols.forEach((cc, k) => {
-          const t = cc.v(f);
-          letra(ctx, cc.t === "HL" ? 800 : k === 0 ? 500 : 600, k === cols.length - 1 && cc.t === "UBICACIÓN" ? 12 : 13.5);
-          ctx.fillStyle = cc.num && t.startsWith("-") ? SUBE : k === 0 || cc.t === "UBICACIÓN" ? GRIS : TINTA;
-          ctx.textAlign = cc.num ? "right" : "left";
-          ctx.fillText(recortar(ctx, t, cc.w - 16), cc.num ? fx + cc.w - 8 : fx + 8, cy + FILA_T / 2);
-          fx += cc.w;
-        });
-        cy += FILA_T;
-      });
-      ctx.fillStyle = TINTA; ctx.fillRect(a.x, cy, a.w, 2); cy += 2;
-      const tot: Record<string, string> = {
-        COD: "TOTAL", MATERIAL: `${s.filas.length} materiales con inventario`,
-        "INVENTARIO CASCO": fmt.est(s.filas.reduce((t, f) => t + f.inventario, 0)),
-        HL: fmt.hl(s.total),
-      };
-      if (conBaja) tot[(s.rotuloBaja ?? "Con baja").toUpperCase()] = fmt.est(s.filas.reduce((t, f) => t + f.baja, 0));
-      let fx = a.x;
-      for (const cc of cols) {
-        letra(ctx, 900, 13.5); ctx.fillStyle = TINTA; ctx.textAlign = cc.num ? "right" : "left";
-        const t = tot[cc.t] ?? "";
-        ctx.fillText(recortar(ctx, t, cc.w - 16), cc.num ? fx + cc.w - 8 : fx + 8, cy + FILA_T / 2 + 1);
-        fx += cc.w;
-      }
+      const rotulo = (s.rotuloBaja ?? "Con baja").toUpperCase();
+      dibujarTabla(ctx, TINTA, a.x, a.y, a.w, columnas.get(s.clave)!, s.filas, (cc) => (
+        cc.t === "COD" ? "TOTAL"
+        : cc.t === "MATERIAL" ? `${s.filas.length} materiales con inventario`
+        : cc.t === "INVENTARIO CASCO" ? fmt.est(s.filas.reduce((t, f) => t + f.inventario, 0))
+        : cc.t === rotulo ? fmt.est(s.filas.reduce((t, f) => t + f.baja, 0))
+        : cc.t === "HL" ? fmt.hl(s.total) : ""));
     });
     y += h + G;
   }
 
-  pie(ctx, W, H, extra.generado ?? new Date(), "Cada almacén con su último conteo del periodo. Lo negativo se queda en Control.");
+  pie(ctx, W, H, extra.generado ?? new Date(), "Cada almacén con su último conteo del periodo. Lo negativo va en rojo.");
   return c;
 }
 

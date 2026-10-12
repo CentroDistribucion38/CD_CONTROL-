@@ -6,6 +6,7 @@
  * hoja y pie con «Página i de n». Recibe los mismos datos y las mismas gráficas que el PDF.
  */
 import { zipSync, strToU8 } from "fflate";
+import { gruposDeUbicacion } from "@/modulos/casco/informe";
 import { PALETA_MARCA, type Paleta } from "@/modulos/rotlinea/hoja";
 import {
   COLOR_ALMACEN, colorEstado, corta, f0, f1, larga, mesDe, plata, rgbHex, MEDIDA,
@@ -73,7 +74,7 @@ export function armarWordPasivo(d: DatosInformePasivo, extra: { generado: Date; 
   const leyenda = () => cuerpo.push(par(d.estados.map((e) => run({ t: "■ ", color: colorEstado(e).slice(1), tam: 10 }) + run({ t: `${e}     `, tam: 8, color: G })).join(""), { despues: 60, keep: true }));
   const cab = (cols: { t: string; num?: boolean }[]) => ({ cabecera: true, celdas: cols.map((c) => ({ fondo: T, al: c.num ? "right" as const : "left" as const, runs: [{ t: c.t, b: true, tam: 7.8, color: "FFFFFF" }] })) });
   const fila = (vals: string[], nums: boolean[], i: number) => ({ celdas: vals.map((v, j) => ({ fondo: i % 2 ? RAYA : undefined, al: nums[j] ? "right" as const : "left" as const,
-    runs: [{ t: v, b: j === vals.length - 1 && nums[j], tam: j === 0 ? 8 : 8.5, color: v.startsWith("-") ? "C8102E" : j === 0 ? G : T }] })) });
+    runs: [{ t: v, b: nums[j] && !nums[j + 1] && j > 0, tam: j === 0 ? 8 : 8.5, color: nums[j] && v.startsWith("-") ? "C8102E" : j === 0 ? G : T }] })) });
   const tot = (vals: string[], nums: boolean[]) => ({ celdas: vals.map((v, j) => ({ arriba: T, al: nums[j] ? "right" as const : "left" as const, runs: [{ t: v, b: true, tam: 8.5, color: T }] })) });
 
   /* ---------- CABECERA ---------- */
@@ -136,15 +137,18 @@ export function armarWordPasivo(d: DatosInformePasivo, extra: { generado: Date; 
   titulo("SKU bloqueados ($ millones)"); leyenda(); meterImagen(extra.graficas.skuCosto, b.ancho, b.alto, "SKU $");
 
   /* ---------- CONSOLIDADO POR ALMACÉN (la TD) ---------- */
-  const anchosC = [20, 66, 26, 20, 20, 30], nums = [false, false, true, true, true, true];
+  /* Con UBICACIÓN (del conteo de ese día) si alguno la tiene, como en el PDF. */
+  const conUbi = d.consolidado.some((x) => x.ubic);
+  const anchosC = conUbi ? [17, 46, 21, 16, 16, 27, 39] : [20, 66, 26, 20, 20, 30];
+  const nums = conUbi ? [false, false, true, true, true, true, false] : [false, false, true, true, true, true];
   for (const a of d.almacenes) {
     const rs = d.consolidado.filter((x) => x.almacen === a.a);
     if (!rs.length) continue;
     titulo(`${a.a} · ${a.nombre}`, `${f1(a.total)} HL · ${plata(a.costo)}`);
     cuerpo.push(tabla(anchosC, [
-      cab([{ t: "CÓDIGO" }, { t: "MATERIAL" }, { t: "UNIDADES", num: true }, { t: "CAJAS", num: true }, { t: "HL", num: true }, { t: "COSTO", num: true }]),
-      ...rs.map((x, i) => fila([x.codigo, x.desc, f0(x.und), f0(x.cajas), f1(x.hl), plata(x.costo)], nums, i)),
-      tot(["TOTAL", `${rs.length} materiales`, f0(rs.reduce((t, x) => t + x.und, 0)), f0(rs.reduce((t, x) => t + x.cajas, 0)), f1(rs.reduce((t, x) => t + x.hl, 0)), plata(rs.reduce((t, x) => t + x.costo, 0))], nums),
+      cab([{ t: "CÓDIGO" }, { t: "MATERIAL" }, { t: "UNIDADES", num: true }, { t: "CAJAS", num: true }, { t: "HL", num: true }, { t: "COSTO", num: true }, ...(conUbi ? [{ t: "UBICACIÓN" }] : [])]),
+      ...rs.map((x, i) => fila([x.codigo, x.desc, f0(x.und), f0(x.cajas), f1(x.hl), plata(x.costo), ...(conUbi ? [gruposDeUbicacion(x.ubic).join("  ·  ")] : [])], nums, i)),
+      tot(["TOTAL", `${rs.length} materiales`, f0(rs.reduce((t, x) => t + x.und, 0)), f0(rs.reduce((t, x) => t + x.cajas, 0)), f1(rs.reduce((t, x) => t + x.hl, 0)), plata(rs.reduce((t, x) => t + x.costo, 0)), ...(conUbi ? [""] : [])], nums),
     ], { junta: rs.length <= 30 }));
   }
   if (d.cajas.length) {
