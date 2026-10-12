@@ -39,6 +39,8 @@ export type BloqueBalance = {
 };
 
 const TOPE = 500;
+/** Las cajas plásticas no son casco de vidrio: no entran al balance (en el libro van como «Libre»). */
+const esCajaPlastica = (nombre: string | null | undefined) => /CAJA\s+PL/i.test(nombre ?? "");
 const normEstado = (e: string | null | undefined) => {
   const t = (e ?? "").trim().toUpperCase();
   if (t.includes("EXTRASUCIO")) return "EXTRASUCIO";
@@ -75,6 +77,29 @@ export async function consolidadoDelDia(fecha: string, conteos: ConteoFefo[]): P
   return { vigentes: cruzar(data, delDia).vigentes, error: null };
 }
 
+type RegCasco = { fecha: string; ubicacion: string; sku: string; inventario: number | null; baja: number | null };
+
+/** El casco hasta un día. Igual que el Tablero del casco: `casco_tablero_datos()` lo trae en una sola
+ *  lectura; leer la tabla por páginas, con el permiso revisado en cada renglón, se pasa del tiempo. */
+async function leerCasco(hasta: string): Promise<{ data: RegCasco[]; error: string | null }> {
+  const supabase = await createClient();
+  const rpc = await supabase.rpc("casco_tablero_datos");
+  if (!rpc.error) {
+    type Crudo = [string, string, string, unknown, number | string | null, number | string | null];
+    const n = (v: number | string | null) => (v == null ? null : Number(v));
+    const data = ((rpc.data ?? []) as Crudo[])
+      .map((x) => ({ fecha: String(x[0]).slice(0, 10), ubicacion: x[1], sku: String(x[2]), inventario: n(x[4]), baja: n(x[5]) }))
+      .filter((x) => x.fecha <= hasta);
+    return { data, error: null };
+  }
+  if (!/casco_tablero_datos|PGRST202|could not find the function/i.test(`${rpc.error.code} ${rpc.error.message}`)) {
+    return { data: [], error: `no pude leer el casco (${rpc.error.message})` };
+  }
+  return todas<RegCasco>((d, h) =>
+    supabase.from("casco_registros").select("fecha, ubicacion, sku, inventario, baja")
+      .lte("fecha", hasta).order("fecha").order("ubicacion").order("sku").range(d, h));
+}
+
 export async function balanceDelDia(pedida?: string | null) {
   const supabase = await createClient();
   const { dias, conteos, error: e0 } = await diasConConteo();
@@ -86,9 +111,7 @@ export async function balanceDelDia(pedida?: string | null) {
     consolidadoDelDia(fecha, conteos),
     supabase.from("productos").select("sku, nombre, cajas_por_estiba, unidades_por_caja"),
     supabase.from("casco_ubicaciones").select("clave, centro"),
-    todas<{ fecha: string; ubicacion: string; sku: string; inventario: number | null; baja: number | null }>((d, h) =>
-      supabase.from("casco_registros").select("fecha, ubicacion, sku, inventario, baja")
-        .lte("fecha", fecha).order("fecha").order("ubicacion").order("sku").range(d, h)),
+    leerCasco(fecha),
     supabase.from("balance_ajustes").select("estado, alcance, codigo, cajas, nota, calidad").eq("fecha", fecha),
   ]);
 
@@ -125,6 +148,7 @@ export async function balanceDelDia(pedida?: string | null) {
 
   /* FÍSICO */
   for (const r of vigentes) {
+    if (esCajaPlastica(r.material) || esCajaPlastica(prod.get(String(r.codigo))?.nombre)) continue;
     const rc = reclas.get(r.id);
     const f = fila(rc?.estado ?? normEstado(r.estado_envase), zona(r), String(r.codigo));
     f.fisico_cajas += Number(r.total_cajas) || 0;
@@ -143,6 +167,7 @@ export async function balanceDelDia(pedida?: string | null) {
     if (k.fecha !== ultimoDe.get(k.ubicacion)) continue;
     const centro = centroDe.get(k.ubicacion) ?? "";
     const sku = String(k.sku);
+    if (esCajaPlastica(prod.get(sku)?.nombre)) continue;
     const cpe = prod.get(sku)?.cajas_por_estiba ?? 0;
     const pon = (estado: string, alcance: string, est: number) => {
       if (!est) return;
