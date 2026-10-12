@@ -14,7 +14,8 @@
  * EL TEXTO MANDA A DÓNDE VA (y tiene que decir lo mismo que `casco_registrar_bajas`):
  *   «BAJA LAVADO»      → columna «Lavado con baja» del almacén de la fila (Fábrica).
  *   «BAJA EXTRASUCIO»  → columna «Extrasucio con baja» del almacén de la fila (Bodega 38).
- *   cualquier otro (SORTING, PRESORTING, ROTURA DE MAQUINA…) → se SUMA al inventario del almacén.
+ *   «BAJA ROTURA DE MAQUINA» → SOLO REGISTRO: no suma ni resta en ningún almacén.
+ *   cualquier otro (SORTING, PRESORTING…) → se SUMA al inventario del almacén.
  *
  * LA NOTA «NO HAGA NADA» GANA A TODO. Si en CUALQUIER celda de la fila alguien escribió
  * «QUEDE EN EL REGISTRO - NO HAGA NADA EN EL KARDEX» (o «no hacer nada», «solo registro»), la fila
@@ -55,6 +56,13 @@ export function destinoDeTexto(texto: string): "inventario" | "baja" {
   return /(LAVADO|EXTRASUCIO)/.test(texto.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase())
     ? "baja" : "inventario";
 }
+
+/** «La rotura de máquina no debe sumar ni restar en ninguno de los almacenes: omítela.» */
+export const esRoturaMaquina = (texto: string) =>
+  /ROTURA\s+(DE\s+)?MAQUINA/.test(texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase());
+/** La nota que la deja en solo registro. Lleva «solo registro» para que la base la reconozca con la
+ *  misma regla de «no haga nada» (`casco_registrar_bajas`), sin tener que cambiar la base. */
+export const NOTA_ROTURA_MAQUINA = "ROTURA DE MAQUINA · solo registro (no mueve el kárdex)";
 
 /** La regla de «solo registro». Tiene que decir lo mismo que `casco_registrar_bajas`. */
 export const NOTA_SOLO_REGISTRO = /(no haga nada|no hacer nada|no hace nada|solo registro|quede en el registro|queda en el registro)/;
@@ -164,7 +172,7 @@ export function leerBaja(filas: unknown[][], hoja: string | null = null): Lectur
     const k = (vistas.get(base) ?? 0) + 1;
     vistas.set(base, k);
 
-    const nota = notaSoloRegistro(r);
+    const nota = notaSoloRegistro(r) ?? (esRoturaMaquina(texto) ? NOTA_ROTURA_MAQUINA : null);
     out.push({
       fila: n, nota, fecha, centro, sku, descripcion: cDesc >= 0 ? String(r[cDesc] ?? "").trim() : "",
       unidades, texto, documento, clase: cClase >= 0 ? String(r[cClase] ?? "").trim() : "",
