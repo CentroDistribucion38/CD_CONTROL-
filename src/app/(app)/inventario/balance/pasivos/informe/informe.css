@@ -88,3 +88,16 @@
 .ipas .ip-exp-bt svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
 .ipas .ip-exp-nota { width: 100%; margin: 0; text-align: right; font-size: 11.5px; color: var(--fe-gris) }
 .ipas .ip-exp-mal { width: 100%; margin: 0; text-align: right; font-size: 12px; color: var(--fe-mal, #c8102e) }
+
+/* LA FOTO PARA COMPARTIR: la vista previa encima de todo, con copiar / compartir / descargar. */
+.ipas .ip-exp-bt.foto { background: var(--fe-acento, #FFC300); color: var(--fe-tinta, #111); box-shadow: inset 0 -3px 0 var(--fe-tinta, #111) }
+.ip-foto { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 16px; background: rgba(10, 16, 24, .72) }
+.ip-foto-caja { width: min(1400px, 100%); max-height: calc(100vh - 32px); display: flex; flex-direction: column; background: var(--fe-papel, #fff); box-shadow: 0 20px 60px rgba(0,0,0,.35) }
+.ip-foto-barra { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--fe-linea, #DEE3EA) }
+.ip-foto-barra > b { font-size: 16px; color: var(--fe-tinta, #111) }
+.ip-foto-acc { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+.ip-foto-x { width: 42px; height: 42px; border: 0; background: transparent; font-size: 28px; line-height: 1; cursor: pointer; color: var(--fe-tinta, #111) }
+.ip-foto-x:focus-visible { outline: 3px solid var(--fe-acento, #FFC300) }
+.ip-foto-aviso { margin: 0; padding: 8px 14px; font-size: 13.5px; font-weight: 600; color: var(--fe-tinta, #111); background: color-mix(in srgb, var(--fe-acento, #FFC300) 22%, transparent) }
+.ip-foto-img { overflow: auto; padding: 12px; background: #F3F5F8 }
+.ip-foto-img img { display: block; width: 100%; height: auto }
