@@ -2660,8 +2660,8 @@ export function Contar({
                 <table>
                   <thead>
                     <tr>
-                      <th>Código</th><th>Descripción</th><th className="n">Cómo se contó</th>
-                      <th className="n">Total cajas</th><th>Vence</th><th className="n">Días para salir</th><th aria-label="Acciones" />
+                      <th>Ubicación</th><th>Código</th><th>Descripción</th><th className="n">Cómo se contó</th>
+                      <th className="n">Total cajas</th><th aria-label="Acciones" />
                     </tr>
                   </thead>
                   <tbody>
@@ -2671,17 +2671,13 @@ export function Contar({
                       const orden = [...vistos].sort((x, y) => nat(ubiDe(x), ubiDe(y)) || nat(String(x.codigo), String(y.codigo)));
                       const porUbi = new Map<string, Renglon[]>();
                       for (const r of orden) (porUbi.get(ubiDe(r)) ?? porUbi.set(ubiDe(r), []).get(ubiDe(r))!).push(r);
-                      return [...porUbi.entries()].flatMap(([u, rs]) => [
-                        <tr key={`u-${u}`} className="fe-bor-grupo">
-                          <td colSpan={7}>
-                            <b>{u}</b>
-                            <span>{rs.length} {rs.length === 1 ? "renglón" : "renglones"} · {nf.format(rs.reduce((t, r) => t + Number(r.total_cajas || 0), 0))} cajas</span>
-                          </td>
-                        </tr>,
-                        ...rs.map((r) => (
+                      /* «SOLO UBICACIÓN, CÓDIGO Y CANTIDAD»: la ubicación va en su columna; el vencimiento
+                         y los días para salir se ven en el tablero. Una raya separa cada ubicación. */
+                      return [...porUbi.entries()].flatMap(([, rs]) => [
+                        ...rs.map((r, k) => (
                           <tr key={r.id}
-                              className={(r.dias_para_salir != null && r.dias_para_salir < 0 ? "mal" : "")
-                                + (corrigiendo === r.id ? " tocando" : "")}>
+                              className={(k === 0 ? "fe-bor-nueva" : "") + (corrigiendo === r.id ? " tocando" : "")}>
+                            <td className="fe-bor-ubi">{k === 0 ? <b>{ubiDe(r)}</b> : null}</td>
                             <td><b className="fe-cod">{r.codigo}</b></td>
                             <td className="fe-bor-desc">{r.material}</td>
                             {/* CÓMO SE CONTÓ, y no solo cuántas: «56» no dice si son estibas o cajas. */}
@@ -2691,9 +2687,6 @@ export function Contar({
                                 : <>{r.estibas} <em>est.</em></>}
                             </td>
                             <td className="n"><b>{nf.format(Number(r.total_cajas))}</b></td>
-                            <td>{r.vencimiento ? new Date(r.vencimiento + "T00:00:00").toLocaleDateString("es-CO") : "—"}</td>
-                            {/* «DÍAS PARA SALIR» ES LA CIFRA DEL FEFO: cuándo tiene que haber salido. En negativo ya se pasó. */}
-                            <td className="n dias">{r.dias_para_salir ?? "—"}</td>
                             <td className="fe-bor-acc">
                               {fotosDe[r.id] && (
                                 <button type="button" className="fe-mini" onClick={() => void verFoto(r.id)}>Ver foto</button>
@@ -2715,9 +2708,9 @@ export function Contar({
                   </tbody>
                   <tfoot>
                     <tr>
-                      <td colSpan={3}><b>{vistos.length} {vistos.length === 1 ? "renglón" : "renglones"}</b></td>
+                      <td colSpan={4}><b>{vistos.length} {vistos.length === 1 ? "renglón" : "renglones"}</b></td>
                       <td className="n"><b>{nf.format(vistos.reduce((t, r) => t + Number(r.total_cajas || 0), 0))}</b></td>
-                      <td colSpan={3} />
+                      <td />
                     </tr>
                   </tfoot>
                 </table>
