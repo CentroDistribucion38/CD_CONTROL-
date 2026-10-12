@@ -206,7 +206,7 @@ export function Balance({
           <h1>Balance de materiales</h1>
           <p className="sub">
             El consolidado del conteo del día que escojas (el mismo de La base) contra el casco de
-            vidrio: Bodega 38 cruza BAJA y EXTRASUCIO; Fábrica cruza LAVADO.
+            vidrio: Bodega 38 cruza BAJA (Inventario) y EXTRASUCIO; Fábrica cruza BAJA (Inventario) y LAVADO (Lavado con baja).
           </p>
         </div>
         {/* «PUEDO TOMAR EL CONSOLIDADO DEL VIERNES O DE CUALQUIER DÍA QUE QUIERA.» */}

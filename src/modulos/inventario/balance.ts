@@ -16,7 +16,8 @@ import { esUbicacionFabrica } from "@/modulos/casco/ubicacion-sitio";
  *
  * CASCO: la misma regla de las columnas del casco que ya cuadramos:
  *   AG22 Bodega 38  · «Inventario casco de vidrio» → BAJA        · «Extrasucio con baja» → EXTRASUCIO
- *   AG18 Fábrica    · las dos columnas                → LAVADO
+ *   AG18 Fábrica    · «Inventario casco de vidrio» → BAJA        · «Lavado con baja»     → LAVADO
+ *   (Así lo cuadra el Excel del balance: Calle FABRICA · Estado BAJA contra «Cuadro casco de vidrio».)
  * De cada ubicación del casco, su último registro HASTA ese día (si ese día no se guardó, sigue el
  * último inventario). Estibas × cajas por estiba del maestro = cajas.
  *
@@ -50,7 +51,7 @@ const normEstado = (e: string | null | undefined) => {
 };
 /** Las combinaciones que el casco registra (las demás solo tienen lado físico y no llevan alerta). */
 export const cruzaConCasco = (estado: string, alcance: string) =>
-  (alcance === "PRESORTING" && (estado === "BAJA" || estado === "EXTRASUCIO")) || (alcance === "SORTING" && estado === "LAVADO");
+  (alcance === "PRESORTING" && (estado === "BAJA" || estado === "EXTRASUCIO")) || (alcance === "SORTING" && (estado === "BAJA" || estado === "LAVADO"));
 const zona = (r: { ubicacion: string | null; ubicacion_combinada?: string | null }) =>
   esUbicacionFabrica(r.ubicacion ?? r.ubicacion_combinada ?? null) ? "SORTING" : "PRESORTING";
 
@@ -176,7 +177,7 @@ export async function balanceDelDia(pedida?: string | null) {
     };
     const inv = Number(k.inventario) || 0, baja = Number(k.baja) || 0;
     if (centro === "AG22") { pon("BAJA", "PRESORTING", inv); pon("EXTRASUCIO", "PRESORTING", baja) }
-    else if (centro === "AG18") { pon("LAVADO", "SORTING", inv + baja) }
+    else if (centro === "AG18") { pon("BAJA", "SORTING", inv); pon("LAVADO", "SORTING", baja) }
   }
 
   /* AJUSTES y cierre de cada fila */
