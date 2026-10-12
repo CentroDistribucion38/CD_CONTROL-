@@ -322,7 +322,7 @@ export function dibujarDetalleCasco(d: DatosInformeCasco, extra: Extra = {}): HT
       const rotulo = (s.rotuloBaja ?? "Con baja").toUpperCase();
       dibujarTabla(ctx, TINTA, a.x, a.y, a.w, columnas.get(s.clave)!, s.filas, (cc) => (
         cc.t === "COD" ? "TOTAL"
-        : cc.t === "MATERIAL" ? `${s.filas.length} materiales con inventario`
+        : cc.t === "MATERIAL" ? `${s.filas.filter((f) => f.sku).length} materiales con inventario`
         : cc.t === "INVENTARIO CASCO" ? fmt.est(s.filas.reduce((t, f) => t + f.inventario, 0))
         : cc.t === rotulo ? fmt.est(s.filas.reduce((t, f) => t + f.baja, 0))
         : cc.t === "HL" ? fmt.hl(s.total) : ""));
@@ -330,7 +330,7 @@ export function dibujarDetalleCasco(d: DatosInformeCasco, extra: Extra = {}): HT
     y += h + G;
   }
 
-  pie(ctx, W, H, extra.generado ?? new Date(), "Cada almacén con su último conteo del periodo. Lo negativo va en rojo.");
+  pie(ctx, W, H, extra.generado ?? new Date(), "Cada almacén con su último conteo del periodo. Lo negativo va junto en un renglón: el detalle está en Control.");
   return c;
 }
 

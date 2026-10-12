@@ -143,16 +143,23 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura, delInventa
       },
       sitios: claves.map((k) => {
         const s = sitios.find((x) => x.clave === k)!;
-        /* LO NEGATIVO SÍ VA EN EL INFORME, en rojo: «debe quedar los 647». Antes se quitaba y la
-           tarjeta del almacén (686,6) no cuadraba con su barra de la gráfica (647), que sí lo suma.
-           Ahora el almacén es el mismo número en la gráfica, la tarjeta, la tabla y el total. */
+        /* LO NEGATIVO CUENTA EN EL TOTAL («debe quedar los 647»), PERO EL MATERIAL NO SE VE: «ocúltalo
+           para que no se enreden». Los renglones en negativo (salió más de lo contado) se juntan en UN
+           renglón «En negativo · ver Control» al final de la tabla, sin código ni ubicación; así la
+           tabla suma lo mismo que la tarjeta y la gráfica, y el detalle se mira en Control. */
         const e = estadoAlmacen(vistos, k);
+        const esNeg = (f: { inventario: number; baja: number; hl: number }) => f.inventario < 0 || f.baja < 0 || f.hl < 0;
+        const negs = e.filas.filter(esNeg);
+        const ajuste = negs.length ? [{
+          sku: "", nombre: "En negativo · ver Control", puesto: null, calidad: null,
+          inventario: negs.reduce((t, f) => t + f.inventario, 0), baja: negs.reduce((t, f) => t + f.baja, 0), hl: negs.reduce((t, f) => t + f.hl, 0),
+        }] : [];
         return {
           clave: k, centro: s.centro ?? k, nombre: s.nombre, rotuloBaja: s.baja_rotulo,
           fecha: e.fecha, total: e.total, estibas: e.estibas, viajes: viajesSerpro(e.estibas, s.centro ?? k), anterior: e.anterior,
           /* LA UBICACIÓN DEL INFORME SALE DEL INVENTARIO (la misma que pone Control), si el conteo del
              almacén es de ese día o después; si el inventario no trae ese material, va la guardada. */
-          filas: e.filas.map((f) => {
+          filas: [...e.filas.filter((f) => !esNeg(f)).map((f) => {
             const inv = delInventario?.porCentro[(s.centro ?? "").toUpperCase()];
             /* «SI NO HAY UBICACIÓN EN EL INVENTARIO, QUE NO APAREZCA»: cuando el inventario aplica a
                ese conteo, la ubicación es SOLO la del inventario; si el inventario no tiene ese
@@ -165,7 +172,7 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura, delInventa
             const r = aplica ? ubicacionDeFila(delInventario!, s.centro ?? k, f.sku, f.inventario, f.baja, s.baja_rotulo ?? undefined) : null;
             const puesto = aplica ? (r?.puesto || null) : (limpiarPuesto(s.centro, f.puesto) || null);
             return { ...f, puesto, nombre: nombres[f.sku] ?? f.sku };
-          }),
+          }), ...ajuste],
         };
       }),
     };
