@@ -267,9 +267,12 @@ async function estado(url) {
    guarda cada pantalla junto con los archivos que necesita para abrir, y vuelve a pasar cada 3 minutos
    renovando lo que tenga más de 2 y medio. Funciona aunque se cambie de pantalla o se cierre la ventana. */
 const RASTREO_MAX = 220;
-const RASTREO_CADA_MS = 3 * 60 * 1000;     // toda la app se vuelve a guardar cada 3 minutos: la copia es casi de «ahora»
-const FRESCA_MS = 150 * 1000;
-const RASTREO_PAR = 8;
+/* CADA 6 HORAS Y NO CADA 3 MINUTOS. Recorrer toda la app (hasta 220 pantallas) cada 3 minutos en cada
+   navegador abierto era lo que se comía el uso de Vercel y de Supabase. La copia para auditoría sigue:
+   se renueva unas veces al día, y la pantalla que se mira se guarda cada vez que llega de internet. */
+const RASTREO_CADA_MS = 6 * 60 * 60 * 1000;
+const FRESCA_MS = 6 * 60 * 60 * 1000;
+const RASTREO_PAR = 2;
 const PEDIDO_MS = 25000;
 let rastreando = false;
 

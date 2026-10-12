@@ -251,11 +251,11 @@ export async function internetFirme(): Promise<boolean> {
 }
 
 /** Cada cuántos minutos, con internet y la app abierta, se revisa qué pantallas renovar. */
-export const CICLO_MIN = 5;
+export const CICLO_MIN = 60;
 /** La pantalla que se está mirando se vuelve a guardar si su copia tiene más de esto. */
-export const ACTUAL_MIN = 5;
+export const ACTUAL_MIN = 60;
 /** Las demás, si su copia tiene más de esto (de a pocas por ciclo, las más viejas primero). */
-export const VIEJA_MIN = 30;
+export const VIEJA_MIN = 360;
 
 /** Cuándo se guardó cada pantalla (ms), leído de la copia misma. */
 export async function edadesGuardadas(): Promise<Map<string, number>> {

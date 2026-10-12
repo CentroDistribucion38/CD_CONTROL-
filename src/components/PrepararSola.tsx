@@ -69,7 +69,7 @@ export function PrepararSola({ rutas, dueno }: { rutas: string[]; dueno?: string
     const repaso = setInterval(() => {
       if (!navigator.onLine || document.visibilityState !== "visible") return;
       try { navigator.serviceWorker?.controller?.postMessage({ tipo: "rastrear", forzar: false }) } catch { /* sin service worker */ }
-    }, 120_000);
+    }, 30 * 60_000);
     let firme: ReturnType<typeof setTimeout> | undefined;
     const alVolver = () => {
       if (firme) clearTimeout(firme);
