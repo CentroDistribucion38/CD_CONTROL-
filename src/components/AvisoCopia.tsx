@@ -32,14 +32,18 @@ const FIRME_MS = 8000;          // sin NINGÚN corte en este rato, para dar el i
 const REINTENTOS = 5;
 const VENTANA_MS = 120_000;     // pasado esto, los reintentos vuelven a empezar
 const LLAVE_AUTO = "cd38.autoactualizo";
+/* «PONLE QUE SE ACTUALICE SOLO YA»: después de los primeros intentos seguidos ya no se rinde; sigue
+   probando sola cada 30 s mientras la pantalla sea una copia, hasta traer lo de ahora. */
+const LUEGO_CADA_MS = 30_000;
 
 /** Recarga si todavía quedan intentos. true = la recarga salió. */
 function recargar(): boolean {
-  let n = 0, t = 0;
-  try { const v = JSON.parse(sessionStorage.getItem(LLAVE_AUTO) ?? "null"); if (v) { n = v.n; t = v.t } } catch { /* sin memoria: un intento y ya */ }
-  if (Date.now() - t > VENTANA_MS) n = 0;
-  if (n >= REINTENTOS) return false;
-  try { sessionStorage.setItem(LLAVE_AUTO, JSON.stringify({ n: n + 1, t: n === 0 ? Date.now() : t })) } catch { /* igual se recarga */ }
+  let n = 0, t = 0, u = 0;
+  try { const v = JSON.parse(sessionStorage.getItem(LLAVE_AUTO) ?? "null"); if (v) { n = v.n; t = v.t; u = v.u ?? 0 } } catch { /* sin memoria: un intento y ya */ }
+  if (Date.now() - t > VENTANA_MS && n < REINTENTOS) n = 0;
+  /* Pasados los intentos seguidos, uno cada 30 s, sin rendirse. */
+  if (n >= REINTENTOS && Date.now() - u < LUEGO_CADA_MS) return false;
+  try { sessionStorage.setItem(LLAVE_AUTO, JSON.stringify({ n: n + 1, t: n === 0 ? Date.now() : t, u: Date.now() })) } catch { /* igual se recarga */ }
   location.reload();
   return true;
 }
@@ -118,7 +122,7 @@ export function AvisoCopia() {
       {sinRed ? (
         <span><b>Sin internet</b>{de}. Puedes ver lo guardado hasta tu última conexión; no puedes realizar cambios.</span>
       ) : (
-        <span><b>Esta pantalla es una copia</b>{de}. No se pudo traer lo de ahora: puedes ver lo guardado, pero no realizar cambios.</span>
+        <span><b>Esta pantalla es una copia</b>{de}. El servidor está tardando: se vuelve a intentar sola cada 30 s. Mientras, puedes ver lo guardado, pero no realizar cambios.</span>
       )}
       {!sinRed && (
         <button type="button" onClick={() => location.reload()}>Ver lo de ahora</button>
