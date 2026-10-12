@@ -85,6 +85,8 @@ export function Balance({
   error,
   fecha,
   dias,
+  fechaCasco,
+  diasCasco,
 }: {
   bloques: Bloque[];
   detalle: Fila[];
@@ -92,6 +94,9 @@ export function Balance({
   /** El día del consolidado que se está mirando, y los días que tienen conteo enviado. */
   fecha: string | null;
   dias: string[];
+  /** El día del casco que se cruza (se escoge aparte del conteo), y los días que tiene el casco. */
+  fechaCasco: string | null;
+  diasCasco: string[];
 }) {
   const router = useRouter();
   const [cambiando, startCambio] = useTransition();
@@ -205,20 +210,32 @@ export function Balance({
           <p className="ojo">INVENTARIO · BALANCE</p>
           <h1>Balance de materiales</h1>
           <p className="sub">
-            El consolidado del conteo del día que escojas (el mismo de La base) contra el casco de
+            El conteo del día que escojas (el mismo consolidado de La base) contra el casco del día
+            que escojas. Si un almacén no se guardó ese día, se toma su último guardado antes. Casco de
             vidrio: Bodega 38 cruza BAJA (Inventario) y EXTRASUCIO; Fábrica cruza BAJA (Inventario) y LAVADO (Lavado con baja).
           </p>
         </div>
         {/* «PUEDO TOMAR EL CONSOLIDADO DEL VIERNES O DE CUALQUIER DÍA QUE QUIERA.» */}
-        <label className="bal-dia">
-          <span>Consolidado del día</span>
-          <select value={fecha ?? ""} disabled={cambiando || dias.length === 0}
-                  onChange={(e) => startCambio(() => router.push(`/inventario/balance?fecha=${e.target.value}`))}>
-            {dias.length === 0 && <option value="">Sin conteos enviados</option>}
-            {dias.map((d) => <option key={d} value={d}>{diaLargo(d)}</option>)}
-          </select>
+        {/* «YO ELIJO CUÁL CONTEO Y CUÁL CASCO TOMAR, DE FECHAS.» */}
+        <div className="bal-dias">
+          <label className="bal-dia">
+            <span>Conteo del día</span>
+            <select value={fecha ?? ""} disabled={cambiando || dias.length === 0}
+                    onChange={(e) => startCambio(() => router.push(`/inventario/balance?fecha=${e.target.value}${fechaCasco ? `&casco=${fechaCasco}` : ""}`))}>
+              {dias.length === 0 && <option value="">Sin conteos enviados</option>}
+              {dias.map((d) => <option key={d} value={d}>{diaLargo(d)}</option>)}
+            </select>
+          </label>
+          <label className="bal-dia">
+            <span>Casco del día</span>
+            <select value={fechaCasco ?? ""} disabled={cambiando || diasCasco.length === 0}
+                    onChange={(e) => startCambio(() => router.push(`/inventario/balance?${fecha ? `fecha=${fecha}&` : ""}casco=${e.target.value}`))}>
+              {diasCasco.length === 0 && <option value="">Sin casco guardado</option>}
+              {diasCasco.map((d) => <option key={d} value={d}>{diaLargo(d)}</option>)}
+            </select>
+          </label>
           {cambiando && <em>Trayendo…</em>}
-        </label>
+        </div>
       </section>
 
       {error && (

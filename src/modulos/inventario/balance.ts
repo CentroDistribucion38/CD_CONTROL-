@@ -82,15 +82,14 @@ type RegCasco = { fecha: string; ubicacion: string; sku: string; inventario: num
 
 /** El casco hasta un día. Igual que el Tablero del casco: `casco_tablero_datos()` lo trae en una sola
  *  lectura; leer la tabla por páginas, con el permiso revisado en cada renglón, se pasa del tiempo. */
-async function leerCasco(hasta: string): Promise<{ data: RegCasco[]; error: string | null }> {
+async function leerCasco(): Promise<{ data: RegCasco[]; error: string | null }> {
   const supabase = await createClient();
   const rpc = await supabase.rpc("casco_tablero_datos");
   if (!rpc.error) {
     type Crudo = [string, string, string, unknown, number | string | null, number | string | null];
     const n = (v: number | string | null) => (v == null ? null : Number(v));
     const data = ((rpc.data ?? []) as Crudo[])
-      .map((x) => ({ fecha: String(x[0]).slice(0, 10), ubicacion: x[1], sku: String(x[2]), inventario: n(x[4]), baja: n(x[5]) }))
-      .filter((x) => x.fecha <= hasta);
+      .map((x) => ({ fecha: String(x[0]).slice(0, 10), ubicacion: x[1], sku: String(x[2]), inventario: n(x[4]), baja: n(x[5]) }));
     return { data, error: null };
   }
   if (!/casco_tablero_datos|PGRST202|could not find the function/i.test(`${rpc.error.code} ${rpc.error.message}`)) {
@@ -98,21 +97,26 @@ async function leerCasco(hasta: string): Promise<{ data: RegCasco[]; error: stri
   }
   return todas<RegCasco>((d, h) =>
     supabase.from("casco_registros").select("fecha, ubicacion, sku, inventario, baja")
-      .lte("fecha", hasta).order("fecha").order("ubicacion").order("sku").range(d, h));
+      .order("fecha").order("ubicacion").order("sku").range(d, h));
 }
 
-export async function balanceDelDia(pedida?: string | null) {
+/**
+ * «Yo elijo cuál conteo y cuál casco tomar, de fechas.»
+ * `pedida` = día del consolidado del conteo; `pedidaCasco` = día del casco. Si no se escoge el del
+ * casco, va el último día del casco hasta el día del conteo (o el más nuevo, si no hay antes).
+ */
+export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string | null) {
   const supabase = await createClient();
   const { dias, conteos, error: e0 } = await diasConConteo();
   const fecha = pedida && dias.includes(pedida) ? pedida : (dias[0] ?? null);
-  const vacio = { fecha, dias, detalle: [] as FilaBalance[], bloques: [] as BloqueBalance[], error: e0 };
+  const vacio = { fecha, dias, fechaCasco: null as string | null, diasCasco: [] as string[], detalle: [] as FilaBalance[], bloques: [] as BloqueBalance[], error: e0 };
   if (!fecha) return vacio;
 
   const [{ vigentes, error: e1 }, maestro, sitiosR, cascoR, ajustesR] = await Promise.all([
     consolidadoDelDia(fecha, conteos),
     supabase.from("productos").select("sku, nombre, cajas_por_estiba, unidades_por_caja"),
     supabase.from("casco_ubicaciones").select("clave, centro"),
-    leerCasco(fecha),
+    leerCasco(),
     supabase.from("balance_ajustes").select("estado, alcance, codigo, cajas, nota, calidad").eq("fecha", fecha),
   ]);
 
@@ -160,8 +164,11 @@ export async function balanceDelDia(pedida?: string | null) {
     if (rc) f.reclasificacion_id = Math.max(f.reclasificacion_id ?? 0, rc.id);
   }
 
-  /* CASCO: de cada ubicación, su último día hasta la fecha. */
-  const casco = cascoR.data ?? [];
+  /* CASCO: el día escogido; de cada ubicación, su último día hasta ese día (si ese día no se guardó, sigue el último). */
+  const diasCasco = [...new Set((cascoR.data ?? []).map((k) => k.fecha))].sort().reverse();
+  const fechaCasco = pedidaCasco && diasCasco.includes(pedidaCasco) ? pedidaCasco
+    : (diasCasco.find((d) => d <= fecha) ?? diasCasco[0] ?? null);
+  const casco = fechaCasco ? (cascoR.data ?? []).filter((k) => k.fecha <= fechaCasco) : [];
   const ultimoDe = new Map<string, string>();
   for (const k of casco) if (!ultimoDe.has(k.ubicacion) || k.fecha > ultimoDe.get(k.ubicacion)!) ultimoDe.set(k.ubicacion, k.fecha);
   for (const k of casco) {
@@ -210,7 +217,7 @@ export async function balanceDelDia(pedida?: string | null) {
     bloquesM.set(k, b);
   }
   return {
-    fecha, dias, detalle, bloques: [...bloquesM.values()],
+    fecha, dias, fechaCasco, diasCasco, detalle, bloques: [...bloquesM.values()],
     error: e0 ?? e1 ?? maestro.error?.message ?? cascoR.error ?? null,
   };
 }

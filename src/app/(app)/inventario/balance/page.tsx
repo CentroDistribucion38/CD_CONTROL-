@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
  * de vidrio: las tablas dinámicas que el analista arma a mano en «CONTEO FABRICA.xlsx».
  * La cuenta vive en src/modulos/inventario/balance.ts.
  */
-export default async function BalancePage({ searchParams }: { searchParams: Promise<{ fecha?: string }> }) {
+export default async function BalancePage({ searchParams }: { searchParams: Promise<{ fecha?: string; casco?: string }> }) {
   const q = await searchParams;
   const supabase = await createClient();
 
@@ -34,11 +34,13 @@ export default async function BalancePage({ searchParams }: { searchParams: Prom
     );
   }
 
-  const b = await balanceDelDia(/^\d{4}-\d{2}-\d{2}$/.test(q.fecha ?? "") ? q.fecha! : null);
+  const dia = (v?: string) => (/^\d{4}-\d{2}-\d{2}$/.test(v ?? "") ? v! : null);
+  const b = await balanceDelDia(dia(q.fecha), dia(q.casco));
 
   return (
     <div className="fe bal">
-      <Balance bloques={b.bloques} detalle={b.detalle} error={b.error} fecha={b.fecha} dias={b.dias} />
+      <Balance bloques={b.bloques} detalle={b.detalle} error={b.error} fecha={b.fecha} dias={b.dias}
+               fechaCasco={b.fechaCasco} diasCasco={b.diasCasco} />
     </div>
   );
 }

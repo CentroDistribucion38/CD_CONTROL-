@@ -202,3 +202,7 @@
 .bal .bal-dia { display: flex; flex-direction: column; gap: 6px; font-size: 11.5px; font-weight: 600 }
 .bal .bal-dia select { height: 42px; min-width: 220px; padding: 0 10px; font: 600 14px inherit; border: 1.5px solid var(--fe-linea, #d5dce5); background: #fff; text-transform: capitalize }
 .bal .bal-dia em { font-style: normal; font-weight: 400; color: var(--fe-gris, #6b7280) }
+
+/* Los dos días: conteo y casco, lado a lado (uno debajo del otro en el celular). */
+.bal .bal-dias { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap }
+.bal .bal-dias > em { font-style: normal; font-size: 12px; color: var(--fe-gris, #6b7280); padding-bottom: 12px }
