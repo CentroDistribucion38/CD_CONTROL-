@@ -1,0 +1,63 @@
+/* =====================================================================
+   INFORME PASIVO — la hoja INFORME de BLOQUEADOS.xlsx en pantalla.
+   Tarjetas arriba (la oscura es el total), paneles blancos con su título,
+   gráficas en SVG que toman la tinta del tema. Ámbar por estado.
+   ===================================================================== */
+.ipas .ip-filtros { display: flex; flex-wrap: wrap; gap: 16px 28px; align-items: flex-end; background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea); padding: 14px 16px; margin: 6px 0 14px }
+.ipas .ip-filtros .bal-cal .sg-mes .mes-panel { left: 0; right: auto }
+
+.ipas .ip-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px }
+.ipas .ip-k { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea) }
+.ipas .ip-k span { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--fe-gris) }
+.ipas .ip-k b { font: 900 30px/1.05 var(--fe-titulo, inherit); font-variant-numeric: tabular-nums }
+.ipas .ip-k i { font-style: normal; font-size: 12px; color: var(--fe-gris) }
+.ipas .ip-k.oscura { background: var(--fe-tinta, #111); border-color: var(--fe-tinta, #111); color: var(--fe-papel, #fff); box-shadow: inset 0 4px 0 var(--fe-acento, #FFC300) }
+.ipas .ip-k.oscura span, .ipas .ip-k.oscura i { color: color-mix(in srgb, var(--fe-papel, #fff) 72%, transparent) }
+
+.ipas .ip-fila { display: grid; gap: 12px; margin-bottom: 12px }
+.ipas .ip-2-1 { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) }
+.ipas .ip-1-1 { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+.ipas .ip-1-2 { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) }
+.ipas .ip-p { background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea); padding: 16px; min-width: 0 }
+.ipas .ip-sola { margin-bottom: 12px }
+.ipas .ip-p h3 { margin: 0 0 10px; font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase }
+.ipas .ip-ley { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; margin-bottom: 8px }
+.ipas .ip-ley i { display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: -1px }
+
+.ipas .ip-svg { width: 100%; height: auto; display: block; overflow: visible }
+.ipas .ip-eje { stroke: var(--fe-linea); stroke-width: 1 }
+.ipas .ip-grilla { stroke: color-mix(in srgb, var(--fe-linea) 60%, transparent); stroke-width: 1; stroke-dasharray: 3 4 }
+.ipas .ip-val { font-size: 12px; font-weight: 800; fill: var(--fe-tinta, #111); font-variant-numeric: tabular-nums }
+.ipas .ip-dia { font-size: 11px; fill: var(--fe-gris, #666) }
+.ipas .ip-marcado .ip-dia { font-weight: 800; fill: var(--fe-tinta, #111) }
+.ipas .ip-linea { fill: none; stroke: #B58200; stroke-width: 2.5; stroke-linejoin: round }
+.ipas .ip-area { fill: color-mix(in srgb, #FFC300 22%, transparent) }
+.ipas .ip-punto { fill: var(--fe-papel, #fff); stroke: #B58200; stroke-width: 2 }
+.ipas .ip-punto.on { fill: #B58200 }
+.ipas .ip-nada { color: var(--fe-gris); font-size: 13px }
+
+.ipas .ip-dona { display: flex; align-items: center; gap: 18px; flex-wrap: wrap }
+.ipas .ip-dona-svg { width: 150px; height: 150px; flex: none }
+.ipas .ip-dona-fondo { stroke: color-mix(in srgb, var(--fe-linea) 70%, transparent) }
+.ipas .ip-dona-n { font-size: 17px; font-weight: 900; fill: var(--fe-tinta, #111) }
+.ipas .ip-dona .ip-t { flex: 1; min-width: 220px }
+
+.ipas .ip-barras { display: flex; flex-direction: column; gap: 6px }
+.ipas .ip-b { display: grid; grid-template-columns: minmax(120px, 210px) minmax(0, 1fr) 80px; gap: 10px; align-items: center; font-size: 12px }
+.ipas .ip-bn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.ipas .ip-bb { display: flex; height: 14px; background: color-mix(in srgb, var(--fe-linea) 35%, transparent) }
+.ipas .ip-bb i { display: block; height: 100% }
+.ipas .ip-b b { text-align: right; font-variant-numeric: tabular-nums }
+
+.ipas .ip-t { width: 100%; border-collapse: collapse; font-size: 12.5px }
+.ipas .ip-t th { background: var(--fe-tinta, #111); color: var(--fe-papel, #fff); text-align: left; padding: 7px 8px; font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap }
+.ipas .ip-t td { padding: 6px 8px; border-bottom: 1px solid var(--fe-linea); font-variant-numeric: tabular-nums }
+.ipas .ip-t .r { text-align: right }
+.ipas .ip-t .mono { font-family: var(--fe-mono, monospace); font-size: 12px }
+.ipas .ip-t .neg { color: var(--fe-mal, #c8102e) }
+.ipas .ip-t tr.ip-sub td { background: color-mix(in srgb, var(--fe-acento, #FFC300) 14%, transparent); font-weight: 700 }
+.ipas .ip-t tfoot td { background: color-mix(in srgb, var(--fe-acento, #FFC300) 24%, var(--fe-papel, #fff)) }
+.ipas .ip-scroll { overflow-x: auto; max-height: 560px; overflow-y: auto }
+
+@media (max-width: 1100px) { .ipas .ip-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) } .ipas .ip-2-1, .ipas .ip-1-1, .ipas .ip-1-2 { grid-template-columns: 1fr } }
+@media (max-width: 560px) { .ipas .ip-kpis { grid-template-columns: 1fr } .ipas .ip-b { grid-template-columns: 1fr 70px } .ipas .ip-b .ip-bb { grid-column: 1 / -1; grid-row: 2 } }
