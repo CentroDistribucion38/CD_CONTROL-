@@ -692,6 +692,10 @@ export const MODULOS: Modulo[] = [
          (CONTEO FABRICA.xlsx), con la diferencia y la alerta al lado. Una
          sola pantalla: no hay nada que registrar ni que configurar. */
       { nombre: "Balance", ruta: "/inventario/balance", rama: "balance" },
+      /* PASIVOS (BLOQUEADOS.xlsx): la base se alimenta del balance y del archivo plano de la baja
+         proyectada y la rotura de línea; el maestro va al final. El informe viene después. */
+      { nombre: "Pasivos · Base", ruta: "/inventario/balance/pasivos", rama: "balance" },
+      { nombre: "Pasivos · Maestro", ruta: "/inventario/balance/pasivos/maestro", rama: "balance" },
     ],
   },
 ];

@@ -2730,3 +2730,21 @@
   .tp .tp-rango .sg-mes, .tp .tp-rango .sg-mes .mes-campo { width: 100%; max-width: none }
   .tp .filtros .tp-f1 .limpiar { margin-left: 0; width: 100% }
 }
+
+/* ---------- POR PLACA, MÁS ORDENADO: cerrado por defecto y cada viaje en tres columnas fijas ---------- */
+.tp-porplaca .tp-pp-cab { align-items: center }
+.tp-porplaca .tp-pp-abrir {
+  display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 16px; cursor: pointer;
+  font: 700 13px var(--tp-texto, inherit); color: var(--tp-tinta); background: #fff;
+  border: 1.5px solid var(--tp-linea); border-radius: 2px;
+}
+.tp-porplaca .tp-pp-abrir[aria-expanded="true"] { background: var(--tp-fondo) }
+.tp-porplaca .tp-pp-abrir:focus-visible { outline: 3px solid var(--tp-acento); outline-offset: 1px }
+.tp-porplaca .tp-ci-placas { grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)) }
+.ci-placa li { grid-template-columns: 74px minmax(0, 1fr) auto; row-gap: 2px; align-items: start }
+.ci-placa li .h { white-space: nowrap; font-weight: 600 }
+.ci-placa li .r { font-weight: 600; color: var(--tp-tinta) }
+.ci-placa li .d { grid-row: span 2; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; align-self: start; white-space: nowrap }
+.ci-placa li .d small { font: 400 11px var(--tp-texto, inherit) }
+.ci-placa li .ci-salto { padding: 2px 0 }
+@media (max-width: 560px) { .tp-porplaca .tp-ci-placas { grid-template-columns: 1fr } .ci-placa li { grid-template-columns: 64px minmax(0, 1fr) } .ci-placa li .d { grid-column: 2; grid-row: auto; align-items: flex-start } }

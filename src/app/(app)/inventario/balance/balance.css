@@ -268,3 +268,10 @@
 
 /* Sin factor en el maestro no hay cajas ni unidades: se dice en rojo. */
 .bal .bal-tabla td.bal-falta { color: var(--fe-mal, #c8102e); font-weight: 700; font-size: 11px; text-transform: uppercase }
+
+/* Los dos calendarios (el de Traspasos) en la cabecera del Balance. */
+.bal .bal-cal { display: block; gap: 0 }
+.bal .bal-cal .sg-mes { display: flex; flex-direction: column; gap: 6px }
+.bal .bal-cal .sg-mes > span:first-child { font-size: 11.5px; font-weight: 600 }
+.bal .bal-cal .sg-mes .mes-campo { height: 42px; min-width: 220px }
+.bal .bal-cal .sg-mes .mes-panel { left: auto; right: 0 }

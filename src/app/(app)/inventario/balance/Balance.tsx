@@ -4,6 +4,7 @@ import { useState, useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { LineaConsolidado } from "@/modulos/inventario/balance";
 import { Consolidado } from "./Consolidado";
+import { Rango } from "../../sider/seguimiento/Rango";
 import { reclasificar, quitarReclasificacion } from "./actions";
 
 /* ------------------------------------------------------------------ */
@@ -206,22 +207,17 @@ export function Balance({
         {/* «PUEDO TOMAR EL CONSOLIDADO DEL VIERNES O DE CUALQUIER DÍA QUE QUIERA.» */}
         {/* «YO ELIJO CUÁL CONTEO Y CUÁL CASCO TOMAR, DE FECHAS.» */}
         <div className="bal-dias">
-          <label className="bal-dia">
-            <span>Conteo del día</span>
-            <select value={fecha ?? ""} disabled={cambiando || dias.length === 0}
-                    onChange={(e) => startCambio(() => router.push(`/inventario/balance?fecha=${e.target.value}${fechaCasco ? `&casco=${fechaCasco}` : ""}`))}>
-              {dias.length === 0 && <option value="">Sin conteos enviados</option>}
-              {dias.map((d) => <option key={d} value={d}>{diaLargo(d)}</option>)}
-            </select>
-          </label>
-          <label className="bal-dia">
-            <span>Casco del día</span>
-            <select value={fechaCasco ?? ""} disabled={cambiando || diasCasco.length === 0}
-                    onChange={(e) => startCambio(() => router.push(`/inventario/balance?${fecha ? `fecha=${fecha}&` : ""}casco=${e.target.value}`))}>
-              {diasCasco.length === 0 && <option value="">Sin casco guardado</option>}
-              {diasCasco.map((d) => <option key={d} value={d}>{diaLargo(d)}</option>)}
-            </select>
-          </label>
+          {/* CALENDARIO, COMO EN TRASPASOS: solo se pueden tocar los días que tienen conteo (o casco). */}
+          <div className="sd bal-cal">
+            <Rango rotulo="Conteo del día" desde={fecha ?? ""} hasta={fecha ?? ""}
+                   dias={dias.map((d) => ({ fecha: d, hl_zlde: 0, viajes: 1 }))}
+                   alElegir={(d) => startCambio(() => router.push(`/inventario/balance?fecha=${d}${fechaCasco ? `&casco=${fechaCasco}` : ""}`))} />
+          </div>
+          <div className="sd bal-cal">
+            <Rango rotulo="Casco del día" desde={fechaCasco ?? ""} hasta={fechaCasco ?? ""}
+                   dias={diasCasco.map((d) => ({ fecha: d, hl_zlde: 0, viajes: 1 }))}
+                   alElegir={(d) => startCambio(() => router.push(`/inventario/balance?${fecha ? `fecha=${fecha}&` : ""}casco=${d}`))} />
+          </div>
           {cambiando && <em>Trayendo…</em>}
         </div>
       </section>

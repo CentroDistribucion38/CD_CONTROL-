@@ -1,0 +1,45 @@
+/* =====================================================================
+   PASIVOS — la base y el maestro. Usa las piezas del Balance (hoja, chips,
+   barra de marcas) y agrega las entradas, las tarjetas y el origen.
+   ===================================================================== */
+.pas .pas-entradas { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; margin: 4px 0 6px }
+.pas .pas-caja { background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea); padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; box-shadow: inset 0 3px 0 var(--fe-acento, #f5b800) }
+.pas .pas-caja h3 { margin: 0; font-size: 15px }
+.pas .pas-caja > p { margin: 0; font-size: 12.5px; color: var(--fe-gris) }
+.pas .pas-fila { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap }
+.pas .pas-archivo { position: relative; overflow: hidden; display: inline-flex; align-items: center; cursor: pointer }
+.pas .pas-archivo input { position: absolute; inset: 0; opacity: 0; cursor: pointer }
+.pas .pas-plantilla { font-size: 13px; font-weight: 600; color: var(--fe-tinta); text-decoration: underline; padding-bottom: 10px }
+.pas .pas-previa { border-top: 1px dashed var(--fe-linea); padding-top: 8px; display: flex; flex-direction: column; gap: 6px; font-size: 13px }
+.pas .pas-previa p { margin: 0 }
+.pas .mal { color: var(--fe-mal, #c8102e) }
+
+.pas .pas-filtros { border-top: 1px solid var(--fe-linea); margin-top: 8px }
+.pas .pas-sel span { display: block; font-size: 11.5px; font-weight: 600; margin-bottom: 6px }
+.pas .pas-sel select { height: 40px; min-width: 200px; padding: 0 8px; font: 500 14px inherit; border: 1.5px solid var(--fe-linea); background: var(--fe-papel, #fff) }
+.pas .pas-trae { font-style: normal; font-size: 12px; color: var(--fe-gris); padding-bottom: 12px }
+
+.pas .pas-tarjetas { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin: 12px 0 }
+.pas .pas-t { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea) }
+.pas .pas-t span { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--fe-gris) }
+.pas .pas-t b { font-size: 20px; font-variant-numeric: tabular-nums }
+.pas .pas-t i { font-style: normal; font-size: 12px; color: var(--fe-gris) }
+.pas .pas-t.total { background: var(--fe-tinta, #111); border-color: var(--fe-tinta, #111); color: var(--fe-papel, #fff); box-shadow: inset 0 3px 0 var(--fe-acento, #f5b800) }
+.pas .pas-t.total span, .pas .pas-t.total i { color: color-mix(in srgb, var(--fe-papel, #fff) 75%, transparent) }
+
+.pas .pas-tabla tbody tr.marcada td { background: color-mix(in srgb, var(--fe-acento, #f5b800) 20%, transparent) }
+.pas .pas-sin { font-size: 11px; color: var(--fe-mal, #c8102e) }
+.pas .pas-origen { font-size: 11px; font-weight: 700; padding: 1px 7px; border: 1px solid var(--fe-linea); white-space: nowrap }
+.pas .pas-origen.balance { background: color-mix(in srgb, var(--fe-acento, #f5b800) 22%, transparent) }
+.pas .pas-origen.archivo { background: color-mix(in srgb, var(--fe-tinta, #111) 8%, transparent) }
+.pas .pas-borrar { background: var(--fe-mal, #c8102e) !important; color: #fff !important }
+
+/* MAESTRO: celdas que se editan en el sitio. */
+.pas .pas-maestro input { width: 100%; min-width: 70px; height: 32px; padding: 0 6px; font: 500 13px inherit; border: 1px solid transparent; background: transparent }
+.pas .pas-maestro input:hover { border-color: var(--fe-linea) }
+.pas .pas-maestro input:focus { outline: none; border-color: var(--fe-acento, #f5b800); background: var(--fe-papel, #fff) }
+.pas .pas-maestro input.r { text-align: right }
+.pas .pas-maestro tr.sucia td { background: color-mix(in srgb, var(--fe-acento, #f5b800) 12%, transparent) }
+.pas .pas-maestro .pas-acc { white-space: nowrap; display: flex; gap: 6px }
+@media (max-width: 640px) { .pas .pas-entradas { grid-template-columns: 1fr } }
+.pas .pas-origen.historico { background: color-mix(in srgb, #0f7a4a 14%, transparent) }

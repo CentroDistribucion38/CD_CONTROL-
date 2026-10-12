@@ -8,7 +8,7 @@
  * documento de facturación de cada viaje y los saltos de ruta (sale de un sitio distinto a donde
  * había llegado). La placa se filtra aquí mismo, sin volver al servidor.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Viaje } from "@/modulos/traspasos/datos";
 import { placaClave } from "@/modulos/traspasos/formato";
 import { armarPorPlaca, documentoDe } from "@/modulos/traspasos/por-placa";
@@ -33,6 +33,10 @@ export function PorPlaca({ viajes, placa = "", varios }: {
   const nViajes = vistos.reduce((a, g) => a + g.vs.length, 0);
   const nSaltos = vistos.reduce((a, g) => a + g.nSaltos, 0);
   const mostrar = todas || buscado ? vistos : vistos.slice(0, PRIMERAS);
+  /* «SI SELECCIONO POR PLACA ME MUESTRA ESO; SI NO, QUE CUANDO ENTRE ESTÉ CERRADO.» Cerrado por
+     defecto (solo el resumen y el botón); se abre solo cuando arriba se escribe una placa. */
+  const [abierto, setAbierto] = useState(!!buscado);
+  useEffect(() => { setAbierto(!!buscado) }, [buscado]);
 
   return (
     <section className="panel-tabla tp-porplaca">
@@ -44,9 +48,15 @@ export function PorPlaca({ viajes, placa = "", varios }: {
             {nSaltos > 0 && <> · <b className="tp-pp-mal">{nSaltos} salto{nSaltos === 1 ? "" : "s"} de ruta</b></>}
           </p>
         </div>
+        {vistos.length > 0 && (
+          <button type="button" className="tp-pp-abrir" aria-expanded={abierto} onClick={() => setAbierto((a) => !a)}>
+            {abierto ? "Ocultar" : "Ver por placa"}
+            <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d={abierto ? "M2 8l4-4 4 4" : "M2 4l4 4 4-4"} fill="none" stroke="currentColor" strokeWidth="1.6" /></svg>
+          </button>
+        )}
       </div>
 
-      {vistos.length === 0 ? (
+      {!abierto ? null : vistos.length === 0 ? (
         <p className="tp-pp-nada">{buscado ? `Ninguna placa con «${q}» en este rango, turnos y tipos.` : "No hay viajes registrados en este rango."}</p>
       ) : (
         <div className="tp-ci-placas">
@@ -64,7 +74,7 @@ export function PorPlaca({ viajes, placa = "", varios }: {
                       {g.saltos[i] && <span className="ci-salto">Había llegado a {g.saltos[i]}: falta un viaje o la ruta está mal</span>}
                       <span className="h">{varios && `${ddmm(v.fecha)} `}{v.hora ? hhmm(v.hora) : "—"}</span>
                       <span className="r">{(v.origen_nombre ?? v.origen ?? "—")} → {(v.destino_nombre ?? v.destino ?? "—")}</span>
-                      <span className={"d" + (d.sin ? " sin" : "")}>{d.txt}{d.hora && <small> · salió {hhmm(d.hora)}</small>}</span>
+                      <span className={"d" + (d.sin ? " sin" : "")}>{d.txt}{d.hora && <small>salió {hhmm(d.hora)}</small>}</span>
                       <span className="t">{v.tipo_nombre ?? v.tipo ?? "—"}{v.vacio ? " · vacío" : v.carga != null ? ` · ${nf.format(v.carga)}` : ""}</span>
                     </li>
                   );
@@ -74,7 +84,7 @@ export function PorPlaca({ viajes, placa = "", varios }: {
           ))}
         </div>
       )}
-      {!todas && !buscado && vistos.length > PRIMERAS && (
+      {abierto && !todas && !buscado && vistos.length > PRIMERAS && (
         <button type="button" className="tp-pp-mas" onClick={() => setTodas(true)}>
           Ver las {vistos.length} placas
         </button>

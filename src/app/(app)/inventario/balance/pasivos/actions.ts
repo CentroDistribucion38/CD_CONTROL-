@@ -1,0 +1,107 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+import { balanceParaPasivos, type NuevaFila, type MaestroPasivo } from "@/modulos/pasivos/datos";
+
+const RUTA = "/inventario/balance/pasivos";
+const esDia = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s);
+
+/**
+ * TRAER DEL BALANCE — la diferencia en unidades de cada hoja del balance de ese día. Lo que ya se había
+ * traído del balance ESE día se reemplaza (no se duplica); lo del archivo y lo manual no se toca.
+ */
+export async function traerDelBalance(fecha: string, casco?: string | null) {
+  if (!esDia(fecha)) return { error: "Escoge el día del balance." };
+  const supabase = await createClient();
+  /* Un día que ya está cargado del Excel (HISTÓRICO) no se vuelve a traer: quedaría doble. */
+  const { count } = await supabase.from("pasivos_base").select("id", { count: "exact", head: true }).eq("fecha", fecha).eq("origen", "historico");
+  if (count) return { error: `El ${fecha.split("-").reverse().join("/")} ya está cargado tal cual tu Excel (histórico). No se trae del balance para no duplicarlo.` };
+  const { filas, sinFactor, error } = await balanceParaPasivos(fecha, casco);
+  if (error && !filas.length) return { error };
+  const { error: eB } = await supabase.from("pasivos_base").delete().eq("fecha", fecha).eq("origen", "balance");
+  if (eB) return { error: eB.message };
+  if (filas.length) {
+    const { error: eI } = await supabase.from("pasivos_base").insert(filas.map((f) => ({ ...f, origen: "balance" })));
+    if (eI) return { error: eI.message };
+  }
+  revalidatePath(RUTA);
+  return { ok: true, filas: filas.length, sinFactor };
+}
+
+/**
+ * SUBIR EL ARCHIVO PLANO (baja proyectada, rotura de línea). Si ya había filas de ARCHIVO con la misma
+ * fecha y causal, se reemplazan: subir dos veces el mismo archivo no duplica.
+ */
+export async function subirArchivo(filasJson: string, archivo: string) {
+  let filas: NuevaFila[] = [];
+  try { filas = JSON.parse(filasJson) } catch { return { error: "El archivo no se pudo leer." } }
+  filas = filas.filter((f) => esDia(f.fecha) && f.codigo && f.estado && f.causal && f.almacen && Number.isFinite(Number(f.unidades)));
+  if (!filas.length) return { error: "El archivo no trae filas válidas." };
+  const supabase = await createClient();
+  /* Los días que ya están cargados del Excel (HISTÓRICO) no se suben otra vez. */
+  const fechas = [...new Set(filas.map((f) => f.fecha))];
+  const { data: hist } = await supabase.from("pasivos_base").select("fecha").in("fecha", fechas).eq("origen", "historico").limit(1000);
+  const yaHist = new Set((hist ?? []).map((h) => h.fecha as string));
+  if (yaHist.size) {
+    filas = filas.filter((f) => !yaHist.has(f.fecha));
+    if (!filas.length) return { error: `Esas fechas ya están cargadas tal cual tu Excel (histórico): ${[...yaHist].join(", ")}. No se subió nada.` };
+  }
+  const pares = [...new Set(filas.map((f) => `${f.fecha}|${f.causal}`))];
+  for (const p of pares) {
+    const [fecha, causal] = p.split("|");
+    const { error } = await supabase.from("pasivos_base").delete().eq("fecha", fecha).eq("causal", causal).eq("origen", "archivo");
+    if (error) return { error: error.message };
+  }
+  for (let i = 0; i < filas.length; i += 500) {
+    const { error } = await supabase.from("pasivos_base").insert(filas.slice(i, i + 500).map((f) => ({
+      fecha: f.fecha, estado: f.estado, causal: f.causal, codigo: String(f.codigo), unidades: Number(f.unidades),
+      almacen: f.almacen, nota: f.nota || null, origen: "archivo", archivo,
+    })));
+    if (error) return { error: error.message };
+  }
+  revalidatePath(RUTA);
+  return { ok: true, filas: filas.length };
+}
+
+/** BORRAR las filas marcadas. */
+export async function borrarFilas(idsJson: string) {
+  let ids: string[] = [];
+  try { ids = JSON.parse(idsJson) } catch { /* nada */ }
+  if (!ids.length) return { error: "No hay filas marcadas." };
+  const supabase = await createClient();
+  for (let i = 0; i < ids.length; i += 200) {
+    const { error } = await supabase.from("pasivos_base").delete().in("id", ids.slice(i, i + 200));
+    if (error) return { error: error.message };
+  }
+  revalidatePath(RUTA);
+  return { ok: true, filas: ids.length };
+}
+
+/* ---------------------------- MAESTRO ---------------------------- */
+const num = (v: unknown) => (v === "" || v == null || !Number.isFinite(Number(v)) ? null : Number(v));
+
+export async function guardarMaestro(filaJson: string) {
+  let f: Partial<MaestroPasivo> = {};
+  try { f = JSON.parse(filaJson) } catch { return { error: "Datos inválidos." } }
+  const codigo = String(f.codigo ?? "").trim();
+  if (!codigo || !String(f.descripcion ?? "").trim()) return { error: "El código y la descripción son obligatorios." };
+  const supabase = await createClient();
+  const { error } = await supabase.from("pasivos_maestro").upsert({
+    codigo, material: String(f.material ?? "").trim() || codigo, descripcion: String(f.descripcion).trim(),
+    familia: f.familia || null, unidades_por_caja: num(f.unidades_por_caja), plancha: num(f.plancha), alto: num(f.alto),
+    cajas_por_estiba: num(f.cajas_por_estiba), tipo: f.tipo || null, hl_unidad: num(f.hl_unidad),
+    caja: f.caja ? String(f.caja).trim() : null, costo: num(f.costo), activo: f.activo ?? true, actualizado_en: new Date().toISOString(),
+  }, { onConflict: "codigo" });
+  if (error) return { error: error.message };
+  revalidatePath(RUTA); revalidatePath(RUTA + "/maestro");
+  return { ok: true };
+}
+
+export async function borrarMaestro(codigo: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("pasivos_maestro").delete().eq("codigo", codigo);
+  if (error) return { error: error.message };
+  revalidatePath(RUTA + "/maestro");
+  return { ok: true };
+}

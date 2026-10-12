@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { balanceDelDia } from "@/modulos/inventario/balance";
+import "../../sider/sider.css";
 import "../fefo.css";
 import "./balance.css";
 import { Balance } from "./Balance";

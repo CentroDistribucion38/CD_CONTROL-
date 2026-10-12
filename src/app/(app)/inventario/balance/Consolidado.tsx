@@ -33,7 +33,8 @@ export function Consolidado({ lineas, fecha }: { lineas: LineaConsolidado[]; fec
     const hay = new Set(lineas.map((l) => l.estado));
     return [...BASE.filter((e) => hay.has(e)), ...[...hay].filter((e) => !BASE.includes(e)).sort()];
   }, [lineas]);
-  const destinos = useMemo(() => [...new Set([...BASE, ...todos])], [todos]);
+  /* La base solo acepta reasignar a estos tres (balance_reclasificaciones). */
+  const destinos = BASE;
 
   /* Filtro de SKU: uno o varios códigos (espacio o coma), o palabras del nombre (todas). */
   const terminos = sinTilde(q).split(/[\s,;]+/).filter(Boolean);
