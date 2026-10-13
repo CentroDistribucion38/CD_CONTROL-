@@ -28,6 +28,9 @@ const ESTIBA = "3500163";
 /** «No sumar»: la línea OTROS no entra a ningún envase. */
 export const NO_SUMAR = "NO";
 const esOtros = (e: string | null | undefined) => /OTRO/i.test(e ?? "");
+/* Envases cuya caja NO se suma a las cajas plásticas del cuadre, como en el Excel FABRICA: la botella
+   850 (3501539) va en la caja 1000 x13 (3501211), pero su caja no entra al conteo de esa caja. */
+const CAJA_FUERA_DEL_CUADRE = new Set(["3501539"]);
 
 export type ZexiFila = { codigo: string; descripcion: string; cantidad: number };
 export type MovFila = { codigo: string; cantidad: number; documentos: string[] };
@@ -38,7 +41,17 @@ export type CuadreGuardado = {
   movimientos: MovFila[] | null; mov_archivo: string | null; mov_en: string | null;
   /** A qué envase va cada línea OTROS: { id del renglón: código | "NO" }. Sin la línea = al que se contó. */
   otros?: Record<string, string> | null;
+  /** El balanceo guardado de ese día (el botón «Guardar balanceo del día»). */
+  cierre?: BalanceoGuardado | null; cerrado_en?: string | null; cerrado_nombre?: string | null;
 };
+/** Lo que se congela al guardar el balanceo de un día. */
+export type ResumenBalanceo = { materiales: number; conSap: number; cuadran: number; balanceados: number; pendientes: number; conMov: boolean };
+export type FilaGuardada = Pick<FilaCuadre, "grupo" | "codigo" | "material" | "total" | "sap" | "dif" | "movido" | "sapDespues" | "queda">;
+export type BalanceoGuardado = {
+  resumen: ResumenBalanceo; filas: FilaGuardada[]; aplicados: Aplicado[];
+  zexi_archivo: string | null; mov_archivo: string | null; estibas_almacen: number | null; sumar_pend_baja: boolean;
+};
+export type DiaHistorial = { fecha: string; cerrado_en: string | null; cerrado_nombre: string | null; cierre: BalanceoGuardado };
 /** Una línea del conteo de fábrica en estado OTROS (Andina…), con el envase al que se suma. */
 export type LineaOtros = {
   id: string; ubicacion: string; codigo: string; material: string; nota: string | null;
@@ -50,6 +63,8 @@ export type LineaOtros = {
   elegido: boolean;
 };
 export type Grupo = "ENVASE" | "CAJA" | "ESTIBA";
+/** Lo que la app le aplicó a una referencia, con el porqué, para que cada movimiento se entienda. */
+export type Aplicado = { codigo: string; material: string; que: string; cantidad: number; unidad: string; porque: string; apagado?: boolean };
 export type FilaCuadre = {
   grupo: Grupo; codigo: string; material: string;
   /** Lo contado en la fábrica (envase × unidades/caja; cajas; estibas). */
@@ -79,11 +94,11 @@ export async function armarCuadre(pedida?: string | null) {
   const supabase = await createClient();
   const { dias, conteos, error: e0 } = await diasConConteo();
   const fecha = pedida && dias.includes(pedida) ? pedida : (dias[0] ?? null);
-  const base = { fecha, dias, filas: [] as FilaCuadre[], guardado: null as CuadreGuardado | null, estibasBodega: 0, avisos: [] as string[], error: e0, faltaSql: false,
-    otros: [] as LineaOtros[], envases: [] as { codigo: string; material: string }[] };
+  const base = { fecha, dias, filas: [] as FilaCuadre[], guardado: null as CuadreGuardado | null, estibasBodega: 0, avisos: [] as string[], error: e0, faltaSql: false, historial: [] as DiaHistorial[], faltaHist: false,
+    otros: [] as LineaOtros[], envases: [] as { codigo: string; material: string }[], aplicados: [] as Aplicado[] };
   if (!fecha) return base;
 
-  const [cons, prodR, maesR, pas, casco, sitiosR, guardR] = await Promise.all([
+  const [cons, prodR, maesR, pas, casco, sitiosR, guardR, histR] = await Promise.all([
     consolidadoDelDia(fecha, conteos),
     supabase.from("productos").select("sku, nombre, unidades_por_caja, cajas_por_estiba"),
     supabase.from("pasivos_maestro").select("codigo, descripcion, familia, unidades_por_caja, cajas_por_estiba, caja"),
@@ -91,6 +106,8 @@ export async function armarCuadre(pedida?: string | null) {
     leerCasco(),
     supabase.from("casco_ubicaciones").select("clave, centro"),
     supabase.from("cuadre_sap").select("*").eq("fecha", fecha).eq("almacen", ALMACEN_CUADRE).maybeSingle(),
+    supabase.from("cuadre_sap").select("fecha, cerrado_en, cerrado_nombre, cierre").eq("almacen", ALMACEN_CUADRE)
+      .not("cierre", "is", null).order("fecha", { ascending: false }).limit(90),
   ]);
   if (guardR.error && /cuadre_sap|does not exist|PGRST205/i.test(`${guardR.error.code} ${guardR.error.message}`)) return { ...base, faltaSql: true };
   const avisos: string[] = [];
@@ -110,11 +127,13 @@ export async function armarCuadre(pedida?: string | null) {
   const cpe = (c: string) => Number(M.get(c)?.cajas_por_estiba ?? P.get(c)?.cajas_por_estiba ?? 0) || 0;
   const nombre = (c: string, alt?: string | null) => M.get(c)?.descripcion ?? P.get(c)?.nombre ?? alt ?? c;
 
-  type Acc = { codigo: string; material: string; conteo: number; sueltas: number; conEnvase: number; pend: number; lav: number; andina: number; otrosCajas: number };
+  type Acc = { codigo: string; material: string; conteo: number; sueltas: number; conEnvase: number; pend: number; lav: number; andina: number; otrosCajas: number; fuera: number; fueraDe: string;
+    lavEst: number; causales: Set<string>; porEnvase: Map<string, number> };
   const acc = new Map<string, Acc>();
   const de = (c: string, alt?: string | null) => {
     let a = acc.get(c);
-    if (!a) { a = { codigo: c, material: nombre(c, alt), conteo: 0, sueltas: 0, conEnvase: 0, pend: 0, lav: 0, andina: 0, otrosCajas: 0 }; acc.set(c, a) }
+    if (!a) { a = { codigo: c, material: nombre(c, alt), conteo: 0, sueltas: 0, conEnvase: 0, pend: 0, lav: 0, andina: 0, otrosCajas: 0, fuera: 0, fueraDe: "",
+      lavEst: 0, causales: new Set(), porEnvase: new Map() }; acc.set(c, a) }
     return a;
   };
 
@@ -144,8 +163,9 @@ export async function armarCuadre(pedida?: string | null) {
         estibas: Number(r.estibas) || 0, cajas, destino: destino || NO_SUMAR, unidades: destino ? cajas * upc(destino) : 0, elegido: !!elegido && elegido !== c });
       if (destino) de(destino).otrosCajas += cajas;
     }
-    const cajaDe = M.get(destino || c)?.caja;
-    if (cajaDe) de(String(cajaDe)).conEnvase += cajas;
+    const env = destino || c, cajaDe = M.get(env)?.caja;
+    if (cajaDe && CAJA_FUERA_DEL_CUADRE.has(env)) { const k = de(String(cajaDe)); k.fuera += cajas; k.fueraDe = nombre(env) }
+    else if (cajaDe) { const k = de(String(cajaDe)); k.conEnvase += cajas; k.porEnvase.set(env, (k.porEnvase.get(env) ?? 0) + cajas) }
     if (destino) de(destino, destino === c ? r.material : null).conteo += cajas * upc(destino);
   }
 
@@ -154,7 +174,7 @@ export async function armarCuadre(pedida?: string | null) {
     if (f.almacen !== ALMACEN_CUADRE || String(f.estado).toUpperCase() !== "BAJA") continue;
     const a = de(String(f.codigo), f.descripcion);
     if (String(f.causal).toUpperCase() === "SORTING") a.pend += Number(f.unidades) || 0;
-    else a.andina += Number(f.unidades) || 0;
+    else { a.andina += Number(f.unidades) || 0; a.causales.add(String(f.causal ?? "").toUpperCase() || "SIN CAUSAL") }
   }
 
   /* 3. LAVADO CON BAJA (Casco AG18, su último registro hasta el día): en negativo. */
@@ -166,7 +186,7 @@ export async function armarCuadre(pedida?: string | null) {
     for (const x of suyos) {
       if (x.fecha !== ult || !x.baja) continue;
       const c = String(x.sku);
-      de(c).lav -= Number(x.baja) * cpe(c) * upc(c);
+      const a = de(c); a.lav -= Number(x.baja) * cpe(c) * upc(c); a.lavEst += Number(x.baja);
     }
   }
 
@@ -184,7 +204,8 @@ export async function armarCuadre(pedida?: string | null) {
     let conteo = a.conteo, detalle: string | null = null, almacen = 0;
     if (grupo === "CAJA") {
       conteo = a.sueltas + a.conEnvase;
-      detalle = [a.sueltas ? `${nf.format(a.sueltas)} sueltas` : "", a.conEnvase ? `${nf.format(a.conEnvase)} con envase` : ""].filter(Boolean).join(" + ") || null;
+      detalle = [a.sueltas ? `${nf.format(a.sueltas)} sueltas` : "", a.conEnvase ? `${nf.format(a.conEnvase)} con envase` : ""].filter(Boolean).join(" + ")
+        + (a.fuera ? ` · sin las ${nf.format(a.fuera)} de ${a.fueraDe}` : "") || null;
     } else if (grupo === "ESTIBA") {
       conteo = estSueltas + estBajo; almacen = estAlm;
       detalle = `${nf.format(estSueltas)} sueltas + ${nf.format(estBajo)} bajo el envase` + (estAlm ? ` + ${nf.format(estAlm)} del almacén` : "");
@@ -208,5 +229,37 @@ export async function armarCuadre(pedida?: string | null) {
   const envases = [...new Set([...[...M.keys()].filter((c) => grupoDe(c) === "ENVASE"), ...envasesVistos])]
     .map((c) => ({ codigo: c, material: nombre(c) })).sort((x, y) => x.codigo.localeCompare(y.codigo));
 
-  return { ...base, filas, guardado, estibasBodega, avisos, otros, envases };
+  /* LO QUE SE APLICÓ, REFERENCIA POR REFERENCIA: el porqué de cada cifra que no es el conteo tal cual. */
+  const aplicados: Aplicado[] = [];
+  const pon = (a: Acc, que: string, cantidad: number, unidad: string, porque: string, apagado = false) => {
+    if (cantidad) aplicados.push({ codigo: a.codigo, material: a.material, que, cantidad: redondo(cantidad), unidad, porque, apagado });
+  };
+  const listados = new Set(filas.map((f) => f.codigo));
+  for (const a of [...acc.values()].filter((x) => listados.has(x.codigo)).sort((x, y) => x.codigo.localeCompare(y.codigo))) {
+    const g = grupoDe(a.codigo);
+    if (g === "ENVASE") {
+      for (const o of otros.filter((x) => x.destino === a.codigo))
+        pon(a, "OTROS sumado", o.unidades, "u", `${nf.format(o.cajas)} cajas (${nf.format(o.estibas)} estibas) en ${o.ubicacion}${o.nota ? ` · nota «${o.nota}»` : ""}`
+          + (o.codigo === a.codigo ? " · se contaron como este código" : ` · se contaron como ${o.codigo} y se pasaron aquí`));
+      for (const o of otros.filter((x) => x.codigo === a.codigo && x.destino !== a.codigo))
+        aplicados.push({ codigo: a.codigo, material: a.material, que: "OTROS que no suma aquí", cantidad: o.cajas, unidad: "cajas",
+          porque: `${o.ubicacion}${o.nota ? ` · «${o.nota}»` : ""} · ${o.destino === NO_SUMAR ? "se escogió no sumarlas" : `se pasaron a ${o.destino} · ${nombre(o.destino)}`}` });
+      pon(a, "Pend. baja", a.pend, "u", "Pasivos AG18 · BAJA · SORTING del día" + (sumarPend ? "" : " · el interruptor está apagado: no se suma"), !sumarPend);
+      pon(a, "Lavado con baja", a.lav, "u", `Casco AG18: ${nf.format(a.lavEst)} estibas en baja × ${nf.format(cpe(a.codigo))} cajas × ${nf.format(upc(a.codigo))} u · se restan`);
+      pon(a, "Andina / Heineken", a.andina, "u", `Pasivos AG18 · BAJA · ${[...a.causales].join(", ")}`);
+    } else if (g === "CAJA") {
+      pon(a, "Caja de cada envase", a.conEnvase, "cajas", [...a.porEnvase].sort((x, y) => y[1] - x[1]).map(([c, q]) => `${c}: ${nf.format(q)}`).join(" · "));
+      if (a.fuera) aplicados.push({ codigo: a.codigo, material: a.material, que: "No se suma", cantidad: a.fuera, unidad: "cajas", apagado: true,
+        porque: `Las cajas de ${a.fueraDe} van en esta caja, pero no entran a su conteo (como en el Excel FABRICA)` });
+    } else {
+      pon(a, "Estibas bajo el envase", estBajo, "estibas", "1 por cada estiba contada debajo del envase y las cajas, y 1 por renglón con saldo o sueltas");
+      pon(a, "Estibas del almacén", estAlm, "estibas", "Digitadas en la tarjeta «Estibas en almacén AG18»");
+    }
+  }
+
+  /* EL HISTÓRICO: los días con el balanceo guardado, del más nuevo al más viejo. */
+  const faltaHist = !!histR.error && /cierre|cerrado/i.test(histR.error.message);
+  const historial = (histR.error ? [] : (histR.data ?? [])) as DiaHistorial[];
+
+  return { ...base, filas, guardado, estibasBodega, avisos, otros, envases, aplicados, historial, faltaHist };
 }

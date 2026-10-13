@@ -3,8 +3,8 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Rango } from "../../../sider/seguimiento/Rango";
-import type { CuadreGuardado, FilaCuadre, LineaOtros } from "@/modulos/inventario/cuadre";
-import { asignarOtros, guardarMovimientos, guardarOpciones, guardarZexi, quitarMovimientos } from "./actions";
+import type { Aplicado, CuadreGuardado, DiaHistorial, FilaCuadre, LineaOtros } from "@/modulos/inventario/cuadre";
+import { asignarOtros, guardarBalanceo, guardarMovimientos, guardarOpciones, guardarZexi, quitarMovimientos } from "./actions";
 import { leerMovimientos, leerZexi } from "./leer";
 
 /**
@@ -34,10 +34,11 @@ const IconoOtros = () => (
   </svg>
 );
 
-export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, error, otros, envases }: {
+export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, error, otros, envases, aplicados, historial, faltaHist }: {
   fecha: string | null; dias: string[]; filas: FilaCuadre[]; guardado: CuadreGuardado | null;
   estibasBodega: number; avisos: string[]; error: string | null;
-  otros: LineaOtros[]; envases: { codigo: string; material: string }[];
+  otros: LineaOtros[]; envases: { codigo: string; material: string }[]; aplicados: Aplicado[];
+  historial: DiaHistorial[]; faltaHist: boolean;
 }) {
   const router = useRouter();
   const [pend, start] = useTransition();
@@ -46,6 +47,8 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
   const zexiRef = useRef<HTMLInputElement>(null);
   const movRef = useRef<HTMLInputElement>(null);
   const [verOtros, setVerOtros] = useState(false);
+  const [reemplazar, setReemplazar] = useState(false);
+  const [abierto, setAbierto] = useState<string | null>(null);
 
   if (!fecha) {
     return <section className="cabeza"><div><p className="ojo">INVENTARIO · BALANCE · CUADRE SAP</p><h1>Cuadre SAP</h1>
@@ -108,11 +111,28 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
 
   return (
     <>
-      <section className="cabeza">
+      <section className="cabeza cs-cabeza">
         <div>
           <p className="ojo">INVENTARIO · BALANCE · CUADRE SAP</p>
           <h1>Cuadre SAP · AG18 Fábrica</h1>
           <p className="sub">El conteo del <b>{largo(fecha)}</b> contra el stock de SAP (ZEXI). La diferencia es el movimiento 311 entre AG18 y AG22.{pend && " · guardando…"}</p>
+        </div>
+        {/* GUARDAR EL BALANCEO DEL DÍA: queda en el histórico de abajo. Volver a guardar lo reemplaza. */}
+        <div className="cs-guardar">
+          {guardado?.cierre
+            ? <span className="cs-guardado">✓ Guardado {hora(guardado.cerrado_en ?? null)}{guardado.cerrado_nombre ? ` · ${guardado.cerrado_nombre}` : ""}</span>
+            : <span className="cs-guardado no">Este día no está guardado</span>}
+          {reemplazar ? (
+            <span className="cs-acc">
+              <button type="button" className="cs-bt" disabled={pend} onClick={() => { setReemplazar(false); hacer(guardarBalanceo(fecha), "Balanceo del día guardado otra vez (reemplazó el anterior).") }}>Sí, reemplazar</button>
+              <button type="button" className="cs-bt alt" onClick={() => setReemplazar(false)}>No</button>
+            </span>
+          ) : (
+            <button type="button" className="cs-bt" disabled={pend || !conZexi} title={conZexi ? undefined : "Sube primero la ZEXI de SAP de ese día"}
+                    onClick={() => guardado?.cierre ? setReemplazar(true) : hacer(guardarBalanceo(fecha), "Balanceo del día guardado en el histórico.")}>
+              {guardado?.cierre ? "Volver a guardar" : "Guardar balanceo del día"}
+            </button>
+          )}
         </div>
       </section>
 
@@ -176,16 +196,17 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
       </div>
       {!conZexi && <p className="cs-msg">Sube el ZEXI de SAP de ese día para ver la diferencia. Mientras tanto, abajo está lo que la app ya armó del conteo.</p>}
 
-      {otros.length > 0 && (
+      {(otros.length > 0 || aplicados.length > 0) && (
         <div className={"cs-otros" + (verOtros ? " abierto" : "")}>
           <button type="button" className="cs-otros-bt" aria-expanded={verOtros} onClick={() => setVerOtros((v) => !v)}>
             <IconoOtros />
-            <b>OTROS</b>
-            <span>{otros.length} {otros.length === 1 ? "línea" : "líneas"} · {n(cajasOtros)} cajas</span>
-            <em>{otrosSinCambiar ? `${otrosSinCambiar} sumando a su código` : "Todas asignadas"}</em>
+            <b>OTROS Y AJUSTES</b>
+            <span>{otros.length ? `${otros.length} ${otros.length === 1 ? "línea" : "líneas"} OTROS · ${n(cajasOtros)} cajas · ` : ""}{aplicados.length} ajustes aplicados</span>
+            {otros.length > 0 && <em>{otrosSinCambiar ? `${otrosSinCambiar} sumando a su código` : "Todas asignadas"}</em>}
             <i aria-hidden="true">{verOtros ? "▴" : "▾"}</i>
           </button>
-          {verOtros && (
+          {verOtros && otros.length > 0 && <h4 className="cs-otros-h">Líneas en estado OTROS · escoge a qué envase suman</h4>}
+          {verOtros && otros.length > 0 && (
             <div className="cs-scroll">
               <table className="cs-t chica">
                 <thead><tr><th>Ubicación</th><th>Contado como</th><th>Nota</th><th className="n">Estibas</th><th className="n">Cajas</th><th>Sumar a</th><th className="n">Unidades</th></tr></thead>
@@ -209,6 +230,25 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                 ))}</tbody>
               </table>
             </div>
+          )}
+          {verOtros && aplicados.length > 0 && (
+            <>
+              <h4 className="cs-otros-h">Lo que la app aplicó a cada referencia · el porqué de cada cifra</h4>
+              <div className="cs-scroll">
+                <table className="cs-t chica">
+                  <thead><tr><th>Código</th><th>Material</th><th>Qué se aplicó</th><th className="n">Cantidad</th><th>Por qué</th></tr></thead>
+                  <tbody>{aplicados.map((x, i) => (
+                    <tr key={`${x.codigo}-${i}`} className={x.apagado ? "apagado" : ""}>
+                      <td className="mono">{(i === 0 || aplicados[i - 1].codigo !== x.codigo) ? x.codigo : ""}</td>
+                      <td>{(i === 0 || aplicados[i - 1].codigo !== x.codigo) ? x.material : ""}</td>
+                      <td><b>{x.que}</b></td>
+                      <td className={"n" + (x.cantidad < 0 ? " neg" : "")}>{conSigno(x.cantidad)} <em>{x.unidad}</em></td>
+                      <td className="cs-porque">{x.porque}</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       )}
@@ -302,6 +342,56 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
             </table>
           </div>
         </>
+      )}
+
+      {/* ---------- HISTÓRICO ---------- */}
+      <h2 className="cs-h"><i>H</i> Histórico de balanceos</h2>
+      {faltaHist ? <p className="cs-msg mal">Falta correr supabase/migraciones/2026-10-cuadre-sap-historial.sql en Supabase para guardar el histórico.</p>
+        : historial.length === 0 ? <p className="cs-msg">Todavía no hay balanceos guardados. Con el botón «Guardar balanceo del día» (arriba) cada día queda aquí.</p> : (
+        <div className="cs-scroll">
+          <table className="cs-t cs-hist">
+            <thead><tr><th>Día</th><th>Guardado</th><th className="n">Materiales</th><th className="n">Cuadraban (paso 1)</th><th className="n">Balanceados</th><th className="n">Pendientes</th><th>Estado</th><th></th></tr></thead>
+            <tbody>
+              {historial.map((h) => {
+                const r = h.cierre.resumen, ver = abierto === h.fecha;
+                return [
+                  <tr key={h.fecha} className={h.fecha === fecha ? "hoy" : ""}>
+                    <td><b>{largo(h.fecha)}</b><small>{h.fecha.slice(0, 4)}</small></td>
+                    <td>{hora(h.cerrado_en)}<small>{h.cerrado_nombre ?? ""}</small></td>
+                    <td className="n">{r.conSap}</td>
+                    <td className="n">{r.cuadran}</td>
+                    <td className="n"><b>{r.balanceados}</b></td>
+                    <td className={"n" + (r.pendientes ? " neg" : "")}><b>{r.pendientes}</b></td>
+                    <td>{r.pendientes === 0 ? <span className="cs-chip ok">Todo balanceado</span>
+                      : <span className="cs-chip in">{r.pendientes} pendientes{r.conMov ? "" : " · sin ZEXI nueva"}</span>}</td>
+                    <td className="cs-hacc">
+                      <button type="button" className="cs-bt alt" aria-expanded={ver} onClick={() => setAbierto(ver ? null : h.fecha)}>{ver ? "Ocultar" : "Ver"}</button>
+                      {h.fecha !== fecha && <button type="button" className="cs-bt alt" disabled={pend} onClick={() => start(() => router.push(`/inventario/balance/cuadre?fecha=${h.fecha}`))}>Abrir y editar</button>}
+                    </td>
+                  </tr>,
+                  ver && (
+                    <tr key={`${h.fecha}-v`} className="cs-hver"><td colSpan={8}>
+                      <p className="cs-hnota">Lo guardado: ZEXI {h.cierre.zexi_archivo ?? "—"}{h.cierre.mov_archivo ? ` · ZEXI nueva / 311 ${h.cierre.mov_archivo}` : ""} · estibas del almacén {h.cierre.estibas_almacen ?? 0} · pend. baja {h.cierre.sumar_pend_baja ? "se sumaba" : "no se sumaba"}</p>
+                      <table className="cs-t chica">
+                        <thead><tr><th>Código</th><th>Material</th><th className="n">Conteo</th><th className="n">SAP antes</th><th className="n">311</th><th className="n">SAP después</th><th className="n">Queda</th><th>Estado</th></tr></thead>
+                        <tbody>{h.cierre.filas.filter((f) => f.sap != null).map((f) => (
+                          <tr key={f.codigo} className={cero(f.queda) ? "" : "pend"}>
+                            <td className="mono">{f.codigo}</td><td>{f.material}</td>
+                            <td className="n">{n(f.total)}</td><td className="n">{n(f.sap!)}</td>
+                            <td className="n">{cero(f.dif) ? "0" : conSigno(f.dif!)}</td>
+                            <td className="n">{f.sapDespues == null ? "—" : n(f.sapDespues)}</td>
+                            <td className="n"><b>{cero(f.queda) ? "0" : conSigno(f.queda!)}</b></td>
+                            <td>{cero(f.queda) ? <span className="cs-chip ok">Balanceado</span> : <span className="cs-chip in">Falta {n(Math.abs(f.queda!))}</span>}</td>
+                          </tr>
+                        ))}</tbody>
+                      </table>
+                    </td></tr>
+                  ),
+                ];
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
     </>
   );

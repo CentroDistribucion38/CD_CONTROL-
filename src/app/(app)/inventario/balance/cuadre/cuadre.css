@@ -108,6 +108,24 @@
 .cs .cs-sel:focus-visible { outline: 3px solid var(--fe-acento, #FFC400); outline-offset: 1px }
 .cs .cs-chip.otr { display: inline-flex; align-items: center; gap: 4px; margin-top: 3px; border: 0; cursor: pointer; background: #F1EDFB; color: #4B3590 }
 .cs .cs-chip.otr svg { width: 13px; height: 13px }
+.cs .cs-otros-h { margin: 0; padding: 9px 14px; border-top: 1px solid var(--fe-linea); background: var(--fe-fondo);
+  font: 700 11px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase; color: var(--fe-gris) }
+.cs .cs-t td.cs-porque { font-size: 12.5px; color: var(--fe-gris); min-width: 280px }
+.cs .cs-t tr.apagado td { color: var(--fe-gris) }
+
+/* El botón «Guardar balanceo del día» a la derecha del título */
+.cs .cs-cabeza { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 14px }
+.cs .cs-guardar { display: flex; flex-direction: column; align-items: flex-end; gap: 6px }
+.cs .cs-guardado { font: 700 12.5px var(--fe-texto); color: #1E6B37 }
+.cs .cs-guardado.no { color: var(--fe-gris); font-weight: 500 }
+.cs .cs-guardar .cs-bt { min-height: 40px; padding: 0 18px; font-size: 14px }
+/* El histórico */
+.cs .cs-hist td small { display: block; font-size: 11.5px; color: var(--fe-gris) }
+.cs .cs-hist tr.hoy > td { background: color-mix(in srgb, var(--fe-acento, #FFC400) 10%, var(--fe-papel, #fff)) }
+.cs .cs-hacc { white-space: nowrap; text-align: right }
+.cs .cs-hacc .cs-bt { margin: 0 0 0 6px; min-height: 30px; padding: 0 10px; font-size: 12.5px }
+.cs .cs-hver > td { background: var(--fe-fondo); padding: 10px 12px 14px }
+.cs .cs-hnota { margin: 0 0 8px; font-size: 12px; color: var(--fe-gris) }
 
 @media (max-width: 900px) {
   .cs .cs-pasos { grid-template-columns: 1fr } .cs .cs-pasos li { border-right: 0 }
