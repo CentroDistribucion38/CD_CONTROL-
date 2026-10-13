@@ -21,3 +21,11 @@ export function esExcluido(codigo: unknown, nombre?: string | null, donde: "pasi
   if (NUEVOS.has(c) || /\bBARRIL/i.test(nombre ?? "")) return true;
   return donde === "pasivos" && c === ESTIBA_MADERA;
 }
+
+/**
+ * EL DESCUENTO ESTÁNDAR: «en la base, este SKU puntual 3500005, de las unidades que tenga en AG22, que
+ * haya una casilla para descontarle este valor estándar: 216.296».
+ * Se guarda como un renglón MANUAL en negativo (BAJA · PRESORTING · AG22) con esta nota, así se ve en
+ * la base, suma en los totales y entra al cuadre de AG22.
+ */
+export const DESCUENTO_ESTANDAR = { codigo: "3500005", almacen: "AG22", estado: "BAJA", causal: "PRESORTING", unidades: 216296, nota: "Descuento estándar" } as const;

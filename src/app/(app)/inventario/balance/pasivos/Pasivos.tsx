@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
 import type { CierrePasivos, FilaPasivo, NuevaFila } from "@/modulos/pasivos/datos";
 import { Rango } from "../../../sider/seguimiento/Rango";
-import { borrarFilas, guardarDiaPasivos, subirArchivo, traerDelBalance } from "./actions";
+import { borrarFilas, descuentoEstandar, guardarDiaPasivos, subirArchivo, traerDelBalance } from "./actions";
+import { DESCUENTO_ESTANDAR } from "@/modulos/pasivos/excluidos";
 
 /**
  * PASIVOS · LA BASE. Lo de la hoja DATA de BLOQUEADOS.xlsx: se filtra por fechas (el calendario de
@@ -89,6 +90,23 @@ export function Pasivos({ filas, error, desde, hasta, dias, diasConteo, codigos,
   const unDia = desde === hasta ? desde : null;
   const cierreDelDia = unDia ? cierres.find((c) => c.fecha === unDia) ?? null : null;
   const cuando = (iso: string) => new Date(iso).toLocaleString("es-CO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  /* LA CASILLA DEL DESCUENTO ESTÁNDAR (3500005 · AG22): marcada = hay ese renglón manual en negativo ese día. */
+  const DE = DESCUENTO_ESTANDAR;
+  const descuento = unDia ? filas.find((f) => f.fecha === unDia && f.codigo === DE.codigo && f.almacen === DE.almacen && f.origen === "manual" && (f.nota ?? "").startsWith(DE.nota)) ?? null : null;
+  const [valorDesc, setValorDesc] = useState(String(DE.unidades));
+  const unidades3500005 = unDia ? filas.filter((f) => f.fecha === unDia && f.codigo === DE.codigo && f.almacen === DE.almacen && f !== descuento).reduce((t, f) => t + f.unidades, 0) : 0;
+  function cambiarDescuento(poner: boolean) {
+    if (!unDia) return;
+    const v = Number(valorDesc.replace(/\D/g, ""));
+    if (poner && !(v > 0)) { setAviso({ tipo: "mal", texto: "El valor a descontar debe ser un número mayor que cero." }); return }
+    setAviso(null);
+    start(async () => {
+      const r = await descuentoEstandar(unDia, poner ? v : null);
+      if ("error" in r && r.error) { setAviso({ tipo: "mal", texto: r.error }); return }
+      setAviso({ tipo: "ok", texto: poner ? `Descontadas ${n0(v)} u a ${DE.codigo} en ${DE.almacen} el ${ddmmaaaa(unDia)}.` : `Se quitó el descuento de ${DE.codigo} en ${DE.almacen}.` });
+      router.refresh();
+    });
+  }
   function guardarDia() {
     if (!unDia) return;
     setAviso(null);
@@ -213,6 +231,26 @@ export function Pasivos({ filas, error, desde, hasta, dias, diasConteo, codigos,
         </div>
       )}
       {faltaCierres && puedeEditar && <p className="bal-conso-aviso mal">Para guardar el día falta correr supabase/migraciones/2026-10-pasivos-cierres.sql en Supabase.</p>}
+
+      {/* ---- EL DESCUENTO ESTÁNDAR DE 3500005 EN AG22 ---- */}
+      {puedeEditar && unDia && (
+        <div className={"pas-desc" + (descuento ? " on" : "")}>
+          <label className="pas-desc-chk">
+            <input type="checkbox" checked={!!descuento} disabled={pending} onChange={(e) => cambiarDescuento(e.target.checked)} />
+            <span>
+              <b>Descontar a {DE.codigo} en {DE.almacen}</b>
+              <small>{descuento
+                ? `Descontado: ${n0(Math.abs(descuento.unidades))} u (renglón manual ${DE.estado} · ${DE.causal}). Quedan ${n0(unidades3500005 + descuento.unidades)} u de ${n0(unidades3500005)}.`
+                : `Tiene ${n0(unidades3500005)} u en ${DE.almacen} este día. Al marcar, se le resta el valor estándar.`}</small>
+            </span>
+          </label>
+          <span className="pas-desc-val">
+            <input inputMode="numeric" value={valorDesc} onChange={(e) => setValorDesc(e.target.value)} aria-label="Unidades a descontar"
+                   onBlur={() => { if (descuento && Number(valorDesc.replace(/\D/g, "")) !== Math.abs(descuento.unidades)) cambiarDescuento(true) }} />
+            <small>unidades</small>
+          </span>
+        </div>
+      )}
 
       {/* ---- ENTRADAS ---- */}
       {puedeEditar && (

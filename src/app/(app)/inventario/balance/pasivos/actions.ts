@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { balanceParaPasivos, leerPasivos, resumirPasivos, type NuevaFila, type MaestroPasivo } from "@/modulos/pasivos/datos";
-import { esExcluido } from "@/modulos/pasivos/excluidos";
+import { DESCUENTO_ESTANDAR, esExcluido } from "@/modulos/pasivos/excluidos";
 
 const RUTA = "/inventario/balance/pasivos";
 const esDia = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s);
@@ -135,4 +135,26 @@ export async function guardarDiaPasivos(fecha: string) {
   if (e) return { error: /pasivos_cierres|does not exist|PGRST205/i.test(e.message) ? "Falta correr supabase/migraciones/2026-10-pasivos-cierres.sql en Supabase." : e.message };
   revalidatePath(RUTA);
   return { ok: true, filas: data.length };
+}
+
+/**
+ * LA CASILLA DEL DESCUENTO ESTÁNDAR (3500005 · AG22): `valor` > 0 lo pone (un renglón manual en negativo
+ * ese día; si ya había, lo reemplaza); null o 0 lo quita.
+ */
+export async function descuentoEstandar(fecha: string, valor: number | null) {
+  if (!esDia(fecha)) return { error: "Escoge un solo día." };
+  const d = DESCUENTO_ESTANDAR;
+  const supabase = await createClient();
+  const { error: e1 } = await supabase.from("pasivos_base").delete()
+    .eq("fecha", fecha).eq("codigo", d.codigo).eq("almacen", d.almacen).eq("origen", "manual").like("nota", `${d.nota}%`);
+  if (e1) return { error: e1.message };
+  if (valor && valor > 0) {
+    const { error: e2 } = await supabase.from("pasivos_base").insert({
+      fecha, estado: d.estado, causal: d.causal, codigo: d.codigo, unidades: -Math.abs(Math.round(valor)),
+      almacen: d.almacen, origen: "manual", nota: d.nota,
+    });
+    if (e2) return { error: e2.message };
+  }
+  revalidatePath(RUTA);
+  return { ok: true };
 }
