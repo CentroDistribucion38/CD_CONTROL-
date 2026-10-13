@@ -317,3 +317,6 @@
 .bal-reas-nota { margin: 8px 0 0; font-size: 12px; color: var(--fe-gris) }
 .bal-reas-vacio { padding: 18px; background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea) }
 @media (max-width: 560px) { .bal-reas-res { grid-template-columns: 1fr 1fr } }
+
+/* Consolidado: un renglón por registro del conteo; la nota en gris y sin estirar la tabla */
+.bal-conso-nota { font-size: 12px; color: var(--fe-gris); max-width: 260px }

@@ -45,6 +45,8 @@ export type LineaConsolidado = {
   clave: string; codigo: string; material: string | null; estado: string; contado: string;
   zona: "Fábrica" | "Bodega 38"; ubicacion: string; cajas: number; unidades: number | null;
   ids: string[]; reasignado: boolean;
+  /** Cada renglón del conteo va aparte (no se suman los iguales): sus estibas, sueltas, saldo, recorrido y nota. */
+  estibas?: number; sueltas?: number; saldo?: number; recorrido?: string | null; nota?: string | null;
 };
 
 /** Una línea de la hoja «Reasignaciones»: un cambio de estado de lo contado ese día, con su porqué.
@@ -177,7 +179,8 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
   };
 
   /* LA HOJA «CONSOLIDADO»: todo lo contado ese día (también cajas plásticas), con el estado que
-     manda hoy (el reasignado si lo hay), por material · estado · zona · ubicación. */
+     manda hoy (el reasignado si lo hay). UN RENGLÓN POR CADA REGISTRO DEL CONTEO: «no quiero que si son
+     iguales se sumen; quiero ver cada registro, cada renglón, que no me mezcles nada». */
   const lineas = new Map<string, LineaConsolidado>();
   for (const r of vigentes) {
     const rc = reclas.get(r.id);
@@ -186,17 +189,10 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
     const zonaR = zona(r) === "SORTING" ? "Fábrica" as const : "Bodega 38" as const;
     const ubic = (r.ubicacion ?? r.ubicacion_combinada ?? "").trim() || "—";
     const codigo = String(r.codigo);
-    const k = `${codigo}|${estado}|${zonaR}|${ubic}`;
-    let l = lineas.get(k);
-    if (!l) {
-      l = { clave: k, codigo, material: prod.get(codigo)?.nombre ?? r.material ?? null, estado, contado,
-        zona: zonaR, ubicacion: ubic, cajas: 0, unidades: null, ids: [], reasignado: false };
-      lineas.set(k, l);
-    }
-    l.cajas += Number(r.total_cajas) || 0;
-    l.ids.push(r.id);
-    if (rc) l.reasignado = true;
-    if (contado !== l.contado) l.contado = [...new Set([...l.contado.split(" / "), contado])].join(" / ");
+    lineas.set(r.id, { clave: r.id, codigo, material: prod.get(codigo)?.nombre ?? r.material ?? null, estado, contado,
+      zona: zonaR, ubicacion: ubic, cajas: Number(r.total_cajas) || 0, unidades: null, ids: [r.id], reasignado: !!rc,
+      estibas: Number(r.estibas) || 0, sueltas: Number(r.cajas) || 0, saldo: Number(r.saldo) || 0,
+      recorrido: r.conteo ?? null, nota: r.nota ?? null });
   }
   /* LA HOJA «REASIGNACIONES»: el registro de cada cambio de estado de ese día, agrupado por material ·
      ubicación · de → a · motivo (las del Balance y las de la regla de fábrica). */

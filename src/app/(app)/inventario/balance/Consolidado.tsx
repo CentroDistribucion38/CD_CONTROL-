@@ -148,8 +148,13 @@ export function Consolidado({ lineas, fecha }: { lineas: LineaConsolidado[]; fec
               <th>Estado</th>
               <th>Zona</th>
               <th>Ubicación</th>
-              <th className="r">Cajas</th>
+              <th className="r">Estibas</th>
+              <th className="r">Sueltas</th>
+              <th className="r">Saldo</th>
+              <th className="r">Total cajas</th>
               <th className="r">Unidades</th>
+              <th>Recorrido</th>
+              <th>Nota</th>
             </tr>
           </thead>
           <tbody>
@@ -164,20 +169,28 @@ export function Consolidado({ lineas, fecha }: { lineas: LineaConsolidado[]; fec
                 </td>
                 <td>{l.zona}</td>
                 <td className="mono">{l.ubicacion}</td>
-                <td className="r">{n(l.cajas)}</td>
+                <td className="r">{l.estibas ? n(l.estibas) : "—"}</td>
+                <td className="r">{l.sueltas ? n(l.sueltas) : "—"}</td>
+                <td className="r">{l.saldo ? n(l.saldo) : "—"}</td>
+                <td className="r"><b>{n(l.cajas)}</b></td>
                 <td className="r">{n(l.unidades)}</td>
+                <td className="mono">{l.recorrido ?? "—"}</td>
+                <td className="bal-conso-nota">{l.nota || "—"}</td>
               </tr>
             ))}
             {vistas.length === 0 && (
-              <tr><td colSpan={8} className="bal-sin-filas">Nada con ese filtro en el conteo de este día.</td></tr>
+              <tr><td colSpan={13} className="bal-sin-filas">Nada con ese filtro en el conteo de este día.</td></tr>
             )}
           </tbody>
           {vistas.length > 1 && (
             <tfoot>
               <tr>
-                <td colSpan={6}><b>Total del filtro</b></td>
+                <td colSpan={6}><b>Total del filtro</b> · {vistas.length} renglones</td>
+                <td className="r"><b>{n(vistas.reduce((t, l) => t + (l.estibas ?? 0), 0))}</b></td>
+                <td></td><td></td>
                 <td className="r"><b>{n(totCajas)}</b></td>
                 <td className="r"><b>{n(totUnid)}</b></td>
+                <td colSpan={2}></td>
               </tr>
             </tfoot>
           )}
