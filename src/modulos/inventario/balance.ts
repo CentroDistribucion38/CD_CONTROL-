@@ -47,6 +47,15 @@ export type LineaConsolidado = {
   ids: string[]; reasignado: boolean;
 };
 
+/** Una línea de la hoja «Reasignaciones»: un cambio de estado de lo contado ese día, con su porqué.
+ *  Balance = la reasignó alguien en la hoja Consolidado; Regla de fábrica = la puso la regla automática. */
+export type Reasignacion = {
+  origen: "Balance" | "Regla de fábrica"; codigo: string; material: string | null;
+  zona: "Fábrica" | "Bodega 38"; ubicacion: string; de: string; a: string;
+  cajas: number; unidades: number | null; renglones: number;
+  motivo: string | null; quien: string | null; cuando: string | null;
+};
+
 const TOPE = 500;
 /** Las cajas plásticas no son casco de vidrio: no entran al balance (en el libro van como «Libre»). */
 const esCajaPlastica = (nombre: string | null | undefined) => /CAJA\s+PL/i.test(nombre ?? "");
@@ -117,7 +126,7 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
   const supabase = await createClient();
   const { dias, conteos, error: e0 } = await diasConConteo();
   const fecha = pedida && dias.includes(pedida) ? pedida : (dias[0] ?? null);
-  const vacio = { fecha, dias, consolidado: [] as LineaConsolidado[], fechaCasco: null as string | null, diasCasco: [] as string[], detalle: [] as FilaBalance[], bloques: [] as BloqueBalance[], error: e0 };
+  const vacio = { fecha, dias, consolidado: [] as LineaConsolidado[], reasignaciones: [] as Reasignacion[], fechaCasco: null as string | null, diasCasco: [] as string[], detalle: [] as FilaBalance[], bloques: [] as BloqueBalance[], error: e0 };
   if (!fecha) return vacio;
 
   const [{ vigentes, error: e1 }, maestro, sitiosR, cascoR, ajustesR] = await Promise.all([
@@ -130,12 +139,20 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
 
   /* Reclasificaciones de los renglones del día: la más nueva de cada renglón manda. */
   const ids = vigentes.map((r) => r.id);
-  const reclas = new Map<string, { estado: string; id: number }>();
+  type Reclas = { estado: string; id: number; motivo: string | null; usuario_id: string | null; creado_en: string };
+  const reclas = new Map<string, Reclas>();
   if (ids.length) {
-    const r = await porTandas<{ id: number; conteo_envase_id: string; estado_nuevo: string; creado_en: string }>(ids, (t, d, h) =>
-      supabase.from("balance_reclasificaciones").select("id, conteo_envase_id, estado_nuevo, creado_en")
+    const r = await porTandas<{ id: number; conteo_envase_id: string; estado_nuevo: string; motivo: string | null; usuario_id: string | null; creado_en: string }>(ids, (t, d, h) =>
+      supabase.from("balance_reclasificaciones").select("id, conteo_envase_id, estado_nuevo, motivo, usuario_id, creado_en")
         .in("conteo_envase_id", t).order("creado_en").range(d, h), 100);
-    for (const x of r.data) reclas.set(x.conteo_envase_id, { estado: x.estado_nuevo, id: x.id });
+    for (const x of r.data) reclas.set(x.conteo_envase_id, { estado: x.estado_nuevo, id: x.id, motivo: x.motivo, usuario_id: x.usuario_id, creado_en: x.creado_en });
+  }
+  /* Quién reasignó (el nombre de su perfil). */
+  const usuarios = [...new Set([...reclas.values()].map((x) => x.usuario_id).filter(Boolean))] as string[];
+  const nombres = new Map<string, string>();
+  if (usuarios.length) {
+    const { data: ps } = await supabase.from("perfiles").select("id, nombre, usuario").in("id", usuarios);
+    for (const p of (ps ?? []) as { id: string; nombre: string | null; usuario: string | null }[]) nombres.set(p.id, p.nombre || p.usuario || "");
   }
 
   const prod = new Map(((maestro.data ?? []) as { sku: string; nombre: string; cajas_por_estiba: number | null; unidades_por_caja: number | null }[])
@@ -181,6 +198,33 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
     if (rc) l.reasignado = true;
     if (contado !== l.contado) l.contado = [...new Set([...l.contado.split(" / "), contado])].join(" / ");
   }
+  /* LA HOJA «REASIGNACIONES»: el registro de cada cambio de estado de ese día, agrupado por material ·
+     ubicación · de → a · motivo (las del Balance y las de la regla de fábrica). */
+  const reas = new Map<string, Reasignacion>();
+  for (const r of vigentes) {
+    const codigo = String(r.codigo), ubic = (r.ubicacion ?? r.ubicacion_combinada ?? "").trim() || "—";
+    const zonaR = zona(r) === "SORTING" ? "Fábrica" as const : "Bodega 38" as const;
+    const cajas = Number(r.total_cajas) || 0;
+    const anota = (origen: Reasignacion["origen"], de: string, a: string, motivo: string | null, quien: string | null, cuando: string | null) => {
+      const k = `${origen}|${codigo}|${ubic}|${de}|${a}|${motivo ?? ""}`;
+      const x = reas.get(k) ?? { origen, codigo, material: prod.get(codigo)?.nombre ?? r.material ?? null, zona: zonaR, ubicacion: ubic, de, a,
+        cajas: 0, unidades: null, renglones: 0, motivo, quien, cuando };
+      x.cajas += cajas; x.renglones++;
+      if (quien && !(x.quien ?? "").split(", ").includes(quien)) x.quien = x.quien ? `${x.quien}, ${quien}` : quien;
+      if (cuando && (!x.cuando || cuando > x.cuando)) x.cuando = cuando;
+      reas.set(k, x);
+    };
+    const regla = /^Regla fábrica:\s*(.+?)\s*→\s*(\S+)/.exec(r.nota ?? "");
+    if (regla) anota("Regla de fábrica", regla[1], regla[2], "Automática: ese material en fábrica es baja", null, null);
+    const rc = reclas.get(r.id);
+    if (rc) anota("Balance", normEstado(r.estado_envase), rc.estado, rc.motivo, rc.usuario_id ? nombres.get(rc.usuario_id) ?? null : null, rc.creado_en);
+  }
+  const reasignaciones = [...reas.values()].map((x) => {
+    const u = prod.get(x.codigo)?.unidades_por_caja;
+    return { ...x, unidades: u ? x.cajas * u : null };
+  }).sort((a, b) => a.origen.localeCompare(b.origen) || a.codigo.localeCompare(b.codigo, "es", { numeric: true })
+    || a.ubicacion.localeCompare(b.ubicacion, "es", { numeric: true }));
+
   const consolidado = [...lineas.values()].map((l) => {
     const u = prod.get(l.codigo)?.unidades_por_caja;
     return { ...l, unidades: u ? l.cajas * u : null };
@@ -254,7 +298,7 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
     bloquesM.set(k, b);
   }
   return {
-    fecha, dias, consolidado, fechaCasco, diasCasco, detalle, bloques: [...bloquesM.values()],
+    fecha, dias, consolidado, reasignaciones, fechaCasco, diasCasco, detalle, bloques: [...bloquesM.values()],
     error: e0 ?? e1 ?? maestro.error?.message ?? cascoR.error ?? null,
   };
 }

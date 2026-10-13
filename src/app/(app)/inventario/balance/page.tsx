@@ -41,7 +41,7 @@ export default async function BalancePage({ searchParams }: { searchParams: Prom
   return (
     <div className="fe bal">
       <Balance bloques={b.bloques} detalle={b.detalle} error={b.error} fecha={b.fecha} dias={b.dias}
-               fechaCasco={b.fechaCasco} diasCasco={b.diasCasco} consolidado={b.consolidado} />
+               fechaCasco={b.fechaCasco} diasCasco={b.diasCasco} consolidado={b.consolidado} reasignaciones={b.reasignaciones} />
     </div>
   );
 }

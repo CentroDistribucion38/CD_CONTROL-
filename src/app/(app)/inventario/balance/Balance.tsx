@@ -2,8 +2,9 @@
 
 import { useState, useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { LineaConsolidado } from "@/modulos/inventario/balance";
+import type { LineaConsolidado, Reasignacion } from "@/modulos/inventario/balance";
 import { Consolidado } from "./Consolidado";
+import { Reasignaciones } from "./Reasignaciones";
 import { Rango } from "../../sider/seguimiento/Rango";
 import { reclasificar, quitarReclasificacion } from "./actions";
 
@@ -91,6 +92,7 @@ export function Balance({
   fechaCasco,
   diasCasco,
   consolidado,
+  reasignaciones,
 }: {
   bloques: Bloque[];
   detalle: Fila[];
@@ -103,6 +105,8 @@ export function Balance({
   diasCasco: string[];
   /** La hoja «Consolidado»: todo lo contado el día, para filtrar y reasignar estados. */
   consolidado: LineaConsolidado[];
+  /** La hoja «Reasignaciones»: el registro de los cambios de estado del día. */
+  reasignaciones: Reasignacion[];
 }) {
   const router = useRouter();
   const [cambiando, startCambio] = useTransition();
@@ -277,9 +281,14 @@ export function Balance({
               <span className="bal-tab-label">Consolidado</span>
               <span className="bal-tab-n" title="materiales">{consolidado.length}</span>
             </button>
+            {/* Y DESPUÉS DEL CONSOLIDADO: el registro de lo que se reasignó. */}
+            <button role="tab" aria-selected={hojaIdx === -2} className={`bal-tab ${hojaIdx === -2 ? "activa" : ""}`} onClick={(e) => { setHojaIdx(-2); e.currentTarget.scrollIntoView({ inline: "nearest", block: "nearest" }) }}>
+              <span className="bal-tab-label">Reasignaciones</span>
+              <span className="bal-tab-n" title="cambios de estado">{reasignaciones.length}</span>
+            </button>
           </nav>
 
-          {hojaIdx < 0 ? <Consolidado lineas={consolidado} fecha={fecha} /> : (<>
+          {hojaIdx === -2 ? <Reasignaciones lineas={reasignaciones} /> : hojaIdx < 0 ? <Consolidado lineas={consolidado} fecha={fecha} /> : (<>
           {/* ---- RESUMEN DEL BLOQUE ---- */}
           {bloque && (
             <div className="bal-resumen-bloque">

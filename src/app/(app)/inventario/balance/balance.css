@@ -302,3 +302,18 @@
 @media (max-width: 640px) {
   .bal .bal-tab { padding: 12px 14px 10px; font-size: 13px }
 }
+
+/* ---------- LA HOJA «REASIGNACIONES» (el registro de los cambios de estado del día) ---------- */
+.bal-reas-res { display: grid; grid-template-columns: repeat(2, minmax(0, 240px)); gap: 10px; margin-bottom: 12px }
+.bal-reas-res > div { background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea); border-bottom: 4px solid var(--fe-acento, #FFC400); padding: 10px 14px }
+.bal-reas-res span { display: block; font: 600 10.5px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase; color: var(--fe-gris) }
+.bal-reas-res b { display: block; font: 700 26px var(--fe-titulo, var(--fe-texto)); font-variant-numeric: tabular-nums; color: var(--fe-tinta) }
+.bal-reas-res small { font-size: 12px; color: var(--fe-gris) }
+.bal-reas-or { display: inline-block; font: 700 11px var(--fe-texto); padding: 3px 8px; white-space: nowrap }
+.bal-reas-or.man { background: #FFF4D6; color: #7A5200 }
+.bal-reas-or.regla { background: #F1EDFB; color: #4B3590 }
+.bal-reas-de { white-space: nowrap }
+.bal-reas-de s { color: var(--fe-gris) }
+.bal-reas-nota { margin: 8px 0 0; font-size: 12px; color: var(--fe-gris) }
+.bal-reas-vacio { padding: 18px; background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea) }
+@media (max-width: 560px) { .bal-reas-res { grid-template-columns: 1fr 1fr } }
