@@ -287,8 +287,9 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
  *  que es causal PRESORTING, ROTURA DE LINEA, LAVADO, EXTRASUCIO y BAJA PROYECTADA.»
  *
  * TOTAL BASE de cada material = Σ unidades de Pasivos AG22 de esas causales ese día. Las demás causales
- * (ANDINA…) no entran y se avisan. DIFERENCIA = SAP bloqueado − total base: negativa → falta en SAP,
- * pasar de AG18 a AG22; positiva → sobra en SAP, pasar de AG22 a AG18. El paso 3 es igual al de AG18.
+ * (ANDINA…) no entran y se avisan. DIFERENCIA = SAP bloqueado − total base. Aquí NO se cambia de almacén:
+ * negativa → falta bloquear, pasar de LIBRE a BLOQUEADO en AG22; positiva → sobra bloqueado, pasar de
+ * BLOQUEADO a LIBRE. El paso 3 es igual al de AG18 (la ZEXI nueva, su columna Bloqueado).
  */
 async function armarCuadreAG22(pedida?: string | null) {
   const supabase = await createClient();

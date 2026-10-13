@@ -51,6 +51,11 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
   const router = useRouter();
   /* EL ALMACÉN DEL CUADRE: AG18 (fábrica, contra el conteo) o AG22 (la base de Pasivos contra el Bloqueado). */
   const ALM: Almacen = almacen, OTRO: Almacen = almacen === "AG18" ? "AG22" : "AG18", esAG22 = almacen === "AG22";
+  /* HACIA DÓNDE SE MUEVE. AG18: de almacén a almacén (311 con AG22). AG22: NO cambia de almacén — se pasa
+     de LIBRE a BLOQUEADO (o al revés) dentro del mismo AG22, porque la base tiene que estar bloqueada ahí. */
+  const ENTRA = esAG22 ? "Libre → Bloqueado" : `${OTRO} → ${ALM}`;
+  const SALE = esAG22 ? "Bloqueado → Libre" : `${ALM} → ${OTRO}`;
+  const MOV = esAG22 ? "el traslado libre ↔ bloqueado" : "el 311";
   const campoZexi = esAG22 ? "bloqueado" as const : "total" as const;
   const urlDe = (alm: Almacen, dia?: string | null) => `/inventario/balance/cuadre?${dia ? `fecha=${dia}&` : ""}alm=${alm}`;
   const [histAlm, setHistAlm] = useState<"" | Almacen>("");
@@ -200,7 +205,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
           <p className="ojo">INVENTARIO · BALANCE · CUADRE SAP</p>
           <h1>Cuadre SAP · {esAG22 ? "AG22 Bloqueado" : "AG18 Fábrica"}</h1>
           <p className="sub">{esAG22
-            ? <>La base de Pasivos <b>AG22</b> del <b>{largo(fecha)}</b> (PRESORTING, ROTURA DE LINEA, LAVADO, EXTRASUCIO y BAJA PROYECTADA) contra el <b>Bloqueado</b> de SAP (ZEXI). La diferencia es el movimiento 311 entre AG22 y AG18.</>
+            ? <>La base de Pasivos <b>AG22</b> del <b>{largo(fecha)}</b> (PRESORTING, ROTURA DE LINEA, LAVADO, EXTRASUCIO y BAJA PROYECTADA) contra el <b>Bloqueado</b> de SAP (ZEXI). La diferencia es lo que hay que pasar de <b>libre a bloqueado</b> (o al revés) dentro del mismo AG22.</>
             : <>El conteo del <b>{largo(fecha)}</b> contra el stock de SAP (ZEXI). La diferencia es el movimiento 311 entre AG18 y AG22.</>}{pend && " · guardando…"}</p>
         </div>
         {/* GUARDAR EL BALANCEO DEL DÍA: queda en el histórico de abajo. Volver a guardar lo reemplaza. */}
@@ -244,7 +249,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
       {vista === "cuadre" && (<>
       <ol className="cs-pasos">
         <li className={conZexi ? "hecho" : "on"}><span>PASO 1</span><b>Cuadre del día</b><small>{esAG22 ? "Base de Pasivos + ZEXI (bloqueado) → diferencias" : "Conteo + ZEXI → diferencias"}</small></li>
-        <li className={conMov ? "hecho" : conZexi ? "on" : ""}><span>PASO 2</span><b>Hacer el 311 en SAP</b><small>La app dice qué mover · subes la ZEXI nueva</small></li>
+        <li className={conMov ? "hecho" : conZexi ? "on" : ""}><span>PASO 2</span><b>{esAG22 ? "Bloquear / liberar en SAP" : "Hacer el 311 en SAP"}</b><small>La app dice qué mover · subes la ZEXI nueva</small></li>
         <li className={conMov ? (pendientes.length ? "on" : "hecho") : ""}><span>PASO 3</span><b>¿Quedó balanceado?</b><small>El cuadre otra vez, con lo movido</small></li>
       </ol>
 
@@ -310,8 +315,8 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
       <div className="cs-k">
         <div className="os"><span>Materiales</span><b>{filas.length}</b></div>
         <div><span>Cuadran</span><b className="bien">{conZexi ? cuadran.length : "—"}</b></div>
-        <div><span>Entran a {ALM} ({OTRO} → {ALM})</span><b className="mal">{conZexi ? entran.length : "—"}</b></div>
-        <div><span>Salen de {ALM} ({ALM} → {OTRO})</span><b className="ambar">{conZexi ? salen.length : "—"}</b></div>
+        <div><span>{esAG22 ? "Pasan a bloqueado" : `Entran a ${ALM}`} ({ENTRA})</span><b className="mal">{conZexi ? entran.length : "—"}</b></div>
+        <div><span>{esAG22 ? "Se liberan" : `Salen de ${ALM}`} ({SALE})</span><b className="ambar">{conZexi ? salen.length : "—"}</b></div>
       </div>
       {!conZexi && <p className="cs-msg">Sube el ZEXI de SAP de ese día para ver la diferencia. Mientras tanto, abajo está lo que la app ya armó {esAG22 ? "de la base" : "del conteo"}.</p>}
 
@@ -378,7 +383,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
             <tr>
               <th>Código</th><th>Material</th>{CAUSALES_AG22.map((c) => <th key={c} className="n">{CAUSAL_CORTA[c]}</th>)}
               <th className="n">Total base</th><th className="n">SAP bloqueado</th>
-              <th className="n">311 (SAP − base)</th><th className="n">311 en cajas</th><th>Movimiento</th>
+              <th className="n">Diferencia (SAP − base)</th><th className="n">En cajas</th><th>Movimiento</th>
             </tr>
           ) : (
             <tr>
@@ -406,14 +411,14 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                 <td className={"n" + (f.dif == null || cero(f.dif) ? "" : f.dif < 0 ? " neg" : " amb")}><b>{f.dif == null ? "—" : cero(f.dif) ? "0" : conSigno(f.dif)}</b></td>
                 <td className={"n" + (f.dif == null || cero(f.dif) ? "" : f.dif < 0 ? " neg" : " amb")} title={f.grupo === "ENVASE" ? `${n(f.upc)} unidades por caja` : undefined}>{cajasTxt(enCajas(f, f.dif))}</td>
                 <td>{f.dif == null ? <span className="cs-chip">Sin SAP</span> : cero(f.dif) ? <span className="cs-chip ok">Cuadra</span>
-                  : f.dif < 0 ? <span className="cs-chip in">{OTRO} → {ALM}</span> : <span className="cs-chip out">{ALM} → {OTRO}</span>}</td>
+                  : f.dif < 0 ? <span className="cs-chip in">{ENTRA}</span> : <span className="cs-chip out">{SALE}</span>}</td>
               </tr>,
             ])}
           </tbody>
         </table>
       </div>
       {esAG22 ? <p className="cs-nota">Unidades. Total base = lo de la base de Pasivos AG22 del día en las causales PRESORTING, ROTURA DE LINEA, LAVADO, EXTRASUCIO y BAJA PROYECTADA (las demás no entran y se avisan arriba).
-        SAP bloqueado = la columna Bloqueado de la ZEXI de AG22. Negativo = la base tiene más de lo que SAP tiene bloqueado: pasar de AG18 a AG22.</p> :
+        SAP bloqueado = la columna Bloqueado de la ZEXI de AG22. Negativo = la base tiene más de lo que SAP tiene bloqueado: pasar de libre a bloqueado en AG22. Positivo = SAP tiene bloqueado de más: pasar de bloqueado a libre.</p> :
       <p className="cs-nota">Unidades (las cajas plásticas en cajas y las estibas en estibas). Conteo fábrica = lo contado en ubicaciones FABRICA_, todos los estados; lo de OTROS suma al envase escogido arriba (si no se escoge, al código con que se contó).
         Cajas plásticas = las sueltas + la caja de cada envase. Estibas = las sueltas + 1 por estiba contada (y por renglón con saldo) + las del almacén.
         Negativo = se contó más de lo que dice SAP.</p>}
@@ -421,19 +426,19 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
       {/* ---------- PASO 2 ---------- */}
       {conZexi && (
         <>
-          <h2 className="cs-h"><i>2</i> Qué hacer en SAP (movimiento 311)</h2>
+          <h2 className="cs-h"><i>2</i> Qué hacer en SAP {esAG22 ? "(de libre a bloqueado, o al revés, en AG22)" : "(movimiento 311)"}</h2>
           {entran.length + salen.length === 0 ? <p className="cs-msg">Todo cuadra: no hay nada que mover en SAP.</p> : (
             <div className="cs-dos">
-              <div className="cs-caja r"><h3>Pasar de {OTRO} a {ALM} {cabezaLista(entran, "entran")}</h3>{entran.length ? documentos(entran, "entran") : <p className="cs-vacio">Nada.</p>}</div>
-              <div className="cs-caja a"><h3>Pasar de {ALM} a {OTRO} {cabezaLista(salen, "salen")}</h3>{salen.length ? documentos(salen, "salen") : <p className="cs-vacio">Nada.</p>}</div>
+              <div className="cs-caja r"><h3>{esAG22 ? "Pasar de Libre a Bloqueado" : `Pasar de ${OTRO} a ${ALM}`} {cabezaLista(entran, "entran")}</h3>{entran.length ? documentos(entran, "entran") : <p className="cs-vacio">Nada.</p>}</div>
+              <div className="cs-caja a"><h3>{esAG22 ? "Pasar de Bloqueado a Libre" : `Pasar de ${ALM} a ${OTRO}`} {cabezaLista(salen, "salen")}</h3>{salen.length ? documentos(salen, "salen") : <p className="cs-vacio">Nada.</p>}</div>
             </div>
           )}
           <div className="cs-subir">
             <div>
-              <b>{conMov ? "Lo de después del 311 está cargado" : "Ya hiciste el 311 en SAP: baja la ZEXI nueva y súbela aquí"}</b>
+              <b>{conMov ? `Lo de después de ${MOV} está cargado` : `Ya hiciste ${MOV} en SAP: baja la ZEXI nueva y súbela aquí`}</b>
               <small>{conMov
                 ? `${guardado!.mov_archivo} · ${guardado!.movimientos!.length} materiales · ${hora(guardado!.mov_en)} · documentos ${[...new Set(guardado!.movimientos!.flatMap((m) => m.documentos))].join(", ") || "—"}`
-                : `La ZEXI de ${ALM} bajada después del 311 (o el archivo de movimientos 311 de SAP). La app la compara con ${esAG22 ? "la base" : "el conteo"} y dice si quedó balanceado.`}</small>
+                : `La ZEXI de ${ALM} bajada después de ${MOV}${esAG22 ? "" : " (o el archivo de movimientos 311 de SAP)"}. La app la compara con ${esAG22 ? "la base" : "el conteo"} y dice si quedó balanceado.`}</small>
             </div>
             <div className="cs-acc">
               <input ref={movRef} type="file" accept=".xlsx,.xls,.csv" hidden onChange={(e) => { const a = e.target.files?.[0]; e.target.value = ""; if (a) void subirMov(a) }} />
@@ -463,11 +468,11 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                     <td className="mono">{f.codigo}</td><td>{f.material}</td>
                     <td className="n">{n(f.total)}</td><td className="n">{n(f.sap!)}</td>
                     <td className="n">{cero(f.dif) ? "0" : conSigno(f.dif!)}</td>
-                    <td className="n">{f.movido ? <>{n(Math.abs(f.movido))} <em>{f.movido > 0 ? `${OTRO} → ${ALM}` : `${ALM} → ${OTRO}`}</em></> : "—"}</td>
+                    <td className="n">{f.movido ? <>{n(Math.abs(f.movido))} <em>{f.movido > 0 ? ENTRA : SALE}</em></> : "—"}</td>
                     <td className="n">{n(f.sapDespues!)}</td>
                     <td className="n"><b>{cero(f.queda) ? "0" : conSigno(f.queda!)}</b></td>
                     <td>{cero(f.queda) ? <span className="cs-chip ok">Balanceado</span>
-                      : <span className="cs-chip in">Falta {n(Math.abs(f.queda!))} {f.queda! < 0 ? `${OTRO} → ${ALM}` : `${ALM} → ${OTRO}`}</span>}</td>
+                      : <span className="cs-chip in">Falta {n(Math.abs(f.queda!))} {f.queda! < 0 ? ENTRA : SALE}</span>}</td>
                   </tr>
                 ))}
               </tbody>
@@ -513,7 +518,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                     <td className="n"><b>{r.conMov ? r.balanceados : "—"}</b></td>
                     <td className={"n" + (r.conMov && r.pendientes ? " neg" : "")}><b>{r.conMov ? r.pendientes : "—"}</b></td>
                     <td>{!r.conMov
-                      ? <span className="cs-chip out">Paso 2 · falta la ZEXI nueva{r.entran != null ? ` · 311: ${r.entran} entran, ${r.salen ?? 0} salen` : ""}</span>
+                      ? <span className="cs-chip out">Paso 2 · falta la ZEXI nueva{r.entran != null ? (h.almacen === "AG22" ? ` · ${r.entran} a bloqueado, ${r.salen ?? 0} a libre` : ` · 311: ${r.entran} entran, ${r.salen ?? 0} salen`) : ""}</span>
                       : r.pendientes === 0 ? <span className="cs-chip ok">Todo balanceado</span>
                       : <span className="cs-chip in">{r.pendientes} pendientes</span>}</td>
                     <td className="cs-hacc">
@@ -525,7 +530,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                     <tr key={`${k}-v`} className="cs-hver"><td colSpan={9}>
                       <p className="cs-hnota">Lo guardado: ZEXI {h.cierre.zexi_archivo ?? "—"}{h.cierre.mov_archivo ? ` · ZEXI nueva / 311 ${h.cierre.mov_archivo}` : ""} {h.almacen === "AG18" ? ` · estibas del almacén ${h.cierre.estibas_almacen ?? 0} · pend. baja ${h.cierre.sumar_pend_baja ? "se sumaba" : "no se sumaba"}` : " · contra la base de Pasivos AG22 (bloqueado)"}</p>
                       <table className="cs-t chica">
-                        <thead><tr><th>Código</th><th>Material</th><th className="n">{h.almacen === "AG22" ? "Base" : "Conteo"}</th><th className="n">SAP antes</th><th className="n">311</th><th className="n">SAP después</th><th className="n">Queda</th><th>Estado</th></tr></thead>
+                        <thead><tr><th>Código</th><th>Material</th><th className="n">{h.almacen === "AG22" ? "Base" : "Conteo"}</th><th className="n">SAP antes</th><th className="n">{h.almacen === "AG22" ? "Diferencia" : "311"}</th><th className="n">SAP después</th><th className="n">Queda</th><th>Estado</th></tr></thead>
                         <tbody>{h.cierre.filas.filter((f) => f.sap != null).map((f) => (
                           <tr key={f.codigo} className={cero(f.queda) ? "" : "pend"}>
                             <td className="mono">{f.codigo}</td><td>{f.material}</td>
