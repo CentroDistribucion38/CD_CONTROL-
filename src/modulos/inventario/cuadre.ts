@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { consolidadoDelDia, diasConConteo, leerCasco } from "@/modulos/inventario/balance";
 import { esUbicacionFabrica } from "@/modulos/casco/ubicacion-sitio";
 import { diasConPasivos, leerPasivos } from "@/modulos/pasivos/datos";
+import { esExcluido } from "@/modulos/pasivos/excluidos";
 import { conReclasificaciones } from "@/modulos/inventario/reclasificaciones";
 
 /**
@@ -162,9 +163,12 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
   const envasesVistos = new Set<string>();
   let estBajo = 0, estSueltas = 0, estibasBodega = 0;
   /* Con lo reclasificado en el Balance: una línea OTROS que se pasó a BAJA ya no es OTROS. */
+  const fueraNuevos = new Set<string>();
   for (const r of await conReclasificaciones(cons.vigentes)) {
     if (r.tipo_material !== "ENVASE") continue;
     const c = String(r.codigo), cajas = Number(r.total_cajas) || 0;
+    /* Envases nuevos (barril, 412644, 412671, 412707): no van en el cuadre. */
+    if (esExcluido(c, r.material, "ag18")) { fueraNuevos.add(c); continue }
     if (!esUbicacionFabrica(r.ubicacion)) { if (c === ESTIBA) estibasBodega += cajas; continue }
     const g = grupoDe(c);
     if (g === "ESTIBA") { estSueltas += cajas; continue }
@@ -214,9 +218,10 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
   const estAlm = Number(guardado?.estibas_almacen ?? 0) || 0;
   const sap = new Map((guardado?.zexi ?? []).map((z) => [String(z.codigo), z]));
   const mov = new Map((guardado?.movimientos ?? []).map((m) => [String(m.codigo), m]));
-  for (const z of sap.values()) de(String(z.codigo), z.descripcion);
-  for (const m of mov.values()) de(String(m.codigo));
+  for (const z of sap.values()) { if (esExcluido(z.codigo, z.descripcion ?? nombre(String(z.codigo)), "ag18")) { fueraNuevos.add(String(z.codigo)); continue } de(String(z.codigo), z.descripcion) }
+  for (const m of mov.values()) if (!esExcluido(m.codigo, nombre(String(m.codigo)), "ag18")) de(String(m.codigo));
   de(ESTIBA);
+  if (fueraNuevos.size) avisos.push(`No entran al cuadre (envases nuevos): ${[...fueraNuevos].sort().join(", ")}.`);
 
   const filas: FilaCuadre[] = [...acc.values()].map((a) => {
     const grupo = grupoDe(a.codigo);
@@ -345,8 +350,10 @@ async function armarCuadreAG22(pedida?: string | null) {
 
   const sap = new Map((guardado?.zexi ?? []).map((z) => [String(z.codigo), z]));
   const mov = new Map((guardado?.movimientos ?? []).map((m) => [String(m.codigo), m]));
-  for (const z of sap.values()) de(String(z.codigo), z.descripcion);
-  for (const m of mov.values()) de(String(m.codigo));
+  const fueraNuevos = new Set<string>();
+  for (const z of sap.values()) { if (esExcluido(z.codigo, z.descripcion ?? nombre(String(z.codigo)))) { fueraNuevos.add(String(z.codigo)); continue } de(String(z.codigo), z.descripcion) }
+  for (const m of mov.values()) if (!esExcluido(m.codigo, nombre(String(m.codigo)))) de(String(m.codigo));
+  if (fueraNuevos.size) avisos.push(`No entran al cuadre (envases nuevos / estiba): ${[...fueraNuevos].sort().join(", ")}.`);
 
   const filas: FilaCuadre[] = [...acc.values()].map((a) => {
     const grupo = grupoDe(a.codigo);

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { balanceParaPasivos, leerPasivos, resumirPasivos, type NuevaFila, type MaestroPasivo } from "@/modulos/pasivos/datos";
+import { esExcluido } from "@/modulos/pasivos/excluidos";
 
 const RUTA = "/inventario/balance/pasivos";
 const esDia = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s);
@@ -17,7 +18,7 @@ export async function traerDelBalance(fecha: string, casco?: string | null) {
   /* Un día que ya está cargado del Excel (HISTÓRICO) no se vuelve a traer: quedaría doble. */
   const { count } = await supabase.from("pasivos_base").select("id", { count: "exact", head: true }).eq("fecha", fecha).eq("origen", "historico");
   if (count) return { error: `El ${fecha.split("-").reverse().join("/")} ya está cargado tal cual tu Excel (histórico). No se trae del balance para no duplicarlo.` };
-  const { filas, sinFactor, error } = await balanceParaPasivos(fecha, casco);
+  const { filas, sinFactor, excluidos, error } = await balanceParaPasivos(fecha, casco);
   if (error && !filas.length) return { error };
   const { error: eB } = await supabase.from("pasivos_base").delete().eq("fecha", fecha).eq("origen", "balance");
   if (eB) return { error: eB.message };
@@ -26,7 +27,7 @@ export async function traerDelBalance(fecha: string, casco?: string | null) {
     if (eI) return { error: eI.message };
   }
   revalidatePath(RUTA);
-  return { ok: true, filas: filas.length, sinFactor };
+  return { ok: true, filas: filas.length, sinFactor, excluidos };
 }
 
 /**
@@ -39,6 +40,15 @@ export async function subirArchivo(filasJson: string, archivo: string) {
   filas = filas.filter((f) => esDia(f.fecha) && f.codigo && f.estado && f.causal && f.almacen && Number.isFinite(Number(f.unidades)));
   if (!filas.length) return { error: "El archivo no trae filas válidas." };
   const supabase = await createClient();
+  /* Envases nuevos (barril, 412644, 412671, 412707) y la estiba 3500163: no se suben. El barril se reconoce por el nombre del maestro. */
+  const codigosArchivo = [...new Set(filas.map((f) => String(f.codigo)))];
+  const { data: nombres } = await supabase.from("pasivos_maestro").select("codigo, descripcion").in("codigo", codigosArchivo);
+  const nombreDe = new Map(((nombres ?? []) as { codigo: string; descripcion: string | null }[]).map((m) => [String(m.codigo), m.descripcion]));
+  const fuera = codigosArchivo.filter((c) => esExcluido(c, nombreDe.get(c)));
+  if (fuera.length) {
+    filas = filas.filter((f) => !fuera.includes(String(f.codigo)));
+    if (!filas.length) return { error: `Ese archivo solo trae códigos que no van en Pasivos (${fuera.join(", ")}: envases nuevos / estiba). No se subió nada.` };
+  }
   /* Los días que ya están cargados del Excel (HISTÓRICO) no se suben otra vez. */
   const fechas = [...new Set(filas.map((f) => f.fecha))];
   const { data: hist } = await supabase.from("pasivos_base").select("fecha").in("fecha", fechas).eq("origen", "historico").limit(1000);
@@ -61,7 +71,7 @@ export async function subirArchivo(filasJson: string, archivo: string) {
     if (error) return { error: error.message };
   }
   revalidatePath(RUTA);
-  return { ok: true, filas: filas.length };
+  return { ok: true, filas: filas.length, excluidos: fuera };
 }
 
 /** BORRAR las filas marcadas. */

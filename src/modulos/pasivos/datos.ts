@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { todas } from "@/modulos/inventario/paginas";
 import { balanceDelDia, type FilaBalance } from "@/modulos/inventario/balance";
+import { esExcluido } from "@/modulos/pasivos/excluidos";
 
 /**
  * INVENTARIO · BALANCE · PASIVOS
@@ -41,20 +42,23 @@ export const DEL_BALANCE: { estado: string; alcance: string; a: { estado: string
 export function filasDeBalance(fecha: string, detalle: FilaBalance[]) {
   const filas: NuevaFila[] = [];
   const sinFactor: string[] = [];
+  const excluidos = new Set<string>();
   for (const f of detalle) {
     const m = DEL_BALANCE.find((x) => x.estado === f.estado && x.alcance === f.alcance);
     if (!m) continue;
+    /* Envases nuevos (barril, 412644, 412671, 412707) y la estiba 3500163: no van en Pasivos. */
+    if (esExcluido(f.codigo, f.material)) { excluidos.add(f.codigo); continue }
     /* Lo que está en el casco y NO se contó no entra (como en BLOQUEADOS.xlsx): va como alerta en el balance. */
     if (!f.fisico_cajas) continue;
     if (f.unidades == null) { sinFactor.push(f.codigo); continue }
     filas.push({ fecha, ...m.a, codigo: f.codigo, unidades: f.unidades });
   }
-  return { filas, sinFactor: [...new Set(sinFactor)] };
+  return { filas, sinFactor: [...new Set(sinFactor)], excluidos: [...excluidos] };
 }
 
 export async function balanceParaPasivos(fecha: string, casco?: string | null) {
   const b = await balanceDelDia(fecha, casco ?? null);
-  if (b.fecha !== fecha) return { filas: [] as NuevaFila[], sinFactor: [] as string[], error: `No hay conteo enviado el ${fecha}.` };
+  if (b.fecha !== fecha) return { filas: [] as NuevaFila[], sinFactor: [] as string[], excluidos: [] as string[], error: `No hay conteo enviado el ${fecha}.` };
   return { ...filasDeBalance(fecha, b.detalle), error: b.error };
 }
 
@@ -64,7 +68,8 @@ export async function leerPasivos(desde: string, hasta: string) {
     .gte("fecha", desde).lte("fecha", hasta)
     .order("fecha", { ascending: false }).order("almacen").order("estado").order("causal").order("codigo").order("id")
     .range(d, h));
-  return r;
+  /* Envases nuevos (barril, 412644, 412671, 412707) y la estiba 3500163: no cuentan en Pasivos aunque hayan quedado cargados. */
+  return { ...r, data: r.data.filter((f) => !esExcluido(f.codigo, f.descripcion)) };
 }
 
 /** Los días que tienen algo cargado (para el calendario). */
