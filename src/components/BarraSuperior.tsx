@@ -14,9 +14,12 @@ import { NuevaPestana } from "./NuevaPestana";
 export function BarraSuperior({
   usuario,
   turno,
+  permitidas,
 }: {
   usuario: string;
   turno?: string;
+  /** Las rutas que esta persona puede ver: las migas de pan solo ofrecen esas. */
+  permitidas?: string[];
 }) {
   const iniciales = usuario
     .split(/\s+/)
@@ -35,7 +38,7 @@ export function BarraSuperior({
         <img src="/marca/logo-b.png" alt="Bavaria" />
       </Link>
 
-      <Ruta />
+      <Ruta permitidas={permitidas} />
 
       <div className="der">
         {turno && <span className="turno">{turno}</span>}

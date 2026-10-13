@@ -111,6 +111,28 @@
 }
 .sh-barra .ruta .hoja { color: var(--sh-barra-txt-2); font-weight: 500; white-space: nowrap }
 .sh-barra .ruta .sep { width: 14px; height: 14px; stroke: var(--sh-barra-sep); fill: none; flex: none }
+/* Cada nivel de las migas se abre: CONTROL › Módulo › Rama › (Grupo), con un menú de lo que hay ahí. */
+.sh-barra .ruta { z-index: 30 }
+.sh-barra .ruta-nivel { display: inline-flex; align-items: center; gap: 10px; min-width: 0 }
+.sh-barra .ruta-caja { position: relative; display: inline-flex }
+.sh-barra .ruta-bt { display: inline-flex; align-items: center; gap: 4px; padding: 6px 6px; margin: 0 -6px; border: 0; border-radius: 4px;
+  background: none; cursor: pointer; font: inherit; color: inherit; white-space: nowrap }
+.sh-barra .ruta-bt.wm { font-family: var(--sh-titulo); font-weight: 800; font-size: 13.5px; letter-spacing: .2em; color: var(--sh-barra-wm) }
+.sh-barra .ruta-bt.modulo { font-family: var(--sh-titulo); font-weight: 800; letter-spacing: .02em; color: var(--sh-barra-txt) }
+.sh-barra .ruta-bt.rama { font-weight: 600; color: var(--sh-barra-txt) }
+.sh-barra .ruta-bt:hover, .sh-barra .ruta-bt[aria-expanded="true"] { background: color-mix(in srgb, currentColor 12%, transparent) }
+.sh-barra .ruta-bt:focus-visible { outline: 2px solid var(--sh-filo); outline-offset: 1px }
+.sh-barra .ruta-bt:disabled { cursor: default; background: none }
+.sh-barra .ruta-v { width: 14px; height: 14px; stroke: currentColor; opacity: .55; flex: none }
+.sh-barra .ruta-menu { position: absolute; top: calc(100% + 8px); left: -6px; z-index: 60; min-width: 220px; max-height: min(70vh, 460px); overflow: auto;
+  display: flex; flex-direction: column; padding: 6px; background: var(--sh-papel); color: var(--sh-tinta);
+  border: 1px solid var(--sh-linea); border-radius: 6px; box-shadow: 0 12px 32px rgba(4, 32, 63, .18) }
+.sh-barra .ruta-op { display: block; padding: 9px 12px; border-radius: 4px; color: var(--sh-tinta); text-decoration: none;
+  font: 500 14px var(--sh-texto); letter-spacing: 0; white-space: nowrap }
+.sh-barra .ruta-op:hover, .sh-barra .ruta-op:focus-visible { background: var(--sh-hueso); outline: none }
+.sh-barra .ruta-op.actual { font-weight: 700; box-shadow: inset 3px 0 0 var(--sh-filo) }
+.sh-barra .ruta-op.sub { padding-left: 26px }
+.sh-barra .ruta-op.titulo { padding: 10px 12px 4px; font: 700 10.5px var(--sh-texto); letter-spacing: .12em; text-transform: uppercase; color: var(--sh-gris) }
 .sh-barra .der {
   margin-left: auto;
   display: flex;
@@ -598,8 +620,8 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
   .sh-main { padding: 18px 18px 30px }
   .sh-barra { gap: 14px; padding-right: 16px }
   .sh-barra .esquina { width: 56px }
-  .sh-barra .ruta .wm { display: none }
-  .sh-barra .ruta .sep:first-of-type { display: none }
+  .sh-barra .ruta .ruta-nivel:first-child { display: none }
+  .sh-barra .ruta .ruta-nivel:nth-child(2) > .sep { display: none }
   .sh-barra .der { gap: 10px }
 }
 

@@ -89,7 +89,7 @@ export default async function AppLayout({
       {/* Deja anotado el tema en este equipo para que la pantalla de
           entrada se pinte igual la próxima vez. */}
       <RecordarTema tema={String(perfil?.tema ?? "gris")} />
-      <BarraSuperior usuario={nombre} turno={turnoActual()} />
+      <BarraSuperior usuario={nombre} turno={turnoActual()} permitidas={permitidas} />
       <AvisoCopia />
       <PrepararSola rutas={rutasParaCopia(permisos)} dueno={user.id} />
       <MedirUso />
