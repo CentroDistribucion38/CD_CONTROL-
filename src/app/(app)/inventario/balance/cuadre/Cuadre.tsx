@@ -3,7 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Rango } from "../../../sider/seguimiento/Rango";
-import { NO_SUMAR, type CuadreGuardado, type FilaCuadre, type LineaOtros } from "@/modulos/inventario/cuadre";
+import type { CuadreGuardado, FilaCuadre, LineaOtros } from "@/modulos/inventario/cuadre";
 import { asignarOtros, guardarMovimientos, guardarOpciones, guardarZexi, quitarMovimientos } from "./actions";
 import { leerMovimientos, leerZexi } from "./leer";
 
@@ -15,6 +15,8 @@ import { leerMovimientos, leerZexi } from "./leer";
  *      movido: cada material queda «Balanceado» o dice cuánto falta y hacia dónde.
  */
 const ALM = "AG18";
+/* El mismo valor que NO_SUMAR de modulos/inventario/cuadre.ts: ese archivo es del servidor y aquí solo se importan sus tipos. */
+const NO_SUMAR = "NO";
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 const DIAS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
 const largo = (iso: string) => { const d = new Date(iso + "T12:00:00Z"); return `${DIAS[d.getUTCDay()]} ${d.getUTCDate()} de ${MESES[d.getUTCMonth()]}` };
