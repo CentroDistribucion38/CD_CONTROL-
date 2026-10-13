@@ -371,6 +371,8 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
      dictar, esta es la única salida. Sin esto quedaba una cuenta a la
      que nadie puede entrar y un usuario ocupado para siempre. */
   const [regenerando, setRegenerando] = useState<string | null>(null);
+  /** «3 de 10» mientras se generan varias. */
+  const [avanceClaves, setAvanceClaves] = useState<string | null>(null);
   /** Una clave nueva para una persona. Devuelve la clave, o null y deja
    *  dicho el porqué en `mal`. */
   async function generarClave(p: Persona): Promise<Clave | null> {
@@ -409,9 +411,30 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
     const conmigo = ps.some((p) => p.id === yo);
     ps = ps.filter((p) => p.id !== yo);
     if (!ps.length) { setMal("Tu clave se cambia en Mi perfil."); return }
+    /* «QUE LO PUEDA HACER CON VARIOS DE UNA»: con dos o más se pregunta una vez, porque la clave que
+       tienen deja de servir en ese momento. */
+    if (ps.length > 1) {
+      const nombres = ps.map((p) => p.nombre || p.usuario || "?");
+      const ok = await pedir({
+        titulo: `¿Clave nueva para ${ps.length} personas?`,
+        dice: (
+          <>
+            <p>{nombres.length <= 6 ? nombres.join(", ") : `${nombres.slice(0, 5).join(", ")} y ${nombres.length - 5} más`}.</p>
+            <p>La clave que tienen <b>deja de servir ya</b>. Las nuevas salen juntas, con sus tarjetas y pases para entregar.</p>
+          </>
+        ),
+        confirmar: `Dar ${ps.length} claves nuevas`,
+        cancelar: "No, dejarlas",
+      });
+      if (!ok) return;
+    }
     setMal(null); setBien(conmigo ? "A ti no se te cambió la clave: la tuya se cambia en Mi perfil." : null);
     const filas: Clave[] = [];
-    for (const p of ps) { const c = await generarClave(p); if (c) filas.push(c) }
+    for (const [i, p] of ps.entries()) {
+      setAvanceClaves(ps.length > 1 ? `${i + 1} de ${ps.length}` : null);
+      const c = await generarClave(p); if (c) filas.push(c);
+    }
+    setAvanceClaves(null);
     router.refresh();
     if (filas.length) {
       setPanel({ tipo: "claves", titulo: filas.length === 1 ? "Nueva clave" : `${filas.length} claves nuevas`, filas, fallas: [] });
@@ -859,7 +882,7 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
       const acciones: { que: string; dice: string; hacer: () => void; peligro?: boolean; no?: boolean }[] = [
         ...(n === 1 ? [{ que: "Ver tarjeta", dice: "Su tarjeta de acceso, en pantalla", hacer: () => abrir({ tipo: "tarjeta", id: ps[0].id }) }] : []),
         { que: "Cambiar rol", dice: "Pasarlos a otro rol y ver cómo queda", hacer: () => abrir({ tipo: "rol", ids: [...sel] }) },
-        { que: "Tarjetas y pases", dice: n === 1 ? "Clave nueva, con su tarjeta y su pase para entregar" : "Clave nueva a cada uno, con sus tarjetas y pases para entregar",
+        { que: n === 1 ? "Nueva clave" : `Nueva clave a los ${n}`, dice: n === 1 ? "Clave nueva, con su tarjeta y su pase para entregar" : "Una clave nueva a cada uno, de una vez, con sus tarjetas y pases",
           hacer: () => nuevasClaves(ps), no: !ps.some((p) => p.id !== yo) || !!regenerando },
         ...(ps.some((p) => !p.activo) ? [{ que: "Activar", dice: "Que vuelvan a poder entrar", hacer: () => lote("activar", [...sel]) }] : []),
         ...(ps.some((p) => p.activo) ? [{ que: "Desactivar", dice: "Que no entren; se puede revertir", hacer: () => lote("desactivar", [...sel]) }] : []),
@@ -1346,7 +1369,7 @@ export function Usuarios({ gente, roles, delRol, catalogo, hayLlave, yo, ingreso
                     onClick={() => abrir({ tipo: "rol", ids: [...sel] })}>Cambiar rol</button>
             <button type="button" className="btn sec" disabled={enLote || !hayLlave || !!regenerando}
                     onClick={() => nuevasClaves(lista.filter((p) => sel.has(p.id)))}>
-              {regenerando ? "Generando…" : "Tarjetas y pases"}</button>
+              {regenerando ? `Generando${avanceClaves ? ` ${avanceClaves}` : ""}…` : sel.size === 1 ? "Nueva clave" : `Nueva clave a los ${sel.size}`}</button>
             <button type="button" className="btn sec" disabled={enLote || !hayLlave} onClick={() => lote("activar", [...sel])}>Activar</button>
             <button type="button" className="btn sec" disabled={enLote || !hayLlave} onClick={() => lote("desactivar", [...sel])}>Desactivar</button>
             <button type="button" className="btn sec peligro" disabled={enLote || !hayLlave}
