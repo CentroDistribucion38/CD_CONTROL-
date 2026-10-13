@@ -113,6 +113,7 @@
 .sh-barra .ruta .sep { width: 14px; height: 14px; stroke: var(--sh-barra-sep); fill: none; flex: none }
 /* Cada nivel de las migas se abre: CONTROL › Módulo › Rama › (Grupo), con un menú de lo que hay ahí. */
 .sh-barra .ruta { z-index: 30 }
+.sh-barra .ruta-cel { display: none }
 .sh-barra .ruta-nivel { display: inline-flex; align-items: center; gap: 10px; min-width: 0 }
 .sh-barra .ruta-caja { position: relative; display: inline-flex }
 .sh-barra .ruta-bt { display: inline-flex; align-items: center; gap: 4px; padding: 6px 6px; margin: 0 -6px; border: 0; border-radius: 4px;
@@ -620,8 +621,10 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
   .sh-main { padding: 18px 18px 30px }
   .sh-barra { gap: 14px; padding-right: 16px }
   .sh-barra .esquina { width: 56px }
-  .sh-barra .ruta .ruta-nivel:first-child { display: none }
-  .sh-barra .ruta .ruta-nivel:nth-child(2) > .sep { display: none }
+  /* En el celular: las migas sencillas, sin menús que se abran. */
+  .sh-barra .ruta-pc { display: none }
+  .sh-barra .ruta-cel { display: flex; overflow: hidden }
+  .sh-barra .ruta-cel .hoja { overflow: hidden; text-overflow: ellipsis }
   .sh-barra .der { gap: 10px }
 }
 

@@ -100,7 +100,14 @@ export function Ruta({ permitidas = [] }: { permitidas?: string[] }) {
   );
 
   return (
-    <div className="ruta" ref={caja}>
+    <>
+    {/* EN EL CELULAR, LAS MIGAS DE SIEMPRE (Módulo › Pantalla), sin menús: «solo para PC y tablet; en el
+        celular no, porque se enreda». La de abajo se ve en PC y tablet; cuál se muestra lo decide el CSS. */}
+    <div className="ruta ruta-cel">
+      {modulo && <span className="modulo">{modulo.nombre}</span>}
+      {seccion && <>{flecha}<span className="hoja">{seccion.nombre}</span></>}
+    </div>
+    <div className="ruta ruta-pc" ref={caja}>
       {niveles.map((nv, i) => (
         <span key={i} className="ruta-nivel">
           {i > 0 && flecha}
@@ -129,5 +136,6 @@ export function Ruta({ permitidas = [] }: { permitidas?: string[] }) {
       ))}
       {hoja && <>{flecha}<span className="hoja">{hoja}</span></>}
     </div>
+    </>
   );
 }
