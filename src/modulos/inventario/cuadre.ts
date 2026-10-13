@@ -75,6 +75,8 @@ export type FilaCuadre = {
   pendBaja: number; lavadoBaja: number; andina: number; almacen: number;
   /** Cajas de líneas OTROS que quedaron sumadas en este envase. */
   otrosCajas: number;
+  /** Unidades por caja (solo envase): para mostrar la diferencia también en cajas. */
+  upc: number;
   total: number;
   sap: number | null;
   /** SAP − total (el 311 que hay que hacer). null si no hay ZEXI. */
@@ -221,7 +223,7 @@ export async function armarCuadre(pedida?: string | null) {
     const sapDespues = sapV == null ? null : redondo(sapV + movido);
     const queda = sapDespues == null ? null : redondo(sapDespues - total);
     return { grupo, codigo: a.codigo, material: a.material, conteo: redondo(conteo), detalle, pendBaja, lavadoBaja: a.lav, andina: a.andina,
-      almacen, otrosCajas: grupo === "ENVASE" ? a.otrosCajas : 0, total, sap: sapV, dif, movido, documentos: m?.documentos ?? [], sapDespues, queda };
+      almacen, otrosCajas: grupo === "ENVASE" ? a.otrosCajas : 0, upc: grupo === "ENVASE" ? upc(a.codigo) : 1, total, sap: sapV, dif, movido, documentos: m?.documentos ?? [], sapDespues, queda };
   })
     /* Lo que no tiene nada en ningún lado no se lista. */
     .filter((f) => f.total !== 0 || (f.sap ?? 0) !== 0 || f.movido !== 0 || f.codigo === ESTIBA)

@@ -25,6 +25,12 @@ const n = (v: number) => (v < 0 ? "−" : "") + nf.format(Math.abs(v));
 const conSigno = (v: number) => (v > 0 ? "+" : "") + n(v);
 const cero = (v: number | null) => v != null && Math.abs(v) < 0.5;
 const hora = (iso: string | null) => (iso ? new Date(iso).toLocaleString("es-CO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "");
+/* LA DIFERENCIA EN CAJAS, al lado de la de unidades: el envase se divide por sus unidades por caja;
+   las cajas plásticas ya vienen en cajas; las estibas no tienen cajas. */
+const enCajas = (f: Pick<FilaCuadre, "grupo" | "upc">, v: number | null) =>
+  v == null || f.grupo === "ESTIBA" ? null : f.grupo === "CAJA" ? v : v / (f.upc || 1);
+const nc = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 1 });
+const cajasTxt = (v: number | null, signo = true) => v == null ? "—" : Math.abs(v) < 0.05 ? "0" : (signo && v > 0 ? "+" : v < 0 ? "−" : "") + nc.format(Math.abs(v));
 const GRUPO: Record<string, string> = { ENVASE: "Envase", CAJA: "Cajas plásticas", ESTIBA: "Estibas de madera" };
 
 /** La etiqueta de OTROS (Andina…). */
@@ -47,6 +53,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
   const zexiRef = useRef<HTMLInputElement>(null);
   const movRef = useRef<HTMLInputElement>(null);
   const [verOtros, setVerOtros] = useState(false);
+  const [copiado, setCopiado] = useState<string | null>(null);
   const [reemplazar, setReemplazar] = useState(false);
   const [abierto, setAbierto] = useState<string | null>(null);
   /* Dos hojas: el cuadre del día y el histórico. La escogida queda en la dirección (?vista=historico). */
@@ -111,9 +118,29 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
     hacer(guardarOpciones(fecha!, v, sumarPend), "Estibas del almacén guardadas.");
   };
 
+  /* COPIAR PARA SAP: código y cantidad, uno por renglón, separados por tabulador y sin puntos de miles
+     (así se pegan en las columnas Material y Cantidad del 311). */
+  async function copiarParaSap(xs: FilaCuadre[], cual: string) {
+    const texto = xs.map((f) => `${f.codigo}\t${Math.round(Math.abs(f.dif ?? 0))}`).join("\r\n");
+    try { await navigator.clipboard.writeText(texto) }
+    catch {
+      const t = document.createElement("textarea"); t.value = texto; t.style.position = "fixed"; t.style.opacity = "0";
+      document.body.appendChild(t); t.select(); try { document.execCommand("copy") } finally { t.remove() }
+    }
+    setCopiado(cual); window.setTimeout(() => setCopiado((c) => (c === cual ? null : c)), 2200);
+  }
+  const botonCopiar = (xs: FilaCuadre[], cual: string) => xs.length > 0 && (
+    <button type="button" className={"cs-copiar" + (copiado === cual ? " ok" : "")} onClick={() => void copiarParaSap(xs, cual)}
+            title="Copia código y cantidad para pegar en SAP">
+      {copiado === cual ? "✓ Copiado" : (
+        <><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="1.5" /><path d="M5 15V5a1 1 0 0 1 1-1h10" /></svg> Copiar</>
+      )}
+    </button>
+  );
   const lista = (xs: FilaCuadre[]) => (
-    <table className="cs-t chica"><thead><tr><th>Código</th><th>Material</th><th className="n">Cantidad</th></tr></thead>
-      <tbody>{xs.map((f) => <tr key={f.codigo}><td className="mono">{f.codigo}</td><td>{f.material}</td><td className="n"><b>{n(Math.abs(f.dif!))}</b></td></tr>)}</tbody>
+    <table className="cs-t chica"><thead><tr><th>Código</th><th>Material</th><th className="n">Cantidad</th><th className="n">Cajas</th></tr></thead>
+      <tbody>{xs.map((f) => <tr key={f.codigo}><td className="mono">{f.codigo}</td><td>{f.material}</td><td className="n"><b>{n(Math.abs(f.dif!))}</b></td>
+        <td className="n">{cajasTxt(enCajas(f, Math.abs(f.dif!)), false)}</td></tr>)}</tbody>
     </table>
   );
 
@@ -280,11 +307,11 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
           <thead><tr>
             <th>Código</th><th>Material</th><th className="n">Conteo fábrica</th><th className="n">Pend. baja</th><th className="n">Lavado con baja</th>
             <th className="n">Andina / Heineken</th><th className="n">Almacén</th><th className="n">Total conteo</th><th className="n">SAP (ZEXI)</th>
-            <th className="n">311 (SAP − conteo)</th><th>Movimiento</th>
+            <th className="n">311 (SAP − conteo)</th><th className="n">311 en cajas</th><th>Movimiento</th>
           </tr></thead>
           <tbody>
             {filas.map((f, i) => [
-              (i === 0 || filas[i - 1].grupo !== f.grupo) && <tr key={`g-${f.grupo}`} className="g"><td colSpan={11}>{GRUPO[f.grupo]}</td></tr>,
+              (i === 0 || filas[i - 1].grupo !== f.grupo) && <tr key={`g-${f.grupo}`} className="g"><td colSpan={12}>{GRUPO[f.grupo]}</td></tr>,
               <tr key={f.codigo}>
                 <td className="mono">{f.codigo}</td>
                 <td>{f.material}{f.detalle && <small>{f.detalle}</small>}
@@ -297,6 +324,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                 <td className="n"><b>{n(f.total)}</b></td>
                 <td className="n">{f.sap == null ? "—" : n(f.sap)}</td>
                 <td className={"n" + (f.dif == null || cero(f.dif) ? "" : f.dif < 0 ? " neg" : " amb")}><b>{f.dif == null ? "—" : cero(f.dif) ? "0" : conSigno(f.dif)}</b></td>
+                <td className={"n" + (f.dif == null || cero(f.dif) ? "" : f.dif < 0 ? " neg" : " amb")} title={f.grupo === "ENVASE" ? `${n(f.upc)} unidades por caja` : undefined}>{cajasTxt(enCajas(f, f.dif))}</td>
                 <td>{f.dif == null ? <span className="cs-chip">Sin SAP</span> : cero(f.dif) ? <span className="cs-chip ok">Cuadra</span>
                   : f.dif < 0 ? <span className="cs-chip in">AG22 → AG18</span> : <span className="cs-chip out">AG18 → AG22</span>}</td>
               </tr>,
@@ -314,8 +342,8 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
           <h2 className="cs-h"><i>2</i> Qué hacer en SAP (movimiento 311)</h2>
           {entran.length + salen.length === 0 ? <p className="cs-msg">Todo cuadra: no hay nada que mover en SAP.</p> : (
             <div className="cs-dos">
-              <div className="cs-caja r"><h3>Pasar de AG22 a AG18 <em>{entran.length} materiales</em></h3>{entran.length ? lista(entran) : <p className="cs-vacio">Nada.</p>}</div>
-              <div className="cs-caja a"><h3>Pasar de AG18 a AG22 <em>{salen.length} materiales</em></h3>{salen.length ? lista(salen) : <p className="cs-vacio">Nada.</p>}</div>
+              <div className="cs-caja r"><h3>Pasar de AG22 a AG18 <span className="cs-h3d">{botonCopiar(entran, "entran")}<em>{entran.length} materiales</em></span></h3>{entran.length ? lista(entran) : <p className="cs-vacio">Nada.</p>}</div>
+              <div className="cs-caja a"><h3>Pasar de AG18 a AG22 <span className="cs-h3d">{botonCopiar(salen, "salen")}<em>{salen.length} materiales</em></span></h3>{salen.length ? lista(salen) : <p className="cs-vacio">Nada.</p>}</div>
             </div>
           )}
           <div className="cs-subir">

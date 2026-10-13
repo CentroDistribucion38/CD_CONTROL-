@@ -86,6 +86,12 @@
 .cs .cs-caja h3 em { font-style: normal; font: 700 11px var(--fe-mono, ui-monospace, monospace); padding: 3px 8px }
 .cs .cs-caja.r h3 em { background: #FDECEE; color: var(--fe-mal, #C8102E) }
 .cs .cs-caja.a h3 em { background: #FFF4D6; color: #7A5200 }
+.cs .cs-h3d { display: inline-flex; align-items: center; gap: 8px }
+.cs .cs-copiar { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; cursor: pointer;
+  border: 1px solid var(--fe-linea); background: var(--fe-papel, #fff); color: var(--fe-tinta); font: 700 11.5px var(--fe-texto) }
+.cs .cs-copiar:hover { border-color: var(--fe-tinta) }
+.cs .cs-copiar:focus-visible { outline: 2px solid var(--fe-acento, #FFC400); outline-offset: 1px }
+.cs .cs-copiar.ok { background: #E7F4EC; border-color: #1E8E3E; color: #1E6B37 }
 .cs .cs-vacio { margin: 0; padding: 14px; color: var(--fe-gris); font-size: 13px }
 .cs .cs-subir { margin-top: 12px; padding: 14px 18px; background: var(--fe-papel, #fff); border: 2px dashed var(--fe-linea);
   display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center }
