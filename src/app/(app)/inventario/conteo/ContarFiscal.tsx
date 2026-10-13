@@ -456,39 +456,20 @@ export function ContarFiscal({
         </div>
         {mios != null && mios.length === 0 && <p className="fc-vacio">Todavía no has anotado nada en esta hoja.</p>}
         {mios != null && mios.length > 0 && (
-          /* EN TABLA Y EN ORDEN, como El borrador del FEFO: por ubicación y código. */
-          <div className="fe-tabla fe-bor-t">
-            <table>
-              <thead>
-                <tr><th>Ubicación</th><th>Código</th><th>Material</th><th className="n">Cómo se contó</th>
-                  <th className="n">Total cajas</th><th>Vence</th><th>Nota</th><th aria-label="Acciones" /></tr>
-              </thead>
-              <tbody>
-                {[...mios].sort((x, y) => String(x.ubicacion ?? "").localeCompare(String(y.ubicacion ?? ""), "es", { numeric: true })
-                    || String(x.sku).localeCompare(String(y.sku), "es", { numeric: true })).map((r) => (
-                  <tr key={r.id}>
-                    <td><b>{r.ubicacion}</b></td>
-                    <td><b className="fe-cod">{r.sku}</b></td>
-                    <td className="fe-bor-desc">{r.material}</td>
-                    <td className="n">{textoCantidad(r)}</td>
-                    <td className="n"><b>{nf.format(Number(r.total_cajas))}</b></td>
-                    <td>{r.venc_dia != null ? `${dd(r.venc_dia)}/${dd(r.venc_mes)}/${dd(r.venc_anio)}` : "—"}</td>
-                    <td><em>{r.nota ?? ""}</em></td>
-                    <td className="fe-bor-acc">
-                      <button type="button" className="fe-mini" disabled={guardando || cerrada} onClick={() => quitar(r)}>Quitar</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr>
-                  <td colSpan={4}><b>{mios.length} {mios.length === 1 ? "renglón" : "renglones"}</b></td>
-                  <td className="n"><b>{nf.format(totalMio)}</b></td>
-                  <td colSpan={3} />
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+          <ul className="fc-lista">
+            {mios.map((r) => (
+              <li key={r.id}>
+                <div className="fc-ren">
+                  <b>{r.ubicacion}</b> · {r.sku} · {r.material}
+                  <br />
+                  <span>{textoCantidad(r)} = <b>{nf.format(Number(r.total_cajas))}</b> cajas
+                    {r.venc_dia != null && <> · vence {dd(r.venc_dia)}/{dd(r.venc_mes)}/{dd(r.venc_anio)}</>}
+                    {r.nota && <> · {r.nota}</>}</span>
+                </div>
+                <button type="button" className="fe-mini" disabled={guardando || cerrada} onClick={() => quitar(r)}>Quitar</button>
+              </li>
+            ))}
+          </ul>
         )}
         {cerrada && (
           <p className="fc-nota-term" role="status">Tu hoja está terminada: para cambiar algo, reábrela.{" "}

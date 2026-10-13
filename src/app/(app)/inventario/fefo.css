@@ -1861,26 +1861,3 @@
   .fe .fe-cod-dos input { font-size: 17px; min-height: 50px }
 }
 
-/* ---------- EL BORRADOR EN TABLA ----------
-   Ordenado por ubicación y código; cada ubicación abre con su renglón de grupo. */
-.fe .fe-bor-t { background: var(--fe-papel); border: 1px solid var(--fe-linea); border-radius: 3px }
-.fe .fe-bor-t td { padding: 7px 12px; vertical-align: middle }
-.fe .fe-bor-t th { padding: 9px 12px }
-.fe .fe-bor-t .fe-cod { font-size: 14px }
-.fe .fe-bor-t .fe-bor-desc { font-size: 13px; font-weight: 500; min-width: 220px }
-.fe .fe-bor-t tr.fe-bor-grupo td {
-  background: var(--fe-fondo); padding: 8px 12px; border-top: 1.5px solid var(--fe-linea);
-}
-.fe .fe-bor-t tr.fe-bor-grupo b { font: 800 13px var(--fe-titulo); letter-spacing: .02em; margin-right: 10px }
-.fe .fe-bor-t tr.fe-bor-grupo span { font-size: 12px; color: var(--fe-gris-panel) }
-.fe .fe-bor-t tr.tocando td { background: color-mix(in srgb, var(--fe-acento) 12%, transparent) }
-.fe .fe-bor-t .fe-bor-acc { white-space: nowrap; text-align: right }
-.fe .fe-bor-t .fe-bor-acc .fe-mini, .fe .fe-bor-t .fe-bor-acc .fe-quitar {
-  margin-left: 6px; width: auto; min-height: 30px; padding: 0 10px; font-size: 12px; display: inline-flex; align-items: center;
-}
-.fe .fe-bor-t tfoot td { border-top: 2px solid var(--fe-tinta); border-bottom: 0; padding: 9px 12px }
-/* La ubicación en su columna: se escribe en el primer renglón de cada una y una raya la separa de la anterior. */
-.fe .fe-bor-t table { min-width: 640px }
-.fe .fe-bor-t .fe-bor-ubi { white-space: nowrap; font-size: 13px }
-.fe .fe-bor-t .fe-bor-ubi b { font: 800 13px var(--fe-titulo); letter-spacing: .02em }
-.fe .fe-bor-t tr.fe-bor-nueva td { border-top: 1.5px solid var(--fe-linea) }
