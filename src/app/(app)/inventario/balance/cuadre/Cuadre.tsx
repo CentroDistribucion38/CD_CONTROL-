@@ -111,30 +111,45 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
         <li className={conMov ? (pendientes.length ? "on" : "hecho") : ""}><span>PASO 3</span><b>¿Quedó balanceado?</b><small>El cuadre otra vez, con lo movido</small></li>
       </ol>
 
+      {/* LOS DATOS DEL CUADRE: cuatro tarjetas iguales, encabezado oscuro (como las tablas) con el estado
+          en amarillo, y el cuerpo en una sola línea. */}
       <div className="cs-barra">
-        <div className="sd bal-cal">
-          <Rango rotulo="Día del conteo" desde={fecha} hasta={fecha} dias={dias.map((d) => ({ fecha: d, hl_zlde: 0, viajes: 1 }))}
-                 alElegir={(d) => start(() => router.push(`/inventario/balance/cuadre?fecha=${d}`))} />
+        <div className="cs-c">
+          <span className="cs-ch">Día del conteo</span>
+          <span className="cs-cb cs-dia bal-cal">
+            <Rango rotulo="Día del conteo" desde={fecha} hasta={fecha} dias={dias.map((d) => ({ fecha: d, hl_zlde: 0, viajes: 1 }))}
+                   alElegir={(d) => start(() => router.push(`/inventario/balance/cuadre?fecha=${d}`))} />
+          </span>
         </div>
         <div className="cs-c">
-          <label>ZEXI de SAP</label>
-          <span className="v">{conZexi ? guardado!.zexi_archivo : "Sin subir"}</span>
-          <small>{conZexi ? `${guardado!.zexi!.length} materiales · ${hora(guardado!.zexi_en)}` : `El stock de ${ALM} de ese día`}</small>
-          <input ref={zexiRef} type="file" accept=".xlsx,.xls,.csv" hidden onChange={(e) => { const a = e.target.files?.[0]; e.target.value = ""; if (a) void subirZexi(a) }} />
-          <button type="button" className="cs-bt alt" disabled={pend} onClick={() => zexiRef.current?.click()}>{conZexi ? "Cambiar ZEXI" : "Subir ZEXI"}</button>
+          <span className="cs-ch">ZEXI de SAP {conZexi ? <i>✓ Cargado</i> : <i className="no">Falta subir</i>}</span>
+          <span className="cs-cb">
+            <span className="cs-txt">
+              <b className="cs-v" title={conZexi ? guardado!.zexi_archivo ?? "" : undefined}>{conZexi ? guardado!.zexi_archivo : "Sin subir"}</b>
+              <small>{conZexi ? `${guardado!.zexi!.length} materiales · ${hora(guardado!.zexi_en)}` : `El stock de ${ALM} de ese día`}</small>
+            </span>
+            <input ref={zexiRef} type="file" accept=".xlsx,.xls,.csv" hidden onChange={(e) => { const a = e.target.files?.[0]; e.target.value = ""; if (a) void subirZexi(a) }} />
+            <button type="button" className={"cs-bt" + (conZexi ? " alt" : "")} disabled={pend} onClick={() => zexiRef.current?.click()}>{conZexi ? "Cambiar" : "Subir ZEXI"}</button>
+          </span>
         </div>
         <div className="cs-c">
-          <label htmlFor="cs-est">Estibas en almacén ({ALM})</label>
-          <input id="cs-est" inputMode="decimal" value={estibas} onChange={(e) => setEstibas(e.target.value)} onBlur={guardarEst}
-                 onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur() }} placeholder="0" />
-          <small>En la bodega se contaron {n(estibasBodega)}</small>
+          <label className="cs-ch" htmlFor="cs-est">Estibas en almacén {ALM}</label>
+          <span className="cs-cb">
+            <input id="cs-est" className="cs-num" inputMode="decimal" value={estibas} onChange={(e) => setEstibas(e.target.value)} onBlur={guardarEst}
+                   onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur() }} placeholder="0" />
+            <small>En la bodega se contaron <b>{n(estibasBodega)}</b></small>
+          </span>
         </div>
         <label className="cs-c cs-sw">
-          <span className="lbl">Pend. baja</span>
-          <span className="fila"><input type="checkbox" checked={sumarPend} disabled={pend}
-            onChange={(e) => hacer(guardarOpciones(fecha, guardado?.estibas_almacen ?? null, e.target.checked), e.target.checked ? "El pend. baja se suma." : "El pend. baja ya no se suma.")} />
-            {sumarPend ? "Se suma al conteo" : "No se suma"}</span>
-          <small>Pasivos {ALM} · BAJA · SORTING</small>
+          <span className="cs-ch">Pend. baja <i className={sumarPend ? "" : "no"}>{sumarPend ? "Se suma" : "No se suma"}</i></span>
+          <span className="cs-cb">
+            <input type="checkbox" role="switch" checked={sumarPend} disabled={pend}
+              onChange={(e) => hacer(guardarOpciones(fecha, guardado?.estibas_almacen ?? null, e.target.checked), e.target.checked ? "El pend. baja se suma." : "El pend. baja ya no se suma.")} />
+            <span className="cs-txt">
+              <b className="cs-v">{sumarPend ? "Se suma al conteo" : "No se suma"}</b>
+              <small>Pasivos {ALM} · BAJA · SORTING</small>
+            </span>
+          </span>
         </label>
       </div>
 

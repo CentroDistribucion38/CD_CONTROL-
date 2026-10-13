@@ -9,16 +9,37 @@
 .cs .cs-pasos b { font: 700 15px var(--fe-texto); color: var(--fe-tinta) }
 .cs .cs-pasos small { font-size: 12px; color: var(--fe-gris) }
 
-.cs .cs-barra { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; margin-bottom: 12px }
-.cs .cs-c { background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea); padding: 10px 14px; display: flex; flex-direction: column; gap: 4px; min-width: 200px }
-.cs .cs-c > label, .cs .cs-c .lbl { font: 600 10.5px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase; color: var(--fe-gris) }
-.cs .cs-c .v { font: 700 14.5px var(--fe-texto); color: var(--fe-tinta); overflow-wrap: anywhere }
-.cs .cs-c small { font-size: 12px; color: var(--fe-gris) }
-.cs .cs-c input:not([type="checkbox"]) { font: 700 18px var(--fe-mono, ui-monospace, monospace); width: 130px; padding: 4px 8px; border: 2px solid var(--fe-acento, #FFC400); background: #fff; color: var(--fe-tinta) }
+/* La barra: cuatro tarjetas iguales · encabezado oscuro con el estado en amarillo · cuerpo en una línea */
+.cs .cs-barra { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px }
+.cs .cs-c { background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea); display: flex; flex-direction: column; min-width: 0 }
+.cs .cs-ch { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 7px 12px; background: var(--fe-tinta); color: var(--fe-papel, #fff);
+  font: 700 10.5px var(--fe-texto); letter-spacing: .11em; text-transform: uppercase; white-space: nowrap }
+.cs .cs-ch i { font-style: normal; color: var(--fe-acento, #FFC400); overflow: hidden; text-overflow: ellipsis }
+.cs .cs-ch i.no { color: #FF8A8A }
+.cs .cs-cb { flex: 1; display: flex; align-items: center; gap: 10px; padding: 9px 12px; min-height: 58px; min-width: 0 }
+.cs .cs-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1 }
+.cs .cs-v { font: 700 14.5px var(--fe-texto); color: var(--fe-tinta); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.cs .cs-cb small { font-size: 11.5px; color: var(--fe-gris); line-height: 1.3 }
+.cs .cs-cb small b { color: var(--fe-tinta) }
+.cs .cs-num { font: 700 18px var(--fe-mono, ui-monospace, monospace); width: 96px; flex: none; padding: 3px 8px; border: 2px solid var(--fe-acento, #FFC400); background: #fff; color: var(--fe-tinta) }
+.cs .cs-num:focus-visible { outline: 3px solid var(--fe-tinta); outline-offset: 1px }
+/* El día: el calendario de siempre, sin su rótulo (ya está en el encabezado) y abriendo hacia la derecha. */
+.cs .cs-dia { display: flex }
+.cs .cs-dia .sg-mes { flex: 1; min-width: 0; gap: 0 }
+.cs .cs-dia .sg-mes > span:first-child { display: none }
+.cs .cs-dia .sg-mes .mes-campo { height: 38px; min-width: 0; width: 100% }
+.cs .cs-dia .sg-mes .mes-panel { left: 0; right: auto }
+/* El interruptor del pend. baja */
 .cs .cs-sw { cursor: pointer }
-.cs .cs-sw .fila { display: flex; align-items: center; gap: 8px; font: 700 14px var(--fe-texto); color: var(--fe-tinta) }
-.cs .cs-sw input { width: 18px; height: 18px; accent-color: var(--fe-tinta) }
-.cs .cs-bt { margin-top: 4px; align-self: flex-start; min-height: 36px; padding: 0 14px; cursor: pointer; border: 1.5px solid var(--fe-tinta);
+.cs .cs-sw input { appearance: none; -webkit-appearance: none; flex: none; width: 40px; height: 22px; margin: 0; border-radius: 11px; position: relative; cursor: pointer;
+  background: var(--fe-linea); transition: background .15s }
+.cs .cs-sw input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left .15s }
+.cs .cs-sw input:checked { background: var(--fe-tinta) }
+.cs .cs-sw input:checked::after { left: 21px; background: var(--fe-acento, #FFC400) }
+.cs .cs-sw input:focus-visible { outline: 3px solid var(--fe-acento, #FFC400); outline-offset: 2px }
+.cs .cs-sw input:disabled { opacity: .6; cursor: wait }
+@media (prefers-reduced-motion: reduce) { .cs .cs-sw input, .cs .cs-sw input::after { transition: none } }
+.cs .cs-bt { flex: none; min-height: 34px; padding: 0 14px; cursor: pointer; border: 1.5px solid var(--fe-tinta);
   background: var(--fe-tinta); color: var(--fe-papel, #fff); font: 700 13.5px var(--fe-texto); box-shadow: inset 0 -3px 0 var(--fe-acento, #FFC400) }
 .cs .cs-bt.alt { background: var(--fe-papel, #fff); color: var(--fe-tinta); box-shadow: none }
 .cs .cs-bt:disabled { opacity: .55; cursor: wait }
@@ -91,5 +112,6 @@
   .cs .cs-pasos { grid-template-columns: 1fr } .cs .cs-pasos li { border-right: 0 }
   .cs .cs-k { grid-template-columns: repeat(2, minmax(0, 1fr)) }
   .cs .cs-dos { grid-template-columns: 1fr }
-  .cs .cs-c { flex: 1 1 100% }
+  .cs .cs-barra { grid-template-columns: repeat(2, minmax(0, 1fr)) }
 }
+@media (max-width: 560px) { .cs .cs-barra { grid-template-columns: 1fr } }
