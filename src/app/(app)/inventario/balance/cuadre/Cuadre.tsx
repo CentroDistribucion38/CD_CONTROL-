@@ -116,7 +116,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
       <div className="cs-barra">
         <div className="cs-c">
           <span className="cs-ch">Día del conteo</span>
-          <span className="cs-cb cs-dia bal-cal">
+          <span className="cs-cb cs-dia sd bal-cal">
             <Rango rotulo="Día del conteo" desde={fecha} hasta={fecha} dias={dias.map((d) => ({ fecha: d, hl_zlde: 0, viajes: 1 }))}
                    alElegir={(d) => start(() => router.push(`/inventario/balance/cuadre?fecha=${d}`))} />
           </span>

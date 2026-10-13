@@ -24,7 +24,8 @@
 .cs .cs-num { font: 700 18px var(--fe-mono, ui-monospace, monospace); width: 96px; flex: none; padding: 3px 8px; border: 2px solid var(--fe-acento, #FFC400); background: #fff; color: var(--fe-tinta) }
 .cs .cs-num:focus-visible { outline: 3px solid var(--fe-tinta); outline-offset: 1px }
 /* El día: el calendario de siempre, sin su rótulo (ya está en el encabezado) y abriendo hacia la derecha. */
-.cs .cs-dia { display: flex }
+/* Lleva .sd para tomar los estilos del calendario (sider.css); .sd trae flex en columna y gap: se corrigen. */
+.cs .cs-dia { display: flex; flex-direction: row; align-items: center; gap: 0 }
 .cs .cs-dia .sg-mes { flex: 1; min-width: 0; gap: 0 }
 .cs .cs-dia .sg-mes > span:first-child { display: none }
 .cs .cs-dia .sg-mes .mes-campo { height: 38px; min-width: 0; width: 100% }
