@@ -53,7 +53,10 @@ export function lineaDeUbicaciones(rs: RenglonUbic[]): string {
     const base = (x.ubicacion ?? x.ubicacion_combinada ?? "").trim();
     const comb = (x.ubicacion_combinada ?? base).trim();
     const zona = comb.startsWith(base) ? comb.slice(base.length).trim() : "";
-    const resto = estado && zona.toUpperCase().startsWith(estado) ? zona.slice(estado.length).trim() : zona;
+    const conEstado = estado && zona.toUpperCase().startsWith(estado) ? zona.slice(estado.length).trim() : zona;
+    /* La traza de la regla de fábrica («Regla fábrica: LAVADO → BAJA | …») no va en los informes: «eso no
+       les importa, solo deja la ubicación». Se queda la nota que la gente escribió, si la había. */
+    const resto = conEstado.replace(/Regla f[aá]brica:\s*[^|]*?→\s*\S+\s*(\|\s*)?/gi, "").trim();
     const nombre = base && resto ? `${base} (${resto})` : base || comb;
     if (nombre) nombres.add(nombre);
   }
