@@ -51,6 +51,8 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
   const [abierto, setAbierto] = useState<string | null>(null);
   /* Dos hojas: el cuadre del día y el histórico. La escogida queda en la dirección (?vista=historico). */
   const [vista, setVista] = useState<"cuadre" | "historico">(vistaInicial);
+  /* Los días guardados hasta el paso 2: les falta subir la ZEXI nueva para validar (paso 3). */
+  const porValidar = historial.filter((h) => !h.cierre.resumen.conMov);
   const irA = (v: "cuadre" | "historico") => {
     setVista(v);
     try { const u = new URL(window.location.href); if (v === "historico") u.searchParams.set("vista", v); else u.searchParams.delete("vista"); window.history.replaceState(null, "", u) } catch { /* nada */ }
@@ -126,7 +128,9 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
         {/* GUARDAR EL BALANCEO DEL DÍA: queda en el histórico de abajo. Volver a guardar lo reemplaza. */}
         <div className="cs-guardar">
           {guardado?.cierre
-            ? <span className="cs-guardado">✓ Guardado {hora(guardado.cerrado_en ?? null)}{guardado.cerrado_nombre ? ` · ${guardado.cerrado_nombre}` : ""}</span>
+            ? (guardado.cierre.resumen.conMov
+              ? <span className="cs-guardado">✓ Guardado y validado {hora(guardado.cerrado_en ?? null)}{guardado.cerrado_nombre ? ` · ${guardado.cerrado_nombre}` : ""}</span>
+              : <span className="cs-guardado paso2">✓ Guardado hasta el paso 2 {hora(guardado.cerrado_en ?? null)} · falta subir la ZEXI nueva (paso 3)</span>)
             : <span className="cs-guardado no">Este día no está guardado</span>}
           {reemplazar ? (
             <span className="cs-acc">
@@ -136,7 +140,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
           ) : (
             <button type="button" className="cs-bt" disabled={pend || !conZexi} title={conZexi ? undefined : "Sube primero la ZEXI de SAP de ese día"}
                     onClick={() => guardado?.cierre ? setReemplazar(true) : hacer(guardarBalanceo(fecha), "Balanceo del día guardado en el histórico.")}>
-              {guardado?.cierre ? "Volver a guardar" : "Guardar balanceo del día"}
+              {guardado?.cierre ? "Volver a guardar" : conMov ? "Guardar balanceo del día" : "Guardar hasta el paso 2"}
             </button>
           )}
         </div>
@@ -149,6 +153,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
         <button type="button" role="tab" aria-selected={vista === "historico"} className={`bal-tab ${vista === "historico" ? "activa" : ""}`} onClick={() => irA("historico")}>
           <span className="bal-tab-label">Histórico</span>
           {historial.length > 0 && <span className="bal-tab-n" title="días guardados">{historial.length}</span>}
+          {porValidar.length > 0 && <span className="bal-tab-al" title="días esperando la ZEXI nueva">{porValidar.length}</span>}
         </button>
       </nav>
 
@@ -366,7 +371,13 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
       {/* ---------- LA HOJA DEL HISTÓRICO ---------- */}
       {vista === "historico" && (<>
       {msg && <p className={"cs-msg" + (msg.mal ? " mal" : "")} role="status">{msg.t}</p>}
-      <p className="cs-nota cs-hintro">Un renglón por cada día guardado con «Guardar balanceo del día». <b>Ver</b> muestra lo que se guardó; <b>Abrir y editar</b> lleva al cuadre de ese día para cambiarlo y volverlo a guardar.</p>
+      {porValidar.length > 0 && (
+        <p className="cs-msg cs-porvalidar">
+          <b>{porValidar.length} {porValidar.length === 1 ? "día espera" : "días esperan"} la ZEXI nueva</b> para validar el balanceo (paso 3): {porValidar.map((h) => largo(h.fecha)).join(" · ")}.
+          Ábrelo, sube la ZEXI nueva y lo guardado se pone al día solo.
+        </p>
+      )}
+      <p className="cs-nota cs-hintro">Un renglón por cada día guardado con «Guardar balanceo del día» o «Guardar hasta el paso 2». <b>Ver</b> muestra lo que se guardó; <b>Abrir y editar</b> lleva al cuadre de ese día para cambiarlo y volverlo a guardar.</p>
       {faltaHist ? <p className="cs-msg mal">Falta correr supabase/migraciones/2026-10-cuadre-sap-historial.sql en Supabase para guardar el histórico.</p>
         : historial.length === 0 ? <p className="cs-msg">Todavía no hay balanceos guardados. Con el botón «Guardar balanceo del día» (arriba) cada día queda aquí.</p> : (
         <div className="cs-scroll">
@@ -381,13 +392,15 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                     <td>{hora(h.cerrado_en)}<small>{h.cerrado_nombre ?? ""}</small></td>
                     <td className="n">{r.conSap}</td>
                     <td className="n">{r.cuadran}</td>
-                    <td className="n"><b>{r.balanceados}</b></td>
-                    <td className={"n" + (r.pendientes ? " neg" : "")}><b>{r.pendientes}</b></td>
-                    <td>{r.pendientes === 0 ? <span className="cs-chip ok">Todo balanceado</span>
-                      : <span className="cs-chip in">{r.pendientes} pendientes{r.conMov ? "" : " · sin ZEXI nueva"}</span>}</td>
+                    <td className="n"><b>{r.conMov ? r.balanceados : "—"}</b></td>
+                    <td className={"n" + (r.conMov && r.pendientes ? " neg" : "")}><b>{r.conMov ? r.pendientes : "—"}</b></td>
+                    <td>{!r.conMov
+                      ? <span className="cs-chip out">Paso 2 · falta la ZEXI nueva{r.entran != null ? ` · 311: ${r.entran} entran, ${r.salen ?? 0} salen` : ""}</span>
+                      : r.pendientes === 0 ? <span className="cs-chip ok">Todo balanceado</span>
+                      : <span className="cs-chip in">{r.pendientes} pendientes</span>}</td>
                     <td className="cs-hacc">
                       <button type="button" className="cs-bt alt" aria-expanded={ver} onClick={() => setAbierto(ver ? null : h.fecha)}>{ver ? "Ocultar" : "Ver"}</button>
-                      <button type="button" className="cs-bt alt" disabled={pend} onClick={() => h.fecha === fecha ? irA("cuadre") : start(() => router.push(`/inventario/balance/cuadre?fecha=${h.fecha}`))}>Abrir y editar</button>
+                      <button type="button" className="cs-bt alt" disabled={pend} onClick={() => h.fecha === fecha ? irA("cuadre") : start(() => router.push(`/inventario/balance/cuadre?fecha=${h.fecha}`))}>{r.conMov ? "Abrir y editar" : "Abrir y validar"}</button>
                     </td>
                   </tr>,
                   ver && (

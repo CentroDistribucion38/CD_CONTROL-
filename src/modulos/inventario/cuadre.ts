@@ -45,7 +45,9 @@ export type CuadreGuardado = {
   cierre?: BalanceoGuardado | null; cerrado_en?: string | null; cerrado_nombre?: string | null;
 };
 /** Lo que se congela al guardar el balanceo de un día. */
-export type ResumenBalanceo = { materiales: number; conSap: number; cuadran: number; balanceados: number; pendientes: number; conMov: boolean };
+/** conMov = false: guardado HASTA EL PASO 2 (se sabe qué mover en SAP, falta la ZEXI nueva para validar). */
+export type ResumenBalanceo = { materiales: number; conSap: number; cuadran: number; balanceados: number; pendientes: number; conMov: boolean;
+  entran?: number; salen?: number };
 export type FilaGuardada = Pick<FilaCuadre, "grupo" | "codigo" | "material" | "total" | "sap" | "dif" | "movido" | "sapDespues" | "queda">;
 export type BalanceoGuardado = {
   resumen: ResumenBalanceo; filas: FilaGuardada[]; aplicados: Aplicado[];

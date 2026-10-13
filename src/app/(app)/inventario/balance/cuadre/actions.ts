@@ -46,12 +46,23 @@ export async function guardarMovimientos(fecha: string, filasJson: string, archi
   try { filas = JSON.parse(filasJson) } catch { return { error: "El archivo no se pudo leer." } }
   filas = filas.filter((f) => f.codigo && Number.isFinite(Number(f.cantidad)));
   if (!filas.length) return { error: "El archivo no trae movimientos de AG18." };
-  return poner(fecha, { movimientos: filas, mov_archivo: archivo, mov_en: new Date().toISOString() });
+  const r = await poner(fecha, { movimientos: filas, mov_archivo: archivo, mov_en: new Date().toISOString() });
+  return r.error ? r : regrabarSiEstaGuardado(fecha);
+}
+
+/** Si el día ya estaba guardado (por ejemplo, hasta el paso 2), lo guardado se pone al día solo con la
+ *  ZEXI nueva: así el histórico pasa de «falta validar» a «balanceado» / «pendientes» sin otro clic. */
+async function regrabarSiEstaGuardado(fecha: string) {
+  const supabase = await createClient();
+  const { data } = await supabase.from("cuadre_sap").select("cerrado_en").eq("fecha", fecha).eq("almacen", ALMACEN_CUADRE).maybeSingle();
+  if (!(data as { cerrado_en?: string | null } | null)?.cerrado_en) return { ok: true };
+  return guardarBalanceo(fecha);
 }
 
 /** Quitar los movimientos (para volver a subirlos o rehacer el paso 2). */
 export async function quitarMovimientos(fecha: string) {
-  return poner(fecha, { movimientos: null, mov_archivo: null, mov_en: null });
+  const r = await poner(fecha, { movimientos: null, mov_archivo: null, mov_en: null });
+  return r.error ? r : regrabarSiEstaGuardado(fecha);
 }
 
 /** OTROS (Andina…): a qué envase se suma una línea del conteo. Volver al código con que se contó la
@@ -85,6 +96,8 @@ export async function guardarBalanceo(fecha: string) {
       cuadran: conSap.filter((f) => cero(f.dif)).length,
       balanceados: conSap.filter((f) => cero(f.queda)).length,
       pendientes: conSap.filter((f) => !cero(f.queda)).length,
+      entran: conSap.filter((f) => !cero(f.dif) && (f.dif ?? 0) < 0).length,
+      salen: conSap.filter((f) => !cero(f.dif) && (f.dif ?? 0) > 0).length,
     },
     filas: c.filas.map(({ grupo, codigo, material, total, sap, dif, movido, sapDespues, queda }) => ({ grupo, codigo, material, total, sap, dif, movido, sapDespues, queda })),
     aplicados: c.aplicados,
