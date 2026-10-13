@@ -71,6 +71,22 @@
 .cs .cs-acc { display: flex; gap: 8px }
 .cs .cs-acc .cs-bt { margin-top: 0 }
 
+/* OTROS (Andina…): el aviso que se abre y el selector de a qué envase se suma */
+.cs .cs-otros { margin-bottom: 12px; background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea); border-left: 4px solid #6B4FBB }
+.cs .cs-otros-bt { width: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 14px; border: 0; background: none;
+  cursor: pointer; text-align: left; color: var(--fe-tinta); font: 500 13.5px var(--fe-texto) }
+.cs .cs-otros-bt svg { color: #6B4FBB; flex: none }
+.cs .cs-otros-bt b { font-weight: 700; letter-spacing: .1em }
+.cs .cs-otros-bt em { font-style: normal; font-size: 12px; color: var(--fe-gris) }
+.cs .cs-otros-bt i { margin-left: auto; font-style: normal; color: var(--fe-gris) }
+.cs .cs-otros-bt:focus-visible { outline: 3px solid var(--fe-acento, #FFC400); outline-offset: -3px }
+.cs .cs-otros .cs-scroll { border: 0; border-top: 1px solid var(--fe-linea) }
+.cs .cs-sel { font: 600 13px var(--fe-texto); padding: 5px 8px; max-width: 320px; border: 1.5px solid var(--fe-linea); background: #fff; color: var(--fe-tinta) }
+.cs .cs-sel.cambiado { border-color: #6B4FBB; background: #F1EDFB }
+.cs .cs-sel:focus-visible { outline: 3px solid var(--fe-acento, #FFC400); outline-offset: 1px }
+.cs .cs-chip.otr { display: inline-flex; align-items: center; gap: 4px; margin-top: 3px; border: 0; cursor: pointer; background: #F1EDFB; color: #4B3590 }
+.cs .cs-chip.otr svg { width: 13px; height: 13px }
+
 @media (max-width: 900px) {
   .cs .cs-pasos { grid-template-columns: 1fr } .cs .cs-pasos li { border-right: 0 }
   .cs .cs-k { grid-template-columns: repeat(2, minmax(0, 1fr)) }

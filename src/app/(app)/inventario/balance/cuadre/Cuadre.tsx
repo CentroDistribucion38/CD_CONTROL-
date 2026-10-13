@@ -3,8 +3,8 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Rango } from "../../../sider/seguimiento/Rango";
-import type { CuadreGuardado, FilaCuadre } from "@/modulos/inventario/cuadre";
-import { guardarMovimientos, guardarOpciones, guardarZexi, quitarMovimientos } from "./actions";
+import { NO_SUMAR, type CuadreGuardado, type FilaCuadre, type LineaOtros } from "@/modulos/inventario/cuadre";
+import { asignarOtros, guardarMovimientos, guardarOpciones, guardarZexi, quitarMovimientos } from "./actions";
 import { leerMovimientos, leerZexi } from "./leer";
 
 /**
@@ -25,9 +25,17 @@ const cero = (v: number | null) => v != null && Math.abs(v) < 0.5;
 const hora = (iso: string | null) => (iso ? new Date(iso).toLocaleString("es-CO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "");
 const GRUPO: Record<string, string> = { ENVASE: "Envase", CAJA: "Cajas plásticas", ESTIBA: "Estibas de madera" };
 
-export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, error }: {
+/** La etiqueta de OTROS (Andina…). */
+const IconoOtros = () => (
+  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z" /><circle cx="7.5" cy="7.5" r="1.5" />
+  </svg>
+);
+
+export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, error, otros, envases }: {
   fecha: string | null; dias: string[]; filas: FilaCuadre[]; guardado: CuadreGuardado | null;
   estibasBodega: number; avisos: string[]; error: string | null;
+  otros: LineaOtros[]; envases: { codigo: string; material: string }[];
 }) {
   const router = useRouter();
   const [pend, start] = useTransition();
@@ -35,6 +43,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
   const [estibas, setEstibas] = useState(guardado?.estibas_almacen != null ? String(guardado.estibas_almacen) : "");
   const zexiRef = useRef<HTMLInputElement>(null);
   const movRef = useRef<HTMLInputElement>(null);
+  const [verOtros, setVerOtros] = useState(false);
 
   if (!fecha) {
     return <section className="cabeza"><div><p className="ojo">INVENTARIO · BALANCE · CUADRE SAP</p><h1>Cuadre SAP</h1>
@@ -50,6 +59,9 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
   const cuadran = conDif.filter((f) => cero(f.dif));
   const balanceados = filas.filter((f) => cero(f.queda));
   const pendientes = filas.filter((f) => f.queda != null && !cero(f.queda));
+  const cajasOtros = otros.reduce((t, o) => t + o.cajas, 0);
+  const otrosSinCambiar = otros.filter((o) => !o.elegido).length;
+  const nombreDe = (c: string) => envases.find((e) => e.codigo === c)?.material ?? c;
 
   const hacer = (p: Promise<{ ok?: boolean; error?: string }>, bien: string) => start(async () => {
     const r = await p;
@@ -136,6 +148,43 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
       </div>
       {!conZexi && <p className="cs-msg">Sube el ZEXI de SAP de ese día para ver la diferencia. Mientras tanto, abajo está lo que la app ya armó del conteo.</p>}
 
+      {otros.length > 0 && (
+        <div className={"cs-otros" + (verOtros ? " abierto" : "")}>
+          <button type="button" className="cs-otros-bt" aria-expanded={verOtros} onClick={() => setVerOtros((v) => !v)}>
+            <IconoOtros />
+            <b>OTROS</b>
+            <span>{otros.length} {otros.length === 1 ? "línea" : "líneas"} · {n(cajasOtros)} cajas</span>
+            <em>{otrosSinCambiar ? `${otrosSinCambiar} sumando a su código` : "Todas asignadas"}</em>
+            <i aria-hidden="true">{verOtros ? "▴" : "▾"}</i>
+          </button>
+          {verOtros && (
+            <div className="cs-scroll">
+              <table className="cs-t chica">
+                <thead><tr><th>Ubicación</th><th>Contado como</th><th>Nota</th><th className="n">Estibas</th><th className="n">Cajas</th><th>Sumar a</th><th className="n">Unidades</th></tr></thead>
+                <tbody>{otros.map((o) => (
+                  <tr key={o.id}>
+                    <td className="mono">{o.ubicacion}</td>
+                    <td><span className="mono">{o.codigo}</span><small>{o.material}</small></td>
+                    <td>{o.nota || "—"}</td>
+                    <td className="n">{n(o.estibas)}</td>
+                    <td className="n"><b>{n(o.cajas)}</b></td>
+                    <td>
+                      <select className={"cs-sel" + (o.elegido ? " cambiado" : "")} value={o.destino} disabled={pend} aria-label={`Sumar ${o.cajas} cajas de ${o.ubicacion} a`}
+                              onChange={(e) => { const d = e.target.value;
+                                hacer(asignarOtros(fecha, o.id, d, o.codigo), d === NO_SUMAR ? `${n(o.cajas)} cajas de ${o.ubicacion}: no se suman.` : `${n(o.cajas)} cajas de ${o.ubicacion} suman a ${d} · ${nombreDe(d)}.`) }}>
+                        {envases.map((e) => <option key={e.codigo} value={e.codigo}>{e.codigo} · {e.material}{e.codigo === o.codigo ? " (como se contó)" : ""}</option>)}
+                        <option value={NO_SUMAR}>No sumar</option>
+                      </select>
+                    </td>
+                    <td className="n">{o.destino === NO_SUMAR ? "—" : n(o.unidades)}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="cs-scroll">
         <table className="cs-t">
           <thead><tr>
@@ -148,7 +197,8 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
               (i === 0 || filas[i - 1].grupo !== f.grupo) && <tr key={`g-${f.grupo}`} className="g"><td colSpan={11}>{GRUPO[f.grupo]}</td></tr>,
               <tr key={f.codigo}>
                 <td className="mono">{f.codigo}</td>
-                <td>{f.material}{f.detalle && <small>{f.detalle}</small>}</td>
+                <td>{f.material}{f.detalle && <small>{f.detalle}</small>}
+                  {f.otrosCajas > 0 && <button type="button" className="cs-chip otr" title="Ver las líneas OTROS" onClick={() => setVerOtros(true)}><IconoOtros /> incluye OTROS · {n(f.otrosCajas)} cajas</button>}</td>
                 <td className="n">{n(f.conteo)}</td>
                 <td className={"n" + (sumarPend ? "" : " tachado")}>{f.pendBaja ? n(f.pendBaja) : "—"}</td>
                 <td className="n neg">{f.lavadoBaja ? n(f.lavadoBaja) : "—"}</td>
@@ -164,7 +214,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
           </tbody>
         </table>
       </div>
-      <p className="cs-nota">Unidades (las cajas plásticas en cajas y las estibas en estibas). Conteo fábrica = lo contado en ubicaciones FABRICA_, todos los estados.
+      <p className="cs-nota">Unidades (las cajas plásticas en cajas y las estibas en estibas). Conteo fábrica = lo contado en ubicaciones FABRICA_, todos los estados; lo de OTROS suma al envase escogido arriba (si no se escoge, al código con que se contó).
         Cajas plásticas = las sueltas + la caja de cada envase. Estibas = las sueltas + 1 por estiba contada (y por renglón con saldo) + las del almacén.
         Negativo = se contó más de lo que dice SAP.</p>
 

@@ -30,7 +30,7 @@ export default async function CuadrePage({ searchParams }: { searchParams: Promi
   }
   return (
     <div className="fe bal cs">
-      <Cuadre fecha={c.fecha} dias={c.dias} filas={c.filas} guardado={c.guardado} estibasBodega={c.estibasBodega} avisos={c.avisos} error={c.error} />
+      <Cuadre fecha={c.fecha} dias={c.dias} filas={c.filas} guardado={c.guardado} estibasBodega={c.estibasBodega} avisos={c.avisos} error={c.error} otros={c.otros} envases={c.envases} />
     </div>
   );
 }

@@ -16,6 +16,7 @@ import { maestroInventario, type Renglon, type ConteoFefo } from "@/modulos/inve
 import { armarLibroDia, type EvidenciaRenglon } from "@/modulos/inventario/libro";
 import { todas, porTandas } from "@/modulos/inventario/paginas";
 import { validarCasco } from "@/modulos/casco/validar-casco";
+import { conReclasificaciones } from "@/modulos/inventario/reclasificaciones";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -67,7 +68,8 @@ export async function GET(req: Request) {
      hay fotos, el libro sale exactamente como siempre. Se baja a lo más
      MAX_FOTOS_LIBRO: cada foto pesa ~0,5 MB y un .xlsx de cientos de MB
      no abre; si se recortan, la hoja lo dice. */
-  const lineas = l;
+  /* Con lo reclasificado en el Balance: el consolidado sale como quedó, no como se contó. */
+  const lineas = await conReclasificaciones(l);
   const evidencias: EvidenciaRenglon[] = [];
   let recortadas = 0;
   try {

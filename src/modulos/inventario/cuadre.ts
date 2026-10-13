@@ -2,12 +2,14 @@ import { createClient } from "@/lib/supabase/server";
 import { consolidadoDelDia, diasConConteo, leerCasco } from "@/modulos/inventario/balance";
 import { esUbicacionFabrica } from "@/modulos/casco/ubicacion-sitio";
 import { leerPasivos } from "@/modulos/pasivos/datos";
+import { conReclasificaciones } from "@/modulos/inventario/reclasificaciones";
 
 /**
  * CUADRE SAP · AG18 FÁBRICA — el archivo «2026.10.09_FABRICA.xlsx», hecho pantalla.
  *
  * TOTAL CONTEO de cada material (en unidades; las cajas plásticas en cajas y las estibas en estibas):
  *   · ENVASE  = lo contado en la fábrica (ubicaciones FABRICA_, todos los estados) × unidades por caja
+ *             (lo de estado OTROS —Andina…— va al envase que se escoja; si no se escoge, al que se contó)
  *             + PEND. BAJA (Pasivos AG18 · BAJA · SORTING)          ← se puede apagar
  *             − LAVADO CON BAJA (Casco AG18: estibas × cajas/estiba × unidades/caja)
  *             + ANDINA / HEINEKEN (Pasivos AG18 · BAJA · las demás causales)
@@ -23,6 +25,9 @@ import { leerPasivos } from "@/modulos/pasivos/datos";
  */
 export const ALMACEN_CUADRE = "AG18";
 const ESTIBA = "3500163";
+/** «No sumar»: la línea OTROS no entra a ningún envase. */
+export const NO_SUMAR = "NO";
+const esOtros = (e: string | null | undefined) => /OTRO/i.test(e ?? "");
 
 export type ZexiFila = { codigo: string; descripcion: string; cantidad: number };
 export type MovFila = { codigo: string; cantidad: number; documentos: string[] };
@@ -31,6 +36,18 @@ export type CuadreGuardado = {
   estibas_almacen: number | null; sumar_pend_baja: boolean;
   zexi: ZexiFila[] | null; zexi_archivo: string | null; zexi_en: string | null;
   movimientos: MovFila[] | null; mov_archivo: string | null; mov_en: string | null;
+  /** A qué envase va cada línea OTROS: { id del renglón: código | "NO" }. Sin la línea = al que se contó. */
+  otros?: Record<string, string> | null;
+};
+/** Una línea del conteo de fábrica en estado OTROS (Andina…), con el envase al que se suma. */
+export type LineaOtros = {
+  id: string; ubicacion: string; codigo: string; material: string; nota: string | null;
+  estibas: number; cajas: number;
+  /** El envase al que se suma (código) o NO_SUMAR. */
+  destino: string;
+  unidades: number;
+  /** true si alguien la cambió; false = suma al código con que se contó. */
+  elegido: boolean;
 };
 export type Grupo = "ENVASE" | "CAJA" | "ESTIBA";
 export type FilaCuadre = {
@@ -39,6 +56,8 @@ export type FilaCuadre = {
   conteo: number;
   detalle: string | null;
   pendBaja: number; lavadoBaja: number; andina: number; almacen: number;
+  /** Cajas de líneas OTROS que quedaron sumadas en este envase. */
+  otrosCajas: number;
   total: number;
   sap: number | null;
   /** SAP − total (el 311 que hay que hacer). null si no hay ZEXI. */
@@ -60,7 +79,8 @@ export async function armarCuadre(pedida?: string | null) {
   const supabase = await createClient();
   const { dias, conteos, error: e0 } = await diasConConteo();
   const fecha = pedida && dias.includes(pedida) ? pedida : (dias[0] ?? null);
-  const base = { fecha, dias, filas: [] as FilaCuadre[], guardado: null as CuadreGuardado | null, estibasBodega: 0, avisos: [] as string[], error: e0, faltaSql: false };
+  const base = { fecha, dias, filas: [] as FilaCuadre[], guardado: null as CuadreGuardado | null, estibasBodega: 0, avisos: [] as string[], error: e0, faltaSql: false,
+    otros: [] as LineaOtros[], envases: [] as { codigo: string; material: string }[] };
   if (!fecha) return base;
 
   const [cons, prodR, maesR, pas, casco, sitiosR, guardR] = await Promise.all([
@@ -90,17 +110,21 @@ export async function armarCuadre(pedida?: string | null) {
   const cpe = (c: string) => Number(M.get(c)?.cajas_por_estiba ?? P.get(c)?.cajas_por_estiba ?? 0) || 0;
   const nombre = (c: string, alt?: string | null) => M.get(c)?.descripcion ?? P.get(c)?.nombre ?? alt ?? c;
 
-  type Acc = { codigo: string; material: string; conteo: number; sueltas: number; conEnvase: number; pend: number; lav: number; andina: number };
+  type Acc = { codigo: string; material: string; conteo: number; sueltas: number; conEnvase: number; pend: number; lav: number; andina: number; otrosCajas: number };
   const acc = new Map<string, Acc>();
   const de = (c: string, alt?: string | null) => {
     let a = acc.get(c);
-    if (!a) { a = { codigo: c, material: nombre(c, alt), conteo: 0, sueltas: 0, conEnvase: 0, pend: 0, lav: 0, andina: 0 }; acc.set(c, a) }
+    if (!a) { a = { codigo: c, material: nombre(c, alt), conteo: 0, sueltas: 0, conEnvase: 0, pend: 0, lav: 0, andina: 0, otrosCajas: 0 }; acc.set(c, a) }
     return a;
   };
 
   /* 1. EL CONTEO DE LA FÁBRICA (todos los estados del envase). */
+  const asignado = (guardado?.otros ?? {}) as Record<string, string>;
+  const otros: LineaOtros[] = [];
+  const envasesVistos = new Set<string>();
   let estBajo = 0, estSueltas = 0, estibasBodega = 0;
-  for (const r of cons.vigentes) {
+  /* Con lo reclasificado en el Balance: una línea OTROS que se pasó a BAJA ya no es OTROS. */
+  for (const r of await conReclasificaciones(cons.vigentes)) {
     if (r.tipo_material !== "ENVASE") continue;
     const c = String(r.codigo), cajas = Number(r.total_cajas) || 0;
     if (!esUbicacionFabrica(r.ubicacion)) { if (c === ESTIBA) estibasBodega += cajas; continue }
@@ -108,11 +132,21 @@ export async function armarCuadre(pedida?: string | null) {
     if (g === "ESTIBA") { estSueltas += cajas; continue }
     /* La estiba de madera de debajo: una por estiba contada y una por renglón con saldo o sueltas. */
     estBajo += (Number(r.estibas) || 0) + ((Number(r.cajas) || 0) + (Number(r.saldo) || 0) > 0 ? 1 : 0);
-    const a = de(c, r.material);
-    if (g === "CAJA") { a.sueltas += cajas; continue }
-    a.conteo += cajas * upc(c);
-    const caja = M.get(c)?.caja;
-    if (caja) de(String(caja)).conEnvase += cajas;
+    if (g === "CAJA") { de(c, r.material).sueltas += cajas; continue }
+    envasesVistos.add(c);
+    /* OTROS (Andina…): al envase que se escogió; si no se ha escogido, al código con que se contó.
+       «No sumar» lo saca del envase, pero su caja plástica y su estiba siguen ahí y sí cuentan. */
+    let destino = c;
+    if (esOtros(r.estado_envase)) {
+      const elegido = asignado[String(r.id)];
+      destino = elegido === NO_SUMAR ? "" : elegido ? String(elegido) : c;
+      otros.push({ id: String(r.id), ubicacion: String(r.ubicacion ?? ""), codigo: c, material: nombre(c, r.material), nota: r.nota ?? null,
+        estibas: Number(r.estibas) || 0, cajas, destino: destino || NO_SUMAR, unidades: destino ? cajas * upc(destino) : 0, elegido: !!elegido && elegido !== c });
+      if (destino) de(destino).otrosCajas += cajas;
+    }
+    const cajaDe = M.get(destino || c)?.caja;
+    if (cajaDe) de(String(cajaDe)).conEnvase += cajas;
+    if (destino) de(destino, destino === c ? r.material : null).conteo += cajas * upc(destino);
   }
 
   /* 2. PEND. BAJA Y ANDINA / HEINEKEN (Pasivos AG18 · BAJA, del día). */
@@ -164,11 +198,15 @@ export async function armarCuadre(pedida?: string | null) {
     const sapDespues = sapV == null ? null : redondo(sapV + movido);
     const queda = sapDespues == null ? null : redondo(sapDespues - total);
     return { grupo, codigo: a.codigo, material: a.material, conteo: redondo(conteo), detalle, pendBaja, lavadoBaja: a.lav, andina: a.andina,
-      almacen, total, sap: sapV, dif, movido, documentos: m?.documentos ?? [], sapDespues, queda };
+      almacen, otrosCajas: grupo === "ENVASE" ? a.otrosCajas : 0, total, sap: sapV, dif, movido, documentos: m?.documentos ?? [], sapDespues, queda };
   })
     /* Lo que no tiene nada en ningún lado no se lista. */
     .filter((f) => f.total !== 0 || (f.sap ?? 0) !== 0 || f.movido !== 0 || f.codigo === ESTIBA)
     .sort((x, y) => "ENVASE CAJA ESTIBA".indexOf(x.grupo) - "ENVASE CAJA ESTIBA".indexOf(y.grupo) || x.codigo.localeCompare(y.codigo));
 
-  return { ...base, filas, guardado, estibasBodega, avisos };
+  /* Los envases a los que se puede mandar una línea OTROS: los del maestro de Pasivos y los contados. */
+  const envases = [...new Set([...[...M.keys()].filter((c) => grupoDe(c) === "ENVASE"), ...envasesVistos])]
+    .map((c) => ({ codigo: c, material: nombre(c) })).sort((x, y) => x.codigo.localeCompare(y.codigo));
+
+  return { ...base, filas, guardado, estibasBodega, avisos, otros, envases };
 }

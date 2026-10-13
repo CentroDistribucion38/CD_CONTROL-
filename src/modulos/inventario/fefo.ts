@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { conReclasificaciones } from "@/modulos/inventario/reclasificaciones";
 import { elegirConteos } from "./fecha-tablero";
 import { todas, porTandas } from "./paginas";
 
@@ -440,7 +441,8 @@ export async function baseFefo(bodegaId: string | null) {
   return {
     falta: false,
     conteos,
-    enviadas: lineas.filter((r) => deEnviados.has(r.conteo_id)),
+    /* Lo enviado, con lo que se reclasificó en el Balance (el estado nuevo y de dónde venía en la nota). */
+    enviadas: await conReclasificaciones(lineas.filter((r) => deEnviados.has(r.conteo_id))),
     abiertas: lineas.filter((r) => !deEnviados.has(r.conteo_id)),
     tope: false,
   };
