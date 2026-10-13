@@ -4,17 +4,17 @@ import { useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 /**
- * Cierra la sesión cuando nadie toca la app durante 10 minutos.
+ * Cierra la sesión cuando nadie toca la app durante 30 minutos (antes eran 10: «que no se cierre a los 10, sino a la media hora»).
  *
  * · Cuenta el último toque (clic, tecla, toque, scroll) y lo comparte entre
  *   pestañas del mismo equipo: si trabajas en una, la otra no te saca.
  * · En el celular los relojes se duermen con la pantalla apagada; por eso,
- *   al volver a la app, se mira cuánto tiempo pasó y se cierra si van 10 min.
+ *   al volver a la app, se mira cuánto tiempo pasó y se cierra si van 30 min.
  * · Cierra solo en ESTE equipo (scope "local"), no en los demás de la persona.
  * · No borra la copia sin internet: si vuelve a entrar la misma persona, no
  *   hay que volver a descargarla toda. Si entra otra, PrepararSola la cambia.
  */
-const QUIETO_MS = 10 * 60_000;
+const QUIETO_MS = 30 * 60_000;
 const LLAVE = "cd38-ultimo-toque";
 const MIRAR_CADA_MS = 30_000;
 

@@ -155,7 +155,7 @@ export function Formulario() {
                 <h2>Iniciar sesión</h2>
                 <p className="sub">
                   {params.get("motivo") === "inactividad"
-                    ? "Se cerró tu sesión porque pasaron 10 minutos sin usar la app. Vuelve a entrar."
+                    ? "Se cerró tu sesión porque pasaron 30 minutos sin usar la app. Vuelve a entrar."
                     : "Entra con el usuario que te asignó tu supervisor."}
                 </p>
               </div>
