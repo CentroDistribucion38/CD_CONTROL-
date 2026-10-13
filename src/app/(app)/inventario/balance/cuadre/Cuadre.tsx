@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Rango } from "../../../sider/seguimiento/Rango";
 import type { Aplicado, CuadreGuardado, DiaHistorial, FilaCuadre, LineaOtros } from "@/modulos/inventario/cuadre";
@@ -54,6 +54,17 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
   const movRef = useRef<HTMLInputElement>(null);
   const [verOtros, setVerOtros] = useState(false);
   const [copiado, setCopiado] = useState<string | null>(null);
+  /* Los documentos del 311 que ya se hicieron en SAP (de a 9 posiciones). Se recuerdan en este equipo, por día. */
+  const [hechos, setHechos] = useState<Set<string>>(new Set());
+  const claveHechos = `cuadre-311-hechos-${fecha ?? ""}`;
+  useEffect(() => {
+    try { setHechos(new Set(JSON.parse(localStorage.getItem(claveHechos) ?? "[]") as string[])) } catch { setHechos(new Set()) }
+  }, [claveHechos]);
+  const marcarHecho = (k: string) => setHechos((prev) => {
+    const nx = new Set(prev); if (nx.has(k)) nx.delete(k); else nx.add(k);
+    try { localStorage.setItem(claveHechos, JSON.stringify([...nx])) } catch { /* sin memoria en este equipo */ }
+    return nx;
+  });
   const [reemplazar, setReemplazar] = useState(false);
   const [abierto, setAbierto] = useState<string | null>(null);
   /* Dos hojas: el cuadre del día y el histórico. La escogida queda en la dirección (?vista=historico). */
@@ -118,10 +129,11 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
     hacer(guardarOpciones(fecha!, v, sumarPend), "Estibas del almacén guardadas.");
   };
 
-  /* COPIAR PARA SAP: código y cantidad, uno por renglón, separados por tabulador y sin puntos de miles
-     (así se pegan en las columnas Material y Cantidad del 311). */
-  async function copiarParaSap(xs: FilaCuadre[], cual: string) {
-    const texto = xs.map((f) => `${f.codigo}\t${Math.round(Math.abs(f.dif ?? 0))}`).join("\r\n");
+  /* COPIAR PARA SAP, POR COLUMNA: primero los códigos (se pegan en la columna Material) y luego las
+     cantidades (en la columna Cantidad), uno por renglón y sin puntos de miles. SAP deja 9 posiciones
+     por documento: la lista se parte en documentos de a 9 y cada uno se copia y se marca aparte. */
+  async function copiarParaSap(xs: FilaCuadre[], que: "codigos" | "cantidades", cual: string) {
+    const texto = xs.map((f) => que === "codigos" ? f.codigo : String(Math.round(Math.abs(f.dif ?? 0)))).join("\r\n");
     try { await navigator.clipboard.writeText(texto) }
     catch {
       const t = document.createElement("textarea"); t.value = texto; t.style.position = "fixed"; t.style.opacity = "0";
@@ -129,14 +141,44 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
     }
     setCopiado(cual); window.setTimeout(() => setCopiado((c) => (c === cual ? null : c)), 2200);
   }
-  const botonCopiar = (xs: FilaCuadre[], cual: string) => xs.length > 0 && (
-    <button type="button" className={"cs-copiar" + (copiado === cual ? " ok" : "")} onClick={() => void copiarParaSap(xs, cual)}
-            title="Copia código y cantidad para pegar en SAP">
+  const botonCopiar = (xs: FilaCuadre[], que: "codigos" | "cantidades", cual: string) => (
+    <button type="button" className={"cs-copiar" + (copiado === cual ? " ok" : "")} onClick={() => void copiarParaSap(xs, que, cual)}
+            title={que === "codigos" ? "Copia la columna de códigos (Material)" : "Copia la columna de cantidades"}>
       {copiado === cual ? "✓ Copiado" : (
-        <><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="1.5" /><path d="M5 15V5a1 1 0 0 1 1-1h10" /></svg> Copiar</>
+        <><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="1.5" /><path d="M5 15V5a1 1 0 0 1 1-1h10" /></svg> {que === "codigos" ? "Códigos" : "Cantidades"}</>
       )}
     </button>
   );
+  const POSICIONES_SAP = 9;
+  const enDocumentos = (xs: FilaCuadre[]) => Array.from({ length: Math.ceil(xs.length / POSICIONES_SAP) }, (_, i) => xs.slice(i * POSICIONES_SAP, (i + 1) * POSICIONES_SAP));
+  const faltan = (xs: FilaCuadre[], cual: string) => enDocumentos(xs).filter((_, i) => !hechos.has(`${cual}-${i}`)).length;
+  /* Una lista del 311 partida en documentos de a 9: cada uno con sus dos botones de copiar y «Hecho en SAP». */
+  const documentos = (xs: FilaCuadre[], cual: string) => enDocumentos(xs).map((doc, i) => {
+    const k = `${cual}-${i}`, hecho = hechos.has(k);
+    return (
+      <div key={k} className={"cs-doc" + (hecho ? " hecho" : "")}>
+        <div className="cs-doc-bar">
+          <b>Documento {i + 1}</b>
+          <small>posiciones {i * POSICIONES_SAP + 1}–{i * POSICIONES_SAP + doc.length} · {doc.length} de {POSICIONES_SAP}</small>
+          <span className="cs-doc-acc">
+            {botonCopiar(doc, "codigos", `${k}-c`)}
+            {botonCopiar(doc, "cantidades", `${k}-q`)}
+            <label className="cs-doc-hecho"><input type="checkbox" checked={hecho} onChange={() => marcarHecho(k)} /> Hecho en SAP</label>
+          </span>
+        </div>
+        {lista(doc)}
+      </div>
+    );
+  });
+  const cabezaLista = (xs: FilaCuadre[], cual: string) => {
+    const docs = enDocumentos(xs).length, f = faltan(xs, cual);
+    return (
+      <span className="cs-h3d">
+        {docs > 0 && <span className={"cs-falta" + (f ? "" : " ok")}>{f ? `${f} de ${docs} ${docs === 1 ? "documento" : "documentos"} por hacer` : "✓ Todo hecho en SAP"}</span>}
+        <em>{xs.length} materiales</em>
+      </span>
+    );
+  };
   const lista = (xs: FilaCuadre[]) => (
     <table className="cs-t chica"><thead><tr><th>Código</th><th>Material</th><th className="n">Cantidad</th><th className="n">Cajas</th></tr></thead>
       <tbody>{xs.map((f) => <tr key={f.codigo}><td className="mono">{f.codigo}</td><td>{f.material}</td><td className="n"><b>{n(Math.abs(f.dif!))}</b></td>
@@ -342,8 +384,8 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
           <h2 className="cs-h"><i>2</i> Qué hacer en SAP (movimiento 311)</h2>
           {entran.length + salen.length === 0 ? <p className="cs-msg">Todo cuadra: no hay nada que mover en SAP.</p> : (
             <div className="cs-dos">
-              <div className="cs-caja r"><h3>Pasar de AG22 a AG18 <span className="cs-h3d">{botonCopiar(entran, "entran")}<em>{entran.length} materiales</em></span></h3>{entran.length ? lista(entran) : <p className="cs-vacio">Nada.</p>}</div>
-              <div className="cs-caja a"><h3>Pasar de AG18 a AG22 <span className="cs-h3d">{botonCopiar(salen, "salen")}<em>{salen.length} materiales</em></span></h3>{salen.length ? lista(salen) : <p className="cs-vacio">Nada.</p>}</div>
+              <div className="cs-caja r"><h3>Pasar de AG22 a AG18 {cabezaLista(entran, "entran")}</h3>{entran.length ? documentos(entran, "entran") : <p className="cs-vacio">Nada.</p>}</div>
+              <div className="cs-caja a"><h3>Pasar de AG18 a AG22 {cabezaLista(salen, "salen")}</h3>{salen.length ? documentos(salen, "salen") : <p className="cs-vacio">Nada.</p>}</div>
             </div>
           )}
           <div className="cs-subir">
