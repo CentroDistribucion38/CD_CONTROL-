@@ -78,6 +78,17 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
   }
   async function subirMov(a: File) {
     setMsg(null);
+    /* LA ZEXI NUEVA (la de después del 311): lo movido es lo que cambió el stock de SAP de una ZEXI a
+       la otra, material por material. Así SAP después = la ZEXI nueva y «Queda» = ZEXI nueva − conteo. */
+    const z = await leerZexi(a, ALM);
+    if (!z.error && z.filas.length) {
+      const antes = new Map((guardado?.zexi ?? []).map((x) => [String(x.codigo), Number(x.cantidad) || 0]));
+      const ahora = new Map(z.filas.map((x) => [String(x.codigo), Number(x.cantidad) || 0]));
+      const movs = [...new Set([...antes.keys(), ...ahora.keys()])]
+        .map((c) => ({ codigo: c, cantidad: (ahora.get(c) ?? 0) - (antes.get(c) ?? 0), documentos: [`ZEXI nueva · ${a.name}`] }));
+      hacer(guardarMovimientos(fecha!, JSON.stringify(movs), a.name), `ZEXI nueva cargada: ${z.filas.length} materiales. Abajo está cómo quedó.`);
+      return;
+    }
     const r = await leerMovimientos(a, ALM);
     if (r.error) { setMsg({ mal: true, t: r.error }); return }
     hacer(guardarMovimientos(fecha!, JSON.stringify(r.filas), a.name), `Transacción cargada: ${r.filas.length} materiales movidos.`);
@@ -107,7 +118,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
 
       <ol className="cs-pasos">
         <li className={conZexi ? "hecho" : "on"}><span>PASO 1</span><b>Cuadre del día</b><small>Conteo + ZEXI → diferencias</small></li>
-        <li className={conMov ? "hecho" : conZexi ? "on" : ""}><span>PASO 2</span><b>Hacer el 311 en SAP</b><small>La app dice qué mover · subes la transacción</small></li>
+        <li className={conMov ? "hecho" : conZexi ? "on" : ""}><span>PASO 2</span><b>Hacer el 311 en SAP</b><small>La app dice qué mover · subes la ZEXI nueva</small></li>
         <li className={conMov ? (pendientes.length ? "on" : "hecho") : ""}><span>PASO 3</span><b>¿Quedó balanceado?</b><small>El cuadre otra vez, con lo movido</small></li>
       </ol>
 
@@ -247,15 +258,15 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
           )}
           <div className="cs-subir">
             <div>
-              <b>{conMov ? "Transacción del 311 cargada" : "Ya lo hiciste en SAP: sube la transacción del 311"}</b>
+              <b>{conMov ? "Lo de después del 311 está cargado" : "Ya hiciste el 311 en SAP: baja la ZEXI nueva y súbela aquí"}</b>
               <small>{conMov
                 ? `${guardado!.mov_archivo} · ${guardado!.movimientos!.length} materiales · ${hora(guardado!.mov_en)} · documentos ${[...new Set(guardado!.movimientos!.flatMap((m) => m.documentos))].join(", ") || "—"}`
-                : "El archivo que bajas de SAP con los movimientos 311 entre AG18 y AG22 (Material, Cantidad, Almacén)."}</small>
+                : "La ZEXI de AG18 bajada después del 311 (o el archivo de movimientos 311 de SAP). La app la compara con el conteo y dice si quedó balanceado."}</small>
             </div>
             <div className="cs-acc">
               <input ref={movRef} type="file" accept=".xlsx,.xls,.csv" hidden onChange={(e) => { const a = e.target.files?.[0]; e.target.value = ""; if (a) void subirMov(a) }} />
               {conMov && <button type="button" className="cs-bt alt" disabled={pend} onClick={() => hacer(quitarMovimientos(fecha), "Se quitó la transacción.")}>Quitar</button>}
-              <button type="button" className="cs-bt" disabled={pend} onClick={() => movRef.current?.click()}>{conMov ? "Cambiar transacción" : "Subir movimientos SAP"}</button>
+              <button type="button" className="cs-bt" disabled={pend} onClick={() => movRef.current?.click()}>{conMov ? "Cambiar" : "Subir ZEXI nueva"}</button>
             </div>
           </div>
         </>
@@ -273,7 +284,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
           <div className="cs-scroll">
             <table className="cs-t">
               <thead><tr><th>Código</th><th>Material</th><th className="n">Conteo</th><th className="n">SAP antes</th><th className="n">Diferencia</th>
-                <th className="n">Movido en SAP</th><th className="n">SAP después</th><th className="n">Queda</th><th>Estado</th></tr></thead>
+                <th className="n">Cambio en SAP</th><th className="n">SAP después</th><th className="n">Queda</th><th>Estado</th></tr></thead>
               <tbody>
                 {filas.filter((f) => f.sap != null).map((f) => (
                   <tr key={f.codigo} className={cero(f.queda) ? "" : "pend"}>

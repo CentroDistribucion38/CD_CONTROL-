@@ -77,9 +77,6 @@ export async function leerMovimientos(archivo: File, almacen: string): Promise<{
   const cDH = col(h.t, /d\/h|debe.*haber/);
   const cMov = col(h.t, /^cmv$|^cl\.?\s*mov|clase.*mov/);
   const falta = [cCan < 0 && "«Cantidad»", cAlm < 0 && "«Almacén» (Alm.)"].filter(Boolean);
-  /* Una ZEXI subida en el botón de los movimientos: decirlo claro en vez de pedir columnas. */
-  if (cCan < 0 && h.t.some((x) => /total general|libre utiliz/.test(x)))
-    return { filas: [], error: "Ese archivo es una ZEXI (el stock de SAP), no la transacción del 311. Súbelo arriba, en la tarjeta «ZEXI de SAP» → Cambiar." };
   if (falta.length) return { filas: [], error: `Al archivo le falta la columna ${falta.join(" y ")}. Necesito Material, Cantidad y Almacén.` };
   const suma = new Map<string, MovFila>();
   for (const f of filas.slice(h.i + 1)) {
