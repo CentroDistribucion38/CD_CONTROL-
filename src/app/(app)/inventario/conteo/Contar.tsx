@@ -1379,7 +1379,16 @@ export function Contar({
     }
     colaOcupada.current = true; setEnviandoCola(true);
     try {
+      /* YA NO HAY LLAVE ÚNICA QUE ATAJE UN SEGUNDO ENVÍO (cada registro es su renglón: lo repetido no se
+         suma). Si la señal se cayó DESPUÉS de que el renglón llegó, en la base ya está uno idéntico
+         —material, módulo, estado y cantidades— anotado después de que este entró a la cola: ese es él,
+         y no se manda otra vez. Cada renglón de la base se empareja con un solo pendiente. */
+      const previos = (await releer(conteo.id)) ?? [];
+      const emparejados = new Set<string>();
       const r = await vaciarCola(pend, async (it): Promise<Resultado> => {
+        const mismo = previos.find((x) => !emparejados.has(x.id) && yaEstaEnLaBase(x, it as ItemCola<BorradorCola>) &&
+          !!x.contado_en && Date.parse(x.contado_en) >= it.t - 5_000);
+        if (mismo) { emparejados.add(mismo.id); return { ok: true } }
         const mat = materiales.find((m) => m.sku === it.sku);
         if (!mat) return { error: "Ese material ya no está en el maestro." };
         let idU = it.ubicacionId ?? ubicacionDe(it.bb)?.id ?? null;
