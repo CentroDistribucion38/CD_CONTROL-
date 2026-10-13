@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
  * Paso 1: el cuadre y la diferencia. Paso 2: qué mover en SAP (311). Paso 3: con la transacción
  * del 311 ya bajada de SAP, cómo quedó y si todo quedó balanceado. La cuenta: modulos/inventario/cuadre.ts.
  */
-export default async function CuadrePage({ searchParams }: { searchParams: Promise<{ fecha?: string }> }) {
+export default async function CuadrePage({ searchParams }: { searchParams: Promise<{ fecha?: string; vista?: string }> }) {
   const q = await searchParams;
   const dia = /^\d{4}-\d{2}-\d{2}$/.test(q.fecha ?? "") ? q.fecha! : null;
   const c = await armarCuadre(dia);
@@ -30,7 +30,7 @@ export default async function CuadrePage({ searchParams }: { searchParams: Promi
   }
   return (
     <div className="fe bal cs">
-      <Cuadre fecha={c.fecha} dias={c.dias} filas={c.filas} guardado={c.guardado} estibasBodega={c.estibasBodega} avisos={c.avisos} error={c.error} otros={c.otros} envases={c.envases} aplicados={c.aplicados} historial={c.historial} faltaHist={c.faltaHist} />
+      <Cuadre fecha={c.fecha} dias={c.dias} filas={c.filas} guardado={c.guardado} estibasBodega={c.estibasBodega} avisos={c.avisos} error={c.error} otros={c.otros} envases={c.envases} aplicados={c.aplicados} historial={c.historial} faltaHist={c.faltaHist} vista={q.vista === "historico" ? "historico" : "cuadre"} />
     </div>
   );
 }

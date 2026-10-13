@@ -34,11 +34,11 @@ const IconoOtros = () => (
   </svg>
 );
 
-export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, error, otros, envases, aplicados, historial, faltaHist }: {
+export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, error, otros, envases, aplicados, historial, faltaHist, vista: vistaInicial = "cuadre" }: {
   fecha: string | null; dias: string[]; filas: FilaCuadre[]; guardado: CuadreGuardado | null;
   estibasBodega: number; avisos: string[]; error: string | null;
   otros: LineaOtros[]; envases: { codigo: string; material: string }[]; aplicados: Aplicado[];
-  historial: DiaHistorial[]; faltaHist: boolean;
+  historial: DiaHistorial[]; faltaHist: boolean; vista?: "cuadre" | "historico";
 }) {
   const router = useRouter();
   const [pend, start] = useTransition();
@@ -49,6 +49,12 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
   const [verOtros, setVerOtros] = useState(false);
   const [reemplazar, setReemplazar] = useState(false);
   const [abierto, setAbierto] = useState<string | null>(null);
+  /* Dos hojas: el cuadre del día y el histórico. La escogida queda en la dirección (?vista=historico). */
+  const [vista, setVista] = useState<"cuadre" | "historico">(vistaInicial);
+  const irA = (v: "cuadre" | "historico") => {
+    setVista(v);
+    try { const u = new URL(window.location.href); if (v === "historico") u.searchParams.set("vista", v); else u.searchParams.delete("vista"); window.history.replaceState(null, "", u) } catch { /* nada */ }
+  };
 
   if (!fecha) {
     return <section className="cabeza"><div><p className="ojo">INVENTARIO · BALANCE · CUADRE SAP</p><h1>Cuadre SAP</h1>
@@ -136,6 +142,17 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
         </div>
       </section>
 
+      <nav className="bal-tabs cs-hojas" role="tablist" aria-label="Hojas del Cuadre SAP">
+        <button type="button" role="tab" aria-selected={vista === "cuadre"} className={`bal-tab ${vista === "cuadre" ? "activa" : ""}`} onClick={() => irA("cuadre")}>
+          <span className="bal-tab-label">Cuadre del día</span>
+        </button>
+        <button type="button" role="tab" aria-selected={vista === "historico"} className={`bal-tab ${vista === "historico" ? "activa" : ""}`} onClick={() => irA("historico")}>
+          <span className="bal-tab-label">Histórico</span>
+          {historial.length > 0 && <span className="bal-tab-n" title="días guardados">{historial.length}</span>}
+        </button>
+      </nav>
+
+      {vista === "cuadre" && (<>
       <ol className="cs-pasos">
         <li className={conZexi ? "hecho" : "on"}><span>PASO 1</span><b>Cuadre del día</b><small>Conteo + ZEXI → diferencias</small></li>
         <li className={conMov ? "hecho" : conZexi ? "on" : ""}><span>PASO 2</span><b>Hacer el 311 en SAP</b><small>La app dice qué mover · subes la ZEXI nueva</small></li>
@@ -344,8 +361,12 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
         </>
       )}
 
-      {/* ---------- HISTÓRICO ---------- */}
-      <h2 className="cs-h"><i>H</i> Histórico de balanceos</h2>
+      </>)}
+
+      {/* ---------- LA HOJA DEL HISTÓRICO ---------- */}
+      {vista === "historico" && (<>
+      {msg && <p className={"cs-msg" + (msg.mal ? " mal" : "")} role="status">{msg.t}</p>}
+      <p className="cs-nota cs-hintro">Un renglón por cada día guardado con «Guardar balanceo del día». <b>Ver</b> muestra lo que se guardó; <b>Abrir y editar</b> lleva al cuadre de ese día para cambiarlo y volverlo a guardar.</p>
       {faltaHist ? <p className="cs-msg mal">Falta correr supabase/migraciones/2026-10-cuadre-sap-historial.sql en Supabase para guardar el histórico.</p>
         : historial.length === 0 ? <p className="cs-msg">Todavía no hay balanceos guardados. Con el botón «Guardar balanceo del día» (arriba) cada día queda aquí.</p> : (
         <div className="cs-scroll">
@@ -366,7 +387,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                       : <span className="cs-chip in">{r.pendientes} pendientes{r.conMov ? "" : " · sin ZEXI nueva"}</span>}</td>
                     <td className="cs-hacc">
                       <button type="button" className="cs-bt alt" aria-expanded={ver} onClick={() => setAbierto(ver ? null : h.fecha)}>{ver ? "Ocultar" : "Ver"}</button>
-                      {h.fecha !== fecha && <button type="button" className="cs-bt alt" disabled={pend} onClick={() => start(() => router.push(`/inventario/balance/cuadre?fecha=${h.fecha}`))}>Abrir y editar</button>}
+                      <button type="button" className="cs-bt alt" disabled={pend} onClick={() => h.fecha === fecha ? irA("cuadre") : start(() => router.push(`/inventario/balance/cuadre?fecha=${h.fecha}`))}>Abrir y editar</button>
                     </td>
                   </tr>,
                   ver && (
@@ -393,6 +414,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
           </table>
         </div>
       )}
+      </>)}
     </>
   );
 }
