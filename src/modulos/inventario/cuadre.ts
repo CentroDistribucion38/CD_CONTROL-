@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { consolidadoDelDia, diasConConteo, leerCasco } from "@/modulos/inventario/balance";
 import { esUbicacionFabrica } from "@/modulos/casco/ubicacion-sitio";
-import { leerPasivos } from "@/modulos/pasivos/datos";
+import { diasConPasivos, leerPasivos } from "@/modulos/pasivos/datos";
 import { conReclasificaciones } from "@/modulos/inventario/reclasificaciones";
 
 /**
@@ -24,6 +24,12 @@ import { conReclasificaciones } from "@/modulos/inventario/reclasificaciones";
  * SAP DESPUÉS = SAP + lo movido (neto en AG18) y QUEDA = SAP DESPUÉS − TOTAL CONTEO.
  */
 export const ALMACEN_CUADRE = "AG18";
+/** Los dos cuadres: AG18 (fábrica, contra el conteo) y AG22 (contra la base de Pasivos y el Bloqueado de SAP). */
+export type Almacen = "AG18" | "AG22";
+export const esAlmacen = (a: unknown): a is Almacen => a === "AG18" || a === "AG22";
+/** AG22: las causales de la base de Pasivos que entran al cuadre («el agenciamiento»). */
+export const CAUSALES_AG22 = ["PRESORTING", "ROTURA DE LINEA", "LAVADO", "EXTRASUCIO", "BAJA PROYECTADA"] as const;
+const normCausal = (c: unknown) => String(c ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/\s+/g, " ").trim();
 const ESTIBA = "3500163";
 /** «No sumar»: la línea OTROS no entra a ningún envase. */
 export const NO_SUMAR = "NO";
@@ -53,7 +59,7 @@ export type BalanceoGuardado = {
   resumen: ResumenBalanceo; filas: FilaGuardada[]; aplicados: Aplicado[];
   zexi_archivo: string | null; mov_archivo: string | null; estibas_almacen: number | null; sumar_pend_baja: boolean;
 };
-export type DiaHistorial = { fecha: string; cerrado_en: string | null; cerrado_nombre: string | null; cierre: BalanceoGuardado };
+export type DiaHistorial = { fecha: string; almacen: Almacen; cerrado_en: string | null; cerrado_nombre: string | null; cierre: BalanceoGuardado };
 /** Una línea del conteo de fábrica en estado OTROS (Andina…), con el envase al que se suma. */
 export type LineaOtros = {
   id: string; ubicacion: string; codigo: string; material: string; nota: string | null;
@@ -77,6 +83,8 @@ export type FilaCuadre = {
   otrosCajas: number;
   /** Unidades por caja (solo envase): para mostrar la diferencia también en cajas. */
   upc: number;
+  /** AG22: lo de la base de Pasivos por causal (PRESORTING, ROTURA DE LINEA…). */
+  partes?: Record<string, number>;
   total: number;
   sap: number | null;
   /** SAP − total (el 311 que hay que hacer). null si no hay ZEXI. */
@@ -94,7 +102,15 @@ type Maes = { codigo: string; descripcion: string; familia: string | null; unida
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const redondo = (v: number) => Math.round(v * 100) / 100;
 
-export async function armarCuadre(pedida?: string | null) {
+/** EL HISTÓRICO de los dos almacenes: los días con el balanceo guardado, del más nuevo al más viejo. */
+async function leerHistorial(supabase: Awaited<ReturnType<typeof createClient>>) {
+  const r = await supabase.from("cuadre_sap").select("fecha, almacen, cerrado_en, cerrado_nombre, cierre")
+    .not("cierre", "is", null).order("fecha", { ascending: false }).order("almacen").limit(180);
+  return { historial: (r.error ? [] : (r.data ?? [])) as DiaHistorial[], faltaHist: !!r.error && /cierre|cerrado/i.test(r.error.message) };
+}
+
+export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG18") {
+  if (almacen === "AG22") return armarCuadreAG22(pedida);
   const supabase = await createClient();
   const { dias, conteos, error: e0 } = await diasConConteo();
   const fecha = pedida && dias.includes(pedida) ? pedida : (dias[0] ?? null);
@@ -102,7 +118,7 @@ export async function armarCuadre(pedida?: string | null) {
     otros: [] as LineaOtros[], envases: [] as { codigo: string; material: string }[], aplicados: [] as Aplicado[] };
   if (!fecha) return base;
 
-  const [cons, prodR, maesR, pas, casco, sitiosR, guardR, histR] = await Promise.all([
+  const [cons, prodR, maesR, pas, casco, sitiosR, guardR, hist] = await Promise.all([
     consolidadoDelDia(fecha, conteos),
     supabase.from("productos").select("sku, nombre, unidades_por_caja, cajas_por_estiba"),
     supabase.from("pasivos_maestro").select("codigo, descripcion, familia, unidades_por_caja, cajas_por_estiba, caja"),
@@ -110,8 +126,7 @@ export async function armarCuadre(pedida?: string | null) {
     leerCasco(),
     supabase.from("casco_ubicaciones").select("clave, centro"),
     supabase.from("cuadre_sap").select("*").eq("fecha", fecha).eq("almacen", ALMACEN_CUADRE).maybeSingle(),
-    supabase.from("cuadre_sap").select("fecha, cerrado_en, cerrado_nombre, cierre").eq("almacen", ALMACEN_CUADRE)
-      .not("cierre", "is", null).order("fecha", { ascending: false }).limit(90),
+    leerHistorial(supabase),
   ]);
   if (guardR.error && /cuadre_sap|does not exist|PGRST205/i.test(`${guardR.error.code} ${guardR.error.message}`)) return { ...base, faltaSql: true };
   const avisos: string[] = [];
@@ -262,8 +277,99 @@ export async function armarCuadre(pedida?: string | null) {
   }
 
   /* EL HISTÓRICO: los días con el balanceo guardado, del más nuevo al más viejo. */
-  const faltaHist = !!histR.error && /cierre|cerrado/i.test(histR.error.message);
-  const historial = (histR.error ? [] : (histR.data ?? [])) as DiaHistorial[];
+  return { ...base, filas, guardado, estibasBodega, avisos, otros, envases, aplicados, ...hist };
+}
 
-  return { ...base, filas, guardado, estibasBodega, avisos, otros, envases, aplicados, historial, faltaHist };
+/**
+ * CUADRE SAP · AG22 — la base de Pasivos de AG22 del día contra el BLOQUEADO de SAP de AG22.
+ *
+ * «En el AG22 debe estar alineado al bloqueado de la existencia en SAP; toma como input la base: todo lo
+ *  que es causal PRESORTING, ROTURA DE LINEA, LAVADO, EXTRASUCIO y BAJA PROYECTADA.»
+ *
+ * TOTAL BASE de cada material = Σ unidades de Pasivos AG22 de esas causales ese día. Las demás causales
+ * (ANDINA…) no entran y se avisan. DIFERENCIA = SAP bloqueado − total base: negativa → falta en SAP,
+ * pasar de AG18 a AG22; positiva → sobra en SAP, pasar de AG22 a AG18. El paso 3 es igual al de AG18.
+ */
+async function armarCuadreAG22(pedida?: string | null) {
+  const supabase = await createClient();
+  const dias = [...(await diasConPasivos())].sort().reverse();
+  const fecha = pedida && dias.includes(pedida) ? pedida : (dias[0] ?? null);
+  const base = { fecha, dias, filas: [] as FilaCuadre[], guardado: null as CuadreGuardado | null, estibasBodega: 0, avisos: [] as string[], error: null as string | null,
+    faltaSql: false, historial: [] as DiaHistorial[], faltaHist: false,
+    otros: [] as LineaOtros[], envases: [] as { codigo: string; material: string }[], aplicados: [] as Aplicado[] };
+  if (!fecha) return { ...base, ...(await leerHistorial(supabase)) };
+
+  const [pas, prodR, maesR, guardR, hist] = await Promise.all([
+    leerPasivos(fecha, fecha),
+    supabase.from("productos").select("sku, nombre, unidades_por_caja, cajas_por_estiba"),
+    supabase.from("pasivos_maestro").select("codigo, descripcion, familia, unidades_por_caja, cajas_por_estiba, caja"),
+    supabase.from("cuadre_sap").select("*").eq("fecha", fecha).eq("almacen", "AG22").maybeSingle(),
+    leerHistorial(supabase),
+  ]);
+  if (guardR.error && /cuadre_sap|does not exist|PGRST205/i.test(`${guardR.error.code} ${guardR.error.message}`)) return { ...base, faltaSql: true };
+  const avisos: string[] = [];
+  if (pas.error) avisos.push(`No pude leer la base de Pasivos: ${pas.error}`);
+  if (maesR.error) avisos.push(`No pude leer el maestro de Pasivos (factores): ${maesR.error.message}`);
+
+  const guardado = (guardR.data ?? null) as CuadreGuardado | null;
+  const P = new Map(((prodR.data ?? []) as Prod[]).map((p) => [String(p.sku), p]));
+  const M = new Map(((maesR.data ?? []) as Maes[]).map((m) => [String(m.codigo), m]));
+  const grupoDe = (c: string): Grupo => {
+    const f = (M.get(c)?.familia ?? "").toUpperCase();
+    return c === ESTIBA || f === "ESTIBA" ? "ESTIBA" : f === "CAJA" ? "CAJA" : "ENVASE";
+  };
+  const upc = (c: string) => Number(M.get(c)?.unidades_por_caja ?? P.get(c)?.unidades_por_caja ?? 1) || 1;
+  const nombre = (c: string, alt?: string | null) => M.get(c)?.descripcion ?? P.get(c)?.nombre ?? alt ?? c;
+
+  type Acc = { codigo: string; material: string; partes: Record<string, number>; estados: Record<string, Set<string>> };
+  const acc = new Map<string, Acc>();
+  const de = (c: string, alt?: string | null) => {
+    let a = acc.get(c);
+    if (!a) { a = { codigo: c, material: nombre(c, alt), partes: {}, estados: {} }; acc.set(c, a) }
+    return a;
+  };
+  const fuera = new Map<string, { filas: number; unidades: number }>();
+  for (const f of pas.data) {
+    if (String(f.almacen).toUpperCase() !== "AG22") continue;
+    const causal = normCausal(f.causal);
+    if (!(CAUSALES_AG22 as readonly string[]).includes(causal)) {
+      const x = fuera.get(causal) ?? { filas: 0, unidades: 0 }; x.filas++; x.unidades += Number(f.unidades) || 0; fuera.set(causal, x);
+      continue;
+    }
+    const a = de(String(f.codigo), f.descripcion);
+    a.partes[causal] = (a.partes[causal] ?? 0) + (Number(f.unidades) || 0);
+    (a.estados[causal] ??= new Set()).add(String(f.estado ?? "").toUpperCase());
+  }
+  for (const [c, x] of fuera) avisos.push(`No entra al cuadre AG22 la causal ${c || "(vacía)"}: ${x.filas} filas · ${new Intl.NumberFormat("es-CO").format(x.unidades)} u. Solo entran ${CAUSALES_AG22.join(", ")}.`);
+
+  const sap = new Map((guardado?.zexi ?? []).map((z) => [String(z.codigo), z]));
+  const mov = new Map((guardado?.movimientos ?? []).map((m) => [String(m.codigo), m]));
+  for (const z of sap.values()) de(String(z.codigo), z.descripcion);
+  for (const m of mov.values()) de(String(m.codigo));
+
+  const filas: FilaCuadre[] = [...acc.values()].map((a) => {
+    const grupo = grupoDe(a.codigo);
+    const total = redondo(Object.values(a.partes).reduce((t, v) => t + v, 0));
+    const z = sap.get(a.codigo), m = mov.get(a.codigo);
+    const sapV = z ? Number(z.cantidad) : null;
+    const movido = m ? Number(m.cantidad) : 0;
+    const dif = sapV == null ? null : redondo(sapV - total);
+    const sapDespues = sapV == null ? null : redondo(sapV + movido);
+    const queda = sapDespues == null ? null : redondo(sapDespues - total);
+    return { grupo, codigo: a.codigo, material: a.material, conteo: total, detalle: null, pendBaja: 0, lavadoBaja: 0, andina: 0, almacen: 0,
+      otrosCajas: 0, upc: grupo === "ENVASE" ? upc(a.codigo) : 1, partes: a.partes,
+      total, sap: sapV, dif, movido, documentos: m?.documentos ?? [], sapDespues, queda };
+  })
+    .filter((f) => f.total !== 0 || (f.sap ?? 0) !== 0 || f.movido !== 0)
+    .sort((x, y) => "ENVASE CAJA ESTIBA".indexOf(x.grupo) - "ENVASE CAJA ESTIBA".indexOf(y.grupo) || x.codigo.localeCompare(y.codigo));
+
+  /* De dónde sale cada cifra: lo de cada causal de la base. */
+  const listados = new Set(filas.map((f) => f.codigo));
+  const aplicados: Aplicado[] = [];
+  for (const a of [...acc.values()].filter((x) => listados.has(x.codigo)).sort((x, y) => x.codigo.localeCompare(y.codigo)))
+    for (const c of CAUSALES_AG22) if (a.partes[c])
+      aplicados.push({ codigo: a.codigo, material: a.material, que: c, cantidad: redondo(a.partes[c]), unidad: "u",
+        porque: `Base de Pasivos · AG22 · ${[...(a.estados[c] ?? [])].join("/") || "—"} · causal ${c} del día` });
+
+  return { ...base, filas, guardado, avisos, aplicados, ...hist };
 }

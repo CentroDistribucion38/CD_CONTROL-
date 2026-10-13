@@ -143,6 +143,10 @@
 .cs .cs-hojas { margin: 2px 0 14px }
 .cs .cs-hintro { margin: 0 0 10px }
 /* El histórico */
+.cs .cs-histalm { margin: 0 0 10px }
+.cs .cs-alm { display: inline-block; font: 700 11px var(--fe-mono, ui-monospace, monospace); padding: 3px 7px }
+.cs .cs-alm.a { background: #FFF4D6; color: #7A5200 }
+.cs .cs-alm.b { background: #E6EEF9; color: #1B4F8F }
 .cs .cs-hist td small { display: block; font-size: 11.5px; color: var(--fe-gris) }
 .cs .cs-hist tr.hoy > td { background: color-mix(in srgb, var(--fe-acento, #FFC400) 10%, var(--fe-papel, #fff)) }
 .cs .cs-hacc { white-space: nowrap; text-align: right }

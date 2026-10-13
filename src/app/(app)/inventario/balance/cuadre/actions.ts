@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { ALMACEN_CUADRE, armarCuadre, type BalanceoGuardado, type MovFila, type ZexiFila } from "@/modulos/inventario/cuadre";
+import { armarCuadre, esAlmacen, type Almacen, type BalanceoGuardado, type MovFila, type ZexiFila } from "@/modulos/inventario/cuadre";
 
 const SQL_OTROS = "Falta correr supabase/migraciones/2026-10-cuadre-sap-otros.sql en Supabase.";
 const SQL_HIST = "Falta correr supabase/migraciones/2026-10-cuadre-sap-historial.sql en Supabase.";
@@ -10,82 +10,88 @@ const faltaSql = (m: string) => (/cierre|cerrado/.test(m) ? SQL_HIST : /otros/.t
 
 /**
  * LO QUE SE GUARDA DEL CUADRE SAP: el ZEXI (paso 1), las estibas del almacén y el interruptor del
- * pend. baja, y los movimientos 311 bajados de SAP (paso 3). Un renglón por día y almacén.
+ * pend. baja (solo AG18), los movimientos / la ZEXI nueva (paso 3) y el balanceo guardado.
+ * Un renglón por día y almacén (AG18 o AG22).
  */
 const RUTA = "/inventario/balance/cuadre";
 const esDia = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v);
+const alm = (a?: string): Almacen => (esAlmacen(a) ? a : "AG18");
 
-async function poner(fecha: string, campos: Record<string, unknown>) {
+async function poner(fecha: string, almacen: Almacen, campos: Record<string, unknown>) {
   if (!esDia(fecha)) return { error: "Día inválido." };
   const supabase = await createClient();
   const { error } = await supabase.from("cuadre_sap").upsert(
-    { fecha, almacen: ALMACEN_CUADRE, ...campos, actualizado_en: new Date().toISOString() },
+    { fecha, almacen, ...campos, actualizado_en: new Date().toISOString() },
     { onConflict: "fecha,almacen" });
   if (error) return { error: faltaSql(error.message) };
   revalidatePath(RUTA);
   return { ok: true };
 }
 
-/** PASO 1 · el ZEXI de SAP: el stock de AG18 de ese día. Reemplaza el que hubiera. */
-export async function guardarZexi(fecha: string, filasJson: string, archivo: string) {
+/** PASO 1 · el ZEXI de SAP de ese almacén (en AG22, su Bloqueado). Reemplaza el que hubiera. */
+export async function guardarZexi(fecha: string, filasJson: string, archivo: string, almacen?: string) {
+  const a = alm(almacen);
   let filas: ZexiFila[] = [];
   try { filas = JSON.parse(filasJson) } catch { return { error: "El archivo no se pudo leer." } }
   filas = filas.filter((f) => f.codigo && Number.isFinite(Number(f.cantidad)));
-  if (!filas.length) return { error: "El ZEXI no trae materiales de AG18." };
-  return poner(fecha, { zexi: filas, zexi_archivo: archivo, zexi_en: new Date().toISOString() });
+  if (!filas.length) return { error: `El ZEXI no trae materiales de ${a}.` };
+  return poner(fecha, a, { zexi: filas, zexi_archivo: archivo, zexi_en: new Date().toISOString() });
 }
 
-/** Las estibas de madera del almacén (se digitan) y si se suma el pend. baja. */
+/** Las estibas de madera del almacén (se digitan) y si se suma el pend. baja. Solo AG18. */
 export async function guardarOpciones(fecha: string, estibas: number | null, sumarPend: boolean) {
-  return poner(fecha, { estibas_almacen: estibas, sumar_pend_baja: sumarPend });
+  return poner(fecha, "AG18", { estibas_almacen: estibas, sumar_pend_baja: sumarPend });
 }
 
-/** PASO 3 · los movimientos 311 bajados de SAP (neto en AG18 por material). Reemplaza los que hubiera. */
-export async function guardarMovimientos(fecha: string, filasJson: string, archivo: string) {
+/** PASO 3 · lo movido en SAP (de la ZEXI nueva o del archivo del 311). Reemplaza lo que hubiera. */
+export async function guardarMovimientos(fecha: string, filasJson: string, archivo: string, almacen?: string) {
+  const a = alm(almacen);
   let filas: MovFila[] = [];
   try { filas = JSON.parse(filasJson) } catch { return { error: "El archivo no se pudo leer." } }
   filas = filas.filter((f) => f.codigo && Number.isFinite(Number(f.cantidad)));
-  if (!filas.length) return { error: "El archivo no trae movimientos de AG18." };
-  const r = await poner(fecha, { movimientos: filas, mov_archivo: archivo, mov_en: new Date().toISOString() });
-  return r.error ? r : regrabarSiEstaGuardado(fecha);
+  if (!filas.length) return { error: `El archivo no trae movimientos de ${a}.` };
+  const r = await poner(fecha, a, { movimientos: filas, mov_archivo: archivo, mov_en: new Date().toISOString() });
+  return r.error ? r : regrabarSiEstaGuardado(fecha, a);
 }
 
 /** Si el día ya estaba guardado (por ejemplo, hasta el paso 2), lo guardado se pone al día solo con la
  *  ZEXI nueva: así el histórico pasa de «falta validar» a «balanceado» / «pendientes» sin otro clic. */
-async function regrabarSiEstaGuardado(fecha: string) {
+async function regrabarSiEstaGuardado(fecha: string, almacen: Almacen) {
   const supabase = await createClient();
-  const { data } = await supabase.from("cuadre_sap").select("cerrado_en").eq("fecha", fecha).eq("almacen", ALMACEN_CUADRE).maybeSingle();
+  const { data } = await supabase.from("cuadre_sap").select("cerrado_en").eq("fecha", fecha).eq("almacen", almacen).maybeSingle();
   if (!(data as { cerrado_en?: string | null } | null)?.cerrado_en) return { ok: true };
-  return guardarBalanceo(fecha);
+  return guardarBalanceo(fecha, almacen);
 }
 
 /** Quitar los movimientos (para volver a subirlos o rehacer el paso 2). */
-export async function quitarMovimientos(fecha: string) {
-  const r = await poner(fecha, { movimientos: null, mov_archivo: null, mov_en: null });
-  return r.error ? r : regrabarSiEstaGuardado(fecha);
+export async function quitarMovimientos(fecha: string, almacen?: string) {
+  const a = alm(almacen);
+  const r = await poner(fecha, a, { movimientos: null, mov_archivo: null, mov_en: null });
+  return r.error ? r : regrabarSiEstaGuardado(fecha, a);
 }
 
-/** OTROS (Andina…): a qué envase se suma una línea del conteo. Volver al código con que se contó la
- *  quita de la lista (es lo de siempre); «NO» = no sumar. */
+/** OTROS (Andina…): a qué envase se suma una línea del conteo (solo AG18). Volver al código con que se
+ *  contó la quita de la lista (es lo de siempre); «NO» = no sumar. */
 export async function asignarOtros(fecha: string, id: string, destino: string, contado: string) {
   if (!esDia(fecha)) return { error: "Día inválido." };
   const supabase = await createClient();
-  const { data, error } = await supabase.from("cuadre_sap").select("otros").eq("fecha", fecha).eq("almacen", ALMACEN_CUADRE).maybeSingle();
+  const { data, error } = await supabase.from("cuadre_sap").select("otros").eq("fecha", fecha).eq("almacen", "AG18").maybeSingle();
   if (error) return { error: /otros/.test(error.message) ? SQL_OTROS : error.message };
   const otros = { ...(((data as { otros?: Record<string, string> | null } | null)?.otros) ?? {}) };
   if (!destino || destino === contado) delete otros[id]; else otros[id] = destino;
-  return poner(fecha, { otros: Object.keys(otros).length ? otros : null });
+  return poner(fecha, "AG18", { otros: Object.keys(otros).length ? otros : null });
 }
 
 /**
- * GUARDAR EL BALANCEO DEL DÍA — congela cómo quedó el cuadre de ese día (se arma otra vez aquí, en el
- * servidor, con lo que hay en este momento) para el histórico. Volver a guardar lo reemplaza.
+ * GUARDAR EL BALANCEO DEL DÍA — congela cómo quedó el cuadre de ese día y almacén (se arma otra vez
+ * aquí, en el servidor, con lo que hay en este momento) para el histórico. Volver a guardar lo reemplaza.
  */
-export async function guardarBalanceo(fecha: string) {
+export async function guardarBalanceo(fecha: string, almacen?: string) {
   if (!esDia(fecha)) return { error: "Día inválido." };
-  const c = await armarCuadre(fecha);
+  const a = alm(almacen);
+  const c = await armarCuadre(fecha, a);
   if (c.faltaSql) return { error: "Falta correr supabase/migraciones/2026-10-cuadre-sap.sql en Supabase." };
-  if (c.fecha !== fecha) return { error: "Ese día no tiene conteos enviados." };
+  if (c.fecha !== fecha) return { error: a === "AG22" ? "Ese día no tiene nada en la base de Pasivos." : "Ese día no tiene conteos enviados." };
   const g = c.guardado;
   if (!g?.zexi?.length) return { error: "Sube primero la ZEXI de SAP de ese día: sin ella no hay balanceo que guardar." };
   const cero = (v: number | null) => v != null && Math.abs(v) < 0.5;
@@ -106,5 +112,5 @@ export async function guardarBalanceo(fecha: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const { data: yo } = user ? await supabase.from("perfiles").select("nombre, usuario").eq("id", user.id).maybeSingle() : { data: null };
-  return poner(fecha, { cierre, cerrado_en: new Date().toISOString(), cerrado_por: user?.id ?? null, cerrado_nombre: yo?.nombre || yo?.usuario || null });
+  return poner(fecha, a, { cierre, cerrado_en: new Date().toISOString(), cerrado_por: user?.id ?? null, cerrado_nombre: yo?.nombre || yo?.usuario || null });
 }

@@ -38,13 +38,16 @@ const col = (t: string[], ...pruebas: RegExp[]) => {
   return -1;
 };
 
-/** EL ZEXI: Material · descripción · Alm. · Libre utiliz. · In control-cal · Bloqueado · Total General. */
-export async function leerZexi(archivo: File, almacen: string): Promise<{ filas: ZexiFila[]; error?: string }> {
+/** EL ZEXI: Material · descripción · Alm. · Libre utiliz. · In control-cal · Bloqueado · Total General.
+ *  campo «bloqueado» (AG22): solo la columna Bloqueado, que es contra lo que se cuadra la base de Pasivos. */
+export async function leerZexi(archivo: File, almacen: string, campo: "total" | "bloqueado" = "total"): Promise<{ filas: ZexiFila[]; error?: string }> {
   const filas = await filasDe(archivo);
   const h = titulos(filas);
   if (!h) return { filas: [], error: "No encontré la columna «Material» en las primeras filas del ZEXI." };
   const cMat = col(h.t, /^material$/), cDes = col(h.t, /descrip|texto/), cAlm = col(h.t, /^alm\.?$/, /^almacen$/);
-  const cTot = col(h.t, /^total/);
+  const cBloq = col(h.t, /bloq/);
+  if (campo === "bloqueado" && cBloq < 0) return { filas: [], error: "Para AG22 el ZEXI debe traer la columna «Bloqueado»." };
+  const cTot = campo === "bloqueado" ? cBloq : col(h.t, /^total/);
   const cPartes = [col(h.t, /libre/), col(h.t, /control/), col(h.t, /bloq/)].filter((x) => x >= 0);
   if (cTot < 0 && !cPartes.length) return { filas: [], error: "No encontré la cantidad: el ZEXI debe traer «Total General» (o Libre utiliz., In control-cal y Bloqueado)." };
   const suma = new Map<string, ZexiFila>();

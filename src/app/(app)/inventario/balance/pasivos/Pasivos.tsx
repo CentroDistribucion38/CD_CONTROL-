@@ -3,9 +3,9 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
-import type { FilaPasivo, NuevaFila } from "@/modulos/pasivos/datos";
+import type { CierrePasivos, FilaPasivo, NuevaFila } from "@/modulos/pasivos/datos";
 import { Rango } from "../../../sider/seguimiento/Rango";
-import { borrarFilas, subirArchivo, traerDelBalance } from "./actions";
+import { borrarFilas, guardarDiaPasivos, subirArchivo, traerDelBalance } from "./actions";
 
 /**
  * PASIVOS · LA BASE. Lo de la hoja DATA de BLOQUEADOS.xlsx: se filtra por fechas (el calendario de
@@ -63,9 +63,10 @@ function leerLibro(buf: ArrayBuffer): Leida {
   return { filas, malas, hoja };
 }
 
-export function Pasivos({ filas, error, desde, hasta, dias, diasConteo, codigos, puedeEditar }: {
+export function Pasivos({ filas, error, desde, hasta, dias, diasConteo, codigos, puedeEditar, cierres, faltaCierres, vista: vistaInicial = "base" }: {
   filas: FilaPasivo[]; error: string | null; desde: string; hasta: string; dias: string[];
   diasConteo: string[]; codigos: string[]; puedeEditar: boolean;
+  cierres: CierrePasivos[]; faltaCierres: boolean; vista?: "base" | "historico";
 }) {
   const router = useRouter();
   const [cargando, startCarga] = useTransition();
@@ -78,6 +79,26 @@ export function Pasivos({ filas, error, desde, hasta, dias, diasConteo, codigos,
   const [aviso, setAviso] = useState<{ tipo: "ok" | "mal"; texto: string } | null>(null);
   const [diaBal, setDiaBal] = useState(diasConteo[0] ?? "");
   const [leida, setLeida] = useState<(Leida & { archivo: string }) | null>(null);
+  /* DOS HOJAS: la base y el histórico de los días guardados. La escogida queda en la dirección. */
+  const [vista, setVista] = useState<"base" | "historico">(vistaInicial);
+  const [histAlm, setHistAlm] = useState<"" | "AG18" | "AG22">("");
+  const irA = (v: "base" | "historico") => {
+    setVista(v);
+    try { const u = new URL(window.location.href); if (v === "historico") u.searchParams.set("vista", v); else u.searchParams.delete("vista"); window.history.replaceState(null, "", u) } catch { /* nada */ }
+  };
+  const unDia = desde === hasta ? desde : null;
+  const cierreDelDia = unDia ? cierres.find((c) => c.fecha === unDia) ?? null : null;
+  const cuando = (iso: string) => new Date(iso).toLocaleString("es-CO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  function guardarDia() {
+    if (!unDia) return;
+    setAviso(null);
+    start(async () => {
+      const r = await guardarDiaPasivos(unDia);
+      if ("error" in r && r.error) { setAviso({ tipo: "mal", texto: r.error }); return }
+      setAviso({ tipo: "ok", texto: `Base del ${ddmmaaaa(unDia)} guardada en el histórico (${"filas" in r ? r.filas : 0} filas). Siguiente paso: el Cuadre SAP de AG18 y de AG22.` });
+      router.refresh();
+    });
+  }
 
   const listaEstados = useMemo(() => [...new Set(filas.map((f) => f.estado))].sort(), [filas]);
   const listaCausales = useMemo(() => [...new Set(filas.filter((f) => !estados.size || estados.has(f.estado)).map((f) => f.causal))].sort(), [filas, estados]);
@@ -152,6 +173,45 @@ export function Pasivos({ filas, error, desde, hasta, dias, diasConteo, codigos,
           </p>
         </div>
       </section>
+
+      <nav className="bal-tabs pas-hojas" role="tablist" aria-label="Hojas de Pasivos">
+        <button type="button" role="tab" aria-selected={vista === "base"} className={`bal-tab ${vista === "base" ? "activa" : ""}`} onClick={() => irA("base")}>
+          <span className="bal-tab-label">Base</span>
+        </button>
+        <button type="button" role="tab" aria-selected={vista === "historico"} className={`bal-tab ${vista === "historico" ? "activa" : ""}`} onClick={() => irA("historico")}>
+          <span className="bal-tab-label">Histórico</span>
+          {cierres.length > 0 && <span className="bal-tab-n" title="días guardados">{cierres.length}</span>}
+        </button>
+      </nav>
+
+      {vista === "historico" && (
+        <HistoricoPasivos cierres={cierres} falta={faltaCierres} histAlm={histAlm} setHistAlm={setHistAlm}
+          abrir={(d) => { irA("base"); ir(d, d) }} />
+      )}
+
+      {vista === "base" && (<>
+      {/* ---- GUARDAR EL DÍA: cuando ya se subió todo, se guarda y se pasa al Cuadre SAP ---- */}
+      {puedeEditar && (
+        <div className={"pas-guardar" + (cierreDelDia ? " hecho" : "")}>
+          <div>
+            <b>{unDia ? `Base del ${ddmmaaaa(unDia)}` : "Escoge un solo día para guardarlo"}</b>
+            <small>{!unDia ? "El guardado es por día: en Fechas, escoge un solo día."
+              : cierreDelDia ? `✓ Guardada ${cuando(cierreDelDia.cerrado_en)}${cierreDelDia.cerrado_nombre ? ` · ${cierreDelDia.cerrado_nombre}` : ""}. Si cambias algo, vuelve a guardar.`
+              : "Cuando ya subiste todo (balance y archivo plano), guárdala: queda en el histórico y sigues con el Cuadre SAP."}</small>
+          </div>
+          <div className="pas-guardar-acc">
+            <button type="button" className="btn" disabled={!unDia || pending || faltaCierres} onClick={guardarDia}
+                    title={faltaCierres ? "Falta correr supabase/migraciones/2026-10-pasivos-cierres.sql" : undefined}>
+              {cierreDelDia ? "Volver a guardar" : "Guardar el día"}
+            </button>
+            {unDia && cierreDelDia && (<>
+              <a className="btn plano" href={`/inventario/balance/cuadre?fecha=${unDia}&alm=AG18`}>Cuadre SAP · AG18 →</a>
+              <a className="btn plano" href={`/inventario/balance/cuadre?fecha=${unDia}&alm=AG22`}>Cuadre SAP · AG22 →</a>
+            </>)}
+          </div>
+        </div>
+      )}
+      {faltaCierres && puedeEditar && <p className="bal-conso-aviso mal">Para guardar el día falta correr supabase/migraciones/2026-10-pasivos-cierres.sql en Supabase.</p>}
 
       {/* ---- ENTRADAS ---- */}
       {puedeEditar && (
@@ -281,6 +341,68 @@ export function Pasivos({ filas, error, desde, hasta, dias, diasConteo, codigos,
               </tr>
             </tfoot>
           )}
+        </table>
+      </div>
+      </>)}
+    </>
+  );
+}
+
+/**
+ * LA HOJA «HISTÓRICO»: un renglón por cada día guardado, con lo de AG18 y AG22 (o solo el almacén
+ * escogido), sus causales, y los atajos a la base de ese día y al Cuadre SAP de cada almacén.
+ */
+function HistoricoPasivos({ cierres, falta, histAlm, setHistAlm, abrir }: {
+  cierres: CierrePasivos[]; falta: boolean; histAlm: "" | "AG18" | "AG22"; setHistAlm: (a: "" | "AG18" | "AG22") => void; abrir: (dia: string) => void;
+}) {
+  const DIAS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+  const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+  const largo = (iso: string) => { const d = new Date(iso + "T12:00:00Z"); return `${DIAS[d.getUTCDay()]} ${d.getUTCDate()} ${MESES[d.getUTCMonth()]} ${d.getUTCFullYear()}` };
+  const cuando = (iso: string) => new Date(iso).toLocaleString("es-CO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  if (falta) return <p className="bal-conso-aviso mal">Falta correr supabase/migraciones/2026-10-pasivos-cierres.sql en Supabase para guardar el histórico.</p>;
+  if (!cierres.length) return <p className="bal-sin-filas pas-hvacio">Todavía no hay días guardados. En la hoja <b>Base</b>, escoge un día, sube todo y dale <b>Guardar el día</b>.</p>;
+  const de = (c: CierrePasivos) => (histAlm ? c.resumen.almacenes[histAlm] : c.resumen.total) ?? { filas: 0, unidades: 0, cajas: 0, hl: 0, costo: 0 };
+  return (
+    <>
+      <div className="bal-chips pas-halm" role="group" aria-label="Almacén">
+        {(["", "AG18", "AG22"] as const).map((a) => (
+          <button key={a || "todos"} type="button" className={histAlm === a ? "on" : ""} aria-pressed={histAlm === a} onClick={() => setHistAlm(a)}>{a || "Todos"}</button>
+        ))}
+      </div>
+      <div className="bal-tabla-wrap">
+        <table className="bal-tabla bal-hoja pas-hist">
+          <thead>
+            <tr>
+              <th>Día</th><th>Guardado</th>{!histAlm && <><th className="r">AG18 · unidades</th><th className="r">AG22 · unidades</th></>}
+              <th className="r">Filas</th><th className="r">Unidades</th><th className="r">Cajas</th><th className="r">HL</th><th className="r">Costo</th>
+              <th>Causales</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {cierres.filter((c) => !histAlm || c.resumen.almacenes[histAlm]).map((c) => {
+              const s = de(c);
+              const causales = histAlm ? Object.entries(c.resumen.almacenes[histAlm]?.causales ?? {})
+                : Object.entries(c.resumen.almacenes).flatMap(([a, x]) => Object.entries(x.causales).map(([k, v]) => [`${a} ${k}`, v] as [string, number]));
+              return (
+                <tr key={c.fecha}>
+                  <td><b>{largo(c.fecha)}</b></td>
+                  <td>{cuando(c.cerrado_en)}<small className="pas-hq">{c.cerrado_nombre ?? ""}</small></td>
+                  {!histAlm && <><td className="r">{n0(c.resumen.almacenes.AG18?.unidades ?? 0)}</td><td className="r">{n0(c.resumen.almacenes.AG22?.unidades ?? 0)}</td></>}
+                  <td className="r">{n0(s.filas)}</td>
+                  <td className="r"><b>{n0(s.unidades)}</b></td>
+                  <td className="r">{n0(s.cajas)}</td>
+                  <td className="r">{n2(s.hl)}</td>
+                  <td className="r">{plata(s.costo)}</td>
+                  <td className="pas-hcaus">{causales.sort((x, y) => x[0].localeCompare(y[0])).map(([k, v]) => <span key={k}>{k} <b>{n0(v)}</b></span>)}</td>
+                  <td className="pas-hacc">
+                    <button type="button" className="btn plano" onClick={() => abrir(c.fecha)}>Ver base</button>
+                    {(!histAlm || histAlm === "AG18") && <a className="btn plano" href={`/inventario/balance/cuadre?fecha=${c.fecha}&alm=AG18`}>Cuadre AG18</a>}
+                    {(!histAlm || histAlm === "AG22") && <a className="btn plano" href={`/inventario/balance/cuadre?fecha=${c.fecha}&alm=AG22`}>Cuadre AG22</a>}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
         </table>
       </div>
     </>

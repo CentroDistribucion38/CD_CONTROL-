@@ -79,3 +79,32 @@ export async function leerMaestroPasivos() {
   const { data, error } = await supabase.from("pasivos_maestro").select("*").order("codigo");
   return { data: (data ?? []) as MaestroPasivo[], error: error?.message ?? null };
 }
+
+/* ---------------------------- EL HISTÓRICO ---------------------------- */
+/** La suma de un pedazo de la base (un almacén, una causal…). */
+export type SumaPasivos = { filas: number; unidades: number; cajas: number; hl: number; costo: number };
+/** La foto de la base de un día, guardada con «Guardar el día» (tabla pasivos_cierres). */
+export type ResumenPasivos = {
+  total: SumaPasivos;
+  almacenes: Record<string, SumaPasivos & { causales: Record<string, number> }>;
+};
+export type CierrePasivos = { fecha: string; resumen: ResumenPasivos; cerrado_en: string; cerrado_nombre: string | null };
+
+const cero = (): SumaPasivos => ({ filas: 0, unidades: 0, cajas: 0, hl: 0, costo: 0 });
+export function resumirPasivos(filas: FilaPasivo[]): ResumenPasivos {
+  const r: ResumenPasivos = { total: cero(), almacenes: {} };
+  for (const f of filas) {
+    const a = (r.almacenes[f.almacen] ??= { ...cero(), causales: {} });
+    for (const s of [r.total, a]) {
+      s.filas++; s.unidades += Number(f.unidades) || 0; s.cajas += Number(f.cajas) || 0; s.hl += Number(f.hl) || 0; s.costo += Number(f.costo) || 0;
+    }
+    a.causales[f.causal] = (a.causales[f.causal] ?? 0) + (Number(f.unidades) || 0);
+  }
+  return r;
+}
+
+export async function leerCierresPasivos(): Promise<{ data: CierrePasivos[]; falta: boolean }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("pasivos_cierres").select("fecha, resumen, cerrado_en, cerrado_nombre").order("fecha", { ascending: false }).limit(180);
+  return { data: (data ?? []) as CierrePasivos[], falta: !!error && /pasivos_cierres|does not exist|PGRST205/i.test(`${error.code} ${error.message}`) };
+}

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { balanceParaPasivos, type NuevaFila, type MaestroPasivo } from "@/modulos/pasivos/datos";
+import { balanceParaPasivos, leerPasivos, resumirPasivos, type NuevaFila, type MaestroPasivo } from "@/modulos/pasivos/datos";
 
 const RUTA = "/inventario/balance/pasivos";
 const esDia = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s);
@@ -104,4 +104,25 @@ export async function borrarMaestro(codigo: string) {
   if (error) return { error: error.message };
   revalidatePath(RUTA + "/maestro");
   return { ok: true };
+}
+
+/**
+ * GUARDAR EL DÍA — la foto de la base de ese día para el histórico (por almacén y causal). Volver a
+ * guardar el mismo día la reemplaza. Después sigue el Cuadre SAP (AG18 y AG22).
+ */
+export async function guardarDiaPasivos(fecha: string) {
+  if (!esDia(fecha)) return { error: "Escoge un solo día." };
+  const { data, error } = await leerPasivos(fecha, fecha);
+  if (error) return { error };
+  if (!data.length) return { error: "Ese día no tiene nada en la base." };
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data: yo } = user ? await supabase.from("perfiles").select("nombre, usuario").eq("id", user.id).maybeSingle() : { data: null };
+  const { error: e } = await supabase.from("pasivos_cierres").upsert({
+    fecha, resumen: resumirPasivos(data), cerrado_en: new Date().toISOString(), cerrado_por: user?.id ?? null,
+    cerrado_nombre: yo?.nombre || yo?.usuario || null,
+  }, { onConflict: "fecha" });
+  if (e) return { error: /pasivos_cierres|does not exist|PGRST205/i.test(e.message) ? "Falta correr supabase/migraciones/2026-10-pasivos-cierres.sql en Supabase." : e.message };
+  revalidatePath(RUTA);
+  return { ok: true, filas: data.length };
 }

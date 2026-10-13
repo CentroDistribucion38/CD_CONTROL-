@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { misPermisos } from "@/lib/permisos";
 import { diasConConteo } from "@/modulos/inventario/balance";
-import { diasConPasivos, leerMaestroPasivos, leerPasivos } from "@/modulos/pasivos/datos";
+import { diasConPasivos, leerCierresPasivos, leerMaestroPasivos, leerPasivos } from "@/modulos/pasivos/datos";
 import "../../../sider/sider.css";
 import "../../fefo.css";
 import "../balance.css";
@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
  * Se alimenta del balance (la diferencia en unidades de cada hoja) y de un archivo plano con la baja
  * proyectada y la rotura de línea. Lo demás lo calcula la base con el Maestro de Pasivos.
  */
-export default async function PasivosPage({ searchParams }: { searchParams: Promise<{ desde?: string; hasta?: string }> }) {
+export default async function PasivosPage({ searchParams }: { searchParams: Promise<{ desde?: string; hasta?: string; vista?: string }> }) {
   const q = await searchParams;
   const supabase = await createClient();
   const prueba = await supabase.from("pasivos_base").select("id").limit(1);
@@ -34,7 +34,7 @@ export default async function PasivosPage({ searchParams }: { searchParams: Prom
 
   const hoy = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Bogota" }).format(new Date());
   const dia = (v?: string) => (/^\d{4}-\d{2}-\d{2}$/.test(v ?? "") ? v! : null);
-  const [permisos, dias, conteo, maestro] = await Promise.all([misPermisos(), diasConPasivos(), diasConConteo(), leerMaestroPasivos()]);
+  const [permisos, dias, conteo, maestro, cierres] = await Promise.all([misPermisos(), diasConPasivos(), diasConConteo(), leerMaestroPasivos(), leerCierresPasivos()]);
   /* Por defecto: el último día con algo cargado (o hoy). */
   const ultimo = dias[dias.length - 1] ?? hoy;
   const desde = dia(q.desde) ?? ultimo;
@@ -47,6 +47,7 @@ export default async function PasivosPage({ searchParams }: { searchParams: Prom
         filas={filas.data} error={filas.error} desde={desde} hasta={hasta} dias={dias}
         diasConteo={conteo.dias} codigos={maestro.data.map((m) => m.codigo)}
         puedeEditar={permisos.puedeEditar("/inventario/balance/pasivos")}
+        cierres={cierres.data} faltaCierres={cierres.falta} vista={q.vista === "historico" ? "historico" : "base"}
       />
     </div>
   );
