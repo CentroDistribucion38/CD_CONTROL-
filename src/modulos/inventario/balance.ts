@@ -90,7 +90,7 @@ type RegCasco = { fecha: string; ubicacion: string; sku: string; inventario: num
 
 /** El casco hasta un día. Igual que el Tablero del casco: `casco_tablero_datos()` lo trae en una sola
  *  lectura; leer la tabla por páginas, con el permiso revisado en cada renglón, se pasa del tiempo. */
-async function leerCasco(): Promise<{ data: RegCasco[]; error: string | null }> {
+export async function leerCasco(): Promise<{ data: RegCasco[]; error: string | null }> {
   const supabase = await createClient();
   const rpc = await supabase.rpc("casco_tablero_datos");
   if (!rpc.error) {

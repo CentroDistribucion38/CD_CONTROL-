@@ -1,0 +1,79 @@
+/* ===== CUADRE SAP (.cs) — los tres pasos, la barra, las cifras y las tablas ===== */
+.cs .cs-pasos { list-style: none; margin: 4px 0 14px; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea) }
+.cs .cs-pasos li { padding: 12px 16px; border-right: 1px solid var(--fe-linea); border-bottom: 4px solid var(--fe-linea); display: flex; flex-direction: column; gap: 2px }
+.cs .cs-pasos li:last-child { border-right: 0 }
+.cs .cs-pasos li.hecho { border-bottom-color: #1E8E3E }
+.cs .cs-pasos li.on { border-bottom-color: var(--fe-acento, #FFC400); background: color-mix(in srgb, var(--fe-acento, #FFC400) 8%, var(--fe-papel, #fff)) }
+.cs .cs-pasos span { font: 600 10.5px var(--fe-texto); letter-spacing: .12em; color: var(--fe-gris) }
+.cs .cs-pasos b { font: 700 15px var(--fe-texto); color: var(--fe-tinta) }
+.cs .cs-pasos small { font-size: 12px; color: var(--fe-gris) }
+
+.cs .cs-barra { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; margin-bottom: 12px }
+.cs .cs-c { background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea); padding: 10px 14px; display: flex; flex-direction: column; gap: 4px; min-width: 200px }
+.cs .cs-c > label, .cs .cs-c .lbl { font: 600 10.5px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase; color: var(--fe-gris) }
+.cs .cs-c .v { font: 700 14.5px var(--fe-texto); color: var(--fe-tinta); overflow-wrap: anywhere }
+.cs .cs-c small { font-size: 12px; color: var(--fe-gris) }
+.cs .cs-c input:not([type="checkbox"]) { font: 700 18px var(--fe-mono, ui-monospace, monospace); width: 130px; padding: 4px 8px; border: 2px solid var(--fe-acento, #FFC400); background: #fff; color: var(--fe-tinta) }
+.cs .cs-sw { cursor: pointer }
+.cs .cs-sw .fila { display: flex; align-items: center; gap: 8px; font: 700 14px var(--fe-texto); color: var(--fe-tinta) }
+.cs .cs-sw input { width: 18px; height: 18px; accent-color: var(--fe-tinta) }
+.cs .cs-bt { margin-top: 4px; align-self: flex-start; min-height: 36px; padding: 0 14px; cursor: pointer; border: 1.5px solid var(--fe-tinta);
+  background: var(--fe-tinta); color: var(--fe-papel, #fff); font: 700 13.5px var(--fe-texto); box-shadow: inset 0 -3px 0 var(--fe-acento, #FFC400) }
+.cs .cs-bt.alt { background: var(--fe-papel, #fff); color: var(--fe-tinta); box-shadow: none }
+.cs .cs-bt:disabled { opacity: .55; cursor: wait }
+.cs .cs-bt:focus-visible { outline: 3px solid var(--fe-acento, #FFC400); outline-offset: 2px }
+
+.cs .cs-msg { margin: 0 0 10px; padding: 9px 14px; background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea); border-left: 4px solid var(--fe-acento, #FFC400); font-size: 13.5px }
+.cs .cs-msg.mal { border-left-color: var(--fe-mal, #C8102E); color: var(--fe-mal, #C8102E) }
+.cs .cs-msg.bien { border-left-color: #1E8E3E; color: #1E6B37; font-weight: 600 }
+
+.cs .cs-k { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px }
+.cs .cs-k.dos { grid-template-columns: repeat(2, minmax(0, 240px)) }
+.cs .cs-k > div { background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea); border-bottom: 4px solid var(--fe-acento, #FFC400); padding: 12px 16px }
+.cs .cs-k > div.os { background: var(--fe-tinta); color: var(--fe-papel, #fff) }
+.cs .cs-k span { font: 600 10.5px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase; opacity: .8 }
+.cs .cs-k b { display: block; font: 700 28px var(--fe-titulo, var(--fe-texto)); font-variant-numeric: tabular-nums }
+.cs .cs-k b.bien { color: #1E8E3E } .cs .cs-k b.mal { color: var(--fe-mal, #C8102E) } .cs .cs-k b.ambar { color: #9A6700 }
+
+.cs .cs-scroll { overflow-x: auto; background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea) }
+.cs .cs-t { width: 100%; min-width: 980px; border-collapse: collapse; font-size: 13px }
+.cs .cs-t.chica { min-width: 0 }
+.cs .cs-t th { background: var(--fe-tinta); color: var(--fe-papel, #fff); font: 700 10.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase; padding: 9px 10px; text-align: left; white-space: nowrap }
+.cs .cs-t th.n { text-align: right }
+.cs .cs-t td { padding: 7px 10px; border-bottom: 1px solid var(--fe-linea); color: var(--fe-tinta); vertical-align: middle }
+.cs .cs-t td.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap }
+.cs .cs-t td.mono { font-family: var(--fe-mono, ui-monospace, monospace); color: var(--fe-gris) }
+.cs .cs-t td small { display: block; font-size: 11.5px; color: var(--fe-gris) }
+.cs .cs-t td em { font-style: normal; font-size: 11px; color: var(--fe-gris) }
+.cs .cs-t td.neg { color: var(--fe-mal, #C8102E) } .cs .cs-t td.amb { color: #9A6700 }
+.cs .cs-t td.tachado { text-decoration: line-through; color: var(--fe-gris) }
+.cs .cs-t tr.g td { background: var(--fe-fondo); font: 700 11.5px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase; color: var(--fe-gris) }
+.cs .cs-t tr.pend td { background: color-mix(in srgb, var(--fe-mal, #C8102E) 6%, var(--fe-papel, #fff)) }
+.cs .cs-chip { display: inline-block; font: 700 11.5px var(--fe-texto); padding: 3px 8px; white-space: nowrap; background: var(--fe-fondo); color: var(--fe-gris) }
+.cs .cs-chip.ok { background: #E7F4EC; color: #1E6B37 }
+.cs .cs-chip.in { background: #FDECEE; color: var(--fe-mal, #C8102E) }
+.cs .cs-chip.out { background: #FFF4D6; color: #7A5200 }
+.cs .cs-nota { margin: 8px 0 0; font-size: 12px; color: var(--fe-gris); line-height: 1.45 }
+
+.cs .cs-h { display: flex; align-items: center; gap: 10px; margin: 24px 0 10px; font: 700 13px var(--fe-texto); letter-spacing: .12em; text-transform: uppercase; color: var(--fe-tinta) }
+.cs .cs-h i { font-style: normal; width: 24px; height: 24px; display: grid; place-items: center; background: var(--fe-tinta); color: var(--fe-papel, #fff); font-size: 12px }
+.cs .cs-dos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px }
+.cs .cs-caja { background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea) }
+.cs .cs-caja h3 { margin: 0; padding: 11px 14px; display: flex; justify-content: space-between; align-items: center; font: 700 14px var(--fe-texto); border-bottom: 1px solid var(--fe-linea) }
+.cs .cs-caja h3 em { font-style: normal; font: 700 11px var(--fe-mono, ui-monospace, monospace); padding: 3px 8px }
+.cs .cs-caja.r h3 em { background: #FDECEE; color: var(--fe-mal, #C8102E) }
+.cs .cs-caja.a h3 em { background: #FFF4D6; color: #7A5200 }
+.cs .cs-vacio { margin: 0; padding: 14px; color: var(--fe-gris); font-size: 13px }
+.cs .cs-subir { margin-top: 12px; padding: 14px 18px; background: var(--fe-papel, #fff); border: 2px dashed var(--fe-linea);
+  display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center }
+.cs .cs-subir b { font-size: 14.5px } .cs .cs-subir small { display: block; color: var(--fe-gris); margin-top: 3px; font-size: 12.5px }
+.cs .cs-acc { display: flex; gap: 8px }
+.cs .cs-acc .cs-bt { margin-top: 0 }
+
+@media (max-width: 900px) {
+  .cs .cs-pasos { grid-template-columns: 1fr } .cs .cs-pasos li { border-right: 0 }
+  .cs .cs-k { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .cs .cs-dos { grid-template-columns: 1fr }
+  .cs .cs-c { flex: 1 1 100% }
+}

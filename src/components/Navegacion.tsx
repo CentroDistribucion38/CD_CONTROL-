@@ -266,6 +266,12 @@ const IconoBalanza = () => (
     <path d="M5 7l-2.5 6h5z M19 7l-2.5 6h5z" />
   </svg>
 );
+/* CUADRE SAP: dos flechas que se cruzan (el 311 entre AG18 y AG22) sobre la raya del cuadre. */
+const IconoCuadreSap = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <path d="M4 8h13l-3-3M20 16H7l3 3" />
+  </svg>
+);
 /* PASIVOS (la rama): el candado — el EER que está bloqueado. */
 const IconoCandado = () => (
   <svg viewBox="0 0 24 24" {...P}>
@@ -430,6 +436,7 @@ const ICONO_RUTA: Record<string, () => React.ReactElement> = {
   "/inventario/casco": IconoCuatroTablas,
   "/inventario/casco/tablero": IconoTablero,
   "/inventario/balance": IconoBalanza,
+  "/inventario/balance/cuadre": IconoCuadreSap,
   "/inventario/balance/pasivos": IconoBaseDatos,
   "/inventario/balance/pasivos/informe": IconoInforme,
   "/inventario/balance/pasivos/maestro": IconoLlave,

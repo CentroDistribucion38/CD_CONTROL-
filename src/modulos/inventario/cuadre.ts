@@ -1,0 +1,174 @@
+import { createClient } from "@/lib/supabase/server";
+import { consolidadoDelDia, diasConConteo, leerCasco } from "@/modulos/inventario/balance";
+import { esUbicacionFabrica } from "@/modulos/casco/ubicacion-sitio";
+import { leerPasivos } from "@/modulos/pasivos/datos";
+
+/**
+ * CUADRE SAP · AG18 FÁBRICA — el archivo «2026.10.09_FABRICA.xlsx», hecho pantalla.
+ *
+ * TOTAL CONTEO de cada material (en unidades; las cajas plásticas en cajas y las estibas en estibas):
+ *   · ENVASE  = lo contado en la fábrica (ubicaciones FABRICA_, todos los estados) × unidades por caja
+ *             + PEND. BAJA (Pasivos AG18 · BAJA · SORTING)          ← se puede apagar
+ *             − LAVADO CON BAJA (Casco AG18: estibas × cajas/estiba × unidades/caja)
+ *             + ANDINA / HEINEKEN (Pasivos AG18 · BAJA · las demás causales)
+ *   · CAJAS PLÁSTICAS = las sueltas contadas + la caja de cada envase contado (la caja sale del
+ *             maestro de Pasivos: la 850 va en la 1000 x13)
+ *   · ESTIBAS DE MADERA = las sueltas contadas + 1 por cada estiba contada debajo del envase y las
+ *             cajas (y 1 por cada renglón con saldo o cajas sueltas) + las del almacén, que se digitan
+ * Verificado contra el 9-oct: envase, cajas y estibas dan lo mismo que el Excel.
+ *
+ * DIFERENCIA = SAP (ZEXI) − TOTAL CONTEO = el 311. Negativa: se contó más → pasar de AG22 a AG18.
+ * Positiva: SAP tiene más → pasar de AG18 a AG22. Con la transacción del 311 ya hecha:
+ * SAP DESPUÉS = SAP + lo movido (neto en AG18) y QUEDA = SAP DESPUÉS − TOTAL CONTEO.
+ */
+export const ALMACEN_CUADRE = "AG18";
+const ESTIBA = "3500163";
+
+export type ZexiFila = { codigo: string; descripcion: string; cantidad: number };
+export type MovFila = { codigo: string; cantidad: number; documentos: string[] };
+export type CuadreGuardado = {
+  fecha: string; almacen: string;
+  estibas_almacen: number | null; sumar_pend_baja: boolean;
+  zexi: ZexiFila[] | null; zexi_archivo: string | null; zexi_en: string | null;
+  movimientos: MovFila[] | null; mov_archivo: string | null; mov_en: string | null;
+};
+export type Grupo = "ENVASE" | "CAJA" | "ESTIBA";
+export type FilaCuadre = {
+  grupo: Grupo; codigo: string; material: string;
+  /** Lo contado en la fábrica (envase × unidades/caja; cajas; estibas). */
+  conteo: number;
+  detalle: string | null;
+  pendBaja: number; lavadoBaja: number; andina: number; almacen: number;
+  total: number;
+  sap: number | null;
+  /** SAP − total (el 311 que hay que hacer). null si no hay ZEXI. */
+  dif: number | null;
+  /** Lo movido en SAP (neto en AG18: + entra, − sale). */
+  movido: number;
+  documentos: string[];
+  sapDespues: number | null;
+  queda: number | null;
+};
+
+type Prod = { sku: string; nombre: string | null; unidades_por_caja: number | null; cajas_por_estiba: number | null };
+type Maes = { codigo: string; descripcion: string; familia: string | null; unidades_por_caja: number | null; cajas_por_estiba: number | null; caja: string | null };
+
+const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
+const redondo = (v: number) => Math.round(v * 100) / 100;
+
+export async function armarCuadre(pedida?: string | null) {
+  const supabase = await createClient();
+  const { dias, conteos, error: e0 } = await diasConConteo();
+  const fecha = pedida && dias.includes(pedida) ? pedida : (dias[0] ?? null);
+  const base = { fecha, dias, filas: [] as FilaCuadre[], guardado: null as CuadreGuardado | null, estibasBodega: 0, avisos: [] as string[], error: e0, faltaSql: false };
+  if (!fecha) return base;
+
+  const [cons, prodR, maesR, pas, casco, sitiosR, guardR] = await Promise.all([
+    consolidadoDelDia(fecha, conteos),
+    supabase.from("productos").select("sku, nombre, unidades_por_caja, cajas_por_estiba"),
+    supabase.from("pasivos_maestro").select("codigo, descripcion, familia, unidades_por_caja, cajas_por_estiba, caja"),
+    leerPasivos(fecha, fecha),
+    leerCasco(),
+    supabase.from("casco_ubicaciones").select("clave, centro"),
+    supabase.from("cuadre_sap").select("*").eq("fecha", fecha).eq("almacen", ALMACEN_CUADRE).maybeSingle(),
+  ]);
+  if (guardR.error && /cuadre_sap|does not exist|PGRST205/i.test(`${guardR.error.code} ${guardR.error.message}`)) return { ...base, faltaSql: true };
+  const avisos: string[] = [];
+  if (cons.error) avisos.push(`No pude leer el conteo: ${cons.error}`);
+  if (pas.error) avisos.push(`No pude leer Pasivos (pend. baja y Andina): ${pas.error}`);
+  if (casco.error) avisos.push(`No pude leer el Casco (lavado con baja): ${casco.error}`);
+  if (maesR.error) avisos.push(`No pude leer el maestro de Pasivos (factores y cajas): ${maesR.error.message}`);
+
+  const guardado = (guardR.data ?? null) as CuadreGuardado | null;
+  const P = new Map(((prodR.data ?? []) as Prod[]).map((p) => [String(p.sku), p]));
+  const M = new Map(((maesR.data ?? []) as Maes[]).map((m) => [String(m.codigo), m]));
+  const grupoDe = (c: string): Grupo => {
+    const f = (M.get(c)?.familia ?? "").toUpperCase();
+    return c === ESTIBA || f === "ESTIBA" ? "ESTIBA" : f === "CAJA" ? "CAJA" : "ENVASE";
+  };
+  const upc = (c: string) => Number(M.get(c)?.unidades_por_caja ?? P.get(c)?.unidades_por_caja ?? 1) || 1;
+  const cpe = (c: string) => Number(M.get(c)?.cajas_por_estiba ?? P.get(c)?.cajas_por_estiba ?? 0) || 0;
+  const nombre = (c: string, alt?: string | null) => M.get(c)?.descripcion ?? P.get(c)?.nombre ?? alt ?? c;
+
+  type Acc = { codigo: string; material: string; conteo: number; sueltas: number; conEnvase: number; pend: number; lav: number; andina: number };
+  const acc = new Map<string, Acc>();
+  const de = (c: string, alt?: string | null) => {
+    let a = acc.get(c);
+    if (!a) { a = { codigo: c, material: nombre(c, alt), conteo: 0, sueltas: 0, conEnvase: 0, pend: 0, lav: 0, andina: 0 }; acc.set(c, a) }
+    return a;
+  };
+
+  /* 1. EL CONTEO DE LA FÁBRICA (todos los estados del envase). */
+  let estBajo = 0, estSueltas = 0, estibasBodega = 0;
+  for (const r of cons.vigentes) {
+    if (r.tipo_material !== "ENVASE") continue;
+    const c = String(r.codigo), cajas = Number(r.total_cajas) || 0;
+    if (!esUbicacionFabrica(r.ubicacion)) { if (c === ESTIBA) estibasBodega += cajas; continue }
+    const g = grupoDe(c);
+    if (g === "ESTIBA") { estSueltas += cajas; continue }
+    /* La estiba de madera de debajo: una por estiba contada y una por renglón con saldo o sueltas. */
+    estBajo += (Number(r.estibas) || 0) + ((Number(r.cajas) || 0) + (Number(r.saldo) || 0) > 0 ? 1 : 0);
+    const a = de(c, r.material);
+    if (g === "CAJA") { a.sueltas += cajas; continue }
+    a.conteo += cajas * upc(c);
+    const caja = M.get(c)?.caja;
+    if (caja) de(String(caja)).conEnvase += cajas;
+  }
+
+  /* 2. PEND. BAJA Y ANDINA / HEINEKEN (Pasivos AG18 · BAJA, del día). */
+  for (const f of pas.data) {
+    if (f.almacen !== ALMACEN_CUADRE || String(f.estado).toUpperCase() !== "BAJA") continue;
+    const a = de(String(f.codigo), f.descripcion);
+    if (String(f.causal).toUpperCase() === "SORTING") a.pend += Number(f.unidades) || 0;
+    else a.andina += Number(f.unidades) || 0;
+  }
+
+  /* 3. LAVADO CON BAJA (Casco AG18, su último registro hasta el día): en negativo. */
+  const clavesAG18 = new Set(((sitiosR.data ?? []) as { clave: string; centro: string | null }[])
+    .filter((s) => (s.centro ?? "").toUpperCase() === ALMACEN_CUADRE).map((s) => s.clave));
+  for (const clave of clavesAG18) {
+    const suyos = casco.data.filter((x) => x.ubicacion === clave && x.fecha <= fecha);
+    const ult = suyos.reduce((m, x) => (x.fecha > m ? x.fecha : m), "");
+    for (const x of suyos) {
+      if (x.fecha !== ult || !x.baja) continue;
+      const c = String(x.sku);
+      de(c).lav -= Number(x.baja) * cpe(c) * upc(c);
+    }
+  }
+
+  /* 4. LO GUARDADO: el ZEXI, las estibas del almacén y los movimientos 311. */
+  const sumarPend = guardado?.sumar_pend_baja ?? true;
+  const estAlm = Number(guardado?.estibas_almacen ?? 0) || 0;
+  const sap = new Map((guardado?.zexi ?? []).map((z) => [String(z.codigo), z]));
+  const mov = new Map((guardado?.movimientos ?? []).map((m) => [String(m.codigo), m]));
+  for (const z of sap.values()) de(String(z.codigo), z.descripcion);
+  for (const m of mov.values()) de(String(m.codigo));
+  de(ESTIBA);
+
+  const filas: FilaCuadre[] = [...acc.values()].map((a) => {
+    const grupo = grupoDe(a.codigo);
+    let conteo = a.conteo, detalle: string | null = null, almacen = 0;
+    if (grupo === "CAJA") {
+      conteo = a.sueltas + a.conEnvase;
+      detalle = [a.sueltas ? `${nf.format(a.sueltas)} sueltas` : "", a.conEnvase ? `${nf.format(a.conEnvase)} con envase` : ""].filter(Boolean).join(" + ") || null;
+    } else if (grupo === "ESTIBA") {
+      conteo = estSueltas + estBajo; almacen = estAlm;
+      detalle = `${nf.format(estSueltas)} sueltas + ${nf.format(estBajo)} bajo el envase` + (estAlm ? ` + ${nf.format(estAlm)} del almacén` : "");
+    }
+    const pendBaja = grupo === "ENVASE" ? a.pend : 0;
+    const total = redondo(conteo + (sumarPend ? pendBaja : 0) + a.lav + a.andina + almacen);
+    const z = sap.get(a.codigo), m = mov.get(a.codigo);
+    const sapV = z ? Number(z.cantidad) : null;
+    const movido = m ? Number(m.cantidad) : 0;
+    const dif = sapV == null ? null : redondo(sapV - total);
+    const sapDespues = sapV == null ? null : redondo(sapV + movido);
+    const queda = sapDespues == null ? null : redondo(sapDespues - total);
+    return { grupo, codigo: a.codigo, material: a.material, conteo: redondo(conteo), detalle, pendBaja, lavadoBaja: a.lav, andina: a.andina,
+      almacen, total, sap: sapV, dif, movido, documentos: m?.documentos ?? [], sapDespues, queda };
+  })
+    /* Lo que no tiene nada en ningún lado no se lista. */
+    .filter((f) => f.total !== 0 || (f.sap ?? 0) !== 0 || f.movido !== 0 || f.codigo === ESTIBA)
+    .sort((x, y) => "ENVASE CAJA ESTIBA".indexOf(x.grupo) - "ENVASE CAJA ESTIBA".indexOf(y.grupo) || x.codigo.localeCompare(y.codigo));
+
+  return { ...base, filas, guardado, estibasBodega, avisos };
+}
