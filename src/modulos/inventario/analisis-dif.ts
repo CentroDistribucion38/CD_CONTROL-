@@ -1,3 +1,4 @@
+import { envaseDelRenglon } from "@/modulos/inventario/corte";
 import { createClient } from "@/lib/supabase/server";
 import { consolidadoDelDia, diasConConteo } from "@/modulos/inventario/balance";
 import { armarCuadre } from "@/modulos/inventario/cuadre";
@@ -36,7 +37,7 @@ export type Analisis = {
 };
 
 type Maes = { codigo: string; descripcion: string; familia: string | null; unidades_por_caja: number | null; cajas_por_estiba: number | null; caja: string | null };
-type Prod = { id: string; sku: string; nombre: string | null; unidades_por_caja: number | null; cajas_por_estiba: number | null };
+type Prod = { id: string; sku: string; nombre: string | null; unidades_por_caja: number | null; cajas_por_estiba: number | null; envase_sku: string | null };
 
 const ESTIBA = "3500163";
 const norm = (c: unknown) => String(c ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().replace(/\s+/g, " ").trim();
@@ -49,10 +50,13 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   const [{ conteos }, maesR, prodR, pas, novR, cortesR, regla] = await Promise.all([
     diasConConteo(),
     supabase.from("pasivos_maestro").select("codigo, descripcion, familia, unidades_por_caja, cajas_por_estiba, caja"),
-    supabase.from("productos").select("id, sku, nombre, unidades_por_caja, cajas_por_estiba").limit(5000),
+    supabase.from("productos").select("id, sku, nombre, unidades_por_caja, cajas_por_estiba, envase_sku").limit(5000),
     leerPasivos(fecha, fecha),
     supabase.from("analisis_dif_novedades").select("fecha, tipo, lado, documento, codigo, unidades, caja_codigo, cajas, archivo, subido_en").eq("fecha", fecha).order("id"),
-    supabase.from("inv_cortes").select("id, tipo, cortado_en").eq("tipo", "inicial").order("cortado_en").limit(400),
+    supabase.from("inv_cortes").select("id, tipo, cortado_en").eq("tipo", "inicial")
+      .gte("cortado_en", new Date(`${fecha}T00:00:00-05:00`).toISOString())
+      .lt("cortado_en", new Date(new Date(`${fecha}T00:00:00-05:00`).getTime() + 86400000).toISOString())
+      .order("cortado_en").limit(50),
     leerExcluidos("AG22"),
   ]);
   const faltaSql = !!novR.error && /analisis_dif|does not exist|PGRST205/i.test(`${novR.error.code} ${novR.error.message}`);
@@ -96,22 +100,36 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   fuentes.push({ nombre: "Conteo", ok: renglones > 0, detalle: renglones ? `${renglones} renglones de Bodega` : "No hay conteo enviado ese día" });
   if (cons.error) avisos.push(`No pude leer el conteo: ${cons.error}`);
 
-  /* 2. DEPA: el corte inicial del día (el primero), lo que marca la depaletizadora de cada línea. */
-  const corte = ((cortesR.data ?? []) as { id: string; cortado_en: string }[]).find((c) => diaBogota(c.cortado_en) === fecha);
-  if (corte) {
-    const { data: rs } = await supabase.from("inv_corte_renglones").select("linea, cajas_depa, envase_id").eq("corte_id", corte.id);
-    let n = 0;
-    for (const x of (rs ?? []) as { linea: string; cajas_depa: number | null; envase_id: string | null }[]) {
-      const env = x.envase_id ? porId.get(String(x.envase_id))?.sku : null;
+  /* 2. DEPA: los cortes iniciales del día. Por cada línea vale el primer corte
+     que la trae. El envase es el anotado en el corte o, si no se anotó, el que el
+     maestro le asigna al producto (igual que la pantalla de Corte). */
+  const cortes = (cortesR.data ?? []) as { id: string; cortado_en: string }[];
+  if (cortes.length) {
+    const { data: rs } = await supabase.from("inv_corte_renglones").select("corte_id, linea, cajas_depa, envase_id, material_id").in("corte_id", cortes.map((c) => c.id));
+    const orden = new Map(cortes.map((c, k) => [String(c.id), k]));
+    const mats = ((prodR.data ?? []) as Prod[]).map((p) => ({ id: String(p.id), sku: String(p.sku), nombre: String(p.nombre ?? ""), envase_sku: p.envase_sku }));
+    type R = { corte_id: string; linea: string; cajas_depa: number | null; envase_id: string | null; material_id: string | null };
+    const filas = ((rs ?? []) as R[]).slice().sort((a, b) => (orden.get(String(a.corte_id)) ?? 0) - (orden.get(String(b.corte_id)) ?? 0));
+    const corteDeLinea = new Map<string, string>();
+    for (const x of filas) if (!corteDeLinea.has(x.linea)) corteDeLinea.set(x.linea, String(x.corte_id));
+    const tomadas = new Set<string>(); const fuera: string[] = []; let primera = "";
+    for (const x of filas) {
+      if (corteDeLinea.get(x.linea) !== String(x.corte_id)) continue;
       const cj = Number(x.cajas_depa) || 0;
-      if (!env || !cj) continue;
-      const etq = `DEPA ${x.linea}`;
-      suma("conteo", String(env), etq, cj * upc(String(env)));
-      const caja = M.get(String(env))?.caja; if (caja) suma("conteo", String(caja), etq, cj);
-      n++;
+      if (!cj) continue;
+      const e = envaseDelRenglon(x.envase_id ? String(x.envase_id) : null, x.material_id ? String(x.material_id) : null, mats);
+      if (!e.m) { fuera.push(`${x.linea}: sin envase ni producto con envase en el maestro`); continue; }
+      const env = e.m.sku, etq = `DEPA ${x.linea}`;
+      suma("conteo", env, etq, cj * upc(env));
+      const caja = M.get(env)?.caja; if (caja) suma("conteo", String(caja), etq, cj);
+      tomadas.add(x.linea);
+      if (!primera) primera = String(x.corte_id);
     }
-    const hora = new Date(corte.cortado_en).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Bogota" });
-    fuentes.push({ nombre: "DEPA", ok: n > 0, detalle: n ? `corte inicial de las ${hora} · ${n} líneas` : "El corte inicial no dice el envase de las líneas" });
+    for (const l of corteDeLinea.keys()) if (!tomadas.has(l) && !fuera.some((f) => f.startsWith(`${l}:`))) fuera.push(`${l}: depa en 0`);
+    const c0 = cortes.find((c) => String(c.id) === primera) ?? cortes[0];
+    const hora = new Date(c0.cortado_en).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Bogota" });
+    const ls = [...tomadas].sort().join(", ");
+    fuentes.push({ nombre: "DEPA", ok: tomadas.size > 0, detalle: tomadas.size ? `corte inicial de las ${hora} · ${tomadas.size} líneas (${ls})${fuera.length ? ` · fuera: ${fuera.join("; ")}` : ""}` : `El corte inicial no trae depa: ${fuera.join("; ") || "sin renglones"}` });
   } else fuentes.push({ nombre: "DEPA", ok: false, detalle: "No hay corte inicial ese día" });
 
   /* 3. PASIVOS AG22: PRESORTING, ROTURA DE LINEA, EXTRASUCIO. */
