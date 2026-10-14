@@ -501,13 +501,13 @@ export function Base({
       const cols = [...COLUMNAS as Col<Fila>[], ...(pestania === "base" ? [ESTADO] : [])];
       const dia = pestania === "base" ? (desde === hasta ? desde : `${desde}_${hasta}`) : null;
       const sub = [
-        pestania === "base" ? `La base · ${rangoTexto(desde, hasta)}` : `Borradores · sin enviar · hoy ${diaDe(hoyColombia())}`,
+        pestania === "base" ? `BD · ${rangoTexto(desde, hasta)}` : `Borradores · sin enviar · hoy ${diaDe(hoyColombia())}`,
         `${nf.format(filas.length)} ${filas.length === 1 ? "renglón" : "renglones"}`,
         `${nf.format(cajas)} cajas`,
         filtrando ? "con filtros" : null,
       ].filter(Boolean).join("  ·  ");
       const blob = await armarVistaXlsx({
-        titulo: pestania === "base" ? "La base del conteo" : "Borradores del conteo", sub, hoja: pestania === "base" ? "Base" : "Borradores",
+        titulo: pestania === "base" ? "BD del conteo" : "Borradores del conteo", sub, hoja: pestania === "base" ? "Base" : "Borradores",
         /* Se suman las cantidades (estibas, cajas, saldo, unidades); un factor o una capacidad no. */
         columnas: cols.map((c) => ({ t: c.t, num: !!c.num, suma: ["estibas", "saldo", "cajas", "total_cajas", "unidades"].includes(c.k) })), filas: filas.map((r) => cols.map((c) => c.texto(r))),
         tinta: hx(P.tinta), banda: hx(P.cinta[1]?.[1] ?? P.acento),
@@ -532,7 +532,7 @@ export function Base({
       <header className="ba-cab">
         <div>
           <p className="ba-eti">Inventario{bodega ? <> · Bodega {bodega}</> : null}</p>
-          <h1>La base</h1>
+          <h1>BD · Base de datos</h1>
           <p className="ba-sub">Todo lo contado, renglón por renglón. Solo entran recorridos <b>enviados</b>.</p>
         </div>
         <div className="ba-acc">
@@ -633,7 +633,7 @@ export function Base({
       {/* ================= PESTAÑAS, BÚSQUEDA Y FILTROS ================= */}
       <div className="ba-barra">
         <div className="ba-tabs" role="tablist">
-          {([["base", "La base", kp.renglones], ["borradores", "Borradores", abiertas.length]] as const).map(([k, t, n]) => (
+          {([["base", "BD", kp.renglones], ["borradores", "Borradores", abiertas.length]] as const).map(([k, t, n]) => (
             <button key={k} type="button" role="tab" aria-selected={pestania === k} className={pestania === k ? "on" : ""}
                     onClick={() => { setPestania(k); setFRec(""); setFCalle(""); setFModulo(""); setFQuien(new Set()); setMarcados(new Set()) }}>
               {t}<i>{nf.format(n)}</i>

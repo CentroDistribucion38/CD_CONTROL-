@@ -662,7 +662,7 @@ export const MODULOS: Modulo[] = [
       /* CONTAR LLEVA DOS CONTEOS: el FEFO diario y la hoja del inventario fiscal
          (esta última solo a quien el plan le asignó una). */
       { nombre: "Contar", ruta: "/inventario/conteo", rama: "conteos" },
-      { nombre: "La base", ruta: "/inventario/base", rama: "conteos" },
+      { nombre: "BD", ruta: "/inventario/base", rama: "conteos" },
       /* EL TABLERO VIVE EN /inventario/tablero Y NO EN /inventario.
          Ocupando la ruta del módulo, entrar a Inventario era entrar ya
          a Conteos y la bifurcación no existía. `ramaDeRuta` lo dice arriba:

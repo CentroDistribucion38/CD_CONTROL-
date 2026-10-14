@@ -320,3 +320,8 @@
 
 /* Consolidado: un renglón por registro del conteo; la nota en gris y sin estirar la tabla */
 .bal-conso-nota { font-size: 12px; color: var(--fe-gris); max-width: 260px }
+
+/* El almacén de SAP de cada pestaña: AG18 (fábrica) en ámbar, AG22 (Bodega 38) en azul */
+.bal .bal-tab-alm { font: 700 10.5px var(--fe-mono, ui-monospace, monospace); padding: 2px 6px; background: #EEF1F5; color: var(--fe-tinta); letter-spacing: .02em }
+.bal .bal-tab-alm.a18 { background: #FFF3CC; color: #5E4100 }
+.bal .bal-tab-alm.a22 { background: #E6EEF9; color: #1B4F8F }

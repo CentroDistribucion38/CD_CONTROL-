@@ -32,7 +32,7 @@ export default async function InventarioBasePage() {
         <section className="fe-arranque">
           <h2>Esta pantalla no es para tu rol</h2>
           <p>
-            La base del conteo la ve quien la tiene asignada en{" "}
+            La BD del conteo la ve quien la tiene asignada en{" "}
             <b>Administración → Roles</b>. Si la necesitas, pídela ahí.
           </p>
         </section>

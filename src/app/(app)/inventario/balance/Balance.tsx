@@ -48,12 +48,13 @@ type Fila = {
 /*  CONSTANTES                                                         */
 /* ------------------------------------------------------------------ */
 /** Las 5 hojas fijas + la de "Otros estados" (dinámica). */
-const HOJAS_FIJAS: { estado: string; alcance: string | null; label: string }[] = [
-  { estado: "BAJA",        alcance: "SORTING",    label: "Baja · Fábrica" },
-  { estado: "BAJA",        alcance: "PRESORTING",  label: "Baja · Bodega 38" },
-  { estado: "LAVADO",      alcance: "SORTING",    label: "Lavado · Fábrica" },
-  { estado: "LAVADO",      alcance: "PRESORTING",  label: "Lavado · Bodega 38" },
-  { estado: "EXTRASUCIO",  alcance: null,          label: "Extrasucio" },
+/* El almacén de SAP de cada hoja (como en Pasivos): Fábrica = AG18, Bodega 38 = AG22; Extrasucio, los dos. */
+const HOJAS_FIJAS: { estado: string; alcance: string | null; label: string; alm?: string }[] = [
+  { estado: "BAJA",        alcance: "SORTING",    label: "Baja · Fábrica",     alm: "AG18" },
+  { estado: "BAJA",        alcance: "PRESORTING",  label: "Baja · Bodega 38",   alm: "AG22" },
+  { estado: "LAVADO",      alcance: "SORTING",    label: "Lavado · Fábrica",   alm: "AG18" },
+  { estado: "LAVADO",      alcance: "PRESORTING",  label: "Lavado · Bodega 38", alm: "AG22" },
+  { estado: "EXTRASUCIO",  alcance: null,          label: "Extrasucio",         alm: "AG18 · AG22" },
 ];
 
 /** Estados que YA tienen su propia pestaña — los "otros" son el resto. */
@@ -203,7 +204,7 @@ export function Balance({
           <p className="ojo">INVENTARIO · BALANCE</p>
           <h1>Balance de materiales</h1>
           <p className="sub">
-            El conteo del día que escojas (el mismo consolidado de La base) contra el casco del día
+            El conteo del día que escojas (el mismo consolidado de la BD) contra el casco del día
             que escojas. Si un almacén no se guardó ese día, se toma su último guardado antes. Casco de
             vidrio: Bodega 38 cruza BAJA (Inventario) y EXTRASUCIO; Fábrica cruza BAJA (Inventario) y LAVADO (Lavado con baja).
           </p>
@@ -270,6 +271,7 @@ export function Balance({
                   onClick={(e) => { setHojaIdx(i); e.currentTarget.scrollIntoView({ inline: "nearest", block: "nearest" }) }}
                 >
                   <span className="bal-tab-label">{h.label}</span>
+                  {h.alm && <span className={"bal-tab-alm" + (h.alm === "AG18" ? " a18" : h.alm === "AG22" ? " a22" : "")} title="Almacén en SAP">{h.alm}</span>}
                   {/* «QUE QUEDE ASÍ»: cuántos materiales en gris y, si hay, cuántos con alerta en rojo. */}
                   {b && <span className="bal-tab-n" title="materiales">{b.renglones}</span>}
                   {b && b.con_alerta > 0 && <span className="bal-tab-al" title="con alerta">{b.con_alerta}</span>}
