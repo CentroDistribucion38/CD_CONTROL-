@@ -373,9 +373,9 @@ export function Balance({
                                 <circle cx="12" cy="12" r="3.2" fill="currentColor" />
                               </svg>
                               <span className="bal-tip" role="tooltip">
-                                <b>Se agregó la diferencia con el conteo</b>
-                                Inventario {n(cf.inventario, 2)} {cf.diferencia >= 0 ? "+" : "−"} {n(Math.abs(cf.diferencia), 2)} = <b>{n(cf.estibas, 2)}</b>
-                                <small>Conteo BAJA {n(cf.conteo_estibas, 2)} − casco {n(cf.casco, 2)} (inventario + lavado con baja). Toca para ver la cuenta.</small>
+                                <b>Casco: inventario + lavado con baja</b>
+                                {n(cf.inventario, 2)} + {n(cf.lavado, 2)} = <b>{n(cf.estibas, 2)}</b>
+                                <small>Pendiente por baja: {n(cf.conteo_estibas, 2)} contado − {n(cf.casco, 2)} = <b>{n(cf.diferencia, 2)}</b> est. Toca para ver la cuenta.</small>
                               </span>
                             </button>
                           </span>
@@ -422,20 +422,20 @@ export function Balance({
                       <tr className="bal-cf-fila">
                         <td colSpan={12}>
                           <div className="bal-cf">
-                            <p className="bal-cf-tit"><b>{f.codigo}</b> {f.material ?? ""} · de dónde salen las estibas casco <span>(el Casco no se cambia: la cuenta se hace aquí)</span></p>
+                            <p className="bal-cf-tit"><b>{f.codigo}</b> {f.material ?? ""} · estibas casco y pendiente por baja <span>(el Casco no se cambia: la cuenta se hace aquí; su Lavado con baja ya no se cuenta en Lavado · Fábrica)</span></p>
                             <ol>
-                              <li><span>Casco AG18</span>
+                              <li><span>Estibas casco · Baja Fábrica</span>
                                 <b>{n(cf.inventario, 2)} + {n(cf.lavado, 2)} = {n(cf.casco, 2)}</b>
-                                <small>Inventario casco de vidrio + Lavado con baja</small></li>
+                                <small>Inventario casco de vidrio + Lavado con baja · × {n(cf.factor)} = {n(f.cajas_casco)} cajas</small></li>
                               <li><span>Conteo · BAJA en Fábrica</span>
                                 <b>{n(cf.conteo_estibas, 2)} est.</b>
                                 <small>{n(cf.conteo_cajas)} cajas ÷ {n(cf.factor)} por estiba</small></li>
-                              <li><span>Diferencia</span>
-                                <b className={cf.diferencia < 0 ? "menos" : "mas"}>{n(cf.conteo_estibas, 2)} − {n(cf.casco, 2)} = {cf.diferencia >= 0 ? "+" : "−"}{n(Math.abs(cf.diferencia), 2)}</b>
-                                <small>se suma al Inventario</small></li>
-                              <li className="res"><span>Estibas casco · Baja Fábrica</span>
-                                <b>{n(cf.inventario, 2)} {cf.diferencia >= 0 ? "+" : "−"} {n(Math.abs(cf.diferencia), 2)} = {n(cf.estibas, 2)}</b>
-                                <small>× {n(cf.factor)} = {n(f.cajas_casco)} cajas casco</small></li>
+                              <li><span>La cuenta</span>
+                                <b>{n(cf.conteo_estibas, 2)} − {n(cf.casco, 2)}</b>
+                                <small>lo contado en BAJA menos las estibas casco</small></li>
+                              <li className="res"><span>{cf.diferencia >= 0 ? "Pendiente por baja" : "Sobra en casco"}</span>
+                                <b>{n(Math.abs(cf.diferencia), 2)} est.</b>
+                                <small>× {n(cf.factor)} = {n(Math.abs(cf.diferencia) * cf.factor)} cajas (la Dif cajas)</small></li>
                             </ol>
                           </div>
                         </td>

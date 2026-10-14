@@ -286,8 +286,9 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
 
   /* EL CUADRE DE FÁBRICA: en los materiales de la regla de fábrica, lo contado en BAJA en la Fábrica ya
      trae lo que el casco tiene en «Lavado con baja». Se cuadra así (sin tocar el Casco):
-       diferencia = conteo BAJA Fábrica (estibas) − (Inventario + Lavado con baja)
-       estibas casco de Baja · Fábrica = Inventario + diferencia. */
+       estibas casco de Baja · Fábrica = Inventario + Lavado con baja       (36,67 + 132 = 168,67)
+       PENDIENTE POR BAJA = conteo BAJA Fábrica (estibas) − esas estibas casco (219,11 − 168,67 = 50,44)
+     El Lavado con baja de esos materiales sale de la hoja Lavado · Fábrica (ya está aquí: no se cuenta dos veces). */
   const r2 = (v: number) => Math.round(v * 100) / 100;
   const cuadres = new Map<string, CuadreFabrica>();
   for (const sku of deLaRegla) {
@@ -299,10 +300,18 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
     const conteoEst = r2(f.fisico_cajas / cpe);
     const casco = r2(a.inv + a.lav);
     const diferencia = r2(conteoEst - casco);
-    const estibas = r2(a.inv + diferencia);
+    const estibas = casco;
     f.estibas_casco = estibas;
     f.cajas_casco = Math.round(estibas * cpe);
     f.tieneCasco = true;
+    const fl = filas.get(`LAVADO|SORTING|${sku}`);
+    if (fl && a.lav) {
+      const cpeL = Number(fl.cajas_estiba ?? cpe) || cpe;
+      fl.estibas_casco = r2(fl.estibas_casco - a.lav);
+      fl.cajas_casco = Math.max(0, fl.cajas_casco - Math.round(a.lav * cpeL));
+      fl.tieneCasco = Math.abs(fl.estibas_casco) >= 0.005;
+      if (!fl.tieneFisico && !fl.tieneCasco) filas.delete(`LAVADO|SORTING|${sku}`);
+    }
     cuadres.set(sku, { inventario: r2(a.inv), lavado: r2(a.lav), casco, conteo_cajas: f.fisico_cajas, factor: cpe, conteo_estibas: conteoEst, diferencia, estibas });
   }
 
