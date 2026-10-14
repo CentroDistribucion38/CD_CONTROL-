@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { misPermisos } from "@/lib/permisos";
+import { armarAnalisis } from "@/modulos/inventario/analisis-dif";
+import { Analisis } from "./Analisis";
 import "../../../sider/sider.css";
 import "../../fefo.css";
 import "../balance.css";
@@ -38,7 +41,11 @@ const FUENTES: Fuente[] = [
 ];
 const ETQ = { ok: "Ya está en la app", falta: "Falta: plantilla", parcial: "Falta importar" } as const;
 
-export default function AnalisisPage() {
+export default async function AnalisisPage({ searchParams }: { searchParams: Promise<{ fecha?: string }> }) {
+  const q = await searchParams;
+  const hoy = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Bogota" }).format(new Date());
+  const fecha = /^\d{4}-\d{2}-\d{2}$/.test(q.fecha ?? "") ? q.fecha! : hoy;
+  const [datos, permisos] = await Promise.all([armarAnalisis(fecha), misPermisos()]);
   return (
     <div className="fe bal ad">
       <section className="cabeza"><div>
@@ -50,13 +57,20 @@ export default function AnalisisPage() {
         </p>
       </div></section>
 
+      <Analisis datos={datos} hoy={hoy} puedeEditar={permisos.puedeEditar("/inventario/balance/analisis")} />
+
+      {/* «Solo muéstrame lo que falta, porque hasta puedo poner más partidas.» Lo que ya trae la app va en una línea. */}
+      <details className="ad-que">
+      <summary>Qué trae la app y qué va en la plantilla</summary>
+      <p className="ad-ya"><b>Esto lo trae la app sola:</b> {FUENTES.filter((f) => f.estado === "ok").map((f) => f.renglon).join(" · ")}.</p>
+
       <section className="ad-caja">
-        <h2>De dónde sale cada renglón</h2>
+        <h2>Lo que falta: va en la plantilla</h2>
         <div className="ad-tabla-caja">
           <table className="ad-t">
             <thead><tr><th>Renglón del Excel</th><th>Suma en</th><th>De dónde lo saca la app</th><th>Estado</th></tr></thead>
             <tbody>
-              {FUENTES.map((f) => (
+              {FUENTES.filter((f) => f.estado !== "ok").map((f) => (
                 <tr key={f.renglon}>
                   <td><b>{f.renglon}</b></td>
                   <td><span className={"ad-lado " + (f.lado === "SAP" ? "sap" : "con")}>{f.lado}</span></td>
@@ -67,19 +81,12 @@ export default function AnalisisPage() {
             </tbody>
           </table>
         </div>
+        <p className="ad-nota"><b>¿Otra partida?</b> Agrégala en la hoja TIPOS de la plantilla (nombre, en qué lado suma, si pide N° de entrega y si suma su caja plástica): sale sola en la lista.</p>
         <p className="ad-nota">No entran (igual que en el Cuadre SAP): los envases nuevos 412644, 412671, 412707, los barriles y lo que saques en el toolbox de excluidos.</p>
       </section>
 
-      <section className="ad-caja ad-plantilla">
-        <div>
-          <h2>Las novedades: la plantilla</h2>
-          <p>La fecha viene con hoy. Una fila por novedad: el tipo, el código y la cantidad (en <b>estibas, cajas o unidades</b>, la que tengas). La plantilla
-            pasa a unidades, saca sola las cajas plásticas que las guardan (la 330 guarda los de 330 y 320) y valida cada fila: debe decir <b>OK</b>.</p>
-        </div>
-        <a className="ad-bt" href="/plantillas/analisis-diferencia-novedades.xlsx" download>Descargar plantilla</a>
-      </section>
+      </details>
 
-      <p className="ad-nota">Siguiente paso: subir la plantilla y la ZEXI de las 6, y armar la tabla CONTEO vs SAP por código. Mientras tanto: <Link href="/inventario/balance/cuadre">Cuadre SAP</Link> · <Link href="/inventario/balance/pasivos">Pasivos</Link>.</p>
-    </div>
+      <p className="ad-nota">Las partidas automáticas salen de: <Link href="/inventario/balance/cuadre">Cuadre SAP</Link> · <Link href="/inventario/balance/pasivos">Pasivos</Link> · <Link href="/inventario/corte">Cortes</Link>.</p>    </div>
   );
 }
