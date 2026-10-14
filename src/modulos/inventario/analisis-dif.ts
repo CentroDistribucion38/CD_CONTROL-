@@ -88,9 +88,15 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   const cons = await consolidadoDelDia(fecha, conteos);
   let renglones = 0;
   for (const r of await conReclasificaciones(cons.vigentes)) {
-    if (r.tipo_material !== "ENVASE") continue;
     /* Fuera todo lo de FÁBRICA: por la calle o por el nombre de la ubicación (FABRICA_…, FABRICAL4…). */
     if (esUbicacionFabrica(r.calle) || esUbicacionFabrica(r.ubicacion) || esUbicacionFabrica(r.ubicacion_combinada)) continue;
+    /* El PRODUCTO solo aporta las estibas en que está montado (una más si hay cajas sueltas). */
+    if (r.tipo_material === "PRODUCTO") {
+      const est = (Number(r.estibas) || 0) + ((Number(r.cajas) || 0) + (Number(r.saldo) || 0) > 0 ? 1 : 0);
+      suma("conteo", ESTIBA, "CONTEO · bajo producto", est);
+      continue;
+    }
+    if (r.tipo_material !== "ENVASE") continue;
     const c = String(r.codigo), cajas = Number(r.total_cajas) || 0;
     renglones++;
     const g = grupo(c);
