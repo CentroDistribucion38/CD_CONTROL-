@@ -96,6 +96,8 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     /* Se parte por origen para poder revisarlo: lo contado con su propio código y lo que trae cada envase. */
     if (g === "ESTIBA" || g === "CAJA") { suma("conteo", c, g === "CAJA" ? "CONTEO · cajas vacías" : "CONTEO · estibas contadas", cajas); continue }
     suma("conteo", c, "CONTEO", cajas * upc(c));
+    /* Un envase que no entra al análisis (excluido: foráneo, nuevo…) tampoco aporta caja ni estiba. */
+    if (excluye(regla, c, nombre(c))) continue;
     const deEnv = `CONTEO · en ${c} ${nombre(c)}`;
     const caja = M.get(c)?.caja; if (caja) suma("conteo", String(caja), deEnv, cajas);
     const estibas = (Number(r.estibas) || 0) + ((Number(r.cajas) || 0) + (Number(r.saldo) || 0) > 0 ? 1 : 0);

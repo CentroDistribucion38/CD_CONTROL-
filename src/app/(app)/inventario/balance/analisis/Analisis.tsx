@@ -64,7 +64,7 @@ export function Analisis({ datos, hoy, puedeEditar }: { datos: Datos; hoy: strin
     const s1 = XLSX.utils.aoa_to_sheet(h1); s1["!cols"] = [{ wch: 24 }, { wch: 10 }, { wch: 42 }, { wch: 13 }, { wch: 13 }, { wch: 13 }];
     XLSX.utils.book_append_sheet(libro, s1, "ANALISIS");
     const h2 = [["CÓDIGO", "DESCRIPCIÓN", "LADO", "PARTIDA", "UNIDADES"],
-      ...filas.flatMap((f) => [...f.deConteo.map((p) => [f.codigo, f.descripcion, "CONTEO", p.nombre, p.cantidad]), ...f.deSap.map((p) => [f.codigo, f.descripcion, "SAP", p.nombre, p.cantidad])])];
+      ...filas.flatMap((f) => [...f.deSap.map((p) => [f.codigo, f.descripcion, "SAP", p.nombre, p.cantidad]), ...f.deConteo.map((p) => [f.codigo, f.descripcion, "CONTEO", p.nombre, p.cantidad])])];
     const s2 = XLSX.utils.aoa_to_sheet(h2); s2["!cols"] = [{ wch: 10 }, { wch: 42 }, { wch: 8 }, { wch: 34 }, { wch: 13 }];
     XLSX.utils.book_append_sheet(libro, s2, "PARTIDAS");
     XLSX.writeFile(libro, `analisis-diferencia-bodega38-${fecha}.xlsx`);
@@ -137,8 +137,8 @@ export function Analisis({ datos, hoy, puedeEditar }: { datos: Datos; hoy: strin
                             {ab && (
                               <tr className="ad-det"><td colSpan={5}>
                                 <div className="ad-det-dos">
-                                  <div><b>CONTEO · {n(f.conteo)}</b><ul>{f.deConteo.map((p) => <li key={p.nombre}><span>{p.nombre}</span><em>{n(p.cantidad)}</em></li>)}{!f.deConteo.length && <li><span>—</span></li>}</ul></div>
                                   <div><b>SAP · {n(f.sap)}</b><ul>{f.deSap.map((p) => <li key={p.nombre}><span>{p.nombre}</span><em>{n(p.cantidad)}</em></li>)}{!f.deSap.length && <li><span>— (no está en la ZEXI ni en el balance)</span></li>}</ul></div>
+                                  <div><b>CONTEO · {n(f.conteo)}</b><ul>{f.deConteo.map((p) => <li key={p.nombre}><span>{p.nombre}</span><em>{n(p.cantidad)}</em></li>)}{!f.deConteo.length && <li><span>—</span></li>}</ul></div>
                                 </div>
                               </td></tr>
                             )}
