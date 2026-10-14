@@ -258,13 +258,18 @@
   align-self: flex-end;
 }
 .rt .tb-cierre { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; align-self: flex-end; height: 44px; border-radius: 0 }
+/* EXPORTAR va pegado a la izquierda del cierre: los dos sacan lo filtrado. */
+.rt .tb-exportar { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; align-self: flex-end; height: 44px; border-radius: 0 }
+.rt .tb-exportar + .tb-cierre { margin-left: 0 }
+.rt .tb-exportar svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
+.rt .tb-exportar:disabled { opacity: .55; cursor: progress }
 .rt .tb-cierre svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
 .rt .tb-t {
   display: inline-grid; place-items: center; width: 18px; height: 18px; margin-left: 6px;
   background: var(--rt-tinta); color: #fff; font: 900 10px var(--rt-titulo); font-style: normal; vertical-align: 1px;
 }
 @media (max-width: 720px) {
-  .rt .tb-cierre { margin-left: 0; width: 100%; justify-content: center }
+  .rt .tb-cierre, .rt .tb-exportar { margin-left: 0; width: 100%; justify-content: center }
   .rt .tb-campo, .rt .tb-turnos { width: 100% }
   .rt .tb-turno { flex: 1 }
   .rt .sg-mes .mes-campo { width: 100%; max-width: none }
