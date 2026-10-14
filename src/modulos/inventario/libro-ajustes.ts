@@ -33,8 +33,34 @@ export type InsumosLibroAjustes = {
   ajustes: FilaAjuste[]; analisis: FilaAnalisis[];
 };
 
+/* EL SELLO DE LA B, arriba a la derecha de cada hoja, como en los demás libros. Se baja de /marca/logo-b.png
+   (el libro se arma en el navegador); si no llega, el libro sale igual sin él. */
+const anchoDe = new Map<ExcelJS.Worksheet, number>();
+async function cargarLogo(wb: ExcelJS.Workbook): Promise<number | null> {
+  try {
+    if (typeof fetch === "undefined") return null;
+    const r = await fetch("/marca/logo-b.png");
+    if (!r.ok) return null;
+    const b = new Uint8Array(await r.arrayBuffer());
+    let bin = ""; for (let i = 0; i < b.length; i++) bin += String.fromCharCode(b[i]);
+    return wb.addImage({ base64: `data:image/png;base64,${btoa(bin)}`, extension: "png" });
+  } catch { return null }
+}
+/** Pone el sello en todas las hojas que tienen banda, pegado al borde derecho de la banda. */
+function ponerLogos(wb: ExcelJS.Workbook, logoId: number | null) {
+  if (logoId == null) return;
+  for (const h of wb.worksheets) {
+    const ancho = anchoDe.get(h);
+    if (!ancho) continue;
+    const px = (h.getColumn(ancho).width ?? 9) * 7 + 5;
+    const desde = Math.max(0, 1 - 62 / px);
+    h.addImage(logoId, { tl: { col: ancho - 1 + desde, row: 0.3 } as ExcelJS.Anchor, ext: { width: 52, height: 52 }, editAs: "oneCell" });
+  }
+}
+
 /** La banda negra de arriba: ojo amarillo, título y de qué día es. */
 function banda(h: ExcelJS.Worksheet, ancho: number, titulo: string, sub: string) {
+  anchoDe.set(h, ancho);
   h.views = [{ showGridLines: false }];
   for (let f = 1; f <= 4; f++) for (let c = 1; c <= ancho; c++) h.getRow(f).getCell(c).fill = relleno(TINTA);
   h.getRow(1).height = 16; h.getRow(2).height = 28; h.getRow(3).height = 16; h.getRow(4).height = 8;
@@ -96,7 +122,9 @@ const subDe = (d: { fechaLarga: string; guardadoEn: string | null; guardadoPor: 
 
 export async function armarLibroAjustes(d: InsumosLibroAjustes): Promise<ArrayBuffer> {
   const wb = libroNuevo();
+  const logo = await cargarLogo(wb);
   agregarHojasAjustes(wb, d);
+  ponerLogos(wb, logo);
   return wb.xlsx.writeBuffer() as Promise<ArrayBuffer>;
 }
 
@@ -268,6 +296,7 @@ export type InsumosLibroAnalisis = InsumosLibroAjustes & {
 
 export async function armarLibroAnalisis(d: InsumosLibroAnalisis): Promise<ArrayBuffer> {
   const wb = libroNuevo();
+  const logo = await cargarLogo(wb);
   const sub = subDe(d);
   const F = d.analisis;
   const sum = (xs: FilaAnalisis[], k: (f: FilaAnalisis) => number) => xs.reduce((t, f) => t + k(f), 0);
@@ -367,6 +396,7 @@ export async function armarLibroAnalisis(d: InsumosLibroAnalisis): Promise<Array
   }
 
   agregarHojasAjustes(wb, d);
+  ponerLogos(wb, logo);
   return wb.xlsx.writeBuffer() as Promise<ArrayBuffer>;
 }
 
@@ -378,6 +408,7 @@ export type FilaLibroHist = { fecha: string; familia: string; codigo: string; de
 
 export async function armarLibroHistorico(dias: DiaLibro[], detalle: FilaLibroHist[]): Promise<ArrayBuffer> {
   const wb = libroNuevo();
+  const logo = await cargarLogo(wb);
   const dd = (iso: string) => iso.split("-").reverse().join("/");
   const sub = `${dias.length} día${dias.length === 1 ? "" : "s"} guardado${dias.length === 1 ? "" : "s"} · exportado el ${cuando(new Date().toISOString())}`;
   {
@@ -444,5 +475,6 @@ export async function armarLibroHistorico(dias: DiaLibro[], detalle: FilaLibroHi
     });
     h.views = [{ state: "frozen", ySplit: 7, xSplit: 3, showGridLines: false }];
   }
+  ponerLogos(wb, logo);
   return wb.xlsx.writeBuffer() as Promise<ArrayBuffer>;
 }
