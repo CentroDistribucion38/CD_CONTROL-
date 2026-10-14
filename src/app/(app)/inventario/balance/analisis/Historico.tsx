@@ -78,7 +78,7 @@ export function Historico({ dias, detalle, faltaSql }: { dias: DiaHistorico[]; d
           <table className="ad-t ad-piv ad-aj ad-hist">
             <thead><tr>
               <th>Día</th><th className="n">SAP</th><th className="n">Conteo</th><th className="n">Diferencia</th><th className="n">Compensado</th>
-              <th className="barra">Faltante · Sobrante</th><th className="n">Ajuste neto</th><th>Códigos</th><th>Guardado</th><th />
+              <th className="barra">Faltante · Sobrante</th><th className="n">Ajuste neto</th><th className="n">Diferencia final</th><th>Códigos</th><th>Guardado</th><th />
             </tr></thead>
             <tbody>
               {vistos.map((d) => (
@@ -97,9 +97,15 @@ export function Historico({ dias, detalle, faltaSql }: { dias: DiaHistorico[]; d
                     <small><em className="neg">{signo(d.faltante)}</em> · <em className="pos">{signo(d.sobrante)}</em></small>
                   </td>
                   <td className={"n b" + (d.neto < 0 ? " neg" : d.neto > 0 ? " pos" : "")}>{signo(d.neto)}</td>
+                  <td className="n">
+                    {d.final
+                      ? <><b className={d.final.diferencia === 0 ? "ok" : "neg"}>{d.final.diferencia === 0 ? "0 ✓" : signo(d.final.diferencia)}</b><small>{d.final.pendientes ? `${d.final.pendientes} pendiente${d.final.pendientes === 1 ? "" : "s"}` : "todo cuadró"}</small></>
+                      : <span className="ad-sent ok">Sin final</span>}
+                  </td>
                   <td><small>{d.nSobra} sobran · {d.nFalta} faltan{d.nObs ? ` · ${d.nObs} con obs.` : ""}</small></td>
                   <td><small>{new Date(d.guardado_en).toLocaleString("es-CO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}{d.guardado_por ? ` · ${d.guardado_por}` : ""}</small></td>
                   <td className="acc">
+                    <Link href={`/inventario/balance/analisis?fecha=${d.fecha}&paso=final`}>Final</Link>
                     <Link href={`/inventario/balance/analisis?fecha=${d.fecha}&paso=ajustes`}>Ajustes</Link>
                     <Link href={`/inventario/balance/analisis?fecha=${d.fecha}`}>Análisis</Link>
                   </td>

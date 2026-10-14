@@ -13,7 +13,7 @@
  */
 import ExcelJS from "exceljs";
 import type { FilaAnalisis } from "./analisis-dif";
-import { COMPENSA, type FilaAjuste } from "./compensa";
+import { COMPENSA, analisisFinal, type FilaAjuste, type FilaFinal } from "./compensa";
 
 const TINTA = "FF111111", BANDA = "FFFFC20E", BLANCO = "FFFFFFFF", GRIS = "FF6B6B6B", GRIS_CLARO = "FFBDBDBD";
 const FONDO = "FFF6F6F4", RAYA = "FFE3E3E0", VERDE = "FF0F7A4A", VERDE_F = "FFE3F4EA", ROJO = "FFB42318", ROJO_F = "FFFDE7EA";
@@ -403,7 +403,7 @@ export async function armarLibroAnalisis(d: InsumosLibroAnalisis): Promise<Array
 /* =====================================================================
    EL HISTÓRICO: cada día guardado, código por código, y la matriz código × día.
    ===================================================================== */
-export type DiaLibro = { fecha: string; guardado_en: string; guardado_por: string | null; sap: number; conteo: number; diferencia: number; compensado: number; sobrante: number; faltante: number; neto: number; nSobra: number; nFalta: number; nObs: number };
+export type DiaLibro = { fecha: string; guardado_en: string; guardado_por: string | null; sap: number; conteo: number; diferencia: number; compensado: number; sobrante: number; faltante: number; neto: number; nSobra: number; nFalta: number; nObs: number; final?: { en: string; diferencia: number; pendientes: number } | null };
 export type FilaLibroHist = { fecha: string; familia: string; codigo: string; descripcion: string; sap: number; conteo: number; diferencia: number; compensa: number; ajuste: number; observacion: string };
 
 export async function armarLibroHistorico(dias: DiaLibro[], detalle: FilaLibroHist[]): Promise<ArrayBuffer> {
@@ -413,12 +413,13 @@ export async function armarLibroHistorico(dias: DiaLibro[], detalle: FilaLibroHi
   const sub = `${dias.length} día${dias.length === 1 ? "" : "s"} guardado${dias.length === 1 ? "" : "s"} · exportado el ${cuando(new Date().toISOString())}`;
   {
     const h = wb.addWorksheet("Histórico", { properties: { tabColor: { argb: BANDA } } });
-    const cols: Col[] = [{ t: "Día", w: 12 }, { t: "SAP", w: 15, fmt: NUM }, { t: "Conteo", w: 15, fmt: NUM }, { t: "Diferencia", w: 14, fmt: SIG }, { t: "Compensado", w: 14, fmt: NUM }, { t: "Sobrante", w: 14, fmt: SIG }, { t: "Faltante", w: 14, fmt: SIG }, { t: "Ajuste neto", w: 14, fmt: SIG }, { t: "Códigos que sobran", w: 11 }, { t: "Códigos que faltan", w: 11 }, { t: "Con observación", w: 11 }, { t: "Guardado", w: 32, texto: true }];
+    const cols: Col[] = [{ t: "Día", w: 12 }, { t: "SAP", w: 15, fmt: NUM }, { t: "Conteo", w: 15, fmt: NUM }, { t: "Diferencia", w: 14, fmt: SIG }, { t: "Compensado", w: 14, fmt: NUM }, { t: "Sobrante", w: 14, fmt: SIG }, { t: "Faltante", w: 14, fmt: SIG }, { t: "Ajuste neto", w: 14, fmt: SIG }, { t: "Diferencia final", w: 14, fmt: SIG }, { t: "Pendientes", w: 11 }, { t: "Códigos que sobran", w: 11 }, { t: "Códigos que faltan", w: 11 }, { t: "Con observación", w: 11 }, { t: "Guardado", w: 32, texto: true }];
     banda(h, cols.length, "Histórico de ajustes", sub);
     encabezado(h, 7, cols);
     const xs = [...dias].sort((a, b) => b.fecha.localeCompare(a.fecha));
     xs.forEach((x, i) => {
-      const r = fila(h, 8 + i, cols, [dd(x.fecha), x.sap, x.conteo, x.diferencia, x.compensado, x.sobrante, x.faltante, x.neto, x.nSobra, x.nFalta, x.nObs, `${cuando(x.guardado_en)}${x.guardado_por ? ` · ${x.guardado_por}` : ""}`], i % 2 === 1);
+      const r = fila(h, 8 + i, cols, [dd(x.fecha), x.sap, x.conteo, x.diferencia, x.compensado, x.sobrante, x.faltante, x.neto, x.final ? x.final.diferencia : "Sin final", x.final ? x.final.pendientes : "", x.nSobra, x.nFalta, x.nObs, `${cuando(x.guardado_en)}${x.guardado_por ? ` · ${x.guardado_por}` : ""}`], i % 2 === 1);
+      r.getCell(9).font = letra(10, !x.final ? GRIS : x.final.diferencia === 0 ? VERDE : ROJO, true);
       r.getCell(1).font = letra(10, TINTA, true);
       r.getCell(6).font = letra(9.5, VERDE, true); r.getCell(7).font = letra(9.5, ROJO, true);
       r.getCell(8).font = letra(10, x.neto < 0 ? ROJO : x.neto > 0 ? VERDE : GRIS, true);
@@ -430,7 +431,7 @@ export async function armarLibroHistorico(dias: DiaLibro[], detalle: FilaLibroHi
       7: { desde: 8, hasta: ult, valor: dias.reduce((t, x) => t + x.faltante, 0), fmt: SIG },
       8: { desde: 8, hasta: ult, valor: dias.reduce((t, x) => t + x.neto, 0), fmt: SIG },
     });
-    if (xs.length) h.autoFilter = `A7:L${ult}`;
+    if (xs.length) h.autoFilter = `A7:N${ult}`;
     h.views = [{ state: "frozen", ySplit: 7, showGridLines: false }];
     h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9 };
   }
@@ -475,6 +476,89 @@ export async function armarLibroHistorico(dias: DiaLibro[], detalle: FilaLibroHi
     });
     h.views = [{ state: "frozen", ySplit: 7, xSplit: 3, showGridLines: false }];
   }
+  ponerLogos(wb, logo);
+  return wb.xlsx.writeBuffer() as Promise<ArrayBuffer>;
+}
+
+/* =====================================================================
+   EL LIBRO DEL ANÁLISIS FINAL (paso 3): cómo quedó SAP con lo hecho.
+     Análisis final  SAP inicial · compensación hecha · ajuste hecho · SAP final · conteo · diferencia final,
+                     por familia, con el estado de cada código.
+     Pendientes      lo que sigue con diferencia (lo que falta por hacer).
+     + las hojas de los ajustes.
+   ===================================================================== */
+export async function armarLibroFinal(d: InsumosLibroAjustes & { finalEn: string | null }): Promise<ArrayBuffer> {
+  const wb = libroNuevo();
+  const logo = await cargarLogo(wb);
+  const sub = `${subDe(d)}${d.finalEn ? ` · análisis final guardado el ${cuando(d.finalEn)}` : " · análisis final sin guardar"}`;
+  const F = analisisFinal(d.ajustes);
+  const sum = (xs: FilaFinal[], k: (f: FilaFinal) => number) => xs.reduce((t, f) => t + k(f), 0);
+  const cols: Col[] = [
+    { t: "Familia", w: 26, texto: true }, { t: "Código", w: 11 }, { t: "Descripción", w: 38, texto: true }, { t: "SAP inicial", w: 15, fmt: NUM },
+    { t: "Compensación hecha", w: 14, fmt: SIG }, { t: "Ajuste hecho", w: 14, fmt: SIG }, { t: "SAP final", w: 15, fmt: NUM },
+    { t: "Conteo", w: 15, fmt: NUM }, { t: "Diferencia inicial", w: 14, fmt: SIG }, { t: "Diferencia final", w: 14, fmt: SIG }, { t: "Estado", w: 15 }, { t: "Observación", w: 44, texto: true },
+  ];
+  const estado = (f: FilaFinal) => (f.difFinal === 0 ? (f.diferencia === 0 ? "CUADRABA" : "CUADRADO ✓") : "PENDIENTE");
+  const pintar = (x: ExcelJS.Cell, f: FilaFinal) => {
+    const ok = f.difFinal === 0;
+    x.fill = relleno(ok ? (f.diferencia === 0 ? FONDO : VERDE_F) : ROJO_F); x.font = letra(8.5, ok ? (f.diferencia === 0 ? GRIS : VERDE) : ROJO, true);
+  };
+  const hoja = (nombre: string, titulo: string, color: string, xs: FilaFinal[], conFamilias: boolean) => {
+    const h = wb.addWorksheet(nombre, { properties: { tabColor: { argb: color } } });
+    banda(h, cols.length, titulo, sub);
+    /* Las cifras grandes. */
+    const ini = sum(F, (f) => f.diferencia), fin = sum(F, (f) => f.difFinal), mov = sum(F, (f) => f.movComp + f.movAjuste);
+    const kp: [string, number, string][] = [["DIFERENCIA INICIAL", ini, SIG], ["MOVIDO EN SAP", mov, SIG], ["DIFERENCIA FINAL", fin, SIG], ["CÓDIGOS PENDIENTES", F.filter((f) => f.difFinal !== 0).length, NUM]];
+    h.getRow(7).height = 16; h.getRow(8).height = 30;
+    kp.forEach(([rot, v, fmt], i) => {
+      const c = 1 + i * 3, c2 = c + 2;
+      h.mergeCells(7, c, 7, c2); h.mergeCells(8, c, 8, c2);
+      const oscuro = i === 2;
+      const a = h.getCell(7, c); a.value = rot; a.font = letra(8.5, oscuro ? BANDA : GRIS, true); a.alignment = { indent: 1, vertical: "bottom" };
+      const b = h.getCell(8, c); b.value = v; b.numFmt = fmt; b.alignment = { indent: 1, vertical: "middle" };
+      b.font = letra(18, oscuro ? (v === 0 ? "FF7EE0A8" : "FFFF9AA5") : i === 3 && v > 0 ? ROJO : TINTA, true);
+      for (const f of [7, 8]) { const x = h.getCell(f, c); x.fill = relleno(oscuro ? TINTA : FONDO); if (f === 8) x.border = { bottom: { style: "medium", color: { argb: oscuro ? BANDA : TINTA } } } }
+    });
+    encabezado(h, 10, cols);
+    let n = 11;
+    const grupos = conFamilias ? [...new Set(xs.map((f) => f.familia))].map((fam) => [fam, xs.filter((f) => f.familia === fam)] as const) : [["", xs] as const];
+    for (const [fam, ys] of grupos) {
+      const ini0 = n;
+      ys.forEach((f, i) => {
+        const r = fila(h, n, cols, [conFamilias ? (i === 0 ? fam : "") : f.familia, f.codigo, f.descripcion, f.sap, f.movComp || null, f.movAjuste || null, f.sapFinal, f.conteo, f.diferencia, f.difFinal, estado(f), f.observacion], !conFamilias && i % 2 === 1);
+        if (conFamilias) { r.getCell(1).font = letra(9.5, AZUL, true); r.getCell(1).fill = relleno(AZUL_F) }
+        r.getCell(2).font = letra(9.5, TINTA, true);
+        r.getCell(7).font = letra(10, TINTA, true);
+        r.getCell(10).font = letra(10, f.difFinal < 0 ? ROJO : f.difFinal > 0 ? AZUL : VERDE, true);
+        pintar(r.getCell(11), f);
+        n++;
+      });
+      if (conFamilias) {
+        if (ys.length > 1) h.mergeCells(ini0, 1, n - 1, 1);
+        h.getCell(ini0, 1).alignment = { vertical: "top", indent: 1, wrapText: true };
+        const r = h.getRow(n); r.height = 20;
+        const vs = [`Total ${fam.split(" · ")[0]}`, "", "", sum(ys as FilaFinal[], (f) => f.sap), sum(ys as FilaFinal[], (f) => f.movComp), sum(ys as FilaFinal[], (f) => f.movAjuste), sum(ys as FilaFinal[], (f) => f.sapFinal), sum(ys as FilaFinal[], (f) => f.conteo), sum(ys as FilaFinal[], (f) => f.diferencia), sum(ys as FilaFinal[], (f) => f.difFinal), "", ""];
+        vs.forEach((v, i) => {
+          const x = r.getCell(i + 1); x.value = v as ExcelJS.CellValue; x.fill = relleno("FFC9D8EE"); x.font = letra(9.5, TINTA, true);
+          x.alignment = { vertical: "middle", horizontal: i === 0 ? "left" : "center", indent: i === 0 ? 1 : 0 };
+          if (i >= 3 && i <= 9) x.numFmt = [4, 5, 8, 9].includes(i) ? SIG : NUM;
+        });
+        n++;
+      }
+    }
+    const r = h.getRow(n); r.height = 24;
+    ["TOTAL GENERAL", "", "", sum(xs, (f) => f.sap), sum(xs, (f) => f.movComp), sum(xs, (f) => f.movAjuste), sum(xs, (f) => f.sapFinal), sum(xs, (f) => f.conteo), sum(xs, (f) => f.diferencia), sum(xs, (f) => f.difFinal), "", ""].forEach((v, i) => {
+      const x = r.getCell(i + 1); x.value = v as ExcelJS.CellValue; x.fill = relleno(TINTA); x.font = letra(10.5, i === 9 ? BANDA : BLANCO, true);
+      x.alignment = { vertical: "middle", horizontal: i === 0 ? "left" : "center", indent: i === 0 ? 1 : 0 };
+      if (i >= 3 && i <= 9) x.numFmt = [4, 5, 8, 9].includes(i) ? SIG : NUM;
+    });
+    if (!xs.length) { const x = h.getCell(11, 1); x.value = "Nada pendiente: todo cuadra."; x.font = letra(10, VERDE, true) }
+    h.views = [{ state: "frozen", ySplit: 10, showGridLines: false }];
+    h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, printTitlesRow: "10:10" };
+  };
+  hoja("Análisis final", "Análisis final", BANDA, F, true);
+  hoja("Pendientes", "Lo que sigue con diferencia", ROJO, F.filter((f) => f.difFinal !== 0).sort((a, b) => Math.abs(b.difFinal) - Math.abs(a.difFinal)), false);
+  agregarHojasAjustes(wb, d);
   ponerLogos(wb, logo);
   return wb.xlsx.writeBuffer() as Promise<ArrayBuffer>;
 }

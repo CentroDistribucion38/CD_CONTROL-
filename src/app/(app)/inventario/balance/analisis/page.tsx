@@ -5,6 +5,7 @@ import { leerAjustes, leerHistorico } from "@/modulos/inventario/analisis-ajuste
 import { Analisis } from "./Analisis";
 import { Ajustes } from "./Ajustes";
 import { Historico } from "./Historico";
+import { Final } from "./Final";
 import "../../../sider/sider.css";
 import "../../fefo.css";
 import "../balance.css";
@@ -48,7 +49,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
   const q = await searchParams;
   const hoy = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Bogota" }).format(new Date());
   const fecha = /^\d{4}-\d{2}-\d{2}$/.test(q.fecha ?? "") ? q.fecha! : hoy;
-  const paso = q.paso === "ajustes" ? "ajustes" : q.paso === "historico" ? "historico" : "analisis";
+  const paso = q.paso === "ajustes" ? "ajustes" : q.paso === "final" ? "final" : q.paso === "historico" ? "historico" : "analisis";
   const permisos = await misPermisos();
   const puedeEditar = permisos.puedeEditar("/inventario/balance/analisis");
   /* LOS DOS PASOS: 1 el análisis (se arma en vivo) → «Guardar» → 2 los ajustes (salen de lo guardado). */
@@ -56,9 +57,25 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
     <nav className="ad-pasos" aria-label="Pasos">
       <Link href={`/inventario/balance/analisis?fecha=${fecha}`} className={paso === "analisis" ? "on" : ""}><b>1</b> Análisis</Link>
       <Link href={`/inventario/balance/analisis?fecha=${fecha}&paso=ajustes`} className={paso === "ajustes" ? "on" : ""}><b>2</b> Ajustes</Link>
-      <Link href={`/inventario/balance/analisis?fecha=${fecha}&paso=historico`} className={paso === "historico" ? "on" : ""}><b>3</b> Histórico</Link>
+      <Link href={`/inventario/balance/analisis?fecha=${fecha}&paso=final`} className={paso === "final" ? "on" : ""}><b>3</b> Análisis final</Link>
+      <Link href={`/inventario/balance/analisis?fecha=${fecha}&paso=historico`} className={paso === "historico" ? "on" : ""}><b>4</b> Histórico</Link>
     </nav>
   );
+  if (paso === "final") {
+    const aj = await leerAjustes(fecha);
+    return (
+      <div className="fe bal ad">
+        <section className="cabeza"><div>
+          <p className="ojo">INVENTARIO · BALANCE · ANÁLISIS DE DIFERENCIA</p>
+          <h1>Análisis final</h1>
+          <p className="sub">Cómo queda SAP con los ajustes realizados: SAP inicial + compensación hecha + ajuste hecho = SAP final, contra el mismo conteo. Lo que siga con diferencia es lo que falta.</p>
+        </div></section>
+        {pasos}
+        <Final fecha={fecha} guardado={aj.guardado} ajustes={aj.filas} final={aj.final} puedeEditar={puedeEditar}
+               faltaSql={aj.faltaSql ? "Falta correr supabase/migraciones/2026-10-analisis-diferencia-ajustes.sql en Supabase." : aj.faltaSqlFinal ? "Falta correr supabase/migraciones/2026-10-analisis-diferencia-final.sql en Supabase." : null} />
+      </div>
+    );
+  }
   if (paso === "historico") {
     const h = await leerHistorico();
     return (

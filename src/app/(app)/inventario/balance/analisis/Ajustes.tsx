@@ -3,7 +3,7 @@
 import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
 import type { FilaAjuste, Guardado } from "@/modulos/inventario/analisis-ajustes";
-import { guardarObservacion } from "./actions";
+import { guardarHecho, guardarObservacion } from "./actions";
 
 /**
  * PASO 2 · LOS AJUSTES — del análisis guardado del día: diferencia, lo que se compensa entre el envase
@@ -46,6 +46,17 @@ export function Ajustes({ fecha, guardado, filas: inicio, puedeEditar, faltaSql 
   }), [filas]);
 
   const escribir = (codigo: string, texto: string) => setFilas((p) => p.map((f) => (f.codigo === codigo ? { ...f, observacion: texto } : f)));
+  /* LO HECHO EN SAP: la compensación (sí/no) y el ajuste (todo, una parte o nada). Se guarda al tocarlo. */
+  const [hEstado, setHEstado] = useState<Record<string, "guardando" | "ok" | "mal">>({});
+  async function marcar(f: FilaAjuste, comp: boolean, ajuste: number | null) {
+    setFilas((p) => p.map((x) => (x.codigo === f.codigo ? { ...x, compHecha: comp, ajusteHecho: ajuste } : x)));
+    setHEstado((e) => ({ ...e, [f.codigo]: "guardando" }));
+    const r = await guardarHecho(fecha, f.codigo, comp, ajuste);
+    if ("error" in r && r.error) { setHEstado((e) => ({ ...e, [f.codigo]: "mal" })); setMsg(r.error); return }
+    setHEstado((e) => ({ ...e, [f.codigo]: "ok" }));
+  }
+  const pendientes = filas.filter((f) => (f.compensa !== 0 && !f.compHecha) || (f.ajuste !== 0 && (f.ajusteHecho ?? 0) !== f.ajuste)).length;
+
   async function guardar(codigo: string, texto: string, antes: string) {
     if (texto === antes) return;
     setEstado((e) => ({ ...e, [codigo]: "guardando" }));
@@ -90,7 +101,8 @@ export function Ajustes({ fecha, guardado, filas: inicio, puedeEditar, faltaSql 
           <small>{new Date(guardado.guardado_en).toLocaleString("es-CO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}{guardado.guardado_por ? ` · ${guardado.guardado_por}` : ""} · si cambias algo del análisis, vuelve a guardarlo y los ajustes se recalculan (las observaciones se quedan).</small>
         </div>
         <Link className="ad-bt alt" href={`/inventario/balance/analisis?fecha=${fecha}`}>← Volver al análisis</Link>
-        <button type="button" className="ad-bt" disabled={armando} onClick={() => void bajarExcel()}>{armando ? "Armando el Excel…" : "Descargar Excel"}</button>
+        <button type="button" className="ad-bt alt" disabled={armando} onClick={() => void bajarExcel()}>{armando ? "Armando el Excel…" : "Descargar Excel"}</button>
+        <Link className="ad-bt" href={`/inventario/balance/analisis?fecha=${fecha}&paso=final`}>Ver análisis final →</Link>
       </div>
       {msg && <p className="ad-msg mal" role="status">{msg}</p>}
 
@@ -114,7 +126,7 @@ export function Ajustes({ fecha, guardado, filas: inicio, puedeEditar, faltaSql 
           <table className="ad-t ad-piv ad-aj">
             <thead><tr>
               <th>Familia</th><th>Código</th><th>Descripción</th><th className="n">Diferencia</th>
-              <th>Compensa con</th><th className="n">Compensación</th><th className="n">Ajuste</th><th>Sentido</th><th className="obs">Observación</th>
+              <th>Compensa con</th><th className="n">Compensación</th><th className="n">Ajuste</th><th>Sentido</th><th className="hecho">Hecho en SAP</th><th className="obs">Observación</th>
             </tr></thead>
             <tbody>
               {familias.map(([fam, xs]) => (
@@ -129,6 +141,26 @@ export function Ajustes({ fecha, guardado, filas: inicio, puedeEditar, faltaSql 
                       <td className="n">{f.compensa ? signo(f.compensa) : <span className="ad-na">—</span>}</td>
                       <td className={"n b" + (f.ajuste < 0 ? " neg" : f.ajuste > 0 ? " pos" : "")}>{f.ajuste ? signo(f.ajuste) : "0"}</td>
                       <td><span className={"ad-sent" + (f.ajuste > 0 ? " sobra" : f.ajuste < 0 ? " falta" : " ok")}>{sentido(f.ajuste)}</span></td>
+                      <td className="hecho">
+                        {(f.compensa !== 0 || f.ajuste !== 0) ? (
+                          <div className="ad-hecho">
+                            {f.compensa !== 0 && (
+                              <label><input type="checkbox" disabled={!puedeEditar} checked={f.compHecha} onChange={(e) => void marcar(f, e.target.checked, f.ajusteHecho)} /> Compensación</label>
+                            )}
+                            {f.ajuste !== 0 && (
+                              <label><input type="checkbox" disabled={!puedeEditar} checked={f.ajusteHecho != null && f.ajusteHecho !== 0}
+                                            onChange={(e) => void marcar(f, f.compHecha, e.target.checked ? f.ajuste : null)} /> Ajuste
+                                {f.ajusteHecho != null && f.ajusteHecho !== 0 && (
+                                  <input type="number" className="ad-cant" disabled={!puedeEditar} defaultValue={f.ajusteHecho} key={`${f.codigo}-${f.ajusteHecho}`}
+                                         title="Cuánto se hizo (si fue solo una parte, cámbialo)"
+                                         onBlur={(e) => { const v = Number(e.currentTarget.value); if (Number.isFinite(v) && v !== f.ajusteHecho) void marcar(f, f.compHecha, v || null) }} />
+                                )}
+                              </label>
+                            )}
+                            <i className={hEstado[f.codigo] ?? ""}>{hEstado[f.codigo] === "guardando" ? "…" : hEstado[f.codigo] === "ok" ? "✓" : hEstado[f.codigo] === "mal" ? "!" : ""}</i>
+                          </div>
+                        ) : <span className="ad-na">—</span>}
+                      </td>
                       <td className="obs">
                         {puedeEditar ? (
                           <div className="ad-obs">
@@ -144,14 +176,14 @@ export function Ajustes({ fecha, guardado, filas: inicio, puedeEditar, faltaSql 
                   ))}
                 </Fragment>
               ))}
-              {!familias.length && <tr><td colSpan={9} className="ad-vacio">Nada que ajustar: todo cuadra.</td></tr>}
+              {!familias.length && <tr><td colSpan={10} className="ad-vacio">Nada que ajustar: todo cuadra.</td></tr>}
             </tbody>
             <tfoot><tr>
-              <td colSpan={3}>Total</td><td className="n">{signo(k.bruta)}</td><td /><td /><td className="n">{signo(k.sobra + k.falta)}</td><td colSpan={2} />
+              <td colSpan={3}>Total</td><td className="n">{signo(k.bruta)}</td><td /><td /><td className="n">{signo(k.sobra + k.falta)}</td><td colSpan={3} />
             </tr></tfoot>
           </table>
         </div>
-        <p className="ad-nota">Ajuste = diferencia + compensación. Se compensan 3500162 ↔ 412644, 3500446 ↔ 412671 y 3500213 ↔ 412707 (la misma botella de 330: el retornable que sobra cubre el NR nuevo que falta). La observación se guarda sola al salir del campo.</p>
+        <p className="ad-nota">Ajuste = diferencia + compensación. Se compensan 3500162 ↔ 412644, 3500446 ↔ 412671 y 3500213 ↔ 412707 (la misma botella de 330: el retornable que sobra cubre el NR nuevo que falta). La observación se guarda sola al salir del campo. Marca en <b>Hecho en SAP</b> lo que ya se movió (si el ajuste fue solo una parte, cambia la cantidad): con eso se arma el análisis final{pendientes ? <> — faltan <b>{pendientes}</b> por hacer</> : <> — <b>todo hecho</b></>}.</p>
       </section>
     </>
   );

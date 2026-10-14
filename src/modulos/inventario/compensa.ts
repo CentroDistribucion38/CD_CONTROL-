@@ -16,9 +16,14 @@ export type FilaAjuste = {
   /** Lo que queda por ajustar (CONTEO − SAP después de compensar). */
   ajuste: number;
   observacion: string;
+  /** Lo que ya se hizo en SAP: la compensación (sí/no) y cuánto del ajuste (vacío = nada). */
+  compHecha: boolean;
+  ajusteHecho: number | null;
 };
 
-export function calcularAjustes(filas: FilaAnalisis[], obs: Record<string, string>): FilaAjuste[] {
+export type Hecho = { comp: boolean; ajuste: number | null };
+
+export function calcularAjustes(filas: FilaAnalisis[], obs: Record<string, string>, hechos: Record<string, Hecho> = {}): FilaAjuste[] {
   const por = new Map(filas.map((f) => [f.codigo, f]));
   const comp = new Map<string, { par: string; aplica: number }>();
   for (const [r, nr] of COMPENSA) {
@@ -43,7 +48,28 @@ export function calcularAjustes(filas: FilaAnalisis[], obs: Record<string, strin
       par: c?.par ?? null, parDescripcion: c ? por.get(c.par)?.descripcion ?? null : null,
       compensa, ajuste: f.diferencia + compensa,
       observacion: obs[f.codigo] ?? "",
+      compHecha: hechos[f.codigo]?.comp ?? false,
+      ajusteHecho: hechos[f.codigo]?.ajuste ?? null,
     };
   });
 }
 
+
+/* =====================================================================
+   EL ANÁLISIS FINAL: cómo queda SAP con lo que ya se hizo.
+     · la compensación hecha mueve SAP al revés de la compensación: el R que sobraba recibe lo del NR
+       (SAP sube), el NR que faltaba lo entrega (SAP baja);
+     · el ajuste hecho mueve SAP en su signo (sobrante sube, faltante baja).
+   SAP final = SAP + compensación hecha + ajuste hecho.  Diferencia final = CONTEO − SAP final.
+   Si todo se hizo, la diferencia final es cero.
+   ===================================================================== */
+export type FilaFinal = FilaAjuste & { movComp: number; movAjuste: number; sapFinal: number; difFinal: number };
+
+export function analisisFinal(xs: FilaAjuste[]): FilaFinal[] {
+  return xs.map((f) => {
+    const movComp = f.compHecha ? -f.compensa : 0;
+    const movAjuste = f.ajusteHecho ?? 0;
+    const sapFinal = f.sap + movComp + movAjuste;
+    return { ...f, movComp, movAjuste, sapFinal, difFinal: f.conteo - sapFinal };
+  });
+}

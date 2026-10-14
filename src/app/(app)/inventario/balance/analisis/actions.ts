@@ -71,3 +71,37 @@ export async function guardarObservacion(fecha: string, codigo: string, texto: s
   if (error) return { error: falta2(`${error.code} ${error.message}`) };
   return { ok: true };
 }
+
+/* ---------------- PASO 3: ANÁLISIS FINAL ---------------- */
+const SQL3 = "Falta correr supabase/migraciones/2026-10-analisis-diferencia-final.sql en Supabase.";
+const falta3 = (m: string) => (/comp_hecha|ajuste_hecho|final|42703|PGRST204/i.test(m) ? SQL3 : falta2(m));
+
+/** LO QUE YA SE HIZO EN SAP de un código: la compensación (sí/no) y cuánto del ajuste (null = nada). */
+export async function guardarHecho(fecha: string, codigo: string, comp: boolean, ajuste: number | null) {
+  if (!esDia(fecha) || !codigo) return { error: "Datos inválidos." };
+  const supabase = await createClient();
+  const { error } = await supabase.from("analisis_dif_obs").upsert({
+    fecha, codigo: codigo.slice(0, 30), comp_hecha: comp,
+    ajuste_hecho: ajuste == null || !Number.isFinite(ajuste) ? null : Math.round(ajuste * 100) / 100,
+    actualizado_en: new Date().toISOString(),
+  }, { onConflict: "fecha,codigo" });
+  if (error) return { error: falta3(`${error.code} ${error.message}`) };
+  revalidatePath(RUTA);
+  return { ok: true };
+}
+
+/** GUARDAR EL ANÁLISIS FINAL: la foto de cómo quedó SAP con lo hecho. Va al histórico. */
+export async function guardarFinal(fecha: string, filasJson: string) {
+  if (!esDia(fecha)) return { error: "Día inválido." };
+  let filas: unknown[] = [];
+  try { filas = JSON.parse(filasJson) } catch { return { error: "No se pudo leer el análisis final." } }
+  if (!Array.isArray(filas) || !filas.length) return { error: "No hay análisis final que guardar." };
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data, error } = await supabase.from("analisis_dif_guardado")
+    .update({ final: filas, final_en: new Date().toISOString(), final_por: user?.id ?? null }).eq("fecha", fecha).select("fecha");
+  if (error) return { error: falta3(`${error.code} ${error.message}`) };
+  if (!data?.length) return { error: "Primero guarda el análisis de ese día (paso 1)." };
+  revalidatePath(RUTA);
+  return { ok: true };
+}
