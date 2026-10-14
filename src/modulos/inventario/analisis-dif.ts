@@ -90,25 +90,27 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   for (const r of await conReclasificaciones(cons.vigentes)) {
     /* Fuera todo lo de FÁBRICA: por la calle o por el nombre de la ubicación (FABRICA_…, FABRICAL4…). */
     if (esUbicacionFabrica(r.calle) || esUbicacionFabrica(r.ubicacion) || esUbicacionFabrica(r.ubicacion_combinada)) continue;
-    /* El PRODUCTO solo aporta las estibas en que está montado (una más si hay cajas sueltas). */
-    if (r.tipo_material === "PRODUCTO") {
-      const est = (Number(r.estibas) || 0) + ((Number(r.cajas) || 0) + (Number(r.saldo) || 0) > 0 ? 1 : 0);
-      suma("conteo", ESTIBA, "CONTEO · bajo producto", est);
+    /* LA ESTIBA 3500163 SUMA TODO LO QUE ESTÁ MONTADO EN ESTIBA: producto, envase, caja vacía, barril,
+       cilindro… Cada renglón aporta sus estibas completas y una más si tiene cajas sueltas o saldo.
+       Las estibas vacías contadas con su propio código entran tal cual. */
+    const c = String(r.codigo), cajas = Number(r.total_cajas) || 0;
+    const est = (Number(r.estibas) || 0) + ((Number(r.cajas) || 0) + (Number(r.saldo) || 0) > 0 ? 1 : 0);
+    const g = grupo(c);
+    if (g === "ESTIBA") { suma("conteo", c, "CONTEO · estibas contadas", cajas); renglones++; continue }
+    if (r.tipo_material === "PRODUCTO") { suma("conteo", ESTIBA, "CONTEO · bajo producto", est); continue }
+    if (r.tipo_material !== "ENVASE") { suma("conteo", ESTIBA, `CONTEO · bajo ${c} ${nombre(c)}`, est); continue }
+    renglones++;
+    if (g === "CAJA") {
+      suma("conteo", c, "CONTEO · cajas vacías", cajas);
+      suma("conteo", ESTIBA, "CONTEO · bajo cajas vacías", est);
       continue;
     }
-    if (r.tipo_material !== "ENVASE") continue;
-    const c = String(r.codigo), cajas = Number(r.total_cajas) || 0;
-    renglones++;
-    const g = grupo(c);
-    /* Se parte por origen para poder revisarlo: lo contado con su propio código y lo que trae cada envase. */
-    if (g === "ESTIBA" || g === "CAJA") { suma("conteo", c, g === "CAJA" ? "CONTEO · cajas vacías" : "CONTEO · estibas contadas", cajas); continue }
+    /* Envase (también barril y cilindro): sus unidades y la estiba de debajo, siempre. */
     suma("conteo", c, "CONTEO", cajas * upc(c));
-    /* Un envase que no entra al análisis (excluido: foráneo, nuevo…) tampoco aporta caja ni estiba. */
+    suma("conteo", ESTIBA, `CONTEO · bajo ${c} ${nombre(c)}`, est);
+    /* Un envase excluido (foráneo, nuevo…) no aporta caja plástica: no viene en las nuestras. */
     if (excluye(regla, c, nombre(c))) continue;
-    const deEnv = `CONTEO · en ${c} ${nombre(c)}`;
-    const caja = M.get(c)?.caja; if (caja) suma("conteo", String(caja), deEnv, cajas);
-    const estibas = (Number(r.estibas) || 0) + ((Number(r.cajas) || 0) + (Number(r.saldo) || 0) > 0 ? 1 : 0);
-    suma("conteo", ESTIBA, `CONTEO · bajo ${c} ${nombre(c)}`, estibas);
+    const caja = M.get(c)?.caja; if (caja) suma("conteo", String(caja), `CONTEO · en ${c} ${nombre(c)}`, cajas);
   }
   fuentes.push({ nombre: "Conteo", ok: renglones > 0, detalle: renglones ? `${renglones} renglones de Bodega` : "No hay conteo enviado ese día" });
   if (cons.error) avisos.push(`No pude leer el conteo: ${cons.error}`);
