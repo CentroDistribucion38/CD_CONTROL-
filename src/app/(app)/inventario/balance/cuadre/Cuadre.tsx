@@ -6,6 +6,8 @@ import { Rango } from "../../../sider/seguimiento/Rango";
 import type { Aplicado, Almacen, CuadreGuardado, DiaHistorial, FilaCuadre, LineaOtros } from "@/modulos/inventario/cuadre";
 import { asignarOtros, guardarBalanceo, guardarMovimientos, guardarOpciones, guardarZexi, quitarMovimientos } from "./actions";
 import { leerMovimientos, leerZexi } from "./leer";
+import { Excluidos } from "./Excluidos";
+import type { PanelExcluidos } from "@/modulos/pasivos/excluidos";
 
 /**
  * EL CUADRE SAP EN PANTALLA — un flujo de tres pasos:
@@ -42,10 +44,10 @@ const IconoOtros = () => (
   </svg>
 );
 
-export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, error, otros, envases, aplicados, historial, faltaHist, vista: vistaInicial = "cuadre", almacen = "AG18" }: {
+export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, error, otros, envases, aplicados, excluidos, historial, faltaHist, vista: vistaInicial = "cuadre", almacen = "AG18" }: {
   fecha: string | null; dias: string[]; filas: FilaCuadre[]; guardado: CuadreGuardado | null;
   estibasBodega: number; avisos: string[]; error: string | null;
-  otros: LineaOtros[]; envases: { codigo: string; material: string }[]; aplicados: Aplicado[];
+  otros: LineaOtros[]; envases: { codigo: string; material: string }[]; aplicados: Aplicado[]; excluidos?: PanelExcluidos | null;
   historial: DiaHistorial[]; faltaHist: boolean; vista?: "cuadre" | "historico"; almacen?: Almacen;
 }) {
   const router = useRouter();
@@ -310,6 +312,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
 
       {msg && <p className={"cs-msg" + (msg.mal ? " mal" : "")} role="status">{msg.t}</p>}
       {avisos.map((a) => <p key={a} className="cs-msg mal">{a}</p>)}
+      {excluidos && <Excluidos panel={excluidos} />}
 
       {/* ---------- PASO 1 ---------- */}
       <div className="cs-k">

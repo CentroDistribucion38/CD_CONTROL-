@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { balanceParaPasivos, leerPasivos, resumirPasivos, type NuevaFila, type MaestroPasivo } from "@/modulos/pasivos/datos";
-import { DESCUENTO_ESTANDAR, esExcluido } from "@/modulos/pasivos/excluidos";
+import { DESCUENTO_ESTANDAR, excluye } from "@/modulos/pasivos/excluidos";
+import { leerExcluidos } from "@/modulos/pasivos/excluidos-leer";
 
 const RUTA = "/inventario/balance/pasivos";
 const esDia = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s);
@@ -44,7 +45,8 @@ export async function subirArchivo(filasJson: string, archivo: string) {
   const codigosArchivo = [...new Set(filas.map((f) => String(f.codigo)))];
   const { data: nombres } = await supabase.from("pasivos_maestro").select("codigo, descripcion").in("codigo", codigosArchivo);
   const nombreDe = new Map(((nombres ?? []) as { codigo: string; descripcion: string | null }[]).map((m) => [String(m.codigo), m.descripcion]));
-  const fuera = codigosArchivo.filter((c) => esExcluido(c, nombreDe.get(c)));
+  const regla = await leerExcluidos("AG22");
+  const fuera = codigosArchivo.filter((c) => excluye(regla, c, nombreDe.get(c)));
   if (fuera.length) {
     filas = filas.filter((f) => !fuera.includes(String(f.codigo)));
     if (!filas.length) return { error: `Ese archivo solo trae códigos que no van en Pasivos (${fuera.join(", ")}: envases nuevos / estiba). No se subió nada.` };

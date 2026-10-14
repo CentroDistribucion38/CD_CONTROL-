@@ -161,3 +161,62 @@
   .cs .cs-barra { grid-template-columns: repeat(2, minmax(0, 1fr)) }
 }
 @media (max-width: 560px) { .cs .cs-barra { grid-template-columns: 1fr } }
+
+/* ===== SKU FUERA DEL CUADRE — la franja y el toolbox ===== */
+.cs .cs-exc-franja { display: flex; align-items: center; gap: 14px; margin: 0 0 10px; padding: 8px 10px 8px 0; background: var(--fe-papel, #fff);
+  border: 1px solid var(--fe-linea); border-left: 4px solid var(--fe-mal, #C8102E) }
+.cs .cs-exc-et { flex: none; align-self: stretch; display: flex; align-items: center; padding: 0 12px; background: var(--fe-tinta); color: var(--fe-papel, #fff);
+  font: 700 10.5px var(--fe-texto); letter-spacing: .11em; text-transform: uppercase; margin: -8px 0 }
+.cs .cs-exc-hoy { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; font-size: 13.5px; color: var(--fe-tinta) }
+.cs .cs-exc-hoy code { font: 700 12.5px var(--fe-mono, ui-monospace, monospace); padding: 1px 6px; background: #FDE7EA; color: #A50D25 }
+.cs .cs-exc-hoy small { flex-basis: 100%; font-size: 11.5px; color: var(--fe-gris) }
+
+.cs .cs-exc { padding: 0; border: 0; background: transparent; max-width: min(860px, calc(100vw - 24px)); width: 100%; max-height: calc(100vh - 32px) }
+.cs .cs-exc::backdrop { background: rgb(18 38 58 / .55) }
+.cs .cs-exc-caja { display: flex; flex-direction: column; max-height: calc(100vh - 32px); background: var(--fe-papel, #fff); color: var(--fe-tinta);
+  border-top: 5px solid var(--fe-acento, #FFC400); box-shadow: 0 18px 50px rgb(0 0 0 / .3) }
+.cs .cs-exc-cab { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 14px 18px 10px; background: var(--fe-tinta); color: var(--fe-papel, #fff) }
+.cs .cs-exc-ojo { margin: 0; font: 700 10.5px var(--fe-texto); letter-spacing: .12em; text-transform: uppercase; color: var(--fe-acento, #FFC400) }
+.cs .cs-exc-cab h2 { margin: 2px 0 0; font: 700 20px var(--fe-titulo, var(--fe-texto)) }
+.cs .cs-exc-x { flex: none; width: 34px; height: 34px; border: 1px solid rgb(255 255 255 / .35); background: transparent; color: inherit; font-size: 22px; line-height: 1; cursor: pointer }
+.cs .cs-exc-x:focus-visible { outline: 3px solid var(--fe-acento, #FFC400); outline-offset: 2px }
+.cs .cs-exc-herr { display: flex; flex-direction: column; gap: 8px; padding: 12px 18px; border-bottom: 1px solid var(--fe-linea) }
+.cs .cs-exc-q { width: 100%; height: 40px; padding: 0 12px; border: 2px solid var(--fe-tinta); font: 600 14px var(--fe-mono, ui-monospace, monospace); background: #fff; color: var(--fe-tinta) }
+.cs .cs-exc-q:focus-visible { outline: 3px solid var(--fe-acento, #FFC400); outline-offset: 1px }
+.cs .cs-exc-vistas { display: flex; flex-wrap: wrap; gap: 0; border: 1px solid var(--fe-linea); width: fit-content; max-width: 100% }
+.cs .cs-exc-vistas button { padding: 6px 12px; border: 0; border-right: 1px solid var(--fe-linea); background: var(--fe-papel, #fff); color: var(--fe-tinta);
+  font: 600 12.5px var(--fe-texto); cursor: pointer }
+.cs .cs-exc-vistas button:last-child { border-right: 0 }
+.cs .cs-exc-vistas button b { font-variant-numeric: tabular-nums; margin-left: 4px; color: var(--fe-gris) }
+.cs .cs-exc-vistas button.on { background: var(--fe-tinta); color: var(--fe-papel, #fff); box-shadow: inset 0 -3px 0 var(--fe-acento, #FFC400) }
+.cs .cs-exc-vistas button.on b { color: var(--fe-acento, #FFC400) }
+.cs .cs-exc-masivo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font-size: 12px; color: var(--fe-gris) }
+.cs .cs-exc-masivo span { margin-right: auto }
+.cs .cs-exc-masivo button { border: 0; background: none; padding: 2px 0; color: #0B4EA2; font: 600 12.5px var(--fe-texto); text-decoration: underline; cursor: pointer }
+.cs .cs-exc-masivo button:disabled { color: var(--fe-gris); cursor: default; text-decoration: none }
+.cs .cs-exc-lista { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; min-height: 160px }
+.cs .cs-exc-lista li { border-bottom: 1px solid var(--fe-linea) }
+.cs .cs-exc-lista li.fuera { background: #FFF6F7 }
+.cs .cs-exc-lista label { display: grid; grid-template-columns: 22px 92px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 18px; cursor: pointer }
+.cs .cs-exc-lista label:hover { background: color-mix(in srgb, var(--fe-acento, #FFC400) 10%, transparent) }
+.cs .cs-exc-lista input { width: 18px; height: 18px; margin: 0; accent-color: #E4002B; cursor: pointer }
+.cs .cs-exc-lista code { font: 700 13px var(--fe-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums }
+.cs .cs-exc-n { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.cs .cs-exc-tags { display: flex; gap: 4px; justify-content: flex-end }
+.cs .cs-exc-tags i { font: 700 10px var(--fe-texto); font-style: normal; letter-spacing: .06em; text-transform: uppercase; padding: 2px 6px; white-space: nowrap }
+.cs .cs-exc-tags i.hoy { background: #FFF3CC; color: #5E4100 }
+.cs .cs-exc-tags i.siempre { background: #ECEFF2; color: #4A5663 }
+.cs .cs-exc-tags i.tuyo { background: #E6EEF9; color: #1B4F8F }
+.cs .cs-exc-lista li.vacio { padding: 14px 18px; font-size: 13px; color: var(--fe-gris) }
+.cs .cs-exc-pie { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--fe-linea); background: var(--fe-fondo, #F4F5F6) }
+.cs .cs-exc-res { margin-right: auto; display: flex; flex-direction: column; font-size: 13px }
+.cs .cs-exc-res em { font-style: normal; font-weight: 700; color: #1B4F8F }
+.cs .cs-exc-res small { font-size: 11.5px; color: var(--fe-gris) }
+.cs .cs-exc-res small.mal { color: var(--fe-mal, #C8102E) }
+@media (max-width: 640px) {
+  .cs .cs-exc-franja { flex-wrap: wrap; padding-left: 10px }
+  .cs .cs-exc-et { margin: 0; padding: 4px 8px; align-self: auto }
+  .cs .cs-exc-lista label { grid-template-columns: 22px 78px minmax(0, 1fr); padding: 8px 12px }
+  .cs .cs-exc-tags { grid-column: 2 / -1; justify-content: flex-start }
+  .cs .cs-exc-herr, .cs .cs-exc-pie { padding-left: 12px; padding-right: 12px }
+}

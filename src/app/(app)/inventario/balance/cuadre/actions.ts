@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { esAmbitoExcluidos, porDefecto } from "@/modulos/pasivos/excluidos";
 import { armarCuadre, esAlmacen, type Almacen, type BalanceoGuardado, type MovFila, type ZexiFila } from "@/modulos/inventario/cuadre";
 
 const SQL_OTROS = "Falta correr supabase/migraciones/2026-10-cuadre-sap-otros.sql en Supabase.";
@@ -113,4 +114,33 @@ export async function guardarBalanceo(fecha: string, almacen?: string) {
   const { data: { user } } = await supabase.auth.getUser();
   const { data: yo } = user ? await supabase.from("perfiles").select("nombre, usuario").eq("id", user.id).maybeSingle() : { data: null };
   return poner(fecha, a, { cierre, cerrado_en: new Date().toISOString(), cerrado_por: user?.id ?? null, cerrado_nombre: yo?.nombre || yo?.usuario || null });
+}
+
+/**
+ * EL TOOLBOX DE EXCLUIDOS: guarda qué SKU quedan fuera de ese ámbito (AG18 = cuadre AG18; AG22 = cuadre
+ * AG22 y Pasivos). Llega la lista de lo que el usuario dejó distinto a lo de siempre; se guarda solo eso,
+ * así «Volver a lo de siempre» es guardar una lista vacía.
+ */
+export async function guardarExcluidos(ambito: string, eleccionesJson: string) {
+  if (!esAmbitoExcluidos(ambito)) return { error: "Almacén inválido." };
+  let el: { codigo: string; nombre?: string | null; fuera: boolean }[] = [];
+  try { el = JSON.parse(eleccionesJson) } catch { return { error: "No se pudo leer la selección." } }
+  const vistos = new Set<string>();
+  const filas = (Array.isArray(el) ? el : [])
+    .map((x) => ({ codigo: String(x?.codigo ?? "").trim(), nombre: x?.nombre ? String(x.nombre).slice(0, 200) : null, fuera: !!x?.fuera }))
+    .filter((x) => /^[\w.\-]{1,40}$/.test(x.codigo) && !vistos.has(x.codigo) && vistos.add(x.codigo))
+    .filter((x) => x.fuera !== porDefecto(ambito, x.codigo, x.nombre))
+    .map((x) => ({ ambito, ...x }));
+  const supabase = await createClient();
+  const SQL_EXC = "Falta correr supabase/migraciones/2026-10-excluidos-sku.sql en Supabase.";
+  const falta = (m: string) => (/excluidos_sku|does not exist|PGRST205/i.test(m) ? SQL_EXC : m);
+  const d = await supabase.from("excluidos_sku").delete().eq("ambito", ambito);
+  if (d.error) return { error: falta(`${d.error.code} ${d.error.message}`) };
+  if (filas.length) {
+    const i = await supabase.from("excluidos_sku").insert(filas);
+    if (i.error) return { error: falta(`${i.error.code} ${i.error.message}`) };
+  }
+  revalidatePath(RUTA);
+  revalidatePath("/inventario/balance/pasivos");
+  return { ok: true, cambios: filas.length };
 }

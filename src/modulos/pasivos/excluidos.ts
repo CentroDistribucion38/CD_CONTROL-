@@ -22,6 +22,37 @@ export function esExcluido(codigo: unknown, nombre?: string | null, donde: "pasi
   return donde === "pasivos" && c === ESTIBA_MADERA;
 }
 
+/* ------------------------------------------------------------------------------------------------
+ * LA LISTA SE PUEDE ESCOGER. «Que esos SKU no entren como quemados: que yo pueda seleccionar en un
+ * toolbox con filtro de código. Siempre van a estar seleccionados los que dijimos, pero que no me
+ * amarre solo a esos y pueda elegir.»
+ *
+ * · Lo de siempre (porDefecto) sigue siendo la regla de arriba.
+ * · Lo que el usuario cambia se guarda en la tabla excluidos_sku: un renglón por ámbito y código con
+ *   fuera = true (lo saca) o fuera = false (lo vuelve a meter aunque sea de los de siempre).
+ * · Ámbito AG18 = el cuadre SAP de AG18. Ámbito AG22 = el cuadre SAP de AG22 y la base de Pasivos.
+ * ---------------------------------------------------------------------------------------------- */
+export type AmbitoExcluidos = "AG18" | "AG22";
+export const esAmbitoExcluidos = (v: unknown): v is AmbitoExcluidos => v === "AG18" || v === "AG22";
+
+/** La regla de siempre para ese ámbito (sin lo que el usuario haya escogido). */
+export function porDefecto(ambito: AmbitoExcluidos, codigo: unknown, nombre?: string | null): boolean {
+  return esExcluido(codigo, nombre, ambito === "AG18" ? "ag18" : "pasivos");
+}
+
+/** Lo escogido: código → fuera (true) o adentro (false). Lo que no está aquí sigue la regla de siempre. */
+export type ReglaExcluidos = { ambito: AmbitoExcluidos; elecciones: Record<string, boolean>; faltaSql: boolean };
+
+export function excluye(regla: ReglaExcluidos, codigo: unknown, nombre?: string | null): boolean {
+  const c = String(codigo ?? "").trim();
+  if (c in regla.elecciones) return regla.elecciones[c];
+  return porDefecto(regla.ambito, c, nombre);
+}
+
+/** Lo que la pantalla necesita para el toolbox: cada SKU que se puede escoger. */
+export type SkuExcluible = { codigo: string; nombre: string; porDefecto: boolean; fuera: boolean; hoy: boolean };
+export type PanelExcluidos = { ambito: AmbitoExcluidos; faltaSql: boolean; skus: SkuExcluible[]; hoy: string[] };
+
 /**
  * EL DESCUENTO ESTÁNDAR: «en la base, este SKU puntual 3500005, de las unidades que tenga en AG22, que
  * haya una casilla para descontarle este valor estándar: 216.296».

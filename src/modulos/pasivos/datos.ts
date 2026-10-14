@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { todas } from "@/modulos/inventario/paginas";
 import { balanceDelDia, type FilaBalance } from "@/modulos/inventario/balance";
-import { esExcluido } from "@/modulos/pasivos/excluidos";
+import { esExcluido, excluye, type ReglaExcluidos } from "@/modulos/pasivos/excluidos";
+import { leerExcluidos } from "@/modulos/pasivos/excluidos-leer";
 
 /**
  * INVENTARIO · BALANCE · PASIVOS
@@ -39,7 +40,7 @@ export const DEL_BALANCE: { estado: string; alcance: string; a: { estado: string
 ];
 
 /** Las filas que el balance de ese día le da a Pasivos (la diferencia en unidades de cada material). */
-export function filasDeBalance(fecha: string, detalle: FilaBalance[]) {
+export function filasDeBalance(fecha: string, detalle: FilaBalance[], regla?: ReglaExcluidos) {
   const filas: NuevaFila[] = [];
   const sinFactor: string[] = [];
   const excluidos = new Set<string>();
@@ -47,7 +48,7 @@ export function filasDeBalance(fecha: string, detalle: FilaBalance[]) {
     const m = DEL_BALANCE.find((x) => x.estado === f.estado && x.alcance === f.alcance);
     if (!m) continue;
     /* Envases nuevos (barril, 412644, 412671, 412707) y la estiba 3500163: no van en Pasivos. */
-    if (esExcluido(f.codigo, f.material)) { excluidos.add(f.codigo); continue }
+    if (regla ? excluye(regla, f.codigo, f.material) : esExcluido(f.codigo, f.material)) { excluidos.add(f.codigo); continue }
     /* Lo que está en el casco y NO se contó no entra (como en BLOQUEADOS.xlsx): va como alerta en el balance. */
     if (!f.fisico_cajas) continue;
     if (f.unidades == null) { sinFactor.push(f.codigo); continue }
@@ -57,19 +58,20 @@ export function filasDeBalance(fecha: string, detalle: FilaBalance[]) {
 }
 
 export async function balanceParaPasivos(fecha: string, casco?: string | null) {
-  const b = await balanceDelDia(fecha, casco ?? null);
+  const [b, regla] = await Promise.all([balanceDelDia(fecha, casco ?? null), leerExcluidos("AG22")]);
   if (b.fecha !== fecha) return { filas: [] as NuevaFila[], sinFactor: [] as string[], excluidos: [] as string[], error: `No hay conteo enviado el ${fecha}.` };
-  return { ...filasDeBalance(fecha, b.detalle), error: b.error };
+  return { ...filasDeBalance(fecha, b.detalle, regla), error: b.error };
 }
 
 export async function leerPasivos(desde: string, hasta: string) {
   const supabase = await createClient();
+  const regla = await leerExcluidos("AG22");
   const r = await todas<FilaPasivo>((d, h) => supabase.from("v_pasivos_base").select("*")
     .gte("fecha", desde).lte("fecha", hasta)
     .order("fecha", { ascending: false }).order("almacen").order("estado").order("causal").order("codigo").order("id")
     .range(d, h));
   /* Envases nuevos (barril, 412644, 412671, 412707) y la estiba 3500163: no cuentan en Pasivos aunque hayan quedado cargados. */
-  return { ...r, data: r.data.filter((f) => !esExcluido(f.codigo, f.descripcion)) };
+  return { ...r, data: r.data.filter((f) => !excluye(regla, f.codigo, f.descripcion)) };
 }
 
 /** Los días que tienen algo cargado (para el calendario). */

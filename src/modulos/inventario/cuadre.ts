@@ -2,7 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { consolidadoDelDia, diasConConteo, leerCasco } from "@/modulos/inventario/balance";
 import { esUbicacionFabrica } from "@/modulos/casco/ubicacion-sitio";
 import { diasConPasivos, leerPasivos } from "@/modulos/pasivos/datos";
-import { esExcluido } from "@/modulos/pasivos/excluidos";
+import { excluye, type PanelExcluidos } from "@/modulos/pasivos/excluidos";
+import { leerExcluidos, panelExcluidos } from "@/modulos/pasivos/excluidos-leer";
 import { conReclasificaciones } from "@/modulos/inventario/reclasificaciones";
 
 /**
@@ -102,6 +103,11 @@ type Maes = { codigo: string; descripcion: string; familia: string | null; unida
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const redondo = (v: number) => Math.round(v * 100) / 100;
+/** Todos los SKU que se pueden escoger en el toolbox de excluidos: el maestro de Pasivos y los productos. */
+const catalogo = (M: Map<string, Maes>, P: Map<string, Prod>) => [
+  ...[...M.values()].map((m) => ({ codigo: String(m.codigo), nombre: m.descripcion })),
+  ...[...P.values()].map((p) => ({ codigo: String(p.sku), nombre: p.nombre })),
+];
 
 /** EL HISTÓRICO de los dos almacenes: los días con el balanceo guardado, del más nuevo al más viejo. */
 async function leerHistorial(supabase: Awaited<ReturnType<typeof createClient>>) {
@@ -116,10 +122,10 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
   const { dias, conteos, error: e0 } = await diasConConteo();
   const fecha = pedida && dias.includes(pedida) ? pedida : (dias[0] ?? null);
   const base = { fecha, dias, filas: [] as FilaCuadre[], guardado: null as CuadreGuardado | null, estibasBodega: 0, avisos: [] as string[], error: e0, faltaSql: false, historial: [] as DiaHistorial[], faltaHist: false,
-    otros: [] as LineaOtros[], envases: [] as { codigo: string; material: string }[], aplicados: [] as Aplicado[] };
+    otros: [] as LineaOtros[], envases: [] as { codigo: string; material: string }[], aplicados: [] as Aplicado[], excluidos: null as PanelExcluidos | null };
   if (!fecha) return base;
 
-  const [cons, prodR, maesR, pas, casco, sitiosR, guardR, hist] = await Promise.all([
+  const [cons, prodR, maesR, pas, casco, sitiosR, guardR, hist, regla] = await Promise.all([
     consolidadoDelDia(fecha, conteos),
     supabase.from("productos").select("sku, nombre, unidades_por_caja, cajas_por_estiba"),
     supabase.from("pasivos_maestro").select("codigo, descripcion, familia, unidades_por_caja, cajas_por_estiba, caja"),
@@ -128,6 +134,7 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
     supabase.from("casco_ubicaciones").select("clave, centro"),
     supabase.from("cuadre_sap").select("*").eq("fecha", fecha).eq("almacen", ALMACEN_CUADRE).maybeSingle(),
     leerHistorial(supabase),
+    leerExcluidos("AG18"),
   ]);
   if (guardR.error && /cuadre_sap|does not exist|PGRST205/i.test(`${guardR.error.code} ${guardR.error.message}`)) return { ...base, faltaSql: true };
   const avisos: string[] = [];
@@ -167,8 +174,8 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
   for (const r of await conReclasificaciones(cons.vigentes)) {
     if (r.tipo_material !== "ENVASE") continue;
     const c = String(r.codigo), cajas = Number(r.total_cajas) || 0;
-    /* Envases nuevos (barril, 412644, 412671, 412707): no van en el cuadre. */
-    if (esExcluido(c, r.material, "ag18")) { fueraNuevos.add(c); continue }
+    /* Los SKU fuera del cuadre (los de siempre: barril, 412644, 412671, 412707; y lo escogido en el toolbox). */
+    if (excluye(regla, c, r.material)) { fueraNuevos.add(c); continue }
     if (!esUbicacionFabrica(r.ubicacion)) { if (c === ESTIBA) estibasBodega += cajas; continue }
     const g = grupoDe(c);
     if (g === "ESTIBA") { estSueltas += cajas; continue }
@@ -218,10 +225,11 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
   const estAlm = Number(guardado?.estibas_almacen ?? 0) || 0;
   const sap = new Map((guardado?.zexi ?? []).map((z) => [String(z.codigo), z]));
   const mov = new Map((guardado?.movimientos ?? []).map((m) => [String(m.codigo), m]));
-  for (const z of sap.values()) { if (esExcluido(z.codigo, z.descripcion ?? nombre(String(z.codigo)), "ag18")) { fueraNuevos.add(String(z.codigo)); continue } de(String(z.codigo), z.descripcion) }
-  for (const m of mov.values()) if (!esExcluido(m.codigo, nombre(String(m.codigo)), "ag18")) de(String(m.codigo));
-  de(ESTIBA);
-  if (fueraNuevos.size) avisos.push(`No entran al cuadre (envases nuevos): ${[...fueraNuevos].sort().join(", ")}.`);
+  for (const z of sap.values()) { if (excluye(regla, z.codigo, z.descripcion ?? nombre(String(z.codigo)))) { fueraNuevos.add(String(z.codigo)); continue } de(String(z.codigo), z.descripcion) }
+  for (const m of mov.values()) if (!excluye(regla, m.codigo, nombre(String(m.codigo)))) de(String(m.codigo));
+  if (!excluye(regla, ESTIBA, nombre(ESTIBA))) de(ESTIBA);
+  else { acc.delete(ESTIBA); fueraNuevos.add(ESTIBA) }
+  const excluidos = panelExcluidos(regla, catalogo(M, P), fueraNuevos);
 
   const filas: FilaCuadre[] = [...acc.values()].map((a) => {
     const grupo = grupoDe(a.codigo);
@@ -282,7 +290,7 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
   }
 
   /* EL HISTÓRICO: los días con el balanceo guardado, del más nuevo al más viejo. */
-  return { ...base, filas, guardado, estibasBodega, avisos, otros, envases, aplicados, ...hist };
+  return { ...base, filas, guardado, estibasBodega, avisos, otros, envases, aplicados, excluidos, ...hist };
 }
 
 /**
@@ -302,15 +310,16 @@ async function armarCuadreAG22(pedida?: string | null) {
   const fecha = pedida && dias.includes(pedida) ? pedida : (dias[0] ?? null);
   const base = { fecha, dias, filas: [] as FilaCuadre[], guardado: null as CuadreGuardado | null, estibasBodega: 0, avisos: [] as string[], error: null as string | null,
     faltaSql: false, historial: [] as DiaHistorial[], faltaHist: false,
-    otros: [] as LineaOtros[], envases: [] as { codigo: string; material: string }[], aplicados: [] as Aplicado[] };
+    otros: [] as LineaOtros[], envases: [] as { codigo: string; material: string }[], aplicados: [] as Aplicado[], excluidos: null as PanelExcluidos | null };
   if (!fecha) return { ...base, ...(await leerHistorial(supabase)) };
 
-  const [pas, prodR, maesR, guardR, hist] = await Promise.all([
+  const [pas, prodR, maesR, guardR, hist, regla] = await Promise.all([
     leerPasivos(fecha, fecha),
     supabase.from("productos").select("sku, nombre, unidades_por_caja, cajas_por_estiba"),
     supabase.from("pasivos_maestro").select("codigo, descripcion, familia, unidades_por_caja, cajas_por_estiba, caja"),
     supabase.from("cuadre_sap").select("*").eq("fecha", fecha).eq("almacen", "AG22").maybeSingle(),
     leerHistorial(supabase),
+    leerExcluidos("AG22"),
   ]);
   if (guardR.error && /cuadre_sap|does not exist|PGRST205/i.test(`${guardR.error.code} ${guardR.error.message}`)) return { ...base, faltaSql: true };
   const avisos: string[] = [];
@@ -351,9 +360,9 @@ async function armarCuadreAG22(pedida?: string | null) {
   const sap = new Map((guardado?.zexi ?? []).map((z) => [String(z.codigo), z]));
   const mov = new Map((guardado?.movimientos ?? []).map((m) => [String(m.codigo), m]));
   const fueraNuevos = new Set<string>();
-  for (const z of sap.values()) { if (esExcluido(z.codigo, z.descripcion ?? nombre(String(z.codigo)))) { fueraNuevos.add(String(z.codigo)); continue } de(String(z.codigo), z.descripcion) }
-  for (const m of mov.values()) if (!esExcluido(m.codigo, nombre(String(m.codigo)))) de(String(m.codigo));
-  if (fueraNuevos.size) avisos.push(`No entran al cuadre (envases nuevos / estiba): ${[...fueraNuevos].sort().join(", ")}.`);
+  for (const z of sap.values()) { if (excluye(regla, z.codigo, z.descripcion ?? nombre(String(z.codigo)))) { fueraNuevos.add(String(z.codigo)); continue } de(String(z.codigo), z.descripcion) }
+  for (const m of mov.values()) if (!excluye(regla, m.codigo, nombre(String(m.codigo)))) de(String(m.codigo));
+  const excluidos = panelExcluidos(regla, catalogo(M, P), fueraNuevos);
 
   const filas: FilaCuadre[] = [...acc.values()].map((a) => {
     const grupo = grupoDe(a.codigo);
@@ -379,5 +388,5 @@ async function armarCuadreAG22(pedida?: string | null) {
       aplicados.push({ codigo: a.codigo, material: a.material, que: c, cantidad: redondo(a.partes[c]), unidad: "u",
         porque: `Base de Pasivos · AG22 · ${[...(a.estados[c] ?? [])].join("/") || "—"} · causal ${c} del día` });
 
-  return { ...base, filas, guardado, avisos, aplicados, ...hist };
+  return { ...base, filas, guardado, avisos, aplicados, excluidos, ...hist };
 }
