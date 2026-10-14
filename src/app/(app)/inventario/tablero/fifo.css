@@ -1,0 +1,70 @@
+/* ===== LA HOJA «FIFO DEL ENVASE» DEL TABLERO (.ff) — colores de los informes de Quiebra ===== */
+.ff { display: flex; flex-direction: column; gap: 14px; --ff-verde: #0F7A4A; --ff-ambar: #FFC000; --ff-mostaza: #C08A16; --ff-rojo: #E4002B; --ff-gris: #8A96A3 }
+.ff-vacio { padding: 18px; background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea) }
+.ff-barra { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 18px; padding: 12px 16px; background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea) }
+.ff-rango { display: block } .ff-rango .sg-mes { display: flex; flex-direction: column; gap: 6px }
+.ff-rango .sg-mes > span:first-child { font-size: 11.5px; font-weight: 600 } .ff-rango .sg-mes .mes-campo { height: 40px; min-width: 230px }
+.ff-grupo { display: flex; flex-direction: column; gap: 6px }
+.ff-grupo > span { font-size: 11.5px; font-weight: 600; color: var(--fe-tinta) }
+.ff-grupo select { height: 40px; min-width: 260px; padding: 0 10px; border: 1px solid var(--fe-linea); background: #fff; font: 600 13.5px var(--fe-texto) }
+.ff-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center }
+.ff-chips button { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border: 1px solid var(--fe-linea); background: #fff; cursor: pointer; font: 600 13px var(--fe-texto); color: var(--fe-tinta) }
+.ff-chips button.on { background: var(--fe-tinta); color: #fff; border-color: var(--fe-tinta) }
+.ff-chips select { height: 34px; padding: 0 8px; border: 1px solid var(--fe-linea); background: #fff; font: 600 12.5px var(--fe-texto) }
+.ff-chips button:focus-visible, .ff-mas:focus-visible { outline: 3px solid var(--ff-ambar); outline-offset: 1px }
+.ff-dice { margin-left: auto; font-size: 12px; color: var(--fe-gris) }
+
+.ff-k { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px }
+.ff-k > div { background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea); border-bottom: 4px solid var(--ff-ambar); padding: 12px 16px }
+.ff-k > div.mal b { color: var(--ff-rojo) }
+.ff-k span { font: 600 10.5px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase; color: var(--fe-gris) }
+.ff-k b { display: block; font: 800 28px var(--fe-titulo, var(--fe-texto)); font-variant-numeric: tabular-nums; color: var(--fe-tinta) }
+.ff-k small { font-size: 12px; color: var(--fe-gris) }
+
+.ff-dos { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 12px }
+.ff-col { display: flex; flex-direction: column; gap: 12px }
+.ff-card { background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea); padding: 14px 16px; min-width: 0 }
+.ff-card h3 { margin: 0 0 10px; font: 700 15px var(--fe-texto); color: var(--fe-tinta) }
+.ff-card h3 small { font-weight: 500; font-size: 12.5px; color: var(--fe-gris); margin-left: 6px }
+.ff-scroll { overflow-x: auto }
+.ff-t { width: 100%; border-collapse: collapse; font-size: 12.5px }
+.ff-t th { background: var(--fe-tinta); color: #fff; font: 700 10px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase; padding: 8px; text-align: left; white-space: nowrap }
+.ff-t th.n, .ff-t td.n { text-align: right; font-variant-numeric: tabular-nums }
+.ff-t td { padding: 7px 8px; border-bottom: 1px solid var(--fe-linea); color: var(--fe-tinta) }
+.ff-t td.mono { font-family: var(--fe-mono, ui-monospace, monospace); color: var(--fe-gris); white-space: nowrap }
+.ff-ubis span { display: inline-block; margin: 0 10px 2px 0; white-space: nowrap; font-size: 12px; color: var(--fe-gris) }
+.ff-ubis b { color: var(--fe-tinta); font-weight: 600 }
+.ff-pt { display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: -1px; flex: none }
+.ff-d { display: inline-block; font: 700 11.5px var(--fe-texto); padding: 2px 8px; background: #EEF1F5; color: var(--fe-tinta) }
+.ff-d.v { background: #E3F3EA; color: #0E5C35 } .ff-d.a { background: #FFF3CC; color: #5E4100 }
+.ff-d.m { background: #F6E7C4; color: #5E4100 } .ff-d.r { background: #FDE7EB; color: #A4102A }
+.ff-mas { margin-top: 8px; border: 0; background: none; padding: 4px 0; cursor: pointer; font: 700 12.5px var(--fe-texto); color: var(--fe-tinta); text-decoration: underline }
+
+.ff-baldes { display: flex; flex-direction: column; gap: 9px }
+.ff-balde { display: grid; grid-template-columns: 86px 1fr 90px; gap: 10px; align-items: center; font-size: 12.5px }
+.ff-balde b { text-align: right; font-variant-numeric: tabular-nums }
+.ff-barra-c { height: 16px; background: #F1F3F6 } .ff-barra-c i { display: block; height: 100%; border-radius: 0 4px 4px 0; min-width: 2px }
+
+.ff-linea { width: 100%; height: auto; display: block }
+.ff-linea text { font: 500 11px var(--fe-texto); fill: var(--fe-gris) }
+.ff-grid { stroke: #E6E9ED; stroke-width: 1 }
+.ff-pl { fill: none; stroke: var(--ff-verde); stroke-width: 2.5; stroke-linejoin: round }
+.ff-pto { fill: var(--ff-verde) } .ff-ult { fill: var(--ff-ambar); stroke: var(--fe-tinta); stroke-width: 2 }
+
+.ff-mapa-cab { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; margin-bottom: 10px }
+.ff-mapa-cab h3 { margin: 0 }
+.ff-hm { display: grid; gap: 3px; min-width: 640px; font-size: 11.5px }
+.ff-hm-h { font: 700 10.5px var(--fe-texto); letter-spacing: .04em; color: var(--fe-gris); text-align: center; padding: 2px 0 4px }
+.ff-hm-h.n { text-align: right }
+.ff-hm-u { font-family: var(--fe-mono, ui-monospace, monospace); color: var(--fe-tinta); display: flex; align-items: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.ff-hm-c { height: 24px; border-radius: 2px }
+.ff-hm-c.sin { background: repeating-linear-gradient(135deg, #fff 0 4px, #EEF1F5 4px 8px); border: 1px dashed #C6D0DC }
+.ff-hm-d { display: flex; align-items: center; justify-content: flex-end; font-weight: 700; font-variant-numeric: tabular-nums; padding-right: 4px }
+.ff-hm-d.r { color: #A4102A } .ff-hm-d.m { color: #8A5A00 } .ff-hm-d.a { color: #5E4100 } .ff-hm-d.v { color: #0E5C35 }
+.ff-hm-e { display: flex; align-items: center; font-size: 12px; color: var(--fe-tinta); white-space: nowrap; padding-left: 6px }
+.ff-ley { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 12px; font-size: 12px; color: var(--fe-gris) }
+.ff-ley i { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -1px }
+.ff-ley i.sin { background: repeating-linear-gradient(135deg, #fff 0 3px, #EEF1F5 3px 6px); border: 1px dashed #C6D0DC }
+
+@media (max-width: 1100px) { .ff-dos { grid-template-columns: 1fr } }
+@media (max-width: 720px) { .ff-k { grid-template-columns: repeat(2, minmax(0, 1fr)) } .ff-dice { margin-left: 0 } }

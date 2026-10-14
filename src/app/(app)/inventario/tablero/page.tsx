@@ -9,6 +9,11 @@ import "../conteo/tiempos.css";
 import "../conteo/evidencias.css";
 import { Tiempos } from "../conteo/Tiempos";
 import { Evidencias } from "../conteo/Evidencias";
+import { fifoEnvase } from "@/modulos/inventario/fifo-envase";
+import { FifoEnvase } from "./FifoEnvase";
+import "../../sider/sider.css";
+import "../balance/balance.css";
+import "./fifo.css";
 
 export const dynamic = "force-dynamic";
 
@@ -41,18 +46,36 @@ const dia = (s: string | null) =>
  * decidir un despacho. Lo firmado es lo único que se puede afirmar.
  */
 /* LAS HOJAS DEL TABLERO: lo que se vence (FEFO), los tiempos de conteo y las evidencias. */
-function Hojas({ vista }: { vista: "fefo" | "tiempos" | "evidencias" }) {
+function Hojas({ vista }: { vista: "fefo" | "fifo" | "tiempos" | "evidencias" }) {
   return (
     <nav className="tp-tabs" aria-label="Hojas del tablero">
       <Link href="/inventario/tablero" aria-current={vista === "fefo" ? "page" : undefined} className={vista === "fefo" ? "on" : ""}>Riesgo de vencimiento</Link>
+      <Link href="/inventario/tablero?vista=fifo" aria-current={vista === "fifo" ? "page" : undefined} className={vista === "fifo" ? "on" : ""}>FIFO del envase</Link>
       <Link href="/inventario/tablero?vista=tiempos" aria-current={vista === "tiempos" ? "page" : undefined} className={vista === "tiempos" ? "on" : ""}>Tiempos de conteo</Link>
       <Link href="/inventario/tablero?vista=evidencias" aria-current={vista === "evidencias" ? "page" : undefined} className={vista === "evidencias" ? "on" : ""}>Evidencias</Link>
     </nav>
   );
 }
 
-export default async function InventarioTableroPage({ searchParams }: { searchParams?: Promise<{ fecha?: string; borradores?: string; vista?: string }> }) {
+export default async function InventarioTableroPage({ searchParams }: { searchParams?: Promise<{ fecha?: string; borradores?: string; vista?: string; desde?: string; hasta?: string }> }) {
   const sp = (await searchParams) ?? {};
+  if (sp.vista === "fifo") {
+    /* EL FIFO DEL ENVASE: cuánto lleva cada envase en su ubicación, el movimiento en el rango y el mapa por ubicación. */
+    const datos = await fifoEnvase(sp.desde, sp.hasta);
+    return (
+      <div className="fe bal">
+        <Hojas vista="fifo" />
+        <section className="cabeza">
+          <div>
+            <p className="ojo">INVENTARIO · TABLERO · ENVASE</p>
+            <h1>FIFO del envase</h1>
+            <p className="sub">Cuánto lleva cada envase en su ubicación, qué debería salir primero y, en el rango, cómo se movió el inventario y si cada ubicación se mantiene, cambia, recibe o se vacía.</p>
+          </div>
+        </section>
+        <FifoEnvase datos={datos} />
+      </div>
+    );
+  }
   if (sp.vista === "tiempos") {
     /* La hoja de tiempos no necesita el maestro ni el riesgo: solo el permiso, que la base vuelve a exigir. */
     return (
