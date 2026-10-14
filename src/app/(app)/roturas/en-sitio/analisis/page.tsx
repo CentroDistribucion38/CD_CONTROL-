@@ -261,7 +261,7 @@ export default async function AnalisisEnSitioPage(
       <section className="cabeza">
         <div>
           <p className="ojo">ROTURAS · EN SITIO · ANÁLISIS</p>
-          <h1>Por qué se rompe</h1>
+          <h1>Rotura</h1>
           <p className="sub">
             Unidades de vidrio de lo que ya tiene visto bueno, por causa y por proceso. La causa
             dice de quién fue; el proceso, dónde pasó. Si un proceso pesa el doble que el

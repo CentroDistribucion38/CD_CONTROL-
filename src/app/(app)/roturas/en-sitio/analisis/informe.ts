@@ -187,7 +187,7 @@ export function dibujarInformeSitio(
     }
     const x = M + (marca.sello ? 12 : 0);
     fuente("bold", 10); tinta();
-    doc.text("Roturas en sitio · por qué se rompe", x, 12.2);
+    doc.text("Roturas en sitio · Rotura", x, 12.2);
     fuente("normal", 8.5); gris();
     doc.text(d.periodo, x, 15.8);
     doc.setDrawColor(...TINTA);
@@ -218,7 +218,7 @@ export function dibujarInformeSitio(
   fuente("bold", 7.5); gris();
   doc.text("CENTRO DE DISTRIBUCIÓN CD38 · CONTROL", W - M, 13.5, { align: "right" });
   fuente("bold", 20); tinta();
-  doc.text("Por qué se rompe", W - M, 21.5, { align: "right" });
+  doc.text("Rotura", W - M, 21.5, { align: "right" });
   fuente("normal", 10); gris();
   doc.text(d.periodo.charAt(0).toUpperCase() + d.periodo.slice(1), W - M, 27.5, { align: "right" });
 
