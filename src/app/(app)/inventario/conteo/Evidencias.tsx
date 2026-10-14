@@ -124,7 +124,7 @@ export function Evidencias() {
       } catch { /* sin nombre */ }
       const generado = new Date().toLocaleString("es-CO", { dateStyle: "long", timeStyle: "short", timeZone: "America/Bogota" });
       const tiposTxt = tipos.length === TIPOS.length ? "avería, PNC, módulo mezclado y módulo sin acceso" : TIPOS.filter((t) => tipos.includes(t.k)).map((t) => t.nombre.toLowerCase()).join(", ");
-      const bloques = construirInforme(an, vistas, { desde, hasta, tiposTxt, quien, generado, graficas: g, fotos, maxFotos: MAX_FOTOS, maxFilasAnexo: MAX_ANEXO });
+      const bloques = construirInforme(an, vistas, { desde, hasta, tiposTxt, tipos, quien, generado, graficas: g, fotos, maxFotos: MAX_FOTOS, maxFilasAnexo: MAX_ANEXO });
       const comoDataUrl = async (url: string) => {
         try {
           const r = await fetch(url); if (!r.ok) return null;
@@ -138,7 +138,7 @@ export function Evidencias() {
       const filtros = `Novedades: ${tiposTxt}`;
       if (formato === "pdf") {
         const [{ jsPDF }, { dibujarEvidencias, nombreEvidenciasPdf }] = await Promise.all([import("jspdf"), import("@/modulos/inventario/evidencias-pdf")]);
-        const doc = dibujarEvidencias(jsPDF, bloques, { periodo, filtros, generado: `${generado} · ${quien}`, marca: { palabra: palabra ?? undefined, sello: sello ?? undefined }, paleta });
+        const doc = dibujarEvidencias(jsPDF, bloques, { periodo, filtros, generado, marca: { palabra: palabra ?? undefined, sello: sello ?? undefined }, paleta });
         doc.save(nombreEvidenciasPdf(desde, hasta));
       } else {
         const { armarWord, nombreEvidenciasWord } = await import("@/modulos/inventario/evidencias-word");
