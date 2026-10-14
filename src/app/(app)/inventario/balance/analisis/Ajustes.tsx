@@ -19,11 +19,18 @@ export function Ajustes({ fecha, guardado, filas: inicio, puedeEditar, faltaSql 
   fecha: string; guardado: Guardado | null; filas: FilaAjuste[]; puedeEditar: boolean; faltaSql: boolean;
 }) {
   const [filas, setFilas] = useState(inicio);
-  const [solo, setSolo] = useState(true);
+  /* «En otra hoja los sobrantes, los faltantes»: también en pantalla, una pestaña para cada uno. */
+  const [ver, setVer] = useState<"todo" | "sobra" | "falta" | "cruza">("todo");
   const [estado, setEstado] = useState<Record<string, "guardando" | "ok" | "mal">>({});
   const [msg, setMsg] = useState<string | null>(null);
 
-  const vistas = useMemo(() => filas.filter((f) => !solo || f.ajuste !== 0 || f.compensa !== 0 || f.observacion), [filas, solo]);
+  const vistas = useMemo(() => {
+    const xs = ver === "sobra" ? filas.filter((f) => f.ajuste > 0).sort((a, b) => b.ajuste - a.ajuste)
+      : ver === "falta" ? filas.filter((f) => f.ajuste < 0).sort((a, b) => a.ajuste - b.ajuste)
+      : ver === "cruza" ? filas.filter((f) => f.compensa !== 0)
+      : filas.filter((f) => f.ajuste !== 0 || f.compensa !== 0 || f.observacion);
+    return xs;
+  }, [filas, ver]);
   const familias = useMemo(() => {
     const m = new Map<string, FilaAjuste[]>();
     for (const f of vistas) (m.get(f.familia) ?? m.set(f.familia, []).get(f.familia)!).push(f);
@@ -47,16 +54,23 @@ export function Ajustes({ fecha, guardado, filas: inicio, puedeEditar, faltaSql 
     setEstado((e) => ({ ...e, [codigo]: "ok" }));
   }
 
+  /* EL EXCEL SUPER DETALLADO: Resumen, Ajustes, Sobrantes, Faltantes y el Detalle partida por partida. */
+  const [armando, setArmando] = useState(false);
   async function bajarExcel() {
-    const XLSX = await import("xlsx");
-    const libro = XLSX.utils.book_new();
-    const h = [["FAMILIA", "CÓDIGO", "DESCRIPCIÓN", "SAP", "CONTEO", "DIFERENCIA", "COMPENSA CON", "COMPENSACIÓN", "AJUSTE", "SENTIDO", "OBSERVACIÓN"],
-      ...filas.map((f) => [f.familia, f.codigo, f.descripcion, f.sap, f.conteo, f.diferencia, f.par ? `${f.par} ${f.parDescripcion ?? ""}`.trim() : "", f.compensa || "", f.ajuste, sentido(f.ajuste), f.observacion]),
-      ["TOTAL", "", "", filas.reduce((t, f) => t + f.sap, 0), filas.reduce((t, f) => t + f.conteo, 0), k.bruta, "", "", k.sobra + k.falta, "", ""]];
-    const s = XLSX.utils.aoa_to_sheet(h);
-    s["!cols"] = [{ wch: 26 }, { wch: 10 }, { wch: 40 }, { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 34 }, { wch: 13 }, { wch: 13 }, { wch: 20 }, { wch: 50 }];
-    XLSX.utils.book_append_sheet(libro, s, "AJUSTES");
-    XLSX.writeFile(libro, `ajustes-bodega38-${fecha}.xlsx`);
+    if (!guardado) return;
+    setArmando(true); setMsg(null);
+    try {
+      const { armarLibroAjustes } = await import("@/modulos/inventario/libro-ajustes");
+      const buf = await armarLibroAjustes({
+        fecha, fechaLarga: largo(fecha), guardadoEn: guardado.guardado_en, guardadoPor: guardado.guardado_por,
+        ajustes: filas, analisis: guardado.filas,
+      });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+      a.download = `ajustes-bodega38-${fecha}.xlsx`; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    } catch { setMsg("No se pudo armar el Excel. Vuelve a intentar.") }
+    finally { setArmando(false) }
   }
 
   if (faltaSql) return <p className="ad-msg mal">Falta correr supabase/migraciones/2026-10-analisis-diferencia-ajustes.sql en Supabase.</p>;
@@ -76,7 +90,7 @@ export function Ajustes({ fecha, guardado, filas: inicio, puedeEditar, faltaSql 
           <small>{new Date(guardado.guardado_en).toLocaleString("es-CO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}{guardado.guardado_por ? ` · ${guardado.guardado_por}` : ""} · si cambias algo del análisis, vuelve a guardarlo y los ajustes se recalculan (las observaciones se quedan).</small>
         </div>
         <Link className="ad-bt alt" href={`/inventario/balance/analisis?fecha=${fecha}`}>← Volver al análisis</Link>
-        <button type="button" className="ad-bt" onClick={() => void bajarExcel()}>Descargar Excel</button>
+        <button type="button" className="ad-bt" disabled={armando} onClick={() => void bajarExcel()}>{armando ? "Armando el Excel…" : "Descargar Excel"}</button>
       </div>
       {msg && <p className="ad-msg mal" role="status">{msg}</p>}
 
@@ -90,7 +104,11 @@ export function Ajustes({ fecha, guardado, filas: inicio, puedeEditar, faltaSql 
       <section className="ad-caja ad-hoja">
         <div className="ad-hoja-cab">
           <h2>Ajustes · {largo(fecha)}</h2>
-          <label className="ad-chk"><input type="checkbox" checked={solo} onChange={(e) => setSolo(e.target.checked)} /> Solo lo que se ajusta o se compensa</label>
+          <div className="ad-ver" role="tablist" aria-label="Qué ver">
+            {([["todo", "Todo", filas.filter((f) => f.ajuste !== 0 || f.compensa !== 0).length], ["sobra", "Sobrantes", k.nSobra], ["falta", "Faltantes", k.nFalta], ["cruza", "Compensados", filas.filter((f) => f.compensa !== 0).length]] as const).map(([v, t, c]) => (
+              <button key={v} type="button" role="tab" aria-selected={ver === v} className={(ver === v ? "on " : "") + v} onClick={() => setVer(v)}>{t} <em>{c}</em></button>
+            ))}
+          </div>
         </div>
         <div className="ad-tabla-caja">
           <table className="ad-t ad-piv ad-aj">

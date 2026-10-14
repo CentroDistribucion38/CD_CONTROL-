@@ -108,3 +108,16 @@
 .ad .ad-obs i.ok { color: #0F7A4A }
 .ad .ad-obs i.mal { color: #B42318 }
 @media (max-width: 900px) { .ad .ad-k.ad-k4 { grid-template-columns: repeat(2, minmax(0, 1fr)) } }
+/* «Céntralo»: en Ajustes, títulos y cifras al centro. */
+.ad .ad-aj th, .ad .ad-aj th.n, .ad .ad-aj td, .ad .ad-aj td.n { text-align: center; vertical-align: middle }
+.ad .ad-aj tfoot td:first-child { text-align: left }
+.ad .ad-ver { display: flex; flex-wrap: wrap; border: 1px solid var(--fe-linea) }
+.ad .ad-ver button { padding: 8px 14px; border: 0; border-right: 1px solid var(--fe-linea); background: #fff; font: 700 13px var(--fe-texto); color: var(--fe-gris); cursor: pointer }
+.ad .ad-ver button:last-child { border-right: 0 }
+.ad .ad-ver button em { font-style: normal; font-size: 11.5px; margin-left: 4px; color: var(--fe-gris) }
+.ad .ad-ver button.on { background: var(--fe-tinta); color: #fff }
+.ad .ad-ver button.on.sobra { background: #0F7A4A }
+.ad .ad-ver button.on.falta { background: #B42318 }
+.ad .ad-ver button.on.cruza { background: #1B4F8F }
+.ad .ad-ver button.on em { color: #fff }
+.ad .ad-ver button:focus-visible { outline: 3px solid var(--fe-acento, #FFC400); outline-offset: -3px }
