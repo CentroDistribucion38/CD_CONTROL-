@@ -48,13 +48,13 @@ type Fila = {
 /*  CONSTANTES                                                         */
 /* ------------------------------------------------------------------ */
 /** Las 5 hojas fijas + la de "Otros estados" (dinámica). */
-/* El almacén de SAP de cada hoja (como en Pasivos): Fábrica = AG18, Bodega 38 = AG22; Extrasucio, los dos. */
+/* El almacén de SAP de cada hoja (como en Pasivos): Fábrica = AG18, Bodega 38 = AG22; Extrasucio solo existe en AG22 (Bodega 38). */
 const HOJAS_FIJAS: { estado: string; alcance: string | null; label: string; alm?: string }[] = [
   { estado: "BAJA",        alcance: "SORTING",    label: "Baja · Fábrica",     alm: "AG18" },
   { estado: "BAJA",        alcance: "PRESORTING",  label: "Baja · Bodega 38",   alm: "AG22" },
   { estado: "LAVADO",      alcance: "SORTING",    label: "Lavado · Fábrica",   alm: "AG18" },
   { estado: "LAVADO",      alcance: "PRESORTING",  label: "Lavado · Bodega 38", alm: "AG22" },
-  { estado: "EXTRASUCIO",  alcance: null,          label: "Extrasucio",         alm: "AG18 · AG22" },
+  { estado: "EXTRASUCIO",  alcance: "PRESORTING",  label: "Extrasucio · Bodega 38", alm: "AG22" },
 ];
 
 /** Estados que YA tienen su propia pestaña — los "otros" son el resto. */
