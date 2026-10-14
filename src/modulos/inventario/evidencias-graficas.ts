@@ -50,7 +50,7 @@ export function graficaDias(a: Analisis, W = 700, H = 214): Imagen {
   const y = (v: number) => T + alto - (v / top) * alto;
   /* leyenda */
   let lx = L; fuente(g, 600, 12);
-  for (const t of TIPOS) { g.fillStyle = t.color; g.fillRect(lx, 14, 12, 12); g.fillStyle = TINTA; g.textAlign = "left"; g.fillText(t.nombre, lx + 17, 20); lx += 17 + g.measureText(t.nombre).width + 22 }
+  for (const t of TIPOS.filter((x) => a.porTipo[x.k] > 0)) { g.fillStyle = t.color; g.fillRect(lx, 14, 12, 12); g.fillStyle = TINTA; g.textAlign = "left"; g.fillText(t.nombre, lx + 17, 20); lx += 17 + g.measureText(t.nombre).width + 22 }
   /* cuadrícula */
   fuente(g, 500, 11); g.textAlign = "right";
   for (let v = 0; v <= top + 1e-9; v += paso) {
@@ -62,7 +62,7 @@ export function graficaDias(a: Analisis, W = 700, H = 214): Imagen {
   const k = cadaK(n, ancho, 44);
   a.porDia.forEach((d, i) => {
     const x = L + slot * i + (slot - bw) / 2; let acum = 0;
-    for (const t of TIPOS) {
+    for (const t of TIPOS.filter((x) => a.porTipo[x.k] > 0)) {
       const v = d.porTipo[t.k]; if (!v) continue;
       const y1 = y(acum + v), y0 = y(acum);
       g.fillStyle = t.color; g.fillRect(x, y1, bw, Math.max(1, y0 - y1 - 1.5));
@@ -128,12 +128,12 @@ export function graficaDona(a: Analisis): Imagen {
   const bx = 16, bw = W - 32, by = 66, bh = 30;
   g.fillStyle = LINEA; g.fillRect(bx, by, bw, bh);
   let x = bx;
-  for (const t of TIPOS) {
+  for (const t of TIPOS.filter((x) => a.porTipo[x.k] > 0)) {
     const v = a.porTipo[t.k]; if (!v) continue;
     const w = (v / tot) * bw; g.fillStyle = t.color; g.fillRect(x, by, Math.max(2, w - 2), bh); x += w;
   }
   let yy = 130; g.textAlign = "left";
-  for (const t of TIPOS) {
+  for (const t of TIPOS.filter((x) => a.porTipo[x.k] > 0)) {
     const v = a.porTipo[t.k];
     g.fillStyle = t.color; g.fillRect(16, yy - 8, 14, 14);
     fuente(g, 600, 14); g.fillStyle = TINTA; g.textAlign = "left"; g.fillText(t.nombre, 40, yy);
@@ -150,13 +150,13 @@ export function graficaTop(a: Analisis, cuantas = 8): Imagen {
   const W = 580, H = T + RH * Math.max(top.length, 1) + 16;
   const l = lienzo(W, H), g = l.g;
   let lx = LAB; fuente(g, 600, 12);
-  for (const t of TIPOS) { g.fillStyle = t.color; g.fillRect(lx, 14, 12, 12); g.fillStyle = TINTA; g.textAlign = "left"; g.fillText(t.nombre, lx + 17, 20); lx += 17 + g.measureText(t.nombre).width + 22 }
+  for (const t of TIPOS.filter((x) => a.porTipo[x.k] > 0)) { g.fillStyle = t.color; g.fillRect(lx, 14, 12, 12); g.fillStyle = TINTA; g.textAlign = "left"; g.fillText(t.nombre, lx + 17, 20); lx += 17 + g.measureText(t.nombre).width + 22 }
   const max = Math.max(1, ...top.map((f) => f.total)), ancho = W - LAB - R;
   top.forEach((f, r) => {
     const y0 = T + RH * r;
     fuente(g, 800, 12.5); g.textAlign = "right"; g.fillStyle = TINTA; g.fillText(f.clave, LAB - 10, y0 + RH / 2);
     let x = LAB;
-    for (const t of TIPOS) {
+    for (const t of TIPOS.filter((x) => a.porTipo[x.k] > 0)) {
       const v = f.tipos[t.k]; if (!v) continue;
       const w = (v / max) * ancho; g.fillStyle = t.color; g.fillRect(x, y0 + 3, Math.max(2, w - 1.5), RH - 8); x += w;
     }

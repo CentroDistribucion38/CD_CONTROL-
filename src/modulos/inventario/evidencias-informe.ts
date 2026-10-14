@@ -58,7 +58,6 @@ export function detalleNovedad(n: Novedad, conPersona = true): string {
 
 /** «30 de septiembre de 2026, martes»: la fecha larga para el relato. */
 const fechaLarga = (iso: string) => new Date(iso + "T12:00:00Z").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
-const pocas = (xs: string[], n = 6) => (xs.length <= n ? xs.join(", ") : `${xs.slice(0, n).join(", ")} y ${xs.length - n} más`);
 const NOMBRES: Record<string, [string, string]> = {
   averia: ["avería", "averías"], pnc: ["PNC", "PNC"], mezclado: ["módulo mezclado", "módulos mezclados"], sin_acceso: ["módulo sin acceso", "módulos sin acceso"],
 };
@@ -72,14 +71,11 @@ const plural = (n: number, uno: string, varios: string) => `${nf.format(n)} ${n 
 function redaccion(a: Analisis, novs: Novedad[]): Bloque[] {
   const out: Bloque[] = [];
   const y = (xs: string[]) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} y ${xs[xs.length - 1]}`);
-  const mat = (n: Novedad) => [`${n.codigo ?? ""} ${n.material ?? ""}`.trim() || "material sin código", n.cajas != null ? `(${plural(n.cajas, "caja", "cajas")})` : ""].filter(Boolean).join(" ");
   const porUbic = (xs: Novedad[]) => {
     const m = new Map<string, Novedad[]>();
     for (const n of xs) (m.get(mod(n)) ?? m.set(mod(n), []).get(mod(n))!).push(n);
     return [...m].sort(([p], [q]) => orden(p, q));
   };
-  const politica = (n: Novedad) => n.cumple == null ? "sin responder la política de bloqueo"
-    : `${n.pnc_rotulo ? "con rótulo" : "sin rótulo"} y ${n.pnc_bloqueo_mecanico ? "con bloqueo mecánico" : "sin bloqueo mecánico"}: ${n.cumple ? "cumple" : "no cumple"} la política`;
   const ultimo = a.porDia.length ? a.porDia[a.porDia.length - 1].dia : null;
   for (const d of [...a.porDia].reverse()) {
     if (!d.contadas && !d.total) continue;
@@ -91,28 +87,40 @@ function redaccion(a: Analisis, novs: Novedad[]): Bloque[] {
     }
     const delDia = novs.filter((n) => n.dia === d.dia);
     const resumen = TIPOS.filter((t) => d.porTipo[t.k] > 0).map((t) => plural(d.porTipo[t.k], ...(NOMBRES[t.k] ?? [t.nombre, t.nombre])));
-    out.push({ t: "p", texto: `El ${fecha} realizamos el conteo de ${plural(d.contadas, "ubicación", "ubicaciones")}. Durante el recorrido evidenciamos ${plural(d.total, "novedad", "novedades")} en ${plural(d.conNovedad, "ubicación", "ubicaciones")}: ${y(resumen)}. A continuación las relaciono una por una.` });
+    out.push({ t: "p", texto: `El ${fecha} realizamos el conteo de ${plural(d.contadas, "ubicación", "ubicaciones")}. Durante el recorrido evidenciamos ${plural(d.total, "novedad", "novedades")} en ${plural(d.conNovedad, "ubicación", "ubicaciones")}: ${y(resumen)}. Las relaciono a continuación.` });
+    /* «Organiza esto, que es un desastre»: por tipo, UNA frase y, en avería y PNC, una TABLA con el detalle
+       (ubicación · código · material · cajas · hl), no un párrafo corrido. */
     for (const t of TIPOS) {
-      const xs = delDia.filter((n) => n.tipo === t.k);
+      const xs = delDia.filter((n) => n.tipo === t.k).sort((p, q) => orden(mod(p), mod(q)) || (p.codigo ?? "").localeCompare(q.codigo ?? ""));
       if (!xs.length) continue;
       const grupos = porUbic(xs);
-      let texto = "";
-      if (t.k === "averia") {
-        const cajas = xs.reduce((s, n) => s + (n.cajas ?? 0), 0), hl = xs.reduce((s, n) => s + (n.hl ?? 0), 0);
-        texto = `Averías (${xs.length}): encontramos avería en ${grupos.map(([u, ns]) => `${u}, ${y(ns.map(mat))}`).join("; ")}.`
-          + (cajas ? ` En total, las averías del día suman ${plural(cajas, "caja", "cajas")} (${hlTxt(hl)} hl).` : "");
-      } else if (t.k === "pnc") {
-        const cajas = xs.reduce((s, n) => s + (n.cajas ?? 0), 0);
-        texto = `PNC (${xs.length}): reportamos producto no conforme en ${grupos.map(([u, ns]) => `${u}, ${y(ns.map((n) => `${mat(n)} ${politica(n)}`))}`).join("; ")}.`
-          + (cajas ? ` En total son ${plural(cajas, "caja", "cajas")} de PNC.` : "");
+      const cajas = xs.reduce((s, n) => s + (n.cajas ?? 0), 0), hl = xs.reduce((s, n) => s + (n.hl ?? 0), 0);
+      const cj = (n: Novedad) => (n.cajas ? nf.format(n.cajas) : "—");
+      if (t.k === "averia" || t.k === "pnc") {
+        const esPnc = t.k === "pnc";
+        out.push({ t: "p", texto: esPnc
+          ? `PNC: reportamos ${plural(xs.length, "producto no conforme", "productos no conformes")} en ${plural(grupos.length, "ubicación", "ubicaciones")}${cajas ? `, ${plural(cajas, "caja", "cajas")} (${hlTxt(hl)} hl)` : ""}. ${xs.filter((n) => n.cumple === false).length ? `${plural(xs.filter((n) => n.cumple === false).length, "no cumple", "no cumplen")} la política de bloqueo.` : ""}`.trim()
+          : `Averías: encontramos ${plural(xs.length, "avería", "averías")} en ${plural(grupos.length, "ubicación", "ubicaciones")}${cajas ? `, que suman ${plural(cajas, "caja", "cajas")} (${hlTxt(hl)} hl)` : ""}. Este es el detalle:` });
+        out.push({
+          t: "tabla", compacta: true,
+          cols: esPnc
+            ? [{ h: "Ubicación", w: 12, al: "l" }, { h: "Código", w: 9, al: "l" }, { h: "Material", w: 34, al: "l" }, { h: "Cajas", w: 8, al: "r" }, { h: "Rótulo", w: 8, al: "c" }, { h: "Bloqueo", w: 8, al: "c" }, { h: "¿Cumple?", w: 10, al: "c" }]
+            : [{ h: "Ubicación", w: 13, al: "l" }, { h: "Código", w: 10, al: "l" }, { h: "Material", w: 45, al: "l" }, { h: "Cajas", w: 9, al: "r" }, { h: "Hl", w: 8, al: "r" }],
+          filas: xs.map((n) => esPnc
+            ? [{ x: mod(n), bold: true }, n.codigo ?? "—", n.material ?? "—", cj(n), si(n.pnc_rotulo), si(n.pnc_bloqueo_mecanico),
+               n.cumple == null ? { x: "Sin responder", color: "#5B6B7F" } : n.cumple ? { x: "Cumple", fill: "#CFE0F5", bold: true } : { x: "No cumple", fill: "#F9C6CF", bold: true }]
+            : [{ x: mod(n), bold: true }, n.codigo ?? "—", n.material ?? "—", cj(n), n.hl ? hlTxt(n.hl) : "—"])
+            .concat(xs.length > 1 && cajas ? [esPnc
+              ? [{ x: "Total", bold: true }, "", "", { x: nf.format(cajas), bold: true }, "", "", ""]
+              : [{ x: "Total", bold: true }, "", "", { x: nf.format(cajas), bold: true }, { x: hlTxt(hl), bold: true }]] : []),
+        });
       } else if (t.k === "mezclado") {
-        texto = `Módulos mezclados (${grupos.length}): encontramos producto mezclado en ${y(grupos.map(([u]) => u))}.`;
+        out.push({ t: "p", texto: `Módulos mezclados: encontramos producto mezclado en ${plural(grupos.length, "ubicación", "ubicaciones")}: ${y(grupos.map(([u]) => u))}.` });
       } else if (t.k === "sin_acceso") {
-        texto = `Módulos sin acceso (${grupos.length}): no tuvimos acceso a ${y(grupos.map(([u]) => u))}; quedan con su foto de evidencia.`;
+        out.push({ t: "p", texto: `Módulos sin acceso: no tuvimos acceso a ${plural(grupos.length, "ubicación", "ubicaciones")}: ${y(grupos.map(([u]) => u))}. Quedan con su foto de evidencia.` });
       } else {
-        texto = `${t.nombre} (${xs.length}): ${y(grupos.map(([u]) => u))}.`;
+        out.push({ t: "p", texto: `${t.nombre}: ${y(grupos.map(([u]) => u))}.` });
       }
-      out.push({ t: "p", texto });
     }
     /* Lo que viene de antes (solo en el último día): las ubicaciones que siguen con novedad. */
     if (d.dia === ultimo) {
@@ -143,6 +151,8 @@ export function construirInforme(a: Analisis, novs: Novedad[], o: OpcionesInform
   const pctCumple = a.pnc.respondidos ? Math.round((a.pnc.cumplen / a.pnc.respondidos) * 100) : null;
   /* «Si quito PNC no debería salir nada de PNC.» */
   const conPnc = !o.tipos?.length || o.tipos.includes("pnc");
+  /* Solo los tipos que tienen algo (los que no se escogieron o están en cero no salen). */
+  const tiposVivos = TIPOS.filter((t) => a.porTipo[t.k] > 0);
   /* Los módulos se numeran según los que salen. */
   let nMod = 0;
   const numero = () => `MÓDULO ${++nMod}`;
@@ -173,11 +183,11 @@ export function construirInforme(a: Analisis, novs: Novedad[], o: OpcionesInform
   B.push({
     t: "tabla", cols: [
       { h: "Día", w: 14, al: "l" }, { h: "Ubic. contadas", w: 11, al: "r" }, { h: "Ubic. con novedad", w: 12, al: "r" },
-      ...TIPOS.map((t) => ({ h: t.nombre, w: 12, al: "r" as const })), { h: "Total", w: 9, al: "r" },
+      ...tiposVivos.map((t) => ({ h: t.nombre, w: 12, al: "r" as const })), { h: "Total", w: 9, al: "r" },
     ],
     filas: a.porDia.map((d) => [
       { x: diaTxt(d.dia), bold: true }, d.contadas ? nf.format(d.contadas) : { x: "no se contó", color: "#5B6B7F" }, nf.format(d.conNovedad),
-      ...TIPOS.map((t) => (d.porTipo[t.k] ? nf.format(d.porTipo[t.k]) : "·")), { x: nf.format(d.total), bold: true },
+      ...tiposVivos.map((t) => (d.porTipo[t.k] ? nf.format(d.porTipo[t.k]) : "·")), { x: nf.format(d.total), bold: true },
     ]),
     compacta: true,
   });
