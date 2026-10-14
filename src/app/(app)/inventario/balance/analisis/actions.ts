@@ -39,3 +39,35 @@ export async function quitarNovedades(fecha: string) {
   revalidatePath(RUTA);
   return { ok: true };
 }
+
+/* ---------------- PASO 2: AJUSTES ---------------- */
+const SQL2 = "Falta correr supabase/migraciones/2026-10-analisis-diferencia-ajustes.sql en Supabase.";
+const falta2 = (m: string) => (/analisis_dif_(guardado|obs)|does not exist|PGRST205/i.test(m) ? SQL2 : m);
+
+/** GUARDAR EL ANÁLISIS DEL DÍA: la foto con la que se arman los ajustes. Volver a guardar la reemplaza
+ *  (las observaciones se quedan: van por código). */
+export async function guardarAnalisis(fecha: string, filasJson: string) {
+  if (!esDia(fecha)) return { error: "Día inválido." };
+  let filas: { codigo: string; sap: number; conteo: number }[] = [];
+  try { filas = JSON.parse(filasJson) } catch { return { error: "No se pudo leer el análisis." } }
+  if (!Array.isArray(filas) || !filas.length) return { error: "No hay análisis que guardar ese día." };
+  const sap = filas.reduce((t, f) => t + (Number(f.sap) || 0), 0);
+  const conteo = filas.reduce((t, f) => t + (Number(f.conteo) || 0), 0);
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const { error } = await supabase.from("analisis_dif_guardado")
+    .upsert({ fecha, filas, sap, conteo, guardado_por: user?.id ?? null, guardado_en: new Date().toISOString() }, { onConflict: "fecha" });
+  if (error) return { error: falta2(`${error.code} ${error.message}`) };
+  revalidatePath(RUTA);
+  return { ok: true };
+}
+
+/** LA OBSERVACIÓN DE UN CÓDIGO ese día (se guarda al salir del campo). */
+export async function guardarObservacion(fecha: string, codigo: string, texto: string) {
+  if (!esDia(fecha) || !codigo) return { error: "Datos inválidos." };
+  const supabase = await createClient();
+  const { error } = await supabase.from("analisis_dif_obs")
+    .upsert({ fecha, codigo: codigo.slice(0, 30), observacion: texto.slice(0, 1000), actualizado_en: new Date().toISOString() }, { onConflict: "fecha,codigo" });
+  if (error) return { error: falta2(`${error.code} ${error.message}`) };
+  return { ok: true };
+}

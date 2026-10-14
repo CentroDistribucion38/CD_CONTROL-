@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { misPermisos } from "@/lib/permisos";
 import { armarAnalisis } from "@/modulos/inventario/analisis-dif";
+import { leerAjustes } from "@/modulos/inventario/analisis-ajustes";
 import { Analisis } from "./Analisis";
+import { Ajustes } from "./Ajustes";
 import "../../../sider/sider.css";
 import "../../fefo.css";
 import "../balance.css";
@@ -41,11 +43,38 @@ const FUENTES: Fuente[] = [
 ];
 const ETQ = { ok: "Ya está en la app", falta: "Falta: plantilla", parcial: "Falta importar" } as const;
 
-export default async function AnalisisPage({ searchParams }: { searchParams: Promise<{ fecha?: string }> }) {
+export default async function AnalisisPage({ searchParams }: { searchParams: Promise<{ fecha?: string; paso?: string }> }) {
   const q = await searchParams;
   const hoy = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Bogota" }).format(new Date());
   const fecha = /^\d{4}-\d{2}-\d{2}$/.test(q.fecha ?? "") ? q.fecha! : hoy;
-  const [datos, permisos] = await Promise.all([armarAnalisis(fecha), misPermisos()]);
+  const paso = q.paso === "ajustes" ? "ajustes" : "analisis";
+  const permisos = await misPermisos();
+  const puedeEditar = permisos.puedeEditar("/inventario/balance/analisis");
+  /* LOS DOS PASOS: 1 el análisis (se arma en vivo) → «Guardar» → 2 los ajustes (salen de lo guardado). */
+  const pasos = (
+    <nav className="ad-pasos" aria-label="Pasos">
+      <Link href={`/inventario/balance/analisis?fecha=${fecha}`} className={paso === "analisis" ? "on" : ""}><b>1</b> Análisis</Link>
+      <Link href={`/inventario/balance/analisis?fecha=${fecha}&paso=ajustes`} className={paso === "ajustes" ? "on" : ""}><b>2</b> Ajustes</Link>
+    </nav>
+  );
+  if (paso === "ajustes") {
+    const aj = await leerAjustes(fecha);
+    return (
+      <div className="fe bal ad">
+        <section className="cabeza"><div>
+          <p className="ojo">INVENTARIO · BALANCE · ANÁLISIS DE DIFERENCIA</p>
+          <h1>Ajustes</h1>
+          <p className="sub">
+            Del análisis guardado: lo que se <b>compensa</b> entre el envase retornable y su NR nuevo, y lo que queda por
+            <b> ajustar</b> en SAP, sobrante o faltante, con la observación de cada código.
+          </p>
+        </div></section>
+        {pasos}
+        <Ajustes fecha={fecha} guardado={aj.guardado} filas={aj.filas} puedeEditar={puedeEditar} faltaSql={aj.faltaSql} />
+      </div>
+    );
+  }
+  const [datos, guardado] = await Promise.all([armarAnalisis(fecha), leerAjustes(fecha)]);
   return (
     <div className="fe bal ad">
       <section className="cabeza"><div>
@@ -57,7 +86,8 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
         </p>
       </div></section>
 
-      <Analisis datos={datos} hoy={hoy} puedeEditar={permisos.puedeEditar("/inventario/balance/analisis")} />
+      {pasos}
+      <Analisis datos={datos} hoy={hoy} puedeEditar={puedeEditar} guardadoEn={guardado.guardado?.guardado_en ?? null} />
 
       {/* «Solo muéstrame lo que falta, porque hasta puedo poner más partidas.» Lo que ya trae la app va en una línea. */}
       <details className="ad-que">

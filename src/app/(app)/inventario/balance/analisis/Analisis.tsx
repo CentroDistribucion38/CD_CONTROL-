@@ -3,7 +3,7 @@
 import { Fragment, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Analisis as Datos, FilaAnalisis } from "@/modulos/inventario/analisis-dif";
-import { guardarNovedades, quitarNovedades } from "./actions";
+import { guardarAnalisis, guardarNovedades, quitarNovedades } from "./actions";
 import { leerPlantilla } from "./leer-plantilla";
 
 /**
@@ -17,7 +17,7 @@ const n = (v: number) => nf.format(v);
 const signo = (v: number) => (v > 0 ? "+" : v < 0 ? "−" : "") + nf.format(Math.abs(v));
 const largo = (iso: string) => new Date(iso + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
-export function Analisis({ datos, hoy, puedeEditar }: { datos: Datos; hoy: string; puedeEditar: boolean }) {
+export function Analisis({ datos, hoy, puedeEditar, guardadoEn }: { datos: Datos; hoy: string; puedeEditar: boolean; guardadoEn: string | null }) {
   const router = useRouter();
   const archivo = useRef<HTMLInputElement>(null);
   const [pend, start] = useTransition();
@@ -53,6 +53,13 @@ export function Analisis({ datos, hoy, puedeEditar }: { datos: Datos; hoy: strin
     const g = await quitarNovedades(fecha);
     if ("error" in g && g.error) { setMsg({ mal: true, t: g.error }); return }
     setMsg({ t: "Se quitó la plantilla de ese día." }); router.refresh();
+  });
+
+  /* GUARDAR Y PASAR A AJUSTES: se guarda la foto del análisis y se abre el paso 2. */
+  const guardarYSeguir = () => start(async () => {
+    const g = await guardarAnalisis(fecha, JSON.stringify(filas));
+    if ("error" in g && g.error) { setMsg({ mal: true, t: g.error }); return }
+    router.push(`/inventario/balance/analisis?fecha=${fecha}&paso=ajustes`);
   });
 
   async function bajarExcel() {
@@ -112,6 +119,12 @@ export function Analisis({ datos, hoy, puedeEditar }: { datos: Datos; hoy: strin
           <h2>Análisis · {largo(fecha)}</h2>
           <label className="ad-chk"><input type="checkbox" checked={soloDif} onChange={(e) => setSoloDif(e.target.checked)} /> Solo con diferencia</label>
           {filas.length > 0 && <button type="button" className="ad-bt alt" onClick={() => void bajarExcel()}>Descargar Excel</button>}
+          {filas.length > 0 && puedeEditar && (
+            <button type="button" className="ad-bt" disabled={pend} onClick={guardarYSeguir}
+                    title={guardadoEn ? `Ya se guardó el ${new Date(guardadoEn).toLocaleString("es-CO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}: guardar de nuevo lo reemplaza` : "Guarda la foto de este análisis y abre los ajustes"}>
+              {pend ? "Guardando…" : guardadoEn ? "Guardar de nuevo y ver ajustes →" : "Guardar y pasar a ajustes →"}
+            </button>
+          )}
         </div>
         {filas.length === 0 ? <p className="ad-vacio">No hay nada para ese día: falta el conteo, el cuadre o la plantilla.</p> : (
           <div className="ad-tabla-caja">
