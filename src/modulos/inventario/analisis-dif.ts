@@ -190,16 +190,29 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   fuentes.push({ nombre: "Plantilla", ok: novedades.length > 0, detalle: novedades.length ? `${novedades.length} filas · ${novedades[0].archivo ?? ""}` : "Falta subir la plantilla del día" });
   fuentes.push({ nombre: "ZEXI 6 AM", ok: hayZexi, detalle: hayZexi ? "En la plantilla" : "La plantilla no trae la ZEXI de las 6" });
 
-  /* 6. LAS FILAS: por familia, como la tabla dinámica. No entran: lo excluido (envases nuevos, barril) y lo que no es
-        envase, caja plástica ni estiba (cilindro…). */
+  /* 6. LAS FILAS: por familia, como la tabla dinámica del Excel (hoja FAMILIAS):
+        0   sin familia en el maestro     E01 cajas plásticas    E02 cilindros       E03 estibas
+        E05 barriles                      E07 envase 175 a 330   E08 no retornable   E09 envase 750 y 1000
+     Cilindro, barril y no retornable SÍ entran aunque estén en la lista de excluidos: esa lista es para que
+     no aporten caja plástica, no para sacarlos del análisis. Fuera queda lo demás excluido (p. ej. Coronita). */
   const noEntran: string[] = [];
   const filas: FilaAnalisis[] = [];
   for (const [codigo, a] of acc) {
     const g = grupo(codigo);
     const u = upc(codigo);
-    if (g !== "ESTIBA" && excluye(regla, codigo, nombre(codigo))) { noEntran.push(codigo); continue }
-    if (g === "ENVASE" && u <= 1) { noEntran.push(codigo); continue }
-    const [familia, orden] = g === "CAJA" ? ["E01 · Cajas plásticas", 1] : g === "ESTIBA" ? ["E03 · Estibas", 2] : u <= 16 ? ["E09 · Envase 750 y 1000", 4] : ["E07 · Envase 175 a 330", 3];
+    const n = norm(nombre(codigo));
+    const fam = norm(M.get(codigo)?.familia);
+    const especial: [string, number] | null =
+      g === "CAJA" ? ["E01 · Cajas plásticas", 1]
+      : g === "ESTIBA" ? ["E03 · Estibas", 3]
+      : n.includes("CILINDRO") ? ["E02 · Cilindros", 2]
+      : n.includes("BARRIL") ? ["E05 · Barriles", 4]
+      : fam === "NO RETORNABLE" ? ["E08 · Envase no retornable", 6]
+      : !M.has(codigo) ? ["0 · Sin familia en el maestro", 0]
+      : null;
+    if (!especial && excluye(regla, codigo, nombre(codigo))) { noEntran.push(codigo); continue }
+    if (!especial && u <= 1) { noEntran.push(codigo); continue }
+    const [familia, orden] = especial ?? (u <= 16 ? ["E09 · Envase 750 y 1000", 7] : ["E07 · Envase 175 a 330", 5]);
     /* La estiba sale en el orden del proceso, no por tamaño. */
     const ORDEN_ESTIBA = ["CONTEO · bajo envase", "CONTEO · bajo cilindro", "CONTEO · bajo barril", "CONTEO · bajo cajas", "CONTEO · bajo producto", "CONTEO · estibas contadas"];
     const pos = (n: string) => { const k = codigo === ESTIBA ? ORDEN_ESTIBA.indexOf(n) : -1; return k < 0 ? 99 : k; };
