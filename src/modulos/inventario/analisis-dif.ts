@@ -74,6 +74,9 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     return "ENVASE";
   };
 
+  /* La estiba se agrupa por lo que lleva encima: envase, cilindro, barril, cajas, producto. */
+  const bajoQue = (c: string) => { const n = norm(nombre(c)); return n.includes("CILINDRO") ? "CONTEO · bajo cilindro" : n.includes("BARRIL") ? "CONTEO · bajo barril" : "CONTEO · bajo envase"; };
+
   /* Acumulador: código → lado → partida → cantidad. */
   const acc = new Map<string, { sap: Map<string, number>; conteo: Map<string, number> }>();
   const suma = (lado: "sap" | "conteo", codigo: string, partida: string, cant: number) => {
@@ -98,16 +101,16 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     const g = grupo(c);
     if (g === "ESTIBA") { suma("conteo", c, "CONTEO · estibas contadas", cajas); renglones++; continue }
     if (r.tipo_material === "PRODUCTO") { suma("conteo", ESTIBA, "CONTEO · bajo producto", est); continue }
-    if (r.tipo_material !== "ENVASE") { suma("conteo", ESTIBA, `CONTEO · bajo ${c} ${nombre(c)}`, est); continue }
+    if (r.tipo_material !== "ENVASE") { suma("conteo", ESTIBA, bajoQue(c), est); continue }
     renglones++;
     if (g === "CAJA") {
       suma("conteo", c, "CONTEO · cajas vacías", cajas);
-      suma("conteo", ESTIBA, "CONTEO · bajo cajas vacías", est);
+      suma("conteo", ESTIBA, "CONTEO · bajo cajas", est);
       continue;
     }
     /* Envase (también barril y cilindro): sus unidades y la estiba de debajo, siempre. */
     suma("conteo", c, "CONTEO", cajas * upc(c));
-    suma("conteo", ESTIBA, `CONTEO · bajo ${c} ${nombre(c)}`, est);
+    suma("conteo", ESTIBA, bajoQue(c), est);
     /* Un envase excluido (foráneo, nuevo…) no aporta caja plástica: no viene en las nuestras. */
     if (excluye(regla, c, nombre(c))) continue;
     const caja = M.get(c)?.caja; if (caja) suma("conteo", String(caja), `CONTEO · en ${c} ${nombre(c)}`, cajas);
@@ -197,7 +200,10 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     if (g !== "ESTIBA" && excluye(regla, codigo, nombre(codigo))) { noEntran.push(codigo); continue }
     if (g === "ENVASE" && u <= 1) { noEntran.push(codigo); continue }
     const [familia, orden] = g === "CAJA" ? ["E01 · Cajas plásticas", 1] : g === "ESTIBA" ? ["E03 · Estibas", 2] : u <= 16 ? ["E09 · Envase 750 y 1000", 4] : ["E07 · Envase 175 a 330", 3];
-    const lista = (m: Map<string, number>) => [...m].map(([nombre, cantidad]) => ({ nombre, cantidad: Math.round(cantidad) })).sort((x, y) => y.cantidad - x.cantidad);
+    /* La estiba sale en el orden del proceso, no por tamaño. */
+    const ORDEN_ESTIBA = ["CONTEO · bajo envase", "CONTEO · bajo cilindro", "CONTEO · bajo barril", "CONTEO · bajo cajas", "CONTEO · bajo producto", "CONTEO · estibas contadas"];
+    const pos = (n: string) => { const k = codigo === ESTIBA ? ORDEN_ESTIBA.indexOf(n) : -1; return k < 0 ? 99 : k; };
+    const lista = (m: Map<string, number>) => [...m].map(([nombre, cantidad]) => ({ nombre, cantidad: Math.round(cantidad) })).sort((x, y) => pos(x.nombre) - pos(y.nombre) || y.cantidad - x.cantidad);
     const sap = Math.round([...a.sap.values()].reduce((t, v) => t + v, 0));
     const conteo = Math.round([...a.conteo.values()].reduce((t, v) => t + v, 0));
     filas.push({ familia: familia as string, orden: orden as number, codigo, descripcion: nombre(codigo), sap, conteo, diferencia: conteo - sap, deSap: lista(a.sap), deConteo: lista(a.conteo) });
