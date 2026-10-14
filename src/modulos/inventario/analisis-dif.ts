@@ -89,7 +89,8 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   let renglones = 0;
   for (const r of await conReclasificaciones(cons.vigentes)) {
     if (r.tipo_material !== "ENVASE") continue;
-    if (esUbicacionFabrica(r.ubicacion ?? r.ubicacion_combinada ?? null)) continue;
+    /* Fuera todo lo de FÁBRICA: por la calle o por el nombre de la ubicación (FABRICA_…, FABRICAL4…). */
+    if (esUbicacionFabrica(r.calle) || esUbicacionFabrica(r.ubicacion) || esUbicacionFabrica(r.ubicacion_combinada)) continue;
     const c = String(r.codigo), cajas = Number(r.total_cajas) || 0;
     renglones++;
     const g = grupo(c);
