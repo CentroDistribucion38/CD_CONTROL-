@@ -302,3 +302,4 @@
 
 /* «Contó»: quién contó el renglón, al lado de la ubicación. */
 .fe .ba-quien { font-weight: 700; color: var(--fe-tinta); white-space: nowrap }
+.fe .ba .ba-ok { margin: 0; font-size: 13px; font-weight: 700; color: #0F7A4A }

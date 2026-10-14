@@ -51,6 +51,7 @@ import { Calendario, type Atajo } from "@/components/CalendarioRango";
 import { sumarDias } from "@/modulos/inventario/fiscal";
 import { leerPaleta } from "../informe";
 import { armarVistaXlsx } from "@/modulos/inventario/vista-xlsx";
+import { bajarFotosZip } from "./fotos-zip";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const POR_PAGINA = 100;
@@ -293,6 +294,9 @@ export function Base({
   /* El orden arranca por ubicación, que es el orden en que se camina la bodega y el de la hoja. */
   const [orden, setOrden] = useState<{ k: string; asc: boolean }>({ k: "ub", asc: true });
   const [bajando, setBajando] = useState(false);
+  /** Las fotos en .zip: cuántas van de cuántas (null = no se está bajando). */
+  const [fotosAvance, setFotosAvance] = useState<[number, number] | null>(null);
+  const [fotosOk, setFotosOk] = useState<string | null>(null);
   const [mal, setMal] = useState<string | null>(null);
   const raiz = useRef<HTMLDivElement>(null);
 
@@ -496,6 +500,18 @@ export function Base({
     finally { setBajando(false) }
   }
 
+  /* TODAS LAS FOTOS EN .ZIP: lo arma este equipo, no el servidor (ver fotos-zip.ts). */
+  async function bajarFotos() {
+    if (!incluidos.length || fotosAvance) return;
+    setMal(null); setFotosOk(null); setFotosAvance([0, 0]);
+    try {
+      const r = await bajarFotosZip(incluidos, enviadas, (h, t) => setFotosAvance([h, t]));
+      if (!r.ok) setMal(r.error);
+      else setFotosOk(`${nf.format(r.fotos)} foto${r.fotos === 1 ? "" : "s"} en ${r.nombre}` + (r.fallaron ? ` · ${r.fallaron} no se pudieron bajar` : "") + ".");
+    } catch { setMal("Se cortó la descarga de las fotos. Vuelve a intentar.") }
+    finally { setFotosAvance(null) }
+  }
+
   /* BAJAR ESTA VISTA: un Excel de verdad (.xlsx) con lo que se ve, con el aspecto del consolidado. Antes era un
      CSV y Excel en español le rompía las tildes. */
   async function bajarVista() {
@@ -550,6 +566,10 @@ export function Base({
           <button type="button" className="ba-sec" disabled={filas.length === 0 || bajando} onClick={bajarVista}>
             {bajando ? "Armando el Excel…" : "↓ Bajar esta vista"}
           </button>
+          <button type="button" className="ba-sec" onClick={bajarFotos} disabled={!!fotosAvance || !incluidos.length}
+                  title="Todas las fotos de los recorridos marcados, en un .zip (el Excel no cambia)">
+            {fotosAvance ? `Bajando fotos ${fotosAvance[0]}/${fotosAvance[1] || "…"}` : "↓ Fotos (.zip)"}
+          </button>
           <button type="button" className="ba-prim" onClick={exportar} disabled={bajando || !incluidos.length}
                   title={!hayEnviados ? "Todavía no hay recorridos enviados" : !incluidos.length ? "Marca al menos un recorrido" : undefined}>
             {bajando ? "Armando el Excel…" : "↓ Exportar consolidado"}
@@ -557,6 +577,7 @@ export function Base({
         </div>
       </header>
       {mal && <p className="ba-error" role="alert">{mal}</p>}
+      {fotosOk && <p className="ba-ok" role="status">✓ {fotosOk}</p>}
 
       {/* ============ ADMINISTRADOR: eliminar FEFO enteros o renglones sueltos ============ */}
       {manda && admin && (

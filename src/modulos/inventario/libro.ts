@@ -991,7 +991,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     const h = wb.addWorksheet("Evidencias", { properties: { tabColor: { argb: "FFDC2626" } } });
     const C = ["Recorrido", "Ubicación", "Código", "Material", "Total cajas", "Estado envase", "Marca", "Nota", "Foto tomada", "Foto"];
     h.columns = [12, 14, 10, 30, 11, 14, 10, 30, 16, 40].map((w) => ({ width: w }));
-    cabecera(h, "Evidencias del conteo", `${evid.length} foto${evid.length === 1 ? "" : "s"}${d.fotosRecortadas ? ` (otras ${d.fotosRecortadas} no entraron: exporta por días para verlas)` : ""} · ${sub}`, C.length);
+    cabecera(h, "Evidencias del conteo", `${evid.length} foto${evid.length === 1 ? "" : "s"}${d.fotosRecortadas ? ` (otras ${d.fotosRecortadas} no entraron: están todas en «↓ Fotos (.zip)» de la BD)` : ""} · ${sub}`, C.length);
     encabezado(h, 6, C, [5]);
     const ordenadas = evid
       .map((e) => ({ e, l: porLinea.get(e.linea_id) }))

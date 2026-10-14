@@ -5,7 +5,10 @@
  *
  * CADA COLUMNA DEL CASCO TIENE SU ESTADO EN EL CONTEO:
  *   AG22 Bodega ·  «Inventario casco de vidrio» ← BAJA       · «Extrasucio con baja» ← EXTRASUCIO
- *   AG18 Fábrica · «Inventario casco de vidrio» ← LAVADO     · «Lavado con baja»     ← LAVADO
+ *   AG18 Fábrica · «Inventario casco de vidrio» ← LAVADO o BAJA · «Lavado con baja»   ← LAVADO o BAJA
+ *   (En Fábrica también vale BAJA: la regla de fábrica pasa a BAJA lo que se contó en LAVADO —3500887,
+ *    3500888, 3501539…—, y el conteo sí tiene sus ubicaciones. «Aquí no hay ubicaciones y no sé por qué,
+ *    si el conteo las tiene: valida».)
  * y cada tabla solo con sus ubicaciones (Fábrica = FABRICA_…, Bodega = las demás).
  *
  * «Del SKU 3501226 tengo 1 estiba en Inventario casco de vidrio, pero en el conteo está como
@@ -33,7 +36,7 @@ export type UbicacionesInventario = {
 
 /** Qué estado del conteo le corresponde a cada columna de cada almacén. */
 export const COLUMNAS_CENTRO: Record<string, { inv: string[]; baja: string[] }> = {
-  AG18: { inv: ["LAVADO"], baja: ["LAVADO"] },
+  AG18: { inv: ["LAVADO", "BAJA"], baja: ["LAVADO", "BAJA"] },
   AG22: { inv: ["BAJA"], baja: ["EXTRASUCIO"] },
 };
 export const estadosDeCentro = (centro: string) => {

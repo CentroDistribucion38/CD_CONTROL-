@@ -12,7 +12,7 @@ import type { UbicacionesInventario } from "@/modulos/casco/ubicaciones-inventar
 import { ubicacionDeFila } from "@/modulos/casco/ubicaciones-armar";
 
 /** Qué estado del inventario alimenta las ubicaciones de cada tabla (igual que ESTADO_POR_CENTRO). */
-const ESTADO_UBIC: Record<string, string> = { AG18: "LAVADO", AG22: "BAJA (inventario) y EXTRASUCIO (extrasucio con baja)" };
+const ESTADO_UBIC: Record<string, string> = { AG18: "LAVADO y BAJA (regla de fábrica)", AG22: "BAJA (inventario) y EXTRASUCIO (extrasucio con baja)" };
 
 /**
  * CASCO DE VIDRIO — LAS CUATRO TABLAS DEL EXCEL, UNA DEBAJO DE OTRA.
