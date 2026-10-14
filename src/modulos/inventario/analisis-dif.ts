@@ -91,11 +91,13 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     const c = String(r.codigo), cajas = Number(r.total_cajas) || 0;
     renglones++;
     const g = grupo(c);
-    if (g === "ESTIBA" || g === "CAJA") { suma("conteo", c, "CONTEO", cajas); continue }
+    /* Se parte por origen para poder revisarlo: lo contado con su propio código y lo que trae cada envase. */
+    if (g === "ESTIBA" || g === "CAJA") { suma("conteo", c, g === "CAJA" ? "CONTEO · cajas vacías" : "CONTEO · estibas contadas", cajas); continue }
     suma("conteo", c, "CONTEO", cajas * upc(c));
-    const caja = M.get(c)?.caja; if (caja) suma("conteo", String(caja), "CONTEO", cajas);
+    const deEnv = `CONTEO · en ${c} ${nombre(c)}`;
+    const caja = M.get(c)?.caja; if (caja) suma("conteo", String(caja), deEnv, cajas);
     const estibas = (Number(r.estibas) || 0) + ((Number(r.cajas) || 0) + (Number(r.saldo) || 0) > 0 ? 1 : 0);
-    suma("conteo", ESTIBA, "CONTEO", estibas);
+    suma("conteo", ESTIBA, `CONTEO · bajo ${c} ${nombre(c)}`, estibas);
   }
   fuentes.push({ nombre: "Conteo", ok: renglones > 0, detalle: renglones ? `${renglones} renglones de Bodega` : "No hay conteo enviado ese día" });
   if (cons.error) avisos.push(`No pude leer el conteo: ${cons.error}`);
