@@ -33,6 +33,16 @@ export type FilaBalance = {
   ajuste_cajas: number; ajuste_nota: string | null; calidad: string | null;
   dif_cajas: number; unidades: number | null; alerta: string | null;
   reclasificacion_id: number | null;
+  /** EL CUADRE DE FÁBRICA (solo Baja · Fábrica de los materiales de la regla de fábrica): de dónde salen
+   *  las estibas casco. Casco no se toca: la cuenta se hace aquí. */
+  cuadre_fabrica?: CuadreFabrica | null;
+};
+/** «Conteo BAJA en fábrica 209; casco 36,67 (Inventario) + 132 (Lavado con baja) = 168,67; la diferencia,
+ *  40,33, se suma al Inventario: las estibas casco de Baja · Fábrica quedan en 77, no en 36,67.» */
+export type CuadreFabrica = {
+  inventario: number; lavado: number; casco: number;
+  conteo_cajas: number; factor: number; conteo_estibas: number;
+  diferencia: number; estibas: number;
 };
 export type BloqueBalance = {
   estado: string; alcance: string; renglones: number; con_alerta: number;
@@ -229,6 +239,11 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
     || a.ubicacion.localeCompare(b.ubicacion, "es", { numeric: true }));
 
   /* FÍSICO */
+  /* Los materiales que la regla de fábrica pasó a BAJA en la Fábrica (nota «Regla fábrica: LAVADO → BAJA»). */
+  const deLaRegla = new Set<string>();
+  for (const r of vigentes) {
+    if (zona(r) === "SORTING" && /^Regla f[aá]brica:/i.test(r.nota ?? "")) deLaRegla.add(String(r.codigo));
+  }
   for (const r of vigentes) {
     if (esCajaPlastica(r.material) || esCajaPlastica(prod.get(String(r.codigo))?.nombre)) continue;
     const rc = reclas.get(r.id);
@@ -246,6 +261,8 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
   const fechaCasco = pedidaCasco && diasCasco.includes(pedidaCasco) ? pedidaCasco
     : (diasCasco.find((d) => d <= fecha) ?? diasCasco[0] ?? null);
   const casco = fechaCasco ? (cascoR.data ?? []).filter((k) => k.fecha <= fechaCasco) : [];
+  /** Lo del casco de AG18 por material (Inventario y Lavado con baja), para el cuadre de fábrica. */
+  const ag18 = new Map<string, { inv: number; lav: number }>();
   const ultimoDe = new Map<string, string>();
   for (const k of casco) if (!ultimoDe.has(k.ubicacion) || k.fecha > ultimoDe.get(k.ubicacion)!) ultimoDe.set(k.ubicacion, k.fecha);
   for (const k of casco) {
@@ -261,7 +278,32 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
     };
     const inv = Number(k.inventario) || 0, baja = Number(k.baja) || 0;
     if (centro === "AG22") { pon("BAJA", "PRESORTING", inv); pon("EXTRASUCIO", "PRESORTING", baja) }
-    else if (centro === "AG18") { pon("BAJA", "SORTING", inv); pon("LAVADO", "SORTING", baja) }
+    else if (centro === "AG18") {
+      pon("BAJA", "SORTING", inv); pon("LAVADO", "SORTING", baja);
+      const a = ag18.get(sku) ?? { inv: 0, lav: 0 }; a.inv += inv; a.lav += baja; ag18.set(sku, a);
+    }
+  }
+
+  /* EL CUADRE DE FÁBRICA: en los materiales de la regla de fábrica, lo contado en BAJA en la Fábrica ya
+     trae lo que el casco tiene en «Lavado con baja». Se cuadra así (sin tocar el Casco):
+       diferencia = conteo BAJA Fábrica (estibas) − (Inventario + Lavado con baja)
+       estibas casco de Baja · Fábrica = Inventario + diferencia. */
+  const r2 = (v: number) => Math.round(v * 100) / 100;
+  const cuadres = new Map<string, CuadreFabrica>();
+  for (const sku of deLaRegla) {
+    const a = ag18.get(sku);
+    const f = filas.get(`BAJA|SORTING|${sku}`);
+    if (!a || !f || !f.tieneFisico) continue;
+    const cpe = Number(f.cajas_estiba ?? prod.get(sku)?.cajas_por_estiba) || 0;
+    if (!cpe) continue;
+    const conteoEst = r2(f.fisico_cajas / cpe);
+    const casco = r2(a.inv + a.lav);
+    const diferencia = r2(conteoEst - casco);
+    const estibas = r2(a.inv + diferencia);
+    f.estibas_casco = estibas;
+    f.cajas_casco = Math.round(estibas * cpe);
+    f.tieneCasco = true;
+    cuadres.set(sku, { inventario: r2(a.inv), lavado: r2(a.lav), casco, conteo_cajas: f.fisico_cajas, factor: cpe, conteo_estibas: conteoEst, diferencia, estibas });
   }
 
   /* AJUSTES y cierre de cada fila */
@@ -276,6 +318,7 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
       ...resto,
       ubicacion: [...ubis].sort((x, y) => x.localeCompare(y, "es", { numeric: true })).join(", ") || null,
       ajuste_cajas: ajuste, ajuste_nota: a?.nota ?? null, calidad: a?.calidad ?? null,
+      cuadre_fabrica: f.estado === "BAJA" && f.alcance === "SORTING" ? cuadres.get(f.codigo) ?? null : null,
       dif_cajas: dif,
       unidades: f.un_caja ? dif * f.un_caja : null,
       alerta: !tieneFisico ? "En casco y no contado"

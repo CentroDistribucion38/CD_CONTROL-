@@ -325,3 +325,29 @@
 .bal .bal-tab-alm { font: 700 10.5px var(--fe-mono, ui-monospace, monospace); padding: 2px 6px; background: #EEF1F5; color: var(--fe-tinta); letter-spacing: .02em }
 .bal .bal-tab-alm.a18 { background: #FFF3CC; color: #5E4100 }
 .bal .bal-tab-alm.a22 { background: #E6EEF9; color: #1B4F8F }
+
+/* ===== CUADRE DE FÁBRICA: las estibas casco calculadas con el conteo y su cuenta ===== */
+.bal .bal-cod-bt { padding: 0; border: 0; background: none; cursor: pointer; font: inherit; color: #0B4EA2; text-decoration: underline; text-underline-offset: 3px }
+.bal .bal-est-cf { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 1px; padding: 2px 6px; margin: -2px -6px; cursor: pointer;
+  border: 1px dashed #0B4EA2; background: #EEF4FB; color: #0B4EA2; font: 700 13px var(--fe-texto); font-variant-numeric: tabular-nums }
+.bal .bal-est-cf i { font: 700 10px var(--fe-texto); font-style: normal; color: #0F7A4A; letter-spacing: .03em }
+.bal .bal-est-cf[aria-expanded="true"] { background: #0B4EA2; color: #fff; border-style: solid }
+.bal .bal-est-cf[aria-expanded="true"] i { color: #FFC000 }
+.bal .bal-cod-bt:focus-visible, .bal .bal-est-cf:focus-visible { outline: 3px solid var(--fe-acento, #FFC400); outline-offset: 2px }
+.bal tr.bal-abierta td { background: #F3F7FC }
+.bal tr.bal-cf-fila td { padding: 0 !important; background: #F3F7FC; border-top: 0 }
+.bal .bal-cf { margin: 0 12px 12px; padding: 12px 16px; background: #fff; border: 1px solid #B9CDE6; border-left: 4px solid #0B4EA2; display: flex; flex-direction: column; gap: 10px }
+.bal .bal-cf-tit { margin: 0; font-size: 13.5px; font-weight: 600 }
+.bal .bal-cf-tit span { font-weight: 400; color: var(--fe-gris) }
+.bal .bal-cf ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px }
+.bal .bal-cf li { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border: 1px solid var(--fe-linea) }
+.bal .bal-cf li span { font: 700 10.5px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase; color: var(--fe-gris) }
+.bal .bal-cf li b { font: 700 15px var(--fe-texto); font-variant-numeric: tabular-nums; color: var(--fe-tinta) }
+.bal .bal-cf li b.mas { color: #0F7A4A }
+.bal .bal-cf li b.menos { color: #E4002B }
+.bal .bal-cf li small { font-size: 12px; color: var(--fe-gris) }
+.bal .bal-cf li.res { background: #12263A; border-color: #12263A }
+.bal .bal-cf li.res span, .bal .bal-cf li.res small { color: #C9D2DC }
+.bal .bal-cf li.res b { color: #FFC000; font-size: 17px }
+@media (max-width: 900px) { .bal .bal-cf ol { grid-template-columns: repeat(2, minmax(0, 1fr)) } }
+@media (max-width: 520px) { .bal .bal-cf ol { grid-template-columns: 1fr } }

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo, useTransition } from "react";
+import { Fragment, useState, useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { LineaConsolidado, Reasignacion } from "@/modulos/inventario/balance";
+import type { CuadreFabrica, LineaConsolidado, Reasignacion } from "@/modulos/inventario/balance";
 import { Consolidado } from "./Consolidado";
 import { Reasignaciones } from "./Reasignaciones";
 import { Rango } from "../../sider/seguimiento/Rango";
@@ -42,6 +42,7 @@ type Fila = {
   unidades: number | null;
   alerta: string | null;
   reclasificacion_id: number | null;
+  cuadre_fabrica?: CuadreFabrica | null;
 };
 
 /* ------------------------------------------------------------------ */
@@ -113,6 +114,8 @@ export function Balance({
   const [cambiando, startCambio] = useTransition();
   const [hojaIdx, setHojaIdx] = useState(0);
   const [reclas, setReclas] = useState<Fila | null>(null);
+  /** El material con la cuenta del cuadre de fábrica abierta. */
+  const [verCuenta, setVerCuenta] = useState<string | null>(null);
   const [nuevoEstado, setNuevoEstado] = useState("");
   const [motivo, setMotivo] = useState("");
   const [pending, startTransition] = useTransition();
@@ -340,14 +343,31 @@ export function Balance({
                   </tr>
                 </thead>
                 <tbody>
-                  {principales.map((f, i) => (
-                    <tr key={i} className={f.alerta ? "con-alerta" : ""}>
-                      <td className="mono">{f.codigo}</td>
+                  {principales.map((f, i) => {
+                    const cf = f.cuadre_fabrica;
+                    const llave = `${f.estado}|${f.alcance}|${f.codigo}`;
+                    const abierta = !!cf && verCuenta === llave;
+                    return (
+                    <Fragment key={i}>
+                    <tr className={(f.alerta ? "con-alerta" : "") + (abierta ? " bal-abierta" : "")}>
+                      <td className="mono">
+                        {cf ? (
+                          <button type="button" className="bal-cod-bt" aria-expanded={abierta} title="Ver de dónde salen las estibas casco"
+                                  onClick={() => setVerCuenta(abierta ? null : llave)}>{f.codigo}</button>
+                        ) : f.codigo}
+                      </td>
                       <td>{f.material ?? "—"}</td>
                       <td className={`r ${f.cajas_estiba ? "" : "bal-falta"}`}>{f.cajas_estiba ? n(f.cajas_estiba) : "falta"}</td>
                       <td className={`r ${f.un_caja ? "" : "bal-falta"}`}>{f.un_caja ? n(f.un_caja) : "falta"}</td>
                       <td className="r">{n(f.fisico_cajas)}</td>
-                      <td className="r">{n(f.estibas_casco)}</td>
+                      <td className="r">
+                        {cf ? (
+                          <button type="button" className="bal-est-cf" aria-expanded={abierta} title="Estibas casco calculadas con el conteo: ver la cuenta"
+                                  onClick={() => setVerCuenta(abierta ? null : llave)}>
+                            {n(f.estibas_casco, 2)}<i>{cf.diferencia >= 0 ? "+" : "−"}{n(Math.abs(cf.diferencia), 2)}</i>
+                          </button>
+                        ) : n(f.estibas_casco)}
+                      </td>
                       <td className="r">{n(f.cajas_casco)}</td>
                       <td className="r">
                         {f.ajuste_cajas ? n(f.ajuste_cajas) : ""}
@@ -385,7 +405,32 @@ export function Balance({
                         )}
                       </td>
                     </tr>
-                  ))}
+                    {abierta && cf && (
+                      <tr className="bal-cf-fila">
+                        <td colSpan={12}>
+                          <div className="bal-cf">
+                            <p className="bal-cf-tit"><b>{f.codigo}</b> {f.material ?? ""} · de dónde salen las estibas casco <span>(el Casco no se cambia: la cuenta se hace aquí)</span></p>
+                            <ol>
+                              <li><span>Casco AG18</span>
+                                <b>{n(cf.inventario, 2)} + {n(cf.lavado, 2)} = {n(cf.casco, 2)}</b>
+                                <small>Inventario casco de vidrio + Lavado con baja</small></li>
+                              <li><span>Conteo · BAJA en Fábrica</span>
+                                <b>{n(cf.conteo_estibas, 2)} est.</b>
+                                <small>{n(cf.conteo_cajas)} cajas ÷ {n(cf.factor)} por estiba</small></li>
+                              <li><span>Diferencia</span>
+                                <b className={cf.diferencia < 0 ? "menos" : "mas"}>{n(cf.conteo_estibas, 2)} − {n(cf.casco, 2)} = {cf.diferencia >= 0 ? "+" : "−"}{n(Math.abs(cf.diferencia), 2)}</b>
+                                <small>se suma al Inventario</small></li>
+                              <li className="res"><span>Estibas casco · Baja Fábrica</span>
+                                <b>{n(cf.inventario, 2)} {cf.diferencia >= 0 ? "+" : "−"} {n(Math.abs(cf.diferencia), 2)} = {n(cf.estibas, 2)}</b>
+                                <small>× {n(cf.factor)} = {n(f.cajas_casco)} cajas casco</small></li>
+                            </ol>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
+                    );
+                  })}
                 </tbody>
                 {principales.length > 1 && (
                   <tfoot>
