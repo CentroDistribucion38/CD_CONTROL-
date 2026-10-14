@@ -110,9 +110,9 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
     return falta > 0 ? [{ ...f, dif: falta }] : [];
   });
   const sinReparto = !esAG22 && salen.some((f) => f.libre == null);
-  /* Y AL REVÉS: lo que ENTRA a AG18 por el 311 llega en libre utilización; el envase de AG18 va bloqueado:
-     después del 311, 344 (Libre → Bloqueado) por lo que entra + lo que ya estaba libre. Solo envase. */
-  const del344 = esAG22 ? [] : entran.filter((f) => f.grupo === "ENVASE").map((f) => ({ ...f, dif: Math.abs(f.dif!) + Math.max(f.libre ?? 0, 0) }));
+  /* Y AL REVÉS: lo que ENTRA a AG18 por el 311 llega en libre utilización y aquí va bloqueado: después
+     del 311, el 344 con los mismos documentos (solo se avisa en el paso 2). */
+
   const cuadran = conDif.filter((f) => cero(f.dif));
   /* «Lo que quedó en el 18, cuando suba la ZEXI, me debe cuadrar con el BLOQUEADO: no puede quedar como
      libre utilización.» Un envase de AG18 con algo en libre no está balanceado: falta el 344. */
@@ -453,12 +453,11 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
             <div className="cs-dos">
               <div className="cs-caja r"><h3>{esAG22 ? "Pasar de Libre a Bloqueado (Mov 344)" : `Pasar de ${OTRO} a ${ALM}`} {cabezaLista(entran, "entran")}</h3>
                 {entran.length ? documentos(entran, "entran") : <p className="cs-vacio">Nada.</p>}
-                {del344.length > 0 && (
+                {/* «Solo era poner el mensaje: puedo copiar y pegar lo mismo.» Sin lista aparte: los mismos documentos del 311. */}
+                {!esAG22 && entran.length > 0 && (
                   <div className="cs-antes azul">
                     <p className="cs-antes-t"><b>Después, en {ALM}: Mov 344 (Libre → Bloqueado)</b>
-                      <span>El 311 deja el envase en <b>libre utilización</b> en {ALM}, y aquí va <b>bloqueado</b>. Bloquea estas cantidades
-                        (lo que entra{del344.some((f) => (f.libre ?? 0) > 0) ? " + lo que ya estaba en libre" : ""}) antes de bajar la ZEXI nueva.</span></p>
-                    {documentos(del344, "entran344")}
+                      <span>El 311 deja todo en <b>libre utilización</b>. Con los <b>mismos documentos</b> de arriba (copia y pega igual) haz el 344 en {ALM}, antes de bajar la ZEXI nueva.</span></p>
                   </div>
                 )}
               </div>
