@@ -24,6 +24,10 @@ import type { MaterialCasco, SitioCasco } from "@/modulos/casco/datos";
  *   · el cliente no tiene tabla: lo que se le despacha solo se resta del origen;
  *   · si «Descuenta inventario» está apagada, el movimiento se REGISTRA y no toca Control;
  *   · EXCEPCIÓN: de CA22 a AG07 no se resta de CA22 ni se suma a AG07: se SUMA a CA22.
+ *
+ * AJUSTE POR ALMACÉN («solo colocar almacén, SKU y la cantidad, para que reste en el inventario de casco»):
+ * otra hoja, sin receptor. Resta del Inventario de esa tabla de Control (`casco_ajuste_registrar`), queda en
+ * el historial como «AJUSTE» y se deshace con la misma ×.
  */
 
 type Item = {
@@ -37,7 +41,9 @@ type Linea = {
 type Mov = {
   id: string; fecha: string; origen: string; destino: string; sku: string; descripcion: string; estibas: number;
   entrega: string | null; placa: string | null; afecta: boolean; ubic_origen: string | null; ubic_destino: string | null;
+  ajuste?: boolean; motivo?: string | null;
 };
+type LineaAjuste = { k: number; ubic: string; sku: string; estibas: string; motivo: string };
 
 const nf2 = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const corto = (iso: string) =>
@@ -59,7 +65,8 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
   const [lineas, setLineas] = useState<Linea[]>([]);
   const [guardando, setGuardando] = useState(false);
   /* UNA HOJA A LA VEZ: registrar o ver lo registrado. */
-  const [vista, setVista] = useState<"registrar" | "historial">("registrar");
+  const [vista, setVista] = useState<"registrar" | "ajuste" | "historial">("registrar");
+  const [ajustes, setAjustes] = useState<LineaAjuste[]>([]);
   const [fm, setFm] = useState(FILTROS_VACIOS);
 
   /* SOLO ENVASES: «que aquí solo aparezca lo de envase, no producto». El desplegable y la validación
@@ -166,6 +173,47 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
     void cargarMovs();
   };
 
+  /* ---------- AJUSTE POR ALMACÉN ---------- */
+  const nuevoAjuste = useCallback((de?: LineaAjuste): LineaAjuste => ({ k: contador++, ubic: de?.ubic ?? "", sku: "", estibas: "", motivo: de?.motivo ?? "" }), []);
+  useEffect(() => { if (ajustes.length === 0) setAjustes([nuevoAjuste()]) }, [ajustes.length, nuevoAjuste]);
+  const ponerAj = (k: number, c: Partial<LineaAjuste>) => setAjustes((ls) => ls.map((l) => (l.k === k ? { ...l, ...c } : l)));
+  const problemaAjuste = (l: LineaAjuste): string | null => {
+    if (!l.ubic) return "Falta el almacén";
+    if (!l.sku.trim()) return "Falta el material";
+    if (!dato[l.sku.trim()]) return todos[l.sku.trim()] ? "Ese código es un producto, no un envase" : "Ese código no está en el maestro";
+    if (!(Number(l.estibas.replace(",", ".")) > 0)) return "Falta la cantidad";
+    if (!dato[l.sku.trim()]?.hl_estiba) return "Al maestro le falta botellas por estiba o HL";
+    return null;
+  };
+  const ajLlenas = ajustes.filter((l) => l.ubic || l.sku.trim() || l.estibas.trim());
+  const ajMal = ajLlenas.filter((l) => problemaAjuste(l));
+  const registrarAjustes = async () => {
+    if (!ajLlenas.length || ajMal.length || guardando) return;
+    const ok = await pedir({
+      titulo: `¿Registrar ${ajLlenas.length} ajuste${ajLlenas.length === 1 ? "" : "s"}?`,
+      dice: (<>
+        Fecha <b>{corto(fecha)}</b>. Cada línea <b>resta</b> esas estibas del Inventario casco de vidrio de su almacén en Control.
+        Se puede deshacer después desde «Movimientos registrados».
+      </>),
+      confirmar: "Registrar ajuste", cancelar: "Cancelar",
+    });
+    if (!ok) return;
+    setGuardando(true); setAviso(null);
+    const { error } = await supabase.rpc("casco_ajuste_registrar", {
+      p_fecha: fecha,
+      p_filas: ajLlenas.map((l) => ({ ubicacion: l.ubic, sku: l.sku.trim(), estibas: Number(l.estibas.replace(",", ".")), motivo: l.motivo.trim() })),
+    });
+    setGuardando(false);
+    if (error) {
+      setAviso({ tipo: "mal", texto: /casco_ajuste_registrar|PGRST202|could not find the function/i.test(error.message)
+        ? "Falta correr supabase/migraciones/2026-10-casco-ajuste.sql en Supabase." : traducirError(error.message) });
+      return;
+    }
+    setAviso({ tipo: "ok", texto: `Listo: ${ajLlenas.length} ajuste${ajLlenas.length === 1 ? "" : "s"} registrado${ajLlenas.length === 1 ? "" : "s"} el ${corto(fecha)}. Ya se restó en Control.` });
+    setAjustes([nuevoAjuste()]);
+    void cargarMovs();
+  };
+
   const quitar = async (m: Mov) => {
     const ok = await pedir({
       titulo: `¿Deshacer este movimiento de ${m.sku}?`,
@@ -201,7 +249,7 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
       "FECHA": m.fecha.split("-").reverse().map((x, i) => (i === 2 ? x : String(Number(x)))).join("/"),
       "ALM ORIGEN": m.origen, "ALM RECEPTOR // CLIENTE": m.destino, "MATERIAL": m.sku,
       "DESCRIPCION DEL MATERIAL": m.descripcion, "CANTIDAD (EST)": m.estibas,
-      "N° ENTREGA": m.entrega ?? "", "PLACA": m.placa ?? "",
+      "N° ENTREGA": m.entrega ?? (m.ajuste && m.motivo ? `Ajuste: ${m.motivo}` : ""), "PLACA": m.placa ?? "",
       "DESCUENTA INVENTARIO": m.afecta ? "SI" : "NO",
     }));
     const hoja = XLSX.utils.json_to_sheet(filas);
@@ -221,6 +269,7 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
 
       <div className="reg-hojas reg-sub" role="tablist" aria-label="Movimiento">
         <button type="button" role="tab" aria-selected={vista === "registrar"} className={vista === "registrar" ? "on" : ""} onClick={() => setVista("registrar")}>Registrar</button>
+        <button type="button" role="tab" aria-selected={vista === "ajuste"} className={vista === "ajuste" ? "on" : ""} onClick={() => setVista("ajuste")}>Ajuste por almacén</button>
         <button type="button" role="tab" aria-selected={vista === "historial"} className={vista === "historial" ? "on" : ""} onClick={() => setVista("historial")}>
           Movimientos registrados{movs !== null && <em>{movs.length}</em>}
         </button>
@@ -319,6 +368,80 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
       </section>
       )}
 
+      {/* ---------------- AJUSTE POR ALMACÉN ---------------- */}
+      {vista === "ajuste" && (
+      <section className="cas-bloque reg-compacto">
+        <p className="cas-nota">
+          Para <b>restar</b> del inventario de casco de un almacén: escoge el almacén, el material y las estibas. Resta del
+          «Inventario casco de vidrio» de esa tabla en Control el día escogido. El motivo es opcional.
+        </p>
+        <label className="cas-c reg-dia">
+          <span>Fecha del ajuste</span>
+          <input type="date" value={fecha} max={hoy} disabled={!puedeEditar || guardando}
+                 onChange={(e) => { if (e.target.value) setFecha(e.target.value) }} />
+        </label>
+        <div className="cas-tabla-caja reg-tabla-alta">
+          <table className="cas-tabla reg-lineas">
+            <thead>
+              <tr><th>Almacén</th><th>Material</th><th>Descripción</th><th className="n">Cantidad a restar (est)</th><th>Motivo</th><th>Efecto en Control</th><th /></tr>
+            </thead>
+            <tbody>
+              {ajustes.map((l) => {
+                const p = (l.ubic || l.sku || l.estibas) ? problemaAjuste(l) : null;
+                const n = Number(l.estibas.replace(",", "."));
+                const s = sitioPorClave[l.ubic];
+                return (
+                  <tr key={l.k}>
+                    <td>
+                      <select className="cas-txt" value={l.ubic} disabled={!puedeEditar} onChange={(e) => ponerAj(l.k, { ubic: e.target.value })}>
+                        <option value="">Almacén…</option>
+                        {sitios.map((x) => <option key={x.clave} value={x.clave}>{x.nombre}</option>)}
+                      </select>
+                    </td>
+                    <td>
+                      <input className="cas-txt reg-sku" list="reg-materiales" inputMode="numeric" placeholder="Código" value={l.sku}
+                             disabled={!puedeEditar} onChange={(e) => ponerAj(l.k, { sku: e.target.value })} />
+                    </td>
+                    <td className="tex">{dato[l.sku.trim()]?.nombre ?? <span className="reg-tenue">{!l.sku.trim() ? "—" : todos[l.sku.trim()] ? "Es producto, no envase" : "No está en el maestro"}</span>}</td>
+                    <td className="n">
+                      <input className="cas-txt reg-num" inputMode="decimal" placeholder="0" value={l.estibas}
+                             disabled={!puedeEditar} onChange={(e) => ponerAj(l.k, { estibas: e.target.value })} />
+                    </td>
+                    <td><input className="cas-txt reg-ent" placeholder="Opcional" value={l.motivo} maxLength={200} disabled={!puedeEditar} onChange={(e) => ponerAj(l.k, { motivo: e.target.value })} /></td>
+                    <td>
+                      {s && n > 0 ? <span className="reg-etq">{s.centro ?? s.nombre} −{nf2.format(n)}</span> : <span className="reg-tenue">—</span>}
+                      {p && <em className="cas-mal">{p}</em>}
+                    </td>
+                    <td className="x">
+                      {puedeEditar && ajustes.length > 1 && (
+                        <button type="button" aria-label="Quitar esta línea" title="Quitar la línea" onClick={() => setAjustes((ls) => ls.filter((x) => x.k !== l.k))}>×</button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {puedeEditar && (
+          <div className="reg-botones">
+            <button type="button" className="btn" onClick={() => setAjustes((ls) => [...ls, nuevoAjuste(ls[ls.length - 1])])}>Agregar línea</button>
+            <span className="cas-nota">La línea nueva copia el almacén y el motivo de la anterior.</span>
+          </div>
+        )}
+        <div className="cas-pie-bloque">
+          {puedeEditar ? (
+            <button type="button" className="btn grande" disabled={!ajLlenas.length || ajMal.length > 0 || guardando} onClick={() => void registrarAjustes()}>
+              {guardando ? "Registrando…"
+                : !ajLlenas.length ? "Llena al menos una línea"
+                : ajMal.length ? `Revisa ${ajMal.length} línea${ajMal.length === 1 ? "" : "s"}`
+                : `Registrar ${ajLlenas.length} ajuste${ajLlenas.length === 1 ? "" : "s"}`}
+            </button>
+          ) : <p className="cas-nota">Tu rol puede ver los movimientos pero no registrar ajustes.</p>}
+        </div>
+      </section>
+      )}
+
       {/* ---------------- EL HISTORIAL ---------------- */}
       {vista === "historial" && (
       <section className="cas-bloque reg-compacto">
@@ -371,7 +494,7 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
                 <tr key={m.id}>
                   <td>{corto(m.fecha)}</td>
                   <td>{m.origen}</td>
-                  <td>{m.destino}</td>
+                  <td>{m.ajuste ? <><span className="reg-etq baja">Ajuste</span>{m.motivo && <small className="reg-tenue"> {m.motivo}</small>}</> : m.destino}</td>
                   <td className="cod">{m.sku}</td>
                   <td>{m.descripcion}</td>
                   <td className="n est">{nf2.format(m.estibas)}</td>
