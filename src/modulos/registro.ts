@@ -706,6 +706,9 @@ export const MODULOS: Modulo[] = [
       { nombre: "Base", ruta: "/inventario/balance/pasivos", rama: "balance", grupo: "Pasivos" },
       { nombre: "Informe", ruta: "/inventario/balance/pasivos/informe", rama: "balance", grupo: "Pasivos" },
       { nombre: "Maestro", ruta: "/inventario/balance/pasivos/maestro", rama: "balance", grupo: "Pasivos" },
+      /* ANÁLISIS DE DIFERENCIA (2026.10.14_BODEGA_38.xlsx): la hoja que abarca todo, CONTEO vs SAP de Bodega 38.
+         Va al final: usa el conteo, los cortes, Pasivos y el Cuadre SAP. */
+      { nombre: "Análisis de diferencia", ruta: "/inventario/balance/analisis", rama: "balance" },
     ],
   },
 ];
