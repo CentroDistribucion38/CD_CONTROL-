@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { esAmbitoExcluidos, porDefecto } from "@/modulos/pasivos/excluidos";
+import { estaBalanceada } from "@/modulos/inventario/cuadre";
 import { armarCuadre, esAlmacen, type Almacen, type BalanceoGuardado, type MovFila, type ZexiFila } from "@/modulos/inventario/cuadre";
 
 const SQL_OTROS = "Falta correr supabase/migraciones/2026-10-cuadre-sap-otros.sql en Supabase.";
@@ -101,12 +102,12 @@ export async function guardarBalanceo(fecha: string, almacen?: string) {
     resumen: {
       materiales: c.filas.length, conSap: conSap.length, conMov: !!g.movimientos?.length,
       cuadran: conSap.filter((f) => cero(f.dif)).length,
-      balanceados: conSap.filter((f) => cero(f.queda)).length,
-      pendientes: conSap.filter((f) => !cero(f.queda)).length,
+      balanceados: conSap.filter((f) => estaBalanceada(f)).length,
+      pendientes: conSap.filter((f) => !estaBalanceada(f)).length,
       entran: conSap.filter((f) => !cero(f.dif) && (f.dif ?? 0) < 0).length,
       salen: conSap.filter((f) => !cero(f.dif) && (f.dif ?? 0) > 0).length,
     },
-    filas: c.filas.map(({ grupo, codigo, material, total, sap, dif, movido, sapDespues, queda }) => ({ grupo, codigo, material, total, sap, dif, movido, sapDespues, queda })),
+    filas: c.filas.map(({ grupo, codigo, material, total, sap, dif, movido, sapDespues, queda, enLibre }) => ({ grupo, codigo, material, total, sap, dif, movido, sapDespues, queda, enLibre: enLibre ?? null })),
     aplicados: c.aplicados,
     zexi_archivo: g.zexi_archivo, mov_archivo: g.mov_archivo, estibas_almacen: g.estibas_almacen, sumar_pend_baja: g.sumar_pend_baja,
   };

@@ -101,9 +101,24 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
   const conDif = filas.filter((f) => f.dif != null);
   const entran = conDif.filter((f) => !cero(f.dif) && f.dif! < 0);
   const salen = conDif.filter((f) => !cero(f.dif) && f.dif! > 0);
+  /* «Me dice que del 18 al 22 debo pasar 312 del 3500888, pero lo tengo en BLOQUEADO: que me diga que
+     primero haga el 343 por esa cantidad y luego lo mueva al 22.» Lo que sale de AG18 y no alcanza con
+     lo libre: primero 343 (Bloqueado → Libre) por lo que falta (hasta lo bloqueado). `dif` = esa cantidad. */
+  const del343 = esAG22 ? [] : salen.flatMap((f) => {
+    if (f.libre == null || !f.bloqueado) return [];
+    const falta = Math.min(Math.abs(f.dif!) - f.libre, f.bloqueado);
+    return falta > 0 ? [{ ...f, dif: falta }] : [];
+  });
+  const sinReparto = !esAG22 && salen.some((f) => f.libre == null);
+  /* Y AL REVÉS: lo que ENTRA a AG18 por el 311 llega en libre utilización; el envase de AG18 va bloqueado:
+     después del 311, 344 (Libre → Bloqueado) por lo que entra + lo que ya estaba libre. Solo envase. */
+  const del344 = esAG22 ? [] : entran.filter((f) => f.grupo === "ENVASE").map((f) => ({ ...f, dif: Math.abs(f.dif!) + Math.max(f.libre ?? 0, 0) }));
   const cuadran = conDif.filter((f) => cero(f.dif));
-  const balanceados = filas.filter((f) => cero(f.queda));
-  const pendientes = filas.filter((f) => f.queda != null && !cero(f.queda));
+  /* «Lo que quedó en el 18, cuando suba la ZEXI, me debe cuadrar con el BLOQUEADO: no puede quedar como
+     libre utilización.» Un envase de AG18 con algo en libre no está balanceado: falta el 344. */
+  const ok = (f: { queda: number | null; enLibre?: number | null }) => cero(f.queda) && !((f.enLibre ?? 0) > 0.005);
+  const balanceados = filas.filter((f) => f.queda != null && ok(f));
+  const pendientes = filas.filter((f) => f.queda != null && !ok(f));
   const cajasOtros = otros.reduce((t, o) => t + o.cajas, 0);
   const otrosSinCambiar = otros.filter((o) => !o.elegido).length;
   const nombreDe = (c: string) => envases.find((e) => e.codigo === c)?.material ?? c;
@@ -127,8 +142,12 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
     if (!z.error && z.filas.length) {
       const antes = new Map((guardado?.zexi ?? []).map((x) => [String(x.codigo), Number(x.cantidad) || 0]));
       const ahora = new Map(z.filas.map((x) => [String(x.codigo), Number(x.cantidad) || 0]));
+      const reparto = new Map(z.filas.map((x) => [String(x.codigo), x]));
       const movs = [...new Set([...antes.keys(), ...ahora.keys()])]
-        .map((c) => ({ codigo: c, cantidad: (ahora.get(c) ?? 0) - (antes.get(c) ?? 0), documentos: [`ZEXI nueva · ${a.name}`] }));
+        .map((c) => ({ codigo: c, cantidad: (ahora.get(c) ?? 0) - (antes.get(c) ?? 0), documentos: [`ZEXI nueva · ${a.name}`],
+          /* Cómo quedó repartido (si la ZEXI lo trae): para saber si algo quedó en libre. */
+          ...(reparto.get(c)?.libre != null ? { libre: reparto.get(c)!.libre ?? 0, bloqueado: reparto.get(c)!.bloqueado ?? 0 }
+            : ahora.has(c) || esAG22 ? {} : { libre: 0, bloqueado: 0 }) }));
       hacer(guardarMovimientos(fecha!, JSON.stringify(movs), a.name, ALM), `ZEXI nueva cargada: ${z.filas.length} materiales. Abajo está cómo quedó.`);
       return;
     }
@@ -432,8 +451,28 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
           <h2 className="cs-h"><i>2</i> Qué hacer en SAP {esAG22 ? "(de libre a bloqueado, o al revés, en AG22)" : "(movimiento 311)"}</h2>
           {entran.length + salen.length === 0 ? <p className="cs-msg">Todo cuadra: no hay nada que mover en SAP.</p> : (
             <div className="cs-dos">
-              <div className="cs-caja r"><h3>{esAG22 ? "Pasar de Libre a Bloqueado (Mov 344)" : `Pasar de ${OTRO} a ${ALM}`} {cabezaLista(entran, "entran")}</h3>{entran.length ? documentos(entran, "entran") : <p className="cs-vacio">Nada.</p>}</div>
-              <div className="cs-caja a"><h3>{esAG22 ? "Pasar de Bloqueado a Libre (Mov 343)" : `Pasar de ${ALM} a ${OTRO}`} {cabezaLista(salen, "salen")}</h3>{salen.length ? documentos(salen, "salen") : <p className="cs-vacio">Nada.</p>}</div>
+              <div className="cs-caja r"><h3>{esAG22 ? "Pasar de Libre a Bloqueado (Mov 344)" : `Pasar de ${OTRO} a ${ALM}`} {cabezaLista(entran, "entran")}</h3>
+                {entran.length ? documentos(entran, "entran") : <p className="cs-vacio">Nada.</p>}
+                {del344.length > 0 && (
+                  <div className="cs-antes azul">
+                    <p className="cs-antes-t"><b>Después, en {ALM}: Mov 344 (Libre → Bloqueado)</b>
+                      <span>El 311 deja el envase en <b>libre utilización</b> en {ALM}, y aquí va <b>bloqueado</b>. Bloquea estas cantidades
+                        (lo que entra{del344.some((f) => (f.libre ?? 0) > 0) ? " + lo que ya estaba en libre" : ""}) antes de bajar la ZEXI nueva.</span></p>
+                    {documentos(del344, "entran344")}
+                  </div>
+                )}
+              </div>
+              <div className="cs-caja a"><h3>{esAG22 ? "Pasar de Bloqueado a Libre (Mov 343)" : `Pasar de ${ALM} a ${OTRO}`} {cabezaLista(salen, "salen")}</h3>
+                {del343.length > 0 && (
+                  <div className="cs-antes">
+                    <p className="cs-antes-t"><b>Primero, en {ALM}: Mov 343 (Bloqueado → Libre)</b>
+                      <span>{del343.length === 1 ? "Este material está" : "Estos materiales están"} en <b>bloqueado</b> en SAP y lo libre no alcanza para el 311. Haz el 343 por estas cantidades y después el 311 de abajo.</span></p>
+                    {documentos(del343, "salen343")}
+                  </div>
+                )}
+                {sinReparto && salen.length > 0 && <p className="cs-nota">La ZEXI guardada no dice cuánto está libre o bloqueado: vuelve a subirla para saber si algo necesita 343 antes.</p>}
+                {salen.length ? <>{del343.length > 0 && <p className="cs-antes-311">Luego, el 311 de {ALM} a {OTRO}:</p>}{documentos(salen, "salen")}</> : <p className="cs-vacio">Nada.</p>}
+              </div>
             </div>
           )}
           <div className="cs-subir">
@@ -460,22 +499,24 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
             <div><span>Balanceados</span><b className="bien">{balanceados.length} de {filas.filter((f) => f.queda != null).length}</b></div>
             <div><span>Pendientes</span><b className={pendientes.length ? "mal" : "bien"}>{pendientes.length}</b></div>
           </div>
-          {pendientes.length === 0 && <p className="cs-msg bien">Todo quedó balanceado: el SAP de {ALM}{esAG22 ? " (bloqueado)" : ""} es igual {esAG22 ? "a la base" : "al conteo"}.</p>}
+          {pendientes.length === 0 && <p className="cs-msg bien">Todo quedó balanceado: el SAP de {ALM}{esAG22 ? " (bloqueado)" : ""} es igual {esAG22 ? "a la base" : "al conteo"}{esAG22 ? "" : " y el envase quedó todo en bloqueado"}.</p>}
+          {!esAG22 && filas.some((f) => (f.enLibre ?? 0) > 0.005) && <p className="cs-msg mal">Hay envase que quedó en <b>libre utilización</b> en {ALM}: haz el 344 (Libre → Bloqueado) por esa cantidad y vuelve a subir la ZEXI.</p>}
           <div className="cs-scroll">
             <table className="cs-t">
               <thead><tr><th>Código</th><th>Material</th><th className="n">{esAG22 ? "Base" : "Conteo"}</th><th className="n">SAP antes</th><th className="n">Diferencia</th>
                 <th className="n">Cambio en SAP</th><th className="n">SAP después</th><th className="n">Queda</th><th>Estado</th></tr></thead>
               <tbody>
                 {filas.filter((f) => f.sap != null).map((f) => (
-                  <tr key={f.codigo} className={cero(f.queda) ? "" : "pend"}>
+                  <tr key={f.codigo} className={ok(f) ? "" : "pend"}>
                     <td className="mono">{f.codigo}</td><td>{f.material}</td>
                     <td className="n">{n(f.total)}</td><td className="n">{n(f.sap!)}</td>
                     <td className="n">{cero(f.dif) ? "0" : conSigno(f.dif!)}</td>
                     <td className="n">{f.movido ? <>{n(Math.abs(f.movido))} <em>{f.movido > 0 ? ENTRA : SALE}</em></> : "—"}</td>
                     <td className="n">{n(f.sapDespues!)}</td>
                     <td className="n"><b>{cero(f.queda) ? "0" : conSigno(f.queda!)}</b></td>
-                    <td>{cero(f.queda) ? <span className="cs-chip ok">Balanceado</span>
-                      : <span className="cs-chip in">Falta {n(Math.abs(f.queda!))} {f.queda! < 0 ? ENTRA : SALE}</span>}</td>
+                    <td>{!cero(f.queda) ? <span className="cs-chip in">Falta {n(Math.abs(f.queda!))} {f.queda! < 0 ? ENTRA : SALE}</span>
+                      : (f.enLibre ?? 0) > 0.005 ? <span className="cs-chip in" title="En AG18 el envase va bloqueado">Quedó {n(f.enLibre!)} en libre · falta 344</span>
+                      : <span className="cs-chip ok">Balanceado</span>}</td>
                   </tr>
                 ))}
               </tbody>
@@ -535,13 +576,15 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                       <table className="cs-t chica">
                         <thead><tr><th>Código</th><th>Material</th><th className="n">{h.almacen === "AG22" ? "Base" : "Conteo"}</th><th className="n">SAP antes</th><th className="n">{h.almacen === "AG22" ? "Diferencia" : "311"}</th><th className="n">SAP después</th><th className="n">Queda</th><th>Estado</th></tr></thead>
                         <tbody>{h.cierre.filas.filter((f) => f.sap != null).map((f) => (
-                          <tr key={f.codigo} className={cero(f.queda) ? "" : "pend"}>
+                          <tr key={f.codigo} className={ok(f) ? "" : "pend"}>
                             <td className="mono">{f.codigo}</td><td>{f.material}</td>
                             <td className="n">{n(f.total)}</td><td className="n">{n(f.sap!)}</td>
                             <td className="n">{cero(f.dif) ? "0" : conSigno(f.dif!)}</td>
                             <td className="n">{f.sapDespues == null ? "—" : n(f.sapDespues)}</td>
                             <td className="n"><b>{cero(f.queda) ? "0" : conSigno(f.queda!)}</b></td>
-                            <td>{cero(f.queda) ? <span className="cs-chip ok">Balanceado</span> : <span className="cs-chip in">Falta {n(Math.abs(f.queda!))}</span>}</td>
+                            <td>{!cero(f.queda) ? <span className="cs-chip in">Falta {n(Math.abs(f.queda!))}</span>
+                              : (f.enLibre ?? 0) > 0.005 ? <span className="cs-chip in">{n(f.enLibre!)} en libre · falta 344</span>
+                              : <span className="cs-chip ok">Balanceado</span>}</td>
                           </tr>
                         ))}</tbody>
                       </table>

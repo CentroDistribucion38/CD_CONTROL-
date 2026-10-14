@@ -48,7 +48,8 @@ export async function leerZexi(archivo: File, almacen: string, campo: "total" | 
   const cBloq = col(h.t, /bloq/);
   if (campo === "bloqueado" && cBloq < 0) return { filas: [], error: "Para AG22 el ZEXI debe traer la columna «Bloqueado»." };
   const cTot = campo === "bloqueado" ? cBloq : col(h.t, /^total/);
-  const cPartes = [col(h.t, /libre/), col(h.t, /control/), col(h.t, /bloq/)].filter((x) => x >= 0);
+  const cLib = col(h.t, /libre/), cCal = col(h.t, /control/);
+  const cPartes = [cLib, cCal, cBloq].filter((x) => x >= 0);
   if (cTot < 0 && !cPartes.length) return { filas: [], error: "No encontré la cantidad: el ZEXI debe traer «Total General» (o Libre utiliz., In control-cal y Bloqueado)." };
   const suma = new Map<string, ZexiFila>();
   for (const f of filas.slice(h.i + 1)) {
@@ -57,7 +58,15 @@ export async function leerZexi(archivo: File, almacen: string, campo: "total" | 
     const q = cTot >= 0 ? num(f[cTot]) : cPartes.reduce((t, i) => t + (num(f[i]) || 0), 0);
     if (!Number.isFinite(q)) continue;
     const x = suma.get(c) ?? { codigo: c, descripcion: cDes >= 0 ? txt(f[cDes]) : "", cantidad: 0 };
-    x.cantidad += q; suma.set(c, x);
+    x.cantidad += q;
+    /* Cómo está repartido (Libre · Control de calidad · Bloqueado): el paso 2 avisa si lo que hay que
+       sacar de AG18 está bloqueado (primero un 343). */
+    if (campo === "total") {
+      if (cLib >= 0) x.libre = (x.libre ?? 0) + (num(f[cLib]) || 0);
+      if (cCal >= 0) x.calidad = (x.calidad ?? 0) + (num(f[cCal]) || 0);
+      if (cBloq >= 0) x.bloqueado = (x.bloqueado ?? 0) + (num(f[cBloq]) || 0);
+    }
+    suma.set(c, x);
   }
   if (!suma.size) return { filas: [], error: `El ZEXI no trae materiales de ${almacen}.` };
   return { filas: [...suma.values()] };

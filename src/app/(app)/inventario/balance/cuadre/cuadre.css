@@ -221,3 +221,15 @@
   .cs .cs-exc-tags { grid-column: 2 / -1; justify-content: flex-start }
   .cs .cs-exc-herr, .cs .cs-exc-pie { padding-left: 12px; padding-right: 12px }
 }
+
+/* ===== Antes del 311: el 343 (Bloqueado → Libre) de lo que sale de AG18 y está bloqueado ===== */
+.cs .cs-antes { margin: 10px 12px; border: 1px solid #E4002B; border-left: 4px solid #E4002B; background: #FFF6F7 }
+.cs .cs-antes-t { margin: 0; padding: 9px 12px; display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: var(--fe-tinta) }
+.cs .cs-antes-t b { color: #A50D25 }
+.cs .cs-antes-t span { color: var(--fe-gris) }
+.cs .cs-antes-t span b { color: var(--fe-tinta) }
+.cs .cs-antes .cs-doc { background: #fff }
+.cs .cs-antes-311 { margin: 4px 12px 0; font: 700 12px var(--fe-texto); letter-spacing: .06em; text-transform: uppercase; color: var(--fe-gris) }
+.cs .cs-antes.azul { border-color: #0B4EA2; background: #F2F6FC }
+.cs .cs-antes.azul .cs-antes-t b { color: #0B4EA2 }
+.cs .cs-antes.azul .cs-antes-t span b { color: var(--fe-tinta) }

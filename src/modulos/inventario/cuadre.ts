@@ -40,8 +40,12 @@ const esOtros = (e: string | null | undefined) => /OTRO/i.test(e ?? "");
    850 (3501539) va en la caja 1000 x13 (3501211), pero su caja no entra al conteo de esa caja. */
 const CAJA_FUERA_DEL_CUADRE = new Set(["3501539"]);
 
-export type ZexiFila = { codigo: string; descripcion: string; cantidad: number };
-export type MovFila = { codigo: string; cantidad: number; documentos: string[] };
+export type ZexiFila = { codigo: string; descripcion: string; cantidad: number;
+  /** Cómo está repartido en SAP (si el ZEXI trae las columnas): para saber si algo que hay que sacar está bloqueado. */
+  libre?: number; calidad?: number; bloqueado?: number };
+export type MovFila = { codigo: string; cantidad: number; documentos: string[];
+  /** Con la ZEXI nueva: cómo quedó repartido (para ver si algo quedó en libre y falta el 344). */
+  libre?: number; bloqueado?: number };
 export type CuadreGuardado = {
   fecha: string; almacen: string;
   estibas_almacen: number | null; sumar_pend_baja: boolean;
@@ -56,7 +60,10 @@ export type CuadreGuardado = {
 /** conMov = false: guardado HASTA EL PASO 2 (se sabe qué mover en SAP, falta la ZEXI nueva para validar). */
 export type ResumenBalanceo = { materiales: number; conSap: number; cuadran: number; balanceados: number; pendientes: number; conMov: boolean;
   entran?: number; salen?: number };
-export type FilaGuardada = Pick<FilaCuadre, "grupo" | "codigo" | "material" | "total" | "sap" | "dif" | "movido" | "sapDespues" | "queda">;
+export type FilaGuardada = Pick<FilaCuadre, "grupo" | "codigo" | "material" | "total" | "sap" | "dif" | "movido" | "sapDespues" | "queda" | "enLibre">;
+/** Balanceado = queda en 0 y (en AG18, envase) nada quedó en libre utilización. */
+export const estaBalanceada = (f: { queda: number | null; enLibre?: number | null }) =>
+  f.queda != null && Math.abs(f.queda) < 0.005 && !((f.enLibre ?? 0) > 0.005);
 export type BalanceoGuardado = {
   resumen: ResumenBalanceo; filas: FilaGuardada[]; aplicados: Aplicado[];
   zexi_archivo: string | null; mov_archivo: string | null; estibas_almacen: number | null; sumar_pend_baja: boolean;
@@ -89,6 +96,11 @@ export type FilaCuadre = {
   partes?: Record<string, number>;
   total: number;
   sap: number | null;
+  /** Del ZEXI: lo libre y lo bloqueado (null si el ZEXI guardado no lo trae). */
+  libre?: number | null; bloqueado?: number | null;
+  /** AG18, envase: lo que quedó en LIBRE en la ZEXI nueva. En AG18 el envase va BLOQUEADO: si queda algo
+   *  en libre, falta el 344 (Libre → Bloqueado) y no está balanceado. */
+  enLibre?: number | null;
   /** SAP − total (el 311 que hay que hacer). null si no hay ZEXI. */
   dif: number | null;
   /** Lo movido en SAP (neto en AG18: + entra, − sale). */
@@ -245,13 +257,18 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
     const pendBaja = grupo === "ENVASE" ? a.pend : 0;
     const total = redondo(conteo + (sumarPend ? pendBaja : 0) + a.lav + a.andina + almacen);
     const z = sap.get(a.codigo), m = mov.get(a.codigo);
-    const sapV = z ? Number(z.cantidad) : null;
+    /* «Lo que no tiene SAP me tiene que decir que del 22 debo pasarlo al 18, ya que allá no tiene»: con ZEXI
+       cargado, un material que no viene en él es 0 en SAP (no «sin dato»), y entra a la lista del 311 / 344. */
+    const sapV = z ? Number(z.cantidad) : (guardado?.zexi?.length ? 0 : null);
     const movido = m ? Number(m.cantidad) : 0;
     const dif = sapV == null ? null : redondo(sapV - total);
     const sapDespues = sapV == null ? null : redondo(sapV + movido);
     const queda = sapDespues == null ? null : redondo(sapDespues - total);
     return { grupo, codigo: a.codigo, material: a.material, conteo: redondo(conteo), detalle, pendBaja, lavadoBaja: a.lav, andina: a.andina,
-      almacen, otrosCajas: grupo === "ENVASE" ? a.otrosCajas : 0, upc: grupo === "ENVASE" ? upc(a.codigo) : 1, total, sap: sapV, dif, movido, documentos: m?.documentos ?? [], sapDespues, queda };
+      almacen, otrosCajas: grupo === "ENVASE" ? a.otrosCajas : 0, upc: grupo === "ENVASE" ? upc(a.codigo) : 1, total, sap: sapV,
+      libre: z?.libre ?? null, bloqueado: z?.bloqueado ?? null,
+      enLibre: grupo === "ENVASE" && m?.libre != null ? redondo(m.libre) : null,
+      dif, movido, documentos: m?.documentos ?? [], sapDespues, queda };
   })
     /* Lo que no tiene nada en ningún lado no se lista. */
     .filter((f) => f.total !== 0 || (f.sap ?? 0) !== 0 || f.movido !== 0 || f.codigo === ESTIBA)
@@ -368,7 +385,9 @@ async function armarCuadreAG22(pedida?: string | null) {
     const grupo = grupoDe(a.codigo);
     const total = redondo(Object.values(a.partes).reduce((t, v) => t + v, 0));
     const z = sap.get(a.codigo), m = mov.get(a.codigo);
-    const sapV = z ? Number(z.cantidad) : null;
+    /* «Lo que no tiene SAP me tiene que decir que del 22 debo pasarlo al 18, ya que allá no tiene»: con ZEXI
+       cargado, un material que no viene en él es 0 en SAP (no «sin dato»), y entra a la lista del 311 / 344. */
+    const sapV = z ? Number(z.cantidad) : (guardado?.zexi?.length ? 0 : null);
     const movido = m ? Number(m.cantidad) : 0;
     const dif = sapV == null ? null : redondo(sapV - total);
     const sapDespues = sapV == null ? null : redondo(sapV + movido);
