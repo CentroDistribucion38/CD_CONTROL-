@@ -21,14 +21,32 @@ export async function traerDelBalance(fecha: string, casco?: string | null) {
   if (count) return { error: `El ${fecha.split("-").reverse().join("/")} ya está cargado tal cual tu Excel (histórico). No se trae del balance para no duplicarlo.` };
   const { filas, sinFactor, excluidos, error } = await balanceParaPasivos(fecha, casco);
   if (error && !filas.length) return { error };
+  /* ¿Es la primera vez que se trae este día? (para el descuento estándar, abajo) */
+  const { count: yaHabia } = await supabase.from("pasivos_base").select("id", { count: "exact", head: true }).eq("fecha", fecha).eq("origen", "balance");
   const { error: eB } = await supabase.from("pasivos_base").delete().eq("fecha", fecha).eq("origen", "balance");
   if (eB) return { error: eB.message };
   if (filas.length) {
     const { error: eI } = await supabase.from("pasivos_base").insert(filas.map((f) => ({ ...f, origen: "balance" })));
     if (eI) return { error: eI.message };
   }
+  /* EL DESCUENTO ESTÁNDAR VA MARCADO SIEMPRE: «que siempre esté seleccionado; no estará a menos que lo
+     deseleccione». La primera vez que se trae un día, se pone solo (216.296 u a 3500005 en AG22). Si el
+     día ya se había traído y no tiene el descuento, es que alguien lo quitó: no se vuelve a poner. */
+  let descuento = false;
+  if (!yaHabia) {
+    const d = DESCUENTO_ESTANDAR;
+    const { count: tiene } = await supabase.from("pasivos_base").select("id", { count: "exact", head: true })
+      .eq("fecha", fecha).eq("codigo", d.codigo).eq("almacen", d.almacen).eq("origen", "manual").like("nota", `${d.nota}%`);
+    if (!tiene) {
+      const { error: eD } = await supabase.from("pasivos_base").insert({
+        fecha, estado: d.estado, causal: d.causal, codigo: d.codigo, unidades: -Math.abs(d.unidades),
+        almacen: d.almacen, origen: "manual", nota: d.nota,
+      });
+      descuento = !eD;
+    }
+  }
   revalidatePath(RUTA);
-  return { ok: true, filas: filas.length, sinFactor, excluidos };
+  return { ok: true, filas: filas.length, sinFactor, excluidos, descuento };
 }
 
 /**

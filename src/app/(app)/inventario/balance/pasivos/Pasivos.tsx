@@ -146,7 +146,8 @@ export function Pasivos({ filas, error, desde, hasta, dias, diasConteo, codigos,
       const r = await traerDelBalance(diaBal);
       if ("error" in r && r.error) { setAviso({ tipo: "mal", texto: r.error }); return }
       const sf = ("sinFactor" in r && r.sinFactor?.length ? ` Sin factor de caja (no entraron): ${r.sinFactor.join(", ")}.` : "")
-        + ("excluidos" in r && r.excluidos?.length ? ` No van en Pasivos (envases nuevos / estiba): ${r.excluidos.join(", ")}.` : "");
+        + ("excluidos" in r && r.excluidos?.length ? ` No van en Pasivos (envases nuevos / estiba): ${r.excluidos.join(", ")}.` : "")
+        + ("descuento" in r && r.descuento ? ` Se puso el descuento estándar de ${DE.codigo} (${n0(DE.unidades)} u en ${DE.almacen}).` : "");
       setAviso({ tipo: "ok", texto: `Del balance del ${ddmmaaaa(diaBal)}: ${"filas" in r ? r.filas : 0} filas (reemplazan lo que se había traído ese día).${sf}` });
       if (diaBal < desde || diaBal > hasta) ir(diaBal, diaBal);
     });
