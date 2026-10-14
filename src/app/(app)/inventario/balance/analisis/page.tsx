@@ -25,15 +25,16 @@ const FUENTES: Fuente[] = [
   { renglon: "PEND BAJA PRESORTING", lado: "CONTEO", deDonde: "Pasivos AG22 · causal PRESORTING.", estado: "ok" },
   { renglon: "PEND BAJA ROTURA LÍNEA", lado: "CONTEO", deDonde: "Pasivos AG22 · causal ROTURA DE LINEA.", estado: "ok" },
   { renglon: "CON BAJA EXTRASUCIO", lado: "CONTEO", deDonde: "Pasivos AG22 · causal EXTRASUCIO.", estado: "ok" },
-  { renglon: "BALANCE (lo que sale)", lado: "CONTEO", deDonde: "Cuadre SAP AG18 · paso 2 · «Pasar de AG22 a AG18»: lo que se movió después de la ZEXI de las 6.", estado: "ok" },
-  { renglon: "SINIESTRO", lado: "CONTEO", deDonde: "Plantilla de novedades.", estado: "falta" },
-  { renglon: "FAC PROVEEDOR", lado: "CONTEO", deDonde: "Plantilla de novedades.", estado: "falta" },
-  { renglon: "BAJA PENDIENTE POR DISPOSICIÓN", lado: "CONTEO", deDonde: "Plantilla de novedades.", estado: "falta" },
-  { renglon: "BAJA (otra)", lado: "CONTEO", deDonde: "Plantilla de novedades.", estado: "falta" },
-  { renglon: "ZEXI de las 6 a. m.", lado: "SAP", deDonde: "La ZEXI de Bodega 38 descargada a las 6, ANTES de balancear (Total General por código).", estado: "parcial",
-    nota: "Hoy se sube por almacén en el Cuadre SAP (AG22 solo guarda el Bloqueado). Falta subir la completa: si se descarga después, ya no sirve." },
-  { renglon: "BALANCE (lo que entra)", lado: "SAP", deDonde: "Cuadre SAP AG18 · paso 2 · «Pasar de AG18 a AG22».", estado: "ok" },
-  { renglon: "PEND NOVEDADES CD", lado: "SAP", deDonde: "Plantilla de novedades: una fila por entrega pendiente, con su N° de entrega.", estado: "falta" },
+  { renglon: "BALANCE · de AG22 a AG18", lado: "CONTEO", deDonde: "Cuadre SAP AG18 · paso 2 · lista «Pasar de AG22 a AG18», tal cual (cantidad en unidades; cajas plásticas en cajas).", estado: "ok",
+    nota: "Verificado con el 14/10: 3500005 164.236 · 3500162 347.910 · 3501225 47.994 · 3500159 5.769… igual al Excel." },
+  { renglon: "BAJA PENDIENTE POR DISPOSICIÓN", lado: "CONTEO", deDonde: "Plantilla de novedades (suma su caja plástica).", estado: "falta" },
+  { renglon: "SINIESTRO", lado: "CONTEO", deDonde: "Plantilla de novedades (suma su caja plástica).", estado: "falta" },
+  { renglon: "AJUSTE INV BAJA PRESORTING", lado: "CONTEO", deDonde: "Plantilla de novedades.", estado: "falta" },
+  { renglon: "CONTEO TW", lado: "CONTEO", deDonde: "Plantilla de novedades: informativo, no entra en la diferencia.", estado: "falta" },
+  { renglon: "ZEXI de las 6 a. m.", lado: "SAP", deDonde: "Plantilla de novedades, tipo ZEXI 6 AM: la ZEXI de Bodega 38 descargada a las 6, ANTES de balancear (Total General por código, en unidades; el cilindro de AG01 también).", estado: "falta",
+    nota: "Si se descarga después de balancear, ya no sirve." },
+  { renglon: "BALANCE · de AG18 a AG22", lado: "SAP", deDonde: "Cuadre SAP AG18 · paso 2 · lista «Pasar de AG18 a AG22», tal cual.", estado: "ok" },
+  { renglon: "PEND NOVEDADES CD", lado: "SAP", deDonde: "Plantilla de novedades: una fila por entrega pendiente, con su N° de entrega (o SOCIO); suma su caja plástica.", estado: "falta" },
 ];
 const ETQ = { ok: "Ya está en la app", falta: "Falta: plantilla", parcial: "Falta importar" } as const;
 
@@ -72,8 +73,8 @@ export default function AnalisisPage() {
       <section className="ad-caja ad-plantilla">
         <div>
           <h2>Las novedades: la plantilla</h2>
-          <p>Una fila por novedad, en <b>cajas llenas del envase</b> (y unidades sueltas si sobran). La plantilla pasa a unidades con el maestro y dice
-            qué caja plástica las guarda (la 330 guarda los envases de 330 y de 320). El tipo dice si suma al lado del conteo o al de SAP.</p>
+          <p>La fecha viene con hoy. Una fila por novedad: el tipo, el código y la cantidad (en <b>estibas, cajas o unidades</b>, la que tengas). La plantilla
+            pasa a unidades, saca sola las cajas plásticas que las guardan (la 330 guarda los de 330 y 320) y valida cada fila: debe decir <b>OK</b>.</p>
         </div>
         <a className="ad-bt" href="/plantillas/analisis-diferencia-novedades.xlsx" download>Descargar plantilla</a>
       </section>
