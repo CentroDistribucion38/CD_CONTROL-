@@ -17,52 +17,13 @@
 import { createClient } from "@/lib/supabase/server";
 import type { FilaAnalisis } from "./analisis-dif";
 
-import { COMPENSA } from "./compensa";
-export { COMPENSA };
-
-export type FilaAjuste = {
-  familia: string; codigo: string; descripcion: string;
-  sap: number; conteo: number; diferencia: number;
-  /** Con qué código se cruza y cuánto se le aplicó a ESTA fila (con signo). */
-  par: string | null; parDescripcion: string | null; compensa: number;
-  /** Lo que queda por ajustar (CONTEO − SAP después de compensar). */
-  ajuste: number;
-  observacion: string;
-};
+import { COMPENSA, calcularAjustes, type FilaAjuste } from "./compensa";
+export { COMPENSA, calcularAjustes, type FilaAjuste };
 
 export type Guardado = {
   fecha: string; guardado_en: string; guardado_por: string | null;
   sap: number; conteo: number; filas: FilaAnalisis[];
 };
-
-export function calcularAjustes(filas: FilaAnalisis[], obs: Record<string, string>): FilaAjuste[] {
-  const por = new Map(filas.map((f) => [f.codigo, f]));
-  const comp = new Map<string, { par: string; aplica: number }>();
-  for (const [r, nr] of COMPENSA) {
-    const a = por.get(r), b = por.get(nr);
-    if (!a || !b) continue;
-    const da = a.diferencia, db = b.diferencia;
-    /* Solo si uno sobra y el otro falta. */
-    if (!(da > 0 && db < 0) && !(da < 0 && db > 0)) {
-      comp.set(r, { par: nr, aplica: 0 }); comp.set(nr, { par: r, aplica: 0 });
-      continue;
-    }
-    const m = Math.min(Math.abs(da), Math.abs(db));
-    comp.set(r, { par: nr, aplica: -Math.sign(da) * m });
-    comp.set(nr, { par: r, aplica: -Math.sign(db) * m });
-  }
-  return filas.map((f) => {
-    const c = comp.get(f.codigo);
-    const compensa = c?.aplica ?? 0;
-    return {
-      familia: f.familia, codigo: f.codigo, descripcion: f.descripcion,
-      sap: f.sap, conteo: f.conteo, diferencia: f.diferencia,
-      par: c?.par ?? null, parDescripcion: c ? por.get(c.par)?.descripcion ?? null : null,
-      compensa, ajuste: f.diferencia + compensa,
-      observacion: obs[f.codigo] ?? "",
-    };
-  });
-}
 
 /** El análisis guardado de un día y sus observaciones. `faltaSql` si no se ha corrido el SQL del paso 2. */
 export async function leerAjustes(fecha: string) {
@@ -83,4 +44,54 @@ export async function leerAjustes(fecha: string) {
   }
   const guardado: Guardado | null = gd ? { ...gd, sap: Number(gd.sap), conteo: Number(gd.conteo), guardado_por: quien } : null;
   return { guardado, filas: guardado ? calcularAjustes(guardado.filas, obs) : [], faltaSql };
+}
+
+/* ---------------- EL HISTÓRICO ---------------- */
+export type DiaHistorico = {
+  fecha: string; guardado_en: string; guardado_por: string | null;
+  sap: number; conteo: number; diferencia: number; compensado: number;
+  sobrante: number; faltante: number; neto: number;
+  nSobra: number; nFalta: number; nObs: number; codigos: number;
+};
+export type FilaHistorico = {
+  fecha: string; familia: string; codigo: string; descripcion: string;
+  sap: number; conteo: number; diferencia: number; compensa: number; ajuste: number; observacion: string;
+};
+
+/** «La hoja de históricos que se van guardando»: cada día guardado con sus totales, y código por código
+ *  (para el Excel). Un día se guarda una vez; volver a guardarlo lo reemplaza. */
+export async function leerHistorico(limite = 180) {
+  const supabase = await createClient();
+  const [g, o] = await Promise.all([
+    supabase.from("analisis_dif_guardado").select("fecha, filas, sap, conteo, guardado_en, guardado_por").order("fecha", { ascending: false }).limit(limite),
+    supabase.from("analisis_dif_obs").select("fecha, codigo, observacion").limit(20000),
+  ]);
+  const faltaSql = [g.error, o.error].some((e) => e && /analisis_dif_(guardado|obs)|does not exist|PGRST205/i.test(`${e.code} ${e.message}`));
+  const obsPorDia = new Map<string, Record<string, string>>();
+  for (const x of (o.data ?? []) as { fecha: string; codigo: string; observacion: string }[]) {
+    const m = obsPorDia.get(x.fecha) ?? {}; m[x.codigo] = x.observacion; obsPorDia.set(x.fecha, m);
+  }
+  const filasG = (g.data ?? []) as { fecha: string; filas: FilaAnalisis[]; sap: number; conteo: number; guardado_en: string; guardado_por: string | null }[];
+  const ids = [...new Set(filasG.map((x) => x.guardado_por).filter(Boolean))] as string[];
+  const nombres: Record<string, string> = {};
+  if (ids.length) {
+    const p = await supabase.from("perfiles").select("id, usuario, nombre").in("id", ids);
+    for (const x of (p.data ?? []) as { id: string; usuario: string | null; nombre: string | null }[]) nombres[x.id] = x.nombre || x.usuario || "—";
+  }
+  const dias: DiaHistorico[] = [];
+  const detalle: FilaHistorico[] = [];
+  for (const x of filasG) {
+    const obs = obsPorDia.get(x.fecha) ?? {};
+    const aj = calcularAjustes(x.filas ?? [], obs);
+    const s = (k: (f: FilaAjuste) => number) => aj.reduce((t, f) => t + k(f), 0);
+    dias.push({
+      fecha: x.fecha, guardado_en: x.guardado_en, guardado_por: x.guardado_por ? nombres[x.guardado_por] ?? null : null,
+      sap: s((f) => f.sap), conteo: s((f) => f.conteo), diferencia: s((f) => f.diferencia),
+      compensado: s((f) => Math.max(0, f.compensa)), sobrante: s((f) => Math.max(0, f.ajuste)), faltante: s((f) => Math.min(0, f.ajuste)),
+      neto: s((f) => f.ajuste), nSobra: aj.filter((f) => f.ajuste > 0).length, nFalta: aj.filter((f) => f.ajuste < 0).length,
+      nObs: aj.filter((f) => f.observacion.trim()).length, codigos: aj.length,
+    });
+    for (const f of aj) detalle.push({ fecha: x.fecha, familia: f.familia, codigo: f.codigo, descripcion: f.descripcion, sap: f.sap, conteo: f.conteo, diferencia: f.diferencia, compensa: f.compensa, ajuste: f.ajuste, observacion: f.observacion });
+  }
+  return { dias, detalle, faltaSql };
 }

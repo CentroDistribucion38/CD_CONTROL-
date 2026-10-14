@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { misPermisos } from "@/lib/permisos";
 import { armarAnalisis } from "@/modulos/inventario/analisis-dif";
-import { leerAjustes } from "@/modulos/inventario/analisis-ajustes";
+import { leerAjustes, leerHistorico } from "@/modulos/inventario/analisis-ajustes";
 import { Analisis } from "./Analisis";
 import { Ajustes } from "./Ajustes";
+import { Historico } from "./Historico";
 import "../../../sider/sider.css";
 import "../../fefo.css";
 import "../balance.css";
@@ -47,7 +48,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
   const q = await searchParams;
   const hoy = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Bogota" }).format(new Date());
   const fecha = /^\d{4}-\d{2}-\d{2}$/.test(q.fecha ?? "") ? q.fecha! : hoy;
-  const paso = q.paso === "ajustes" ? "ajustes" : "analisis";
+  const paso = q.paso === "ajustes" ? "ajustes" : q.paso === "historico" ? "historico" : "analisis";
   const permisos = await misPermisos();
   const puedeEditar = permisos.puedeEditar("/inventario/balance/analisis");
   /* LOS DOS PASOS: 1 el análisis (se arma en vivo) → «Guardar» → 2 los ajustes (salen de lo guardado). */
@@ -55,8 +56,23 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
     <nav className="ad-pasos" aria-label="Pasos">
       <Link href={`/inventario/balance/analisis?fecha=${fecha}`} className={paso === "analisis" ? "on" : ""}><b>1</b> Análisis</Link>
       <Link href={`/inventario/balance/analisis?fecha=${fecha}&paso=ajustes`} className={paso === "ajustes" ? "on" : ""}><b>2</b> Ajustes</Link>
+      <Link href={`/inventario/balance/analisis?fecha=${fecha}&paso=historico`} className={paso === "historico" ? "on" : ""}><b>3</b> Histórico</Link>
     </nav>
   );
+  if (paso === "historico") {
+    const h = await leerHistorico();
+    return (
+      <div className="fe bal ad">
+        <section className="cabeza"><div>
+          <p className="ojo">INVENTARIO · BALANCE · ANÁLISIS DE DIFERENCIA</p>
+          <h1>Histórico</h1>
+          <p className="sub">Los días que se han guardado, con lo que se compensó y lo que quedó por ajustar. Abre cualquiera o baja todo en Excel.</p>
+        </div></section>
+        {pasos}
+        <Historico dias={h.dias} detalle={h.detalle} faltaSql={h.faltaSql} />
+      </div>
+    );
+  }
   if (paso === "ajustes") {
     const aj = await leerAjustes(fecha);
     return (
@@ -87,7 +103,9 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
       </div></section>
 
       {pasos}
-      <Analisis datos={datos} hoy={hoy} puedeEditar={puedeEditar} guardadoEn={guardado.guardado?.guardado_en ?? null} />
+      <Analisis datos={datos} hoy={hoy} puedeEditar={puedeEditar} guardadoEn={guardado.guardado?.guardado_en ?? null}
+                guardadoPor={guardado.guardado?.guardado_por ?? null}
+                obs={Object.fromEntries(guardado.filas.filter((f) => f.observacion).map((f) => [f.codigo, f.observacion]))} />
 
       {/* «Solo muéstrame lo que falta, porque hasta puedo poner más partidas.» Lo que ya trae la app va en una línea. */}
       <details className="ad-que">

@@ -17,7 +17,7 @@ const n = (v: number) => nf.format(v);
 const signo = (v: number) => (v > 0 ? "+" : v < 0 ? "−" : "") + nf.format(Math.abs(v));
 const largo = (iso: string) => new Date(iso + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
-export function Analisis({ datos, hoy, puedeEditar, guardadoEn }: { datos: Datos; hoy: string; puedeEditar: boolean; guardadoEn: string | null }) {
+export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs }: { datos: Datos; hoy: string; puedeEditar: boolean; guardadoEn: string | null; guardadoPor: string | null; obs: Record<string, string> }) {
   const router = useRouter();
   const archivo = useRef<HTMLInputElement>(null);
   const [pend, start] = useTransition();
@@ -62,19 +62,23 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn }: { datos: Datos
     router.push(`/inventario/balance/analisis?fecha=${fecha}&paso=ajustes`);
   });
 
+  /* EL EXCEL DEL ANÁLISIS: la dinámica, la BASE de donde sale (código · lado · partida), las fuentes y las
+     hojas de los ajustes (compensación R ↔ NR, sobrantes, faltantes y el detalle partida por partida). */
+  const [armando, setArmando] = useState(false);
   async function bajarExcel() {
-    const XLSX = await import("xlsx");
-    const libro = XLSX.utils.book_new();
-    const h1 = [["FAMILIA", "CÓDIGO", "DESCRIPCIÓN", "SAP", "CONTEO", "DIFERENCIA"],
-      ...filas.map((f) => [f.familia, f.codigo, f.descripcion, f.sap, f.conteo, f.diferencia]),
-      ["TOTAL GENERAL", "", "", tot.sap, tot.conteo, tot.conteo - tot.sap]];
-    const s1 = XLSX.utils.aoa_to_sheet(h1); s1["!cols"] = [{ wch: 24 }, { wch: 10 }, { wch: 42 }, { wch: 13 }, { wch: 13 }, { wch: 13 }];
-    XLSX.utils.book_append_sheet(libro, s1, "ANALISIS");
-    const h2 = [["CÓDIGO", "DESCRIPCIÓN", "LADO", "PARTIDA", "UNIDADES"],
-      ...filas.flatMap((f) => [...f.deSap.map((p) => [f.codigo, f.descripcion, "SAP", p.nombre, p.cantidad]), ...f.deConteo.map((p) => [f.codigo, f.descripcion, "CONTEO", p.nombre, p.cantidad])])];
-    const s2 = XLSX.utils.aoa_to_sheet(h2); s2["!cols"] = [{ wch: 10 }, { wch: 42 }, { wch: 8 }, { wch: 34 }, { wch: 13 }];
-    XLSX.utils.book_append_sheet(libro, s2, "PARTIDAS");
-    XLSX.writeFile(libro, `analisis-diferencia-bodega38-${fecha}.xlsx`);
+    setArmando(true); setMsg(null);
+    try {
+      const [{ armarLibroAnalisis }, { calcularAjustes }] = await Promise.all([import("@/modulos/inventario/libro-ajustes"), import("@/modulos/inventario/compensa")]);
+      const buf = await armarLibroAnalisis({
+        fecha, fechaLarga: largo(fecha), guardadoEn, guardadoPor,
+        analisis: filas, ajustes: calcularAjustes(filas, obs), fuentes: datos.fuentes, noEntran: datos.noEntran,
+      });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+      a.download = `analisis-diferencia-bodega38-${fecha}.xlsx`; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    } catch { setMsg({ mal: true, t: "No se pudo armar el Excel. Vuelve a intentar." }) }
+    finally { setArmando(false) }
   }
 
   return (
@@ -118,7 +122,7 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn }: { datos: Datos
         <div className="ad-hoja-cab">
           <h2>Análisis · {largo(fecha)}</h2>
           <label className="ad-chk"><input type="checkbox" checked={soloDif} onChange={(e) => setSoloDif(e.target.checked)} /> Solo con diferencia</label>
-          {filas.length > 0 && <button type="button" className="ad-bt alt" onClick={() => void bajarExcel()}>Descargar Excel</button>}
+          {filas.length > 0 && <button type="button" className="ad-bt alt" disabled={armando} onClick={() => void bajarExcel()}>{armando ? "Armando el Excel…" : "Descargar Excel"}</button>}
           {filas.length > 0 && puedeEditar && (
             <button type="button" className="ad-bt" disabled={pend} onClick={guardarYSeguir}
                     title={guardadoEn ? `Ya se guardó el ${new Date(guardadoEn).toLocaleString("es-CO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}: guardar de nuevo lo reemplaza` : "Guarda la foto de este análisis y abre los ajustes"}>

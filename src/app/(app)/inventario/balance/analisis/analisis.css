@@ -121,3 +121,20 @@
 .ad .ad-ver button.on.cruza { background: #1B4F8F }
 .ad .ad-ver button.on em { color: #fff }
 .ad .ad-ver button:focus-visible { outline: 3px solid var(--fe-acento, #FFC400); outline-offset: -3px }
+
+/* ---------- HISTÓRICO ---------- */
+.ad .ad-mes { height: 38px; padding: 0 10px; border: 1px solid var(--fe-linea); font: 600 14px var(--fe-texto); color: var(--fe-tinta); background: #fff; text-transform: capitalize }
+.ad .ad-hist td.b { font-weight: 700; white-space: nowrap; text-transform: capitalize }
+.ad .ad-hist th.barra, .ad .ad-hist td.barra { min-width: 220px }
+.ad .ad-bar { display: grid; grid-template-columns: 1fr 1fr; height: 12px; background: #F1F1EE }
+.ad .ad-bar span { display: flex; height: 12px }
+.ad .ad-bar .f { justify-content: flex-end; border-right: 2px solid var(--fe-tinta) }
+.ad .ad-bar .f i { background: #B42318; height: 100% }
+.ad .ad-bar .s i { background: #0F7A4A; height: 100% }
+.ad .ad-hist td.barra small { display: block; margin-top: 3px; font-size: 11.5px }
+.ad .ad-hist em { font-style: normal; font-weight: 700 }
+.ad .ad-hist em.neg { color: #B42318 }
+.ad .ad-hist em.pos { color: #0F7A4A }
+.ad .ad-hist td.acc { white-space: nowrap }
+.ad .ad-hist td.acc a { display: inline-block; margin: 0 4px; padding: 5px 10px; border: 1.5px solid var(--fe-tinta); font: 700 12px var(--fe-texto); color: var(--fe-tinta); text-decoration: none }
+.ad .ad-hist td.acc a:first-child { background: var(--fe-tinta); color: #fff }
