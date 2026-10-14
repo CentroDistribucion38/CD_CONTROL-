@@ -158,12 +158,16 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   /* 5. LA PLANTILLA: novedades (y la ZEXI de las 6). */
   const novedades = ((novR.data ?? []) as Novedad[]);
   let hayZexi = false;
+  /* Si la novedad (tipo + documento) ya trae sus cajas plásticas como filas propias, no se deduce caja
+     de los envases: se contaría dos veces (así lo hace el Excel: la caja va escrita). */
+  const grupoNv = (nv: Novedad) => `${norm(nv.tipo)}|${nv.documento ?? ""}`;
+  const conCajaPropia = new Set(novedades.filter((nv) => grupo(String(nv.codigo)) === "CAJA").map(grupoNv));
   for (const nv of novedades) {
     if (nv.lado === "NO SUMA") continue;
     const lado = nv.lado === "SAP" ? "sap" : "conteo";
     const etq = norm(nv.tipo) + (nv.documento ? ` · ${nv.documento}` : "");
     suma(lado, String(nv.codigo), norm(nv.tipo) === "ZEXI 6 AM" ? "ZEXI 6 AM" : etq, Number(nv.unidades) || 0);
-    if (nv.caja_codigo && nv.cajas) suma(lado, String(nv.caja_codigo), etq, Number(nv.cajas) || 0);
+    if (nv.caja_codigo && nv.cajas && !conCajaPropia.has(grupoNv(nv))) suma(lado, String(nv.caja_codigo), etq, Number(nv.cajas) || 0);
     if (norm(nv.tipo) === "ZEXI 6 AM") hayZexi = true;
   }
   const carga = novedades.length ? { archivo: novedades[0].archivo, filas: novedades.length, subido_en: novedades[0].subido_en ?? null } : null;
