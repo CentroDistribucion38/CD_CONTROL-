@@ -979,7 +979,7 @@ export function Contar({
        a medias no tiene fila todavía — y eso no es que falte contestar,
        es que hay que crearla. */
     if (!claveEscogida) return "Falta decir de qué lado del módulo.";
-    if (mod.sinAcceso) return "Este módulo está marcado «sin acceso»: usa «Anotar módulo sin acceso».";
+    if (mod.sinAcceso && !fotoMod && !marcaGuardada?.ruta) return "Módulo sin acceso: falta la foto de evidencia.";
     if (mod.mezclado && !fotoMod && !marcaGuardada?.ruta) return "Módulo mezclado: falta la foto de evidencia.";
     if (!mat) return `El código «${bb.codigo}» no está en el maestro.`;
     if (env && bb.estado.trim() === "") return cil ? "Falta decir si el cilindro está lleno o vacío." : "Falta el estado del envase.";
@@ -1472,10 +1472,10 @@ export function Contar({
 
     /* LA MARCA DEL MÓDULO VA PRIMERO: «mezclado» con su foto queda en la base antes que el renglón. */
     if (!corrigiendo) {
-      const cambia = mod.mezclado !== (marcaGuardada?.mezclado ?? false) || !!marcaGuardada?.sin_acceso;
-      if (cambia || (mod.mezclado && fotoMod)) {
+      const cambia = mod.mezclado !== (marcaGuardada?.mezclado ?? false) || mod.sinAcceso !== !!marcaGuardada?.sin_acceso;
+      if (cambia || ((mod.mezclado || mod.sinAcceso) && fotoMod)) {
         setGuardando(true);
-        const malM = await guardarModulo(bb, { mezclado: mod.mezclado, sinAcceso: false }, fotoMod);
+        const malM = await guardarModulo(bb, { mezclado: mod.mezclado, sinAcceso: mod.sinAcceso }, fotoMod);
         setGuardando(false);
         if (malM) { avisar.mal(malM); return }
         setFotoMod(null);
@@ -1994,8 +1994,8 @@ export function Contar({
         {/* ============ ESTADO DEL MÓDULO · 3 PREGUNTAS ============
             Justo después de escoger el sitio y ANTES del código: ¿mezclado?,
             ¿hay acceso? y el estado del envase. Mezclado y «sin acceso» piden
-            foto de evidencia. Con «sin acceso» no hay nada que contar: el
-            módulo se anota solo, con su foto. */}
+            foto de evidencia. Con «sin acceso» igual se puede contar (los renglones
+            quedan con el módulo marcado SIN ACCESO), o marcar solo el módulo. */}
         {claveEscogida && !corrigiendo && (
           <div className="fe-bloque fe-estmod">
             <p className="fe-bloque-cab">Estado del módulo</p>
@@ -2037,7 +2037,9 @@ export function Contar({
           </div>
         )}
 
-        {!mod.sinAcceso && (<>
+        {/* «Si pongo que no tengo acceso al módulo, que de igual me deje hacer el conteo.» Los campos se ven
+            siempre; «sin acceso» queda como marca del módulo (con su foto) y el renglón se anota igual. */}
+        {(<>
         {/* ================= LA PRE-ANOTACIÓN D-1 =================
 
             «Yo cuento hoy el A01 con 96 estibas de A1000. Que mañana, al
@@ -2517,8 +2519,15 @@ export function Contar({
           <p className="fe-fija-cuenta">
             <b>{renglones.length}</b> en el borrador
           </p>
-          <button type="button" className="btn grande" disabled={guardando} onClick={mod.sinAcceso && !corrigiendo ? anotarSinAcceso : anotar} ref={botonAnotar}>
-            {guardando ? "Guardando…" : corrigiendo ? "Guardar la corrección" : mod.sinAcceso ? "Anotar módulo sin acceso" : "Anotar renglón"}
+          {/* Sin acceso y sin nada que contar: se anota solo el módulo. Si se contó algo, «Anotar renglón» como siempre. */}
+          {mod.sinAcceso && !corrigiendo && (
+            <button type="button" className="btn" disabled={guardando} onClick={anotarSinAcceso}
+                    title="Anota el módulo SIN ACCESO sin renglones (no se pudo contar nada)">
+              Solo marcar sin acceso
+            </button>
+          )}
+          <button type="button" className="btn grande" disabled={guardando} onClick={anotar} ref={botonAnotar}>
+            {guardando ? "Guardando…" : corrigiendo ? "Guardar la corrección" : "Anotar renglón"}
           </button>
         </div>
       </section>
