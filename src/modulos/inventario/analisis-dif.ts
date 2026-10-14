@@ -42,6 +42,8 @@ type Prod = { id: string; sku: string; nombre: string | null; unidades_por_caja:
 const ESTIBA = "3500163";
 const norm = (c: unknown) => String(c ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().replace(/\s+/g, " ").trim();
 const diaBogota = (iso: string) => new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Bogota" }).format(new Date(iso));
+/* En la línea (DEPA) algunos envases salen en otra caja que la del maestro: la Flint 250 sale en café 225. */
+const CAJA_EN_DEPA: Record<string, string> = { "3501225": "3500231" };
 const PASIVOS: Record<string, string> = { "PRESORTING": "PEND BAJA PRESORTING", "ROTURA DE LINEA": "PEND BAJA ROTURA LINEA", "EXTRASUCIO": "CON BAJA EXTRASUCIO" };
 
 export async function armarAnalisis(fecha: string): Promise<Analisis> {
@@ -123,7 +125,7 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
       if (!e.m) { fuera.push(`${x.linea}: sin envase ni producto con envase en el maestro`); continue; }
       const env = e.m.sku, etq = `DEPA ${x.linea}`;
       suma("conteo", env, etq, cj * upc(env));
-      const caja = M.get(env)?.caja; if (caja) suma("conteo", String(caja), etq, cj);
+      const caja = CAJA_EN_DEPA[env] ?? M.get(env)?.caja; if (caja) suma("conteo", String(caja), etq, cj);
       tomadas.add(x.linea);
       if (!primera) primera = String(x.corte_id);
     }
