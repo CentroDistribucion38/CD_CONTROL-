@@ -134,7 +134,7 @@ export function Excluidos({ panel }: { panel: PanelExcluidos }) {
 
           <footer className="cs-exc-pie">
             <span className="cs-exc-res">
-              <b>{totalFuera}</b> fuera · {sinGuardar ? <em>{sinGuardar} cambio{sinGuardar === 1 ? "" : "s"} sin guardar</em> : "sin cambios"}
+              <span><b>{totalFuera}</b> fuera · {sinGuardar ? <em>{sinGuardar} cambio{sinGuardar === 1 ? "" : "s"} sin guardar</em> : "sin cambios"}</span>
               {panel.faltaSql && <small className="mal">Para guardar, corre supabase/migraciones/2026-10-excluidos-sku.sql.</small>}
               {msg && <small className={msg.mal ? "mal" : ""} role="status">{msg.t}</small>}
             </span>
