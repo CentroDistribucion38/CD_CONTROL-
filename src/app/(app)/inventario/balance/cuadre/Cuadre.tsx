@@ -429,8 +429,8 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
           <h2 className="cs-h"><i>2</i> Qué hacer en SAP {esAG22 ? "(de libre a bloqueado, o al revés, en AG22)" : "(movimiento 311)"}</h2>
           {entran.length + salen.length === 0 ? <p className="cs-msg">Todo cuadra: no hay nada que mover en SAP.</p> : (
             <div className="cs-dos">
-              <div className="cs-caja r"><h3>{esAG22 ? "Pasar de Libre a Bloqueado" : `Pasar de ${OTRO} a ${ALM}`} {cabezaLista(entran, "entran")}</h3>{entran.length ? documentos(entran, "entran") : <p className="cs-vacio">Nada.</p>}</div>
-              <div className="cs-caja a"><h3>{esAG22 ? "Pasar de Bloqueado a Libre" : `Pasar de ${ALM} a ${OTRO}`} {cabezaLista(salen, "salen")}</h3>{salen.length ? documentos(salen, "salen") : <p className="cs-vacio">Nada.</p>}</div>
+              <div className="cs-caja r"><h3>{esAG22 ? "Pasar de Libre a Bloqueado (Mov 344)" : `Pasar de ${OTRO} a ${ALM}`} {cabezaLista(entran, "entran")}</h3>{entran.length ? documentos(entran, "entran") : <p className="cs-vacio">Nada.</p>}</div>
+              <div className="cs-caja a"><h3>{esAG22 ? "Pasar de Bloqueado a Libre (Mov 343)" : `Pasar de ${ALM} a ${OTRO}`} {cabezaLista(salen, "salen")}</h3>{salen.length ? documentos(salen, "salen") : <p className="cs-vacio">Nada.</p>}</div>
             </div>
           )}
           <div className="cs-subir">
