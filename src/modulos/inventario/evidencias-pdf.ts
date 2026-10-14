@@ -1,7 +1,7 @@
 /**
  * EL PDF DE EVIDENCIAS — pinta la lista de bloques de `evidencias-informe.ts`.
  *
- * Horizontal (A4): el mapa de calor y las tablas son anchos. Misma casa que los demás papeles de
+ * Vertical (A4): «vertical debe ser el informe». Misma casa que los demás papeles de
  * Inventario: cinta del tema, logo de Bavaria, marca de agua, pie con el periodo y «Página n de N».
  * Cada MÓDULO arranca en hoja nueva con su banda, y las tablas repiten su encabezado al partir.
  * No calcula nada.
@@ -16,8 +16,8 @@ export type ExtraPdf = { periodo: string; filtros: string; generado: string; mar
 const hexRGB = (h: string): RGB => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)) as RGB;
 
 export function dibujarEvidencias(JsPDFCtor: typeof JsPDF, bloques: Bloque[], x: ExtraPdf): JsPDF {
-  const doc = new JsPDFCtor({ orientation: "landscape", unit: "mm", format: "a4" });
-  const W = 297, H = 210, M = 12, CW = W - 2 * M;
+  const doc = new JsPDFCtor({ orientation: "portrait", unit: "mm", format: "a4" });
+  const W = 210, H = 297, M = 12, CW = W - 2 * M;
   const TOPE = H - 14;
   const P = x.paleta ?? PALETA_MARCA;
   const TINTA = P.tinta;
@@ -45,12 +45,12 @@ export function dibujarEvidencias(JsPDFCtor: typeof JsPDF, bloques: Bloque[], x:
   const opacidad = (o: number) => doc.setGState(new (doc as unknown as { GState: new (p: { opacity: number }) => unknown }).GState({ opacity: o }));
   const aguaDeFondo = () => {
     if (!marca.sello) return;
-    try { opacidad(0.035); doc.addImage(marca.sello, "PNG", (W - 130) / 2, 40, 130, 130, "sello", "FAST") } catch { /* sin marca de agua */ } finally { opacidad(1) }
+    try { opacidad(0.035); doc.addImage(marca.sello, "PNG", (W - 130) / 2, (H - 130) / 2, 130, 130, "sello", "FAST") } catch { /* sin marca de agua */ } finally { opacidad(1) }
   };
 
   /* Hoja nueva con su cabecera chica: una hoja suelta, sin esto, no dice de dónde salió. */
   const hojaNueva = () => {
-    doc.addPage([W, H], "landscape");
+    doc.addPage([W, H], "portrait");
     aguaDeFondo();
     cinta(0, 0, W, 2.2);
     if (marca.sello) { try { doc.addImage(marca.sello, "PNG", M, 6, 8, 8, "sello", "FAST") } catch { /* sigue */ } }
@@ -98,10 +98,19 @@ export function dibujarEvidencias(JsPDFCtor: typeof JsPDF, bloques: Bloque[], x:
     fuente("bold", 11); tinta(); doc.text(txt, M + 4.5, y + 4); y += 8;
   };
 
+  /* Un párrafo largo (la redacción con todas las novedades) se parte entre hojas, línea por línea. */
   const parrafo = (txt: string, tenue?: boolean) => {
-    fuente("normal", 9.5); if (tenue) gris(); else tinta();
-    const t = partir(txt, CW); cabe(t.length * lh(9.5) + 2);
-    doc.text(t, M, y + 3); y += t.length * lh(9.5) + 2;
+    const t = partir((fuente("normal", 9.5), txt), CW);
+    let i = 0;
+    while (i < t.length) {
+      cabe(lh(9.5) + 2);
+      const caben = Math.max(1, Math.floor((TOPE - y - 2) / lh(9.5)));
+      const trozo = t.slice(i, i + caben);
+      fuente("normal", 9.5); if (tenue) gris(); else tinta();
+      doc.text(trozo, M, y + 3); y += trozo.length * lh(9.5);
+      i += trozo.length;
+    }
+    y += 2.5;
   };
 
   const lista = (items: string[]) => {
@@ -207,7 +216,7 @@ export function dibujarEvidencias(JsPDFCtor: typeof JsPDF, bloques: Bloque[], x:
   };
 
   const fotos = (b: Extract<Bloque, { t: "fotos" }>) => {
-    const COLS = 6, gap = 3.5, w = (CW - gap * (COLS - 1)) / COLS, FH = 27, TXT = 13;
+    const COLS = 4, gap = 3.5, w = (CW - gap * (COLS - 1)) / COLS, FH = 30, TXT = 13;
     b.items.forEach((it, i) => {
       const col = i % COLS;
       if (col === 0) cabe(FH + TXT + 3);

@@ -65,32 +65,78 @@ const NOMBRES: Record<string, [string, string]> = {
 const plural = (n: number, uno: string, varios: string) => `${nf.format(n)} ${n === 1 ? uno : varios}`;
 
 /**
- * EL RELATO DEL DÍA: «que me redacte lo que encuentre: el día tal se evidencia tal y tal». Un párrafo por día
- * (el más reciente primero), sin nombres de personas: cuántas ubicaciones se contaron, cuántas novedades y en
- * dónde, por tipo, y lo que pesan en cajas y hectolitros.
+ * LA REDACCIÓN DEL DÍA: «que sea una redacción como si yo lo estuviese escribiendo, con todas las novedades
+ * reportadas». Por cada día (el más reciente primero): un párrafo de entrada y uno por tipo de novedad con TODAS
+ * las ubicaciones —y en avería y PNC, el material y las cajas—. En primera persona del plural, sin nombres.
  */
-function relato(a: Analisis, novs: Novedad[]): string[] {
-  const out: string[] = [];
+function redaccion(a: Analisis, novs: Novedad[]): Bloque[] {
+  const out: Bloque[] = [];
+  const y = (xs: string[]) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} y ${xs[xs.length - 1]}`);
+  const mat = (n: Novedad) => [`${n.codigo ?? ""} ${n.material ?? ""}`.trim() || "material sin código", n.cajas != null ? `(${plural(n.cajas, "caja", "cajas")})` : ""].filter(Boolean).join(" ");
+  const porUbic = (xs: Novedad[]) => {
+    const m = new Map<string, Novedad[]>();
+    for (const n of xs) (m.get(mod(n)) ?? m.set(mod(n), []).get(mod(n))!).push(n);
+    return [...m].sort(([p], [q]) => orden(p, q));
+  };
+  const politica = (n: Novedad) => n.cumple == null ? "sin responder la política de bloqueo"
+    : `${n.pnc_rotulo ? "con rótulo" : "sin rótulo"} y ${n.pnc_bloqueo_mecanico ? "con bloqueo mecánico" : "sin bloqueo mecánico"}: ${n.cumple ? "cumple" : "no cumple"} la política`;
+  const ultimo = a.porDia.length ? a.porDia[a.porDia.length - 1].dia : null;
   for (const d of [...a.porDia].reverse()) {
     if (!d.contadas && !d.total) continue;
+    const fecha = fechaLarga(d.dia);
+    out.push({ t: "sub", texto: fecha.replace(/^./, (c) => c.toUpperCase()) });
+    if (!d.total) {
+      out.push({ t: "p", texto: `El ${fecha} realizamos el conteo de ${plural(d.contadas, "ubicación", "ubicaciones")} y no evidenciamos ninguna novedad.` });
+      continue;
+    }
     const delDia = novs.filter((n) => n.dia === d.dia);
-    const cab = `${fechaLarga(d.dia).replace(/^./, (c) => c.toUpperCase())}: `;
-    if (!d.total) { out.push(`${cab}se contaron ${plural(d.contadas, "ubicación", "ubicaciones")} y no se evidenció ninguna novedad.`); continue }
-    const partes = TIPOS.filter((t) => d.porTipo[t.k] > 0).map((t) => {
+    const resumen = TIPOS.filter((t) => d.porTipo[t.k] > 0).map((t) => plural(d.porTipo[t.k], ...(NOMBRES[t.k] ?? [t.nombre, t.nombre])));
+    out.push({ t: "p", texto: `El ${fecha} realizamos el conteo de ${plural(d.contadas, "ubicación", "ubicaciones")}. Durante el recorrido evidenciamos ${plural(d.total, "novedad", "novedades")} en ${plural(d.conNovedad, "ubicación", "ubicaciones")}: ${y(resumen)}. A continuación las relaciono una por una.` });
+    for (const t of TIPOS) {
       const xs = delDia.filter((n) => n.tipo === t.k);
-      const ubic = [...new Set(xs.map(mod))].sort(orden);
-      const cajas = xs.reduce((s, n) => s + (n.cajas ?? 0), 0), hl = xs.reduce((s, n) => s + (n.hl ?? 0), 0);
-      const peso = cajas ? ` (${nf.format(cajas)} cajas · ${hlTxt(hl)} hl)` : "";
-      const [uno, varios] = NOMBRES[t.k] ?? [t.nombre.toLowerCase(), t.nombre.toLowerCase()];
-      return `${plural(d.porTipo[t.k], uno, varios)}${peso} en ${pocas(ubic)}`;
-    });
-    out.push(`${cab}se contaron ${plural(d.contadas, "ubicación", "ubicaciones")} y se evidenciaron ${plural(d.total, "novedad", "novedades")} en ${plural(d.conNovedad, "ubicación", "ubicaciones")}: ${partes.join("; ")}.`);
+      if (!xs.length) continue;
+      const grupos = porUbic(xs);
+      let texto = "";
+      if (t.k === "averia") {
+        const cajas = xs.reduce((s, n) => s + (n.cajas ?? 0), 0), hl = xs.reduce((s, n) => s + (n.hl ?? 0), 0);
+        texto = `Averías (${xs.length}): encontramos avería en ${grupos.map(([u, ns]) => `${u}, ${y(ns.map(mat))}`).join("; ")}.`
+          + (cajas ? ` En total, las averías del día suman ${plural(cajas, "caja", "cajas")} (${hlTxt(hl)} hl).` : "");
+      } else if (t.k === "pnc") {
+        const cajas = xs.reduce((s, n) => s + (n.cajas ?? 0), 0);
+        texto = `PNC (${xs.length}): reportamos producto no conforme en ${grupos.map(([u, ns]) => `${u}, ${y(ns.map((n) => `${mat(n)} ${politica(n)}`))}`).join("; ")}.`
+          + (cajas ? ` En total son ${plural(cajas, "caja", "cajas")} de PNC.` : "");
+      } else if (t.k === "mezclado") {
+        texto = `Módulos mezclados (${grupos.length}): encontramos producto mezclado en ${y(grupos.map(([u]) => u))}.`;
+      } else if (t.k === "sin_acceso") {
+        texto = `Módulos sin acceso (${grupos.length}): no tuvimos acceso a ${y(grupos.map(([u]) => u))}; quedan con su foto de evidencia.`;
+      } else {
+        texto = `${t.nombre} (${xs.length}): ${y(grupos.map(([u]) => u))}.`;
+      }
+      out.push({ t: "p", texto });
+    }
+    /* Lo que viene de antes (solo en el último día): las ubicaciones que siguen con novedad. */
+    if (d.dia === ultimo) {
+      const siguen = a.filas.filter((f) => f.tendencia === "persiste" || f.tendencia === "reincide").map((f) => f.clave).sort(orden);
+      const nuevas = a.filas.filter((f) => f.tendencia === "nueva").map((f) => f.clave).sort(orden);
+      const ya = a.filas.filter((f) => f.tendencia === "ya_no").map((f) => f.clave).sort(orden);
+      const partes = [
+        siguen.length ? `siguen con novedad desde conteos anteriores ${y(siguen)}` : "",
+        nuevas.length ? `aparecen por primera vez ${y(nuevas)}` : "",
+        ya.length ? `ya no presentan novedad ${y(ya)}` : "",
+      ].filter(Boolean);
+      if (partes.length && a.porDia.length > 1) out.push({ t: "p", texto: `Frente a los días anteriores del periodo: ${partes.join("; ")}.` });
+    }
   }
-  return out.length ? out : ["En el periodo no se contó ninguna ubicación con los filtros escogidos."];
+  return out.length ? out : [{ t: "p", texto: "En el periodo no se contó ninguna ubicación con los filtros escogidos." }];
 }
 
 export function construirInforme(a: Analisis, novs: Novedad[], o: OpcionesInforme): Bloque[] {
   const B: Bloque[] = [];
+  /* «Si algo está en cero, no muestres esas tarjetas.» */
+  const tarjetas = (items: Extract<Bloque, { t: "kpis" }>["items"]) => {
+    const xs = items.filter((k) => !/^(0|0 %|—)$/.test(k.valor.trim()));
+    if (xs.length) B.push({ t: "kpis", items: xs });
+  };
   const G = o.graficas;
   const periodo = periodoTxt(o.desde, o.hasta);
   const c = a.conteoTendencia;
@@ -107,20 +153,19 @@ export function construirInforme(a: Analisis, novs: Novedad[], o: OpcionesInform
     sub: `Tendencias por ubicación · ${periodo}`,
     meta: [`Periodo: ${periodo} (${a.dias.length} ${a.dias.length === 1 ? "día" : "días"})`, `Qué se cuenta como novedad: ${o.tiposTxt}`, `Generado: ${o.generado}`],
   });
-  B.push({
-    t: "kpis", items: [
+  tarjetas([
       { rotulo: "Novedades", valor: nf.format(a.total), detalle: `${a.fotos} con foto` },
       { rotulo: "Ubicaciones afectadas", valor: nf.format(a.ubicacionesAfectadas) },
       { rotulo: "Persisten", valor: nf.format(c.persiste + c.reincide), detalle: `${c.persiste} seguidas · ${c.reincide} reinciden`, color: TEND.persiste.color },
       { rotulo: "Nuevas", valor: nf.format(c.nueva), color: TEND.nueva.color },
       { rotulo: "Ya no tienen novedad", valor: nf.format(c.ya_no), color: TEND.ya_no.color },
       ...(conPnc ? [{ rotulo: "PNC que cumplen", valor: pctCumple == null ? "—" : `${pctCumple} %`, detalle: a.pnc.total ? `${a.pnc.cumplen} de ${a.pnc.respondidos} respondidos` : "sin PNC" }] : []),
-    ],
-  });
-  B.push({ t: "sub", texto: "Lo que se evidenció" });
-  for (const t of relato(a, novs)) B.push({ t: "p", texto: t });
+  ]);
   B.push({ t: "sub", texto: "Lo que dice el periodo" });
   B.push({ t: "lista", items: lecturas(a) });
+  /* LA REDACCIÓN, EN SU PROPIO MÓDULO: todas las novedades reportadas, contadas como las escribiría yo. */
+  B.push({ t: "modulo", n: "INFORME", titulo: "Lo que evidenciamos en el conteo", sub: `Periodo: ${periodo}. Todas las novedades reportadas, día por día.` });
+  B.push(...redaccion(a, novs));
 
   /* ---------- MÓDULO 1 · POR DÍA ---------- */
   B.push({ t: "modulo", n: numero(), titulo: "Tendencia por día", sub: "Cuántas novedades hubo cada día, de qué tipo, y cuántas ubicaciones se miraron." });
@@ -166,26 +211,22 @@ export function construirInforme(a: Analisis, novs: Novedad[], o: OpcionesInform
 
   /* ---------- MÓDULO 4 · PNC (solo si PNC está escogido) ---------- */
   const pnc = novs.filter((n) => n.tipo === "pnc");
-  if (conPnc) {
+  if (conPnc && a.pnc.total > 0) {
   B.push({ t: "modulo", n: numero(), titulo: "PNC y política de bloqueo", sub: "Para cada PNC: ¿tiene rótulo? ¿tiene bloqueo mecánico? Cumple la política si tiene los dos." });
   /* LO PRIMERO: cuánto PNC hay en total, en cajas, unidades y hectolitros. */
   const Mm = a.pnc.medidas;
-  B.push({
-    t: "kpis", items: [
+  tarjetas([
       { rotulo: "PNC encontrados", valor: nf.format(a.pnc.total), detalle: "renglones" },
       { rotulo: "Total en cajas", valor: nf.format(Mm.cajas), color: TIPO.pnc.color },
       { rotulo: "Total en unidades", valor: nf.format(Mm.unidades), color: TIPO.pnc.color },
       { rotulo: "Total en hectolitros", valor: hlTxt(Mm.hl), color: TIPO.pnc.color },
-    ],
-  });
-  B.push({
-    t: "kpis", items: [
+  ]);
+  tarjetas([
       { rotulo: "Cumplen la política", valor: nf.format(a.pnc.cumplen), color: TEND.ya_no.color },
       { rotulo: "No cumplen", valor: nf.format(a.pnc.noCumplen), color: TEND.persiste.color },
       { rotulo: "Sin rótulo", valor: nf.format(a.pnc.sinRotulo) },
       { rotulo: "Sin bloqueo mecánico", valor: nf.format(a.pnc.sinBloqueo) },
-    ],
-  });
+  ]);
   /* LO QUE ES ESE PNC, UNA SOLA TABLA QUE SUMA: cuántos son y cuántas cajas, unidades y hectolitros, por situación. */
   const filaS = (txt: string, n: number, m: typeof Mm, fill?: string, bold?: boolean): CeldaT[] => [
     { x: txt, fill, bold: true }, { x: nf.format(n), bold }, { x: nf.format(m.cajas), bold }, { x: nf.format(m.unidades), bold }, { x: hlTxt(m.hl), bold },

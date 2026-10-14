@@ -11,8 +11,9 @@ import type { Bloque, CeldaT } from "./evidencias-informe";
 
 export type ExtraWord = { periodo: string; filtros: string; generado: string; tinta?: string; acento?: string; logo?: string };
 
-const TW_ANCHO = 16838, TW_ALTO = 11906, MARGEN = 720;
-const CW = TW_ANCHO - 2 * MARGEN;                    // 15398 twips de ancho útil
+/* VERTICAL (A4): «vertical debe ser el informe». */
+const TW_ANCHO = 11906, TW_ALTO = 16838, MARGEN = 720;
+const CW = TW_ANCHO - 2 * MARGEN;                    // 10466 twips de ancho útil
 const EMU_TW = 635;                                  // 1 twip = 635 EMU
 const X = (s: string) => s.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
@@ -125,7 +126,7 @@ export function armarWord(bloques: Bloque[], x: ExtraWord): Uint8Array {
         break;
       }
       case "fotos": {
-        const COLS = 6, w = CW / COLS;
+        const COLS = 4, w = CW / COLS;
         for (let i = 0; i < b.items.length; i += COLS) {
           const grupo = b.items.slice(i, i + COLS);
           const celdas = grupo.map((it) => celda(
@@ -142,7 +143,7 @@ export function armarWord(bloques: Bloque[], x: ExtraWord): Uint8Array {
   }
 
   const ns = `xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"`;
-  const documento = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${ns}><w:body>${body.join("")}<w:sectPr><w:headerReference w:type="default" r:id="rIdHead"/><w:footerReference w:type="default" r:id="rIdFoot"/><w:pgSz w:w="${TW_ANCHO}" w:h="${TW_ALTO}" w:orient="landscape"/><w:pgMar w:top="1000" w:right="${MARGEN}" w:bottom="900" w:left="${MARGEN}" w:header="400" w:footer="400" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+  const documento = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${ns}><w:body>${body.join("")}<w:sectPr><w:headerReference w:type="default" r:id="rIdHead"/><w:footerReference w:type="default" r:id="rIdFoot"/><w:pgSz w:w="${TW_ANCHO}" w:h="${TW_ALTO}"/><w:pgMar w:top="1000" w:right="${MARGEN}" w:bottom="900" w:left="${MARGEN}" w:header="400" w:footer="400" w:gutter="0"/></w:sectPr></w:body></w:document>`;
   const campo = (instr: string) => `<w:r><w:rPr><w:color w:val="5F6B79"/><w:sz w:val="15"/></w:rPr><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:rPr><w:color w:val="5F6B79"/><w:sz w:val="15"/></w:rPr><w:instrText xml:space="preserve"> ${instr} </w:instrText></w:r><w:r><w:rPr><w:color w:val="5F6B79"/><w:sz w:val="15"/></w:rPr><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:rPr><w:color w:val="5F6B79"/><w:sz w:val="15"/></w:rPr><w:t>1</w:t></w:r><w:r><w:rPr><w:color w:val="5F6B79"/><w:sz w:val="15"/></w:rPr><w:fldChar w:fldCharType="end"/></w:r>`;
   const cabecera = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:hdr ${ns}>${para([{ t: "Inventario · Informe de evidencias del conteo  ·  " + x.periodo, sz: 15, color: "5F6B79" }], { borde: "D5DCE5", despues: 0 })}</w:hdr>`;
   const pie = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr ${ns}><w:p>${ppr({ despues: 0, al: "right" })}${run({ t: x.filtros + "   ·   Página ", sz: 15, color: "5F6B79" })}${campo("PAGE")}${run({ t: " de ", sz: 15, color: "5F6B79" })}${campo("NUMPAGES")}</w:p></w:ftr>`;
