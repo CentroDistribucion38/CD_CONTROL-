@@ -362,10 +362,23 @@ export function Balance({
                       <td className="r">{n(f.fisico_cajas)}</td>
                       <td className="r">
                         {cf ? (
-                          <button type="button" className="bal-est-cf" aria-expanded={abierta} title="Estibas casco calculadas con el conteo: ver la cuenta"
-                                  onClick={() => setVerCuenta(abierta ? null : llave)}>
-                            {n(f.estibas_casco, 2)}<i>{cf.diferencia >= 0 ? "+" : "−"}{n(Math.abs(cf.diferencia), 2)}</i>
-                          </button>
+                          <span className="bal-est-cf">
+                            {n(f.estibas_casco, 2)}
+                            {/* EL OJITO: dice en una línea que aquí se agregó la diferencia; tocarlo abre la cuenta. */}
+                            <button type="button" className="bal-ojo" aria-expanded={abierta}
+                                    aria-label={`Ver la cuenta de las estibas casco de ${f.codigo}`}
+                                    onClick={() => setVerCuenta(abierta ? null : llave)}>
+                              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                                <path d="M1.5 12S5.5 4.5 12 4.5 22.5 12 22.5 12 18.5 19.5 12 19.5 1.5 12 1.5 12Z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                                <circle cx="12" cy="12" r="3.2" fill="currentColor" />
+                              </svg>
+                              <span className="bal-tip" role="tooltip">
+                                <b>Se agregó la diferencia con el conteo</b>
+                                Inventario {n(cf.inventario, 2)} {cf.diferencia >= 0 ? "+" : "−"} {n(Math.abs(cf.diferencia), 2)} = <b>{n(cf.estibas, 2)}</b>
+                                <small>Conteo BAJA {n(cf.conteo_estibas, 2)} − casco {n(cf.casco, 2)} (inventario + lavado con baja). Toca para ver la cuenta.</small>
+                              </span>
+                            </button>
+                          </span>
                         ) : n(f.estibas_casco)}
                       </td>
                       <td className="r">{n(f.cajas_casco)}</td>

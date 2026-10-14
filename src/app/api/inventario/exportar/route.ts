@@ -24,11 +24,20 @@ export const maxDuration = 60;
 /* Techos para que el .xlsx siga abriéndose. */
 const MAX_FOTOS_LIBRO = 150;
 const MAX_BYTES_FOTO = 3 * 1024 * 1024;
+/* «Me debe bajar así sean 10 mil renglones»: daba 504 porque las fotos se bajaban UNA POR UNA (hasta 150)
+   y el servidor tiene 60 s. Ahora van de a 10 a la vez y con un tope de tiempo: si a los 25 s no han
+   terminado, el Excel sale con las que alcanzaron y la hoja Evidencias dice cuántas quedaron por fuera. */
+const FOTOS_A_LA_VEZ = 10;
+const TOPE_FOTOS_MS = 25_000;
+/* Vercel no deja que una respuesta pase de 4,5 MB: con muchas fotos el Excel no llegaba. Las fotos
+   (que no se comprimen) se cortan a ~3 MB en total; las demás se siguen viendo en la app. */
+const TOPE_BYTES_FOTOS = 3 * 1024 * 1024;
 
 /** «20261007-1136»: la fecha y la hora de Colombia, para que cada descarga tenga su propio nombre. */
 const sello = () => new Date().toLocaleString("sv", { timeZone: "America/Bogota" }).replace(/[-:]/g, "").replace(" ", "-").slice(0, 13);
 
 export async function GET(req: Request) {
+  const inicio = Date.now();
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Sin sesión." }, { status: 401 });
@@ -81,13 +90,22 @@ export async function GET(req: Request) {
       if (eF) { filas.length = 0; break }
       filas.push(...((f ?? []) as typeof filas));
     }
-    for (const f of filas) {
-      if (evidencias.length >= MAX_FOTOS_LIBRO) { recortadas++; continue }
-      const { data: blob, error: eB } = await supabase.storage.from("inventario").download(f.ruta);
-      if (eB || !blob) { recortadas++; continue }
-      const buf = Buffer.from(await (blob as Blob).arrayBuffer());
-      if (buf.byteLength > MAX_BYTES_FOTO) { recortadas++; continue }
-      evidencias.push({ linea_id: f.linea_id, foto: buf, ancho: f.ancho, alto: f.alto, tomada_en: f.tomada_en });
+    const aBajar = filas.slice(0, MAX_FOTOS_LIBRO);
+    let pesoFotos = 0;
+    recortadas += filas.length - aBajar.length;
+    for (let i = 0; i < aBajar.length; i += FOTOS_A_LA_VEZ) {
+      if (Date.now() - inicio > TOPE_FOTOS_MS) { recortadas += aBajar.length - i; break }
+      const tanda = await Promise.all(aBajar.slice(i, i + FOTOS_A_LA_VEZ).map(async (f) => {
+        try {
+          const { data: blob, error: eB } = await supabase.storage.from("inventario").download(f.ruta);
+          if (eB || !blob) return null;
+          const buf = Buffer.from(await (blob as Blob).arrayBuffer());
+          return buf.byteLength > MAX_BYTES_FOTO ? null : { linea_id: f.linea_id, foto: buf, ancho: f.ancho, alto: f.alto, tomada_en: f.tomada_en };
+        } catch { return null }
+      }));
+      for (const e of tanda) {
+        if (e && pesoFotos + e.foto.byteLength <= TOPE_BYTES_FOTOS) { evidencias.push(e); pesoFotos += e.foto.byteLength } else recortadas++;
+      }
     }
   } catch { /* sin fotos: el libro de siempre */ }
   const { data: yo } = await supabase.from("perfiles").select("nombre, usuario").eq("id", user.id).maybeSingle();

@@ -479,7 +479,13 @@ export function Base({
       const hx = (c: number[]) => c.map((v) => v.toString(16).padStart(2, "0")).join("");
       const r = await fetch(`/api/inventario/exportar?desde=${desde}&hasta=${hasta}` + (todos ? "" : `&ids=${incluidos.map((c) => c.id).join(",")}`)
         + `&tinta=${hx(P.tinta)}&banda=${hx(P.cinta[1]?.[1] ?? P.acento)}`);
-      if (!r.ok) { const j = await r.json().catch(() => null); setMal(j?.error ?? `No se pudo (${r.status}).`); return }
+      if (!r.ok) {
+        const j = await r.json().catch(() => null);
+        setMal(j?.error ?? (r.status === 504
+          ? "El servidor se demoró más de lo permitido armando el Excel. Vuelve a intentar; si sigue, baja menos días o menos recorridos."
+          : `No se pudo (${r.status}).`));
+        return;
+      }
       const blob = await r.blob();
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
