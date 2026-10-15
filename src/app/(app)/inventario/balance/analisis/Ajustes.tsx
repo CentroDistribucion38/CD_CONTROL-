@@ -2,6 +2,7 @@
 
 import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
+import { InformeCierre } from "./InformeCierre";
 import type { FilaAjuste, Guardado } from "@/modulos/inventario/analisis-ajustes";
 import { guardarHecho, guardarObservacion } from "./actions";
 
@@ -15,8 +16,8 @@ const signo = (v: number) => (v > 0 ? "+" : v < 0 ? "−" : "") + nf.format(Math
 const largo = (iso: string) => new Date(iso + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 const sentido = (v: number) => (v > 0 ? "Sobrante · sube SAP" : v < 0 ? "Faltante · baja SAP" : "Cuadrado");
 
-export function Ajustes({ fecha, guardado, filas: inicio, puedeEditar, faltaSql }: {
-  fecha: string; guardado: Guardado | null; filas: FilaAjuste[]; puedeEditar: boolean; faltaSql: boolean;
+export function Ajustes({ fecha, guardado, filas: inicio, puedeEditar, faltaSql, finalEn = null }: {
+  fecha: string; guardado: Guardado | null; filas: FilaAjuste[]; puedeEditar: boolean; faltaSql: boolean; finalEn?: string | null;
 }) {
   const [filas, setFilas] = useState(inicio);
   /* «En otra hoja los sobrantes, los faltantes»: también en pantalla, una pestaña para cada uno. */
@@ -102,6 +103,7 @@ export function Ajustes({ fecha, guardado, filas: inicio, puedeEditar, faltaSql 
         </div>
         <Link className="ad-bt alt" href={`/inventario/balance/analisis?fecha=${fecha}`}>← Volver al análisis</Link>
         <button type="button" className="ad-bt alt" disabled={armando} onClick={() => void bajarExcel()}>{armando ? "Armando el Excel…" : "Descargar Excel"}</button>
+        <InformeCierre fecha={fecha} fechaLarga={largo(fecha)} ajustes={filas} guardadoEn={guardado.guardado_en} guardadoPor={guardado.guardado_por} finalEn={finalEn} />
         <Link className="ad-bt" href={`/inventario/balance/analisis?fecha=${fecha}&paso=final`}>Ver análisis final →</Link>
       </div>
       {msg && <p className="ad-msg mal" role="status">{msg}</p>}

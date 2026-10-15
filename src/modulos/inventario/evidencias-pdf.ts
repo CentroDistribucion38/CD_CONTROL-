@@ -11,7 +11,9 @@ import { PALETA_MARCA, type Marca, type Paleta } from "@/modulos/rotlinea/hoja";
 import type { Bloque, CeldaT } from "./evidencias-informe";
 
 type RGB = [number, number, number];
-export type ExtraPdf = { periodo: string; filtros: string; generado: string; marca?: Marca; paleta?: Paleta };
+export type ExtraPdf = { periodo: string; filtros: string; generado: string; marca?: Marca; paleta?: Paleta;
+  /** Opcionales para que otros informes usen el mismo papel (sin ellos, el de evidencias de siempre). */
+  encabezado?: string; ojo?: string };
 
 const hexRGB = (h: string): RGB => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)) as RGB;
 
@@ -55,7 +57,7 @@ export function dibujarEvidencias(JsPDFCtor: typeof JsPDF, bloques: Bloque[], x:
     cinta(0, 0, W, 2.2);
     if (marca.sello) { try { doc.addImage(marca.sello, "PNG", M, 6, 8, 8, "sello", "FAST") } catch { /* sigue */ } }
     const xx = M + (marca.sello ? 11 : 0);
-    fuente("bold", 9.5); tinta(); doc.text("Inventario · Informe de evidencias del conteo", xx, 10.4);
+    fuente("bold", 9.5); tinta(); doc.text(x.encabezado ?? "Inventario · Informe de evidencias del conteo", xx, 10.4);
     fuente("normal", 8); gris(); doc.text(x.periodo, xx, 14);
     doc.setDrawColor(...TINTA); doc.setLineWidth(0.3); doc.line(M, 17, W - M, 17);
     y = 22;
@@ -71,12 +73,13 @@ export function dibujarEvidencias(JsPDFCtor: typeof JsPDF, bloques: Bloque[], x:
     const AL = 15; let conLogo = false;
     if (marca.palabra) { try { doc.addImage(marca.palabra, "PNG", M, 10, AL * 540 / 160, AL, "palabra", "FAST"); conLogo = true } catch { /* sin logo */ } }
     if (!conLogo) { fuente("bold", 16); doc.setTextColor(255, 0, 15); doc.text("Bavaria", M, 21) }
-    fuente("bold", 7.5); gris(); doc.text("INVENTARIO · CONTEO", W - M, 14, { align: "right" });
+    fuente("bold", 7.5); gris(); doc.text(x.ojo ?? "INVENTARIO · CONTEO", W - M, 14, { align: "right" });
     fuente("normal", 8); doc.text(x.generado, W - M, 18.5, { align: "right" });
     y = 10 + AL + 6;
     doc.setDrawColor(...TINTA); doc.setLineWidth(0.5); doc.line(M, y, W - M, y);
     y += 9;
-    fuente("bold", 24); tinta(); doc.text(b.titulo, M, y); y += 8;
+    /* Un título que no cabe en una línea se parte (los de siempre caben y salen igual). */
+    fuente("bold", 24); tinta(); { const ls = partir(b.titulo, CW); ls.forEach((l, i) => doc.text(l, M, y + i * 9.5)); y += 8 + (ls.length - 1) * 9.5 }
     fuente("normal", 12.5); gris(); doc.text(b.sub, M, y); y += 7;
     fuente("normal", 9); for (const m of b.meta) { doc.text(m, M, y); y += 4.6 }
     y += 3;

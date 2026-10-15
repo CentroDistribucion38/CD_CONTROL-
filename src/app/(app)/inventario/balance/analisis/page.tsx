@@ -103,7 +103,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
           </p>
         </div></section>
         {pasos}
-        <Ajustes fecha={fecha} guardado={aj.guardado} filas={aj.filas} puedeEditar={puedeEditar} faltaSql={aj.faltaSql} />
+        <Ajustes fecha={fecha} guardado={aj.guardado} filas={aj.filas} puedeEditar={puedeEditar} faltaSql={aj.faltaSql} finalEn={aj.final?.en ?? null} />
       </div>
     );
   }

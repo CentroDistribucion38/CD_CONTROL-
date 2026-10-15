@@ -153,3 +153,18 @@
 .ad .ad-hist td b.neg { color: #B42318 }
 .ad .ad-hist td.n small { display: block; font-size: 11px; color: var(--fe-gris) }
 .ad .ad-aj small.ad-nuevo { margin-top: 3px; color: #1B4F8F }
+
+/* ---------- INFORME DEL CIERRE (caja para el nombre) ---------- */
+.ad .ad-inf { display: contents }
+.ad .ad-modal { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 16px; background: rgba(17, 17, 17, .55) }
+.ad .ad-modal-caja { width: min(560px, 100%); background: #fff; border-top: 5px solid var(--fe-acento, #FFC400); padding: 22px 24px; box-shadow: 0 18px 50px rgba(0, 0, 0, .3) }
+.ad .ad-modal-ojo { margin: 0 0 4px; font: 700 10.5px var(--fe-texto); letter-spacing: .14em; color: var(--fe-gris) }
+.ad .ad-modal-caja h3 { margin: 0 0 6px; font: 800 20px var(--fe-titulo, var(--fe-texto)); color: var(--fe-tinta); text-transform: capitalize }
+.ad .ad-modal-sub { margin: 0 0 16px; font-size: 13px; color: var(--fe-gris) }
+.ad .ad-modal-campo { display: flex; flex-direction: column; gap: 5px }
+.ad .ad-modal-campo span { font: 700 10.5px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase; color: var(--fe-gris) }
+.ad .ad-modal-campo input { height: 42px; padding: 0 12px; border: 1.5px solid var(--fe-tinta); font: 700 14px var(--fe-texto); color: var(--fe-tinta); text-transform: uppercase; letter-spacing: .02em }
+.ad .ad-modal-campo input:focus { outline: 3px solid var(--fe-acento, #FFC400); outline-offset: 0 }
+.ad .ad-modal-campo small { font-size: 12px; color: var(--fe-gris) }
+.ad .ad-modal-link { border: 0; background: none; padding: 0; margin-left: 6px; font: 700 12px var(--fe-texto); color: #1B4F8F; text-decoration: underline; cursor: pointer }
+.ad .ad-modal-acc { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; flex-wrap: wrap }

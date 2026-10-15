@@ -9,7 +9,9 @@
 import { strToU8, zipSync } from "fflate";
 import type { Bloque, CeldaT } from "./evidencias-informe";
 
-export type ExtraWord = { periodo: string; filtros: string; generado: string; tinta?: string; acento?: string; logo?: string };
+export type ExtraWord = { periodo: string; filtros: string; generado: string; tinta?: string; acento?: string; logo?: string;
+  /** Opcionales para que otros informes usen el mismo papel (sin ellos, el de evidencias de siempre). */
+  encabezado?: string; ojo?: string };
 
 /* VERTICAL (A4): «vertical debe ser el informe». */
 const TW_ANCHO = 11906, TW_ALTO = 16838, MARGEN = 720;
@@ -74,7 +76,7 @@ export function armarWord(bloques: Bloque[], x: ExtraWord): Uint8Array {
         if (x.logo) {
           try { body.push(parrafoImg(imagen(x.logo, 540, 160, 2800, 850), "left", 60)) } catch { /* sin logo */ }
         }
-        body.push(para([{ t: "INVENTARIO · CONTEO", b: true, sz: 16, color: "5F6B79" }], { despues: 40, borde: TINTA }));
+        body.push(para([{ t: x.ojo ?? "INVENTARIO · CONTEO", b: true, sz: 16, color: "5F6B79" }], { despues: 40, borde: TINTA }));
         body.push(para([{ t: b.titulo, b: true, sz: 44, color: TINTA }], { antes: 100, despues: 20 }));
         body.push(para([{ t: b.sub, sz: 24, color: "5F6B79" }], { despues: 60 }));
         for (const m of b.meta) body.push(para([{ t: m, sz: 19, color: "5F6B79" }], { despues: 20 }));
@@ -145,14 +147,14 @@ export function armarWord(bloques: Bloque[], x: ExtraWord): Uint8Array {
   const ns = `xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"`;
   const documento = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${ns}><w:body>${body.join("")}<w:sectPr><w:headerReference w:type="default" r:id="rIdHead"/><w:footerReference w:type="default" r:id="rIdFoot"/><w:pgSz w:w="${TW_ANCHO}" w:h="${TW_ALTO}"/><w:pgMar w:top="1000" w:right="${MARGEN}" w:bottom="900" w:left="${MARGEN}" w:header="400" w:footer="400" w:gutter="0"/></w:sectPr></w:body></w:document>`;
   const campo = (instr: string) => `<w:r><w:rPr><w:color w:val="5F6B79"/><w:sz w:val="15"/></w:rPr><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:rPr><w:color w:val="5F6B79"/><w:sz w:val="15"/></w:rPr><w:instrText xml:space="preserve"> ${instr} </w:instrText></w:r><w:r><w:rPr><w:color w:val="5F6B79"/><w:sz w:val="15"/></w:rPr><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:rPr><w:color w:val="5F6B79"/><w:sz w:val="15"/></w:rPr><w:t>1</w:t></w:r><w:r><w:rPr><w:color w:val="5F6B79"/><w:sz w:val="15"/></w:rPr><w:fldChar w:fldCharType="end"/></w:r>`;
-  const cabecera = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:hdr ${ns}>${para([{ t: "Inventario · Informe de evidencias del conteo  ·  " + x.periodo, sz: 15, color: "5F6B79" }], { borde: "D5DCE5", despues: 0 })}</w:hdr>`;
+  const cabecera = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:hdr ${ns}>${para([{ t: (x.encabezado ?? "Inventario · Informe de evidencias del conteo") + "  ·  " + x.periodo, sz: 15, color: "5F6B79" }], { borde: "D5DCE5", despues: 0 })}</w:hdr>`;
   const pie = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr ${ns}><w:p>${ppr({ despues: 0, al: "right" })}${run({ t: x.filtros + "   ·   Página ", sz: 15, color: "5F6B79" })}${campo("PAGE")}${run({ t: " de ", sz: 15, color: "5F6B79" })}${campo("NUMPAGES")}</w:p></w:ftr>`;
   const estilos = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri" w:eastAsia="Calibri"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:lang w:val="es-CO"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="60" w:line="259" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style></w:styles>`;
 
   const archivos: Record<string, Uint8Array> = {
     "[Content_Types].xml": strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Default Extension="jpg" ContentType="image/jpeg"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>`),
     "_rels/.rels": strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>`),
-    "docProps/core.xml": strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${X("Informe de evidencias del conteo · " + x.periodo)}</dc:title><dc:creator>Control CD38</dc:creator></cp:coreProperties>`),
+    "docProps/core.xml": strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${X((x.encabezado ?? "Informe de evidencias del conteo") + " · " + x.periodo)}</dc:title><dc:creator>Control CD38</dc:creator></cp:coreProperties>`),
     "word/document.xml": strToU8(documento),
     "word/styles.xml": strToU8(estilos),
     "word/header1.xml": strToU8(cabecera),

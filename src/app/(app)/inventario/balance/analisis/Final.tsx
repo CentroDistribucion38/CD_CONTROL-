@@ -2,6 +2,7 @@
 
 import { Fragment, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
+import { InformeCierre } from "./InformeCierre";
 import { useRouter } from "next/navigation";
 import type { FilaAjuste, Guardado } from "@/modulos/inventario/analisis-ajustes";
 import { analisisFinal } from "@/modulos/inventario/compensa";
@@ -80,6 +81,7 @@ export function Final({ fecha, guardado, ajustes, final, puedeEditar, faltaSql }
         </div>
         <Link className="ad-bt alt" href={`/inventario/balance/analisis?fecha=${fecha}&paso=ajustes`}>← Ajustes</Link>
         <button type="button" className="ad-bt alt" disabled={armando} onClick={() => void bajarExcel()}>{armando ? "Armando el Excel…" : "Descargar Excel"}</button>
+        <InformeCierre fecha={fecha} fechaLarga={largo(fecha)} ajustes={ajustes} guardadoEn={guardado.guardado_en} guardadoPor={guardado.guardado_por} finalEn={final?.en ?? null} />
         {puedeEditar && <button type="button" className="ad-bt" disabled={pend || !!faltaSql} onClick={guardar}>{pend ? "Guardando…" : final ? "Guardar de nuevo el final" : "Guardar análisis final"}</button>}
       </div>
       {msg && <p className={"ad-msg" + (msg.mal ? " mal" : " bien")} role="status">{msg.t}</p>}
