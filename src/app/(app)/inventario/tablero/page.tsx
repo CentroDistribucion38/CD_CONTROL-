@@ -51,6 +51,7 @@ function Hojas({ vista }: { vista: "fefo" | "fifo" | "tiempos" | "evidencias" })
     <nav className="tp-tabs" aria-label="Hojas del tablero">
       <Link href="/inventario/tablero" aria-current={vista === "fefo" ? "page" : undefined} className={vista === "fefo" ? "on" : ""}>FEFO producto</Link>
       <Link href="/inventario/tablero?vista=fifo" aria-current={vista === "fifo" ? "page" : undefined} className={vista === "fifo" ? "on" : ""}>FIFO del envase</Link>
+      <Link href="/inventario/despacho">Despacho FIFO →</Link>
       <Link href="/inventario/tablero?vista=tiempos" aria-current={vista === "tiempos" ? "page" : undefined} className={vista === "tiempos" ? "on" : ""}>Tiempos de conteo</Link>
       <Link href="/inventario/tablero?vista=evidencias" aria-current={vista === "evidencias" ? "page" : undefined} className={vista === "evidencias" ? "on" : ""}>Evidencias</Link>
     </nav>
