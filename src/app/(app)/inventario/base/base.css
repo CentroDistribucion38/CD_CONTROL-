@@ -303,3 +303,55 @@
 /* «Contó»: quién contó el renglón, al lado de la ubicación. */
 .fe .ba-quien { font-weight: 700; color: var(--fe-tinta); white-space: nowrap }
 .fe .ba .ba-ok { margin: 0; font-size: 13px; font-weight: 700; color: #0F7A4A }
+
+/* =====================================================================
+   FILTRO POR CAMPO — el embudo de cada encabezado y la lista de valores (como el autofiltro de Excel).
+   ===================================================================== */
+.fe .ba-t thead .ba-thc { display: flex; align-items: stretch }
+.fe .ba-t thead .ba-thc > button:first-child { flex: 1 1 auto; min-width: 0 }
+.fe .ba-t thead button.ba-fil {
+  flex: none; width: 28px; min-height: 40px; padding: 0; justify-content: center; color: var(--fe-gris);
+  opacity: .55;
+}
+.fe .ba-t thead th:hover button.ba-fil, .fe .ba-t thead button.ba-fil[aria-expanded="true"] { opacity: 1 }
+.fe .ba-t thead button.ba-fil svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round }
+.fe .ba-t thead button.ba-fil.on { opacity: 1; color: var(--fe-tinta); background: var(--fe-acento) }
+.fe .ba-t thead button.ba-fil.on svg { fill: currentColor }
+
+.fe .ba-campos { display: flex; flex-wrap: wrap; align-items: center; gap: 6px }
+.fe .ba .ba-campo-sel select { min-height: 34px; font-weight: 700 }
+.fe .ba .ba-fchip { display: inline-flex; align-items: stretch; border: 1px solid var(--fe-acento); background: color-mix(in srgb, var(--fe-acento) 14%, #fff) }
+.fe .ba .ba-fchip button {
+  width: auto; min-height: 32px; padding: 0 10px; border: 0; border-radius: 0; background: none; cursor: pointer;
+  font: 600 12.5px var(--fe-texto); color: var(--fe-tinta); max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fe .ba .ba-fchip button.x { padding: 0 9px; font: 700 15px var(--fe-titulo); border-left: 1px solid var(--fe-acento) }
+.fe .ba .ba-fchip button:hover { background: color-mix(in srgb, var(--fe-acento) 30%, #fff) }
+
+.fe .ba .ba-fc {
+  position: fixed; z-index: 60; background: #fff; border: 1px solid var(--fe-linea); border-top: 3px solid var(--fe-acento);
+  box-shadow: 0 12px 32px rgba(4, 32, 63, .22); display: flex; flex-direction: column; max-width: calc(100vw - 16px);
+  font-family: var(--fe-texto); color: var(--fe-tinta);
+}
+.fe .ba .ba-fc-t { padding: 10px 12px 6px; font-size: 12px; color: var(--fe-gris) }
+.fe .ba .ba-fc-t b { color: var(--fe-tinta); font-family: var(--fe-titulo) }
+.fe .ba .ba-fc-ord { display: flex; gap: 4px; padding: 0 12px 6px }
+.fe .ba .ba-fc-ord button {
+  flex: 1; width: auto; min-height: 30px; border: 1px solid var(--fe-linea); background: var(--fe-fondo); cursor: pointer;
+  font: 600 12px var(--fe-texto); color: var(--fe-tinta); border-radius: 0;
+}
+.fe .ba .ba-fc-q { margin: 0 12px 6px; min-height: 34px; padding: 0 9px; border: 1px solid var(--fe-linea); font: 13px var(--fe-texto) }
+.fe .ba .ba-fc-l { max-height: min(320px, 50vh); overflow-y: auto; border-block: 1px solid var(--fe-linea); padding: 4px 0 }
+.fe .ba .ba-fc-l label { display: flex; align-items: center; gap: 8px; padding: 5px 12px; font-size: 13px; cursor: pointer }
+.fe .ba .ba-fc-l label:hover { background: var(--fe-fondo) }
+.fe .ba .ba-fc-l label span { flex: 1; min-width: 0; overflow-wrap: anywhere }
+.fe .ba .ba-fc-l label span.vac { font-style: italic; color: var(--fe-gris) }
+.fe .ba .ba-fc-l label i { font: 500 11px var(--ba-mono); font-style: normal; color: var(--fe-gris) }
+.fe .ba .ba-fc-l .ba-fc-todo { font-weight: 700; border-bottom: 1px dashed var(--fe-linea) }
+.fe .ba .ba-fc-l input { width: 16px; height: 16px; flex: none; accent-color: var(--fe-tinta) }
+.fe .ba .ba-fc-mas { margin: 6px 12px; font-size: 12px; color: var(--fe-gris) }
+.fe .ba .ba-fc-b { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 12px }
+.fe .ba .ba-fc-b > span { display: flex; gap: 6px }
+.fe .ba .ba-fc-b .ba-sec, .fe .ba .ba-fc-b .ba-prim { min-height: 36px; padding: 0 12px; flex: none }
+.fe .ba .ba-fc-limpia { width: auto; border: 0; background: none; padding: 0; cursor: pointer; font: 600 12px var(--fe-texto); color: var(--fe-mal); text-decoration: underline }
+.fe .ba .ba-fc-limpia:disabled { color: var(--fe-gris); opacity: .5; cursor: default; text-decoration: none }

@@ -40,7 +40,7 @@
  * recorrido). Pide confirmar y la base lo vuelve a comprobar.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { Renglon, ConteoFefo } from "@/modulos/inventario/fefo";
 import { cruzar, sufijoRecorrido, type Vigente } from "@/modulos/inventario/base-cruce";
@@ -52,6 +52,7 @@ import { sumarDias } from "@/modulos/inventario/fiscal";
 import { leerPaleta } from "../informe";
 import { armarVistaXlsx } from "@/modulos/inventario/vista-xlsx";
 import { bajarFotosZip } from "./fotos-zip";
+import { FiltroCampo, VACIAS } from "./FiltroCampo";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const POR_PAGINA = 100;
@@ -254,6 +255,22 @@ const ESTADO: Col<Fila> = {
   pinta: (r) => <span className={r.pasado ? "ba-pas" : "ba-pen"}>{r.pasado ? "PASADO" : "POR PASAR"}</span>,
 };
 
+/* FILTRO POR CAMPO: cada columna (de la tabla corta, de la completa, «Contó» y «Estado») tiene su id.
+   Las cortas llevan «v_» porque algunas se llaman igual que una completa y no dicen lo mismo
+   («Cajas» corta = total de cajas; «Cajas sueltas» completa = las sueltas). */
+const ID_COL = new Map<Col<Fila>, string>([
+  ...(COLUMNAS as Col<Fila>[]).map((c) => [c, c.k] as const),
+  ...CORTAS.map((c) => [c, "v_" + c.k] as const),
+  [CONTO, CONTO.k], [ESTADO, ESTADO.k],
+]);
+const POR_ID = new Map([...ID_COL].map(([c, id]) => [id, c]));
+/** Todos los campos, en el orden de la hoja, para el desplegable «Filtrar por campo». */
+const CAMPOS: { id: string; t: string }[] = [
+  ...(COLUMNAS as Col<Fila>[]).map((c) => ({ id: c.k, t: c.t })),
+  { id: CONTO.k, t: "Contó (quién envió)" }, { id: ESTADO.k, t: "Estado (pasado / por pasar)" },
+];
+const valorFiltro = (c: Col<Fila>, r: Fila) => c.texto(r).trim() || VACIAS;
+
 /** «20261007-1136»: fecha y hora de Colombia en el nombre de cada Excel, para que ninguna descarga pise a otra. */
 const selloDescarga = () => new Date().toLocaleString("sv", { timeZone: "America/Bogota" }).replace(/[-:]/g, "").replace(" ", "-").slice(0, 13);
 
@@ -287,6 +304,10 @@ export function Base({
      y no en un desplegable porque es la primera pregunta sobre la base, y porque un desplegable cerrado
      no dice cuál está puesto. */
   const [fTipo, setFTipo] = useState<"" | "PRODUCTO" | "ENVASE">("");
+  /* FILTRO POR CAMPO: id de la columna → los valores que se dejan ver. */
+  const [fCol, setFCol] = useState<Record<string, ReadonlySet<string>>>({});
+  const [abierto, setAbierto] = useState<{ id: string; x: number; y: number } | null>(null);
+  const cerrarFiltro = useCallback(() => setAbierto(null), []);
   const [completa, setCompleta] = useState(false);
   const [pag, setPag] = useState(0);
   const [marcados, setMarcados] = useState<ReadonlySet<string>>(new Set());
@@ -392,6 +413,52 @@ export function Base({
     () => [...new Set(crudas.filter((r) => fCalle === "" || r.calle === fCalle)
       .map((r) => r.ubicacion).filter(Boolean))].sort((a, b) => (a as string).localeCompare(b as string, "es", { numeric: true })) as string[], [crudas, fCalle]);
 
+  /* Los filtros por campo. `menos` = la columna que se está abriendo: su lista se arma con todo lo demás
+     filtrado pero sin ella misma, como el autofiltro de Excel. */
+  const pasaCampos = (r: Fila, menos?: string) => {
+    for (const id in fCol) {
+      if (id === menos) continue;
+      const c = POR_ID.get(id);
+      if (c && !fCol[id].has(valorFiltro(c, r))) return false;
+    }
+    return true;
+  };
+  const pasaBase = (r: Fila) => {
+    const q = fTexto.trim().toLowerCase();
+    if (q && !`${r.codigo} ${r.material} ${r.familia ?? ""} ${r.nota ?? ""}`.toLowerCase().includes(q)) return false;
+    if (fRec && r.conteo_id !== fRec) return false;
+    if (fCalle && r.calle !== fCalle) return false;
+    if (fModulo && r.ubicacion !== fModulo) return false;
+    if (fQuien.size && !fQuien.has(r.quien)) return false;
+    if (fTipo && r.tipo_material !== fTipo) return false;
+    return true;
+  };
+  const valoresDe = (id: string) => {
+    const c = POR_ID.get(id); if (!c) return [];
+    const m = new Map<string, { n: number; o: number | string }>();
+    for (const r of crudas) {
+      if (!pasaBase(r) || !pasaCampos(r, id)) continue;
+      const v = valorFiltro(c, r);
+      const x = m.get(v);
+      if (x) x.n++; else m.set(v, { n: 1, o: v === VACIAS ? "" : c.valor ? c.valor(r) : v });
+    }
+    /* Lo que ya estaba marcado y hoy no sale sigue en la lista (con 0), para poder desmarcarlo. */
+    for (const v of fCol[id] ?? []) if (!m.has(v)) m.set(v, { n: 0, o: v });
+    return [...m.entries()].sort((a, b) => {
+      if (a[0] === VACIAS) return 1; if (b[0] === VACIAS) return -1;
+      const x = a[1].o, y = b[1].o;
+      return typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y), "es", { numeric: true });
+    }).map(([v, x]) => ({ v, n: x.n }));
+  };
+  const abrirFiltro = (id: string, el: HTMLElement) => {
+    const b = el.getBoundingClientRect();
+    setAbierto((a) => (a?.id === id ? null : { id, x: b.left, y: b.bottom + 4 }));
+  };
+  const ponerFiltro = (id: string, s: ReadonlySet<string> | null) => {
+    setFCol((f) => { const n = { ...f }; if (s) n[id] = s; else delete n[id]; return n });
+    setAbierto(null);
+  };
+
   /* Lo que pasa los demás filtros, SIN mirar quién: de ahí salen los números de cada persona. */
   const sinQuien = useMemo(() => {
     const q = fTexto.trim().toLowerCase();
@@ -400,9 +467,10 @@ export function Base({
       if (fRec && r.conteo_id !== fRec) return false;
       if (fCalle && r.calle !== fCalle) return false;
       if (fModulo && r.ubicacion !== fModulo) return false;
-      return true;
+      return pasaCampos(r);
     });
-  }, [crudas, fTexto, fRec, fCalle, fModulo]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [crudas, fTexto, fRec, fCalle, fModulo, fCol]);
   /* LAS PERSONAS: las que tienen un recorrido con renglones en esta pestaña. Si un filtro (por ejemplo
      «Envase») les deja cero, siguen saliendo con «0» para que no parezca que se perdieron. */
   const personas = useMemo(() => {
@@ -444,13 +512,13 @@ export function Base({
     });
   }, [sinTipo, fTipo, orden, columnas]);
 
-  const firma = `${pestania}|${fTexto}|${fRec}|${fCalle}|${fModulo}|${fTipo}|${[...fQuien].join(",")}|${orden.k}${orden.asc}|${desde}|${hasta}|${[...quitados].join(",")}`;
+  const firma = `${pestania}|${JSON.stringify(Object.entries(fCol).map(([k, v]) => [k, [...v]]))}|${fTexto}|${fRec}|${fCalle}|${fModulo}|${fTipo}|${[...fQuien].join(",")}|${orden.k}${orden.asc}|${desde}|${hasta}|${[...quitados].join(",")}`;
   useEffect(() => { setPag(0) }, [firma]);
   const ultima = Math.max(0, Math.ceil(filas.length / POR_PAGINA) - 1);
   const pagina = Math.min(pag, ultima);
   const visibles = filas.slice(pagina * POR_PAGINA, (pagina + 1) * POR_PAGINA);
 
-  const filtrando = fTexto.trim() !== "" || fCalle !== "" || fModulo !== "" || fRec !== "" || fTipo !== "" || fQuien.size > 0;
+  const filtrando = Object.keys(fCol).length > 0 || fTexto.trim() !== "" || fCalle !== "" || fModulo !== "" || fRec !== "" || fTipo !== "" || fQuien.size > 0;
   const cajas = filas.reduce((a, r) => a + Number(r.total_cajas), 0);
 
   /* LAS CIFRAS DE ARRIBA son las de la base ya cruzada, sin los filtros de la tabla: «Renglones» dice
@@ -544,7 +612,7 @@ export function Base({
     finally { setBajando(false) }
   }
 
-  const quitarFiltros = () => { setFTexto(""); setFRec(""); setFCalle(""); setFModulo(""); setFTipo(""); setFQuien(new Set()) };
+  const quitarFiltros = () => { setFCol({}); setFTexto(""); setFRec(""); setFCalle(""); setFModulo(""); setFTipo(""); setFQuien(new Set()) };
   const hayEnviados = dias.size > 0;
   const abiertosN = recorridosDe.length;
 
@@ -662,7 +730,7 @@ export function Base({
         <div className="ba-tabs" role="tablist">
           {([["base", "BD", kp.renglones], ["borradores", "Borradores", abiertas.length]] as const).map(([k, t, n]) => (
             <button key={k} type="button" role="tab" aria-selected={pestania === k} className={pestania === k ? "on" : ""}
-                    onClick={() => { setPestania(k); setFRec(""); setFCalle(""); setFModulo(""); setFQuien(new Set()); setMarcados(new Set()) }}>
+                    onClick={() => { setPestania(k); setFCol({}); setFRec(""); setFCalle(""); setFModulo(""); setFQuien(new Set()); setMarcados(new Set()) }}>
               {t}<i>{nf.format(n)}</i>
             </button>
           ))}
@@ -722,6 +790,36 @@ export function Base({
         </div>
       )}
 
+      {/* ================= FILTRO POR CAMPO: cualquiera de las columnas, aunque no se vea ================= */}
+      <div className="ba-campos" role="group" aria-label="Filtros por campo">
+        <label className="ba-sel ba-campo-sel">
+          <span className="sr">Filtrar por campo</span>
+          <select value="" onChange={(e) => { const id = e.target.value; if (id) abrirFiltro(id, e.currentTarget) }}>
+            <option value="">＋ Filtrar por campo…</option>
+            {CAMPOS.map((c) => <option key={c.id} value={c.id}>{c.t}{fCol[c.id] ? " ●" : ""}</option>)}
+          </select>
+        </label>
+        {Object.entries(fCol).map(([id, s]) => {
+          const c = POR_ID.get(id); if (!c) return null;
+          const vs = [...s];
+          return (
+            <span key={id} className="ba-fchip">
+              <button type="button" onClick={(e) => abrirFiltro(id, e.currentTarget)} title="Cambiar este filtro">
+                <b>{c.t}:</b> {vs.length === 0 ? "nada" : vs.length <= 2 ? vs.join(", ") : `${vs.slice(0, 2).join(", ")} +${vs.length - 2}`}
+              </button>
+              <button type="button" className="x" aria-label={`Quitar el filtro de ${c.t}`} onClick={() => ponerFiltro(id, null)}>×</button>
+            </span>
+          );
+        })}
+        {Object.keys(fCol).length > 1 && <button type="button" className="ba-link" onClick={() => setFCol({})}>Quitar filtros de campo</button>}
+      </div>
+      {abierto && POR_ID.get(abierto.id) && (
+        <FiltroCampo key={abierto.id} titulo={POR_ID.get(abierto.id)!.t} valores={valoresDe(abierto.id)}
+                     elegidos={fCol[abierto.id] ?? null} pos={{ x: abierto.x, y: abierto.y }}
+                     aplicar={(s) => ponerFiltro(abierto.id, s)} cerrar={cerrarFiltro}
+                     ordenar={columnas.some((c) => c.k === POR_ID.get(abierto.id)!.k) ? (asc) => setOrden({ k: POR_ID.get(abierto.id)!.k, asc }) : undefined} />
+      )}
+
       {pestania === "base" && puedeMarcar && (pasadosOk
         ? <MarcarPasados elegidos={elegidos} pasados={yaPasados} alCambiar={() => setMarcados(new Set())} />
         : <p className="ba-tope" role="alert">
@@ -772,9 +870,21 @@ export function Base({
                   {columnas.map((c) => (
                     <th key={c.k} className={c.num ? "num" : undefined}
                         aria-sort={orden.k === c.k ? (orden.asc ? "ascending" : "descending") : "none"}>
-                      <button type="button" onClick={() => ordenarPor(c.k)}>
-                        {c.t}<i aria-hidden="true">{orden.k === c.k ? (orden.asc ? "▲" : "▼") : ""}</i>
-                      </button>
+                      <div className="ba-thc">
+                        <button type="button" onClick={() => ordenarPor(c.k)}>
+                          {c.t}<i aria-hidden="true">{orden.k === c.k ? (orden.asc ? "▲" : "▼") : ""}</i>
+                        </button>
+                        {(() => {
+                          const id = ID_COL.get(c) ?? c.k;
+                          return (
+                            <button type="button" className={"ba-fil" + (fCol[id] ? " on" : "")} title={`Filtrar ${c.t}`}
+                                    aria-label={`Filtrar ${c.t}`} aria-expanded={abierto?.id === id}
+                                    onClick={(e) => abrirFiltro(id, e.currentTarget)}>
+                              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h12l-4.6 5.4V13l-2.8 1.2V8.4z" /></svg>
+                            </button>
+                          );
+                        })()}
+                      </div>
                     </th>
                   ))}
                 </tr>
