@@ -141,3 +141,49 @@
   .gs .gs-reglas { grid-template-columns: 1fr }
   .gs .gs-grid .ancho { grid-column: auto }
 }
+
+/* ---------- IMPORTAR (carga masiva desde Excel) ---------- */
+.gs .gs-cifras.c4 { grid-template-columns: repeat(4, minmax(0, 1fr)) }
+.gs .gi-pasos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px }
+.gs .gi-paso { position: relative; background: var(--fe-papel); border: 1px solid var(--fe-linea); border-bottom: 4px solid var(--fe-acento); padding: 18px 18px 18px 64px; display: flex; flex-direction: column; gap: 8px }
+.gs .gi-paso h3 { margin: 0; font: 800 16px var(--fe-titulo); color: var(--fe-tinta) }
+.gs .gi-paso p { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--fe-gris) }
+.gs .gi-paso p b { color: var(--fe-tinta) }
+.gs .gi-n { position: absolute; left: 16px; top: 16px; width: 36px; height: 36px; display: grid; place-items: center; background: var(--fe-tinta); color: var(--fe-acento); font: 900 18px var(--fe-titulo) }
+.gs .gi-descarga { align-self: flex-start; text-decoration: none; margin-top: 4px }
+.gs .gi-zona { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 44px 20px; border: 3px dashed var(--fe-linea); background: var(--fe-papel); color: var(--fe-tinta); text-align: center }
+.gs .gi-zona b { font: 800 18px var(--fe-titulo) }
+.gs .gi-zona span { color: var(--fe-gris); font-size: 13px }
+.gs .gi-zona.on { border-color: var(--fe-acento); background: color-mix(in srgb, var(--fe-acento) 12%, var(--fe-papel)) }
+.gs .gi-archivo { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 14px; background: var(--fe-papel); border: 1px solid var(--fe-linea); border-left: 6px solid var(--fe-acento); font-size: 13.5px }
+.gs .gi-cifras .gs-cif small { line-height: 1.35 }
+.gs .gi-card { background: var(--fe-papel); border: 1px solid var(--fe-linea); padding: 14px 16px }
+.gs .gi-card h3, .gs .gi-card summary { margin: 0 0 10px; font: 800 15px var(--fe-titulo); color: var(--fe-tinta); cursor: default }
+.gs .gi-card summary { cursor: pointer; margin: 0 }
+.gs .gi-card h3 small, .gs .gi-card summary small { font: 500 12.5px var(--fe-texto); color: var(--fe-gris); margin-left: 6px }
+.gs .gi-card.mal { border-left: 6px solid var(--gs-rojo) }
+.gs .gi-sem { display: flex; height: 22px; background: #EEF1F5; overflow: hidden }
+.gs .gi-sem i { display: block; height: 100% }
+.gs .gi-sem i.v, .gs .gi-sem-ley i.v { background: var(--gs-verde) }
+.gs .gi-sem i.a, .gs .gi-sem-ley i.a { background: #FFC000 }
+.gs .gi-sem i.r, .gs .gi-sem-ley i.r { background: var(--gs-rojo) }
+.gs .gi-sem-ley { display: flex; gap: 6px 22px; flex-wrap: wrap; margin-top: 10px; font-size: 13px }
+.gs .gi-sem-ley i { display: inline-block; width: 11px; height: 11px; margin-right: 7px }
+.gs .gi-disp { margin-top: 14px; padding: 10px 14px; background: #FDE7EB; border-left: 5px solid var(--gs-rojo); font-size: 13px }
+.gs .gi-disp ul { margin: 6px 0 0; padding-left: 18px } .gs .gi-disp li { margin: 2px 0 } .gs .gi-disp em { color: var(--fe-gris); font-style: normal; margin-left: 6px }
+.gs .gi-lista { max-height: 340px; overflow: auto }
+.gs .gi-lista table { width: 100%; border-collapse: collapse; font-size: 13px }
+.gs .gi-lista th { position: sticky; top: 0; background: var(--fe-tinta); color: #fff; font: 700 10px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase; padding: 8px 10px; text-align: left }
+.gs .gi-lista td { padding: 6px 10px; border-bottom: 1px solid var(--fe-linea); color: var(--fe-tinta) }
+.gs .gi-lista th.n, .gs .gi-lista td.n { text-align: right; width: 60px; font-variant-numeric: tabular-nums }
+.gs .gi-mas { margin: 8px 0 0; font-size: 12.5px; color: var(--fe-gris) }
+.gs .gi-ok { margin: 0; padding: 12px 16px; background: #E3F3EA; border-left: 6px solid var(--gs-verde); font-weight: 700; color: #0E5C35 }
+.gs .gi-error { margin: 0; padding: 12px 16px; background: #FDE7EB; border-left: 6px solid var(--gs-rojo); font-weight: 600; color: #A4102A }
+.gs .gi-acciones { display: flex; align-items: center; gap: 12px; flex-wrap: wrap }
+.gs .gi-check { display: flex; align-items: center; gap: 8px; font-size: 13.5px; margin-right: auto }
+.gs .gi-check input { width: 18px; height: 18px; accent-color: var(--fe-tinta) }
+.gs .gi-avance { padding: 16px; background: var(--fe-papel); border: 1px solid var(--fe-linea); display: flex; flex-direction: column; gap: 8px }
+.gs .gi-barra { height: 14px; background: #EEF1F5 } .gs .gi-barra i { display: block; height: 100%; background: var(--fe-acento); transition: width .3s }
+.gs .gi-listo { display: flex; flex-direction: column; gap: 14px; padding: 18px; background: var(--fe-papel); border: 1px solid var(--fe-linea); border-top: 6px solid var(--gs-verde) }
+.gs .gi-listo h2 { margin: 0; font: 800 22px var(--fe-titulo); color: var(--fe-tinta) }
+@media (max-width: 900px) { .gs .gi-pasos { grid-template-columns: 1fr } .gs .gs-cifras.c4 { grid-template-columns: repeat(2, minmax(0, 1fr)) } }

@@ -13,6 +13,7 @@ const corta = (f: string | null) => (f ? `${f.slice(8, 10)}/${f.slice(5, 7)}/${f
 const tono = (d: number | null) => (d == null ? "" : d > 60 ? "r" : d > 30 ? "m" : d > 15 ? "a" : "v");
 const PALETA = ["#0F7A4A", "#0B4EA2", "#C08A16", "#E4002B", "#12263A", "#8A96A3"];
 const MAX_SKU = 6;
+const TOPES = [5, 10, 15, 20, 0];   // posiciones por material; 0 = todas
 
 const natural = (a: string, b: string) => a.localeCompare(b, "es", { numeric: true });
 /** FIFO: el que lleva más tiempo (fecha FIFO más vieja) sale primero; sin fecha, al final. */
@@ -28,6 +29,7 @@ export function PlanFifo({ datos, inicial }: { datos: DatosPlan; inicial: string
   const valido = useMemo(() => new Set(datos.materiales.map((m) => m.codigo)), [datos.materiales]);
   const [elegidos, setElegidos] = useState<string[]>(() => inicial.filter((c) => valido.has(c)));
   const [zona, setZona] = useState<"" | Zona>("");
+  const [tope, setTope] = useState(10);
   const [marcas, setMarcas] = useState<Set<string>>(new Set());
   const [abierto, setAbierto] = useState(false);
   const [impreso, setImpreso] = useState("");
@@ -53,12 +55,18 @@ export function PlanFifo({ datos, inicial }: { datos: DatosPlan; inicial: string
   }, []);
 
   const bloques = useMemo(() => elegidos.map((cod) => {
-    const rs = datos.renglones.filter((r) => r.codigo === cod && (!zona || r.zona === zona)).sort(fifo);
+    const todas = datos.renglones.filter((r) => r.codigo === cod && (!zona || r.zona === zona)).sort(fifo);
+    /* Solo las N más antiguas (aunque tengan la misma fecha): lo que de verdad se va a despachar. */
+    const rs = tope > 0 ? todas.slice(0, tope) : todas;
     let ac = 0, acE = 0;
     const filas = rs.map((r, i) => { ac += r.cajas; acE += r.estibas; return { r, n: i + 1, ac, acE }; });
     const maxDias = Math.max(1, ...rs.map((r) => r.dias ?? 0));
-    return { cod, material: info.get(cod)?.material ?? cod, filas, cajas: ac, estibas: acE, maxDias };
-  }), [elegidos, datos.renglones, zona, info]);
+    const resto = todas.slice(rs.length);
+    return {
+      cod, material: info.get(cod)?.material ?? cod, filas, cajas: ac, estibas: acE, maxDias,
+      totalModulos: todas.length, restoModulos: resto.length, restoCajas: resto.reduce((t, r) => t + r.cajas, 0),
+    };
+  }), [elegidos, datos.renglones, zona, info, tope]);
 
   const tCajas = bloques.reduce((t, b) => t + b.cajas, 0);
   const tEstibas = bloques.reduce((t, b) => t + b.estibas, 0);
@@ -85,7 +93,7 @@ export function PlanFifo({ datos, inicial }: { datos: DatosPlan; inicial: string
         </div>
         <div className="pf-hoja-sello">
           <strong>Plan de despacho FIFO</strong>
-          Conteo del {larga(datos.dia)} · {zona || "Todas las zonas"}<br />
+          Conteo del {larga(datos.dia)} · {zona || "Todas las zonas"} · {tope ? `las ${tope} posiciones más antiguas por material` : "todas las posiciones"}<br />
           {impreso && <>Impreso: {impreso}</>}
         </div>
       </div>
@@ -103,6 +111,11 @@ export function PlanFifo({ datos, inicial }: { datos: DatosPlan; inicial: string
         <div className="pf-grupo"><span>Zona</span>
           <div className="pf-chips">{(["", "Bodega 38", "Fábrica"] as const).map((z) => (
             <button key={z || "todo"} type="button" className={zona === z ? "on" : ""} aria-pressed={zona === z} onClick={() => setZona(z)}>{z || "Todo"}</button>
+          ))}</div>
+        </div>
+        <div className="pf-grupo"><span>Posiciones por material</span>
+          <div className="pf-chips">{TOPES.map((t) => (
+            <button key={t} type="button" className={tope === t ? "on" : ""} aria-pressed={tope === t} onClick={() => setTope(t)}>{t === 0 ? "Todas" : t}</button>
           ))}</div>
         </div>
         <div className="pf-grupo pf-mat">
@@ -146,8 +159,8 @@ export function PlanFifo({ datos, inicial }: { datos: DatosPlan; inicial: string
       {elegidos.length > 0 && (
         <>
           <div className="pf-k">
-            <div><span>Módulos a recorrer</span><b>{n0(tModulos)}</b><small>{elegidos.length} material{elegidos.length === 1 ? "" : "es"}</small></div>
-            <div><span>Cajas</span><b>{n0(tCajas)}</b><small>{n1(tEstibas)} estibas</small></div>
+            <div><span>Posiciones a recorrer</span><b>{n0(tModulos)}</b><small>{elegidos.length} material{elegidos.length === 1 ? "" : "es"}</small></div>
+            <div><span>Cajas en esas posiciones</span><b>{n0(tCajas)}</b><small>{n1(tEstibas)} estibas</small></div>
             <div className={masViejo && (masViejo.dias ?? 0) > 30 ? "mal" : ""}><span>Más viejo</span><b>{masViejo ? `${n0(masViejo.dias!)} d` : "—"}</b>
               <small>{masViejo ? `${masViejo.ubicacion} · desde ${corta(masViejo.fechaFifo)}` : "sin fecha FIFO"}</small></div>
             <div><span>Primero se sale por</span><b className="pf-mono">{bloques.find((b) => b.filas.length)?.filas[0].r.ubicacion ?? "—"}</b>
@@ -162,7 +175,7 @@ export function PlanFifo({ datos, inicial }: { datos: DatosPlan; inicial: string
                   <h2>{b.material}</h2>
                 </div>
                 <dl>
-                  <div><dt>Módulos</dt><dd>{n0(b.filas.length)}</dd></div>
+                  <div><dt>Posiciones</dt><dd>{n0(b.filas.length)}<small> de {n0(b.totalModulos)}</small></dd></div>
                   <div><dt>Cajas</dt><dd>{n0(b.cajas)}</dd></div>
                   <div><dt>Estibas</dt><dd>{n1(b.estibas)}</dd></div>
                 </dl>
@@ -214,7 +227,9 @@ export function PlanFifo({ datos, inicial }: { datos: DatosPlan; inicial: string
                       })}
                     </tbody>
                     <tfoot>
-                      <tr><td colSpan={4}>TOTAL · {b.cod}</td><td className="n">{n1(b.estibas)}</td><td className="n">{n0(b.cajas)}</td><td colSpan={4} /></tr>
+                      <tr><td colSpan={4}>TOTAL · {b.cod} · {n0(b.filas.length)} posiciones</td><td className="n">{n1(b.estibas)}</td><td className="n">{n0(b.cajas)}</td><td colSpan={4} /></tr>
+                      {b.restoModulos > 0 && <tr className="pf-resto"><td colSpan={4}>Quedan {n0(b.restoModulos)} posiciones más recientes</td><td />
+                        <td className="n">{n0(b.restoCajas)}</td><td colSpan={4}>cajas que no se tocan en este plan</td></tr>}
                     </tfoot>
                   </table>
                 </div>

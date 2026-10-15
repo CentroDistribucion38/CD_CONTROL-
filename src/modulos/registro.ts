@@ -576,6 +576,8 @@ export const MODULOS: Modulo[] = [
       { nombre: "Resultado por turno", ruta: "/gestion/resultados" },
       { nombre: "Disparadores", ruta: "/gestion/disparadores" },
       { nombre: "Maestro", ruta: "/gestion/maestro" },
+      /* IMPORTAR: la carga masiva desde Excel (procesos, indicadores, metas, disparadores y resultados). Va después del Maestro: es la forma rápida de llenarlo. */
+      { nombre: "Importar", ruta: "/gestion/importar" },
     ],
   },
   {
