@@ -107,7 +107,7 @@ export async function guardarBalanceo(fecha: string, almacen?: string) {
       entran: conSap.filter((f) => !cero(f.dif) && (f.dif ?? 0) < 0).length,
       salen: conSap.filter((f) => !cero(f.dif) && (f.dif ?? 0) > 0).length,
     },
-    filas: c.filas.map(({ grupo, codigo, material, total, sap, dif, movido, sapDespues, queda, enLibre }) => ({ grupo, codigo, material, total, sap, dif, movido, sapDespues, queda, enLibre: enLibre ?? null })),
+    filas: c.filas.map(({ grupo, codigo, material, total, sap, dif, movido, sapDespues, queda, enLibre, estadoOk }) => ({ grupo, codigo, material, total, sap, dif, movido, sapDespues, queda, enLibre: enLibre ?? null, estadoOk: estadoOk ?? null })),
     aplicados: c.aplicados,
     zexi_archivo: g.zexi_archivo, mov_archivo: g.mov_archivo, estibas_almacen: g.estibas_almacen, sumar_pend_baja: g.sumar_pend_baja,
   };
