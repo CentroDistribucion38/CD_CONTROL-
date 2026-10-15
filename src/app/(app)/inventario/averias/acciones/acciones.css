@@ -1,0 +1,109 @@
+/* =====================================================================
+   AVERÍAS · ACCIONES — bandeja: lista a la izquierda, ficha a la derecha.
+   Todo lleva `avc-` y cuelga de `.avc`. Reusa de fefo.css: .cabeza, .kpi, .fe-barra, .fe-pes, .fe-busca, .btn.
+   ===================================================================== */
+.avc .avc-cifras { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px }
+.avc .avc-cif {
+  background: var(--fe-papel); border: 1px solid var(--fe-linea); border-bottom: 3px solid var(--fe-linea);
+  border-radius: 3px; padding: 10px 14px; display: flex; flex-direction: column; gap: 2px; min-width: 0;
+}
+.avc .avc-cif span { font: 700 10.5px var(--fe-texto); letter-spacing: .13em; text-transform: uppercase; color: var(--fe-gris) }
+.avc .avc-cif b { font: 900 24px/1.1 var(--fe-titulo); letter-spacing: -.02em; font-variant-numeric: tabular-nums }
+.avc .avc-cif.avc-mal { border-bottom-color: var(--fe-mal) } .avc .avc-cif.avc-mal b { color: var(--fe-mal) }
+.avc .avc-cif.avc-ojo { border-bottom-color: var(--fe-aviso) }
+.avc .avc-cif.avc-bien { border-bottom-color: var(--fe-bien) }
+
+.avc .avc-filtros { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap }
+.avc .avc-chips { display: flex; gap: 6px; flex-wrap: wrap }
+.avc .avc-chips button {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; cursor: pointer;
+  border: 1px solid var(--fe-linea); border-radius: 2px; background: var(--fe-papel);
+  font: 700 12.5px var(--fe-titulo); color: var(--fe-tinta);
+}
+.avc .avc-chips button.on { background: var(--fe-tinta); border-color: var(--fe-tinta); color: #fff }
+.avc .avc-chips button i { width: 9px; height: 9px; border-radius: 2px; display: inline-block }
+.avc .avc-chips button em { font-style: normal; font-weight: 600; opacity: .75; font-variant-numeric: tabular-nums }
+.avc .avc-rango { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; font-size: 12px; color: var(--fe-gris) }
+.avc .avc-rango span { margin-right: 4px }
+.avc .avc-rango a {
+  padding: 5px 9px; border: 1px solid var(--fe-linea); border-radius: 2px; background: var(--fe-papel);
+  color: var(--fe-tinta); text-decoration: none; font-weight: 600;
+}
+.avc .avc-rango a.on { border-color: var(--fe-acento); box-shadow: inset 0 -2px 0 var(--fe-acento) }
+.avc .avc-rango small { margin-left: 6px; font-variant-numeric: tabular-nums }
+
+.avc .avc-split { display: grid; grid-template-columns: minmax(0, 43fr) minmax(0, 57fr); gap: 12px; align-items: start }
+.avc .avc-lista {
+  background: var(--fe-papel); border: 1px solid var(--fe-linea); border-radius: 3px;
+  max-height: 74vh; overflow-y: auto; display: flex; flex-direction: column;
+}
+.avc .avc-it {
+  display: grid; grid-template-columns: 6px minmax(0, 1fr) auto; gap: 10px; align-items: start; text-align: left;
+  padding: 10px 12px; border: 0; border-bottom: 1px solid var(--fe-linea); background: none; cursor: pointer;
+  font: inherit; color: inherit;
+}
+.avc .avc-it:hover { background: var(--fe-fondo) }
+.avc .avc-it.sel { background: color-mix(in srgb, var(--fe-aviso) 16%, #fff); box-shadow: inset 3px 0 0 var(--fe-acento) }
+.avc .avc-barra-t { align-self: stretch; border-radius: 2px }
+.avc .avc-it-tx { display: flex; flex-direction: column; gap: 2px; min-width: 0 }
+.avc .avc-it-tx b { font: 800 13px var(--fe-titulo); overflow-wrap: anywhere }
+.avc .avc-it-tx small { font-size: 12px; color: var(--fe-gris); overflow-wrap: anywhere }
+
+.avc .avc-est {
+  font: 800 10px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase; white-space: nowrap;
+  padding: 3px 7px; border-radius: 2px;
+}
+.avc .avc-est.abierta { background: #FDE7EA; color: #A3132A }
+.avc .avc-est.en_gestion { background: #FFF1C2; color: #6E4E00 }
+.avc .avc-est.cerrada { background: #E3F4EA; color: #0B5E39 }
+
+.avc .avc-ficha {
+  background: var(--fe-papel); border: 1px solid var(--fe-linea); border-radius: 3px; padding: 16px 18px;
+  display: flex; flex-direction: column; gap: 10px; position: sticky; top: 12px; min-width: 0;
+}
+.avc .avc-f-cab { display: flex; gap: 8px; align-items: center; flex-wrap: wrap }
+.avc .avc-tag { font: 800 10.5px var(--fe-texto); letter-spacing: .1em; color: #fff; padding: 3px 8px; border-radius: 2px }
+.avc .avc-tag.t-mezclado { color: #1d1d1b }
+.avc .avc-ficha h2 { margin: 0; font: 900 22px/1.15 var(--fe-titulo); letter-spacing: -.02em; overflow-wrap: anywhere }
+.avc .avc-lugar { margin: -6px 0 0; font-size: 13px; font-weight: 600 }
+.avc .avc-meta { margin: 0; font-size: 12.5px; color: var(--fe-gris) }
+.avc .avc-meta b { color: var(--fe-tinta) }
+.avc .avc-datos { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; padding: 10px 0; border-block: 1px solid var(--fe-linea) }
+.avc .avc-datos dt { font: 700 10px var(--fe-texto); letter-spacing: .12em; text-transform: uppercase; color: var(--fe-gris) }
+.avc .avc-datos dd { margin: 2px 0 0; font: 700 14px var(--fe-titulo); font-variant-numeric: tabular-nums; overflow-wrap: anywhere }
+.avc .avc-datos dd.mal { color: var(--fe-mal) } .avc .avc-datos dd.bien { color: var(--fe-bien) }
+
+.avc .avc-fotos { display: flex; gap: 8px; flex-wrap: wrap }
+.avc .avc-fotos img { display: block; height: 170px; max-width: 100%; object-fit: cover; border-radius: 3px; border: 1px solid var(--fe-linea) }
+.avc .avc-gris { margin: 0; font-size: 12.5px; color: var(--fe-gris) }
+
+.avc .avc-cierre { border-top: 2px solid var(--fe-tinta); padding-top: 10px; display: flex; flex-direction: column; gap: 8px }
+.avc .avc-cierre > b { font: 800 11px var(--fe-texto); letter-spacing: .14em }
+.avc .avc-cierre.hecho { border-top-color: var(--fe-bien) }
+.avc .avc-cierre.hecho > b { color: var(--fe-bien) }
+.avc .avc-cierre p { margin: 0; font-size: 13.5px }
+.avc .avc-cierre label { display: flex; flex-direction: column; gap: 3px }
+.avc .avc-cierre label span { font-size: 11.5px; font-weight: 700; color: var(--fe-gris) }
+.avc .avc-cierre select, .avc .avc-cierre input, .avc .avc-cierre textarea {
+  min-height: 42px; padding: 8px 10px; border: 1px solid var(--fe-linea); border-radius: 2px;
+  font: 14px var(--fe-texto); color: var(--fe-tinta); background: #fff; width: 100%; box-sizing: border-box;
+}
+.avc .avc-cierre textarea { resize: vertical }
+.avc .avc-falta { color: var(--fe-mal) !important; font-weight: 600; font-size: 12.5px !important }
+.avc .avc-botones { display: flex; gap: 8px; flex-wrap: wrap }
+.avc .avc-cierre .btn { align-self: flex-start }
+
+.avc .avc-tl { list-style: none; margin: 0; padding: 8px 0 0; border-top: 1px solid var(--fe-linea); display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--fe-gris) }
+.avc .avc-tl i { display: inline-block; width: 7px; height: 7px; margin-right: 7px; background: var(--fe-aviso); border-radius: 1px }
+.avc .avc-tl i.ok { background: var(--fe-bien) }
+.avc .avc-vacio { margin: 0; padding: 28px 16px; text-align: center; font-size: 13.5px; color: var(--fe-gris) }
+
+@media (max-width: 900px) {
+  .avc .avc-cifras { grid-template-columns: repeat(2, 1fr) }
+  .avc .avc-split { grid-template-columns: 1fr }
+  .avc .avc-barra .fe-pes { flex: 1 1 100%; max-width: 100%; overflow-x: auto }
+  .avc .avc-barra .fe-pes button { flex: none }
+  .avc .avc-lista { max-height: 46vh }
+  .avc .avc-ficha { position: static }
+  .avc .avc-datos { grid-template-columns: 1fr 1fr }
+}

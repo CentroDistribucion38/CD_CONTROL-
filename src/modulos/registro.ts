@@ -680,6 +680,8 @@ export const MODULOS: Modulo[] = [
          registra, se le hace seguimiento, se analiza y se configura,
          igual que rotura de línea. Y el orden es el del proceso. */
       { nombre: "Registrar", ruta: "/inventario/averias", rama: "averias" },
+      /* ACCIONES: lo que el conteo guardado identificó (avería, PNC, mezclado, sin acceso), para darle cierre. */
+      { nombre: "Acciones", ruta: "/inventario/averias/acciones", rama: "averias" },
       { nombre: "Tablero", ruta: "/inventario/averias/tablero", rama: "averias" },
       { nombre: "Análisis", ruta: "/inventario/averias/analisis", rama: "averias" },
       { nombre: "Maestro", ruta: "/inventario/averias/maestro", rama: "averias" },
