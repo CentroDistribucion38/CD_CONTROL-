@@ -283,3 +283,14 @@
 /* ---------- CAJAS: cómo quedaría en SAP con el balanceo ---------- */
 .cs .cs-cajest-t th.fin { background: #0F7A4A }
 .cs .cs-cajest-t td.fin { background: #F1F8F4; color: #0B5E39 }
+
+/* ---------- DOS BALANCEOS APARTE: A · envase, B · cajas plásticas ---------- */
+.cs .cs-bloque { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 18px 0 10px; font: 800 16px var(--fe-titulo, var(--fe-texto)); color: var(--fe-tinta) }
+.cs .cs-bloque > span { display: inline-grid; place-items: center; width: 28px; height: 28px; background: #FFC20E; color: #111; font: 900 15px var(--fe-texto) }
+.cs .cs-bloque small { font: 500 12.5px var(--fe-texto); color: var(--fe-gris) }
+.cs .cs-cajest-pasos { list-style: none; counter-reset: paso; margin: 0; padding: 6px 12px 12px; display: flex; flex-direction: column; gap: 12px }
+.cs .cs-cajest-pasos > li { counter-increment: paso; border-top: 1px solid var(--fe-linea); padding-top: 10px; font-size: 13px; color: var(--fe-gris) }
+.cs .cs-cajest-pasos > li > b { color: var(--fe-tinta); font-size: 14px }
+.cs .cs-cajest-pasos > li > b::before { content: counter(paso); display: inline-grid; place-items: center; width: 22px; height: 22px; margin-right: 8px; border-radius: 11px; background: var(--fe-tinta); color: #fff; font: 800 12px var(--fe-texto) }
+.cs .cs-cajest-pasos .cs-dos { margin-top: 8px }
+.cs .cs-cajest-pasos .cs-antes { margin: 8px 0 0 }
