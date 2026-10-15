@@ -79,7 +79,8 @@ begin
 end $$;
 revoke all on function public.casco_aplicar_delta_col(date, text, text, numeric, text) from public, anon, authenticated;
 
--- p_filas: [{ "ubicacion": "<clave>", "sku": "3501225", "estibas": 34, "columna": "inventario" | "baja", "motivo": "…" }]
+-- p_filas: [{ "ubicacion": "<clave>", "sku": "3501225", "estibas": 34, "signo": "-" | "+", "columna": "inventario" | "baja", "motivo": "…" }]
+-- signo «-» resta de la columna (como siempre); «+» suma. Sin signo = resta.
 create or replace function public.casco_ajuste_registrar(p_fecha date, p_filas jsonb)
 returns integer
 language plpgsql
@@ -89,7 +90,7 @@ as $$
 declare
   f jsonb; v_n integer := 0; v_i integer := 0;
   v_hoy date := (now() at time zone 'America/Bogota')::date;
-  u public.casco_ubicaciones%rowtype; v_sku text; v_est numeric; v_col text;
+  u public.casco_ubicaciones%rowtype; v_sku text; v_est numeric; v_col text; v_sig integer;
 begin
   if not public.casco_registrar_puede_editar() then
     raise exception 'No tienes permiso para registrar ajustes de casco de vidrio';
@@ -104,6 +105,7 @@ begin
     v_sku := btrim(coalesce(f->>'sku', ''));
     v_est := round(coalesce(nullif(f->>'estibas', '')::numeric, 0), 2);
     v_col := case when f->>'columna' = 'baja' then 'baja' else 'inventario' end;
+    v_sig := case when btrim(coalesce(f->>'signo', '-')) in ('+', '1', 'suma') then 1 else -1 end;
     select * into u from public.casco_ubicaciones where clave = btrim(coalesce(f->>'ubicacion', ''));
     if not found then raise exception 'Línea %: escoge el almacén', v_i; end if;
     if v_sku = '' then raise exception 'Línea %: falta el material', v_i; end if;
@@ -112,13 +114,19 @@ begin
       raise exception 'Línea %: % no lleva columna «con baja»', v_i, u.nombre;
     end if;
 
+    -- Resta: el almacén es el ORIGEN (sale). Suma: el almacén es el DESTINO (entra).
     insert into public.casco_movimientos
-      (fecha, origen, destino, ubic_origen, sku, estibas, afecta, ajuste, motivo, columna, creado_por)
+      (fecha, origen, destino, ubic_origen, ubic_destino, sku, estibas, afecta, ajuste, motivo, columna, creado_por)
     values
-      (p_fecha, u.nombre, 'AJUSTE', u.clave, v_sku, v_est, true, true,
+      (p_fecha,
+       case when v_sig < 0 then u.nombre else 'AJUSTE' end,
+       case when v_sig < 0 then 'AJUSTE' else u.nombre end,
+       case when v_sig < 0 then u.clave end,
+       case when v_sig > 0 then u.clave end,
+       v_sku, v_est, true, true,
        nullif(btrim(coalesce(f->>'motivo', '')), ''), v_col, auth.uid());
 
-    perform public.casco_aplicar_delta_col(p_fecha, u.clave, v_sku, -v_est, v_col);
+    perform public.casco_aplicar_delta_col(p_fecha, u.clave, v_sku, v_sig * v_est, v_col);
     v_n := v_n + 1;
   end loop;
   return v_n;
@@ -140,7 +148,7 @@ begin
   select * into m from public.casco_movimientos where id = p_id;
   if not found then raise exception 'Ese movimiento ya no está'; end if;
   if m.ubic_origen is not null then perform public.casco_aplicar_delta_col(m.fecha, m.ubic_origen, m.sku, m.estibas, m.columna); end if;
-  if m.ubic_destino is not null then perform public.casco_aplicar_delta(m.fecha, m.ubic_destino, m.sku, -m.estibas); end if;
+  if m.ubic_destino is not null then perform public.casco_aplicar_delta_col(m.fecha, m.ubic_destino, m.sku, -m.estibas, m.columna); end if;
   delete from public.casco_movimientos where id = p_id;
 end $$;
 grant execute on function public.casco_movimiento_quitar(uuid) to authenticated;

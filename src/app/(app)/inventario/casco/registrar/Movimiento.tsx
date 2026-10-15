@@ -44,7 +44,8 @@ type Mov = {
   ajuste?: boolean; motivo?: string | null; columna?: "inventario" | "baja";
 };
 type Columna = "inventario" | "baja";
-type LineaAjuste = { k: number; ubic: string; col: Columna; sku: string; estibas: string; motivo: string };
+type Signo = "-" | "+";
+type LineaAjuste = { k: number; ubic: string; sig: Signo; col: Columna; sku: string; estibas: string; motivo: string };
 
 const nf2 = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const corto = (iso: string) =>
@@ -175,7 +176,7 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
   };
 
   /* ---------- AJUSTE POR ALMACÉN ---------- */
-  const nuevoAjuste = useCallback((de?: LineaAjuste): LineaAjuste => ({ k: contador++, ubic: de?.ubic ?? "", col: de?.col ?? "inventario", sku: "", estibas: "", motivo: de?.motivo ?? "" }), []);
+  const nuevoAjuste = useCallback((de?: LineaAjuste): LineaAjuste => ({ k: contador++, ubic: de?.ubic ?? "", sig: de?.sig ?? "-", col: de?.col ?? "inventario", sku: "", estibas: "", motivo: de?.motivo ?? "" }), []);
   useEffect(() => { if (ajustes.length === 0) setAjustes([nuevoAjuste()]) }, [ajustes.length, nuevoAjuste]);
   const ponerAj = (k: number, c: Partial<LineaAjuste>) => setAjustes((ls) => ls.map((l) => (l.k === k ? { ...l, ...c } : l)));
   const problemaAjuste = (l: LineaAjuste): string | null => {
@@ -194,7 +195,7 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
     const ok = await pedir({
       titulo: `¿Registrar ${ajLlenas.length} ajuste${ajLlenas.length === 1 ? "" : "s"}?`,
       dice: (<>
-        Fecha <b>{corto(fecha)}</b>. Cada línea <b>resta</b> esas estibas de la columna que escogiste (Inventario casco de vidrio, o «con baja» en el almacén que la lleva) en Control.
+        Fecha <b>{corto(fecha)}</b>. Cada línea <b>suma (+) o resta (−)</b> esas estibas en la columna que escogiste (Inventario casco de vidrio, o «con baja» en el almacén que la lleva) en Control.
         Se puede deshacer después desde «Movimientos registrados».
       </>),
       confirmar: "Registrar ajuste", cancelar: "Cancelar",
@@ -203,7 +204,7 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
     setGuardando(true); setAviso(null);
     const { error } = await supabase.rpc("casco_ajuste_registrar", {
       p_fecha: fecha,
-      p_filas: ajLlenas.map((l) => ({ ubicacion: l.ubic, columna: l.col, sku: l.sku.trim(), estibas: Number(l.estibas.replace(",", ".")), motivo: l.motivo.trim() })),
+      p_filas: ajLlenas.map((l) => ({ ubicacion: l.ubic, signo: l.sig, columna: l.col, sku: l.sku.trim(), estibas: Number(l.estibas.replace(",", ".")), motivo: l.motivo.trim() })),
     });
     setGuardando(false);
     if (error) {
@@ -211,7 +212,7 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
         ? "Falta correr supabase/migraciones/2026-10-casco-ajuste.sql y 2026-10-casco-ajuste-columna.sql en Supabase." : traducirError(error.message) });
       return;
     }
-    setAviso({ tipo: "ok", texto: `Listo: ${ajLlenas.length} ajuste${ajLlenas.length === 1 ? "" : "s"} registrado${ajLlenas.length === 1 ? "" : "s"} el ${corto(fecha)}. Ya se restó en Control.` });
+    setAviso({ tipo: "ok", texto: `Listo: ${ajLlenas.length} ajuste${ajLlenas.length === 1 ? "" : "s"} registrado${ajLlenas.length === 1 ? "" : "s"} el ${corto(fecha)}. Ya quedó en Control.` });
     setAjustes([nuevoAjuste()]);
     void cargarMovs();
   };
@@ -374,9 +375,9 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
       {vista === "ajuste" && (
       <section className="cas-bloque reg-compacto">
         <p className="cas-nota">
-          Para <b>restar</b> casco de un almacén: escoge el almacén, la <b>columna</b> de la que se resta, el material y las estibas.
+          Para <b>sumar o restar</b> casco de un almacén: escoge el almacén, si es <b>+</b> o <b>−</b>, la <b>columna</b>, el material y las estibas.
           «Inventario casco de vidrio» existe en todos los almacenes; «Lavado con baja» solo en AG18 y «Extrasucio con baja» solo en AG22.
-          Resta de esa columna en Control el día escogido. El motivo es opcional.
+          Se aplica en esa columna de Control el día escogido. El motivo es opcional.
         </p>
         <label className="cas-c reg-dia">
           <span>Fecha del ajuste</span>
@@ -386,7 +387,7 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
         <div className="cas-tabla-caja reg-tabla-alta">
           <table className="cas-tabla reg-lineas">
             <thead>
-              <tr><th>Almacén</th><th>Columna a restar</th><th>Material</th><th>Descripción</th><th className="n">Cantidad a restar (est)</th><th>Motivo</th><th>Efecto en Control</th><th /></tr>
+              <tr><th>Almacén</th><th>+ / −</th><th>Columna</th><th>Material</th><th>Descripción</th><th className="n">Cantidad (est)</th><th>Motivo</th><th>Efecto en Control</th><th /></tr>
             </thead>
             <tbody>
               {ajustes.map((l) => {
@@ -399,6 +400,12 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
                       <select className="cas-txt" value={l.ubic} disabled={!puedeEditar} onChange={(e) => ponerAj(l.k, { ubic: e.target.value, col: "inventario" })}>
                         <option value="">Almacén…</option>
                         {sitios.map((x) => <option key={x.clave} value={x.clave}>{x.nombre}{x.centro ? ` · ${x.centro}` : ""}</option>)}
+                      </select>
+                    </td>
+                    <td>
+                      <select className={"cas-txt reg-sig " + (l.sig === "+" ? "mas" : "menos")} value={l.sig} disabled={!puedeEditar} onChange={(e) => ponerAj(l.k, { sig: e.target.value as Signo })} aria-label="Sumar o restar">
+                        <option value="-">− Restar</option>
+                        <option value="+">+ Sumar</option>
                       </select>
                     </td>
                     <td>
@@ -418,7 +425,7 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
                     </td>
                     <td><input className="cas-txt reg-ent" placeholder="Opcional" value={l.motivo} maxLength={200} disabled={!puedeEditar} onChange={(e) => ponerAj(l.k, { motivo: e.target.value })} /></td>
                     <td>
-                      {s && n > 0 ? <span className="reg-etq">{s.centro ?? s.nombre} · {l.col === "baja" ? s.baja_rotulo : "Inventario"} −{nf2.format(n)}</span> : <span className="reg-tenue">—</span>}
+                      {s && n > 0 ? <span className="reg-etq">{s.centro ?? s.nombre} · {l.col === "baja" ? s.baja_rotulo : "Inventario"} {l.sig === "+" ? "+" : "−"}{nf2.format(n)}</span> : <span className="reg-tenue">—</span>}
                       {p && <em className="cas-mal">{p}</em>}
                     </td>
                     <td className="x">
@@ -502,8 +509,8 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
               {visibles.map((m) => (
                 <tr key={m.id}>
                   <td>{corto(m.fecha)}</td>
-                  <td>{m.origen}</td>
-                  <td>{m.ajuste ? <><span className="reg-etq baja">Ajuste</span>{m.motivo && <small className="reg-tenue"> {m.motivo}</small>}</> : m.destino}</td>
+                  <td>{m.ajuste && m.ubic_destino ? m.destino : m.origen}</td>
+                  <td>{m.ajuste ? <><span className="reg-etq baja">Ajuste {m.ubic_destino ? "+" : "−"}</span>{m.motivo && <small className="reg-tenue"> {m.motivo}</small>}</> : m.destino}</td>
                   <td className="cod">{m.sku}</td>
                   <td>{m.descripcion}</td>
                   <td className="n est">{nf2.format(m.estibas)}</td>
@@ -513,7 +520,7 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
                     {!m.afecta ? <span className="reg-etq ya">Solo registro</span> : (
                       <span className="reg-etq">
                         {[m.ubic_origen && `${sitioPorClave[m.ubic_origen]?.centro ?? m.ubic_origen}${m.ajuste ? ` · ${m.columna === "baja" ? (sitioPorClave[m.ubic_origen]?.baja_rotulo ?? "Con baja") : "Inventario"}` : ""} −`,
-                          m.ubic_destino && `${sitioPorClave[m.ubic_destino]?.centro ?? m.ubic_destino} +`].filter(Boolean).join(" · ") || "Sin tabla"}
+                          m.ubic_destino && `${sitioPorClave[m.ubic_destino]?.centro ?? m.ubic_destino}${m.ajuste ? ` · ${m.columna === "baja" ? (sitioPorClave[m.ubic_destino]?.baja_rotulo ?? "Con baja") : "Inventario"}` : ""} +`].filter(Boolean).join(" · ") || "Sin tabla"}
                       </span>
                     )}
                   </td>
