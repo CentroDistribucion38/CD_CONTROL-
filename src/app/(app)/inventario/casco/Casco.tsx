@@ -92,6 +92,12 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar, d
   const [fSitio, setFSitio] = useState("");
   const [fPuesto, setFPuesto] = useState("");
   const [fConSaldo, setFConSaldo] = useState(false);
+  /* «Si los valores están en cero, que oculte esas filas para que no se haga extenso; con un iconito veo todo.»
+     Por tabla. Lo que se tocó o se agregó en esta sesión no se esconde aunque quede en cero (si no, la fila
+     se iría mientras se escribe). Buscando un material se ve aunque esté en cero. */
+  const [verCeros, setVerCeros] = useState<Record<string, boolean>>({});
+  const [tocados, setTocados] = useState<Set<string>>(() => new Set());
+  const tocar = (s: string, sku: string) => setTocados((t) => (t.has(`${s}|${sku}`) ? t : new Set(t).add(`${s}|${sku}`)));
   const dato = useMemo(() => Object.fromEntries(materiales.map((m) => [m.sku, m])), [materiales]);
 
   const poner = useCallback((clave: string, cambio: Partial<Bloque> | ((b: Bloque) => Partial<Bloque>)) =>
@@ -308,11 +314,15 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar, d
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bloques, fecha, puedeEditar]);
 
-  const cambiar = (s: string, i: number, k: keyof Fila, v: string) =>
+  const cambiar = (s: string, i: number, k: keyof Fila, v: string) => {
+    const sku = bloques[s]?.filas[i]?.sku; if (sku) tocar(s, sku);
     poner(s, (b) => ({ filas: b.filas.map((f, j) => (j === i ? { ...f, [k]: v } : f)), sucio: true, aviso: null }));
-  const agregar = (s: string, sku: string) =>
+  };
+  const agregar = (s: string, sku: string) => {
+    if (sku) tocar(s, sku);
     poner(s, (b) => b.filas.some((f) => f.sku === sku) || !sku ? {} :
       { filas: [...b.filas, { sku, inv: "", baja: "", puesto: "", calidad: "" }], sucio: true, aviso: null });
+  };
   const quitar = (s: string, i: number) => poner(s, (b) => ({ filas: b.filas.filter((_, j) => j !== i), sucio: true }));
   /** La × pregunta primero: dice QUÉ material se va, de QUÉ tabla y cuánto tenía. */
   const quitarConfirmado = async (s: SitioCasco, i: number, sku: string, resumen: string) => {
@@ -449,7 +459,11 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar, d
         if (fSitio && s.clave !== fSitio) return null;
         const b = bloques[s.clave] ?? VACIO;
         const c = calcular(s, b);
-        const vis = b.filas.map((_, i) => i).filter((i) => pasa(b.filas[i], c[i]));
+        const vis0 = b.filas.map((_, i) => i).filter((i) => pasa(b.filas[i], c[i]));
+        const enCero = (i: number) => Math.abs(c[i].inv ?? 0) < 1e-9 && Math.abs(c[i].baja ?? 0) < 1e-9 && !tocados.has(`${s.clave}|${b.filas[i].sku}`);
+        const ocultaCeros = !verCeros[s.clave] && terminos.length === 0;
+        const ceros = vis0.filter(enCero).length;
+        const vis = ocultaCeros ? vis0.filter((i) => !enCero(i)) : vis0;
         const visInv = vis.reduce((t, i) => t + (c[i].inv ?? 0), 0);
         const visBaja = vis.reduce((t, i) => t + (c[i].baja ?? 0), 0);
         const visHl = vis.reduce((t, i) => t + (c[i].hl ?? 0), 0);
@@ -532,7 +546,19 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar, d
                     <th className="n">HL</th>
                     <th>Ubicaciones</th>
                     <th>Calidad</th>
-                    <th aria-label="Quitar" />
+                    <th className="cas-ojo-th">
+                      {ceros > 0 && (
+                        <button type="button" className={"cas-ojo" + (ocultaCeros ? "" : " on")} aria-pressed={!ocultaCeros}
+                                title={ocultaCeros ? `Ver los ${ceros} materiales en cero` : "Ocultar los materiales en cero"}
+                                onClick={() => setVerCeros((v) => ({ ...v, [s.clave]: !v[s.clave] }))}>
+                          <svg viewBox="0 0 24 24" aria-hidden>
+                            <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" />
+                            {ocultaCeros && <path d="M4 4l16 16" />}
+                          </svg>
+                          {ocultaCeros && <em>{ceros}</em>}
+                        </button>
+                      )}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -540,7 +566,10 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar, d
                   {!b.cargando && b.filas.length === 0 && (
                     <tr><td colSpan={cols} className="cas-vacio">Sin materiales. Agrégalos arriba.</td></tr>
                   )}
-                  {!b.cargando && b.filas.length > 0 && vis.length === 0 && (
+                  {!b.cargando && b.filas.length > 0 && vis.length === 0 && vis0.length > 0 && (
+                    <tr><td colSpan={cols} className="cas-vacio">Todos los materiales de esta tabla están en cero. Toca el ojo para verlos.</td></tr>
+                  )}
+                  {!b.cargando && b.filas.length > 0 && vis0.length === 0 && (
                     <tr><td colSpan={cols} className="cas-vacio">Ningún material de esta tabla con esos filtros.</td></tr>
                   )}
                   {!b.cargando && vis.map((i) => {

@@ -168,3 +168,23 @@
 .ad .ad-modal-campo small { font-size: 12px; color: var(--fe-gris) }
 .ad .ad-modal-link { border: 0; background: none; padding: 0; margin-left: 6px; font: 700 12px var(--fe-texto); color: #1B4F8F; text-decoration: underline; cursor: pointer }
 .ad .ad-modal-acc { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; flex-wrap: wrap }
+
+/* El botón que es un enlace no se monta sobre el texto de arriba. */
+.ad a.ad-bt { display: inline-flex; align-items: center }
+.ad .ad-ir { display: flex; margin: 14px 0 0 }
+
+/* ---------- VALOR $, RECURRENCIA, CONTRA AYER ---------- */
+.ad .ad-k b.ad-rojo { color: #B42318 }
+.ad .ad-aj td.n small { display: block; font-size: 10.5px; color: var(--fe-gris) }
+.ad .ad-alertas { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; margin: 0 0 14px }
+.ad .ad-alerta { background: #fff; border: 1px solid var(--fe-linea); border-left: 5px solid #B42318; padding: 10px 14px; font-size: 13.5px; color: var(--fe-tinta) }
+.ad .ad-alerta.sobra { border-left-color: #0F7A4A }
+.ad .ad-alerta.falta b:last-of-type { color: #B42318 }
+.ad .ad-alerta.sobra b:last-of-type { color: #0F7A4A }
+.ad .ad-alerta small { display: block; margin-top: 4px; font-size: 12px; color: var(--fe-gris) }
+.ad .ad-rec th.dias, .ad .ad-rec td.dias { min-width: 220px }
+.ad .ad-puntos { display: flex; flex-wrap: wrap; gap: 3px; justify-content: center }
+.ad .ad-puntos i { width: 11px; height: 11px; background: #E4E4E0 }
+.ad .ad-puntos i.f { background: #B42318 }
+.ad .ad-puntos i.s { background: #0F7A4A }
+.ad .ad-pasos { flex-wrap: wrap }

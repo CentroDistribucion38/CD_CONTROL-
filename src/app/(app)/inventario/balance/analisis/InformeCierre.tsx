@@ -58,7 +58,7 @@ export function InformeCierre({ fecha, fechaLarga, ajustes, guardadoEn, guardado
       const filtros = `Análisis de diferencia · ${fechaLarga}`;
       if (formato === "pdf") {
         const [{ jsPDF }, { dibujarEvidencias }] = await Promise.all([import("jspdf"), import("@/modulos/inventario/evidencias-pdf")]);
-        const doc = dibujarEvidencias(jsPDF, bloques, { periodo: fechaLarga, filtros, generado, marca: { palabra: palabra ?? undefined, sello: sello ?? undefined }, paleta, encabezado, ojo });
+        const doc = dibujarEvidencias(jsPDF, bloques, { periodo: fechaLarga, filtros, generado, marca: { palabra: palabra ?? undefined, sello: sello ?? undefined }, paleta, encabezado, ojo, numeroEnCaja: true });
         doc.save(archivoCierre(titulo, fecha, "pdf"));
       } else {
         const { armarWord } = await import("@/modulos/inventario/evidencias-word");

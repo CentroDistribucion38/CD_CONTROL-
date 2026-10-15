@@ -67,7 +67,7 @@ export function Final({ fecha, guardado, ajustes, final, puedeEditar, faltaSql }
     <section className="ad-caja">
       <h2>Todavía no se ha guardado el análisis del {largo(fecha)}</h2>
       <p className="ad-nota">El análisis final sale del análisis guardado y de lo que marques como hecho en los ajustes.</p>
-      <p><Link className="ad-bt" href={`/inventario/balance/analisis?fecha=${fecha}`}>← Ir al análisis</Link></p>
+      <p className="ad-ir"><Link className="ad-bt" href={`/inventario/balance/analisis?fecha=${fecha}`}>← Ir al análisis</Link></p>
     </section>
   );
 

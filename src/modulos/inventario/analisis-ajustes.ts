@@ -103,3 +103,19 @@ export async function leerHistorico(limite = 180) {
   }
   return { dias, detalle, faltaSql };
 }
+
+/* ---------------- LOS PRECIOS (hoja Valor $) ----------------
+   El precio por unidad de cada código: el de la botella del maestro de productos (precio_botella, el que
+   sale del MM60 y ya usa Roturas) y, si no lo tiene, el COSTO por unidad del maestro de Pasivos. */
+export type Precio = { precio: number; fuente: "MM60" | "Pasivos" };
+export async function leerPrecios(): Promise<Record<string, Precio>> {
+  const supabase = await createClient();
+  const [p, m] = await Promise.all([
+    supabase.from("productos").select("sku, precio_botella").limit(5000),
+    supabase.from("pasivos_maestro").select("codigo, costo").limit(5000),
+  ]);
+  const out: Record<string, Precio> = {};
+  for (const x of (m.data ?? []) as { codigo: string; costo: number | null }[]) if (Number(x.costo) > 0) out[String(x.codigo)] = { precio: Number(x.costo), fuente: "Pasivos" };
+  for (const x of (p.data ?? []) as { sku: string; precio_botella: number | null }[]) if (Number(x.precio_botella) > 0) out[String(x.sku)] = { precio: Number(x.precio_botella), fuente: "MM60" };
+  return out;
+}

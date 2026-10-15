@@ -90,7 +90,7 @@ export function Ajustes({ fecha, guardado, filas: inicio, puedeEditar, faltaSql,
     <section className="ad-caja">
       <h2>Todavía no se ha guardado el análisis del {largo(fecha)}</h2>
       <p className="ad-nota">Los ajustes salen del análisis guardado. Vuelve al paso 1, revísalo y dale <b>Guardar y pasar a ajustes</b>.</p>
-      <p><Link className="ad-bt" href={`/inventario/balance/analisis?fecha=${fecha}`}>← Ir al análisis</Link></p>
+      <p className="ad-ir"><Link className="ad-bt" href={`/inventario/balance/analisis?fecha=${fecha}`}>← Ir al análisis</Link></p>
     </section>
   );
 

@@ -13,7 +13,9 @@ import type { Bloque, CeldaT } from "./evidencias-informe";
 type RGB = [number, number, number];
 export type ExtraPdf = { periodo: string; filtros: string; generado: string; marca?: Marca; paleta?: Paleta;
   /** Opcionales para que otros informes usen el mismo papel (sin ellos, el de evidencias de siempre). */
-  encabezado?: string; ojo?: string };
+  encabezado?: string; ojo?: string;
+  /** El número del módulo en su cuadro amarillo, al lado del título (y no chiquito encima). */
+  numeroEnCaja?: boolean };
 
 const hexRGB = (h: string): RGB => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)) as RGB;
 
@@ -87,11 +89,19 @@ export function dibujarEvidencias(JsPDFCtor: typeof JsPDF, bloques: Bloque[], x:
 
   const modulo = (b: Extract<Bloque, { t: "modulo" }>) => {
     hojaNueva();
-    doc.setFillColor(...TINTA); doc.rect(M, y, CW, 12, "F");
-    doc.setFillColor(...P.acento); doc.rect(M, y, 3, 12, "F");
-    fuente("bold", 8); doc.setTextColor(255, 255, 255); doc.text(b.n, M + 7, y + 4.6);
-    fuente("bold", 14.5); doc.text(b.titulo, M + 7, y + 9.6);
-    y += 15;
+    if (x.numeroEnCaja) {
+      doc.setFillColor(...TINTA); doc.rect(M, y, CW, 13, "F");
+      doc.setFillColor(...P.acento); doc.rect(M, y, 15, 13, "F");
+      fuente("bold", 15); tinta(); doc.text(b.n, M + 7.5, y + 8.9, { align: "center" });
+      fuente("bold", 15); doc.setTextColor(255, 255, 255); doc.text(b.titulo, M + 20, y + 8.9);
+      y += 16;
+    } else {
+      doc.setFillColor(...TINTA); doc.rect(M, y, CW, 12, "F");
+      doc.setFillColor(...P.acento); doc.rect(M, y, 3, 12, "F");
+      fuente("bold", 8); doc.setTextColor(255, 255, 255); doc.text(b.n, M + 7, y + 4.6);
+      fuente("bold", 14.5); doc.text(b.titulo, M + 7, y + 9.6);
+      y += 15;
+    }
     if (b.sub) { fuente("normal", 9.5); gris(); const t = partir(b.sub, CW); doc.text(t, M, y + 2.5); y += t.length * lh(9.5) + 3 }
   };
 

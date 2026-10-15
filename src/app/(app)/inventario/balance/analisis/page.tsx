@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { misPermisos } from "@/lib/permisos";
 import { armarAnalisis } from "@/modulos/inventario/analisis-dif";
-import { leerAjustes, leerHistorico } from "@/modulos/inventario/analisis-ajustes";
+import { leerAjustes, leerHistorico, leerPrecios } from "@/modulos/inventario/analisis-ajustes";
 import { Analisis } from "./Analisis";
 import { Ajustes } from "./Ajustes";
 import { Historico } from "./Historico";
 import { Final } from "./Final";
+import { Valor } from "./Valor";
+import { Recurrencia } from "./Recurrencia";
+import { ContraAyer } from "./ContraAyer";
 import "../../../sider/sider.css";
 import "../../fefo.css";
 import "../balance.css";
@@ -49,7 +52,8 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
   const q = await searchParams;
   const hoy = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Bogota" }).format(new Date());
   const fecha = /^\d{4}-\d{2}-\d{2}$/.test(q.fecha ?? "") ? q.fecha! : hoy;
-  const paso = q.paso === "ajustes" ? "ajustes" : q.paso === "final" ? "final" : q.paso === "historico" ? "historico" : "analisis";
+  const PASOS = ["ajustes", "final", "historico", "valor", "recurrencia", "ayer"] as const;
+  const paso = (PASOS as readonly string[]).includes(q.paso ?? "") ? (q.paso as (typeof PASOS)[number]) : "analisis";
   const permisos = await misPermisos();
   const puedeEditar = permisos.puedeEditar("/inventario/balance/analisis");
   /* LOS DOS PASOS: 1 el análisis (se arma en vivo) → «Guardar» → 2 los ajustes (salen de lo guardado). */
@@ -59,6 +63,9 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
       <Link href={`/inventario/balance/analisis?fecha=${fecha}&paso=ajustes`} className={paso === "ajustes" ? "on" : ""}><b>2</b> Ajustes</Link>
       <Link href={`/inventario/balance/analisis?fecha=${fecha}&paso=final`} className={paso === "final" ? "on" : ""}><b>3</b> Análisis final</Link>
       <Link href={`/inventario/balance/analisis?fecha=${fecha}&paso=historico`} className={paso === "historico" ? "on" : ""}><b>4</b> Histórico</Link>
+      <Link href={`/inventario/balance/analisis?fecha=${fecha}&paso=valor`} className={paso === "valor" ? "on" : ""}><b>$</b> Valor</Link>
+      <Link href={`/inventario/balance/analisis?fecha=${fecha}&paso=recurrencia`} className={paso === "recurrencia" ? "on" : ""}><b>↻</b> Recurrencia</Link>
+      <Link href={`/inventario/balance/analisis?fecha=${fecha}&paso=ayer`} className={paso === "ayer" ? "on" : ""}><b>⇄</b> Contra ayer</Link>
     </nav>
   );
   if (paso === "final") {
@@ -73,6 +80,38 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
         {pasos}
         <Final fecha={fecha} guardado={aj.guardado} ajustes={aj.filas} final={aj.final} puedeEditar={puedeEditar}
                faltaSql={aj.faltaSql ? "Falta correr supabase/migraciones/2026-10-analisis-diferencia-ajustes.sql en Supabase." : aj.faltaSqlFinal ? "Falta correr supabase/migraciones/2026-10-analisis-diferencia-final.sql en Supabase." : null} />
+      </div>
+    );
+  }
+  /* LAS HOJAS APARTE: valor en pesos, recurrencia y contra ayer. No cambian nada de los pasos 1 a 4. */
+  const cabeza = (titulo: string, sub: string) => (
+    <section className="cabeza"><div>
+      <p className="ojo">INVENTARIO · BALANCE · ANÁLISIS DE DIFERENCIA</p>
+      <h1>{titulo}</h1>
+      <p className="sub">{sub}</p>
+    </div></section>
+  );
+  if (paso === "valor") {
+    const [aj, precios] = await Promise.all([leerAjustes(fecha), leerPrecios()]);
+    return (
+      <div className="fe bal ad">
+        {cabeza("Valor en pesos", "Cada diferencia y cada ajuste con su valor: cuánta plata hay en juego, no solo unidades.")}
+        {pasos}
+        {aj.faltaSql ? <p className="ad-msg mal">Falta correr supabase/migraciones/2026-10-analisis-diferencia-ajustes.sql en Supabase.</p>
+          : <Valor fecha={fecha} guardado={aj.guardado} ajustes={aj.filas} precios={precios} />}
+      </div>
+    );
+  }
+  if (paso === "recurrencia" || paso === "ayer") {
+    const h = await leerHistorico();
+    return (
+      <div className="fe bal ad">
+        {paso === "recurrencia"
+          ? cabeza("Recurrencia", "Qué códigos se repiten día tras día en el rango que escojas: el error de un día contra el problema de fondo.")
+          : cabeza("Contra ayer", "El día guardado contra el anterior: qué empeoró, qué mejoró, qué apareció y qué se cerró.")}
+        {pasos}
+        {h.faltaSql ? <p className="ad-msg mal">Falta correr supabase/migraciones/2026-10-analisis-diferencia-ajustes.sql en Supabase.</p>
+          : paso === "recurrencia" ? <Recurrencia dias={h.dias} detalle={h.detalle} /> : <ContraAyer fecha={fecha} dias={h.dias} detalle={h.detalle} />}
       </div>
     );
   }

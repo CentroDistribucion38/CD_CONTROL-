@@ -562,3 +562,52 @@ export async function armarLibroFinal(d: InsumosLibroAjustes & { finalEn: string
   ponerLogos(wb, logo);
   return wb.xlsx.writeBuffer() as Promise<ArrayBuffer>;
 }
+
+/* =====================================================================
+   EL LIBRO DEL VALOR $: cada código con su precio, el valor de la diferencia, del ajuste y de lo pendiente.
+   ===================================================================== */
+export type FilaValorLibro = { familia: string; codigo: string; descripcion: string; precio: number | null; fuente: string | null; diferencia: number; vDif: number; compensa: number; vComp: number; ajuste: number; vAjuste: number; difFinal: number; vFinal: number; observacion: string };
+export async function armarLibroValor(d: { fechaLarga: string; guardadoEn: string | null; guardadoPor: string | null; filas: FilaValorLibro[] }): Promise<ArrayBuffer> {
+  const wb = libroNuevo();
+  const logo = await cargarLogo(wb);
+  const sub = subDe(d);
+  const PES = '"$" #,##0;[Red]-"$" #,##0;"$" 0';
+  const xs = d.filas.filter((f) => f.diferencia !== 0 || f.ajuste !== 0 || f.difFinal !== 0).sort((a, b) => Math.abs(b.vDif) - Math.abs(a.vDif));
+  const h = wb.addWorksheet("Valor $", { properties: { tabColor: { argb: VERDE } } });
+  const cols: Col[] = [
+    { t: "Familia", w: 24, texto: true }, { t: "Código", w: 11 }, { t: "Descripción", w: 36, texto: true }, { t: "Precio u.", w: 13, fmt: PES }, { t: "Fuente", w: 9 },
+    { t: "Diferencia (u)", w: 13, fmt: SIG }, { t: "Valor diferencia", w: 17, fmt: PES }, { t: "Compensación (u)", w: 13, fmt: SIG }, { t: "Valor compensación", w: 17, fmt: PES },
+    { t: "Ajuste (u)", w: 13, fmt: SIG }, { t: "Valor ajuste", w: 17, fmt: PES }, { t: "Pendiente (u)", w: 13, fmt: SIG }, { t: "Valor pendiente", w: 17, fmt: PES }, { t: "Observación", w: 40, texto: true },
+  ];
+  const sum = (k: (f: FilaValorLibro) => number) => xs.reduce((t, f) => t + k(f), 0);
+  banda(h, cols.length, "Valor en pesos", `${xs.length} códigos · unidades × precio (MM60; si no, costo de Pasivos) · ${sub}`);
+  /* Las cuatro cifras grandes. */
+  const kp: [string, number][] = [["VALOR DE LA DIFERENCIA", sum((f) => f.vDif)], ["SOBRANTE", sum((f) => Math.max(0, f.vAjuste))], ["FALTANTE", sum((f) => Math.min(0, f.vAjuste))], ["PENDIENTE", sum((f) => f.vFinal)]];
+  h.getRow(7).height = 16; h.getRow(8).height = 30;
+  kp.forEach(([rot, v], i) => {
+    const c = 1 + i * 3, c2 = c + 2;
+    h.mergeCells(7, c, 7, c2); h.mergeCells(8, c, 8, c2);
+    const a = h.getCell(7, c); a.value = rot; a.font = letra(8.5, GRIS, true); a.alignment = { indent: 1, vertical: "bottom" };
+    const b = h.getCell(8, c); b.value = v; b.numFmt = PES; b.font = letra(17, v < 0 ? ROJO : i === 1 ? VERDE : TINTA, true); b.alignment = { indent: 1, vertical: "middle" };
+    for (const f of [7, 8]) { const x = h.getCell(f, c); x.fill = relleno(FONDO); if (f === 8) x.border = { bottom: { style: "medium", color: { argb: TINTA } } } }
+  });
+  encabezado(h, 10, cols);
+  xs.forEach((f, i) => {
+    const r = fila(h, 11 + i, cols, [f.familia, f.codigo, f.descripcion, f.precio, f.fuente ?? "SIN PRECIO", f.diferencia, f.vDif, f.compensa || null, f.compensa ? f.vComp : null, f.ajuste, f.vAjuste, f.difFinal, f.vFinal, f.observacion], i % 2 === 1);
+    r.getCell(2).font = letra(9.5, TINTA, true);
+    for (const c of [7, 11, 13]) { const v = Number(r.getCell(c).value) || 0; r.getCell(c).font = letra(10, v < 0 ? ROJO : v > 0 ? VERDE : GRIS, true) }
+    if (f.precio == null) { r.getCell(5).fill = relleno(ROJO_F); r.getCell(5).font = letra(8.5, ROJO, true) }
+  });
+  const ult = 10 + xs.length;
+  total(h, Math.max(12, ult + 1), cols.length, "TOTAL (lo filtrado)", {
+    6: { desde: 11, hasta: ult, valor: sum((f) => f.diferencia), fmt: SIG }, 7: { desde: 11, hasta: ult, valor: sum((f) => f.vDif), fmt: PES },
+    8: { desde: 11, hasta: ult, valor: sum((f) => f.compensa), fmt: SIG }, 9: { desde: 11, hasta: ult, valor: sum((f) => f.vComp), fmt: PES },
+    10: { desde: 11, hasta: ult, valor: sum((f) => f.ajuste), fmt: SIG }, 11: { desde: 11, hasta: ult, valor: sum((f) => f.vAjuste), fmt: PES },
+    12: { desde: 11, hasta: ult, valor: sum((f) => f.difFinal), fmt: SIG }, 13: { desde: 11, hasta: ult, valor: sum((f) => f.vFinal), fmt: PES },
+  });
+  if (xs.length) h.autoFilter = `A10:N${ult}`;
+  h.views = [{ state: "frozen", ySplit: 10, xSplit: 2, showGridLines: false }];
+  h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, printTitlesRow: "10:10" };
+  ponerLogos(wb, logo);
+  return wb.xlsx.writeBuffer() as Promise<ArrayBuffer>;
+}

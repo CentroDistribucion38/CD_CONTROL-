@@ -169,3 +169,11 @@
 /* Lo que no cuadra entre el Casco y el conteo: una línea por material. */
 .cas .cas-revisar { margin: 6px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.45 }
 .cas .cas-revisar li + li { margin-top: 3px }
+
+/* EL OJO: oculta o muestra los materiales en cero de la tabla. */
+.cas .cas-tabla th.cas-ojo-th { text-align: right; padding-right: 8px }
+.cas .cas-ojo { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 7px; border: 1px solid rgba(255, 255, 255, .45); background: transparent; color: #fff; cursor: pointer; border-radius: 2px }
+.cas .cas-ojo svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
+.cas .cas-ojo em { font: 700 11px var(--fe-texto); font-style: normal; letter-spacing: 0 }
+.cas .cas-ojo.on { background: var(--fe-acento, #FFC400); border-color: var(--fe-acento, #FFC400); color: var(--fe-tinta) }
+.cas .cas-ojo:focus-visible { outline: 2px solid var(--fe-acento, #FFC400); outline-offset: 2px }
