@@ -200,7 +200,10 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
     const c = String(r.codigo), cajas = Number(r.total_cajas) || 0;
     /* Los SKU fuera del cuadre (los de siempre: barril, 412644, 412671, 412707; y lo escogido en el toolbox). */
     if (excluye(regla, c, r.material)) { fueraNuevos.add(c); continue }
-    if (!esUbicacionFabrica(r.ubicacion)) { if (c === ESTIBA) estibasBodega += cajas; continue }
+    /* SOLO LO DE FÁBRICA entra al cuadre de AG18: por la calle o por el nombre de la ubicación (FABRICA, FABRICA_…,
+       FABRICAL4…), con la MISMA regla del Análisis de diferencia. Antes se miraba solo `ubicacion`. */
+    const deFabrica = esUbicacionFabrica(r.calle) || esUbicacionFabrica(r.ubicacion) || esUbicacionFabrica(r.ubicacion_combinada);
+    if (!deFabrica) { if (c === ESTIBA) estibasBodega += cajas; continue }
     const g = grupoDe(c);
     if (g === "ESTIBA") { estSueltas += cajas; continue }
     /* La estiba de madera de debajo: una por estiba contada y una por renglón con saldo o sueltas. */
