@@ -81,6 +81,9 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
   });
   const [reemplazar, setReemplazar] = useState(false);
   const [abierto, setAbierto] = useState<string | null>(null);
+  /* UN CÓDIGO ESCOGIDO se resalta en TODAS las listas (311, 343, 344, estados) y arriba sale dónde aparece. */
+  const [foco, setFoco] = useState<string | null>(null);
+  const enfocar = (c: string) => setFoco((x) => (x === c ? null : c));
   /* Dos hojas: el cuadre del día y el histórico. La escogida queda en la dirección (?vista=historico). */
   const [vista, setVista] = useState<"cuadre" | "historico">(vistaInicial);
   /* Los días guardados hasta el paso 2: les falta subir la ZEXI nueva para validar (paso 3). */
@@ -135,16 +138,37 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
     const d = ESTADOS_K.map((k) => ({ k, v: f.meta![k] - tras[k] }));
     const fuentes = d.filter((x) => x.v < -0.5).map((x) => ({ k: x.k, v: -x.v }));
     const destinos = d.filter((x) => x.v > 0.5).map((x) => ({ ...x }));
-    const movs: { clave: string; cant: number }[] = [];
+    /* Lo que pasa A LIBRE va ANTES del 311 solo si la caja sale de AG18 y lo libre de hoy no alcanza. */
+    const saleSinLibre = (f.dif ?? 0) > 0.5 && hoy.libre < (f.dif ?? 0);
+    const movs: { clave: string; cant: number; antes: boolean }[] = [];
     for (const de of destinos) for (const fu of fuentes) {
       const q = Math.min(de.v, fu.v); if (q < 0.5) continue;
-      movs.push({ clave: `${fu.k}>${de.k}`, cant: q }); de.v -= q; fu.v -= q;
+      movs.push({ clave: `${fu.k}>${de.k}`, cant: q, antes: saleSinLibre && de.k === "libre" }); de.v -= q; fu.v -= q;
     }
-    return { f, conEstados, hoy, tras, movs: conEstados ? movs : [] };
+    /* Cómo quedaría en SAP con el balanceo: lo de tras el 311 con los movimientos de estado aplicados. */
+    const queda: Estados = { ...tras };
+    if (conEstados) for (const m of movs) { const [a, b] = m.clave.split(">") as (keyof Estados)[]; queda[a] -= m.cant; queda[b] += m.cant }
+    const cuadra = conEstados && ESTADOS_K.every((k) => cero(queda[k] - f.meta![k]));
+    return { f, conEstados, hoy, tras, queda, cuadra, movs: conEstados ? movs : [] };
   });
-  const porMov = Object.entries(MOV_ESTADO).map(([clave, m]) => ({ clave, ...m,
-    filas: cajasEstado.flatMap((c) => c.movs.filter((x) => x.clave === clave).map((x) => ({ ...c.f, dif: x.cant }))) }))
+  const porMov = Object.entries(MOV_ESTADO).flatMap(([clave, m]) => [true, false].map((antes) => ({ clave, ...m, antes311: antes,
+    cual: `caja-${m.mov}-${antes ? "a" : "d"}`,
+    filas: cajasEstado.flatMap((c) => c.movs.filter((x) => x.clave === clave && x.antes === antes).map((x) => ({ ...c.f, dif: x.cant }))) })))
     .filter((x) => x.filas.length);
+
+  /* EL ORDEN DEL BALANCEO, numerado: primero lo que libera stock en AG18, después los 311, después los estados. */
+  type PasoSap = { cual: string | null; t: string; sub: string; filas: FilaCuadre[]; ancla: string };
+  const pasosSap: PasoSap[] = esAG22 ? [] : [
+    ...(del343.length ? [{ cual: "salen343", t: `Mov 343 en ${ALM} · envase`, sub: "Bloqueado → Libre, para que el 311 encuentre el envase en libre", filas: del343, ancla: "p-salen" }] : []),
+    ...porMov.filter((m) => m.antes311).map((m) => ({ cual: m.cual, t: `Mov ${m.mov} en ${ALM} · cajas`, sub: `${m.t}, antes del 311 (la caja sale y lo libre no alcanza)`, filas: m.filas, ancla: "p-cajas" })),
+    ...(salen.length ? [{ cual: "salen", t: `311 de ${ALM} a ${OTRO}`, sub: "Sale de AG18", filas: salen, ancla: "p-salen" }] : []),
+    ...(entran.length ? [{ cual: "entran", t: `311 de ${OTRO} a ${ALM}`, sub: "Entra a AG18 y queda en libre", filas: entran, ancla: "p-entran" }] : []),
+    ...(entranEnvase.length ? [{ cual: hayCajasQueEntran ? "entran344" : null, t: `Mov 344 en ${ALM} · envase`, sub: hayCajasQueEntran ? "Libre → Bloqueado, solo el envase" : "Libre → Bloqueado, con los mismos documentos del 311", filas: entranEnvase, ancla: "p-entran" }] : []),
+    ...porMov.filter((m) => !m.antes311).map((m) => ({ cual: m.cual, t: `Mov ${m.mov} en ${ALM} · cajas`, sub: m.t, filas: m.filas, ancla: "p-cajas" })),
+  ];
+  const numDe = new Map(pasosSap.map((p, i) => [p.cual ?? `x${i}`, i + 1]));
+  const num = (cual: string) => numDe.get(cual);
+  const ir = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   /* Y AL REVÉS: lo que ENTRA a AG18 por el 311 llega en libre utilización y aquí va bloqueado: después
      del 311, el 344 con los mismos documentos (solo se avisa en el paso 2). */
 
@@ -226,7 +250,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
     return (
       <div key={k} className={"cs-doc" + (hecho ? " hecho" : "")}>
         <div className="cs-doc-bar">
-          <b>Documento {i + 1}</b>
+          <b>{num(cual) ? <i className="cs-n">{num(cual)}</i> : null}Documento {i + 1}</b>
           <small>posiciones {i * POSICIONES_SAP + 1}–{i * POSICIONES_SAP + doc.length} · {doc.length} de {POSICIONES_SAP}</small>
           <span className="cs-doc-acc">
             {botonCopiar(doc, "codigos", `${k}-c`)}
@@ -249,7 +273,8 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
   };
   const lista = (xs: FilaCuadre[]) => (
     <table className="cs-t chica"><thead><tr><th>Código</th><th>Material</th><th className="n">Cantidad</th><th className="n">Cajas</th></tr></thead>
-      <tbody>{xs.map((f) => <tr key={f.codigo}><td className="mono">{f.codigo}</td><td>{f.material}</td><td className="n"><b>{n(Math.abs(f.dif!))}</b></td>
+      <tbody>{xs.map((f) => <tr key={f.codigo} className={"cs-sel" + (foco === f.codigo ? " foco" : "")} onClick={() => enfocar(f.codigo)} title="Toca para ver este código en todos los movimientos">
+        <td className="mono">{f.codigo}</td><td>{f.material}</td><td className="n"><b>{n(Math.abs(f.dif!))}</b></td>
         <td className="n">{cajasTxt(enCajas(f, Math.abs(f.dif!)), false)}</td></tr>)}</tbody>
     </table>
   );
@@ -484,9 +509,48 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
       {conZexi && (
         <>
           <h2 className="cs-h"><i>2</i> Qué hacer en SAP {esAG22 ? "(de libre a bloqueado, o al revés, en AG22)" : "(movimiento 311)"}</h2>
+          {pasosSap.length > 0 && (
+            <div className="cs-orden">
+              <b className="cs-orden-t">Orden del balanceo · hazlo de arriba hacia abajo</b>
+              <ol>
+                {pasosSap.map((p, i) => {
+                  const docs = enDocumentos(p.filas).length, f = p.cual ? faltan(p.filas, p.cual) : null;
+                  return (
+                    <li key={i} className={f === 0 ? "hecho" : ""}>
+                      <button type="button" onClick={() => ir(p.ancla)}>
+                        <i className="cs-n">{i + 1}</i>
+                        <span><b>{p.t}</b><small>{p.sub} · {p.filas.length} materiales{p.cual ? ` · ${docs} doc.` : ""}</small></span>
+                        <em>{f == null ? "mismos docs del 311" : f === 0 ? "✓ hecho" : `${f} por hacer`}</em>
+                      </button>
+                    </li>
+                  );
+                })}
+                <li className={conMov ? "hecho" : ""}>
+                  <button type="button" onClick={() => ir("p-zexi")}>
+                    <i className="cs-n">{pasosSap.length + 1}</i>
+                    <span><b>Baja la ZEXI nueva y súbela</b><small>La app valida que todo quedó balanceado (paso 3)</small></span>
+                    <em>{conMov ? "✓ cargada" : "pendiente"}</em>
+                  </button>
+                </li>
+              </ol>
+            </div>
+          )}
+          {foco && (() => {
+            const donde = pasosSap.map((p, i) => ({ i, p, f: p.filas.find((x) => x.codigo === foco) })).filter((x) => x.f);
+            const fila = filas.find((x) => x.codigo === foco);
+            return (
+              <div className="cs-foco">
+                <b>{foco}</b><span>{fila?.material ?? ""}</span>
+                <span className="cs-foco-l">{donde.length ? donde.map((x) => (
+                  <button key={x.i} type="button" onClick={() => ir(x.p.ancla)}><i className="cs-n">{x.i + 1}</i>{x.p.t} · <b>{n(Math.abs(x.f!.dif ?? 0))}</b></button>
+                )) : <em>No tiene movimientos</em>}</span>
+                <button type="button" className="cs-foco-x" onClick={() => setFoco(null)}>Quitar ×</button>
+              </div>
+            );
+          })()}
           {entran.length + salen.length === 0 ? <p className="cs-msg">Todo cuadra: no hay nada que mover en SAP.</p> : (
             <div className="cs-dos">
-              <div className="cs-caja r"><h3>{esAG22 ? "Pasar de Libre a Bloqueado (Mov 344)" : `Pasar de ${OTRO} a ${ALM}`} {cabezaLista(entran, "entran")}</h3>
+              <div className="cs-caja r" id="p-entran"><h3>{esAG22 ? "Pasar de Libre a Bloqueado (Mov 344)" : `Pasar de ${OTRO} a ${ALM}`} {cabezaLista(entran, "entran")}</h3>
                 {entran.length ? documentos(entran, "entran") : <p className="cs-vacio">Nada.</p>}
                 {/* «Solo era poner el mensaje: puedo copiar y pegar lo mismo.» Sin lista aparte: los mismos documentos del 311. */}
                 {!esAG22 && entranEnvase.length > 0 && !hayCajasQueEntran && (
@@ -504,7 +568,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                   </div>
                 )}
               </div>
-              <div className="cs-caja a"><h3>{esAG22 ? "Pasar de Bloqueado a Libre (Mov 343)" : `Pasar de ${ALM} a ${OTRO}`} {cabezaLista(salen, "salen")}</h3>
+              <div className="cs-caja a" id="p-salen"><h3>{esAG22 ? "Pasar de Bloqueado a Libre (Mov 343)" : `Pasar de ${ALM} a ${OTRO}`} {cabezaLista(salen, "salen")}</h3>
                 {del343.length > 0 && (
                   <div className="cs-antes">
                     <p className="cs-antes-t"><b>Primero, en {ALM}: Mov 343 (Bloqueado → Libre)</b>
@@ -519,7 +583,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
           )}
           {/* ---------- CAJAS PLÁSTICAS POR ESTADO (AG18) ---------- */}
           {!esAG22 && cajasEstado.length > 0 && (
-            <div className="cs-caja cs-cajest">
+            <div className="cs-caja cs-cajest" id="p-cajas">
               <h3>Cajas plásticas por estado en {ALM}
                 <span className="cs-h3d">{porMov.length
                   ? <em>{porMov.reduce((t, m) => t + m.filas.length, 0)} movimientos de estado</em>
@@ -532,13 +596,14 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                 <table className="cs-t chica cs-cajest-t">
                   <thead>
                     <tr><th rowSpan={2}>Código</th><th rowSpan={2}>Material</th>
-                      <th colSpan={3} className="g meta">Debe quedar (conteo)</th><th colSpan={3} className="g">SAP tras el 311</th><th rowSpan={2}>Qué hacer</th></tr>
+                      <th colSpan={3} className="g meta">Físico (conteo)</th><th colSpan={3} className="g">SAP tras el 311</th><th colSpan={3} className="g fin">Quedaría en SAP con el balanceo</th><th rowSpan={2} /></tr>
                     <tr><th className="n meta">Libre</th><th className="n meta">Control-cal</th><th className="n meta">Bloqueado</th>
-                      <th className="n">Libre</th><th className="n">Control-cal</th><th className="n">Bloqueado</th></tr>
+                      <th className="n">Libre</th><th className="n">Control-cal</th><th className="n">Bloqueado</th>
+                      <th className="n fin">Libre</th><th className="n fin">Control-cal</th><th className="n fin">Bloqueado</th></tr>
                   </thead>
                   <tbody>
-                    {cajasEstado.map(({ f, conEstados, tras, movs }) => (
-                      <tr key={f.codigo}>
+                    {cajasEstado.map(({ f, conEstados, tras, queda, cuadra }) => (
+                      <tr key={f.codigo} className={"cs-sel" + (foco === f.codigo ? " foco" : "")} onClick={() => enfocar(f.codigo)} title="Toca para ver este código en todos los movimientos">
                         <td className="mono">{f.codigo}</td><td>{f.material}</td>
                         <td className="n meta"><b>{n(f.meta!.libre)}</b></td><td className="n meta"><b>{n(f.meta!.calidad)}</b></td><td className="n meta"><b>{n(f.meta!.bloqueado)}</b></td>
                         {conEstados ? <>
@@ -546,9 +611,10 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                           <td className={"n" + (cero(tras.calidad - f.meta!.calidad) ? "" : " dif")}>{n(tras.calidad)}</td>
                           <td className={"n" + (cero(tras.bloqueado - f.meta!.bloqueado) ? "" : " dif")}>{n(tras.bloqueado)}</td>
                         </> : <td colSpan={3} className="cs-gris">La ZEXI no trae los estados</td>}
-                        <td>{!conEstados ? "—" : movs.length ? movs.map((m) => (
-                          <span key={m.clave} className="cs-chip in">Mov {MOV_ESTADO[m.clave].mov} · {n(m.cant)} {MOV_ESTADO[m.clave].t}</span>
-                        )) : <span className="cs-chip ok">Nada</span>}</td>
+                        {conEstados ? <>
+                          <td className="n fin"><b>{n(queda.libre)}</b></td><td className="n fin"><b>{n(queda.calidad)}</b></td><td className="n fin"><b>{n(queda.bloqueado)}</b></td>
+                          <td>{cuadra ? <span className="cs-chip ok">= físico</span> : <span className="cs-chip in">No cuadra</span>}</td>
+                        </> : <td colSpan={4} />}
                       </tr>
                     ))}
                   </tbody>
@@ -557,12 +623,12 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
               {porMov.length > 0 && (
                 <div className="cs-cajest-movs">
                   {porMov.map((m) => (
-                    <div key={m.clave} className={"cs-antes" + (m.antes311 ? "" : " azul")}>
-                      <p className="cs-antes-t"><b>{m.antes311 ? "Antes del 311" : "Después del 311"}, en {ALM}: Mov {m.mov} ({m.t})</b>
+                    <div key={m.cual} className={"cs-antes" + (m.antes311 ? "" : " azul")}>
+                      <p className="cs-antes-t"><b>{num(m.cual) ? <i className="cs-n">{num(m.cual)}</i> : null}{m.antes311 ? "Antes del 311" : "Después del 311"}, en {ALM}: Mov {m.mov} ({m.t})</b>
                         <span>{m.antes311
                           ? "Lo que pasa a libre se hace primero: así el 311 encuentra la cantidad en libre utilización."
                           : "Después del 311 (que deja todo en libre), antes de bajar la ZEXI nueva."}</span></p>
-                      {documentos(m.filas, `caja-${m.mov}`)}
+                      {documentos(m.filas, m.cual)}
                     </div>
                   ))}
                 </div>
@@ -570,7 +636,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
             </div>
           )}
 
-          <div className="cs-subir">
+          <div className="cs-subir" id="p-zexi">
             <div>
               <b>{conMov ? `Lo de después de ${MOV} está cargado` : `Ya hiciste ${MOV} en SAP: baja la ZEXI nueva y súbela aquí`}</b>
               <small>{conMov
