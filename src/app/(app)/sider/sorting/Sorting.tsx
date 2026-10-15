@@ -12,6 +12,7 @@ import type {
 } from "@/modulos/sider/ai";
 import { FormularioAi, type ViajeAi } from "@/modulos/sider/FormularioAi";
 import { NuevoInterno, type OrigenMaestro, type SkuMaestro, type SocioMaestro } from "./NuevoInterno";
+import { ExportarRevision } from "./ExportarRevision";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const nf2 = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 });
@@ -364,6 +365,7 @@ export function Sorting({
               ? "Toca «Hacer la revisión» en el camión que vas a contar."
               : "Solo puedes mirar: cerrar una revisión requiere permiso de edición."}
           </p>
+          <ExportarRevision nombres={nombres} />
         </div>
         <div className="kpi">
           <div className="corte" />

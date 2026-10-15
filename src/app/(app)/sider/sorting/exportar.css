@@ -1,0 +1,31 @@
+/* EXPORTAR LA REVISIÓN AI — el botón y su panel. Todo lleva `rx-`. */
+.sd .rx { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start }
+.sd .rx-abrir {
+  display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; cursor: pointer;
+  border: 1px solid var(--sd-tinta); border-radius: 2px; background: var(--sd-papel); color: var(--sd-tinta);
+  font: 800 13.5px var(--sd-titulo); box-shadow: inset 0 -3px 0 var(--sd-marca);
+}
+.sd .rx-abrir svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round }
+.sd .rx-abrir[aria-expanded="true"] { background: var(--sd-tinta); color: #fff }
+.sd .rx-panel {
+  width: min(760px, 100%); box-sizing: border-box; background: var(--sd-papel); border: 1px solid var(--sd-linea);
+  border-top: 3px solid var(--sd-marca); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;
+}
+.sd .rx-fila { display: flex; flex-wrap: wrap; align-items: center; gap: 6px }
+.sd .rx-rot { font: 800 10.5px var(--sd-texto); letter-spacing: .12em; text-transform: uppercase; color: var(--sd-gris); min-width: 62px }
+.sd .rx-ch {
+  min-height: 34px; padding: 0 12px; border: 1px solid var(--sd-linea); border-radius: 2px; background: #fff; cursor: pointer;
+  font: 700 12.5px var(--sd-titulo); color: var(--sd-tinta);
+}
+.sd .rx-ch.on { background: var(--sd-tinta); border-color: var(--sd-tinta); color: #fff }
+.sd .rx-ch.rx-ai.on { background: #5B2A86; border-color: #5B2A86 }
+.sd .rx-ch.rx-sorting.on { background: #9D1950; border-color: #9D1950 }
+.sd .rx-f { display: flex; flex-direction: column; gap: 3px; font-size: 11.5px; font-weight: 700; color: var(--sd-gris) }
+.sd .rx-f input { height: 36px; padding: 0 8px; border: 1px solid var(--sd-linea); border-radius: 2px; font: 13.5px var(--sd-texto); color: var(--sd-tinta) }
+.sd .rx-check { display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; font-size: 13px; font-weight: 600 }
+.sd .rx-check input { width: 17px; height: 17px }
+.sd .rx-dice { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--sd-gris); max-width: 70ch }
+.sd .rx-dice b { color: var(--sd-tinta) }
+.sd .rx-pie { gap: 12px }
+.sd .rx-mal { color: var(--sd-mal); font-weight: 600; font-size: 13px }
+.sd .rx-ok { color: var(--sd-verde); font-weight: 700; font-size: 13px }
