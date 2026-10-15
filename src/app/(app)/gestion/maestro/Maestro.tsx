@@ -73,12 +73,9 @@ export function Maestro({ turnos, procesos, indicadores, puedeEditar }: {
   const vistaPrevia = (x: Form) => {
     const u = { unidad: x.unidad, decimales: aNum(x.decimales) ?? 0 };
     const meta = aNum(x.meta_valor);
-    const a = textoRegla((x.amarillo_op || null) as Op | null, aNum(x.amarillo_valor), u);
-    const r = textoRegla((x.rojo_op || null) as Op | null, aNum(x.rojo_valor), u);
     return [
       meta == null ? "Escribe la meta." : `Cumple si ${textoMeta({ meta_op: x.meta_op, meta_valor: meta, ...u })}.`,
-      a ? `Alerta si ${a}.` : "", r ? `Crítico si ${r}.` : "",
-      x.disparo_activo ? `El disparador salta con ${textoDisparo({ disparo_en: x.disparo_en, disparo_consecutivos: aNum(x.disparo_consecutivos) ?? 1 })}.` : "Sin disparador.",
+      x.disparo_activo ? `El disparador salta cuando ${textoDisparo({ disparo_consecutivos: aNum(x.disparo_consecutivos) ?? 1 })}.` : "Sin disparador.",
     ].filter(Boolean).join(" ");
   };
 
@@ -97,7 +94,7 @@ export function Maestro({ turnos, procesos, indicadores, puedeEditar }: {
           <p className="ojo">GESTIÓN · MAESTRO</p>
           <h1>Maestro</h1>
           <p className="sub">
-            Aquí se parametriza todo: los turnos, los procesos y los indicadores —KPI y PI— con su meta, sus umbrales, su frecuencia,
+            Aquí se parametriza todo: los turnos, los procesos y los indicadores —KPI y PI— con su meta, su frecuencia,
             cómo se captura y cuándo salta su disparador. Nada de esto está escrito en el código.
           </p>
         </div>
@@ -149,11 +146,9 @@ export function Maestro({ turnos, procesos, indicadores, puedeEditar }: {
               <label>Decimales<input inputMode="numeric" value={f.decimales} onChange={(e) => setF({ ...f, decimales: e.target.value })} /></label>
             </div>
 
-            <h3>Meta y semáforo</h3>
+            <h3>Meta</h3>
             <div className="gs-grid gs-reglas">
               <div className="gs-regla meta"><span>Meta (cumple si)</span>{selOp(f.meta_op, (o) => o && setF({ ...f, meta_op: o }))}<input inputMode="decimal" value={f.meta_valor} onChange={(e) => setF({ ...f, meta_valor: e.target.value })} placeholder="Valor" /></div>
-              <div className="gs-regla amarillo"><span>Alerta (opcional)</span>{selOp(f.amarillo_op, (o) => setF({ ...f, amarillo_op: o }), "Sin umbral")}<input inputMode="decimal" value={f.amarillo_valor} disabled={!f.amarillo_op} onChange={(e) => setF({ ...f, amarillo_valor: e.target.value })} placeholder="Valor" /></div>
-              <div className="gs-regla rojo"><span>Crítico (opcional)</span>{selOp(f.rojo_op, (o) => setF({ ...f, rojo_op: o }), "Sin umbral")}<input inputMode="decimal" value={f.rojo_valor} disabled={!f.rojo_op} onChange={(e) => setF({ ...f, rojo_valor: e.target.value })} placeholder="Valor" /></div>
             </div>
 
             <h3>Captura</h3>
@@ -180,12 +175,7 @@ export function Maestro({ turnos, procesos, indicadores, puedeEditar }: {
 
             <h3>Disparador</h3>
             <div className="gs-grid">
-              <label className="gs-chk"><input type="checkbox" checked={f.disparo_activo} onChange={(e) => setF({ ...f, disparo_activo: e.target.checked })} />Salta solo cuando se desvía</label>
-              <label>Salta con
-                <select value={f.disparo_en} disabled={!f.disparo_activo} onChange={(e) => setF({ ...f, disparo_en: e.target.value as "rojo" | "amarillo" })}>
-                  <option value="rojo">Crítico (rojo)</option><option value="amarillo">Alerta o crítico</option>
-                </select>
-              </label>
+              <label className="gs-chk"><input type="checkbox" checked={f.disparo_activo} onChange={(e) => setF({ ...f, disparo_activo: e.target.checked })} />Salta solo cuando no cumple la meta</label>
               <label>Resultados seguidos
                 <input inputMode="numeric" value={f.disparo_consecutivos} disabled={!f.disparo_activo} onChange={(e) => setF({ ...f, disparo_consecutivos: e.target.value })} />
               </label>
@@ -211,8 +201,7 @@ export function Maestro({ turnos, procesos, indicadores, puedeEditar }: {
                   <td><span className={"gs-tipo " + i.tipo}>{i.tipo === "kpi" ? "KPI" : "PI"}</span><span className="gs-nom">{i.nombre}</span>
                     {i.padre_id && <small className="gs-sub">explica a {indicadores.find((k) => k.id === i.padre_id)?.codigo ?? "—"}</small>}</td>
                   <td>{i.proceso_id ? pro.get(i.proceso_id) : "—"}<small className="gs-sub">Reunión nivel {i.nivel_reunion}</small></td>
-                  <td className="gs-meta">{textoMeta(i)}
-                    {(i.amarillo_op || i.rojo_op) && <small className="gs-sub">{[i.amarillo_op && `alerta ${textoRegla(i.amarillo_op, i.amarillo_valor, i)}`, i.rojo_op && `crítico ${textoRegla(i.rojo_op, i.rojo_valor, i)}`].filter(Boolean).join(" · ")}</small>}</td>
+                  <td className="gs-meta">{textoMeta(i)}</td>
                   <td>{FRECUENCIAS.find((x) => x.k === i.frecuencia)?.nombre}<small className="gs-sub">{i.captura === "turnos" ? `por turno (${i.turnos.length || "todos"})` : "valor único"}</small></td>
                   <td>{i.disparo_activo ? textoDisparo(i) : "—"}</td>
                   <td>{i.activo ? "Activo" : "Inactivo"}</td>

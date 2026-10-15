@@ -573,6 +573,9 @@ export const MODULOS: Modulo[] = [
        cuando tengan su página: registrar una ruta que no existe pone un enlace que lleva a un 404. */
     secciones: [
       { nombre: "Tablero", ruta: "/gestion" },
+      /* EL MAPA: el árbol de KPI y el flujo de procesos, armados con lo del Maestro. Solo leen. */
+      { nombre: "Árbol de KPI", ruta: "/gestion/arbol" },
+      { nombre: "Flujo de procesos", ruta: "/gestion/flujos" },
       { nombre: "Resultado por turno", ruta: "/gestion/resultados" },
       { nombre: "Disparadores", ruta: "/gestion/disparadores" },
       { nombre: "Maestro", ruta: "/gestion/maestro" },
@@ -730,6 +733,8 @@ export const MODULOS: Modulo[] = [
          (CONTEO FABRICA.xlsx), con la diferencia y la alerta al lado. Una
          sola pantalla: no hay nada que registrar ni que configurar. */
       { nombre: "Balance", ruta: "/inventario/balance", rama: "balance" },
+      /* ALERTAS: el Balance del día contra el del día anterior con conteo: qué recontar, reasignar o ajustar. */
+      { nombre: "Alertas", ruta: "/inventario/balance/alertas", rama: "balance" },
       /* CUADRE SAP: el conteo del día contra el ZEXI de AG18 → el 311 que hay que hacer, y con la
          transacción del 311 ya bajada de SAP, si todo quedó balanceado. */
       { nombre: "Cuadre SAP", ruta: "/inventario/balance/cuadre", rama: "balance" },

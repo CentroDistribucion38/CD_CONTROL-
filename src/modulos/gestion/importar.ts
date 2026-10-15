@@ -123,11 +123,8 @@ const A_IND = {
   codigo: ["codigo", "cod", "id"], nombre: ["nombre", "indicador", "nombredelindicador"], tipo: ["tipo"], padre: ["kpipadre", "padre", "kpi", "codigokpipadre"],
   proceso: ["proceso"], nivel: ["niveldereunion", "nivel", "reunion"], unidad: ["unidad"], decimales: ["decimales"],
   metaOp: ["metaoperador", "metaop", "operadormeta"], metaVal: ["metavalor", "meta", "valormeta"],
-  amaOp: ["amarillooperador", "amarilloop", "operadoramarillo"], amaVal: ["amarillovalor", "amarillo", "valoramarillo"],
-  rojOp: ["rojooperador", "rojoop", "operadorrojo"], rojVal: ["rojovalor", "rojo", "valorrojo"],
   frecuencia: ["frecuencia"], captura: ["captura"], turnos: ["turnos", "turnosquecapturan"], responsable: ["responsable"],
-  dispActivo: ["disparadoractivo", "disparador", "disparoactivo"], dispEn: ["disparacon", "disparaen", "disparoen", "disparaencuando"],
-  dispN: ["resultadosseguidos", "seguidos", "consecutivos", "nderesultadosseguidos"], orden: ["orden"],
+  dispActivo: ["disparadoractivo", "disparador", "disparoactivo"],   dispN: ["resultadosseguidos", "seguidos", "consecutivos", "nderesultadosseguidos"], orden: ["orden"],
 };
 const A_RES = { codigo: ["codigoindicador", "codigo", "indicador", "cod"], fecha: ["fecha", "dia"], turno: ["turno"], valor: ["valor", "resultado"], comentario: ["comentario", "observacion", "nota", "comentarios"] };
 
@@ -205,14 +202,6 @@ export function armarImportacion(hojas: Hojas, ex: Existentes, hoy: string): Pla
         if (!tipo) { err("INDICADORES", fila, `${codigo}: el tipo debe ser KPI o PI.`); return; }
         const metaOp = operador(g(f, "metaOp")), metaVal = numero(g(f, "metaVal"));
         if (!metaOp || metaVal == null) { err("INDICADORES", fila, `${codigo}: la meta necesita operador (≥ > ≤ < =) y número.`); return; }
-        const par = (o: string, v: string, nom: string): [Op | null, number | null] | null => {
-          const op = operador(g(f, o)), val = numero(g(f, v));
-          if (vacio(g(f, o)) && vacio(g(f, v))) return [null, null];
-          if (!op || val == null) { err("INDICADORES", fila, `${codigo}: el umbral ${nom} necesita operador y número (o déjalos vacíos los dos).`); return null; }
-          return [op, val];
-        };
-        const ama = par("amaOp", "amaVal", "amarillo"); if (!ama) return;
-        const roj = par("rojOp", "rojVal", "rojo"); if (!roj) return;
         const frecT = sinTilde(txt(g(f, "frecuencia"))).toLowerCase();
         const frecuencia = frecT ? FREC[frecT] : "dia";
         if (!frecuencia) { err("INDICADORES", fila, `${codigo}: la frecuencia debe ser Día, Semana o Mes.`); return; }
@@ -238,9 +227,6 @@ export function armarImportacion(hojas: Hojas, ex: Existentes, hoy: string): Pla
         if (!Number.isInteger(dec) || dec < 0 || dec > 4) { err("INDICADORES", fila, `${codigo}: los decimales van de 0 a 4.`); return; }
         const da = sino(g(f, "dispActivo"), true);
         if (da == null) { err("INDICADORES", fila, `${codigo}: «Disparador activo» es Sí o No.`); return; }
-        const deT = sinTilde(txt(g(f, "dispEn"))).toLowerCase();
-        const dispEn: "rojo" | "amarillo" = /amarillo|alerta/.test(deT) ? "amarillo" : "rojo";
-        if (deT && !/rojo|critic|amarillo|alerta/.test(deT)) { err("INDICADORES", fila, `${codigo}: «Dispara con» es Rojo o Amarillo o rojo.`); return; }
         const seg = numero(g(f, "dispN")) ?? 1;
         if (!Number.isInteger(seg) || seg < 1 || seg > 30) { err("INDICADORES", fila, `${codigo}: «Resultados seguidos» va de 1 a 30.`); return; }
 
@@ -256,9 +242,9 @@ export function armarImportacion(hojas: Hojas, ex: Existentes, hoy: string): Pla
         indicadores.set(codigo, {
           codigo, nombre, tipo, padre: tipo === "pi" ? txt(g(f, "padre")).toUpperCase().replace(/\s+/g, "") || null : null,
           proceso, nivel_reunion: nivel as 1 | 2, unidad: txt(g(f, "unidad")), decimales: dec,
-          meta_op: metaOp, meta_valor: metaVal, amarillo_op: ama[0], amarillo_valor: ama[1], rojo_op: roj[0], rojo_valor: roj[1],
+          meta_op: metaOp, meta_valor: metaVal, amarillo_op: null, amarillo_valor: null, rojo_op: null, rojo_valor: null,
           frecuencia, captura, turnos: tn, responsable: txt(g(f, "responsable")) || null,
-          disparo_activo: da, disparo_en: dispEn, disparo_consecutivos: seg, orden: numero(g(f, "orden")) ?? indicadores.size + 1,
+          disparo_activo: da, disparo_en: "rojo", disparo_consecutivos: seg, orden: numero(g(f, "orden")) ?? indicadores.size + 1,
         });
       });
     }

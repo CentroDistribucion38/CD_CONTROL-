@@ -170,14 +170,6 @@ export async function guardarIndicador(f: FormIndicador) {
   if (!nombre) return { error: "Ponle nombre al indicador." };
   if (f.tipo !== "kpi" && f.tipo !== "pi") return { error: "El tipo es KPI o PI." };
   if (!opOk(f.meta_op) || !Number.isFinite(Number(f.meta_valor))) return { error: "La meta necesita operador y número." };
-  /* Los umbrales son opcionales, pero operador y número van juntos. */
-  const par = (op: Op | null, v: number | null, nombreUmbral: string) => {
-    if ((op == null) !== (v == null || !Number.isFinite(Number(v)))) return `El umbral ${nombreUmbral} necesita operador y número (o déjalos los dos vacíos).`;
-    if (op != null && !opOk(op)) return `El operador del umbral ${nombreUmbral} no es válido.`;
-    return null;
-  };
-  const eU = par(f.amarillo_op, f.amarillo_valor, "amarillo") ?? par(f.rojo_op, f.rojo_valor, "rojo");
-  if (eU) return { error: eU };
   if (f.tipo === "pi" && !f.padre_id) return { error: "Un PI cuelga de un KPI: escoge cuál." };
   if (f.tipo === "kpi" && f.padre_id) f = { ...f, padre_id: null };
   /* Lo que no es diario no se captura por turno. */
@@ -200,11 +192,10 @@ export async function guardarIndicador(f: FormIndicador) {
     codigo, nombre, tipo: f.tipo, padre_id: f.padre_id || null, proceso_id: f.proceso_id || null,
     nivel_reunion: f.nivel_reunion === 2 ? 2 : 1, unidad: (f.unidad ?? "").trim(), decimales: Math.min(4, Math.max(0, Number(f.decimales) || 0)),
     meta_op: f.meta_op, meta_valor: Number(f.meta_valor),
-    amarillo_op: f.amarillo_op, amarillo_valor: f.amarillo_op ? Number(f.amarillo_valor) : null,
-    rojo_op: f.rojo_op, rojo_valor: f.rojo_op ? Number(f.rojo_valor) : null,
+    amarillo_op: null, amarillo_valor: null, rojo_op: null, rojo_valor: null,
     frecuencia: f.frecuencia, captura, turnos: captura === "turnos" ? f.turnos : [],
     responsable: (f.responsable ?? "").trim() || null,
-    disparo_activo: !!f.disparo_activo, disparo_en: f.disparo_en === "amarillo" ? "amarillo" : "rojo",
+    disparo_activo: !!f.disparo_activo, disparo_en: "rojo",
     disparo_consecutivos: Math.min(30, Math.max(1, Number(f.disparo_consecutivos) || 1)),
     ...(f.orden != null ? { orden: Number(f.orden) || 0 } : {}),
     ...(f.activo != null ? { activo: !!f.activo } : {}),

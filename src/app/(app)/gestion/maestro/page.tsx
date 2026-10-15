@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * GESTIÓN · MAESTRO — donde se parametriza todo: los turnos, los procesos y los indicadores
- * (KPI y PI, su meta, sus umbrales, su frecuencia, su captura y la regla de su disparador).
+ * (KPI y PI, su meta, su frecuencia, su captura y la regla de su disparador).
  */
 export default async function MaestroPage() {
   const hoy = hoyBogota();

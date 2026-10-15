@@ -96,7 +96,7 @@ export function Importar({ hoy, existentes, puedeEditar, puedeResultados }: {
           <p className="ojo">GESTIÓN · IMPORTAR</p>
           <h1>Importación masiva</h1>
           <p className="sub">
-            Procesos, indicadores (KPI y PI) con su meta, umbrales y disparador, y los resultados por turno, todo desde un Excel.
+            Procesos, indicadores (KPI y PI) con su meta y disparador, y los resultados por turno, todo desde un Excel.
             Antes de guardar ves qué se crea, qué se actualiza y los errores fila por fila.
           </p>
         </div>
@@ -158,16 +158,14 @@ export function Importar({ hoy, existentes, puedeEditar, puedeResultados }: {
 
           {totalSem > 0 && (
             <section className="gi-card">
-              <h3>Cómo quedaría el semáforo <small>con las metas y umbrales de cada indicador</small></h3>
+              <h3>Cumple / no cumple <small>según la meta de cada indicador</small></h3>
               <div className="gi-sem" role="img" aria-label="Distribución del semáforo">
                 <i className="v" style={{ width: pct(plan.semaforo.verde) }} />
-                <i className="a" style={{ width: pct(plan.semaforo.amarillo) }} />
-                <i className="r" style={{ width: pct(plan.semaforo.rojo) }} />
+                <i className="r" style={{ width: pct(plan.semaforo.rojo + plan.semaforo.amarillo) }} />
               </div>
               <div className="gi-sem-ley">
                 <span><i className="v" />Cumple · <b>{n(plan.semaforo.verde)}</b></span>
-                <span><i className="a" />En alerta · <b>{n(plan.semaforo.amarillo)}</b></span>
-                <span><i className="r" />Crítico · <b>{n(plan.semaforo.rojo)}</b></span>
+                <span><i className="r" />No cumple · <b>{n(plan.semaforo.rojo + plan.semaforo.amarillo)}</b></span>
               </div>
               {plan.dispararian.length > 0 && (
                 <div className="gi-disp">

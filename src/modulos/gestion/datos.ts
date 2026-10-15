@@ -48,7 +48,7 @@ export async function leerGestion(desde: string, hasta: string): Promise<DatosGe
     turnos: (t.data ?? []) as Turno[],
     procesos: (p.data ?? []) as Proceso[],
     indicadores: (i.data ?? []).map((x) => indicador(x as Record<string, unknown>)),
-    resultados: (r.data ?? []).map((x) => ({ ...(x as Resultado), valor: Number((x as Resultado).valor) })),
+    resultados: (r.data ?? []).map((x) => ({ ...(x as Resultado), valor: Number((x as Resultado).valor), estado: (x as Resultado).estado === "verde" ? "verde" as const : "rojo" as const })),
     disparadores: (d.data ?? []).map((x) => ({ ...(x as Disparador), valor: Number((x as Disparador).valor) })),
     falta: false, error: null,
   };

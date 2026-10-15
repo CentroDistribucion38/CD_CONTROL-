@@ -1,0 +1,62 @@
+/* =====================================================================
+   BALANCE · ALERTAS — todo lleva `al-` y cuelga de `.al`.
+   ===================================================================== */
+.al { --al-rojo: var(--fe-mal, #C8102E); --al-ambar: #B7791F; --al-azul: #2B6CB0; --al-gris: var(--fe-gris) }
+.al .mono { font-family: var(--fe-mono, ui-monospace, monospace); color: var(--fe-gris) }
+
+.al .al-compara { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 10px 14px; background: var(--fe-papel); border: 1px solid var(--fe-linea); border-left: 6px solid var(--fe-acento) }
+.al .al-compara span { display: flex; flex-direction: column }
+.al .al-compara small { font: 700 10px var(--fe-texto); letter-spacing: .12em; text-transform: uppercase; color: var(--fe-gris) }
+.al .al-compara b { font: 800 16px var(--fe-titulo); color: var(--fe-tinta); text-transform: capitalize }
+.al .al-compara i { font: 900 22px var(--fe-titulo); color: var(--fe-tinta); font-style: normal }
+.al .al-ver { margin-left: auto; font: 700 13px var(--fe-titulo); color: var(--fe-tinta) }
+.al .al-imprimir { min-height: 38px; padding: 0 16px; border: 1px solid var(--fe-tinta); background: var(--fe-tinta); color: var(--fe-papel, #fff); font: 800 13px var(--fe-titulo); border-radius: 2px; cursor: pointer }
+
+.al .al-cifras { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px }
+.al .al-cif { text-align: left; display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; background: var(--fe-papel); border: 1px solid var(--fe-linea); border-bottom: 5px solid var(--al-gris); cursor: pointer; color: var(--fe-tinta); font: inherit }
+.al .al-cif span { font: 700 10.5px var(--fe-texto); letter-spacing: .13em; text-transform: uppercase; color: var(--fe-gris) }
+.al .al-cif b { font: 900 28px/1.1 var(--fe-titulo); letter-spacing: -.02em; font-variant-numeric: tabular-nums }
+.al .al-cif small { font-size: 12px; color: var(--fe-gris) }
+.al .al-cif.sin_contar { border-bottom-color: var(--al-rojo) } .al .al-cif.sin_contar b { color: var(--al-rojo) }
+.al .al-cif.reasignacion { border-bottom-color: var(--al-azul) } .al .al-cif.reasignacion b { color: var(--al-azul) }
+.al .al-cif.dif_nueva { border-bottom-color: var(--al-ambar) } .al .al-cif.dif_nueva b { color: var(--al-ambar) }
+.al .al-cif.on { outline: 3px solid var(--fe-acento); outline-offset: -1px; background: var(--fe-fondo) }
+.al .al-cif:focus-visible, .al .al-chips button:focus-visible { outline: 2px solid var(--fe-acento); outline-offset: 1px }
+
+.al .al-filtros { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap }
+.al .al-chips { display: flex; gap: 6px; flex-wrap: wrap }
+.al .al-chips button { min-height: 40px; padding: 0 14px; border: 1px solid var(--fe-linea); background: var(--fe-papel); color: var(--fe-tinta); font: 800 13px var(--fe-titulo); border-radius: 2px; cursor: pointer }
+.al .al-chips button.on { background: var(--fe-tinta); color: var(--fe-papel, #fff); border-color: var(--fe-tinta) }
+.al .al-cuenta { font-size: 13px; color: var(--fe-gris) }
+
+.al .al-scroll { overflow-x: auto; background: var(--fe-papel); border: 1px solid var(--fe-linea) }
+.al .al-t { width: 100%; border-collapse: collapse; font-size: 13px }
+.al .al-t th { position: sticky; top: 0; background: var(--fe-tinta); color: #fff; font: 700 10px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase; padding: 9px 10px; text-align: left; white-space: nowrap }
+.al .al-t th small { display: block; font-weight: 500; letter-spacing: 0; text-transform: none; opacity: .75 }
+.al .al-t td { padding: 9px 10px; border-bottom: 1px solid var(--fe-linea); vertical-align: top; color: var(--fe-tinta) }
+.al .al-t .n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap }
+.al .al-t tr.hecha td { opacity: .45 }
+.al .al-sub { display: block; font-size: 12px; color: var(--fe-gris); margin-top: 2px; font-weight: 500 }
+.al .al-que { min-width: 230px } .al .al-donde { min-width: 200px; font-size: 12.5px }
+.al .al-tag { display: inline-block; color: #fff; font: 800 10.5px var(--fe-titulo); letter-spacing: .06em; text-transform: uppercase; padding: 3px 8px; background: var(--al-gris) }
+.al .al-tag.sin_contar { background: var(--al-rojo) } .al .al-tag.reasignacion { background: var(--al-azul) } .al .al-tag.dif_nueva { background: var(--al-ambar) }
+.al .al-t td input { width: 20px; height: 20px; accent-color: var(--fe-tinta) }
+
+.al .al-ok { margin: 0; padding: 14px 16px; background: #E3F3EA; border-left: 6px solid var(--fe-bien, #0F7A4A); font-weight: 700; color: #0E5C35 }
+.al .al-vacio { margin: 0; padding: 14px 16px; background: var(--fe-papel); border: 1px solid var(--fe-linea); color: var(--fe-gris) }
+.al .al-error { margin: 0; padding: 12px 16px; background: #FDE7EB; border-left: 6px solid var(--al-rojo); color: #A4102A; font-weight: 600 }
+.al .al-nota { margin: 0; font-size: 12.5px; color: var(--fe-gris) }
+
+@media (max-width: 900px) { .al .al-cifras { grid-template-columns: repeat(2, minmax(0, 1fr)) } }
+
+@media print {
+  @page { size: A4 landscape; margin: 10mm }
+  body { background: #fff !important }
+  .sh-barra, .sh-lado, .sh-riel, .bal-dias, .al-imprimir, .al-filtros, .al-ver, .al-no-papel, .al-nota { display: none !important }
+  .sh-marco, .sh-marco.anclado { display: block !important; min-height: 0 !important; grid-template-columns: 1fr !important }
+  .sh-main { padding: 0 !important; display: block !important; min-height: 0 !important }
+  .al { -webkit-print-color-adjust: exact; print-color-adjust: exact; gap: 8px }
+  .al .al-scroll { overflow: visible }
+  .al .al-t th { position: static }
+  .al .al-t tr { break-inside: avoid }
+}

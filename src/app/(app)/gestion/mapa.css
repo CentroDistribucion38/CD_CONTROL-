@@ -1,0 +1,80 @@
+/* =====================================================================
+   GESTIÓN · MAPA — árbol de KPI y flujo de procesos. Todo lleva `gm-` y cuelga de `.gs`.
+   Solo dos estados: cumple (verde) y no cumple (rojo); sin captura queda en gris.
+   ===================================================================== */
+.gs .gm-imprimir { min-height: 40px; padding: 0 16px; border: 1px solid var(--fe-tinta); background: var(--fe-tinta); color: var(--fe-papel, #fff); font: 800 13px var(--fe-titulo); border-radius: 2px; cursor: pointer; align-self: end }
+
+.gs .gm-proceso { display: flex; flex-direction: column; gap: 12px }
+.gs .gm-proceso h2, .gs .gm-conex h2 { margin: 0; font: 800 18px var(--fe-titulo); color: var(--fe-tinta); display: flex; align-items: baseline; gap: 10px; border-bottom: 3px solid var(--fe-tinta); padding-bottom: 6px }
+.gs .gm-proceso h2 small, .gs .gm-conex h2 small { font: 600 12.5px var(--fe-texto); color: var(--fe-gris) }
+
+/* ---------- la caja de un indicador ---------- */
+.gs .gm-ficha { position: relative; width: 270px; flex: none; display: flex; flex-direction: column; gap: 4px; padding: 10px 12px 10px 14px; background: var(--fe-papel); border: 1px solid var(--fe-linea); border-left: 7px solid var(--gs-sin) }
+.gs .gm-ficha.verde { border-left-color: var(--gs-verde) } .gs .gm-ficha.rojo, .gs .gm-ficha.amarillo { border-left-color: var(--gs-rojo) }
+.gs .gm-ficha.kpi { border-top: 3px solid var(--fe-tinta) }
+.gs .gm-fila { display: flex; align-items: center; gap: 8px; font-size: 12px }
+.gs .gm-tipo { background: var(--fe-tinta); color: var(--fe-acento); font: 900 10px var(--fe-titulo); letter-spacing: .08em; padding: 2px 6px }
+.gs .gm-disp { margin-left: auto; background: var(--gs-rojo); color: #fff; font: 800 10px var(--fe-titulo); letter-spacing: .05em; padding: 2px 6px; text-transform: uppercase }
+.gs .gm-nombre { font: 700 13.5px/1.3 var(--fe-titulo); color: var(--fe-tinta) }
+.gs .gm-otro { color: var(--fe-gris); font-size: 11.5px }
+.gs .gm-dato { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--fe-gris); font-variant-numeric: tabular-nums }
+.gs .gm-dato b { color: var(--fe-tinta) }
+
+/* ---------- el árbol: el KPI a la izquierda, sus PI a la derecha unidos por una llave ---------- */
+.gs .gm-ramas { display: flex; flex-direction: column; gap: 18px }
+.gs .gm-rama { display: flex; align-items: flex-start; overflow-x: auto; padding-bottom: 2px }
+.gs .gm-pis { list-style: none; margin: 0; padding: 0 0 0 30px; display: flex; flex-direction: column; gap: 8px; position: relative }
+.gs .gm-pis::before { content: ""; position: absolute; left: 0; top: 40px; width: 15px; height: 2px; background: var(--fe-gris) }
+.gs .gm-pis li { position: relative }
+.gs .gm-pis li::after { content: ""; position: absolute; left: -15px; top: 40px; width: 15px; height: 2px; background: var(--fe-gris) }
+.gs .gm-pis li::before { content: ""; position: absolute; left: -15px; top: -8px; height: calc(100% + 8px); width: 2px; background: var(--fe-gris) }
+.gs .gm-pis li:first-child::before { top: 40px; height: calc(100% - 40px + 8px) }
+.gs .gm-pis li:last-child::before { height: 49px }
+.gs .gm-pis li:only-child::before { display: none }
+
+/* ---------- el flujo de procesos ---------- */
+.gs .gm-flujo { display: flex; gap: 0; overflow-x: auto; padding-bottom: 8px; align-items: stretch }
+.gs .gm-pasoW { display: flex; align-items: center; flex: 1 0 250px; min-width: 250px }
+.gs .gm-paso { flex: 1; align-self: stretch; display: flex; flex-direction: column; gap: 8px; padding: 14px; background: var(--fe-papel); border: 1px solid var(--fe-linea); border-bottom: 5px solid var(--gs-sin) }
+.gs .gm-paso.bien { border-bottom-color: var(--gs-verde) } .gs .gm-paso.mal { border-bottom-color: var(--gs-rojo) }
+.gs .gm-paso header { display: flex; align-items: center; gap: 10px }
+.gs .gm-paso h2 { margin: 0; font: 800 16px/1.2 var(--fe-titulo); color: var(--fe-tinta) }
+.gs .gm-n { width: 28px; height: 28px; display: grid; place-items: center; flex: none; background: var(--fe-tinta); color: var(--fe-acento); font: 900 14px var(--fe-titulo) }
+.gs .gm-cuenta { display: flex; align-items: baseline; gap: 8px }
+.gs .gm-cuenta b { font: 900 30px/1 var(--fe-titulo); letter-spacing: -.02em; font-variant-numeric: tabular-nums }
+.gs .gm-cuenta span { color: var(--fe-gris); font-size: 13px }
+.gs .gm-barra2 { display: flex; height: 10px; background: #E7EBF0; overflow: hidden }
+.gs .gm-barra2 i { display: block; height: 100% } .gs .gm-barra2 i.v { background: var(--gs-verde) } .gs .gm-barra2 i.r { background: var(--gs-rojo) }
+.gs .gm-resumen { display: flex; gap: 6px 14px; flex-wrap: wrap; font-size: 12px; color: var(--fe-gris) }
+.gs .gm-resumen b { color: var(--fe-tinta); font-variant-numeric: tabular-nums }
+.gs .gm-resumen .gm-alerta, .gs .gm-resumen .gm-alerta b { color: var(--gs-rojo); font-weight: 800 }
+.gs .gm-lista { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; border-top: 1px solid var(--fe-linea); padding-top: 8px }
+.gs .gm-lista li { display: grid; grid-template-columns: 10px auto 1fr auto; gap: 8px; align-items: center; font-size: 12.5px; color: var(--fe-tinta) }
+.gs .gm-lista li i { width: 10px; height: 10px; border-radius: 50%; background: var(--gs-sin) }
+.gs .gm-lista li.verde i { background: var(--gs-verde) } .gs .gm-lista li.rojo i, .gs .gm-lista li.amarillo i { background: var(--gs-rojo) }
+.gs .gm-lista li.sin i { background: transparent; border: 1.5px solid var(--gs-sin) }
+.gs .gm-lista .gm-ln { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.gs .gm-lista em { font: 900 12px var(--fe-titulo); color: #fff; background: var(--gs-rojo); padding: 0 6px; font-style: normal }
+.gs .gm-flecha { flex: none; width: 34px; text-align: center; font: 900 24px var(--fe-titulo); color: var(--fe-tinta) }
+.gs .gm-nota { margin: 0; color: var(--fe-gris); font-size: 13px }
+.gs .gm-conex { display: flex; flex-direction: column; gap: 10px }
+.gs .gm-flecha-t { font: 900 18px var(--fe-titulo); text-align: center; width: 40px }
+
+@media (max-width: 900px) {
+  .gs .gm-ficha { width: 240px }
+  .gs .gm-pasoW { flex-basis: 230px; min-width: 230px }
+}
+
+/* ---------- papel: A4 horizontal, sin barras ---------- */
+@media print {
+  @page { size: A4 landscape; margin: 10mm }
+  body { background: #fff !important }
+  .sh-barra, .sh-lado, .sh-riel, .gm-barra { display: none !important }
+  .sh-marco, .sh-marco.anclado { display: block !important; min-height: 0 !important; grid-template-columns: 1fr !important }
+  .sh-main { padding: 0 !important; display: block !important; min-height: 0 !important }
+  .sh { min-height: 0 !important }
+  .gm { -webkit-print-color-adjust: exact; print-color-adjust: exact; gap: 10px }
+  .gm .gm-proceso { break-inside: avoid }
+  .gm .gm-rama { break-inside: avoid; overflow: visible }
+  .gm .gm-flujo { overflow: visible; flex-wrap: wrap }
+}

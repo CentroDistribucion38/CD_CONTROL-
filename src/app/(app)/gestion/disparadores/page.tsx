@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 /**
  * GESTIÓN · DISPARADORES.
  *
- * Lo que saltó porque un indicador se desvió según SU regla (rojo, o alerta, durante N resultados seguidos).
+ * Lo que saltó porque un indicador se desvió según SU regla (la meta no se cumplió N resultados seguidos).
  * Un disparador activo es una pregunta abierta: de aquí se abre el 5 Why (siguiente entrega). Mientras tanto
  * se puede descartar con su motivo si no procede.
  */

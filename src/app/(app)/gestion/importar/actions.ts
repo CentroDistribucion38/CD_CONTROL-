@@ -72,18 +72,17 @@ export async function importarEstructura(p: { turnos: TurnoImp[]; procesos: Proc
       proceso_id: i.proceso ? idProceso.get(i.proceso.toLowerCase()) ?? null : null,
       nivel_reunion: i.nivel_reunion === 2 ? 2 : 1, unidad: i.unidad ?? "", decimales: Math.min(4, Math.max(0, Number(i.decimales) || 0)),
       meta_op: i.meta_op, meta_valor: Number(i.meta_valor),
-      amarillo_op: i.amarillo_op, amarillo_valor: i.amarillo_op ? Number(i.amarillo_valor) : null,
-      rojo_op: i.rojo_op, rojo_valor: i.rojo_op ? Number(i.rojo_valor) : null,
+      amarillo_op: null, amarillo_valor: null, rojo_op: null, rojo_valor: null,
       frecuencia: i.frecuencia, captura: i.frecuencia === "dia" ? i.captura : "unico",
       turnos: i.captura === "turnos" && i.frecuencia === "dia" ? i.turnos.map((n) => idTurno.get(n.toLowerCase())).filter(Boolean) as string[] : [],
       responsable: i.responsable?.trim() || null,
-      disparo_activo: !!i.disparo_activo, disparo_en: i.disparo_en === "amarillo" ? "amarillo" : "rojo",
+      disparo_activo: !!i.disparo_activo, disparo_en: "rojo",
       disparo_consecutivos: Math.min(30, Math.max(1, Number(i.disparo_consecutivos) || 1)),
       orden: Number(i.orden) || 0, activo: true,
     });
     for (const i of p.indicadores) {
       if (!i.codigo?.trim() || !i.nombre?.trim()) return { error: "Hay un indicador sin código o sin nombre." };
-      if (!opOk(i.meta_op) || !opOk(i.amarillo_op) || !opOk(i.rojo_op)) return { error: `${i.codigo}: operador no válido.` };
+      if (!opOk(i.meta_op)) return { error: `${i.codigo}: operador no válido.` };
     }
     /* Primero los KPI (sin padre) y después los PI, que necesitan el id de su KPI. */
     const kpis = p.indicadores.filter((i) => i.tipo === "kpi");

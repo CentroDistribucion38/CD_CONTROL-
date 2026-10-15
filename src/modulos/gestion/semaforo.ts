@@ -2,8 +2,9 @@
  * GESTIÓN — las reglas, sin base ni pantalla (se usan en el servidor y en el navegador).
  *
  * Un INDICADOR es un KPI (el resultado) o un PI (indicador de proceso: lo que explica o maneja el KPI).
- * Cada uno tiene su META y, si se quiere, un umbral AMARILLO y otro ROJO, cada uno con su operador
- * (así como se manejan los indicadores del pilar ETO). El estado de un número sale de comparar contra eso.
+ * Cada uno tiene su META (con su operador) y un DISPARADOR. Solo hay dos estados: CUMPLE la meta o NO CUMPLE.
+ * Nada intermedio. El disparador salta cuando no se cumple la meta N resultados seguidos.
+ * (Las columnas amarillo/rojo y disparo_en siguen en la base pero ya no se usan.)
  *
  * Todo lo que aquí se decide viene de los datos del indicador: no hay una cifra escrita a mano en el código.
  */
@@ -22,13 +23,15 @@ export const OPERADORES: { k: Op; t: string }[] = [
 export const SIMBOLO: Record<Op, string> = { ">=": "≥", ">": ">", "<=": "≤", "<": "<", "=": "=" };
 
 export type Estado = "verde" | "amarillo" | "rojo";
+/** Solo dos estados a la vista: cumple o no cumple («amarillo» quedó de antes y se lee como no cumple). */
 export const ESTADOS: { k: Estado; nombre: string }[] = [
   { k: "verde", nombre: "Cumple" },
-  { k: "amarillo", nombre: "En alerta" },
-  { k: "rojo", nombre: "Crítico" },
+  { k: "rojo", nombre: "No cumple" },
 ];
+/** Lo guardado con el semáforo viejo: lo intermedio cuenta como no cumple. */
+export const aEstado = (e: string | null | undefined): Estado => (e === "verde" ? "verde" : "rojo");
 /** De mejor a peor: sirve para quedarse con el peor estado de un día. */
-export const PESO: Record<Estado, number> = { verde: 0, amarillo: 1, rojo: 2 };
+export const PESO: Record<Estado, number> = { verde: 0, amarillo: 2, rojo: 2 };
 
 export type Frecuencia = "dia" | "semana" | "mes";
 export const FRECUENCIAS: { k: Frecuencia; nombre: string }[] = [
@@ -76,18 +79,11 @@ export function comparar(v: number | null, op: Op | null, ref: number | null): b
   }
 }
 
-type ConReglas = Pick<Indicador, "meta_op" | "meta_valor" | "amarillo_op" | "amarillo_valor" | "rojo_op" | "rojo_valor">;
+type ConReglas = Pick<Indicador, "meta_op" | "meta_valor">;
 
-/**
- * EL ESTADO DE UN NÚMERO. Primero lo crítico, luego la alerta; si no salta ninguna de las dos, cumple o no cumple la meta.
- * Si no cumple la meta y hay un umbral rojo definido pero el número no llegó a él, queda en alerta (amarillo).
- * Si no hay umbral rojo, no cumplir la meta es crítico.
- */
+/** EL ESTADO DE UN NÚMERO: cumple la meta (verde) o no la cumple (rojo). Nada en medio. */
 export function estadoDe(i: ConReglas, valor: number): Estado {
-  if (comparar(valor, i.rojo_op, i.rojo_valor)) return "rojo";
-  if (comparar(valor, i.amarillo_op, i.amarillo_valor)) return "amarillo";
-  if (comparar(valor, i.meta_op, i.meta_valor)) return "verde";
-  return i.rojo_op != null && i.rojo_valor != null ? "amarillo" : "rojo";
+  return comparar(valor, i.meta_op, i.meta_valor) ? "verde" : "rojo";
 }
 
 const nf = (d: number) => new Intl.NumberFormat("es-CO", { minimumFractionDigits: 0, maximumFractionDigits: d });
@@ -106,18 +102,16 @@ export function textoRegla(op: Op | null, valor: number | null, i: Pick<Indicado
 
 /**
  * ¿SALTA EL DISPARADOR? Se mira lo más reciente: los últimos N resultados (el más nuevo primero) tienen que ser todos
- * «malos» según la regla del indicador (solo rojo, o amarillo y rojo). Con menos de N resultados no salta.
+ * «no cumple». Con menos de N resultados no salta.
  */
-export function dispara(i: Pick<Indicador, "disparo_activo" | "disparo_en" | "disparo_consecutivos">, recientes: Estado[]): boolean {
+export function dispara(i: Pick<Indicador, "disparo_activo" | "disparo_consecutivos">, recientes: Estado[]): boolean {
   if (!i.disparo_activo) return false;
   const n = Math.max(1, i.disparo_consecutivos);
   if (recientes.length < n) return false;
-  const malo = (e: Estado) => (i.disparo_en === "amarillo" ? e !== "verde" : e === "rojo");
-  return recientes.slice(0, n).every(malo);
+  return recientes.slice(0, n).every((e) => e !== "verde");
 }
-export function textoDisparo(i: Pick<Indicador, "disparo_en" | "disparo_consecutivos">): string {
-  const que = i.disparo_en === "amarillo" ? "alerta o crítico" : "crítico";
-  return i.disparo_consecutivos <= 1 ? `${que} en un resultado` : `${que} ${i.disparo_consecutivos} resultados seguidos`;
+export function textoDisparo(i: Pick<Indicador, "disparo_consecutivos">): string {
+  return i.disparo_consecutivos <= 1 ? "no cumple la meta en un resultado" : `no cumple la meta ${i.disparo_consecutivos} resultados seguidos`;
 }
 
 /* ---------- fechas (día de Bogotá, texto AAAA-MM-DD) ---------- */

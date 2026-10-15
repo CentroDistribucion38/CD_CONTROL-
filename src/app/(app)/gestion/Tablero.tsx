@@ -114,8 +114,7 @@ export function Tablero({ fecha, hoy, turnos, procesos, indicadores, resultados,
       <div className="gs-cifras">
         <div className="gs-cif"><span>Indicadores</span><b>{vista.length}</b></div>
         <div className="gs-cif bien"><span>Cumplen</span><b>{cuenta("verde")}</b></div>
-        <div className="gs-cif ojo"><span>En alerta</span><b>{cuenta("amarillo")}</b></div>
-        <div className="gs-cif mal"><span>Críticos</span><b>{cuenta("rojo")}</b></div>
+        <div className="gs-cif mal"><span>No cumplen</span><b>{cuenta("rojo")}</b></div>
         <div className="gs-cif"><span>Sin captura</span><b>{cuenta(null)}</b></div>
         <Link href="/gestion/disparadores" className={"gs-cif enlace" + (nDisp ? " mal" : "")}><span>Disparadores activos</span><b>{nDisp}</b></Link>
       </div>

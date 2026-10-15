@@ -53,7 +53,7 @@ export async function GET() {
   lm.getCell("B2").value = "CONTROL · GESTIÓN — Plantilla de carga masiva";
   lm.getCell("B2").font = { bold: true, size: 20, color: { argb: TINTA } };
   lm.mergeCells("B3:C3");
-  lm.getCell("B3").value = "Procesos, indicadores (KPI y PI), metas, umbrales, disparadores y resultados: todo en un solo archivo.";
+  lm.getCell("B3").value = "Procesos, indicadores (KPI y PI), metas, disparadores y resultados: todo en un solo archivo.";
   lm.getCell("B3").font = { size: 12, color: { argb: GRIS } };
   let r = 5;
   const titulo = (t: string) => { lm.mergeCells(`B${r}:C${r}`); const c = lm.getCell(`B${r}`); c.value = t; c.font = { bold: true, size: 12, color: { argb: "FFFFFFFF" } }; c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: TINTA } }; lm.getRow(r).height = 22; r++; };
@@ -73,21 +73,18 @@ export async function GET() {
   r++;
   titulo("REGLAS");
   linea("Columnas amarillas *", "Son obligatorias. En INDICADORES, si una fila tiene código y le falta un obligatorio, la celda se pinta de rojo.", CREMA);
-  linea("Mismo código = actualiza", "Si el código del indicador ya existe se ACTUALIZA (meta, umbrales, etc.). Un proceso o turno se reconoce por su nombre.", CREMA);
+  linea("Mismo código = actualiza", "Si el código del indicador ya existe se ACTUALIZA (meta, disparador, etc.). Un proceso o turno se reconoce por su nombre.", CREMA);
   linea("Resultados repetidos", "Misma fecha + turno + indicador se REEMPLAZA con el valor nuevo: puedes corregir el Excel y volver a subirlo.", CREMA);
   linea("Semana y mes", "Si la frecuencia es Semana o Mes, la fecha se lleva al primer día de ese periodo y no lleva turno (captura «Valor único»).", CREMA);
   linea("Encabezados", "No cambies el texto de los encabezados (puedes mover las columnas de lugar). La hoja EJEMPLO y LISTAS no se importan.", CREMA);
   r++;
-  titulo("EL SEMÁFORO — cómo se decide el color de cada resultado");
-  linea("Rojo", "Si cumple la condición ROJA (por ejemplo «< 90»).");
-  linea("Amarillo", "Si no es rojo y cumple la condición AMARILLA (por ejemplo «< 98»).");
-  linea("Verde", "Si no es rojo ni amarillo y cumple la META (por ejemplo «≥ 98»).");
-  linea("Sin umbrales", "Si no cumple la meta: amarillo cuando definiste un umbral rojo (está entre la meta y el rojo); rojo si no definiste ninguno.");
+  titulo("LA META — solo dos estados");
+  linea("Cumple", "El resultado cumple la META (por ejemplo «≥ 98»).");
+  linea("No cumple", "El resultado no cumple la meta. No hay estados intermedios: o se cumple o no se cumple.");
   r++;
   titulo("EL DISPARADOR — cuándo se abre solo");
   linea("Disparador activo", "Sí/No. Si es Sí, al cargar resultados se revisa si el indicador debe disparar.");
-  linea("Dispara con", "«Rojo» = salta solo con resultados rojos. «Amarillo o rojo» = salta con alerta o crítico.");
-  linea("Resultados seguidos", "Cuántos resultados MALOS seguidos hacen falta (1 a 30). Con 3, tienen que ser los 3 últimos. Habrá un solo disparador activo por indicador.");
+  linea("Resultados seguidos", "Cuántos resultados que NO CUMPLEN la meta, seguidos, hacen falta (1 a 30). Con 3, tienen que ser los 3 últimos. Al saltar queda PENDIENTE de 5 Why. Habrá un solo disparador activo por indicador.");
   r++;
   titulo("COLUMNAS DE INDICADORES");
   const guia: [string, string][] = [
@@ -99,7 +96,6 @@ export async function GET() {
     ["Nivel de reunión", "1 o 2 (en qué reunión se revisa)."],
     ["Unidad / Decimales", "Ej. %, cajas, min · de 0 a 4 decimales."],
     ["Meta operador y valor *", "Ej. ≥ 98. Operadores: ≥ > ≤ < = (también vale escribir >= o <=)."],
-    ["Amarillo / Rojo (opcional)", "Cada umbral lleva operador Y valor juntos, o los dos vacíos."],
     ["Frecuencia *", "Día, Semana o Mes."],
     ["Captura *", "«Por turno» (solo si es diario) o «Valor único»."],
     ["Turnos", "«Todos» o nombres separados por coma: Turno 1, Turno 3."],
@@ -111,7 +107,7 @@ export async function GET() {
   /* ------------------------------------------------------------------ LISTAS (oculta) */
   const li = wb.addWorksheet("LISTAS", { state: "hidden" });
   const listas: Record<string, string[]> = {
-    A: ["KPI", "PI"], B: [">=", ">", "<=", "<", "="], C: ["Día", "Semana", "Mes"], D: ["Por turno", "Valor único"], E: ["Sí", "No"], F: ["1", "2"], G: ["Rojo", "Amarillo o rojo"],
+    A: ["KPI", "PI"], B: [">=", ">", "<=", "<", "="], C: ["Día", "Semana", "Mes"], D: ["Por turno", "Valor único"], E: ["Sí", "No"], F: ["1", "2"],
   };
   Object.entries(listas).forEach(([col, vals]) => vals.forEach((v, i) => { li.getCell(`${col}${i + 1}`).value = col === "F" ? Number(v) : v; }));
   const L = (col: string) => `LISTAS!$${col}$1:$${col}$${listas[col].length}`;
@@ -145,17 +141,12 @@ export async function GET() {
     { h: "Decimales", w: 10, nota: "0 a 4." },
     { h: "Meta operador", w: 10, req: true, nota: "≥ > ≤ < =  (escribe >= o <=).", lista: L("B") },
     { h: "Meta valor", w: 10, req: true, nota: "Número." },
-    { h: "Amarillo operador", w: 10, nota: "Opcional; va junto con su valor.", lista: L("B") },
-    { h: "Amarillo valor", w: 10, nota: "Número." },
-    { h: "Rojo operador", w: 10, nota: "Opcional; va junto con su valor.", lista: L("B") },
-    { h: "Rojo valor", w: 10, nota: "Número." },
     { h: "Frecuencia", w: 11, req: true, nota: "Día, Semana o Mes.", lista: L("C") },
     { h: "Captura", w: 13, req: true, nota: "Por turno (solo diario) o Valor único.", lista: L("D") },
     { h: "Turnos", w: 22, nota: "Todos, o nombres separados por coma." },
     { h: "Responsable", w: 22, nota: "Quién responde." },
     { h: "Disparador activo", w: 11, nota: "Sí / No (por defecto Sí).", lista: L("E") },
-    { h: "Dispara con", w: 16, nota: "Rojo, o Amarillo o rojo.", lista: L("G") },
-    { h: "Resultados seguidos", w: 11, nota: "1 a 30 resultados malos seguidos." },
+    { h: "Resultados seguidos", w: 11, nota: "1 a 30 resultados que no cumplen, seguidos." },
     { h: "Orden", w: 8, nota: "Orden en el tablero." },
   ], "FFFFC000", 1000);
   const roja = { type: "pattern" as const, pattern: "solid" as const, bgColor: { argb: ROJO_F } };
@@ -163,7 +154,7 @@ export async function GET() {
   falta("B2:C1001", 'AND($A2<>"",B2="")');
   falta("D2:D1001", 'AND($A2<>"",$C2="PI",$D2="")');
   falta("I2:J1001", 'AND($A2<>"",I2="")');
-  falta("O2:P1001", 'AND($A2<>"",O2="")');
+  falta("K2:L1001", 'AND($A2<>"",K2="")');
 
   /* ------------------------------------------------------------------ RESULTADOS */
   hoja(wb, "RESULTADOS", [
@@ -176,7 +167,7 @@ export async function GET() {
 
   /* ------------------------------------------------------------------ EJEMPLO */
   const ej = wb.addWorksheet("EJEMPLO", { properties: { tabColor: { argb: "FF8A96A3" } }, views: [{ showGridLines: false }] });
-  ej.columns = Array.from({ length: 22 }, () => ({ width: 14 }));
+  ej.columns = Array.from({ length: 16 }, () => ({ width: 14 }));
   ej.getColumn(2).width = 38; ej.getColumn(5).width = 22;
   let e = 1;
   const rotulo = (t: string) => { ej.mergeCells(e, 1, e, 8); const c = ej.getCell(e, 1); c.value = t; c.font = { bold: true, size: 13, color: { argb: TINTA } }; e++; };
@@ -190,12 +181,12 @@ export async function GET() {
   rotulo("Hoja PROCESOS");
   tabla(["Proceso", "Orden"], [["Recibo y descargue", 1], ["Almacenamiento", 2], ["Despacho", 3], ["Seguridad", 4]]);
   rotulo("Hoja INDICADORES");
-  const hI = ["Código", "Nombre", "Tipo", "KPI padre", "Proceso", "Nivel reunión", "Unidad", "Decimales", "Meta op.", "Meta valor", "Amarillo op.", "Amarillo valor", "Rojo op.", "Rojo valor", "Frecuencia", "Captura", "Turnos", "Responsable", "Disparador", "Dispara con", "Seguidos", "Orden"];
+  const hI = ["Código", "Nombre", "Tipo", "KPI padre", "Proceso", "Nivel reunión", "Unidad", "Decimales", "Meta op.", "Meta valor", "Frecuencia", "Captura", "Turnos", "Responsable", "Disparador", "Seguidos", "Orden"];
   tabla(hI, [
-    ["KPI-001", "Cumplimiento del plan de despacho", "KPI", "", "Despacho", 1, "%", 1, ">=", 98, "<", 98, "<", 95, "Día", "Por turno", "Todos", "Jefe de despacho", "Sí", "Rojo", 2, 1],
-    ["PI-001", "Camiones cargados en menos de 45 min", "PI", "KPI-001", "Despacho", 1, "%", 0, ">=", 90, "<", 90, "<", 80, "Día", "Por turno", "Turno 1, Turno 2", "Líder de muelle", "Sí", "Amarillo o rojo", 3, 2],
-    ["KPI-002", "Exactitud del inventario", "KPI", "", "Almacenamiento", 2, "%", 2, ">=", 99.5, "", "", "<", 98, "Día", "Valor único", "", "Jefe de inventarios", "Sí", "Rojo", 1, 3],
-    ["KPI-003", "Accidentes con tiempo perdido", "KPI", "", "Seguridad", 2, "casos", 0, "<=", 0, "", "", ">=", 1, "Mes", "Valor único", "", "HSE", "Sí", "Rojo", 1, 4],
+    ["KPI-001", "Cumplimiento del plan de despacho", "KPI", "", "Despacho", 1, "%", 1, ">=", 98, "Día", "Por turno", "Todos", "Jefe de despacho", "Sí", 2, 1],
+    ["PI-001", "Camiones cargados en menos de 45 min", "PI", "KPI-001", "Despacho", 1, "%", 0, ">=", 90, "Día", "Por turno", "Turno 1, Turno 2", "Líder de muelle", "Sí", 3, 2],
+    ["KPI-002", "Exactitud del inventario", "KPI", "", "Almacenamiento", 2, "%", 2, ">=", 99.5, "Día", "Valor único", "", "Jefe de inventarios", "Sí", 1, 3],
+    ["KPI-003", "Accidentes con tiempo perdido", "KPI", "", "Seguridad", 2, "casos", 0, "<=", 0, "Mes", "Valor único", "", "HSE", "Sí", 1, 4],
   ]);
   rotulo("Hoja RESULTADOS");
   const d = (dia: number) => new Date(Date.UTC(2026, 9, dia));
