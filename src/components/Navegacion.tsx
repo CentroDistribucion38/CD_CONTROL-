@@ -424,6 +424,7 @@ const ICONO_RUTA: Record<string, () => React.ReactElement> = {
      dibujo en el riel obligan a leer el rótulo para distinguirlas — que
      es justo lo que el riel existe para evitar. */
   "/inventario/tablero": IconoTablero,
+  "/inventario/despacho": IconoPlan,
   "/inventario/averias": IconoAveria,
   "/inventario/averias/acciones": IconoAcciones,
   "/gestion": IconoTablero,

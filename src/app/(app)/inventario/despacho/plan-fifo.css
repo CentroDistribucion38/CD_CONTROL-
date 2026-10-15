@@ -1,0 +1,149 @@
+/* ===== INVENTARIO · DESPACHO FIFO (.pf) — la hoja que dice qué módulos tomar, en orden FIFO ===== */
+.pf { display: flex; flex-direction: column; gap: 14px; --pf-verde: #0F7A4A; --pf-ambar: #FFC000; --pf-mostaza: #C08A16; --pf-rojo: #E4002B }
+.pf-vacio { padding: 18px; background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea) }
+.pf-hoja, .pf-hoja-mat, .pf-solo-papel { display: none }
+
+/* ---- barra de filtros ---- */
+.pf-barra { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 20px; padding: 14px 16px; background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea); border-bottom: 4px solid var(--pf-ambar); position: relative }
+.pf-grupo { display: flex; flex-direction: column; gap: 6px; position: relative }
+.pf-grupo > span { font-size: 11.5px; font-weight: 600; color: var(--fe-tinta) }
+.pf-grupo > span em { font-style: normal; font-weight: 500; color: var(--fe-gris) }
+.pf-grupo select { height: 40px; min-width: 170px; padding: 0 10px; border: 1px solid var(--fe-linea); background: #fff; font: 600 13.5px var(--fe-texto) }
+.pf-chips { display: flex; gap: 6px }
+.pf-chips button { height: 40px; padding: 0 14px; border: 1px solid var(--fe-linea); background: #fff; cursor: pointer; font: 600 13px var(--fe-texto); color: var(--fe-tinta) }
+.pf-chips button.on { background: var(--fe-tinta); color: #fff; border-color: var(--fe-tinta) }
+.pf-mat { flex: 1 1 360px }
+.pf-mat-fila { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+.pf-embudo { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border: 1px solid var(--fe-tinta); background: #fff; cursor: pointer; font: 700 13px var(--fe-texto); color: var(--fe-tinta) }
+.pf-embudo:hover { background: #F6F1E0 }
+.pf-chip { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 0 0 10px; border: 2px solid var(--fe-tinta); background: #fff; font: 700 12.5px var(--fe-mono, ui-monospace, monospace) }
+.pf-chip i, .pf-cod i { display: inline-block; width: 10px; height: 10px; flex: none }
+.pf-chip button { height: 100%; padding: 0 10px; border: 0; border-left: 1px solid var(--fe-linea); background: none; cursor: pointer; font: 700 16px var(--fe-texto); color: var(--fe-gris) }
+.pf-chip button:hover { background: #FDE7EB; color: var(--pf-rojo) }
+.pf-limpia { border: 0; background: none; cursor: pointer; font: 700 12.5px var(--fe-texto); color: var(--fe-gris); text-decoration: underline }
+.pf-imprimir { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 22px; border: 0; background: var(--pf-ambar); color: var(--fe-tinta); cursor: pointer; font: 800 14px var(--fe-texto) }
+.pf-imprimir:hover:not(:disabled) { filter: brightness(.95) }
+.pf-imprimir:disabled { opacity: .4; cursor: not-allowed }
+.pf button:focus-visible, .pf select:focus-visible, .pf input:focus-visible { outline: 3px solid var(--pf-ambar); outline-offset: 1px }
+
+/* ---- el filtro de material (como el de La base) ---- */
+.pf-fc { position: absolute; z-index: 30; top: 100%; left: 0; margin-top: 4px; width: 420px; max-width: calc(100vw - 32px); background: #fff; border: 2px solid var(--fe-tinta); box-shadow: 0 14px 36px rgba(18, 38, 58, .28) }
+.pf-fc-t { padding: 10px 14px; background: var(--fe-tinta); color: #fff; font: 600 12.5px var(--fe-texto) }
+.pf-fc-q { display: block; width: calc(100% - 20px); margin: 10px; height: 38px; padding: 0 10px; border: 1px solid var(--fe-linea); font: 500 13.5px var(--fe-texto) }
+.pf-fc-l { max-height: 320px; overflow-y: auto; border-top: 1px solid var(--fe-linea); border-bottom: 1px solid var(--fe-linea) }
+.pf-fc-l label { display: flex; align-items: center; gap: 9px; padding: 8px 14px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #F1F3F6 }
+.pf-fc-l label:hover { background: #FBF6E4 }
+.pf-fc-l label.off { opacity: .45; cursor: not-allowed }
+.pf-fc-l label i { width: 10px; height: 10px; flex: none }
+.pf-fc-l label span { flex: 1; min-width: 0 }
+.pf-fc-l label em { font: 700 12px var(--fe-texto); font-style: normal; font-variant-numeric: tabular-nums; color: var(--fe-gris) }
+.pf-fc-mas { margin: 0; padding: 8px 14px; font-size: 12px; color: var(--fe-gris) }
+.pf-fc-b { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px }
+.pf-fc-b span { display: flex; gap: 8px }
+.pf-fc-limpia { border: 0; background: none; cursor: pointer; font: 700 12.5px var(--fe-texto); color: var(--fe-gris); text-decoration: underline }
+.pf-fc-limpia:disabled { opacity: .35; cursor: default }
+.pf-sec, .pf-prim { height: 36px; padding: 0 16px; cursor: pointer; font: 700 13px var(--fe-texto) }
+.pf-sec { border: 1px solid var(--fe-linea); background: #fff; color: var(--fe-tinta) }
+.pf-prim { border: 0; background: var(--fe-tinta); color: #fff }
+
+/* ---- tarjetas para escoger ---- */
+.pf-card { background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea); padding: 16px }
+.pf-card h3 { margin: 0 0 12px; font: 700 15px var(--fe-texto); color: var(--fe-tinta) }
+.pf-card h3 small { font-weight: 500; font-size: 12.5px; color: var(--fe-gris); margin-left: 6px }
+.pf-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px }
+.pf-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px 14px; text-align: left; border: 1px solid var(--fe-linea); border-top: 5px solid var(--fe-tinta); background: #fff; cursor: pointer; font-family: var(--fe-texto); color: var(--fe-tinta) }
+.pf-tile:hover { background: #FBF6E4; transform: translateY(-1px); box-shadow: 0 6px 16px rgba(18, 38, 58, .12) }
+.pf-tile strong { font-size: 14px; line-height: 1.25 }
+.pf-tile small { font-size: 12.5px; color: var(--fe-gris); font-variant-numeric: tabular-nums }
+.pf-tile em { font: 700 11.5px var(--fe-texto); font-style: normal; padding: 2px 8px; background: #EEF1F5 }
+.pf-tile em.v { background: #E3F3EA; color: #0E5C35 } .pf-tile em.a { background: #FFF3CC; color: #5E4100 }
+.pf-tile em.m { background: #F6E7C4; color: #5E4100 } .pf-tile em.r { background: #FDE7EB; color: #A4102A }
+.pf-cod { display: inline-flex; align-items: center; gap: 7px; font: 700 12px var(--fe-mono, ui-monospace, monospace); color: var(--fe-gris) }
+.pf-pista { margin: 10px 0 0; font-size: 12.5px; color: var(--fe-gris) }
+
+/* ---- cifras ---- */
+.pf-k { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px }
+.pf-k > div { background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea); border-bottom: 4px solid var(--pf-ambar); padding: 12px 16px }
+.pf-k > div.mal b { color: var(--pf-rojo) }
+.pf-k span { font: 600 10.5px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase; color: var(--fe-gris) }
+.pf-k b { display: block; font: 800 28px var(--fe-titulo, var(--fe-texto)); font-variant-numeric: tabular-nums; color: var(--fe-tinta) }
+.pf-k b.pf-mono { font: 800 24px var(--fe-mono, ui-monospace, monospace) }
+.pf-k small { font-size: 12px; color: var(--fe-gris) }
+
+/* ---- un bloque por material ---- */
+.pf-bloque { background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea) }
+.pf-bloque-cab { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 24px; padding: 14px 18px; border-left: 8px solid var(--fe-tinta); border-bottom: 1px solid var(--fe-linea); background: linear-gradient(90deg, #FBF6E4, #fff 60%) }
+.pf-bloque-cab h2 { margin: 2px 0 0; font: 800 20px var(--fe-titulo, var(--fe-texto)); color: var(--fe-tinta) }
+.pf-bloque-cab dl { display: flex; gap: 22px; margin: 0 }
+.pf-bloque-cab dt { font: 600 10px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase; color: var(--fe-gris) }
+.pf-bloque-cab dd { margin: 0; font: 800 22px var(--fe-titulo, var(--fe-texto)); font-variant-numeric: tabular-nums; color: var(--fe-tinta) }
+.pf-scroll { overflow-x: auto }
+.pf-t { width: 100%; border-collapse: collapse; font-size: 13px }
+.pf-t th { background: var(--fe-tinta); color: #fff; font: 700 10px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase; padding: 9px 10px; text-align: left; white-space: nowrap }
+.pf-t th.n, .pf-t td.n { text-align: right; font-variant-numeric: tabular-nums }
+.pf-t th.c, .pf-t td.c { text-align: center }
+.pf-t td { padding: 8px 10px; border-bottom: 1px solid var(--fe-linea); color: var(--fe-tinta); vertical-align: middle }
+.pf-t tbody tr:nth-child(even) { background: #FAFBFC }
+.pf-t tbody tr.hecho { opacity: .45 }
+.pf-t tbody tr.hecho .pf-mod { text-decoration: line-through }
+.pf-t tfoot td { padding: 10px; background: #FFF3CC; font: 800 12.5px var(--fe-texto); font-variant-numeric: tabular-nums; border-top: 2px solid var(--fe-tinta) }
+.pf-mod { font: 700 14px var(--fe-mono, ui-monospace, monospace); white-space: nowrap }
+.pf-est { display: inline-block; padding: 2px 8px; background: #EEF1F5; font: 600 11.5px var(--fe-texto) }
+.pf-tenue { color: var(--fe-gris) }
+.pf-orden { display: inline-grid; place-items: center; min-width: 28px; height: 28px; padding: 0 4px; border-radius: 50%; background: #EEF1F5; font: 800 13px var(--fe-texto); font-variant-numeric: tabular-nums }
+.pf-orden.uno { background: var(--pf-ambar); color: var(--fe-tinta); box-shadow: 0 0 0 3px var(--fe-tinta) }
+.pf-dias, .pf-acum { display: grid; grid-template-columns: 52px 110px; align-items: center; gap: 8px }
+.pf-dias b, .pf-acum b { font-variant-numeric: tabular-nums; text-align: right }
+.pf-dias i, .pf-acum i { display: block; height: 10px; background: #F1F3F6 }
+.pf-dias i u, .pf-acum i u { display: block; height: 100%; text-decoration: none }
+.pf-dias.v i u { background: var(--pf-verde) } .pf-dias.a i u { background: var(--pf-ambar) }
+.pf-dias.m i u { background: var(--pf-mostaza) } .pf-dias.r i u { background: var(--pf-rojo) }
+.pf-dias.r b { color: #A4102A } .pf-dias.m b { color: #8A5A00 }
+.pf-t input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--fe-tinta); cursor: pointer }
+.pf-ley { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--fe-gris) }
+.pf-ley i { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -1px }
+.pf-ley i.v { background: var(--pf-verde) } .pf-ley i.a { background: var(--pf-ambar) } .pf-ley i.m { background: var(--pf-mostaza) } .pf-ley i.r { background: var(--pf-rojo) }
+
+@media (max-width: 900px) { .pf-k { grid-template-columns: repeat(2, minmax(0, 1fr)) } .pf-imprimir { margin-left: 0 } }
+
+/* ===== EL PAPEL: A4 horizontal, sin la app, con encabezado y una tabla por material ===== */
+@media print {
+  @page { size: A4 landscape; margin: 10mm }
+  body { background: #fff !important }
+  .sh-barra, .sh-lado, .sh-riel { display: none !important }
+  .sh-marco, .sh-marco.anclado { display: block !important; min-height: 0 !important; grid-template-columns: 1fr !important }
+  .sh-main { padding: 0 !important; display: block !important; min-height: 0 !important }
+  .sh { min-height: 0 !important }
+  .pf-no-papel { display: none !important }
+  .pf-solo-papel { display: table-cell !important }
+  p.pf-solo-papel { display: block !important }
+  .pf { gap: 8px; -webkit-print-color-adjust: exact; print-color-adjust: exact }
+
+  .pf-hoja { display: flex; align-items: center; gap: 14px; padding-bottom: 10px; border-bottom: 3px solid var(--pf-ambar) }
+  .pf-hoja img { width: 38px; height: 38px }
+  .pf-hoja b { display: block; font: 900 17px var(--fe-titulo, var(--fe-texto)) }
+  .pf-hoja span { font-size: 11.5px; color: var(--fe-gris) }
+  .pf-hoja-sello { margin-left: auto; text-align: right; font-size: 11.5px; color: var(--fe-gris); line-height: 1.5 }
+  .pf-hoja-sello strong { display: block; font: 900 18px var(--fe-titulo, var(--fe-texto)); color: var(--fe-tinta) }
+  .pf-hoja-mat { display: block; margin: 0; font: 700 12px var(--fe-mono, ui-monospace, monospace) }
+
+  .pf-k { grid-template-columns: repeat(4, 1fr); gap: 6px }
+  .pf-k > div { padding: 6px 10px; break-inside: avoid }
+  .pf-k b { font-size: 20px }
+  .pf-bloque { border: 1px solid #999; break-inside: auto; margin-bottom: 8px }
+  .pf-bloque + .pf-bloque { break-before: page }
+  .pf-bloque-cab { padding: 8px 12px; background: #FBF6E4 !important; break-after: avoid }
+  .pf-bloque-cab h2 { font-size: 16px }
+  .pf-bloque-cab dd { font-size: 17px }
+  .pf-t { font-size: 11px }
+  .pf-t thead { display: table-header-group }
+  .pf-t tr { break-inside: avoid }
+  .pf-t th { padding: 6px 7px }
+  .pf-t td { padding: 5px 7px; border-bottom: 1px solid #bbb }
+  .pf-t tbody tr:nth-child(even) { background: #F5F6F8 !important }
+  .pf-mod { font-size: 12.5px }
+  .pf-dias, .pf-acum { grid-template-columns: 40px 70px }
+  .pf-orden { min-width: 24px; height: 24px; font-size: 12px }
+  .pf-caja span { display: block; width: 90px; height: 20px; margin: 0 auto; border: 1.5px solid var(--fe-tinta) }
+  .pf-pie-papel { margin: 4px 0 0; font-size: 10.5px; color: var(--fe-gris) }
+}
