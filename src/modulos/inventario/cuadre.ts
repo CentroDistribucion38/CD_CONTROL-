@@ -253,7 +253,7 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
   }
 
   /* 4. LO GUARDADO: el ZEXI, las estibas del almacén y los movimientos 311. */
-  const sumarPend = guardado?.sumar_pend_baja ?? true;
+  const sumarPend = guardado?.sumar_pend_baja ?? false;
   const estAlm = Number(guardado?.estibas_almacen ?? 0) || 0;
   const sap = new Map((guardado?.zexi ?? []).map((z) => [String(z.codigo), z]));
   const mov = new Map((guardado?.movimientos ?? []).map((m) => [String(m.codigo), m]));
@@ -276,7 +276,9 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
       detalle = `${nf.format(estSueltas)} sueltas + ${nf.format(estBajo)} bajo el envase` + (estAlm ? ` + ${nf.format(estAlm)} del almacén` : "");
     }
     const pendBaja = grupo === "ENVASE" ? a.pend : 0;
-    const total = redondo(conteo + (sumarPend ? pendBaja : 0) + a.lav + a.andina + almacen);
+    /* AG18 se cuadra con lo de FÁBRICA (+ las estibas del almacén). El pend. baja solo se suma si se prende;
+       el lavado con baja y Andina/Heineken son del lado del AG22 y no entran al total (siguen en sus columnas). */
+    const total = redondo(conteo + (sumarPend ? pendBaja : 0) + almacen);
     const z = sap.get(a.codigo), m = mov.get(a.codigo);
     /* «Lo que no tiene SAP me tiene que decir que del 22 debo pasarlo al 18, ya que allá no tiene»: con ZEXI
        cargado, un material que no viene en él es 0 en SAP (no «sin dato»), y entra a la lista del 311 / 344. */
