@@ -35,6 +35,8 @@ export type Analisis = {
   fecha: string; filas: FilaAnalisis[]; fuentes: Fuente[]; avisos: string[];
   novedades: Novedad[]; noEntran: string[]; faltaSql: boolean;
   carga: { archivo: string | null; filas: number; subido_en: string | null } | null;
+  /** SKUs distintos contados en Bodega ese día (sin FÁBRICA), para tener la visual del conteo. */
+  contados?: { skus: number; producto: number; envase: number; otros: number; renglones: number };
 };
 
 type Maes = { codigo: string; descripcion: string; familia: string | null; unidades_por_caja: number | null; cajas_por_estiba: number | null; caja: string | null };
@@ -91,9 +93,14 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   /* 1. EL CONTEO DEL DÍA EN BODEGA (no FABRICA_): envase en unidades; su caja plástica y la estiba de debajo por unidad. */
   const cons = await consolidadoDelDia(fecha, conteos);
   let renglones = 0;
+  const skuP = new Set<string>(), skuE = new Set<string>(), skuO = new Set<string>();
+  let renglonesBodega = 0;
   for (const r of await conReclasificaciones(cons.vigentes)) {
     /* Fuera todo lo de FÁBRICA: por la calle o por el nombre de la ubicación (FABRICA_…, FABRICAL4…). */
     if (esUbicacionFabrica(r.calle) || esUbicacionFabrica(r.ubicacion) || esUbicacionFabrica(r.ubicacion_combinada)) continue;
+    /* La visual: cuántos SKUs distintos se contaron (producto, envase y lo demás). */
+    renglonesBodega++;
+    (r.tipo_material === "PRODUCTO" ? skuP : r.tipo_material === "ENVASE" ? skuE : skuO).add(String(r.codigo));
     /* LA ESTIBA 3500163 SUMA TODO LO QUE ESTÁ MONTADO EN ESTIBA: producto, envase, caja vacía, barril,
        cilindro… Cada renglón aporta sus estibas completas y una más si tiene cajas sueltas o saldo.
        Las estibas vacías contadas con su propio código entran tal cual. */
@@ -224,5 +231,6 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     filas.push({ familia: familia as string, orden: orden as number, codigo, descripcion: nombre(codigo), sap, conteo, diferencia: conteo - sap, deSap: lista(a.sap), deConteo: lista(a.conteo) });
   }
   filas.sort((x, y) => x.orden - y.orden || x.codigo.localeCompare(y.codigo, "es", { numeric: true }));
-  return { fecha, filas, fuentes, avisos, novedades, noEntran: noEntran.sort(), faltaSql, carga };
+  const contados = { skus: new Set([...skuP, ...skuE, ...skuO]).size, producto: skuP.size, envase: skuE.size, otros: skuO.size, renglones: renglonesBodega };
+  return { fecha, filas, fuentes, avisos, novedades, noEntran: noEntran.sort(), faltaSql, carga, contados };
 }

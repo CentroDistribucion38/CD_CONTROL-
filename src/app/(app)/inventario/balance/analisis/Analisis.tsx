@@ -111,9 +111,15 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
       </div>
 
       {/* ---------- LOS TOTALES ---------- */}
-      <div className="ad-k">
+      <div className="ad-k ad-k4">
         <div><span>SAP</span><b>{n(tot.sap)}</b><small>unidades</small></div>
         <div><span>CONTEO</span><b>{n(tot.conteo)}</b><small>unidades</small></div>
+        <div className="skus" title="SKUs distintos contados en Bodega ese día (sin FÁBRICA)">
+          <span>SKUs CONTADOS</span><b>{n(datos.contados?.skus ?? 0)}</b>
+          <small>{datos.contados
+            ? `${n(datos.contados.producto)} producto · ${n(datos.contados.envase)} envase${datos.contados.otros ? ` · ${n(datos.contados.otros)} otros` : ""} · ${n(datos.contados.renglones)} renglones`
+            : "sin conteo"}</small>
+        </div>
         <div className={"dif" + (tot.conteo - tot.sap < 0 ? " neg" : "")}><span>DIFERENCIA (CONTEO − SAP)</span><b>{signo(tot.conteo - tot.sap)}</b><small>{filas.filter((f) => f.diferencia !== 0).length} de {filas.length} códigos con diferencia</small></div>
       </div>
 

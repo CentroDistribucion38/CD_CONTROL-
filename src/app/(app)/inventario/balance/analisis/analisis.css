@@ -45,6 +45,7 @@
 .ad .ad-k { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0 0 14px }
 .ad .ad-k > div { background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea); border-bottom: 4px solid #0B4EA2; padding: 12px 16px; display: flex; flex-direction: column; gap: 2px }
 .ad .ad-k > div:nth-child(2) { border-bottom-color: #12263A }
+.ad .ad-k > div.skus { border-bottom-color: #FFC000 }
 .ad .ad-k > div.dif { background: #12263A; border-color: #12263A; border-bottom-color: #FFC000 }
 .ad .ad-k span { font: 700 10.5px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase; color: var(--fe-gris) }
 .ad .ad-k b { font: 800 26px var(--fe-titulo, var(--fe-texto)); color: var(--fe-tinta); font-variant-numeric: tabular-nums }
