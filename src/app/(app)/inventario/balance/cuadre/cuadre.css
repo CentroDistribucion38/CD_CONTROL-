@@ -233,3 +233,16 @@
 .cs .cs-antes.azul { border-color: #0B4EA2; background: #F2F6FC }
 .cs .cs-antes.azul .cs-antes-t b { color: #0B4EA2 }
 .cs .cs-antes.azul .cs-antes-t span b { color: var(--fe-tinta) }
+
+/* ---------- CAJAS PLÁSTICAS POR ESTADO (AG18) ---------- */
+.cs .cs-cajest { margin: 14px 0 0 }
+.cs .cs-cajest h3 em.ok { background: #E3F4EA; color: #0F7A4A }
+.cs .cs-cajest-dice { margin: 0; padding: 10px 14px; font-size: 12.5px; color: var(--fe-gris); border-bottom: 1px solid var(--fe-linea) }
+.cs .cs-cajest-dice b { color: var(--fe-tinta) }
+.cs .cs-cajest-t th.g { text-align: center }
+.cs .cs-cajest-t th.meta, .cs .cs-cajest-t td.meta { background: #FFF8E1 }
+.cs .cs-cajest-t thead th.meta { color: #111; background: #FFC20E }
+.cs .cs-cajest-t td.dif { color: #A50D25; font-weight: 700 }
+.cs .cs-cajest-t td .cs-chip { display: inline-block; margin: 2px 4px 2px 0 }
+.cs .cs-cajest-t .cs-gris { color: var(--fe-gris); font-style: italic }
+.cs .cs-cajest-movs { display: flex; flex-direction: column; gap: 0; padding: 4px 0 8px }

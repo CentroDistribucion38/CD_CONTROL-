@@ -37,7 +37,11 @@ export type Analisis = {
   carga: { archivo: string | null; filas: number; subido_en: string | null } | null;
   /** SKUs distintos contados en Bodega ese día (sin FÁBRICA), para tener la visual del conteo. */
   contados?: { skus: number; producto: number; envase: number; otros: number; renglones: number };
+  /** La ZEXI de AG18 del Cuadre SAP de ese día, con lo que hay en cada estado (para tenerlo a la vista). */
+  existencias?: Existencias | null;
 };
+export type FilaExistencia = { codigo: string; descripcion: string; libre: number | null; calidad: number | null; bloqueado: number | null; total: number };
+export type Existencias = { archivo: string | null; en: string | null; conEstados: boolean; filas: FilaExistencia[] };
 
 type Maes = { codigo: string; descripcion: string; familia: string | null; unidades_por_caja: number | null; cajas_por_estiba: number | null; caja: string | null };
 type Prod = { id: string; sku: string; nombre: string | null; unidades_por_caja: number | null; cajas_por_estiba: number | null; envase_sku: string | null };
@@ -170,6 +174,14 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
 
   /* 4. BALANCE: el paso 2 del Cuadre SAP AG18 — «de AG22 a AG18» al conteo, «de AG18 a AG22» a SAP. */
   const cu = await armarCuadre(fecha, "AG18");
+  const zx = cu.fecha === fecha ? cu.guardado?.zexi ?? null : null;
+  const existencias: Existencias | null = zx?.length ? {
+    archivo: cu.guardado?.zexi_archivo ?? null, en: cu.guardado?.zexi_en ?? null,
+    conEstados: zx.some((z) => z.libre != null || z.calidad != null || z.bloqueado != null),
+    filas: zx.map((z) => ({ codigo: String(z.codigo), descripcion: z.descripcion ?? nombre(String(z.codigo)),
+      libre: z.libre ?? null, calidad: z.calidad ?? null, bloqueado: z.bloqueado ?? null, total: Number(z.cantidad) || 0 }))
+      .sort((a, b) => a.codigo.localeCompare(b.codigo)),
+  } : null;
   if (cu.fecha === fecha && cu.guardado?.zexi?.length) {
     let n = 0;
     for (const f of cu.filas) {
@@ -232,5 +244,5 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   }
   filas.sort((x, y) => x.orden - y.orden || x.codigo.localeCompare(y.codigo, "es", { numeric: true }));
   const contados = { skus: new Set([...skuP, ...skuE, ...skuO]).size, producto: skuP.size, envase: skuE.size, otros: skuO.size, renglones: renglonesBodega };
-  return { fecha, filas, fuentes, avisos, novedades, noEntran: noEntran.sort(), faltaSql, carga, contados };
+  return { fecha, filas, fuentes, avisos, novedades, noEntran: noEntran.sort(), faltaSql, carga, contados, existencias };
 }

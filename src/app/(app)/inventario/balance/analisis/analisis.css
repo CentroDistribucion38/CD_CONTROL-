@@ -189,3 +189,28 @@
 .ad .ad-puntos i.f { background: #B42318 }
 .ad .ad-puntos i.s { background: #0F7A4A }
 .ad .ad-pasos { flex-wrap: wrap }
+
+/* ---------- EXISTENCIAS SAP POR ESTADO (la ZEXI de AG18) ---------- */
+.ad .ad-ex { --ex-li: #0F7A4A; --ex-ca: #C99700; --ex-bl: #B42318 }
+.ad .ad-ex-cab { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin: 0 0 10px }
+.ad .ad-ex-cab h2 { margin: 0 }
+.ad .ad-ex-cab small { flex: 1; font-size: 12px; color: var(--fe-gris) }
+.ad .ad-ex-ver { border: 1px solid var(--fe-linea); background: #fff; padding: 6px 12px; cursor: pointer; font: 700 12.5px var(--fe-texto); color: var(--fe-tinta) }
+.ad .ad-ex-k { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0 0 10px }
+.ad .ad-ex-k > div { border: 1px solid var(--fe-linea); border-left: 4px solid var(--fe-tinta); padding: 8px 12px; display: flex; flex-direction: column; gap: 2px }
+.ad .ad-ex-k span { font: 700 10.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase; color: var(--fe-gris) }
+.ad .ad-ex-k b { font: 800 20px var(--fe-titulo, var(--fe-texto)); font-variant-numeric: tabular-nums; color: var(--fe-tinta) }
+.ad .ad-ex-k .li { border-left-color: var(--ex-li) } .ad .ad-ex-k .li b { color: var(--ex-li) }
+.ad .ad-ex-k .ca { border-left-color: var(--ex-ca) } .ad .ad-ex-k .ca b { color: #8A6200 }
+.ad .ad-ex-k .bl { border-left-color: var(--ex-bl) } .ad .ad-ex-k .bl b { color: var(--ex-bl) }
+.ad .ad-ex-nota { margin: 0 0 10px; font-size: 12.5px; color: #8A6200 }
+.ad .ad-ex-t td.n { font-variant-numeric: tabular-nums }
+.ad .ad-ex-t td.li { color: var(--ex-li); font-weight: 700 }
+.ad .ad-ex-t td.ca { color: #8A6200; font-weight: 700 }
+.ad .ad-ex-t td.bl { color: var(--ex-bl); font-weight: 700 }
+.ad .ad-ex-t td.cero { color: var(--fe-gris); opacity: .55 }
+.ad .ad-ex-t th.rep, .ad .ad-ex-t td.rep { width: 160px; min-width: 120px }
+.ad .ad-ex-barra { display: flex; height: 10px; background: var(--fe-fondo, #eef1f5); margin-top: 4px; overflow: hidden }
+.ad .ad-ex-barra i { display: block; height: 100% }
+.ad .ad-ex-barra i.li { background: var(--ex-li) } .ad .ad-ex-barra i.ca { background: var(--ex-ca) } .ad .ad-ex-barra i.bl { background: var(--ex-bl) }
+@media (max-width: 720px) { .ad .ad-ex-k { grid-template-columns: repeat(2, minmax(0, 1fr)) } }

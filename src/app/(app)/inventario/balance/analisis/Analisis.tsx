@@ -1,5 +1,6 @@
 "use client";
 
+import { Existencias } from "./Existencias";
 import { Fragment, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Analisis as Datos, FilaAnalisis } from "@/modulos/inventario/analisis-dif";
@@ -122,6 +123,9 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
         </div>
         <div className={"dif" + (tot.conteo - tot.sap < 0 ? " neg" : "")}><span>DIFERENCIA (CONTEO − SAP)</span><b>{signo(tot.conteo - tot.sap)}</b><small>{filas.filter((f) => f.diferencia !== 0).length} de {filas.length} códigos con diferencia</small></div>
       </div>
+
+      {/* ---------- LAS EXISTENCIAS DE SAP POR ESTADO (ZEXI AG18) ---------- */}
+      <Existencias ex={datos.existencias} />
 
       {/* ---------- LA TABLA ---------- */}
       <section className="ad-caja ad-hoja">

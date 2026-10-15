@@ -45,7 +45,9 @@ export type ZexiFila = { codigo: string; descripcion: string; cantidad: number;
   libre?: number; calidad?: number; bloqueado?: number };
 export type MovFila = { codigo: string; cantidad: number; documentos: string[];
   /** Con la ZEXI nueva: cómo quedó repartido (para ver si algo quedó en libre y falta el 344). */
-  libre?: number; bloqueado?: number };
+  libre?: number; bloqueado?: number; calidad?: number };
+/** Cómo se reparte una cantidad en los tres estados de SAP. */
+export type Estados = { libre: number; calidad: number; bloqueado: number };
 export type CuadreGuardado = {
   fecha: string; almacen: string;
   estibas_almacen: number | null; sumar_pend_baja: boolean;
@@ -60,10 +62,10 @@ export type CuadreGuardado = {
 /** conMov = false: guardado HASTA EL PASO 2 (se sabe qué mover en SAP, falta la ZEXI nueva para validar). */
 export type ResumenBalanceo = { materiales: number; conSap: number; cuadran: number; balanceados: number; pendientes: number; conMov: boolean;
   entran?: number; salen?: number };
-export type FilaGuardada = Pick<FilaCuadre, "grupo" | "codigo" | "material" | "total" | "sap" | "dif" | "movido" | "sapDespues" | "queda" | "enLibre">;
-/** Balanceado = queda en 0 y (en AG18, envase) nada quedó en libre utilización. */
-export const estaBalanceada = (f: { queda: number | null; enLibre?: number | null }) =>
-  f.queda != null && Math.abs(f.queda) < 0.005 && !((f.enLibre ?? 0) > 0.005);
+export type FilaGuardada = Pick<FilaCuadre, "grupo" | "codigo" | "material" | "total" | "sap" | "dif" | "movido" | "sapDespues" | "queda" | "enLibre" | "estadoOk">;
+/** Balanceado = queda en 0, (en AG18, envase) nada quedó en libre utilización y (cajas) cada estado quedó como debe. */
+export const estaBalanceada = (f: { queda: number | null; enLibre?: number | null; estadoOk?: boolean | null }) =>
+  f.queda != null && Math.abs(f.queda) < 0.005 && !((f.enLibre ?? 0) > 0.005) && f.estadoOk !== false;
 export type BalanceoGuardado = {
   resumen: ResumenBalanceo; filas: FilaGuardada[]; aplicados: Aplicado[];
   zexi_archivo: string | null; mov_archivo: string | null; estibas_almacen: number | null; sumar_pend_baja: boolean;
@@ -101,6 +103,16 @@ export type FilaCuadre = {
   /** AG18, envase: lo que quedó en LIBRE en la ZEXI nueva. En AG18 el envase va BLOQUEADO: si queda algo
    *  en libre, falta el 344 (Libre → Bloqueado) y no está balanceado. */
   enLibre?: number | null;
+  /** Del ZEXI: lo que está en control de calidad. */
+  calidad?: number | null;
+  /** CAJAS PLÁSTICAS, POR ESTADO: cómo deben quedar en SAP AG18.
+   *  Suelta en BAJA → Bloqueado · suelta en RETORNO (o cualquier otro estado) → Libre utilización ·
+   *  la caja que lleva el envase → In control-cal. Solo las cajas; null en lo demás. */
+  meta?: Estados | null;
+  /** CAJAS: cómo quedaron los tres estados en la ZEXI nueva (null si no hay o no trae los estados). */
+  estadoFinal?: Estados | null;
+  /** CAJAS: la ZEXI nueva quedó igual a `meta` en los tres estados (null = no se puede saber todavía). */
+  estadoOk?: boolean | null;
   /** SAP − total (el 311 que hay que hacer). null si no hay ZEXI. */
   dif: number | null;
   /** Lo movido en SAP (neto en AG18: + entra, − sale). */
@@ -166,12 +178,12 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
   const cpe = (c: string) => Number(M.get(c)?.cajas_por_estiba ?? P.get(c)?.cajas_por_estiba ?? 0) || 0;
   const nombre = (c: string, alt?: string | null) => M.get(c)?.descripcion ?? P.get(c)?.nombre ?? alt ?? c;
 
-  type Acc = { codigo: string; material: string; conteo: number; sueltas: number; conEnvase: number; pend: number; lav: number; andina: number; otrosCajas: number; fuera: number; fueraDe: string;
+  type Acc = { codigo: string; material: string; conteo: number; sueltas: number; sueltasBaja: number; conEnvase: number; pend: number; lav: number; andina: number; otrosCajas: number; fuera: number; fueraDe: string;
     lavEst: number; causales: Set<string>; porEnvase: Map<string, number> };
   const acc = new Map<string, Acc>();
   const de = (c: string, alt?: string | null) => {
     let a = acc.get(c);
-    if (!a) { a = { codigo: c, material: nombre(c, alt), conteo: 0, sueltas: 0, conEnvase: 0, pend: 0, lav: 0, andina: 0, otrosCajas: 0, fuera: 0, fueraDe: "",
+    if (!a) { a = { codigo: c, material: nombre(c, alt), conteo: 0, sueltas: 0, sueltasBaja: 0, conEnvase: 0, pend: 0, lav: 0, andina: 0, otrosCajas: 0, fuera: 0, fueraDe: "",
       lavEst: 0, causales: new Set(), porEnvase: new Map() }; acc.set(c, a) }
     return a;
   };
@@ -193,7 +205,12 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
     if (g === "ESTIBA") { estSueltas += cajas; continue }
     /* La estiba de madera de debajo: una por estiba contada y una por renglón con saldo o sueltas. */
     estBajo += (Number(r.estibas) || 0) + ((Number(r.cajas) || 0) + (Number(r.saldo) || 0) > 0 ? 1 : 0);
-    if (g === "CAJA") { de(c, r.material).sueltas += cajas; continue }
+    if (g === "CAJA") {
+      const k = de(c, r.material); k.sueltas += cajas;
+      /* La caja suelta en BAJA va a Bloqueado; en RETORNO (o cualquier otro estado), a Libre. */
+      if (/BAJA/i.test(String(r.estado_envase ?? ""))) k.sueltasBaja += cajas;
+      continue;
+    }
     envasesVistos.add(c);
     /* OTROS (Andina…): al envase que se escogió; si no se ha escogido, al código con que se contó.
        «No sumar» lo saca del envase, pero su caja plástica y su estiba siguen ahí y sí cuentan. */
@@ -248,7 +265,8 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
     let conteo = a.conteo, detalle: string | null = null, almacen = 0;
     if (grupo === "CAJA") {
       conteo = a.sueltas + a.conEnvase;
-      detalle = [a.sueltas ? `${nf.format(a.sueltas)} sueltas` : "", a.conEnvase ? `${nf.format(a.conEnvase)} con envase` : ""].filter(Boolean).join(" + ")
+      const ret = a.sueltas - a.sueltasBaja;
+      detalle = [a.sueltas ? `${nf.format(a.sueltas)} sueltas${a.sueltasBaja && ret ? ` (${nf.format(ret)} retorno · ${nf.format(a.sueltasBaja)} baja)` : a.sueltasBaja ? " en baja" : ""}` : "", a.conEnvase ? `${nf.format(a.conEnvase)} con envase` : ""].filter(Boolean).join(" + ")
         + (a.fuera ? ` · sin las ${nf.format(a.fuera)} de ${a.fueraDe}` : "") || null;
     } else if (grupo === "ESTIBA") {
       conteo = estSueltas + estBajo; almacen = estAlm;
@@ -266,8 +284,17 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
     const queda = sapDespues == null ? null : redondo(sapDespues - total);
     return { grupo, codigo: a.codigo, material: a.material, conteo: redondo(conteo), detalle, pendBaja, lavadoBaja: a.lav, andina: a.andina,
       almacen, otrosCajas: grupo === "ENVASE" ? a.otrosCajas : 0, upc: grupo === "ENVASE" ? upc(a.codigo) : 1, total, sap: sapV,
-      libre: z?.libre ?? null, bloqueado: z?.bloqueado ?? null,
+      libre: z?.libre ?? null, bloqueado: z?.bloqueado ?? null, calidad: z?.calidad ?? null,
       enLibre: grupo === "ENVASE" && m?.libre != null ? redondo(m.libre) : null,
+      ...(grupo === "CAJA" ? (() => {
+        /* Lo que se sume a la caja fuera del conteo (pend. baja, Andina, lavado) va con lo bloqueado. */
+        const libre = redondo(a.sueltas - a.sueltasBaja), calidad = redondo(a.conEnvase);
+        const meta: Estados = { libre, calidad, bloqueado: redondo(total - libre - calidad) };
+        const estadoFinal: Estados | null = m?.libre != null
+          ? { libre: redondo(m.libre ?? 0), calidad: redondo(m.calidad ?? 0), bloqueado: redondo(m.bloqueado ?? 0) } : null;
+        const igual = (x: number, y: number) => Math.abs(x - y) < 0.005;
+        return { meta, estadoFinal, estadoOk: estadoFinal ? igual(estadoFinal.libre, meta.libre) && igual(estadoFinal.calidad, meta.calidad) && igual(estadoFinal.bloqueado, meta.bloqueado) : null };
+      })() : { meta: null, estadoFinal: null, estadoOk: null }),
       dif, movido, documentos: m?.documentos ?? [], sapDespues, queda };
   })
     /* Lo que no tiene nada en ningún lado no se lista. */
