@@ -554,6 +554,31 @@ export const MODULOS: Modulo[] = [
     ],
   },
   {
+    id: "gestion",
+    nombre: "Gestión",
+    eyebrow: "INDICADORES Y DISPAROS",
+    descripcion:
+      "KPI, PI y meta por turno. Cuando un indicador se desvía salta el disparador, y de ahí nace el 5 Why, el plan de acción y su cierre.",
+    /* Ámbar de la casa: es el módulo de la reunión de turno, donde se mira cómo va el día. */
+    acento: "#B7791F",
+    fondo: "#FBF1DD",
+    etiquetas: ["KPI · PI · Meta", "Disparador por turno"],
+    imagen: "/modulos/gestion.jpg",
+    ruta: "/gestion",
+    entrada: "/gestion",
+    activo: true,
+    /* EL ORDEN DEL FLUJO, no el de las pantallas: se mira el tablero, se digita el resultado del turno, de
+       ahí saltan los disparadores, y el Maestro cierra porque no es un paso: es donde se parametriza todo.
+       Las pantallas que siguen (5 Why, plan de acción, cierre del plan y dashboard) se registran aquí
+       cuando tengan su página: registrar una ruta que no existe pone un enlace que lleva a un 404. */
+    secciones: [
+      { nombre: "Tablero", ruta: "/gestion" },
+      { nombre: "Resultado por turno", ruta: "/gestion/resultados" },
+      { nombre: "Disparadores", ruta: "/gestion/disparadores" },
+      { nombre: "Maestro", ruta: "/gestion/maestro" },
+    ],
+  },
+  {
     id: "admin",
     nombre: "Administración",
     eyebrow: "PLATAFORMA",

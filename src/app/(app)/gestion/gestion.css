@@ -1,0 +1,143 @@
+/* =====================================================================
+   GESTIÓN — tablero, resultado por turno, disparadores y maestro.
+   Todo lleva `gs-` y cuelga de `.gs`. Mismo lenguaje de CONTROL: cabecera de tabla en tinta, acento del tema,
+   tarjetas con borde inferior de color, tipografía y botones de .fe (fefo.css). El semáforo usa
+   los colores de estado de la app (--fe-bien · --fe-aviso · --fe-mal) y SIEMPRE lleva su palabra.
+   ===================================================================== */
+.gs { --gs-verde: var(--fe-bien, #0F7A4A); --gs-amar: #B7791F; --gs-rojo: var(--fe-mal, #C8102E); --gs-sin: var(--fe-gris) }
+.gs .mono { font-family: var(--fe-mono, ui-monospace, monospace); color: var(--fe-gris) }
+
+/* ---------- barra: día, turno, filtros ---------- */
+.gs .gs-barra { display: flex; justify-content: space-between; align-items: end; gap: 12px; flex-wrap: wrap }
+.gs .gs-fecha { display: flex; align-items: center; gap: 4px }
+.gs .gs-fecha button, .gs .gs-fecha input {
+  min-height: 40px; border: 1px solid var(--fe-linea); background: var(--fe-papel); color: var(--fe-tinta);
+  font: 700 13px var(--fe-titulo); border-radius: 2px; padding: 0 12px; cursor: pointer;
+}
+.gs .gs-fecha button:disabled { opacity: .4; cursor: not-allowed }
+.gs .gs-fecha .gs-hoy { background: var(--fe-tinta); color: var(--fe-papel, #fff); border-color: var(--fe-tinta); margin-left: 6px }
+.gs .gs-filtros { display: flex; gap: 10px; flex-wrap: wrap }
+.gs .gs-filtros label, .gs .gs-grid label, .gs .gs-regla > span {
+  display: flex; flex-direction: column; gap: 4px; font: 700 10.5px var(--fe-texto); letter-spacing: .12em; text-transform: uppercase; color: var(--fe-gris);
+}
+.gs select, .gs input:not([type="checkbox"]):not([type="date"]) {
+  min-height: 40px; border: 1px solid var(--fe-linea); background: var(--fe-papel); color: var(--fe-tinta);
+  font: 600 13.5px var(--fe-texto); padding: 0 10px; border-radius: 2px; min-width: 0; letter-spacing: 0; text-transform: none;
+}
+.gs select:focus, .gs input:focus-visible, .gs button:focus-visible { outline: 2px solid var(--fe-acento); outline-offset: 1px }
+.gs .gs-turnos { display: flex; gap: 6px; flex-wrap: wrap }
+.gs .gs-turnos button, .gs .gs-chips button, .gs .gs-seg button {
+  min-height: 44px; padding: 0 16px; border: 1px solid var(--fe-linea); background: var(--fe-papel); color: var(--fe-tinta);
+  font: 800 13.5px var(--fe-titulo); border-radius: 2px; cursor: pointer; display: inline-flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 1px;
+}
+.gs .gs-turnos button small { font: 600 11px var(--fe-texto); opacity: .7 }
+.gs .gs-turnos button.on, .gs .gs-chips button.on, .gs .gs-seg button.on { background: var(--fe-tinta); border-color: var(--fe-tinta); color: var(--fe-papel, #fff); box-shadow: inset 0 -3px 0 var(--fe-acento) }
+.gs .gs-chips { display: flex; gap: 6px; flex-wrap: wrap }
+.gs .gs-chips button { min-height: 38px; flex-direction: row; align-items: center; font-size: 13px }
+.gs .gs-seg { display: flex; gap: 6px; flex-wrap: wrap }
+
+/* ---------- cifras ---------- */
+.gs .gs-cifras { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px }
+.gs .gs-cifras.c3 { grid-template-columns: repeat(3, minmax(0, 1fr)) }
+.gs .gs-cif {
+  background: var(--fe-papel); border: 1px solid var(--fe-linea); border-bottom: 4px solid var(--fe-acento);
+  padding: 10px 14px; display: flex; flex-direction: column; gap: 2px; min-width: 0; color: var(--fe-tinta); text-decoration: none;
+}
+.gs .gs-cif span { font: 700 10.5px var(--fe-texto); letter-spacing: .13em; text-transform: uppercase; color: var(--fe-gris) }
+.gs .gs-cif b { font: 900 26px/1.1 var(--fe-titulo); letter-spacing: -.02em; font-variant-numeric: tabular-nums }
+.gs .gs-cif.bien { border-bottom-color: var(--gs-verde) } .gs .gs-cif.bien b { color: var(--gs-verde) }
+.gs .gs-cif.ojo { border-bottom-color: var(--gs-amar) } .gs .gs-cif.ojo b { color: var(--gs-amar) }
+.gs .gs-cif.mal { border-bottom-color: var(--gs-rojo) } .gs .gs-cif.mal b { color: var(--gs-rojo) }
+.gs .gs-cif.enlace:hover { background: var(--fe-fondo) }
+
+/* ---------- bloques por proceso y tablas ---------- */
+.gs .gs-proceso { display: flex; flex-direction: column; gap: 8px }
+.gs .gs-proceso h2 { margin: 6px 0 0; display: flex; align-items: baseline; gap: 10px; font: 800 13px var(--fe-titulo); letter-spacing: .12em; text-transform: uppercase; color: var(--fe-tinta) }
+.gs .gs-proceso h2 small { font: 600 12px var(--fe-texto); letter-spacing: 0; text-transform: none; color: var(--fe-gris) }
+.gs .gs-scroll { overflow-x: auto; background: var(--fe-papel); border: 1px solid var(--fe-linea) }
+.gs .gs-t { width: 100%; min-width: 860px; border-collapse: collapse; font-size: 13px }
+.gs .gs-t th { background: var(--fe-tinta); color: var(--fe-papel, #fff); font: 700 10.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase; padding: 9px 10px; text-align: left; white-space: nowrap }
+.gs .gs-t td { padding: 8px 10px; border-bottom: 1px solid var(--fe-linea); color: var(--fe-tinta); vertical-align: middle }
+.gs .gs-t tr.pi td:nth-child(2) { padding-left: 28px }
+.gs .gs-t tr.pi td:nth-child(2)::before { content: "└"; margin: 0 6px 0 -16px; color: var(--fe-gris) }
+.gs .gs-t tr.kpi td { background: color-mix(in srgb, var(--fe-fondo) 55%, var(--fe-papel, #fff)) }
+.gs .gs-t tr.disp td:first-child { box-shadow: inset 4px 0 0 var(--gs-rojo) }
+.gs .gs-t tr.off td { opacity: .55 }
+.gs .gs-t tr.sucio td { background: color-mix(in srgb, var(--fe-acento) 12%, var(--fe-papel, #fff)) }
+.gs .gs-meta { white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 700 }
+.gs .gs-nom { font-weight: 700 }
+.gs .gs-sub { display: block; font-size: 11.5px; color: var(--fe-gris); font-weight: 500 }
+.gs .gs-tipo { display: inline-block; font: 800 10px var(--fe-titulo); letter-spacing: .1em; padding: 2px 6px; margin-right: 8px; border-radius: 2px; vertical-align: 1px }
+.gs .gs-tipo.kpi { background: var(--fe-tinta); color: var(--fe-papel, #fff) }
+.gs .gs-tipo.pi { background: var(--fe-fondo); color: var(--fe-tinta); border: 1px solid var(--fe-linea) }
+.gs .gs-ya { font-size: 11.5px; color: var(--fe-gris); white-space: nowrap }
+
+/* ---------- semáforo ---------- */
+.gs .gs-sem { display: inline-flex; align-items: center; gap: 6px; font: 800 12px var(--fe-titulo); white-space: nowrap }
+.gs .gs-sem i { width: 10px; height: 10px; border-radius: 50%; background: var(--gs-sin) }
+.gs .gs-sem.verde { color: var(--gs-verde) } .gs .gs-sem.verde i { background: var(--gs-verde) }
+.gs .gs-sem.amarillo { color: var(--gs-amar) } .gs .gs-sem.amarillo i { background: #F0B323 }
+.gs .gs-sem.rojo { color: var(--gs-rojo) } .gs .gs-sem.rojo i { background: var(--gs-rojo) }
+.gs .gs-sem.sin { color: var(--fe-gris); font-weight: 600 } .gs .gs-sem.sin i { background: transparent; border: 1.5px solid var(--fe-gris) }
+
+.gs .gs-vals { display: flex; gap: 5px; flex-wrap: wrap }
+.gs .gs-val { display: inline-flex; align-items: baseline; gap: 5px; padding: 3px 8px; font: 800 12.5px var(--fe-titulo); font-variant-numeric: tabular-nums; border: 1px solid var(--fe-linea); background: var(--fe-papel); white-space: nowrap }
+.gs .gs-val em { font: 700 10px var(--fe-texto); font-style: normal; color: var(--fe-gris); letter-spacing: .06em }
+.gs .gs-val.verde { border-color: var(--gs-verde); color: var(--gs-verde) }
+.gs .gs-val.amarillo { border-color: #F0B323; color: var(--gs-amar); background: color-mix(in srgb, #F0B323 12%, var(--fe-papel, #fff)) }
+.gs .gs-val.rojo { border-color: var(--gs-rojo); color: var(--gs-rojo); background: color-mix(in srgb, var(--gs-rojo) 8%, var(--fe-papel, #fff)) }
+.gs .gs-val.sin { color: var(--fe-gris); font-weight: 600 }
+.gs .gs-tira { display: flex; gap: 3px }
+.gs .gs-tira i { width: 14px; height: 14px; border-radius: 2px; background: var(--fe-linea) }
+.gs .gs-tira i.verde { background: var(--gs-verde) } .gs .gs-tira i.amarillo { background: #F0B323 } .gs .gs-tira i.rojo { background: var(--gs-rojo) }
+.gs .gs-disp { font: 800 11.5px var(--fe-titulo); color: var(--gs-rojo); text-decoration: none; border: 1px solid var(--gs-rojo); padding: 3px 8px; white-space: nowrap }
+
+/* ---------- captura ---------- */
+.gs .gs-campo { display: flex; align-items: center; gap: 6px }
+.gs .gs-campo input { width: 110px; text-align: right; font: 800 16px var(--fe-titulo); font-variant-numeric: tabular-nums; min-height: 44px }
+.gs .gs-campo span { color: var(--fe-gris); font-size: 12px }
+.gs .gs-com { width: 100%; min-width: 180px; font-weight: 500 }
+.gs .gs-guardar { position: sticky; bottom: 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 14px; background: var(--fe-tinta); color: var(--fe-papel, #fff); border-top: 3px solid var(--fe-acento) }
+.gs .gs-guardar span { font: 700 13px var(--fe-texto) }
+
+/* ---------- disparadores ---------- */
+.gs .gs-disps { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 10px }
+.gs .gs-disp-card { background: var(--fe-papel); border: 1px solid var(--fe-linea); border-left: 5px solid var(--gs-rojo); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px }
+.gs .gs-disp-card.cerrado { border-left-color: var(--gs-verde) } .gs .gs-disp-card.descartado { border-left-color: var(--fe-gris) }
+.gs .gs-disp-card header { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; align-items: center }
+.gs .gs-disp-card header h3 { grid-column: 1 / -1; margin: 2px 0 0; font: 800 16px var(--fe-titulo) }
+.gs .gs-disp-card header small { grid-column: 1 / -1; color: var(--fe-gris); font-size: 12px }
+.gs .gs-est { font: 800 10.5px var(--fe-titulo); letter-spacing: .1em; text-transform: uppercase; padding: 2px 8px; background: var(--gs-rojo); color: #fff }
+.gs .gs-est.cerrado { background: var(--gs-verde) } .gs .gs-est.descartado { background: var(--fe-gris) }
+.gs .gs-disp-card dl { margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px }
+.gs .gs-disp-card dt { font: 700 10px var(--fe-texto); letter-spacing: .12em; text-transform: uppercase; color: var(--fe-gris) }
+.gs .gs-disp-card dd { margin: 0; font: 700 13.5px var(--fe-texto); font-variant-numeric: tabular-nums } .gs .gs-disp-card dd.mal { color: var(--gs-rojo) }
+.gs .gs-nota { margin: 0; font-size: 12.5px; color: var(--fe-gris) }
+.gs .gs-descarte { display: flex; gap: 6px; flex-wrap: wrap } .gs .gs-descarte input { flex: 1; min-width: 160px }
+.gs .gs-disp-card footer { display: flex; justify-content: flex-end }
+
+/* ---------- maestro ---------- */
+.gs .gs-form { background: var(--fe-papel); border: 1px solid var(--fe-linea); border-top: 4px solid var(--fe-acento); padding: 14px 16px; display: flex; flex-direction: column; gap: 12px }
+.gs .gs-form h2 { margin: 0; font: 900 18px var(--fe-titulo) }
+.gs .gs-form h3 { margin: 4px 0 0; font: 800 11.5px var(--fe-titulo); letter-spacing: .14em; text-transform: uppercase; color: var(--fe-gris) }
+.gs .gs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px 12px; align-items: end }
+.gs .gs-grid .ancho { grid-column: span 2 }
+.gs .gs-reglas { grid-template-columns: repeat(3, minmax(0, 1fr)) }
+.gs .gs-regla { display: flex; flex-direction: column; gap: 4px; padding: 10px; border: 1px solid var(--fe-linea); border-left-width: 5px }
+.gs .gs-regla.meta { border-left-color: var(--gs-verde) } .gs .gs-regla.amarillo { border-left-color: #F0B323 } .gs .gs-regla.rojo { border-left-color: var(--gs-rojo) }
+.gs .gs-chk { flex-direction: row !important; align-items: center; gap: 8px !important; text-transform: none !important; letter-spacing: 0 !important; font: 600 13.5px var(--fe-texto) !important; color: var(--fe-tinta) !important; min-height: 40px }
+.gs .gs-checks { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center }
+.gs .gs-checks > span { font: 700 10.5px var(--fe-texto); letter-spacing: .12em; text-transform: uppercase; color: var(--fe-gris); width: 100% }
+.gs .gs-checks label { flex-direction: row; align-items: center; gap: 6px; text-transform: none; letter-spacing: 0; font: 600 13.5px var(--fe-texto); color: var(--fe-tinta) }
+.gs .gs-previa { margin: 0; padding: 8px 12px; background: var(--fe-fondo); font-size: 13px; line-height: 1.45 }
+.gs .gs-acc { display: flex; gap: 6px; flex-wrap: wrap }
+.gs td.gs-acc { white-space: nowrap }
+
+.gs .gs-vacio { margin: 0; padding: 26px 16px; text-align: center; font-size: 13.5px; color: var(--fe-gris); background: var(--fe-papel); border: 1px dashed var(--fe-linea) }
+.gs .gs-solover { margin: 0; padding: 8px 12px; font-size: 12.5px; background: var(--fe-fondo); color: var(--fe-gris); border-left: 4px solid var(--fe-acento) }
+
+@media (max-width: 900px) {
+  .gs .gs-cifras { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .gs .gs-reglas { grid-template-columns: 1fr }
+  .gs .gs-grid .ancho { grid-column: auto }
+}

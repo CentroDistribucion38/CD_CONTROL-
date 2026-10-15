@@ -367,6 +367,7 @@ const ICONO_MODULO: Record<string, () => React.ReactElement> = {
   sider: IconoSider,
   inventario: IconoInventario,
   acciones: IconoAcciones,
+  gestion: IconoTablero,
 };
 /* EL ICONO DE UNA RAMA VA POR SU ID Y NO POR SU RUTA.
    La rama «Envase» entra por /quiebra/tablero, que como SECCIÓN es el
@@ -425,6 +426,10 @@ const ICONO_RUTA: Record<string, () => React.ReactElement> = {
   "/inventario/tablero": IconoTablero,
   "/inventario/averias": IconoAveria,
   "/inventario/averias/acciones": IconoAcciones,
+  "/gestion": IconoTablero,
+  "/gestion/resultados": IconoRegistrar,
+  "/gestion/disparadores": IconoNovedad,
+  "/gestion/maestro": IconoLlave,
   "/inventario/averias/tablero": IconoTablero,
   "/inventario/averias/analisis": IconoAnalisis,
   "/inventario/averias/maestro": IconoLlave,
