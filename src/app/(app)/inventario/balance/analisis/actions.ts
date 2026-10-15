@@ -105,3 +105,16 @@ export async function guardarFinal(fecha: string, filasJson: string) {
   revalidatePath(RUTA);
   return { ok: true };
 }
+
+/* ---------------- LO DEMÁS PARA EL INFORME DEL CIERRE ----------------
+   «Que tenga absolutamente todo»: los precios (valor $), la recurrencia de los últimos 30 días guardados y el
+   día contra el anterior. Se pide al armar el informe, no con la página. */
+export async function extrasInforme(fecha: string) {
+  if (!esDia(fecha)) return { error: "Día inválido." };
+  const [{ leerPrecios, leerHistorico }, { recurrencias, contraAnterior }] = await Promise.all([
+    import("@/modulos/inventario/analisis-ajustes"), import("@/modulos/inventario/analisis-extra"),
+  ]);
+  const [precios, h] = await Promise.all([leerPrecios(), leerHistorico()]);
+  const det = h.detalle.filter((f) => f.fecha <= fecha);
+  return { precios, recurrencia: recurrencias(det, fecha, 30, 3), ayer: contraAnterior(det, fecha) };
+}

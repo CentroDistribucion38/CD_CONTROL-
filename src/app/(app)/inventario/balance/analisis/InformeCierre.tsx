@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { FilaAjuste } from "@/modulos/inventario/compensa";
 import { NOMBRE_CIERRE, archivoCierre, construirCierre } from "@/modulos/inventario/cierre-informe";
 import { leerPaleta } from "../../informe";
+import { extrasInforme } from "./actions";
 
 /**
  * EL INFORME DEL CIERRE DEL DÍA, EN PDF O WORD — con la caja para ponerle nombre.
@@ -43,7 +44,10 @@ export function InformeCierre({ fecha, fechaLarga, ajustes, guardadoEn, guardado
         if (user) { const { data: p } = await supabase.from("perfiles").select("nombre, usuario").eq("id", user.id).maybeSingle(); quien = p?.nombre || p?.usuario || user.email || "—" }
       } catch { /* sin nombre */ }
       const generado = new Date().toLocaleString("es-CO", { dateStyle: "long", timeStyle: "short", timeZone: "America/Bogota" });
-      const bloques = construirCierre(ajustes, { nombre: titulo, fechaLarga, generado, quien, guardadoEn, guardadoPor, finalEn });
+      /* Valor $, recurrencia y contra el día anterior: si no llegan, el informe sale sin esas partes. */
+      const ex = await extrasInforme(fecha).catch(() => null);
+      const extras = ex && !("error" in ex) ? ex : undefined;
+      const bloques = construirCierre(ajustes, { nombre: titulo, fechaLarga, generado, quien, guardadoEn, guardadoPor, finalEn }, extras);
       const comoDataUrl = async (url: string) => {
         try {
           const r = await fetch(url); if (!r.ok) return null;
@@ -82,7 +86,7 @@ export function InformeCierre({ fecha, fechaLarga, ajustes, guardadoEn, guardado
           <div className="ad-modal-caja" role="dialog" aria-modal="true" aria-labelledby="ad-inf-t">
             <p className="ad-modal-ojo">INFORME DEL CIERRE</p>
             <h3 id="ad-inf-t">{fechaLarga}</h3>
-            <p className="ad-modal-sub">Resumen, top diferencias, compensaciones, ajustes hechos, pendientes y por familia. Listo para enviar.</p>
+            <p className="ad-modal-sub">Resumen, por familia, top diferencias, compensaciones, ajustes hechos y pendientes, valor en pesos, recurrencia y contra el día anterior. Listo para enviar.</p>
             <label className="ad-modal-campo">
               <span>Nombre del informe</span>
               <input ref={caja} value={nombre} maxLength={120} spellCheck={false}

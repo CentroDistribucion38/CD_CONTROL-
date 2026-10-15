@@ -10,6 +10,7 @@
  */
 import type { Bloque, CeldaT, Col } from "./evidencias-informe";
 import { COMPENSA, analisisFinal, type FilaAjuste } from "./compensa";
+import type { Cambio, Recurrente } from "./analisis-extra";
 
 export const NOMBRE_CIERRE = "INFORME DE CIERRE · ANÁLISIS DE DIFERENCIA BODEGA 38";
 
@@ -25,8 +26,25 @@ export type OpcionesCierre = {
   guardadoEn: string | null; guardadoPor: string | null; finalEn: string | null;
 };
 
-export function construirCierre(aj: FilaAjuste[], o: OpcionesCierre): Bloque[] {
+/** Lo de las hojas aparte: precios (valor $), recurrencia y contra el día anterior. Sin ellos, el informe sale sin esas partes. */
+export type ExtrasCierre = {
+  precios: Record<string, { precio: number; fuente: string }>;
+  recurrencia: { desde: string; fechas: number; filas: Recurrente[] };
+  ayer: { anterior: string | null; filas: Cambio[] };
+};
+/* Pesos con guion corriente (la letra del PDF no trae «−»). */
+const $ = (v: number) => (v < 0 ? "-$ " : "$ ") + nf.format(Math.abs(Math.round(v)));
+/* En los cuadros grandes, en millones para que quepa («$ 370,2 M»); la cifra completa va debajo. */
+const nf1 = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const $M = (v: number) => (Math.abs(v) >= 1e6 ? `${v < 0 ? "-" : ""}$ ${nf1.format(Math.abs(v) / 1e6)} M` : $(v));
+const $c = (v: number): CeldaT => ({ x: (v > 0 ? "+" : "") + $(v), bold: true, color: v < 0 ? ROJO : v > 0 ? AZUL : VERDE });
+const diaCorto = (iso: string) => new Date(iso + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" });
+
+export function construirCierre(aj: FilaAjuste[], o: OpcionesCierre, x?: ExtrasCierre): Bloque[] {
   const F = analisisFinal(aj);
+  const pu = (c: string) => x?.precios[c]?.precio ?? 0;
+  const V = F.map((f) => ({ ...f, p: x?.precios[f.codigo]?.precio ?? null, vDif: f.diferencia * pu(f.codigo), vAj: f.ajuste * pu(f.codigo), vFin: f.difFinal * pu(f.codigo), vMov: (f.movComp + f.movAjuste) * pu(f.codigo) }));
+  const vPor = new Map(V.map((f) => [f.codigo, f]));
   const s = <T,>(xs: T[], k: (f: T) => number) => xs.reduce((t, f) => t + k(f), 0);
   const sap = s(F, (f) => f.sap), conteo = s(F, (f) => f.conteo);
   const ini = s(F, (f) => f.diferencia), fin = s(F, (f) => f.difFinal);
@@ -64,6 +82,13 @@ export function construirCierre(aj: FilaAjuste[], o: OpcionesCierre): Bloque[] {
     { rotulo: "Ajuste faltante", valor: sg(falta), detalle: "baja SAP", color: ROJO },
     { rotulo: "Avance", valor: `${avance}%`, detalle: `movido en SAP ${sg(movido)}` },
   ] });
+  const vIni = s(V, (f) => f.vDif), vSobra = s(V, (f) => Math.max(0, f.vAj)), vFalta = s(V, (f) => Math.min(0, f.vAj)), vFin = s(V, (f) => f.vFin);
+  if (x) b.push({ t: "kpis", items: [
+    { rotulo: "Valor diferencia", valor: $M(vIni), detalle: $(vIni), color: vIni < 0 ? ROJO : AZUL },
+    { rotulo: "Valor sobrante", valor: $M(vSobra), detalle: `${$(vSobra)} · sube SAP`, color: VERDE },
+    { rotulo: "Valor faltante", valor: $M(vFalta), detalle: `${$(vFalta)} · baja SAP`, color: ROJO },
+    { rotulo: "Valor pendiente", valor: $M(vFin), detalle: $(vFin), color: vFin === 0 ? VERDE : ROJO },
+  ] });
   const top1 = [...F].sort((a, c) => Math.abs(c.diferencia) - Math.abs(a.diferencia))[0];
   b.push({ t: "p", texto:
     `El análisis del día comparó ${n(conteo)} unidades contadas contra ${n(sap)} en SAP y dejó una diferencia de ${sg(ini)} unidades en ${F.filter((f) => f.diferencia !== 0).length} códigos` +
@@ -71,22 +96,27 @@ export function construirCierre(aj: FilaAjuste[], o: OpcionesCierre): Bloque[] {
     (comp ? ` Del envase retornable contado en estado NUEVO se compensaron ${n(comp)} unidades contra su NR nuevo.` : "") +
     ` Quedaron por ajustar ${sg(sobra)} de sobrante y ${sg(falta)} de faltante.` +
     (hechos.length ? ` Ya se movieron en SAP ${sg(movido)} unidades en ${hechos.length} códigos.` : " Todavía no se ha marcado ningún movimiento como hecho.") +
-    (pend.length ? ` Siguen ${pend.length} códigos con diferencia, por ${sg(fin)} unidades.` : " Con eso, la bodega queda cuadrada contra SAP.") });
+    (pend.length ? ` Siguen ${pend.length} códigos con diferencia, por ${sg(fin)} unidades.` : " Con eso, la bodega queda cuadrada contra SAP.") +
+    (x ? ` En plata, la diferencia del día vale ${$(vIni)}: el sobrante ${$(vSobra)} y el faltante ${$(vFalta)}; queda pendiente ${$(vFin)}.` : "") +
+    (x && x.recurrencia.filas.length ? ` ${x.recurrencia.filas.length} código${x.recurrencia.filas.length === 1 ? "" : "s"} se repite${x.recurrencia.filas.length === 1 ? "" : "n"} 3 o más días seguidos (ver Recurrencia).` : "") +
+    (x?.ayer.anterior ? ` Contra el ${diaCorto(x.ayer.anterior)}: ${x.ayer.filas.filter((f) => f.estado === "mejoro" || f.estado === "cerro").length} códigos mejoraron o se cerraron y ${x.ayer.filas.filter((f) => f.estado === "empeoro" || f.estado === "nuevo").length} empeoraron o son nuevos.` : "") });
 
   /* POR FAMILIA, en la misma hoja del resumen. */
   const fams = [...new Set(F.map((f) => f.familia))];
   b.push({ t: "sub", texto: "Cómo quedó cada familia" });
-  b.push({ t: "tabla", cols: [{ h: "Familia", w: 50 }, { h: "SAP", w: 28, al: "r" }, { h: "Conteo", w: 28, al: "r" }, { h: "Dif. inicial", w: 26, al: "r" }, { h: "Movido", w: 24, al: "r" }, { h: "Dif. final", w: 24, al: "r" }],
+  b.push({ t: "tabla", cols: [{ h: "Familia", w: 42 }, { h: "SAP", w: 25, al: "r" }, { h: "Conteo", w: 25, al: "r" }, { h: "Dif. inicial", w: 22, al: "r" }, { h: "Movido", w: 20, al: "r" }, { h: "Dif. final", w: 22, al: "r" }, ...(x ? [{ h: "Valor dif.", w: 30, al: "r" as const }] : [])],
     filas: [...fams.map((fam) => {
-      const xs = F.filter((f) => f.familia === fam);
-      return [fam, n(s(xs, (f) => f.sap)), n(s(xs, (f) => f.conteo)), color(s(xs, (f) => f.diferencia)), sg(s(xs, (f) => f.movComp + f.movAjuste)), color(s(xs, (f) => f.difFinal))] as CeldaT[];
-    }), [{ x: "TOTAL", bold: true }, { x: n(sap), bold: true }, { x: n(conteo), bold: true }, color(ini), { x: sg(movido), bold: true }, color(fin)]] });
+      const xs = V.filter((f) => f.familia === fam);
+      return [fam, n(s(xs, (f) => f.sap)), n(s(xs, (f) => f.conteo)), color(s(xs, (f) => f.diferencia)), sg(s(xs, (f) => f.movComp + f.movAjuste)), color(s(xs, (f) => f.difFinal)), ...(x ? [$c(s(xs, (f) => f.vDif))] : [])] as CeldaT[];
+    }), [{ x: "TOTAL", bold: true }, { x: n(sap), bold: true }, { x: n(conteo), bold: true }, color(ini), { x: sg(movido), bold: true }, color(fin), ...(x ? [$c(vIni)] : [])]] });
 
   /* 02 · TOP DIFERENCIAS */
   const top = [...F].filter((f) => f.diferencia !== 0).sort((a, c) => Math.abs(c.diferencia) - Math.abs(a.diferencia)).slice(0, 12);
-  const colsTop: Col[] = [{ h: "Código", w: 16 }, { h: "Descripción", w: 62 }, { h: "SAP", w: 26, al: "r" }, { h: "Conteo", w: 26, al: "r" }, { h: "Diferencia", w: 24, al: "r" }, { h: "Final", w: 22, al: "r" }];
+  const colsTop: Col[] = x
+    ? [{ h: "Código", w: 16 }, { h: "Descripción", w: 48 }, { h: "SAP", w: 24, al: "r" }, { h: "Conteo", w: 24, al: "r" }, { h: "Diferencia", w: 22, al: "r" }, { h: "Valor", w: 30, al: "r" }, { h: "Final", w: 22, al: "r" }]
+    : [{ h: "Código", w: 16 }, { h: "Descripción", w: 62 }, { h: "SAP", w: 26, al: "r" }, { h: "Conteo", w: 26, al: "r" }, { h: "Diferencia", w: 24, al: "r" }, { h: "Final", w: 22, al: "r" }];
   b.push({ t: "modulo", n: "02", titulo: "Top diferencias", sub: "Las más grandes del día, antes y después de los ajustes" });
-  b.push({ t: "tabla", cols: colsTop, filas: top.map((f) => [f.codigo, f.descripcion, n(f.sap), n(f.conteo), color(f.diferencia), color(f.difFinal)]),
+  b.push({ t: "tabla", cols: colsTop, filas: top.map((f) => x ? [f.codigo, f.descripcion, n(f.sap), n(f.conteo), color(f.diferencia), $c(vPor.get(f.codigo)?.vDif ?? 0), color(f.difFinal)] : [f.codigo, f.descripcion, n(f.sap), n(f.conteo), color(f.diferencia), color(f.difFinal)]),
     nota: top.length ? undefined : "No hubo diferencias." });
 
   /* 03 · COMPENSACIONES */
@@ -108,15 +138,54 @@ export function construirCierre(aj: FilaAjuste[], o: OpcionesCierre): Bloque[] {
 
   /* 05 · PENDIENTES */
   b.push({ t: "sub", texto: pend.length ? `Pendientes: ${pend.length} códigos siguen con diferencia (${sg(fin)})` : "Pendientes: nada, todo cuadra" });
-  b.push({ t: "tabla", cols: [{ h: "Código", w: 16 }, { h: "Descripción", w: 50 }, { h: "Dif. final", w: 24, al: "r" }, { h: "Qué falta", w: 46 }, { h: "Observación", w: 50 }],
+  b.push({ t: "tabla", cols: x ? [{ h: "Código", w: 16 }, { h: "Descripción", w: 44 }, { h: "Dif. final", w: 22, al: "r" }, { h: "Valor", w: 28, al: "r" }, { h: "Qué falta", w: 40 }, { h: "Observación", w: 36 }] : [{ h: "Código", w: 16 }, { h: "Descripción", w: 50 }, { h: "Dif. final", w: 24, al: "r" }, { h: "Qué falta", w: 46 }, { h: "Observación", w: 50 }],
     filas: [...pend].sort((a, c) => Math.abs(c.difFinal) - Math.abs(a.difFinal)).map((f) => {
       const falta: string[] = [];
       if (f.compensa !== 0 && !f.compHecha) falta.push(`compensar ${n(Math.abs(f.compensa))}`);
       const restoAj = f.ajuste - (f.ajusteHecho ?? 0);
       if (restoAj !== 0) falta.push(`ajuste ${sg(restoAj)} (${restoAj > 0 ? "sube" : "baja"} SAP)`);
-      return [f.codigo, f.descripcion, color(f.difFinal), falta.join(" · ") || "revisar", f.observacion || "—"];
+      return x ? [f.codigo, f.descripcion, color(f.difFinal), $c(vPor.get(f.codigo)?.vFin ?? 0), falta.join(" · ") || "revisar", f.observacion || "—"]
+        : [f.codigo, f.descripcion, color(f.difFinal), falta.join(" · ") || "revisar", f.observacion || "—"];
     }), compacta: true });
 
+  if (!x) return b;
+
+  /* 04 · VALOR EN PESOS */
+  const conValor = V.filter((f) => f.diferencia !== 0 || f.ajuste !== 0).sort((a, c) => Math.abs(c.vDif) - Math.abs(a.vDif));
+  const sinPrecio = conValor.filter((f) => f.p == null);
+  b.push({ t: "modulo", n: "04", titulo: "Valor en pesos", sub: "Unidades x precio por unidad: el de la botella del MM60 y, si no lo tiene, el costo del maestro de Pasivos" });
+  b.push({ t: "tabla", cols: [{ h: "Código", w: 15 }, { h: "Descripción", w: 41 }, { h: "Precio u.", w: 20, al: "r" }, { h: "Diferencia", w: 20, al: "r" }, { h: "Valor dif.", w: 30, al: "r" }, { h: "Valor ajuste", w: 30, al: "r" }, { h: "Valor pend.", w: 30, al: "r" }],
+    filas: [...conValor.map((f) => [f.codigo, f.descripcion, f.p != null ? $(f.p) : { x: "SIN PRECIO", bold: true, color: ROJO }, color(f.diferencia), $c(f.vDif), $c(f.vAj), $c(f.vFin)] as CeldaT[]),
+      [{ x: "TOTAL", bold: true }, "", "", color(ini), $c(vIni), $c(s(V, (f) => f.vAj)), $c(vFin)]],
+    nota: sinPrecio.length ? `Sin precio (cuentan como $ 0): ${sinPrecio.map((f) => f.codigo).join(", ")}.` : undefined, compacta: true });
+
+  /* 05 · RECURRENCIA Y CONTRA EL DÍA ANTERIOR */
+  const R = x.recurrencia;
+  b.push({ t: "modulo", n: "05", titulo: "Recurrencia y contra el día anterior", sub: `Recurrencia: ${R.fechas} días guardados entre el ${diaCorto(R.desde)} y este día` });
+  if (R.filas.length) {
+    b.push({ t: "lista", items: R.filas.slice(0, 10).map((r) => `${r.codigo} ${r.descripcion} lleva ${r.racha} días seguidos ${r.ult < 0 ? "faltando" : "sobrando"} (hoy ${sg(r.ult)}; en el rango ${sg(r.total)})`) });
+    b.push({ t: "tabla", cols: [{ h: "Código", w: 16 }, { h: "Descripción", w: 56 }, { h: "Racha", w: 30, al: "c" }, { h: "Días faltó", w: 20, al: "r" }, { h: "Días sobró", w: 20, al: "r" }, { h: "Total rango", w: 30, al: "r" }],
+      filas: R.filas.map((r) => [r.codigo, r.descripcion, { x: `${r.racha} ${r.ult < 0 ? "faltando" : "sobrando"}`, bold: true, color: r.ult < 0 ? ROJO : VERDE, fill: r.ult < 0 ? "#FDE7EA" : "#E3F4EA" }, String(r.falta), String(r.sobra), color(r.total)]), compacta: true });
+  } else b.push({ t: "p", texto: "Ningún código lleva 3 o más días guardados seguidos con ajuste: las diferencias del día no se están repitiendo.", gris: true });
+  const A = x.ayer;
+  b.push({ t: "sub", texto: A.anterior ? `Contra el ${diaCorto(A.anterior)}` : "Contra el día anterior: no hay otro día guardado" });
+  if (A.anterior) {
+    const cuenta = (e: Cambio["estado"]) => A.filas.filter((f) => f.estado === e).length;
+    const totA = s(A.filas, (f) => f.da), totH = s(A.filas, (f) => f.dh);
+    b.push({ t: "kpis", items: [
+      { rotulo: "Diferencia anterior", valor: sg(totA), detalle: diaCorto(A.anterior) },
+      { rotulo: "Diferencia del día", valor: sg(totH), detalle: o.fechaLarga },
+      { rotulo: "Mejoraron o cerraron", valor: String(cuenta("mejoro") + cuenta("cerro")), detalle: `${cuenta("cerro")} se cerraron`, color: VERDE },
+      { rotulo: "Empeoraron o nuevos", valor: String(cuenta("empeoro") + cuenta("nuevo")), detalle: `${cuenta("nuevo")} nuevos`, color: ROJO },
+    ] });
+    const ET: Record<Cambio["estado"], CeldaT> = {
+      empeoro: { x: "EMPEORÓ", bold: true, color: ROJO }, nuevo: { x: "NUEVO", bold: true, color: ROJO },
+      mejoro: { x: "MEJORÓ", bold: true, color: VERDE }, cerro: { x: "SE CERRÓ", bold: true, color: VERDE }, igual: { x: "IGUAL", color: "#5F6B79" },
+    };
+    b.push({ t: "tabla", cols: [{ h: "Código", w: 16 }, { h: "Descripción", w: 60 }, { h: "Antes", w: 26, al: "r" }, { h: "Del día", w: 26, al: "r" }, { h: "Cambio", w: 26, al: "r" }, { h: "Estado", w: 22, al: "c" }],
+      filas: A.filas.slice(0, 15).map((f) => [f.codigo, f.descripcion, color(f.da), color(f.dh), sg(f.cambio), ET[f.estado]]), compacta: true,
+      nota: A.filas.length > 15 ? `Los 15 cambios más grandes de ${A.filas.length}.` : undefined });
+  }
   return b;
 }
 
