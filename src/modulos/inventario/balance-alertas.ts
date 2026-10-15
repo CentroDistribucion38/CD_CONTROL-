@@ -7,16 +7,12 @@ import { balanceDelDia, cruzaConCasco, type FilaBalance, type LineaConsolidado }
  *  quiero una hojita aparte donde pueda ver esas alertas comparando con el día anterior para saber si me toca hacer
  *  un ajuste o reasignar.»
  *
- * Se compara cada «material · estado · zona» (la misma fila del Balance: conteo, casco, ajuste y diferencia) y salen
- * cuatro clases de alerta, de la más urgente a la menos:
- *   · SIN CONTAR      el conteo de ese material y estado bajó y Control no bajó lo mismo → ¿no lo contaron?
- *   · REASIGNACIÓN    lo que bajó en un estado SUBIÓ en otro (misma zona y material, misma cantidad) → ¿lo contaron
- *                     con otro estado? Se resuelve reasignando en Consolidado.
- *   · DIFERENCIA NUEVA ayer cuadraba (o la diferencia era otra) y hoy no.
- *   · PERSISTE        la misma diferencia de ayer sigue hoy (algo pendiente).
+ * Se compara cada «material · estado · zona» (la misma fila del Balance) y salen solo DOS alertas, las que piden decisión:
+ *   · SIN CONTAR      el conteo de ese material y estado bajó y Control no bajó lo mismo → ¿no lo contaron? (recontar o ajustar)
+ *   · REASIGNACIÓN    lo que bajó en un estado SUBIÓ en otro (misma zona y material) → ¿lo contaron con otro estado?
  * Solo lee lo que el Balance ya calcula: no toca ninguna cuenta.
  */
-export type TipoAlerta = "sin_contar" | "reasignacion" | "dif_nueva" | "persiste";
+export type TipoAlerta = "sin_contar" | "reasignacion";
 export type Lado = { conteo: number; casco: number; ajuste: number; dif: number };
 export type Alerta = {
   id: string; tipo: TipoAlerta;
@@ -138,28 +134,9 @@ export async function alertasBalance(pedida?: string | null): Promise<DatosAlert
       });
       continue;
     }
-    if (Math.abs(x.H.dif) < EPS) continue;
-    const dondeH = texto(ubH.get(`${x.f.codigo}|${x.f.estado}|${zonaDe(x.f.alcance)}`));
-    const mismo = Math.abs(x.A.dif) >= EPS && Math.abs(x.H.dif - x.A.dif) < EPS;
-    if (mismo) {
-      alertas.push({
-        id: `pe|${x.k}`, tipo: "persiste", ...base(x), ...cajasA(x.f, Math.abs(x.H.dif)), haciaEstado: null,
-        donde: dondeH ? `Hoy en: ${dondeH}` : "",
-        accion: "Sigue igual que ayer: pendiente de resolver (reasignar o ajustar)",
-        detalle: `La diferencia de ${n0(x.H.dif)} cajas ya estaba ayer.`,
-      });
-    } else {
-      const cambio = Math.abs(x.A.dif) >= EPS ? `Ayer ${n0(x.A.dif)} → hoy ${n0(x.H.dif)} cajas.` : `Ayer cuadraba; hoy ${n0(x.H.dif)} cajas.`;
-      alertas.push({
-        id: `dn|${x.k}`, tipo: "dif_nueva", ...base(x), ...cajasA(x.f, Math.abs(x.H.dif)), haciaEstado: null,
-        donde: dondeH ? `Hoy en: ${dondeH}` : "",
-        accion: x.H.dif > 0 ? "Hay más contado que en Control: ¿falta registrar casco o es otro estado?" : "Hay menos contado que en Control: ¿faltó contar o salió sin registrar?",
-        detalle: cambio,
-      });
-    }
   }
 
-  const orden: Record<TipoAlerta, number> = { sin_contar: 0, reasignacion: 1, dif_nueva: 2, persiste: 3 };
+  const orden: Record<TipoAlerta, number> = { sin_contar: 0, reasignacion: 1 };
   alertas.sort((a, b) => orden[a.tipo] - orden[b.tipo] || b.cajas - a.cajas || a.codigo.localeCompare(b.codigo, "es", { numeric: true }));
   return { fecha: hoy.fecha, anterior, dias: hoy.dias, alertas, filasHoy: hoy.detalle.length, filasAyer: ayer.detalle.length, error: null };
 }
