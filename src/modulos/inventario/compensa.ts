@@ -2,6 +2,9 @@ import type { FilaAnalisis } from "./analisis-dif";
 
 /** Retornable ↔ su NR nuevo (330 cc, la misma botella): se cruzan en los ajustes del análisis de diferencia.
  *  Va aparte (sin nada del servidor) porque lo usan el servidor (los ajustes) y el navegador (el Excel). */
+/** La partida del conteo con el envase retornable contado en estado NUEVO (botella nueva, o sea NR). */
+export const NUEVO_PARTIDA = "CONTEO · estado NUEVO";
+
 export const COMPENSA: [string, string][] = [
   ["3500162", "412644"],   // Envase Marrón 330R       ↔ ENVASE MARRON 330NR NUEVO
   ["3500446", "412671"],   // Envase Marrón Club Col   ↔ ENVASE MARRON 330NR CLUB COLOMBIA NUEVA
@@ -19,6 +22,8 @@ export type FilaAjuste = {
   /** Lo que ya se hizo en SAP: la compensación (sí/no) y cuánto del ajuste (vacío = nada). */
   compHecha: boolean;
   ajusteHecho: number | null;
+  /** Unidades del retornable contadas en estado NUEVO: el tope de lo que se puede compensar con su NR. */
+  nuevo: number;
 };
 
 export type Hecho = { comp: boolean; ajuste: number | null };
@@ -26,18 +31,20 @@ export type Hecho = { comp: boolean; ajuste: number | null };
 export function calcularAjustes(filas: FilaAnalisis[], obs: Record<string, string>, hechos: Record<string, Hecho> = {}): FilaAjuste[] {
   const por = new Map(filas.map((f) => [f.codigo, f]));
   const comp = new Map<string, { par: string; aplica: number }>();
+  /* LA COMPENSACIÓN. «Busca el SKU, ej. 3500162, mira el de estado NUEVO: esa cantidad es la que podemos
+     ajustar.» El retornable contado en estado NUEVO es botella nueva, o sea el NR que SAP tiene y el conteo no:
+     se pasa del R al NR. Se compensa lo menor entre lo contado como NUEVO en el R y lo que le falta al NR. */
+  const nuevoDe = (f: FilaAnalisis | undefined) => (f?.deConteo ?? []).filter((p) => p.nombre === NUEVO_PARTIDA).reduce((t, p) => t + p.cantidad, 0);
+  const nuevoPar = new Map<string, number>();
   for (const [r, nr] of COMPENSA) {
     const a = por.get(r), b = por.get(nr);
+    if (!a && !b) continue;
+    const nuevo = nuevoDe(a);
+    nuevoPar.set(r, nuevo); nuevoPar.set(nr, nuevo);
     if (!a || !b) continue;
-    const da = a.diferencia, db = b.diferencia;
-    /* Solo si uno sobra y el otro falta. */
-    if (!(da > 0 && db < 0) && !(da < 0 && db > 0)) {
-      comp.set(r, { par: nr, aplica: 0 }); comp.set(nr, { par: r, aplica: 0 });
-      continue;
-    }
-    const m = Math.min(Math.abs(da), Math.abs(db));
-    comp.set(r, { par: nr, aplica: -Math.sign(da) * m });
-    comp.set(nr, { par: r, aplica: -Math.sign(db) * m });
+    const m = b.diferencia < 0 ? Math.min(nuevo, -b.diferencia) : 0;
+    comp.set(r, { par: nr, aplica: -m });
+    comp.set(nr, { par: r, aplica: m });
   }
   return filas.map((f) => {
     const c = comp.get(f.codigo);
@@ -49,6 +56,7 @@ export function calcularAjustes(filas: FilaAnalisis[], obs: Record<string, strin
       compensa, ajuste: f.diferencia + compensa,
       observacion: obs[f.codigo] ?? "",
       compHecha: hechos[f.codigo]?.comp ?? false,
+      nuevo: nuevoPar.get(f.codigo) ?? 0,
       ajusteHecho: hechos[f.codigo]?.ajuste ?? null,
     };
   });

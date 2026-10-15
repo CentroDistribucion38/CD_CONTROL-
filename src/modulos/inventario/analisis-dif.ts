@@ -7,6 +7,7 @@ import { esUbicacionFabrica } from "@/modulos/casco/ubicacion-sitio";
 import { leerPasivos } from "@/modulos/pasivos/datos";
 import { excluye } from "@/modulos/pasivos/excluidos";
 import { leerExcluidos } from "@/modulos/pasivos/excluidos-leer";
+import { NUEVO_PARTIDA } from "./compensa";
 
 /**
  * EL ANÁLISIS DE DIFERENCIA DE BODEGA 38 — la hoja CONTEOS + la tabla dinámica de 2026.10.14_BODEGA_38.xlsx.
@@ -109,7 +110,8 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
       continue;
     }
     /* Envase (también barril y cilindro): sus unidades y la estiba de debajo, siempre. */
-    suma("conteo", c, "CONTEO", cajas * upc(c));
+    /* El envase contado en estado NUEVO va en su propia partida: es lo que se puede compensar con su NR nuevo. */
+    suma("conteo", c, /NUEVO/.test(norm(r.estado_envase)) ? NUEVO_PARTIDA : "CONTEO", cajas * upc(c));
     suma("conteo", ESTIBA, bajoQue(c), est);
     /* Un envase excluido (foráneo, nuevo…) no aporta caja plástica: no viene en las nuestras. */
     if (excluye(regla, c, nombre(c))) continue;

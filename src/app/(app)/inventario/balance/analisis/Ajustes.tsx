@@ -137,7 +137,7 @@ export function Ajustes({ fecha, guardado, filas: inicio, puedeEditar, faltaSql 
                       <td className="mono">{f.codigo}</td>
                       <td>{f.descripcion}</td>
                       <td className={"n" + (f.diferencia < 0 ? " neg" : f.diferencia > 0 ? " pos" : "")}>{signo(f.diferencia)}</td>
-                      <td>{f.par ? <><b className="mono">{f.par}</b><small>{f.parDescripcion}</small></> : <span className="ad-na">—</span>}</td>
+                      <td>{f.par ? <><b className="mono">{f.par}</b><small>{f.parDescripcion}</small><small className="ad-nuevo">R contado en NUEVO: <b>{n(f.nuevo)}</b></small></> : <span className="ad-na">—</span>}</td>
                       <td className="n">{f.compensa ? signo(f.compensa) : <span className="ad-na">—</span>}</td>
                       <td className={"n b" + (f.ajuste < 0 ? " neg" : f.ajuste > 0 ? " pos" : "")}>{f.ajuste ? signo(f.ajuste) : "0"}</td>
                       <td><span className={"ad-sent" + (f.ajuste > 0 ? " sobra" : f.ajuste < 0 ? " falta" : " ok")}>{sentido(f.ajuste)}</span></td>
@@ -183,7 +183,7 @@ export function Ajustes({ fecha, guardado, filas: inicio, puedeEditar, faltaSql 
             </tr></tfoot>
           </table>
         </div>
-        <p className="ad-nota">Ajuste = diferencia + compensación. Se compensan 3500162 ↔ 412644, 3500446 ↔ 412671 y 3500213 ↔ 412707 (la misma botella de 330: el retornable que sobra cubre el NR nuevo que falta). La observación se guarda sola al salir del campo. Marca en <b>Hecho en SAP</b> lo que ya se movió (si el ajuste fue solo una parte, cambia la cantidad): con eso se arma el análisis final{pendientes ? <> — faltan <b>{pendientes}</b> por hacer</> : <> — <b>todo hecho</b></>}.</p>
+        <p className="ad-nota">Ajuste = diferencia + compensación. Se compensan 3500162 ↔ 412644, 3500446 ↔ 412671 y 3500213 ↔ 412707: lo que se contó del retornable en <b>estado NUEVO</b> es botella nueva (el NR), y se pasa al NR hasta cubrir lo que le falta. La observación se guarda sola al salir del campo. Marca en <b>Hecho en SAP</b> lo que ya se movió (si el ajuste fue solo una parte, cambia la cantidad): con eso se arma el análisis final{pendientes ? <> — faltan <b>{pendientes}</b> por hacer</> : <> — <b>todo hecho</b></>}.</p>
       </section>
     </>
   );

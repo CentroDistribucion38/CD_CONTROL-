@@ -152,3 +152,4 @@
 .ad .ad-hist td b.ok { color: #0F7A4A }
 .ad .ad-hist td b.neg { color: #B42318 }
 .ad .ad-hist td.n small { display: block; font-size: 11px; color: var(--fe-gris) }
+.ad .ad-aj small.ad-nuevo { margin-top: 3px; color: #1B4F8F }

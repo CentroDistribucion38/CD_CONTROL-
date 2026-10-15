@@ -167,7 +167,7 @@ function agregarHojasAjustes(wb: ExcelJS.Workbook, d: InsumosLibroAjustes) {
     const t2 = h.getCell(n, 1); t2.value = "LAS COMPENSACIONES · RETORNABLE ↔ NR NUEVO"; t2.font = letra(9, AZUL, true);
     for (let c = 1; c <= W; c++) h.getCell(n, c).border = { bottom: { style: "medium", color: { argb: AZUL } } };
     n++;
-    const cols: Col[] = [{ t: "Retornable", w: 16 }, { t: "Descripción", w: 34, texto: true }, { t: "Diferencia R", w: 16, fmt: SIG }, { t: "NR nuevo", w: 16 }, { t: "Diferencia NR", w: 16, fmt: SIG }, { t: "Se compensa", w: 16, fmt: NUM }, { t: "Queda por ajustar", w: 18, texto: true }];
+    const cols: Col[] = [{ t: "Retornable", w: 16 }, { t: "Descripción", w: 34, texto: true }, { t: "R contado en NUEVO", w: 16, fmt: NUM }, { t: "NR nuevo", w: 16 }, { t: "Diferencia NR", w: 16, fmt: SIG }, { t: "Se compensa", w: 16, fmt: NUM }, { t: "Queda por ajustar", w: 18, texto: true }];
     const r = h.getRow(n); r.height = 26;
     cols.forEach((c, i) => { const x = r.getCell(i + 1); x.value = c.t; x.font = letra(9, BLANCO, true); x.fill = relleno(AZUL); x.alignment = { horizontal: "center", vertical: "middle", wrapText: true } });
     n++;
@@ -175,13 +175,13 @@ function agregarHojasAjustes(wb: ExcelJS.Workbook, d: InsumosLibroAjustes) {
     COMPENSA.forEach(([rc, nr], i) => {
       const a = por.get(rc), b = por.get(nr);
       const queda = [a && a.ajuste ? `${rc}: ${a.ajuste > 0 ? "+" : "−"}${Math.abs(a.ajuste).toLocaleString("es-CO")}` : "", b && b.ajuste ? `${nr}: ${b.ajuste > 0 ? "+" : "−"}${Math.abs(b.ajuste).toLocaleString("es-CO")}` : ""].filter(Boolean).join(" · ") || "Nada: cuadra";
-      fila(h, n, cols, [rc, a?.descripcion ?? "(no está en el análisis)", a?.diferencia ?? 0, nr, b?.diferencia ?? 0, Math.abs(a?.compensa ?? 0), queda], i % 2 === 1);
+      fila(h, n, cols, [rc, a?.descripcion ?? "(no está en el análisis)", a?.nuevo ?? b?.nuevo ?? 0, nr, b?.diferencia ?? 0, Math.abs(a?.compensa ?? 0), queda], i % 2 === 1);
       h.getCell(n, 6).font = letra(10, AZUL, true);
       n++;
     });
     n++;
     const nota = h.getCell(n, 1);
-    nota.value = "Ajuste = diferencia + compensación. Si el retornable sobra y su NR nuevo falta (o al revés), se cruza lo que coincide y solo se ajusta lo que queda. Positivo = sobrante (hay más de lo que dice SAP: sube SAP). Negativo = faltante (baja SAP). Todo en unidades; cajas plásticas y estibas por unidad.";
+    nota.value = "Ajuste = diferencia + compensación. Lo que se contó del retornable en estado NUEVO es botella nueva (el NR): se pasa al NR hasta cubrir lo que le falta (lo menor entre los dos), y solo se ajusta lo que queda. Positivo = sobrante (hay más de lo que dice SAP: sube SAP). Negativo = faltante (baja SAP). Todo en unidades; cajas plásticas y estibas por unidad.";
     h.mergeCells(n, 1, n, W); nota.font = letra(9, GRIS, false, true); nota.alignment = { wrapText: true, vertical: "top", indent: 1 }; h.getRow(n).height = 42;
     h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9 };
   }

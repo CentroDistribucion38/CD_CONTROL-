@@ -4,11 +4,9 @@
  * Sale del análisis GUARDADO de un día (la foto que se tomó al darle «Guardar»), no del que se recalcula
  * cada vez: un ajuste se discute sobre una cifra que no se mueve.
  *
- * LA COMPENSACIÓN. «El 3500162 se puede compensar con el 412644, el 3500446 con el 412671 y el 3500213 con
- * el 412707: esos NR nuevos no están en el conteo.» El envase retornable y su NR nuevo son la misma botella
- * de 330: si uno sobra y el otro falta, lo que coincide se cruza y solo se ajusta lo que queda.
- *   sobra R +X y falta NR −Y  →  se compensa min(X, Y); el R queda en X − min, el NR en −Y + min.
- * Si los dos sobran o los dos faltan, no hay nada que cruzar.
+ * LA COMPENSACIÓN. «Busca el SKU, ej. 3500162, mira el de estado NUEVO: esa cantidad es la que podemos
+ * ajustar.» Lo contado del retornable en estado NUEVO es botella nueva, o sea el NR (412644…) que SAP tiene
+ * y el conteo no: se pasa del R al NR, lo menor entre lo contado en NUEVO y lo que le falta al NR.
  *
  * EL AJUSTE es lo que queda después de compensar (CONTEO − SAP):
  *   positivo  = SOBRANTE: hay más de lo que dice SAP → ajuste que sube SAP.
