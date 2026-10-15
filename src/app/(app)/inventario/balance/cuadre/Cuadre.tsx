@@ -649,7 +649,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                 {filas.filter((f) => f.sap != null).map((f) => (
                   <tr key={f.codigo} className={ok(f) ? "" : "pend"}>
                     <td className="mono">{f.codigo}</td><td>{f.material}</td>
-                    <td className="n">{n(f.total)}</td><td className="n">{n(f.sap!)}</td>
+                    <td className="n">{n(f.conteo)}{f.total - f.conteo > 0.5 && <small className="cs-ext" title="Lo que se suma al conteo para comparar con SAP (pend. baja, lavado, Andina, almacén)">+ {n(f.total - f.conteo)} = {n(f.total)}</small>}</td><td className="n">{n(f.sap!)}</td>
                     <td className="n">{cero(f.dif) ? "0" : conSigno(f.dif!)}</td>
                     <td className="n">{f.movido ? <>{n(Math.abs(f.movido))} <em>{f.movido > 0 ? ENTRA : SALE}</em></> : "—"}</td>
                     <td className="n">{n(f.sapDespues!)}</td>

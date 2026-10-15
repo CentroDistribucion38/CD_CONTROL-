@@ -294,3 +294,5 @@
 .cs .cs-cajest-pasos > li > b::before { content: counter(paso); display: inline-grid; place-items: center; width: 22px; height: 22px; margin-right: 8px; border-radius: 11px; background: var(--fe-tinta); color: #fff; font: 800 12px var(--fe-texto) }
 .cs .cs-cajest-pasos .cs-dos { margin-top: 8px }
 .cs .cs-cajest-pasos .cs-antes { margin: 8px 0 0 }
+
+.cs-t .cs-ext { display: block; font-size: 10px; font-weight: 400; color: var(--cs-mute, #7a7a7a); white-space: nowrap }
