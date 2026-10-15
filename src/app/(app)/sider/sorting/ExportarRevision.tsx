@@ -6,7 +6,7 @@
  * Se arma en el navegador (ver libro-revision-ai.ts): lee con la sesión de quien exporta (RLS),
  * baja las fotos de a seis, las achica a ~1000 px y arma el libro de cuatro hojas.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Defecto, DetalleAi, Revision } from "@/modulos/sider/ai";
 import type { FotoRevision, RevisionLibro } from "@/modulos/sider/libro-revision-ai";
@@ -46,6 +46,15 @@ export function ExportarRevision({ nombres }: { nombres: Record<string, string> 
   const [avance, setAvance] = useState<string | null>(null);
   const [mal, setMal] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
+
+  const caja = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!abierto) return;
+    const fuera = (e: MouseEvent) => { if (!avance && caja.current && !caja.current.contains(e.target as Node)) setAbierto(false) };
+    const tecla = (e: KeyboardEvent) => { if (e.key === "Escape" && !avance) setAbierto(false) };
+    document.addEventListener("mousedown", fuera); document.addEventListener("keydown", tecla);
+    return () => { document.removeEventListener("mousedown", fuera); document.removeEventListener("keydown", tecla) };
+  }, [abierto, avance]);
 
   const escoger = (r: Rango) => {
     setRango(r);
@@ -151,7 +160,16 @@ export function ExportarRevision({ nombres }: { nombres: Record<string, string> 
         Exportar Excel con fotos
       </button>
       {abierto && (
-        <div className="rx-panel" role="group" aria-label="Exportar la Revisión AI">
+        /* UNA VENTANA AL CENTRO, encima de todo: no empuja ni estira nada de la pantalla. */
+        <div className="rx-fondo">
+        <div className="rx-panel" role="dialog" aria-modal="true" aria-label="Exportar la Revisión AI" ref={caja}>
+          <div className="rx-cab">
+            <div>
+              <span className="rx-ojo">REVISIÓN AI · EXCEL</span>
+              <b>Exportar con fotos</b>
+            </div>
+            <button type="button" className="rx-x" aria-label="Cerrar" disabled={!!avance} onClick={() => setAbierto(false)}>×</button>
+          </div>
           <div className="rx-fila">
             <span className="rx-rot">Período</span>
             {([["hoy", "Hoy"], ["7", "Últimos 7 días"], ["mes", "Este mes"], ["pasado", "Mes pasado"], ["todo", "Todo"], ["otro", "Escoger fechas"]] as [Rango, string][]).map(([k, t]) => (
@@ -176,10 +194,11 @@ export function ExportarRevision({ nombres }: { nombres: Record<string, string> 
             camión con todo), <b>Defectos</b> (camión × defecto) y <b>Evidencias</b> (la ficha de cada revisión con su foto).
           </p>
           <div className="rx-fila rx-pie">
-            <button type="button" className="btn" disabled={!!avance} onClick={exportar}>{avance ?? "↓ Exportar"}</button>
+            <button type="button" className="rx-ir" disabled={!!avance} onClick={exportar}>{avance ?? "Descargar Excel"}</button>
             {mal && <span className="rx-mal" role="alert">{mal}</span>}
             {ok && <span className="rx-ok" role="status">✓ {ok}</span>}
           </div>
+        </div>
         </div>
       )}
     </div>
