@@ -115,3 +115,7 @@
 .reg .reg-tarjetas { margin: 0 0 12px }
 .reg .reg-sitio.reg-total { background: var(--fe-tinta, #111); border-color: var(--fe-tinta, #111); color: var(--fe-papel, #fff); box-shadow: inset 0 3px 0 var(--fe-acento, #f5b800) }
 .reg .reg-sitio.reg-total .cas-rot, .reg .reg-sitio.reg-total i { color: color-mix(in srgb, var(--fe-papel, #fff) 75%, transparent) }
+
+/* Ajuste por almacén: el + y el − se distinguen de un vistazo. */
+.reg-sig.mas { color: #0E5C35; font-weight: 800; background: #E3F3EA }
+.reg-sig.menos { color: #A4102A; font-weight: 800; background: #FDE7EB }
