@@ -297,3 +297,15 @@
 
 .cs-t .cs-ext { display: block; font-size: 10px; font-weight: 400; color: var(--cs-mute, #7a7a7a); white-space: nowrap }
 .cs .cs-h .cs-h-s { font: 400 12px var(--fe-texto); letter-spacing: 0; text-transform: none; color: var(--fe-gris) }
+
+/* Tabla del cuadre: la fila bajo el cursor (o la del teclado) se resalta y con un clic / Espacio queda marcada, para no perderse. */
+.cs .cs-nav tbody tr:not(.g) { cursor: pointer }
+.cs .cs-nav tbody tr.activa td { background: #FFE9A8 !important; border-bottom-color: var(--fe-tinta); font-weight: 600 }
+.cs .cs-nav tbody tr.activa td:first-child { box-shadow: inset 5px 0 0 var(--fe-tinta) }
+.cs .cs-nav:focus { outline: 2px solid var(--fe-tinta); outline-offset: 1px }
+.cs .cs-nav tbody tr.marcada td { background: #D9F0E3 !important }
+.cs .cs-nav tbody tr.marcada td:first-child { box-shadow: inset 5px 0 0 #0F7A4A }
+.cs .cs-nav tbody tr.marcada td:nth-child(2) { text-decoration: line-through; text-decoration-color: #0F7A4A }
+.cs .cs-nav tbody tr.marcada.activa td { background: #BFE6CF !important }
+.cs .cs-nav tbody tr.marcada.activa td:first-child { box-shadow: inset 5px 0 0 var(--fe-tinta) }
+@media print { .cs .cs-nav tbody tr.marcada td, .cs .cs-nav tbody tr.activa td { background: transparent !important; font-weight: 400 } .cs .cs-nav tbody tr.marcada td:nth-child(2) { text-decoration: none } }
