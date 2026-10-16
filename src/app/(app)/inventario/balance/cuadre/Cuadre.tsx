@@ -138,33 +138,29 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
     const hoy: Estados = { libre: f.libre ?? 0, calidad: f.calidad ?? 0, bloqueado: f.bloqueado ?? 0 };
     /* AG18: tras el 311 (llega o sale por libre). AG22: no hay 311, se parte de lo que dice la ZEXI (lo que no cuadre en cantidad es diferencia de inventario). */
     const tras: Estados = esAG22 ? { ...hoy } : { ...hoy, libre: hoy.libre - (f.dif ?? 0) };
-    /* Lo que no se mueve por 311 se balancea por estado. AG22: LIBRE NO SE EVALÚA (ahí siempre quedan diferencias). Solo control-cal y bloqueado:
-       · control-cal de SAP de más que el conteo = diferencia → se BLOQUEA (350); de menos → sale de libre (322).
-       · bloqueado de menos que lo que debe estar bloqueado (la suelta en BAJA) → sale de libre (344). Lo que SAP tenga de más en bloqueado se deja. */
-    const d = ESTADOS_K.map((k) => ({ k, v: f.meta![k] - tras[k] }));
-    const movs: { clave: string; cant: number; antes: boolean }[] = [];
-    if (esAG22) {
-      const sCC = tras.calidad - f.meta!.calidad;
-      if (sCC > 0.5) movs.push({ clave: "calidad>bloqueado", cant: sCC, antes: false });
-      else if (sCC < -0.5) movs.push({ clave: "libre>calidad", cant: -sCC, antes: false });
-      const faltaB = f.meta!.bloqueado - (tras.bloqueado + (sCC > 0.5 ? sCC : 0));
-      if (faltaB > 0.5) movs.push({ clave: "libre>bloqueado", cant: faltaB, antes: false });
-    } else {
+    /* META por estado. AG22: control-cal y bloqueado quedan como el conteo; si SAP tiene MÁS cajas que lo contado, ese sobrante es diferencia de
+       inventario y se BLOQUEA; libre es lo que sobra (libre NO se evalúa: ahí siempre quedan diferencias). */
+    const sobra = esAG22 && conEstados ? (tras.libre + tras.calidad + tras.bloqueado) - (f.meta!.libre + f.meta!.calidad + f.meta!.bloqueado) : 0;
+    const objetivo: Estados = esAG22 && conEstados
+      ? { calidad: f.meta!.calidad, bloqueado: f.meta!.bloqueado + Math.max(0, sobra),
+          libre: (tras.libre + tras.calidad + tras.bloqueado) - f.meta!.calidad - f.meta!.bloqueado - Math.max(0, sobra) }
+      : f.meta!;
+    const d = ESTADOS_K.map((k) => ({ k, v: objetivo[k] - tras[k] }));
     const fuentes = d.filter((x) => x.v < -0.5).map((x) => ({ k: x.k, v: -x.v }));
     const destinos = d.filter((x) => x.v > 0.5).map((x) => ({ ...x }));
     /* Lo que pasa A LIBRE va ANTES del 311 solo si la caja sale de AG18 y lo libre de hoy no alcanza. */
-    const saleSinLibre = (f.dif ?? 0) > 0.5 && hoy.libre < (f.dif ?? 0);
+    const saleSinLibre = !esAG22 && (f.dif ?? 0) > 0.5 && hoy.libre < (f.dif ?? 0);
+    const movs: { clave: string; cant: number; antes: boolean }[] = [];
     for (const de of destinos) for (const fu of fuentes) {
       const q = Math.min(de.v, fu.v); if (q < 0.5) continue;
       movs.push({ clave: `${fu.k}>${de.k}`, cant: q, antes: saleSinLibre && de.k === "libre" }); de.v -= q; fu.v -= q;
-    }
     }
     /* Cómo quedaría en SAP con el balanceo: lo de tras el 311 con los movimientos de estado aplicados. */
     const queda: Estados = { ...tras };
     if (conEstados) for (const m of movs) { const [a, b] = m.clave.split(">") as (keyof Estados)[]; queda[a] -= m.cant; queda[b] += m.cant }
     /* AG22: si la cantidad total no cuadra es diferencia de inventario; el balanceo está hecho cuando ningún estado falta mientras otro sobra. */
-    const dd = ESTADOS_K.map((k) => queda[k] - f.meta![k]);
-    const cuadra = conEstados && (esAG22 ? Math.abs(dd[1]) < 0.5 && dd[2] > -0.5 : dd.every((v) => cero(v)));
+    const dd = ESTADOS_K.map((k) => queda[k] - objetivo[k]);
+    const cuadra = conEstados && (esAG22 ? Math.abs(dd[1]) < 0.5 && Math.abs(dd[2]) < 0.5 : dd.every((v) => cero(v)));
     const difInv = esAG22 && conEstados ? (queda.libre + queda.calidad + queda.bloqueado) - (f.meta!.libre + f.meta!.calidad + f.meta!.bloqueado) : 0;
     return { f, conEstados, hoy, tras, queda, cuadra, difInv, movs: conEstados ? movs : [] };
   });

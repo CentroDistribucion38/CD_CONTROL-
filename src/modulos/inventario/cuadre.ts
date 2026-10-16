@@ -543,8 +543,11 @@ async function armarCuadreAG22(pedida?: string | null) {
     const queda = sapDespues == null ? null : redondo(sapDespues - total);
     const estadoFinal: Estados | null = meta && m?.libre != null ? { libre: redondo(m.libre ?? 0), calidad: redondo(m.calidad ?? 0), bloqueado: redondo(m.bloqueado ?? 0) } : null;
     /* Balanceado en estados = ningún estado falta mientras otro sobra (si la cantidad total no cuadra es diferencia de inventario, no hay nada más que mover). */
-    /* AG22: LIBRE NO SE EVALÚA. Solo control-cal (igual al conteo) y bloqueado (al menos lo que debe estar bloqueado: la suelta en BAJA). */
-    const mismoLado = (e: Estados, m: Estados) => Math.abs(e.calidad - m.calidad) <= 0.005 && e.bloqueado - m.bloqueado >= -0.005;
+    /* AG22: LIBRE NO SE EVALÚA. Control-cal = conteo y bloqueado = lo contado en BAJA + el sobrante de SAP (diferencia de inventario, se bloquea). */
+    const mismoLado = (e: Estados, m: Estados) => {
+      const sobra = Math.max(0, (e.libre + e.calidad + e.bloqueado) - (m.libre + m.calidad + m.bloqueado));
+      return Math.abs(e.calidad - m.calidad) <= 0.5 && Math.abs(e.bloqueado - (m.bloqueado + sobra)) <= 0.5;
+    };
     return { grupo, codigo: a.codigo, material: a.material, conteo: total, detalle: meta ? `Bodega 38 · libre ${redondo(meta.libre)} · control-cal ${redondo(meta.calidad)} · bloqueado ${redondo(meta.bloqueado)}` : null,
       pendBaja: 0, lavadoBaja: 0, andina: 0, almacen: 0,
       otrosCajas: 0, upc: grupo === "ENVASE" ? upc(a.codigo) : 1, partes: meta ? {} : a.partes,
