@@ -483,7 +483,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
               <tr key={f.codigo}>
                 <td className="mono">{f.codigo}</td>
                 <td>{f.material}{f.detalle && <small>{f.detalle}</small>}
-                  {f.sinCasco && <span className="cs-chip" title="Baja o Lavado · Fábrica sin casco registrado: todo lo contado cuenta como diferencia">sin casco</span>}
+                  {f.sinCasco && <span className="cs-chip" title="Baja · Fábrica sin casco registrado: todo lo contado en baja cuenta como diferencia">baja sin casco</span>}
                   {f.otrosCajas > 0 && <button type="button" className="cs-chip otr" title="Ver las líneas OTROS" onClick={() => setVerOtros(true)}><IconoOtros /> incluye OTROS · {n(f.otrosCajas)} cajas</button>}</td>
                 {esAG22 ? CAUSALES_AG22.map((c) => <td key={c} className="n">{f.partes?.[c] ? n(f.partes[c]) : "—"}</td>) : (<>
                 <td className="n">{n(f.conteo)}</td>
@@ -506,7 +506,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
       {esAG22 ? <p className="cs-nota">Unidades. Total base = lo de la base de Pasivos AG22 del día en las causales PRESORTING, ROTURA DE LINEA, LAVADO, EXTRASUCIO y BAJA PROYECTADA (las demás no entran y se avisan arriba).
         SAP bloqueado = la columna Bloqueado de la ZEXI de AG22. Negativo = la base tiene más de lo que SAP tiene bloqueado: pasar de libre a bloqueado en AG22. Positivo = SAP tiene bloqueado de más: pasar de bloqueado a libre.</p> :
       <p className="cs-nota">Unidades (las cajas plásticas en cajas y las estibas en estibas). Conteo fábrica = lo contado en ubicaciones FABRICA_, todos los estados; lo de OTROS suma al envase escogido arriba (si no se escoge, al código con que se contó).
-        Dif. balance = contado − casco − ajuste de Baja y Lavado · Fábrica (la diferencia del Balance de materiales): el total conteo es el Balance de materiales (lo contado menos esa diferencia), así que lo de más sale de AG18 con el 343 y el 311. Si Baja o Lavado no tiene casco registrado, todo lo contado cuenta como diferencia.
+        Dif. balance = contado − casco − ajuste de Baja y Lavado · Fábrica (la diferencia del Balance de materiales): el total conteo es el Balance de materiales (lo contado menos esa diferencia), así que lo de más sale de AG18 con el 343 y el 311. Si Baja · Fábrica no tiene casco registrado, todo lo contado en baja cuenta como diferencia; el Lavado sin casco se toma tal cual. Los materiales con Lavado con baja en el Casco siguen como antes (conteo − lavado con baja).
         Cajas plásticas = las sueltas + la caja de cada envase. Estibas = las sueltas + 1 por estiba contada (y por renglón con saldo) + las del almacén.
         Negativo = se contó más de lo que dice SAP.</p>}
 
