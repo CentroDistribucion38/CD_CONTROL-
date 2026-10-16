@@ -529,8 +529,8 @@ async function armarCuadreAG22(pedida?: string | null) {
     /* CAJA PLÁSTICA: la meta sale del conteo de Bodega 38, por estado; «total» = lo que debe estar BLOQUEADO (la suelta en BAJA). */
     const kc = grupo === "CAJA" ? (cajasConteo.get(a.codigo) ?? { material: a.material, sueltas: 0, sueltasBaja: 0, conEnvase: 0 }) : null;
     const meta: Estados | null = kc ? { libre: redondo(kc.sueltas - kc.sueltasBaja), calidad: redondo(kc.conEnvase), bloqueado: redondo(kc.sueltasBaja) } : null;
-    /* CAJA PLÁSTICA = como AG18: «total» es todo lo contado en Bodega 38 (libre + control-cal + bloqueado) contra TODO lo que SAP tiene en AG22 (los tres
-       estados): la diferencia es el 311 con AG18; después los estados. El ENVASE sigue contra el Bloqueado (base de Pasivos). */
+    /* CAJA PLÁSTICA en AG22: no hay 311 (no se cambia de almacén): solo se balancean los ESTADOS dentro de AG22. «total» es todo lo contado en Bodega 38
+       (libre + control-cal + bloqueado) y SAP = los tres estados de la ZEXI: lo que no cuadre en cantidad es una DIFERENCIA DE INVENTARIO (solo informativa). */
     const total = meta ? redondo(meta.libre + meta.calidad + meta.bloqueado) : redondo(Object.values(a.partes).reduce((t, v) => t + v, 0));
     /* «Lo que no tiene SAP me tiene que decir que del 22 debo pasarlo al 18, ya que allá no tiene»: con ZEXI
        cargado, un material que no viene en él es 0 en SAP (no «sin dato»), y entra a la lista del 311 / 344. */
@@ -540,13 +540,14 @@ async function armarCuadreAG22(pedida?: string | null) {
     const sapDespues = sapV == null ? null : redondo(sapV + movido);
     const queda = sapDespues == null ? null : redondo(sapDespues - total);
     const estadoFinal: Estados | null = meta && m?.libre != null ? { libre: redondo(m.libre ?? 0), calidad: redondo(m.calidad ?? 0), bloqueado: redondo(m.bloqueado ?? 0) } : null;
-    const igual = (x: number, y: number) => Math.abs(x - y) < 0.005;
+    /* Balanceado en estados = ningún estado falta mientras otro sobra (si la cantidad total no cuadra es diferencia de inventario, no hay nada más que mover). */
+    const mismoLado = (e: Estados, m: Estados) => { const d = [e.libre - m.libre, e.calidad - m.calidad, e.bloqueado - m.bloqueado]; return d.every((v) => v >= -0.005) || d.every((v) => v <= 0.005) };
     return { grupo, codigo: a.codigo, material: a.material, conteo: total, detalle: meta ? `Bodega 38 · libre ${redondo(meta.libre)} · control-cal ${redondo(meta.calidad)} · bloqueado ${redondo(meta.bloqueado)}` : null,
       pendBaja: 0, lavadoBaja: 0, andina: 0, almacen: 0,
       otrosCajas: 0, upc: grupo === "ENVASE" ? upc(a.codigo) : 1, partes: meta ? {} : a.partes,
       total, sap: sapV, dif, movido, documentos: m?.documentos ?? [], sapDespues, queda,
       ...(meta ? { libre: z?.libre ?? null, bloqueado: z?.bloqueado ?? null, calidad: z?.calidad ?? null, meta, estadoFinal,
-        estadoOk: estadoFinal ? igual(estadoFinal.libre, meta.libre) && igual(estadoFinal.calidad, meta.calidad) && igual(estadoFinal.bloqueado, meta.bloqueado) : null } : {}) };
+        estadoOk: estadoFinal ? mismoLado(estadoFinal, meta) : null } : {}) };
   })
     /* Una caja plástica solo se lista si algo la cuenta (conteo, bloqueado de SAP o lo movido): su libre de SAP, solo, no es ruido que mostrar. */
     .filter((f) => f.grupo === "CAJA" ? (f.meta != null && (f.meta.libre !== 0 || f.meta.calidad !== 0 || f.meta.bloqueado !== 0)) || (f.sap ?? 0) !== 0 || f.movido !== 0

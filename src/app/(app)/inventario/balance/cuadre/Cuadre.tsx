@@ -136,13 +136,13 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
   const cajasEstado = filas.filter((f) => f.grupo === "CAJA" && f.meta && f.sap != null).map((f) => {
     const conEstados = f.libre != null;
     const hoy: Estados = { libre: f.libre ?? 0, calidad: f.calidad ?? 0, bloqueado: f.bloqueado ?? 0 };
-    /* Tras el 311 (llega o sale por libre), igual en AG18 y AG22: se parte de la ZEXI y se le aplica el 311. */
-    const tras: Estados = { ...hoy, libre: hoy.libre - (f.dif ?? 0) };
+    /* AG18: tras el 311 (llega o sale por libre). AG22: no hay 311, se parte de lo que dice la ZEXI (lo que no cuadre en cantidad es diferencia de inventario). */
+    const tras: Estados = esAG22 ? { ...hoy } : { ...hoy, libre: hoy.libre - (f.dif ?? 0) };
     const d = ESTADOS_K.map((k) => ({ k, v: f.meta![k] - tras[k] }));
     const fuentes = d.filter((x) => x.v < -0.5).map((x) => ({ k: x.k, v: -x.v }));
     const destinos = d.filter((x) => x.v > 0.5).map((x) => ({ ...x }));
     /* Lo que pasa A LIBRE va ANTES del 311 solo si la caja sale de AG18 y lo libre de hoy no alcanza. */
-    const saleSinLibre = (f.dif ?? 0) > 0.5 && hoy.libre < (f.dif ?? 0);
+    const saleSinLibre = !esAG22 && (f.dif ?? 0) > 0.5 && hoy.libre < (f.dif ?? 0);
     const movs: { clave: string; cant: number; antes: boolean }[] = [];
     for (const de of destinos) for (const fu of fuentes) {
       const q = Math.min(de.v, fu.v); if (q < 0.5) continue;
@@ -151,8 +151,11 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
     /* Cómo quedaría en SAP con el balanceo: lo de tras el 311 con los movimientos de estado aplicados. */
     const queda: Estados = { ...tras };
     if (conEstados) for (const m of movs) { const [a, b] = m.clave.split(">") as (keyof Estados)[]; queda[a] -= m.cant; queda[b] += m.cant }
-    const cuadra = conEstados && ESTADOS_K.every((k) => cero(queda[k] - f.meta![k]));
-    return { f, conEstados, hoy, tras, queda, cuadra, movs: conEstados ? movs : [] };
+    /* AG22: si la cantidad total no cuadra es diferencia de inventario; el balanceo está hecho cuando ningún estado falta mientras otro sobra. */
+    const dd = ESTADOS_K.map((k) => queda[k] - f.meta![k]);
+    const cuadra = conEstados && (esAG22 ? dd.every((v) => v > -0.5) || dd.every((v) => v < 0.5) : dd.every((v) => cero(v)));
+    const difInv = esAG22 && conEstados ? dd.reduce((t, v) => t + v, 0) : 0;
+    return { f, conEstados, hoy, tras, queda, cuadra, difInv, movs: conEstados ? movs : [] };
   });
   /* Con cajas plásticas en AG18 el flujo es de 4 pasos: 1 cuadre · 2 311 del envase · 3 balance de cajas · 4 cómo quedó. */
   const conCajas = cajasEstado.length > 0;
@@ -167,8 +170,8 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
     { t: `Envase · 311 ${ALM} → ${OTRO}`, filas: salenEnv, ancla: "p-env" },
     { t: `Envase · 311 ${OTRO} → ${ALM}`, filas: entranEnv, ancla: "p-env" },
     ...porMov.filter((m) => m.antes311).map((m) => ({ t: `Cajas · Mov ${m.mov} antes del 311`, filas: m.filas, ancla: "p-cajas" })),
-    { t: `Cajas · 311 ${ALM} → ${OTRO}`, filas: salenCaja, ancla: "p-cajas" },
-    { t: `Cajas · 311 ${OTRO} → ${ALM}`, filas: entranCaja, ancla: "p-cajas" },
+    { t: `Cajas · 311 ${ALM} → ${OTRO}`, filas: esAG22 ? [] : salenCaja, ancla: "p-cajas" },
+    { t: `Cajas · 311 ${OTRO} → ${ALM}`, filas: esAG22 ? [] : entranCaja, ancla: "p-cajas" },
     ...porMov.filter((m) => !m.antes311).map((m) => ({ t: `Cajas · Mov ${m.mov} (${m.t})`, filas: m.filas, ancla: "p-cajas" })),
   ];
   const ir = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -178,7 +181,9 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
   const cuadran = conDif.filter((f) => cero(f.dif));
   /* «Lo que quedó en el 18, cuando suba la ZEXI, me debe cuadrar con el BLOQUEADO: no puede quedar como
      libre utilización.» Un envase de AG18 con algo en libre no está balanceado: falta el 344. */
-  const ok = (f: { queda: number | null; enLibre?: number | null; estadoOk?: boolean | null }) => cero(f.queda) && !((f.enLibre ?? 0) > 0.005) && f.estadoOk !== false;
+  const ok = (f: { grupo?: string; queda: number | null; enLibre?: number | null; estadoOk?: boolean | null }) =>
+    esAG22 && f.grupo === "CAJA" ? f.estadoOk !== false /* AG22: la cantidad que no cuadra es diferencia de inventario, no se mueve */
+      : cero(f.queda) && !((f.enLibre ?? 0) > 0.005) && f.estadoOk !== false;
   const balanceados = filas.filter((f) => f.queda != null && ok(f));
   const pendientes = filas.filter((f) => f.queda != null && !ok(f));
   const cajasOtros = otros.reduce((t, o) => t + o.cajas, 0);
@@ -502,6 +507,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                 <td className={"n" + (f.dif == null || cero(f.dif) ? "" : f.dif < 0 ? " neg" : " amb")}><b>{f.dif == null ? "—" : cero(f.dif) ? "0" : conSigno(f.dif)}</b></td>
                 <td className={"n" + (f.dif == null || cero(f.dif) ? "" : f.dif < 0 ? " neg" : " amb")} title={f.grupo === "ENVASE" ? `${n(f.upc)} unidades por caja` : undefined}>{cajasTxt(enCajas(f, f.dif))}</td>
                 <td>{f.dif == null ? <span className="cs-chip">Sin SAP</span> : cero(f.dif) ? <span className="cs-chip ok">Cuadra</span>
+                  : esAG22 && f.grupo === "CAJA" ? <span className="cs-chip" title="Cajas en AG22: no hay 311, es una diferencia de inventario (solo se balancean los estados)">Dif. inventario</span>
                   : f.dif < 0 ? <span className="cs-chip in">{ENTRA}</span> : <span className="cs-chip out">{SALE}</span>}</td>
               </tr>,
             ])}
@@ -510,7 +516,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
       </div>
       {esAG22 ? <p className="cs-nota">Unidades. Total base = lo de la base de Pasivos AG22 del día en las causales PRESORTING, ROTURA DE LINEA, LAVADO, EXTRASUCIO y BAJA PROYECTADA (las demás no entran y se avisan arriba).
         SAP bloqueado = la columna Bloqueado de la ZEXI de AG22. Negativo = la base tiene más de lo que SAP tiene bloqueado: pasar de libre a bloqueado en AG22. Positivo = SAP tiene bloqueado de más: pasar de bloqueado a libre.
-        Cajas plásticas (como en AG18): Total base = lo contado en Bodega 38 (libre + control-cal + bloqueado) y SAP = los tres estados de la ZEXI de AG22; la diferencia es el 311 con AG18 y después se balancean los estados.</p> :
+        Cajas plásticas: Total base = lo contado en Bodega 38 (libre + control-cal + bloqueado) y SAP = los tres estados de la ZEXI de AG22; aquí no hay 311: la diferencia es de inventario y solo se balancean los estados.</p> :
       <p className="cs-nota">Unidades (las cajas plásticas en cajas y las estibas en estibas). Conteo fábrica = lo contado en ubicaciones FABRICA_, todos los estados; lo de OTROS suma al envase escogido arriba (si no se escoge, al código con que se contó).
         Dif. balance = casco + ajuste de Baja y Lavado · Fábrica (la diferencia del Balance de materiales). El total conteo es el Balance de materiales (lo contado menos esa diferencia), así que esa cantidad es la que sobra en SAP y sale de AG18 con el 343 y el 311. Si no hay casco registrado, no se resta nada y lo contado se toma tal cual.
         Cajas plásticas = las sueltas + la caja de cada envase. Estibas = las sueltas + 1 por estiba contada (y por renglón con saldo) + las del almacén.
@@ -564,10 +570,10 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
 
           {/* ================= B · CAJAS PLÁSTICAS: 311 y balance por estado ================= */}
           {conCajas && (<>
-            <h2 className="cs-h" id="p-cajas"><i>3</i> Balancear las cajas <small className="cs-h-s">el 311 y el balance por estado: libre · control-cal · bloqueado</small></h2>
+            <h2 className="cs-h" id="p-cajas"><i>3</i> Balancear las cajas <small className="cs-h-s">{esAG22 ? "el balance por estado en AG22" : "el 311 y el balance por estado"}: libre · control-cal · bloqueado</small></h2>
             <div className="cs-caja cs-cajest">
               <p className="cs-cajest-dice">
-                {esAG22 && <>Lo contado en <b>Bodega 38</b>. </>}Suelta en <b>BAJA → Bloqueado</b> · suelta en <b>RETORNO → Libre utilización</b> · la caja que lleva el envase → <b>In control-cal</b>.
+                {esAG22 && <>Lo contado en <b>Bodega 38</b>. </>}Suelta en <b>BAJA → Bloqueado</b> · suelta en <b>RETORNO → Libre utilización</b> · la caja que lleva el envase → <b>In control-cal</b>.{esAG22 && " Aquí no hay 311: solo se balancean los estados dentro de AG22; lo que no cuadre en cantidad es una diferencia de inventario."}
                 Toca un código para verlo resaltado en todos sus movimientos.
               </p>
               <div className="cs-scroll">
@@ -580,7 +586,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                       <th className="n fin">Libre</th><th className="n fin">Control-cal</th><th className="n fin">Bloqueado</th></tr>
                   </thead>
                   <tbody>
-                    {cajasEstado.map(({ f, conEstados, hoy, queda, cuadra }) => (
+                    {cajasEstado.map(({ f, conEstados, hoy, queda, cuadra, difInv }) => (
                       <tr key={f.codigo} className={"cs-sel" + (foco === f.codigo ? " foco" : "")} onClick={() => enfocar(f.codigo)} title="Toca para ver este código en todos los movimientos">
                         <td className="mono">{f.codigo}</td><td>{f.material}</td>
                         <td className="n meta"><b>{n(f.meta!.libre)}</b></td><td className="n meta"><b>{n(f.meta!.calidad)}</b></td><td className="n meta"><b>{n(f.meta!.bloqueado)}</b></td>
@@ -589,7 +595,8 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                           <td className={"n" + (cero(hoy.calidad - f.meta!.calidad) ? "" : " dif")}>{n(hoy.calidad)}</td>
                           <td className={"n" + (cero(hoy.bloqueado - f.meta!.bloqueado) ? "" : " dif")}>{n(hoy.bloqueado)}</td>
                           <td className="n fin"><b>{n(queda.libre)}</b></td><td className="n fin"><b>{n(queda.calidad)}</b></td><td className="n fin"><b>{n(queda.bloqueado)}</b></td>
-                          <td>{cuadra ? <span className="cs-chip ok">= físico</span> : <span className="cs-chip in">No cuadra</span>}</td>
+                          <td>{cuadra ? <span className="cs-chip ok">{esAG22 && !cero(difInv) ? "Balanceado" : "= físico"}</span> : <span className="cs-chip in">No cuadra</span>}
+                            {esAG22 && !cero(difInv) && <span className="cs-chip" title="Lo contado en Bodega 38 y lo que dice SAP en AG22 no son la misma cantidad: se ajusta como diferencia de inventario (no es un 311)">Dif. inventario {conSigno(difInv)}</span>}</td>
                         </> : <td colSpan={7} className="cs-gris">La ZEXI no trae los estados (Libre · Control-cal · Bloqueado)</td>}
                       </tr>
                     ))}
@@ -606,7 +613,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                     ))}
                   </li>
                 )}
-                {<li><b>El 311 de las cajas</b>
+                {!esAG22 && <li><b>El 311 de las cajas</b>
                   {entranCaja.length + salenCaja.length === 0 ? <p className="cs-vacio">Las cajas cuadran en cantidad: no hay 311.</p> : (
                     <div className="cs-dos">
                       <div className="cs-caja r"><h3>{`Pasar de ${OTRO} a ${ALM}`} {cabezaLista(entranCaja, "caja-entran")}</h3>
@@ -616,7 +623,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                     </div>
                   )}
                 </li>}
-                <li><b>Después del 311: los estados</b> — el 311 deja todo en libre; con esto cada caja queda como en el físico{esAG22 ? " de Bodega 38" : ""}.
+                <li><b>{esAG22 ? "Los estados" : "Después del 311: los estados"}</b> — {esAG22 ? "cada caja queda como en el conteo de Bodega 38." : "el 311 deja todo en libre; con esto cada caja queda como en el físico."}
                   {porMov.filter((m) => !m.antes311).length === 0 ? <p className="cs-vacio">Los estados ya quedan como el físico.</p>
                     : porMov.filter((m) => !m.antes311).map((m) => (
                       <div key={m.cual} className="cs-antes azul"><p className="cs-antes-t"><b>Mov {m.mov} en {ALM} ({m.t})</b></p>{documentos(m.filas, m.cual)}</div>
@@ -665,7 +672,8 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                     <td className="n">{f.movido ? <>{n(Math.abs(f.movido))} <em>{f.movido > 0 ? ENTRA : SALE}</em></> : "—"}</td>
                     <td className="n">{n(f.sapDespues!)}</td>
                     <td className="n"><b>{cero(f.queda) ? "0" : conSigno(f.queda!)}</b></td>
-                    <td>{!cero(f.queda) ? <span className="cs-chip in">Falta {n(Math.abs(f.queda!))} {f.queda! < 0 ? ENTRA : SALE}</span>
+                    <td>{esAG22 && f.grupo === "CAJA" && f.estadoOk !== false ? <span className="cs-chip ok" title="Los estados quedaron como el conteo de Bodega 38">Balanceado{cero(f.queda) ? "" : ` · dif. inventario ${conSigno(f.queda!)}`}</span>
+                      : !cero(f.queda) ? <span className="cs-chip in">Falta {n(Math.abs(f.queda!))} {f.queda! < 0 ? ENTRA : SALE}</span>
                       : (f.enLibre ?? 0) > 0.005 ? <span className="cs-chip in" title="En AG18 el envase va bloqueado">Quedó {n(f.enLibre!)} en libre · falta 344</span>
                       : f.estadoOk === false && f.estadoFinal && f.meta ? <span className="cs-chip in" title={`Debe: libre ${n(f.meta.libre)} · control-cal ${n(f.meta.calidad)} · bloqueado ${n(f.meta.bloqueado)}`}>Estados: L {n(f.estadoFinal.libre)} · C {n(f.estadoFinal.calidad)} · B {n(f.estadoFinal.bloqueado)} — no cuadran</span>
                       : <span className="cs-chip ok">Balanceado</span>}</td>
