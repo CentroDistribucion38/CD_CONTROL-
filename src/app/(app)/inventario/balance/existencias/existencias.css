@@ -1,0 +1,12 @@
+/* =====================================================================
+   BALANCE · PASIVOS · EXISTENCIAS — reutiliza `va-` (validacion.css); lo propio lleva `ex-` y cuelga de `.ex`.
+   ===================================================================== */
+.ex .ex-tabs { display: flex; gap: 0; border-bottom: 3px solid var(--fe-tinta) }
+.ex .ex-tab { min-height: 42px; padding: 0 22px; border: 1px solid var(--fe-linea); border-bottom: none; background: var(--fe-papel); color: var(--fe-gris); font: 800 14px var(--fe-titulo); cursor: pointer; display: flex; align-items: center; gap: 8px }
+.ex .ex-tab.on { background: var(--fe-tinta); color: #fff; border-color: var(--fe-tinta) }
+.ex .ex-tab em { font: 800 11px var(--fe-texto); font-style: normal; padding: 2px 7px; background: var(--va-rojo); color: #fff; border-radius: 9px }
+.ex .ex-tab em.bien { background: var(--va-verde) }
+.ex .ex-zexi { margin: 0; font-size: 13px; color: var(--fe-gris) }
+.ex .ex-zexi b { color: var(--fe-tinta) }
+.ex .ex-grupo { display: inline-block; margin-left: 6px; font: 700 10px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase; color: var(--fe-gris) }
+@media print { .ex .ex-tabs { display: none !important } }

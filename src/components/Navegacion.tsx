@@ -448,6 +448,7 @@ const ICONO_RUTA: Record<string, () => React.ReactElement> = {
   "/inventario/balance": IconoBalanza,
   "/inventario/balance/alertas": IconoNovedad,
   "/inventario/balance/validacion": IconoVerificar,
+  "/inventario/balance/existencias": IconoVerificar,
   "/inventario/balance/cuadre": IconoCuadreSap,
   "/inventario/balance/pasivos": IconoBaseDatos,
   "/inventario/balance/pasivos/informe": IconoInforme,

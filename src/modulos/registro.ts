@@ -744,6 +744,8 @@ export const MODULOS: Modulo[] = [
       { nombre: "Informe", ruta: "/inventario/balance/pasivos/informe", rama: "balance", grupo: "Pasivos" },
       /* VALIDACIÓN DE PASIVO (AG18): conteo − pasivo = pendiente por baja, contra la existencia final del Cuadre SAP; desde aquí el pendiente se envía a la Base. */
       { nombre: "Validación", ruta: "/inventario/balance/validacion", rama: "balance", grupo: "Pasivos" },
+      /* EXISTENCIAS (AG18 y AG22): la última ZEXI del día en el Cuadre SAP contra la Base de pasivos; tiene que cuadrar. Solo valida. */
+      { nombre: "Existencias", ruta: "/inventario/balance/existencias", rama: "balance", grupo: "Pasivos" },
       { nombre: "Maestro", ruta: "/inventario/balance/pasivos/maestro", rama: "balance", grupo: "Pasivos" },
       /* ANÁLISIS DE DIFERENCIA (2026.10.14_BODEGA_38.xlsx): la hoja que abarca todo, CONTEO vs SAP de Bodega 38.
          Va al final: usa el conteo, los cortes, Pasivos y el Cuadre SAP. */
