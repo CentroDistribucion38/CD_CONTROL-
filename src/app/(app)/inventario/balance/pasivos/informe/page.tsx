@@ -28,10 +28,12 @@ export default async function InformePasivoPage({ searchParams }: { searchParams
     dia ? ubicacionesParaPasivos(dia) : Promise.resolve({ fecha: null, mapa: {} }),
   ]);
   const cajas = Object.fromEntries(maestro.data.map((m) => [m.codigo, m.descripcion]));
+  /* EL EXTRASUCIO se guarda en la Base como estado LAVADO con causal EXTRASUCIO; en el informe cuenta como su propio estado. */
+  const filasInforme = filas.data.map((f) => ((f.causal ?? "").trim().toUpperCase() === "EXTRASUCIO" ? { ...f, estado: "EXTRASUCIO" } : f));
 
   return (
     <div className="fe bal pas ipas">
-      <InformePasivo dia={dia} dias={dias} filas={filas.data} error={filas.error} nombresCaja={cajas} ubic={ubic} />
+      <InformePasivo dia={dia} dias={dias} filas={filasInforme} error={filas.error} nombresCaja={cajas} ubic={ubic} />
     </div>
   );
 }
