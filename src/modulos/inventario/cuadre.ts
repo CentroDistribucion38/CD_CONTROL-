@@ -543,12 +543,8 @@ async function armarCuadreAG22(pedida?: string | null) {
     const queda = sapDespues == null ? null : redondo(sapDespues - total);
     const estadoFinal: Estados | null = meta && m?.libre != null ? { libre: redondo(m.libre ?? 0), calidad: redondo(m.calidad ?? 0), bloqueado: redondo(m.bloqueado ?? 0) } : null;
     /* Balanceado en estados = ningún estado falta mientras otro sobra (si la cantidad total no cuadra es diferencia de inventario, no hay nada más que mover). */
-    /* Si SAP tiene de más, libre y control-cal deben quedar IGUAL al conteo y el sobrante va a bloqueado; si tiene de menos, basta que ningún estado falte mientras otro sobra. */
-    const mismoLado = (e: Estados, m: Estados) => {
-      const d = [e.libre - m.libre, e.calidad - m.calidad, e.bloqueado - m.bloqueado];
-      if (d[0] + d[1] + d[2] > 0.005) return Math.abs(d[0]) <= 0.005 && Math.abs(d[1]) <= 0.005 && d[2] >= -0.005;
-      return d.every((v) => v >= -0.005) || d.every((v) => v <= 0.005);
-    };
+    /* AG22: LIBRE NO SE EVALÚA. Solo control-cal (igual al conteo) y bloqueado (al menos lo que debe estar bloqueado: la suelta en BAJA). */
+    const mismoLado = (e: Estados, m: Estados) => Math.abs(e.calidad - m.calidad) <= 0.005 && e.bloqueado - m.bloqueado >= -0.005;
     return { grupo, codigo: a.codigo, material: a.material, conteo: total, detalle: meta ? `Bodega 38 · libre ${redondo(meta.libre)} · control-cal ${redondo(meta.calidad)} · bloqueado ${redondo(meta.bloqueado)}` : null,
       pendBaja: 0, lavadoBaja: 0, andina: 0, almacen: 0,
       otrosCajas: 0, upc: grupo === "ENVASE" ? upc(a.codigo) : 1, partes: meta ? {} : a.partes,
