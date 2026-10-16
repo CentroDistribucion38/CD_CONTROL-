@@ -60,3 +60,35 @@
   .al .al-t th { position: static }
   .al .al-t tr { break-inside: avoid }
 }
+
+/* ---------- la lista de alertas: una tarjeta por alerta ---------- */
+.al .al-compara { gap: 12px; font-size: 16px }
+.al .al-compara b { text-transform: none; font-size: 16px }
+.al .al-compara b::first-letter { text-transform: uppercase }
+.al .al-compara span { flex-direction: row; margin-left: auto; padding: 4px 12px; background: var(--fe-tinta); color: var(--fe-papel, #fff); font: 800 12px var(--fe-titulo); letter-spacing: .08em; text-transform: uppercase }
+.al .al-compara span:empty { display: none }
+
+.al .al-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px }
+.al .al-lista li { --tipo: var(--al-gris); display: grid; grid-template-columns: minmax(260px, 1.3fr) minmax(220px, 1fr) auto auto; align-items: center; gap: 18px; padding: 14px 18px; background: var(--fe-papel); border: 1px solid var(--fe-linea); border-left: 7px solid var(--tipo) }
+.al .al-lista li.reasignacion { --tipo: var(--al-azul) }
+.al .al-lista li.sin_contar { --tipo: var(--al-rojo) }
+.al .al-lista li.dif_nueva { --tipo: var(--al-ambar) }
+.al .al-lista li.hecha { opacity: .45 }
+.al .al-lista li.hecha .al-que span { text-decoration: line-through }
+
+.al .al-que { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0 }
+.al .al-que b { display: inline-block; background: var(--tipo); color: #fff; font: 800 12px var(--fe-titulo); letter-spacing: .08em; text-transform: uppercase; padding: 4px 10px }
+.al .al-que span { font: 800 16px/1.25 var(--fe-titulo); color: var(--fe-tinta) }
+.al .al-que small { display: block; margin-top: 2px; font-size: 12px; font-weight: 500 }
+
+.al .al-num { display: flex; flex-direction: column; gap: 2px; font: 700 15px/1.3 var(--fe-texto); color: var(--fe-tinta); font-variant-numeric: tabular-nums }
+.al .al-num b { font: 900 20px var(--fe-titulo) }
+.al .al-num small { font-size: 12.5px; font-weight: 600; color: var(--tipo) }
+
+.al .al-acc a { display: inline-block; min-height: 40px; line-height: 40px; padding: 0 16px; border: 1px solid var(--fe-tinta); background: var(--fe-acento); color: var(--fe-tinta); font: 800 13px/40px var(--fe-titulo); text-decoration: none; white-space: nowrap }
+.al .al-acc a:hover { background: var(--fe-tinta); color: var(--fe-papel, #fff) }
+
+.al .al-hecho { display: flex; align-items: center; gap: 8px; font: 700 13px var(--fe-texto); color: var(--fe-gris); cursor: pointer; white-space: nowrap }
+.al .al-hecho input { width: 20px; height: 20px; accent-color: var(--fe-tinta) }
+
+@media (max-width: 900px) { .al .al-lista li { grid-template-columns: 1fr auto; row-gap: 10px } .al .al-que, .al .al-num { grid-column: 1 / -1 } }
