@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import type { Disparador, Indicador, Proceso, Resultado, Turno } from "./semaforo";
+import type { Accion, Analisis, Disparador, Indicador, Proceso, Resultado, Turno } from "./semaforo";
 
 /**
  * LO QUE LEE EL MÓDULO DE GESTIÓN: turnos, procesos, indicadores, resultados y disparadores.
@@ -52,4 +52,18 @@ export async function leerGestion(desde: string, hasta: string): Promise<DatosGe
     disparadores: (d.data ?? []).map((x) => ({ ...(x as Disparador), valor: Number((x as Disparador).valor) })),
     falta: false, error: null,
   };
+}
+
+/**
+ * El 5 Why y el plan de acción de los disparadores. Van aparte de leerGestion a propósito: si todavía no se corrió
+ * 2026-10-gestion-5why-plan.sql, el resto de Gestión sigue funcionando y solo esta parte avisa que falta.
+ */
+export async function leerAnalisis(): Promise<{ analisis: Analisis[]; acciones: Accion[]; falta: boolean }> {
+  const supabase = await createClient();
+  const [a, c] = await Promise.all([
+    supabase.from("gestion_analisis").select("*").limit(5000),
+    supabase.from("gestion_acciones").select("*").order("fecha_limite").limit(20000),
+  ]);
+  if (a.error || c.error) return { analisis: [], acciones: [], falta: true };
+  return { analisis: (a.data ?? []) as Analisis[], acciones: (c.data ?? []) as Accion[], falta: false };
 }

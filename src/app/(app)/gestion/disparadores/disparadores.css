@@ -1,0 +1,63 @@
+/* =====================================================================
+   GESTIÓN · DISPARADORES — lista + panel del 5 Why y del plan de acción. Todo lleva `gp-` y cuelga de `.gs`.
+   ===================================================================== */
+.gs .gs-cifras.c4 { grid-template-columns: repeat(4, minmax(0, 1fr)) }
+.gs .gp { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(0, 2.1fr); gap: 12px; align-items: start }
+
+/* ---------- la lista ---------- */
+.gs .gp-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px }
+.gs .gp-item { width: 100%; text-align: left; display: flex; flex-direction: column; gap: 3px; padding: 10px 12px 10px 14px; background: var(--fe-papel); border: 1px solid var(--fe-linea); border-left: 6px solid var(--gs-rojo); cursor: pointer; color: var(--fe-tinta); font: inherit }
+.gs .gp-item.analisis { border-left-color: #2B6CB0 } .gs .gp-item.cerrado { border-left-color: var(--gs-verde) } .gs .gp-item.descartado { border-left-color: var(--fe-gris) }
+.gs .gp-item.sel { background: #FFF8E1; box-shadow: inset 0 0 0 2px var(--fe-acento) }
+.gs .gp-item:focus-visible { outline: 2px solid var(--fe-acento); outline-offset: 1px }
+.gs .gp-nom { font: 800 14.5px/1.25 var(--fe-titulo) }
+.gs .gp-item small { color: var(--fe-gris); font-size: 12px }
+.gs .gp-prog { font-weight: 700 }
+.gs .gp-pill { display: inline-block; align-self: flex-start; font: 800 10px var(--fe-titulo); letter-spacing: .09em; text-transform: uppercase; padding: 2px 8px; color: #fff; background: var(--gs-rojo) }
+.gs .gp-pill.analisis { background: #2B6CB0 } .gs .gp-pill.cerrado { background: var(--gs-verde) } .gs .gp-pill.descartado { background: var(--fe-gris) }
+
+/* ---------- el panel ---------- */
+.gs .gp-panel { background: var(--fe-papel); border: 1px solid var(--fe-linea); border-top: 6px solid var(--gs-rojo); display: flex; flex-direction: column; gap: 14px; padding: 14px 16px }
+.gs .gp-panel.analisis { border-top-color: #2B6CB0 } .gs .gp-panel.cerrado { border-top-color: var(--gs-verde) } .gs .gp-panel.descartado { border-top-color: var(--fe-gris) }
+.gs .gp-panel header h2 { margin: 4px 0 0; font: 800 19px/1.2 var(--fe-titulo) }
+.gs .gp-panel header small { color: var(--fe-gris) }
+.gs .gp-hecho { padding: 10px 12px; background: #FDE7EB; border-left: 5px solid var(--gs-rojo); font-size: 13.5px }
+.gs .gp-hecho small, .gs .gp-raiz small { display: block; font: 800 10px var(--fe-titulo); letter-spacing: .1em; text-transform: uppercase; color: #A4102A; margin-bottom: 2px }
+.gs .gp-tomar { display: flex; gap: 10px; align-items: end; flex-wrap: wrap }
+.gs .gp-tomar label { flex: 1; min-width: 220px }
+.gs .gp-resp { font-size: 13px; color: var(--fe-gris) } .gs .gp-resp b { color: var(--fe-tinta) }
+
+/* ---------- los 5 porqué, encadenados ---------- */
+.gs .gp-cadena { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column }
+.gs .gp-cadena li { display: grid; grid-template-columns: 34px 1fr; gap: 12px; position: relative; padding-bottom: 12px }
+.gs .gp-cadena li:not(:last-child)::before { content: ""; position: absolute; left: 16px; top: 34px; bottom: 0; width: 2px; background: var(--fe-linea) }
+.gs .gp-n { width: 34px; height: 34px; display: grid; place-items: center; background: #fff; color: var(--fe-gris); border: 2px dashed var(--fe-linea); font: 900 16px var(--fe-titulo) }
+.gs .gp-cadena li.lleno .gp-n { background: var(--fe-tinta); color: var(--fe-acento); border: 2px solid var(--fe-tinta) }
+.gs .gp-panel label { display: flex; flex-direction: column; gap: 4px; font: 700 12.5px var(--fe-texto); color: var(--fe-gris) }
+.gs .gp-panel textarea { border: 1px solid var(--fe-linea); background: var(--fe-papel); color: var(--fe-tinta); font: 500 13.5px/1.4 var(--fe-texto); padding: 8px 10px; border-radius: 2px; resize: vertical; width: 100% }
+.gs .gp-panel textarea:disabled { background: var(--fe-fondo); border-style: dashed }
+.gs .gp-panel textarea:focus-visible { outline: 2px solid var(--fe-acento); outline-offset: 1px }
+.gs .gp-leido { display: block; padding: 8px 10px; border: 1px solid var(--fe-linea); background: #FAFBFC; color: var(--fe-tinta); font: 500 13.5px/1.4 var(--fe-texto); min-height: 38px; white-space: pre-wrap }
+.gs .gp-raiz { padding: 12px; background: #FFF8E1; border: 2px solid var(--fe-acento) }
+.gs .gp-raiz small { color: var(--fe-tinta) }
+.gs .gp-acciones-barra { display: flex; justify-content: flex-end }
+
+/* ---------- plan de acción ---------- */
+.gs .gp-plan { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--fe-linea); padding-top: 12px }
+.gs .gp-plan h3 { margin: 0; font: 800 16px var(--fe-titulo) } .gs .gp-plan h3 small { font: 600 12.5px var(--fe-texto); color: var(--fe-gris); margin-left: 8px }
+.gs .gp-acciones { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px }
+.gs .gp-acciones li { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 8px 10px; background: #FAFBFC; border: 1px solid var(--fe-linea); border-left: 5px solid var(--fe-gris) }
+.gs .gp-acciones li.hecha { border-left-color: var(--gs-verde) } .gs .gp-acciones li.hecha b { text-decoration: line-through; color: var(--fe-gris) }
+.gs .gp-acciones li.vencida { border-left-color: var(--gs-rojo); background: #FFF4F6 } .gs .gp-acciones li.vencida small { color: var(--gs-rojo); font-weight: 800 }
+.gs .gp-acciones input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--fe-tinta) }
+.gs .gp-acciones small { display: block; color: var(--fe-gris); font-size: 12px }
+.gs .gp-nueva { display: grid; grid-template-columns: 2fr 1fr 150px auto; gap: 8px }
+
+/* ---------- pie: cierre y descarte ---------- */
+.gs .gp-pie { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--fe-linea); padding-top: 12px }
+.gs .gp-cierre { display: flex; gap: 8px; flex-wrap: wrap; align-items: center } .gs .gp-cierre input { flex: 1; min-width: 220px } .gs .gp-cierre .gs-nota { flex-basis: 100% }
+
+@media (max-width: 900px) {
+  .gs .gp { grid-template-columns: 1fr }
+  .gs .gp-nueva { grid-template-columns: 1fr 1fr }
+}

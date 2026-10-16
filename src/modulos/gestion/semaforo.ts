@@ -56,6 +56,22 @@ export type Indicador = {
   orden: number; activo: boolean;
 };
 
+/** El 5 Why de un disparador (uno por disparador): responsable, los cinco por qué y la causa raíz. */
+export type Analisis = {
+  disparador_id: string; responsable: string;
+  porque1: string; porque2: string; porque3: string; porque4: string; porque5: string;
+  causa_raiz: string; iniciado_en: string; actualizado_en: string;
+};
+/** Una acción del plan de un disparador. */
+export type Accion = {
+  id: string; disparador_id: string; accion: string; responsable: string; fecha_limite: string;
+  estado: "abierta" | "hecha"; hecha_en: string | null; creado_en: string;
+};
+/** Dónde va un disparador: PENDIENTE (sin análisis) → EN ANÁLISIS (tomado) → CERRADO; o DESCARTADO. */
+export type Etapa = "pendiente" | "analisis" | "cerrado" | "descartado";
+export const etapaDe = (d: Pick<Disparador, "estado">, tieneAnalisis: boolean): Etapa =>
+  d.estado === "cerrado" ? "cerrado" : d.estado === "descartado" ? "descartado" : tieneAnalisis ? "analisis" : "pendiente";
+
 export type Resultado = {
   id: string; indicador_id: string; fecha: string; turno_id: string | null;
   valor: number; estado: Estado; comentario: string | null; capturado_en: string;

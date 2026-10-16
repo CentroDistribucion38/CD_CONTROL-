@@ -1,0 +1,46 @@
+/* =====================================================================
+   BALANCE · VALIDACIÓN DE PASIVO — todo lleva `va-` y cuelga de `.va`.
+   ===================================================================== */
+.va { --va-rojo: var(--fe-mal, #C8102E); --va-verde: var(--fe-bien, #0F7A4A); --va-ambar: #B7791F }
+.va .mono { font-family: var(--fe-mono, ui-monospace, monospace); color: var(--fe-gris) }
+
+.va .va-cifras { display: flex; align-items: stretch; gap: 10px; flex-wrap: wrap }
+.va .va-cif { min-width: 130px; display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; background: var(--fe-papel); border: 1px solid var(--fe-linea); border-bottom: 5px solid var(--fe-gris) }
+.va .va-cif span { font: 700 10.5px var(--fe-texto); letter-spacing: .13em; text-transform: uppercase; color: var(--fe-gris) }
+.va .va-cif b { font: 900 26px/1.1 var(--fe-titulo); font-variant-numeric: tabular-nums }
+.va .va-cif.bien { border-bottom-color: var(--va-verde) } .va .va-cif.bien b { color: var(--va-verde) }
+.va .va-cif.mal { border-bottom-color: var(--va-rojo) } .va .va-cif.mal b { color: var(--va-rojo) }
+.va .va-chk { display: flex; align-items: center; gap: 8px; margin-left: auto; font-size: 13.5px; align-self: center }
+.va .va-chk input { width: 18px; height: 18px; accent-color: var(--fe-tinta) }
+.va .va-imprimir { min-height: 40px; padding: 0 16px; border: 1px solid var(--fe-tinta); background: var(--fe-tinta); color: var(--fe-papel, #fff); font: 800 13px var(--fe-titulo); border-radius: 2px; cursor: pointer; align-self: center }
+
+.va .va-scroll { overflow-x: auto; background: var(--fe-papel); border: 1px solid var(--fe-linea) }
+.va .va-t { width: 100%; border-collapse: collapse; font-size: 13px }
+.va .va-t th { position: sticky; top: 0; background: var(--fe-tinta); color: #fff; font: 700 10px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase; padding: 9px 10px; text-align: left; white-space: nowrap }
+.va .va-t th small { display: block; font-weight: 500; letter-spacing: 0; text-transform: none; opacity: .75 }
+.va .va-t td { padding: 8px 10px; border-bottom: 1px solid var(--fe-linea); vertical-align: top; color: var(--fe-tinta) }
+.va .va-t .n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap }
+.va .va-t .va-clave { background: #FFF8E1 } .va .va-t th.va-clave { background: var(--fe-acento); color: var(--fe-tinta) }
+.va .va-t td.neg b { color: var(--va-rojo) }
+.va .va-t tr.falta td, .va .va-t tr.sobra td { background-color: #FFF4F6 } .va .va-t tr.falta td.va-clave, .va .va-t tr.sobra td.va-clave { background: #FFE9A8 }
+.va .va-sub { display: block; font-size: 12px; color: var(--fe-gris); margin-top: 2px }
+.va .va-t td small { display: block; font-size: 12px; color: var(--fe-gris) }
+.va .va-tag { display: inline-block; color: #fff; font: 800 10.5px var(--fe-titulo); letter-spacing: .06em; text-transform: uppercase; padding: 3px 8px; background: var(--fe-gris) }
+.va .va-tag.cuadra { background: var(--va-verde) } .va .va-tag.falta, .va .va-tag.sobra { background: var(--va-rojo) }
+
+.va .va-ok, .va .va-vacio { margin: 0; padding: 14px 16px; background: var(--fe-papel); border: 1px solid var(--fe-linea); color: var(--fe-gris) }
+.va .va-aviso { margin: 0; padding: 10px 14px; background: #FFF8E1; border-left: 5px solid var(--fe-acento); font-size: 13px }
+.va .va-error { margin: 0; padding: 12px 16px; background: #FDE7EB; border-left: 6px solid var(--va-rojo); color: #A4102A; font-weight: 600 }
+.va .va-nota { margin: 0; font-size: 12.5px; color: var(--fe-gris) }
+
+@media print {
+  @page { size: A4 landscape; margin: 10mm }
+  body { background: #fff !important }
+  .sh-barra, .sh-lado, .sh-riel, .bal-dias, .va-imprimir, .va-chk { display: none !important }
+  .sh-marco, .sh-marco.anclado { display: block !important; min-height: 0 !important; grid-template-columns: 1fr !important }
+  .sh-main { padding: 0 !important; display: block !important; min-height: 0 !important }
+  .va { -webkit-print-color-adjust: exact; print-color-adjust: exact; gap: 8px }
+  .va .va-scroll { overflow: visible }
+  .va .va-t th { position: static }
+  .va .va-t tr { break-inside: avoid }
+}
