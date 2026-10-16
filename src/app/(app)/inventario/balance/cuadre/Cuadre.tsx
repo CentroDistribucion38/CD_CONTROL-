@@ -194,7 +194,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
     setMsg(null);
     const r = await leerZexi(a, ALM, campoZexi);
     if (r.error) { setMsg({ mal: true, t: r.error }); return }
-    hacer(guardarZexi(fecha!, JSON.stringify(r.filas), a.name, ALM), `ZEXI cargado: ${r.filas.length} materiales de ${ALM}${esAG22 ? " (bloqueado)" : ""}.`);
+    hacer(guardarZexi(fecha!, JSON.stringify(r.filas), a.name, ALM), `ZEXI cargado: ${r.filas.length} materiales de ${ALM}${esAG22 ? " (bloqueado)" : ""}.${r.faltanEstados ? ` ⚠ ${r.faltanEstados}` : ""}`);
   }
   async function subirMov(a: File) {
     setMsg(null);

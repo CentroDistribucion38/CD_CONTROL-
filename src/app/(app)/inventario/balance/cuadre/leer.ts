@@ -40,7 +40,7 @@ const col = (t: string[], ...pruebas: RegExp[]) => {
 
 /** EL ZEXI: Material · descripción · Alm. · Libre utiliz. · In control-cal · Bloqueado · Total General.
  *  campo «bloqueado» (AG22): solo la columna Bloqueado, que es contra lo que se cuadra la base de Pasivos. */
-export async function leerZexi(archivo: File, almacen: string, campo: "total" | "bloqueado" = "total"): Promise<{ filas: ZexiFila[]; error?: string }> {
+export async function leerZexi(archivo: File, almacen: string, campo: "total" | "bloqueado" = "total"): Promise<{ filas: ZexiFila[]; error?: string; faltanEstados?: string }> {
   const filas = await filasDe(archivo);
   const h = titulos(filas);
   if (!h) return { filas: [], error: "No encontré la columna «Material» en las primeras filas del ZEXI." };
@@ -68,7 +68,9 @@ export async function leerZexi(archivo: File, almacen: string, campo: "total" | 
     suma.set(c, x);
   }
   if (!suma.size) return { filas: [], error: `El ZEXI no trae materiales de ${almacen}.` };
-  return { filas: [...suma.values()] };
+  /* Para saber por qué una ZEXI no trae los estados: qué columnas encontré y qué títulos tiene. */
+  const faltan = [cLib < 0 && "Libre", cCal < 0 && "Control-cal", cBloq < 0 && "Bloqueado"].filter(Boolean);
+  return { filas: [...suma.values()], faltanEstados: faltan.length ? `No encontré la columna ${faltan.join(" ni ")}. Los títulos que veo son: ${filas[h.i].map((x) => txt(x)).filter(Boolean).join(" · ")}.` : undefined };
 }
 
 /**
