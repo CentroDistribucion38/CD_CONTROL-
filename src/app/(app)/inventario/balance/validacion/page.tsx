@@ -1,4 +1,3 @@
-import { misPermisos } from "@/lib/permisos";
 import Link from "next/link";
 import { cascoCarnaval, validacionPasivoAG22 } from "@/modulos/inventario/validacion-pasivo";
 import "../../../sider/sider.css";
@@ -6,7 +5,7 @@ import "../../fefo.css";
 import "../balance.css";
 import "./validacion.css";
 import { CascoCarnaval } from "./CascoCarnaval";
-import { ValidacionAG22 } from "./ValidacionAG22";
+import { FisicoBodega38 } from "./FisicoBodega38";
 
 export const dynamic = "force-dynamic";
 
@@ -26,8 +25,8 @@ export default async function ValidacionPage({ searchParams }: { searchParams: P
     </nav>
   );
   if (ag22) {
-    const [d, permisos] = await Promise.all([validacionPasivoAG22(dia), misPermisos()]);
-    return <div className="fe bal va">{hojas}<ValidacionAG22 datos={d} puedeEnviar={permisos.puedeEditar("/inventario/balance/pasivos")} /></div>;
+    const d = await validacionPasivoAG22(dia);
+    return <div className="fe bal va">{hojas}<FisicoBodega38 datos={d} /></div>;
   }
   const d = await cascoCarnaval(dia);
   return <div className="fe bal va">{hojas}<CascoCarnaval datos={d} /></div>;

@@ -61,11 +61,10 @@ export async function leerZexi(archivo: File, almacen: string, campo: "total" | 
     x.cantidad += q;
     /* Cómo está repartido (Libre · Control de calidad · Bloqueado): el paso 2 avisa si lo que hay que
        sacar de AG18 está bloqueado (primero un 343). */
-    if (campo === "total") {
-      if (cLib >= 0) x.libre = (x.libre ?? 0) + (num(f[cLib]) || 0);
-      if (cCal >= 0) x.calidad = (x.calidad ?? 0) + (num(f[cCal]) || 0);
-      if (cBloq >= 0) x.bloqueado = (x.bloqueado ?? 0) + (num(f[cBloq]) || 0);
-    }
+    /* También en AG22 (campo «bloqueado»): las cajas plásticas se balancean por estado y necesitan los tres. */
+    if (cLib >= 0) x.libre = (x.libre ?? 0) + (num(f[cLib]) || 0);
+    if (cCal >= 0) x.calidad = (x.calidad ?? 0) + (num(f[cCal]) || 0);
+    if (cBloq >= 0) x.bloqueado = (x.bloqueado ?? 0) + (num(f[cBloq]) || 0);
     suma.set(c, x);
   }
   if (!suma.size) return { filas: [], error: `El ZEXI no trae materiales de ${almacen}.` };

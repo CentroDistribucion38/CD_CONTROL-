@@ -417,6 +417,11 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
  * (ANDINA…) no entran y se avisan. DIFERENCIA = SAP bloqueado − total base. Aquí NO se cambia de almacén:
  * negativa → falta bloquear, pasar de LIBRE a BLOQUEADO en AG22; positiva → sobra bloqueado, pasar de
  * BLOQUEADO a LIBRE. El paso 3 es igual al de AG18 (la ZEXI nueva, su columna Bloqueado).
+ *
+ * CAJAS PLÁSTICAS (igual que AG18, pero SIN 311: aquí no se cambia de almacén): la meta de cada caja sale del CONTEO de Bodega 38
+ * (todo lo que no es FABRICA_), por estado: suelta en BAJA → Bloqueado · suelta en RETORNO (u otro) → Libre · la caja que lleva el
+ * envase → In control-cal. Se compara con la ZEXI de AG22 en sus tres estados y lo que falta sale en movimientos de estado (paso 3).
+ * La base de Pasivos NO manda en las cajas.
  */
 async function armarCuadreAG22(pedida?: string | null) {
   const supabase = await createClient();
@@ -472,30 +477,80 @@ async function armarCuadreAG22(pedida?: string | null) {
     (a.estados[causal] ??= new Set()).add(String(f.estado ?? "").toUpperCase());
   }
   for (const [c, x] of fuera) avisos.push(`No entra al cuadre AG22 la causal ${c || "(vacía)"}: ${x.filas} filas · ${new Intl.NumberFormat("es-CO").format(x.unidades)} u. Solo entran ${CAUSALES_AG22.join(", ")}.`);
+  /* Las cajas plásticas no se cuadran con la base (su meta sale del conteo): si la base trae alguna, se avisa y no se usa. */
+  const cajasDeLaBase = [...acc.values()].filter((a) => grupoDe(a.codigo) === "CAJA" && Object.values(a.partes).some((v) => v));
+  if (cajasDeLaBase.length) avisos.push(`La base de Pasivos AG22 trae ${cajasDeLaBase.length} caja(s) plástica(s) (${cajasDeLaBase.map((a) => a.codigo).join(", ")}): no se usan; la meta de las cajas sale del conteo de Bodega 38.`);
+
+  /* CAJAS PLÁSTICAS · lo contado en Bodega 38 (todo lo que no es de fábrica), para la meta por estado. */
+  const cajasConteo = new Map<string, { material: string; sueltas: number; sueltasBaja: number; conEnvase: number }>();
+  const cajaDe = (c: string, alt?: string | null) => {
+    let k = cajasConteo.get(c);
+    if (!k) { k = { material: nombre(c, alt), sueltas: 0, sueltasBaja: 0, conEnvase: 0 }; cajasConteo.set(c, k) }
+    return k;
+  };
+  let hayConteo = false;
+  {
+    const { conteos, error: eC } = await diasConConteo();
+    if (eC) avisos.push(`No pude leer el conteo (las cajas plásticas): ${eC}`);
+    const cons = await consolidadoDelDia(fecha, conteos);
+    if (cons.error) avisos.push(`No pude leer el conteo de ${fecha} (las cajas plásticas): ${cons.error}`);
+    for (const r of await conReclasificaciones(cons.vigentes)) {
+      if (r.tipo_material !== "ENVASE") continue;
+      const c = String(r.codigo), cj = Number(r.total_cajas) || 0;
+      if (excluye(regla, c, r.material)) continue;
+      if (esUbicacionFabrica(r.calle) || esUbicacionFabrica(r.ubicacion) || esUbicacionFabrica(r.ubicacion_combinada)) continue;
+      hayConteo = true;
+      const g = grupoDe(c);
+      if (g === "ESTIBA") continue;
+      if (g === "CAJA") {
+        const k = cajaDe(c, r.material); k.sueltas += cj;
+        /* Suelta en BAJA → Bloqueado; en RETORNO (o cualquier otro estado) → Libre. */
+        if (/BAJA/i.test(String(r.estado_envase ?? ""))) k.sueltasBaja += cj;
+        continue;
+      }
+      /* La caja que lleva el envase → In control-cal (salvo los envases cuya caja no entra al cuadre). */
+      const cj2 = M.get(c)?.caja;
+      if (cj2 && !CAJA_FUERA_DEL_CUADRE.has(c)) cajaDe(String(cj2)).conEnvase += cj;
+    }
+    if (!hayConteo) avisos.push(`No hay conteo de Bodega 38 para ${fecha}: las cajas plásticas no se pueden armar por estado.`);
+  }
 
   const sap = new Map((guardado?.zexi ?? []).map((z) => [String(z.codigo), z]));
   const mov = new Map((guardado?.movimientos ?? []).map((m) => [String(m.codigo), m]));
   const fueraNuevos = new Set<string>();
   for (const z of sap.values()) { if (excluye(regla, z.codigo, z.descripcion ?? nombre(String(z.codigo)))) { fueraNuevos.add(String(z.codigo)); continue } de(String(z.codigo), z.descripcion) }
   for (const m of mov.values()) if (!excluye(regla, m.codigo, nombre(String(m.codigo)))) de(String(m.codigo));
+  for (const [c, k] of cajasConteo) if (k.sueltas || k.conEnvase) de(c, k.material);
   const excluidos = panelExcluidos(regla, catalogo(M, P), fueraNuevos);
 
   const filas: FilaCuadre[] = [...acc.values()].map((a) => {
     const grupo = grupoDe(a.codigo);
-    const total = redondo(Object.values(a.partes).reduce((t, v) => t + v, 0));
     const z = sap.get(a.codigo), m = mov.get(a.codigo);
+    /* CAJA PLÁSTICA: la meta sale del conteo de Bodega 38, por estado; «total» = lo que debe estar BLOQUEADO (la suelta en BAJA). */
+    const kc = grupo === "CAJA" ? (cajasConteo.get(a.codigo) ?? { material: a.material, sueltas: 0, sueltasBaja: 0, conEnvase: 0 }) : null;
+    const meta: Estados | null = kc ? { libre: redondo(kc.sueltas - kc.sueltasBaja), calidad: redondo(kc.conEnvase), bloqueado: redondo(kc.sueltasBaja) } : null;
+    /* CAJA PLÁSTICA = como AG18: «total» es todo lo contado en Bodega 38 (libre + control-cal + bloqueado) contra TODO lo que SAP tiene en AG22 (los tres
+       estados): la diferencia es el 311 con AG18; después los estados. El ENVASE sigue contra el Bloqueado (base de Pasivos). */
+    const total = meta ? redondo(meta.libre + meta.calidad + meta.bloqueado) : redondo(Object.values(a.partes).reduce((t, v) => t + v, 0));
     /* «Lo que no tiene SAP me tiene que decir que del 22 debo pasarlo al 18, ya que allá no tiene»: con ZEXI
        cargado, un material que no viene en él es 0 en SAP (no «sin dato»), y entra a la lista del 311 / 344. */
-    const sapV = z ? Number(z.cantidad) : (guardado?.zexi?.length ? 0 : null);
+    const sapV = z ? (meta && z.libre != null ? redondo((z.libre ?? 0) + (z.calidad ?? 0) + (z.bloqueado ?? 0)) : Number(z.cantidad)) : (guardado?.zexi?.length ? 0 : null);
     const movido = m ? Number(m.cantidad) : 0;
     const dif = sapV == null ? null : redondo(sapV - total);
     const sapDespues = sapV == null ? null : redondo(sapV + movido);
     const queda = sapDespues == null ? null : redondo(sapDespues - total);
-    return { grupo, codigo: a.codigo, material: a.material, conteo: total, detalle: null, pendBaja: 0, lavadoBaja: 0, andina: 0, almacen: 0,
-      otrosCajas: 0, upc: grupo === "ENVASE" ? upc(a.codigo) : 1, partes: a.partes,
-      total, sap: sapV, dif, movido, documentos: m?.documentos ?? [], sapDespues, queda };
+    const estadoFinal: Estados | null = meta && m?.libre != null ? { libre: redondo(m.libre ?? 0), calidad: redondo(m.calidad ?? 0), bloqueado: redondo(m.bloqueado ?? 0) } : null;
+    const igual = (x: number, y: number) => Math.abs(x - y) < 0.005;
+    return { grupo, codigo: a.codigo, material: a.material, conteo: total, detalle: meta ? `Bodega 38 · libre ${redondo(meta.libre)} · control-cal ${redondo(meta.calidad)} · bloqueado ${redondo(meta.bloqueado)}` : null,
+      pendBaja: 0, lavadoBaja: 0, andina: 0, almacen: 0,
+      otrosCajas: 0, upc: grupo === "ENVASE" ? upc(a.codigo) : 1, partes: meta ? {} : a.partes,
+      total, sap: sapV, dif, movido, documentos: m?.documentos ?? [], sapDespues, queda,
+      ...(meta ? { libre: z?.libre ?? null, bloqueado: z?.bloqueado ?? null, calidad: z?.calidad ?? null, meta, estadoFinal,
+        estadoOk: estadoFinal ? igual(estadoFinal.libre, meta.libre) && igual(estadoFinal.calidad, meta.calidad) && igual(estadoFinal.bloqueado, meta.bloqueado) : null } : {}) };
   })
-    .filter((f) => f.total !== 0 || (f.sap ?? 0) !== 0 || f.movido !== 0)
+    /* Una caja plástica solo se lista si algo la cuenta (conteo, bloqueado de SAP o lo movido): su libre de SAP, solo, no es ruido que mostrar. */
+    .filter((f) => f.grupo === "CAJA" ? (f.meta != null && (f.meta.libre !== 0 || f.meta.calidad !== 0 || f.meta.bloqueado !== 0)) || (f.sap ?? 0) !== 0 || f.movido !== 0
+      : f.total !== 0 || (f.sap ?? 0) !== 0 || f.movido !== 0)
     .sort((x, y) => "ENVASE CAJA ESTIBA".indexOf(x.grupo) - "ENVASE CAJA ESTIBA".indexOf(y.grupo) || x.codigo.localeCompare(y.codigo));
 
   /* De dónde sale cada cifra: lo de cada causal de la base. */

@@ -162,11 +162,13 @@ export type FilaValidacionAG22 = {
   pendBaja: number; pendLavado: number; pendExtra: number; pendBloquear: number;
   estado: "cuadra" | "dif";
 };
-export type DatosValidacionAG22 = { fecha: string | null; dias: string[]; filas: FilaValidacionAG22[]; yaEnviado: boolean; historico: boolean; avisos: string[]; error: string | null };
+/** Cajas plásticas contadas en Bodega 38, por estado (lo que debe quedar en SAP: el balance del Cuadre SAP AG22). */
+export type FilaCajaAG22 = { codigo: string; material: string; libre: number; calidad: number; bloqueado: number };
+export type DatosValidacionAG22 = { fecha: string | null; dias: string[]; filas: FilaValidacionAG22[]; cajas: FilaCajaAG22[]; yaEnviado: boolean; historico: boolean; avisos: string[]; error: string | null };
 
 export async function validacionPasivoAG22(pedida?: string | null): Promise<DatosValidacionAG22> {
   const c = await armarCuadre(pedida, "AG18");
-  const vacio: DatosValidacionAG22 = { fecha: c.fecha, dias: c.dias, filas: [], yaEnviado: false, historico: false, avisos: c.avisos, error: c.error };
+  const vacio: DatosValidacionAG22 = { fecha: c.fecha, dias: c.dias, filas: [], cajas: [], yaEnviado: false, historico: false, avisos: c.avisos, error: c.error };
   if (!c.fecha || c.error || c.faltaSql) return { ...vacio, error: c.error ?? (c.faltaSql ? "Falta crear las tablas del Cuadre SAP." : null) };
   const b = await armarCuadre(c.fecha, "AG22");
   if (b.error) return { ...vacio, error: b.error };
@@ -193,5 +195,10 @@ export async function validacionPasivoAG22(pedida?: string | null): Promise<Dato
     });
   }
   filas.sort((a, z) => a.codigo.localeCompare(z.codigo, "es", { numeric: true }));
-  return { fecha: c.fecha, dias: c.dias, filas, yaEnviado, historico, avisos: [...c.avisos, ...b.avisos.filter((a) => !c.avisos.includes(a))], error: null };
+  /* Las cajas plásticas: lo contado en Bodega 38 por estado (libre · control-cal · bloqueado), del Cuadre SAP AG22. */
+  const cajas: FilaCajaAG22[] = b.filas.filter((f) => f.grupo === "CAJA" && f.meta)
+    .map((f) => ({ codigo: f.codigo, material: f.material, libre: r2(f.meta!.libre), calidad: r2(f.meta!.calidad), bloqueado: r2(f.meta!.bloqueado) }))
+    .filter((f) => f.libre || f.calidad || f.bloqueado)
+    .sort((x, y) => x.codigo.localeCompare(y.codigo, "es", { numeric: true }));
+  return { fecha: c.fecha, dias: c.dias, filas, cajas, yaEnviado, historico, avisos: [...c.avisos, ...b.avisos.filter((a) => !c.avisos.includes(a))], error: null };
 }
