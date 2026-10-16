@@ -138,7 +138,10 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
     const hoy: Estados = { libre: f.libre ?? 0, calidad: f.calidad ?? 0, bloqueado: f.bloqueado ?? 0 };
     /* AG18: tras el 311 (llega o sale por libre). AG22: no hay 311, se parte de lo que dice la ZEXI (lo que no cuadre en cantidad es diferencia de inventario). */
     const tras: Estados = esAG22 ? { ...hoy } : { ...hoy, libre: hoy.libre - (f.dif ?? 0) };
-    const d = ESTADOS_K.map((k) => ({ k, v: f.meta![k] - tras[k] }));
+    /* AG22: si SAP tiene MÁS cajas que lo contado, ese sobrante es diferencia de inventario y se BLOQUEA (libre y control-cal quedan como el conteo). */
+    const sobra = esAG22 && conEstados ? (tras.libre + tras.calidad + tras.bloqueado) - (f.meta!.libre + f.meta!.calidad + f.meta!.bloqueado) : 0;
+    const objetivo: Estados = sobra > 0.5 ? { ...f.meta!, bloqueado: f.meta!.bloqueado + sobra } : f.meta!;
+    const d = ESTADOS_K.map((k) => ({ k, v: objetivo[k] - tras[k] }));
     const fuentes = d.filter((x) => x.v < -0.5).map((x) => ({ k: x.k, v: -x.v }));
     const destinos = d.filter((x) => x.v > 0.5).map((x) => ({ ...x }));
     /* Lo que pasa A LIBRE va ANTES del 311 solo si la caja sale de AG18 y lo libre de hoy no alcanza. */
@@ -152,9 +155,9 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
     const queda: Estados = { ...tras };
     if (conEstados) for (const m of movs) { const [a, b] = m.clave.split(">") as (keyof Estados)[]; queda[a] -= m.cant; queda[b] += m.cant }
     /* AG22: si la cantidad total no cuadra es diferencia de inventario; el balanceo está hecho cuando ningún estado falta mientras otro sobra. */
-    const dd = ESTADOS_K.map((k) => queda[k] - f.meta![k]);
+    const dd = ESTADOS_K.map((k) => queda[k] - objetivo[k]);
     const cuadra = conEstados && (esAG22 ? dd.every((v) => v > -0.5) || dd.every((v) => v < 0.5) : dd.every((v) => cero(v)));
-    const difInv = esAG22 && conEstados ? dd.reduce((t, v) => t + v, 0) : 0;
+    const difInv = esAG22 && conEstados ? (queda.libre + queda.calidad + queda.bloqueado) - (f.meta!.libre + f.meta!.calidad + f.meta!.bloqueado) : 0;
     return { f, conEstados, hoy, tras, queda, cuadra, difInv, movs: conEstados ? movs : [] };
   });
   /* Con cajas plásticas en AG18 el flujo es de 4 pasos: 1 cuadre · 2 311 del envase · 3 balance de cajas · 4 cómo quedó. */
@@ -573,7 +576,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
             <h2 className="cs-h" id="p-cajas"><i>3</i> Balancear las cajas <small className="cs-h-s">{esAG22 ? "el balance por estado en AG22" : "el 311 y el balance por estado"}: libre · control-cal · bloqueado</small></h2>
             <div className="cs-caja cs-cajest">
               <p className="cs-cajest-dice">
-                {esAG22 && <>Lo contado en <b>Bodega 38</b>. </>}Suelta en <b>BAJA → Bloqueado</b> · suelta en <b>RETORNO → Libre utilización</b> · la caja que lleva el envase → <b>In control-cal</b>.{esAG22 && " Aquí no hay 311: solo se balancean los estados dentro de AG22; lo que no cuadre en cantidad es una diferencia de inventario."}
+                {esAG22 && <>Lo contado en <b>Bodega 38</b>. </>}Suelta en <b>BAJA → Bloqueado</b> · suelta en <b>RETORNO → Libre utilización</b> · la caja que lleva el envase → <b>In control-cal</b>.{esAG22 && " Aquí no hay 311: solo se balancean los estados dentro de AG22; lo que no cuadre en cantidad es una diferencia de inventario y, si SAP tiene de más, se bloquea."}
                 Toca un código para verlo resaltado en todos sus movimientos.
               </p>
               <div className="cs-scroll">
@@ -596,7 +599,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                           <td className={"n" + (cero(hoy.bloqueado - f.meta!.bloqueado) ? "" : " dif")}>{n(hoy.bloqueado)}</td>
                           <td className="n fin"><b>{n(queda.libre)}</b></td><td className="n fin"><b>{n(queda.calidad)}</b></td><td className="n fin"><b>{n(queda.bloqueado)}</b></td>
                           <td>{cuadra ? <span className="cs-chip ok">{esAG22 && !cero(difInv) ? "Balanceado" : "= físico"}</span> : <span className="cs-chip in">No cuadra</span>}
-                            {esAG22 && !cero(difInv) && <span className="cs-chip" title="Lo contado en Bodega 38 y lo que dice SAP en AG22 no son la misma cantidad: se ajusta como diferencia de inventario (no es un 311)">Dif. inventario {conSigno(difInv)}</span>}</td>
+                            {esAG22 && !cero(difInv) && <span className="cs-chip" title="Lo contado en Bodega 38 y lo que dice SAP en AG22 no son la misma cantidad: es una diferencia de inventario (no es un 311): si sobra en SAP, queda en bloqueado">Dif. inventario {conSigno(difInv)}</span>}</td>
                         </> : <td colSpan={7} className="cs-gris">La ZEXI no trae los estados (Libre · Control-cal · Bloqueado)</td>}
                       </tr>
                     ))}
