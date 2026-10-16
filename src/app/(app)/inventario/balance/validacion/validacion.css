@@ -44,3 +44,12 @@
   .va .va-t th { position: static }
   .va .va-t tr { break-inside: avoid }
 }
+
+/* ---------- enviar a la Base de pasivos ---------- */
+.va .va-envio { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; background: var(--fe-papel); border: 1px solid var(--fe-linea); border-left: 6px solid var(--fe-acento) }
+.va .va-envio small { color: var(--fe-gris); font-size: 12.5px }
+.va .va-enviar { min-height: 40px; padding: 0 16px; border: 1px solid var(--fe-tinta); background: var(--fe-acento); color: var(--fe-tinta); font: 800 13px var(--fe-titulo); border-radius: 2px; cursor: pointer }
+.va .va-enviar:disabled { opacity: .5; cursor: not-allowed }
+.va .va-cancelar { min-height: 40px; padding: 0 14px; border: 1px solid var(--fe-linea); background: var(--fe-papel); color: var(--fe-tinta); font: 700 13px var(--fe-texto); border-radius: 2px; cursor: pointer }
+.va .va-ok-env { margin: 0; flex-basis: 100%; padding: 8px 12px; background: #E6F4EC; border-left: 5px solid var(--va-verde); font-weight: 600 }
+@media print { .va-envio { display: none !important } }

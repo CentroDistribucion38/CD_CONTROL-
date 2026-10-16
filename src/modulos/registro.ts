@@ -738,12 +738,12 @@ export const MODULOS: Modulo[] = [
       /* CUADRE SAP: el conteo del día contra el ZEXI de AG18 → el 311 que hay que hacer, y con la
          transacción del 311 ya bajada de SAP, si todo quedó balanceado. */
       { nombre: "Cuadre SAP", ruta: "/inventario/balance/cuadre", rama: "balance" },
-      /* VALIDACIÓN DE PASIVO: conteo − pasivo = pendiente por baja, contra la existencia final del Cuadre SAP AG18. Solo valida. */
-      { nombre: "Validación de pasivo", ruta: "/inventario/balance/validacion", rama: "balance" },
       /* PASIVOS (BLOQUEADOS.xlsx): la base se alimenta del balance y del archivo plano de la baja
          proyectada y la rotura de línea; el maestro va al final. El informe viene después. */
       { nombre: "Base", ruta: "/inventario/balance/pasivos", rama: "balance", grupo: "Pasivos" },
       { nombre: "Informe", ruta: "/inventario/balance/pasivos/informe", rama: "balance", grupo: "Pasivos" },
+      /* VALIDACIÓN DE PASIVO (AG18): conteo − pasivo = pendiente por baja, contra la existencia final del Cuadre SAP; desde aquí el pendiente se envía a la Base. */
+      { nombre: "Validación", ruta: "/inventario/balance/validacion", rama: "balance", grupo: "Pasivos" },
       { nombre: "Maestro", ruta: "/inventario/balance/pasivos/maestro", rama: "balance", grupo: "Pasivos" },
       /* ANÁLISIS DE DIFERENCIA (2026.10.14_BODEGA_38.xlsx): la hoja que abarca todo, CONTEO vs SAP de Bodega 38.
          Va al final: usa el conteo, los cortes, Pasivos y el Cuadre SAP. */

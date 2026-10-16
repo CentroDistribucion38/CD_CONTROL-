@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { consolidadoDelDia, diasConConteo, leerCasco } from "@/modulos/inventario/balance";
 import { esUbicacionFabrica } from "@/modulos/casco/ubicacion-sitio";
 import { diasConPasivos, leerPasivos } from "@/modulos/pasivos/datos";
+import { esPendienteBaja } from "@/modulos/pasivos/pendiente-baja";
 import { excluye, type PanelExcluidos } from "@/modulos/pasivos/excluidos";
 import { leerExcluidos, panelExcluidos } from "@/modulos/pasivos/excluidos-leer";
 import { conReclasificaciones } from "@/modulos/inventario/reclasificaciones";
@@ -234,6 +235,7 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
   /* 2. PEND. BAJA Y ANDINA / HEINEKEN (Pasivos AG18 · BAJA, del día). */
   for (const f of pas.data) {
     if (f.almacen !== ALMACEN_CUADRE || String(f.estado).toUpperCase() !== "BAJA") continue;
+    if (esPendienteBaja(f.causal)) continue; /* lo enviado desde la Validación de pasivo ya sale de conteo − pasivo: no se cuenta doble */
     const a = de(String(f.codigo), f.descripcion);
     if (String(f.causal).toUpperCase() === "SORTING") a.pend += Number(f.unidades) || 0;
     else { a.andina += Number(f.unidades) || 0; a.causales.add(String(f.causal ?? "").toUpperCase() || "SIN CAUSAL") }
