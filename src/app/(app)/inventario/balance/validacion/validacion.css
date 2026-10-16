@@ -53,3 +53,9 @@
 .va .va-cancelar { min-height: 40px; padding: 0 14px; border: 1px solid var(--fe-linea); background: var(--fe-papel); color: var(--fe-tinta); font: 700 13px var(--fe-texto); border-radius: 2px; cursor: pointer }
 .va .va-ok-env { margin: 0; flex-basis: 100%; padding: 8px 12px; background: #E6F4EC; border-left: 5px solid var(--va-verde); font-weight: 600 }
 @media print { .va-envio { display: none !important } }
+
+/* ---------- pestañas AG18 / AG22 ---------- */
+.va .va-hojas { display: flex; gap: 0; border-bottom: 3px solid var(--fe-tinta) }
+.va .va-hojas a { padding: 10px 22px; font: 800 14px var(--fe-titulo); letter-spacing: .08em; color: var(--fe-gris); text-decoration: none; background: var(--fe-papel); border: 1px solid var(--fe-linea); border-bottom: 0; margin-right: 4px }
+.va .va-hojas a.on { background: var(--fe-tinta); color: #fff; border-color: var(--fe-tinta) }
+@media print { .va-hojas { display: none !important } }

@@ -120,3 +120,53 @@ export async function validacionPasivo(pedida?: string | null): Promise<DatosVal
   filas.sort((a, b) => a.codigo.localeCompare(b.codigo, "es", { numeric: true }));
   return { fecha: c.fecha, dias: c.dias, filas, hayZexi, yaEnviado: hayEnviado, historico, avisos: c.avisos, error: null };
 }
+
+/* ============================================================================================================
+ * VALIDACIÓN DE PASIVO · AG22 (Bodega 38) — lo contado en el conteo contra la Base de pasivos de AG22, SIN la rotura de línea.
+ *
+ *   CONTEO   lo contado en Bodega 38 (todo lo que no es FABRICA_…), por estado del conteo: BAJA, LAVADO, EXTRASUCIO y OTROS.
+ *   BASE     Pasivos AG22 del día: BAJA = PRESORTING + BAJA PROYECTADA · LAVADO · EXTRASUCIO.
+ *            ROTURA DE LINEA no se cuenta físicamente: se muestra aparte y NO entra a la comparación.
+ *   PENDIENTE  conteo − base, por estado (positivo = se contó más de lo que dice la Base; negativo = la Base tiene más).
+ *            Lo contado en OTROS no está en la Base: es lo que hay que bloquear.
+ * Solo analiza: no envía nada a la Base.
+ * ========================================================================================================== */
+export type FilaValidacionAG22 = {
+  codigo: string; material: string; upc: number;
+  conteoBaja: number; conteoLavado: number; conteoExtra: number; conteoOtros: number;
+  baseBaja: number; baseLavado: number; baseExtra: number;
+  /** ROTURA DE LINEA de la Base: fuera de la comparación. */
+  rotura: number;
+  pendBaja: number; pendLavado: number; pendExtra: number; pendBloquear: number;
+  estado: "cuadra" | "dif";
+};
+export type DatosValidacionAG22 = { fecha: string | null; dias: string[]; filas: FilaValidacionAG22[]; avisos: string[]; error: string | null };
+
+export async function validacionPasivoAG22(pedida?: string | null): Promise<DatosValidacionAG22> {
+  const c = await armarCuadre(pedida, "AG18");
+  const vacio: DatosValidacionAG22 = { fecha: c.fecha, dias: c.dias, filas: [], avisos: c.avisos, error: c.error };
+  if (!c.fecha || c.error || c.faltaSql) return { ...vacio, error: c.error ?? (c.faltaSql ? "Falta crear las tablas del Cuadre SAP." : null) };
+  const b = await armarCuadre(c.fecha, "AG22");
+  if (b.error) return { ...vacio, error: b.error };
+
+  const base = new Map<string, { material: string; upc: number; partes: Record<string, number> }>();
+  for (const f of b.filas) if (f.grupo === "ENVASE") base.set(f.codigo, { material: f.material, upc: f.upc, partes: f.partes ?? {} });
+  const cont = new Map(c.conteoBodega.map((x) => [x.codigo, x]));
+  const filas: FilaValidacionAG22[] = [];
+  for (const k of new Set([...base.keys(), ...cont.keys()])) {
+    const bs = base.get(k), ct = cont.get(k);
+    const p = bs?.partes ?? {};
+    const baseBaja = r2((p["PRESORTING"] ?? 0) + (p["BAJA PROYECTADA"] ?? 0)), baseLavado = r2(p["LAVADO"] ?? 0), baseExtra = r2(p["EXTRASUCIO"] ?? 0), rotura = r2(p["ROTURA DE LINEA"] ?? 0);
+    const conteoBaja = r2(ct?.baja ?? 0), conteoLavado = r2(ct?.lavado ?? 0), conteoExtra = r2(ct?.extrasucio ?? 0), conteoOtros = r2(ct?.otros ?? 0);
+    if (![conteoBaja, conteoLavado, conteoExtra, conteoOtros, baseBaja, baseLavado, baseExtra, rotura].some((v) => Math.abs(v) > 0.005)) continue;
+    const pendBaja = r2(conteoBaja - baseBaja), pendLavado = r2(conteoLavado - baseLavado), pendExtra = r2(conteoExtra - baseExtra), pendBloquear = conteoOtros;
+    filas.push({
+      codigo: k, material: bs?.material ?? ct?.material ?? k, upc: bs?.upc ?? 1,
+      conteoBaja, conteoLavado, conteoExtra, conteoOtros, baseBaja, baseLavado, baseExtra, rotura,
+      pendBaja, pendLavado, pendExtra, pendBloquear,
+      estado: [pendBaja, pendLavado, pendExtra, pendBloquear].every((v) => Math.abs(v) < EPS) ? "cuadra" : "dif",
+    });
+  }
+  filas.sort((a, z) => a.codigo.localeCompare(z.codigo, "es", { numeric: true }));
+  return { fecha: c.fecha, dias: c.dias, filas, avisos: [...c.avisos, ...b.avisos.filter((a) => !c.avisos.includes(a))], error: null };
+}

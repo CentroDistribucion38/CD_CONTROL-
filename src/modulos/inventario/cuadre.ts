@@ -83,6 +83,8 @@ export type LineaOtros = {
   elegido: boolean;
 };
 export type Grupo = "ENVASE" | "CAJA" | "ESTIBA";
+/** Lo contado en Bodega 38 (AG22) de un envase, en unidades, por estado del conteo. */
+export type ConteoBodega = { codigo: string; material: string; baja: number; lavado: number; extrasucio: number; otros: number };
 /** Lo que la app le aplicó a una referencia, con el porqué, para que cada movimiento se entienda. */
 export type Aplicado = { codigo: string; material: string; que: string; cantidad: number; unidad: string; porque: string; apagado?: boolean };
 export type FilaCuadre = {
@@ -149,7 +151,7 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
   const { dias, conteos, error: e0 } = await diasConConteo();
   const fecha = pedida && dias.includes(pedida) ? pedida : (dias[0] ?? null);
   const base = { fecha, dias, filas: [] as FilaCuadre[], guardado: null as CuadreGuardado | null, estibasBodega: 0, avisos: [] as string[], error: e0, faltaSql: false, historial: [] as DiaHistorial[], faltaHist: false,
-    otros: [] as LineaOtros[], envases: [] as { codigo: string; material: string }[], aplicados: [] as Aplicado[], excluidos: null as PanelExcluidos | null };
+    otros: [] as LineaOtros[], envases: [] as { codigo: string; material: string }[], aplicados: [] as Aplicado[], excluidos: null as PanelExcluidos | null, conteoBodega: [] as ConteoBodega[] };
   if (!fecha) return base;
 
   const [cons, prodR, maesR, pas, casco, sitiosR, guardR, hist, regla] = await Promise.all([
@@ -196,6 +198,7 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
   const otros: LineaOtros[] = [];
   const envasesVistos = new Set<string>();
   let estBajo = 0, estSueltas = 0, estibasBodega = 0;
+  const bodega = new Map<string, ConteoBodega>();
   /* Con lo reclasificado en el Balance: una línea OTROS que se pasó a BAJA ya no es OTROS. */
   const fueraNuevos = new Set<string>();
   for (const r of await conReclasificaciones(cons.vigentes)) {
@@ -206,7 +209,17 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
     /* SOLO LO DE FÁBRICA entra al cuadre de AG18: por la calle o por el nombre de la ubicación (FABRICA, FABRICA_…,
        FABRICAL4…), con la MISMA regla del Análisis de diferencia. Antes se miraba solo `ubicacion`. */
     const deFabrica = esUbicacionFabrica(r.calle) || esUbicacionFabrica(r.ubicacion) || esUbicacionFabrica(r.ubicacion_combinada);
-    if (!deFabrica) { if (c === ESTIBA) estibasBodega += cajas; continue }
+    if (!deFabrica) {
+      if (c === ESTIBA) estibasBodega += cajas;
+      else if (grupoDe(c) === "ENVASE") {
+        /* LO CONTADO EN BODEGA 38 (AG22), por estado: para la validación de pasivo de AG22. */
+        const k = bodega.get(c) ?? { codigo: c, material: nombre(c, r.material), baja: 0, lavado: 0, extrasucio: 0, otros: 0 };
+        const u = cajas * upc(c), e = String(r.estado_envase ?? "").toUpperCase();
+        if (/BAJA/.test(e)) k.baja += u; else if (/EXTRASUCIO/.test(e)) k.extrasucio += u; else if (/LAVAD/.test(e)) k.lavado += u; else k.otros += u;
+        bodega.set(c, k);
+      }
+      continue;
+    }
     const g = grupoDe(c);
     if (g === "ESTIBA") { estSueltas += cajas; continue }
     /* La estiba de madera de debajo: una por estiba contada y una por renglón con saldo o sueltas. */
@@ -348,7 +361,8 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
   }
 
   /* EL HISTÓRICO: los días con el balanceo guardado, del más nuevo al más viejo. */
-  return { ...base, filas, guardado, estibasBodega, avisos, otros, envases, aplicados, excluidos, ...hist };
+  const conteoBodega = [...bodega.values()].map((k) => ({ ...k, baja: redondo(k.baja), lavado: redondo(k.lavado), extrasucio: redondo(k.extrasucio), otros: redondo(k.otros) }));
+  return { ...base, filas, guardado, estibasBodega, avisos, otros, envases, aplicados, excluidos, conteoBodega, ...hist };
 }
 
 /**
@@ -368,7 +382,7 @@ async function armarCuadreAG22(pedida?: string | null) {
   const fecha = pedida && dias.includes(pedida) ? pedida : (dias[0] ?? null);
   const base = { fecha, dias, filas: [] as FilaCuadre[], guardado: null as CuadreGuardado | null, estibasBodega: 0, avisos: [] as string[], error: null as string | null,
     faltaSql: false, historial: [] as DiaHistorial[], faltaHist: false,
-    otros: [] as LineaOtros[], envases: [] as { codigo: string; material: string }[], aplicados: [] as Aplicado[], excluidos: null as PanelExcluidos | null };
+    otros: [] as LineaOtros[], envases: [] as { codigo: string; material: string }[], aplicados: [] as Aplicado[], excluidos: null as PanelExcluidos | null, conteoBodega: [] as ConteoBodega[] };
   if (!fecha) return { ...base, ...(await leerHistorial(supabase)) };
 
   const [pas, prodR, maesR, guardR, hist, regla] = await Promise.all([
