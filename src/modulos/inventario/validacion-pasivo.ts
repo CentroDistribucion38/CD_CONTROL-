@@ -1,6 +1,6 @@
 import { armarCuadre } from "@/modulos/inventario/cuadre";
 import { leerPasivos } from "@/modulos/pasivos/datos";
-import { tipoPendiente } from "@/modulos/pasivos/pendiente-baja";
+import { esPendienteEnviado, tipoPendiente } from "@/modulos/pasivos/pendiente-baja";
 
 /**
  * VALIDACIÓN DE PASIVO · AG18 — una hoja aparte para validar; desde aquí se ENVÍA el pendiente por baja a la Base de pasivos.
@@ -129,7 +129,7 @@ export async function validacionPasivo(pedida?: string | null): Promise<DatosVal
  *            ROTURA DE LINEA no se cuenta físicamente: se muestra aparte y NO entra a la comparación.
  *   PENDIENTE  conteo − base, por estado (positivo = se contó más de lo que dice la Base; negativo = la Base tiene más).
  *            Lo contado en OTROS no está en la Base: es lo que hay que bloquear.
- * Solo analiza: no envía nada a la Base.
+ * Desde aquí se ENVÍA el pendiente (conteo − base) a la Base de AG22 con su causal real; la Base y el Cuadre lo ignoran al leer (no se cuenta doble).
  * ========================================================================================================== */
 export type FilaValidacionAG22 = {
   codigo: string; material: string; upc: number;
@@ -140,14 +140,17 @@ export type FilaValidacionAG22 = {
   pendBaja: number; pendLavado: number; pendExtra: number; pendBloquear: number;
   estado: "cuadra" | "dif";
 };
-export type DatosValidacionAG22 = { fecha: string | null; dias: string[]; filas: FilaValidacionAG22[]; avisos: string[]; error: string | null };
+export type DatosValidacionAG22 = { fecha: string | null; dias: string[]; filas: FilaValidacionAG22[]; yaEnviado: boolean; historico: boolean; avisos: string[]; error: string | null };
 
 export async function validacionPasivoAG22(pedida?: string | null): Promise<DatosValidacionAG22> {
   const c = await armarCuadre(pedida, "AG18");
-  const vacio: DatosValidacionAG22 = { fecha: c.fecha, dias: c.dias, filas: [], avisos: c.avisos, error: c.error };
+  const vacio: DatosValidacionAG22 = { fecha: c.fecha, dias: c.dias, filas: [], yaEnviado: false, historico: false, avisos: c.avisos, error: c.error };
   if (!c.fecha || c.error || c.faltaSql) return { ...vacio, error: c.error ?? (c.faltaSql ? "Falta crear las tablas del Cuadre SAP." : null) };
   const b = await armarCuadre(c.fecha, "AG22");
   if (b.error) return { ...vacio, error: b.error };
+  const pas = await leerPasivos(c.fecha, c.fecha);
+  const yaEnviado = pas.data.some((f) => f.almacen === "AG22" && esPendienteEnviado(f.causal));
+  const historico = pas.data.some((f) => f.origen === "historico");
 
   const base = new Map<string, { material: string; upc: number; partes: Record<string, number> }>();
   for (const f of b.filas) if (f.grupo === "ENVASE") base.set(f.codigo, { material: f.material, upc: f.upc, partes: f.partes ?? {} });
@@ -168,5 +171,5 @@ export async function validacionPasivoAG22(pedida?: string | null): Promise<Dato
     });
   }
   filas.sort((a, z) => a.codigo.localeCompare(z.codigo, "es", { numeric: true }));
-  return { fecha: c.fecha, dias: c.dias, filas, avisos: [...c.avisos, ...b.avisos.filter((a) => !c.avisos.includes(a))], error: null };
+  return { fecha: c.fecha, dias: c.dias, filas, yaEnviado, historico, avisos: [...c.avisos, ...b.avisos.filter((a) => !c.avisos.includes(a))], error: null };
 }

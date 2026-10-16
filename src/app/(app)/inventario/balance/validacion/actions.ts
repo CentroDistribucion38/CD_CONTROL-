@@ -2,8 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { validacionPasivo } from "@/modulos/inventario/validacion-pasivo";
+import { validacionPasivo, validacionPasivoAG22 } from "@/modulos/inventario/validacion-pasivo";
 import {
+  ALMACEN_PENDIENTE_AG22, CAUSAL_PENDIENTE_EXTRASUCIO, ESTADO_PENDIENTE_EXTRASUCIO,
   ALMACEN_PENDIENTE_BAJA, CAUSAL_PENDIENTE_BAJA, CAUSAL_PENDIENTE_BLOQUEAR, CAUSAL_PENDIENTE_LAVADO, CAUSALES_PENDIENTES,
   ESTADO_PENDIENTE_BAJA, ESTADO_PENDIENTE_BLOQUEAR, ESTADO_PENDIENTE_LAVADO, NOTA_PENDIENTE_BAJA,
 } from "@/modulos/pasivos/pendiente-baja";
@@ -53,5 +54,52 @@ export async function enviarPendienteBaja(fecha: string) {
   return {
     ok: true, filas: new Set(filas.map((f) => f.codigo)).size, unidades: filas.reduce((s, f) => s + f.unidades, 0),
     baja: suma(CAUSAL_PENDIENTE_BAJA), lavado: suma(CAUSAL_PENDIENTE_LAVADO), bloquear: suma(CAUSAL_PENDIENTE_BLOQUEAR),
+  };
+}
+
+/**
+ * ENVIAR A LA BASE DE PASIVOS · AG22 (Bodega 38) — el pendiente (conteo − base, sin la rotura de línea) por su causal real:
+ *   BAJA · PENDIENTE BAJA (conteo baja − PRESORTING − BAJA PROYECTADA), LAVADO · PENDIENTE LAVADO, LAVADO · PENDIENTE EXTRASUCIO
+ *   y BAJA · PENDIENTE BLOQUEAR (lo contado en OTROS). Solo las partes MAYORES a 0: lo que ya está en la Base NO se vuelve a enviar,
+ *   así que la Base queda igual a lo contado y no se duplica. Reenviar el mismo día REEMPLAZA lo enviado antes (solo AG22, solo «manual»).
+ */
+export async function enviarPendienteAG22(fecha: string) {
+  if (!esDia(fecha)) return { error: "Escoge el día." };
+  const supabase = await createClient();
+  const { count: hist } = await supabase.from("pasivos_base").select("id", { count: "exact", head: true }).eq("fecha", fecha).eq("origen", "historico");
+  if (hist) return { error: `El ${fecha.split("-").reverse().join("/")} ya está cargado tal cual tu Excel (histórico). No se envía para no duplicar.` };
+
+  const v = await validacionPasivoAG22(fecha);
+  if (v.error) return { error: v.error };
+  if (v.fecha !== fecha) return { error: `No hay conteo enviado el ${fecha}.` };
+  const filas: { codigo: string; estado: string; causal: string; unidades: number }[] = [];
+  for (const f of v.filas) {
+    const partes: [number, string, string][] = [
+      [f.pendBaja, ESTADO_PENDIENTE_BAJA, CAUSAL_PENDIENTE_BAJA],
+      [f.pendLavado, ESTADO_PENDIENTE_LAVADO, CAUSAL_PENDIENTE_LAVADO],
+      [f.pendExtra, ESTADO_PENDIENTE_EXTRASUCIO, CAUSAL_PENDIENTE_EXTRASUCIO],
+      [f.pendBloquear, ESTADO_PENDIENTE_BLOQUEAR, CAUSAL_PENDIENTE_BLOQUEAR],
+    ];
+    for (const [u, estado, causal] of partes) { const unidades = Math.round(u); if (unidades > 0) filas.push({ codigo: f.codigo, estado, causal, unidades }) }
+  }
+
+  const { error: eD } = await supabase.from("pasivos_base").delete()
+    .eq("fecha", fecha).eq("almacen", ALMACEN_PENDIENTE_AG22).in("causal", CAUSALES_PENDIENTES).eq("origen", "manual");
+  if (eD) return { error: eD.message };
+  if (filas.length) {
+    const { error: eI } = await supabase.from("pasivos_base").insert(filas.map((f) => ({
+      fecha, estado: f.estado, causal: f.causal, codigo: f.codigo, unidades: f.unidades,
+      almacen: ALMACEN_PENDIENTE_AG22, origen: "manual", nota: NOTA_PENDIENTE_BAJA,
+    })));
+    if (eI) return { error: /row-level security|policy/i.test(eI.message) ? "No tienes permiso de editar la Base de pasivos." : eI.message };
+  }
+  revalidatePath("/inventario/balance/validacion");
+  revalidatePath("/inventario/balance/pasivos");
+  revalidatePath("/inventario/balance/pasivos/informe");
+  revalidatePath("/inventario/balance/cuadre");
+  const suma = (c: string) => filas.filter((f) => f.causal === c).reduce((s, f) => s + f.unidades, 0);
+  return {
+    ok: true, filas: new Set(filas.map((f) => f.codigo)).size, unidades: filas.reduce((s, f) => s + f.unidades, 0),
+    baja: suma(CAUSAL_PENDIENTE_BAJA), lavado: suma(CAUSAL_PENDIENTE_LAVADO), extra: suma(CAUSAL_PENDIENTE_EXTRASUCIO), bloquear: suma(CAUSAL_PENDIENTE_BLOQUEAR),
   };
 }

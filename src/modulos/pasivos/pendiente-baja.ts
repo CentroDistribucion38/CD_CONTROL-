@@ -22,7 +22,11 @@ export const CAUSAL_PENDIENTE_LAVADO = "PENDIENTE LAVADO";
 export const ESTADO_PENDIENTE_LAVADO = "LAVADO";
 export const CAUSAL_PENDIENTE_BLOQUEAR = "PENDIENTE BLOQUEAR";
 export const ESTADO_PENDIENTE_BLOQUEAR = "BAJA";
-const CAUSALES_ENVIADAS = [CAUSAL_PENDIENTE_BAJA, CAUSAL_PENDIENTE_LAVADO, CAUSAL_PENDIENTE_BLOQUEAR];
+/** Solo AG22 (Bodega 38): el extrasucio contado que no está en la Base. Va como LAVADO · «PENDIENTE EXTRASUCIO» (igual que el EXTRASUCIO, que se guarda con estado LAVADO). */
+export const CAUSAL_PENDIENTE_EXTRASUCIO = "PENDIENTE EXTRASUCIO";
+export const ESTADO_PENDIENTE_EXTRASUCIO = "LAVADO";
+export const ALMACEN_PENDIENTE_AG22 = "AG22";
+const CAUSALES_ENVIADAS = [CAUSAL_PENDIENTE_BAJA, CAUSAL_PENDIENTE_LAVADO, CAUSAL_PENDIENTE_BLOQUEAR, CAUSAL_PENDIENTE_EXTRASUCIO];
 /** ¿Este renglón de la Base lo envió la Validación (cualquiera de los tres pendientes)? */
 export const esPendienteEnviado = (causal: unknown) => CAUSALES_ENVIADAS.includes(String(causal ?? "").trim().toUpperCase());
 /** De cuál de los tres es. */

@@ -215,7 +215,8 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
         /* LO CONTADO EN BODEGA 38 (AG22), por estado: para la validación de pasivo de AG22. */
         const k = bodega.get(c) ?? { codigo: c, material: nombre(c, r.material), baja: 0, lavado: 0, extrasucio: 0, otros: 0 };
         const u = cajas * upc(c), e = String(r.estado_envase ?? "").toUpperCase();
-        if (/BAJA/.test(e)) k.baja += u; else if (/EXTRASUCIO/.test(e)) k.extrasucio += u; else if (/LAVAD/.test(e)) k.lavado += u; else k.otros += u;
+        /* En Bodega 38 lo normal es RETORNO / NUEVO / VACÍO (envase sano): NO es pasivo y NO se bloquea. Solo OTROS y MAL ESTADO van a «bloquear». */
+        if (/BAJA/.test(e)) k.baja += u; else if (/EXTRASUCIO/.test(e)) k.extrasucio += u; else if (/LAVAD/.test(e)) k.lavado += u; else if (/OTROS|MAL ESTADO/.test(e)) k.otros += u;
         bodega.set(c, k);
       }
       continue;
@@ -418,6 +419,8 @@ async function armarCuadreAG22(pedida?: string | null) {
   const fuera = new Map<string, { filas: number; unidades: number }>();
   for (const f of pas.data) {
     if (String(f.almacen).toUpperCase() !== "AG22") continue;
+    /* Lo enviado desde la Validación de pasivo AG22 ya sale de conteo − base: no se cuenta doble ni se avisa. */
+    if (esPendienteEnviado(f.causal)) continue;
     const causal = normCausal(f.causal);
     if (!(CAUSALES_AG22 as readonly string[]).includes(causal)) {
       const x = fuera.get(causal) ?? { filas: 0, unidades: 0 }; x.filas++; x.unidades += Number(f.unidades) || 0; fuera.set(causal, x);

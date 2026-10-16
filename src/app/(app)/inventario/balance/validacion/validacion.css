@@ -55,7 +55,9 @@
 @media print { .va-envio { display: none !important } }
 
 /* ---------- pestañas AG18 / AG22 ---------- */
-.va .va-hojas { display: flex; gap: 0; border-bottom: 3px solid var(--fe-tinta) }
-.va .va-hojas a { padding: 10px 22px; font: 800 14px var(--fe-titulo); letter-spacing: .08em; color: var(--fe-gris); text-decoration: none; background: var(--fe-papel); border: 1px solid var(--fe-linea); border-bottom: 0; margin-right: 4px }
-.va .va-hojas a.on { background: var(--fe-tinta); color: #fff; border-color: var(--fe-tinta) }
+.va .va-hojas { display: flex; gap: 0; border-bottom: 1px solid var(--fe-linea); margin: 0 0 14px; overflow-x: auto }
+.va .va-hojas a { display: inline-flex; align-items: center; min-height: 48px; padding: 0 22px; white-space: nowrap; text-decoration: none;
+  font: 700 14px var(--fe-texto); color: var(--fe-gris-panel, var(--fe-gris)); background: transparent; border: 1px solid transparent; border-bottom: 0; margin: 0 }
+.va .va-hojas a.on { color: var(--fe-tinta); background: var(--fe-papel); border-color: var(--fe-linea); box-shadow: inset 0 3px 0 var(--fe-acento) }
+.va .va-hojas a:focus-visible { outline: 3px solid var(--fe-acento); outline-offset: -3px }
 @media print { .va-hojas { display: none !important } }

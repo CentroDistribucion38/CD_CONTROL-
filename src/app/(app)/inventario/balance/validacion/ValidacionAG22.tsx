@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { DatosValidacionAG22, FilaValidacionAG22 } from "@/modulos/inventario/validacion-pasivo";
 import { Rango } from "../../../sider/seguimiento/Rango";
+import { enviarPendienteAG22 } from "./actions";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const n0 = (v: number | null) => (v == null ? "—" : Math.abs(v) < 0.5 ? "0" : nf.format(Math.round(v)));
@@ -16,15 +17,32 @@ const Pend = ({ v, upc }: { v: number; upc: number }) => (
     {upc > 1 && Math.abs(v) > 0.5 && <small>{nf.format(Math.round(v / upc))} cajas</small>}</td>
 );
 
-export function ValidacionAG22({ datos }: { datos: DatosValidacionAG22 }) {
+export function ValidacionAG22({ datos, puedeEnviar }: { datos: DatosValidacionAG22; puedeEnviar: boolean }) {
   const router = useRouter();
   const [cambiando, startCambio] = useTransition();
+  const [enviando, startEnvio] = useTransition();
   const [soloDif, setSoloDif] = useState(false);
-  const { fecha, dias, filas, avisos, error } = datos;
+  const [confirmar, setConfirmar] = useState(false);
+  const [resp, setResp] = useState<{ ok: boolean; texto: string } | null>(null);
+  const { fecha, dias, filas, yaEnviado, historico, avisos, error } = datos;
   const vistas = useMemo(() => (soloDif ? filas.filter((f) => f.estado !== "cuadra") : filas), [filas, soloDif]);
   const cuadran = filas.filter((f) => f.estado === "cuadra").length;
   const difs = filas.length - cuadran;
   const suma = (k: keyof FilaValidacionAG22) => filas.reduce((s, f) => s + pos(f[k] as number), 0);
+  const aEnviar = (f: FilaValidacionAG22) => pos(f.pendBaja) + pos(f.pendLavado) + pos(f.pendExtra) + pos(f.pendBloquear);
+  const paraEnviar = filas.filter((f) => aEnviar(f) > 0);
+  const unidades = paraEnviar.reduce((s, f) => s + aEnviar(f), 0);
+
+  function enviar() {
+    if (!fecha) return;
+    setResp(null);
+    startEnvio(async () => {
+      const r = await enviarPendienteAG22(fecha);
+      setConfirmar(false);
+      if ("error" in r && r.error) setResp({ ok: false, texto: r.error });
+      else if ("ok" in r && r.ok) { setResp({ ok: true, texto: `Enviado a la Base de pasivos (AG22): ${r.filas} materiales · ${nf.format(r.unidades)} u — baja ${nf.format(r.baja)} · lavado ${nf.format(r.lavado)} · extrasucio ${nf.format(r.extra)} · bloquear ${nf.format(r.bloquear)}.` }); router.refresh() }
+    });
+  }
 
   return (
     <>
@@ -64,6 +82,28 @@ export function ValidacionAG22({ datos }: { datos: DatosValidacionAG22 }) {
             <label className="va-chk"><input type="checkbox" checked={soloDif} onChange={(e) => setSoloDif(e.target.checked)} />Solo los que no cuadran</label>
             <button type="button" className="va-imprimir" onClick={() => window.print()}>Imprimir</button>
           </div>
+
+          {puedeEnviar && !historico && (
+            <div className="va-envio">
+              {!confirmar ? (
+                <button type="button" className="va-enviar" disabled={enviando || !paraEnviar.length} onClick={() => { setResp(null); setConfirmar(true) }}>
+                  {yaEnviado ? "Reenviar a la Base de pasivos" : "Enviar a la Base de pasivos"}
+                </button>
+              ) : (
+                <>
+                  <span>
+                    Se {yaEnviado ? "reemplaza lo enviado antes y se " : ""}envían <b>{paraEnviar.length}</b> materiales · <b>{nf.format(unidades)}</b> u como
+                    PENDIENTE BAJA · LAVADO · EXTRASUCIO · BLOQUEAR · AG22 del {fecha.split("-").reverse().join("/")}. Solo lo que falta: lo que ya está en la Base no se vuelve a enviar.
+                  </span>
+                  <button type="button" className="va-enviar" disabled={enviando} onClick={enviar}>{enviando ? "Enviando…" : "Sí, enviar"}</button>
+                  <button type="button" className="va-cancelar" disabled={enviando} onClick={() => setConfirmar(false)}>Cancelar</button>
+                </>
+              )}
+              {!confirmar && <small>Solo las partes mayores a 0. Si lo vuelves a enviar el mismo día, reemplaza lo anterior.</small>}
+              {resp && <p className={resp.ok ? "va-ok-env" : "va-error"}>{resp.texto}</p>}
+            </div>
+          )}
+          {historico && <p className="va-aviso">Este día está cargado tal cual tu Excel (histórico): no se envía nada para no duplicar.</p>}
 
           {!vistas.length && <p className="va-vacio">{filas.length ? "Todo cuadra." : "No hay envases con conteo ni pasivo en Bodega 38 este día."}</p>}
 
@@ -112,7 +152,7 @@ export function ValidacionAG22({ datos }: { datos: DatosValidacionAG22 }) {
           <p className="va-nota">
             Unidades. Conteo = lo contado en Bodega 38 (todo lo que no es FABRICA_…) por el estado del envase en el conteo. Base = Pasivos AG22 del día;
             la rotura de línea se muestra pero no entra, porque no se cuenta físicamente. Pendiente positivo = se contó más de lo que dice la Base; negativo (rojo) = la Base tiene más de lo contado.
-            Esta hoja solo valida: no envía nada a la Base.
+            Al enviar, a la Base solo va la parte que falta (pendiente mayor a 0), con su causal; el Cuadre y esta hoja la ignoran al leer la Base, así que nada se cuenta doble.
           </p>
         </>
       )}

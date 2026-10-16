@@ -26,8 +26,8 @@ export default async function ValidacionPage({ searchParams }: { searchParams: P
     </nav>
   );
   if (ag22) {
-    const d = await validacionPasivoAG22(dia);
-    return <div className="fe bal va">{hojas}<ValidacionAG22 datos={d} /></div>;
+    const [d, permisos] = await Promise.all([validacionPasivoAG22(dia), misPermisos()]);
+    return <div className="fe bal va">{hojas}<ValidacionAG22 datos={d} puedeEnviar={permisos.puedeEditar("/inventario/balance/pasivos")} /></div>;
   }
   const [d, permisos] = await Promise.all([validacionPasivo(dia), misPermisos()]);
   return (

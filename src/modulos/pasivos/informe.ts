@@ -42,7 +42,7 @@ export type DatosInformePasivo = {
 /** El estado del conteo que le toca a un renglón de Pasivos; null si no viene del conteo. */
 export function estadoDelConteo(estado: string, causal: string): string | null {
   const e = (estado ?? "").trim().toUpperCase(), c = (causal ?? "").trim().toUpperCase();
-  if (c === "EXTRASUCIO") return "EXTRASUCIO";
+  if (c === "EXTRASUCIO" || c === "PENDIENTE EXTRASUCIO") return "EXTRASUCIO";
   if (e === "BAJA" && (c === "SORTING" || c === "PRESORTING")) return "BAJA";
   if (e === "LAVADO" && c === "LAVADO") return "LAVADO";
   return null;
