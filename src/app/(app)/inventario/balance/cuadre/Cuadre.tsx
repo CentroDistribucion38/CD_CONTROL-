@@ -138,13 +138,20 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
     const hoy: Estados = { libre: f.libre ?? 0, calidad: f.calidad ?? 0, bloqueado: f.bloqueado ?? 0 };
     /* AG18: tras el 311 (llega o sale por libre). AG22: no hay 311, se parte de lo que dice la ZEXI (lo que no cuadre en cantidad es diferencia de inventario). */
     const tras: Estados = esAG22 ? { ...hoy } : { ...hoy, libre: hoy.libre - (f.dif ?? 0) };
-    /* META por estado. AG22: control-cal y bloqueado quedan como el conteo; si SAP tiene MÁS cajas que lo contado, ese sobrante es diferencia de
-       inventario y se BLOQUEA; libre es lo que sobra (libre NO se evalúa: ahí siempre quedan diferencias). */
-    const sobra = esAG22 && conEstados ? (tras.libre + tras.calidad + tras.bloqueado) - (f.meta!.libre + f.meta!.calidad + f.meta!.bloqueado) : 0;
-    const objetivo: Estados = esAG22 && conEstados
-      ? { calidad: f.meta!.calidad, bloqueado: f.meta!.bloqueado + Math.max(0, sobra),
-          libre: (tras.libre + tras.calidad + tras.bloqueado) - f.meta!.calidad - f.meta!.bloqueado - Math.max(0, sobra) }
-      : f.meta!;
+    /* META por estado. AG22 (LIBRE NO SE EVALÚA: ahí siempre quedan diferencias, se deja en libre):
+       · control-cal y bloqueado deben coincidir con el conteo; lo que les falte sale de libre.
+       · el control-cal que SAP tenga de más primero llena lo que le falte a libre hasta lo contado; lo que todavía sobre es diferencia de inventario y se BLOQUEA.
+         Si libre ya tiene de más, ese sobrante se queda en libre (no se bloquea). */
+    let objetivo: Estados = f.meta!;
+    if (esAG22 && conEstados) {
+      const m = f.meta!, tot = tras.libre + tras.calidad + tras.bloqueado;
+      const bloq0 = Math.max(tras.bloqueado, m.bloqueado);
+      const libre1 = tras.libre - Math.max(0, m.calidad - tras.calidad) - Math.max(0, m.bloqueado - tras.bloqueado);
+      const sobraCC = Math.max(0, tras.calidad - m.calidad);
+      const aLibre = libre1 >= m.libre ? sobraCC : Math.min(sobraCC, m.libre - libre1);
+      const bloq = bloq0 + (sobraCC - aLibre);
+      objetivo = { calidad: m.calidad, bloqueado: bloq, libre: tot - m.calidad - bloq };
+    }
     const d = ESTADOS_K.map((k) => ({ k, v: objetivo[k] - tras[k] }));
     const fuentes = d.filter((x) => x.v < -0.5).map((x) => ({ k: x.k, v: -x.v }));
     const destinos = d.filter((x) => x.v > 0.5).map((x) => ({ ...x }));
@@ -159,8 +166,8 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
     const queda: Estados = { ...tras };
     if (conEstados) for (const m of movs) { const [a, b] = m.clave.split(">") as (keyof Estados)[]; queda[a] -= m.cant; queda[b] += m.cant }
     /* AG22: si la cantidad total no cuadra es diferencia de inventario; el balanceo está hecho cuando ningún estado falta mientras otro sobra. */
-    const dd = ESTADOS_K.map((k) => queda[k] - objetivo[k]);
-    const cuadra = conEstados && (esAG22 ? Math.abs(dd[1]) < 0.5 && Math.abs(dd[2]) < 0.5 : dd.every((v) => cero(v)));
+    const dd = ESTADOS_K.map((k) => queda[k] - f.meta![k]);
+    const cuadra = conEstados && (esAG22 ? Math.abs(dd[1]) < 0.5 && dd[2] > -0.5 : dd.every((v) => cero(v)));
     const difInv = esAG22 && conEstados ? (queda.libre + queda.calidad + queda.bloqueado) - (f.meta!.libre + f.meta!.calidad + f.meta!.bloqueado) : 0;
     return { f, conEstados, hoy, tras, queda, cuadra, difInv, movs: conEstados ? movs : [] };
   });
@@ -580,7 +587,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
             <h2 className="cs-h" id="p-cajas"><i>3</i> Balancear las cajas <small className="cs-h-s">{esAG22 ? "el balance por estado en AG22" : "el 311 y el balance por estado"}: libre · control-cal · bloqueado</small></h2>
             <div className="cs-caja cs-cajest">
               <p className="cs-cajest-dice">
-                {esAG22 && <>Lo contado en <b>Bodega 38</b>. </>}Suelta en <b>BAJA → Bloqueado</b> · suelta en <b>RETORNO → Libre utilización</b> · la caja que lleva el envase → <b>In control-cal</b>.{esAG22 && " Aquí no hay 311: solo se balancean los estados dentro de AG22; lo que no cuadre en cantidad es una diferencia de inventario y, si SAP tiene de más, se bloquea."}
+                {esAG22 && <>Lo contado en <b>Bodega 38</b>. </>}Suelta en <b>BAJA → Bloqueado</b> · suelta en <b>RETORNO → Libre utilización</b> · la caja que lleva el envase → <b>In control-cal</b>.{esAG22 && " Aquí no hay 311: solo se balancean los estados dentro de AG22; lo que no cuadre en cantidad es una diferencia de inventario: libre no se evalúa y el control-cal que sobre, cuando ya no cabe en libre, se bloquea."}
                 Toca un código para verlo resaltado en todos sus movimientos.
               </p>
               <div className="cs-scroll">
@@ -603,7 +610,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                           <td className={"n" + (cero(hoy.bloqueado - f.meta!.bloqueado) ? "" : " dif")}>{n(hoy.bloqueado)}</td>
                           <td className="n fin"><b>{n(queda.libre)}</b></td><td className="n fin"><b>{n(queda.calidad)}</b></td><td className="n fin"><b>{n(queda.bloqueado)}</b></td>
                           <td>{cuadra ? <span className="cs-chip ok">{esAG22 && !cero(difInv) ? "Balanceado" : "= físico"}</span> : <span className="cs-chip in">No cuadra</span>}
-                            {esAG22 && !cero(difInv) && <span className="cs-chip" title="Lo contado en Bodega 38 y lo que dice SAP en AG22 no son la misma cantidad: es una diferencia de inventario (no es un 311): si sobra en SAP, queda en bloqueado">Dif. inventario {conSigno(difInv)}</span>}</td>
+                            {esAG22 && !cero(difInv) && <span className="cs-chip" title="Lo contado en Bodega 38 y lo que dice SAP en AG22 no son la misma cantidad: es una diferencia de inventario (no es un 311); se queda en libre">Dif. inventario {conSigno(difInv)}</span>}</td>
                         </> : <td colSpan={7} className="cs-gris">La ZEXI no trae los estados (Libre · Control-cal · Bloqueado)</td>}
                       </tr>
                     ))}
@@ -683,10 +690,9 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                       : esAG22 && f.grupo === "CAJA" && f.meta ? (() => {
                         /* AG22 cajas: solo importan control-cal y bloqueado (libre no se evalúa). Se dice qué falta en ESOS estados, no una cantidad suelta. */
                         const e = f.estadoFinal ?? { libre: f.libre ?? 0, calidad: f.calidad ?? 0, bloqueado: f.bloqueado ?? 0 };
-                        const sobra = Math.max(0, (e.libre + e.calidad + e.bloqueado) - (f.meta.libre + f.meta.calidad + f.meta.bloqueado));
-                        const debeB = f.meta.bloqueado + sobra;
-                        return <span className="cs-chip in" title="Libre no se evalúa; debe coincidir control-cal con el conteo y bloqueado con lo contado en BAJA + la diferencia de inventario">
-                          Falta {!cero(e.calidad - f.meta.calidad) ? `control-cal ${n(e.calidad)} → ${n(f.meta.calidad)}` : ""}{!cero(e.calidad - f.meta.calidad) && !cero(e.bloqueado - debeB) ? " · " : ""}{!cero(e.bloqueado - debeB) ? `bloqueado ${n(e.bloqueado)} → ${n(debeB)}` : ""}
+                        const faltaCC = !cero(e.calidad - f.meta.calidad), faltaBl = e.bloqueado - f.meta.bloqueado < -0.5;
+                        return <span className="cs-chip in" title="Libre no se evalúa; debe coincidir control-cal con el conteo y bloqueado con lo contado en BAJA (si SAP tiene de más en bloqueado, está bien)">
+                          Falta {faltaCC ? `control-cal ${n(e.calidad)} → ${n(f.meta.calidad)}` : ""}{faltaCC && faltaBl ? " · " : ""}{faltaBl ? `bloqueado ${n(e.bloqueado)} → ${n(f.meta.bloqueado)}` : ""}
                         </span>;
                       })()
                       : !cero(f.queda) ? <span className="cs-chip in">Falta {n(Math.abs(f.queda!))} {f.queda! < 0 ? ENTRA : SALE}</span>
