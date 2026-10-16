@@ -127,7 +127,7 @@ export default async function ReaccionPage({ searchParams }: { searchParams: Pro
           <h2>Árbol de indicadores · {area.nombre}</h2>
           <p className="rf-titulo">{area.titulo}</p>
           {area.nota && <p className="rf-nota">{area.nota}</p>}
-          {diagrama ? <Diagrama d={diagrama} /> : (
+          {diagrama ? <Diagrama d={diagrama} /> : area.celdas.length === 0 ? null : (
             <>
               <Rejilla a={area} />
               <div className="rf-ley">
