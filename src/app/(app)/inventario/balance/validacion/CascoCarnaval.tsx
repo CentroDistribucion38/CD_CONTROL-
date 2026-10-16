@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { DatosCasco } from "@/modulos/inventario/validacion-pasivo";
@@ -12,6 +12,26 @@ const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 1 });
 export function CascoCarnaval({ datos }: { datos: DatosCasco }) {
   const router = useRouter();
   const [cambiando, startCambio] = useTransition();
+  /* Filas que vas marcando con un clic para no perderte (solo en pantalla). */
+  const [marcadas, setMarcadas] = useState<Set<string>>(new Set());
+  /* La fila activa (la del cursor o la del teclado): ↑ ↓ la mueven, Espacio / Enter la marcan, Inicio / Fin saltan, Esc la suelta. */
+  const [activa, setActiva] = useState<number | null>(null);
+  const caja = useRef<HTMLDivElement>(null);
+  const filasRef = useRef<HTMLTableRowElement[]>([]);
+  useEffect(() => { setActiva(null) }, [datos.fecha]);
+  useEffect(() => { if (activa != null) filasRef.current[activa]?.scrollIntoView({ block: "nearest" }) }, [activa]);
+  function tecla(e: React.KeyboardEvent) {
+    const n = datos.filas.length;
+    if (!n) return;
+    const ir = (i: number) => { e.preventDefault(); setActiva(Math.max(0, Math.min(n - 1, i))) };
+    if (e.key === "ArrowDown") ir(activa == null ? 0 : activa + 1);
+    else if (e.key === "ArrowUp") ir(activa == null ? n - 1 : activa - 1);
+    else if (e.key === "Home") ir(0);
+    else if (e.key === "End") ir(n - 1);
+    else if ((e.key === " " || e.key === "Enter") && activa != null) { e.preventDefault(); marcar(datos.filas[activa].codigo) }
+    else if (e.key === "Escape") setActiva(null);
+  }
+  const marcar = (k: string) => setMarcadas((p) => { const n = new Set(p); if (n.has(k)) n.delete(k); else n.add(k); return n });
   const { fecha, dias, filas, avisos, error } = datos;
   const totU = filas.reduce((s, f) => s + f.unidades, 0);
   const totC = filas.reduce((s, f) => s + f.cajas, 0);
@@ -52,8 +72,8 @@ export function CascoCarnaval({ datos }: { datos: DatosCasco }) {
           </div>
 
           {!filas.length ? <p className="va-vacio">No hay casco con baja para este día.</p> : (
-            <div className="va-scroll">
-              <table className="va-t">
+            <div className="va-scroll" ref={caja} tabIndex={0} onKeyDown={tecla} onMouseEnter={() => caja.current?.focus({ preventScroll: true })} aria-label="Lista de casco: flechas para moverte, espacio para marcar">
+              <table className="va-t va-casco">
                 <thead>
                   <tr>
                     <th>Código</th><th>Material</th>
@@ -61,8 +81,9 @@ export function CascoCarnaval({ datos }: { datos: DatosCasco }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {filas.map((f) => (
-                    <tr key={f.codigo}>
+                  {filas.map((f, i) => (
+                    <tr key={f.codigo} ref={(el) => { if (el) filasRef.current[i] = el }} className={(marcadas.has(f.codigo) ? "marcada " : "") + (activa === i ? "activa" : "")}
+                        onMouseEnter={() => setActiva(i)} onClick={() => { setActiva(i); marcar(f.codigo) }} title="Clic o Espacio: marcar / desmarcar la fila">
                       <td className="mono">{f.codigo}</td>
                       <td>{f.material}</td>
                       <td className="n va-clave"><b>{nf.format(f.unidades)}</b></td>
@@ -79,7 +100,7 @@ export function CascoCarnaval({ datos }: { datos: DatosCasco }) {
             </div>
           )}
           <p className="va-nota">
-            Casco físico (más ajustes del Balance) de Baja y Lavado · Fábrica: ya tiene baja en SAP, así que SAP no lo tiene en AG18, pero lo tienes en la fábrica. Cuadra con lo que el Cuadre SAP resta a lo contado.
+            Con el teclado: ↑ ↓ para moverte por las filas, Espacio o Enter para marcar la fila, Esc para soltarla. Casco físico (más ajustes del Balance) de Baja y Lavado · Fábrica: ya tiene baja en SAP, así que SAP no lo tiene en AG18, pero lo tienes en la fábrica. Cuadra con lo que el Cuadre SAP resta a lo contado.
           </p>
         </>
       )}
