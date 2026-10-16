@@ -575,7 +575,9 @@ export const MODULOS: Modulo[] = [
       { nombre: "Tablero", ruta: "/gestion" },
       /* EL MAPA: el árbol de KPI y el flujo de procesos, armados con lo del Maestro. Solo leen. */
       { nombre: "Árbol de KPI", ruta: "/gestion/arbol" },
+      { nombre: "Plan de reacción", ruta: "/gestion/reaccion" },
       { nombre: "Flujo de procesos", ruta: "/gestion/flujos" },
+      { nombre: "Mapa de procesos", ruta: "/gestion/procesos" },
       { nombre: "Resultado por turno", ruta: "/gestion/resultados" },
       { nombre: "Disparadores", ruta: "/gestion/disparadores" },
       { nombre: "Maestro", ruta: "/gestion/maestro" },

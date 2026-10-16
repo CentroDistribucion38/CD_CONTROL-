@@ -1,0 +1,134 @@
+/* =====================================================================
+   GESTIÓN · REFERENCIA — árbol de KPI con plan de reacción y mapa de procesos (datos de los Excel de Logística).
+   Todo lleva `rf-` (pantallas) o `dg-` (diagramas) y cuelga de `.rf`. Mismo lenguaje de CONTROL: tinta, acento, líneas finas.
+   ===================================================================== */
+.rf { --rf-pi: #FFF3D1; --rf-pi-borde: #B7791F; --rf-suave: #F2F4F7 }
+.rf .rf-nota { margin: 0; color: var(--fe-gris); font-size: 13px; max-width: 80ch }
+
+/* ---------- pestañas y chips ---------- */
+.rf .rf-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--fe-linea); overflow-x: auto }
+.rf .rf-tabs a { display: inline-flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 20px; white-space: nowrap; text-decoration: none; font: 700 14px var(--fe-texto); color: var(--fe-gris-panel, var(--fe-gris)); border: 1px solid transparent; border-bottom: 0 }
+.rf .rf-tabs a em { font: 700 11.5px var(--fe-texto); font-style: normal; color: var(--fe-gris) }
+.rf .rf-tabs a.on { color: var(--fe-tinta); background: var(--fe-papel); border-color: var(--fe-linea); box-shadow: inset 0 3px 0 var(--fe-acento) }
+.rf .rf-tabs a:focus-visible { outline: 3px solid var(--fe-acento); outline-offset: -3px }
+.rf .rf-chips { display: flex; flex-wrap: wrap; gap: 6px }
+.rf .rf-chips a { display: inline-flex; align-items: baseline; gap: 6px; min-height: 38px; padding: 0 14px; align-items: center; text-decoration: none; border: 1px solid var(--fe-linea); background: var(--fe-papel); color: var(--fe-tinta); font: 700 13px var(--fe-titulo) }
+.rf .rf-chips a small { font: 700 11px var(--fe-texto); color: var(--fe-gris) }
+.rf .rf-chips a.on { background: var(--fe-tinta); color: #fff; border-color: var(--fe-tinta) }
+.rf .rf-chips a.on small { color: var(--fe-acento) }
+.rf .rf-chips a:focus-visible { outline: 3px solid var(--fe-acento); outline-offset: 1px }
+
+/* ---------- secciones ---------- */
+.rf .rf-sec { display: flex; flex-direction: column; gap: 10px }
+.rf .rf-sec > h2 { margin: 0; font: 800 18px var(--fe-titulo); color: var(--fe-tinta); display: flex; align-items: baseline; gap: 10px; border-bottom: 3px solid var(--fe-tinta); padding-bottom: 6px }
+.rf .rf-sec > h2 small { font: 600 12.5px var(--fe-texto); color: var(--fe-gris) }
+.rf .rf-titulo { margin: 0; color: var(--fe-gris); font: 600 13px var(--fe-texto) }
+
+/* ---------- el árbol de la hoja, tal como está en el Excel ---------- */
+.rf .rf-scroll { overflow-x: auto; padding-bottom: 4px }
+.rf .rf-rejilla { display: grid; gap: 6px 8px; min-width: min-content; align-items: stretch }
+.rf .rf-c { display: flex; align-items: center; padding: 8px 10px; border: 1px solid var(--fe-linea); background: var(--fe-papel); color: var(--fe-tinta); font: 600 12.5px/1.25 var(--fe-texto); overflow-wrap: anywhere }
+.rf .rf-c.h { background: var(--fe-tinta); color: #fff; border-color: var(--fe-tinta); font: 800 11px var(--fe-titulo); letter-spacing: .08em; text-transform: uppercase; align-items: center }
+.rf .rf-c.kpi { border-left: 6px solid var(--fe-tinta); font: 800 13.5px/1.25 var(--fe-titulo) }
+.rf .rf-c.pi { background: var(--rf-pi); border-color: var(--rf-pi-borde) }
+.rf .rf-c.sic { background: var(--rf-suave); border-style: dashed; color: var(--fe-gris); font-weight: 700 }
+.rf .rf-c.causa { border-left: 6px solid var(--fe-acento) }
+.rf .rf-gap { grid-column: 1 / -1; height: 0 }
+.rf .rf-extras { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch }
+.rf .rf-extras > div { padding: 8px 12px; border: 1px dashed var(--fe-gris); background: var(--rf-suave); font: 700 12.5px/1.3 var(--fe-texto); color: var(--fe-tinta) }
+.rf .rf-extras b { display: block; font: 800 10.5px var(--fe-titulo); letter-spacing: .1em; color: var(--fe-gris); text-transform: uppercase; margin-bottom: 2px }
+.rf .rf-ley { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--fe-gris) }
+.rf .rf-ley span { display: inline-flex; align-items: center; gap: 6px }
+.rf .rf-ley i { width: 14px; height: 14px; border: 1px solid var(--fe-linea); background: var(--fe-papel) }
+.rf .rf-ley i.k { background: var(--fe-papel); border-left: 5px solid var(--fe-tinta) } .rf .rf-ley i.p { background: var(--rf-pi); border-color: var(--rf-pi-borde) } .rf .rf-ley i.s { background: var(--rf-suave); border-style: dashed }
+
+/* ---------- el plan de reacción ---------- */
+.rf .rf-buscar { display: flex; gap: 8px; flex-wrap: wrap; align-items: end }
+.rf .rf-buscar label { display: flex; flex-direction: column; gap: 4px; font: 700 10.5px var(--fe-texto); letter-spacing: .12em; text-transform: uppercase; color: var(--fe-gris) }
+.rf .rf-buscar input { min-height: 40px; width: min(420px, 80vw); border: 1px solid var(--fe-linea); background: var(--fe-papel); color: var(--fe-tinta); font: 600 13.5px var(--fe-texto); padding: 0 10px; border-radius: 2px; letter-spacing: 0; text-transform: none }
+.rf .rf-buscar button, .rf .rf-buscar a { min-height: 40px; padding: 0 16px; display: inline-flex; align-items: center; border: 1px solid var(--fe-tinta); background: var(--fe-tinta); color: #fff; font: 800 13px var(--fe-titulo); border-radius: 2px; cursor: pointer; text-decoration: none }
+.rf .rf-buscar a { background: var(--fe-papel); color: var(--fe-tinta) }
+.rf .rf-plan { width: 100%; border-collapse: collapse; font-size: 13px }
+.rf .rf-plan th { background: var(--fe-tinta); color: #fff; text-align: left; font: 800 11px var(--fe-titulo); letter-spacing: .08em; text-transform: uppercase; padding: 10px 12px; position: sticky; top: 0 }
+.rf .rf-plan td { padding: 10px 12px; border-bottom: 1px solid var(--fe-linea); vertical-align: top; line-height: 1.35; color: var(--fe-tinta) }
+.rf .rf-plan td.f { font: 800 13px/1.3 var(--fe-titulo) }
+.rf .rf-plan td.ar { white-space: nowrap }
+.rf .rf-plan td.ar span { display: inline-block; background: var(--fe-tinta); color: var(--fe-acento); font: 900 10.5px var(--fe-titulo); letter-spacing: .08em; padding: 2px 7px; text-transform: uppercase }
+.rf .rf-plan ul { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 3px }
+.rf .rf-plan tbody tr:nth-child(even) td { background: #FAFBFC }
+.rf .rf-plan mark { background: #FFE08A; color: inherit; padding: 0 1px }
+.rf .rf-vacio { margin: 0; padding: 18px; border: 1px dashed var(--fe-linea); color: var(--fe-gris) }
+
+/* ---------- la matriz de criticidad ---------- */
+.rf .rf-resumen { display: flex; flex-wrap: wrap; gap: 10px }
+.rf .rf-cif { flex: 1 1 170px; padding: 12px 14px; background: var(--fe-papel); border: 1px solid var(--fe-linea); border-bottom: 4px solid var(--fe-tinta) }
+.rf .rf-cif span { display: block; font: 700 10.5px var(--fe-texto); letter-spacing: .12em; text-transform: uppercase; color: var(--fe-gris) }
+.rf .rf-cif b { font: 900 28px/1.1 var(--fe-titulo); color: var(--fe-tinta) }
+.rf .rf-cif.mal { border-bottom-color: var(--fe-mal, #C8102E) } .rf .rf-cif.mal b { color: var(--fe-mal, #C8102E) }
+.rf .rf-criticas { display: flex; flex-wrap: wrap; gap: 6px }
+.rf .rf-criticas span { display: inline-flex; gap: 8px; align-items: baseline; padding: 6px 10px; background: var(--fe-papel); border: 1px solid var(--fe-mal, #C8102E); font: 700 12.5px var(--fe-texto); color: var(--fe-tinta) }
+.rf .rf-criticas small { color: var(--fe-gris); font: 600 11px var(--fe-texto) }
+.rf .rf-criticas b { font: 900 12px var(--fe-titulo); color: var(--fe-mal, #C8102E) }
+.rf .rf-bloque { display: flex; flex-direction: column; gap: 6px }
+.rf .rf-bloque h3 { margin: 0; font: 800 15px var(--fe-titulo); color: var(--fe-tinta); display: flex; align-items: baseline; gap: 10px }
+.rf .rf-bloque h3 small { font: 600 12px var(--fe-texto); color: var(--fe-gris) }
+.rf .rf-crit { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums }
+.rf .rf-crit th { background: var(--fe-tinta); color: #fff; font: 800 10.5px var(--fe-titulo); letter-spacing: .06em; text-transform: uppercase; padding: 8px 8px; text-align: center; border: 1px solid #1d2e42 }
+.rf .rf-crit th.a { text-align: left }
+.rf .rf-crit td { padding: 8px; border: 1px solid var(--fe-linea); text-align: center; color: var(--fe-tinta) }
+.rf .rf-crit td.a { text-align: left; font-weight: 700 }
+.rf .rf-crit td.p5 { background: #F8D7DC; font-weight: 800 } .rf .rf-crit td.p3 { background: #FFEBBF; font-weight: 700 } .rf .rf-crit td.p1 { background: #EAF4EE; color: var(--fe-gris) }
+.rf .rf-crit td.t { font: 900 15px var(--fe-titulo) }
+.rf .rf-crit tr.c td.a { box-shadow: inset 5px 0 0 var(--fe-mal, #C8102E) }
+.rf .rf-crit td.s span { display: inline-block; padding: 2px 8px; font: 900 10.5px var(--fe-titulo); letter-spacing: .06em; text-transform: uppercase; background: var(--fe-mal, #C8102E); color: #fff }
+.rf .rf-crit td.s em { font-style: normal; color: var(--fe-gris); font-size: 12px }
+
+/* ---------- diagramas ---------- */
+.dg { margin: 0; display: flex; flex-direction: column; gap: 6px; background: var(--fe-papel) }
+.dg-barra { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap }
+.dg-barra b { font: 800 15px var(--fe-titulo); color: var(--fe-tinta) }
+.dg-botones { display: inline-flex; align-items: center; gap: 4px }
+.dg-botones button { min-height: 36px; min-width: 36px; padding: 0 12px; border: 1px solid var(--fe-linea); background: var(--fe-papel); color: var(--fe-tinta); font: 800 13px var(--fe-titulo); border-radius: 2px; cursor: pointer }
+.dg-botones button:hover { border-color: var(--fe-tinta) }
+.dg-botones button:focus-visible { outline: 3px solid var(--fe-acento); outline-offset: 1px }
+.dg-botones output { min-width: 48px; text-align: center; font: 800 12.5px var(--fe-titulo); color: var(--fe-gris) }
+.dg-vista { overflow: auto; height: min(74vh, 920px); border: 1px solid var(--fe-linea); background: #F7F8FA; background-image: radial-gradient(#D5DAE0 1px, transparent 1px); background-size: 20px 20px; cursor: grab; overscroll-behavior: contain }
+.dg-vista.mueve { cursor: grabbing; user-select: none }
+.dg-lienzo { position: relative }
+.dg-capa { position: absolute; left: 0; top: 0; transform-origin: 0 0 }
+.dg figcaption { font-size: 11.5px; color: var(--fe-gris) }
+.dg.completa { padding: 12px; height: 100vh }
+.dg.completa .dg-vista { height: auto; flex: 1 }
+.dg-lineas { position: absolute; left: 0; top: 0; overflow: visible; color: #44505C; pointer-events: none }
+.dg-lineas polyline { stroke: currentColor; stroke-width: 2; stroke-linejoin: round }
+.dg-lineas .gu { stroke: #AEB6C0; stroke-width: 2; stroke-dasharray: 10 8 }
+.dg-r { position: absolute; font: 800 14px var(--fe-titulo); letter-spacing: .1em; text-transform: uppercase; color: var(--fe-gris); white-space: nowrap }
+.dg-r.n { font: 900 30px var(--fe-titulo); letter-spacing: .04em; color: var(--fe-tinta) }
+.dg-f { position: absolute; display: flex; align-items: center; justify-content: center; text-align: center; font: 600 13px/1.15 var(--fe-texto); color: var(--fe-tinta); --dg-b: var(--fe-tinta); --dg-f: var(--fe-papel); --dg-clip: none; --dg-pad: 8px }
+.dg-f > i { position: absolute; clip-path: var(--dg-clip) }
+.dg-f > i.b { inset: 0; background: var(--dg-b) }
+.dg-f > i.r { inset: 2px; background: var(--dg-f) }
+.dg-f > span { position: relative; padding: 0 var(--dg-pad); overflow: hidden; max-height: 100%; overflow-wrap: anywhere }
+.dg-f.g-para { --dg-clip: polygon(9% 0, 100% 0, 91% 100%, 0 100%); --dg-pad: 16% }
+.dg-f.g-chev { --dg-clip: polygon(0 0, 84% 0, 100% 50%, 84% 100%, 0 100%, 16% 50%); --dg-pad: 17% }
+.dg-f.g-home { --dg-clip: polygon(0 0, 86% 0, 100% 50%, 86% 100%, 0 100%); --dg-pad: 8% 14% 8% 8% }
+.dg-f.g-rombo { --dg-clip: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); --dg-pad: 24% }
+.dg-f.g-term { --dg-clip: inset(0 round 999px); --dg-pad: 12% }
+.dg-f.g-doc { --dg-clip: polygon(0 0, 100% 0, 100% 86%, 75% 92%, 50% 86%, 25% 80%, 0 86%); --dg-pad: 6% 6% 14% }
+.dg-f.g-red { --dg-clip: inset(0 round 14px); --dg-pad: 10px }
+.dg-f.g-rect { --dg-clip: inset(0) }
+.dg-f.g-llave { color: #6B7682; display: block }
+.dg-f.g-llave svg { width: 100%; height: 100%; display: block }
+.dg-f.k-tarea { --dg-b: var(--fe-tinta); --dg-f: #fff }
+.dg-f.k-actividad { --dg-b: #B7791F; --dg-f: #FFF6DD }
+.dg-f.k-es { --dg-b: #7A8794; --dg-f: #EEF2F7 }
+.dg-f.k-decision { --dg-b: var(--fe-tinta); --dg-f: #FFD966; font-weight: 800 }
+.dg-f.k-terminal { --dg-b: var(--fe-tinta); --dg-f: var(--fe-tinta); color: #fff; font-weight: 800 }
+.dg-f.k-doc { --dg-b: #8A95A1; --dg-f: #F1F3F6; font-size: 12px }
+.dg-f.k-proceso { --dg-b: var(--fe-tinta); --dg-f: var(--fe-tinta); color: #fff; font-weight: 800 }
+.dg-f.k-pi { --dg-b: #B7791F; --dg-f: #FFF3D1; font-weight: 700 }
+.dg-f.k-etiqueta { font: 900 14px var(--fe-titulo) } .dg-f.k-etiqueta > i { display: none }
+.dg-f.k-tiempo { font: 800 12px var(--fe-mono, ui-monospace, monospace); color: #fff } .dg-f.k-tiempo > i.b, .dg-f.k-tiempo > i.r { background: #44505C }
+
+@media (max-width: 900px) { .dg-vista { height: 68vh } }
+@media print { .dg-vista { height: auto; overflow: visible } .dg-botones { display: none } }

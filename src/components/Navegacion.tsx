@@ -430,6 +430,8 @@ const ICONO_RUTA: Record<string, () => React.ReactElement> = {
   "/gestion": IconoTablero,
   "/gestion/arbol": IconoRama,
   "/gestion/flujos": IconoRuta,
+  "/gestion/reaccion": IconoAcciones,
+  "/gestion/procesos": IconoPlan,
   "/gestion/resultados": IconoRegistrar,
   "/gestion/disparadores": IconoNovedad,
   "/gestion/maestro": IconoLlave,
