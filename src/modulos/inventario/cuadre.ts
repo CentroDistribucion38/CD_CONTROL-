@@ -508,7 +508,9 @@ async function armarCuadreAG22(pedida?: string | null) {
         if (/BAJA/i.test(String(r.estado_envase ?? ""))) k.sueltasBaja += cj;
         continue;
       }
-      /* La caja que lleva el envase → In control-cal (salvo los envases cuya caja no entra al cuadre). */
+      /* La caja que lleva el envase → In control-cal, SOLO si el envase está en BAJA, LAVADO o EXTRASUCIO
+         (salvo los envases cuya caja no entra al cuadre). El envase sano (RETORNO, NUEVO…) no mete su caja aquí. */
+      if (!/BAJA|LAVAD|EXTRASUCIO/i.test(String(r.estado_envase ?? ""))) continue;
       const cj2 = M.get(c)?.caja;
       if (cj2 && !CAJA_FUERA_DEL_CUADRE.has(c)) cajaDe(String(cj2)).conEnvase += cj;
     }
