@@ -105,6 +105,8 @@ export type FilaCuadre = {
   difBalance?: number; difBaja?: number; difLavado?: number;
   /** Baja o Lavado · Fábrica sin casco registrado: todo lo contado cuenta como diferencia. */
   sinCasco?: boolean;
+  /** Cajas por estiba del envase (0 si no se conoce). */
+  cpe?: number;
   /** Cajas de líneas OTROS que quedaron sumadas en este envase. */
   otrosCajas: number;
   /** Envase: lo contado (en unidades) por estado del conteo: BAJA, LAVADO y OTROS (Andina… y cualquier otro estado). */
@@ -347,7 +349,7 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
     const dif = sapV == null ? null : redondo(sapV - total);
     const sapDespues = sapV == null ? null : redondo(sapV + movido);
     const queda = sapDespues == null ? null : redondo(sapDespues - total);
-    return { grupo, codigo: a.codigo, material: a.material, conteo: redondo(conteo), detalle, pendBaja, lavadoBaja: quita, difBalance: difBal, difBaja: usaBM ? a.dBaja : 0, difLavado: usaBM ? a.dLav : 0, sinCasco: usaBM && a.sinCasco, andina: a.andina,
+    return { grupo, codigo: a.codigo, material: a.material, conteo: redondo(conteo), detalle, pendBaja, lavadoBaja: quita, difBalance: difBal, difBaja: usaBM ? a.dBaja : 0, difLavado: usaBM ? a.dLav : 0, sinCasco: usaBM && a.sinCasco, cpe: grupo === "ENVASE" ? cpe(a.codigo) : 0, andina: a.andina,
       almacen, otrosCajas: grupo === "ENVASE" ? a.otrosCajas : 0,
       conteoEstado: grupo === "ENVASE" ? { baja: redondo(a.est.baja), lavado: redondo(a.est.lavado), otros: redondo(a.est.otros) } : undefined, upc: grupo === "ENVASE" ? upc(a.codigo) : 1, total, sap: sapV,
       libre: z?.libre ?? null, bloqueado: z?.bloqueado ?? null, calidad: z?.calidad ?? null,

@@ -3,6 +3,28 @@ import { leerPasivos } from "@/modulos/pasivos/datos";
 import { esPendienteEnviado, tipoPendiente } from "@/modulos/pasivos/pendiente-baja";
 
 /**
+ * CASCO PARA CARNAVAL · AG18 — lista simple por SKU de lo que está FÍSICO en la fábrica y ya tiene baja en SAP (no está en el sistema):
+ * el casco (+ ajustes) de Baja y Lavado · Fábrica, o sea lo que el Cuadre SAP resta a lo contado para llegar al Balance de materiales.
+ * Es solo visual: no envía nada a la Base de pasivos.
+ */
+export type FilaCasco = { codigo: string; material: string; unidades: number; cajas: number; estibas: number | null };
+export type DatosCasco = { fecha: string | null; dias: string[]; filas: FilaCasco[]; avisos: string[]; error: string | null };
+export async function cascoCarnaval(pedida?: string | null): Promise<DatosCasco> {
+  const c = await armarCuadre(pedida, "AG18");
+  if (!c.fecha || c.error) return { fecha: c.fecha, dias: c.dias, filas: [], avisos: c.avisos, error: c.error };
+  const filas: FilaCasco[] = [];
+  for (const f of c.filas) {
+    if (f.grupo !== "ENVASE") continue;
+    const u = Math.round(-f.lavadoBaja);
+    if (u <= 0) continue;
+    const cajas = f.upc > 1 ? u / f.upc : u;
+    filas.push({ codigo: f.codigo, material: f.material, unidades: u, cajas: Math.round(cajas), estibas: f.cpe ? Math.round((cajas / f.cpe) * 10) / 10 : null });
+  }
+  filas.sort((a, b) => a.codigo.localeCompare(b.codigo, "es", { numeric: true }));
+  return { fecha: c.fecha, dias: c.dias, filas, avisos: c.avisos, error: null };
+}
+
+/**
  * VALIDACIÓN DE PASIVO · AG18 — una hoja aparte para validar; desde aquí se ENVÍA el pendiente por baja a la Base de pasivos.
  *
  * Por cada envase de AG18, en unidades:

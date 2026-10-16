@@ -1,18 +1,18 @@
 import { misPermisos } from "@/lib/permisos";
 import Link from "next/link";
-import { validacionPasivo, validacionPasivoAG22 } from "@/modulos/inventario/validacion-pasivo";
+import { cascoCarnaval, validacionPasivoAG22 } from "@/modulos/inventario/validacion-pasivo";
 import "../../../sider/sider.css";
 import "../../fefo.css";
 import "../balance.css";
 import "./validacion.css";
-import { Validacion } from "./Validacion";
+import { CascoCarnaval } from "./CascoCarnaval";
 import { ValidacionAG22 } from "./ValidacionAG22";
 
 export const dynamic = "force-dynamic";
 
 /**
- * INVENTARIO · BALANCE · VALIDACIÓN DE PASIVO — conteo físico − pasivo = pendiente por baja, y pasivo + pendiente tiene que dar la
- * existencia final del Cuadre SAP AG18. Desde aquí el pendiente por baja se ENVÍA a la Base de pasivos (BAJA · PENDIENTE BAJA · AG18).
+ * INVENTARIO · BALANCE · VALIDACIÓN — AG18: lista simple del casco físico que ya tiene baja en SAP (para Carnaval), sin enviar nada.
+ * AG22: la validación contra la Base de pasivos.
  */
 export default async function ValidacionPage({ searchParams }: { searchParams: Promise<{ fecha?: string; hoja?: string }> }) {
   const q = await searchParams;
@@ -29,11 +29,6 @@ export default async function ValidacionPage({ searchParams }: { searchParams: P
     const [d, permisos] = await Promise.all([validacionPasivoAG22(dia), misPermisos()]);
     return <div className="fe bal va">{hojas}<ValidacionAG22 datos={d} puedeEnviar={permisos.puedeEditar("/inventario/balance/pasivos")} /></div>;
   }
-  const [d, permisos] = await Promise.all([validacionPasivo(dia), misPermisos()]);
-  return (
-    <div className="fe bal va">
-      {hojas}
-      <Validacion datos={d} puedeEnviar={permisos.puedeEditar("/inventario/balance/pasivos")} />
-    </div>
-  );
+  const d = await cascoCarnaval(dia);
+  return <div className="fe bal va">{hojas}<CascoCarnaval datos={d} /></div>;
 }
