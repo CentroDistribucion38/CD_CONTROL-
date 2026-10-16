@@ -680,6 +680,15 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                     <td className="n">{n(f.sapDespues!)}</td>
                     <td className="n"><b>{cero(f.queda) ? "0" : conSigno(f.queda!)}</b></td>
                     <td>{esAG22 && f.grupo === "CAJA" && f.estadoOk !== false ? <span className="cs-chip ok" title="Los estados quedaron como el conteo de Bodega 38">Balanceado{cero(f.queda) ? "" : ` · dif. inventario ${conSigno(f.queda!)}`}</span>
+                      : esAG22 && f.grupo === "CAJA" && f.meta ? (() => {
+                        /* AG22 cajas: solo importan control-cal y bloqueado (libre no se evalúa). Se dice qué falta en ESOS estados, no una cantidad suelta. */
+                        const e = f.estadoFinal ?? { libre: f.libre ?? 0, calidad: f.calidad ?? 0, bloqueado: f.bloqueado ?? 0 };
+                        const sobra = Math.max(0, (e.libre + e.calidad + e.bloqueado) - (f.meta.libre + f.meta.calidad + f.meta.bloqueado));
+                        const debeB = f.meta.bloqueado + sobra;
+                        return <span className="cs-chip in" title="Libre no se evalúa; debe coincidir control-cal con el conteo y bloqueado con lo contado en BAJA + la diferencia de inventario">
+                          Falta {!cero(e.calidad - f.meta.calidad) ? `control-cal ${n(e.calidad)} → ${n(f.meta.calidad)}` : ""}{!cero(e.calidad - f.meta.calidad) && !cero(e.bloqueado - debeB) ? " · " : ""}{!cero(e.bloqueado - debeB) ? `bloqueado ${n(e.bloqueado)} → ${n(debeB)}` : ""}
+                        </span>;
+                      })()
                       : !cero(f.queda) ? <span className="cs-chip in">Falta {n(Math.abs(f.queda!))} {f.queda! < 0 ? ENTRA : SALE}</span>
                       : (f.enLibre ?? 0) > 0.005 ? <span className="cs-chip in" title="En AG18 el envase va bloqueado">Quedó {n(f.enLibre!)} en libre · falta 344</span>
                       : f.estadoOk === false && f.estadoFinal && f.meta ? <span className="cs-chip in" title={`Debe: libre ${n(f.meta.libre)} · control-cal ${n(f.meta.calidad)} · bloqueado ${n(f.meta.bloqueado)}`}>Estados: L {n(f.estadoFinal.libre)} · C {n(f.estadoFinal.calidad)} · B {n(f.estadoFinal.bloqueado)} — no cuadran</span>
