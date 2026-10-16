@@ -48,7 +48,7 @@ export function Validacion({ datos, puedeEnviar }: { datos: DatosValidacion; pue
           <p className="ojo">INVENTARIO · BALANCE · VALIDACIÓN DE PASIVO</p>
           <h1>Validación de pasivo · AG18</h1>
           <p className="sub">
-            <b>Conteo físico − pasivo = pendiente por baja</b>, y <b>pasivo + pendiente por baja</b> tiene que dar la
+            <b>Total conteo − pasivo = pendiente por baja</b>, y <b>pasivo + pendiente por baja</b> tiene que dar la
             existencia final del <Link href={fecha ? `/inventario/balance/cuadre?fecha=${fecha}` : "/inventario/balance/cuadre"}>Cuadre SAP AG18</Link>.
             El pendiente por baja se envía a la Base de pasivos para que el Informe lo tome en AG18.
           </p>
@@ -110,8 +110,9 @@ export function Validacion({ datos, puedeEnviar }: { datos: DatosValidacion; pue
                   <tr>
                     <th>Código</th><th>Material</th>
                     <th className="n">Conteo físico</th>
+                    <th className="n">Lavado con baja<small>Casco</small></th><th className="n">Total conteo<small>del Cuadre</small></th>
                     <th className="n">Baja</th><th className="n">Lavado</th><th className="n">Pasivo</th>
-                    <th className="n va-clave">Pendiente por baja<small>conteo − pasivo</small></th>
+                    <th className="n va-clave">Pendiente por baja<small>total conteo − pasivo</small></th>
                     <th className="n">Enviado a la Base</th>
                     <th className="n">Existencia final SAP</th>
                     <th className="n">Dif.<small>SAP − (pasivo + pend.)</small></th>
@@ -126,6 +127,8 @@ export function Validacion({ datos, puedeEnviar }: { datos: DatosValidacion; pue
                         <td className="mono">{f.codigo}</td>
                         <td>{f.material}</td>
                         <td className="n">{n0(f.conteo)}</td>
+                        <td className="n">{f.lavadoCasco ? n0(f.lavadoCasco) : "—"}</td>
+                        <td className="n"><b>{n0(f.total)}</b></td>
                         <td className="n">{n0(f.baja)}</td>
                         <td className="n">{n0(f.lavado)}</td>
                         <td className="n"><b>{n0(f.pasivo)}</b></td>
@@ -143,7 +146,7 @@ export function Validacion({ datos, puedeEnviar }: { datos: DatosValidacion; pue
             </div>
           )}
           <p className="va-nota">
-            El pasivo es lo del informe de Pasivos de AG18 en ese día (Baja + Lavado, en unidades), sin lo ya enviado desde aquí. La existencia final es lo que dice
+            El total conteo es el del Cuadre SAP (conteo físico menos el lavado con baja del Casco). El pasivo es lo del informe de Pasivos de AG18 en ese día (Baja + Lavado, en unidades), sin lo ya enviado desde aquí. La existencia final es lo que dice
             la ZEXI de SAP más lo ya movido con el 311 en el Cuadre SAP. Lo enviado entra al Informe de pasivos como Baja de AG18; el Cuadre SAP no lo suma otra vez.
           </p>
         </>
