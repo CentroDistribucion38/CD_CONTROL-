@@ -8,7 +8,7 @@ import { esPendienteEnviado, tipoPendiente } from "@/modulos/pasivos/pendiente-b
  * Por cada envase de AG18, en unidades:
  *   CONTEO FÍSICO        lo contado en la fábrica (el «Conteo fábrica» del Cuadre SAP).
  *   PASIVO               lo que está en el informe de pasivo: Baja + Lavado de AG18 del día (sin lo ya enviado desde aquí).
- *   TOTAL CONTEO         el del Cuadre SAP: conteo físico menos el lavado con baja del Casco (+ Andina). Es lo que SAP debe tener.
+ *   TOTAL CONTEO         el del Cuadre SAP: el Balance de materiales (conteo físico menos la dif. de Baja y Lavado · Fábrica) (+ Andina). Es lo que SAP debe tener.
  *   PENDIENTE            total conteo − pasivo.            (231.270 − 113.520 = 117.750). SE SEPARA por lo que de verdad es:
  *     · POR BAJA     conteo en BAJA (− lavado con baja del Casco) − baja de la Base
  *     · POR LAVADO   conteo en LAVADO − lavado de la Base
@@ -22,7 +22,7 @@ export type EstadoValidacion = "cuadra" | "falta" | "sobra" | "sin_sap";
 export type FilaValidacion = {
   codigo: string; material: string;
   conteo: number;
-  /** Lavado con baja del Casco (negativo): lo contado que ya está en lavado y SAP no tiene en AG18. */
+  /** Dif. del Balance (negativo): lo contado de más frente al Balance de materiales (Baja y Lavado · Fábrica); SAP no lo tiene en AG18. */
   lavadoCasco: number;
   /** Total conteo del Cuadre SAP (el que se compara con SAP). */
   total: number;
@@ -94,7 +94,7 @@ export async function validacionPasivo(pedida?: string | null): Promise<DatosVal
     /* SEPARADO POR SU CAUSAL REAL. El lavado con baja del Casco (negativo) sale de lo contado en BAJA; lo que suma el Cuadre
        además del conteo (Andina, almacén) va con la baja. Lo contado en OTROS no está en la Base: hay que bloquearlo. */
     const ce = f.conteoEstado ?? { baja: f.conteo, lavado: 0, otros: 0 };
-    const pendLavado = r2(ce.lavado - l), pendBloquear = r2(ce.otros);
+    const pendLavado = r2(ce.lavado - (f.difLavado ?? 0) - l), pendBloquear = r2(ce.otros);
     const pendBaja = r2(pendiente - pendLavado - pendBloquear);
     const existencia = f.sapDespues ?? f.sap;
     const dif = existencia == null ? null : r2(existencia - (pasivo + pendiente));

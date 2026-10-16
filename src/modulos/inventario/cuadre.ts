@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { consolidadoDelDia, diasConConteo, leerCasco } from "@/modulos/inventario/balance";
+import { balanceDelDia, consolidadoDelDia, diasConConteo, leerCasco } from "@/modulos/inventario/balance";
 import { esUbicacionFabrica } from "@/modulos/casco/ubicacion-sitio";
 import { diasConPasivos, leerPasivos } from "@/modulos/pasivos/datos";
 import { esPendienteEnviado } from "@/modulos/pasivos/pendiente-baja";
@@ -14,7 +14,10 @@ import { conReclasificaciones } from "@/modulos/inventario/reclasificaciones";
  *   · ENVASE  = lo contado en la fábrica (ubicaciones FABRICA_, todos los estados) × unidades por caja
  *             (lo de estado OTROS —Andina…— va al envase que se escoja; si no se escoge, al que se contó)
  *             + PEND. BAJA (Pasivos AG18 · BAJA · SORTING)          ← se puede apagar
- *             − LAVADO CON BAJA (Casco AG18: estibas × cajas/estiba × unidades/caja)
+ *             − DIF. BALANCE: la diferencia de Baja · Fábrica y Lavado · Fábrica del Balance de materiales (contado − casco − ajuste).
+ *               El TOTAL CONTEO es el BALANCE DE MATERIALES (= casco + ajustes): lo contado de más sale de AG18 (343 y 311);
+ *               lo que no tiene casco registrado cuenta todo como diferencia. Esto REEMPLAZA al «lavado con baja» suelto:
+ *               el Lavado con baja del Casco ya va dentro del casco del Balance.
  *             + ANDINA / HEINEKEN (Pasivos AG18 · BAJA · las demás causales)
  *   · CAJAS PLÁSTICAS = las sueltas contadas + la caja de cada envase contado (la caja sale del
  *             maestro de Pasivos: la 850 va en la 1000 x13)
@@ -92,7 +95,13 @@ export type FilaCuadre = {
   /** Lo contado en la fábrica (envase × unidades/caja; cajas; estibas). */
   conteo: number;
   detalle: string | null;
-  pendBaja: number; lavadoBaja: number; andina: number; almacen: number;
+  pendBaja: number; andina: number; almacen: number;
+  /** Lo que resta a lo contado para llegar al Balance de materiales, en negativo (= −(dif. de Baja + dif. de Lavado)). */
+  lavadoBaja: number;
+  /** Dif. del Balance (contado − casco − ajuste), en unidades: total, y la parte de Baja y la de Lavado. + = se contó de más. */
+  difBalance?: number; difBaja?: number; difLavado?: number;
+  /** Baja o Lavado · Fábrica sin casco registrado: todo lo contado cuenta como diferencia. */
+  sinCasco?: boolean;
   /** Cajas de líneas OTROS que quedaron sumadas en este envase. */
   otrosCajas: number;
   /** Envase: lo contado (en unidades) por estado del conteo: BAJA, LAVADO y OTROS (Andina… y cualquier otro estado). */
@@ -154,7 +163,7 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
     otros: [] as LineaOtros[], envases: [] as { codigo: string; material: string }[], aplicados: [] as Aplicado[], excluidos: null as PanelExcluidos | null, conteoBodega: [] as ConteoBodega[] };
   if (!fecha) return base;
 
-  const [cons, prodR, maesR, pas, casco, sitiosR, guardR, hist, regla] = await Promise.all([
+  const [cons, prodR, maesR, pas, casco, sitiosR, guardR, hist, regla, bal] = await Promise.all([
     consolidadoDelDia(fecha, conteos),
     supabase.from("productos").select("sku, nombre, unidades_por_caja, cajas_por_estiba"),
     supabase.from("pasivos_maestro").select("codigo, descripcion, familia, unidades_por_caja, cajas_por_estiba, caja"),
@@ -164,6 +173,7 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
     supabase.from("cuadre_sap").select("*").eq("fecha", fecha).eq("almacen", ALMACEN_CUADRE).maybeSingle(),
     leerHistorial(supabase),
     leerExcluidos("AG18"),
+    balanceDelDia(fecha),
   ]);
   if (guardR.error && /cuadre_sap|does not exist|PGRST205/i.test(`${guardR.error.code} ${guardR.error.message}`)) return { ...base, faltaSql: true };
   const avisos: string[] = [];
@@ -184,12 +194,13 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
   const nombre = (c: string, alt?: string | null) => M.get(c)?.descripcion ?? P.get(c)?.nombre ?? alt ?? c;
 
   type Acc = { codigo: string; material: string; conteo: number; sueltas: number; sueltasBaja: number; conEnvase: number; pend: number; lav: number; andina: number; otrosCajas: number; fuera: number; fueraDe: string;
-    est: { baja: number; lavado: number; otros: number }; lavEst: number; causales: Set<string>; porEnvase: Map<string, number> };
+    est: { baja: number; lavado: number; otros: number }; lavEst: number; causales: Set<string>; porEnvase: Map<string, number>;
+    dBaja: number; dLav: number; sinCasco: boolean; bal: string[] };
   const acc = new Map<string, Acc>();
   const de = (c: string, alt?: string | null) => {
     let a = acc.get(c);
     if (!a) { a = { codigo: c, material: nombre(c, alt), conteo: 0, sueltas: 0, sueltasBaja: 0, conEnvase: 0, pend: 0, lav: 0, andina: 0, otrosCajas: 0, fuera: 0, fueraDe: "",
-      est: { baja: 0, lavado: 0, otros: 0 }, lavEst: 0, causales: new Set(), porEnvase: new Map() }; acc.set(c, a) }
+      est: { baja: 0, lavado: 0, otros: 0 }, lavEst: 0, causales: new Set(), porEnvase: new Map(), dBaja: 0, dLav: 0, sinCasco: false, bal: [] }; acc.set(c, a) }
     return a;
   };
 
@@ -275,6 +286,22 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
     }
   }
 
+  /* 3b. LA DIFERENCIA DEL BALANCE (Baja · Fábrica y Lavado · Fábrica): el TOTAL CONTEO es el BALANCE DE MATERIALES, o sea
+     lo contado menos esa diferencia (= casco + ajustes del Balance). Si no se pudo leer el Balance, se queda el cálculo de antes. */
+  const usarBM = !bal.error;
+  if (bal.error) avisos.push(`No pude leer el Balance (la diferencia de Baja y Lavado): ${bal.error}. Se usó el Lavado con baja del Casco, como antes.`);
+  if (usarBM) for (const r of bal.detalle) {
+    if (r.alcance !== "SORTING" || (r.estado !== "BAJA" && r.estado !== "LAVADO")) continue;
+    const c = String(r.codigo);
+    if (grupoDe(c) !== "ENVASE" || excluye(regla, c, nombre(c, r.material))) continue;
+    const u = upc(c), d = redondo(r.dif_cajas * u), a = de(c, r.material);
+    const sin = r.alerta === "Contado y sin casco registrado";
+    if (r.estado === "BAJA") a.dBaja += d; else a.dLav += d;
+    if (sin) a.sinCasco = true;
+    if (d) a.bal.push(`${r.estado === "BAJA" ? "Baja" : "Lavado"} · Fábrica: contado ${nf.format(r.fisico_cajas)} cajas − casco ${nf.format(r.cajas_casco)}`
+      + `${r.ajuste_cajas ? ` − ajuste ${nf.format(r.ajuste_cajas)}` : ""} = ${nf.format(r.dif_cajas)} cajas × ${nf.format(u)} u${sin ? " · sin casco registrado: todo lo contado cuenta como diferencia" : ""}`);
+  }
+
   /* 4. LO GUARDADO: el ZEXI, las estibas del almacén y los movimientos 311. */
   /* El pend. baja NO se toma en cuenta en el cuadre de AG18 (sigue saliendo en su columna, solo informativa). */
   const sumarPend = false;
@@ -300,7 +327,10 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
       detalle = `${nf.format(estSueltas)} sueltas + ${nf.format(estBajo)} bajo el envase` + (estAlm ? ` + ${nf.format(estAlm)} del almacén` : "");
     }
     const pendBaja = grupo === "ENVASE" ? a.pend : 0;
-    const total = redondo(conteo + (sumarPend ? pendBaja : 0) + a.lav + a.andina + almacen);
+    /* El envase: contado − dif. del Balance (= Balance de materiales). Sin el Balance, el lavado con baja suelto de antes. */
+    const difBal = usarBM && grupo === "ENVASE" ? redondo(a.dBaja + a.dLav) : 0;
+    const quita = usarBM && grupo === "ENVASE" ? -difBal : a.lav;
+    const total = redondo(conteo + (sumarPend ? pendBaja : 0) + quita + a.andina + almacen);
     const z = sap.get(a.codigo), m = mov.get(a.codigo);
     /* «Lo que no tiene SAP me tiene que decir que del 22 debo pasarlo al 18, ya que allá no tiene»: con ZEXI
        cargado, un material que no viene en él es 0 en SAP (no «sin dato»), y entra a la lista del 311 / 344. */
@@ -309,7 +339,7 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
     const dif = sapV == null ? null : redondo(sapV - total);
     const sapDespues = sapV == null ? null : redondo(sapV + movido);
     const queda = sapDespues == null ? null : redondo(sapDespues - total);
-    return { grupo, codigo: a.codigo, material: a.material, conteo: redondo(conteo), detalle, pendBaja, lavadoBaja: a.lav, andina: a.andina,
+    return { grupo, codigo: a.codigo, material: a.material, conteo: redondo(conteo), detalle, pendBaja, lavadoBaja: quita, difBalance: difBal, difBaja: usarBM && grupo === "ENVASE" ? a.dBaja : 0, difLavado: usarBM && grupo === "ENVASE" ? a.dLav : 0, sinCasco: a.sinCasco && grupo === "ENVASE", andina: a.andina,
       almacen, otrosCajas: grupo === "ENVASE" ? a.otrosCajas : 0,
       conteoEstado: grupo === "ENVASE" ? { baja: redondo(a.est.baja), lavado: redondo(a.est.lavado), otros: redondo(a.est.otros) } : undefined, upc: grupo === "ENVASE" ? upc(a.codigo) : 1, total, sap: sapV,
       libre: z?.libre ?? null, bloqueado: z?.bloqueado ?? null, calidad: z?.calidad ?? null,
@@ -349,7 +379,8 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
         aplicados.push({ codigo: a.codigo, material: a.material, que: "OTROS que no suma aquí", cantidad: o.cajas, unidad: "cajas",
           porque: `${o.ubicacion}${o.nota ? ` · «${o.nota}»` : ""} · ${o.destino === NO_SUMAR ? "se escogió no sumarlas" : `se pasaron a ${o.destino} · ${nombre(o.destino)}`}` });
       pon(a, "Pend. baja", a.pend, "u", "Pasivos AG18 · BAJA · SORTING del día" + (sumarPend ? "" : " · el interruptor está apagado: no se suma"), !sumarPend);
-      pon(a, "Lavado con baja", a.lav, "u", `Casco AG18: ${nf.format(a.lavEst)} estibas en baja × ${nf.format(cpe(a.codigo))} cajas × ${nf.format(upc(a.codigo))} u · se restan`);
+      if (usarBM) pon(a, "Dif. Balance", -(a.dBaja + a.dLav), "u", (a.bal.join(" · ") || "Sin diferencia") + (a.lav ? ` · el Lavado con baja del Casco (${nf.format(a.lavEst)} estibas) ya va dentro del casco del Balance` : ""));
+      else pon(a, "Lavado con baja", a.lav, "u", `Casco AG18: ${nf.format(a.lavEst)} estibas en baja × ${nf.format(cpe(a.codigo))} cajas × ${nf.format(upc(a.codigo))} u · se restan`);
       pon(a, "Andina / Heineken", a.andina, "u", `Pasivos AG18 · BAJA · ${[...a.causales].join(", ")}`);
     } else if (g === "CAJA") {
       pon(a, "Caja de cada envase", a.conEnvase, "cajas", [...a.porEnvase].sort((x, y) => y[1] - x[1]).map(([c, q]) => `${c}: ${nf.format(q)}`).join(" · "));

@@ -118,7 +118,7 @@ export function Validacion({ datos, puedeEnviar }: { datos: DatosValidacion; pue
                   <tr>
                     <th>Código</th><th>Material</th>
                     <th className="n">Conteo físico</th>
-                    <th className="n">Lavado con baja<small>Casco</small></th><th className="n">Total conteo<small>del Cuadre</small></th>
+                    <th className="n">Dif. balance<small>Baja + Lavado</small></th><th className="n">Total conteo<small>del Cuadre</small></th>
                     <th className="n">Baja<small>Base · conteo</small></th><th className="n">Lavado<small>Base · conteo</small></th><th className="n">Pasivo</th>
                     <th className="n va-clave">Pendiente por baja<small>conteo baja − casco − Base</small></th>
                     <th className="n va-clave">Pendiente por lavado<small>conteo lavado − Base</small></th>
