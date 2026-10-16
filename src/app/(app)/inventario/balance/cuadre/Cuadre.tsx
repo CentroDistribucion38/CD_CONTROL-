@@ -67,25 +67,6 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
   const zexiRef = useRef<HTMLInputElement>(null);
   const movRef = useRef<HTMLInputElement>(null);
   const [verOtros, setVerOtros] = useState(false);
-  /* La fila activa de la tabla del cuadre (la del cursor o la del teclado): ↑ ↓ la mueven, Espacio / Enter la marcan, Inicio / Fin saltan, Esc la suelta. */
-  const [activa, setActiva] = useState<number | null>(null);
-  const [marcadas, setMarcadas] = useState<Set<string>>(new Set());
-  const cajaTabla = useRef<HTMLDivElement>(null);
-  const filasTabla = useRef<HTMLTableRowElement[]>([]);
-  useEffect(() => { setActiva(null) }, [fecha, almacen]);
-  useEffect(() => { if (activa != null) filasTabla.current[activa]?.scrollIntoView({ block: "nearest" }) }, [activa]);
-  const marcarFila = (k: string) => setMarcadas((p) => { const s = new Set(p); if (s.has(k)) s.delete(k); else s.add(k); return s });
-  function teclaTabla(e: React.KeyboardEvent) {
-    const cant = filas.length;
-    if (!cant) return;
-    const ir = (i: number) => { e.preventDefault(); setActiva(Math.max(0, Math.min(cant - 1, i))) };
-    if (e.key === "ArrowDown") ir(activa == null ? 0 : activa + 1);
-    else if (e.key === "ArrowUp") ir(activa == null ? cant - 1 : activa - 1);
-    else if (e.key === "Home") ir(0);
-    else if (e.key === "End") ir(cant - 1);
-    else if ((e.key === " " || e.key === "Enter") && activa != null) { e.preventDefault(); marcarFila(filas[activa].codigo) }
-    else if (e.key === "Escape") setActiva(null);
-  }
   const [copiado, setCopiado] = useState<string | null>(null);
   /* Los documentos del 311 que ya se hicieron en SAP (de a 9 posiciones). Se recuerdan en este equipo, por día. */
   const [hechos, setHechos] = useState<Set<string>>(new Set());
@@ -481,7 +462,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
         </div>
       )}
 
-      <div className="cs-scroll cs-nav" ref={cajaTabla} tabIndex={0} onKeyDown={teclaTabla} onMouseEnter={() => cajaTabla.current?.focus({ preventScroll: true })} aria-label="Cuadre: flechas para moverte, espacio para marcar">
+      <div className="cs-scroll">
         <table className="cs-t">
           <thead>{esAG22 ? (
             <tr>
@@ -499,8 +480,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
           <tbody>
             {filas.map((f, i) => [
               (i === 0 || filas[i - 1].grupo !== f.grupo) && <tr key={`g-${f.grupo}`} className="g"><td colSpan={esAG22 ? 12 : 12}>{GRUPO[f.grupo]}</td></tr>,
-              <tr key={f.codigo} ref={(el) => { if (el) filasTabla.current[i] = el }} className={(marcadas.has(f.codigo) ? "marcada " : "") + (activa === i ? "activa" : "")}
-                  onMouseEnter={() => setActiva(i)} onClick={() => { setActiva(i); marcarFila(f.codigo) }} title="Clic o Espacio: marcar / desmarcar la fila">
+              <tr key={f.codigo}>
                 <td className="mono">{f.codigo}</td>
                 <td>{f.material}{f.detalle && <small>{f.detalle}</small>}
                   {f.sinCasco && <span className="cs-chip" title="Baja · Fábrica sin casco registrado: no se resta nada de lo contado en baja">baja sin casco</span>}

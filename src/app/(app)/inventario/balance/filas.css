@@ -1,0 +1,14 @@
+/* FILAS DINÁMICAS de todo Balance (ver FilasDinamicas.tsx): la fila activa (cursor / teclado) y la marcada. */
+[data-filas] tbody tr:not(.g) { cursor: pointer; scroll-margin: 56px 0 }
+[data-filas] tbody tr[data-fa] > td { background: #FFE9A8 !important; border-bottom-color: #111 !important; font-weight: 600 }
+[data-filas] tbody tr[data-fa] > td:first-child { box-shadow: inset 5px 0 0 #111 }
+[data-filas] tbody tr[data-fm] > td { background: #D9F0E3 !important }
+[data-filas] tbody tr[data-fm] > td:first-child { box-shadow: inset 5px 0 0 #0F7A4A }
+[data-filas] tbody tr[data-fm] > td:nth-child(2) { text-decoration: line-through; text-decoration-color: #0F7A4A }
+[data-filas] tbody tr[data-fm][data-fa] > td { background: #BFE6CF !important }
+[data-filas] tbody tr[data-fm][data-fa] > td:first-child { box-shadow: inset 5px 0 0 #111 }
+@media print {
+  [data-filas] tbody tr[data-fa] > td, [data-filas] tbody tr[data-fm] > td { background: transparent !important; font-weight: 400 }
+  [data-filas] tbody tr[data-fm] > td:nth-child(2) { text-decoration: none }
+  [data-filas] tbody tr > td:first-child { box-shadow: none !important }
+}
