@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { consolidadoDelDia, diasConConteo, leerCasco } from "@/modulos/inventario/balance";
 import { esUbicacionFabrica } from "@/modulos/casco/ubicacion-sitio";
 import { diasConPasivos, leerPasivos } from "@/modulos/pasivos/datos";
-import { esPendienteBaja } from "@/modulos/pasivos/pendiente-baja";
+import { esPendienteEnviado } from "@/modulos/pasivos/pendiente-baja";
 import { excluye, type PanelExcluidos } from "@/modulos/pasivos/excluidos";
 import { leerExcluidos, panelExcluidos } from "@/modulos/pasivos/excluidos-leer";
 import { conReclasificaciones } from "@/modulos/inventario/reclasificaciones";
@@ -93,6 +93,8 @@ export type FilaCuadre = {
   pendBaja: number; lavadoBaja: number; andina: number; almacen: number;
   /** Cajas de líneas OTROS que quedaron sumadas en este envase. */
   otrosCajas: number;
+  /** Envase: lo contado (en unidades) por estado del conteo: BAJA, LAVADO y OTROS (Andina… y cualquier otro estado). */
+  conteoEstado?: { baja: number; lavado: number; otros: number };
   /** Unidades por caja (solo envase): para mostrar la diferencia también en cajas. */
   upc: number;
   /** AG22: lo de la base de Pasivos por causal (PRESORTING, ROTURA DE LINEA…). */
@@ -180,12 +182,12 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
   const nombre = (c: string, alt?: string | null) => M.get(c)?.descripcion ?? P.get(c)?.nombre ?? alt ?? c;
 
   type Acc = { codigo: string; material: string; conteo: number; sueltas: number; sueltasBaja: number; conEnvase: number; pend: number; lav: number; andina: number; otrosCajas: number; fuera: number; fueraDe: string;
-    lavEst: number; causales: Set<string>; porEnvase: Map<string, number> };
+    est: { baja: number; lavado: number; otros: number }; lavEst: number; causales: Set<string>; porEnvase: Map<string, number> };
   const acc = new Map<string, Acc>();
   const de = (c: string, alt?: string | null) => {
     let a = acc.get(c);
     if (!a) { a = { codigo: c, material: nombre(c, alt), conteo: 0, sueltas: 0, sueltasBaja: 0, conEnvase: 0, pend: 0, lav: 0, andina: 0, otrosCajas: 0, fuera: 0, fueraDe: "",
-      lavEst: 0, causales: new Set(), porEnvase: new Map() }; acc.set(c, a) }
+      est: { baja: 0, lavado: 0, otros: 0 }, lavEst: 0, causales: new Set(), porEnvase: new Map() }; acc.set(c, a) }
     return a;
   };
 
@@ -229,13 +231,18 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
     const env = destino || c, cajaDe = M.get(env)?.caja;
     if (cajaDe && CAJA_FUERA_DEL_CUADRE.has(env)) { const k = de(String(cajaDe)); k.fuera += cajas; k.fueraDe = nombre(env) }
     else if (cajaDe) { const k = de(String(cajaDe)); k.conEnvase += cajas; k.porEnvase.set(env, (k.porEnvase.get(env) ?? 0) + cajas) }
-    if (destino) de(destino, destino === c ? r.material : null).conteo += cajas * upc(destino);
+    if (destino) {
+      const k = de(destino, destino === c ? r.material : null), u = cajas * upc(destino), e = String(r.estado_envase ?? "");
+      k.conteo += u;
+      /* El estado del conteo: BAJA, LAVADO; todo lo demás (OTROS, Andina…) es lo que hay que bloquear. */
+      if (/BAJA/i.test(e)) k.est.baja += u; else if (/LAVAD/i.test(e)) k.est.lavado += u; else k.est.otros += u;
+    }
   }
 
   /* 2. PEND. BAJA Y ANDINA / HEINEKEN (Pasivos AG18 · BAJA, del día). */
   for (const f of pas.data) {
     if (f.almacen !== ALMACEN_CUADRE || String(f.estado).toUpperCase() !== "BAJA") continue;
-    if (esPendienteBaja(f.causal)) continue; /* lo enviado desde la Validación de pasivo ya sale de conteo − pasivo: no se cuenta doble */
+    if (esPendienteEnviado(f.causal)) continue; /* lo enviado desde la Validación de pasivo ya sale de conteo − pasivo: no se cuenta doble */
     const a = de(String(f.codigo), f.descripcion);
     if (String(f.causal).toUpperCase() === "SORTING") a.pend += Number(f.unidades) || 0;
     else { a.andina += Number(f.unidades) || 0; a.causales.add(String(f.causal ?? "").toUpperCase() || "SIN CAUSAL") }
@@ -289,7 +296,8 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
     const sapDespues = sapV == null ? null : redondo(sapV + movido);
     const queda = sapDespues == null ? null : redondo(sapDespues - total);
     return { grupo, codigo: a.codigo, material: a.material, conteo: redondo(conteo), detalle, pendBaja, lavadoBaja: a.lav, andina: a.andina,
-      almacen, otrosCajas: grupo === "ENVASE" ? a.otrosCajas : 0, upc: grupo === "ENVASE" ? upc(a.codigo) : 1, total, sap: sapV,
+      almacen, otrosCajas: grupo === "ENVASE" ? a.otrosCajas : 0,
+      conteoEstado: grupo === "ENVASE" ? { baja: redondo(a.est.baja), lavado: redondo(a.est.lavado), otros: redondo(a.est.otros) } : undefined, upc: grupo === "ENVASE" ? upc(a.codigo) : 1, total, sap: sapV,
       libre: z?.libre ?? null, bloqueado: z?.bloqueado ?? null, calidad: z?.calidad ?? null,
       enLibre: grupo === "ENVASE" && m?.libre != null ? redondo(m.libre) : null,
       ...(grupo === "CAJA" ? (() => {

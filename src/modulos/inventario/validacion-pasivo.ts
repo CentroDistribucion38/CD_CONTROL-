@@ -1,6 +1,6 @@
 import { armarCuadre } from "@/modulos/inventario/cuadre";
 import { leerPasivos } from "@/modulos/pasivos/datos";
-import { esPendienteBaja } from "@/modulos/pasivos/pendiente-baja";
+import { tipoPendiente } from "@/modulos/pasivos/pendiente-baja";
 
 /**
  * VALIDACIÓN DE PASIVO · AG18 — una hoja aparte para validar; desde aquí se ENVÍA el pendiente por baja a la Base de pasivos.
@@ -9,10 +9,14 @@ import { esPendienteBaja } from "@/modulos/pasivos/pendiente-baja";
  *   CONTEO FÍSICO        lo contado en la fábrica (el «Conteo fábrica» del Cuadre SAP).
  *   PASIVO               lo que está en el informe de pasivo: Baja + Lavado de AG18 del día (sin lo ya enviado desde aquí).
  *   TOTAL CONTEO         el del Cuadre SAP: conteo físico menos el lavado con baja del Casco (+ Andina). Es lo que SAP debe tener.
- *   PENDIENTE POR BAJA   total conteo − pasivo.            (231.270 − 113.520 = 117.750)
+ *   PENDIENTE            total conteo − pasivo.            (231.270 − 113.520 = 117.750). SE SEPARA por lo que de verdad es:
+ *     · POR BAJA     conteo en BAJA (− lavado con baja del Casco) − baja de la Base
+ *     · POR LAVADO   conteo en LAVADO − lavado de la Base
+ *     · POR BLOQUEAR lo contado en OTROS: no está en la Base y hay que bloquearlo en SAP
+ *     (los tres suman el pendiente; lo de Andina / almacén que suma el Cuadre va con baja)
  *   EXISTENCIA FINAL SAP la del Cuadre SAP AG18: lo que dice SAP + lo ya movido con el 311.
  *   VALIDA               pasivo + pendiente por baja debe dar la existencia final de SAP.
- * Lo ya enviado (BAJA · PENDIENTE BAJA) no cuenta como pasivo aquí: así el pendiente no cambia al enviarlo.
+ * Lo ya enviado (PENDIENTE BAJA / LAVADO / BLOQUEAR) no cuenta como pasivo aquí: así el pendiente no cambia al enviarlo.
  */
 export type EstadoValidacion = "cuadra" | "falta" | "sobra" | "sin_sap";
 export type FilaValidacion = {
@@ -25,8 +29,15 @@ export type FilaValidacion = {
   baja: number; lavado: number; pasivo: number;
   /** total conteo − pasivo. Negativo = el pasivo es mayor que lo contado. */
   pendiente: number;
-  /** Lo ya enviado a la Base de pasivos (BAJA · PENDIENTE BAJA) de este material ese día. */
+  /** Lo contado por estado del conteo (unidades): BAJA, LAVADO y OTROS (lo que hay que bloquear). */
+  conteoBaja: number; conteoLavado: number; conteoOtros: number;
+  /** El pendiente separado por su causal real: pendBaja + pendLavado + pendBloquear = pendiente. */
+  pendBaja: number; pendLavado: number; pendBloquear: number;
+  /** Lo ya enviado a la Base de pasivos de este material ese día, por causal. */
+  enviadoBaja: number; enviadoLavado: number; enviadoBloquear: number;
+  /** Total enviado (los tres). */
   enviado: number;
+  upc: number;
   /** Cajas del pendiente por baja (null si no hay unidades por caja). */
   pendienteCajas: number | null;
   /** SAP + lo movido con el 311 (null si no hay ZEXI guardada). */
@@ -55,13 +66,17 @@ export async function validacionPasivo(pedida?: string | null): Promise<DatosVal
   const pas = await leerPasivos(c.fecha, c.fecha);
   if (pas.error) return { ...vacio, avisos: [...c.avisos, `No pude leer Pasivos: ${pas.error}`] };
 
-  const baja = new Map<string, number>(), lavado = new Map<string, number>(), enviado = new Map<string, number>();
+  const baja = new Map<string, number>(), lavado = new Map<string, number>();
+  const enviado = { baja: new Map<string, number>(), lavado: new Map<string, number>(), bloquear: new Map<string, number>() };
+  const enviadoTotal = (k: string) => (enviado.baja.get(k) ?? 0) + (enviado.lavado.get(k) ?? 0) + (enviado.bloquear.get(k) ?? 0);
+  let hayEnviado = false;
   const historico = pas.data.some((f) => f.origen === "historico");
   for (const f of pas.data) {
     if (f.almacen !== "AG18") continue;
     const e = String(f.estado).toUpperCase(), k = String(f.codigo), u = Number(f.unidades) || 0;
     /* Lo que esta pantalla ya envió NO es pasivo para validar (si no, el pendiente se contaría dos veces). */
-    if (e === "BAJA" && esPendienteBaja(f.causal)) { enviado.set(k, (enviado.get(k) ?? 0) + u); continue }
+    const tp = tipoPendiente(f.causal);
+    if (tp) { enviado[tp].set(k, (enviado[tp].get(k) ?? 0) + u); hayEnviado = true; continue }
     if (e === "BAJA") baja.set(k, (baja.get(k) ?? 0) + u);
     else if (e === "LAVADO") lavado.set(k, (lavado.get(k) ?? 0) + u);
   }
@@ -76,10 +91,18 @@ export async function validacionPasivo(pedida?: string | null): Promise<DatosVal
     if (!f.conteo && !f.total && !pasivo) continue;
     /* El pendiente se saca del TOTAL CONTEO del Cuadre (ya sin el lavado con baja del Casco): así pasivo + pendiente = lo que SAP debe tener. */
     const pendiente = r2(f.total - pasivo);
+    /* SEPARADO POR SU CAUSAL REAL. El lavado con baja del Casco (negativo) sale de lo contado en BAJA; lo que suma el Cuadre
+       además del conteo (Andina, almacén) va con la baja. Lo contado en OTROS no está en la Base: hay que bloquearlo. */
+    const ce = f.conteoEstado ?? { baja: f.conteo, lavado: 0, otros: 0 };
+    const pendLavado = r2(ce.lavado - l), pendBloquear = r2(ce.otros);
+    const pendBaja = r2(pendiente - pendLavado - pendBloquear);
     const existencia = f.sapDespues ?? f.sap;
     const dif = existencia == null ? null : r2(existencia - (pasivo + pendiente));
     filas.push({
-      codigo: f.codigo, material: f.material, conteo: f.conteo, lavadoCasco: r2(f.lavadoBaja), total: r2(f.total), baja: r2(b), lavado: r2(l), pasivo, pendiente, enviado: r2(enviado.get(f.codigo) ?? 0),
+      codigo: f.codigo, material: f.material, conteo: f.conteo, lavadoCasco: r2(f.lavadoBaja), total: r2(f.total), baja: r2(b), lavado: r2(l), pasivo, pendiente,
+      conteoBaja: r2(ce.baja), conteoLavado: r2(ce.lavado), conteoOtros: r2(ce.otros), pendBaja, pendLavado, pendBloquear,
+      enviadoBaja: r2(enviado.baja.get(f.codigo) ?? 0), enviadoLavado: r2(enviado.lavado.get(f.codigo) ?? 0), enviadoBloquear: r2(enviado.bloquear.get(f.codigo) ?? 0),
+      enviado: r2(enviadoTotal(f.codigo)), upc: f.upc,
       pendienteCajas: f.upc > 1 ? r2(pendiente / f.upc) : null, existencia, dif,
       estado: dif == null ? "sin_sap" : Math.abs(dif) < EPS ? "cuadra" : dif < 0 ? "falta" : "sobra",
     });
@@ -90,8 +113,10 @@ export async function validacionPasivo(pedida?: string | null): Promise<DatosVal
     const b = baja.get(k) ?? 0, l = lavado.get(k) ?? 0, pasivo = r2(b + l);
     if (!pasivo) continue;
     filas.push({ codigo: k, material: pas.data.find((x) => String(x.codigo) === k)?.descripcion ?? k, conteo: 0, lavadoCasco: 0, total: 0, baja: r2(b), lavado: r2(l), pasivo,
-      pendiente: r2(-pasivo), enviado: r2(enviado.get(k) ?? 0), pendienteCajas: null, existencia: null, dif: null, estado: "sin_sap" });
+      pendiente: r2(-pasivo), conteoBaja: 0, conteoLavado: 0, conteoOtros: 0, pendBaja: r2(-b), pendLavado: r2(-l), pendBloquear: 0,
+      enviadoBaja: r2(enviado.baja.get(k) ?? 0), enviadoLavado: r2(enviado.lavado.get(k) ?? 0), enviadoBloquear: r2(enviado.bloquear.get(k) ?? 0),
+      enviado: r2(enviadoTotal(k)), upc: 1, pendienteCajas: null, existencia: null, dif: null, estado: "sin_sap" });
   }
   filas.sort((a, b) => a.codigo.localeCompare(b.codigo, "es", { numeric: true }));
-  return { fecha: c.fecha, dias: c.dias, filas, hayZexi, yaEnviado: enviado.size > 0, historico, avisos: c.avisos, error: null };
+  return { fecha: c.fecha, dias: c.dias, filas, hayZexi, yaEnviado: hayEnviado, historico, avisos: c.avisos, error: null };
 }
