@@ -30,9 +30,9 @@ import { conReclasificaciones } from "@/modulos/inventario/reclasificaciones";
  * SAP DESPUÉS = SAP + lo movido (neto en AG18) y QUEDA = SAP DESPUÉS − TOTAL CONTEO.
  */
 export const ALMACEN_CUADRE = "AG18";
-/** Los materiales con «Lavado con baja» en el Casco (3500887, 3500888, 3501539…) ya cuadraban con SAP restando ese lavado al conteo; con la regla
- *  del Balance de materiales saldría otra cifra. false = se quedan como antes; true = también pasan por el Balance. */
-const BM_CON_LAVADO_CON_BAJA = false;
+/** true = todos los envases pasan por el Balance de materiales (contado − casco). false = los que tienen «Lavado con baja» en el Casco
+ *  se quedan con el cálculo de antes (restar solo ese lavado al conteo). */
+const BM_CON_LAVADO_CON_BAJA = true;
 /** Los dos cuadres: AG18 (fábrica, contra el conteo) y AG22 (contra la base de Pasivos y el Bloqueado de SAP). */
 export type Almacen = "AG18" | "AG22";
 export const esAlmacen = (a: unknown): a is Almacen => a === "AG18" || a === "AG22";
@@ -290,7 +290,7 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
   }
 
   /* 3b. LA DIFERENCIA DEL BALANCE (Baja · Fábrica y Lavado · Fábrica): el TOTAL CONTEO es el BALANCE DE MATERIALES, o sea
-     lo contado menos esa diferencia (= casco + ajustes del Balance). Si no se pudo leer el Balance, se queda el cálculo de antes. */
+     lo contado menos la DIFERENCIA de su Excel, que es el casco registrado (+ ajustes del Balance): lo que SAP no debe tener en AG18. Si no se pudo leer el Balance, se queda el cálculo de antes. */
   const usarBM = !bal.error;
   if (bal.error) avisos.push(`No pude leer el Balance (la diferencia de Baja y Lavado): ${bal.error}. Se usó el Lavado con baja del Casco, como antes.`);
   if (usarBM) for (const r of bal.detalle) {
@@ -300,11 +300,13 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
     const sin = r.alerta === "Contado y sin casco registrado";
     /* LAVADO · Fábrica sin casco registrado = no hay «Lavado con baja»: lo contado en lavado se toma tal cual (sin diferencia), como en el Excel. */
     if (r.estado === "LAVADO" && sin) continue;
-    const u = upc(c), d = redondo(r.dif_cajas * u), a = de(c, r.material);
+    /* Lo que se resta a lo contado = casco + ajuste (= contado − dif. de la pantalla Balance). OJO: la «Diferencia» de la pantalla Balance
+       es contado − casco, o sea el balance mismo; la «diferencia» del Excel es el casco. */
+    const u = upc(c), d = redondo((r.fisico_cajas - r.dif_cajas) * u), a = de(c, r.material);
     if (r.estado === "BAJA") a.dBaja += d; else a.dLav += d;
     if (sin) a.sinCasco = true;
-    if (d) a.bal.push(`${r.estado === "BAJA" ? "Baja" : "Lavado"} · Fábrica: contado ${nf.format(r.fisico_cajas)} cajas − casco ${nf.format(r.cajas_casco)}`
-      + `${r.ajuste_cajas ? ` − ajuste ${nf.format(r.ajuste_cajas)}` : ""} = ${nf.format(r.dif_cajas)} cajas × ${nf.format(u)} u${sin ? " · sin casco registrado: todo lo contado cuenta como diferencia" : ""}`);
+    if (d) a.bal.push(`${r.estado === "BAJA" ? "Baja" : "Lavado"} · Fábrica: contado ${nf.format(r.fisico_cajas)} cajas · casco ${nf.format(r.cajas_casco)}`
+      + `${r.ajuste_cajas ? ` + ajuste ${nf.format(r.ajuste_cajas)}` : ""} = ${nf.format(r.fisico_cajas - r.dif_cajas)} cajas × ${nf.format(u)} u se restan${sin ? " · sin casco registrado" : ""}`);
   }
 
   /* 4. LO GUARDADO: el ZEXI, las estibas del almacén y los movimientos 311. */
@@ -332,7 +334,7 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
       detalle = `${nf.format(estSueltas)} sueltas + ${nf.format(estBajo)} bajo el envase` + (estAlm ? ` + ${nf.format(estAlm)} del almacén` : "");
     }
     const pendBaja = grupo === "ENVASE" ? a.pend : 0;
-    /* El envase: contado − dif. del Balance (= Balance de materiales). Sin el Balance, el lavado con baja suelto de antes. */
+    /* El envase: contado − casco (= Balance de materiales). Sin el Balance, el lavado con baja suelto de antes. */
     const usaBM = usarBM && grupo === "ENVASE" && (BM_CON_LAVADO_CON_BAJA || !a.lav);
     const difBal = usaBM ? redondo(a.dBaja + a.dLav) : 0;
     const quita = usaBM ? -difBal : a.lav;
