@@ -358,3 +358,13 @@
 .bal .bal-cf li.res b { color: #FFC000; font-size: 17px }
 @media (max-width: 900px) { .bal .bal-cf ol { grid-template-columns: repeat(2, minmax(0, 1fr)) } }
 @media (max-width: 520px) { .bal .bal-cf ol { grid-template-columns: 1fr } }
+
+/* «Otros estados»: la barra de lo que falta reasignar */
+.bal-otros-barra{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin:0 0 10px;padding:10px 14px;background:#fff;border:1px solid #d9d4c7;border-left:4px solid #FFC20E}
+.bal-otros-sw{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;cursor:pointer;font-size:13px}
+.bal-otros-sw input{accent-color:#1a1a1a;transform:translateY(2px)}
+.bal-otros-sw small{color:#6b6657;font-size:12px}
+.bal-otros-chip{font-size:12px;padding:4px 9px;background:#f3f1ea;color:#6b6657}
+.bal-otros-chip.hay{background:#FDE7E7;color:#9b1c1c;font-weight:600}
+.bal-otros-chip b{color:inherit}
+.bal-est-otro{color:#9b1c1c}
