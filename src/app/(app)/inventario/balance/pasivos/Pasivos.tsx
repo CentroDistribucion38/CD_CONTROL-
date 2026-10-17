@@ -367,7 +367,7 @@ export function Pasivos({ filas, error, desde, hasta, dias, diasConteo, codigos,
                 <td className="r">{n2(f.hl)}</td>
                 <td className="r">{n0(f.cajas)}</td>
                 <td className="r">{plata(f.costo)}</td>
-                <td><span className={`pas-origen ${f.origen}`} title={f.archivo ?? undefined}>{ORIGEN[f.origen] ?? f.origen}</span></td>
+                <td><span className={`pas-origen ${f.origen}`} title={f.archivo ?? f.nota ?? undefined}>{ORIGEN[f.origen] ?? f.origen}</span>{f.origen === "balance" && f.nota && <small className="pas-nota">{f.nota}</small>}</td>
               </tr>
             ))}
             {vistas.length === 0 && <tr><td colSpan={puedeEditar ? 13 : 12} className="bal-sin-filas">No hay pasivos en estas fechas con esos filtros.</td></tr>}

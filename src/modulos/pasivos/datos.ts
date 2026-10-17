@@ -52,7 +52,10 @@ export function filasDeBalance(fecha: string, detalle: FilaBalance[], regla?: Re
     /* Lo que está en el casco y NO se contó no entra (como en BLOQUEADOS.xlsx): va como alerta en el balance. */
     if (!f.fisico_cajas) continue;
     if (f.unidades == null) { sinFactor.push(f.codigo); continue }
-    filas.push({ fecha, ...m.a, codigo: f.codigo, unidades: f.unidades });
+    /* Si parte de lo contado llegó por una reasignación del Balance (OTROS → BAJA…), queda dicho en la fila para poder comprobarlo. */
+    const reas = f.reasignadas_cajas ?? 0;
+    const nota = reas > 0 ? `Incluye ${Math.round(reas).toLocaleString("es-CO")} cajas reasignadas en el Balance${f.un_caja ? ` (${Math.round(reas * f.un_caja).toLocaleString("es-CO")} u)` : ""}` : null;
+    filas.push({ fecha, ...m.a, codigo: f.codigo, unidades: f.unidades, ...(nota ? { nota } : {}) });
   }
   return { filas, sinFactor: [...new Set(sinFactor)], excluidos: [...excluidos] };
 }

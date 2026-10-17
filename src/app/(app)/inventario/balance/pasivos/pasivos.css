@@ -73,3 +73,5 @@
 .pas .pas-desc-val { display: inline-flex; align-items: center; gap: 6px }
 .pas .pas-desc-val input { width: 120px; font: 700 16px var(--fe-mono, ui-monospace, monospace); padding: 4px 8px; border: 2px solid var(--fe-acento, #FFC400); background: #fff; text-align: right }
 .pas .pas-desc-val small { font-size: 12px; color: var(--fe-gris) }
+
+.pas-nota{display:block;margin-top:2px;font-size:11px;font-weight:600;color:#7a5b00;line-height:1.25}

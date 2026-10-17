@@ -33,6 +33,8 @@ export type FilaBalance = {
   ajuste_cajas: number; ajuste_nota: string | null; calidad: string | null;
   dif_cajas: number; unidades: number | null; alerta: string | null;
   reclasificacion_id: number | null;
+  /** Cajas de esta fila que llegaron por una reasignación hecha en el Balance (p. ej. OTROS → BAJA): van dentro de `fisico_cajas`. */
+  reasignadas_cajas?: number;
   /** EL CUADRE DE FÁBRICA (solo Baja · Fábrica de los materiales de la regla de fábrica): de dónde salen
    *  las estibas casco. Casco no se toca: la cuenta se hace aquí. */
   cuadre_fabrica?: CuadreFabrica | null;
@@ -181,7 +183,7 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
       const p = prod.get(codigo);
       f = { fecha, estado, alcance, codigo, material: p?.nombre ?? null, ubicacion: null,
         cajas_estiba: p?.cajas_por_estiba ?? null, un_caja: p?.unidades_por_caja ?? null,
-        fisico_cajas: 0, estibas_casco: 0, cajas_casco: 0, reclasificacion_id: null,
+        fisico_cajas: 0, estibas_casco: 0, cajas_casco: 0, reclasificacion_id: null, reasignadas_cajas: 0,
         ubis: new Set(), tieneFisico: false, tieneCasco: false };
       filas.set(k, f);
     }
@@ -253,7 +255,7 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
     if (!f.material) f.material = r.material;
     if (f.cajas_estiba == null) f.cajas_estiba = r.factor_estibado ?? null;
     const u = (r.ubicacion ?? r.ubicacion_combinada ?? "").trim(); if (u) f.ubis.add(u);
-    if (rc) f.reclasificacion_id = Math.max(f.reclasificacion_id ?? 0, rc.id);
+    if (rc) { f.reclasificacion_id = Math.max(f.reclasificacion_id ?? 0, rc.id); f.reasignadas_cajas = (f.reasignadas_cajas ?? 0) + (Number(r.total_cajas) || 0) }
   }
 
   /* CASCO: el día escogido; de cada ubicación, su último día hasta ese día (si ese día no se guardó, sigue el último). */
