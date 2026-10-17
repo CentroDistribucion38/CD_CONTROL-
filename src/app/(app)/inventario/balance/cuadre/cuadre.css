@@ -300,3 +300,10 @@
 
 /* AG17 / AG16: el detalle (cajas × unidades) junto al nombre del material. */
 .cs .cs-det { color: #6b6b6b; font-size: 12px }
+
+/* ALERTA «SAP no tiene / no alcanza»: lo que hay que mandar de AG18 a AG22 y SAP no tiene en AG18. */
+.cs .cs-t tr.sin-sap td { background: #FDECEC; color: #B3121F }
+.cs .cs-t tr.sin-sap td b { color: #B3121F }
+.cs .cs-alerta { display: block; font-weight: 700; font-size: 12px; color: #B3121F }
+.cs .cs-chip.sin-sap { background: #B3121F; color: #fff }
+.cs .cs-msg.cs-sinsap { border-left: 4px solid #B3121F }

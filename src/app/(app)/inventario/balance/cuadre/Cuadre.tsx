@@ -300,10 +300,23 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
       </span>
     );
   };
+  /* ALERTA: lo que hay que MANDAR de AG18 a AG22 y SAP no tiene (en 0) o no alcanza para pasarlo completo. */
+  const noAlcanza = (f: FilaCuadre) => !esAG22 && f.dif != null && f.dif > 0.5 && f.sap != null && f.dif > f.sap + 0.5;
+  const textoNoAlcanza = (f: FilaCuadre) => (f.sap ?? 0) <= 0.5
+    ? `SAP tiene 0 en ${ALM}: no hay existencia para pasar`
+    : `SAP solo tiene ${n(f.sap!)} en ${ALM}: no alcanza (faltan ${n(f.dif! - f.sap!)})`;
+  const alertaSinSap = (xs: FilaCuadre[]) => {
+    const m = xs.filter(noAlcanza);
+    return m.length === 0 ? null : (
+      <p className="cs-msg mal cs-sinsap">
+        <b>No se puede pasar completo:</b> {m.length === 1 ? "este material" : `estos ${m.length} materiales`} no tiene{m.length === 1 ? "" : "n"} en SAP la existencia de {ALM} que hay que mandar a {OTRO} — {m.map((f) => `${f.codigo} (${(f.sap ?? 0) <= 0.5 ? "SAP en 0" : `SAP ${n(f.sap!)} de ${n(f.dif!)}`})`).join(" · ")}. Revisa el conteo o el balance de ese material antes de hacer el 311.
+      </p>
+    );
+  };
   const lista = (xs: FilaCuadre[]) => (
     <table className="cs-t chica"><thead><tr><th>Código</th><th>Material</th><th className="n">Cantidad</th><th className="n">Cajas</th></tr></thead>
-      <tbody>{xs.map((f) => <tr key={f.codigo} className={"cs-sel" + (foco === f.codigo ? " foco" : "")} onClick={() => enfocar(f.codigo)} title="Toca para ver este código en todos los movimientos">
-        <td className="mono">{f.codigo}</td><td>{f.material}</td><td className="n"><b>{n(Math.abs(f.dif!))}</b></td>
+      <tbody>{xs.map((f) => <tr key={f.codigo} className={"cs-sel" + (foco === f.codigo ? " foco" : "") + (noAlcanza(f) ? " sin-sap" : "")} onClick={() => enfocar(f.codigo)} title={noAlcanza(f) ? textoNoAlcanza(f) : "Toca para ver este código en todos los movimientos"}>
+        <td className="mono">{f.codigo}</td><td>{f.material}{noAlcanza(f) && <small className="cs-alerta"> ⚠ {textoNoAlcanza(f)}</small>}</td><td className="n"><b>{n(Math.abs(f.dif!))}</b></td>
         <td className="n">{cajasTxt(enCajas(f, Math.abs(f.dif!)), false)}</td></tr>)}</tbody>
     </table>
   );
@@ -590,7 +603,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                 <td className={"n" + (f.dif == null || cero(f.dif) ? "" : f.dif < 0 ? " neg" : " amb")} title={f.grupo === "ENVASE" ? `${n(f.upc)} unidades por caja` : undefined}>{cajasTxt(enCajas(f, f.dif))}</td>
                 <td>{f.dif == null ? <span className="cs-chip">Sin SAP</span> : cero(f.dif) ? <span className="cs-chip ok">Cuadra</span>
                   : esAG22 && f.grupo === "CAJA" ? <span className="cs-chip" title="Cajas en AG22: no hay 311, es una diferencia de inventario (solo se balancean los estados)">Dif. inventario</span>
-                  : f.dif < 0 ? <span className="cs-chip in">{ENTRA}</span> : <span className="cs-chip out">{SALE}</span>}</td>
+                  : f.dif < 0 ? <span className="cs-chip in">{ENTRA}</span> : noAlcanza(f) ? <span className="cs-chip sin-sap" title={textoNoAlcanza(f)}>{SALE} · {(f.sap ?? 0) <= 0.5 ? "SAP en 0" : "no alcanza"}</span> : <span className="cs-chip out">{SALE}</span>}</td>
               </tr>,
             ])}
           </tbody>
@@ -644,6 +657,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                     {documentos(del343, "salen343")}
                   </div>
                 )}
+                {alertaSinSap(salenEnv)}
                 {sinReparto && salenEnv.length > 0 && <p className="cs-nota">La ZEXI guardada no dice cuánto está libre o bloqueado: vuelve a subirla para saber si algo necesita 343 antes.</p>}
                 {salenEnv.length ? <>{del343.length > 0 && <p className="cs-antes-311">Luego, el 311 de {ALM} a {OTRO}:</p>}{documentos(salenEnv, "salen")}</> : <p className="cs-vacio">Nada.</p>}
               </div>
@@ -701,6 +715,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                       <div className="cs-caja r"><h3>{`Pasar de ${OTRO} a ${ALM}`} {cabezaLista(entranCaja, "caja-entran")}</h3>
                         {entranCaja.length ? documentos(entranCaja, "caja-entran") : <p className="cs-vacio">Nada.</p>}</div>
                       <div className="cs-caja a"><h3>{`Pasar de ${ALM} a ${OTRO}`} {cabezaLista(salenCaja, "caja-salen")}</h3>
+                        {alertaSinSap(salenCaja)}
                         {salenCaja.length ? documentos(salenCaja, "caja-salen") : <p className="cs-vacio">Nada.</p>}</div>
                     </div>
                   )}
