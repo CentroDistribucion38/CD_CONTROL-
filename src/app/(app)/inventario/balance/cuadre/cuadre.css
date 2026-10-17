@@ -297,3 +297,6 @@
 
 .cs-t .cs-ext { display: block; font-size: 10px; font-weight: 400; color: var(--cs-mute, #7a7a7a); white-space: nowrap }
 .cs .cs-h .cs-h-s { font: 400 12px var(--fe-texto); letter-spacing: 0; text-transform: none; color: var(--fe-gris) }
+
+/* AG17 / AG16: el detalle (cajas × unidades) junto al nombre del material. */
+.cs .cs-det { color: #6b6b6b; font-size: 12px }

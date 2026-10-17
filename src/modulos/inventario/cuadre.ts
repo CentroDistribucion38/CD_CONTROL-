@@ -34,8 +34,11 @@ export const ALMACEN_CUADRE = "AG18";
  *  se quedan con el cálculo de antes (restar solo ese lavado al conteo). */
 const BM_CON_LAVADO_CON_BAJA = true;
 /** Los dos cuadres: AG18 (fábrica, contra el conteo) y AG22 (contra la base de Pasivos y el Bloqueado de SAP). */
-export type Almacen = "AG18" | "AG22";
-export const esAlmacen = (a: unknown): a is Almacen => a === "AG18" || a === "AG22";
+export type Almacen = "AG18" | "AG17" | "AG16" | "AG22";
+export const esAlmacen = (a: unknown): a is Almacen => a === "AG18" || a === "AG17" || a === "AG16" || a === "AG22";
+/** AG17 (calle EXPORTACION) y AG16 (calle BTS): su cuadre es simple, el conteo de su calle contra la ZEXI de SAP. */
+export type AlmacenSimple = "AG17" | "AG16";
+export const esAlmacenSimple = (a: unknown): a is AlmacenSimple => a === "AG17" || a === "AG16";
 /** AG22: las causales de la base de Pasivos que entran al cuadre («el agenciamiento»). */
 export const CAUSALES_AG22 = ["PRESORTING", "ROTURA DE LINEA", "LAVADO", "EXTRASUCIO", "BAJA PROYECTADA"] as const;
 const normCausal = (c: unknown) => String(c ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/\s+/g, " ").trim();
@@ -88,7 +91,7 @@ export type LineaOtros = {
   /** true si alguien la cambió; false = suma al código con que se contó. */
   elegido: boolean;
 };
-export type Grupo = "ENVASE" | "CAJA" | "ESTIBA";
+export type Grupo = "ENVASE" | "CAJA" | "ESTIBA" | "PRODUCTO";
 /** Lo contado en Bodega 38 (AG22) de un envase, en unidades, por estado del conteo. */
 export type ConteoBodega = { codigo: string; material: string; baja: number; lavado: number; extrasucio: number; otros: number };
 /** Lo que la app le aplicó a una referencia, con el porqué, para que cada movimiento se entienda. */
@@ -161,6 +164,7 @@ async function leerHistorial(supabase: Awaited<ReturnType<typeof createClient>>)
 
 export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG18") {
   if (almacen === "AG22") return armarCuadreAG22(pedida);
+  if (esAlmacenSimple(almacen)) return armarCuadreSimple(pedida, almacen);
   const supabase = await createClient();
   const { dias, conteos, error: e0 } = await diasConConteo();
   const fecha = pedida && dias.includes(pedida) ? pedida : (dias[0] ?? null);
@@ -566,4 +570,94 @@ async function armarCuadreAG22(pedida?: string | null) {
         porque: `Base de Pasivos · AG22 · ${[...(a.estados[c] ?? [])].join("/") || "—"} · causal ${c} del día` });
 
   return { ...base, filas, guardado, avisos, aplicados, excluidos, ...hist };
+}
+
+
+/**
+ * CUADRE SAP · AG17 (calle EXPORTACION) y AG16 (calle BTS) — el CONTEO de esa calle contra la ZEXI de SAP de su almacén.
+ *
+ * Simple, como se pidió: por material, lo contado en la calle (todo lo que se cuente allí) contra lo que SAP tiene en AG17 / AG16.
+ *   · PRODUCTO       = cajas contadas.
+ *   · ENVASE         = cajas contadas × unidades por caja (unidades).
+ *   · CAJA PLÁSTICA  = cajas contadas.
+ *   · ESTIBA 3500163 = las sueltas + 1 por cada estiba contada debajo del material (y 1 por renglón con saldo o sueltas), como AG18.
+ * DIFERENCIA = SAP − CONTEO. No hay pasivos, casco ni 311: «SAP después» = SAP y «queda» = la diferencia.
+ * La ZEXI y el balanceo guardado salen de la misma tabla (cuadre_sap, una fila por día y almacén).
+ */
+async function armarCuadreSimple(pedida: string | null | undefined, almacen: AlmacenSimple) {
+  const supabase = await createClient();
+  const { dias, conteos, error: e0 } = await diasConConteo();
+  const fecha = pedida && dias.includes(pedida) ? pedida : (dias[0] ?? null);
+  const base = { fecha, dias, filas: [] as FilaCuadre[], guardado: null as CuadreGuardado | null, estibasBodega: 0, avisos: [] as string[], error: e0, faltaSql: false, historial: [] as DiaHistorial[], faltaHist: false,
+    otros: [] as LineaOtros[], envases: [] as { codigo: string; material: string }[], aplicados: [] as Aplicado[], excluidos: null as PanelExcluidos | null, conteoBodega: [] as ConteoBodega[] };
+  if (!fecha) return { ...base, ...(await leerHistorial(supabase)) };
+
+  const [cons, prodR, maesR, guardR, hist] = await Promise.all([
+    consolidadoDelDia(fecha, conteos, almacen),
+    supabase.from("productos").select("sku, nombre, unidades_por_caja, cajas_por_estiba"),
+    supabase.from("pasivos_maestro").select("codigo, descripcion, familia, unidades_por_caja, cajas_por_estiba, caja"),
+    supabase.from("cuadre_sap").select("*").eq("fecha", fecha).eq("almacen", almacen).maybeSingle(),
+    leerHistorial(supabase),
+  ]);
+  if (guardR.error && /cuadre_sap|does not exist|PGRST205/i.test(`${guardR.error.code} ${guardR.error.message}`)) return { ...base, faltaSql: true };
+  const avisos: string[] = [];
+  if (cons.error) avisos.push(`No pude leer el conteo: ${cons.error}`);
+  if (maesR.error) avisos.push(`No pude leer el maestro de Pasivos (factores): ${maesR.error.message}`);
+
+  const guardado = (guardR.data ?? null) as CuadreGuardado | null;
+  const P = new Map(((prodR.data ?? []) as Prod[]).map((p) => [String(p.sku), p]));
+  const M = new Map(((maesR.data ?? []) as Maes[]).map((m) => [String(m.codigo), m]));
+  const upc = (c: string) => Number(M.get(c)?.unidades_por_caja ?? P.get(c)?.unidades_por_caja ?? 1) || 1;
+  const nombre = (c: string, alt?: string | null) => M.get(c)?.descripcion ?? P.get(c)?.nombre ?? alt ?? c;
+  const esCaja = (c: string, mat?: string | null) => (M.get(c)?.familia ?? "").toUpperCase() === "CAJA" || /CAJA\s+PL/i.test(mat ?? "");
+
+  type Ac = { codigo: string; material: string; grupo: Grupo; total: number; cajas: number; estibas: number };
+  const acc = new Map<string, Ac>();
+  const de = (c: string, grupo: Grupo, alt?: string | null) => {
+    let a = acc.get(c);
+    if (!a) { a = { codigo: c, material: nombre(c, alt), grupo, total: 0, cajas: 0, estibas: 0 }; acc.set(c, a) }
+    return a;
+  };
+  let estSueltas = 0, estBajo = 0;
+  for (const r of await conReclasificaciones(cons.vigentes)) {
+    const c = String(r.codigo), cajas = Number(r.total_cajas) || 0;
+    if (c === ESTIBA) { estSueltas += cajas; continue }
+    /* La estiba de madera de debajo: una por estiba contada y una por renglón con saldo o sueltas. */
+    estBajo += (Number(r.estibas) || 0) + ((Number(r.cajas) || 0) + (Number(r.saldo) || 0) > 0 ? 1 : 0);
+    const grupo: Grupo = r.tipo_material === "PRODUCTO" ? "PRODUCTO" : esCaja(c, r.material) ? "CAJA" : "ENVASE";
+    const a = de(c, grupo, r.material);
+    a.cajas += cajas;
+    a.total += grupo === "ENVASE" ? cajas * upc(c) : cajas;
+  }
+  const sap = new Map((guardado?.zexi ?? []).map((z) => [String(z.codigo), z]));
+  for (const z of sap.values()) { const c = String(z.codigo); if (c !== ESTIBA && !acc.has(c)) de(c, esCaja(c, z.descripcion) ? "CAJA" : M.has(c) ? "ENVASE" : "PRODUCTO", z.descripcion) }
+
+  const filas: FilaCuadre[] = [...acc.values()].map((a) => {
+    const z = sap.get(a.codigo);
+    const sapV = z ? Number(z.cantidad) : (guardado?.zexi?.length ? 0 : null);
+    const total = redondo(a.total);
+    const dif = sapV == null ? null : redondo(sapV - total);
+    return { grupo: a.grupo, codigo: a.codigo, material: a.material, conteo: total,
+      detalle: a.grupo === "ENVASE" ? `${nf.format(a.cajas)} cajas × ${nf.format(upc(a.codigo))} u` : `${nf.format(a.cajas)} cajas`,
+      pendBaja: 0, andina: 0, almacen: 0, lavadoBaja: 0, otrosCajas: 0, upc: a.grupo === "ENVASE" ? upc(a.codigo) : 1, total, sap: sapV,
+      libre: z?.libre ?? null, bloqueado: z?.bloqueado ?? null, calidad: z?.calidad ?? null, enLibre: null, meta: null, estadoFinal: null, estadoOk: null,
+      dif, movido: 0, documentos: [], sapDespues: sapV, queda: dif };
+  });
+  /* La estiba de madera (3500163), siempre en la lista. */
+  {
+    const z = sap.get(ESTIBA);
+    const total = redondo(estSueltas + estBajo);
+    const sapV = z ? Number(z.cantidad) : (guardado?.zexi?.length ? 0 : null);
+    const dif = sapV == null ? null : redondo(sapV - total);
+    filas.push({ grupo: "ESTIBA", codigo: ESTIBA, material: nombre(ESTIBA), conteo: total,
+      detalle: `${nf.format(estSueltas)} sueltas + ${nf.format(estBajo)} bajo el material`,
+      pendBaja: 0, andina: 0, almacen: 0, lavadoBaja: 0, otrosCajas: 0, upc: 1, total, sap: sapV,
+      libre: z?.libre ?? null, bloqueado: z?.bloqueado ?? null, calidad: z?.calidad ?? null, enLibre: null, meta: null, estadoFinal: null, estadoOk: null,
+      dif, movido: 0, documentos: [], sapDespues: sapV, queda: dif });
+  }
+  const orden = ["PRODUCTO", "ENVASE", "CAJA", "ESTIBA"];
+  const lista = filas.filter((f) => f.total !== 0 || (f.sap ?? 0) !== 0 || f.codigo === ESTIBA)
+    .sort((x, y) => orden.indexOf(x.grupo) - orden.indexOf(y.grupo) || x.codigo.localeCompare(y.codigo));
+  if (!cons.vigentes.length) avisos.push(`Ese día no se contó nada en la calle ${almacen === "AG17" ? "EXPORTACION" : "BTS"} (${almacen}).`);
+  return { ...base, filas: lista, guardado, avisos, ...hist };
 }

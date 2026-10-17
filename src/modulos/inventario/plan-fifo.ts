@@ -3,7 +3,7 @@ import { porTandas } from "@/modulos/inventario/paginas";
 import { cruzar } from "@/modulos/inventario/base-cruce";
 import { diasConConteo } from "@/modulos/inventario/balance";
 import type { Renglon } from "@/modulos/inventario/fefo";
-import { esUbicacionFabrica } from "@/modulos/casco/ubicacion-sitio";
+import { esUbicacionFabrica, esDeAG17oAG16 } from "@/modulos/casco/ubicacion-sitio";
 
 /**
  * EL PLAN DE DESPACHO FIFO — «si filtro 1, 2 o 3 SKU, qué módulos debo tomar cumpliendo el FIFO, cada renglón
@@ -50,6 +50,7 @@ export async function planFifo(pDia?: string | null): Promise<DatosPlan> {
   for (const r of vigentes) {
     const codigo = String(r.codigo);
     if (codigo === ESTIBA || esCajaPlastica(r.material)) continue;
+    if (esDeAG17oAG16(r)) continue; /* EXPORTACION (AG17) y BTS (AG16): otros almacenes */
     const cajas = Number(r.total_cajas) || 0;
     const estibas = Number(r.total_estibas) || 0;
     if (cajas <= 0) continue;

@@ -35,7 +35,7 @@ const enCajas = (f: Pick<FilaCuadre, "grupo" | "upc">, v: number | null) =>
   v == null || f.grupo === "ESTIBA" ? null : f.grupo === "CAJA" ? v : v / (f.upc || 1);
 const nc = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 1 });
 const cajasTxt = (v: number | null, signo = true) => v == null ? "—" : Math.abs(v) < 0.05 ? "0" : (signo && v > 0 ? "+" : v < 0 ? "−" : "") + nc.format(Math.abs(v));
-const GRUPO: Record<string, string> = { ENVASE: "Envase", CAJA: "Cajas plásticas", ESTIBA: "Estibas de madera" };
+const GRUPO: Record<string, string> = { PRODUCTO: "Producto", ENVASE: "Envase", CAJA: "Cajas plásticas", ESTIBA: "Estibas de madera" };
 
 /** La etiqueta de OTROS (Andina…). */
 const IconoOtros = () => (
@@ -53,6 +53,9 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
   const router = useRouter();
   /* EL ALMACÉN DEL CUADRE: AG18 (fábrica, contra el conteo) o AG22 (la base de Pasivos contra el Bloqueado). */
   const ALM: Almacen = almacen, OTRO: Almacen = almacen === "AG18" ? "AG22" : "AG18", esAG22 = almacen === "AG22";
+  /* AG17 (calle EXPORTACION) y AG16 (calle BTS): cuadre simple, el conteo de su calle contra la ZEXI de su almacén. */
+  const esSimple = almacen === "AG17" || almacen === "AG16";
+  const CALLE_DE: Record<string, string> = { AG17: "EXPORTACION", AG16: "BTS" };
   /* HACIA DÓNDE SE MUEVE. AG18: de almacén a almacén (311 con AG22). AG22: NO cambia de almacén — se pasa
      de LIBRE a BLOQUEADO (o al revés) dentro del mismo AG22, porque la base tiene que estar bloqueada ahí. */
   const ENTRA = esAG22 ? "Libre → Bloqueado" : `${OTRO} → ${ALM}`;
@@ -99,7 +102,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
   }
 
   const conZexi = !!guardado?.zexi?.length;
-  const conMov = !!guardado?.movimientos?.length;
+  const conMov = esSimple || !!guardado?.movimientos?.length;
   const sumarPend = false; /* el pend. baja ya no entra al cuadre de AG18 */
   const conDif = filas.filter((f) => f.dif != null);
   const entran = conDif.filter((f) => !cero(f.dif) && f.dif! < 0);
@@ -310,8 +313,10 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
       <section className="cabeza cs-cabeza">
         <div>
           <p className="ojo">INVENTARIO · BALANCE · CUADRE SAP</p>
-          <h1>Cuadre SAP · {esAG22 ? "AG22 Bloqueado" : "AG18 Fábrica"}</h1>
-          <p className="sub">{esAG22
+          <h1>Cuadre SAP · {esAG22 ? "AG22 Bloqueado" : almacen === "AG17" ? "AG17 Exportación" : almacen === "AG16" ? "AG16 BTS" : "AG18 Fábrica"}</h1>
+          <p className="sub">{esSimple
+            ? <>Lo contado en la calle <b>{CALLE_DE[almacen]}</b> el <b>{largo(fecha)}</b> contra el stock de SAP de <b>{almacen}</b> (ZEXI). La diferencia es lo que hay que ajustar en SAP o revisar en la calle.</>
+            : esAG22
             ? <>La base de Pasivos <b>AG22</b> del <b>{largo(fecha)}</b> (PRESORTING, ROTURA DE LINEA, LAVADO, EXTRASUCIO y BAJA PROYECTADA) contra el <b>Bloqueado</b> de SAP (ZEXI). La diferencia es lo que hay que pasar de <b>libre a bloqueado</b> (o al revés) dentro del mismo AG22.</>
             : <>El conteo del <b>{largo(fecha)}</b> contra el stock de SAP (ZEXI). La diferencia es el movimiento 311 entre AG18 y AG22.</>}{pend && " · guardando…"}</p>
         </div>
@@ -337,12 +342,12 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
       </section>
 
       <nav className="bal-tabs cs-hojas" role="tablist" aria-label="Hojas del Cuadre SAP">
-        {(["AG18", "AG22"] as const).map((a) => {
+        {(["AG18", "AG17", "AG16", "AG22"] as const).map((a) => {
           const activa = vista === "cuadre" && ALM === a;
           return (
             <button key={a} type="button" role="tab" aria-selected={activa} className={`bal-tab ${activa ? "activa" : ""}`}
                     onClick={() => (ALM === a ? irA("cuadre") : start(() => router.push(urlDe(a, fecha))))}>
-              <span className="bal-tab-label">{a === "AG18" ? "AG18 · Fábrica" : "AG22 · Bloqueado"}</span>
+              <span className="bal-tab-label">{a === "AG18" ? "AG18 · Fábrica" : a === "AG17" ? "AG17 · Exportación" : a === "AG16" ? "AG16 · BTS" : "AG22 · Bloqueado"}</span>
             </button>
           );
         })}
@@ -353,7 +358,70 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
         </button>
       </nav>
 
-      {vista === "cuadre" && (<>
+      {vista === "cuadre" && esSimple && (<>
+      <div className="cs-barra">
+        <div className="cs-c">
+          <span className="cs-ch">Día del conteo</span>
+          <span className="cs-cb cs-dia sd bal-cal">
+            <Rango rotulo="Día del conteo" desde={fecha} hasta={fecha} dias={dias.map((d) => ({ fecha: d, hl_zlde: 0, viajes: 1 }))}
+                   alElegir={(d) => start(() => router.push(urlDe(ALM, d)))} />
+          </span>
+        </div>
+        <div className="cs-c">
+          <span className="cs-ch">ZEXI de SAP · {ALM} {conZexi ? <i>✓ Cargado</i> : <i className="no">Falta subir</i>}</span>
+          <span className="cs-cb">
+            <span className="cs-txt">
+              <b className="cs-v" title={conZexi ? guardado!.zexi_archivo ?? "" : undefined}>{conZexi ? guardado!.zexi_archivo : "Sin subir"}</b>
+              <small>{conZexi ? `${guardado!.zexi!.length} materiales · ${hora(guardado!.zexi_en)}` : `El stock de ${ALM} de ese día`}</small>
+            </span>
+            <input ref={zexiRef} type="file" accept=".xlsx,.xls,.csv" hidden onChange={(e) => { const a = e.target.files?.[0]; e.target.value = ""; if (a) void subirZexi(a) }} />
+            <button type="button" className={"cs-bt" + (conZexi ? " alt" : "")} disabled={pend} onClick={() => zexiRef.current?.click()}>{conZexi ? "Cambiar" : "Subir ZEXI"}</button>
+          </span>
+        </div>
+        <div className="cs-c">
+          <span className="cs-ch">Calle contada</span>
+          <span className="cs-cb">
+            <span className="cs-txt">
+              <b className="cs-v">{CALLE_DE[almacen]}</b>
+              <small>{filas.filter((f) => f.total).length} materiales con conteo</small>
+            </span>
+          </span>
+        </div>
+      </div>
+      {msg && <p className={"cs-msg" + (msg.mal ? " mal" : "")} role="status">{msg.t}</p>}
+      {avisos.map((a) => <p key={a} className="cs-msg mal">{a}</p>)}
+      <div className="cs-k">
+        <div className="os"><span>Materiales</span><b>{filas.length}</b></div>
+        <div><span>Cuadran</span><b className="bien">{conZexi ? cuadran.length : "—"}</b></div>
+        <div><span>Se contó de más (SAP tiene menos)</span><b className="mal">{conZexi ? entran.length : "—"}</b></div>
+        <div><span>SAP tiene de más (se contó menos)</span><b className="ambar">{conZexi ? salen.length : "—"}</b></div>
+      </div>
+      {!conZexi && <p className="cs-msg">Sube el ZEXI de SAP de ese día para ver la diferencia. Mientras tanto, abajo está lo contado en la calle {CALLE_DE[almacen]}.</p>}
+      <div className="cs-scroll">
+        <table className="cs-t">
+          <thead><tr><th>Código</th><th>Material</th><th className="n">Conteo</th><th className="n">SAP</th><th className="n">Diferencia</th><th>Estado</th></tr></thead>
+          <tbody>
+            {filas.flatMap((f, i) => [
+              (i === 0 || filas[i - 1].grupo !== f.grupo) && <tr key={`g-${f.grupo}`} className="g"><td colSpan={6}>{GRUPO[f.grupo]}</td></tr>,
+              <tr key={f.codigo} className={f.dif != null && !cero(f.dif) ? "dif" : ""}>
+                <td className="mono">{f.codigo}</td>
+                <td>{f.material}{f.detalle && <small className="cs-det"> · {f.detalle}</small>}</td>
+                <td className="n">{n(f.total)}</td>
+                <td className="n">{f.sap != null ? n(f.sap) : "—"}</td>
+                <td className="n"><b className={f.dif == null || cero(f.dif) ? "" : f.dif < 0 ? "mal" : "ambar"}>{f.dif != null ? conSigno(f.dif) : "—"}</b></td>
+                <td>{f.dif == null ? <span className="cs-chip">Falta la ZEXI</span>
+                  : cero(f.dif) ? <span className="cs-chip ok">Cuadra</span>
+                  : f.dif < 0 ? <span className="cs-chip in">Se contó de más</span>
+                  : <span className="cs-chip out">SAP tiene de más</span>}</td>
+              </tr>,
+            ])}
+          </tbody>
+        </table>
+      </div>
+      <p className="cs-nota">Cantidades: producto y cajas plásticas en cajas, envase en unidades (cajas × unidades por caja) y estibas de madera en estibas. Diferencia = SAP − conteo. Guarda el cuadre con «Guardar balanceo del día» para verlo en el histórico.</p>
+      </>)}
+
+      {vista === "cuadre" && !esSimple && (<>
       <ol className="cs-pasos" style={{ gridTemplateColumns: `repeat(${conCajas ? 4 : 3}, minmax(0, 1fr))` }}>
         <li className={conZexi ? "hecho" : "on"}><span>PASO 1</span><b>Cuadre del día</b><small>{esAG22 ? "Base de Pasivos + ZEXI (bloqueado) → diferencias" : "Conteo + ZEXI → diferencias"}</small></li>
         <li className={conMov ? "hecho" : conZexi ? "on" : ""}><span>PASO 2</span><b>{esAG22 ? "Bloquear / liberar en SAP" : "Hacer el 311 en SAP"}</b><small>{conCajas ? "Envase y estiba · lo que dice la app" : "La app dice qué mover · subes la ZEXI nueva"}</small></li>
@@ -719,7 +787,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
         </p>
       )}
       <div className="bal-chips cs-histalm" role="group" aria-label="Almacén">
-        {(["", "AG18", "AG22"] as const).map((a) => (
+        {(["", "AG18", "AG17", "AG16", "AG22"] as const).map((a) => (
           <button key={a || "todos"} type="button" className={histAlm === a ? "on" : ""} aria-pressed={histAlm === a} onClick={() => setHistAlm(a)}>
             {a || "Todos"}{a ? ` · ${historial.filter((h) => h.almacen === a).length}` : ` · ${historial.length}`}
           </button>
@@ -754,9 +822,9 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                   </tr>,
                   ver && (
                     <tr key={`${k}-v`} className="cs-hver"><td colSpan={9}>
-                      <p className="cs-hnota">Lo guardado: ZEXI {h.cierre.zexi_archivo ?? "—"}{h.cierre.mov_archivo ? ` · ZEXI nueva / 311 ${h.cierre.mov_archivo}` : ""} {h.almacen === "AG18" ? ` · estibas del almacén ${h.cierre.estibas_almacen ?? 0} · pend. baja ${h.cierre.sumar_pend_baja ? "se sumaba" : "no se sumaba"}` : " · contra la base de Pasivos AG22 (bloqueado)"}</p>
+                      <p className="cs-hnota">Lo guardado: ZEXI {h.cierre.zexi_archivo ?? "—"}{h.cierre.mov_archivo ? ` · ZEXI nueva / 311 ${h.cierre.mov_archivo}` : ""} {h.almacen === "AG18" ? ` · estibas del almacén ${h.cierre.estibas_almacen ?? 0} · pend. baja ${h.cierre.sumar_pend_baja ? "se sumaba" : "no se sumaba"}` : h.almacen === "AG17" || h.almacen === "AG16" ? ` · contra el conteo de la calle ${h.almacen === "AG17" ? "EXPORTACION" : "BTS"}` : " · contra la base de Pasivos AG22 (bloqueado)"}</p>
                       <table className="cs-t chica">
-                        <thead><tr><th>Código</th><th>Material</th><th className="n">{h.almacen === "AG22" ? "Base" : "Conteo"}</th><th className="n">SAP antes</th><th className="n">{h.almacen === "AG22" ? "Diferencia" : "311"}</th><th className="n">SAP después</th><th className="n">Queda</th><th>Estado</th></tr></thead>
+                        <thead><tr><th>Código</th><th>Material</th><th className="n">{h.almacen === "AG22" ? "Base" : "Conteo"}</th><th className="n">SAP antes</th><th className="n">{h.almacen === "AG22" || h.almacen === "AG17" || h.almacen === "AG16" ? "Diferencia" : "311"}</th><th className="n">SAP después</th><th className="n">Queda</th><th>Estado</th></tr></thead>
                         <tbody>{h.cierre.filas.filter((f) => f.sap != null).map((f) => (
                           <tr key={f.codigo} className={ok(f) ? "" : "pend"}>
                             <td className="mono">{f.codigo}</td><td>{f.material}</td>

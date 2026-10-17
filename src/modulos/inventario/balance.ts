@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { porTandas, todas } from "@/modulos/inventario/paginas";
 import { cruzar } from "@/modulos/inventario/base-cruce";
 import type { ConteoFefo, Renglon } from "@/modulos/inventario/fefo";
-import { esUbicacionFabrica } from "@/modulos/casco/ubicacion-sitio";
+import { esUbicacionFabrica, esDeAG17oAG16, almacenDeRenglon } from "@/modulos/casco/ubicacion-sitio";
 
 /**
  * INVENTARIO · BALANCE — el consolidado de UN DÍA contra el casco de vidrio.
@@ -98,15 +98,18 @@ export async function diasConConteo(): Promise<{ dias: string[]; conteos: Conteo
   return { dias, conteos, error: null };
 }
 
-/** Los renglones que valen del consolidado de un día (lo mismo que muestra La base para ese día). */
-export async function consolidadoDelDia(fecha: string, conteos: ConteoFefo[]): Promise<{ vigentes: Renglon[]; error: string | null }> {
+/** Los renglones que valen del consolidado de un día (lo mismo que muestra La base para ese día).
+ *  `almacen` (opcional): "AG17" (calle EXPORTACION) o "AG16" (calle BTS) trae SOLO lo de ese almacén. Sin él, el consolidado es el de
+ *  AG18 + AG22: lo de EXPORTACION y BTS queda fuera (tienen sus propios almacenes). */
+export async function consolidadoDelDia(fecha: string, conteos: ConteoFefo[], almacen?: "AG17" | "AG16"): Promise<{ vigentes: Renglon[]; error: string | null }> {
   const delDia = conteos.filter((c) => String(c.fecha_analisis).slice(0, 10) === fecha);
   if (!delDia.length) return { vigentes: [], error: null };
   const supabase = await createClient();
   const { data, error } = await porTandas<Renglon>(delDia.map((c) => c.id), (t, d, h) =>
     supabase.from("v_conteo_fefo").select("*").in("conteo_id", t).order("id").range(d, h));
   if (error) return { vigentes: [], error };
-  return { vigentes: cruzar(data, delDia).vigentes, error: null };
+  const vig = cruzar(data, delDia).vigentes;
+  return { vigentes: almacen ? vig.filter((r) => almacenDeRenglon(r) === almacen) : vig.filter((r) => !esDeAG17oAG16(r)), error: null };
 }
 
 type RegCasco = { fecha: string; ubicacion: string; sku: string; inventario: number | null; baja: number | null };

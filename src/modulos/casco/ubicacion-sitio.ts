@@ -8,6 +8,24 @@
  */
 export const esUbicacionFabrica = (u: string | null | undefined) => /^\s*FABRICA/i.test(u ?? "");
 
+/**
+ * LOS ALMACENES PROPIOS: la calle EXPORTACION es el AG17 y la calle BTS es el AG16. Tienen su propio almacén,
+ * así que NO entran ni a AG18 (solo la calle FABRICA) ni a AG22 (todo el resto de Bodega 38).
+ */
+export const esUbicacionExportacion = (u: string | null | undefined) => /^\s*EXPORTACION/i.test(u ?? "");
+export const esUbicacionBts = (u: string | null | undefined) => /^\s*BTS/i.test(u ?? "");
+type ConUbicacion = { calle?: string | null; ubicacion?: string | null; ubicacion_combinada?: string | null };
+/** El almacén de un renglón del conteo: FABRICA → AG18, EXPORTACION → AG17, BTS → AG16, lo demás → AG22. */
+export function almacenDeRenglon(r: ConUbicacion): "AG18" | "AG17" | "AG16" | "AG22" {
+  const us = [r.calle, r.ubicacion, r.ubicacion_combinada];
+  if (us.some(esUbicacionFabrica)) return "AG18";
+  if (us.some(esUbicacionExportacion)) return "AG17";
+  if (us.some(esUbicacionBts)) return "AG16";
+  return "AG22";
+}
+/** true si el renglón es de AG17 (EXPORTACION) o AG16 (BTS): no va en AG18 ni en AG22. */
+export const esDeAG17oAG16 = (r: ConUbicacion) => { const a = almacenDeRenglon(r); return a === "AG17" || a === "AG16" };
+
 /** AG18 se queda con las de Fábrica; AG22 con las que no son de Fábrica. Las demás tablas, sin regla. */
 export const DE_FABRICA: Record<string, boolean> = { AG18: true, AG22: false };
 

@@ -3,7 +3,7 @@ import { porTandas } from "@/modulos/inventario/paginas";
 import { cruzar } from "@/modulos/inventario/base-cruce";
 import { diasConConteo } from "@/modulos/inventario/balance";
 import type { Renglon } from "@/modulos/inventario/fefo";
-import { esUbicacionFabrica } from "@/modulos/casco/ubicacion-sitio";
+import { esUbicacionFabrica, esDeAG17oAG16 } from "@/modulos/casco/ubicacion-sitio";
 
 /**
  * EL FIFO DEL ENVASE — «la tendencia del FIFO: qué envase se debería despachar primero, el que lleva tiempo
@@ -68,6 +68,7 @@ export async function fifoEnvase(pDesde?: string | null, pHasta?: string | null)
     for (const r of vigentes) {
       const codigo = String(r.codigo);
       if (codigo === ESTIBA || esCajaPlastica(r.material)) continue;
+      if (esDeAG17oAG16(r)) continue; /* EXPORTACION (AG17) y BTS (AG16): otros almacenes */
       const cajas = Number(r.total_cajas) || 0;
       if (cajas <= 0) continue;
       const ubic = (r.ubicacion ?? r.ubicacion_combinada ?? "").trim() || "—";

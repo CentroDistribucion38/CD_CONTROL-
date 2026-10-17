@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { esAmbitoExcluidos, porDefecto } from "@/modulos/pasivos/excluidos";
 import { estaBalanceada } from "@/modulos/inventario/cuadre";
-import { armarCuadre, esAlmacen, type Almacen, type BalanceoGuardado, type MovFila, type ZexiFila } from "@/modulos/inventario/cuadre";
+import { armarCuadre, esAlmacen, esAlmacenSimple, type Almacen, type BalanceoGuardado, type MovFila, type ZexiFila } from "@/modulos/inventario/cuadre";
 
 const SQL_OTROS = "Falta correr supabase/migraciones/2026-10-cuadre-sap-otros.sql en Supabase.";
 const SQL_HIST = "Falta correr supabase/migraciones/2026-10-cuadre-sap-historial.sql en Supabase.";
@@ -100,7 +100,7 @@ export async function guardarBalanceo(fecha: string, almacen?: string) {
   const conSap = c.filas.filter((f) => f.sap != null);
   const cierre: BalanceoGuardado = {
     resumen: {
-      materiales: c.filas.length, conSap: conSap.length, conMov: !!g.movimientos?.length,
+      materiales: c.filas.length, conSap: conSap.length, conMov: esAlmacenSimple(a) || !!g.movimientos?.length,
       cuadran: conSap.filter((f) => cero(f.dif)).length,
       balanceados: conSap.filter((f) => estaBalanceada(f)).length,
       pendientes: conSap.filter((f) => !estaBalanceada(f)).length,
