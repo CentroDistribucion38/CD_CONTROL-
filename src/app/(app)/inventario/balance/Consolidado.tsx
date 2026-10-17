@@ -78,7 +78,7 @@ export function Consolidado({ lineas, fecha }: { lineas: LineaConsolidado[]; fec
       const r = await reasignarRenglones(fd);
       if ("error" in r && r.error) { setAviso({ tipo: "mal", texto: r.error }); return }
       const cajas = ls.reduce((t, l) => t + l.cajas, 0);
-      setAviso({ tipo: "ok", texto: `${ls.length} línea${ls.length === 1 ? "" : "s"} (${n(cajas)} cajas) pasaron a ${a}.` });
+      setAviso({ tipo: "ok", texto: `${ls.length} línea${ls.length === 1 ? "" : "s"} (${n(cajas)} cajas) pasaron a ${a}.${"pasivos" in r && r.pasivos != null ? ` La Base de pasivos de ese día se actualizó (${r.pasivos} filas del balance).` : ""}` });
       setMarcadas(new Set()); setMotivo("");
     });
   }

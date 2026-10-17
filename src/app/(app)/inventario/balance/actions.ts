@@ -3,11 +3,41 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { consolidadoDelDia, diasConConteo } from "@/modulos/inventario/balance";
+import { balanceParaPasivos } from "@/modulos/pasivos/datos";
 
 const normEstado = (e: string | null | undefined) => {
   const t = (e ?? "").trim().toUpperCase();
   return t.includes("EXTRASUCIO") ? "EXTRASUCIO" : t.includes("LAVADO") ? "LAVADO" : t.includes("BAJA") ? "BAJA" : t;
 };
+
+/**
+ * ALINEAR LA BASE DE PASIVOS con el Balance de ese día, después de reasignar estados.
+ * La base guarda una foto de lo que el Balance dijo cuando se hizo «Traer del balance»; si luego se pasa algo de
+ * OTROS a BAJA (o se quita), esa foto queda vieja. Aquí se vuelve a traer SOLO si ese día ya se había traído del
+ * balance, no es un día histórico y no está cerrado. Reemplaza únicamente las filas de origen «balance»
+ * (lo del archivo y lo manual no se toca). Devuelve cuántas filas quedaron, o null si no hizo nada.
+ */
+async function alinearPasivos(fecha: string): Promise<number | null> {
+  try {
+    const supabase = await createClient();
+    const cuenta = (origen: string) => supabase.from("pasivos_base").select("id", { count: "exact", head: true }).eq("fecha", fecha).eq("origen", origen);
+    const [{ count: hist }, { count: ya }, cierre] = await Promise.all([
+      cuenta("historico"), cuenta("balance"),
+      supabase.from("pasivos_cierres").select("fecha").eq("fecha", fecha).limit(1),
+    ]);
+    if (hist || !ya || (cierre.data ?? []).length) return null;
+    const { filas, error } = await balanceParaPasivos(fecha);
+    if (error && !filas.length) return null;
+    const { error: eB } = await supabase.from("pasivos_base").delete().eq("fecha", fecha).eq("origen", "balance");
+    if (eB) return null;
+    if (filas.length) {
+      const { error: eI } = await supabase.from("pasivos_base").insert(filas.map((f) => ({ ...f, origen: "balance" })));
+      if (eI) return null;
+    }
+    revalidatePath("/inventario/balance/pasivos");
+    return filas.length;
+  } catch { return null }
+}
 
 /** Los renglones del consolidado de ese día de ese material (con sus ids). */
 async function renglones(codigo: string, fecha: string) {
@@ -45,7 +75,7 @@ export async function reclasificar(fd: FormData) {
     mover.map((r) => ({ conteo_envase_id: r.id, estado_original, estado_nuevo, motivo })));
   if (error) return { error: error.message };
   revalidatePath("/inventario/balance");
-  return { ok: true };
+  return { ok: true, pasivos: await alinearPasivos(fecha) };
 }
 
 /** QUITAR RECLASIFICACIÓN — el material vuelve a como se contó ese día. */
@@ -59,7 +89,7 @@ export async function quitarReclasificacion(fd: FormData) {
   const { error } = await supabase.from("balance_reclasificaciones").delete().in("conteo_envase_id", ids);
   if (error) return { error: error.message };
   revalidatePath("/inventario/balance");
-  return { ok: true };
+  return { ok: true, pasivos: await alinearPasivos(fecha) };
 }
 
 /**
@@ -101,5 +131,5 @@ export async function reasignarRenglones(fd: FormData) {
     if (error) return { error: error.message };
   }
   revalidatePath("/inventario/balance");
-  return { ok: true, movidos: mover.length + vuelven.length };
+  return { ok: true, movidos: mover.length + vuelven.length, pasivos: await alinearPasivos(fecha) };
 }
