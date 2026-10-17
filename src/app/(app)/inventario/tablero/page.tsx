@@ -11,6 +11,9 @@ import { Tiempos } from "../conteo/Tiempos";
 import { Evidencias } from "../conteo/Evidencias";
 import { fifoEnvase } from "@/modulos/inventario/fifo-envase";
 import { FifoEnvase } from "./FifoEnvase";
+import { planFifo } from "@/modulos/inventario/plan-fifo";
+import { PlanFifo } from "../despacho/PlanFifo";
+import "../despacho/plan-fifo.css";
 import "../../sider/sider.css";
 import "../balance/balance.css";
 import "./fifo.css";
@@ -46,20 +49,38 @@ const dia = (s: string | null) =>
  * decidir un despacho. Lo firmado es lo único que se puede afirmar.
  */
 /* LAS HOJAS DEL TABLERO: lo que se vence (FEFO), los tiempos de conteo y las evidencias. */
-function Hojas({ vista }: { vista: "fefo" | "fifo" | "tiempos" | "evidencias" }) {
+function Hojas({ vista }: { vista: "fefo" | "fifo" | "despacho" | "tiempos" | "evidencias" }) {
   return (
     <nav className="tp-tabs" aria-label="Hojas del tablero">
       <Link href="/inventario/tablero" aria-current={vista === "fefo" ? "page" : undefined} className={vista === "fefo" ? "on" : ""}>FEFO producto</Link>
       <Link href="/inventario/tablero?vista=fifo" aria-current={vista === "fifo" ? "page" : undefined} className={vista === "fifo" ? "on" : ""}>FIFO del envase</Link>
-      <Link href="/inventario/despacho">Despacho FIFO →</Link>
+      <Link href="/inventario/tablero?vista=despacho" aria-current={vista === "despacho" ? "page" : undefined} className={vista === "despacho" ? "on" : ""}>Despacho FIFO</Link>
       <Link href="/inventario/tablero?vista=tiempos" aria-current={vista === "tiempos" ? "page" : undefined} className={vista === "tiempos" ? "on" : ""}>Tiempos de conteo</Link>
       <Link href="/inventario/tablero?vista=evidencias" aria-current={vista === "evidencias" ? "page" : undefined} className={vista === "evidencias" ? "on" : ""}>Evidencias</Link>
     </nav>
   );
 }
 
-export default async function InventarioTableroPage({ searchParams }: { searchParams?: Promise<{ fecha?: string; borradores?: string; vista?: string; desde?: string; hasta?: string }> }) {
+export default async function InventarioTableroPage({ searchParams }: { searchParams?: Promise<{ fecha?: string; borradores?: string; vista?: string; desde?: string; hasta?: string; dia?: string; sku?: string }> }) {
   const sp = (await searchParams) ?? {};
+  if (sp.vista === "despacho") {
+    /* EL DESPACHO FIFO VIVE DENTRO DEL TABLERO: escoger 1, 2 o 3 materiales y ver, módulo por módulo, de dónde sacarlos (imprimible). */
+    const datos = await planFifo(sp.dia);
+    const inicial = (sp.sku ?? "").split(",").map((s) => s.trim()).filter(Boolean).slice(0, 6);
+    return (
+      <div className="fe pf">
+        <div className="pf-no-papel"><Hojas vista="despacho" /></div>
+        <section className="cabeza pf-no-papel">
+          <div>
+            <p className="ojo">INVENTARIO · TABLERO · ENVASE</p>
+            <h1>Despacho FIFO</h1>
+            <p className="sub">Escoge uno, dos o tres materiales y te digo qué módulos tomar, en orden: primero lo que más tiempo lleva quieto en su ubicación. Lo imprimes y sales a la bodega con la hoja.</p>
+          </div>
+        </section>
+        <PlanFifo datos={datos} inicial={inicial} />
+      </div>
+    );
+  }
   if (sp.vista === "fifo") {
     /* EL FIFO DEL ENVASE: cuánto lleva cada envase en su ubicación, el movimiento en el rango y el mapa por ubicación. */
     const datos = await fifoEnvase(sp.desde, sp.hasta);

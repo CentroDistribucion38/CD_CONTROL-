@@ -1,34 +1,15 @@
-import "../fefo.css";
-import "./plan-fifo.css";
-import { planFifo } from "@/modulos/inventario/plan-fifo";
-import { PlanFifo } from "./PlanFifo";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 /**
- * INVENTARIO · DESPACHO FIFO.
- *
- * Elegir 1, 2 o 3 materiales y ver, módulo por módulo, de dónde sacarlos para cumplir el FIFO (primero lo que
- * más tiempo lleva quieto en su ubicación), con el acumulado de cajas, y poder imprimirlo como hoja de salida.
- * Solo lee el conteo ENVIADO de un día; no escribe nada.
+ * INVENTARIO · DESPACHO FIFO — ya no es una pantalla aparte: vive DENTRO del Tablero (hoja «Despacho FIFO»).
+ * Esta dirección se deja solo para que los enlaces y favoritos de antes sigan llegando al mismo sitio.
  */
 export default async function DespachoFifoPage({ searchParams }: { searchParams?: Promise<{ dia?: string; sku?: string }> }) {
   const sp = (await searchParams) ?? {};
-  const datos = await planFifo(sp.dia);
-  const inicial = (sp.sku ?? "").split(",").map((s) => s.trim()).filter(Boolean).slice(0, 6);
-  return (
-    <div className="fe pf">
-      <section className="cabeza pf-no-papel">
-        <div>
-          <p className="ojo">INVENTARIO · CONTEOS · ENVASE</p>
-          <h1>Plan de despacho FIFO</h1>
-          <p className="sub">
-            Escoge uno, dos o tres materiales y te digo qué módulos tomar, en orden: primero lo que más tiempo lleva
-            quieto en su ubicación. Lo imprimes y sales a la bodega con la hoja.
-          </p>
-        </div>
-      </section>
-      <PlanFifo datos={datos} inicial={inicial} />
-    </div>
-  );
+  const q = new URLSearchParams({ vista: "despacho" });
+  if (sp.dia) q.set("dia", sp.dia);
+  if (sp.sku) q.set("sku", sp.sku);
+  redirect(`/inventario/tablero?${q.toString()}`);
 }

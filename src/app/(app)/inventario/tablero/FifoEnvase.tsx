@@ -148,7 +148,7 @@ export function FifoEnvase({ datos }: { datos: DatosFifo }) {
       <div className="ff-dos">
         {/* ---- qué despachar primero ---- */}
         <section className="ff-card">
-          <h3>Qué despachar primero <small>el envase que más tiempo lleva en su sitio</small> <Link href="/inventario/despacho" className="ff-mas" style={{ marginLeft: 8 }}>Armar plan de despacho e imprimir →</Link></h3>
+          <h3>Qué despachar primero <small>el envase que más tiempo lleva en su sitio</small> <Link href="/inventario/tablero?vista=despacho" className="ff-mas" style={{ marginLeft: 8 }}>Armar plan de despacho e imprimir →</Link></h3>
           <div className="ff-scroll">
             <table className="ff-t">
               <thead><tr><th>Código</th><th>Material</th><th className="n">Cajas</th><th className="n">Días prom.</th><th className="n">Más viejo</th><th>Ubicaciones más viejas</th></tr></thead>

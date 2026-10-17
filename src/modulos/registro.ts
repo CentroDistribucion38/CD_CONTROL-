@@ -700,9 +700,7 @@ export const MODULOS: Modulo[] = [
          a Conteos y la bifurcación no existía. `ramaDeRuta` lo dice arriba:
          la ruta del módulo nunca puede caer dentro de una rama. */
       { nombre: "Tablero", ruta: "/inventario/tablero", rama: "conteos" },
-      /* DESPACHO FIFO: del tablero sale QUÉ se despacha primero; aquí se escoge el material y sale la hoja de módulos
-         en orden FIFO, para imprimir y recorrer la bodega. */
-      { nombre: "Despacho FIFO", ruta: "/inventario/despacho", rama: "conteos" },
+      /* DESPACHO FIFO ya no es una opción del menú: es una hoja DENTRO del Tablero (?vista=despacho). */
       { nombre: "Maestro", ruta: "/inventario/maestro", rama: "conteos" },
       { nombre: "Recepción", ruta: "/inventario/recibir", rama: "conteos" },
       /* AVERÍAS VA DESPUÉS DEL TABLERO, y el análisis detrás de ella.

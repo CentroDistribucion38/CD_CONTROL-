@@ -73,7 +73,7 @@ export function PlanFifo({ datos, inicial }: { datos: DatosPlan; inicial: string
   const tModulos = bloques.reduce((t, b) => t + b.filas.length, 0);
   const masViejo = bloques.flatMap((b) => b.filas.map((f) => f.r)).filter((r) => r.dias != null).sort((a, b) => b.dias! - a.dias!)[0];
 
-  const irDia = (d: string) => start(() => router.push(`/inventario/despacho?dia=${d}${elegidos.length ? `&sku=${elegidos.join(",")}` : ""}`));
+  const irDia = (d: string) => start(() => router.push(`/inventario/tablero?vista=despacho&dia=${d}${elegidos.length ? `&sku=${elegidos.join(",")}` : ""}`));
   const imprimir = () => { antesDeImprimir(); window.print(); };
   const antesDeImprimir = () => setImpreso(new Date().toLocaleString("es-CO", { timeZone: "America/Bogota", dateStyle: "medium", timeStyle: "short" }));
 

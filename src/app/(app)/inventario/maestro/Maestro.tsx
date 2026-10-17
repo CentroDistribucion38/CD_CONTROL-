@@ -309,10 +309,12 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
   }
 
   async function nuevaUbicacion() {
-    const clave = (borrador.clave ?? "").trim().toUpperCase();
     const calle = (borrador.calle ?? "").trim().toUpperCase();
+    /* BTS y EXPORTACION: la clave sale sola de calle + módulo (BTS01…), sin lado. */
+    const clave = (borrador.clave ?? "").trim().toUpperCase()
+      || (CALLES_MODULO_LIBRE.has(calle) ? `${calle}${(borrador.modulo ?? "").trim().toUpperCase()}` : "");
     const bodega_id = borrador.bodega_id || bodegas[0]?.id;
-    if (clave === "") { avisar.mal("Falta la clave: es lo que la identifica (A01_DER)."); return }
+    if (clave === "" || (CALLES_MODULO_LIBRE.has(calle) && clave === calle)) { avisar.mal(CALLES_MODULO_LIBRE.has(calle) ? `Falta el módulo de ${calle} (la clave sale de calle + módulo).` : "Falta la clave: es lo que la identifica (A01_DER)."); return }
     if (calle === "") { avisar.mal("Falta la calle."); return }
     if (!bodega_id) { avisar.mal("No hay bodegas: crea una primero."); return }
     if (ubicaciones.some((u) => u.clave === clave && u.bodega_id === bodega_id)) {
@@ -497,6 +499,20 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
         {lista.length > tope && <> Se muestran los primeros {tope} — afina la búsqueda para
           llegar al resto.</>}
       </p>
+
+      {/* BTS (AG16) y EXPORTACION (AG17): calles propias que todavía pueden no tener ni un módulo. Aquí se ven y se les agrega el primero. */}
+      {pestania === "ubicaciones" && esEditor && [...CALLES_MODULO_LIBRE].filter((c) => !ubicaciones.some((u) => u.calle === c)).length > 0 && (
+        <p className="fe-cuenta">
+          Calles sin módulos todavía:{" "}
+          {[...CALLES_MODULO_LIBRE].filter((c) => !ubicaciones.some((u) => u.calle === c)).map((c) => (
+            <button key={c} type="button" className="btn plano" style={{ marginRight: 8 }}
+                    onClick={() => abrir("nuevo", { calle: c, lado: "", bodega_id: bods[0]?.id ?? "" })}>
+              + {c}{c === "BTS" ? " (AG16)" : " (AG17)"}
+            </button>
+          ))}
+          <small> · sin lado; la clave sale de calle + módulo.</small>
+        </p>
+      )}
 
       {editando === "nuevo" && (
         <section className="fe-editor nuevo">
