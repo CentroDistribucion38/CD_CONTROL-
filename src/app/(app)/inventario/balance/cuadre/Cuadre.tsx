@@ -86,6 +86,9 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
   const [abierto, setAbierto] = useState<string | null>(null);
   /* UN CÓDIGO ESCOGIDO se resalta en TODAS las listas (311, 343, 344, estados) y arriba sale dónde aparece. */
   const [foco, setFoco] = useState<string | null>(null);
+  /* Los «ojitos» abiertos: materiales de AG18 → AG22 que SAP no tiene o no alcanza (se abre el análisis). */
+  const [ojos, setOjos] = useState<Set<string>>(new Set());
+  const verOjo = (c: string) => setOjos((p) => { const x = new Set(p); if (x.has(c)) x.delete(c); else x.add(c); return x });
   const enfocar = (c: string) => setFoco((x) => (x === c ? null : c));
   /* Dos hojas: el cuadre del día y el histórico. La escogida queda en la dirección (?vista=historico). */
   const [vista, setVista] = useState<"cuadre" | "historico">(vistaInicial);
@@ -254,7 +257,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
      cantidades (en la columna Cantidad), uno por renglón y sin puntos de miles. SAP deja 9 posiciones
      por documento: la lista se parte en documentos de a 9 y cada uno se copia y se marca aparte. */
   async function copiarParaSap(xs: FilaCuadre[], que: "codigos" | "cantidades", cual: string) {
-    const texto = xs.map((f) => que === "codigos" ? f.codigo : String(Math.round(Math.abs(f.dif ?? 0)))).join("\r\n");
+    const texto = xs.map((f) => que === "codigos" ? f.codigo : String(Math.round(cantSap(f)))).join("\r\n");
     try { await navigator.clipboard.writeText(texto) }
     catch {
       const t = document.createElement("textarea"); t.value = texto; t.style.position = "fixed"; t.style.opacity = "0";
@@ -271,10 +274,11 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
     </button>
   );
   const POSICIONES_SAP = 9;
-  const enDocumentos = (xs: FilaCuadre[]) => Array.from({ length: Math.ceil(xs.length / POSICIONES_SAP) }, (_, i) => xs.slice(i * POSICIONES_SAP, (i + 1) * POSICIONES_SAP));
+  /* Solo lo que SAP SÍ puede pasar entra a los documentos (y a lo que se copia): lo que está en 0 en SAP se queda fuera. */
+  const enDocumentos = (todas: FilaCuadre[]) => { const xs = todas.filter((f) => cantSap(f) > 0.5); return Array.from({ length: Math.ceil(xs.length / POSICIONES_SAP) }, (_, i) => xs.slice(i * POSICIONES_SAP, (i + 1) * POSICIONES_SAP)) };
   const faltan = (xs: FilaCuadre[], cual: string) => enDocumentos(xs).filter((_, i) => !hechos.has(`${cual}-${i}`)).length;
   /* Una lista del 311 partida en documentos de a 9: cada uno con sus dos botones de copiar y «Hecho en SAP». */
-  const documentos = (xs: FilaCuadre[], cual: string) => enDocumentos(xs).map((doc, i) => {
+  const documentosOk = (xs: FilaCuadre[], cual: string) => enDocumentos(xs).map((doc, i) => {
     const k = `${cual}-${i}`, hecho = hechos.has(k);
     return (
       <div key={k} className={"cs-doc" + (hecho ? " hecho" : "")}>
@@ -291,6 +295,21 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
       </div>
     );
   });
+  /* Lo que SAP no tiene (en 0) no entra a los documentos: va aparte, en rojo, con su ojito. */
+  const documentos = (xs: FilaCuadre[], cual: string) => {
+    const sin = xs.filter((f) => noAlcanza(f) && cantSap(f) <= 0.5);
+    return (
+      <>
+        {documentosOk(xs, cual)}
+        {sin.length > 0 && (
+          <div className="cs-doc cs-doc-sin">
+            <div className="cs-doc-bar"><b>No se pueden pasar · SAP en 0</b><small>{sin.length} {sin.length === 1 ? "material" : "materiales"} · no se copian ni cuentan en los documentos</small></div>
+            {lista(sin)}
+          </div>
+        )}
+      </>
+    );
+  };
   const cabezaLista = (xs: FilaCuadre[], cual: string) => {
     const docs = enDocumentos(xs).length, f = faltan(xs, cual);
     return (
@@ -302,6 +321,8 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
   };
   /* ALERTA: lo que hay que MANDAR de AG18 a AG22 y SAP no tiene (en 0) o no alcanza para pasarlo completo. */
   const noAlcanza = (f: FilaCuadre) => !esAG22 && f.dif != null && f.dif > 0.5 && f.sap != null && f.dif > f.sap + 0.5;
+  /* Lo que SÍ se puede mandar y se copia: todo lo pendiente, o lo que SAP tiene si no alcanza (0 si SAP está en 0). */
+  const cantSap = (f: FilaCuadre) => noAlcanza(f) ? Math.max(0, f.sap ?? 0) : Math.abs(f.dif ?? 0);
   const textoNoAlcanza = (f: FilaCuadre) => (f.sap ?? 0) <= 0.5
     ? `SAP tiene 0 en ${ALM}: no hay existencia para pasar`
     : `SAP solo tiene ${n(f.sap!)} en ${ALM}: no alcanza (faltan ${n(f.dif! - f.sap!)})`;
@@ -309,15 +330,30 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
     const m = xs.filter(noAlcanza);
     return m.length === 0 ? null : (
       <p className="cs-msg mal cs-sinsap">
-        <b>No se puede pasar completo:</b> {m.length === 1 ? "este material" : `estos ${m.length} materiales`} no tiene{m.length === 1 ? "" : "n"} en SAP la existencia de {ALM} que hay que mandar a {OTRO} — {m.map((f) => `${f.codigo} (${(f.sap ?? 0) <= 0.5 ? "SAP en 0" : `SAP ${n(f.sap!)} de ${n(f.dif!)}`})`).join(" · ")}. Revisa el conteo o el balance de ese material antes de hacer el 311.
+        <b>No se puede pasar completo:</b> {m.length === 1 ? "este material" : `estos ${m.length} materiales`} no tiene{m.length === 1 ? "" : "n"} en SAP la existencia de {ALM} que hay que mandar a {OTRO} — {m.map((f) => `${f.codigo} (${(f.sap ?? 0) <= 0.5 ? "SAP en 0" : `SAP ${n(f.sap!)} de ${n(f.dif!)}`})`).join(" · ")}.
+        Al copiar se toma solo lo que SAP tiene (lo que está en 0 no se copia). Abre el ojito de cada fila para ver lo que queda pendiente.
       </p>
     );
   };
   const lista = (xs: FilaCuadre[]) => (
     <table className="cs-t chica"><thead><tr><th>Código</th><th>Material</th><th className="n">Cantidad</th><th className="n">Cajas</th></tr></thead>
-      <tbody>{xs.map((f) => <tr key={f.codigo} className={"cs-sel" + (foco === f.codigo ? " foco" : "") + (noAlcanza(f) ? " sin-sap" : "")} onClick={() => enfocar(f.codigo)} title={noAlcanza(f) ? textoNoAlcanza(f) : "Toca para ver este código en todos los movimientos"}>
-        <td className="mono">{f.codigo}</td><td>{f.material}{noAlcanza(f) && <small className="cs-alerta"> ⚠ {textoNoAlcanza(f)}</small>}</td><td className="n"><b>{n(Math.abs(f.dif!))}</b></td>
-        <td className="n">{cajasTxt(enCajas(f, Math.abs(f.dif!)), false)}</td></tr>)}</tbody>
+      <tbody>{xs.flatMap((f) => [
+        <tr key={f.codigo} className={"cs-sel" + (foco === f.codigo ? " foco" : "") + (noAlcanza(f) ? " sin-sap" : "")} onClick={() => enfocar(f.codigo)} title={noAlcanza(f) ? textoNoAlcanza(f) : "Toca para ver este código en todos los movimientos"}>
+          <td className="mono">{f.codigo}</td>
+          <td>{f.material}{noAlcanza(f) && (
+            <button type="button" className="cs-ojo" aria-pressed={ojos.has(f.codigo)} aria-label={`Ver por qué ${f.codigo} no se pasa completo`} title="Ver el análisis"
+                    onClick={(e) => { e.stopPropagation(); verOjo(f.codigo) }}>
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z" /><circle cx="12" cy="12" r="3" /></svg>
+            </button>)}</td>
+          <td className="n"><b>{noAlcanza(f) && cantSap(f) <= 0.5 ? "—" : n(cantSap(f))}</b></td>
+          <td className="n">{noAlcanza(f) && cantSap(f) <= 0.5 ? "—" : cajasTxt(enCajas(f, cantSap(f)), false)}</td></tr>,
+        ...(noAlcanza(f) && ojos.has(f.codigo) ? [
+          <tr key={f.codigo + "-ojo"} className="cs-ojo-detalle"><td colSpan={4}>
+            <b>{(f.sap ?? 0) <= 0.5 ? "SAP tiene 0 en " + ALM + ": no hay existencia para pasar." : "No alcanza: SAP solo tiene " + n(f.sap!) + " en " + ALM + "."}</b>{" "}
+            Había que pasar <b>{n(f.dif!)}</b> de {ALM} a {OTRO}; {(f.sap ?? 0) <= 0.5 ? "no se toma en cuenta al copiar" : <>se copian <b>{n(cantSap(f))}</b></>}.
+            Quedan <b>{n(f.dif! - cantSap(f))}</b> pendientes: analiza tu inventario (el conteo y el balance de este material) — el conteo está por debajo de lo que SAP tiene o el balance lo dejó en negativo.
+          </td></tr>] : []),
+      ])}</tbody>
     </table>
   );
 

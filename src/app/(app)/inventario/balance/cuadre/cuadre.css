@@ -307,3 +307,9 @@
 .cs .cs-alerta { display: block; font-weight: 700; font-size: 12px; color: #B3121F }
 .cs .cs-chip.sin-sap { background: #B3121F; color: #fff }
 .cs .cs-msg.cs-sinsap { border-left: 4px solid #B3121F }
+
+/* El ojito del análisis «no alcanza» y su detalle. */
+.cs .cs-ojo { margin-left: 8px; padding: 2px 5px; border: 1px solid #B3121F; background: #fff; color: #B3121F; border-radius: 3px; cursor: pointer; vertical-align: middle; line-height: 0 }
+.cs .cs-ojo[aria-pressed="true"] { background: #B3121F; color: #fff }
+.cs .cs-t tr.cs-ojo-detalle td { background: #FFF6F6; color: #5A0F16; font-size: 13px; border-top: 0 }
+.cs .cs-doc-sin .cs-doc-bar { background: #FDECEC }
