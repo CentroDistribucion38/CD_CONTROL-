@@ -180,7 +180,7 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
       dice: (<>
         Se suman al inventario o se restan en la columna de baja, en estibas, en las tablas de Control del <b>{corto(diaControl)}</b>.
         {repetidas.length > 0 && <> {repetidas.length} fila{repetidas.length === 1 ? "" : "s"} ya estaba{repetidas.length === 1 ? "" : "n"} registrada{repetidas.length === 1 ? "" : "s"} y no se suma{repetidas.length === 1 ? "" : "n"} otra vez.</>}
-        {soloRegistro.length > 0 && <> {soloRegistro.length} fila{soloRegistro.length === 1 ? "" : "s"} dice{soloRegistro.length === 1 ? "" : "n"} «no haga nada»: queda{soloRegistro.length === 1 ? "" : "n"} en el registro sin mover el kárdex.</>}
+        {soloRegistro.length > 0 && <> {soloRegistro.length} fila{soloRegistro.length === 1 ? "" : "s"} {soloRegistro.length === 1 ? "es" : "son"} «solo registro» (no haga nada, ajuste inv o rotura de máquina): queda{soloRegistro.length === 1 ? "" : "n"} en el registro sin sumar ni restar.</>}
         {conProblema.length > 0 && <> {conProblema.length} no se pueden aplicar todavía y se quedan fuera.</>}
         {" "}Si te equivocas, cada fila se puede deshacer abajo.
       </>),
@@ -359,7 +359,8 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
             <summary>Cómo se aplica cada fila</summary>
             <ul className="reg-regla">
               <li>El <b>Texto cab.documento</b> manda: «BAJA LAVADO» se <b>resta</b> en <b>Lavado con baja</b> y «BAJA EXTRASUCIO» en <b>Extrasucio con baja</b>.</li>
-              <li>Cualquier otro texto (sorting, presorting, rotura de máquina…) se <b>suma al inventario</b> del almacén de la fila.</li>
+              <li>Si el texto dice <b>«AJUSTE INV»</b> (o «ROTURA DE MÁQUINA»), la fila <b>se registra y queda como solo registro</b>: <b>ni se suma ni se resta</b> en Control.</li>
+              <li>Cualquier otro texto (sorting, presorting…) se <b>suma al inventario</b> del almacén de la fila.</li>
               <li>Si en la fila alguien escribió <b>«NO HAGA NADA»</b> (por ejemplo «QUEDE EN EL REGISTRO - NO HAGA NADA EN EL KARDEX»), la fila <b>queda en el registro</b> pero <b>no mueve</b> el inventario ni la columna de baja.</li>
               <li>Cada fila va a la tabla de su <b>Almacén</b>, en el día de Control escogido. Las unidades se dividen por las botellas por estiba del maestro.</li>
             </ul>

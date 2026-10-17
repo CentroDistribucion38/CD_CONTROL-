@@ -15,6 +15,7 @@
  *   «BAJA LAVADO»      → columna «Lavado con baja» del almacén de la fila (Fábrica).
  *   «BAJA EXTRASUCIO»  → columna «Extrasucio con baja» del almacén de la fila (Bodega 38).
  *   «BAJA ROTURA DE MAQUINA» → SOLO REGISTRO: no suma ni resta en ningún almacén.
+ *   «AJUSTE INV…»      → SOLO REGISTRO: se guarda para que conste, pero ni suma ni resta (es un ajuste de inventario).
  *   cualquier otro (SORTING, PRESORTING…) → se SUMA al inventario del almacén.
  *
  * LA NOTA «NO HAGA NADA» GANA A TODO. Si en CUALQUIER celda de la fila alguien escribió
@@ -60,6 +61,10 @@ export function destinoDeTexto(texto: string): "inventario" | "baja" {
 /** «La rotura de máquina no debe sumar ni restar en ninguno de los almacenes: omítela.» */
 export const esRoturaMaquina = (texto: string) =>
   /ROTURA\s+(DE\s+)?MAQUINA/.test(texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase());
+/** «Si el texto dice AJUSTE INV se registra y queda como solo registro: ni se suma ni se resta.» */
+export const esAjusteInv = (texto: string) =>
+  /AJUSTE\s+(DE\s+)?INV/.test(texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase());
+export const NOTA_AJUSTE_INV = "AJUSTE INV · solo registro (no mueve el kárdex)";
 /** La nota que la deja en solo registro. Lleva «solo registro» para que la base la reconozca con la
  *  misma regla de «no haga nada» (`casco_registrar_bajas`), sin tener que cambiar la base. */
 export const NOTA_ROTURA_MAQUINA = "ROTURA DE MAQUINA · solo registro (no mueve el kárdex)";
@@ -172,7 +177,7 @@ export function leerBaja(filas: unknown[][], hoja: string | null = null): Lectur
     const k = (vistas.get(base) ?? 0) + 1;
     vistas.set(base, k);
 
-    const nota = notaSoloRegistro(r) ?? (esRoturaMaquina(texto) ? NOTA_ROTURA_MAQUINA : null);
+    const nota = notaSoloRegistro(r) ?? (esRoturaMaquina(texto) ? NOTA_ROTURA_MAQUINA : esAjusteInv(texto) ? NOTA_AJUSTE_INV : null);
     out.push({
       fila: n, nota, fecha, centro, sku, descripcion: cDesc >= 0 ? String(r[cDesc] ?? "").trim() : "",
       unidades, texto, documento, clase: cClase >= 0 ? String(r[cClase] ?? "").trim() : "",
