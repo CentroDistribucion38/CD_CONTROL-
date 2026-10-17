@@ -28,7 +28,7 @@ import type { RefObject } from "react";
 export type Opcion = { valor: string; texto: string; pista?: string | null };
 
 export function Buscador({
-  valor, opciones, onEscoge, marcador, id, sinOpciones, teclado = "texto", campo: fuera,
+  valor, opciones, onEscoge, marcador, id, sinOpciones, teclado = "texto", campo: fuera, agregar,
   desdeElSiguiente = false,
 }: {
   valor: string;
@@ -80,6 +80,9 @@ export function Buscador({
    * ya está puesto arriba del todo y el siguiente resaltado debajo.
    */
   desdeElSiguiente?: boolean;
+  /** Si lo tecleado no está en la lista, ofrece agregarlo como una opción más al final («Agregar …»).
+   *  Devuelve la opción a escoger, o null si no se puede agregar lo tecleado. */
+  agregar?: (tecleado: string) => Opcion | null;
 }) {
   const auto = useId();
   const idLista = `${id ?? auto}-lista`;
@@ -102,9 +105,12 @@ export function Buscador({
   const filtradas = useMemo(() => {
     const q = texto.trim().toLowerCase();
     if (!abierto || q === "") return opciones;
-    return opciones.filter((o) =>
+    const hay = opciones.filter((o) =>
       (o.texto + " " + (o.pista ?? "")).toLowerCase().includes(q));
-  }, [opciones, texto, abierto]);
+    /* Lo tecleado que no existe: se ofrece agregarlo, al final. */
+    const nueva = agregar && !opciones.some((o) => o.texto.toLowerCase() === q) ? agregar(texto.trim()) : null;
+    return nueva ? [...hay, nueva] : hay;
+  }, [opciones, texto, abierto, agregar]);
 
   /* Si la lista se encoge por debajo del resaltado, el resaltado se sale
      y Enter escogería algo que no se ve. */

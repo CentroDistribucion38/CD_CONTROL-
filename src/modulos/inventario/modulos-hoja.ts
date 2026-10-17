@@ -32,7 +32,14 @@ export const MODULOS_DE_LA_HOJA: Record<string, string[]> = {
   /* FÁBRICA es una calle y sus módulos son las líneas de producción: L2, L4 y L6.
      Sin lado: una línea se cuenta como una sola posición. */
   FABRICA: ["L2", "L4", "L6"],
+  /* BTS y EXPORTACION: calles de módulos LIBRES. No traen lista: el módulo se escribe al contar y se agrega
+     solo (ver CALLES_MODULO_LIBRE). Sin lado. */
+  BTS: [],
+  EXPORTACION: [],
 };
+
+/** Calles donde el módulo se ESCRIBE (no hay lista fija) y se agrega al maestro al anotar. Nunca llevan lado. */
+export const CALLES_MODULO_LIBRE: ReadonlySet<string> = new Set(["BTS", "EXPORTACION"]);
 
 /** Un módulo que empieza por número tiene izquierda y derecha; un pasillo, un tándem o un «H», no. */
 export const moduloConLados = (modulo: string): boolean => /^\d/.test(modulo);

@@ -55,7 +55,7 @@ import {
 } from "@/modulos/inventario/cola";
 import { Ficha } from "./Ficha";
 import { totalesDelConteo } from "@/modulos/inventario/totales-conteo";
-import { MODULOS_DE_LA_HOJA, moduloConLados, modulosQueFaltan } from "@/modulos/inventario/modulos-hoja";
+import { CALLES_MODULO_LIBRE, MODULOS_DE_LA_HOJA, moduloConLados, modulosQueFaltan } from "@/modulos/inventario/modulos-hoja";
 
 type Conteo = { id: string; codigo: string; estado: string; iniciado_en: string | null };
 
@@ -608,10 +608,14 @@ export function Contar({
       const k = claveBase(f);
       if (!m.has(k)) m.set(k, { base: k, calle: f.calle, modulo: f.modulo, familia: null });
     }
+    /* BTS / EXPORTACION: el módulo escogido se escribió al contar y el maestro todavía no lo tiene; se deja en la
+       lista para que el campo lo muestre (la base lo da de alta al anotar). */
+    const [cB, mB] = b.base.split("|");
+    if (b.base && mB && CALLES_MODULO_LIBRE.has(cB) && !m.has(b.base)) m.set(b.base, { base: b.base, calle: cB, modulo: mB, familia: null });
     return [...m.values()].sort((x, y) =>
       ordenCalle(x.calle, y.calle) ||
       x.modulo.localeCompare(y.modulo, "es", { numeric: true }));
-  }, [ubicaciones, b.calle]);
+  }, [ubicaciones, b.calle, b.base]);
 
   /* SIEMPRE IZQUIERDO Y DERECHO.
 
@@ -635,6 +639,8 @@ export function Contar({
     if (delModulo.length > 0 && delModulo.every((u) => (u.lado ?? "") === "")) return [""];
     /* Un módulo de la hoja que el maestro no tiene: un pasillo o un tándem no tienen lados. */
     if (delModulo.length === 0 && b.base && !moduloConLados(b.base.split("|")[1] ?? "")) return [""];
+    /* BTS y EXPORTACION: el módulo no tiene lado, se llame como se llame (hasta «01»). */
+    if (CALLES_MODULO_LIBRE.has(b.base.split("|")[0] ?? "")) return [""];
     return ["IZQ", "DER"];
   }, [ubicaciones, b.base]);
 
@@ -1920,7 +1926,15 @@ export function Contar({
                    LA FAMILIA TAMPOCO ESTÁ. «RB F1000» repetido en
                    doscientas filas solo alarga el renglón; sigue en el
                    maestro, que es donde se consulta. */
-                teclado="numerico"
+                teclado={CALLES_MODULO_LIBRE.has(b.calle) ? "texto" : "numerico"}
+                /* BTS y EXPORTACION: lo que se escribe y no está se puede AGREGAR como módulo nuevo (sin lado). */
+                agregar={CALLES_MODULO_LIBRE.has(b.calle)
+                  ? (q) => {
+                      const mod = q.trim().toUpperCase().replace(/\s+/g, " ");
+                      if (mod === "" || mod.includes("|")) return null;
+                      return { valor: `${b.calle}|${mod}`, texto: `Agregar «${mod}»`, pista: `módulo nuevo en ${b.calle} · sin lado` };
+                    }
+                  : undefined}
                 /* Y ABRE EN EL MÓDULO QUE SIGUE. Es donde más se nota:
                    quien va por el 40 tenía que rodar cuarenta renglones
                    cada vez que abría la lista, y son cientos de

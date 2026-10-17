@@ -28,6 +28,7 @@ import { useConfirmar } from "@/components/Confirmar";
 import { useAvisos } from "@/components/Aviso";
 import type { Material, Ubicacion, Bodega } from "@/modulos/inventario/fefo";
 import { MaestroCasco } from "./MaestroCasco";
+import { CALLES_MODULO_LIBRE } from "@/modulos/inventario/modulos-hoja";
 
 /** Los cc con separador de miles: «50.000» se lee, «50000» hay que
  *  contarlo con el dedo. */
@@ -154,7 +155,7 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
   /* Las calles que existen de verdad, en el orden del almacén: las de
      una letra primero (A, B, … P) y después las nombradas (ALAR, EST…). */
   const calles = useMemo(() => {
-    const cs = [...new Set(ubicaciones.map((u) => u.calle).filter(Boolean))] as string[];
+    const cs = [...new Set([...ubicaciones.map((u) => u.calle).filter(Boolean), ...CALLES_MODULO_LIBRE])] as string[];
     return cs.sort((a, b) => (a.length === 1 ? 0 : 1) - (b.length === 1 ? 0 : 1) || a.localeCompare(b, "es", { numeric: true }));
   }, [ubicaciones]);
 
