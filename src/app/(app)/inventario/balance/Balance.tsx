@@ -65,6 +65,10 @@ const ESTADOS_DESTINO = ["BAJA", "LAVADO", "EXTRASUCIO"] as const;
 
 /** Lo que de «otros estados» DEBERÍA ir a pasivo: OTROS y MAL ESTADO (lo sano —RETORNO, NUEVO, VACÍO…— no es pasivo). */
 const PARA_PASIVO = /OTRO|MAL ?ESTADO/i;
+/** Fábrica (AG18): NADA de lo contado puede quedar fuera del pasivo → ahí se muestra todo lo que no sea BAJA/LAVADO/EXTRASUCIO.
+ *  Bodega 38 (AG22): con el interruptor, solo OTROS y MAL ESTADO (lo sano no es pasivo). */
+const fueraDePasivo = (f: { estado: string; alcance: string }, soloPasivo: boolean) =>
+  !ESTADOS_FIJOS.has(f.estado) && (f.alcance === "SORTING" || !soloPasivo || PARA_PASIVO.test(f.estado));
 const ALMACEN_DE = (alcance: string) => (alcance === "SORTING" ? "Fábrica · AG18" : alcance === "PRESORTING" ? "Bodega 38 · AG22" : alcance);
 
 /* ------------------------------------------------------------------ */
@@ -147,7 +151,7 @@ export function Balance({
   const filas = useMemo(
     () => {
       if (esOtros) {
-        return detalle.filter((f) => !ESTADOS_FIJOS.has(f.estado) && (!soloPasivo || PARA_PASIVO.test(f.estado)))
+        return detalle.filter((f) => fueraDePasivo(f, soloPasivo))
           .sort((a, b) => (a.alcance === b.alcance ? 0 : a.alcance === "SORTING" ? -1 : 1) || a.codigo.localeCompare(b.codigo, "es", { numeric: true }) || a.estado.localeCompare(b.estado));
       }
       return detalle.filter(
@@ -260,7 +264,7 @@ export function Balance({
               /* Para la pestaña "otros" calculamos el badge a mano. */
               const b = esOtrosTab
                 ? (() => {
-                    const fs = detalle.filter((f) => !ESTADOS_FIJOS.has(f.estado) && (!soloPasivo || PARA_PASIVO.test(f.estado)));
+                    const fs = detalle.filter((f) => fueraDePasivo(f, soloPasivo));
                     return fs.length ? { renglones: fs.length, con_alerta: fs.filter((f) => f.alerta).length } : null;
                   })()
                 : (() => {
@@ -307,15 +311,15 @@ export function Balance({
               <label className="bal-otros-sw">
                 <input type="checkbox" checked={soloPasivo} onChange={(e) => setSoloPasivo(e.target.checked)} />
                 <b>Solo lo que debe ir a pasivo</b>
-                <small>OTROS y MAL ESTADO · lo sano (RETORNO, NUEVO, VACÍO…) no es pasivo{soloPasivo ? "" : " — apagado: se ve todo"}</small>
+                <small>Fábrica: se muestra TODO lo que no sea baja/lavado/extrasucio · Bodega 38: solo OTROS y MAL ESTADO (RETORNO, NUEVO, VACÍO… son sanos){soloPasivo ? "" : " — apagado: se ve todo"}</small>
               </label>
-              {soloPasivo && (["SORTING", "PRESORTING"] as const).map((al) => {
+              {(["SORTING", "PRESORTING"] as const).map((al) => {
                 const rs = principales.filter((f) => f.alcance === al);
                 const cj = rs.reduce((t, f) => t + f.fisico_cajas, 0);
                 const un = rs.reduce((t, f) => t + (f.un_caja ? f.fisico_cajas * f.un_caja : 0), 0);
                 return (
                   <span key={al} className={"bal-otros-chip" + (rs.length ? " hay" : "")}>
-                    <b>{ALMACEN_DE(al)}</b> {rs.length ? <>{rs.length} {rs.length === 1 ? "material" : "materiales"} · {n(cj)} cajas · {n(un)} u por reasignar</> : "nada por reasignar"}
+                    <b>{ALMACEN_DE(al)}</b> {rs.length ? <>{rs.length} {rs.length === 1 ? "renglón" : "renglones"} · {n(cj)} cajas · {n(un)} u por reasignar</> : "nada por reasignar — todo está en pasivo"}
                   </span>
                 );
               })}
@@ -393,7 +397,7 @@ export function Balance({
                         ) : f.codigo}
                       </td>
                       <td>{f.material ?? "—"}</td>
-                      {esOtros && <td><b className={PARA_PASIVO.test(f.estado) ? "bal-est-otro" : ""}>{f.estado}</b></td>}
+                      {esOtros && <td><b className={f.alcance === "SORTING" || PARA_PASIVO.test(f.estado) ? "bal-est-otro" : ""}>{f.estado}</b></td>}
                       <td className={`r ${f.cajas_estiba ? "" : "bal-falta"}`}>{f.cajas_estiba ? n(f.cajas_estiba) : "falta"}</td>
                       <td className={`r ${f.un_caja ? "" : "bal-falta"}`}>{f.un_caja ? n(f.un_caja) : "falta"}</td>
                       <td className="r">{n(f.fisico_cajas)}</td>
@@ -583,7 +587,7 @@ export function Balance({
           {filas.length === 0 && (
             <p className="bal-sin-filas">
               {esOtros
-                ? (soloPasivo ? "Nada por reasignar: no hay renglones en OTROS ni MAL ESTADO. Todo lo contado ya está en BAJA, LAVADO o EXTRASUCIO, o es envase sano." : "No hay envases con otros estados para reclasificar.")
+                ? (soloPasivo ? "Nada por reasignar: todo lo contado en Fábrica está en BAJA, LAVADO o EXTRASUCIO, y en Bodega 38 no hay renglones en OTROS ni MAL ESTADO." : "No hay envases con otros estados para reclasificar.")
                 : <>No hay renglones de <b>{hoja.estado}</b> en{" "}
                     <b>{hoja.alcance === "SORTING" ? "Fábrica (AG18)" : hoja.alcance === "PRESORTING" ? "Bodega 38 (AG22)" : "todas las ubicaciones"}</b>.</>}
             </p>
