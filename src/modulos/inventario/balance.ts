@@ -223,7 +223,7 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
       reas.set(k, x);
     };
     const regla = /^Regla fábrica:\s*(.+?)\s*→\s*(\S+)/.exec(r.nota ?? "");
-    if (regla) anota("Regla de fábrica", regla[1], regla[2], "Automática: ese material en fábrica es baja", null, null);
+    if (regla) anota("Regla de fábrica", regla[1], regla[2], regla[2].toUpperCase() === "BAJA" ? "Automática: ese material en fábrica es baja" : `Automática: en fábrica, ${regla[1]} pasa a ${regla[2]}`, null, null);
     const rc = reclas.get(r.id);
     if (rc) anota("Balance", normEstado(r.estado_envase), rc.estado, rc.motivo, rc.usuario_id ? nombres.get(rc.usuario_id) ?? null : null, rc.creado_en);
   }
@@ -244,7 +244,7 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
   /* Los materiales que la regla de fábrica pasó a BAJA en la Fábrica (nota «Regla fábrica: LAVADO → BAJA»). */
   const deLaRegla = new Set<string>();
   for (const r of vigentes) {
-    if (zona(r) === "SORTING" && /^Regla f[aá]brica:/i.test(r.nota ?? "")) deLaRegla.add(String(r.codigo));
+    if (zona(r) === "SORTING" && /^Regla f[aá]brica:[^|]*→\s*BAJA\b/i.test(r.nota ?? "")) deLaRegla.add(String(r.codigo));
   }
   for (const r of vigentes) {
     if (esCajaPlastica(r.material) || esCajaPlastica(prod.get(String(r.codigo))?.nombre)) continue;
