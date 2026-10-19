@@ -582,7 +582,7 @@ async function armarCuadreAG22(pedida?: string | null) {
  *   · CAJA PLÁSTICA  = cajas contadas.
  *   · ESTIBA 3500163 = las sueltas + 1 por cada estiba contada debajo del material (y 1 por renglón con saldo o sueltas), como AG18.
  * DIFERENCIA = SAP − CONTEO = el 311 con AG22 (el mismo flujo de AG18): negativa → pasar de AG22 a este almacén; positiva → de este almacén a AG22.
- * No hay pasivos, casco, OTROS ni estibas de almacén. Con la ZEXI nueva: «SAP después» = SAP + lo movido y «queda» = SAP después − conteo.
+ * Como AG18, el envase va BLOQUEADO (el 311 lo deja en libre: falta el 344). No hay pasivos, casco, OTROS ni estibas de almacén. Con la ZEXI nueva: «SAP después» = SAP + lo movido y «queda» = SAP después − conteo.
  * La ZEXI y el balanceo guardado salen de la misma tabla (cuadre_sap, una fila por día y almacén).
  */
 async function armarCuadreSimple(pedida: string | null | undefined, almacen: AlmacenSimple) {
@@ -646,7 +646,9 @@ async function armarCuadreSimple(pedida: string | null | undefined, almacen: Alm
     return { grupo: a.grupo, codigo: a.codigo, material: a.material, conteo: total,
       detalle: a.grupo === "ENVASE" ? `${nf.format(a.cajas)} cajas × ${nf.format(upc(a.codigo))} u` : `${nf.format(a.cajas)} cajas`,
       pendBaja: 0, andina: 0, almacen: 0, lavadoBaja: 0, otrosCajas: 0, upc: a.grupo === "ENVASE" ? upc(a.codigo) : 1, total, sap: sapV,
-      libre: z?.libre ?? null, bloqueado: z?.bloqueado ?? null, calidad: z?.calidad ?? null, enLibre: null, meta: null, estadoFinal: null, estadoOk: null,
+      libre: z?.libre ?? null, bloqueado: z?.bloqueado ?? null, calidad: z?.calidad ?? null,
+      /* Como AG18: el envase va BLOQUEADO; si con la ZEXI nueva queda algo en libre, falta el 344. */
+      enLibre: a.grupo === "ENVASE" && mov.get(a.codigo)?.libre != null ? redondo(mov.get(a.codigo)!.libre ?? 0) : null, meta: null, estadoFinal: null, estadoOk: null,
       dif, movido, documentos: mov.get(a.codigo)?.documentos ?? [], sapDespues, queda };
   });
   /* La estiba de madera (3500163), siempre en la lista. */

@@ -631,7 +631,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
               <div className="cs-caja r"><h3>{esAG22 ? "Pasar de Libre a Bloqueado (Mov 344)" : `Pasar de ${OTRO} a ${ALM}`} {cabezaLista(entranEnv, "entran")}</h3>
                 {entranEnv.length ? documentos(entranEnv, "entran") : <p className="cs-vacio">Nada.</p>}
                 {/* «Solo era poner el mensaje: puedo copiar y pegar lo mismo.» Sin lista aparte: los mismos documentos del 311. */}
-                {!esAG22 && !esSimple && entranEnv.length > 0 && (
+                {!esAG22 && entranEnv.length > 0 && (
                   <div className="cs-antes azul">
                     <p className="cs-antes-t"><b>Después, en {ALM}: Mov 344 (Libre → Bloqueado)</b>
                       <span>El 311 deja todo en <b>libre utilización</b>. Con los <b>mismos documentos</b> de arriba (copia y pega igual) haz el 344 en {ALM}, antes de bajar la ZEXI nueva.</span></p>
@@ -743,7 +743,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
             <div><span>Balanceados</span><b className="bien">{balanceados.length} de {filas.filter((f) => f.queda != null).length}</b></div>
             <div><span>Pendientes</span><b className={pendientes.length ? "mal" : "bien"}>{pendientes.length}</b></div>
           </div>
-          {pendientes.length === 0 && <p className="cs-msg bien">Todo quedó balanceado: el SAP de {ALM}{esAG22 ? " (bloqueado)" : ""} es igual {esAG22 ? "a la base" : "al conteo"}{esAG22 || esSimple ? "" : " y el envase quedó todo en bloqueado"}.</p>}
+          {pendientes.length === 0 && <p className="cs-msg bien">Todo quedó balanceado: el SAP de {ALM}{esAG22 ? " (bloqueado)" : ""} es igual {esAG22 ? "a la base" : "al conteo"}{esAG22 ? "" : " y el envase quedó todo en bloqueado"}.</p>}
           {!esAG22 && filas.some((f) => (f.enLibre ?? 0) > 0.005) && <p className="cs-msg mal">Hay envase que quedó en <b>libre utilización</b> en {ALM}: haz el 344 (Libre → Bloqueado) por esa cantidad y vuelve a subir la ZEXI.</p>}
           <div className="cs-scroll">
             <table className="cs-t">
