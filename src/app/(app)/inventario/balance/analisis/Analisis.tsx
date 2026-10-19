@@ -208,33 +208,6 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
           {datos.noEntran.length > 0 && <> No entran: {datos.noEntran.join(", ")}.</>}</p>
         {informativas.length > 0 && <p className="ad-nota">Informativo (no suma): {informativas.map((x) => `${x.tipo} ${x.codigo} ${n(Number(x.unidades))}`).join(" · ")}.</p>}
       </section>
-
-      {/* ---------- EL PRODUCTO CONTADO (cajas y unidades): el conteo completo, sin segregar ---------- */}
-      {(datos.producto?.length ?? 0) > 0 && (() => {
-        const ps = datos.producto!;
-        const t = ps.reduce((x, p) => ({ cajas: x.cajas + p.cajas, unidades: x.unidades + p.unidades, estibas: x.estibas + p.estibas }), { cajas: 0, unidades: 0, estibas: 0 });
-        return (
-          <section className="ad-caja ad-hoja">
-            <div className="ad-hoja-cab"><h2>Producto contado · Bodega 38</h2></div>
-            <div className="ad-tabla-caja">
-              <table className="ad-t ad-piv">
-                <thead><tr><th>Código</th><th>Descripción</th><th className="n">Cajas</th><th className="n">Unidades</th><th className="n">Estibas</th><th>Caja plástica</th></tr></thead>
-                <tbody>
-                  {ps.map((p) => (
-                    <tr key={p.codigo}>
-                      <td className="mono">{p.codigo}</td><td>{p.descripcion}</td>
-                      <td className="n">{n(p.cajas)}</td><td className="n">{n(p.unidades)}</td><td className="n">{n(p.estibas)}</td>
-                      <td className="mono">{p.caja ?? "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot><tr><td colSpan={2}>Total producto</td><td className="n">{n(t.cajas)}</td><td className="n">{n(t.unidades)}</td><td className="n">{n(t.estibas)}</td><td /></tr></tfoot>
-              </table>
-            </div>
-            <p className="ad-nota">Aquí ves el producto en cajas; en la tabla de arriba va en unidades (familia P) y no genera ajustes. Su caja plástica suma en E01 y su estiba en la 3500163. Unidades = cajas × unidades por caja del maestro.</p>
-          </section>
-        );
-      })()}
     </>
   );
 }
