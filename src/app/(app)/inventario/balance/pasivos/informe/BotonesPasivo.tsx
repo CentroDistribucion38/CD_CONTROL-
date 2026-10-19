@@ -36,7 +36,12 @@ export function BotonesPasivo({ datos }: { datos: DatosInformePasivo | null }) {
     const [fo, logo] = await Promise.all([import("@/modulos/pasivos/foto"), logoMarca()]);
     return tipo === "dashboard"
       ? { lienzo: fo.dibujarFotoPasivo(datos, { paleta, logo }), nombre: fo.nombreFotoPasivo(datos.dia) }
-      : { lienzo: fo.dibujarDetallePasivo(datos, { paleta, logo }), nombre: fo.nombreDetallePasivo(datos.dia) };
+      : {
+          lienzo: fo.dibujarDetallePasivo(datos, { paleta, logo }),
+          nombre: fo.nombreDetallePasivo(datos.dia),
+          /* lo que se envía no lleva los materiales en 0 ni negativos (en pantalla sí se ven) */
+          lienzoEnvio: datos.consolidado.some((f) => !(f.und > 0)) ? fo.dibujarDetallePasivo(datos, { paleta, logo, ocultarCeroYNegativos: true }) : undefined,
+        };
   }, "Pasivos BAQ AG01");
 
   async function armar(que: "pdf" | "word") {

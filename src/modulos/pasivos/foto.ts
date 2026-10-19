@@ -274,7 +274,7 @@ export const nombreFotoPasivo = (dia: string) => `pasivos-${dia}.png`;
    ===================================================================== */
 export function dibujarDetallePasivo(
   d: DatosInformePasivo,
-  extra: { paleta?: Paleta; logo?: CanvasImageSource | null; generado?: Date } = {},
+  extra: { paleta?: Paleta; logo?: CanvasImageSource | null; generado?: Date; ocultarCeroYNegativos?: boolean } = {},
 ): HTMLCanvasElement {
   const P = extra.paleta ?? PALETA_MARCA;
   const TINTA = `rgb(${P.tinta.join(",")})`, ACENTO = `rgb(${P.acento.join(",")})`;
@@ -284,7 +284,9 @@ export function dibujarDetallePasivo(
   const als = d.almacenes.map((a, i) => {
     const filas = d.consolidado.filter((f) => f.almacen === a.a).sort((x, y) => y.hl - x.hl);
     const suma = (k: "und" | "cajas" | "hl" | "costo") => filas.reduce((t, f) => t + (Number(f[k]) || 0), 0);
-    return { ...a, col: COLOR_ALMACEN[i] ?? "#8C8C8C", filas, und: suma("und"), cajas: suma("cajas"), hl: suma("hl"), cst: suma("costo") };
+    /* para ENVIAR la foto: los renglones en 0 o negativos no se dibujan en la tabla (las cifras de arriba y el TOTAL siguen siendo las reales) */
+    const filasVer = extra.ocultarCeroYNegativos ? filas.filter((f) => f.und > 0) : filas;
+    return { ...a, col: COLOR_ALMACEN[i] ?? "#8C8C8C", filas, filasVer, und: suma("und"), cajas: suma("cajas"), hl: suma("hl"), cst: suma("costo") };
   }).filter((a) => a.filas.length);
   const n = Math.max(1, als.length);
 
@@ -305,8 +307,8 @@ export function dibujarDetallePasivo(
   /* LAS TABLAS CRECEN CON LA UBICACIÓN: cada zona en su renglón, y nada se corta. */
   const colW0 = (W - 2 * M - G * (Math.max(1, als.length) - 1)) / Math.max(1, als.length);
   const med = medidor();
-  const cols = anchosTabla(columnasPasivo(als.some((a) => a.filas.some((f) => f.ubic))), colW0 - 32);
-  const yTab = yGraf + hGraf + G, hTab = 62 + Math.max(0, ...als.map((a) => altoTabla(med, cols, a.filas))) + 6;
+  const cols = anchosTabla(columnasPasivo(als.some((a) => a.filasVer.some((f) => f.ubic))), colW0 - 32);
+  const yTab = yGraf + hGraf + G, hTab = 62 + Math.max(0, ...als.map((a) => altoTabla(med, cols, a.filasVer))) + 6;
   const H = yTab + hTab + 34;
 
   const c = document.createElement("canvas");
@@ -415,8 +417,8 @@ export function dibujarDetallePasivo(
   als.forEach((al, i) => {
     const x = M + i * (colW + G);
     const a = panel({ x, y: yTab, w: colW, h: hTab }, `${al.a} · ${al.nombre}`, `${f1(al.hl)} HL · ${plata(al.cst)}`, al.col);
-    dibujarTabla(ctx, TINTA, a.x, a.y, a.w, cols, al.filas, (c) => (
-      c.t === "CÓDIGO" ? "TOTAL" : c.t === "MATERIAL" ? `${al.filas.length} materiales`
+    dibujarTabla(ctx, TINTA, a.x, a.y, a.w, cols, al.filasVer, (c) => (
+      c.t === "CÓDIGO" ? "TOTAL" : c.t === "MATERIAL" ? `${al.filasVer.length} materiales`
       : c.t === "UNIDADES" ? f0(al.und) : c.t === "CAJAS" ? f0(al.cajas) : c.t === "HL" ? f1(al.hl) : c.t === "COSTO" ? plata(al.cst) : ""),
     (f) => !(Math.abs(f.hl) >= 0.05));
   });

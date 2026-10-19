@@ -11,8 +11,9 @@ import "./foto-compartir.css";
  * PNG, la vista previa, las dos pestañas para pasar de una a la otra y el portapapeles.
  */
 export type TipoFoto = "dashboard" | "detalle";
-type Foto = { tipo: TipoFoto; url: string; blob: Blob; nombre: string };
-export type Hacer = (tipo: TipoFoto) => Promise<{ lienzo: HTMLCanvasElement; nombre: string }>;
+type Foto = { tipo: TipoFoto; url: string; blob: Blob; envio: Blob | null; nombre: string };
+/** `lienzoEnvio` (opcional): otra versión de la imagen que es la que sale al copiar, compartir o descargar; la vista en pantalla sigue siendo `lienzo`. */
+export type Hacer = (tipo: TipoFoto) => Promise<{ lienzo: HTMLCanvasElement; nombre: string; lienzoEnvio?: HTMLCanvasElement }>;
 
 export const NOMBRE_FOTO: Record<TipoFoto, string> = { dashboard: "Dashboard", detalle: "Detalle por almacén" };
 
@@ -45,11 +46,12 @@ export function useFotoCompartir(hacer: Hacer, titulo: string) {
   async function abrir(tipo: TipoFoto) {
     setMal(false); setArmando(tipo);
     try {
-      const { lienzo, nombre } = await hacer(tipo);
+      const { lienzo, nombre, lienzoEnvio } = await hacer(tipo);
       const blob = await new Promise<Blob | null>((ok) => lienzo.toBlob(ok, "image/png"));
       if (!blob) throw new Error("sin imagen");
+      const envio = lienzoEnvio ? await new Promise<Blob | null>((ok) => lienzoEnvio.toBlob(ok, "image/png")) : null;
       setAviso(null);
-      setFoto((viejo) => { if (viejo) URL.revokeObjectURL(viejo.url); return { tipo, url: URL.createObjectURL(blob), blob, nombre } });
+      setFoto((viejo) => { if (viejo) URL.revokeObjectURL(viejo.url); return { tipo, url: URL.createObjectURL(blob), blob, envio, nombre } });
     } catch { setMal(true) }
     finally { setArmando(null) }
   }
@@ -57,13 +59,13 @@ export function useFotoCompartir(hacer: Hacer, titulo: string) {
   async function copiar() {
     if (!foto) return;
     try {
-      await navigator.clipboard.write([new ClipboardItem({ "image/png": foto.blob })]);
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": foto.envio ?? foto.blob })]);
       setAviso("Copiada. Pégala en el correo o en WhatsApp con Ctrl + V.");
     } catch {
       setAviso("Este navegador no deja copiar imágenes. Usa «Descargar PNG» o «Compartir».");
     }
   }
-  const archivo = foto ? new File([foto.blob], foto.nombre, { type: "image/png" }) : null;
+  const archivo = foto ? new File([foto.envio ?? foto.blob], foto.nombre, { type: "image/png" }) : null;
   const sePuedeCompartir = !!archivo && typeof navigator !== "undefined" && !!navigator.canShare?.({ files: [archivo] });
   async function compartir() {
     if (!archivo) return;
@@ -93,7 +95,7 @@ export function useFotoCompartir(hacer: Hacer, titulo: string) {
                 Compartir
               </button>
             )}
-            <button type="button" className="fc-bt alt" onClick={() => bajar(foto.blob, foto.nombre)}>
+            <button type="button" className="fc-bt alt" onClick={() => bajar(foto.envio ?? foto.blob, foto.nombre)}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16" /></svg>
               Descargar PNG
             </button>
@@ -101,6 +103,7 @@ export function useFotoCompartir(hacer: Hacer, titulo: string) {
           </div>
         </div>
         {aviso && <p className="fc-aviso" role="status">{aviso}</p>}
+        {!aviso && foto.envio && <p className="fc-aviso">Aquí ves todo. Al copiar, compartir o descargar se quitan los materiales en 0 o negativos.</p>}
         <div className="fc-img">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={foto.url} alt={`${titulo} · ${NOMBRE_FOTO[foto.tipo]}`} />
