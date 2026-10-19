@@ -1,5 +1,4 @@
 import type { Renglon, ConteoFefo } from "./fefo";
-import { esDeAG17oAG16 } from "@/modulos/casco/ubicacion-sitio";
 
 /* ===================================================================
    LA BASE, CRUZADA
@@ -19,7 +18,7 @@ import { esDeAG17oAG16 } from "@/modulos/casco/ubicacion-sitio";
    La persona es quien ENVIÓ el recorrido (si no, el responsable).
    «Último» se mide por cuándo se ENVIÓ el recorrido (si no, por su fecha).
 
-   EXCEPCIÓN: en BTS y EXPORTACION no se reemplaza nada: todos los renglones valen (ver `clave`).
+   AHORA NO SE REEMPLAZA NADA: todos los renglones contados valen (ver `clave`). Lo de abajo describe la regla de antes.
 
    La ZONA es la «condición del envase» que se anota al contar (RETORNO,
    BAJA, LAVADO…): volver a contar C02_DER con producto NO borra las 60 cajas
@@ -47,10 +46,10 @@ export type Cruce = {
   actualiza: Map<string, { ubicaciones: number; de: string[] }>;
 };
 
-/* En BTS (AG16) y EXPORTACION (AG17) NO SE REEMPLAZA NADA: el módulo se escribe libre y se cuentan materiales sueltos, y todos los
-   renglones que se anoten tienen que aparecer. Cada renglón es su propio sitio (la clave lleva su id), así que ningún conteo
-   nuevo deja sin valor a otro. En el resto de ubicaciones la regla es la de siempre (ubicación y zona). */
-const clave = (l: Renglon) => `${l.ubicacion_id ?? l.ubicacion ?? "—"}|${l.estado_envase ?? ""}${esDeAG17oAG16(l) ? `|${l.id}` : ""}`;
+/* NO SE REEMPLAZA NADA: todo lo que se cuenta se refleja. Cada renglón es su propio sitio (la clave lleva su id), así que ningún
+   conteo nuevo deja sin valor a otro, ni de otra persona ni de la misma. Si alguien se equivoca, el administrador borra el renglón
+   malo. (Antes, la misma persona que volvía a contar una ubicación y zona reemplazaba su conteo anterior.) */
+const clave = (l: Renglon) => `${l.ubicacion_id ?? l.ubicacion ?? "—"}|${l.estado_envase ?? ""}|${l.id}`;
 const num = (x: unknown) => { const n = Number(x); return Number.isFinite(n) ? n : 0 };
 
 export function cruzar(lineas: Renglon[], conteos: ConteoFefo[]): Cruce {
