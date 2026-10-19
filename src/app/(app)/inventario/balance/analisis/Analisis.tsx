@@ -35,6 +35,12 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
   }, [filas, soloDif]);
   const tot = filas.reduce((t, f) => ({ sap: t.sap + f.sap, conteo: t.conteo + f.conteo }), { sap: 0, conteo: 0 });
   const informativas = datos.novedades.filter((x) => x.lado === "NO SUMA");
+  /* EN LÍNEA: el envase y la caja de lo que el plan de envase pone a correr ese día. */
+  const enLinea = datos.enLinea ?? {};
+  const nEnLinea = filas.filter((f) => enLinea[f.codigo]?.length).length;
+  const T = ["", "T1", "T2", "T3"];
+  const trenesDe = (c: string) => [...new Set((enLinea[c] ?? []).map((x) => x.tren))].join(" · ");
+  const detalleLinea = (c: string) => (enLinea[c] ?? []).map((x) => `${x.tren} · ${x.sku} (${x.sap}) · ${x.turnos.map((t) => T[t] ?? t).join(", ")}${x.por === "caja" ? " · su caja" : ""}`).join("\n");
 
   const irA = (d: string) => router.push(`/inventario/balance/analisis?fecha=${d}`);
 
@@ -140,6 +146,9 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
             </button>
           )}
         </div>
+        {nEnLinea > 0 && (
+          <p className="ad-enl-ley"><span className="ad-enl">EN LÍNEA</span> {nEnLinea} {nEnLinea === 1 ? "código está" : "códigos están"} en producción ese día según el plan de envase: la línea los está tomando mientras se cuenta, así que su diferencia puede no ser real. Pasa el mouse por la etiqueta para ver el SKU y el turno.</p>
+        )}
         {filas.length === 0 ? <p className="ad-vacio">No hay nada para ese día: falta el conteo, el cuadre o la plantilla.</p> : (
           <div className="ad-tabla-caja">
             <table className="ad-t ad-piv">
@@ -153,10 +162,10 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
                         const ab = abierta === f.codigo;
                         return (
                           <Fragment key={f.codigo}>
-                            <tr className={ab ? "ab" : ""}>
+                            <tr className={(ab ? "ab" : "") + (enLinea[f.codigo]?.length ? " enl" : "")}>
                               {i === 0 && <td className="fam" rowSpan={xs.length + xs.filter((x) => x.codigo === abierta).length}>{fam}</td>}
                               <td className="mono"><button type="button" className="ad-cod" aria-expanded={ab} onClick={() => setAbierta(ab ? null : f.codigo)}>{f.codigo}</button></td>
-                              <td>{f.descripcion}</td>
+                              <td>{f.descripcion}{enLinea[f.codigo]?.length ? <span className="ad-enl" title={"En línea según el plan de envase:\n" + detalleLinea(f.codigo)}>EN LÍNEA · {trenesDe(f.codigo)}</span> : null}</td>
                               <td className="n">{n(f.sap)}</td>
                               <td className="n">{n(f.conteo)}</td>
                               <td className={"n b" + (f.diferencia < 0 ? " neg" : f.diferencia > 0 ? " pos" : "")}>{signo(f.diferencia)}</td>

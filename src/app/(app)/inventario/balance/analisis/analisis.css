@@ -214,3 +214,10 @@
 .ad .ad-ex-barra i { display: block; height: 100% }
 .ad .ad-ex-barra i.li { background: var(--ex-li) } .ad .ad-ex-barra i.ca { background: var(--ex-ca) } .ad .ad-ex-barra i.bl { background: var(--ex-bl) }
 @media (max-width: 720px) { .ad .ad-ex-k { grid-template-columns: repeat(2, minmax(0, 1fr)) } }
+
+/* ---------- EN LÍNEA: el código lo está tomando una línea según el plan de envase del día ---------- */
+.ad .ad-piv tr.enl td:not(.fam) { background: #FFF6D6 }
+.ad .ad-piv tr.enl td.mono { box-shadow: inset 4px 0 0 var(--fe-acento, #FFC400) }
+.ad .ad-enl { display: inline-block; margin-left: 8px; padding: 2px 7px; background: var(--fe-tinta); color: var(--fe-acento, #FFC400); font: 700 10.5px var(--fe-texto); letter-spacing: .06em; white-space: nowrap; vertical-align: 1px; cursor: help }
+.ad .ad-enl-ley { margin: 0 0 10px; padding: 8px 12px; background: #FFF6D6; border-left: 4px solid var(--fe-acento, #FFC400); font-size: 12.5px; color: var(--fe-tinta) }
+.ad .ad-enl-ley .ad-enl { margin: 0 6px 0 0; cursor: default }

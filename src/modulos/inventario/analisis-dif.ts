@@ -14,7 +14,8 @@ import { CAJA_EN_DEPA, lineaDeDepa } from "./depa";
  * EL ANÁLISIS DE DIFERENCIA DE BODEGA 38 — la hoja CONTEOS + la tabla dinámica de 2026.10.14_BODEGA_38.xlsx.
  *
  * Por código, en unidades (cajas plásticas y estibas por unidad), dos lados:
- *   CONTEO = conteo del día (ubicaciones de Bodega, no FABRICA_) + DEPA (corte inicial del día)
+ *   CONTEO = conteo del día (ubicaciones de Bodega, no FABRICA_; la caja plástica en la que va el producto
+ *            también cuenta como caja) + DEPA (corte inicial del día)
  *          + Pasivos AG22 (PRESORTING, ROTURA DE LINEA, EXTRASUCIO) + BALANCE «de AG22 a AG18»
  *          + novedades de la plantilla que suman al conteo.
  *   SAP    = ZEXI 6 AM (plantilla) + BALANCE «de AG18 a AG22» + novedades que suman a SAP.
@@ -40,7 +41,12 @@ export type Analisis = {
   contados?: { skus: number; producto: number; envase: number; otros: number; renglones: number };
   /** La ZEXI de AG18 del Cuadre SAP de ese día, con lo que hay en cada estado (para tenerlo a la vista). */
   existencias?: Existencias | null;
+  /** EN LÍNEA: por código de envase o de caja plástica, los SKU que el plan de envase pone a correr ese día.
+      Esos códigos son difíciles de cuadrar porque la línea está tomando envase mientras se cuenta. */
+  enLinea?: Record<string, EnLinea[]>;
 };
+/** Un SKU del plan de envase que corre ese día y usa el envase (o la caja) de la fila. */
+export type EnLinea = { tren: string; sap: string; sku: string; turnos: number[]; por: "envase" | "caja" };
 export type FilaExistencia = { codigo: string; descripcion: string; libre: number | null; calidad: number | null; bloqueado: number | null; total: number };
 export type Existencias = { archivo: string | null; en: string | null; conEstados: boolean; filas: FilaExistencia[] };
 
@@ -55,7 +61,7 @@ const PASIVOS: Record<string, string> = { "PRESORTING": "PEND BAJA PRESORTING", 
 export async function armarAnalisis(fecha: string): Promise<Analisis> {
   const supabase = await createClient();
   const avisos: string[] = [];
-  const [{ conteos }, maesR, prodR, pas, novR, cortesR, regla] = await Promise.all([
+  const [{ conteos }, maesR, prodR, pas, novR, cortesR, regla, planR] = await Promise.all([
     diasConConteo(),
     supabase.from("pasivos_maestro").select("codigo, descripcion, familia, unidades_por_caja, cajas_por_estiba, caja"),
     supabase.from("productos").select("id, sku, nombre, unidades_por_caja, cajas_por_estiba, envase_sku").limit(5000),
@@ -66,6 +72,9 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
       .lt("cortado_en", new Date(new Date(`${fecha}T00:00:00-05:00`).getTime() + 86400000).toISOString())
       .order("cortado_en").limit(50),
     leerExcluidos("AG22"),
+    /* EL PLAN DE ENVASE DEL DÍA: qué SKU corre en cada tren (Recepción · Plan de envase). Si no hay plan o no se
+       puede ver, el análisis sale igual, solo que sin la marca de «en línea». */
+    supabase.from("plan_envase_bloques").select("tren, sap, turno").eq("fecha", fecha).limit(2000),
   ]);
   const faltaSql = !!novR.error && /analisis_dif|does not exist|PGRST205/i.test(`${novR.error.code} ${novR.error.message}`);
   const M = new Map(((maesR.data ?? []) as Maes[]).map((m) => [String(m.codigo), m]));
@@ -98,6 +107,8 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   let renglones = 0;
   const skuP = new Set<string>(), skuE = new Set<string>(), skuO = new Set<string>();
   let renglonesBodega = 0;
+  /* La caja plástica que lleva el producto: cuántas cajas y de cuántos productos salieron. */
+  let cajasProducto = 0; const prodConCaja = new Set<string>(), prodSinEnvase = new Set<string>();
   for (const r of await conReclasificaciones(cons.vigentes)) {
     /* Fuera todo lo de FÁBRICA: por la calle o por el nombre de la ubicación (FABRICA_…, FABRICAL4…). */
     if (esUbicacionFabrica(r.calle) || esUbicacionFabrica(r.ubicacion) || esUbicacionFabrica(r.ubicacion_combinada)) continue;
@@ -111,7 +122,17 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     const est = (Number(r.estibas) || 0) + ((Number(r.cajas) || 0) + (Number(r.saldo) || 0) > 0 ? 1 : 0);
     const g = grupo(c);
     if (g === "ESTIBA") { suma("conteo", c, "CONTEO · estibas contadas", cajas); renglones++; continue }
-    if (r.tipo_material === "PRODUCTO") { suma("conteo", ESTIBA, "CONTEO · bajo producto", est); continue }
+    if (r.tipo_material === "PRODUCTO") {
+      suma("conteo", ESTIBA, "CONTEO · bajo producto", est);
+      /* LA CAJA DEL PRODUCTO: cada caja de producto retornable va en una caja plástica, y esa caja se cuenta.
+         El producto → su envase (maestro de productos) → la caja de ese envase (maestro de Pasivos). Si el envase
+         está excluido (NR, foráneo…) o no tiene caja (lata, PET, NR), no aporta caja. */
+      const env = P.get(c)?.envase_sku ? String(P.get(c)!.envase_sku) : null;
+      if (!env) prodSinEnvase.add(c);
+      const cajaP = env && !excluye(regla, env, nombre(env)) ? M.get(env)?.caja : null;
+      if (cajaP && cajas) { suma("conteo", String(cajaP), `CONTEO · en producto ${c} ${nombre(c)}`, cajas); cajasProducto += cajas; prodConCaja.add(c) }
+      continue;
+    }
     if (r.tipo_material !== "ENVASE") { suma("conteo", ESTIBA, bajoQue(c), est); continue }
     renglones++;
     if (g === "CAJA") {
@@ -128,6 +149,10 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     const caja = M.get(c)?.caja; if (caja) suma("conteo", String(caja), `CONTEO · en ${c} ${nombre(c)}`, cajas);
   }
   fuentes.push({ nombre: "Conteo", ok: renglones > 0, detalle: renglones ? `${renglones} renglones de Bodega` : "No hay conteo enviado ese día" });
+  /* Un producto sin envase en el maestro no aporta caja: se nombra para que se complete el maestro si es retornable. */
+  if (prodConCaja.size || prodSinEnvase.size) fuentes.push({ nombre: "Caja del producto", ok: prodConCaja.size > 0,
+    detalle: `${Math.round(cajasProducto).toLocaleString("es-CO")} cajas plásticas en ${prodConCaja.size} productos contados`
+      + (prodSinEnvase.size ? ` · ${prodSinEnvase.size} productos sin envase en el maestro (lata, PET o falta completarlo; no aportan caja): ${[...prodSinEnvase].sort().slice(0, 12).join(", ")}${prodSinEnvase.size > 12 ? "…" : ""}` : "") });
   if (cons.error) avisos.push(`No pude leer el conteo: ${cons.error}`);
 
   /* 2. DEPA: los cortes iniciales del día. Por cada línea vale el primer corte
@@ -261,5 +286,28 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   }
   filas.sort((x, y) => x.orden - y.orden || x.codigo.localeCompare(y.codigo, "es", { numeric: true }));
   const contados = { skus: new Set([...skuP, ...skuE, ...skuO]).size, producto: skuP.size, envase: skuE.size, otros: skuO.size, renglones: renglonesBodega };
-  return { fecha, filas, fuentes, avisos, novedades, noEntran: noEntran.sort(), faltaSql, carga, contados, existencias };
+
+  /* 7. EN LÍNEA: el SKU del plan → su envase (maestro de productos) → la caja plástica de ese envase. */
+  const enLinea: Record<string, EnLinea[]> = {};
+  const sku: Map<string, { tren: string; sap: string; turnos: Set<number> }> = new Map();
+  for (const b of (planR.data ?? []) as { tren: string; sap: string; turno: number }[]) {
+    const k = `${b.tren}|${b.sap}`;
+    const x = sku.get(k) ?? { tren: String(b.tren).toUpperCase(), sap: String(b.sap), turnos: new Set<number>() };
+    x.turnos.add(Number(b.turno)); sku.set(k, x);
+  }
+  const sinEnvase: string[] = [];
+  for (const x of sku.values()) {
+    const prod = P.get(x.sap);
+    const env = prod?.envase_sku ? String(prod.envase_sku) : null;
+    if (!env) { sinEnvase.push(`${x.sap} (${x.tren})`); continue }
+    const base = { tren: x.tren, sap: x.sap, sku: prod?.nombre ?? x.sap, turnos: [...x.turnos].sort() };
+    (enLinea[env] ??= []).push({ ...base, por: "envase" });
+    const caja = CAJA_EN_DEPA[env] ?? M.get(env)?.caja;
+    if (caja) (enLinea[String(caja)] ??= []).push({ ...base, por: "caja" });
+  }
+  for (const xs of Object.values(enLinea)) xs.sort((a, b) => a.tren.localeCompare(b.tren, "es", { numeric: true }) || a.sku.localeCompare(b.sku, "es"));
+  /* Solo informa: el plan no mueve ningún número del análisis, así que si no hay plan ese día no se muestra nada. */
+  if (sku.size) fuentes.push({ nombre: "Plan de envase", ok: true, detalle: `${sku.size} SKU en línea ese día · ${new Set([...sku.values()].map((x) => x.tren)).size} trenes${sinEnvase.length ? ` · sin envase en el maestro: ${sinEnvase.join(", ")}` : ""}` });
+
+  return { fecha, filas, fuentes, avisos, novedades, noEntran: noEntran.sort(), faltaSql, carga, contados, existencias, enLinea };
 }
