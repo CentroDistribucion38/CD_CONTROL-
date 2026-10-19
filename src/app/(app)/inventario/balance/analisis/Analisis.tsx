@@ -130,6 +130,19 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
         <div className={"dif" + (tot.conteo - tot.sap < 0 ? " neg" : "")}><span>DIFERENCIA (CONTEO − SAP)</span><b>{signo(tot.conteo - tot.sap)}</b><small>{filas.filter((f) => f.diferencia !== 0).length} de {filas.length} códigos con diferencia</small></div>
       </div>
 
+      {/* ---------- EL CONTEO SIN SEGREGAR: para compararlo con el tablero del libro de inventario ---------- */}
+      {datos.contados?.totales && (() => {
+        const { bodega: b, fabrica: f, estibasAnalisis } = datos.contados.totales;
+        const dEst = estibasAnalisis - b.estibas;
+        return (
+          <p className="ad-nota" title="Cajas = total de cajas contadas (producto, envase y cajas vacías). Estibas físicas = estibas completas + 1 por cada saldo. Cajas plásticas = todo lo que viaja en caja, sin barril ni madera. Es la misma cuenta del tablero del libro de inventario.">
+            <b>Conteo sin segregar · Bodega 38 (lo que entra aquí):</b> {n(b.cajas)} cajas · {n(b.estibas)} estibas físicas · {n(b.plasticas)} cajas plásticas · {n(b.renglones)} renglones.
+            {f.renglones > 0 && <> <b>Fábrica (no entra):</b> {n(f.cajas)} cajas · {n(f.estibas)} estibas · {n(f.plasticas)} plásticas. <b>Total del día:</b> {n(b.cajas + f.cajas)} cajas · {n(b.estibas + f.estibas)} estibas · {n(b.plasticas + f.plasticas)} plásticas.</>}
+            {" "}La estiba 3500163 de este análisis cuenta <b>{n(estibasAnalisis)}</b>{Math.abs(dEst) < 0.5 ? " = las estibas físicas de Bodega." : <>: {signo(dEst)} frente a las estibas físicas de Bodega (las estibas contadas con su propio código entran por sus cajas).</>}
+          </p>
+        );
+      })()}
+
       {/* ---------- LAS EXISTENCIAS DE SAP POR ESTADO (ZEXI AG18) ---------- */}
       <Existencias ex={datos.existencias} />
 

@@ -32,13 +32,15 @@ export type Novedad = {
   fecha: string; tipo: string; lado: "CONTEO" | "SAP" | "NO SUMA"; documento: string | null; codigo: string;
   unidades: number; caja_codigo: string | null; cajas: number | null; archivo: string | null; subido_en?: string;
 };
+/** Lo contado ese día, sin segregar (producto, envase, cajas vacías…), para compararlo con el tablero del libro de inventario. */
+export type TotConteo = { renglones: number; cajas: number; estibas: number; plasticas: number };
 export type Fuente = { nombre: string; ok: boolean; detalle: string };
 export type Analisis = {
   fecha: string; filas: FilaAnalisis[]; fuentes: Fuente[]; avisos: string[];
   novedades: Novedad[]; noEntran: string[]; faltaSql: boolean;
   carga: { archivo: string | null; filas: number; subido_en: string | null } | null;
   /** SKUs distintos contados en Bodega ese día (sin FÁBRICA), para tener la visual del conteo. */
-  contados?: { skus: number; producto: number; envase: number; otros: number; renglones: number };
+  contados?: { skus: number; producto: number; envase: number; otros: number; renglones: number; totales?: { bodega: TotConteo; fabrica: TotConteo; estibasAnalisis: number } };
   /** La ZEXI de AG18 del Cuadre SAP de ese día, con lo que hay en cada estado (para tenerlo a la vista). */
   existencias?: Existencias | null;
   /** EN LÍNEA: por código de envase o de caja plástica, los SKU que el plan de envase pone a correr ese día.
@@ -109,9 +111,18 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   let renglonesBodega = 0;
   /* La caja plástica que lleva el producto: cuántas cajas y de cuántos productos salieron. */
   let cajasProducto = 0; const prodConCaja = new Set<string>(), prodSinEnvase = new Set<string>();
+  const totB: TotConteo = { renglones: 0, cajas: 0, estibas: 0, plasticas: 0 }, totF: TotConteo = { renglones: 0, cajas: 0, estibas: 0, plasticas: 0 };
   for (const r of await conReclasificaciones(cons.vigentes)) {
+    const esFab = esUbicacionFabrica(r.calle) || esUbicacionFabrica(r.ubicacion) || esUbicacionFabrica(r.ubicacion_combinada);
+    /* LOS TOTALES SIN SEGREGAR (como el tablero del libro): cajas, estibas físicas (completas + 1 si hay saldo) y cajas plásticas
+       (todo lo que viaja en caja: producto, envase y caja vacía; sin barril ni madera). Bodega y Fábrica aparte. */
+    {
+      const t = esFab ? totF : totB, cj = Number(r.total_cajas) || 0, m = String(r.material ?? "");
+      t.renglones++; t.cajas += cj; t.estibas += (Number(r.estibas) || 0) + ((Number(r.cajas) || 0) + (Number(r.saldo) || 0) > 0 ? 1 : 0);
+      if (!(r.tipo_material === "ENVASE" && !/CAJA\s*PL/i.test(m) && /BARRIL|ESTIBA/i.test(m))) t.plasticas += cj;
+    }
     /* Fuera todo lo de FÁBRICA: por la calle o por el nombre de la ubicación (FABRICA_…, FABRICAL4…). */
-    if (esUbicacionFabrica(r.calle) || esUbicacionFabrica(r.ubicacion) || esUbicacionFabrica(r.ubicacion_combinada)) continue;
+    if (esFab) continue;
     /* La visual: cuántos SKUs distintos se contaron (producto, envase y lo demás). */
     renglonesBodega++;
     (r.tipo_material === "PRODUCTO" ? skuP : r.tipo_material === "ENVASE" ? skuE : skuO).add(String(r.codigo));
@@ -285,7 +296,8 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     filas.push({ familia: familia as string, orden: orden as number, codigo, descripcion: nombre(codigo), sap, conteo, diferencia: conteo - sap, deSap: lista(a.sap), deConteo: lista(a.conteo) });
   }
   filas.sort((x, y) => x.orden - y.orden || x.codigo.localeCompare(y.codigo, "es", { numeric: true }));
-  const contados = { skus: new Set([...skuP, ...skuE, ...skuO]).size, producto: skuP.size, envase: skuE.size, otros: skuO.size, renglones: renglonesBodega };
+  const estibasAnalisis = Math.round([...(acc.get(ESTIBA)?.conteo.values() ?? [])].reduce((t, v) => t + v, 0));
+  const contados = { skus: new Set([...skuP, ...skuE, ...skuO]).size, producto: skuP.size, envase: skuE.size, otros: skuO.size, renglones: renglonesBodega, totales: { bodega: totB, fabrica: totF, estibasAnalisis } };
 
   /* 7. EN LÍNEA: el SKU del plan → su envase (maestro de productos) → la caja plástica de ese envase. */
   const enLinea: Record<string, EnLinea[]> = {};
