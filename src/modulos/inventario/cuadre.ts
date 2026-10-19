@@ -581,7 +581,8 @@ async function armarCuadreAG22(pedida?: string | null) {
  *   · ENVASE         = cajas contadas × unidades por caja (unidades).
  *   · CAJA PLÁSTICA  = cajas contadas.
  *   · ESTIBA 3500163 = las sueltas + 1 por cada estiba contada debajo del material (y 1 por renglón con saldo o sueltas), como AG18.
- * DIFERENCIA = SAP − CONTEO. No hay pasivos, casco ni 311: «SAP después» = SAP y «queda» = la diferencia.
+ * DIFERENCIA = SAP − CONTEO = el 311 con AG22 (el mismo flujo de AG18): negativa → pasar de AG22 a este almacén; positiva → de este almacén a AG22.
+ * No hay pasivos, casco, OTROS ni estibas de almacén. Con la ZEXI nueva: «SAP después» = SAP + lo movido y «queda» = SAP después − conteo.
  * La ZEXI y el balanceo guardado salen de la misma tabla (cuadre_sap, una fila por día y almacén).
  */
 async function armarCuadreSimple(pedida: string | null | undefined, almacen: AlmacenSimple) {
@@ -630,18 +631,23 @@ async function armarCuadreSimple(pedida: string | null | undefined, almacen: Alm
     a.total += grupo === "ENVASE" ? cajas * upc(c) : cajas;
   }
   const sap = new Map((guardado?.zexi ?? []).map((z) => [String(z.codigo), z]));
+  const mov = new Map((guardado?.movimientos ?? []).map((m) => [String(m.codigo), m]));
   for (const z of sap.values()) { const c = String(z.codigo); if (c !== ESTIBA && !acc.has(c)) de(c, esCaja(c, z.descripcion) ? "CAJA" : M.has(c) ? "ENVASE" : "PRODUCTO", z.descripcion) }
+  for (const m of mov.values()) { const c = String(m.codigo); if (c !== ESTIBA && !acc.has(c)) de(c, esCaja(c) ? "CAJA" : M.has(c) ? "ENVASE" : "PRODUCTO") }
 
   const filas: FilaCuadre[] = [...acc.values()].map((a) => {
     const z = sap.get(a.codigo);
     const sapV = z ? Number(z.cantidad) : (guardado?.zexi?.length ? 0 : null);
     const total = redondo(a.total);
     const dif = sapV == null ? null : redondo(sapV - total);
+    const movido = mov.get(a.codigo) ? Number(mov.get(a.codigo)!.cantidad) : 0;
+    const sapDespues = sapV == null ? null : redondo(sapV + movido);
+    const queda = sapDespues == null ? null : redondo(sapDespues - total);
     return { grupo: a.grupo, codigo: a.codigo, material: a.material, conteo: total,
       detalle: a.grupo === "ENVASE" ? `${nf.format(a.cajas)} cajas × ${nf.format(upc(a.codigo))} u` : `${nf.format(a.cajas)} cajas`,
       pendBaja: 0, andina: 0, almacen: 0, lavadoBaja: 0, otrosCajas: 0, upc: a.grupo === "ENVASE" ? upc(a.codigo) : 1, total, sap: sapV,
       libre: z?.libre ?? null, bloqueado: z?.bloqueado ?? null, calidad: z?.calidad ?? null, enLibre: null, meta: null, estadoFinal: null, estadoOk: null,
-      dif, movido: 0, documentos: [], sapDespues: sapV, queda: dif };
+      dif, movido, documentos: mov.get(a.codigo)?.documentos ?? [], sapDespues, queda };
   });
   /* La estiba de madera (3500163), siempre en la lista. */
   {
@@ -649,14 +655,17 @@ async function armarCuadreSimple(pedida: string | null | undefined, almacen: Alm
     const total = redondo(estSueltas + estBajo);
     const sapV = z ? Number(z.cantidad) : (guardado?.zexi?.length ? 0 : null);
     const dif = sapV == null ? null : redondo(sapV - total);
+    const movido = mov.get(ESTIBA) ? Number(mov.get(ESTIBA)!.cantidad) : 0;
+    const sapDespues = sapV == null ? null : redondo(sapV + movido);
+    const queda = sapDespues == null ? null : redondo(sapDespues - total);
     filas.push({ grupo: "ESTIBA", codigo: ESTIBA, material: nombre(ESTIBA), conteo: total,
       detalle: `${nf.format(estSueltas)} sueltas + ${nf.format(estBajo)} bajo el material`,
       pendBaja: 0, andina: 0, almacen: 0, lavadoBaja: 0, otrosCajas: 0, upc: 1, total, sap: sapV,
       libre: z?.libre ?? null, bloqueado: z?.bloqueado ?? null, calidad: z?.calidad ?? null, enLibre: null, meta: null, estadoFinal: null, estadoOk: null,
-      dif, movido: 0, documentos: [], sapDespues: sapV, queda: dif });
+      dif, movido, documentos: mov.get(ESTIBA)?.documentos ?? [], sapDespues, queda });
   }
   const orden = ["PRODUCTO", "ENVASE", "CAJA", "ESTIBA"];
-  const lista = filas.filter((f) => f.total !== 0 || (f.sap ?? 0) !== 0 || f.codigo === ESTIBA)
+  const lista = filas.filter((f) => f.total !== 0 || (f.sap ?? 0) !== 0 || f.movido !== 0 || f.codigo === ESTIBA)
     .sort((x, y) => orden.indexOf(x.grupo) - orden.indexOf(y.grupo) || x.codigo.localeCompare(y.codigo));
   if (!cons.vigentes.length) avisos.push(`Ese día no se contó nada en la calle ${almacen === "AG17" ? "EXPORTACION" : "BTS"} (${almacen}).`);
   return { ...base, filas: lista, guardado, avisos, ...hist };

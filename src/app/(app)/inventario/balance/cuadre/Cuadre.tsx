@@ -52,8 +52,8 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
 }) {
   const router = useRouter();
   /* EL ALMACÉN DEL CUADRE: AG18 (fábrica, contra el conteo) o AG22 (la base de Pasivos contra el Bloqueado). */
-  const ALM: Almacen = almacen, OTRO: Almacen = almacen === "AG18" ? "AG22" : "AG18", esAG22 = almacen === "AG22";
-  /* AG17 (calle EXPORTACION) y AG16 (calle BTS): cuadre simple, el conteo de su calle contra la ZEXI de su almacén. */
+  const ALM: Almacen = almacen, OTRO: Almacen = almacen === "AG22" ? "AG18" : "AG22", esAG22 = almacen === "AG22";
+  /* AG17 (calle EXPORTACION) y AG16 (calle BTS): el mismo flujo de AG18 (conteo de su calle contra la ZEXI, 311 con AG22), sin pasivos, OTROS ni estibas de almacén. */
   const esSimple = almacen === "AG17" || almacen === "AG16";
   const CALLE_DE: Record<string, string> = { AG17: "EXPORTACION", AG16: "BTS" };
   /* HACIA DÓNDE SE MUEVE. AG18: de almacén a almacén (311 con AG22). AG22: NO cambia de almacén — se pasa
@@ -105,7 +105,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
   }
 
   const conZexi = !!guardado?.zexi?.length;
-  const conMov = esSimple || !!guardado?.movimientos?.length;
+  const conMov = !!guardado?.movimientos?.length;
   const sumarPend = false; /* el pend. baja ya no entra al cuadre de AG18 */
   const conDif = filas.filter((f) => f.dif != null);
   const entran = conDif.filter((f) => !cero(f.dif) && f.dif! < 0);
@@ -115,14 +115,14 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
      lo libre: primero 343 (Bloqueado → Libre) por lo que falta (hasta lo bloqueado). `dif` = esa cantidad. */
   const del343 = esAG22 ? [] : salen.flatMap((f) => {
     /* Las cajas plásticas van aparte, por estado (ver «Cajas plásticas por estado»). */
-    if (f.grupo === "CAJA" || f.libre == null || !f.bloqueado) return [];
+    if ((f.grupo === "CAJA" && !esSimple) || f.libre == null || !f.bloqueado) return [];
     const falta = Math.min(Math.abs(f.dif!) - f.libre, f.bloqueado);
     return falta > 0 ? [{ ...f, dif: falta }] : [];
   });
   const sinReparto = !esAG22 && salen.some((f) => f.libre == null);
   /* DOS BALANCEOS APARTE: primero el ENVASE (y la estiba) —311 y todo a bloqueado— y después las CAJAS
      PLÁSTICAS, que van por estado (libre · control-cal · bloqueado). En AG22 igual, pero sin 311 (no se cambia de almacén). */
-  const esCaja = (f: FilaCuadre) => f.grupo === "CAJA";
+  const esCaja = (f: FilaCuadre) => f.grupo === "CAJA" && !esSimple;
   const entranEnv = entran.filter((f) => !esCaja(f)), salenEnv = salen.filter((f) => !esCaja(f));
   const entranCaja = entran.filter(esCaja), salenCaja = salen.filter(esCaja);
 
@@ -364,7 +364,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
           <p className="ojo">INVENTARIO · BALANCE · CUADRE SAP</p>
           <h1>Cuadre SAP · {esAG22 ? "AG22 Bloqueado" : almacen === "AG17" ? "AG17 Exportación" : almacen === "AG16" ? "AG16 BTS" : "AG18 Fábrica"}</h1>
           <p className="sub">{esSimple
-            ? <>Lo contado en la calle <b>{CALLE_DE[almacen]}</b> el <b>{largo(fecha)}</b> contra el stock de SAP de <b>{almacen}</b> (ZEXI). La diferencia es lo que hay que ajustar en SAP o revisar en la calle.</>
+            ? <>Lo contado en la calle <b>{CALLE_DE[almacen]}</b> el <b>{largo(fecha)}</b> contra el stock de SAP de <b>{almacen}</b> (ZEXI). La diferencia es el movimiento 311 entre {almacen} y AG22.</>
             : esAG22
             ? <>La base de Pasivos <b>AG22</b> del <b>{largo(fecha)}</b> (PRESORTING, ROTURA DE LINEA, LAVADO, EXTRASUCIO y BAJA PROYECTADA) contra el <b>Bloqueado</b> de SAP (ZEXI). La diferencia es lo que hay que pasar de <b>libre a bloqueado</b> (o al revés) dentro del mismo AG22.</>
             : <>El conteo del <b>{largo(fecha)}</b> contra el stock de SAP (ZEXI). La diferencia es el movimiento 311 entre AG18 y AG22.</>}{pend && " · guardando…"}</p>
@@ -407,70 +407,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
         </button>
       </nav>
 
-      {vista === "cuadre" && esSimple && (<>
-      <div className="cs-barra">
-        <div className="cs-c">
-          <span className="cs-ch">Día del conteo</span>
-          <span className="cs-cb cs-dia sd bal-cal">
-            <Rango rotulo="Día del conteo" desde={fecha} hasta={fecha} dias={dias.map((d) => ({ fecha: d, hl_zlde: 0, viajes: 1 }))}
-                   alElegir={(d) => start(() => router.push(urlDe(ALM, d)))} />
-          </span>
-        </div>
-        <div className="cs-c">
-          <span className="cs-ch">ZEXI de SAP · {ALM} {conZexi ? <i>✓ Cargado</i> : <i className="no">Falta subir</i>}</span>
-          <span className="cs-cb">
-            <span className="cs-txt">
-              <b className="cs-v" title={conZexi ? guardado!.zexi_archivo ?? "" : undefined}>{conZexi ? guardado!.zexi_archivo : "Sin subir"}</b>
-              <small>{conZexi ? `${guardado!.zexi!.length} materiales · ${hora(guardado!.zexi_en)}` : `El stock de ${ALM} de ese día`}</small>
-            </span>
-            <input ref={zexiRef} type="file" accept=".xlsx,.xls,.csv" hidden onChange={(e) => { const a = e.target.files?.[0]; e.target.value = ""; if (a) void subirZexi(a) }} />
-            <button type="button" className={"cs-bt" + (conZexi ? " alt" : "")} disabled={pend} onClick={() => zexiRef.current?.click()}>{conZexi ? "Cambiar" : "Subir ZEXI"}</button>
-          </span>
-        </div>
-        <div className="cs-c">
-          <span className="cs-ch">Calle contada</span>
-          <span className="cs-cb">
-            <span className="cs-txt">
-              <b className="cs-v">{CALLE_DE[almacen]}</b>
-              <small>{filas.filter((f) => f.total).length} materiales con conteo</small>
-            </span>
-          </span>
-        </div>
-      </div>
-      {msg && <p className={"cs-msg" + (msg.mal ? " mal" : "")} role="status">{msg.t}</p>}
-      {avisos.map((a) => <p key={a} className="cs-msg mal">{a}</p>)}
-      <div className="cs-k">
-        <div className="os"><span>Materiales</span><b>{filas.length}</b></div>
-        <div><span>Cuadran</span><b className="bien">{conZexi ? cuadran.length : "—"}</b></div>
-        <div><span>Se contó de más (SAP tiene menos)</span><b className="mal">{conZexi ? entran.length : "—"}</b></div>
-        <div><span>SAP tiene de más (se contó menos)</span><b className="ambar">{conZexi ? salen.length : "—"}</b></div>
-      </div>
-      {!conZexi && <p className="cs-msg">Sube el ZEXI de SAP de ese día para ver la diferencia. Mientras tanto, abajo está lo contado en la calle {CALLE_DE[almacen]}.</p>}
-      <div className="cs-scroll">
-        <table className="cs-t">
-          <thead><tr><th>Código</th><th>Material</th><th className="n">Conteo</th><th className="n">SAP</th><th className="n">Diferencia</th><th>Estado</th></tr></thead>
-          <tbody>
-            {filas.flatMap((f, i) => [
-              (i === 0 || filas[i - 1].grupo !== f.grupo) && <tr key={`g-${f.grupo}`} className="g"><td colSpan={6}>{GRUPO[f.grupo]}</td></tr>,
-              <tr key={f.codigo} className={f.dif != null && !cero(f.dif) ? "dif" : ""}>
-                <td className="mono">{f.codigo}</td>
-                <td>{f.material}{f.detalle && <small className="cs-det"> · {f.detalle}</small>}</td>
-                <td className="n">{n(f.total)}</td>
-                <td className="n">{f.sap != null ? n(f.sap) : "—"}</td>
-                <td className="n"><b className={f.dif == null || cero(f.dif) ? "" : f.dif < 0 ? "mal" : "ambar"}>{f.dif != null ? conSigno(f.dif) : "—"}</b></td>
-                <td>{f.dif == null ? <span className="cs-chip">Falta la ZEXI</span>
-                  : cero(f.dif) ? <span className="cs-chip ok">Cuadra</span>
-                  : f.dif < 0 ? <span className="cs-chip in">Se contó de más</span>
-                  : <span className="cs-chip out">SAP tiene de más</span>}</td>
-              </tr>,
-            ])}
-          </tbody>
-        </table>
-      </div>
-      <p className="cs-nota">Cantidades: producto y cajas plásticas en cajas, envase en unidades (cajas × unidades por caja) y estibas de madera en estibas. Diferencia = SAP − conteo. Guarda el cuadre con «Guardar balanceo del día» para verlo en el histórico.</p>
-      </>)}
-
-      {vista === "cuadre" && !esSimple && (<>
+      {vista === "cuadre" && (<>
       <ol className="cs-pasos" style={{ gridTemplateColumns: `repeat(${conCajas ? 4 : 3}, minmax(0, 1fr))` }}>
         <li className={conZexi ? "hecho" : "on"}><span>PASO 1</span><b>Cuadre del día</b><small>{esAG22 ? "Base de Pasivos + ZEXI (bloqueado) → diferencias" : "Conteo + ZEXI → diferencias"}</small></li>
         <li className={conMov ? "hecho" : conZexi ? "on" : ""}><span>PASO 2</span><b>{esAG22 ? "Bloquear / liberar en SAP" : "Hacer el 311 en SAP"}</b><small>{conCajas ? "Envase y estiba · lo que dice la app" : "La app dice qué mover · subes la ZEXI nueva"}</small></li>
@@ -508,6 +445,16 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                 <small>{filas.filter((f) => f.total).length} materiales · {CAUSALES_AG22.length} causales</small>
               </span>
               <button type="button" className="cs-bt alt" onClick={() => start(() => router.push(`/inventario/balance/pasivos?desde=${fecha}&hasta=${fecha}`))}>Ver la base</button>
+            </span>
+          </div>
+        ) : esSimple ? (
+          <div className="cs-c">
+            <span className="cs-ch">Calle contada</span>
+            <span className="cs-cb">
+              <span className="cs-txt">
+                <b className="cs-v">{CALLE_DE[almacen]}</b>
+                <small>{filas.filter((f) => f.total).length} materiales con conteo</small>
+              </span>
             </span>
           </div>
         ) : (<>
@@ -611,6 +558,11 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
               <th className="n">Total base</th><th className="n">SAP bloqueado</th>
               <th className="n">Diferencia (SAP − base)</th><th className="n">En cajas</th><th>Movimiento</th>
             </tr>
+          ) : esSimple ? (
+            <tr>
+              <th>Código</th><th>Material</th><th className="n">Total conteo</th><th className="n">SAP (ZEXI)</th>
+              <th className="n">311 (SAP − conteo)</th><th className="n">311 en cajas</th><th>Movimiento</th>
+            </tr>
           ) : (
             <tr>
               <th>Código</th><th>Material</th><th className="n">Conteo fábrica</th><th className="n">Pend. baja</th><th className="n" title="Casco + ajuste de Baja y Lavado · Fábrica: la diferencia del Balance de materiales, lo que se resta a lo contado">Dif. balance</th>
@@ -620,13 +572,13 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
           )}</thead>
           <tbody>
             {filas.map((f, i) => [
-              (i === 0 || filas[i - 1].grupo !== f.grupo) && <tr key={`g-${f.grupo}`} className="g"><td colSpan={esAG22 ? 12 : 12}>{GRUPO[f.grupo]}</td></tr>,
+              (i === 0 || filas[i - 1].grupo !== f.grupo) && <tr key={`g-${f.grupo}`} className="g"><td colSpan={esSimple ? 7 : 12}>{GRUPO[f.grupo]}</td></tr>,
               <tr key={f.codigo}>
                 <td className="mono">{f.codigo}</td>
                 <td>{f.material}{f.detalle && <small>{f.detalle}</small>}
                   {f.sinCasco && <span className="cs-chip" title="Baja · Fábrica sin casco registrado: no se resta nada de lo contado en baja">baja sin casco</span>}
                   {f.otrosCajas > 0 && <button type="button" className="cs-chip otr" title="Ver las líneas OTROS" onClick={() => setVerOtros(true)}><IconoOtros /> incluye OTROS · {n(f.otrosCajas)} cajas</button>}</td>
-                {esAG22 ? CAUSALES_AG22.map((c) => <td key={c} className="n">{f.partes?.[c] ? n(f.partes[c]) : "—"}</td>) : (<>
+                {esAG22 ? CAUSALES_AG22.map((c) => <td key={c} className="n">{f.partes?.[c] ? n(f.partes[c]) : "—"}</td>) : esSimple ? null : (<>
                 <td className="n">{n(f.conteo)}</td>
                 <td className={"n" + (sumarPend ? "" : " tachado")}>{f.pendBaja ? n(f.pendBaja) : "—"}</td>
                 <td className="n neg">{f.lavadoBaja ? n(f.lavadoBaja) : "—"}</td>
@@ -645,7 +597,8 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
           </tbody>
         </table>
       </div>
-      {esAG22 ? <p className="cs-nota">Unidades. Total base = lo de la base de Pasivos AG22 del día en las causales PRESORTING, ROTURA DE LINEA, LAVADO, EXTRASUCIO y BAJA PROYECTADA (las demás no entran y se avisan arriba).
+      {esSimple ? <p className="cs-nota">Cantidades: producto y cajas plásticas en cajas, envase en unidades (cajas × unidades por caja) y estibas de madera en estibas. Diferencia = SAP − conteo. Negativo = se contó más de lo que dice SAP: pasar de AG22 a {ALM}. Positivo = SAP tiene de más: pasar de {ALM} a AG22.</p> :
+      esAG22 ? <p className="cs-nota">Unidades. Total base = lo de la base de Pasivos AG22 del día en las causales PRESORTING, ROTURA DE LINEA, LAVADO, EXTRASUCIO y BAJA PROYECTADA (las demás no entran y se avisan arriba).
         SAP bloqueado = la columna Bloqueado de la ZEXI de AG22. Negativo = la base tiene más de lo que SAP tiene bloqueado: pasar de libre a bloqueado en AG22. Positivo = SAP tiene bloqueado de más: pasar de bloqueado a libre.
         Cajas plásticas: Total base = lo contado en Bodega 38 (libre + control-cal + bloqueado) y SAP = los tres estados de la ZEXI de AG22; aquí no hay 311: la diferencia es de inventario y solo se balancean los estados.</p> :
       <p className="cs-nota">Unidades (las cajas plásticas en cajas y las estibas en estibas). Conteo fábrica = lo contado en ubicaciones FABRICA_, todos los estados; lo de OTROS suma al envase escogido arriba (si no se escoge, al código con que se contó).
@@ -678,7 +631,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
               <div className="cs-caja r"><h3>{esAG22 ? "Pasar de Libre a Bloqueado (Mov 344)" : `Pasar de ${OTRO} a ${ALM}`} {cabezaLista(entranEnv, "entran")}</h3>
                 {entranEnv.length ? documentos(entranEnv, "entran") : <p className="cs-vacio">Nada.</p>}
                 {/* «Solo era poner el mensaje: puedo copiar y pegar lo mismo.» Sin lista aparte: los mismos documentos del 311. */}
-                {!esAG22 && entranEnv.length > 0 && (
+                {!esAG22 && !esSimple && entranEnv.length > 0 && (
                   <div className="cs-antes azul">
                     <p className="cs-antes-t"><b>Después, en {ALM}: Mov 344 (Libre → Bloqueado)</b>
                       <span>El 311 deja todo en <b>libre utilización</b>. Con los <b>mismos documentos</b> de arriba (copia y pega igual) haz el 344 en {ALM}, antes de bajar la ZEXI nueva.</span></p>
@@ -790,7 +743,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
             <div><span>Balanceados</span><b className="bien">{balanceados.length} de {filas.filter((f) => f.queda != null).length}</b></div>
             <div><span>Pendientes</span><b className={pendientes.length ? "mal" : "bien"}>{pendientes.length}</b></div>
           </div>
-          {pendientes.length === 0 && <p className="cs-msg bien">Todo quedó balanceado: el SAP de {ALM}{esAG22 ? " (bloqueado)" : ""} es igual {esAG22 ? "a la base" : "al conteo"}{esAG22 ? "" : " y el envase quedó todo en bloqueado"}.</p>}
+          {pendientes.length === 0 && <p className="cs-msg bien">Todo quedó balanceado: el SAP de {ALM}{esAG22 ? " (bloqueado)" : ""} es igual {esAG22 ? "a la base" : "al conteo"}{esAG22 || esSimple ? "" : " y el envase quedó todo en bloqueado"}.</p>}
           {!esAG22 && filas.some((f) => (f.enLibre ?? 0) > 0.005) && <p className="cs-msg mal">Hay envase que quedó en <b>libre utilización</b> en {ALM}: haz el 344 (Libre → Bloqueado) por esa cantidad y vuelve a subir la ZEXI.</p>}
           <div className="cs-scroll">
             <table className="cs-t">
