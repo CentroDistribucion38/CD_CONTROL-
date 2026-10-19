@@ -25,7 +25,8 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
   const [msg, setMsg] = useState<{ t: string; mal?: boolean } | null>(null);
   const [errores, setErrores] = useState<string[]>([]);
   const [abierta, setAbierta] = useState<string | null>(null);
-  const [soloDif, setSoloDif] = useState(false);
+  /* Por defecto solo salen los SKU con diferencia (o con descuadre en otro almacén): lo demás ya cuadró. */
+  const [soloDif, setSoloDif] = useState(true);
   const { fecha, filas } = datos;
 
   const familias = useMemo(() => {
@@ -153,7 +154,7 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
       <section className="ad-caja ad-hoja">
         <div className="ad-hoja-cab">
           <h2>Análisis · {largo(fecha)}</h2>
-          <label className="ad-chk"><input type="checkbox" checked={soloDif} onChange={(e) => setSoloDif(e.target.checked)} /> Solo con diferencia</label>
+          <label className="ad-chk"><input type="checkbox" checked={soloDif} onChange={(e) => setSoloDif(e.target.checked)} /> Solo con diferencia o descuadre en otro almacén</label>
           {filas.length > 0 && <button type="button" className="ad-bt alt" disabled={armando} onClick={() => void bajarExcel()}>{armando ? "Armando el Excel…" : "Descargar Excel"}</button>}
           {filas.length > 0 && puedeEditar && (
             <button type="button" className="ad-bt" disabled={pend} onClick={guardarYSeguir}
@@ -171,7 +172,7 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
               <thead><tr><th>Familia</th><th>Código</th><th>Descripción</th><th className="n">SAP</th><th className="n">Conteo</th><th className="n">Diferencia</th></tr></thead>
               <tbody>
                 {familias.map(([fam, xs]) => {
-                  const s = xs.reduce((t, f) => ({ sap: t.sap + f.sap, conteo: t.conteo + f.conteo }), { sap: 0, conteo: 0 });
+                  const s = filas.filter((f) => f.familia === fam).reduce((t, f) => ({ sap: t.sap + f.sap, conteo: t.conteo + f.conteo }), { sap: 0, conteo: 0 });
                   return (
                     <Fragment key={fam}>
                       {xs.map((f, i) => {
