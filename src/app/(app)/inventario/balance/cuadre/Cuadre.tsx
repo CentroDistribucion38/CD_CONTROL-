@@ -115,19 +115,19 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
      lo libre: primero 343 (Bloqueado → Libre) por lo que falta (hasta lo bloqueado). `dif` = esa cantidad. */
   const del343 = esAG22 ? [] : salen.flatMap((f) => {
     /* Las cajas plásticas van aparte, por estado (ver «Cajas plásticas por estado»). */
-    if ((f.grupo === "CAJA" && !esSimple) || f.libre == null || !f.bloqueado) return [];
+    if (f.grupo === "CAJA" || f.libre == null || !f.bloqueado) return [];
     const falta = Math.min(Math.abs(f.dif!) - f.libre, f.bloqueado);
     return falta > 0 ? [{ ...f, dif: falta }] : [];
   });
   const sinReparto = !esAG22 && salen.some((f) => f.libre == null);
-  /* AG17 / AG16: TODO el envase tiene que quedar BLOQUEADO. Lo que hay libre en SAP hoy, más lo que llega por el 311 (llega en libre),
+  /* AG17 / AG16: TODO el envase y las estibas tienen que quedar BLOQUEADOS (las cajas plásticas van por estado, con su meta en bloqueado). Lo que hay libre en SAP hoy, más lo que llega por el 311 (llega en libre),
      menos lo que sale (sale de lo libre), es lo que falta bloquear con el Mov 344. `dif` = SAP − conteo: positivo sale, negativo entra. */
-  const aBloquear = esSimple ? filas.filter((f) => f.grupo === "ENVASE" && f.sap != null && f.libre != null)
+  const aBloquear = esSimple ? filas.filter((f) => (f.grupo === "ENVASE" || f.grupo === "ESTIBA") && f.sap != null && f.libre != null)
     .map((f) => ({ f, q: Math.round((f.libre ?? 0) - (f.dif ?? 0)) })).filter((x) => x.q > 0).map((x) => ({ ...x.f, dif: x.q, sap: null })) : [];
-  const sinLibreZexi = esSimple && conZexi && filas.some((f) => f.grupo === "ENVASE" && f.sap != null && f.libre == null);
+  const sinLibreZexi = esSimple && conZexi && filas.some((f) => (f.grupo === "ENVASE" || f.grupo === "ESTIBA" || f.grupo === "CAJA") && f.sap != null && f.libre == null);
   /* DOS BALANCEOS APARTE: primero el ENVASE (y la estiba) —311 y todo a bloqueado— y después las CAJAS
      PLÁSTICAS, que van por estado (libre · control-cal · bloqueado). En AG22 igual, pero sin 311 (no se cambia de almacén). */
-  const esCaja = (f: FilaCuadre) => f.grupo === "CAJA" && !esSimple;
+  const esCaja = (f: FilaCuadre) => f.grupo === "CAJA";
   const entranEnv = entran.filter((f) => !esCaja(f)), salenEnv = salen.filter((f) => !esCaja(f));
   const entranCaja = entran.filter(esCaja), salenCaja = salen.filter(esCaja);
 
@@ -194,7 +194,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
     { t: `Envase · Mov 343 en ${ALM}`, filas: del343, ancla: "p-env" },
     { t: `Envase · 311 ${ALM} → ${OTRO}`, filas: salenEnv, ancla: "p-env" },
     { t: `Envase · 311 ${OTRO} → ${ALM}`, filas: entranEnv, ancla: "p-env" },
-    { t: `Envase · Mov 344 en ${ALM} (Libre → Bloqueado)`, filas: aBloquear, ancla: "p-344" },
+    { t: `Envase y estibas · Mov 344 en ${ALM} (Libre → Bloqueado)`, filas: aBloquear, ancla: "p-344" },
     ...porMov.filter((m) => m.antes311).map((m) => ({ t: `Cajas · Mov ${m.mov} antes del 311`, filas: m.filas, ancla: "p-cajas" })),
     { t: `Cajas · 311 ${ALM} → ${OTRO}`, filas: esAG22 ? [] : salenCaja, ancla: "p-cajas" },
     { t: `Cajas · 311 ${OTRO} → ${ALM}`, filas: esAG22 ? [] : entranCaja, ancla: "p-cajas" },
@@ -662,10 +662,10 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
           {/* ================= AG17 / AG16: TODO EL ENVASE BLOQUEADO (Mov 344) ================= */}
           {esSimple && (
             <div className="cs-antes azul" id="p-344">
-              <p className="cs-antes-t"><b>Al final, en {ALM}: Mov 344 (Libre → Bloqueado)</b>
-                <span>Todo el envase de {ALM} debe quedar en <b>bloqueado</b>. Esto es lo que hoy está libre en SAP, más lo que llega del 311 (llega en libre) y menos lo que sale. Hazlo después del 311 y antes de bajar la ZEXI nueva.</span></p>
+              <p className="cs-antes-t"><b>Al final, en {ALM}: Mov 344 (Libre → Bloqueado) · envase y estibas</b>
+                <span>Todo el envase y las estibas de madera de {ALM} deben quedar en <b>bloqueado</b>. Esto es lo que hoy está libre en SAP, más lo que llega del 311 (llega en libre) y menos lo que sale. Hazlo después del 311 y antes de bajar la ZEXI nueva.</span></p>
               {sinLibreZexi && <p className="cs-nota">La ZEXI guardada no dice cuánto está libre o bloqueado: vuelve a subirla con esas columnas para calcular el 344.</p>}
-              {aBloquear.length ? documentos(aBloquear, "bloq344") : <p className="cs-vacio">{sinLibreZexi ? "—" : "Nada: todo el envase ya está bloqueado."}</p>}
+              {aBloquear.length ? documentos(aBloquear, "bloq344") : <p className="cs-vacio">{sinLibreZexi ? "—" : "Nada: el envase y las estibas ya están bloqueados."}</p>}
             </div>
           )}
 
@@ -674,7 +674,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
             <h2 className="cs-h" id="p-cajas"><i>3</i> Balancear las cajas <small className="cs-h-s">{esAG22 ? "el balance por estado en AG22" : "el 311 y el balance por estado"}: libre · control-cal · bloqueado</small></h2>
             <div className="cs-caja cs-cajest">
               <p className="cs-cajest-dice">
-                {esAG22 && <>Lo contado en <b>Bodega 38</b>. </>}Suelta en <b>BAJA → Bloqueado</b> · suelta en <b>RETORNO → Libre utilización</b> · la caja que lleva el envase → <b>In control-cal</b>.{esAG22 && " Aquí no hay 311: solo se balancean los estados dentro de AG22; lo que no cuadre en cantidad es una diferencia de inventario: libre no se evalúa y el control-cal que sobre, cuando ya no cabe en libre, se bloquea."}
+                {esSimple ? <>En {ALM} las cajas plásticas también van <b>todas a Bloqueado</b>: el 311 las deja en libre y aquí se pasan a bloqueado. </> : esAG22 ? <>Lo contado en <b>Bodega 38</b>. </> : null}{!esSimple && <>Suelta en <b>BAJA → Bloqueado</b> · suelta en <b>RETORNO → Libre utilización</b> · la caja que lleva el envase → <b>In control-cal</b>.</>}{esAG22 && " Aquí no hay 311: solo se balancean los estados dentro de AG22; lo que no cuadre en cantidad es una diferencia de inventario: libre no se evalúa y el control-cal que sobre, cuando ya no cabe en libre, se bloquea."}
                 Toca un código para verlo resaltado en todos sus movimientos.
               </p>
               <div className="cs-scroll">

@@ -582,7 +582,7 @@ async function armarCuadreAG22(pedida?: string | null) {
  *   · CAJA PLÁSTICA  = cajas contadas.
  *   · ESTIBA 3500163 = las sueltas + 1 por cada estiba contada debajo del material (y 1 por renglón con saldo o sueltas), como AG18.
  * DIFERENCIA = SAP − CONTEO = el 311 con AG22 (el mismo flujo de AG18): negativa → pasar de AG22 a este almacén; positiva → de este almacén a AG22.
- * Como AG18, el envase va BLOQUEADO (el 311 lo deja en libre: falta el 344). No hay pasivos, casco, OTROS ni estibas de almacén. Con la ZEXI nueva: «SAP después» = SAP + lo movido y «queda» = SAP después − conteo.
+ * Como AG18, el envase, las cajas plásticas y las estibas van BLOQUEADOS (el 311 los deja en libre: falta el 344 o el balance por estado de las cajas). No hay pasivos, casco, OTROS ni estibas de almacén. Con la ZEXI nueva: «SAP después» = SAP + lo movido y «queda» = SAP después − conteo.
  * La ZEXI y el balanceo guardado salen de la misma tabla (cuadre_sap, una fila por día y almacén).
  */
 async function armarCuadreSimple(pedida: string | null | undefined, almacen: AlmacenSimple) {
@@ -643,12 +643,18 @@ async function armarCuadreSimple(pedida: string | null | undefined, almacen: Alm
     const movido = mov.get(a.codigo) ? Number(mov.get(a.codigo)!.cantidad) : 0;
     const sapDespues = sapV == null ? null : redondo(sapV + movido);
     const queda = sapDespues == null ? null : redondo(sapDespues - total);
+    /* CAJA PLÁSTICA: como el envase, TODO debe quedar BLOQUEADO (meta = libre 0 · control-cal 0 · bloqueado = lo contado). Se balancea por estado como en AG18. */
+    const meta: Estados | null = a.grupo === "CAJA" ? { libre: 0, calidad: 0, bloqueado: total } : null;
+    const m0 = mov.get(a.codigo);
+    const estadoFinal: Estados | null = meta && m0?.libre != null ? { libre: redondo(m0.libre ?? 0), calidad: redondo(m0.calidad ?? 0), bloqueado: redondo(m0.bloqueado ?? 0) } : null;
+    const igual = (x: number, y: number) => Math.abs(x - y) < 0.005;
     return { grupo: a.grupo, codigo: a.codigo, material: a.material, conteo: total,
       detalle: a.grupo === "ENVASE" ? `${nf.format(a.cajas)} cajas × ${nf.format(upc(a.codigo))} u` : `${nf.format(a.cajas)} cajas`,
       pendBaja: 0, andina: 0, almacen: 0, lavadoBaja: 0, otrosCajas: 0, upc: a.grupo === "ENVASE" ? upc(a.codigo) : 1, total, sap: sapV,
       libre: z?.libre ?? null, bloqueado: z?.bloqueado ?? null, calidad: z?.calidad ?? null,
       /* Como AG18: el envase va BLOQUEADO; si con la ZEXI nueva queda algo en libre, falta el 344. */
-      enLibre: a.grupo === "ENVASE" && mov.get(a.codigo)?.libre != null ? redondo(mov.get(a.codigo)!.libre ?? 0) : null, meta: null, estadoFinal: null, estadoOk: null,
+      enLibre: a.grupo === "ENVASE" && mov.get(a.codigo)?.libre != null ? redondo(mov.get(a.codigo)!.libre ?? 0) : null, meta, estadoFinal,
+      estadoOk: estadoFinal && meta ? igual(estadoFinal.libre, meta.libre) && igual(estadoFinal.calidad, meta.calidad) && igual(estadoFinal.bloqueado, meta.bloqueado) : null,
       dif, movido, documentos: mov.get(a.codigo)?.documentos ?? [], sapDespues, queda };
   });
   /* La estiba de madera (3500163), siempre en la lista. */
@@ -663,7 +669,9 @@ async function armarCuadreSimple(pedida: string | null | undefined, almacen: Alm
     filas.push({ grupo: "ESTIBA", codigo: ESTIBA, material: nombre(ESTIBA), conteo: total,
       detalle: `${nf.format(estSueltas)} sueltas + ${nf.format(estBajo)} bajo el material`,
       pendBaja: 0, andina: 0, almacen: 0, lavadoBaja: 0, otrosCajas: 0, upc: 1, total, sap: sapV,
-      libre: z?.libre ?? null, bloqueado: z?.bloqueado ?? null, calidad: z?.calidad ?? null, enLibre: null, meta: null, estadoFinal: null, estadoOk: null,
+      libre: z?.libre ?? null, bloqueado: z?.bloqueado ?? null, calidad: z?.calidad ?? null,
+      /* La estiba también va BLOQUEADA: si con la ZEXI nueva queda algo en libre, falta el 344. */
+      enLibre: mov.get(ESTIBA)?.libre != null ? redondo(mov.get(ESTIBA)!.libre ?? 0) : null, meta: null, estadoFinal: null, estadoOk: null,
       dif, movido, documentos: mov.get(ESTIBA)?.documentos ?? [], sapDespues, queda });
   }
   const orden = ["PRODUCTO", "ENVASE", "CAJA", "ESTIBA"];
