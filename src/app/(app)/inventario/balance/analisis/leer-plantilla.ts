@@ -3,6 +3,8 @@
  * No se confía en las fórmulas guardadas: con sus hojas TIPOS y MAESTRO se vuelve a hacer la cuenta
  * (estibas × cajas por estiba + cajas) × unidades por caja + sueltas, y las cajas plásticas que la guardan.
  */
+import { CAJA_EN_DEPA, lineaDeDepa } from "@/modulos/inventario/depa";
+
 type Celda = string | number | null | undefined;
 const txt = (v: Celda) => String(v ?? "").trim();
 const num = (v: Celda) => { const n = typeof v === "number" ? v : Number(txt(v).replace(/\./g, "").replace(",", ".")); return Number.isFinite(n) ? n : 0 };
@@ -53,9 +55,11 @@ export async function leerPlantilla(archivo: File): Promise<Lectura> {
     if (t.pide && !doc) { errores.push(`Fila ${fila}: falta el N° de entrega.`); return }
     const unidades = (est * m.cpe + cajas) * m.upc + sueltas;
     if (!(unidades > 0)) { errores.push(`Fila ${fila}: falta la cantidad.`); return }
-    const conCaja = t.caja && m.caja && m.upc > 1;
+    /* DEPA: algunos envases salen en otra caja que la del maestro (la Flint 250 sale en café 225). */
+    const cajaDe = lineaDeDepa(tipo) ? (CAJA_EN_DEPA[cod] ?? m.caja) : m.caja;
+    const conCaja = t.caja && cajaDe && m.upc > 1;
     out.push({ tipo, lado: t.lado as FilaPlantilla["lado"], documento: doc, codigo: cod, unidades,
-      caja_codigo: conCaja ? m.caja : null, cajas: conCaja ? Math.floor(unidades / m.upc) : null });
+      caja_codigo: conCaja ? cajaDe : null, cajas: conCaja ? Math.floor(unidades / m.upc) : null });
   });
   if (!out.length && !errores.length) errores.push("La plantilla está vacía: llena al menos una fila en NOVEDADES.");
   return { fecha, filas: out, errores };

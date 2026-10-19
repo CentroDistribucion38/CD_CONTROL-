@@ -8,6 +8,7 @@ import { leerPasivos } from "@/modulos/pasivos/datos";
 import { excluye } from "@/modulos/pasivos/excluidos";
 import { leerExcluidos } from "@/modulos/pasivos/excluidos-leer";
 import { NUEVO_PARTIDA } from "./compensa";
+import { CAJA_EN_DEPA, lineaDeDepa } from "./depa";
 
 /**
  * EL ANÁLISIS DE DIFERENCIA DE BODEGA 38 — la hoja CONTEOS + la tabla dinámica de 2026.10.14_BODEGA_38.xlsx.
@@ -49,8 +50,6 @@ type Prod = { id: string; sku: string; nombre: string | null; unidades_por_caja:
 const ESTIBA = "3500163";
 const norm = (c: unknown) => String(c ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().replace(/\s+/g, " ").trim();
 const diaBogota = (iso: string) => new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Bogota" }).format(new Date(iso));
-/* En la línea (DEPA) algunos envases salen en otra caja que la del maestro: la Flint 250 sale en café 225. */
-const CAJA_EN_DEPA: Record<string, string> = { "3501225": "3500231" };
 const PASIVOS: Record<string, string> = { "PRESORTING": "PEND BAJA PRESORTING", "ROTURA DE LINEA": "PEND BAJA ROTURA LINEA", "EXTRASUCIO": "CON BAJA EXTRASUCIO" };
 
 export async function armarAnalisis(fecha: string): Promise<Analisis> {
@@ -135,6 +134,8 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
      que la trae. El envase es el anotado en el corte o, si no se anotó, el que el
      maestro le asigna al producto (igual que la pantalla de Corte). */
   const cortes = (cortesR.data ?? []) as { id: string; cortado_en: string }[];
+  /* Las líneas de la DEPA que SÍ salieron del corte inicial: lo que la plantilla traiga de esas mismas líneas no se cuenta (saldría doble). */
+  const depaDelCorte = new Set<string>();
   if (cortes.length) {
     const { data: rs } = await supabase.from("inv_corte_renglones").select("corte_id, linea, cajas_depa, envase_id, material_id").in("corte_id", cortes.map((c) => c.id));
     const orden = new Map(cortes.map((c, k) => [String(c.id), k]));
@@ -153,7 +154,7 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
       const env = e.m.sku, etq = `DEPA ${x.linea}`;
       suma("conteo", env, etq, cj * upc(env));
       const caja = CAJA_EN_DEPA[env] ?? M.get(env)?.caja; if (caja) suma("conteo", String(caja), etq, cj);
-      tomadas.add(x.linea);
+      tomadas.add(x.linea); depaDelCorte.add(norm(x.linea).replace(/\s+/g, ""));
       if (!primera) primera = String(x.corte_id);
     }
     for (const l of corteDeLinea.keys()) if (!tomadas.has(l) && !fuera.some((f) => f.startsWith(`${l}:`))) fuera.push(`${l}: depa en 0`);
@@ -199,13 +200,29 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
      de los envases: se contaría dos veces (así lo hace el Excel: la caja va escrita). */
   const grupoNv = (nv: Novedad) => `${norm(nv.tipo)}|${nv.documento ?? ""}`;
   const conCajaPropia = new Set(novedades.filter((nv) => grupo(String(nv.codigo)) === "CAJA").map(grupoNv));
+  const depaPlantilla = new Set<string>(), depaIgnorada = new Set<string>();
   for (const nv of novedades) {
     if (nv.lado === "NO SUMA") continue;
+    /* DEPA subida en la plantilla (no hay el dato directo): vale solo si esa línea no salió ya del corte inicial. */
+    const lineaDepa = lineaDeDepa(nv.tipo);
+    if (lineaDepa) {
+      if (depaDelCorte.has(lineaDepa)) { depaIgnorada.add(lineaDepa); continue }
+      depaPlantilla.add(lineaDepa);
+    }
     const lado = nv.lado === "SAP" ? "sap" : "conteo";
     const etq = norm(nv.tipo) + (nv.documento ? ` · ${nv.documento}` : "");
     suma(lado, String(nv.codigo), norm(nv.tipo) === "ZEXI 6 AM" ? "ZEXI 6 AM" : etq, Number(nv.unidades) || 0);
     if (nv.caja_codigo && nv.cajas && !conCajaPropia.has(grupoNv(nv))) suma(lado, String(nv.caja_codigo), etq, Number(nv.cajas) || 0);
     if (norm(nv.tipo) === "ZEXI 6 AM") hayZexi = true;
+  }
+  if (depaIgnorada.size) avisos.push(`La plantilla trae DEPA de ${[...depaIgnorada].sort().join(", ")}, pero esas líneas ya salen del corte inicial: se usó el corte, no la plantilla.`);
+  if (depaPlantilla.size) {
+    const f = fuentes.find((x) => x.nombre === "DEPA");
+    const ls = [...depaPlantilla].sort().join(", ");
+    if (f) {
+      if (f.ok) f.detalle += ` · y en la plantilla: ${ls}`;
+      else { f.ok = true; f.detalle = `En la plantilla (no hay corte inicial): ${ls}` }
+    }
   }
   const carga = novedades.length ? { archivo: novedades[0].archivo, filas: novedades.length, subido_en: novedades[0].subido_en ?? null } : null;
   fuentes.push({ nombre: "Plantilla", ok: novedades.length > 0, detalle: novedades.length ? `${novedades.length} filas · ${novedades[0].archivo ?? ""}` : "Falta subir la plantilla del día" });

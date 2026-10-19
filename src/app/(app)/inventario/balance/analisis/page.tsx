@@ -31,7 +31,7 @@ type Fuente = { renglon: string; lado: "CONTEO" | "SAP"; deDonde: string; estado
 
 const FUENTES: Fuente[] = [
   { renglon: "CONTEO", lado: "CONTEO", deDonde: "La BD del conteo del día (todas las ubicaciones de Bodega 38, en unidades).", estado: "ok" },
-  { renglon: "DEPA L1 · L2 · L4 · L6", lado: "CONTEO", deDonde: "Corte inicial del día: lo que marca la depaletizadora de cada línea (envase en unidades y su caja plástica en cajas).", estado: "ok", nota: "Ej. L1: 3500005 330.714 u y 3500231 8.703 cajas." },
+  { renglon: "DEPA L1 · L2 · L4 · L6", lado: "CONTEO", deDonde: "Corte inicial del día: lo que marca la depaletizadora de cada línea (envase en unidades y su caja plástica en cajas).", estado: "ok", nota: "Ej. L1: 3500005 330.714 u y 3500231 8.703 cajas. Si no hay corte inicial ese día, se sube en la plantilla con el tipo DEPA L1, DEPA L2, DEPA L4 o DEPA L6 (la caja plástica sale sola del envase); si la línea sí viene del corte, la plantilla no se cuenta." },
   { renglon: "PEND BAJA PRESORTING", lado: "CONTEO", deDonde: "Pasivos AG22 · causal PRESORTING.", estado: "ok" },
   { renglon: "PEND BAJA ROTURA LÍNEA", lado: "CONTEO", deDonde: "Pasivos AG22 · causal ROTURA DE LINEA.", estado: "ok" },
   { renglon: "CON BAJA EXTRASUCIO", lado: "CONTEO", deDonde: "Pasivos AG22 · causal EXTRASUCIO.", estado: "ok" },
