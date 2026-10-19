@@ -2,7 +2,9 @@ import Link from "next/link";
 import { misPermisos } from "@/lib/permisos";
 import { armarAnalisis } from "@/modulos/inventario/analisis-dif";
 import { leerAjustes, leerHistorico, leerPrecios } from "@/modulos/inventario/analisis-ajustes";
+import { armarTodos } from "@/modulos/inventario/analisis-todos";
 import { Analisis } from "./Analisis";
+import { Todos } from "./Todos";
 import { Ajustes } from "./Ajustes";
 import { Historico } from "./Historico";
 import { Final } from "./Final";
@@ -53,7 +55,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
   const q = await searchParams;
   const hoy = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Bogota" }).format(new Date());
   const fecha = /^\d{4}-\d{2}-\d{2}$/.test(q.fecha ?? "") ? q.fecha! : hoy;
-  const PASOS = ["ajustes", "final", "historico", "valor", "recurrencia", "ayer"] as const;
+  const PASOS = ["todos", "ajustes", "final", "historico", "valor", "recurrencia", "ayer"] as const;
   const paso = (PASOS as readonly string[]).includes(q.paso ?? "") ? (q.paso as (typeof PASOS)[number]) : "analisis";
   const permisos = await misPermisos();
   const puedeEditar = permisos.puedeEditar("/inventario/balance/analisis");
@@ -61,6 +63,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
   const pasos = (
     <nav className="ad-pasos" aria-label="Pasos">
       <Link href={`/inventario/balance/analisis?fecha=${fecha}`} className={paso === "analisis" ? "on" : ""}><b>1</b> Análisis</Link>
+      <Link href={`/inventario/balance/analisis?fecha=${fecha}&paso=todos`} className={paso === "todos" ? "on" : ""}><b>⧉</b> Todos los almacenes</Link>
       <Link href={`/inventario/balance/analisis?fecha=${fecha}&paso=ajustes`} className={paso === "ajustes" ? "on" : ""}><b>2</b> Ajustes</Link>
       <Link href={`/inventario/balance/analisis?fecha=${fecha}&paso=final`} className={paso === "final" ? "on" : ""}><b>3</b> Análisis final</Link>
       <Link href={`/inventario/balance/analisis?fecha=${fecha}&paso=historico`} className={paso === "historico" ? "on" : ""}><b>4</b> Histórico</Link>
@@ -127,6 +130,16 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
         </div></section>
         {pasos}
         <Historico dias={h.dias} detalle={h.detalle} faltaSql={h.faltaSql} />
+      </div>
+    );
+  }
+  if (paso === "todos") {
+    const t = await armarTodos(fecha);
+    return (
+      <div className="fe bal ad">
+        {cabeza("Todos los almacenes", "Por SKU, lo contado y lo de SAP en AG22, AG18, AG17 y AG16 según sus Cuadres SAP: si con lo movido todo quedó balanceado o si queda un descuadre, con su observación.")}
+        {pasos}
+        <Todos datos={t} hoy={hoy} />
       </div>
     );
   }
