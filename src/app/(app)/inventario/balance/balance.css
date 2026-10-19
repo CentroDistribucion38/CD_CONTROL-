@@ -368,3 +368,8 @@
 .bal-otros-chip.hay{background:#FDE7E7;color:#9b1c1c;font-weight:600}
 .bal-otros-chip b{color:inherit}
 .bal-est-otro{color:#9b1c1c}
+
+/* El ojito de las notas del conteo (junto al material): el cuadro sale a la derecha y en varias líneas. */
+.bal .bal-ojo-nota { margin-left: 8px; vertical-align: middle }
+.bal .bal-tip.bal-tip-der { right: auto; left: calc(100% + 10px); width: 300px }
+.bal .bal-tip.bal-tip-der::after { left: auto; right: 100%; border-left-color: transparent; border-right-color: #12263A }

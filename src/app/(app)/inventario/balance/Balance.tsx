@@ -2,7 +2,7 @@
 
 import { Fragment, useState, useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { CuadreFabrica, LineaConsolidado, Proveniente, Reasignacion } from "@/modulos/inventario/balance";
+import type { CuadreFabrica, LineaConsolidado, NotaConteo, Proveniente, Reasignacion } from "@/modulos/inventario/balance";
 import { DUENOS_ENVASE, esDueno } from "@/modulos/inventario/duenos";
 import { Consolidado } from "./Consolidado";
 import { Reasignaciones } from "./Reasignaciones";
@@ -45,6 +45,7 @@ type Fila = {
   reclasificacion_id: number | null;
   cuadre_fabrica?: CuadreFabrica | null;
   provenientes?: Proveniente[];
+  notas?: NotaConteo[];
   fisico_estibas?: number | null;
   dif_estibas?: number | null;
 };
@@ -129,6 +130,7 @@ export function Balance({
   const [reclas, setReclas] = useState<Fila | null>(null);
   /** El material con la cuenta del cuadre de fábrica abierta. */
   const [verCuenta, setVerCuenta] = useState<string | null>(null);
+  const [verNotas, setVerNotas] = useState<string | null>(null);
   const [nuevoEstado, setNuevoEstado] = useState("");
   const [motivo, setMotivo] = useState("");
   const [pending, startTransition] = useTransition();
@@ -388,6 +390,8 @@ export function Balance({
                     const pv = dueno && f.provenientes?.length ? f.provenientes : null;
                     const llave = `${f.estado}|${f.alcance}|${f.codigo}`;
                     const abierta = !!(cf || pv) && verCuenta === llave;
+                    const notas = f.notas?.length ? f.notas : null;
+                    const notasAbiertas = !!notas && verNotas === llave;
                     const nuevoAlm = esOtros && (i === 0 || principales[i - 1].alcance !== f.alcance);
                     const delAlm = nuevoAlm ? principales.filter((x) => x.alcance === f.alcance) : [];
                     return (
@@ -404,7 +408,24 @@ export function Balance({
                                   onClick={() => setVerCuenta(abierta ? null : llave)}>{f.codigo}</button>
                         ) : f.codigo}
                       </td>
-                      <td>{f.material ?? "—"}</td>
+                      <td>{f.material ?? "—"}
+                        {notas && (
+                          <button type="button" className="bal-ojo bal-ojo-nota" aria-expanded={notasAbiertas}
+                                  aria-label={`Ver las notas del conteo de ${f.codigo}`}
+                                  onClick={() => setVerNotas(notasAbiertas ? null : llave)}>
+                            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                              <path d="M1.5 12S5.5 4.5 12 4.5 22.5 12 22.5 12 18.5 19.5 12 19.5 1.5 12 1.5 12Z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                              <circle cx="12" cy="12" r="3.2" fill="currentColor" />
+                            </svg>
+                            <span className="bal-tip bal-tip-der" role="tooltip">
+                              <b>Notas del conteo ({notas.length})</b>
+                              {notas.slice(0, 3).map((x, j) => <span key={j}>«{x.nota}»</span>)}
+                              {notas.length > 3 && <small>y {notas.length - 3} más…</small>}
+                              <small>Toca para ver dónde las escribieron.</small>
+                            </span>
+                          </button>
+                        )}
+                      </td>
                       {esOtros && <td><b className={f.alcance === "SORTING" || PARA_PASIVO.test(f.estado) ? "bal-est-otro" : ""}>{f.estado}</b></td>}
                       <td className={`r ${f.cajas_estiba || dueno ? "" : "bal-falta"}`}>{f.cajas_estiba ? n(f.cajas_estiba) : dueno ? "—" : "falta"}</td>
                       <td className={`r ${f.un_caja || dueno ? "" : "bal-falta"}`}>{f.un_caja ? n(f.un_caja) : dueno ? "—" : "falta"}</td>
@@ -485,6 +506,25 @@ export function Balance({
                         )}
                       </td>
                     </tr>
+                    {notasAbiertas && notas && (
+                      <tr className="bal-cf-fila">
+                        <td colSpan={13}>
+                          <div className="bal-cf">
+                            <p className="bal-cf-tit"><b>{f.codigo}</b> {f.material ?? ""} · notas escritas en el conteo <span>(lo que quien contó anotó en el comentario del renglón)</span></p>
+                            <div className="bal-tabla-wrap">
+                              <table className="bal-tabla">
+                                <thead><tr><th>Ubicación</th><th className="r">Cajas</th><th>Nota</th><th>Recorrido</th></tr></thead>
+                                <tbody>
+                                  {notas.map((x, j) => (
+                                    <tr key={j}><td>{x.ubicacion}</td><td className="r">{n(x.cajas)}</td><td><b>{x.nota}</b></td><td>{x.recorrido ?? "—"}</td></tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
                     {abierta && pv && (
                       <tr className="bal-cf-fila">
                         <td colSpan={12}>

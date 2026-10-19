@@ -32,6 +32,9 @@ export type Proveniente = {
   cajas: number; cajas_estiba: number | null; estibas: number | null; un_caja: number | null; unidades: number | null;
 };
 
+/** Lo que quien contó escribió en el comentario de un renglón (p. ej. «es andina»): se ve con el ojito de la fila. */
+export type NotaConteo = { ubicacion: string; cajas: number; nota: string; recorrido: string | null };
+
 export type FilaBalance = {
   fecha: string | null; estado: string; alcance: string; codigo: string;
   material: string | null; ubicacion: string | null;
@@ -47,6 +50,8 @@ export type FilaBalance = {
   cuadre_fabrica?: CuadreFabrica | null;
   /** Solo en las filas ANDINA / HEINEKEN: los códigos reales que se reasignaron ahí (el ojito). */
   provenientes?: Proveniente[];
+  /** Las notas escritas en el conteo de los renglones de esta fila. */
+  notas?: NotaConteo[];
   /** Solo en ANDINA / HEINEKEN: lo reasignado en estibas (cada código con su factor) y su diferencia contra las estibas casco. */
   fisico_estibas?: number | null; dif_estibas?: number | null;
 };
@@ -188,7 +193,7 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
   const centroDe = new Map(((sitiosR.data ?? []) as { clave: string; centro: string | null }[])
     .map((s) => [s.clave, (s.centro ?? "").toUpperCase()]));
 
-  type Acc = Omit<FilaBalance, "dif_cajas" | "unidades" | "alerta" | "ajuste_cajas" | "ajuste_nota" | "calidad" | "provenientes"> & { ubis: Set<string>; tieneFisico: boolean; tieneCasco: boolean; prov: Map<string, Proveniente> };
+  type Acc = Omit<FilaBalance, "dif_cajas" | "unidades" | "alerta" | "ajuste_cajas" | "ajuste_nota" | "calidad" | "provenientes" | "notas"> & { ubis: Set<string>; tieneFisico: boolean; tieneCasco: boolean; prov: Map<string, Proveniente>; notas: NotaConteo[] };
   const filas = new Map<string, Acc>();
   const fila = (estado: string, alcance: string, codigo: string): Acc => {
     const k = `${estado}|${alcance}|${codigo}`;
@@ -198,7 +203,7 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
       f = { fecha, estado, alcance, codigo, material: p?.nombre ?? null, ubicacion: null,
         cajas_estiba: p?.cajas_por_estiba ?? null, un_caja: p?.unidades_por_caja ?? null,
         fisico_cajas: 0, estibas_casco: 0, cajas_casco: 0, reclasificacion_id: null, reasignadas_cajas: 0,
-        ubis: new Set(), tieneFisico: false, tieneCasco: false, prov: new Map() };
+        ubis: new Set(), tieneFisico: false, tieneCasco: false, prov: new Map(), notas: [] };
       filas.set(k, f);
     }
     return f;
@@ -260,6 +265,12 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
   for (const r of vigentes) {
     if (zona(r) === "SORTING" && /^Regla f[aá]brica:[^|]*→\s*BAJA\b/i.test(r.nota ?? "")) deLaRegla.add(String(r.codigo));
   }
+  /* La nota que escribió quien contó (sin la traza de la regla de fábrica). */
+  const notaDe = (r: { nota: string | null }) => (r.nota ?? "").replace(/^Regla f[aá]brica:[^|]*(\|\s*|$)/i, "").trim();
+  const anotar = (f: Acc, r: { nota: string | null; ubicacion: string | null; ubicacion_combinada: string | null; total_cajas: number | string | null; conteo?: string | null }) => {
+    const t = notaDe(r);
+    if (t) f.notas.push({ ubicacion: (r.ubicacion ?? r.ubicacion_combinada ?? "").trim() || "—", cajas: Number(r.total_cajas) || 0, nota: t, recorrido: r.conteo ?? null });
+  };
   for (const r of vigentes) {
     if (esCajaPlastica(r.material) || esCajaPlastica(prod.get(String(r.codigo))?.nombre)) continue;
     const rc = reclas.get(r.id);
@@ -279,11 +290,13 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
       if (x.estibas != null && cpe) x.estibas += cajas / cpe;
       if (x.unidades != null && upc) x.unidades += cajas * upc;
       fd.prov.set(k, x);
+      anotar(fd, r);
       continue;
     }
     const f = fila(rc?.estado ?? normEstado(r.estado_envase), zona(r), String(r.codigo));
     f.fisico_cajas += Number(r.total_cajas) || 0;
     f.tieneFisico = true;
+    anotar(f, r);
     if (!f.material) f.material = r.material;
     if (f.cajas_estiba == null) f.cajas_estiba = r.factor_estibado ?? null;
     const u = (r.ubicacion ?? r.ubicacion_combinada ?? "").trim(); if (u) f.ubis.add(u);
@@ -362,11 +375,12 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
     const fisEst = dueno ? r2((provenientes ?? []).reduce((t, x) => t + (x.estibas ?? 0), 0)) : null;
     const difEst = dueno ? r2((fisEst ?? 0) - f.estibas_casco) : null;
     const dif = dueno ? 0 : f.fisico_cajas - f.cajas_casco - ajuste;
-    const { ubis, tieneFisico, tieneCasco, prov: _prov, ...resto } = f;
+    const { ubis, tieneFisico, tieneCasco, prov: _prov, notas, ...resto } = f;
     void _prov;
     return {
       ...resto,
       ...(dueno ? { provenientes, fisico_estibas: fisEst, dif_estibas: difEst } : {}),
+      ...(notas.length ? { notas } : {}),
       ubicacion: [...ubis].sort((x, y) => x.localeCompare(y, "es", { numeric: true })).join(", ") || null,
       ajuste_cajas: ajuste, ajuste_nota: a?.nota ?? null, calidad: a?.calidad ?? null,
       cuadre_fabrica: f.estado === "BAJA" && f.alcance === "SORTING" ? cuadres.get(f.codigo) ?? null : null,
