@@ -190,8 +190,8 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
                                   <div><b>SAP · {n(f.sap)}</b><ul>{f.deSap.map((p) => <li key={p.nombre}><span>{p.nombre}</span><em>{n(p.cantidad)}</em></li>)}{!f.deSap.length && <li><span>— (no está en la ZEXI ni en el balance)</span></li>}</ul></div>
                                   <div><b>CONTEO · {n(f.conteo)}</b><ul>{f.deConteo.map((p) => <li key={p.nombre}><span>{p.nombre}</span><em>{n(p.cantidad)}</em></li>)}{!f.deConteo.length && <li><span>—</span></li>}</ul>
                                     {f.enFabrica && f.enFabrica.length > 0 && (() => { const tf = f.enFabrica!.reduce((t, p) => t + p.cantidad, 0); return (
-                                      <><b title="No suma en el análisis: Fábrica no entra a Bodega 38. Se muestra para cuadrar con el tablero, que cuenta Bodega + Fábrica.">EN FÁBRICA (no suma) · {n(tf)}</b>
-                                      <ul>{f.enFabrica!.map((p) => <li key={p.nombre}><span>{p.nombre}</span><em>{n(p.cantidad)}</em></li>)}<li><span><b>Bodega + Fábrica</b> (el tablero)</span><em><b>{n(f.conteo + tf)}</b></em></li></ul></>
+                                      <><b title="No suma en el análisis: Fábrica, AG17 y AG16 no entran a Bodega 38. Se muestra para cuadrar con el tablero, que cuenta todo el conteo.">FUERA DE BODEGA 38 · Fábrica, AG17 y AG16 (no suma) · {n(tf)}</b>
+                                      <ul>{f.enFabrica!.map((p) => <li key={p.nombre}><span>{p.nombre}</span><em>{n(p.cantidad)}</em></li>)}<li><span><b>Todo el conteo</b> (el tablero)</span><em><b>{n(f.conteo + tf)}</b></em></li></ul></>
                                     ); })()}
                                   </div>
                                 </div>

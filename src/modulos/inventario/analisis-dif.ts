@@ -27,7 +27,7 @@ export type FilaAnalisis = {
   familia: string; orden: number; codigo: string; descripcion: string;
   sap: number; conteo: number; diferencia: number;
   deSap: Partida[]; deConteo: Partida[];
-  /** Lo que hay en FÁBRICA de esta fila (hoy solo la estiba 3500163), por partida: se muestra aparte y NO suma en el análisis. */
+  /** Lo que hay fuera de Bodega 38 (Fábrica, AG17 y AG16) de esta fila (hoy solo la estiba 3500163), por partida: se muestra aparte y NO suma en el análisis. */
   enFabrica?: Partida[];
   /** Códigos excluidos o sin factor: se muestran para que el conteo salga COMPLETO, pero no generan ajustes. */
   soloConteo?: boolean;
@@ -116,6 +116,16 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   /* La caja plástica que lleva el producto: cuántas cajas y de cuántos productos salieron. */
   let cajasProducto = 0; const prodConCaja = new Set<string>(), prodSinEnvase = new Set<string>();
   const estFab = new Map<string, number>();
+  /* Las estibas de lo que NO entra a Bodega 38 (Fábrica, AG17, AG16), por partida y con el mismo criterio de arriba. */
+  const anotarEstFuera = (donde: string, r: Awaited<ReturnType<typeof conReclasificaciones>>[number]) => {
+    const cF = String(r.codigo), cjF = Number(r.total_cajas) || 0;
+    const estF = (Number(r.estibas) || 0) + ((Number(r.cajas) || 0) + (Number(r.saldo) || 0) > 0 ? 1 : 0);
+    const esEst = grupo(cF) === "ESTIBA";
+    const que = esEst ? "estibas contadas" : r.tipo_material === "PRODUCTO" ? "bajo producto"
+      : r.tipo_material === "ENVASE" && grupo(cF) === "CAJA" ? "bajo cajas" : bajoQue(cF).replace("CONTEO · ", "");
+    const k = `${donde} · ${que}`;
+    estFab.set(k, (estFab.get(k) ?? 0) + (esEst ? cjF : estF));
+  };
   const totB: TotConteo = { renglones: 0, cajas: 0, estibas: 0, plasticas: 0 }, totF: TotConteo = { renglones: 0, cajas: 0, estibas: 0, plasticas: 0 };
   for (const r of await conReclasificaciones(cons.vigentes)) {
     const esFab = esUbicacionFabrica(r.calle) || esUbicacionFabrica(r.ubicacion) || esUbicacionFabrica(r.ubicacion_combinada);
@@ -128,14 +138,7 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     }
     /* Fuera todo lo de FÁBRICA: por la calle o por el nombre de la ubicación (FABRICA_…, FABRICAL4…).
        Sus estibas se anotan aparte (no suman) para poder cuadrar con el tablero, que cuenta Bodega + Fábrica. */
-    if (esFab) {
-      const cF = String(r.codigo), cjF = Number(r.total_cajas) || 0;
-      const estF = (Number(r.estibas) || 0) + ((Number(r.cajas) || 0) + (Number(r.saldo) || 0) > 0 ? 1 : 0);
-      const nomF = grupo(cF) === "ESTIBA" ? "FÁBRICA · estibas contadas" : r.tipo_material === "PRODUCTO" ? "FÁBRICA · bajo producto"
-        : r.tipo_material !== "ENVASE" ? bajoQue(cF).replace("CONTEO", "FÁBRICA") : grupo(cF) === "CAJA" ? "FÁBRICA · bajo cajas" : bajoQue(cF).replace("CONTEO", "FÁBRICA");
-      estFab.set(nomF, (estFab.get(nomF) ?? 0) + (grupo(cF) === "ESTIBA" ? cjF : estF));
-      continue;
-    }
+    if (esFab) { anotarEstFuera("FÁBRICA", r); continue }
     /* La visual: cuántos SKUs distintos se contaron (producto, envase y lo demás). */
     renglonesBodega++;
     (r.tipo_material === "PRODUCTO" ? skuP : r.tipo_material === "ENVASE" ? skuE : skuO).add(String(r.codigo));
@@ -171,6 +174,11 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     /* Un envase excluido (foráneo, nuevo…) no aporta caja plástica: no viene en las nuestras. */
     if (excluye(regla, c, nombre(c))) continue;
     const caja = M.get(c)?.caja; if (caja) suma("conteo", String(caja), `CONTEO · en ${c} ${nombre(c)}`, cajas);
+  }
+  /* AG17 (EXPORTACION) y AG16 (BTS) tienen su propio conteo y Cuadre SAP: no suman aquí, pero sus estibas se anotan aparte. */
+  for (const alm of ["AG17", "AG16"] as const) {
+    const x = await consolidadoDelDia(fecha, conteos, alm);
+    for (const r of await conReclasificaciones(x.vigentes)) anotarEstFuera(alm, r);
   }
   fuentes.push({ nombre: "Conteo", ok: renglones > 0, detalle: renglones ? `${renglones} renglones de Bodega` : "No hay conteo enviado ese día" });
   /* Un producto sin envase en el maestro no aporta caja: se nombra para que se complete el maestro si es retornable. */
