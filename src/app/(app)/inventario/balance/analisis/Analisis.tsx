@@ -231,7 +231,7 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
                 <tfoot><tr><td colSpan={2}>Total producto</td><td className="n">{n(t.cajas)}</td><td className="n">{n(t.unidades)}</td><td className="n">{n(t.estibas)}</td><td /></tr></tfoot>
               </table>
             </div>
-            <p className="ad-nota">El producto no tiene lado SAP en este análisis, así que no entra a la tabla de diferencia; su caja plástica sí suma en E01 y su estiba en la 3500163. Unidades = cajas × unidades por caja del maestro.</p>
+            <p className="ad-nota">Aquí ves el producto en cajas; en la tabla de arriba va en unidades (familia P) y no genera ajustes. Su caja plástica suma en E01 y su estiba en la 3500163. Unidades = cajas × unidades por caja del maestro.</p>
           </section>
         );
       })()}

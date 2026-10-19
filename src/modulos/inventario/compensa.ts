@@ -28,7 +28,9 @@ export type FilaAjuste = {
 
 export type Hecho = { comp: boolean; ajuste: number | null };
 
-export function calcularAjustes(filas: FilaAnalisis[], obs: Record<string, string>, hechos: Record<string, Hecho> = {}): FilaAjuste[] {
+export function calcularAjustes(todas: FilaAnalisis[], obs: Record<string, string>, hechos: Record<string, Hecho> = {}): FilaAjuste[] {
+  /* Producto y excluidos («solo conteo») se ven en el análisis pero no se ajustan. */
+  const filas = todas.filter((f) => !f.soloConteo);
   const por = new Map(filas.map((f) => [f.codigo, f]));
   const comp = new Map<string, { par: string; aplica: number }>();
   /* LA COMPENSACIÓN. «Busca el SKU, ej. 3500162, mira el de estado NUEVO: esa cantidad es la que podemos

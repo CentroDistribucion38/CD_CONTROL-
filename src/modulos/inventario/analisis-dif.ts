@@ -27,6 +27,8 @@ export type FilaAnalisis = {
   familia: string; orden: number; codigo: string; descripcion: string;
   sap: number; conteo: number; diferencia: number;
   deSap: Partida[]; deConteo: Partida[];
+  /** Producto y códigos excluidos o sin factor: se muestran para que el conteo salga COMPLETO, pero no generan ajustes. */
+  soloConteo?: boolean;
 };
 export type Novedad = {
   fecha: string; tipo: string; lado: "CONTEO" | "SAP" | "NO SUMA"; documento: string | null; codigo: string;
@@ -143,6 +145,8 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
       {
         const x = prodAcc.get(c) ?? { codigo: c, descripcion: nombre(c), cajas: 0, unidades: 0, estibas: 0, caja: null as string | null };
         x.cajas += cajas; x.unidades += cajas * upc(c); x.estibas += est; prodAcc.set(c, x);
+        /* El producto también va a la tabla, en unidades (cajas × unidades por caja), para que el conteo salga completo. */
+        suma("conteo", c, "CONTEO · producto (unidades)", cajas * upc(c));
       }
       /* LA CAJA DEL PRODUCTO: cada caja de producto retornable va en una caja plástica, y esa caja se cuenta.
          El producto → su envase (maestro de productos) → la caja de ese envase (maestro de Pasivos). Si el envase
@@ -307,16 +311,20 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
       : fam === "NO RETORNABLE" ? ["E08 · Envase no retornable", 6]
       : !M.has(codigo) ? ["0 · Sin familia en el maestro", 0]
       : null;
-    if (!especial && excluye(regla, codigo, nombre(codigo))) { noEntran.push(codigo); continue }
-    if (!especial && u <= 1) { noEntran.push(codigo); continue }
-    const [familia, orden] = especial ?? (u <= 16 ? ["E09 · Envase 750 y 1000", 7] : ["E07 · Envase 175 a 330", 5]);
+    /* EL CONTEO SALE COMPLETO: el producto y lo excluido o sin factor (lata, PET, foráneo…) también se listan, en su propia familia y
+       marcados «solo conteo» (no generan ajustes: no tienen lado SAP en este análisis). */
+    const esProd = prodAcc.has(codigo);
+    const soloConteo = esProd || (!especial && (excluye(regla, codigo, nombre(codigo)) || u <= 1));
+    const [familia, orden] = esProd ? ["P · Producto (solo conteo)", 8]
+      : soloConteo ? ["X · Excluidos o sin factor (solo conteo)", 9]
+      : especial ?? (u <= 16 ? ["E09 · Envase 750 y 1000", 7] : ["E07 · Envase 175 a 330", 5]);
     /* La estiba sale en el orden del proceso, no por tamaño. */
     const ORDEN_ESTIBA = ["CONTEO · bajo envase", "CONTEO · bajo cilindro", "CONTEO · bajo barril", "CONTEO · bajo cajas", "CONTEO · bajo producto", "CONTEO · estibas contadas"];
     const pos = (n: string) => { const k = codigo === ESTIBA ? ORDEN_ESTIBA.indexOf(n) : -1; return k < 0 ? 99 : k; };
     const lista = (m: Map<string, number>) => [...m].map(([nombre, cantidad]) => ({ nombre, cantidad: Math.round(cantidad) })).sort((x, y) => pos(x.nombre) - pos(y.nombre) || y.cantidad - x.cantidad);
     const sap = Math.round([...a.sap.values()].reduce((t, v) => t + v, 0));
     const conteo = Math.round([...a.conteo.values()].reduce((t, v) => t + v, 0));
-    filas.push({ familia: familia as string, orden: orden as number, codigo, descripcion: nombre(codigo), sap, conteo, diferencia: conteo - sap, deSap: lista(a.sap), deConteo: lista(a.conteo) });
+    filas.push({ familia: familia as string, orden: orden as number, codigo, descripcion: nombre(codigo), sap, conteo, diferencia: conteo - sap, deSap: lista(a.sap), deConteo: lista(a.conteo), ...(soloConteo ? { soloConteo: true } : {}) });
   }
   filas.sort((x, y) => x.orden - y.orden || x.codigo.localeCompare(y.codigo, "es", { numeric: true }));
   const estibasAnalisis = Math.round([...(acc.get(ESTIBA)?.conteo.values() ?? [])].reduce((t, v) => t + v, 0));
