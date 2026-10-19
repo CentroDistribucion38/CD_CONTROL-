@@ -6,8 +6,7 @@
  */
 import { Fragment, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Todos as Datos, FilaTodos } from "@/modulos/inventario/analisis-todos";
-import { ALMACENES } from "@/modulos/inventario/analisis-todos";
+import { ALMACENES, type Todos as Datos, type FilaTodos } from "@/modulos/inventario/todos-tipos";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const n = (v: number | null | undefined) => (v == null ? "—" : nf.format(v));

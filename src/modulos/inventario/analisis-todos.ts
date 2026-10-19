@@ -1,4 +1,5 @@
-import { armarCuadre, type Almacen, type FilaCuadre, type Grupo } from "@/modulos/inventario/cuadre";
+import { armarCuadre, type Almacen, type FilaCuadre } from "@/modulos/inventario/cuadre";
+import { ALMACENES, type CeldaAlm, type EstadoSku, type FilaTodos, type ResumenAlm, type Todos } from "./todos-tipos";
 
 /**
  * EL ANÁLISIS DE TODOS LOS ALMACENES — por SKU, lo contado y lo de SAP en AG22, AG18, AG17 y AG16, sacado de los
@@ -6,18 +7,8 @@ import { armarCuadre, type Almacen, type FilaCuadre, type Grupo } from "@/modulo
  * Si con lo movido todo quedó balanceado el SKU sale BALANCEADO; si algún almacén queda con diferencia, sale
  * DESCUADRE con la observación armada sola (qué almacén queda de más o de menos en SAP).
  */
-export const ALMACENES = ["AG22", "AG18", "AG17", "AG16"] as const satisfies readonly Almacen[];
-export type CeldaAlm = { conteo: number; sap: number | null; movido: number; sapDespues: number | null; queda: number | null; detalle: string | null };
-export type EstadoSku = "BALANCEADO" | "DESCUADRE" | "SIN SAP";
-export type FilaTodos = {
-  codigo: string; material: string; grupo: Grupo;
-  alm: Partial<Record<Almacen, CeldaAlm>>;
-  /** Suma de los almacenes: lo contado, lo que SAP tiene antes de mover y lo que queda después de mover. */
-  conteo: number; sap: number | null; queda: number | null;
-  estado: EstadoSku; observacion: string;
-};
-export type ResumenAlm = { alm: Almacen; hayCuadre: boolean; hayZexi: boolean; zexiArchivo: string | null; descuadres: number; materiales: number; conteoEstibas: number };
-export type Todos = { fecha: string; almacenes: ResumenAlm[]; filas: FilaTodos[]; avisos: string[] };
+export { ALMACENES } from "./todos-tipos";
+export type { CeldaAlm, EstadoSku, FilaTodos, ResumenAlm, Todos } from "./todos-tipos";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const redondo = (v: number) => Math.round(v * 100) / 100;
