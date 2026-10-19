@@ -231,6 +231,8 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
       .sort((a, b) => a.codigo.localeCompare(b.codigo)),
   } : null;
   const detBal: string[] = []; const sinZexiBal: string[] = [];
+  /* El BALANCE del lado SAP (de AG18/17/16 a AG22) se suma ENCIMA de la ZEXI de las 6: se guarda aquí y solo se aplica si la plantilla la trae. */
+  const balanceSap: { codigo: string; partida: string; cant: number }[] = [];
   for (const alm of ["AG18", "AG17", "AG16"] as const) {
     const c = alm === "AG18" ? cu : await armarCuadre(fecha, alm);
     if (c.fecha !== fecha || !c.guardado?.zexi?.length) { sinZexiBal.push(alm); continue }
@@ -239,7 +241,7 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
       /* El producto (AG17 y AG16 lo traen en cajas) no tiene lado SAP en este análisis: no se mezcla con las unidades del envase. */
       if (f.grupo === "PRODUCTO") continue;
       if (f.dif == null || Math.abs(f.dif) < 0.005) continue;
-      if (f.dif < 0) suma("conteo", f.codigo, `BALANCE · ${alm}`, Math.abs(f.dif)); else suma("sap", f.codigo, `BALANCE · ${alm}`, f.dif);
+      if (f.dif < 0) suma("conteo", f.codigo, `BALANCE · ${alm}`, Math.abs(f.dif)); else balanceSap.push({ codigo: f.codigo, partida: `BALANCE · ${alm}`, cant: f.dif });
       n++;
     }
     detBal.push(`${alm} ${n}`);
@@ -278,7 +280,9 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
       else { f.ok = true; f.detalle = `En la plantilla (no hay corte inicial): ${ls}` }
     }
   }
-  if (!hayZexi && [...acc.values()].some((a) => a.sap.size)) avisos.push("El lado SAP solo trae el Balance de los Cuadres SAP (AG18, AG17, AG16): falta subir la ZEXI de las 6 a. m. en la plantilla, por eso SAP sale incompleto.");
+  /* Sin la ZEXI de las 6 en la plantilla, SAP queda vacío: el BALANCE solo no es SAP, es lo que se le suma a la ZEXI. */
+  if (hayZexi) for (const b of balanceSap) suma("sap", b.codigo, b.partida, b.cant);
+  else if (balanceSap.length) avisos.push(`SAP está vacío porque la plantilla no trae la ZEXI de las 6 a. m.: el BALANCE de los Cuadres SAP (${balanceSap.length} materiales de AG18, AG17 y AG16 hacia AG22) se suma sobre esa ZEXI, así que no se muestra hasta que la subas.`);
   const carga = novedades.length ? { archivo: novedades[0].archivo, filas: novedades.length, subido_en: novedades[0].subido_en ?? null } : null;
   fuentes.push({ nombre: "Plantilla", ok: novedades.length > 0, detalle: novedades.length ? `${novedades.length} filas · ${novedades[0].archivo ?? ""}` : "Falta subir la plantilla del día" });
   fuentes.push({ nombre: "ZEXI 6 AM", ok: hayZexi, detalle: hayZexi ? "En la plantilla" : "La plantilla no trae la ZEXI de las 6" });
