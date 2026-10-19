@@ -1,5 +1,6 @@
 "use client";
 
+import { DUENOS_ENVASE } from "@/modulos/inventario/duenos";
 import { useMemo, useState, useTransition } from "react";
 import type { LineaConsolidado } from "@/modulos/inventario/balance";
 import { reasignarRenglones } from "./actions";
@@ -17,6 +18,8 @@ const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const n = (v: number | null | undefined) => (v == null ? "—" : nf.format(v));
 const sinTilde = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const BASE = ["BAJA", "LAVADO", "EXTRASUCIO"];
+/* A quién pertenece: ANDINA y HEINEKEN también son destino (van a su casco y a la base de Pasivos con esa causal). */
+const DESTINOS = [...BASE, ...DUENOS_ENVASE];
 
 export function Consolidado({ lineas, fecha }: { lineas: LineaConsolidado[]; fecha: string | null }) {
   const [q, setQ] = useState("");
@@ -33,8 +36,8 @@ export function Consolidado({ lineas, fecha }: { lineas: LineaConsolidado[]; fec
     const hay = new Set(lineas.map((l) => l.estado));
     return [...BASE.filter((e) => hay.has(e)), ...[...hay].filter((e) => !BASE.includes(e)).sort()];
   }, [lineas]);
-  /* La base solo acepta reasignar a estos tres (balance_reclasificaciones). */
-  const destinos = BASE;
+  /* La base acepta reasignar a estos (balance_reclasificaciones). */
+  const destinos = DESTINOS;
 
   /* Filtro de SKU: uno o varios códigos (espacio o coma), o palabras del nombre (todas). */
   const terminos = sinTilde(q).split(/[\s,;]+/).filter(Boolean);

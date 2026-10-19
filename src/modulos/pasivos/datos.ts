@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { todas } from "@/modulos/inventario/paginas";
 import { balanceDelDia, type FilaBalance } from "@/modulos/inventario/balance";
+import { esDueno } from "@/modulos/inventario/duenos";
 import { esExcluido, excluye, type ReglaExcluidos } from "@/modulos/pasivos/excluidos";
 import { leerExcluidos } from "@/modulos/pasivos/excluidos-leer";
 
@@ -45,6 +46,19 @@ export function filasDeBalance(fecha: string, detalle: FilaBalance[], regla?: Re
   const sinFactor: string[] = [];
   const excluidos = new Set<string>();
   for (const f of detalle) {
+    /* LO REASIGNADO A ANDINA / HEINEKEN: nada queda por fuera. Cada código real va a la base con su causal ANDINA (o HEINEKEN), en BAJA,
+       en el almacén de donde se contó (Fábrica = AG18, Bodega 38 = AG22), con sus unidades. */
+    if (esDueno(f.codigo)) {
+      const alm = f.alcance === "SORTING" ? "AG18" : "AG22";
+      for (const x of f.provenientes ?? []) {
+        if (regla ? excluye(regla, x.codigo, x.material) : esExcluido(x.codigo, x.material)) { excluidos.add(x.codigo); continue }
+        if (!x.cajas) continue;
+        if (x.unidades == null) { sinFactor.push(x.codigo); continue }
+        filas.push({ fecha, estado: "BAJA", causal: f.codigo, codigo: x.codigo, unidades: Math.round(x.unidades), almacen: alm,
+          nota: `Reasignado a ${f.codigo} en el Balance · ${Math.round(x.cajas).toLocaleString("es-CO")} cajas · ${x.ubicacion}` });
+      }
+      continue;
+    }
     const m = DEL_BALANCE.find((x) => x.estado === f.estado && x.alcance === f.alcance);
     if (!m) continue;
     /* Envases nuevos (barril, 412644, 412671, 412707) y la estiba 3500163: no van en Pasivos. */

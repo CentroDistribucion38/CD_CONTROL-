@@ -2,7 +2,8 @@
 
 import { Fragment, useState, useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { CuadreFabrica, LineaConsolidado, Reasignacion } from "@/modulos/inventario/balance";
+import type { CuadreFabrica, LineaConsolidado, Proveniente, Reasignacion } from "@/modulos/inventario/balance";
+import { DUENOS_ENVASE, esDueno } from "@/modulos/inventario/duenos";
 import { Consolidado } from "./Consolidado";
 import { Reasignaciones } from "./Reasignaciones";
 import { Rango } from "../../sider/seguimiento/Rango";
@@ -43,6 +44,9 @@ type Fila = {
   alerta: string | null;
   reclasificacion_id: number | null;
   cuadre_fabrica?: CuadreFabrica | null;
+  provenientes?: Proveniente[];
+  fisico_estibas?: number | null;
+  dif_estibas?: number | null;
 };
 
 /* ------------------------------------------------------------------ */
@@ -61,7 +65,8 @@ const HOJAS_FIJAS: { estado: string; alcance: string | null; label: string; alm?
 /** Estados que YA tienen su propia pestaña — los "otros" son el resto. */
 const ESTADOS_FIJOS = new Set(["BAJA", "LAVADO", "EXTRASUCIO"]);
 
-const ESTADOS_DESTINO = ["BAJA", "LAVADO", "EXTRASUCIO"] as const;
+/* BAJA, LAVADO y EXTRASUCIO, más a quién pertenece el envase (ANDINA, HEINEKEN): ahí se va con el casco de ese dueño. */
+const ESTADOS_DESTINO = ["BAJA", "LAVADO", "EXTRASUCIO", ...DUENOS_ENVASE] as const;
 
 /** Lo que de «otros estados» DEBERÍA ir a pasivo: OTROS y MAL ESTADO (lo sano —RETORNO, NUEVO, VACÍO…— no es pasivo). */
 const PARA_PASIVO = /OTRO|MAL ?ESTADO/i;
@@ -378,8 +383,11 @@ export function Balance({
                 <tbody>
                   {principales.map((f, i) => {
                     const cf = f.cuadre_fabrica;
+                    /* ANDINA / HEINEKEN: la fila trae los códigos reales que se reasignaron ahí (el ojito). */
+                    const dueno = esDueno(f.codigo);
+                    const pv = dueno && f.provenientes?.length ? f.provenientes : null;
                     const llave = `${f.estado}|${f.alcance}|${f.codigo}`;
-                    const abierta = !!cf && verCuenta === llave;
+                    const abierta = !!(cf || pv) && verCuenta === llave;
                     const nuevoAlm = esOtros && (i === 0 || principales[i - 1].alcance !== f.alcance);
                     const delAlm = nuevoAlm ? principales.filter((x) => x.alcance === f.alcance) : [];
                     return (
@@ -391,15 +399,15 @@ export function Balance({
                     )}
                     <tr className={(f.alerta ? "con-alerta" : "") + (abierta ? " bal-abierta" : "")}>
                       <td className="mono">
-                        {cf ? (
-                          <button type="button" className="bal-cod-bt" aria-expanded={abierta} title="Ver de dónde salen las estibas casco"
+                        {cf || pv ? (
+                          <button type="button" className="bal-cod-bt" aria-expanded={abierta} title={pv ? "Ver qué códigos se reasignaron aquí" : "Ver de dónde salen las estibas casco"}
                                   onClick={() => setVerCuenta(abierta ? null : llave)}>{f.codigo}</button>
                         ) : f.codigo}
                       </td>
                       <td>{f.material ?? "—"}</td>
                       {esOtros && <td><b className={f.alcance === "SORTING" || PARA_PASIVO.test(f.estado) ? "bal-est-otro" : ""}>{f.estado}</b></td>}
-                      <td className={`r ${f.cajas_estiba ? "" : "bal-falta"}`}>{f.cajas_estiba ? n(f.cajas_estiba) : "falta"}</td>
-                      <td className={`r ${f.un_caja ? "" : "bal-falta"}`}>{f.un_caja ? n(f.un_caja) : "falta"}</td>
+                      <td className={`r ${f.cajas_estiba || dueno ? "" : "bal-falta"}`}>{f.cajas_estiba ? n(f.cajas_estiba) : dueno ? "—" : "falta"}</td>
+                      <td className={`r ${f.un_caja || dueno ? "" : "bal-falta"}`}>{f.un_caja ? n(f.un_caja) : dueno ? "—" : "falta"}</td>
                       <td className="r">{n(f.fisico_cajas)}</td>
                       <td className="r">
                         {cf ? (
@@ -420,7 +428,25 @@ export function Balance({
                               </span>
                             </button>
                           </span>
-                        ) : n(f.estibas_casco)}
+                        ) : pv ? (
+                          <span className="bal-est-cf">
+                            {n(f.estibas_casco, 2)}
+                            {/* EL OJITO de ANDINA / HEINEKEN: tocarlo abre los códigos que se reasignaron aquí. */}
+                            <button type="button" className="bal-ojo" aria-expanded={abierta}
+                                    aria-label={`Ver los códigos reasignados a ${f.codigo}`}
+                                    onClick={() => setVerCuenta(abierta ? null : llave)}>
+                              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                                <path d="M1.5 12S5.5 4.5 12 4.5 22.5 12 22.5 12 18.5 19.5 12 19.5 1.5 12 1.5 12Z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                                <circle cx="12" cy="12" r="3.2" fill="currentColor" />
+                              </svg>
+                              <span className="bal-tip" role="tooltip">
+                                <b>Reasignado a {f.codigo}</b>
+                                {pv.length} {pv.length === 1 ? "código" : "códigos"} · {n(f.fisico_estibas, 2)} estibas
+                                <small>Toca para ver cuáles son.</small>
+                              </span>
+                            </button>
+                          </span>
+                        ) : n(f.estibas_casco, dueno ? 2 : 0)}
                       </td>
                       <td className="r">{n(f.cajas_casco)}</td>
                       <td className="r">
@@ -432,13 +458,13 @@ export function Balance({
                           </span>
                         )}
                       </td>
-                      <td className={`r ${f.dif_cajas ? "bal-dif" : ""}`}>
-                        {n(f.dif_cajas)}
+                      <td className={`r ${(dueno ? f.dif_estibas : f.dif_cajas) ? "bal-dif" : ""}`}>
+                        {dueno ? <>{n(f.dif_estibas, 2)} <small>est.</small></> : n(f.dif_cajas)}
                       </td>
                       <td className="r">{n(f.unidades)}</td>
                       <td className="bal-alerta-cel">{f.alerta ?? ""}</td>
                       <td className="bal-col-acc">
-                        {f.reclasificacion_id ? (
+                        {dueno ? null : f.reclasificacion_id ? (
                           <button
                             className="bal-btn-reclas revert"
                             title="Quitar reclasificación"
@@ -459,6 +485,33 @@ export function Balance({
                         )}
                       </td>
                     </tr>
+                    {abierta && pv && (
+                      <tr className="bal-cf-fila">
+                        <td colSpan={12}>
+                          <div className="bal-cf">
+                            <p className="bal-cf-tit"><b>{f.codigo}</b> · códigos reasignados aquí <span>(cada uno se pasa a estibas con SU factor de estiba; la diferencia es contra las estibas casco de {f.codigo})</span></p>
+                            <div className="bal-tabla-wrap">
+                              <table className="bal-tabla">
+                                <thead><tr><th>Código</th><th>Material</th><th>Ubicación</th><th className="r">Cajas</th><th className="r">Cajas por estiba</th><th className="r">Estibas</th><th className="r">Unidades</th></tr></thead>
+                                <tbody>
+                                  {pv.map((x) => (
+                                    <tr key={`${x.codigo}|${x.ubicacion}`}>
+                                      <td className="mono">{x.codigo}</td><td>{x.material ?? "—"}</td><td>{x.ubicacion}{x.renglones > 1 ? ` · ${x.renglones} renglones` : ""}</td>
+                                      <td className="r">{n(x.cajas)}</td>
+                                      <td className={`r ${x.cajas_estiba ? "" : "bal-falta"}`}>{x.cajas_estiba ? n(x.cajas_estiba) : "falta"}</td>
+                                      <td className="r">{x.estibas == null ? "—" : n(x.estibas, 2)}</td>
+                                      <td className="r">{x.unidades == null ? "—" : n(x.unidades)}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                                <tfoot><tr><td colSpan={3}><b>Total</b></td><td className="r"><b>{n(f.fisico_cajas)}</b></td><td></td><td className="r"><b>{n(f.fisico_estibas, 2)}</b></td><td className="r"><b>{n(pv.reduce((t, x) => t + (x.unidades ?? 0), 0))}</b></td></tr></tfoot>
+                              </table>
+                            </div>
+                            <p className="bal-cf-tit"><span>Estibas casco de {f.codigo}: <b>{n(f.estibas_casco, 2)}</b> · diferencia <b>{n(f.dif_estibas, 2)}</b> estibas. Esto también va a la base de Pasivos (causal {f.codigo}).</span></p>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
                     {abierta && cf && (
                       <tr className="bal-cf-fila">
                         <td colSpan={12}>

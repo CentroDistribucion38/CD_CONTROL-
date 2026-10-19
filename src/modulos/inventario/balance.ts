@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { porTandas, todas } from "@/modulos/inventario/paginas";
 import { cruzar } from "@/modulos/inventario/base-cruce";
+import { esDueno } from "@/modulos/inventario/duenos";
 import type { ConteoFefo, Renglon } from "@/modulos/inventario/fefo";
 import { esUbicacionFabrica, esDeAG17oAG16, almacenDeRenglon } from "@/modulos/casco/ubicacion-sitio";
 
@@ -25,6 +26,12 @@ import { esUbicacionFabrica, esDeAG17oAG16, almacenDeRenglon } from "@/modulos/c
  * renglón, en balance_reclasificaciones). AJUSTES: balance_ajustes del día.
  */
 
+/** Un código real que se reasignó a ANDINA / HEINEKEN: lo que el ojito de esa fila enseña. `estibas` = cajas ÷ cajas por estiba DE ESE CÓDIGO. */
+export type Proveniente = {
+  codigo: string; material: string | null; ubicacion: string; renglones: number;
+  cajas: number; cajas_estiba: number | null; estibas: number | null; un_caja: number | null; unidades: number | null;
+};
+
 export type FilaBalance = {
   fecha: string | null; estado: string; alcance: string; codigo: string;
   material: string | null; ubicacion: string | null;
@@ -38,6 +45,10 @@ export type FilaBalance = {
   /** EL CUADRE DE FÁBRICA (solo Baja · Fábrica de los materiales de la regla de fábrica): de dónde salen
    *  las estibas casco. Casco no se toca: la cuenta se hace aquí. */
   cuadre_fabrica?: CuadreFabrica | null;
+  /** Solo en las filas ANDINA / HEINEKEN: los códigos reales que se reasignaron ahí (el ojito). */
+  provenientes?: Proveniente[];
+  /** Solo en ANDINA / HEINEKEN: lo reasignado en estibas (cada código con su factor) y su diferencia contra las estibas casco. */
+  fisico_estibas?: number | null; dif_estibas?: number | null;
 };
 /** «Conteo BAJA en fábrica 209; casco 36,67 (Inventario) + 132 (Lavado con baja) = 168,67; la diferencia,
  *  40,33, se suma al Inventario: las estibas casco de Baja · Fábrica quedan en 77, no en 36,67.» */
@@ -177,7 +188,7 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
   const centroDe = new Map(((sitiosR.data ?? []) as { clave: string; centro: string | null }[])
     .map((s) => [s.clave, (s.centro ?? "").toUpperCase()]));
 
-  type Acc = Omit<FilaBalance, "dif_cajas" | "unidades" | "alerta" | "ajuste_cajas" | "ajuste_nota" | "calidad"> & { ubis: Set<string>; tieneFisico: boolean; tieneCasco: boolean };
+  type Acc = Omit<FilaBalance, "dif_cajas" | "unidades" | "alerta" | "ajuste_cajas" | "ajuste_nota" | "calidad" | "provenientes"> & { ubis: Set<string>; tieneFisico: boolean; tieneCasco: boolean; prov: Map<string, Proveniente> };
   const filas = new Map<string, Acc>();
   const fila = (estado: string, alcance: string, codigo: string): Acc => {
     const k = `${estado}|${alcance}|${codigo}`;
@@ -187,7 +198,7 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
       f = { fecha, estado, alcance, codigo, material: p?.nombre ?? null, ubicacion: null,
         cajas_estiba: p?.cajas_por_estiba ?? null, un_caja: p?.unidades_por_caja ?? null,
         fisico_cajas: 0, estibas_casco: 0, cajas_casco: 0, reclasificacion_id: null, reasignadas_cajas: 0,
-        ubis: new Set(), tieneFisico: false, tieneCasco: false };
+        ubis: new Set(), tieneFisico: false, tieneCasco: false, prov: new Map() };
       filas.set(k, f);
     }
     return f;
@@ -252,6 +263,24 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
   for (const r of vigentes) {
     if (esCajaPlastica(r.material) || esCajaPlastica(prod.get(String(r.codigo))?.nombre)) continue;
     const rc = reclas.get(r.id);
+    /* ANDINA / HEINEKEN: el renglón sale de la fila de su código y va a la fila «ANDINA» (o «HEINEKEN») de esa zona, que se cuadra
+       contra el casco de ANDINA (estibas). Se guarda de qué código vino, con SU factor de estiba. */
+    if (rc && esDueno(rc.estado)) {
+      const dueno = rc.estado.trim().toUpperCase(), codigo = String(r.codigo), cajas = Number(r.total_cajas) || 0;
+      const fd = fila("BAJA", zona(r), dueno);
+      fd.material = `Envase ${dueno}`; fd.cajas_estiba = null; fd.un_caja = null;
+      fd.fisico_cajas += cajas; fd.tieneFisico = true;
+      fd.reclasificacion_id = Math.max(fd.reclasificacion_id ?? 0, rc.id); fd.reasignadas_cajas = (fd.reasignadas_cajas ?? 0) + cajas;
+      const ubic = (r.ubicacion ?? r.ubicacion_combinada ?? "").trim() || "—";
+      const cpe = Number(prod.get(codigo)?.cajas_por_estiba ?? r.factor_estibado) || null, upc = Number(prod.get(codigo)?.unidades_por_caja) || null;
+      const k = `${codigo}|${ubic}`;
+      const x = fd.prov.get(k) ?? { codigo, material: prod.get(codigo)?.nombre ?? r.material ?? null, ubicacion: ubic, renglones: 0, cajas: 0, cajas_estiba: cpe, estibas: cpe ? 0 : null, un_caja: upc, unidades: upc ? 0 : null };
+      x.renglones++; x.cajas += cajas;
+      if (x.estibas != null && cpe) x.estibas += cajas / cpe;
+      if (x.unidades != null && upc) x.unidades += cajas * upc;
+      fd.prov.set(k, x);
+      continue;
+    }
     const f = fila(rc?.estado ?? normEstado(r.estado_envase), zona(r), String(r.codigo));
     f.fisico_cajas += Number(r.total_cajas) || 0;
     f.tieneFisico = true;
@@ -326,10 +355,18 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
   const detalle: FilaBalance[] = [...filas.values()].map((f) => {
     const a = aj.get(`${f.estado}|${f.alcance}|${f.codigo}`);
     const ajuste = a?.cajas ?? 0;
-    const dif = f.fisico_cajas - f.cajas_casco - ajuste;
-    const { ubis, tieneFisico, tieneCasco, ...resto } = f;
+    const dueno = esDueno(f.codigo);
+    /* ANDINA / HEINEKEN: no tienen factor de caja; se cuadran EN ESTIBAS (cada código reasignado con su factor) contra las estibas casco. */
+    const provenientes = dueno ? [...f.prov.values()].map((x) => ({ ...x, estibas: x.estibas == null ? null : r2(x.estibas) }))
+      .sort((x, y) => x.codigo.localeCompare(y.codigo, "es", { numeric: true }) || x.ubicacion.localeCompare(y.ubicacion, "es", { numeric: true })) : undefined;
+    const fisEst = dueno ? r2((provenientes ?? []).reduce((t, x) => t + (x.estibas ?? 0), 0)) : null;
+    const difEst = dueno ? r2((fisEst ?? 0) - f.estibas_casco) : null;
+    const dif = dueno ? 0 : f.fisico_cajas - f.cajas_casco - ajuste;
+    const { ubis, tieneFisico, tieneCasco, prov: _prov, ...resto } = f;
+    void _prov;
     return {
       ...resto,
+      ...(dueno ? { provenientes, fisico_estibas: fisEst, dif_estibas: difEst } : {}),
       ubicacion: [...ubis].sort((x, y) => x.localeCompare(y, "es", { numeric: true })).join(", ") || null,
       ajuste_cajas: ajuste, ajuste_nota: a?.nota ?? null, calidad: a?.calidad ?? null,
       cuadre_fabrica: f.estado === "BAJA" && f.alcance === "SORTING" ? cuadres.get(f.codigo) ?? null : null,
@@ -337,7 +374,7 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
       unidades: f.un_caja ? dif * f.un_caja : null,
       alerta: !tieneFisico ? "En casco y no contado"
         : !tieneCasco && cruzaConCasco(f.estado, f.alcance) ? "Contado y sin casco registrado"
-        : tieneCasco && dif !== 0 ? "Diferencia" : null,
+        : tieneCasco && (dueno ? Math.abs(difEst ?? 0) >= 0.005 : dif !== 0) ? "Diferencia" : null,
     };
   }).sort((a, b) => a.codigo.localeCompare(b.codigo, "es", { numeric: true }));
 

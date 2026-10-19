@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { esDueno } from "@/modulos/inventario/duenos";
 import { balanceDelDia, consolidadoDelDia, diasConConteo, leerCasco } from "@/modulos/inventario/balance";
 import { esUbicacionFabrica } from "@/modulos/casco/ubicacion-sitio";
 import { diasConPasivos, leerPasivos } from "@/modulos/pasivos/datos";
@@ -261,6 +262,10 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
       otros.push({ id: String(r.id), ubicacion: String(r.ubicacion ?? ""), codigo: c, material: nombre(c, r.material), nota: r.nota ?? null,
         estibas: Number(r.estibas) || 0, cajas, destino: destino || NO_SUMAR, unidades: destino ? cajas * upc(destino) : 0, elegido: !!elegido && elegido !== c });
       if (destino) de(destino).otrosCajas += cajas;
+    } else if (esDueno(r.estado_envase)) {
+      /* Reasignado a ANDINA / HEINEKEN en el Balance: ya va a la base de Pasivos AG18 (causal ANDINA / HEINEKEN) y entra por ahí a «Andina / Heineken»;
+         no se cuenta aquí también (saldría doble). Su caja plástica y su estiba siguen ahí y sí cuentan. */
+      destino = "";
     }
     const env = destino || c, cajaDe = M.get(env)?.caja;
     if (cajaDe && CAJA_FUERA_DEL_CUADRE.has(env)) { const k = de(String(cajaDe)); k.fuera += cajas; k.fueraDe = nombre(env) }
@@ -302,7 +307,7 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
   if (usarBM) for (const r of bal.detalle) {
     if (r.alcance !== "SORTING" || (r.estado !== "BAJA" && r.estado !== "LAVADO")) continue;
     const c = String(r.codigo);
-    if (grupoDe(c) !== "ENVASE" || excluye(regla, c, nombre(c, r.material))) continue;
+    if (esDueno(c) || grupoDe(c) !== "ENVASE" || excluye(regla, c, nombre(c, r.material))) continue;
     const sin = r.alerta === "Contado y sin casco registrado";
     /* LAVADO · Fábrica sin casco registrado = no hay «Lavado con baja»: lo contado en lavado se toma tal cual (sin diferencia), como en el Excel. */
     if (r.estado === "LAVADO" && sin) continue;
