@@ -292,7 +292,7 @@ export function Base({
   /** Puede editar «La base» (o administra): ve las casillas y marca PASADO. */
   puedeMarcar?: boolean;
 }) {
-  const [pestania, setPestania] = useState<"base" | "borradores">("base");
+  const [pestania, setPestania] = useState<"base" | "borradores" | "reemplazados">("base");
   const [fTexto, setFTexto] = useState("");
   const [fRec, setFRec] = useState("");
   const [fCalle, setFCalle] = useState("");
@@ -390,16 +390,29 @@ export function Base({
 
   /* LAS FILAS DE ESTA PESTAÑA, antes de filtrar. Los borradores NO se cruzan: son lo que alguien tiene
      abierto, y cruzarlos los haría pasar por lo contado. */
+  /* LOS REEMPLAZADOS: lo que la misma persona volvió a contar en esa ubicación y zona. Siguen guardados; la base no los
+     suma porque vale el conteo más nuevo. Cada uno dice qué recorrido lo reemplazó (el vigente de su ubicación y zona). */
+  const reemplazadosFilas = useMemo<Fila[]>(() => {
+    const llave = (r: { ubicacion_id: string | null; ubicacion: string | null; estado_envase: string | null }) => `${r.ubicacion_id ?? r.ubicacion ?? "—"}|${r.estado_envase ?? ""}`;
+    const gana = new Map<string, { conteo: string; cuando: string | null }>();
+    for (const v of cruce.vigentes) if (v.reemplaza && !gana.has(llave(v))) gana.set(llave(v), { conteo: v.conteo, cuando: porId.get(v.conteo_id)?.enviado_en ?? null });
+    return cruce.reemplazados.map((r) => {
+      const g = gana.get(llave(r));
+      return { ...enriquecer({ ...r, reemplaza: null, antes: null }), reemplazo: g ? `Lo reemplazó ${sufijoRecorrido(g.conteo)}${g.cuando ? ` (${hora(g.cuando)})` : ""}` : "Reemplazado por un conteo más nuevo" };
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cruce, porId, yaPasados, uxc, diaTope]);
   const crudas = useMemo<Fila[]>(() => pestania === "base"
     ? cruce.vigentes.map(enriquecer)
+    : pestania === "reemplazados" ? reemplazadosFilas
     : abiertas.map((r) => enriquecer({ ...r, reemplaza: null, antes: null })),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [pestania, cruce, abiertas, porId, yaPasados, uxc, diaTope]);
+  [pestania, cruce, abiertas, porId, yaPasados, uxc, diaTope, reemplazadosFilas]);
 
   /* UN RECORRIDO ABIERTO SIN NI UN RENGLÓN NO ES UN BORRADOR: alguien tocó «Empezar a contar» y no ha anotado
      nada. No sale en el aviso, ni en los botones de personas, ni en el desplegable: no hay nada que mirar. */
   const conRenglones = useMemo(() => new Set(abiertas.map((r) => r.conteo_id)), [abiertas]);
-  const recorridosDe = pestania === "base" ? incluidos
+  const recorridosDe = pestania !== "borradores" ? incluidos
     : conteos.filter((c) => (c.estado === "en_proceso" || c.estado === "borrador") && conRenglones.has(c.id));
 
   /* EN ORDEN: las calles de una letra (A, B, C…) en su orden, y después las que tienen nombre
@@ -591,13 +604,13 @@ export function Base({
       const cols = [...COLUMNAS as Col<Fila>[], ...(pestania === "base" ? [ESTADO] : [])];
       const dia = pestania === "base" ? (desde === hasta ? desde : `${desde}_${hasta}`) : null;
       const sub = [
-        pestania === "base" ? `BD · ${rangoTexto(desde, hasta)}` : `Borradores · sin enviar · hoy ${diaDe(hoyColombia())}`,
+        pestania === "base" ? `BD · ${rangoTexto(desde, hasta)}` : pestania === "reemplazados" ? `Reemplazados · ${rangoTexto(desde, hasta)}` : `Borradores · sin enviar · hoy ${diaDe(hoyColombia())}`,
         `${nf.format(filas.length)} ${filas.length === 1 ? "renglón" : "renglones"}`,
         `${nf.format(cajas)} cajas`,
         filtrando ? "con filtros" : null,
       ].filter(Boolean).join("  ·  ");
       const blob = await armarVistaXlsx({
-        titulo: pestania === "base" ? "BD del conteo" : "Borradores del conteo", sub, hoja: pestania === "base" ? "Base" : "Borradores",
+        titulo: pestania === "base" ? "BD del conteo" : pestania === "reemplazados" ? "Renglones reemplazados" : "Borradores del conteo", sub, hoja: pestania === "base" ? "Base" : pestania === "reemplazados" ? "Reemplazados" : "Borradores",
         /* Se suman las cantidades (estibas, cajas, saldo, unidades); un factor o una capacidad no. */
         columnas: cols.map((c) => ({ t: c.t, num: !!c.num, suma: ["estibas", "saldo", "cajas", "total_cajas", "unidades"].includes(c.k) })), filas: filas.map((r) => cols.map((c) => c.texto(r))),
         tinta: hx(P.tinta), banda: hx(P.cinta[1]?.[1] ?? P.acento),
@@ -725,10 +738,17 @@ export function Base({
         </p>
       )}
 
+      {pestania === "reemplazados" && (
+        <p className="ba-dice ojo">
+          Renglones que <b>siguen guardados</b> pero la base <b>no los cuenta</b>: la misma persona volvió a contar esa ubicación y zona y vale su conteo más nuevo.
+          Están aquí <b>solo para mirar</b>: no suman en ningún total y desde aquí no se tocan.
+        </p>
+      )}
+
       {/* ================= PESTAÑAS, BÚSQUEDA Y FILTROS ================= */}
       <div className="ba-barra">
         <div className="ba-tabs" role="tablist">
-          {([["base", "BD", kp.renglones], ["borradores", "Borradores", abiertas.length]] as const).map(([k, t, n]) => (
+          {([["base", "BD", kp.renglones], ["reemplazados", "Reemplazados", cruce.reemplazados.length], ["borradores", "Borradores", abiertas.length]] as const).map(([k, t, n]) => (
             <button key={k} type="button" role="tab" aria-selected={pestania === k} className={pestania === k ? "on" : ""}
                     onClick={() => { setPestania(k); setFCol({}); setFRec(""); setFCalle(""); setFModulo(""); setFQuien(new Set()); setMarcados(new Set()) }}>
               {t}<i>{nf.format(n)}</i>
@@ -776,7 +796,7 @@ export function Base({
       {/* ================= QUIÉN CONTÓ: una persona, varias, o todas ================= */}
       {personas.length > 0 && (
         <div className="ba-quien" role="group" aria-label="Filtrar por quién contó">
-          <span className="ba-quien-t">{pestania === "base" ? "Envió" : "Está contando"}</span>
+          <span className="ba-quien-t">{pestania !== "borradores" ? "Envió" : "Está contando"}</span>
           <button type="button" aria-pressed={fQuien.size === 0} className={"ba-qn" + (fQuien.size === 0 ? " on" : "")}
                   onClick={() => setFQuien(new Set())}>
             Todas<i>{nf.format(todasN)}</i>
@@ -846,6 +866,7 @@ export function Base({
                 ? hayEnviados
                   ? "Con los recorridos marcados no hay ningún renglón."
                   : "Todavía no hay ningún recorrido enviado. Lo que se anota en Contar entra aquí cuando se envía."
+                : pestania === "reemplazados" ? "Nada quedó reemplazado: ninguna ubicación se volvió a contar por la misma persona."
                 : "Nadie tiene un recorrido abierto en este momento."
               : "Ningún renglón coincide con el filtro."}
           </p>
