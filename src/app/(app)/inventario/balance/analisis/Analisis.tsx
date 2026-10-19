@@ -132,13 +132,14 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
 
       {/* ---------- EL CONTEO SIN SEGREGAR: para compararlo con el tablero del libro de inventario ---------- */}
       {datos.contados?.totales && (() => {
-        const { bodega: b, fabrica: f, estibasAnalisis } = datos.contados.totales;
-        const dEst = estibasAnalisis - b.estibas;
+        const { bodega: b, fabrica: f, estibasAnalisis, plasticasAnalisis } = datos.contados.totales;
+        const dEst = estibasAnalisis - b.estibas, dPl = plasticasAnalisis - b.plasticas;
         return (
           <p className="ad-nota" title="Cajas = total de cajas contadas (producto, envase y cajas vacías). Estibas físicas = estibas completas + 1 por cada saldo. Cajas plásticas = todo lo que viaja en caja, sin barril ni madera. Es la misma cuenta del tablero del libro de inventario.">
             <b>Conteo sin segregar · Bodega 38 (lo que entra aquí):</b> {n(b.cajas)} cajas · {n(b.estibas)} estibas físicas · {n(b.plasticas)} cajas plásticas · {n(b.renglones)} renglones.
             {f.renglones > 0 && <> <b>Fábrica (no entra):</b> {n(f.cajas)} cajas · {n(f.estibas)} estibas · {n(f.plasticas)} plásticas. <b>Total del día:</b> {n(b.cajas + f.cajas)} cajas · {n(b.estibas + f.estibas)} estibas · {n(b.plasticas + f.plasticas)} plásticas.</>}
             {" "}La estiba 3500163 de este análisis cuenta <b>{n(estibasAnalisis)}</b>{Math.abs(dEst) < 0.5 ? " = las estibas físicas de Bodega." : <>: {signo(dEst)} frente a las estibas físicas de Bodega (las estibas contadas con su propio código entran por sus cajas).</>}
+            {" "}Las cajas plásticas de este análisis (E01) suman <b>{n(plasticasAnalisis)}</b>{Math.abs(dPl) < 0.5 ? " = las del conteo." : <>: {signo(dPl)} frente a las cajas plásticas del conteo de Bodega (lo que sobra o falta es producto sin envase retornable en el maestro, envase excluido o cajas sin factor).</>}
           </p>
         );
       })()}
@@ -207,6 +208,33 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
           {datos.noEntran.length > 0 && <> No entran: {datos.noEntran.join(", ")}.</>}</p>
         {informativas.length > 0 && <p className="ad-nota">Informativo (no suma): {informativas.map((x) => `${x.tipo} ${x.codigo} ${n(Number(x.unidades))}`).join(" · ")}.</p>}
       </section>
+
+      {/* ---------- EL PRODUCTO CONTADO (cajas y unidades): el conteo completo, sin segregar ---------- */}
+      {(datos.producto?.length ?? 0) > 0 && (() => {
+        const ps = datos.producto!;
+        const t = ps.reduce((x, p) => ({ cajas: x.cajas + p.cajas, unidades: x.unidades + p.unidades, estibas: x.estibas + p.estibas }), { cajas: 0, unidades: 0, estibas: 0 });
+        return (
+          <section className="ad-caja ad-hoja">
+            <div className="ad-hoja-cab"><h2>Producto contado · Bodega 38</h2></div>
+            <div className="ad-tabla-caja">
+              <table className="ad-t ad-piv">
+                <thead><tr><th>Código</th><th>Descripción</th><th className="n">Cajas</th><th className="n">Unidades</th><th className="n">Estibas</th><th>Caja plástica</th></tr></thead>
+                <tbody>
+                  {ps.map((p) => (
+                    <tr key={p.codigo}>
+                      <td className="mono">{p.codigo}</td><td>{p.descripcion}</td>
+                      <td className="n">{n(p.cajas)}</td><td className="n">{n(p.unidades)}</td><td className="n">{n(p.estibas)}</td>
+                      <td className="mono">{p.caja ?? "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot><tr><td colSpan={2}>Total producto</td><td className="n">{n(t.cajas)}</td><td className="n">{n(t.unidades)}</td><td className="n">{n(t.estibas)}</td><td /></tr></tfoot>
+              </table>
+            </div>
+            <p className="ad-nota">El producto no tiene lado SAP en este análisis, así que no entra a la tabla de diferencia; su caja plástica sí suma en E01 y su estiba en la 3500163. Unidades = cajas × unidades por caja del maestro.</p>
+          </section>
+        );
+      })()}
     </>
   );
 }

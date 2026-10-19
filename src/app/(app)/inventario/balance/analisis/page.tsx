@@ -35,7 +35,7 @@ const FUENTES: Fuente[] = [
   { renglon: "PEND BAJA PRESORTING", lado: "CONTEO", deDonde: "Pasivos AG22 · causal PRESORTING.", estado: "ok" },
   { renglon: "PEND BAJA ROTURA LÍNEA", lado: "CONTEO", deDonde: "Pasivos AG22 · causal ROTURA DE LINEA.", estado: "ok" },
   { renglon: "CON BAJA EXTRASUCIO", lado: "CONTEO", deDonde: "Pasivos AG22 · causal EXTRASUCIO.", estado: "ok" },
-  { renglon: "BALANCE · de AG22 a AG18", lado: "CONTEO", deDonde: "Cuadre SAP AG18 · paso 2 · lista «Pasar de AG22 a AG18», tal cual (cantidad en unidades; cajas plásticas en cajas).", estado: "ok",
+  { renglon: "BALANCE · de AG22 a AG18 · AG17 · AG16", lado: "CONTEO", deDonde: "Cuadre SAP de AG18, AG17 y AG16 · paso 2 · lista «Pasar de AG22 a …», tal cual (cantidad en unidades; cajas plásticas en cajas). Cada almacén sale como su propia partida.", estado: "ok",
     nota: "Verificado con el 14/10: 3500005 164.236 · 3500162 347.910 · 3501225 47.994 · 3500159 5.769… igual al Excel." },
   { renglon: "BAJA PENDIENTE POR DISPOSICIÓN", lado: "CONTEO", deDonde: "Plantilla de novedades (suma su caja plástica).", estado: "falta" },
   { renglon: "SINIESTRO", lado: "CONTEO", deDonde: "Plantilla de novedades (suma su caja plástica).", estado: "falta" },
@@ -43,7 +43,8 @@ const FUENTES: Fuente[] = [
   { renglon: "CONTEO TW", lado: "CONTEO", deDonde: "Plantilla de novedades: informativo, no entra en la diferencia.", estado: "falta" },
   { renglon: "ZEXI de las 6 a. m.", lado: "SAP", deDonde: "Plantilla de novedades, tipo ZEXI 6 AM: la ZEXI de Bodega 38 descargada a las 6, ANTES de balancear (Total General por código, en unidades; el cilindro de AG01 también).", estado: "falta",
     nota: "Si se descarga después de balancear, ya no sirve." },
-  { renglon: "BALANCE · de AG18 a AG22", lado: "SAP", deDonde: "Cuadre SAP AG18 · paso 2 · lista «Pasar de AG18 a AG22», tal cual.", estado: "ok" },
+  { renglon: "BALANCE · de AG18 · AG17 · AG16 a AG22", lado: "SAP", deDonde: "Cuadre SAP de AG18, AG17 y AG16 · paso 2 · lista «Pasar de … a AG22», tal cual. El Cuadre de AG22 no se suma: es el otro lado del 311 y sus pasivos ya entran arriba.", estado: "ok",
+    nota: "Si la ZEXI de las 6 a. m. no está en la plantilla, el lado SAP solo trae este Balance." },
   { renglon: "PEND NOVEDADES CD", lado: "SAP", deDonde: "Plantilla de novedades: una fila por entrega pendiente, con su N° de entrega (o SOCIO); suma su caja plástica.", estado: "falta" },
 ];
 const ETQ = { ok: "Ya está en la app", falta: "Falta: plantilla", parcial: "Falta importar" } as const;

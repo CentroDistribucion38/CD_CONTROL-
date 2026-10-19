@@ -16,9 +16,9 @@ import { CAJA_EN_DEPA, lineaDeDepa } from "./depa";
  * Por código, en unidades (cajas plásticas y estibas por unidad), dos lados:
  *   CONTEO = conteo del día (ubicaciones de Bodega, no FABRICA_; la caja plástica en la que va el producto
  *            también cuenta como caja) + DEPA (corte inicial del día)
- *          + Pasivos AG22 (PRESORTING, ROTURA DE LINEA, EXTRASUCIO) + BALANCE «de AG22 a AG18»
+ *          + Pasivos AG22 (PRESORTING, ROTURA DE LINEA, EXTRASUCIO) + BALANCE «de AG22 a AG18, AG17 y AG16»
  *          + novedades de la plantilla que suman al conteo.
- *   SAP    = ZEXI 6 AM (plantilla) + BALANCE «de AG18 a AG22» + novedades que suman a SAP.
+ *   SAP    = ZEXI 6 AM (plantilla) + BALANCE «de AG18, AG17 y AG16 a AG22» + novedades que suman a SAP.
  *   DIFERENCIA = CONTEO − SAP.
  * Cada lado guarda de qué partida sale cada número, para abrir el detalle.
  */
@@ -34,13 +34,17 @@ export type Novedad = {
 };
 /** Lo contado ese día, sin segregar (producto, envase, cajas vacías…), para compararlo con el tablero del libro de inventario. */
 export type TotConteo = { renglones: number; cajas: number; estibas: number; plasticas: number };
+/** El producto contado en Bodega (en cajas y en unidades), para que el conteo del análisis traiga TODO y no solo el envase. */
+export type FilaProducto = { codigo: string; descripcion: string; cajas: number; unidades: number; estibas: number; caja: string | null };
 export type Fuente = { nombre: string; ok: boolean; detalle: string };
 export type Analisis = {
   fecha: string; filas: FilaAnalisis[]; fuentes: Fuente[]; avisos: string[];
   novedades: Novedad[]; noEntran: string[]; faltaSql: boolean;
   carga: { archivo: string | null; filas: number; subido_en: string | null } | null;
   /** SKUs distintos contados en Bodega ese día (sin FÁBRICA), para tener la visual del conteo. */
-  contados?: { skus: number; producto: number; envase: number; otros: number; renglones: number; totales?: { bodega: TotConteo; fabrica: TotConteo; estibasAnalisis: number } };
+  contados?: { skus: number; producto: number; envase: number; otros: number; renglones: number; totales?: { bodega: TotConteo; fabrica: TotConteo; estibasAnalisis: number; plasticasAnalisis: number } };
+  /** Todo el producto contado en Bodega (sin FÁBRICA): cajas, unidades y estibas por SKU. No entra a la tabla de diferencia (no tiene lado SAP). */
+  producto?: FilaProducto[];
   /** La ZEXI de AG18 del Cuadre SAP de ese día, con lo que hay en cada estado (para tenerlo a la vista). */
   existencias?: Existencias | null;
   /** EN LÍNEA: por código de envase o de caja plástica, los SKU que el plan de envase pone a correr ese día.
@@ -111,6 +115,7 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   let renglonesBodega = 0;
   /* La caja plástica que lleva el producto: cuántas cajas y de cuántos productos salieron. */
   let cajasProducto = 0; const prodConCaja = new Set<string>(), prodSinEnvase = new Set<string>();
+  const prodAcc = new Map<string, FilaProducto>();
   const totB: TotConteo = { renglones: 0, cajas: 0, estibas: 0, plasticas: 0 }, totF: TotConteo = { renglones: 0, cajas: 0, estibas: 0, plasticas: 0 };
   for (const r of await conReclasificaciones(cons.vigentes)) {
     const esFab = esUbicacionFabrica(r.calle) || esUbicacionFabrica(r.ubicacion) || esUbicacionFabrica(r.ubicacion_combinada);
@@ -135,12 +140,17 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     if (g === "ESTIBA") { suma("conteo", c, "CONTEO · estibas contadas", cajas); renglones++; continue }
     if (r.tipo_material === "PRODUCTO") {
       suma("conteo", ESTIBA, "CONTEO · bajo producto", est);
+      {
+        const x = prodAcc.get(c) ?? { codigo: c, descripcion: nombre(c), cajas: 0, unidades: 0, estibas: 0, caja: null as string | null };
+        x.cajas += cajas; x.unidades += cajas * upc(c); x.estibas += est; prodAcc.set(c, x);
+      }
       /* LA CAJA DEL PRODUCTO: cada caja de producto retornable va en una caja plástica, y esa caja se cuenta.
          El producto → su envase (maestro de productos) → la caja de ese envase (maestro de Pasivos). Si el envase
          está excluido (NR, foráneo…) o no tiene caja (lata, PET, NR), no aporta caja. */
       const env = P.get(c)?.envase_sku ? String(P.get(c)!.envase_sku) : null;
       if (!env) prodSinEnvase.add(c);
       const cajaP = env && !excluye(regla, env, nombre(env)) ? M.get(env)?.caja : null;
+      if (cajaP) { const x = prodAcc.get(c); if (x) x.caja = String(cajaP) }
       if (cajaP && cajas) { suma("conteo", String(cajaP), `CONTEO · en producto ${c} ${nombre(c)}`, cajas); cajasProducto += cajas; prodConCaja.add(c) }
       continue;
     }
@@ -209,7 +219,8 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   }
   fuentes.push({ nombre: "Pasivos AG22", ok: nPas > 0, detalle: nPas ? `${nPas} filas (presorting, rotura de línea, extrasucio)` : "Sin base de Pasivos ese día" });
 
-  /* 4. BALANCE: el paso 2 del Cuadre SAP AG18 — «de AG22 a AG18» al conteo, «de AG18 a AG22» a SAP. */
+  /* 4. BALANCE: el paso 2 del Cuadre SAP de CADA almacén contra AG22 (AG18, AG17, AG16) — «de AG22 a AG18/17/16» al conteo,
+        «de AG18/17/16 a AG22» a SAP. El de AG22 no entra aquí: es el otro lado del 311 y sus pasivos ya suman en el paso 3 (sumarlo duplicaría). */
   const cu = await armarCuadre(fecha, "AG18");
   const zx = cu.fecha === fecha ? cu.guardado?.zexi ?? null : null;
   const existencias: Existencias | null = zx?.length ? {
@@ -219,15 +230,22 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
       libre: z.libre ?? null, calidad: z.calidad ?? null, bloqueado: z.bloqueado ?? null, total: Number(z.cantidad) || 0 }))
       .sort((a, b) => a.codigo.localeCompare(b.codigo)),
   } : null;
-  if (cu.fecha === fecha && cu.guardado?.zexi?.length) {
+  const detBal: string[] = []; const sinZexiBal: string[] = [];
+  for (const alm of ["AG18", "AG17", "AG16"] as const) {
+    const c = alm === "AG18" ? cu : await armarCuadre(fecha, alm);
+    if (c.fecha !== fecha || !c.guardado?.zexi?.length) { sinZexiBal.push(alm); continue }
     let n = 0;
-    for (const f of cu.filas) {
+    for (const f of c.filas) {
+      /* El producto (AG17 y AG16 lo traen en cajas) no tiene lado SAP en este análisis: no se mezcla con las unidades del envase. */
+      if (f.grupo === "PRODUCTO") continue;
       if (f.dif == null || Math.abs(f.dif) < 0.005) continue;
-      if (f.dif < 0) suma("conteo", f.codigo, "BALANCE", Math.abs(f.dif)); else suma("sap", f.codigo, "BALANCE", f.dif);
+      if (f.dif < 0) suma("conteo", f.codigo, `BALANCE · ${alm}`, Math.abs(f.dif)); else suma("sap", f.codigo, `BALANCE · ${alm}`, f.dif);
       n++;
     }
-    fuentes.push({ nombre: "Balance (Cuadre SAP)", ok: true, detalle: `${n} materiales del paso 2` });
-  } else fuentes.push({ nombre: "Balance (Cuadre SAP)", ok: false, detalle: "El Cuadre SAP AG18 de ese día no tiene ZEXI" });
+    detBal.push(`${alm} ${n}`);
+  }
+  fuentes.push({ nombre: "Balance (Cuadre SAP)", ok: detBal.length > 0,
+    detalle: detBal.length ? `materiales del paso 2 por almacén: ${detBal.join(" · ")}${sinZexiBal.length ? ` · sin ZEXI ese día: ${sinZexiBal.join(", ")}` : ""}` : "Ningún Cuadre SAP (AG18, AG17, AG16) de ese día tiene ZEXI" });
 
   /* 5. LA PLANTILLA: novedades (y la ZEXI de las 6). */
   const novedades = ((novR.data ?? []) as Novedad[]);
@@ -260,6 +278,7 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
       else { f.ok = true; f.detalle = `En la plantilla (no hay corte inicial): ${ls}` }
     }
   }
+  if (!hayZexi && [...acc.values()].some((a) => a.sap.size)) avisos.push("El lado SAP solo trae el Balance de los Cuadres SAP (AG18, AG17, AG16): falta subir la ZEXI de las 6 a. m. en la plantilla, por eso SAP sale incompleto.");
   const carga = novedades.length ? { archivo: novedades[0].archivo, filas: novedades.length, subido_en: novedades[0].subido_en ?? null } : null;
   fuentes.push({ nombre: "Plantilla", ok: novedades.length > 0, detalle: novedades.length ? `${novedades.length} filas · ${novedades[0].archivo ?? ""}` : "Falta subir la plantilla del día" });
   fuentes.push({ nombre: "ZEXI 6 AM", ok: hayZexi, detalle: hayZexi ? "En la plantilla" : "La plantilla no trae la ZEXI de las 6" });
@@ -297,7 +316,10 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   }
   filas.sort((x, y) => x.orden - y.orden || x.codigo.localeCompare(y.codigo, "es", { numeric: true }));
   const estibasAnalisis = Math.round([...(acc.get(ESTIBA)?.conteo.values() ?? [])].reduce((t, v) => t + v, 0));
-  const contados = { skus: new Set([...skuP, ...skuE, ...skuO]).size, producto: skuP.size, envase: skuE.size, otros: skuO.size, renglones: renglonesBodega, totales: { bodega: totB, fabrica: totF, estibasAnalisis } };
+  const plasticasAnalisis = Math.round([...acc].reduce((t, [c, a]) => t + (grupo(c) === "CAJA" ? [...a.conteo.values()].reduce((x, v) => x + v, 0) : 0), 0));
+  const contados = { skus: new Set([...skuP, ...skuE, ...skuO]).size, producto: skuP.size, envase: skuE.size, otros: skuO.size, renglones: renglonesBodega, totales: { bodega: totB, fabrica: totF, estibasAnalisis, plasticasAnalisis } };
+  const producto = [...prodAcc.values()].map((x) => ({ ...x, cajas: Math.round(x.cajas), unidades: Math.round(x.unidades), estibas: Math.round(x.estibas) }))
+    .sort((a, b) => b.cajas - a.cajas || a.codigo.localeCompare(b.codigo, "es", { numeric: true }));
 
   /* 7. EN LÍNEA: el SKU del plan → su envase (maestro de productos) → la caja plástica de ese envase. */
   const enLinea: Record<string, EnLinea[]> = {};
@@ -321,5 +343,5 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   /* Solo informa: el plan no mueve ningún número del análisis, así que si no hay plan ese día no se muestra nada. */
   if (sku.size) fuentes.push({ nombre: "Plan de envase", ok: true, detalle: `${sku.size} SKU en línea ese día · ${new Set([...sku.values()].map((x) => x.tren)).size} trenes${sinEnvase.length ? ` · sin envase en el maestro: ${sinEnvase.join(", ")}` : ""}` });
 
-  return { fecha, filas, fuentes, avisos, novedades, noEntran: noEntran.sort(), faltaSql, carga, contados, existencias, enLinea };
+  return { fecha, filas, fuentes, avisos, novedades, noEntran: noEntran.sort(), faltaSql, carga, contados, producto, existencias, enLinea };
 }
