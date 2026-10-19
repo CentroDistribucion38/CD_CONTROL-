@@ -14,12 +14,13 @@ import { CAJA_EN_DEPA, lineaDeDepa } from "./depa";
  * EL ANÁLISIS DE DIFERENCIA DE BODEGA 38 — la hoja CONTEOS + la tabla dinámica de 2026.10.14_BODEGA_38.xlsx.
  *
  * Por código, en unidades (cajas plásticas y estibas por unidad), dos lados:
- *   CONTEO = TODO el conteo del día (Bodega 38, Fábrica, AG17 y AG16; la caja plástica en la que va el producto
+ *   CONTEO = conteo del día en Bodega 38 (AG22; la caja plástica en la que va el producto
  *            también cuenta como caja) + DEPA (corte inicial del día)
  *          + Pasivos AG22 (PRESORTING, ROTURA DE LINEA, EXTRASUCIO)
  *          + novedades de la plantilla que suman al conteo.
- *   SAP    = ZEXI 6 AM (plantilla, AG22) + ZEXI de AG18, AG17 y AG16 (sus Cuadres SAP) + novedades que suman a SAP.
- *            Los 311 entre almacenes se cancelan solos al contar y comparar los cuatro: no hay BALANCE aparte.
+ *          + BALANCE (lo que se movió por 311 contra AG22 en los Cuadres SAP de AG18, AG17 y AG16, hacia AG22) y DESCUADRE (lo que
+ *            quedó sin cuadrar en cada uno: se refleja aparte para que nada quede por fuera).
+ *   SAP    = ZEXI 6 AM (plantilla, AG22) + el BALANCE y el DESCUADRE que van del lado SAP + novedades que suman a SAP.
  *   DIFERENCIA = CONTEO − SAP.
  * Cada lado guarda de qué partida sale cada número, para abrir el detalle.
  */
@@ -30,7 +31,7 @@ export type FilaAnalisis = {
   deSap: Partida[]; deConteo: Partida[];
   /** Lo que QUEDÓ sin cuadrar en AG18, AG17 o AG16 después de los 311 (SAP después − conteo; + SAP de más, − SAP de menos). Se ve aunque la diferencia total salga en cero. */
   descuadres?: { alm: string; queda: number }[];
-  /** La ZEXI de AG18, AG17 y AG16 que todavía NO está sumada a SAP porque la plantilla no trae la ZEXI de las 6: se ve, pero no suma. */
+  /** El BALANCE y el DESCUADRE del lado SAP que todavía NO están sumados porque la plantilla no trae la ZEXI de las 6: se ven, pero no suman. */
   pendSap?: Partida[];
   /** Códigos excluidos o sin factor: se muestran para que el conteo salga COMPLETO, pero no generan ajustes. */
   soloConteo?: boolean;
@@ -111,9 +112,8 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   };
   const fuentes: Fuente[] = [];
 
-  /* 1. EL CONTEO DEL DÍA — TODO, SIN DEJAR NADA POR FUERA: Bodega 38, Fábrica (FABRICA_…), AG17 (EXPORTACION) y AG16 (BTS).
-        Envase en unidades; su caja plástica y la estiba de debajo por unidad. Lo de Fábrica y AG17/AG16 entra con su origen en el
-        nombre de la partida («FÁBRICA · bajo envase», «AG17 · …») para ver de dónde sale cada número. */
+  /* 1. EL CONTEO DEL DÍA EN BODEGA 38 (AG22): envase en unidades; su caja plástica y la estiba de debajo por unidad.
+        Se leen también Fábrica, AG17 y AG16, pero solo para el total sin segregar (el del tablero): no suman al análisis. */
   type Donde = "BODEGA" | "FÁBRICA" | "AG17" | "AG16";
   type Reng = Awaited<ReturnType<typeof consolidadoDelDia>>["vigentes"][number];
   const [cons, c17, c16] = await Promise.all([
@@ -141,6 +141,9 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
       t.renglones++; t.cajas += cj; t.estibas += (Number(r.estibas) || 0) + ((Number(r.cajas) || 0) + (Number(r.saldo) || 0) > 0 ? 1 : 0);
       if (!(r.tipo_material === "ENVASE" && !/CAJA\s*PL/i.test(m) && /BARRIL|ESTIBA/i.test(m))) t.plasticas += cj;
     }
+    /* EL ANÁLISIS ES DE AG22 (Bodega 38): Fábrica, AG17 y AG16 se balancean en sus propios Cuadres SAP y llegan aquí por el BALANCE
+       y por lo que quedó sin cuadrar en cada uno (DESCUADRE). Su conteo solo sirve para el total de referencia del tablero. */
+    if (donde !== "BODEGA") continue;
     /* La visual: cuántos SKUs distintos se contaron (producto, envase y lo demás). */
     renglonesTodos++;
     (r.tipo_material === "PRODUCTO" ? skuP : r.tipo_material === "ENVASE" ? skuE : skuO).add(String(r.codigo));
@@ -171,13 +174,14 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     }
     /* Envase (también barril y cilindro): sus unidades y la estiba de debajo, siempre. */
     /* El envase contado en estado NUEVO va en su propia partida: es lo que se puede compensar con su NR nuevo. */
-    suma("conteo", c, /NUEVO/.test(norm(r.estado_envase)) ? NUEVO_PARTIDA : pre("CONTEO"), cajas * upc(c));
+    suma("conteo", c, /NUEVO/.test(norm(r.estado_envase)) ? NUEVO_PARTIDA
+      : donde === "BODEGA" ? "CONTEO" : `${donde} · ${String(r.ubicacion || r.calle || "conteo")}`, cajas * upc(c));
     suma("conteo", ESTIBA, pre(bajoQue(c)), est);
     /* Un envase excluido (foráneo, nuevo…) no aporta caja plástica: no viene en las nuestras. */
     if (excluye(regla, c, nombre(c))) continue;
     const caja = M.get(c)?.caja; if (caja) suma("conteo", String(caja), pre(`CONTEO · en ${c} ${nombre(c)}`), cajas);
   }
-  fuentes.push({ nombre: "Conteo", ok: renglones > 0, detalle: renglones ? `${renglones} renglones de envase, cajas y estibas · todos los renglones: Bodega ${totD.BODEGA.renglones} · Fábrica ${totD["FÁBRICA"].renglones} · AG17 ${totD.AG17.renglones} · AG16 ${totD.AG16.renglones}` : "No hay conteo enviado ese día" });
+  fuentes.push({ nombre: "Conteo", ok: renglones > 0, detalle: renglones ? `${renglones} renglones de Bodega 38 (el tablero cuenta además Fábrica ${totD["FÁBRICA"].renglones} · AG17 ${totD.AG17.renglones} · AG16 ${totD.AG16.renglones})` : "No hay conteo enviado ese día" });
   /* Un producto sin envase en el maestro no aporta caja: se nombra para que se complete el maestro si es retornable. */
   if (prodConCaja.size || prodSinEnvase.size) fuentes.push({ nombre: "Caja del producto", ok: prodConCaja.size > 0,
     detalle: `${Math.round(cajasProducto).toLocaleString("es-CO")} cajas plásticas en ${prodConCaja.size} productos contados`
@@ -227,9 +231,10 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   }
   fuentes.push({ nombre: "Pasivos AG22", ok: nPas > 0, detalle: nPas ? `${nPas} filas (presorting, rotura de línea, extrasucio)` : "Sin base de Pasivos ese día" });
 
-  /* 4. EL SAP DE LOS OTROS ALMACENES: la ZEXI de AG18, AG17 y AG16 que se cargó en su Cuadre SAP. Como el conteo ya trae TODO
-        (Bodega, Fábrica, AG17 y AG16), los 311 entre almacenes se cancelan solos: no hay BALANCE aparte y nada queda por fuera.
-        El producto no se toma (solo envase, cajas plásticas y estibas). Se suma a SAP junto con la ZEXI de las 6 de la plantilla. */
+  /* 4. LOS OTROS ALMACENES: el Cuadre SAP de AG18 (Fábrica), AG17 (EXPORTACION) y AG16 (BTS), cada uno balanceado contra su conteo.
+        Lo que se movió por 311 contra AG22 entra como BALANCE («de AG22 a …» suma al CONTEO, «de … a AG22» a SAP). Lo que QUEDÓ sin
+        cuadrar en ese almacén (no se puede pasar a AG22: el material está físicamente allá) entra como DESCUADRE, aparte y con el
+        nombre del almacén, para que nada quede por fuera. Planeado = ejecutado + descuadre, así que el total es el mismo del Cuadre. */
   const cu = await armarCuadre(fecha, "AG18");
   const zx = cu.fecha === fecha ? cu.guardado?.zexi ?? null : null;
   const existencias: Existencias | null = zx?.length ? {
@@ -239,29 +244,35 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
       libre: z.libre ?? null, calidad: z.calidad ?? null, bloqueado: z.bloqueado ?? null, total: Number(z.cantidad) || 0 }))
       .sort((a, b) => a.codigo.localeCompare(b.codigo)),
   } : null;
-  const detZ: string[] = []; const sinZexiAlm: string[] = [];
-  /* La ZEXI de los otros almacenes se suma a SAP solo cuando la plantilla trae la de las 6 (si no, SAP queda en 0). */
+  const detBal: string[] = []; const sinZexiAlm: string[] = [];
+  /* El lado SAP del BALANCE y del DESCUADRE se suma a la ZEXI de las 6: si la plantilla no la trae, SAP queda en 0 y esto se ve aparte. */
   const zexiOtros: { codigo: string; partida: string; cant: number }[] = [];
   /* Lo que cada Cuadre SAP dejó sin cuadrar (después de los 311): si un almacén queda con diferencia, el código lo muestra. */
   const descuadresAlm = new Map<string, { alm: string; queda: number }[]>();
+  /* Una cantidad con la regla de siempre: positiva = «de AG22 a ese almacén» (suma al CONTEO); negativa = «de ese almacén a AG22» (suma a SAP). */
+  const aplicar = (codigo: string, partida: string, t: number) => {
+    if (Math.abs(t) < 0.005) return;
+    if (t > 0) suma("conteo", codigo, partida, t); else zexiOtros.push({ codigo, partida, cant: -t });
+  };
   for (const alm of ["AG18", "AG17", "AG16"] as const) {
     const c = alm === "AG18" ? cu : await armarCuadre(fecha, alm);
     if (c.fecha !== fecha || !c.guardado?.zexi?.length) { sinZexiAlm.push(alm); continue }
-    let n = 0;
+    let nb = 0, nd = 0;
     for (const f of c.filas) {
-      if (f.grupo === "PRODUCTO" || f.queda == null || Math.abs(f.queda) < 0.5) continue;
-      const l = descuadresAlm.get(String(f.codigo)) ?? []; l.push({ alm, queda: Math.round(f.queda) }); descuadresAlm.set(String(f.codigo), l);
-      if (!acc.has(String(f.codigo))) acc.set(String(f.codigo), { sap: new Map(), conteo: new Map() });
+      /* El producto no se toma (AG17 y AG16 lo traen en cajas): solo envase, cajas plásticas y estibas. */
+      if (f.grupo === "PRODUCTO" || f.dif == null) continue;
+      const cod = String(f.codigo);
+      if (Math.abs(f.movido) >= 0.005) { aplicar(cod, `BALANCE · ${alm}`, f.movido); nb++ }
+      if (f.queda != null && Math.abs(f.queda) >= 0.5) {
+        aplicar(cod, `DESCUADRE · ${alm}`, -f.queda); nd++;
+        const l = descuadresAlm.get(cod) ?? []; l.push({ alm, queda: Math.round(f.queda) }); descuadresAlm.set(cod, l);
+        if (!acc.has(cod)) acc.set(cod, { sap: new Map(), conteo: new Map() });
+      }
     }
-    for (const z of c.guardado.zexi) {
-      const cod = String(z.codigo), q = Number(z.cantidad) || 0;
-      if (!q || (cod !== ESTIBA && !M.has(cod))) continue;
-      zexiOtros.push({ codigo: cod, partida: `ZEXI ${alm}`, cant: q }); n++;
-    }
-    detZ.push(`${alm} ${n}`);
+    detBal.push(`${alm}: ${nb} movidos · ${nd} sin cuadrar`);
   }
-  fuentes.push({ nombre: "ZEXI de AG18, AG17 y AG16 (Cuadre SAP)", ok: detZ.length > 0,
-    detalle: detZ.length ? `materiales por almacén: ${detZ.join(" · ")}${sinZexiAlm.length ? ` · sin ZEXI ese día: ${sinZexiAlm.join(", ")}` : ""}` : "Ningún Cuadre SAP (AG18, AG17, AG16) de ese día tiene ZEXI" });
+  fuentes.push({ nombre: "Balance y descuadre (Cuadre SAP)", ok: detBal.length > 0,
+    detalle: detBal.length ? `${detBal.join(" · ")}${sinZexiAlm.length ? ` · sin ZEXI ese día: ${sinZexiAlm.join(", ")}` : ""}` : "Ningún Cuadre SAP (AG18, AG17, AG16) de ese día tiene ZEXI" });
 
   /* 5. LA PLANTILLA: novedades (y la ZEXI de las 6). */
   const novedades = ((novR.data ?? []) as Novedad[]);
@@ -294,8 +305,8 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
       else { f.ok = true; f.detalle = `En la plantilla (no hay corte inicial): ${ls}` }
     }
   }
-  /* Con la ZEXI de las 6 en la plantilla, las ZEXI de AG18, AG17 y AG16 se suman a SAP. Sin ella SAP queda en 0 y esas ZEXI se ven
-     en el detalle de cada código (no se pierde ninguna). */
+  /* Con la ZEXI de las 6 en la plantilla, el BALANCE y el DESCUADRE del lado SAP se suman a SAP. Sin ella SAP queda en 0 y se ven
+     en el detalle de cada código (no se pierde ninguno). */
   const pendSap = new Map<string, Partida[]>();
   for (const b of zexiOtros) {
     if (hayZexi) { suma("sap", b.codigo, b.partida, b.cant); continue }
@@ -304,7 +315,7 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     if (e) e.cantidad += Math.round(b.cant); else l.push({ nombre: b.partida, cantidad: Math.round(b.cant) });
     pendSap.set(b.codigo, l);
   }
-  if (pendSap.size) avisos.push(`SAP está en 0 porque la plantilla no trae la ZEXI de las 6 a. m. Las ZEXI de AG18, AG17 y AG16 (${pendSap.size} materiales) se ven en el detalle de cada código y se suman a SAP cuando subas la de las 6.`);
+  if (pendSap.size) avisos.push(`SAP está en 0 porque la plantilla no trae la ZEXI de las 6 a. m. El BALANCE y el DESCUADRE de los Cuadres SAP de AG18, AG17 y AG16 que van del lado SAP (${pendSap.size} materiales) se ven en el detalle de cada código y se suman cuando subas la de las 6.`);
   const carga = novedades.length ? { archivo: novedades[0].archivo, filas: novedades.length, subido_en: novedades[0].subido_en ?? null } : null;
   fuentes.push({ nombre: "Plantilla", ok: novedades.length > 0, detalle: novedades.length ? `${novedades.length} filas · ${novedades[0].archivo ?? ""}` : "Falta subir la plantilla del día" });
   fuentes.push({ nombre: "ZEXI 6 AM", ok: hayZexi, detalle: hayZexi ? "En la plantilla" : "La plantilla no trae la ZEXI de las 6" });

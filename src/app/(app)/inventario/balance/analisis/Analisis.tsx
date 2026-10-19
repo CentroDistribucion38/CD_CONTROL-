@@ -136,13 +136,15 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
         const { donde, estibasAnalisis, plasticasAnalisis } = datos.contados.totales;
         const xs = Object.entries(donde).filter(([, t]) => t.renglones > 0);
         const T = xs.reduce((a, [, t]) => ({ cajas: a.cajas + t.cajas, estibas: a.estibas + t.estibas, plasticas: a.plasticas + t.plasticas, renglones: a.renglones + t.renglones }), { cajas: 0, estibas: 0, plasticas: 0, renglones: 0 });
-        const dEst = estibasAnalisis - T.estibas, dPl = plasticasAnalisis - T.plasticas;
+        const b = donde["BODEGA"] ?? { renglones: 0, cajas: 0, estibas: 0, plasticas: 0 };
+        const dEst = estibasAnalisis - b.estibas, dPl = plasticasAnalisis - b.plasticas;
         return (
           <p className="ad-nota" title="Cajas = total de cajas contadas (producto, envase y cajas vacías). Estibas físicas = estibas completas + 1 por cada saldo. Cajas plásticas = todo lo que viaja en caja, sin barril ni madera. Es la misma cuenta del tablero del libro de inventario.">
-            <b>Conteo sin segregar (el tablero):</b> {n(T.cajas)} cajas · {n(T.estibas)} estibas físicas · {n(T.plasticas)} cajas plásticas · {n(T.renglones)} renglones
+            <b>Conteo sin segregar (el tablero, todos los almacenes):</b> {n(T.cajas)} cajas · {n(T.estibas)} estibas físicas · {n(T.plasticas)} cajas plásticas
             {" "}({xs.map(([k, t]) => `${k === "BODEGA" ? "Bodega 38" : k} ${n(t.estibas)} estibas`).join(" · ")}).
-            {" "}En este análisis: estiba 3500163 <b>{n(estibasAnalisis)}</b>{Math.abs(dEst) < 0.5 ? " = las estibas físicas del tablero." : <>: {signo(dEst)} frente al tablero (las estibas contadas con su propio código entran por sus cajas).</>}
-            {" "}Cajas plásticas (E01) <b>{n(plasticasAnalisis)}</b>{Math.abs(dPl) < 0.5 ? " = las del tablero." : <>: {signo(dPl)} frente al tablero (producto sin envase retornable en el maestro, envase excluido o cajas sin factor).</>}
+            {" "}<b>Este análisis es de AG22 (Bodega 38):</b> Fábrica, AG17 y AG16 se balancean en sus Cuadres SAP y llegan aquí como BALANCE (lo movido) y DESCUADRE (lo que quedó sin cuadrar).
+            {" "}Estiba 3500163 <b>{n(estibasAnalisis)}</b>{Math.abs(dEst) < 0.5 ? " = las estibas físicas de Bodega 38." : <>: {signo(dEst)} frente a las estibas físicas de Bodega 38 (las estibas contadas con su propio código entran por sus cajas).</>}
+            {" "}Cajas plásticas (E01) <b>{n(plasticasAnalisis)}</b>{Math.abs(dPl) < 0.5 ? " = las de Bodega 38." : <>: {signo(dPl)} frente a las de Bodega 38 (producto sin envase retornable en el maestro, envase excluido, cajas sin factor, o lo que entra por pasivos y balance).</>}
           </p>
         );
       })()}
@@ -192,7 +194,7 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
                                 <div className="ad-det-dos">
                                   <div><b>SAP · {n(f.sap)}</b><ul>{f.deSap.map((p) => <li key={p.nombre}><span>{p.nombre}</span><em>{n(p.cantidad)}</em></li>)}{!f.deSap.length && !f.pendSap?.length && <li><span>— (no está en la ZEXI ni en el balance)</span></li>}</ul>
                                     {f.pendSap && f.pendSap.length > 0 && (
-                                      <><b title="Falta la ZEXI de las 6 a. m. en la plantilla: cuando la subas, esto se suma a SAP.">ZEXI de AG18, AG17 y AG16 (aún no suma) · {n(f.pendSap.reduce((t, p) => t + p.cantidad, 0))}</b>
+                                      <><b title="Falta la ZEXI de las 6 a. m. en la plantilla: cuando la subas, esto se suma a SAP.">BALANCE y DESCUADRE de otros almacenes (aún no suma) · {n(f.pendSap.reduce((t, p) => t + p.cantidad, 0))}</b>
                                       <ul>{f.pendSap.map((p) => <li key={p.nombre}><span>{p.nombre}</span><em>{n(p.cantidad)}</em></li>)}</ul></>
                                     )}
                                   </div>
