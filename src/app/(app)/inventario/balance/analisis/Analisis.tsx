@@ -30,7 +30,7 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
 
   const familias = useMemo(() => {
     const m = new Map<string, FilaAnalisis[]>();
-    for (const f of filas) if (!soloDif || f.diferencia !== 0) (m.get(f.familia) ?? m.set(f.familia, []).get(f.familia)!).push(f);
+    for (const f of filas) if (!soloDif || f.diferencia !== 0 || f.descuadres?.length) (m.get(f.familia) ?? m.set(f.familia, []).get(f.familia)!).push(f);
     return [...m];
   }, [filas, soloDif]);
   const tot = filas.reduce((t, f) => ({ sap: t.sap + f.sap, conteo: t.conteo + f.conteo }), { sap: 0, conteo: 0 });
@@ -132,14 +132,16 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
 
       {/* ---------- EL CONTEO SIN SEGREGAR: para compararlo con el tablero del libro de inventario ---------- */}
       {datos.contados?.totales && (() => {
-        const { bodega: b, fabrica: f, estibasAnalisis, plasticasAnalisis } = datos.contados.totales;
-        const dEst = estibasAnalisis - b.estibas, dPl = plasticasAnalisis - b.plasticas;
+        const { donde, estibasAnalisis, plasticasAnalisis } = datos.contados.totales;
+        const xs = Object.entries(donde).filter(([, t]) => t.renglones > 0);
+        const T = xs.reduce((a, [, t]) => ({ cajas: a.cajas + t.cajas, estibas: a.estibas + t.estibas, plasticas: a.plasticas + t.plasticas, renglones: a.renglones + t.renglones }), { cajas: 0, estibas: 0, plasticas: 0, renglones: 0 });
+        const dEst = estibasAnalisis - T.estibas, dPl = plasticasAnalisis - T.plasticas;
         return (
           <p className="ad-nota" title="Cajas = total de cajas contadas (producto, envase y cajas vacías). Estibas físicas = estibas completas + 1 por cada saldo. Cajas plásticas = todo lo que viaja en caja, sin barril ni madera. Es la misma cuenta del tablero del libro de inventario.">
-            <b>Conteo sin segregar · Bodega 38 (lo que entra aquí):</b> {n(b.cajas)} cajas · {n(b.estibas)} estibas físicas · {n(b.plasticas)} cajas plásticas · {n(b.renglones)} renglones.
-            {f.renglones > 0 && <> <b>Fábrica (no entra):</b> {n(f.cajas)} cajas · {n(f.estibas)} estibas · {n(f.plasticas)} plásticas. <b>Total del día:</b> {n(b.cajas + f.cajas)} cajas · {n(b.estibas + f.estibas)} estibas · {n(b.plasticas + f.plasticas)} plásticas.</>}
-            {" "}La estiba 3500163 de este análisis cuenta <b>{n(estibasAnalisis)}</b>{Math.abs(dEst) < 0.5 ? " = las estibas físicas de Bodega." : <>: {signo(dEst)} frente a las estibas físicas de Bodega (las estibas contadas con su propio código entran por sus cajas).</>}
-            {" "}Las cajas plásticas de este análisis (E01) suman <b>{n(plasticasAnalisis)}</b>{Math.abs(dPl) < 0.5 ? " = las del conteo." : <>: {signo(dPl)} frente a las cajas plásticas del conteo de Bodega (lo que sobra o falta es producto sin envase retornable en el maestro, envase excluido o cajas sin factor).</>}
+            <b>Conteo sin segregar (el tablero):</b> {n(T.cajas)} cajas · {n(T.estibas)} estibas físicas · {n(T.plasticas)} cajas plásticas · {n(T.renglones)} renglones
+            {" "}({xs.map(([k, t]) => `${k === "BODEGA" ? "Bodega 38" : k} ${n(t.estibas)} estibas`).join(" · ")}).
+            {" "}En este análisis: estiba 3500163 <b>{n(estibasAnalisis)}</b>{Math.abs(dEst) < 0.5 ? " = las estibas físicas del tablero." : <>: {signo(dEst)} frente al tablero (las estibas contadas con su propio código entran por sus cajas).</>}
+            {" "}Cajas plásticas (E01) <b>{n(plasticasAnalisis)}</b>{Math.abs(dPl) < 0.5 ? " = las del tablero." : <>: {signo(dPl)} frente al tablero (producto sin envase retornable en el maestro, envase excluido o cajas sin factor).</>}
           </p>
         );
       })()}
@@ -179,7 +181,7 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
                             <tr className={(ab ? "ab" : "") + (enLinea[f.codigo]?.length ? " enl" : "")}>
                               {i === 0 && <td className="fam" rowSpan={xs.length + xs.filter((x) => x.codigo === abierta).length}>{fam}</td>}
                               <td className="mono"><button type="button" className="ad-cod" aria-expanded={ab} onClick={() => setAbierta(ab ? null : f.codigo)}>{f.codigo}</button></td>
-                              <td>{f.descripcion}{enLinea[f.codigo]?.length ? <span className="ad-enl" title={"En línea según el plan de envase:\n" + detalleLinea(f.codigo)}>EN LÍNEA · {trenesDe(f.codigo)}</span> : null}</td>
+                              <td>{f.descripcion}{f.descuadres?.map((d) => <span key={d.alm} className="ad-est falta" style={{ marginLeft: 8 }} title={`Quedó sin cuadrar en ${d.alm} después de los 311: SAP tiene ${d.queda > 0 ? "de más" : "de menos"}`}>{d.alm} {signo(d.queda)}</span>)}{enLinea[f.codigo]?.length ? <span className="ad-enl" title={"En línea según el plan de envase:\n" + detalleLinea(f.codigo)}>EN LÍNEA · {trenesDe(f.codigo)}</span> : null}</td>
                               <td className="n">{n(f.sap)}</td>
                               <td className="n">{n(f.conteo)}</td>
                               <td className={"n b" + (f.diferencia < 0 ? " neg" : f.diferencia > 0 ? " pos" : "")}>{signo(f.diferencia)}</td>
@@ -187,14 +189,18 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
                             {ab && (
                               <tr className="ad-det"><td colSpan={5}>
                                 <div className="ad-det-dos">
-                                  <div><b>SAP · {n(f.sap)}</b><ul>{f.deSap.map((p) => <li key={p.nombre}><span>{p.nombre}</span><em>{n(p.cantidad)}</em></li>)}{!f.deSap.length && <li><span>— (no está en la ZEXI ni en el balance)</span></li>}</ul></div>
+                                  <div><b>SAP · {n(f.sap)}</b><ul>{f.deSap.map((p) => <li key={p.nombre}><span>{p.nombre}</span><em>{n(p.cantidad)}</em></li>)}{!f.deSap.length && !f.pendSap?.length && <li><span>— (no está en la ZEXI ni en el balance)</span></li>}</ul>
+                                    {f.pendSap && f.pendSap.length > 0 && (
+                                      <><b title="Falta la ZEXI de las 6 a. m. en la plantilla: cuando la subas, esto se suma a SAP.">ZEXI de AG18, AG17 y AG16 (aún no suma) · {n(f.pendSap.reduce((t, p) => t + p.cantidad, 0))}</b>
+                                      <ul>{f.pendSap.map((p) => <li key={p.nombre}><span>{p.nombre}</span><em>{n(p.cantidad)}</em></li>)}</ul></>
+                                    )}
+                                  </div>
                                   <div><b>CONTEO · {n(f.conteo)}</b><ul>{f.deConteo.map((p) => <li key={p.nombre}><span>{p.nombre}</span><em>{n(p.cantidad)}</em></li>)}{!f.deConteo.length && <li><span>—</span></li>}</ul>
-                                    {f.enFabrica && f.enFabrica.length > 0 && (() => { const tf = f.enFabrica!.reduce((t, p) => t + p.cantidad, 0); return (
-                                      <><b title="No suma en el análisis: Fábrica, AG17 y AG16 no entran a Bodega 38. Se muestra para cuadrar con el tablero, que cuenta todo el conteo.">FUERA DE BODEGA 38 · Fábrica, AG17 y AG16 (no suma) · {n(tf)}</b>
-                                      <ul>{f.enFabrica!.map((p) => <li key={p.nombre}><span>{p.nombre}</span><em>{n(p.cantidad)}</em></li>)}<li><span><b>Todo el conteo</b> (el tablero)</span><em><b>{n(f.conteo + tf)}</b></em></li></ul></>
-                                    ); })()}
                                   </div>
                                 </div>
+                                {f.descuadres && f.descuadres.length > 0 && (
+                                  <p className="ad-nota"><b>Quedó sin cuadrar en otros almacenes (después de los 311):</b> {f.descuadres.map((d) => `${d.alm} ${signo(d.queda)} (SAP ${d.queda > 0 ? "de más" : "de menos"})`).join(" · ")}. Aparece aunque la diferencia total salga en cero, porque se compensa con otro almacén.</p>
+                                )}
                               </td></tr>
                             )}
                           </Fragment>
