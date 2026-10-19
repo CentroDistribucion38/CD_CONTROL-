@@ -120,6 +120,11 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
     return falta > 0 ? [{ ...f, dif: falta }] : [];
   });
   const sinReparto = !esAG22 && salen.some((f) => f.libre == null);
+  /* AG17 / AG16: TODO el envase tiene que quedar BLOQUEADO. Lo que hay libre en SAP hoy, más lo que llega por el 311 (llega en libre),
+     menos lo que sale (sale de lo libre), es lo que falta bloquear con el Mov 344. `dif` = SAP − conteo: positivo sale, negativo entra. */
+  const aBloquear = esSimple ? filas.filter((f) => f.grupo === "ENVASE" && f.sap != null && f.libre != null)
+    .map((f) => ({ f, q: Math.round((f.libre ?? 0) - (f.dif ?? 0)) })).filter((x) => x.q > 0).map((x) => ({ ...x.f, dif: x.q, sap: null })) : [];
+  const sinLibreZexi = esSimple && conZexi && filas.some((f) => f.grupo === "ENVASE" && f.sap != null && f.libre == null);
   /* DOS BALANCEOS APARTE: primero el ENVASE (y la estiba) —311 y todo a bloqueado— y después las CAJAS
      PLÁSTICAS, que van por estado (libre · control-cal · bloqueado). En AG22 igual, pero sin 311 (no se cambia de almacén). */
   const esCaja = (f: FilaCuadre) => f.grupo === "CAJA" && !esSimple;
@@ -189,6 +194,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
     { t: `Envase · Mov 343 en ${ALM}`, filas: del343, ancla: "p-env" },
     { t: `Envase · 311 ${ALM} → ${OTRO}`, filas: salenEnv, ancla: "p-env" },
     { t: `Envase · 311 ${OTRO} → ${ALM}`, filas: entranEnv, ancla: "p-env" },
+    { t: `Envase · Mov 344 en ${ALM} (Libre → Bloqueado)`, filas: aBloquear, ancla: "p-344" },
     ...porMov.filter((m) => m.antes311).map((m) => ({ t: `Cajas · Mov ${m.mov} antes del 311`, filas: m.filas, ancla: "p-cajas" })),
     { t: `Cajas · 311 ${ALM} → ${OTRO}`, filas: esAG22 ? [] : salenCaja, ancla: "p-cajas" },
     { t: `Cajas · 311 ${OTRO} → ${ALM}`, filas: esAG22 ? [] : entranCaja, ancla: "p-cajas" },
@@ -631,7 +637,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
               <div className="cs-caja r"><h3>{esAG22 ? "Pasar de Libre a Bloqueado (Mov 344)" : `Pasar de ${OTRO} a ${ALM}`} {cabezaLista(entranEnv, "entran")}</h3>
                 {entranEnv.length ? documentos(entranEnv, "entran") : <p className="cs-vacio">Nada.</p>}
                 {/* «Solo era poner el mensaje: puedo copiar y pegar lo mismo.» Sin lista aparte: los mismos documentos del 311. */}
-                {!esAG22 && entranEnv.length > 0 && (
+                {!esAG22 && !esSimple && entranEnv.length > 0 && (
                   <div className="cs-antes azul">
                     <p className="cs-antes-t"><b>Después, en {ALM}: Mov 344 (Libre → Bloqueado)</b>
                       <span>El 311 deja todo en <b>libre utilización</b>. Con los <b>mismos documentos</b> de arriba (copia y pega igual) haz el 344 en {ALM}, antes de bajar la ZEXI nueva.</span></p>
@@ -650,6 +656,16 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                 {sinReparto && salenEnv.length > 0 && <p className="cs-nota">La ZEXI guardada no dice cuánto está libre o bloqueado: vuelve a subirla para saber si algo necesita 343 antes.</p>}
                 {salenEnv.length ? <>{del343.length > 0 && <p className="cs-antes-311">Luego, el 311 de {ALM} a {OTRO}:</p>}{documentos(salenEnv, "salen")}</> : <p className="cs-vacio">Nada.</p>}
               </div>
+            </div>
+          )}
+
+          {/* ================= AG17 / AG16: TODO EL ENVASE BLOQUEADO (Mov 344) ================= */}
+          {esSimple && (
+            <div className="cs-antes azul" id="p-344">
+              <p className="cs-antes-t"><b>Al final, en {ALM}: Mov 344 (Libre → Bloqueado)</b>
+                <span>Todo el envase de {ALM} debe quedar en <b>bloqueado</b>. Esto es lo que hoy está libre en SAP, más lo que llega del 311 (llega en libre) y menos lo que sale. Hazlo después del 311 y antes de bajar la ZEXI nueva.</span></p>
+              {sinLibreZexi && <p className="cs-nota">La ZEXI guardada no dice cuánto está libre o bloqueado: vuelve a subirla con esas columnas para calcular el 344.</p>}
+              {aBloquear.length ? documentos(aBloquear, "bloq344") : <p className="cs-vacio">{sinLibreZexi ? "—" : "Nada: todo el envase ya está bloqueado."}</p>}
             </div>
           )}
 
