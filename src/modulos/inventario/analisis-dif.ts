@@ -27,6 +27,8 @@ export type FilaAnalisis = {
   familia: string; orden: number; codigo: string; descripcion: string;
   sap: number; conteo: number; diferencia: number;
   deSap: Partida[]; deConteo: Partida[];
+  /** Lo que hay en FÁBRICA de esta fila (hoy solo la estiba 3500163), por partida: se muestra aparte y NO suma en el análisis. */
+  enFabrica?: Partida[];
   /** Códigos excluidos o sin factor: se muestran para que el conteo salga COMPLETO, pero no generan ajustes. */
   soloConteo?: boolean;
 };
@@ -113,6 +115,7 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   let renglonesBodega = 0;
   /* La caja plástica que lleva el producto: cuántas cajas y de cuántos productos salieron. */
   let cajasProducto = 0; const prodConCaja = new Set<string>(), prodSinEnvase = new Set<string>();
+  const estFab = new Map<string, number>();
   const totB: TotConteo = { renglones: 0, cajas: 0, estibas: 0, plasticas: 0 }, totF: TotConteo = { renglones: 0, cajas: 0, estibas: 0, plasticas: 0 };
   for (const r of await conReclasificaciones(cons.vigentes)) {
     const esFab = esUbicacionFabrica(r.calle) || esUbicacionFabrica(r.ubicacion) || esUbicacionFabrica(r.ubicacion_combinada);
@@ -123,8 +126,16 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
       t.renglones++; t.cajas += cj; t.estibas += (Number(r.estibas) || 0) + ((Number(r.cajas) || 0) + (Number(r.saldo) || 0) > 0 ? 1 : 0);
       if (!(r.tipo_material === "ENVASE" && !/CAJA\s*PL/i.test(m) && /BARRIL|ESTIBA/i.test(m))) t.plasticas += cj;
     }
-    /* Fuera todo lo de FÁBRICA: por la calle o por el nombre de la ubicación (FABRICA_…, FABRICAL4…). */
-    if (esFab) continue;
+    /* Fuera todo lo de FÁBRICA: por la calle o por el nombre de la ubicación (FABRICA_…, FABRICAL4…).
+       Sus estibas se anotan aparte (no suman) para poder cuadrar con el tablero, que cuenta Bodega + Fábrica. */
+    if (esFab) {
+      const cF = String(r.codigo), cjF = Number(r.total_cajas) || 0;
+      const estF = (Number(r.estibas) || 0) + ((Number(r.cajas) || 0) + (Number(r.saldo) || 0) > 0 ? 1 : 0);
+      const nomF = grupo(cF) === "ESTIBA" ? "FÁBRICA · estibas contadas" : r.tipo_material === "PRODUCTO" ? "FÁBRICA · bajo producto"
+        : r.tipo_material !== "ENVASE" ? bajoQue(cF).replace("CONTEO", "FÁBRICA") : grupo(cF) === "CAJA" ? "FÁBRICA · bajo cajas" : bajoQue(cF).replace("CONTEO", "FÁBRICA");
+      estFab.set(nomF, (estFab.get(nomF) ?? 0) + (grupo(cF) === "ESTIBA" ? cjF : estF));
+      continue;
+    }
     /* La visual: cuántos SKUs distintos se contaron (producto, envase y lo demás). */
     renglonesBodega++;
     (r.tipo_material === "PRODUCTO" ? skuP : r.tipo_material === "ENVASE" ? skuE : skuO).add(String(r.codigo));
@@ -310,7 +321,8 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     const lista = (m: Map<string, number>) => [...m].map(([nombre, cantidad]) => ({ nombre, cantidad: Math.round(cantidad) })).sort((x, y) => pos(x.nombre) - pos(y.nombre) || y.cantidad - x.cantidad);
     const sap = Math.round([...a.sap.values()].reduce((t, v) => t + v, 0));
     const conteo = Math.round([...a.conteo.values()].reduce((t, v) => t + v, 0));
-    filas.push({ familia: familia as string, orden: orden as number, codigo, descripcion: nombre(codigo), sap, conteo, diferencia: conteo - sap, deSap: lista(a.sap), deConteo: lista(a.conteo), ...(soloConteo ? { soloConteo: true } : {}) });
+    filas.push({ familia: familia as string, orden: orden as number, codigo, descripcion: nombre(codigo), sap, conteo, diferencia: conteo - sap, deSap: lista(a.sap), deConteo: lista(a.conteo), ...(soloConteo ? { soloConteo: true } : {}),
+      ...(codigo === ESTIBA && estFab.size ? { enFabrica: [...estFab].map(([nombre, cantidad]) => ({ nombre, cantidad: Math.round(cantidad) })).sort((x, y) => y.cantidad - x.cantidad) } : {}) });
   }
   filas.sort((x, y) => x.orden - y.orden || x.codigo.localeCompare(y.codigo, "es", { numeric: true }));
   const estibasAnalisis = Math.round([...(acc.get(ESTIBA)?.conteo.values() ?? [])].reduce((t, v) => t + v, 0));
