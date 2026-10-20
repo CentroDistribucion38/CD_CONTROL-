@@ -63,13 +63,13 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
   const pasos = (
     <nav className="ad-pasos" aria-label="Pasos">
       <Link href={`/inventario/balance/analisis?fecha=${fecha}`} className={paso === "analisis" ? "on" : ""}><b>1</b> Análisis</Link>
-      <Link href={`/inventario/balance/analisis?fecha=${fecha}&paso=todos`} className={paso === "todos" ? "on" : ""}><b>⧉</b> Todos los almacenes</Link>
       <Link href={`/inventario/balance/analisis?fecha=${fecha}&paso=ajustes`} className={paso === "ajustes" ? "on" : ""}><b>2</b> Ajustes</Link>
       <Link href={`/inventario/balance/analisis?fecha=${fecha}&paso=final`} className={paso === "final" ? "on" : ""}><b>3</b> Análisis final</Link>
       <Link href={`/inventario/balance/analisis?fecha=${fecha}&paso=historico`} className={paso === "historico" ? "on" : ""}><b>4</b> Histórico</Link>
       <Link href={`/inventario/balance/analisis?fecha=${fecha}&paso=valor`} className={paso === "valor" ? "on" : ""}><b>$</b> Valor</Link>
       <Link href={`/inventario/balance/analisis?fecha=${fecha}&paso=recurrencia`} className={paso === "recurrencia" ? "on" : ""}><b>↻</b> Recurrencia</Link>
-      <Link href={`/inventario/balance/analisis?fecha=${fecha}&paso=ayer`} className={paso === "ayer" ? "on" : ""}><b>⇄</b> Contra ayer</Link>
+      <Link href={`/inventario/balance/analisis?fecha=${fecha}&paso=ayer`} className={paso === "ayer" ? "on" : ""}><b>⇄</b> VS ayer</Link>
+      <Link href={`/inventario/balance/analisis?fecha=${fecha}&paso=todos`} className={paso === "todos" ? "on" : ""}><b>⧉</b> Todos los almacenes</Link>
     </nav>
   );
   if (paso === "final") {
@@ -87,7 +87,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
       </div>
     );
   }
-  /* LAS HOJAS APARTE: valor en pesos, recurrencia y contra ayer. No cambian nada de los pasos 1 a 4. */
+  /* LAS HOJAS APARTE: valor en pesos, recurrencia y VS ayer. No cambian nada de los pasos 1 a 4. */
   const cabeza = (titulo: string, sub: string) => (
     <section className="cabeza"><div>
       <p className="ojo">INVENTARIO · BALANCE · ANÁLISIS DE DIFERENCIA</p>
@@ -112,7 +112,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
       <div className="fe bal ad">
         {paso === "recurrencia"
           ? cabeza("Recurrencia", "Qué códigos se repiten día tras día en el rango que escojas: el error de un día contra el problema de fondo.")
-          : cabeza("Contra ayer", "El día guardado contra el anterior: qué empeoró, qué mejoró, qué apareció y qué se cerró.")}
+          : cabeza("VS ayer", "El día guardado contra el anterior: qué empeoró, qué mejoró, qué apareció y qué se cerró.")}
         {pasos}
         {h.faltaSql ? <p className="ad-msg mal">Falta correr supabase/migraciones/2026-10-analisis-diferencia-ajustes.sql en Supabase.</p>
           : paso === "recurrencia" ? <Recurrencia dias={h.dias} detalle={h.detalle} /> : <ContraAyer fecha={fecha} dias={h.dias} detalle={h.detalle} />}
