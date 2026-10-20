@@ -5,10 +5,17 @@
  *  de conteo, a nivel zona.»
  *
  * De dónde sale: de las dos hojas de BAJA del Balance, tal cual se ven en pantalla.
- *   Baja · Fábrica     (SORTING,    AG18)  →  se reparte 85 % / 15 %, como se viene dando de baja.
- *   Baja · Bodega 38   (PRESORTING, AG22)  →  todo en una sola línea.
+ *   Baja · Fábrica         (SORTING,    AG18)
+ *   Baja · Bodega 38       (PRESORTING, AG22)
+ *   Extrasucio · Bodega 38 (EXTRASUCIO, AG22)
+ * Una sola línea por material y zona, con la cantidad completa (no se parte en dos).
  * Pendiente = Dif cajas × factor caja, SOLO si es positivo (físico mayor que el casco). Lo que sobra en el
- * casco, lo que no tiene factor y lo de ANDINA/HEINEKEN no se da de baja aquí: sale en «Revisión por zona».
+ * casco y lo que no tiene factor no se da de baja aquí: sale en «Revisión por zona».
+ *
+ * ANDINA / HEINEKEN: no tienen factor, así que NUNCA salen como código. Se abren en los SKU de donde provienen
+ * (lo reasignado en el Balance): cada SKU con sus unidades (cajas × su propio factor), como línea de ANDINA o de
+ * HEINEKEN. Es lo pendiente: el físico del dueño menos su casco (Dif en estibas), repartido entre sus SKU en
+ * proporción a lo que cada uno aportó. Los envases nuevos y la estiba de madera no van (como en Pasivos).
  *
  * ROTURA DE LÍNEA: se agrega lo que se subió al pasivo de ese mismo día (causal ROTURA DE LINEA): impacto SUPPLY,
  * movimiento 951, una línea por cada fila del pasivo, en el almacén en que se subió.
@@ -20,11 +27,15 @@
  */
 import ExcelJS from "exceljs";
 import { esDueno } from "@/modulos/inventario/duenos";
+import { esExcluido } from "@/modulos/pasivos/excluidos";
 
 export type FilaBajaPend = {
   estado: string; alcance: string; codigo: string; material: string | null;
   cajas_estiba: number | null; un_caja: number | null;
   fisico_cajas: number; cajas_casco: number; dif_cajas: number; unidades: number | null;
+  /** Solo ANDINA / HEINEKEN: sus estibas físicas, su diferencia en estibas y los SKU de donde provienen. */
+  fisico_estibas?: number | null; dif_estibas?: number | null;
+  provenientes?: { codigo: string; material: string | null; cajas: number; cajas_estiba: number | null; estibas: number | null; un_caja: number | null; unidades: number | null }[];
 };
 
 /** Una fila del pasivo del día con causal ROTURA DE LINEA (más los factores del maestro de pasivos). */
@@ -40,14 +51,11 @@ const COBAAG_ROTURA: Record<string, string> = {
 
 /** Cómo se parte la baja de cada zona (lo que se viene haciendo en la plantilla). */
 const ZONAS = [
-  { alcance: "SORTING", nombre: "Fábrica", alm: "AG18", tipo: "BAJA SORTING" },
-  { alcance: "PRESORTING", nombre: "Bodega 38", alm: "AG22", tipo: "BAJA PRESORTING" },
+  { estado: "BAJA", alcance: "SORTING", desc: "SORTING", nombre: "Fábrica", alm: "AG18", tipo: "BAJA SORTING", mov: "945 (85%) / 925 (15%)" },
+  { estado: "BAJA", alcance: "PRESORTING", desc: "PRESORTING", nombre: "Bodega 38", alm: "AG22", tipo: "BAJA PRESORTING", mov: "945" },
+  { estado: "EXTRASUCIO", alcance: "PRESORTING", desc: "EXTRASUCIO", nombre: "Extrasucio · Bodega 38", alm: "AG22", tipo: "BAJA EXTRASUCIO", mov: "945" },
 ] as const;
-const PARTES: Record<string, { pct: number; centro: string; impacto: string }[]> = {
-  SORTING: [{ pct: 0.85, centro: "COBAAG2070", impacto: "SCOH" }, { pct: 0.15, centro: "COBAAG3200", impacto: "SCOH" }],
-  PRESORTING: [{ pct: 1, centro: "COBAAG2070", impacto: "SCOH" }],
-};
-const MOV: Record<string, string> = { SORTING: "945 (85%) / 925 (15%)", PRESORTING: "945" };
+const CENTRO = "COBAAG2070", IMPACTO = "SCOH";
 
 const TINTA = "FF111111", BANDA = "FFFFC20E", BLANCO = "FFFFFFFF", GRIS = "FF6B6B6B", FONDO = "FFF6F6F4", RAYA = "FFE3E3E0";
 const VERDE = "FF0F7A4A", ROJO = "FFB42318";
@@ -55,16 +63,41 @@ const relleno = (argb: string): ExcelJS.Fill => ({ type: "pattern", pattern: "so
 const letra = (size: number, color: string, bold = false): Partial<ExcelJS.Font> => ({ name: "Calibri", size, bold, color: { argb: color } });
 const NUM = '#,##0;[Red]-#,##0;"0"';
 
-type Linea = { zona: (typeof ZONAS)[number]; f: FilaBajaPend; un: number };
-type Descartada = { zona: (typeof ZONAS)[number]; f: FilaBajaPend; motivo: string };
+type Linea = { zona: (typeof ZONAS)[number]; f: FilaBajaPend; un: number; dueno?: string };
+type Descartada = { zona: (typeof ZONAS)[number]; f: FilaBajaPend; motivo: string; dueno?: string };
 
 export function separarPendiente(filas: FilaBajaPend[]): { lineas: Linea[]; descartadas: Descartada[] } {
   const lineas: Linea[] = [], descartadas: Descartada[] = [];
   for (const zona of ZONAS) {
-    const delaZona = filas.filter((f) => f.estado === "BAJA" && f.alcance === zona.alcance && f.fisico_cajas !== 0)
+    const delaZona = filas.filter((f) => f.estado === zona.estado && f.alcance === zona.alcance && f.fisico_cajas !== 0)
       .sort((a, b) => a.codigo.localeCompare(b.codigo, "es", { numeric: true }));
     for (const f of delaZona) {
-      if (esDueno(f.codigo)) { descartadas.push({ zona, f, motivo: "Es de un dueño (ANDINA / HEINEKEN): se da de baja aparte" }); continue }
+      if (esDueno(f.codigo)) {
+        /* Se abre en los SKU de donde provienen. Pendiente del dueño = su diferencia en estibas sobre lo que tiene físico. */
+        const dueno = f.codigo.trim().toUpperCase();
+        const prov = f.provenientes ?? [];
+        const fis = f.fisico_estibas ?? prov.reduce((t, x) => t + (x.estibas ?? 0), 0);
+        const dif = f.dif_estibas ?? fis;
+        const ratio = fis > 0 ? Math.min(1, Math.max(0, dif / fis)) : 0;
+        if (!prov.length) { descartadas.push({ zona, f, dueno, motivo: `${dueno}: no hay SKU de origen (nada se reasignó a ${dueno} en el Balance)` }); continue }
+        if (ratio <= 0) { descartadas.push({ zona, f, dueno, motivo: `${dueno}: el casco ya cubre lo contado, no hay nada pendiente` }); continue }
+        const porSku = new Map<string, { x: (typeof prov)[number]; un: number }>();
+        for (const x of prov) {
+          if (esExcluido(x.codigo, x.material)) continue;
+          if (!x.cajas) continue;
+          if (x.unidades == null || !x.un_caja) { descartadas.push({ zona, f: { ...f, codigo: x.codigo, material: x.material }, dueno, motivo: `Viene de ${dueno}, pero falta el factor caja de este SKU en el maestro` }); continue }
+          const a = porSku.get(x.codigo) ?? { x, un: 0 };
+          a.un += x.unidades * ratio; porSku.set(x.codigo, a);
+        }
+        for (const { x, un } of porSku.values()) {
+          const u = Math.round(un);
+          if (u <= 0) continue;
+          const pendCajas = Math.round(u / (x.un_caja as number));
+          lineas.push({ zona, dueno, un: u, f: { estado: f.estado, alcance: f.alcance, codigo: x.codigo, material: x.material, cajas_estiba: x.cajas_estiba, un_caja: x.un_caja,
+            fisico_cajas: x.cajas, cajas_casco: x.cajas - pendCajas, dif_cajas: pendCajas, unidades: u } });
+        }
+        continue;
+      }
       if (!f.un_caja) { descartadas.push({ zona, f, motivo: "Falta el factor caja en el maestro" }); continue }
       if (f.dif_cajas <= 0) { descartadas.push({ zona, f, motivo: f.dif_cajas < 0 ? "Sobra en casco: no hay nada pendiente" : "Cuadra: no hay nada pendiente" }); continue }
       lineas.push({ zona, f, un: Math.round(f.dif_cajas * f.un_caja) });
@@ -97,19 +130,13 @@ export async function armarLibroBajaPendiente(d: { fecha: string; filas: FilaBaj
   });
   let n = 2;
   for (const z of ZONAS) {
-    for (const l of lineas.filter((x) => x.zona.alcance === z.alcance)) {
-      const partes = PARTES[z.alcance];
-      let resto = l.un;
-      partes.forEach((p, i) => {
-        const un = i === partes.length - 1 ? resto : Math.round(l.un * p.pct);
-        resto -= un;
-        const est = l.f.cajas_estiba && l.f.un_caja ? Math.round((un / l.f.un_caja / l.f.cajas_estiba) * 100) / 100 : "";
-        const r = h.getRow(n++);
-        r.values = ["Barranquilla", "EER", "ROTURA", z.alcance, l.f.codigo, l.f.material ?? "", un, fecha, null, null, "", p.impacto, "", p.centro,
-          MOV[z.alcance], i === 0 && z.alcance === "SORTING" ? l.un : "", z.tipo, est, z.alm];
-        r.getCell(7).numFmt = "#,##0"; r.getCell(8).numFmt = "yyyy-mm-dd"; r.getCell(16).numFmt = "#,##0"; r.getCell(18).numFmt = "0.00";
-        r.eachCell((c) => { c.font = letra(10, TINTA); c.border = { bottom: { style: "thin", color: { argb: RAYA } } } });
-      });
+    for (const l of lineas.filter((x) => x.zona.tipo === z.tipo)) {
+      const est = l.f.cajas_estiba && l.f.un_caja ? Math.round((l.un / l.f.un_caja / l.f.cajas_estiba) * 100) / 100 : "";
+      const r = h.getRow(n++);
+      r.values = ["Barranquilla", "EER", "ROTURA", l.dueno ?? z.desc, l.f.codigo, l.f.material ?? "", l.un, fecha, null, null, "", IMPACTO, "", CENTRO,
+        l.dueno ? "945" : z.mov, "", l.dueno ? `BAJA ${l.dueno}` : z.tipo, est, z.alm];
+      r.getCell(7).numFmt = "#,##0"; r.getCell(8).numFmt = "yyyy-mm-dd"; r.getCell(18).numFmt = "0.00";
+      r.eachCell((c) => { c.font = letra(10, TINTA); c.border = { bottom: { style: "thin", color: { argb: RAYA } } } });
     }
   }
   /* ROTURA DE LÍNEA: lo del pasivo del día, una línea por fila, impacto SUPPLY y movimiento 951. */
@@ -131,11 +158,11 @@ export async function armarLibroBajaPendiente(d: { fecha: string; filas: FilaBaj
   /* ---------- 2 · REVISIÓN POR ZONA ---------- */
   const r2 = wb.addWorksheet("Revisión por zona", { views: [{ showGridLines: false }] });
   const cols = [["Zona", 12], ["Almacén", 10], ["Código", 12], ["Material", 34], ["Físico (cajas)", 14], ["Cajas casco", 13], ["Dif cajas", 12],
-    ["Factor caja", 11], ["Pendiente (unidades)", 17], ["Se reparte", 28], ["Estado", 44]] as const;
+    ["Factor caja", 11], ["Pendiente (unidades)", 17], ["Movimiento", 24], ["Estado", 44]] as const;
   r2.columns = cols.map(([, w]) => ({ width: w }));
   const t1 = r2.getCell(1, 1); t1.value = `PENDIENTE POR DARLE DE BAJA · conteo del ${d.fecha}`; t1.font = letra(14, TINTA, true);
   const t2 = r2.getCell(2, 1);
-  t2.value = "Es lo que muestra el Balance en Baja · Fábrica y Baja · Bodega 38: Dif cajas × factor caja, solo si el físico supera al casco.";
+  t2.value = "Lo que muestra el Balance en Baja · Fábrica, Baja · Bodega 38 y Extrasucio · Bodega 38: Dif cajas × factor caja, solo si el físico supera al casco. ANDINA y HEINEKEN se abren en los SKU de donde provienen.";
   t2.font = letra(9.5, GRIS);
   const hd = r2.getRow(4); hd.height = 26;
   cols.forEach(([tt], i) => {
@@ -145,15 +172,15 @@ export async function armarLibroBajaPendiente(d: { fecha: string; filas: FilaBaj
   let k = 5;
   for (const z of ZONAS) {
     const filas = [
-      ...lineas.filter((l) => l.zona.alcance === z.alcance).map((l) => ({ f: l.f, un: l.un as number | null, motivo: "" })),
-      ...descartadas.filter((x) => x.zona.alcance === z.alcance).map((x) => ({ f: x.f, un: null as number | null, motivo: x.motivo })),
+      ...lineas.filter((l) => l.zona.tipo === z.tipo).map((l) => ({ f: l.f, un: l.un as number | null, motivo: "", dueno: l.dueno })),
+      ...descartadas.filter((x) => x.zona.tipo === z.tipo).map((x) => ({ f: x.f, un: null as number | null, motivo: x.motivo, dueno: x.dueno })),
     ].sort((a, b) => a.f.codigo.localeCompare(b.f.codigo, "es", { numeric: true }));
     const ini = k;
     for (const x of filas) {
       const r = r2.getRow(k++);
-      const reparto = x.un == null ? "—" : z.alcance === "SORTING" ? `85 % ${Math.round(x.un * 0.85).toLocaleString("es-CO")} · 15 % ${(x.un - Math.round(x.un * 0.85)).toLocaleString("es-CO")}` : "100 %";
+      const reparto = x.un == null ? "—" : x.dueno ? "945" : z.mov;
       r.values = [z.nombre, z.alm, x.f.codigo, x.f.material ?? "", x.f.fisico_cajas, x.f.cajas_casco, x.f.dif_cajas, x.f.un_caja ?? "—", x.un ?? "—", reparto,
-        x.un == null ? x.motivo : "A dar de baja"];
+        x.un == null ? x.motivo : x.dueno ? `A dar de baja · viene de ${x.dueno}` : "A dar de baja"];
       r.eachCell((c, i) => {
         c.font = letra(10, TINTA); c.border = { bottom: { style: "thin", color: { argb: RAYA } } };
         if (i >= 5 && i <= 9) { c.numFmt = NUM; c.alignment = { horizontal: "right" } }
@@ -163,7 +190,7 @@ export async function armarLibroBajaPendiente(d: { fecha: string; filas: FilaBaj
     }
     const tot = r2.getRow(k++);
     tot.getCell(1).value = `Total ${z.nombre} · ${z.alm}`;
-    const pend = lineas.filter((l) => l.zona.alcance === z.alcance).reduce((s, l) => s + l.un, 0);
+    const pend = lineas.filter((l) => l.zona.tipo === z.tipo).reduce((s, l) => s + l.un, 0);
     if (k - 1 > ini) tot.getCell(9).value = { formula: `SUM(I${ini}:I${k - 2})`, result: pend };
     for (let c = 1; c <= cols.length; c++) {
       const x = tot.getCell(c); x.fill = relleno(BANDA); x.font = letra(10, TINTA, true);
