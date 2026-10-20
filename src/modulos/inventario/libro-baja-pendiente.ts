@@ -7,7 +7,6 @@
  * De dónde sale: de las dos hojas de BAJA del Balance, tal cual se ven en pantalla.
  *   Baja · Fábrica         (SORTING,    AG18)
  *   Baja · Bodega 38       (PRESORTING, AG22)
- *   Extrasucio · Bodega 38 (EXTRASUCIO, AG22)
  * Una sola línea por material y zona, con la cantidad completa (no se parte en dos).
  * Pendiente = Dif cajas × factor caja, SOLO si es positivo (físico mayor que el casco). Lo que sobra en el
  * casco y lo que no tiene factor no se da de baja aquí: sale en «Revisión por zona».
@@ -53,7 +52,6 @@ const COBAAG_ROTURA: Record<string, string> = {
 const ZONAS = [
   { estado: "BAJA", alcance: "SORTING", desc: "SORTING", nombre: "Fábrica", alm: "AG18", tipo: "BAJA SORTING", mov: "945 (85%) / 925 (15%)" },
   { estado: "BAJA", alcance: "PRESORTING", desc: "PRESORTING", nombre: "Bodega 38", alm: "AG22", tipo: "BAJA PRESORTING", mov: "945" },
-  { estado: "EXTRASUCIO", alcance: "PRESORTING", desc: "EXTRASUCIO", nombre: "Extrasucio · Bodega 38", alm: "AG22", tipo: "BAJA EXTRASUCIO", mov: "945" },
 ] as const;
 const CENTRO = "COBAAG2070", IMPACTO = "SCOH";
 
@@ -73,28 +71,25 @@ export function separarPendiente(filas: FilaBajaPend[]): { lineas: Linea[]; desc
       .sort((a, b) => a.codigo.localeCompare(b.codigo, "es", { numeric: true }));
     for (const f of delaZona) {
       if (esDueno(f.codigo)) {
-        /* Se abre en los SKU de donde provienen. Pendiente del dueño = su diferencia en estibas sobre lo que tiene físico. */
+        /* Se abre en los SKU de donde provienen (el "ojito" del Balance), con las mismas unidades que "Traer del balance" manda a Pasivos:
+           cada proveniente = cajas × factor del SKU de origen, redondeado, sin descontar casco. */
         const dueno = f.codigo.trim().toUpperCase();
         const prov = f.provenientes ?? [];
-        const fis = f.fisico_estibas ?? prov.reduce((t, x) => t + (x.estibas ?? 0), 0);
-        const dif = f.dif_estibas ?? fis;
-        const ratio = fis > 0 ? Math.min(1, Math.max(0, dif / fis)) : 0;
         if (!prov.length) { descartadas.push({ zona, f, dueno, motivo: `${dueno}: no hay SKU de origen (nada se reasignó a ${dueno} en el Balance)` }); continue }
-        if (ratio <= 0) { descartadas.push({ zona, f, dueno, motivo: `${dueno}: el casco ya cubre lo contado, no hay nada pendiente` }); continue }
         const porSku = new Map<string, { x: (typeof prov)[number]; un: number }>();
         for (const x of prov) {
           if (esExcluido(x.codigo, x.material)) continue;
           if (!x.cajas) continue;
           if (x.unidades == null || !x.un_caja) { descartadas.push({ zona, f: { ...f, codigo: x.codigo, material: x.material }, dueno, motivo: `Viene de ${dueno}, pero falta el factor caja de este SKU en el maestro` }); continue }
           const a = porSku.get(x.codigo) ?? { x, un: 0 };
-          a.un += x.unidades * ratio; porSku.set(x.codigo, a);
+          a.un += Math.round(x.unidades); porSku.set(x.codigo, a);
         }
         for (const { x, un } of porSku.values()) {
           const u = Math.round(un);
           if (u <= 0) continue;
-          const pendCajas = Math.round(u / (x.un_caja as number));
+          const cajasSku = Math.round(u / (x.un_caja as number));
           lineas.push({ zona, dueno, un: u, f: { estado: f.estado, alcance: f.alcance, codigo: x.codigo, material: x.material, cajas_estiba: x.cajas_estiba, un_caja: x.un_caja,
-            fisico_cajas: x.cajas, cajas_casco: x.cajas - pendCajas, dif_cajas: pendCajas, unidades: u } });
+            fisico_cajas: x.cajas, cajas_casco: 0, dif_cajas: cajasSku, unidades: u } });
         }
         continue;
       }
@@ -162,7 +157,7 @@ export async function armarLibroBajaPendiente(d: { fecha: string; filas: FilaBaj
   r2.columns = cols.map(([, w]) => ({ width: w }));
   const t1 = r2.getCell(1, 1); t1.value = `PENDIENTE POR DARLE DE BAJA · conteo del ${d.fecha}`; t1.font = letra(14, TINTA, true);
   const t2 = r2.getCell(2, 1);
-  t2.value = "Lo que muestra el Balance en Baja · Fábrica, Baja · Bodega 38 y Extrasucio · Bodega 38: Dif cajas × factor caja, solo si el físico supera al casco. ANDINA y HEINEKEN se abren en los SKU de donde provienen.";
+  t2.value = "Lo que muestra el Balance en Baja · Fábrica y Baja · Bodega 38: Dif cajas × factor caja, solo si el físico supera al casco. ANDINA y HEINEKEN se abren en los SKU de donde provienen.";
   t2.font = letra(9.5, GRIS);
   const hd = r2.getRow(4); hd.height = 26;
   cols.forEach(([tt], i) => {
