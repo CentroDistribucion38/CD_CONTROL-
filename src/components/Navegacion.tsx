@@ -393,6 +393,7 @@ const ICONO_RAMA: Record<string, () => React.ReactElement> = {
 /* EL ICONO DE UN SUBGRUPO del menú (Seccion.grupo): Pasivos es el candado, el EER bloqueado. */
 const ICONO_GRUPO: Record<string, () => React.ReactElement> = {
   Pasivos: IconoCandado,
+  Fiscal: IconoUsuarios,
 };
 
 const ICONO_RUTA: Record<string, () => React.ReactElement> = {
