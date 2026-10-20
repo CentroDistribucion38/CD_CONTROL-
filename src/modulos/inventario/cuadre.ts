@@ -140,6 +140,8 @@ export type FilaCuadre = {
   dif: number | null;
   /** Lo movido en SAP (neto en AG18: + entra, − sale). */
   movido: number;
+  /** AG18, envase: el casco registrado supera lo contado en estas unidades; la meta se deja en 0 y esto va al Balance de casco. */
+  cascoDeMas?: number;
   documentos: string[];
   sapDespues: number | null;
   queda: number | null;
@@ -349,7 +351,11 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
     const usaBM = usarBM && grupo === "ENVASE" && (BM_CON_LAVADO_CON_BAJA || !a.lav);
     const difBal = usaBM ? redondo(a.dBaja + a.dLav) : 0;
     const quita = usaBM ? -difBal : a.lav;
-    const total = redondo(conteo + (sumarPend ? pendBaja : 0) + quita + a.andina + almacen);
+    const totalBruto = redondo(conteo + (sumarPend ? pendBaja : 0) + quita + a.andina + almacen);
+    /* META NEGATIVA: el casco registrado es mayor que lo contado. SAP no puede tener negativo: la meta es 0 y lo que sobra de casco
+       es una diferencia del Balance de casco, no algo que se mueva en SAP (ni un «falta» por mover). */
+    const cascoDeMas = grupo === "ENVASE" && totalBruto < -0.005 ? -totalBruto : 0;
+    const total = cascoDeMas ? 0 : totalBruto;
     const z = sap.get(a.codigo), m = mov.get(a.codigo);
     /* «Lo que no tiene SAP me tiene que decir que del 22 debo pasarlo al 18, ya que allá no tiene»: con ZEXI
        cargado, un material que no viene en él es 0 en SAP (no «sin dato»), y entra a la lista del 311 / 344. */
@@ -372,6 +378,7 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
         const igual = (x: number, y: number) => Math.abs(x - y) < 0.005;
         return { meta, estadoFinal, estadoOk: estadoFinal ? igual(estadoFinal.libre, meta.libre) && igual(estadoFinal.calidad, meta.calidad) && igual(estadoFinal.bloqueado, meta.bloqueado) : null };
       })() : { meta: null, estadoFinal: null, estadoOk: null }),
+      ...(cascoDeMas ? { cascoDeMas: redondo(cascoDeMas) } : {}),
       dif, movido, documentos: m?.documentos ?? [], sapDespues, queda };
   })
     /* Lo que no tiene nada en ningún lado no se lista. */

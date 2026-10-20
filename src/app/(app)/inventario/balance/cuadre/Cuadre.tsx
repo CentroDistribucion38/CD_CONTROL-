@@ -591,7 +591,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                 <td className="n">{f.andina ? n(f.andina) : "—"}</td>
                 <td className="n">{f.almacen ? n(f.almacen) : "—"}</td>
                 </>)}
-                <td className="n"><b>{n(f.total)}</b></td>
+                <td className="n"><b>{n(f.total)}</b>{f.cascoDeMas ? <small className="cs-ext" title="El casco registrado es mayor que lo contado: SAP no puede tener negativo, la meta queda en 0 y esta diferencia va en el Balance de casco.">casco de más {n(f.cascoDeMas)}</small> : null}</td>
                 <td className="n">{f.sap == null ? "—" : n(f.sap)}</td>
                 <td className={"n" + (f.dif == null || cero(f.dif) ? "" : f.dif < 0 ? " neg" : " amb")}><b>{f.dif == null ? "—" : cero(f.dif) ? "0" : conSigno(f.dif)}</b></td>
                 <td className={"n" + (f.dif == null || cero(f.dif) ? "" : f.dif < 0 ? " neg" : " amb")} title={f.grupo === "ENVASE" ? `${n(f.upc)} unidades por caja` : undefined}>{cajasTxt(enCajas(f, f.dif))}</td>

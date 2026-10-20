@@ -284,12 +284,8 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
       /* La caja plástica ya quedó cuadrada en el Cuadre SAP de ese almacén: su BALANCE no entra al conteo de AG22 (solo lo de Bodega 38).
          Lo que quedara sin cuadrar sí se muestra, como DESCUADRE. */
       if (f.grupo !== "CAJA" && Math.abs(f.movido) >= 0.005) { aplicar(cod, `BALANCE · ${alm}`, f.movido); nb++ }
-      /* META NEGATIVA: el casco registrado es mayor que lo contado (la meta del Cuadre sale < 0 y SAP no puede tener negativo).
-         Ese sobrante es una diferencia de CASCO: ya va en el Balance de casco, no se vuelve a poner como DESCUADRE en SAP. */
-      if (f.total != null && f.total < -0.5) {
-        avisos.push(`${cod} ${nombre(cod)}: en el Cuadre ${alm} la meta salió negativa (${Math.round(f.total).toLocaleString("es-CO")}): el casco registrado es mayor a lo contado. Esa diferencia va en el Balance de casco; no se pone como DESCUADRE en SAP.`);
-        continue;
-      }
+      /* CASCO DE MÁS: el casco registrado superó lo contado y el Cuadre dejó la meta en 0. Ese sobrante es del Balance de casco: se avisa, no es DESCUADRE. */
+      if (f.cascoDeMas) avisos.push(`${cod} ${nombre(cod)}: en el Cuadre ${alm} el casco registrado supera lo contado en ${Math.round(f.cascoDeMas).toLocaleString("es-CO")} u. Esa diferencia va en el Balance de casco; no se pone como DESCUADRE en SAP.`);
       if (f.queda != null && Math.abs(f.queda) >= 0.5) {
         aplicar(cod, `DESCUADRE · ${alm}`, -f.queda); nd++;
         const l = descuadresAlm.get(cod) ?? []; l.push({ alm, queda: Math.round(f.queda) }); descuadresAlm.set(cod, l);
