@@ -266,6 +266,10 @@ export function dibujarTablaComparativo(d: DatosTablaFoto, extra: Extra = {}): H
   ctx.fillStyle = XL.titulo; ctx.fillRect(x0, y, ancho, TIT);
   FUENTE_PESO(700); ctx.fillStyle = "#000"; ctx.textAlign = "left"; ctx.fillText(`Suma de TOTAL ${TXT_U[d.unidad].toUpperCase()}`, x0 + 10, y + TIT / 2);
   ctx.textAlign = "center"; ctx.fillText("FECHA", xs[6] + (ws[6] + ws[7]) / 2, y + TIT / 2);
+  // la unidad, bien visible: quien reciba la imagen sabe en qué está cada número
+  ctx.fillStyle = "#111111"; ctx.fillRect(xs[8], y, ws[8], TIT);
+  letra(ctx, 800, 14); ctx.fillStyle = "#FFC300"; ctx.textAlign = "center"; ctx.fillText(TXT_U[d.unidad].toUpperCase(), cx(8), y + TIT / 2);
+  FUENTE_PESO(700); ctx.fillStyle = "#000";
   y += TIT;
   // encabezados
   const enc = ["CODIGO", "UBICACIÓN", "DESCRIPCION", "MODULO", "NUMERO", "ESTADO ENVASE", dmy(d.fA), dmy(d.fB), "Diferencia"];
@@ -326,5 +330,5 @@ export function dibujarTablaComparativo(d: DatosTablaFoto, extra: Extra = {}): H
   return c;
 }
 
-export const nombreDashboardComparativo = (a: string | null, b: string | null) => `casco-comparativo-dashboard-${a ?? "A"}-${b ?? "B"}.png`;
-export const nombreTablaComparativo = (a: string, b: string) => `casco-comparativo-tabla-${a}-${b}.png`;
+export const nombreDashboardComparativo = (a: string | null, b: string | null, u: Unidad) => `casco-comparativo-dashboard-${u}-${a ?? "A"}-${b ?? "B"}.png`;
+export const nombreTablaComparativo = (a: string, b: string, u: Unidad) => `casco-comparativo-tabla-${u}-${a}-${b}.png`;

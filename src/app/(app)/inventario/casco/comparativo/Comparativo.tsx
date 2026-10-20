@@ -113,7 +113,7 @@ export function Comparativo({ puntos, sitios, nombres, cajasPorEstiba, errorLect
   const datosFoto: DatosComparativo | null = cmp.filas.length === 0 ? null : {
     unidad: u, unidadTxt: ud.largo === "HL" ? "HL" : ud.largo,
     diaA: cmp.diaA, diaB: cmp.diaB,
-    chips: [vis.length === sitios.length ? "Todos los almacenes" : sitios.filter((x) => vis.includes(x.clave)).map((x) => x.centro ?? x.nombre).join(" · ")],
+    chips: [`Unidad: ${ud.t}`, vis.length === sitios.length ? "Todos los almacenes" : sitios.filter((x) => vis.includes(x.clave)).map((x) => x.centro ?? x.nombre).join(" · ")],
     tot: { a: tot.a ?? 0, b: tot.b ?? 0, d: tot.d ?? 0 }, pct, viajesA, viajesB,
     sitios: cmp.sitios.map((s) => ({
       clave: s.clave, centro: centroSitio(s.clave), nombre: nombreSitio(s.clave),
@@ -125,7 +125,6 @@ export function Comparativo({ puntos, sitios, nombres, cajasPorEstiba, errorLect
       a: v(m.a) ?? 0, b: v(m.b) ?? 0, d: v(m.d) ?? 0,
     })),
   };
-  const chipsTabla = [tabla.est || "Todos los estados", ...(tabla.soloCambios ? ["Solo cambios"] : [])];
 
   const controles = (
     <section className="cvt-filtros cvc-ctrl" aria-label="Fechas a comparar">
@@ -180,7 +179,7 @@ export function Comparativo({ puntos, sitios, nombres, cajasPorEstiba, errorLect
           </p>
           <p className="sub"><Link href="/inventario/casco/tablero">← Tablero de casco</Link></p>
         </div>
-        <BotonesComparativo datos={datosFoto} cargarTabla={tabla.cargar} chipsTabla={chipsTabla} />
+        <BotonesComparativo datos={datosFoto} cargarTabla={tabla.cargar} unidad={unidad} cambiarUnidad={setUnidad} />
       </section>
 
       {controles}

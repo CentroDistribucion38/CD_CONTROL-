@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./foto-compartir.css";
 
 /**
@@ -29,7 +29,10 @@ function bajar(blob: Blob, nombre: string) {
 }
 
 /** `nombres` (opcional): cómo se llama cada imagen en las pestañas; por defecto «Dashboard» y «Detalle por almacén». */
-export function useFotoCompartir(hacer: Hacer, titulo: string, nombres?: Partial<Record<TipoFoto, string>>) {
+/** Un selector extra dentro de la ventana (p. ej. la unidad HL / Estibas / Cajas): al cambiarlo se vuelve a armar la imagen abierta. */
+export type OpcionesFoto = { titulo: string; valores: { k: string; t: string }[]; actual: string; cambiar: (k: string) => void };
+
+export function useFotoCompartir(hacer: Hacer, titulo: string, nombres?: Partial<Record<TipoFoto, string>>, opciones?: OpcionesFoto) {
   const nombreDe = (t: TipoFoto) => nombres?.[t] ?? NOMBRE_FOTO[t];
   const [foto, setFoto] = useState<Foto | null>(null);
   const [armando, setArmando] = useState<TipoFoto | null>(null);
@@ -57,6 +60,15 @@ export function useFotoCompartir(hacer: Hacer, titulo: string, nombres?: Partial
     } catch { setMal(true) }
     finally { setArmando(null) }
   }
+
+  /* Si cambia la opción (la unidad), la imagen que está abierta se arma otra vez con la nueva. */
+  const opcAntes = useRef(opciones?.actual);
+  useEffect(() => {
+    if (!opciones || opcAntes.current === opciones.actual) return;
+    opcAntes.current = opciones.actual;
+    if (foto) void abrir(foto.tipo);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opciones?.actual]);
 
   async function copiar() {
     if (!foto) return;
@@ -86,6 +98,17 @@ export function useFotoCompartir(hacer: Hacer, titulo: string, nombres?: Partial
               </button>
             ))}
           </div>
+          {opciones && (
+            <div className="fc-opc">
+              <span className="fc-opc-t">{opciones.titulo}</span>
+              <div className="fc-tabs" role="radiogroup" aria-label={opciones.titulo}>
+                {opciones.valores.map((o) => (
+                  <button key={o.k} type="button" role="radio" aria-checked={opciones.actual === o.k} className={opciones.actual === o.k ? "on" : ""}
+                    disabled={armando != null} onClick={() => opciones.actual !== o.k && opciones.cambiar(o.k)}>{o.t}</button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="fc-acc">
             <button type="button" className="fc-bt" onClick={copiar}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="1" /><path d="M16 8V4H4v12h4" /></svg>

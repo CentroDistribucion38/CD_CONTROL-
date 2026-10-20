@@ -20,6 +20,7 @@ const dmy = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice
 /** Cuánto vale una estiba de cada material en HL y en cajas (null = el maestro no lo trae). */
 export type Factores = Record<string, { hl: number | null; caj: number | null }>;
 const nfs = { est: new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 }), hl: new Intl.NumberFormat("es-CO", { maximumFractionDigits: 1 }), caj: new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 }) };
+const TXT_NOMBRE: Record<Unidad, string> = { est: "Estibas", hl: "HL", caj: "Cajas" };
 const TXT_UNIDAD: Record<Unidad, string> = { est: "ESTIBAS", hl: "HL", caj: "CAJAS" };
 const claseSitio: Record<Sitio, string> = { "BODEGA 38": "bod", FABRICA: "fab", EXPORTACION: "exp", BTS: "bts" };
 
@@ -101,7 +102,7 @@ export function useTablaUbicacion(conteos: ConteoDia[], diaA: string, diaB: stri
     const a = convertir(crA).filas, b = convertir(crB).filas;
     const estados = armarTablaUbicacion(a, b, "", false).estados;
     const e = estado ?? (estados.includes("LAVADO") ? "LAVADO" : "");
-    return { tabla: armarTablaUbicacion(a, b, e, soloCambios), fA, fB, estado: e, soloCambios, chips: [], unidad };
+    return { tabla: armarTablaUbicacion(a, b, e, soloCambios), fA, fB, estado: e, soloCambios, chips: [`Unidad: ${TXT_NOMBRE[unidad]}`, e || "Todos los estados", ...(soloCambios ? ["Solo cambios"] : [])], unidad };
   }, [fA, fB, leer, convertir, unidad, estado, soloCambios]);
 
   return { fA, fB, cargando, error, listo, todosEstados, est, t, soloCambios, setEstado, setSoloCambios, cargar, hayConteos: conteos.length > 0, unidad, sinFactor };

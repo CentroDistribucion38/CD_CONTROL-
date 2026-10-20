@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { leerPaleta } from "@/app/(app)/quiebra/rotura/HojaFirma";
 import { BotonesFoto, logoMarca, useFotoCompartir, type TipoFoto } from "@/components/FotoCompartir";
 import { PALETA_MARCA } from "@/modulos/rotlinea/hoja";
+import type { Unidad } from "@/modulos/casco/comparar";
 import type { DatosComparativo, DatosTablaFoto } from "@/modulos/casco/foto-comparativo";
 
 /**
@@ -11,10 +12,11 @@ import type { DatosComparativo, DatosTablaFoto } from "@/modulos/casco/foto-comp
  * un correo o en WhatsApp (igual que en el Tablero). Sale con las fechas, la unidad y los filtros que
  * estén puestos. La foto de la Tabla lee los dos conteos si todavía no se han abierto.
  */
-export function BotonesComparativo({ datos, cargarTabla, chipsTabla }: {
+export function BotonesComparativo({ datos, cargarTabla, unidad, cambiarUnidad }: {
   datos: DatosComparativo | null;
   cargarTabla: () => Promise<DatosTablaFoto | null>;
-  chipsTabla: string[];
+  unidad: Unidad;
+  cambiarUnidad: (u: Unidad) => void;
 }) {
   const caja = useRef<HTMLDivElement>(null);
   const [motivo, setMotivo] = useState<string | null>(null);
@@ -25,13 +27,15 @@ export function BotonesComparativo({ datos, cargarTabla, chipsTabla }: {
     const [fo, logo] = await Promise.all([import("@/modulos/casco/foto-comparativo"), logoMarca()]);
     if (tipo === "dashboard") {
       if (!datos) { setMotivo("No hay casco para comparar con esos filtros."); throw new Error("sin datos") }
-      return { lienzo: fo.dibujarDashboardComparativo(datos, { paleta, logo }), nombre: fo.nombreDashboardComparativo(datos.diaA, datos.diaB) };
+      return { lienzo: fo.dibujarDashboardComparativo(datos, { paleta, logo }), nombre: fo.nombreDashboardComparativo(datos.diaA, datos.diaB, datos.unidad) };
     }
     const t = await cargarTabla();
     if (!t) { setMotivo("Para la foto de la Tabla escoge dos fechas que caigan en conteos distintos."); throw new Error("sin tabla") }
-    const conChips = { ...t, chips: chipsTabla };
-    return { lienzo: fo.dibujarTablaComparativo(conChips, { paleta, logo }), nombre: fo.nombreTablaComparativo(t.fA, t.fB) };
-  }, "Comparativo de casco", { dashboard: "Dashboard", detalle: "Tabla" });
+    return { lienzo: fo.dibujarTablaComparativo(t, { paleta, logo }), nombre: fo.nombreTablaComparativo(t.fA, t.fB, t.unidad) };
+  }, "Comparativo de casco", { dashboard: "Dashboard", detalle: "Tabla" }, {
+    titulo: "Unidad", actual: unidad, cambiar: (k) => cambiarUnidad(k as Unidad),
+    valores: [{ k: "hl", t: "HL" }, { k: "est", t: "Estibas" }, { k: "caj", t: "Cajas" }],
+  });
 
   return (
     <div className="cvt-inf" ref={caja}>
