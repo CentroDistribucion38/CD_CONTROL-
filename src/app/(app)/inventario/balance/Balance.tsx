@@ -136,6 +136,8 @@ export function Balance({
   /* Las ubicaciones (renglones del conteo) de ese material que se van a mover: por defecto todas, y se desmarcan las que se quedan. */
   const [marcadasReclas, setMarcadasReclas] = useState<Set<string>>(new Set());
   const [errorReclas, setErrorReclas] = useState<string | null>(null);
+  /* A qué estado va CADA ubicación: así se pasan varias de una sola vez, cada una a su estado. */
+  const [destinoLinea, setDestinoLinea] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
   /* «Otros estados»: por defecto SOLO lo que debe ir a pasivo (OTROS y MAL ESTADO), para saber qué falta reasignar. */
   const [soloPasivo, setSoloPasivo] = useState(true);
@@ -200,9 +202,10 @@ export function Balance({
     setErrorReclas(null);
     {
       const zona = f.alcance === "SORTING" ? "Fábrica" : f.alcance === "PRESORTING" ? "Bodega 38" : null;
-      setMarcadasReclas(new Set(consolidado
-        .filter((l) => l.codigo === f.codigo && l.estado.trim().toUpperCase() === f.estado.trim().toUpperCase() && (!zona || l.zona === zona))
-        .map((l) => l.clave)));
+      const ls = consolidado.filter((l) => l.codigo === f.codigo && l.estado.trim().toUpperCase() === f.estado.trim().toUpperCase() && (!zona || l.zona === zona));
+      const ini = ESTADOS_DESTINO.find((e) => e !== f.estado) ?? ESTADOS_DESTINO[0];
+      setMarcadasReclas(new Set(ls.map((l) => l.clave)));
+      setDestinoLinea(Object.fromEntries(ls.map((l) => [l.clave, ini])));
     }
     setNuevoEstado(
       ESTADOS_DESTINO.find((e) => e !== f.estado) ?? ESTADOS_DESTINO[0],
@@ -216,14 +219,19 @@ export function Balance({
     /* Con las ubicaciones a la vista: se mueven SOLO las marcadas (por renglón del conteo). */
     if (lineasReclas.length > 0) {
       if (!marcadasModal.length) { setErrorReclas("Marca al menos una ubicación."); return }
+      /* Las marcadas se agrupan por el estado al que va cada una y se pasan todas de una vez. */
+      const grupos = new Map<string, string[]>();
+      for (const l of marcadasModal) { const d = destinoLinea[l.clave] ?? nuevoEstado; grupos.set(d, [...(grupos.get(d) ?? []), ...l.ids]) }
       startTransition(async () => {
-        const fd = new FormData();
-        fd.set("fecha", reclas.fecha ?? fecha ?? "");
-        fd.set("estado_nuevo", nuevoEstado);
-        fd.set("motivo", motivo);
-        fd.set("ids", JSON.stringify(marcadasModal.flatMap((l) => l.ids)));
-        const r = await reasignarRenglones(fd);
-        if ("error" in r && r.error) { setErrorReclas(r.error); return }
+        for (const [d, ids] of grupos) {
+          const fd = new FormData();
+          fd.set("fecha", reclas.fecha ?? fecha ?? "");
+          fd.set("estado_nuevo", d);
+          fd.set("motivo", motivo);
+          fd.set("ids", JSON.stringify(ids));
+          const r = await reasignarRenglones(fd);
+          if ("error" in r && r.error) { setErrorReclas(`${d}: ${r.error}`); router.refresh(); return }
+        }
         setReclas(null);
         router.refresh();
       });
@@ -725,7 +733,7 @@ export function Balance({
         </>
       )}
 
-      {/* ---- MODAL RECLASIFICACIÓN: todo recto, el destino con botones grandes y las ubicaciones con su barra ---- */}
+      {/* ---- MODAL RECLASIFICACIÓN: todo recto, claro, cada ubicación con su propio estado ---- */}
       {reclas && (() => {
         const totalCajas = lineasReclas.reduce((t, l) => t + l.cajas, 0);
         const marcCajas = marcadasModal.reduce((t, l) => t + l.cajas, 0);
@@ -733,7 +741,13 @@ export function Balance({
         const hay = lineasReclas.length > 0;
         const pct = totalCajas ? (marcCajas / totalCajas) * 100 : 0;
         const destinos = ESTADOS_DESTINO.filter((e) => e !== reclas.estado);
-        const botonMover = pending ? "Guardando…" : hay && marcadasModal.length < lineasReclas.length ? `Mover ${marcadasModal.length} de ${lineasReclas.length}` : "Mover";
+        const destDe = (l: LineaConsolidado) => destinoLinea[l.clave] ?? nuevoEstado;
+        /* A dónde va lo marcado: un solo estado, o «VARIOS» si cada ubicación va a uno distinto. */
+        const porDestino = new Map<string, number>();
+        for (const l of marcadasModal) porDestino.set(destDe(l), (porDestino.get(destDe(l)) ?? 0) + l.cajas);
+        const resumenDestino = hay ? (porDestino.size === 0 ? nuevoEstado : porDestino.size === 1 ? [...porDestino.keys()][0] : "VARIOS") : nuevoEstado;
+        const botonMover = pending ? "Guardando…" : hay && marcadasModal.length < lineasReclas.length ? `Mover ${marcadasModal.length} de ${lineasReclas.length}` : hay && lineasReclas.length > 1 ? `Mover las ${lineasReclas.length}` : "Mover";
+        const poner = (e: string) => { setNuevoEstado(e); setDestinoLinea(Object.fromEntries(lineasReclas.map((l) => [l.clave, e]))) };
         return (
           <div className="bal-modal-fondo" onClick={() => setReclas(null)}>
             <div className="bal-modal bal-mx" role="dialog" aria-modal="true" aria-label="Cambiar estado del envase" onClick={(e) => e.stopPropagation()}>
@@ -752,20 +766,20 @@ export function Balance({
                 <div className="bal-mx-flujo" aria-label="De un estado a otro">
                   <span className="de"><small>ESTÁ EN</small><b>{reclas.estado}</b></span>
                   <span className="flecha" aria-hidden>→</span>
-                  <span className="a"><small>PASA A</small><b>{nuevoEstado}</b></span>
+                  <span className="a"><small>PASA A</small><b>{resumenDestino}</b></span>
                 </div>
 
-                <p className="bal-mx-t">1 · ¿A QUÉ ESTADO?</p>
-                <div className="bal-mx-destinos" role="radiogroup" aria-label="Estado nuevo">
+                <p className="bal-mx-t">1 · ¿A QUÉ ESTADO? <small>(para todas; abajo puedes cambiar una por una)</small></p>
+                <div className="bal-mx-destinos" role="radiogroup" aria-label="Estado nuevo para todas las ubicaciones">
                   {destinos.map((e) => (
-                    <button key={e} type="button" role="radio" aria-checked={nuevoEstado === e} className={nuevoEstado === e ? "on" : ""} onClick={() => setNuevoEstado(e)}>{e}</button>
+                    <button key={e} type="button" role="radio" aria-checked={resumenDestino === e} className={resumenDestino === e ? "on" : ""} onClick={() => poner(e)}>{e}</button>
                   ))}
                 </div>
 
                 {hay && (
                   <>
                     <div className="bal-mx-t con-acc">
-                      <span>2 · ¿QUÉ UBICACIONES PASAN?</span>
+                      <span>2 · ¿QUÉ UBICACIONES PASAN Y A QUÉ ESTADO?</span>
                       <span className="acc">
                         <button type="button" onClick={() => setMarcadasReclas(new Set(lineasReclas.map((l) => l.clave)))}>Todas</button>
                         <button type="button" onClick={() => setMarcadasReclas(new Set())}>Ninguna</button>
@@ -777,14 +791,20 @@ export function Balance({
                         const on = marcadasReclas.has(l.clave);
                         return (
                           <li key={l.clave} className={on ? "on" : ""}>
-                            <label>
-                              <input type="checkbox" checked={on} onChange={() => alternarReclas(l.clave)} />
+                            <div className="fila">
+                              <input type="checkbox" checked={on} onChange={() => alternarReclas(l.clave)} aria-label={`Pasar ${l.ubicacion}`} />
                               <span className="u">{l.ubicacion}</span>
                               <i className="barra" aria-hidden><em style={{ width: (l.cajas / maxCajas) * 100 + "%" }} /></i>
                               <span className="c">{n(l.cajas)}<small> cajas</small></span>
                               {l.estibas != null && <span className="e">{n(l.estibas, 1)}<small> est.</small></span>}
-                              {l.nota && <span className="nota">{l.nota}</span>}
-                            </label>
+                              <label className="a">
+                                <small>PASA A</small>
+                                <select value={destDe(l)} disabled={!on} onChange={(e) => setDestinoLinea((m) => ({ ...m, [l.clave]: e.target.value }))} aria-label={`Estado nuevo de ${l.ubicacion}`}>
+                                  {destinos.map((e) => <option key={e} value={e}>{e}</option>)}
+                                </select>
+                              </label>
+                            </div>
+                            {l.nota && <span className="nota">{l.nota}</span>}
                           </li>
                         );
                       })}
@@ -803,7 +823,7 @@ export function Balance({
               <footer className="bal-mx-pie">
                 <p className="res">
                   {hay
-                    ? <><b>{n(marcCajas)}</b> de {n(totalCajas)} cajas · {marcadasModal.length} de {lineasReclas.length} ubicaciones<i className="barra" aria-hidden><em style={{ width: pct + "%" }} /></i></>
+                    ? <><b>{[...porDestino.entries()].map(([d, c]) => `${n(c)} → ${d}`).join("  ·  ") || "Nada marcado"}</b><span>de {n(totalCajas)} cajas · {marcadasModal.length} de {lineasReclas.length} ubicaciones</span><i className="barra" aria-hidden><em style={{ width: pct + "%" }} /></i></>
                     : <>Se mueve todo el material de <b>{reclas.estado}</b>.</>}
                 </p>
                 <div className="bal-modal-acciones">
