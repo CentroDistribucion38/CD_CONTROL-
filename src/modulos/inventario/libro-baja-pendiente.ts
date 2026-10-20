@@ -53,7 +53,16 @@ const ZONAS = [
   { estado: "BAJA", alcance: "SORTING", desc: "SORTING", nombre: "Fábrica", alm: "AG18", tipo: "BAJA SORTING", mov: "945 (85%) / 925 (15%)" },
   { estado: "BAJA", alcance: "PRESORTING", desc: "PRESORTING", nombre: "Bodega 38", alm: "AG22", tipo: "BAJA PRESORTING", mov: "945" },
 ] as const;
-const CENTRO = "COBAAG2070", IMPACTO = "SCOH";
+const IMPACTO = "SCOH";
+/* Fábrica (SORTING) se reparte como se viene dando de baja: 85 % por COBAAG2070 y 15 % por COBAAG3200, en renglones aparte. Bodega 38, 100 %. */
+const PARTES: Record<string, { pct: number; centro: string }[]> = {
+  SORTING: [{ pct: 0.85, centro: "COBAAG2070" }, { pct: 0.15, centro: "COBAAG3200" }],
+  PRESORTING: [{ pct: 1, centro: "COBAAG2070" }],
+};
+const reparte = (alcance: string, un: number) => {
+  const partes = PARTES[alcance] ?? PARTES.PRESORTING; let resto = un;
+  return partes.map((p, i) => { const u = i === partes.length - 1 ? resto : Math.round(un * p.pct); resto -= u; return { ...p, un: u } });
+};
 
 const TINTA = "FF111111", BANDA = "FFFFC20E", BLANCO = "FFFFFFFF", GRIS = "FF6B6B6B", FONDO = "FFF6F6F4", RAYA = "FFE3E3E0";
 const VERDE = "FF0F7A4A", ROJO = "FFB42318";
@@ -118,12 +127,14 @@ export async function armarLibroBajaPendiente(d: { fecha: string; filas: FilaBaj
   let n = 2;
   for (const z of ZONAS) {
     for (const l of lineas.filter((x) => x.zona.tipo === z.tipo)) {
-      const est = l.f.cajas_estiba && l.f.un_caja ? Math.round((l.un / l.f.un_caja / l.f.cajas_estiba) * 100) / 100 : "";
-      const r = h.getRow(n++);
-      r.values = ["Barranquilla", "EER", "ROTURA", z.desc, l.f.codigo, l.f.material ?? "", l.un, fecha, null, null, "", IMPACTO, "", CENTRO,
-        z.mov, "", z.tipo, est, z.alm];
-      r.getCell(7).numFmt = "#,##0"; r.getCell(8).numFmt = "yyyy-mm-dd"; r.getCell(18).numFmt = "0.00";
-      r.eachCell((c) => { c.font = letra(10, TINTA); c.border = { bottom: { style: "thin", color: { argb: RAYA } } } });
+      reparte(z.alcance, l.un).forEach((p, i) => {
+        const est = l.f.cajas_estiba && l.f.un_caja ? Math.round((p.un / l.f.un_caja / l.f.cajas_estiba) * 100) / 100 : "";
+        const r = h.getRow(n++);
+        r.values = ["Barranquilla", "EER", "ROTURA", z.desc, l.f.codigo, l.f.material ?? "", p.un, fecha, null, null, "", IMPACTO, "", p.centro,
+          z.mov, i === 0 && z.alcance === "SORTING" ? l.un : "", z.tipo, est, z.alm];
+        r.getCell(7).numFmt = "#,##0"; r.getCell(8).numFmt = "yyyy-mm-dd"; r.getCell(16).numFmt = "#,##0"; r.getCell(18).numFmt = "0.00";
+        r.eachCell((c) => { c.font = letra(10, TINTA); c.border = { bottom: { style: "thin", color: { argb: RAYA } } } });
+      });
     }
   }
   /* ROTURA DE LÍNEA: lo del pasivo del día, una línea por fila, impacto SUPPLY y movimiento 951. */
@@ -165,7 +176,7 @@ export async function armarLibroBajaPendiente(d: { fecha: string; filas: FilaBaj
     const ini = k;
     for (const x of filas) {
       const r = r2.getRow(k++);
-      const reparto = x.un == null ? "—" : z.mov;
+      const reparto = x.un == null ? "—" : z.alcance === "SORTING" ? reparte(z.alcance, x.un).map((p, i) => `${i ? 15 : 85} % ${p.un.toLocaleString("es-CO")}`).join(" · ") : "100 %";
       r.values = [z.nombre, z.alm, x.f.codigo, x.f.material ?? "", x.f.fisico_cajas, x.f.cajas_casco, x.f.dif_cajas, x.f.un_caja ?? "—", x.un ?? "—", reparto,
         x.un == null ? x.motivo : x.dueno ? `A dar de baja · viene de ${x.dueno}` : "A dar de baja"];
       r.eachCell((c, i) => {
