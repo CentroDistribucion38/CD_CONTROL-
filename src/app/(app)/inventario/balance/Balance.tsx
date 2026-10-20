@@ -7,7 +7,7 @@ import { DUENOS_ENVASE, esDueno } from "@/modulos/inventario/duenos";
 import { Consolidado } from "./Consolidado";
 import { Reasignaciones } from "./Reasignaciones";
 import { Rango } from "../../sider/seguimiento/Rango";
-import { reasignarRenglones, reclasificar, quitarReclasificacion } from "./actions";
+import { reasignarPorDestino, reclasificar, quitarReclasificacion } from "./actions";
 
 /* ------------------------------------------------------------------ */
 /*  TIPOS                                                              */
@@ -136,6 +136,8 @@ export function Balance({
   /* Las ubicaciones (renglones del conteo) de ese material que se van a mover: por defecto todas, y se desmarcan las que se quedan. */
   const [marcadasReclas, setMarcadasReclas] = useState<Set<string>>(new Set());
   const [errorReclas, setErrorReclas] = useState<string | null>(null);
+  /* Lo último que se movió, para que se vea que sí pasó. */
+  const [avisoMov, setAvisoMov] = useState<string | null>(null);
   /* A qué estado va CADA ubicación: así se pasan varias de una sola vez, cada una a su estado. */
   const [destinoLinea, setDestinoLinea] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
@@ -222,18 +224,22 @@ export function Balance({
       /* Las marcadas se agrupan por el estado al que va cada una y se pasan todas de una vez. */
       const grupos = new Map<string, string[]>();
       for (const l of marcadasModal) { const d = destinoLinea[l.clave] ?? nuevoEstado; grupos.set(d, [...(grupos.get(d) ?? []), ...l.ids]) }
+      const resumen = [...grupos.entries()].map(([d, ids]) => `${ids.length} → ${d}`).join(" · ");
       startTransition(async () => {
-        for (const [d, ids] of grupos) {
+        try {
           const fd = new FormData();
           fd.set("fecha", reclas.fecha ?? fecha ?? "");
-          fd.set("estado_nuevo", d);
           fd.set("motivo", motivo);
-          fd.set("ids", JSON.stringify(ids));
-          const r = await reasignarRenglones(fd);
-          if ("error" in r && r.error) { setErrorReclas(`${d}: ${r.error}`); router.refresh(); return }
+          fd.set("grupos", JSON.stringify([...grupos.entries()].map(([estado_nuevo, ids]) => ({ estado_nuevo, ids }))));
+          const r = await reasignarPorDestino(fd);
+          if ("error" in r && r.error) { setErrorReclas(r.error); return }
+          setAvisoMov(`${reclas.codigo} ${reclas.material ?? ""}: pasaron ${resumen} (renglones del conteo).`);
+          setReclas(null);
+          router.refresh();
+        } catch (e) {
+          console.error(e);
+          setErrorReclas(e instanceof Error ? e.message : "No se pudo mover. Intenta otra vez.");
         }
-        setReclas(null);
-        router.refresh();
       });
       return;
     }
@@ -291,6 +297,10 @@ export function Balance({
           {cambiando && <em>Trayendo…</em>}
         </div>
       </section>
+
+      {avisoMov && (
+        <p className="bal-aviso-mov" role="status">{avisoMov}<button type="button" onClick={() => setAvisoMov(null)} aria-label="Cerrar aviso">×</button></p>
+      )}
 
       {error && (
         <p className="aviso-error" style={{ padding: "1rem", color: "var(--fe-mal)" }}>

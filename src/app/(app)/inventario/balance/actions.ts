@@ -133,3 +133,56 @@ export async function reasignarRenglones(fd: FormData) {
   revalidatePath("/inventario/balance");
   return { ok: true, movidos: mover.length + vuelven.length, pasivos: await alinearPasivos(fecha) };
 }
+
+/**
+ * REASIGNAR VARIAS UBICACIONES DE UNA VEZ, cada grupo a su estado (desde el modal del Balance).
+ * Igual que `reasignarRenglones`, pero en UNA sola pasada: el consolidado del día se calcula una vez y la
+ * Base de pasivos se alinea una vez (antes eran dos llamadas seguidas y pesaban el doble).
+ * `grupos`: [{ estado_nuevo, ids }]
+ */
+export async function reasignarPorDestino(fd: FormData) {
+  try {
+    const fecha = String(fd.get("fecha") ?? "");
+    const motivo = (fd.get("motivo") as string) || null;
+    let grupos: { estado_nuevo: string; ids: string[] }[] = [];
+    try { grupos = JSON.parse(String(fd.get("grupos") ?? "[]")) } catch { /* nada */ }
+    grupos = grupos.map((g) => ({ estado_nuevo: String(g.estado_nuevo ?? "").trim().toUpperCase(), ids: (g.ids ?? []).map(String) })).filter((g) => g.estado_nuevo && g.ids.length);
+    if (!fecha || !grupos.length) return { error: "Faltan datos" };
+
+    const supabase = await createClient();
+    const { conteos } = await diasConConteo();
+    const { vigentes } = await consolidadoDelDia(fecha, conteos);
+    const porId = new Map(vigentes.map((r) => [r.id, r]));
+    const todos = grupos.flatMap((g) => g.ids).filter((id) => porId.has(id));
+    if (!todos.length) return { error: "Esas líneas ya no están en el consolidado del día" };
+
+    const { data: ya } = await supabase.from("balance_reclasificaciones")
+      .select("conteo_envase_id, estado_nuevo, creado_en").in("conteo_envase_id", todos).order("creado_en");
+    const actual = new Map<string, string>();
+    for (const x of ya ?? []) actual.set(x.conteo_envase_id, x.estado_nuevo);
+
+    const vuelven: string[] = [];
+    const filas: { conteo_envase_id: string; estado_original: string; estado_nuevo: string; motivo: string | null }[] = [];
+    for (const g of grupos) {
+      for (const id of g.ids) {
+        const r = porId.get(id); if (!r) continue;
+        if (normEstado(r.estado_envase) === g.estado_nuevo) vuelven.push(id);
+        else if ((actual.get(id) ?? "") !== g.estado_nuevo) filas.push({ conteo_envase_id: id, estado_original: actual.get(id) ?? normEstado(r.estado_envase), estado_nuevo: g.estado_nuevo, motivo });
+      }
+    }
+    /* Lo que ya tenía una reasignación se reemplaza por la nueva (si no, quedarían dos para el mismo renglón). */
+    const reemplazar = [...vuelven, ...filas.map((f) => f.conteo_envase_id)];
+    if (reemplazar.length) {
+      const { error } = await supabase.from("balance_reclasificaciones").delete().in("conteo_envase_id", reemplazar);
+      if (error) return { error: error.message };
+    }
+    if (filas.length) {
+      const { error } = await supabase.from("balance_reclasificaciones").insert(filas);
+      if (error) return { error: error.message };
+    }
+    revalidatePath("/inventario/balance");
+    return { ok: true, movidos: filas.length + vuelven.length, pasivos: await alinearPasivos(fecha) };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "No se pudo reasignar" };
+  }
+}
