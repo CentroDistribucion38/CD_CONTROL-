@@ -57,7 +57,8 @@ export function calcularAjustes(todas: FilaAnalisis[], obs: Record<string, strin
       par: c?.par ?? null, parDescripcion: c ? por.get(c.par)?.descripcion ?? null : null,
       compensa, ajuste: f.diferencia + compensa,
       observacion: obs[f.codigo] ?? "",
-      compHecha: hechos[f.codigo]?.comp ?? false,
+      /* LA COMPENSACIÓN ES AUTOMÁTICA: si el conteo dice que el retornable se contó en NUEVO, ese NUEVO se pasa al NR de una; no hay casilla que marcar. */
+      compHecha: true,
       nuevo: nuevoPar.get(f.codigo) ?? 0,
       ajusteHecho: hechos[f.codigo]?.ajuste ?? null,
     };

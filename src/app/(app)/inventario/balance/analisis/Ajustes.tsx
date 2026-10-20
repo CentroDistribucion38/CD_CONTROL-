@@ -146,9 +146,7 @@ export function Ajustes({ fecha, guardado, filas: inicio, puedeEditar, faltaSql,
                       <td className="hecho">
                         {(f.compensa !== 0 || f.ajuste !== 0) ? (
                           <div className="ad-hecho">
-                            {f.compensa !== 0 && (
-                              <label><input type="checkbox" disabled={!puedeEditar} checked={f.compHecha} onChange={(e) => void marcar(f, e.target.checked, f.ajusteHecho)} /> Compensación</label>
-                            )}
+                            {f.compensa !== 0 && <span className="ad-auto" title="El NUEVO contado en el retornable ya se pasó a su NR: no hay que marcar nada">Compensación automática</span>}
                             {f.ajuste !== 0 && (
                               <label><input type="checkbox" disabled={!puedeEditar} checked={f.ajusteHecho != null && f.ajusteHecho !== 0}
                                             onChange={(e) => void marcar(f, f.compHecha, e.target.checked ? f.ajuste : null)} /> Ajuste
