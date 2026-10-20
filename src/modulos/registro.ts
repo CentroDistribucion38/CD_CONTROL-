@@ -685,15 +685,18 @@ export const MODULOS: Modulo[] = [
          Bodegas, Movimientos, Conteos físicos…) que duplicaban el maestro:
          dos editores para una misma tabla es cómo dos personas se pisan el
          dato sin enterarse. Ya no están. */
-      /* EL INVENTARIO FISCAL VA PRIMERO («inventario fiscal antes que el corte
+      /* EL PLAN FISCAL VA PRIMERO («inventario fiscal antes que el corte
          de líneas»): se arma el plan (día, hojas, parejas del operador
          logístico y de Bavaria), y de ahí sale lo que cada quien encuentra en
          «Contar». */
-      { nombre: "Inventario fiscal", ruta: "/inventario/fiscal", rama: "conteos" },
+      { nombre: "Plan fiscal", ruta: "/inventario/fiscal", rama: "conteos" },
       { nombre: "Corte de líneas", ruta: "/inventario/corte", rama: "conteos" },
       /* CONTAR LLEVA DOS CONTEOS: el FEFO diario y la hoja del inventario fiscal
          (esta última solo a quien el plan le asignó una). */
       { nombre: "Contar", ruta: "/inventario/conteo", rama: "conteos" },
+      /* EL CONTROL FISCAL VA DESPUÉS DE CONTAR: primero se arma el plan, la gente cuenta
+         y entonces se sigue el avance y se revisan las diferencias. */
+      { nombre: "Control fiscal", ruta: "/inventario/control-fiscal", rama: "conteos" },
       { nombre: "BD", ruta: "/inventario/base", rama: "conteos" },
       /* EL TABLERO VIVE EN /inventario/tablero Y NO EN /inventario.
          Ocupando la ruta del módulo, entrar a Inventario era entrar ya

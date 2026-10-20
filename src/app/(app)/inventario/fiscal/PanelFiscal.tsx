@@ -143,8 +143,8 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
   quien: (id: string) => string;
   /** Los botones de la cabecera (Excel, mostrar en Contar, editar, eliminar). */
   acciones: ReactNode;
-  /** La pestaña «Parejas y hojas»: la tabla de parejas y su edición. */
-  parejas: ReactNode;
+  /** La pestaña «Parejas y hojas»: la tabla de parejas y su edición. Sin ella (el Control fiscal) la pestaña no existe: eso es del Plan fiscal. */
+  parejas?: ReactNode;
 }) {
   const [pestana, setPestana] = useState<Pestana>("torre");
   const [filtro, setFiltro] = useState<Filtro>("todas");
@@ -180,8 +180,8 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
   }
   const renglones = tarjetas.reduce((s, t) => s + (t.av ? t.av.olRenglones + t.av.bavariaRenglones : 0), 0);
 
-  const titulo = total === 0 ? "Arma las parejas para empezar"
-    : !conAvance ? "Muéstralo en Contar para ver el avance en vivo"
+  const titulo = total === 0 ? "Arma las parejas en el Plan fiscal para empezar"
+    : !conAvance ? "Muéstralo en Contar (en el Plan fiscal) para ver el avance en vivo"
     : cuenta.ok === total ? "Todas las hojas completadas"
     : `${cuenta.ok} de ${total} ${total === 1 ? "hoja completada" : "hojas completadas"}`;
   const subtitulo = !conAvance ? "Cuando lo muestres en Contar, cada pareja empieza a contar y aquí ves cómo va."
@@ -231,7 +231,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
     <section className="vf" aria-label={`Inventario fiscal ${nombre}`}>
       <header className="vf-cab">
         <div className="vf-tit">
-          <p className="vf-ojo">Inventario fiscal · por parejas</p>
+          <p className="vf-ojo">{parejas ? "Inventario fiscal · por parejas" : "Control fiscal · en vivo"}</p>
           <h2>{nombre}</h2>
           <p className="vf-meta">
             <Ico n="calendario" tam={15} /> {fechaTexto} · {cuando}
@@ -268,7 +268,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
 
       <div className="vf-tabs" role="tablist" aria-label="Secciones del inventario fiscal">
         <button type="button" role="tab" aria-selected={pestana === "torre"} className="vf-tab" onClick={() => setPestana("torre")}><Ico n="panel" tam={17} /> Torre de control</button>
-        <button type="button" role="tab" aria-selected={pestana === "parejas"} className="vf-tab" onClick={() => setPestana("parejas")}><Ico n="parejas" tam={17} /> Parejas y hojas <span className="vf-cont">{total}</span></button>
+        {parejas && <button type="button" role="tab" aria-selected={pestana === "parejas"} className="vf-tab" onClick={() => setPestana("parejas")}><Ico n="parejas" tam={17} /> Parejas y hojas <span className="vf-cont">{total}</span></button>}
         <button type="button" role="tab" aria-selected={pestana === "revision"} className="vf-tab" onClick={() => setPestana("revision")}>
           <Ico n="alerta" tam={17} /> Revisión de diferencias {cuenta.dif > 0 && <span className="vf-cont rojo">{cuenta.dif}</span>}
         </button>
@@ -277,7 +277,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
       {pestana === "torre" && (
         <div role="tabpanel">
           {total === 0 ? (
-            <p className="fe-vacio">Todavía no hay hojas. Ve a «Parejas y hojas» para armarlas.</p>
+            <p className="fe-vacio">Todavía no hay hojas. Se arman en el Plan fiscal.</p>
           ) : (
             <>
               <div className="vf-filtros" role="group" aria-label="Filtrar las tarjetas">
@@ -331,7 +331,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
         </div>
       )}
 
-      {pestana === "parejas" && <div role="tabpanel" className="vf-parejas">{parejas}</div>}
+      {pestana === "parejas" && parejas && <div role="tabpanel" className="vf-parejas">{parejas}</div>}
 
       {pestana === "revision" && (
         <div role="tabpanel" className="vf-revision">
