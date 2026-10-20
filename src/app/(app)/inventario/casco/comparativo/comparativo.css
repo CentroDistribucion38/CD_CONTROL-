@@ -21,32 +21,45 @@
 .cvc .cvc-tab[aria-selected="true"] { color: var(--fe-tinta); border-bottom-color: var(--fe-acento) }
 .cvc .cvc-nota { margin: 0; font-size: 12.5px; color: var(--fe-gris) }
 
-/* El cambio, en grande */
-.cvc .cvc-hero { display: grid; grid-template-columns: 1fr 1.2fr 1fr; align-items: stretch; border-radius: 4px; overflow: hidden; border: 1px solid var(--fe-linea) }
-.cvc .cvc-lado { background: var(--fe-papel); padding: 16px 20px; display: flex; flex-direction: column; gap: 4px; min-width: 0 }
-.cvc .cvc-lado.b { border-top: 4px solid var(--fe-acento) }
-.cvc .cvc-lado b { font: 900 clamp(30px, 4vw, 46px)/1.05 var(--fe-titulo); letter-spacing: -.03em; font-variant-numeric: tabular-nums; color: var(--fe-tinta) }
-.cvc .cvc-lado.a b { color: var(--fe-gris) }
-.cvc .cvc-lado b small, .cvc .cvc-centro b small { font: 700 14px var(--fe-texto); letter-spacing: 0 }
-.cvc .cvc-centro { background: var(--fe-tinta); color: #fff; padding: 16px 20px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 6px; text-align: center }
-.cvc .cvc-centro-et { font: 700 10.5px var(--fe-texto); letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.75) }
-.cvc .cvc-centro b { font: 900 clamp(34px, 5vw, 56px)/1.05 var(--fe-titulo); letter-spacing: -.03em; font-variant-numeric: tabular-nums }
-.cvc .cvc-centro.up b { color: color-mix(in srgb, var(--fe-mal) 62%, #fff) }
-.cvc .cvc-centro.dn b { color: color-mix(in srgb, var(--fe-bien) 55%, #fff) }
-.cvc .cvc-centro.eq b { color: #fff }
-.cvc .cvc-pct { padding: 3px 12px; font: 800 13px var(--fe-texto); border: 1px solid rgba(255,255,255,.4); border-radius: 2px }
+/* LA GRÁFICA Y LAS CIFRAS: los tonos del dashboard del Tablero (negro, amarillo de marca, durazno, oro) */
+.cvc .cvc-marca { display: inline-block; width: 10px; height: 10px; margin-right: 10px; background: var(--fe-acento); vertical-align: 1px }
+.cvc .cvc-tablero { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr) 300px; align-items: stretch }
+.cvc .cvc-principal { min-width: 0 }
+.cvc .cvc-pareja { width: 100%; height: auto; display: block }
+.cvc .cvc-enlace { stroke: var(--fe-gris); stroke-dasharray: 3 3; stroke-width: 1 }
+.cvc .cvc-d-sitio { font: 700 12px var(--fe-texto); fill: var(--fe-gris) }
+.cvc .cvc-d-val { font: 900 17px var(--fe-titulo); font-variant-numeric: tabular-nums }
+.cvc .cvc-d-val.up { fill: var(--fe-mal) }
+.cvc .cvc-d-val.dn { fill: var(--fe-bien) }
+.cvc .cvc-d-val.eq { fill: var(--fe-gris) }
+.cvc .cvc-kpis { display: flex; flex-direction: column; gap: 10px }
+.cvc .cvc-kpi { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 14px 16px; background: var(--fe-papel); border: 1px solid var(--fe-linea); border-bottom: 3px solid var(--fe-acento); border-radius: 2px; min-width: 0 }
+.cvc .cvc-kpi-et { font: 800 10.5px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase; color: var(--fe-gris) }
+.cvc .cvc-kpi b { font: 900 clamp(26px, 3vw, 36px)/1.05 var(--fe-titulo); letter-spacing: -.03em; font-variant-numeric: tabular-nums; color: var(--fe-tinta) }
+.cvc .cvc-kpi b .u { font: 800 14px var(--fe-texto); letter-spacing: 0 }
+.cvc .cvc-kpi b.cvc-kpi-mat { font-size: 17px; letter-spacing: -.01em; line-height: 1.2 }
+.cvc .cvc-kpi small { font-size: 12px; color: var(--fe-gris); line-height: 1.35 }
+.cvc .cvc-kpi small b { font: 800 12px var(--fe-texto); letter-spacing: 0 }
+.cvc .cvc-kpi.negro { background: #111; border-color: #111; border-bottom-color: var(--fe-acento) }
+.cvc .cvc-kpi.negro .cvc-kpi-et, .cvc .cvc-kpi.negro small { color: rgba(255,255,255,.78) }
+.cvc .cvc-kpi.negro b { color: #fff; font-size: clamp(34px, 4vw, 48px) }
+.cvc .cvc-kpi.up b { color: var(--fe-mal) }
+.cvc .cvc-kpi.dn b { color: var(--fe-bien) }
 
-/* Una tarjeta por almacén */
-.cvc .cvc-almacenes { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)) }
-.cvc .cvc-alm { background: var(--fe-papel); border: 1px solid var(--fe-linea); border-left: 6px solid var(--fe-acento); border-radius: 3px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0 }
-.cvc .cvc-alm header { display: flex; justify-content: space-between; align-items: center; gap: 8px }
-.cvc .cvc-alm header b { font: 800 14px var(--fe-titulo); color: var(--fe-tinta) }
-.cvc .cvc-par { display: grid; grid-template-columns: auto 1fr auto; gap: 6px 10px; align-items: center; font-size: 12.5px; color: var(--fe-gris) }
-.cvc .cvc-par i { display: block; height: 12px; background: var(--fe-fondo); border-radius: 2px; overflow: hidden }
-.cvc .cvc-par em { display: block; height: 100%; font-style: normal }
-.cvc .cvc-par em.ant { opacity: .45 }
-.cvc .cvc-par b { color: var(--fe-tinta); font-variant-numeric: tabular-nums; text-align: right; min-width: 56px }
-.cvc .cvc-alm small { font-size: 12px; color: var(--fe-gris) }
+/* Cómo está cada almacén */
+.cvc .cvc-almacenes { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr)) }
+.cvc .cvc-alm { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; min-width: 0; background: color-mix(in srgb, var(--fe-fondo) 45%, #fff); border: 1px solid var(--fe-linea); border-left: 6px solid var(--fe-acento); border-radius: 2px }
+.cvc .cvc-alm header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px }
+.cvc .cvc-alm header b { font: 800 12px var(--fe-texto); letter-spacing: .04em; color: var(--fe-tinta) }
+.cvc .cvc-alm header small { font-size: 11.5px; color: var(--fe-gris); white-space: nowrap }
+.cvc .cvc-alm-cifra { display: flex; justify-content: space-between; align-items: baseline; gap: 8px }
+.cvc .cvc-alm-cifra > b { font: 900 clamp(28px, 3vw, 38px)/1.05 var(--fe-titulo); letter-spacing: -.03em; font-variant-numeric: tabular-nums; color: var(--fe-tinta) }
+.cvc .cvc-alm-cifra > b small { font: 700 13px var(--fe-texto); color: var(--fe-gris); letter-spacing: 0 }
+.cvc .cvc-alm-cifra > span { font-size: 12.5px; color: var(--fe-gris) }
+.cvc .cvc-alm-cifra > span b { font: 900 18px var(--fe-titulo); color: var(--fe-tinta) }
+.cvc .cvc-alm-pie { margin: 0; font-size: 12px; color: var(--fe-gris); display: flex; flex-direction: column; gap: 2px }
+.cvc .cvc-alm-pie b { font-weight: 800 }
+.cvc .cvc-alm-a { color: var(--fe-gris) }
 
 /* Las etiquetas de estado */
 .cvc .cvc-pill { display: inline-block; padding: 3px 8px; border-radius: 2px; font: 800 10.5px var(--fe-texto); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; background: var(--fe-fondo); color: var(--fe-tinta) }
@@ -56,32 +69,20 @@
 .cvc .cvc-pill.nuevo { background: transparent; border: 1px solid var(--fe-acento); color: var(--fe-tinta) }
 .cvc .cvc-pill.salio { background: transparent; border: 1px solid var(--fe-tinta); color: var(--fe-tinta) }
 
-/* Cascada y movimientos */
-.cvc .cvc-dos { display: grid; gap: 12px; grid-template-columns: 1.3fr 1fr }
-.cvc .cvc-casc { width: 100%; height: auto; display: block }
-.cvc .cvc-bar.ini { fill: var(--fe-gris) }
-.cvc .cvc-bar.fin { fill: var(--fe-tinta) }
-.cvc .cvc-bar.up { fill: var(--fe-mal) }
-.cvc .cvc-bar.dn { fill: var(--fe-bien) }
-.cvc .cvc-bar.eq { fill: var(--fe-gris) }
-.cvc .cvc-bar-txt { font: 800 12.5px var(--fe-texto); fill: var(--fe-tinta); font-variant-numeric: tabular-nums }
-.cvc .cvc-enlace { stroke: var(--fe-gris); stroke-dasharray: 3 3; stroke-width: 1 }
+/* Lo que más se movió: el día B por almacén (colores del dashboard) y el cambio al lado */
 .cvc .cvc-movs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px }
-.cvc .cvc-movs li { display: grid; grid-template-columns: minmax(120px, 190px) 1fr 64px; gap: 10px; align-items: center; font-size: 13px }
-.cvc .cvc-movs li > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
-.cvc .cvc-movs i { display: block; height: 14px; background: var(--fe-fondo) }
-.cvc .cvc-movs em { display: block; height: 100%; background: var(--fe-gris) }
-.cvc .cvc-movs em.up { background: var(--fe-mal) }
-.cvc .cvc-movs em.dn { background: var(--fe-bien) }
-.cvc .cvc-movs b { text-align: right; font-variant-numeric: tabular-nums }
+.cvc .cvc-movs li { display: grid; grid-template-columns: minmax(130px, 230px) 1fr 70px 80px; gap: 10px; align-items: center; font-size: 13px }
+.cvc .cvc-movs li > span { text-align: right; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.cvc .cvc-mov-pista { display: flex; height: 24px; background: color-mix(in srgb, var(--fe-fondo) 70%, #fff) }
+.cvc .cvc-mov-pista em { display: flex; align-items: center; justify-content: center; height: 100%; font: 700 12px var(--fe-texto); font-style: normal; font-variant-numeric: tabular-nums; border-right: 2px solid #fff; overflow: hidden }
+.cvc .cvc-movs b { text-align: right; font-variant-numeric: tabular-nums; font-weight: 800 }
+.cvc .cvc-movs .cvc-mov-d { font-weight: 900 }
 
 /* Tabla por material */
 .cvc .cvc-tabla .cvc-div { width: 32%; min-width: 150px }
 .cvc .cvc-dv { position: relative; display: block; height: 14px; background: var(--fe-fondo) }
 .cvc .cvc-dv-eje { position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--fe-gris) }
-.cvc .cvc-dv em { position: absolute; top: 0; bottom: 0; background: var(--fe-gris) }
-.cvc .cvc-dv em.up { background: var(--fe-mal) }
-.cvc .cvc-dv em.dn { background: var(--fe-bien) }
+.cvc .cvc-dv em { position: absolute; top: 0; bottom: 0; background: var(--fe-acento) }
 .cvc .cvc-abrir { display: inline-flex; align-items: baseline; gap: 6px; background: none; border: 0; padding: 4px 0; min-height: 36px; font: inherit; color: var(--fe-tinta); cursor: pointer; text-align: left }
 .cvc .cvc-abrir small { color: var(--fe-gris); font: 600 12px ui-monospace, monospace }
 .cvc .cvc-tabla tr.abierto td { background: color-mix(in srgb, var(--fe-acento) 12%, #fff) }
@@ -100,14 +101,12 @@
 .cvc .cvc-excel tr.cvc-total-mat td.cvc-dif.up { background: color-mix(in srgb, var(--fe-mal) 24%, #fff) }
 .cvc .cvc-excel tr.cvc-total-mat td.cvc-dif.dn, .cvc .cvc-excel tr.cvc-total-mat td.cvc-dif.eq { background: color-mix(in srgb, var(--fe-bien) 22%, #fff) }
 
-@media (max-width: 900px) {
-  .cvc .cvc-hero { grid-template-columns: 1fr }
-  .cvc .cvc-dos { grid-template-columns: 1fr }
-}
+@media (max-width: 1000px) { .cvc .cvc-tablero { grid-template-columns: 1fr } .cvc .cvc-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)) } }
 @media (max-width: 520px) {
   .cvc .cvc-tab { flex: 1 }
-  .cvc .cvc-movs li { grid-template-columns: 1fr 64px; }
-  .cvc .cvc-movs i { grid-column: 1 / -1; grid-row: 2 }
+  .cvc .cvc-movs li { grid-template-columns: 1fr 64px 70px }
+  .cvc .cvc-movs li > span { grid-column: 1 / -1; text-align: left }
+  .cvc .cvc-mov-pista { grid-column: 1 / -1; grid-row: 2 }
 }
 
 /* =====================================================================

@@ -3,7 +3,7 @@
 import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
 import type { SitioCasco } from "@/modulos/casco/datos";
-import { ejeNice, type Punto } from "@/modulos/casco/serie";
+import { ejeNice, viajesSerpro, type Punto } from "@/modulos/casco/serie";
 import { colorSitio, corta, enOrdenInforme, larga } from "@/modulos/casco/informe";
 import { comparar, nombreEstado, valorDe, type FilaCmp, type Medida, type Unidad } from "@/modulos/casco/comparar";
 import { TablaUbicacion, type ConteoDia } from "./TablaUbicacion";
@@ -90,6 +90,8 @@ export function Comparativo({ puntos, sitios, nombres, cajasPorEstiba, errorLect
   const maxMov = Math.max(1e-9, ...topes.map((m) => Math.abs(v(m.d) ?? 0)));
   const maxMat = Math.max(1e-9, ...cmp.materiales.map((m) => Math.abs(v(m.d) ?? 0)));
   const nuevos = cmp.cuentas.nuevo + cmp.cuentas.salio;
+  const viajesA = cmp.sitios.reduce((t, s) => t + viajesSerpro(s.a.est, centroSitio(s.clave)), 0);
+  const viajesB = cmp.sitios.reduce((t, s) => t + viajesSerpro(s.b.est, centroSitio(s.clave)), 0);
 
   const controles = (
     <section className="cvt-filtros cvc-ctrl" aria-label="Fechas a comparar">
@@ -160,75 +162,96 @@ export function Comparativo({ puntos, sitios, nombres, cajasPorEstiba, errorLect
         <p className="cvt-vacio">No hay casco para comparar con esos filtros.</p>
       ) : (
         <>
-          {/* ---------- EL CAMBIO, EN GRANDE ---------- */}
-          <div className="cvc-hero">
-            <div className="cvc-lado a">
-              <span className="cvt-lb">Día A · {cmp.diaA ? larga(cmp.diaA) : "—"}</span>
-              <b>{num(tot.a, u)}<small> {ud.largo}</small></b>
-            </div>
-            <div className={"cvc-centro " + clase(tot.d, u)}>
-              <span className="cvc-centro-et">Cambio entre los dos días</span>
-              <b>{flecha(tot.d, u)} {conSigno(tot.d, u)}<small> {ud.largo}</small></b>
-              <span className="cvc-pct">
-                {pct == null ? "sin día A para comparar" : `${pct > 0 ? "+" : pct < 0 ? "−" : ""}${nf1.format(Math.abs(pct))} % · ${clase(tot.d, u) === "up" ? "más casco por partir" : clase(tot.d, u) === "dn" ? "menos casco por partir" : "sin cambio"}`}
-              </span>
-            </div>
-            <div className="cvc-lado b">
-              <span className="cvt-lb">Día B · {cmp.diaB ? larga(cmp.diaB) : "—"}</span>
-              <b>{num(tot.b, u)}<small> {ud.largo}</small></b>
-            </div>
-          </div>
-
-          {/* ---------- UNA TARJETA POR ALMACÉN ---------- */}
-          <div className="cvc-almacenes">
-            {cmp.sitios.map((s) => {
-              const a = v(s.a), b = v(s.b), d = v(s.d);
-              const mx = Math.max(1e-9, ...cmp.sitios.map((x) => Math.max(Math.abs(v(x.a) ?? 0), Math.abs(v(x.b) ?? 0))));
-              const c = colorSitio(s.clave);
-              return (
-                <article key={s.clave} className="cvc-alm" style={{ borderLeftColor: c.fondo }}>
-                  <header>
-                    <b>{nombreSitio(s.clave)}</b>
-                    <span className={"cvc-pill " + clase(d, u)}>{flecha(d, u)} {conSigno(d, u)}</span>
-                  </header>
-                  <div className="cvc-par">
-                    <span>Día A</span><i><em className="ant" style={{ width: Math.max(0, ((a ?? 0) / mx) * 100) + "%", background: c.fondo }} /></i><b>{num(a, u)}</b>
-                    <span>Día B</span><i><em style={{ width: Math.max(0, ((b ?? 0) / mx) * 100) + "%", background: c.fondo }} /></i><b>{num(b, u)}</b>
-                  </div>
-                  <small>{a ? `${(d ?? 0) > 0 ? "+" : (d ?? 0) < 0 ? "−" : ""}${nf1.format(Math.abs(((d ?? 0) / Math.abs(a)) * 100))} %` : "sin día A"} · {centroSitio(s.clave)}</small>
-                </article>
-              );
-            })}
-          </div>
-
-          {/* ---------- CASCADA Y MOVIMIENTOS ---------- */}
-          <div className="cvc-dos">
-            <section className="cvt-caja" aria-label="De dónde viene el cambio">
-              <header className="cvt-cab"><h2>DE DÓNDE VIENE EL CAMBIO ({ud.t.toUpperCase()})</h2></header>
-              <Cascada
-                u={u}
-                inicio={{ et: cmp.diaA ? corta(cmp.diaA) : "A", v: tot.a ?? 0 }}
-                pasos={cmp.sitios.map((s) => ({ et: centroSitio(s.clave), v: v(s.d) ?? 0 }))}
-                fin={{ et: cmp.diaB ? corta(cmp.diaB) : "B", v: tot.b ?? 0 }} />
-            </section>
-            <section className="cvt-caja" aria-label="Lo que más se movió">
-              <header className="cvt-cab"><h2>LO QUE MÁS SE MOVIÓ</h2><span className="cvt-sub">por material · {ud.largo}</span></header>
-              {topes.length === 0 ? <p className="cvc-nota">Ningún material cambió.</p> : (
-                <ul className="cvc-movs">
-                  {topes.map((m) => {
-                    const d = v(m.d);
-                    return (
-                      <li key={m.sku}>
-                        <span title={`${m.sku} · ${nom(m.sku)}`}>{nom(m.sku)}</span>
-                        <i><em className={clase(d, u)} style={{ width: (Math.abs(d ?? 0) / maxMov) * 100 + "%" }} /></i>
-                        <b className={clase(d, u)}>{conSigno(d, u)}</b>
-                      </li>
-                    );
-                  })}
+          {/* ---------- LA GRÁFICA Y LAS CIFRAS (los tonos del dashboard del Tablero) ---------- */}
+          <div className="cvc-tablero">
+            <section className="cvt-caja cvc-principal" aria-label="Día A contra día B">
+              <header className="cvt-cab">
+                <h2><i className="cvc-marca" aria-hidden />CASCO POR PARTIR · DÍA A CONTRA DÍA B ({ud.t.toUpperCase()})</h2>
+                <ul className="cvt-leyenda">
+                  {cmp.sitios.map((s) => <li key={s.clave}><i className="cvt-pt" style={{ background: colorSitio(s.clave).fondo }} aria-hidden />{centroSitio(s.clave)}</li>)}
                 </ul>
-              )}
+              </header>
+              <ParejaBarras u={u} sitios={cmp.sitios} etA={cmp.diaA ? corta(cmp.diaA) : "A"} etB={cmp.diaB ? corta(cmp.diaB) : "B"} centro={centroSitio} />
             </section>
+            <aside className="cvc-kpis" aria-label="Cifras del cambio">
+              <div className="cvc-kpi negro">
+                <span className="cvc-kpi-et">{ud.t} por partir al {cmp.diaB ? corta(cmp.diaB) : "—"}</span>
+                <b>{num(tot.b, u)}</b>
+                <small>{cmp.diaB ? larga(cmp.diaB) : "—"}</small>
+              </div>
+              <div className={"cvc-kpi " + clase(tot.d, u)}>
+                <span className="cvc-kpi-et">Contra el {cmp.diaA ? corta(cmp.diaA) : "día A"}</span>
+                <b>{conSigno(tot.d, u)} <small className="u">{ud.t}</small></b>
+                <small>{pct == null ? "sin día A" : `${pct > 0 ? "+" : pct < 0 ? "−" : ""}${nf1.format(Math.abs(pct))} % · `}ese día: {num(tot.a, u)} {ud.largo}</small>
+              </div>
+              <div className="cvc-kpi">
+                <span className="cvc-kpi-et">Viajes SERPRO</span>
+                <b>{nf1.format(viajesB)}</b>
+                <small>{nf1.format(viajesA)} → {nf1.format(viajesB)} ({viajesB - viajesA > 0 ? "+" : viajesB - viajesA < 0 ? "−" : ""}{nf1.format(Math.abs(viajesB - viajesA))}) · estibas ÷ 36 o ÷ 100</small>
+              </div>
+              <div className="cvc-kpi">
+                <span className="cvc-kpi-et">El que más cambió</span>
+                <b className="cvc-kpi-mat">{topes[0] ? nom(topes[0].sku) : "—"}</b>
+                <small>{topes[0] ? <><b className={clase(v(topes[0].d), u)}>{conSigno(v(topes[0].d), u)} {ud.largo}</b> · {num(v(topes[0].a), u)} → {num(v(topes[0].b), u)}</> : "ningún material cambió"}</small>
+              </div>
+            </aside>
           </div>
+
+          {/* ---------- CÓMO ESTÁ CADA ALMACÉN ---------- */}
+          <section className="cvt-caja" aria-label="Cómo está cada almacén">
+            <header className="cvt-cab"><h2><i className="cvc-marca" aria-hidden />CÓMO ESTÁ CADA ALMACÉN</h2><span className="cvt-sub">día B contra día A</span></header>
+            <div className="cvc-almacenes">
+              {cmp.sitios.map((s) => {
+                const a = v(s.a), b = v(s.b), d = v(s.d);
+                const c = colorSitio(s.clave);
+                const porc = tot.b ? ((b ?? 0) / tot.b) * 100 : 0;
+                const vj = (x: number) => viajesSerpro(x, centroSitio(s.clave));
+                return (
+                  <article key={s.clave} className="cvc-alm" style={{ borderLeftColor: c.fondo }}>
+                    <header><b>{nombreSitio(s.clave).toUpperCase()}</b><small>{cmp.diaB ? "conteo " + corta(cmp.diaB) : ""}</small></header>
+                    <div className="cvc-alm-cifra">
+                      <b>{num(b, u)}<small> {ud.t}</small></b>
+                      <span>viajes <b>{nf1.format(vj(s.b.est))}</b></span>
+                    </div>
+                    <p className="cvc-alm-pie">
+                      {nf0.format(porc)}% del total · {nf2.format(s.b.est)} estibas · <b className={clase(d, u)}>{conSigno(d, u)} vs {cmp.diaA ? corta(cmp.diaA) : "A"}</b>
+                      <span className="cvc-alm-a">día A: {num(a, u)} {ud.largo}</span>
+                    </p>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* ---------- LO QUE MÁS SE MOVIÓ ---------- */}
+          <section className="cvt-caja" aria-label="Lo que más se movió">
+            <header className="cvt-cab">
+              <h2><i className="cvc-marca" aria-hidden />LO QUE MÁS SE MOVIÓ ({ud.t.toUpperCase()})</h2>
+              <span className="cvt-sub">el día B por almacén · el cambio contra el día A a la derecha</span>
+            </header>
+            {topes.length === 0 ? <p className="cvc-nota">Ningún material cambió.</p> : (
+              <ul className="cvc-movs">
+                {topes.map((m) => {
+                  const d = v(m.d), tb = v(m.b) ?? 0;
+                  const mx = Math.max(1e-9, ...topes.map((x) => Math.max(v(x.b) ?? 0, v(x.a) ?? 0)));
+                  return (
+                    <li key={m.sku}>
+                      <span title={`${m.sku} · ${nom(m.sku)}`}>{nom(m.sku)}</span>
+                      <i className="cvc-mov-pista">
+                        {m.sitios.map((f) => {
+                          const x = Math.max(0, (f.b ? valorDe(f.b, u) : 0) ?? 0); if (!x) return null;
+                          const c = colorSitio(f.sitio);
+                          return <em key={f.sitio} style={{ width: (x / mx) * 100 + "%", background: c.fondo, color: c.tinta }} title={`${nombreSitio(f.sitio)}: ${num(x, u)}`}>{(x / mx) > 0.09 ? num(x, u) : ""}</em>;
+                        })}
+                      </i>
+                      <b>{num(tb, u)}</b>
+                      <b className={"cvc-mov-d " + clase(d, u)}>{conSigno(d, u)}</b>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
 
           {/* ---------- CONTADORES ---------- */}
           <div className="cvt-cifras cvc-cuentas">
@@ -315,37 +338,50 @@ function FilaSitio({ f, u, nombreSitio }: { f: FilaCmp; u: Unidad; nombreSitio: 
   );
 }
 
-/** La cascada: del total del día A al del día B, con lo que sumó o restó cada almacén. */
-function Cascada({ u, inicio, pasos, fin }: { u: Unidad; inicio: { et: string; v: number }; pasos: { et: string; v: number }[]; fin: { et: string; v: number } }) {
-  const W = 640, H = 270, base = H - 34, tope = 26;
-  let corre = inicio.v;
-  const barras: { et: string; de: number; a: number; tipo: "ini" | "fin" | "up" | "dn" | "eq"; rot: string }[] = [
-    { et: inicio.et, de: 0, a: inicio.v, tipo: "ini", rot: num(inicio.v, u) },
-  ];
-  for (const p of pasos) {
-    const de = corre; corre += p.v;
-    barras.push({ et: p.et, de, a: corre, tipo: p.v > 0 ? "up" : p.v < 0 ? "dn" : "eq", rot: conSigno(p.v, u) });
-  }
-  barras.push({ et: fin.et, de: 0, a: fin.v, tipo: "fin", rot: num(fin.v, u) });
-  const max = Math.max(1e-9, ...barras.map((b) => Math.max(b.de, b.a)));
-  const eje = ejeNice(max, 5);
-  const y = (val: number) => base - (val / eje.tope) * (base - tope);
-  const n = barras.length, izq = 52, bw = Math.min(78, (W - izq - 10) / n * 0.62), paso = (W - izq - 10) / n;
+/** Dos barras apiladas, el día A y el día B, con los colores de cada almacén como en el dashboard del Tablero; a la derecha, lo que cambió cada uno. */
+function ParejaBarras({ u, sitios, etA, etB, centro }: { u: Unidad; sitios: { clave: string; a: Medida; b: Medida; d: Medida }[]; etA: string; etB: string; centro: (k: string) => string }) {
+  const W = 700, H = 330, izq = 56, base = H - 34, tope = 30, bw = 132;
+  const val = (m: Medida) => Math.max(0, valorDe(m, u) ?? 0);
+  const totA = sitios.reduce((t, s) => t + val(s.a), 0), totB = sitios.reduce((t, s) => t + val(s.b), 0);
+  const eje = ejeNice(Math.max(totA, totB, 1), 5);
+  const y = (x: number) => base - (x / eje.tope) * (base - tope);
+  const xA = izq + 70, xB = xA + bw + 120;
+  const pila = (x0: number, lado: "a" | "b") => {
+    let acum = 0;
+    return sitios.map((s) => {
+      const x = val(s[lado]); const y1 = y(acum + x), y0 = y(acum); acum += x;
+      const c = colorSitio(s.clave), alto = y0 - y1;
+      return (
+        <g key={s.clave}>
+          <rect x={x0} y={y1} width={bw} height={Math.max(0, alto - 1.5)} fill={c.fondo} />
+          {alto >= 16 && <text x={x0 + bw / 2} y={y1 + alto / 2 + 4} textAnchor="middle" className="cvt-seg-txt" fill={c.tinta}>{num(x, u)}</text>}
+        </g>
+      );
+    });
+  };
+  /* El cambio de cada almacén, a la altura de su tramo del día B. */
+  let acum = 0;
+  const deltas = sitios.map((s) => {
+    const x = val(s.b); const mid = y(acum + x / 2); acum += x;
+    return { s, mid };
+  });
   return (
-    <svg className="cvc-casc" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Cascada del total del día A al día B, almacén por almacén">
+    <svg className="cvc-pareja" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Barras apiladas del ${etA} y del ${etB}, por almacén`}>
       {eje.ticks.map((t) => (
-        <g key={t}><line x1={izq} x2={W - 6} y1={y(t)} y2={y(t)} className="cvt-rej" /><text x={izq - 8} y={y(t) + 4} textAnchor="end" className="cvt-eje">{dec(t, u)}</text></g>
+        <g key={t}><line x1={izq} x2={W - 8} y1={y(t)} y2={y(t)} className="cvt-rej" /><text x={izq - 8} y={y(t) + 4} textAnchor="end" className="cvt-eje">{dec(t, u)}</text></g>
       ))}
-      {barras.map((b, i) => {
-        const x = izq + i * paso + (paso - bw) / 2;
-        const top = y(Math.max(b.de, b.a)), alto = Math.max(2, Math.abs(y(b.de) - y(b.a)));
-        const sig = barras[i + 1];
+      {pila(xA, "a")}{pila(xB, "b")}
+      <line x1={xA + bw} x2={xB} y1={y(totA)} y2={y(totB)} className="cvc-enlace" />
+      <text x={xA + bw / 2} y={y(totA) - 8} textAnchor="middle" className="cvt-total-txt">{dec(totA, u)}</text>
+      <text x={xB + bw / 2} y={y(totB) - 8} textAnchor="middle" className="cvt-total-txt">{dec(totB, u)}</text>
+      <text x={xA + bw / 2} y={H - 12} textAnchor="middle" className="cvt-eje">{etA}</text>
+      <text x={xB + bw / 2} y={H - 12} textAnchor="middle" className="cvt-eje">{etB}</text>
+      {deltas.map(({ s, mid }) => {
+        const d = valorDe(s.d, u);
         return (
-          <g key={i}>
-            <rect x={x} y={top} width={bw} height={alto} className={"cvc-bar " + b.tipo} rx="2" />
-            <text x={x + bw / 2} y={top - 7} textAnchor="middle" className="cvc-bar-txt">{b.rot}</text>
-            <text x={x + bw / 2} y={H - 12} textAnchor="middle" className="cvt-eje">{b.et}</text>
-            {sig && <line x1={x + bw} x2={x + paso} y1={y(b.a)} y2={y(b.a)} className="cvc-enlace" />}
+          <g key={s.clave}>
+            <text x={xB + bw + 16} y={mid - 2} className="cvc-d-sitio">{centro(s.clave)}</text>
+            <text x={xB + bw + 16} y={mid + 15} className={"cvc-d-val " + clase(d, u)}>{flecha(d, u)} {conSigno(d, u)}</text>
           </g>
         );
       })}
