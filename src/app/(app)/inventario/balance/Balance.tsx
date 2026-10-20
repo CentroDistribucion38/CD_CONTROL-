@@ -7,7 +7,7 @@ import { DUENOS_ENVASE, esDueno } from "@/modulos/inventario/duenos";
 import { Consolidado } from "./Consolidado";
 import { Reasignaciones } from "./Reasignaciones";
 import { Rango } from "../../sider/seguimiento/Rango";
-import { reclasificar, quitarReclasificacion } from "./actions";
+import { reasignarRenglones, reclasificar, quitarReclasificacion } from "./actions";
 
 /* ------------------------------------------------------------------ */
 /*  TIPOS                                                              */
@@ -133,6 +133,9 @@ export function Balance({
   const [verNotas, setVerNotas] = useState<string | null>(null);
   const [nuevoEstado, setNuevoEstado] = useState("");
   const [motivo, setMotivo] = useState("");
+  /* Las ubicaciones (renglones del conteo) de ese material que se van a mover: por defecto todas, y se desmarcan las que se quedan. */
+  const [marcadasReclas, setMarcadasReclas] = useState<Set<string>>(new Set());
+  const [errorReclas, setErrorReclas] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   /* «Otros estados»: por defecto SOLO lo que debe ir a pasivo (OTROS y MAL ESTADO), para saber qué falta reasignar. */
   const [soloPasivo, setSoloPasivo] = useState(true);
@@ -182,9 +185,25 @@ export function Balance({
     con_alerta: principales.filter((f) => f.alerta).length,
   } : undefined;
 
+  /* Las ubicaciones del material abierto en el modal: sus renglones del consolidado del día, en su estado y zona. */
+  const lineasReclas = useMemo(() => {
+    if (!reclas) return [] as LineaConsolidado[];
+    const zona = reclas.alcance === "SORTING" ? "Fábrica" : reclas.alcance === "PRESORTING" ? "Bodega 38" : null;
+    return consolidado.filter((l) => l.codigo === reclas.codigo && l.estado.trim().toUpperCase() === reclas.estado.trim().toUpperCase() && (!zona || l.zona === zona));
+  }, [reclas, consolidado]);
+  const marcadasModal = lineasReclas.filter((l) => marcadasReclas.has(l.clave));
+  const alternarReclas = (clave: string) => setMarcadasReclas((m) => { const x = new Set(m); if (x.has(clave)) x.delete(clave); else x.add(clave); return x });
+
   /* ---- handlers reclasificación ---- */
   function abrirReclas(f: Fila) {
     setReclas(f);
+    setErrorReclas(null);
+    {
+      const zona = f.alcance === "SORTING" ? "Fábrica" : f.alcance === "PRESORTING" ? "Bodega 38" : null;
+      setMarcadasReclas(new Set(consolidado
+        .filter((l) => l.codigo === f.codigo && l.estado.trim().toUpperCase() === f.estado.trim().toUpperCase() && (!zona || l.zona === zona))
+        .map((l) => l.clave)));
+    }
     setNuevoEstado(
       ESTADOS_DESTINO.find((e) => e !== f.estado) ?? ESTADOS_DESTINO[0],
     );
@@ -193,6 +212,23 @@ export function Balance({
 
   function enviarReclas() {
     if (!reclas) return;
+    setErrorReclas(null);
+    /* Con las ubicaciones a la vista: se mueven SOLO las marcadas (por renglón del conteo). */
+    if (lineasReclas.length > 0) {
+      if (!marcadasModal.length) { setErrorReclas("Marca al menos una ubicación."); return }
+      startTransition(async () => {
+        const fd = new FormData();
+        fd.set("fecha", reclas.fecha ?? fecha ?? "");
+        fd.set("estado_nuevo", nuevoEstado);
+        fd.set("motivo", motivo);
+        fd.set("ids", JSON.stringify(marcadasModal.flatMap((l) => l.ids)));
+        const r = await reasignarRenglones(fd);
+        if ("error" in r && r.error) { setErrorReclas(r.error); return }
+        setReclas(null);
+        router.refresh();
+      });
+      return;
+    }
     startTransition(async () => {
       const fd = new FormData();
       fd.set("codigo", reclas.codigo);
@@ -702,6 +738,30 @@ export function Balance({
               Estado actual: <b>{reclas.estado}</b>
             </p>
 
+            {lineasReclas.length > 0 && (
+              <fieldset className="bal-modal-ubic">
+                <legend>
+                  ¿Qué ubicaciones pasan? <small>({marcadasModal.length} de {lineasReclas.length} · {n(marcadasModal.reduce((t, l) => t + l.cajas, 0))} cajas)</small>
+                </legend>
+                <div className="bal-modal-ubic-acc">
+                  <button type="button" onClick={() => setMarcadasReclas(new Set(lineasReclas.map((l) => l.clave)))}>Todas</button>
+                  <button type="button" onClick={() => setMarcadasReclas(new Set())}>Ninguna</button>
+                </div>
+                <ul>
+                  {lineasReclas.map((l) => (
+                    <li key={l.clave}>
+                      <label>
+                        <input type="checkbox" checked={marcadasReclas.has(l.clave)} onChange={() => alternarReclas(l.clave)} />
+                        <span className="u">{l.ubicacion}</span>
+                        <span className="c">{n(l.cajas)} cajas</span>
+                        {l.nota && <span className="nota">{l.nota}</span>}
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              </fieldset>
+            )}
+
             <label className="bal-modal-label">
               Mover a:
               <select
@@ -728,6 +788,7 @@ export function Balance({
               />
             </label>
 
+            {errorReclas && <p className="bal-modal-error" role="alert">{errorReclas}</p>}
             <div className="bal-modal-acciones">
               <button
                 className="bal-btn cancelar"
@@ -738,9 +799,9 @@ export function Balance({
               <button
                 className="bal-btn confirmar"
                 onClick={enviarReclas}
-                disabled={pending}
+                disabled={pending || (lineasReclas.length > 0 && marcadasModal.length === 0)}
               >
-                {pending ? "Guardando…" : "Mover"}
+                {pending ? "Guardando…" : lineasReclas.length > 1 && marcadasModal.length < lineasReclas.length ? `Mover ${marcadasModal.length} de ${lineasReclas.length}` : "Mover"}
               </button>
             </div>
           </div>

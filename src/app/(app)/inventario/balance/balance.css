@@ -373,3 +373,19 @@
 .bal .bal-ojo-nota { margin-left: 8px; vertical-align: middle }
 .bal .bal-tip.bal-tip-der { right: auto; left: calc(100% + 10px); width: 300px }
 .bal .bal-tip.bal-tip-der::after { left: auto; right: 100%; border-left-color: transparent; border-right-color: #12263A }
+
+/* El modal de cambiar estado: las ubicaciones del material, cada una con su casilla. */
+.bal-modal:has(.bal-modal-ubic) { max-width: 520px }
+.bal-modal-ubic { margin: 0 0 14px; padding: 10px 12px; border: 1px solid var(--fe-linea); border-radius: 6px }
+.bal-modal-ubic legend { padding: 0 6px; font-size: 13px; font-weight: 700; color: var(--fe-tinta) }
+.bal-modal-ubic legend small { font-weight: 600; color: var(--fe-gris) }
+.bal-modal-ubic-acc { display: flex; gap: 8px; margin-bottom: 6px }
+.bal-modal-ubic-acc button { all: unset; cursor: pointer; font-size: 12px; font-weight: 700; color: var(--fe-tinta); text-decoration: underline }
+.bal-modal-ubic ul { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow: auto; display: flex; flex-direction: column }
+.bal-modal-ubic li label { display: flex; gap: 10px; align-items: center; padding: 7px 4px; border-top: 1px solid var(--fe-linea); cursor: pointer; font-size: 13.5px }
+.bal-modal-ubic li:first-child label { border-top: 0 }
+.bal-modal-ubic input { width: 18px; height: 18px; accent-color: var(--fe-tinta) }
+.bal-modal-ubic .u { font-family: var(--fe-mono, monospace); font-weight: 700; flex: 1 }
+.bal-modal-ubic .c { font-weight: 700; white-space: nowrap }
+.bal-modal-ubic .nota { color: var(--fe-gris); font-size: 12px }
+.bal-modal-error { margin: 0 0 10px; color: var(--fe-mal, #B00020); font-size: 13px; font-weight: 600 }
