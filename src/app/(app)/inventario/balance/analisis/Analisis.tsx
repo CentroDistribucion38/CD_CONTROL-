@@ -110,12 +110,12 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
       {datos.faltaSql && <p className="ad-msg mal">Falta correr supabase/migraciones/2026-10-analisis-diferencia.sql en Supabase.</p>}
       {msg && <p className={"ad-msg" + (msg.mal ? " mal" : " bien")} role="status">{msg.t}</p>}
       {errores.length > 0 && <ul className="ad-errores">{errores.slice(0, 30).map((e) => <li key={e}>{e}</li>)}{errores.length > 30 && <li>… y {errores.length - 30} más.</li>}</ul>}
-      <Avisos avisos={datos.avisos} />
 
-      {/* ---------- LO QUE ALIMENTA EL DÍA ---------- */}
+      {/* ---------- LO QUE ALIMENTA EL DÍA: una sola fila chica (el detalle sale al pasar el mouse) y los avisos al lado ---------- */}
       <div className="ad-fuentes">
+        <Avisos avisos={datos.avisos} />
         {datos.fuentes.map((f) => (
-          <span key={f.nombre} className={"ad-fuente" + (f.ok ? " ok" : "")} title={f.detalle}><i>{f.ok ? "✓" : "!"}</i><b>{f.nombre}</b><small>{f.detalle}</small></span>
+          <span key={f.nombre} className={"ad-fuente" + (f.ok ? " ok" : "")} title={`${f.nombre}: ${f.detalle}`}><i>{f.ok ? "✓" : "!"}</i><b>{f.nombre}</b></span>
         ))}
       </div>
 
