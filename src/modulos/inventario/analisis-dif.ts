@@ -68,6 +68,10 @@ type Prod = { id: string; sku: string; nombre: string | null; unidades_por_caja:
 const ESTIBA = "3500163";
 /** Envases cuya caja NO se suma a la caja plástica (como en el Excel de Fábrica y en el Cuadre SAP): la botella 850 (3501539) va en la caja 1000 x13 (3501211) pero esa caja no se cuenta. */
 const CAJA_FUERA_DEL_CUADRE = new Set(["3501539"]);
+/* PRODUCTOS QUE VAN EN NUESTRA CAJA PLÁSTICA AUNQUE EL MAESTRO NO LES TENGA ENVASE: producto → caja. El Aguila NRB 750 x16 (21187, Tw)
+   no tiene envase asignado (se lee como no retornable) pero viaja en la caja plástica marrón de 750 (3500374): sus 36 cajas por estiba cuentan.
+   Lo correcto a largo plazo es asignarle su envase en el maestro de productos; hasta entonces, aquí. */
+const CAJA_DE_PRODUCTO_SIN_ENVASE: Record<string, string> = { "21187": "3500374" };
 const norm = (c: unknown) => String(c ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().replace(/\s+/g, " ").trim();
 const diaBogota = (iso: string) => new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Bogota" }).format(new Date(iso));
 const PASIVOS: Record<string, string> = { "PRESORTING": "PEND BAJA PRESORTING", "ROTURA DE LINEA": "PEND BAJA ROTURA LINEA", "EXTRASUCIO": "CON BAJA EXTRASUCIO" };
@@ -175,8 +179,9 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
          El producto → su envase (maestro de productos) → la caja de ese envase (maestro de Pasivos). Si el envase
          está excluido (NR, foráneo…) o no tiene caja (lata, PET, NR), no aporta caja. EL PRODUCTO EN SÍ NO SE TOMA. */
       const env = P.get(c)?.envase_sku ? String(P.get(c)!.envase_sku) : null;
-      if (!env) prodSinEnvase.add(c);
-      const cajaP = env && !CAJA_FUERA_DEL_CUADRE.has(env) && !excluye(regla, env, nombre(env)) ? M.get(env)?.caja : null;
+      const cajaFija = !env ? CAJA_DE_PRODUCTO_SIN_ENVASE[c] ?? null : null;
+      if (!env && !cajaFija) prodSinEnvase.add(c);
+      const cajaP = env ? (!CAJA_FUERA_DEL_CUADRE.has(env) && !excluye(regla, env, nombre(env)) ? M.get(env)?.caja : null) : cajaFija;
       if (cajaP && cajas) { suma("conteo", String(cajaP), pre(`CONTEO · en producto ${c} ${nombre(c)}`), cajas); cajasProducto += cajas; prodConCaja.add(c) }
       continue;
     }
