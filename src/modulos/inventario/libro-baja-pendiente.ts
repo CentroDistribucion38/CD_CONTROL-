@@ -90,20 +90,7 @@ export function separarPendiente(filas: FilaBajaPend[]): { lineas: Linea[]; desc
       lineas.push({ zona, f, un: Math.round(f.dif_cajas * f.un_caja) });
     }
   }
-  /* Una sola fila por material y zona: lo que viene de ANDINA / HEINEKEN se suma al SKU si ese SKU ya tiene su fila en la zona. */
-  const unidas: Linea[] = [];
-  for (const l of lineas) {
-    const ya = unidas.find((u) => u.zona.tipo === l.zona.tipo && u.f.codigo === l.f.codigo);
-    if (!ya) { unidas.push(l); continue }
-    ya.un += l.un;
-    ya.deDueno = [...(ya.deDueno ?? []), ...(l.deDueno ?? [])];
-  }
-  for (const z of ZONAS) {
-    const orden = unidas.filter((u) => u.zona.tipo === z.tipo).sort((a, b) => a.f.codigo.localeCompare(b.f.codigo, "es", { numeric: true }));
-    const resto = unidas.filter((u) => u.zona.tipo !== z.tipo);
-    unidas.splice(0, unidas.length, ...resto, ...orden);
-  }
-  return { lineas: unidas, descartadas };
+  return { lineas, descartadas };
 }
 
 const ENCABEZADOS = ["Planta/CD", "Tipo de baja ", "Motivo ", "Descripcion de la baja", "Código / SKU", "Descipcion Material", "Total Unidades",
@@ -162,7 +149,7 @@ export async function armarLibroBajaPendiente(d: { fecha: string; filas: FilaBaj
   r2.columns = cols.map(([, w]) => ({ width: w }));
   const t1 = r2.getCell(1, 1); t1.value = `PENDIENTE POR DARLE DE BAJA · conteo del ${d.fecha}`; t1.font = letra(14, TINTA, true);
   const t2 = r2.getCell(2, 1);
-  t2.value = "Lo que muestra el Balance en Baja · Fábrica y Baja · Bodega 38: Dif cajas × factor caja, solo si el físico supera al casco. Lo de ANDINA y HEINEKEN se abre en los SKU de donde provienen y se suma a la fila de ese SKU (en Conteos no se nombra).";
+  t2.value = "Lo que muestra el Balance en Baja · Fábrica y Baja · Bodega 38: Dif cajas × factor caja, solo si el físico supera al casco. Lo de ANDINA y HEINEKEN se abre en los SKU de donde provienen en líneas aparte, con la descripción de la zona (en Conteos no se nombra).";
   t2.font = letra(9.5, GRIS);
   const hd = r2.getRow(4); hd.height = 26;
   cols.forEach(([tt], i) => {
@@ -180,7 +167,7 @@ export async function armarLibroBajaPendiente(d: { fecha: string; filas: FilaBaj
       const r = r2.getRow(k++);
       const reparto = x.un == null ? "—" : z.mov;
       r.values = [z.nombre, z.alm, x.f.codigo, x.f.material ?? "", x.f.fisico_cajas, x.f.cajas_casco, x.f.dif_cajas, x.f.un_caja ?? "—", x.un ?? "—", reparto,
-        x.un == null ? x.motivo : x.dueno ? `A dar de baja · incluye ${x.dueno}` : "A dar de baja"];
+        x.un == null ? x.motivo : x.dueno ? `A dar de baja · viene de ${x.dueno}` : "A dar de baja"];
       r.eachCell((c, i) => {
         c.font = letra(10, TINTA); c.border = { bottom: { style: "thin", color: { argb: RAYA } } };
         if (i >= 5 && i <= 9) { c.numFmt = NUM; c.alignment = { horizontal: "right" } }

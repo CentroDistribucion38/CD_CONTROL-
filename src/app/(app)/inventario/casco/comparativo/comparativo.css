@@ -150,7 +150,9 @@
 .cvc .cvx th.cvx-ini, .cvc .cvx td.cvx-ini { border-left: 2px solid #E0B100 }
 
 /* La barra de filtros de la tabla por ubicación: UNA sola fila recta — estado, código y solo cambios. */
-.cvc .cvx-barra { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-top: 10px }
+/* El título arriba y la barra debajo, a todo lo ancho (el encabezado del tablero los ponía lado a lado y «Solo cambios» saltaba de renglón). */
+.cvc .cvx-caja .cvt-cab { display: block }
+.cvc .cvx-barra { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-top: 14px }
 .cvc .cvx-campo { display: flex; flex-direction: column; gap: 4px }
 .cvc .cvx-campo > span:first-child { font: 700 10.5px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase; color: var(--fe-gris) }
 .cvc .cvx-campo select, .cvc .cvx-cod-caja input { min-height: 40px; padding: 0 12px; border: 1.5px solid var(--fe-linea); border-radius: 0; font: 600 14px var(--fe-texto); background: #fff; color: var(--fe-tinta) }
