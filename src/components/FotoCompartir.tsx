@@ -28,7 +28,9 @@ function bajar(blob: Blob, nombre: string) {
   setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 
-export function useFotoCompartir(hacer: Hacer, titulo: string) {
+/** `nombres` (opcional): cómo se llama cada imagen en las pestañas; por defecto «Dashboard» y «Detalle por almacén». */
+export function useFotoCompartir(hacer: Hacer, titulo: string, nombres?: Partial<Record<TipoFoto, string>>) {
+  const nombreDe = (t: TipoFoto) => nombres?.[t] ?? NOMBRE_FOTO[t];
   const [foto, setFoto] = useState<Foto | null>(null);
   const [armando, setArmando] = useState<TipoFoto | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -80,7 +82,7 @@ export function useFotoCompartir(hacer: Hacer, titulo: string) {
             {(["dashboard", "detalle"] as const).map((t) => (
               <button key={t} type="button" role="tab" aria-selected={foto.tipo === t} className={foto.tipo === t ? "on" : ""}
                 disabled={armando != null} onClick={() => foto.tipo !== t && abrir(t)}>
-                {armando === t ? "Armando…" : NOMBRE_FOTO[t]}
+                {armando === t ? "Armando…" : nombreDe(t)}
               </button>
             ))}
           </div>
@@ -106,7 +108,7 @@ export function useFotoCompartir(hacer: Hacer, titulo: string) {
         {!aviso && foto.envio && <p className="fc-aviso">Aquí ves todo. Al copiar, compartir o descargar se quitan los materiales en 0 o negativos.</p>}
         <div className="fc-img">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={foto.url} alt={`${titulo} · ${NOMBRE_FOTO[foto.tipo]}`} />
+          <img src={foto.url} alt={`${titulo} · ${nombreDe(foto.tipo)}`} />
         </div>
       </div>
     </div>
@@ -116,8 +118,10 @@ export function useFotoCompartir(hacer: Hacer, titulo: string) {
 }
 
 /** Los dos botones, con la clase de botón de cada pantalla. */
-export function BotonesFoto({ abrir, armando, abierta, deshabilitado, clase }: {
+export function BotonesFoto({ abrir, armando, abierta, deshabilitado, clase, etiquetaDetalle = "Detalle" }: {
   abrir: (t: TipoFoto) => void; armando: TipoFoto | null; abierta: boolean; deshabilitado?: boolean; clase: string;
+  /** Lo que dice el segundo botón (por defecto «Detalle»). */
+  etiquetaDetalle?: string;
 }) {
   return (
     <>
@@ -127,7 +131,7 @@ export function BotonesFoto({ abrir, armando, abierta, deshabilitado, clase }: {
       </button>
       <button type="button" className={clase} onClick={() => abrir("detalle")} disabled={deshabilitado || armando != null}>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18M3 10h18M3 15h18M3 20h18M9 5v15" /></svg>
-        {armando === "detalle" && !abierta ? "Armando…" : "Detalle"}
+        {armando === "detalle" && !abierta ? "Armando…" : etiquetaDetalle}
       </button>
     </>
   );

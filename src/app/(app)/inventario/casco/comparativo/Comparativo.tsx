@@ -6,7 +6,9 @@ import type { SitioCasco } from "@/modulos/casco/datos";
 import { ejeNice, viajesSerpro, type Punto } from "@/modulos/casco/serie";
 import { colorSitio, corta, enOrdenInforme, larga } from "@/modulos/casco/informe";
 import { comparar, nombreEstado, valorDe, type FilaCmp, type Medida, type Unidad } from "@/modulos/casco/comparar";
-import { TablaUbicacion, type ConteoDia } from "./TablaUbicacion";
+import type { DatosComparativo } from "@/modulos/casco/foto-comparativo";
+import { TablaUbicacion, useTablaUbicacion, type ConteoDia } from "./TablaUbicacion";
+import { BotonesComparativo } from "./BotonesComparativo";
 
 /**
  * COMPARATIVO DE CASCO DE VIDRIO — qué cambió entre dos días.
@@ -66,6 +68,9 @@ export function Comparativo({ puntos, sitios, nombres, cajasPorEstiba, errorLect
     () => comparar(puntos.filter((p) => vis.includes(p.ubicacion)), diaA, diaB, cajasPorEstiba, enOrdenInforme),
     [puntos, vis, diaA, diaB, cajasPorEstiba]);
 
+  /* Los datos de la Tabla (y su foto) viven aquí para poder sacar la foto desde cualquier pestaña. */
+  const tabla = useTablaUbicacion(conteos, diaA, diaB, pestana === "tabla");
+
   const atajos: { k: string; t: string; a: string; b: string }[] = ultima ? [
     { k: "ant", t: "Último vs anterior", a: fechas[fechas.length - 2] ?? ultima, b: ultima },
     { k: "ayer", t: "Hoy vs ayer", a: sumaDias(ultima, -1), b: ultima },
@@ -92,6 +97,24 @@ export function Comparativo({ puntos, sitios, nombres, cajasPorEstiba, errorLect
   const nuevos = cmp.cuentas.nuevo + cmp.cuentas.salio;
   const viajesA = cmp.sitios.reduce((t, s) => t + viajesSerpro(s.a.est, centroSitio(s.clave)), 0);
   const viajesB = cmp.sitios.reduce((t, s) => t + viajesSerpro(s.b.est, centroSitio(s.clave)), 0);
+
+  /* Lo que pinta la foto del Dashboard: la misma unidad y los mismos filtros que se ven en pantalla. */
+  const datosFoto: DatosComparativo | null = cmp.filas.length === 0 ? null : {
+    unidad: u, unidadTxt: ud.largo === "HL" ? "HL" : ud.largo,
+    diaA: cmp.diaA, diaB: cmp.diaB,
+    chips: [vis.length === sitios.length ? "Todos los almacenes" : sitios.filter((x) => vis.includes(x.clave)).map((x) => x.centro ?? x.nombre).join(" · ")],
+    tot: { a: tot.a ?? 0, b: tot.b ?? 0, d: tot.d ?? 0 }, pct, viajesA, viajesB,
+    sitios: cmp.sitios.map((s) => ({
+      clave: s.clave, centro: centroSitio(s.clave), nombre: nombreSitio(s.clave),
+      a: v(s.a) ?? 0, b: v(s.b) ?? 0, d: v(s.d) ?? 0, estB: s.b.est, viajesB: viajesSerpro(s.b.est, centroSitio(s.clave)),
+    })),
+    topes: topes.map((m) => ({
+      nombre: nom(m.sku),
+      porSitioB: Object.fromEntries(m.sitios.map((f) => [f.sitio, Math.max(0, (f.b ? valorDe(f.b, u) : 0) ?? 0)])),
+      a: v(m.a) ?? 0, b: v(m.b) ?? 0, d: v(m.d) ?? 0,
+    })),
+  };
+  const chipsTabla = [tabla.est || "Todos los estados", ...(tabla.soloCambios ? ["Solo cambios"] : [])];
 
   const controles = (
     <section className="cvt-filtros cvc-ctrl" aria-label="Fechas a comparar">
@@ -146,6 +169,7 @@ export function Comparativo({ puntos, sitios, nombres, cajasPorEstiba, errorLect
           </p>
           <p className="sub"><Link href="/inventario/casco/tablero">← Tablero de casco</Link></p>
         </div>
+        <BotonesComparativo datos={datosFoto} cargarTabla={tabla.cargar} chipsTabla={chipsTabla} />
       </section>
 
       {controles}
@@ -157,7 +181,7 @@ export function Comparativo({ puntos, sitios, nombres, cajasPorEstiba, errorLect
       {pestana === "dashboard" && sinFactor && <p className="cvc-nota">Cajas: solo suma los materiales que tienen cajas por estiba en el maestro; el resto sale con «—».</p>}
 
       {pestana === "tabla" ? (
-        <TablaUbicacion conteos={conteos} diaA={diaA} diaB={diaB} />
+        <TablaUbicacion tab={tabla} />
       ) : cmp.filas.length === 0 ? (
         <p className="cvt-vacio">No hay casco para comparar con esos filtros.</p>
       ) : (

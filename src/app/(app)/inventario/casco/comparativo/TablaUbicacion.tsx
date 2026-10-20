@@ -1,10 +1,11 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { porTandas } from "@/modulos/inventario/paginas";
 import { diaEfectivo } from "@/modulos/casco/comparar";
 import { armarTablaUbicacion, type RenglonConteo, type Sitio } from "@/modulos/casco/comparar-ubicacion";
+import type { DatosTablaFoto } from "@/modulos/casco/foto-comparativo";
 
 /**
  * LA TABLA, IGUAL A TU EXCEL: material · almacén · módulo · número · estado del envase, con las
@@ -21,7 +22,12 @@ const celda = (v: number) => (Math.abs(v) < 0.0005 ? "" : nf.format(v));
 const dif = (v: number) => (Math.abs(v) < 0.0005 ? "0" : (v > 0 ? "" : "-") + nf.format(Math.abs(v)));
 const claseSitio: Record<Sitio, string> = { "BODEGA 38": "bod", FABRICA: "fab", EXPORTACION: "exp", BTS: "bts" };
 
-export function TablaUbicacion({ conteos, diaA, diaB }: { conteos: ConteoDia[]; diaA: string; diaB: string }) {
+/**
+ * Los datos de la tabla, aparte de su dibujo, para que el Comparativo pueda sacar la FOTO de la tabla
+ * aunque esté en la pestaña del Dashboard. Solo lee los conteos cuando `activo` (pestaña Tabla) o
+ * cuando se pide la foto (`cargar`), una vez cada uno.
+ */
+export function useTablaUbicacion(conteos: ConteoDia[], diaA: string, diaB: string, activo: boolean) {
   const fechas = useMemo(() => [...new Set(conteos.map((c) => c.fecha))].sort(), [conteos]);
   const fA = diaEfectivo(fechas, diaA), fB = diaEfectivo(fechas, diaB);
   const [datos, setDatos] = useState<Record<string, RenglonConteo[]>>({});
@@ -29,29 +35,41 @@ export function TablaUbicacion({ conteos, diaA, diaB }: { conteos: ConteoDia[]; 
   const [error, setError] = useState<string | null>(null);
   const [estado, setEstado] = useState<string | null>(null);   // null = todavía no se escogió (arranca en LAVADO si hay)
   const [soloCambios, setSoloCambios] = useState(false);
-  const pedidas = useRef(new Set<string>());
+  const cache = useRef<Record<string, RenglonConteo[]>>({});
+  const enVuelo = useRef<Record<string, Promise<RenglonConteo[]>>>({});
 
-  /* Se leen solo los dos conteos que hacen falta, una vez cada uno. */
-  useEffect(() => {
-    const faltan = [fA, fB].filter((f): f is string => !!f && !pedidas.current.has(f));
-    if (!faltan.length) return;
-    let vivo = true;
-    setCargando(true); setError(null);
-    (async () => {
-      const sb = createClient();
-      for (const f of [...new Set(faltan)]) {
+  const leer = useCallback((f: string): Promise<RenglonConteo[]> => {
+    const hay = cache.current[f];
+    if (hay) return Promise.resolve(hay);
+    let p = enVuelo.current[f];
+    if (!p) {
+      p = (async () => {
+        const sb = createClient();
         const ids = conteos.filter((c) => c.fecha === f).map((c) => c.id);
         const r = await porTandas<RenglonConteo & { id?: number }>(ids, (t, d, h) =>
           sb.from("v_conteo_fefo").select("conteo_id, codigo, material, ubicacion, estado_envase, total_estibas").in("conteo_id", t).order("id").range(d, h));
-        if (!vivo) return;
-        if (r.error) { setError(r.error); setCargando(false); return }
-        pedidas.current.add(f);
+        if (r.error) throw new Error(r.error);
+        cache.current[f] = r.data;
         setDatos((x) => ({ ...x, [f]: r.data }));
-      }
-      if (vivo) setCargando(false);
-    })();
+        return r.data;
+      })().finally(() => { delete enVuelo.current[f] });
+      enVuelo.current[f] = p;
+    }
+    return p;
+  }, [conteos]);
+
+  /* Se leen solo los dos conteos que hacen falta, una vez cada uno. */
+  useEffect(() => {
+    if (!activo) return;
+    const faltan = [...new Set([fA, fB].filter((f): f is string => !!f && !cache.current[f]))];
+    if (!faltan.length) return;
+    let vivo = true;
+    setCargando(true); setError(null);
+    Promise.all(faltan.map(leer))
+      .catch((e: unknown) => { if (vivo) setError(e instanceof Error ? e.message : "error") })
+      .finally(() => { if (vivo) setCargando(false) });
     return () => { vivo = false };
-  }, [fA, fB, conteos]);
+  }, [activo, fA, fB, leer]);
 
   const rA = useMemo(() => (fA ? datos[fA] ?? [] : []), [datos, fA]);
   const rB = useMemo(() => (fB ? datos[fB] ?? [] : []), [datos, fB]);
@@ -60,7 +78,22 @@ export function TablaUbicacion({ conteos, diaA, diaB }: { conteos: ConteoDia[]; 
   const est = estado ?? (todosEstados.includes("LAVADO") ? "LAVADO" : "");
   const t = useMemo(() => armarTablaUbicacion(rA, rB, est, soloCambios), [rA, rB, est, soloCambios]);
 
-  if (!conteos.length) return <p className="cvt-vacio">Todavía no hay conteos cerrados para comparar por ubicación.</p>;
+  /** Para la foto: lee lo que falte y entrega la tabla tal como se ve (null si no hay dos conteos distintos). */
+  const cargar = useCallback(async (): Promise<DatosTablaFoto | null> => {
+    if (!fA || !fB || fA === fB) return null;
+    const [a, b] = await Promise.all([leer(fA), leer(fB)]);
+    const estados = armarTablaUbicacion(a, b, "", false).estados;
+    const e = estado ?? (estados.includes("LAVADO") ? "LAVADO" : "");
+    return { tabla: armarTablaUbicacion(a, b, e, soloCambios), fA, fB, estado: e, soloCambios, chips: [] };
+  }, [fA, fB, leer, estado, soloCambios]);
+
+  return { fA, fB, cargando, error, listo, todosEstados, est, t, soloCambios, setEstado, setSoloCambios, cargar, hayConteos: conteos.length > 0 };
+}
+export type TablaUbDatos = ReturnType<typeof useTablaUbicacion>;
+
+export function TablaUbicacion({ tab }: { tab: TablaUbDatos }) {
+  const { fA, fB, cargando, error, listo, todosEstados, est, t, soloCambios, setEstado, setSoloCambios, hayConteos } = tab;
+  if (!hayConteos) return <p className="cvt-vacio">Todavía no hay conteos cerrados para comparar por ubicación.</p>;
 
   let n = 0;
   return (
