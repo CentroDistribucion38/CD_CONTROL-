@@ -7,6 +7,7 @@ import { traducirError } from "@/lib/errores";
 import { Buscador } from "@/components/Buscador";
 import { diaColombia } from "@/modulos/inventario/corte";
 import { leerPaleta } from "../informe";
+import { PanelFiscal } from "./PanelFiscal";
 import {
   agregarHojas, agrupar, aPayload, completarRoles, conteoPorRol, fechaConDia, hojasVacias, opcionesPersonas,
   nombreAuto, ponerPersona, proximoDia, quitarHoja, revisar, rolPorDefecto, sumarDias, textoCuando, textoResumen,
@@ -68,6 +69,8 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
   const [borrar, setBorrar] = useState<string | null>(null);
   const [cruce, setCruce] = useState<CruceAbierto | null>(null);
   const [armando, setArmando] = useState<string | null>(null);
+  /** El inventario cuyo PANEL DEL FISCAL (tarjetas por pareja, en vivo) está abierto. */
+  const [panel, setPanel] = useState<string | null>(null);
   const nombre = useMemo(() => new Map(personas.map((p) => [p.id, p.nombre])), [personas]);
   const { proximos, anteriores } = useMemo(() => agrupar(fiscales, hoy), [fiscales, hoy]);
 
@@ -230,8 +233,17 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
             })}
           </tbody>
         </table>
-        {cruce && cruce.fiscalId === f.id && <PanelCruce c={cruce} setC={setCruce} />}
+        {panel === f.id && conAvance && (
+          <PanelFiscal fiscalId={f.id} hojas={f.hojas} avanceInicial={f.avance ?? {}} quien={(id) => nombre.get(id) ?? "—"}
+                       onDetalle={(n) => verCruce(f, n)} onCerrar={() => setPanel(null)}
+                       detalle={cruce && cruce.fiscalId === f.id ? <PanelCruce c={cruce} setC={setCruce} /> : null} />
+        )}
+        {panel !== f.id && cruce && cruce.fiscalId === f.id && <PanelCruce c={cruce} setC={setCruce} />}
         <div className="cl-botones">
+          {puedeEditar && conAvance && panel !== f.id && (
+            <button type="button" className="btn fi-panel" onClick={() => setPanel(f.id)}
+                    title="Una tarjeta por pareja: contando, completada en verde o con diferencias en rojo">Panel del fiscal</button>
+          )}
           {puedeEditar && conAvance && (
             <button type="button" className="btn plano fi-excel" disabled={ocupado || armando !== null} onClick={() => excelDelCruce(f)}
                     title="Un solo Excel con el cruce de todas las hojas: resumen por pareja, diferencias, por material y detalle">
