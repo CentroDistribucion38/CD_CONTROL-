@@ -143,6 +143,22 @@ export function Balance({
   const [pending, startTransition] = useTransition();
   /* «Otros estados»: por defecto SOLO lo que debe ir a pasivo (OTROS y MAL ESTADO), para saber qué falta reasignar. */
   const [soloPasivo, setSoloPasivo] = useState(true);
+  /* EXPORTAR LO PENDIENTE POR DARLE DE BAJA (las dos hojas de Baja, en la plantilla de «Conteos»). */
+  const [armandoBaja, setArmandoBaja] = useState(false);
+  const [malBaja, setMalBaja] = useState<string | null>(null);
+  async function exportarPendienteBaja() {
+    if (!fecha) return;
+    setArmandoBaja(true); setMalBaja(null);
+    try {
+      const { armarLibroBajaPendiente } = await import("@/modulos/inventario/libro-baja-pendiente");
+      const buf = await armarLibroBajaPendiente({ fecha, filas: detalle });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+      a.download = `pendiente-baja-${fecha}.xlsx`; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    } catch { setMalBaja("No se pudo armar el Excel. Vuelve a intentar.") }
+    finally { setArmandoBaja(false) }
+  }
 
   /* Detectar si hay filas con estados "otros" (RETORNO, NUEVO, OTROS,
      LLENO, VACÍO, etc.) para mostrar la pestaña extra. */
@@ -412,6 +428,13 @@ export function Balance({
                   {sinFisico.length} en casco sin contar (abajo)
                 </span>
               )}
+              {hoja.estado === "BAJA" && fecha && (
+                <button type="button" className="bal-exp-baja" disabled={armandoBaja} onClick={exportarPendienteBaja}
+                        title="Un Excel con lo pendiente por darle de baja en Fábrica (SORTING) y Bodega 38 (PRESORTING), con las columnas de la hoja Conteos del CONSOLIDADO_BAJA">
+                  {armandoBaja ? "Armando el Excel…" : "Exportar pendiente de baja"}
+                </button>
+              )}
+              {malBaja && <span className="bal-alertas" role="alert">{malBaja}</span>}
             </div>
           )}
 
