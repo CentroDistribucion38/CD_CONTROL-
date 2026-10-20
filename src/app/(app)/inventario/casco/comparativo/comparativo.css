@@ -8,13 +8,13 @@
 .cvc .eq { color: var(--fe-gris) }
 
 /* Controles */
-.cvc .cvc-ctrl input[type="date"] { min-height: 42px; padding: 0 10px; font: 500 14px var(--fe-texto); color: var(--fe-tinta); background: #fff; border: 1px solid var(--fe-linea); border-radius: 3px }
+.cvc .cvc-ctrl input[type="date"] { min-height: 42px; padding: 0 10px; font: 500 14px var(--fe-texto); color: var(--fe-tinta); background: #fff; border: 1px solid var(--fe-linea); border-radius: 0 }
 .cvc .cvc-usa { font-size: 11.5px; color: var(--fe-gris) }
 .cvc .cvc-usa.mal { color: var(--fe-mal) }
-.cvc .cvc-cambiar { align-self: flex-end; min-height: 42px; min-width: 44px; border: 1px solid var(--fe-linea); background: #fff; font-size: 18px; color: var(--fe-tinta); border-radius: 3px; cursor: pointer }
+.cvc .cvc-cambiar { align-self: flex-end; min-height: 42px; min-width: 44px; border: 1px solid var(--fe-linea); background: #fff; font-size: 18px; color: var(--fe-tinta); border-radius: 0; cursor: pointer }
 .cvc .cvc-cambiar:hover { background: var(--fe-fondo) }
 .cvc .cvc-chips { display: flex; flex-wrap: wrap; gap: 6px }
-.cvc .cvc-chip { min-height: 42px; padding: 0 14px; border: 1.5px solid var(--fe-linea); background: #fff; border-radius: 999px; font: 600 13px var(--fe-texto); color: var(--fe-tinta); cursor: pointer }
+.cvc .cvc-chip { min-height: 42px; padding: 0 14px; border: 1.5px solid var(--fe-linea); background: #fff; border-radius: 0; font: 600 13px var(--fe-texto); color: var(--fe-tinta); cursor: pointer }
 .cvc .cvc-chip[aria-pressed="true"] { background: var(--fe-tinta); border-color: var(--fe-tinta); color: #fff }
 .cvc .cvc-tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--fe-linea) }
 .cvc .cvc-tab { min-height: 48px; padding: 0 22px; border: 0; border-bottom: 4px solid transparent; margin-bottom: -2px; background: transparent; font: 800 14px var(--fe-texto); color: var(--fe-gris); cursor: pointer }
@@ -33,7 +33,7 @@
 .cvc .cvc-d-val.dn { fill: var(--fe-bien) }
 .cvc .cvc-d-val.eq { fill: var(--fe-gris) }
 .cvc .cvc-kpis { display: flex; flex-direction: column; gap: 10px }
-.cvc .cvc-kpi { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 14px 16px; background: var(--fe-papel); border: 1px solid var(--fe-linea); border-bottom: 3px solid var(--fe-acento); border-radius: 2px; min-width: 0 }
+.cvc .cvc-kpi { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 14px 16px; background: var(--fe-papel); border: 1px solid var(--fe-linea); border-bottom: 3px solid var(--fe-acento); border-radius: 0; min-width: 0 }
 .cvc .cvc-kpi-et { font: 800 10.5px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase; color: var(--fe-gris) }
 .cvc .cvc-kpi b { font: 900 clamp(26px, 3vw, 36px)/1.05 var(--fe-titulo); letter-spacing: -.03em; font-variant-numeric: tabular-nums; color: var(--fe-tinta) }
 .cvc .cvc-kpi b .u { font: 800 14px var(--fe-texto); letter-spacing: 0 }
@@ -48,7 +48,7 @@
 
 /* Cómo está cada almacén */
 .cvc .cvc-almacenes { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr)) }
-.cvc .cvc-alm { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; min-width: 0; background: color-mix(in srgb, var(--fe-fondo) 45%, #fff); border: 1px solid var(--fe-linea); border-left: 6px solid var(--fe-acento); border-radius: 2px }
+.cvc .cvc-alm { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; min-width: 0; background: color-mix(in srgb, var(--fe-fondo) 45%, #fff); border: 1px solid var(--fe-linea); border-left: 6px solid var(--fe-acento); border-radius: 0 }
 .cvc .cvc-alm header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px }
 .cvc .cvc-alm header b { font: 800 12px var(--fe-texto); letter-spacing: .04em; color: var(--fe-tinta) }
 .cvc .cvc-alm header small { font-size: 11.5px; color: var(--fe-gris); white-space: nowrap }
@@ -62,7 +62,7 @@
 .cvc .cvc-alm-a { color: var(--fe-gris) }
 
 /* Las etiquetas de estado */
-.cvc .cvc-pill { display: inline-block; padding: 3px 8px; border-radius: 2px; font: 800 10.5px var(--fe-texto); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; background: var(--fe-fondo); color: var(--fe-tinta) }
+.cvc .cvc-pill { display: inline-block; padding: 3px 8px; border-radius: 0; font: 800 10.5px var(--fe-texto); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; background: var(--fe-fondo); color: var(--fe-tinta) }
 .cvc .cvc-pill.up, .cvc .cvc-pill.sube { background: var(--fe-mal); color: #fff }
 .cvc .cvc-pill.dn, .cvc .cvc-pill.baja { background: var(--fe-bien); color: #fff }
 .cvc .cvc-pill.eq, .cvc .cvc-pill.igual { background: var(--fe-fondo); color: var(--fe-tinta) }
@@ -138,3 +138,6 @@
 .cvc .cvx tfoot tr.general td { position: sticky; bottom: 0; background: #FFE699; font-size: 14px; border-top: 2px solid #E0B100 }
 .cvc .cvx tfoot tr.general td.cvx-d.sube { background: #FFC7CE }
 .cvc .cvx tfoot tr.general td.cvx-d.bien { background: #C6EFCE }
+
+/* Todo recto en el Comparativo: sin esquinas redondeadas (también lo que viene del Tablero). */
+.cvc, .cvc * { border-radius: 0 !important }
