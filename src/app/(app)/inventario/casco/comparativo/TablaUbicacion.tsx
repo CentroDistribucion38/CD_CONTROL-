@@ -38,6 +38,8 @@ export function useTablaUbicacion(conteos: ConteoDia[], diaA: string, diaB: stri
   const [error, setError] = useState<string | null>(null);
   const [estado, setEstado] = useState<string | null>(null);   // null = todavía no se escogió (arranca en LAVADO si hay)
   const [soloCambios, setSoloCambios] = useState(false);
+  /* FILTRO DE SKU: vacío = todos. Vale para la tabla y para la foto. */
+  const [skus, setSkus] = useState<Set<string>>(new Set());
   const cache = useRef<Record<string, RenglonConteo[]>>({});
   const enVuelo = useRef<Record<string, Promise<RenglonConteo[]>>>({});
 
@@ -74,13 +76,18 @@ export function useTablaUbicacion(conteos: ConteoDia[], diaA: string, diaB: stri
     return () => { vivo = false };
   }, [activo, fA, fB, leer]);
 
-  const rA = useMemo(() => (fA ? datos[fA] ?? [] : []), [datos, fA]);
-  const rB = useMemo(() => (fB ? datos[fB] ?? [] : []), [datos, fB]);
+  const rA0 = useMemo(() => (fA ? datos[fA] ?? [] : []), [datos, fA]);
+  const rB0 = useMemo(() => (fB ? datos[fB] ?? [] : []), [datos, fB]);
+  const rA = useMemo(() => (skus.size ? rA0.filter((r) => skus.has(r.codigo)) : rA0), [rA0, skus]);
+  const rB = useMemo(() => (skus.size ? rB0.filter((r) => skus.has(r.codigo)) : rB0), [rB0, skus]);
   const listo = (!fA || !!datos[fA]) && (!fB || !!datos[fB]);
-  const todosEstados = useMemo(() => armarTablaUbicacion(rA, rB, "", false).estados, [rA, rB]);
+  const todosEstados = useMemo(() => armarTablaUbicacion(rA0, rB0, "", false).estados, [rA0, rB0]);
   const est = estado ?? (todosEstados.includes("LAVADO") ? "LAVADO" : "");
   /* La tabla se arma SIEMPRE en estibas (lo que trae el conteo); HL y cajas se calculan por material al pintar. */
   const t = useMemo(() => armarTablaUbicacion(rA, rB, est, soloCambios), [rA, rB, est, soloCambios]);
+  /* Los SKU que se pueden escoger: los que hay en ese estado en cualquiera de los dos conteos, sin filtrar. */
+  const opcionesSku = useMemo(() => armarTablaUbicacion(rA0, rB0, est, false).grupos.map((g) => ({ codigo: g.codigo, material: g.material })), [rA0, rB0, est]);
+  const alternarSku = useCallback((c: string) => setSkus((s) => { const x = new Set(s); if (x.has(c)) x.delete(c); else x.add(c); return x }), []);
 
   /* Por unidad, los materiales a la vista que el maestro no trae: no se inventan, salen con «—». */
   const sinFactor = useMemo(() => {
@@ -99,18 +106,25 @@ export function useTablaUbicacion(conteos: ConteoDia[], diaA: string, diaB: stri
     const [a, b] = await Promise.all([leer(fA), leer(fB)]);
     const estados = armarTablaUbicacion(a, b, "", false).estados;
     const e = estado ?? (estados.includes("LAVADO") ? "LAVADO" : "");
+    const fa = skus.size ? a.filter((r) => skus.has(r.codigo)) : a, fb = skus.size ? b.filter((r) => skus.has(r.codigo)) : b;
+    const lista = [...skus].sort((x, y) => x.localeCompare(y, "es", { numeric: true }));
     return {
-      tabla: armarTablaUbicacion(a, b, e, soloCambios), fA, fB, estado: e, soloCambios, unidades, factores,
-      chips: [`Unidad${unidades.length > 1 ? "es" : ""}: ${unidades.map((u) => TXT_NOMBRE[u]).join(" · ")}`, e || "Todos los estados", ...(soloCambios ? ["Solo cambios"] : [])],
+      tabla: armarTablaUbicacion(fa, fb, e, soloCambios), fA, fB, estado: e, soloCambios, unidades, factores,
+      chips: [`Unidad${unidades.length > 1 ? "es" : ""}: ${unidades.map((u) => TXT_NOMBRE[u]).join(" · ")}`, e || "Todos los estados", ...(soloCambios ? ["Solo cambios"] : []),
+        ...(lista.length ? [lista.length <= 3 ? `SKU: ${lista.join(", ")}` : `${lista.length} SKU`] : [])],
     };
-  }, [fA, fB, leer, unidades, factores, estado, soloCambios]);
+  }, [fA, fB, leer, unidades, factores, estado, soloCambios, skus]);
 
-  return { fA, fB, cargando, error, listo, todosEstados, est, t, soloCambios, setEstado, setSoloCambios, cargar, hayConteos: conteos.length > 0, unidades, factores, sinFactor };
+  return { fA, fB, cargando, error, listo, todosEstados, est, t, soloCambios, setEstado, setSoloCambios, cargar, hayConteos: conteos.length > 0, unidades, factores, sinFactor, skus, setSkus, alternarSku, opcionesSku };
 }
 export type TablaUbDatos = ReturnType<typeof useTablaUbicacion>;
 
 export function TablaUbicacion({ tab }: { tab: TablaUbDatos }) {
-  const { fA, fB, cargando, error, listo, todosEstados, est, t, soloCambios, setEstado, setSoloCambios, hayConteos, unidades, factores, sinFactor } = tab;
+  const { fA, fB, cargando, error, listo, todosEstados, est, t, soloCambios, setEstado, setSoloCambios, hayConteos, unidades, factores, sinFactor, skus, setSkus, alternarSku, opcionesSku } = tab;
+  const [buscaSku, setBuscaSku] = useState("");
+  const sinTilde = (x: string) => x.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const qs = sinTilde(buscaSku).split(/[\s,;]+/).filter(Boolean);
+  const vistasSku = opcionesSku.filter((o) => !qs.length || qs.some((x) => o.codigo.includes(x)) || qs.every((x) => sinTilde(o.material).includes(x)));
   const cel = (u: Unidad, v: number | null) => (v == null ? "—" : Math.abs(v) < 0.0005 ? "" : nfs[u].format(v));
   const dif = (u: Unidad, v: number | null) => (v == null ? "—" : Math.abs(v) < 0.0005 ? "0" : (v > 0 ? "" : "-") + nfs[u].format(Math.abs(v)));
   const cls = (v: number | null) => "cvx-d " + (v != null && v > 0.0005 ? "sube" : "bien");
@@ -129,6 +143,24 @@ export function TablaUbicacion({ tab }: { tab: TablaUbDatos }) {
             <button key={e} type="button" className="cvc-chip" aria-pressed={est === e} onClick={() => setEstado(e)}>{e}</button>
           ))}
           <button type="button" className="cvc-chip" aria-pressed={soloCambios} onClick={() => setSoloCambios(!soloCambios)}>Solo cambios</button>
+          <details className="cvx-sku">
+            <summary className="cvc-chip" aria-pressed={skus.size > 0}>{skus.size ? `SKU: ${skus.size} escogido${skus.size === 1 ? "" : "s"}` : "Filtrar SKU"}</summary>
+            <div className="cvx-sku-caja">
+              <input type="search" value={buscaSku} onChange={(e) => setBuscaSku(e.target.value)} placeholder="Código o nombre" aria-label="Buscar SKU" />
+              <div className="cvx-sku-acc">
+                <button type="button" onClick={() => setSkus(new Set(vistasSku.map((o) => o.codigo)))}>Escoger los que se ven</button>
+                <button type="button" onClick={() => setSkus(new Set())}>Todos los SKU</button>
+              </div>
+              <ul>
+                {vistasSku.map((o) => (
+                  <li key={o.codigo}>
+                    <label><input type="checkbox" checked={skus.has(o.codigo)} onChange={() => alternarSku(o.codigo)} /> <b>{o.codigo}</b> {o.material}</label>
+                  </li>
+                ))}
+                {vistasSku.length === 0 && <li className="vacio">Ningún SKU coincide.</li>}
+              </ul>
+            </div>
+          </details>
         </span>
       </header>
       {fA && fB && fA === fB && <p className="cvc-nota">Los dos días caen en el mismo conteo ({dmy(fA)}): no hay nada que comparar. Escoge otra fecha arriba.</p>}

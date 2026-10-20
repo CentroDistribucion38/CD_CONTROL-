@@ -252,16 +252,22 @@ export function dibujarTablaComparativo(d: DatosTablaFoto, extra: Extra = {}): H
   const filas = d.tabla.grupos.reduce((n, g) => n + g.filas.length + 1, 0);
   const H = 120 + TIT + CAB + filas * FILA + GEN + 44;
   const { c, ctx } = nuevoLienzo(W, H);
-  cabecera(ctx, W, d.chips, P, extra.logo, "Casco de vidrio · Comparativo por ubicación",
+  cabecera(ctx, W, d.chips, P, extra.logo, "Comparativo por ubicación",
     `${nombreU} por ubicación · conteo del ${dmy(d.fA)} contra el del ${dmy(d.fB)}${d.estado ? ` · ${d.estado}` : ""}`);
 
   const x0 = M, ancho = W - 2 * M;
   /* Seis columnas fijas y, por cada unidad, tres (conteo A, conteo B, diferencia); la descripción se lleva el resto. */
-  const wU = us.length === 1 ? 130 : us.length === 2 ? 112 : 94;
+  const wU0 = us.length === 1 ? 130 : us.length === 2 ? 112 : 94;
   const fijas = [92, 130, 0, 96, 130, 118];
+  /* La descripción mide lo que mide el material más largo (con un poco de aire), no lo que sobre: lo que sobra
+     se reparte entre las columnas de cantidades, así la tabla sigue ocupando todo el ancho de la imagen. */
+  letra(ctx, 800, 13.5);
+  const masLargo = Math.max(0, ...d.tabla.grupos.flatMap((g) => g.filas.map((f) => ctx.measureText(f.material).width)));
+  const resto0 = ancho - fijas.reduce((t, w) => t + w, 0) - 3 * us.length * wU0;
+  const wDesc0 = Math.min(Math.max(150, masLargo + 28), Math.max(160, resto0));
+  const wU = Math.floor(wU0 + Math.max(0, resto0 - wDesc0) / (3 * us.length));
   const ws = [...fijas, ...us.flatMap(() => [wU, wU, wU])];
-  const resto = ancho - ws.reduce((t, w) => t + w, 0);
-  ws[2] = Math.max(160, resto);
+  ws[2] = Math.max(160, ancho - ws.reduce((t, w) => t + w, 0));
   const xs: number[] = []; ws.reduce((x, w) => { xs.push(x); return x + w }, x0);
   const cx = (i: number) => xs[i] + ws[i] / 2;
   const anchoTotal = ws.reduce((t, w) => t + w, 0);
