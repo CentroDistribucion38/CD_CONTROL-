@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import type { FilaAjuste, Guardado } from "@/modulos/inventario/analisis-ajustes";
 import { analisisFinal } from "@/modulos/inventario/compensa";
 import { guardarFinal } from "./actions";
+import { EtiquetaEnLinea, LeyendaEnLinea, type MapaEnLinea } from "./EnLinea";
 
 /**
  * PASO 3 · EL ANÁLISIS FINAL — cómo queda SAP con lo que ya se hizo: SAP inicial + compensación hecha +
@@ -19,8 +20,8 @@ const signo = (v: number) => (v > 0 ? "+" : v < 0 ? "−" : "") + nf.format(Math
 const largo = (iso: string) => new Date(iso + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 const cuando = (iso: string) => new Date(iso).toLocaleString("es-CO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
-export function Final({ fecha, guardado, ajustes, final, puedeEditar, faltaSql }: {
-  fecha: string; guardado: Guardado | null; ajustes: FilaAjuste[]; final: { en: string } | null; puedeEditar: boolean; faltaSql: string | null;
+export function Final({ fecha, guardado, ajustes, final, puedeEditar, faltaSql, enLinea = {} }: {
+  enLinea?: MapaEnLinea; fecha: string; guardado: Guardado | null; ajustes: FilaAjuste[]; final: { en: string } | null; puedeEditar: boolean; faltaSql: string | null;
 }) {
   const router = useRouter();
   const [pend, start] = useTransition();
@@ -98,6 +99,7 @@ export function Final({ fecha, guardado, ajustes, final, puedeEditar, faltaSql }
           <h2>Análisis final · {largo(fecha)}</h2>
           <label className="ad-chk"><input type="checkbox" checked={solo} onChange={(e) => setSolo(e.target.checked)} /> Solo lo que sigue con diferencia</label>
         </div>
+        <LeyendaEnLinea codigos={vistas.map((f) => f.codigo)} enLinea={enLinea} />
         <div className="ad-tabla-caja">
           <table className="ad-t ad-piv ad-aj">
             <thead><tr>
@@ -108,10 +110,10 @@ export function Final({ fecha, guardado, ajustes, final, puedeEditar, faltaSql }
               {familias.map(([fam, xs]) => (
                 <Fragment key={fam}>
                   {xs.map((f, i) => (
-                    <tr key={f.codigo}>
+                    <tr key={f.codigo} className={enLinea[f.codigo]?.length ? "enl" : ""}>
                       {i === 0 && <td className="fam" rowSpan={xs.length}>{fam}</td>}
                       <td className="mono">{f.codigo}</td>
-                      <td>{f.descripcion}</td>
+                      <td>{f.descripcion}<EtiquetaEnLinea xs={enLinea[f.codigo]} /></td>
                       <td className="n">{n(f.sap)}</td>
                       <td className="n">{f.movComp ? signo(f.movComp) : <span className="ad-na">—</span>}</td>
                       <td className="n">{f.movAjuste ? signo(f.movAjuste) : <span className="ad-na">—</span>}</td>

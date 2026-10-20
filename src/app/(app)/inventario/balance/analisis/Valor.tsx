@@ -4,6 +4,7 @@ import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
 import type { FilaAjuste, Guardado, Precio } from "@/modulos/inventario/analisis-ajustes";
 import { analisisFinal } from "@/modulos/inventario/compensa";
+import { EtiquetaEnLinea, LeyendaEnLinea, type MapaEnLinea } from "./EnLinea";
 
 /**
  * VALOR $ — «cada diferencia y cada ajuste con su valor: así ves cuánta plata hay en juego, no solo unidades».
@@ -17,7 +18,7 @@ const signo = (v: number) => (v > 0 ? "+" : v < 0 ? "−" : "") + nf.format(Math
 const $ = (v: number) => (v < 0 ? "−" : v > 0 ? "+" : "") + pesos.format(Math.abs(v));
 const largo = (iso: string) => new Date(iso + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
-export function Valor({ fecha, guardado, ajustes, precios }: { fecha: string; guardado: Guardado | null; ajustes: FilaAjuste[]; precios: Record<string, Precio> }) {
+export function Valor({ fecha, guardado, ajustes, precios, enLinea = {} }: { enLinea?: MapaEnLinea; fecha: string; guardado: Guardado | null; ajustes: FilaAjuste[]; precios: Record<string, Precio> }) {
   const [orden, setOrden] = useState<"familia" | "valor">("valor");
   const filas = useMemo(() => analisisFinal(ajustes).map((f) => {
     const p = precios[f.codigo];
@@ -89,6 +90,7 @@ export function Valor({ fecha, guardado, ajustes, precios }: { fecha: string; gu
             <button type="button" role="tab" aria-selected={orden === "familia"} className={orden === "familia" ? "on" : ""} onClick={() => setOrden("familia")}>Por familia</button>
           </div>
         </div>
+        <LeyendaEnLinea codigos={filas.map((f) => f.codigo)} enLinea={enLinea} />
         <div className="ad-tabla-caja">
           <table className="ad-t ad-piv ad-aj">
             <thead><tr>
@@ -99,10 +101,10 @@ export function Valor({ fecha, guardado, ajustes, precios }: { fecha: string; gu
               {grupos.map(([fam, xs]) => (
                 <Fragment key={fam || "todo"}>
                   {xs.map((f, i) => (
-                    <tr key={f.codigo}>
+                    <tr key={f.codigo} className={enLinea[f.codigo]?.length ? "enl" : ""}>
                       {orden === "familia" && i === 0 && <td className="fam" rowSpan={xs.length}>{fam}</td>}
                       <td className="mono">{f.codigo}</td>
-                      <td>{f.descripcion}</td>
+                      <td>{f.descripcion}<EtiquetaEnLinea xs={enLinea[f.codigo]} /></td>
                       <td className="n">{f.precio != null ? <>{pesos.format(f.precio)}<small>{f.fuente}</small></> : <span className="ad-sent falta">Sin precio</span>}</td>
                       <td className={"n" + (f.diferencia < 0 ? " neg" : " pos")}>{signo(f.diferencia)}</td>
                       <td className={"n b" + (f.vDif < 0 ? " neg" : " pos")}>{$(f.vDif)}</td>

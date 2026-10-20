@@ -5,6 +5,7 @@ import Link from "next/link";
 import { InformeCierre } from "./InformeCierre";
 import type { FilaAjuste, Guardado } from "@/modulos/inventario/analisis-ajustes";
 import { guardarHecho, guardarObservacion } from "./actions";
+import { EtiquetaEnLinea, LeyendaEnLinea, type MapaEnLinea } from "./EnLinea";
 
 /**
  * PASO 2 · LOS AJUSTES — del análisis guardado del día: diferencia, lo que se compensa entre el envase
@@ -16,8 +17,8 @@ const signo = (v: number) => (v > 0 ? "+" : v < 0 ? "−" : "") + nf.format(Math
 const largo = (iso: string) => new Date(iso + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 const sentido = (v: number) => (v > 0 ? "Sobrante · sube SAP" : v < 0 ? "Faltante · baja SAP" : "Cuadrado");
 
-export function Ajustes({ fecha, guardado, filas: inicio, puedeEditar, faltaSql, finalEn = null }: {
-  fecha: string; guardado: Guardado | null; filas: FilaAjuste[]; puedeEditar: boolean; faltaSql: boolean; finalEn?: string | null;
+export function Ajustes({ fecha, guardado, filas: inicio, puedeEditar, faltaSql, finalEn = null, enLinea = {} }: {
+  enLinea?: MapaEnLinea; fecha: string; guardado: Guardado | null; filas: FilaAjuste[]; puedeEditar: boolean; faltaSql: boolean; finalEn?: string | null;
 }) {
   const [filas, setFilas] = useState(inicio);
   /* «En otra hoja los sobrantes, los faltantes»: también en pantalla, una pestaña para cada uno. */
@@ -124,6 +125,7 @@ export function Ajustes({ fecha, guardado, filas: inicio, puedeEditar, faltaSql,
             ))}
           </div>
         </div>
+        <LeyendaEnLinea codigos={filas.map((f) => f.codigo)} enLinea={enLinea} />
         <div className="ad-tabla-caja">
           <table className="ad-t ad-piv ad-aj">
             <thead><tr>
@@ -134,10 +136,10 @@ export function Ajustes({ fecha, guardado, filas: inicio, puedeEditar, faltaSql,
               {familias.map(([fam, xs]) => (
                 <Fragment key={fam}>
                   {xs.map((f, i) => (
-                    <tr key={f.codigo} className={f.compensa ? "cruza" : ""}>
+                    <tr key={f.codigo} className={(f.compensa ? "cruza" : "") + (enLinea[f.codigo]?.length ? " enl" : "")}>
                       {i === 0 && <td className="fam" rowSpan={xs.length}>{fam}</td>}
                       <td className="mono">{f.codigo}</td>
-                      <td>{f.descripcion}</td>
+                      <td>{f.descripcion}<EtiquetaEnLinea xs={enLinea[f.codigo]} /></td>
                       <td className={"n" + (f.diferencia < 0 ? " neg" : f.diferencia > 0 ? " pos" : "")}>{signo(f.diferencia)}</td>
                       <td>{f.par ? <><b className="mono">{f.par}</b><small>{f.parDescripcion}</small><small className="ad-nuevo">R contado en NUEVO: <b>{n(f.nuevo)}</b></small></> : <span className="ad-na">—</span>}</td>
                       <td className="n">{f.compensa ? signo(f.compensa) : <span className="ad-na">—</span>}</td>

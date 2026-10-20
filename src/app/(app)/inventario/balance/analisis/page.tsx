@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { misPermisos } from "@/lib/permisos";
-import { armarAnalisis } from "@/modulos/inventario/analisis-dif";
+import { armarAnalisis, enLineaDelDia } from "@/modulos/inventario/analisis-dif";
 import { leerAjustes, leerHistorico, leerPrecios } from "@/modulos/inventario/analisis-ajustes";
 import { armarTodos } from "@/modulos/inventario/analisis-todos";
 import { Analisis } from "./Analisis";
@@ -73,7 +73,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
     </nav>
   );
   if (paso === "final") {
-    const aj = await leerAjustes(fecha);
+    const [aj, enLinea] = await Promise.all([leerAjustes(fecha), enLineaDelDia(fecha)]);
     return (
       <div className="fe bal ad">
         <section className="cabeza"><div>
@@ -82,7 +82,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
           <p className="sub">Cómo queda SAP con los ajustes realizados: SAP inicial + compensación hecha + ajuste hecho = SAP final, contra el mismo conteo. Lo que siga con diferencia es lo que falta.</p>
         </div></section>
         {pasos}
-        <Final fecha={fecha} guardado={aj.guardado} ajustes={aj.filas} final={aj.final} puedeEditar={puedeEditar}
+        <Final enLinea={enLinea} fecha={fecha} guardado={aj.guardado} ajustes={aj.filas} final={aj.final} puedeEditar={puedeEditar}
                faltaSql={aj.faltaSql ? "Falta correr supabase/migraciones/2026-10-analisis-diferencia-ajustes.sql en Supabase." : aj.faltaSqlFinal ? "Falta correr supabase/migraciones/2026-10-analisis-diferencia-final.sql en Supabase." : null} />
       </div>
     );
@@ -96,13 +96,13 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
     </div></section>
   );
   if (paso === "valor") {
-    const [aj, precios] = await Promise.all([leerAjustes(fecha), leerPrecios()]);
+    const [aj, precios, enLinea] = await Promise.all([leerAjustes(fecha), leerPrecios(), enLineaDelDia(fecha)]);
     return (
       <div className="fe bal ad">
         {cabeza("Valor en pesos", "Cada diferencia y cada ajuste con su valor: cuánta plata hay en juego, no solo unidades.")}
         {pasos}
         {aj.faltaSql ? <p className="ad-msg mal">Falta correr supabase/migraciones/2026-10-analisis-diferencia-ajustes.sql en Supabase.</p>
-          : <Valor fecha={fecha} guardado={aj.guardado} ajustes={aj.filas} precios={precios} />}
+          : <Valor enLinea={enLinea} fecha={fecha} guardado={aj.guardado} ajustes={aj.filas} precios={precios} />}
       </div>
     );
   }
@@ -134,17 +134,17 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
     );
   }
   if (paso === "todos") {
-    const t = await armarTodos(fecha);
+    const [t, enLinea] = await Promise.all([armarTodos(fecha), enLineaDelDia(fecha)]);
     return (
       <div className="fe bal ad">
         {cabeza("Todos los almacenes", "Por SKU, lo contado y lo de SAP en AG22, AG18, AG17 y AG16 según sus Cuadres SAP: si con lo movido todo quedó balanceado o si queda un descuadre, con su observación.")}
         {pasos}
-        <Todos datos={t} hoy={hoy} />
+        <Todos datos={t} hoy={hoy} enLinea={enLinea} />
       </div>
     );
   }
   if (paso === "ajustes") {
-    const aj = await leerAjustes(fecha);
+    const [aj, enLinea] = await Promise.all([leerAjustes(fecha), enLineaDelDia(fecha)]);
     return (
       <div className="fe bal ad">
         <section className="cabeza"><div>
@@ -156,7 +156,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
           </p>
         </div></section>
         {pasos}
-        <Ajustes fecha={fecha} guardado={aj.guardado} filas={aj.filas} puedeEditar={puedeEditar} faltaSql={aj.faltaSql} finalEn={aj.final?.en ?? null} />
+        <Ajustes enLinea={enLinea} fecha={fecha} guardado={aj.guardado} filas={aj.filas} puedeEditar={puedeEditar} faltaSql={aj.faltaSql} finalEn={aj.final?.en ?? null} />
       </div>
     );
   }

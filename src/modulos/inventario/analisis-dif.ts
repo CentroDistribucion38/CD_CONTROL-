@@ -439,3 +439,35 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
 
   return { fecha, filas, fuentes, avisos, novedades, noEntran: noEntran.sort(), faltaSql, carga, contados, existencias, enLinea };
 }
+
+
+/** EN LÍNEA, SOLO ESO: por código de envase o de caja plástica, los SKU que el plan de envase pone a correr ese día. Lo usan los pasos
+ *  que siguen al análisis (Todos los almacenes, Ajustes, Análisis final, Valor) para que la marca no se pierda en el flujo. */
+export async function enLineaDelDia(fecha: string): Promise<Record<string, EnLinea[]>> {
+  const supabase = await createClient();
+  const [planR, prodR, maesR] = await Promise.all([
+    supabase.from("plan_envase_bloques").select("tren, sap, turno").eq("fecha", fecha).limit(2000),
+    supabase.from("productos").select("sku, nombre, envase_sku").limit(5000),
+    supabase.from("pasivos_maestro").select("codigo, caja"),
+  ]);
+  const P = new Map(((prodR.data ?? []) as { sku: string; nombre: string | null; envase_sku: string | null }[]).map((p) => [String(p.sku), p]));
+  const M = new Map(((maesR.data ?? []) as { codigo: string; caja: string | null }[]).map((m) => [String(m.codigo), m]));
+  const sku = new Map<string, { tren: string; sap: string; turnos: Set<number> }>();
+  for (const b of (planR.data ?? []) as { tren: string; sap: string; turno: number }[]) {
+    const k = `${b.tren}|${b.sap}`;
+    const x = sku.get(k) ?? { tren: String(b.tren).toUpperCase(), sap: String(b.sap), turnos: new Set<number>() };
+    x.turnos.add(Number(b.turno)); sku.set(k, x);
+  }
+  const enLinea: Record<string, EnLinea[]> = {};
+  for (const x of sku.values()) {
+    const prod = P.get(x.sap);
+    const env = prod?.envase_sku ? String(prod.envase_sku) : null;
+    if (!env) continue;
+    const base = { tren: x.tren, sap: x.sap, sku: prod?.nombre ?? x.sap, turnos: [...x.turnos].sort() };
+    (enLinea[env] ??= []).push({ ...base, por: "envase" });
+    const caja = CAJA_EN_DEPA[env] ?? M.get(env)?.caja;
+    if (caja) (enLinea[String(caja)] ??= []).push({ ...base, por: "caja" });
+  }
+  for (const xs of Object.values(enLinea)) xs.sort((a, b) => a.tren.localeCompare(b.tren, "es", { numeric: true }) || a.sku.localeCompare(b.sku, "es"));
+  return enLinea;
+}

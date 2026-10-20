@@ -8,6 +8,7 @@ import { Fragment, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ALMACENES, type Todos as Datos, type FilaTodos } from "@/modulos/inventario/todos-tipos";
 import { Avisos } from "./Avisos";
+import { EtiquetaEnLinea, LeyendaEnLinea, type MapaEnLinea } from "./EnLinea";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const n = (v: number | null | undefined) => (v == null ? "—" : nf.format(v));
@@ -16,7 +17,7 @@ const GRUPOS = ["TODOS", "ENVASE", "CAJA", "ESTIBA", "PRODUCTO"] as const;
 const ETQ_G: Record<string, string> = { TODOS: "Todos", ENVASE: "Envase", CAJA: "Cajas plásticas", ESTIBA: "Estibas", PRODUCTO: "Producto" };
 const CLASE = { BALANCEADO: "ok", DESCUADRE: "falta", "SIN SAP": "parcial" } as const;
 
-export function Todos({ datos, hoy }: { datos: Datos; hoy: string }) {
+export function Todos({ datos, hoy, enLinea = {} }: { datos: Datos; hoy: string; enLinea?: MapaEnLinea }) {
   const router = useRouter();
   const [grupo, setGrupo] = useState<(typeof GRUPOS)[number]>("TODOS");
   const [soloDesc, setSoloDesc] = useState(false);
@@ -56,6 +57,8 @@ export function Todos({ datos, hoy }: { datos: Datos; hoy: string }) {
           <input type="search" placeholder="Buscar código o material" value={buscar} onChange={(e) => setBuscar(e.target.value)} />
         </div>
         {filas.length === 0 ? <p className="ad-vacio">No hay nada para ese día o ese filtro: falta el conteo o el Cuadre SAP.</p> : (
+          <>
+          <LeyendaEnLinea codigos={filas.map((f) => f.codigo)} enLinea={enLinea} />
           <div className="ad-tabla-caja">
             <table className="ad-t ad-piv">
               <thead><tr><th>Código</th><th>Material</th>{ALMACENES.map((a) => <th key={a} className="n">{a}</th>)}<th className="n">Conteo</th><th className="n">SAP</th><th className="n">Queda</th><th>Estado</th></tr></thead>
@@ -64,9 +67,9 @@ export function Todos({ datos, hoy }: { datos: Datos; hoy: string }) {
                   const ab = abierta === f.codigo;
                   return (
                     <Fragment key={f.codigo}>
-                      <tr className={ab ? "ab" : ""}>
+                      <tr className={(ab ? "ab" : "") + (enLinea[f.codigo]?.length ? " enl" : "")}>
                         <td className="mono"><button type="button" className="ad-cod" aria-expanded={ab} onClick={() => setAbierta(ab ? null : f.codigo)}>{f.codigo}</button></td>
-                        <td>{f.material}{f.estado === "DESCUADRE" && <small>{f.observacion}</small>}</td>
+                        <td>{f.material}<EtiquetaEnLinea xs={enLinea[f.codigo]} />{f.estado === "DESCUADRE" && <small>{f.observacion}</small>}</td>
                         {ALMACENES.map((a) => <td key={a} className="n">{f.alm[a] ? n(f.alm[a]!.conteo) : "—"}</td>)}
                         <td className="n b">{n(f.conteo)}</td>
                         <td className="n">{n(f.sap)}</td>
@@ -95,6 +98,7 @@ export function Todos({ datos, hoy }: { datos: Datos; hoy: string }) {
               </tbody>
             </table>
           </div>
+          </>
         )}
         <p className="ad-nota">Sale de los Cuadres SAP de AG22, AG18, AG17 y AG16 del día. Conteo = lo que debe haber en SAP según lo contado; Queda = SAP después de lo movido − conteo (+ SAP de más, − SAP de menos). Envase en unidades, cajas plásticas y producto en cajas, estibas por unidad.</p>
       </section>
