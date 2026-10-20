@@ -12,11 +12,16 @@ import type { DatosComparativo, DatosTablaFoto } from "@/modulos/casco/foto-comp
  * un correo o en WhatsApp (igual que en el Tablero). Sale con las fechas, la unidad y los filtros que
  * estén puestos. La foto de la Tabla lee los dos conteos si todavía no se han abierto.
  */
-export function BotonesComparativo({ datos, cargarTabla, unidad, cambiarUnidad }: {
+const VALORES = [{ k: "hl", t: "HL" }, { k: "est", t: "Estibas" }, { k: "caj", t: "Cajas" }];
+
+export function BotonesComparativo({ datos, cargarTabla, unidad, cambiarUnidad, unidadesTabla, alternarUnidadTabla }: {
   datos: DatosComparativo | null;
   cargarTabla: () => Promise<DatosTablaFoto | null>;
   unidad: Unidad;
   cambiarUnidad: (u: Unidad) => void;
+  /** La Tabla puede llevar varias unidades a la vez. */
+  unidadesTabla: Unidad[];
+  alternarUnidadTabla: (u: Unidad) => void;
 }) {
   const caja = useRef<HTMLDivElement>(null);
   const [motivo, setMotivo] = useState<string | null>(null);
@@ -31,11 +36,10 @@ export function BotonesComparativo({ datos, cargarTabla, unidad, cambiarUnidad }
     }
     const t = await cargarTabla();
     if (!t) { setMotivo("Para la foto de la Tabla escoge dos fechas que caigan en conteos distintos."); throw new Error("sin tabla") }
-    return { lienzo: fo.dibujarTablaComparativo(t, { paleta, logo }), nombre: fo.nombreTablaComparativo(t.fA, t.fB, t.unidad) };
-  }, "Comparativo de casco", { dashboard: "Dashboard", detalle: "Tabla" }, {
-    titulo: "Unidad", actual: unidad, cambiar: (k) => cambiarUnidad(k as Unidad),
-    valores: [{ k: "hl", t: "HL" }, { k: "est", t: "Estibas" }, { k: "caj", t: "Cajas" }],
-  });
+    return { lienzo: fo.dibujarTablaComparativo(t, { paleta, logo }), nombre: fo.nombreTablaComparativo(t.fA, t.fB, t.unidades) };
+  }, "Comparativo de casco", { dashboard: "Dashboard", detalle: "Tabla" }, (tipo: TipoFoto) => tipo === "dashboard"
+    ? { titulo: "Unidad", actual: unidad, cambiar: (k) => cambiarUnidad(k as Unidad), valores: VALORES }
+    : { titulo: "Unidades", actual: unidadesTabla, cambiar: (k) => alternarUnidadTabla(k as Unidad), valores: VALORES });
 
   return (
     <div className="cvt-inf" ref={caja}>

@@ -30,9 +30,11 @@ function bajar(blob: Blob, nombre: string) {
 
 /** `nombres` (opcional): cómo se llama cada imagen en las pestañas; por defecto «Dashboard» y «Detalle por almacén». */
 /** Un selector extra dentro de la ventana (p. ej. la unidad HL / Estibas / Cajas): al cambiarlo se vuelve a armar la imagen abierta. */
-export type OpcionesFoto = { titulo: string; valores: { k: string; t: string }[]; actual: string; cambiar: (k: string) => void };
+/** `actual` como lista = se pueden escoger varias a la vez (cada toque prende o apaga una). */
+export type OpcionesFoto = { titulo: string; valores: { k: string; t: string }[]; actual: string | string[]; cambiar: (k: string) => void };
 
-export function useFotoCompartir(hacer: Hacer, titulo: string, nombres?: Partial<Record<TipoFoto, string>>, opciones?: OpcionesFoto) {
+/** `opciones` puede depender de la imagen abierta (p. ej. una sola unidad en el Dashboard y varias en la Tabla). */
+export function useFotoCompartir(hacer: Hacer, titulo: string, nombres?: Partial<Record<TipoFoto, string>>, opcionesDe?: OpcionesFoto | ((t: TipoFoto) => OpcionesFoto)) {
   const nombreDe = (t: TipoFoto) => nombres?.[t] ?? NOMBRE_FOTO[t];
   const [foto, setFoto] = useState<Foto | null>(null);
   const [armando, setArmando] = useState<TipoFoto | null>(null);
@@ -62,13 +64,16 @@ export function useFotoCompartir(hacer: Hacer, titulo: string, nombres?: Partial
   }
 
   /* Si cambia la opción (la unidad), la imagen que está abierta se arma otra vez con la nueva. */
-  const opcAntes = useRef(opciones?.actual);
+  const opciones = typeof opcionesDe === "function" ? opcionesDe(foto?.tipo ?? "dashboard") : opcionesDe;
+  const claveOpc = opciones ? [opciones.actual].flat().join(",") : "";
+  const opcAntes = useRef<{ tipo?: TipoFoto; clave: string }>({ clave: claveOpc });
   useEffect(() => {
-    if (!opciones || opcAntes.current === opciones.actual) return;
-    opcAntes.current = opciones.actual;
-    if (foto) void abrir(foto.tipo);
+    const antes = opcAntes.current;
+    opcAntes.current = { tipo: foto?.tipo, clave: claveOpc };
+    /* Solo si cambió la opción con la MISMA imagen abierta (al pasar de una imagen a otra ya se arma sola). */
+    if (foto && antes.tipo === foto.tipo && antes.clave !== claveOpc) void abrir(foto.tipo);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opciones?.actual]);
+  }, [foto?.tipo, claveOpc]);
 
   async function copiar() {
     if (!foto) return;
@@ -101,11 +106,13 @@ export function useFotoCompartir(hacer: Hacer, titulo: string, nombres?: Partial
           {opciones && (
             <div className="fc-opc">
               <span className="fc-opc-t">{opciones.titulo}</span>
-              <div className="fc-tabs" role="radiogroup" aria-label={opciones.titulo}>
-                {opciones.valores.map((o) => (
-                  <button key={o.k} type="button" role="radio" aria-checked={opciones.actual === o.k} className={opciones.actual === o.k ? "on" : ""}
-                    disabled={armando != null} onClick={() => opciones.actual !== o.k && opciones.cambiar(o.k)}>{o.t}</button>
-                ))}
+              <div className="fc-tabs" role={Array.isArray(opciones.actual) ? "group" : "radiogroup"} aria-label={opciones.titulo}>
+                {opciones.valores.map((o) => {
+                  const on = Array.isArray(opciones.actual) ? opciones.actual.includes(o.k) : opciones.actual === o.k;
+                  return Array.isArray(opciones.actual)
+                    ? <button key={o.k} type="button" aria-pressed={on} className={on ? "on" : ""} disabled={armando != null} onClick={() => opciones.cambiar(o.k)}>{o.t}</button>
+                    : <button key={o.k} type="button" role="radio" aria-checked={on} className={on ? "on" : ""} disabled={armando != null} onClick={() => !on && opciones.cambiar(o.k)}>{o.t}</button>;
+                })}
               </div>
             </div>
           )}

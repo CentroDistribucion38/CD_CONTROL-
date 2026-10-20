@@ -17,7 +17,7 @@ import {
 import { colorSitio, corta, fmt, larga } from "./informe";
 import { ejeNice } from "./serie";
 import type { Unidad } from "./comparar";
-import type { TablaUb } from "./comparar-ubicacion";
+import { enUnidad, totalEnUnidad, type Factores, type TablaUb } from "./comparar-ubicacion";
 
 type Extra = { paleta?: Paleta; logo?: CanvasImageSource | null; generado?: Date };
 
@@ -36,7 +36,8 @@ export type DatosComparativo = {
   topes: MaterialCmpFoto[];
 };
 export type DatosTablaFoto = {
-  tabla: TablaUb; fA: string; fB: string; estado: string; soloCambios: boolean; chips: string[]; unidad: Unidad;
+  /** La tabla va en estibas (lo que trae el conteo); cada unidad se calcula al pintar con `factores`. */
+  tabla: TablaUb; unidades: Unidad[]; factores: Factores; fA: string; fB: string; estado: string; soloCambios: boolean; chips: string[];
 };
 
 const TXT_U: Record<Unidad, string> = { est: "Estibas", hl: "HL", caj: "Cajas" };
@@ -244,56 +245,69 @@ const XL = {
 
 export function dibujarTablaComparativo(d: DatosTablaFoto, extra: Extra = {}): HTMLCanvasElement {
   const P = extra.paleta ?? PALETA_MARCA;
-  const TINTA = `rgb(${P.tinta.join(",")})`;
   const W = FOTO.ancho, M = MARGEN;
   const FILA = 26, TIT = 28, CAB = 34, GEN = 32;
+  const us = d.unidades.length ? d.unidades : (["est"] as Unidad[]);
+  const nombreU = us.map((u) => TXT_U[u]).join(" · ");
   const filas = d.tabla.grupos.reduce((n, g) => n + g.filas.length + 1, 0);
   const H = 120 + TIT + CAB + filas * FILA + GEN + 44;
   const { c, ctx } = nuevoLienzo(W, H);
   cabecera(ctx, W, d.chips, P, extra.logo, "Casco de vidrio · Comparativo por ubicación",
-    `${TXT_U[d.unidad]} por ubicación · conteo del ${dmy(d.fA)} contra el del ${dmy(d.fB)}${d.estado ? ` · ${d.estado}` : ""}`);
+    `${nombreU} por ubicación · conteo del ${dmy(d.fA)} contra el del ${dmy(d.fB)}${d.estado ? ` · ${d.estado}` : ""}`);
 
   const x0 = M, ancho = W - 2 * M;
-  const fijas = [110, 170, 0, 130, 170, 170, 130, 130, 130];
-  const resto = ancho - fijas.reduce((s, w) => s + w, 0);
-  const ws = fijas.map((w) => w || resto);
+  /* Seis columnas fijas y, por cada unidad, tres (conteo A, conteo B, diferencia); la descripción se lleva el resto. */
+  const wU = us.length === 1 ? 130 : us.length === 2 ? 112 : 94;
+  const fijas = [92, 130, 0, 96, 130, 118];
+  const ws = [...fijas, ...us.flatMap(() => [wU, wU, wU])];
+  const resto = ancho - ws.reduce((t, w) => t + w, 0);
+  ws[2] = Math.max(160, resto);
   const xs: number[] = []; ws.reduce((x, w) => { xs.push(x); return x + w }, x0);
   const cx = (i: number) => xs[i] + ws[i] / 2;
+  const anchoTotal = ws.reduce((t, w) => t + w, 0);
+  const iA = (k: number) => 6 + k * 3, iB = (k: number) => 7 + k * 3, iD = (k: number) => 8 + k * 3;
   let y = 112;
   const FUENTE_PESO = (p: number, px = 13.5) => letra(ctx, p, px);
+  const fu = (u: Unidad, v: number) => (u === "est" ? fmt.est(v) : u === "hl" ? fmt.hl(v) : fmt.hl0(v));
+  const num = (u: Unidad, v: number | null) => (v == null ? "—" : Math.abs(v) < 0.0005 ? "" : fu(u, v));
+  const dd = (u: Unidad, v: number | null) => (v == null ? "—" : Math.abs(v) < 0.0005 ? "0" : (v > 0 ? "" : "-") + fu(u, Math.abs(v)));
+  let faltan = false;
 
-  // título y FECHA
-  ctx.fillStyle = XL.titulo; ctx.fillRect(x0, y, ancho, TIT);
-  FUENTE_PESO(700); ctx.fillStyle = "#000"; ctx.textAlign = "left"; ctx.fillText(`Suma de TOTAL ${TXT_U[d.unidad].toUpperCase()}`, x0 + 10, y + TIT / 2);
-  ctx.textAlign = "center"; ctx.fillText("FECHA", xs[6] + (ws[6] + ws[7]) / 2, y + TIT / 2);
-  // la unidad, bien visible: quien reciba la imagen sabe en qué está cada número
-  ctx.fillStyle = "#111111"; ctx.fillRect(xs[8], y, ws[8], TIT);
-  letra(ctx, 800, 14); ctx.fillStyle = "#FFC300"; ctx.textAlign = "center"; ctx.fillText(TXT_U[d.unidad].toUpperCase(), cx(8), y + TIT / 2);
-  FUENTE_PESO(700); ctx.fillStyle = "#000";
+  // título y, por unidad, su nombre bien visible: quien reciba la imagen sabe en qué está cada número
+  ctx.fillStyle = XL.titulo; ctx.fillRect(x0, y, anchoTotal, TIT);
+  FUENTE_PESO(700); ctx.fillStyle = "#000"; ctx.textAlign = "left"; ctx.fillText(`Suma de TOTAL ${nombreU.toUpperCase()}`, x0 + 10, y + TIT / 2);
+  us.forEach((u, k) => {
+    const bx = xs[iA(k)], bw = wU * 3;
+    ctx.fillStyle = "#111111"; ctx.fillRect(bx, y, bw, TIT);
+    ctx.fillStyle = "#FFFFFF"; ctx.fillRect(bx, y, 2, TIT);
+    letra(ctx, 800, 14); ctx.fillStyle = "#FFC300"; ctx.textAlign = "center"; ctx.fillText(TXT_U[u].toUpperCase(), bx + bw / 2, y + TIT / 2);
+  });
   y += TIT;
   // encabezados
-  const enc = ["CODIGO", "UBICACIÓN", "DESCRIPCION", "MODULO", "NUMERO", "ESTADO ENVASE", dmy(d.fA), dmy(d.fB), "Diferencia"];
+  const enc = ["CODIGO", "UBICACIÓN", "DESCRIPCION", "MODULO", "NUMERO", "ESTADO ENVASE", ...us.flatMap(() => [dmy(d.fA), dmy(d.fB), "Diferencia"])];
   enc.forEach((t, i) => {
-    ctx.fillStyle = i === 8 ? XL.difCab : XL.cab; ctx.fillRect(xs[i], y, ws[i], CAB);
-    FUENTE_PESO(800, i === 8 ? 14.5 : 13.5); ctx.fillStyle = "#000"; ctx.textAlign = "center"; ctx.fillText(t, cx(i), y + CAB / 2);
+    const esDif = i >= 6 && (i - 6) % 3 === 2;
+    ctx.fillStyle = esDif ? XL.difCab : XL.cab; ctx.fillRect(xs[i], y, ws[i], CAB);
+    if (i >= 6 && (i - 6) % 3 === 0) { ctx.fillStyle = XL.oro; ctx.fillRect(xs[i], y, 2, CAB) }
+    FUENTE_PESO(800, esDif ? 14 : 13); ctx.fillStyle = "#000"; ctx.textAlign = "center"; ctx.fillText(t, cx(i), y + CAB / 2);
   });
-  ctx.fillStyle = XL.oro; ctx.fillRect(x0, y + CAB - 1, ancho, 1);
+  ctx.fillStyle = XL.oro; ctx.fillRect(x0, y + CAB - 1, anchoTotal, 1);
   y += CAB;
 
-  const fu = d.unidad === "est" ? fmt.est : d.unidad === "hl" ? fmt.hl : fmt.hl0;
-  const celdaDif = (v: number, yy: number, fondoTotal: boolean) => {
-    const sube = v > 0.0005;
-    ctx.fillStyle = sube ? XL.sube : XL.bien; ctx.fillRect(xs[8], yy, ws[8], FILA);
-    FUENTE_PESO(fondoTotal ? 800 : 700); ctx.fillStyle = sube ? XL.subeTinta : XL.bienTinta; ctx.textAlign = "center";
-    ctx.fillText(Math.abs(v) < 0.0005 ? "0" : (v > 0 ? "" : "-") + fu(Math.abs(v)), cx(8), yy + FILA / 2);
+  const celdaDif = (u: Unidad, k: number, v: number | null, yy: number, alto: number, peso: number) => {
+    const sube = v != null && v > 0.0005;
+    ctx.fillStyle = sube ? XL.sube : XL.bien; ctx.fillRect(xs[iD(k)], yy, ws[iD(k)], alto);
+    FUENTE_PESO(peso); ctx.fillStyle = sube ? XL.subeTinta : XL.bienTinta; ctx.textAlign = "center";
+    ctx.fillText(dd(u, v), cx(iD(k)), yy + alto / 2 + (alto === GEN ? 1 : 0));
+    if (v == null) faltan = true;
   };
-  const num = (v: number) => (Math.abs(v) < 0.0005 ? "" : fu(v));
+  const rayaUnidad = (k: number, yy: number, alto: number) => { ctx.fillStyle = XL.oro; ctx.fillRect(xs[iA(k)], yy, 2, alto) };
 
   let n = 0;
   for (const g of d.tabla.grupos) {
     for (const f of g.filas) {
       const fondo = n++ % 2 === 0 ? XL.gris : XL.blanco;
-      ctx.fillStyle = fondo; ctx.fillRect(x0, y, ancho, FILA);
+      ctx.fillStyle = fondo; ctx.fillRect(x0, y, anchoTotal, FILA);
       const sc = XL.sitio[f.sitio] ?? { f: "#EEE", t: "#333" };
       ctx.fillStyle = sc.f; ctx.fillRect(xs[1] + 1, y, ws[1] - 2, FILA);
       ctx.fillStyle = XL.estadoFondo; ctx.fillRect(xs[5], y, ws[5], FILA);
@@ -304,31 +318,41 @@ export function dibujarTablaComparativo(d: DatosTablaFoto, extra: Extra = {}): H
       FUENTE_PESO(600); ctx.fillText(f.modulo, cx(3), y + FILA / 2);
       FUENTE_PESO(800); ctx.fillText(f.numero, cx(4), y + FILA / 2);
       FUENTE_PESO(700); ctx.fillStyle = XL.estadoTinta; ctx.fillText(f.estado, cx(5), y + FILA / 2);
-      FUENTE_PESO(600); ctx.fillStyle = "#000"; ctx.fillText(num(f.a), cx(6), y + FILA / 2); ctx.fillText(num(f.b), cx(7), y + FILA / 2);
-      celdaDif(f.d, y, false);
+      us.forEach((u, k) => {
+        const a = enUnidad(u, f.codigo, f.a, d.factores), b = enUnidad(u, f.codigo, f.b, d.factores), dif = enUnidad(u, f.codigo, f.d, d.factores);
+        FUENTE_PESO(600); ctx.fillStyle = "#000"; ctx.textAlign = "center";
+        ctx.fillText(num(u, a), cx(iA(k)), y + FILA / 2); ctx.fillText(num(u, b), cx(iB(k)), y + FILA / 2);
+        celdaDif(u, k, dif, y, FILA, 700); rayaUnidad(k, y, FILA);
+      });
       y += FILA;
     }
     // total del material
-    ctx.fillStyle = XL.total; ctx.fillRect(x0, y, ancho, FILA);
-    ctx.fillStyle = XL.oro; ctx.fillRect(x0, y, ancho, 1); ctx.fillRect(x0, y + FILA - 1, ancho, 1);
+    ctx.fillStyle = XL.total; ctx.fillRect(x0, y, anchoTotal, FILA);
+    ctx.fillStyle = XL.oro; ctx.fillRect(x0, y, anchoTotal, 1); ctx.fillRect(x0, y + FILA - 1, anchoTotal, 1);
     FUENTE_PESO(800); ctx.fillStyle = "#000"; ctx.textAlign = "left"; ctx.fillText(`Total ${g.codigo}`, x0 + 10, y + FILA / 2);
-    ctx.textAlign = "center"; ctx.fillText(num(g.a), cx(6), y + FILA / 2); ctx.fillText(num(g.b), cx(7), y + FILA / 2);
-    celdaDif(g.d, y, true);
+    us.forEach((u, k) => {
+      const a = enUnidad(u, g.codigo, g.a, d.factores), b = enUnidad(u, g.codigo, g.b, d.factores), dif = enUnidad(u, g.codigo, g.d, d.factores);
+      FUENTE_PESO(800); ctx.fillStyle = "#000"; ctx.textAlign = "center";
+      ctx.fillText(num(u, a), cx(iA(k)), y + FILA / 2); ctx.fillText(num(u, b), cx(iB(k)), y + FILA / 2);
+      celdaDif(u, k, dif, y, FILA, 800); rayaUnidad(k, y, FILA);
+    });
     y += FILA;
   }
   // total general
-  ctx.fillStyle = XL.cab; ctx.fillRect(x0, y, ancho, GEN);
-  ctx.fillStyle = XL.oro; ctx.fillRect(x0, y, ancho, 2);
+  ctx.fillStyle = XL.cab; ctx.fillRect(x0, y, anchoTotal, GEN);
+  ctx.fillStyle = XL.oro; ctx.fillRect(x0, y, anchoTotal, 2);
   letra(ctx, 800, 15); ctx.fillStyle = "#000"; ctx.textAlign = "left"; ctx.fillText("Total general", x0 + 10, y + GEN / 2 + 1);
-  ctx.textAlign = "center"; ctx.fillText(fu(d.tabla.a), cx(6), y + GEN / 2 + 1); ctx.fillText(fu(d.tabla.b), cx(7), y + GEN / 2 + 1);
-  const sub = d.tabla.d > 0.0005;
-  ctx.fillStyle = sub ? XL.sube : XL.bien; ctx.fillRect(xs[8], y + 2, ws[8], GEN - 2);
-  ctx.fillStyle = sub ? XL.subeTinta : XL.bienTinta; ctx.fillText(Math.abs(d.tabla.d) < 0.0005 ? "0" : (d.tabla.d > 0 ? "" : "-") + fu(Math.abs(d.tabla.d)), cx(8), y + GEN / 2 + 1);
+  us.forEach((u, k) => {
+    const T = totalEnUnidad(d.tabla, u, d.factores);
+    letra(ctx, 800, 15); ctx.fillStyle = "#000"; ctx.textAlign = "center";
+    ctx.fillText(num(u, T.a), cx(iA(k)), y + GEN / 2 + 1); ctx.fillText(num(u, T.b), cx(iB(k)), y + GEN / 2 + 1);
+    celdaDif(u, k, T.d, y + 2, GEN - 2, 800); rayaUnidad(k, y + 2, GEN - 2);
+  });
 
-  void TINTA; void anchoEspaciado;
-  pie(ctx, W, H, extra.generado ?? new Date(), `${TXT_U[d.unidad]} del conteo físico. Rosa: subió; verde: igual o bajó.`);
+  pie(ctx, W, H, extra.generado ?? new Date(),
+    `${nombreU} del conteo físico. Rosa: subió; verde: igual o bajó.${faltan ? " «—»: el maestro no trae ese dato por estiba." : ""}`);
   return c;
 }
 
 export const nombreDashboardComparativo = (a: string | null, b: string | null, u: Unidad) => `casco-comparativo-dashboard-${u}-${a ?? "A"}-${b ?? "B"}.png`;
-export const nombreTablaComparativo = (a: string, b: string, u: Unidad) => `casco-comparativo-tabla-${u}-${a}-${b}.png`;
+export const nombreTablaComparativo = (a: string, b: string, us: Unidad[]) => `casco-comparativo-tabla-${us.join("-")}-${a}-${b}.png`;

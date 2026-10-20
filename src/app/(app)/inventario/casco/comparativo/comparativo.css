@@ -144,3 +144,7 @@
 
 .cvc .cvc-sin summary { cursor: pointer; font-weight: 600 }
 .cvc .cvc-sin span { display: block; margin-top: 6px; word-break: break-word }
+
+/* Las unidades de la Tabla, una al lado de otra: el nombre arriba (negro con amarillo) y una raya entre bloques. */
+.cvc .cvx thead th.cvx-band { background: #111; color: #FFC300; font-weight: 800; letter-spacing: .08em; border-left: 2px solid #fff }
+.cvc .cvx th.cvx-ini, .cvc .cvx td.cvx-ini { border-left: 2px solid #E0B100 }

@@ -7,7 +7,7 @@ import { ejeNice, viajesSerpro, type Punto } from "@/modulos/casco/serie";
 import { colorSitio, corta, enOrdenInforme, larga } from "@/modulos/casco/informe";
 import { comparar, nombreEstado, valorDe, type FilaCmp, type Medida, type Unidad } from "@/modulos/casco/comparar";
 import type { DatosComparativo } from "@/modulos/casco/foto-comparativo";
-import { TablaUbicacion, useTablaUbicacion, type ConteoDia, type Factores } from "./TablaUbicacion";
+import { ORDEN_UNIDADES, TablaUbicacion, useTablaUbicacion, type ConteoDia, type Factores } from "./TablaUbicacion";
 import { BotonesComparativo } from "./BotonesComparativo";
 
 /**
@@ -54,6 +54,14 @@ export function Comparativo({ puntos, sitios, nombres, cajasPorEstiba, hlPorEsti
   const [diaA, setDiaA] = useState(fechas[fechas.length - 2] ?? ultima);
   const [diaB, setDiaB] = useState(ultima);
   const [unidad, setUnidad] = useState<Unidad>("hl");
+  /* La Tabla puede mostrar las tres unidades a la vez; el Dashboard, una. */
+  const [unidadesTabla, setUnidadesTabla] = useState<Unidad[]>(["hl"]);
+  const alternarUnidadTabla = (k: Unidad) => setUnidadesTabla((a) => {
+    const hay = a.includes(k);
+    if (hay && a.length === 1) return a;
+    const n = hay ? a.filter((x) => x !== k) : [...a, k];
+    return ORDEN_UNIDADES.filter((x) => n.includes(x));
+  });
   const [pestana, setPestana] = useState<Pestana>("dashboard");
   const [vis, setVis] = useState<string[]>(sitios.map((s) => s.clave));
   const [soloCambios, setSoloCambios] = useState(false);
@@ -81,7 +89,7 @@ export function Comparativo({ puntos, sitios, nombres, cajasPorEstiba, hlPorEsti
     return f;
   }, [puntos, cajasPorEstiba, hlPorEstibaMaestro]);
   /* Los datos de la Tabla (y su foto) viven aquí para poder sacar la foto desde cualquier pestaña. */
-  const tabla = useTablaUbicacion(conteos, diaA, diaB, pestana === "tabla", unidad, factores);
+  const tabla = useTablaUbicacion(conteos, diaA, diaB, pestana === "tabla", unidadesTabla, factores);
 
   const atajos: { k: string; t: string; a: string; b: string }[] = ultima ? [
     { k: "ant", t: "Último vs anterior", a: fechas[fechas.length - 2] ?? ultima, b: ultima },
@@ -150,10 +158,16 @@ export function Comparativo({ puntos, sitios, nombres, cajasPorEstiba, hlPorEsti
         </div>
       </div>
       <div className="cvt-grupo">
-        <span className="cvt-lb">Unidad</span>
-        <div className="cvt-seg" role="radiogroup" aria-label="Unidad">
-          {UNIDADES.map((x) => <button key={x.k} type="button" role="radio" aria-checked={u === x.k} className={u === x.k ? "on" : ""} onClick={() => setUnidad(x.k)}>{x.t}</button>)}
-        </div>
+        <span className="cvt-lb">{pestana === "tabla" ? "Unidades (puedes escoger varias)" : "Unidad"}</span>
+        {pestana === "tabla" ? (
+          <div className="cvt-seg" role="group" aria-label="Unidades de la tabla">
+            {UNIDADES.map((x) => <button key={x.k} type="button" aria-pressed={unidadesTabla.includes(x.k)} className={unidadesTabla.includes(x.k) ? "on" : ""} onClick={() => alternarUnidadTabla(x.k)}>{x.t}</button>)}
+          </div>
+        ) : (
+          <div className="cvt-seg" role="radiogroup" aria-label="Unidad">
+            {UNIDADES.map((x) => <button key={x.k} type="button" role="radio" aria-checked={u === x.k} className={u === x.k ? "on" : ""} onClick={() => setUnidad(x.k)}>{x.t}</button>)}
+          </div>
+        )}
       </div>
       <div className="cvt-grupo">
         <span className="cvt-lb">Almacén</span>
@@ -180,7 +194,7 @@ export function Comparativo({ puntos, sitios, nombres, cajasPorEstiba, hlPorEsti
           </p>
           <p className="sub"><Link href="/inventario/casco/tablero">← Tablero de casco</Link></p>
         </div>
-        <BotonesComparativo datos={datosFoto} cargarTabla={tabla.cargar} unidad={unidad} cambiarUnidad={setUnidad} />
+        <BotonesComparativo datos={datosFoto} cargarTabla={tabla.cargar} unidad={unidad} cambiarUnidad={setUnidad} unidadesTabla={unidadesTabla} alternarUnidadTabla={alternarUnidadTabla} />
       </section>
 
       {controles}

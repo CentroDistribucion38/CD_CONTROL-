@@ -4,32 +4,33 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { createClient } from "@/lib/supabase/client";
 import { porTandas } from "@/modulos/inventario/paginas";
 import { diaEfectivo, type Unidad } from "@/modulos/casco/comparar";
-import { armarTablaUbicacion, estadoDe, type RenglonConteo, type Sitio } from "@/modulos/casco/comparar-ubicacion";
+import { armarTablaUbicacion, enUnidad, totalEnUnidad, type Factores, type RenglonConteo, type Sitio } from "@/modulos/casco/comparar-ubicacion";
 import type { DatosTablaFoto } from "@/modulos/casco/foto-comparativo";
 
 /**
  * LA TABLA, IGUAL A TU EXCEL: material · almacén · módulo · número · estado del envase, con las
- * estibas del conteo A y del conteo B y la diferencia (verde si no subió, rojo si subió).
+ * cantidades del conteo A y del conteo B y la diferencia (verde si no subió, rojo si subió).
  *
- * Sale del CONTEO físico. Cada día se toma el último conteo cerrado igual o anterior a la fecha
- * escogida arriba. Los colores son los del Excel a propósito (no los del tema): es la misma hoja.
+ * Sale del CONTEO físico (que viene en ESTIBAS). Cada día se toma el último conteo cerrado igual o
+ * anterior a la fecha escogida arriba. Se pueden ver las tres unidades a la vez (HL, Estibas, Cajas):
+ * cada una es un bloque de tres columnas con su nombre arriba. Los colores son los del Excel a propósito.
  */
 export type ConteoDia = { id: string; fecha: string };
+export type { Factores };
 
 const dmy = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
-/** Cuánto vale una estiba de cada material en HL y en cajas (null = el maestro no lo trae). */
-export type Factores = Record<string, { hl: number | null; caj: number | null }>;
 const nfs = { est: new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 }), hl: new Intl.NumberFormat("es-CO", { maximumFractionDigits: 1 }), caj: new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 }) };
 const TXT_NOMBRE: Record<Unidad, string> = { est: "Estibas", hl: "HL", caj: "Cajas" };
 const TXT_UNIDAD: Record<Unidad, string> = { est: "ESTIBAS", hl: "HL", caj: "CAJAS" };
 const claseSitio: Record<Sitio, string> = { "BODEGA 38": "bod", FABRICA: "fab", EXPORTACION: "exp", BTS: "bts" };
+export const ORDEN_UNIDADES: Unidad[] = ["hl", "est", "caj"];
 
 /**
  * Los datos de la tabla, aparte de su dibujo, para que el Comparativo pueda sacar la FOTO de la tabla
  * aunque esté en la pestaña del Dashboard. Solo lee los conteos cuando `activo` (pestaña Tabla) o
  * cuando se pide la foto (`cargar`), una vez cada uno.
  */
-export function useTablaUbicacion(conteos: ConteoDia[], diaA: string, diaB: string, activo: boolean, unidad: Unidad, factores: Factores) {
+export function useTablaUbicacion(conteos: ConteoDia[], diaA: string, diaB: string, activo: boolean, unidades: Unidad[], factores: Factores) {
   const fechas = useMemo(() => [...new Set(conteos.map((c) => c.fecha))].sort(), [conteos]);
   const fA = diaEfectivo(fechas, diaA), fB = diaEfectivo(fechas, diaB);
   const [datos, setDatos] = useState<Record<string, RenglonConteo[]>>({});
@@ -73,53 +74,48 @@ export function useTablaUbicacion(conteos: ConteoDia[], diaA: string, diaB: stri
     return () => { vivo = false };
   }, [activo, fA, fB, leer]);
 
-  /* Los conteos vienen en estibas: para HL o cajas se multiplica por lo que vale una estiba de ese material.
-     El material sin ese dato no se inventa: se deja fuera y se avisa. */
-  const convertir = useCallback((rs: RenglonConteo[]) => {
-    if (unidad === "est") return { filas: rs, sin: [] as string[] };
-    const sin = new Set<string>();
-    const filas: RenglonConteo[] = [];
-    for (const r of rs) {
-      const f = factores[r.codigo]?.[unidad];
-      if (f == null || !(f > 0)) { sin.add(r.codigo); continue }
-      filas.push({ ...r, total_estibas: Number(r.total_estibas ?? 0) * f });
-    }
-    return { filas, sin: [...sin] };
-  }, [unidad, factores]);
-  const cA = useMemo(() => convertir(fA ? datos[fA] ?? [] : []), [datos, fA, convertir]);
-  const cB = useMemo(() => convertir(fB ? datos[fB] ?? [] : []), [datos, fB, convertir]);
-  const rA = cA.filas, rB = cB.filas;
+  const rA = useMemo(() => (fA ? datos[fA] ?? [] : []), [datos, fA]);
+  const rB = useMemo(() => (fB ? datos[fB] ?? [] : []), [datos, fB]);
   const listo = (!fA || !!datos[fA]) && (!fB || !!datos[fB]);
   const todosEstados = useMemo(() => armarTablaUbicacion(rA, rB, "", false).estados, [rA, rB]);
   const est = estado ?? (todosEstados.includes("LAVADO") ? "LAVADO" : "");
+  /* La tabla se arma SIEMPRE en estibas (lo que trae el conteo); HL y cajas se calculan por material al pintar. */
   const t = useMemo(() => armarTablaUbicacion(rA, rB, est, soloCambios), [rA, rB, est, soloCambios]);
-  /* Solo avisa de los materiales que están en el estado que se está viendo. */
+
+  /* Por unidad, los materiales a la vista que el maestro no trae: no se inventan, salen con «—». */
   const sinFactor = useMemo(() => {
-    const s = new Set([...cA.sin, ...cB.sin]);
-    if (!s.size) return [] as string[];
-    const crudos = [...(fA ? datos[fA] ?? [] : []), ...(fB ? datos[fB] ?? [] : [])];
-    return [...new Set(crudos.filter((r) => s.has(r.codigo) && (est === "" || estadoDe(r.estado_envase) === est)).map((r) => r.codigo))].sort();
-  }, [cA, cB, datos, fA, fB, est]);
+    const r: Partial<Record<Unidad, string[]>> = {};
+    for (const u of unidades) {
+      if (u === "est") continue;
+      const s = t.grupos.filter((g) => enUnidad(u, g.codigo, 1, factores) == null).map((g) => g.codigo);
+      if (s.length) r[u] = s;
+    }
+    return r;
+  }, [t, unidades, factores]);
 
   /** Para la foto: lee lo que falte y entrega la tabla tal como se ve (null si no hay dos conteos distintos). */
   const cargar = useCallback(async (): Promise<DatosTablaFoto | null> => {
     if (!fA || !fB || fA === fB) return null;
-    const [crA, crB] = await Promise.all([leer(fA), leer(fB)]);
-    const a = convertir(crA).filas, b = convertir(crB).filas;
+    const [a, b] = await Promise.all([leer(fA), leer(fB)]);
     const estados = armarTablaUbicacion(a, b, "", false).estados;
     const e = estado ?? (estados.includes("LAVADO") ? "LAVADO" : "");
-    return { tabla: armarTablaUbicacion(a, b, e, soloCambios), fA, fB, estado: e, soloCambios, chips: [`Unidad: ${TXT_NOMBRE[unidad]}`, e || "Todos los estados", ...(soloCambios ? ["Solo cambios"] : [])], unidad };
-  }, [fA, fB, leer, convertir, unidad, estado, soloCambios]);
+    return {
+      tabla: armarTablaUbicacion(a, b, e, soloCambios), fA, fB, estado: e, soloCambios, unidades, factores,
+      chips: [`Unidad${unidades.length > 1 ? "es" : ""}: ${unidades.map((u) => TXT_NOMBRE[u]).join(" · ")}`, e || "Todos los estados", ...(soloCambios ? ["Solo cambios"] : [])],
+    };
+  }, [fA, fB, leer, unidades, factores, estado, soloCambios]);
 
-  return { fA, fB, cargando, error, listo, todosEstados, est, t, soloCambios, setEstado, setSoloCambios, cargar, hayConteos: conteos.length > 0, unidad, sinFactor };
+  return { fA, fB, cargando, error, listo, todosEstados, est, t, soloCambios, setEstado, setSoloCambios, cargar, hayConteos: conteos.length > 0, unidades, factores, sinFactor };
 }
 export type TablaUbDatos = ReturnType<typeof useTablaUbicacion>;
 
 export function TablaUbicacion({ tab }: { tab: TablaUbDatos }) {
-  const { fA, fB, cargando, error, listo, todosEstados, est, t, soloCambios, setEstado, setSoloCambios, hayConteos, unidad, sinFactor } = tab;
-  const nf = nfs[unidad];
-  const celda = (v: number) => (Math.abs(v) < 0.0005 ? "" : nf.format(v));
-  const dif = (v: number) => (Math.abs(v) < 0.0005 ? "0" : (v > 0 ? "" : "-") + nf.format(Math.abs(v)));
+  const { fA, fB, cargando, error, listo, todosEstados, est, t, soloCambios, setEstado, setSoloCambios, hayConteos, unidades, factores, sinFactor } = tab;
+  const cel = (u: Unidad, v: number | null) => (v == null ? "—" : Math.abs(v) < 0.0005 ? "" : nfs[u].format(v));
+  const dif = (u: Unidad, v: number | null) => (v == null ? "—" : Math.abs(v) < 0.0005 ? "0" : (v > 0 ? "" : "-") + nfs[u].format(Math.abs(v)));
+  const cls = (v: number | null) => "cvx-d " + (v != null && v > 0.0005 ? "sube" : "bien");
+  const sinTodos = [...new Set(Object.values(sinFactor).flat())];
+
   if (!hayConteos) return <p className="cvt-vacio">Todavía no hay conteos cerrados para comparar por ubicación.</p>;
 
   let n = 0;
@@ -137,10 +133,10 @@ export function TablaUbicacion({ tab }: { tab: TablaUbDatos }) {
       </header>
       {fA && fB && fA === fB && <p className="cvc-nota">Los dos días caen en el mismo conteo ({dmy(fA)}): no hay nada que comparar. Escoge otra fecha arriba.</p>}
       {(!fA || !fB) && <p className="cvc-nota">No hay un conteo cerrado hasta {!fA ? "el día A" : "el día B"}: escoge una fecha más reciente.</p>}
-      {unidad !== "est" && sinFactor.length > 0 && (
+      {sinTodos.length > 0 && (
         <details className="cvc-nota cvc-sin">
-          <summary>{sinFactor.length} {sinFactor.length === 1 ? "material no sale" : "materiales no salen"} en {unidad === "hl" ? "HL" : "cajas"}: el maestro no trae su {unidad === "hl" ? "HL" : "cajas"} por estiba. Cámbialo a Estibas para verlos.</summary>
-          <span>{sinFactor.join(", ")}</span>
+          <summary>{sinTodos.length} {sinTodos.length === 1 ? "material sale" : "materiales salen"} con «—» en {(Object.keys(sinFactor) as Unidad[]).map((u) => TXT_NOMBRE[u]).join(" y ")}: el maestro no trae su dato por estiba. En Estibas sí salen.</summary>
+          <span>{sinTodos.join(", ")}</span>
         </details>
       )}
       {error && <p className="cl-mal" role="alert">No se pudo leer el conteo: {error}</p>}
@@ -149,12 +145,19 @@ export function TablaUbicacion({ tab }: { tab: TablaUbDatos }) {
         <p className="cvc-nota">No hay renglones con ese estado{soloCambios ? " y esos cambios" : ""}.</p>
       ) : (
         <div className="cvx-caja-tabla">
-          <table className="cvx" aria-label="Estibas por ubicación en los dos conteos">
+          <table className="cvx" aria-label="Cantidades por ubicación en los dos conteos">
             <thead>
-              <tr className="cvx-titulo"><th colSpan={6} className="izq">Suma de TOTAL {TXT_UNIDAD[unidad]}</th><th colSpan={2}>FECHA</th><th /></tr>
+              <tr className="cvx-titulo">
+                <th colSpan={6} className="izq">Suma de TOTAL {unidades.map((u) => TXT_UNIDAD[u]).join(" · ")}</th>
+                {unidades.map((u) => <th key={u} colSpan={3} className="cvx-band">{TXT_UNIDAD[u]}</th>)}
+              </tr>
               <tr>
                 <th>CODIGO</th><th>UBICACIÓN</th><th>DESCRIPCION</th><th>MODULO</th><th>NUMERO</th><th>ESTADO ENVASE</th>
-                <th>{fA ? dmy(fA) : "—"}</th><th>{fB ? dmy(fB) : "—"}</th><th className="cvx-dif-cab">Diferencia</th>
+                {unidades.map((u) => (
+                  <Fragment key={u}>
+                    <th className="cvx-ini">{fA ? dmy(fA) : "—"}</th><th>{fB ? dmy(fB) : "—"}</th><th className="cvx-dif-cab">Diferencia</th>
+                  </Fragment>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -168,14 +171,18 @@ export function TablaUbicacion({ tab }: { tab: TablaUbDatos }) {
                       <td>{f.modulo}</td>
                       <td className="b">{f.numero}</td>
                       <td className="cvx-estado">{f.estado}</td>
-                      <td>{celda(f.a)}</td><td>{celda(f.b)}</td>
-                      <td className={"cvx-d " + (f.d > 0.0005 ? "sube" : "bien")}>{dif(f.d)}</td>
+                      {unidades.map((u) => {
+                        const a = enUnidad(u, f.codigo, f.a, factores), b = enUnidad(u, f.codigo, f.b, factores), d = enUnidad(u, f.codigo, f.d, factores);
+                        return <Fragment key={u}><td className="cvx-ini">{cel(u, a)}</td><td>{cel(u, b)}</td><td className={cls(d)}>{dif(u, d)}</td></Fragment>;
+                      })}
                     </tr>
                   ))}
                   <tr className="cvx-total">
                     <td colSpan={6} className="izq">Total {g.codigo}</td>
-                    <td>{celda(g.a)}</td><td>{celda(g.b)}</td>
-                    <td className={"cvx-d " + (g.d > 0.0005 ? "sube" : "bien")}>{dif(g.d)}</td>
+                    {unidades.map((u) => {
+                      const a = enUnidad(u, g.codigo, g.a, factores), b = enUnidad(u, g.codigo, g.b, factores), d = enUnidad(u, g.codigo, g.d, factores);
+                      return <Fragment key={u}><td className="cvx-ini">{cel(u, a)}</td><td>{cel(u, b)}</td><td className={cls(d)}>{dif(u, d)}</td></Fragment>;
+                    })}
                   </tr>
                 </Fragment>
               ))}
@@ -183,8 +190,10 @@ export function TablaUbicacion({ tab }: { tab: TablaUbDatos }) {
             <tfoot>
               <tr className="cvx-total general">
                 <td colSpan={6} className="izq">Total general</td>
-                <td>{celda(t.a)}</td><td>{celda(t.b)}</td>
-                <td className={"cvx-d " + (t.d > 0.0005 ? "sube" : "bien")}>{dif(t.d)}</td>
+                {unidades.map((u) => {
+                  const T = totalEnUnidad(t, u, factores);
+                  return <Fragment key={u}><td className="cvx-ini">{cel(u, T.a)}</td><td>{cel(u, T.b)}</td><td className={cls(T.d)}>{dif(u, T.d)}</td></Fragment>;
+                })}
               </tr>
             </tfoot>
           </table>
