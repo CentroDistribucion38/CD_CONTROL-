@@ -19,7 +19,7 @@ const n = (v: number | null | undefined) => (v == null ? "—" : nf.format(v));
 const sinTilde = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const BASE = ["BAJA", "LAVADO", "EXTRASUCIO"];
 /* A quién pertenece: ANDINA y HEINEKEN también son destino (van a su casco y a la base de Pasivos con esa causal). */
-const DESTINOS = [...BASE, ...DUENOS_ENVASE];
+const DESTINOS = [...BASE, "RETORNO", ...DUENOS_ENVASE];
 
 export function Consolidado({ lineas, fecha }: { lineas: LineaConsolidado[]; fecha: string | null }) {
   const [q, setQ] = useState("");

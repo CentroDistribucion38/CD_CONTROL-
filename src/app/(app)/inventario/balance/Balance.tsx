@@ -66,8 +66,8 @@ const HOJAS_FIJAS: { estado: string; alcance: string | null; label: string; alm?
 /** Estados que YA tienen su propia pestaña — los "otros" son el resto. */
 const ESTADOS_FIJOS = new Set(["BAJA", "LAVADO", "EXTRASUCIO"]);
 
-/* BAJA, LAVADO y EXTRASUCIO, más a quién pertenece el envase (ANDINA, HEINEKEN): ahí se va con el casco de ese dueño. */
-const ESTADOS_DESTINO = ["BAJA", "LAVADO", "EXTRASUCIO", ...DUENOS_ENVASE] as const;
+/* BAJA, LAVADO, EXTRASUCIO y RETORNO (envase sano), más a quién pertenece el envase (ANDINA, HEINEKEN): ahí se va con el casco de ese dueño. */
+const ESTADOS_DESTINO = ["BAJA", "LAVADO", "EXTRASUCIO", "RETORNO", ...DUENOS_ENVASE] as const;
 
 /** Lo que de «otros estados» DEBERÍA ir a pasivo: OTROS y MAL ESTADO (lo sano —RETORNO, NUEVO, VACÍO…— no es pasivo). */
 const PARA_PASIVO = /OTRO|MAL ?ESTADO/i;
@@ -725,88 +725,96 @@ export function Balance({
         </>
       )}
 
-      {/* ---- MODAL RECLASIFICACIÓN ---- */}
-      {reclas && (
-        <div className="bal-modal-fondo" onClick={() => setReclas(null)}>
-          <div className="bal-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Cambiar estado del envase</h3>
-            <p className="bal-modal-cod">
-              <b>{reclas.codigo}</b>
-              {reclas.material && <> — {reclas.material}</>}
-            </p>
-            <p className="bal-modal-actual">
-              Estado actual: <b>{reclas.estado}</b>
-            </p>
+      {/* ---- MODAL RECLASIFICACIÓN: todo recto, el destino con botones grandes y las ubicaciones con su barra ---- */}
+      {reclas && (() => {
+        const totalCajas = lineasReclas.reduce((t, l) => t + l.cajas, 0);
+        const marcCajas = marcadasModal.reduce((t, l) => t + l.cajas, 0);
+        const maxCajas = Math.max(1, ...lineasReclas.map((l) => l.cajas));
+        const hay = lineasReclas.length > 0;
+        const pct = totalCajas ? (marcCajas / totalCajas) * 100 : 0;
+        const destinos = ESTADOS_DESTINO.filter((e) => e !== reclas.estado);
+        const botonMover = pending ? "Guardando…" : hay && marcadasModal.length < lineasReclas.length ? `Mover ${marcadasModal.length} de ${lineasReclas.length}` : "Mover";
+        return (
+          <div className="bal-modal-fondo" onClick={() => setReclas(null)}>
+            <div className="bal-modal bal-mx" role="dialog" aria-modal="true" aria-label="Cambiar estado del envase" onClick={(e) => e.stopPropagation()}>
+              <header className="bal-mx-cab">
+                <span>CAMBIAR ESTADO DEL ENVASE</span>
+                <button type="button" onClick={() => setReclas(null)} aria-label="Cerrar">×</button>
+              </header>
 
-            {lineasReclas.length > 0 && (
-              <fieldset className="bal-modal-ubic">
-                <legend>
-                  ¿Qué ubicaciones pasan? <small>({marcadasModal.length} de {lineasReclas.length} · {n(marcadasModal.reduce((t, l) => t + l.cajas, 0))} cajas)</small>
-                </legend>
-                <div className="bal-modal-ubic-acc">
-                  <button type="button" onClick={() => setMarcadasReclas(new Set(lineasReclas.map((l) => l.clave)))}>Todas</button>
-                  <button type="button" onClick={() => setMarcadasReclas(new Set())}>Ninguna</button>
+              <div className="bal-mx-cuerpo">
+                <div className="bal-mx-mat">
+                  <b className="cod">{reclas.codigo}</b>
+                  <span className="nom">{reclas.material ?? "—"}</span>
+                  <span className="zona">{reclas.alcance === "SORTING" ? "Fábrica · AG18" : reclas.alcance === "PRESORTING" ? "Bodega 38 · AG22" : ""}</span>
                 </div>
-                <ul>
-                  {lineasReclas.map((l) => (
-                    <li key={l.clave}>
-                      <label>
-                        <input type="checkbox" checked={marcadasReclas.has(l.clave)} onChange={() => alternarReclas(l.clave)} />
-                        <span className="u">{l.ubicacion}</span>
-                        <span className="c">{n(l.cajas)} cajas</span>
-                        {l.nota && <span className="nota">{l.nota}</span>}
-                      </label>
-                    </li>
+
+                <div className="bal-mx-flujo" aria-label="De un estado a otro">
+                  <span className="de"><small>ESTÁ EN</small><b>{reclas.estado}</b></span>
+                  <span className="flecha" aria-hidden>→</span>
+                  <span className="a"><small>PASA A</small><b>{nuevoEstado}</b></span>
+                </div>
+
+                <p className="bal-mx-t">1 · ¿A QUÉ ESTADO?</p>
+                <div className="bal-mx-destinos" role="radiogroup" aria-label="Estado nuevo">
+                  {destinos.map((e) => (
+                    <button key={e} type="button" role="radio" aria-checked={nuevoEstado === e} className={nuevoEstado === e ? "on" : ""} onClick={() => setNuevoEstado(e)}>{e}</button>
                   ))}
-                </ul>
-              </fieldset>
-            )}
+                </div>
 
-            <label className="bal-modal-label">
-              Mover a:
-              <select
-                value={nuevoEstado}
-                onChange={(e) => setNuevoEstado(e.target.value)}
-              >
-                {ESTADOS_DESTINO.filter((e) => e !== reclas.estado).map(
-                  (e) => (
-                    <option key={e} value={e}>
-                      {e}
-                    </option>
-                  ),
+                {hay && (
+                  <>
+                    <div className="bal-mx-t con-acc">
+                      <span>2 · ¿QUÉ UBICACIONES PASAN?</span>
+                      <span className="acc">
+                        <button type="button" onClick={() => setMarcadasReclas(new Set(lineasReclas.map((l) => l.clave)))}>Todas</button>
+                        <button type="button" onClick={() => setMarcadasReclas(new Set())}>Ninguna</button>
+                        <button type="button" onClick={() => setMarcadasReclas(new Set(lineasReclas.filter((l) => !marcadasReclas.has(l.clave)).map((l) => l.clave)))}>Invertir</button>
+                      </span>
+                    </div>
+                    <ul className="bal-mx-ubic">
+                      {lineasReclas.map((l) => {
+                        const on = marcadasReclas.has(l.clave);
+                        return (
+                          <li key={l.clave} className={on ? "on" : ""}>
+                            <label>
+                              <input type="checkbox" checked={on} onChange={() => alternarReclas(l.clave)} />
+                              <span className="u">{l.ubicacion}</span>
+                              <i className="barra" aria-hidden><em style={{ width: (l.cajas / maxCajas) * 100 + "%" }} /></i>
+                              <span className="c">{n(l.cajas)}<small> cajas</small></span>
+                              {l.estibas != null && <span className="e">{n(l.estibas, 1)}<small> est.</small></span>}
+                              {l.nota && <span className="nota">{l.nota}</span>}
+                            </label>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </>
                 )}
-              </select>
-            </label>
 
-            <label className="bal-modal-label">
-              Motivo (opcional):
-              <input
-                type="text"
-                value={motivo}
-                onChange={(e) => setMotivo(e.target.value)}
-                placeholder="Ej: estaba marcado como baja pero es lavado"
-              />
-            </label>
+                <label className="bal-mx-motivo">
+                  <span>{hay ? "3" : "2"} · MOTIVO (opcional)</span>
+                  <input type="text" value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ej: estaba marcado como baja pero es lavado" />
+                </label>
 
-            {errorReclas && <p className="bal-modal-error" role="alert">{errorReclas}</p>}
-            <div className="bal-modal-acciones">
-              <button
-                className="bal-btn cancelar"
-                onClick={() => setReclas(null)}
-              >
-                Cancelar
-              </button>
-              <button
-                className="bal-btn confirmar"
-                onClick={enviarReclas}
-                disabled={pending || (lineasReclas.length > 0 && marcadasModal.length === 0)}
-              >
-                {pending ? "Guardando…" : lineasReclas.length > 1 && marcadasModal.length < lineasReclas.length ? `Mover ${marcadasModal.length} de ${lineasReclas.length}` : "Mover"}
-              </button>
+                {errorReclas && <p className="bal-modal-error" role="alert">{errorReclas}</p>}
+              </div>
+
+              <footer className="bal-mx-pie">
+                <p className="res">
+                  {hay
+                    ? <><b>{n(marcCajas)}</b> de {n(totalCajas)} cajas · {marcadasModal.length} de {lineasReclas.length} ubicaciones<i className="barra" aria-hidden><em style={{ width: pct + "%" }} /></i></>
+                    : <>Se mueve todo el material de <b>{reclas.estado}</b>.</>}
+                </p>
+                <div className="bal-modal-acciones">
+                  <button className="bal-btn cancelar" onClick={() => setReclas(null)}>Cancelar</button>
+                  <button className="bal-btn confirmar" onClick={enviarReclas} disabled={pending || (hay && marcadasModal.length === 0)}>{botonMover}</button>
+                </div>
+              </footer>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </>
   );
 }

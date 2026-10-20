@@ -374,18 +374,68 @@
 .bal .bal-tip.bal-tip-der { right: auto; left: calc(100% + 10px); width: 300px }
 .bal .bal-tip.bal-tip-der::after { left: auto; right: 100%; border-left-color: transparent; border-right-color: #12263A }
 
-/* El modal de cambiar estado: las ubicaciones del material, cada una con su casilla. */
-.bal-modal:has(.bal-modal-ubic) { max-width: 520px }
-.bal-modal-ubic { margin: 0 0 14px; padding: 10px 12px; border: 1px solid var(--fe-linea); border-radius: 6px }
-.bal-modal-ubic legend { padding: 0 6px; font-size: 13px; font-weight: 700; color: var(--fe-tinta) }
-.bal-modal-ubic legend small { font-weight: 600; color: var(--fe-gris) }
-.bal-modal-ubic-acc { display: flex; gap: 8px; margin-bottom: 6px }
-.bal-modal-ubic-acc button { all: unset; cursor: pointer; font-size: 12px; font-weight: 700; color: var(--fe-tinta); text-decoration: underline }
-.bal-modal-ubic ul { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow: auto; display: flex; flex-direction: column }
-.bal-modal-ubic li label { display: flex; gap: 10px; align-items: center; padding: 7px 4px; border-top: 1px solid var(--fe-linea); cursor: pointer; font-size: 13.5px }
-.bal-modal-ubic li:first-child label { border-top: 0 }
-.bal-modal-ubic input { width: 18px; height: 18px; accent-color: var(--fe-tinta) }
-.bal-modal-ubic .u { font-family: var(--fe-mono, monospace); font-weight: 700; flex: 1 }
-.bal-modal-ubic .c { font-weight: 700; white-space: nowrap }
-.bal-modal-ubic .nota { color: var(--fe-gris); font-size: 12px }
-.bal-modal-error { margin: 0 0 10px; color: var(--fe-mal, #B00020); font-size: 13px; font-weight: 600 }
+/* =====================================================================
+   EL MODAL DE CAMBIAR ESTADO — todo recto, sin esquinas redondeadas.
+   ===================================================================== */
+.bal-mx, .bal-mx * { border-radius: 0 !important }
+.bal-modal.bal-mx { padding: 0; max-width: 640px; max-height: calc(100vh - 32px); display: flex; flex-direction: column; border: 2px solid var(--fe-tinta); box-shadow: 8px 8px 0 var(--fe-tinta); overflow: hidden }
+.bal-mx-cab { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; background: var(--fe-tinta); color: #fff; border-bottom: 4px solid var(--fe-acento, #FFC300); font: 800 12px var(--fe-texto, inherit); letter-spacing: .14em }
+.bal-mx-cab button { all: unset; cursor: pointer; width: 32px; height: 32px; display: grid; place-items: center; font-size: 24px; line-height: 1; color: #fff }
+.bal-mx-cab button:hover { background: rgba(255,255,255,.14) }
+.bal-mx-cab button:focus-visible { outline: 3px solid var(--fe-acento, #FFC300) }
+.bal-mx-cuerpo { padding: 18px; overflow: auto; display: flex; flex-direction: column; gap: 14px }
+.bal-mx-mat { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px }
+.bal-mx-mat .cod { font: 800 22px var(--fe-mono, monospace); color: var(--fe-tinta) }
+.bal-mx-mat .nom { font: 700 17px var(--fe-texto, inherit); color: var(--fe-tinta) }
+.bal-mx-mat .zona { margin-left: auto; padding: 2px 8px; background: var(--fe-acento, #FFC300); color: #111; font: 800 11px var(--fe-texto, inherit); letter-spacing: .08em; text-transform: uppercase }
+.bal-mx-flujo { display: grid; grid-template-columns: 1fr auto 1fr; align-items: stretch; border: 2px solid var(--fe-tinta) }
+.bal-mx-flujo span.de, .bal-mx-flujo span.a { display: flex; flex-direction: column; gap: 2px; padding: 10px 14px }
+.bal-mx-flujo small { font: 800 10px var(--fe-texto, inherit); letter-spacing: .12em; opacity: .7 }
+.bal-mx-flujo b { font: 800 20px var(--fe-texto, inherit); letter-spacing: .02em }
+.bal-mx-flujo .de { background: var(--fe-fondo, #EEE); color: var(--fe-tinta) }
+.bal-mx-flujo .a { background: var(--fe-tinta); color: var(--fe-acento, #FFC300) }
+.bal-mx-flujo .flecha { display: grid; place-items: center; padding: 0 14px; font-size: 26px; font-weight: 800; background: var(--fe-acento, #FFC300); color: #111 }
+.bal-mx-t { margin: 4px 0 -6px; font: 800 11px var(--fe-texto, inherit); letter-spacing: .12em; color: var(--fe-tinta) }
+.bal-mx-t.con-acc { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap }
+.bal-mx-t .acc { display: inline-flex; gap: 0; border: 1.5px solid var(--fe-tinta) }
+.bal-mx-t .acc button { all: unset; cursor: pointer; padding: 4px 12px; font: 800 11px var(--fe-texto, inherit); letter-spacing: .06em; text-transform: uppercase; background: #fff; color: var(--fe-tinta) }
+.bal-mx-t .acc button + button { border-left: 1.5px solid var(--fe-tinta) }
+.bal-mx-t .acc button:hover { background: var(--fe-acento, #FFC300) }
+.bal-mx-destinos { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 0; border: 2px solid var(--fe-tinta) }
+.bal-mx-destinos button { all: unset; box-sizing: border-box; cursor: pointer; text-align: center; padding: 12px 8px; font: 800 14px var(--fe-texto, inherit); letter-spacing: .04em; background: #fff; color: var(--fe-tinta); border-left: 2px solid var(--fe-tinta) }
+.bal-mx-destinos button:first-child { border-left: 0 }
+.bal-mx-destinos button:hover { background: var(--fe-fondo, #EEE) }
+.bal-mx-destinos button.on { background: var(--fe-tinta); color: var(--fe-acento, #FFC300); box-shadow: inset 0 -4px 0 var(--fe-acento, #FFC300) }
+.bal-mx-destinos button:focus-visible { outline: 3px solid var(--fe-acento, #FFC300); outline-offset: -3px }
+.bal-mx-ubic { list-style: none; margin: 0; padding: 0; max-height: 240px; overflow: auto; border: 2px solid var(--fe-tinta) }
+.bal-mx-ubic li { border-top: 1px solid var(--fe-linea) }
+.bal-mx-ubic li:first-child { border-top: 0 }
+.bal-mx-ubic li label { display: grid; grid-template-columns: 22px minmax(90px, auto) 1fr auto auto; align-items: center; gap: 12px; padding: 10px 12px; cursor: pointer; background: #fff }
+.bal-mx-ubic li.on label { background: color-mix(in srgb, var(--fe-acento, #FFC300) 24%, #fff) }
+.bal-mx-ubic input { width: 20px; height: 20px; margin: 0; accent-color: #111 }
+.bal-mx-ubic .u { font: 800 15px var(--fe-mono, monospace); color: var(--fe-tinta) }
+.bal-mx-ubic .c, .bal-mx-ubic .e { font: 800 15px var(--fe-texto, inherit); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums }
+.bal-mx-ubic .e { color: var(--fe-gris); font-weight: 700; font-size: 13px }
+.bal-mx-ubic small { font-weight: 600; color: var(--fe-gris); font-size: 11px }
+.bal-mx-ubic .nota { grid-column: 2 / -1; margin-top: -4px; font-size: 12px; color: var(--fe-gris) }
+.barra { display: block; height: 8px; background: var(--fe-fondo, #E8E8E8); position: relative; min-width: 40px }
+.barra em { position: absolute; left: 0; top: 0; bottom: 0; background: var(--fe-tinta) }
+.bal-mx-ubic li.on .barra em { background: #111 }
+.bal-mx-motivo { display: flex; flex-direction: column; gap: 6px }
+.bal-mx-motivo span { font: 800 11px var(--fe-texto, inherit); letter-spacing: .12em; color: var(--fe-tinta) }
+.bal-mx-motivo input { font: inherit; font-size: 14px; padding: 10px 12px; border: 2px solid var(--fe-tinta); background: #fff; color: var(--fe-tinta) }
+.bal-mx-motivo input:focus-visible { outline: 3px solid var(--fe-acento, #FFC300); outline-offset: 0 }
+.bal-modal-error { margin: 0; padding: 8px 12px; background: #FFC7CE; color: #B00020; border-left: 4px solid #B00020; font-size: 13px; font-weight: 700 }
+.bal-mx-pie { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding: 14px 18px; background: var(--fe-fondo, #F1F1F1); border-top: 2px solid var(--fe-tinta) }
+.bal-mx-pie .res { margin: 0; flex: 1; min-width: 200px; font-size: 13px; color: var(--fe-tinta); display: flex; flex-direction: column; gap: 6px }
+.bal-mx-pie .res b { font-size: 16px }
+.bal-mx-pie .modal-acc, .bal-mx-pie .bal-modal-acciones { margin: 0 }
+.bal-mx .bal-btn { border-radius: 0; padding: 12px 22px; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; border: 2px solid var(--fe-tinta) }
+.bal-mx .bal-btn.cancelar { background: #fff; color: var(--fe-tinta) }
+.bal-mx .bal-btn.confirmar { background: var(--fe-tinta); color: #fff; box-shadow: inset 0 -4px 0 var(--fe-acento, #FFC300) }
+.bal-mx .bal-btn.confirmar:disabled { opacity: .45; cursor: not-allowed }
+@media (max-width: 560px) {
+  .bal-mx-ubic li label { grid-template-columns: 22px 1fr auto }
+  .bal-mx-ubic .barra, .bal-mx-ubic .e { display: none }
+  .bal-mx-flujo b { font-size: 16px }
+}
