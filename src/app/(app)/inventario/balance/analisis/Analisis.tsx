@@ -202,7 +202,10 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
                                       <ul>{f.pendSap.map((p) => <li key={p.nombre}><span>{p.nombre}</span><em>{n(p.cantidad)}</em></li>)}</ul></>
                                     )}
                                   </div>
-                                  <div><b>CONTEO · {n(f.conteo)}</b><ul>{f.deConteo.map((p) => <li key={p.nombre}><span>{p.nombre}</span><em>{n(p.cantidad)}</em></li>)}{!f.deConteo.length && <li><span>—</span></li>}</ul>
+                                  <div><b>CONTEO · {n(f.conteo)}</b><ul>{f.deConteo.map((p) => p.detalle?.length ? (
+                                    <li key={p.nombre} className="ad-grp"><details><summary><span>{p.nombre} <small>({p.detalle.length} {p.detalle.length === 1 ? "producto" : "productos"} · ver cuáles)</small></span><em>{n(p.cantidad)}</em></summary>
+                                      <ul>{p.detalle.map((d) => <li key={d.nombre}><span>{d.nombre}</span><em>{n(d.cantidad)}</em></li>)}</ul></details></li>
+                                  ) : <li key={p.nombre}><span>{p.nombre}</span><em>{n(p.cantidad)}</em></li>)}{!f.deConteo.length && <li><span>—</span></li>}</ul>
                                   
                                     {f.fuera && f.fuera.length > 0 && (() => { const tf = f.fuera!.reduce((t, p) => t + p.cantidad, 0); return (
                                       <><b title="No suma: estas estibas ya están cuadradas en el Cuadre SAP de su almacén. Se muestran para que el total dé el del tablero.">OTROS ALMACENES · ya cuadrados allá (no suma) · {n(tf)}</b>

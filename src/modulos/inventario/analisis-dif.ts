@@ -24,7 +24,7 @@ import { CAJA_EN_DEPA, lineaDeDepa } from "./depa";
  *   DIFERENCIA = CONTEO − SAP.
  * Cada lado guarda de qué partida sale cada número, para abrir el detalle.
  */
-export type Partida = { nombre: string; cantidad: number };
+export type Partida = { nombre: string; cantidad: number; /** Solo en «CONTEO · en producto»: cada producto que aportó caja, para discriminar al abrirlo. */ detalle?: Partida[] };
 export type FilaAnalisis = {
   familia: string; orden: number; codigo: string; descripcion: string;
   sap: number; conteo: number; diferencia: number;
@@ -403,7 +403,18 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
       const k = ORDEN_ESTIBA.indexOf(o < 0 ? n : n.replace(`${ORIGEN[o]} · `, "CONTEO · "));
       return k < 0 ? 99 : k + (o < 0 ? 0 : 10 * (o + 1));
     };
-    const lista = (m: Map<string, number>) => [...m].map(([nombre, cantidad]) => ({ nombre, cantidad: Math.round(cantidad) })).sort((x, y) => pos(x.nombre) - pos(y.nombre) || y.cantidad - x.cantidad);
+    /* LAS CAJAS QUE VAN EN PRODUCTO SE TOTALIZAN EN UN SOLO RENGLÓN («CONTEO · en producto»); cada producto queda adentro, para discriminarlo al abrirlo. */
+    const EN_PRODUCTO = "CONTEO · en producto";
+    const lista = (m: Map<string, number>): Partida[] => {
+      const grupo: Partida = { nombre: EN_PRODUCTO, cantidad: 0, detalle: [] };
+      const resto: Partida[] = [];
+      for (const [nombre, cantidad] of m) {
+        if (nombre.startsWith(EN_PRODUCTO + " ")) { grupo.cantidad += cantidad; grupo.detalle!.push({ nombre: nombre.slice(EN_PRODUCTO.length + 1), cantidad: Math.round(cantidad) }) }
+        else resto.push({ nombre, cantidad: Math.round(cantidad) });
+      }
+      if (grupo.detalle!.length) { grupo.cantidad = Math.round(grupo.cantidad); grupo.detalle!.sort((x, y) => y.cantidad - x.cantidad); resto.push(grupo) }
+      return resto.sort((x, y) => pos(x.nombre) - pos(y.nombre) || y.cantidad - x.cantidad);
+    };
     const sap = Math.round([...a.sap.values()].reduce((t, v) => t + v, 0));
     const conteo = Math.round([...a.conteo.values()].reduce((t, v) => t + v, 0));
     filas.push({ familia: familia as string, orden: orden as number, codigo, descripcion: nombre(codigo), sap, conteo, diferencia: conteo - sap, deSap: lista(a.sap), deConteo: lista(a.conteo), ...(soloConteo ? { soloConteo: true } : {}),
