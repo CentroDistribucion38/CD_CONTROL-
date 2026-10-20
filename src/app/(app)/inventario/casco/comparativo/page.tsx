@@ -6,6 +6,7 @@ import "../../fefo.css";
 import "../tablero/tablero.css";
 import "./comparativo.css";
 import { Comparativo } from "./Comparativo";
+import type { ConteoDia } from "./TablaUbicacion";
 
 export const dynamic = "force-dynamic";
 
@@ -70,9 +71,25 @@ export default async function ComparativoCascoPage() {
     cajasPorEstiba[String(p.sku)] = directo || deBotellas || null;
   }
 
+  /* LOS CONTEOS FÍSICOS CERRADOS de la bodega del último conteo (de los últimos 120 días), para la Tabla por
+     ubicación: ahí se leen solo los dos que se comparan. Si no se pueden leer, la tabla lo dice. */
+  let conteos: ConteoDia[] = [];
+  try {
+    const { data: ult } = await supabase.from("v_conteos_fefo").select("fecha_analisis, bodega_id")
+      .eq("estado", "cerrado").not("fecha_analisis", "is", null).order("fecha_analisis", { ascending: false }).limit(1);
+    if (ult?.length) {
+      const hasta = String(ult[0].fecha_analisis).slice(0, 10);
+      const desde = new Date(Date.parse(hasta + "T12:00:00Z") - 120 * 86400000).toISOString().slice(0, 10);
+      const r = await todas<{ id: string; fecha_analisis: string }>((d, h) => supabase.from("v_conteos_fefo")
+        .select("id, fecha_analisis").eq("bodega_id", ult[0].bodega_id).eq("estado", "cerrado")
+        .gte("fecha_analisis", desde).lte("fecha_analisis", hasta).order("id").range(d, h));
+      conteos = r.data.map((c) => ({ id: c.id, fecha: String(c.fecha_analisis).slice(0, 10) }));
+    }
+  } catch { conteos = [] }
+
   return (
     <div className="fe cvt cvc">
-      <Comparativo puntos={puntos} sitios={sitios.lista} nombres={nombres} cajasPorEstiba={cajasPorEstiba} errorLectura={errorLectura} />
+      <Comparativo puntos={puntos} sitios={sitios.lista} nombres={nombres} cajasPorEstiba={cajasPorEstiba} errorLectura={errorLectura} conteos={conteos} />
     </div>
   );
 }

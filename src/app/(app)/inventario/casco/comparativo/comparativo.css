@@ -109,3 +109,33 @@
   .cvc .cvc-movs li { grid-template-columns: 1fr 64px; }
   .cvc .cvc-movs i { grid-column: 1 / -1; grid-row: 2 }
 }
+
+/* =====================================================================
+   LA TABLA POR UBICACIÓN — los colores y los tonos del Excel (a propósito, no los del tema).
+   ===================================================================== */
+.cvx-caja-tabla { overflow: auto; max-height: 72vh; border: 1px solid #E0B100 }
+.cvc .cvx { width: 100%; min-width: 880px; border-collapse: collapse; font: 600 13px "Calibri", "Carlito", var(--fe-texto), sans-serif; color: #000; background: #fff }
+.cvc .cvx th, .cvc .cvx td { padding: 4px 10px; text-align: center; border: 0; border-bottom: 1px solid #fff; white-space: nowrap }
+.cvc .cvx th.izq, .cvc .cvx td.izq { text-align: left }
+.cvc .cvx thead th { position: sticky; background: #FFE699; color: #000; font-weight: 800; font-size: 13px; letter-spacing: 0; text-transform: none; padding: 7px 10px; border-bottom: 1px solid #E0B100 }
+.cvc .cvx thead tr:first-child th { top: 0; background: #FFEBA6; font-weight: 700; padding: 5px 10px; border-bottom: 1px solid #E8D79A }
+.cvc .cvx thead tr:nth-child(2) th { top: 29px }
+.cvc .cvx thead th.cvx-dif-cab { background: #FFF45C; font-size: 14px }
+.cvc .cvx tbody tr.gris td { background: #D9D9D9 }
+.cvc .cvx tbody tr.blanco td { background: #fff }
+.cvc .cvx td.b { font-weight: 800 }
+.cvc .cvx td.cvx-sitio { font-weight: 800; border-left: 2px solid #fff; border-right: 2px solid #fff }
+.cvc .cvx td.cvx-sitio.bod { background: #C6EFCE; color: #1C6B2C }
+.cvc .cvx td.cvx-sitio.fab { background: #BDD7EE; color: #1F3F7A }
+.cvc .cvx td.cvx-sitio.exp { background: #E4DFEC; color: #4B3A7A }
+.cvc .cvx td.cvx-sitio.bts { background: #FCE4D6; color: #843C0C }
+.cvc .cvx td.cvx-estado { background: #FFE699; color: #B45F06; font-weight: 700 }
+.cvc .cvx td.cvx-d { font-weight: 700; min-width: 86px }
+.cvc .cvx td.cvx-d.sube { background: #FFC7CE; color: #B00020 }
+.cvc .cvx td.cvx-d.bien { background: #C6EFCE; color: #1C6B2C }
+.cvc .cvx tr.cvx-total td { background: #FFF2CC; font-weight: 800; border-top: 1px solid #E0B100; border-bottom: 1px solid #E0B100 }
+.cvc .cvx tr.cvx-total td.cvx-d.sube { background: #FFC7CE }
+.cvc .cvx tr.cvx-total td.cvx-d.bien { background: #C6EFCE }
+.cvc .cvx tfoot tr.general td { position: sticky; bottom: 0; background: #FFE699; font-size: 14px; border-top: 2px solid #E0B100 }
+.cvc .cvx tfoot tr.general td.cvx-d.sube { background: #FFC7CE }
+.cvc .cvx tfoot tr.general td.cvx-d.bien { background: #C6EFCE }

@@ -5,7 +5,8 @@ import Link from "next/link";
 import type { SitioCasco } from "@/modulos/casco/datos";
 import { ejeNice, type Punto } from "@/modulos/casco/serie";
 import { colorSitio, corta, enOrdenInforme, larga } from "@/modulos/casco/informe";
-import { comparar, nombreEstado, valorDe, type Estado, type FilaCmp, type Medida, type Unidad } from "@/modulos/casco/comparar";
+import { comparar, nombreEstado, valorDe, type FilaCmp, type Medida, type Unidad } from "@/modulos/casco/comparar";
+import { TablaUbicacion, type ConteoDia } from "./TablaUbicacion";
 
 /**
  * COMPARATIVO DE CASCO DE VIDRIO — qué cambió entre dos días.
@@ -39,9 +40,11 @@ const sumaDias = (iso: string, n: number) => {
 
 type Pestana = "dashboard" | "tabla";
 
-export function Comparativo({ puntos, sitios, nombres, cajasPorEstiba, errorLectura }: {
+export function Comparativo({ puntos, sitios, nombres, cajasPorEstiba, errorLectura, conteos }: {
   puntos: Punto[]; sitios: SitioCasco[]; nombres: Record<string, string>;
   cajasPorEstiba: Record<string, number | null>; errorLectura: string | null;
+  /** Los conteos físicos cerrados (para la Tabla por ubicación). */
+  conteos: ConteoDia[];
 }) {
   const fechas = useMemo(() => [...new Set(puntos.map((p) => p.fecha))].sort(), [puntos]);
   const ultima = fechas[fechas.length - 1] ?? "";
@@ -149,11 +152,13 @@ export function Comparativo({ puntos, sitios, nombres, cajasPorEstiba, errorLect
         <button type="button" role="tab" aria-selected={pestana === "dashboard"} className="cvc-tab" onClick={() => setPestana("dashboard")}>Dashboard</button>
         <button type="button" role="tab" aria-selected={pestana === "tabla"} className="cvc-tab" onClick={() => setPestana("tabla")}>Tabla</button>
       </div>
-      {sinFactor && <p className="cvc-nota">Cajas: solo suma los materiales que tienen cajas por estiba en el maestro; el resto sale con «—».</p>}
+      {pestana === "dashboard" && sinFactor && <p className="cvc-nota">Cajas: solo suma los materiales que tienen cajas por estiba en el maestro; el resto sale con «—».</p>}
 
-      {cmp.filas.length === 0 ? (
+      {pestana === "tabla" ? (
+        <TablaUbicacion conteos={conteos} diaA={diaA} diaB={diaB} />
+      ) : cmp.filas.length === 0 ? (
         <p className="cvt-vacio">No hay casco para comparar con esos filtros.</p>
-      ) : pestana === "dashboard" ? (
+      ) : (
         <>
           {/* ---------- EL CAMBIO, EN GRANDE ---------- */}
           <div className="cvc-hero">
@@ -279,8 +284,6 @@ export function Comparativo({ puntos, sitios, nombres, cajasPorEstiba, errorLect
             </div>
           </section>
         </>
-      ) : (
-        <TablaDetalle cmp={cmp} u={u} nom={nom} nombreSitio={nombreSitio} soloCambios={soloCambios} setSoloCambios={setSoloCambios} />
       )}
     </>
   );
@@ -347,66 +350,5 @@ function Cascada({ u, inicio, pasos, fin }: { u: Unidad; inicio: { et: string; v
         );
       })}
     </svg>
-  );
-}
-
-/** LA TABLA, COMO EL EXCEL: un renglón por material y almacén, con las ubicaciones de antes y de ahora y la diferencia coloreada. */
-function TablaDetalle({ cmp, u, nom, nombreSitio, soloCambios, setSoloCambios }: {
-  cmp: ReturnType<typeof comparar>; u: Unidad; nom: (s: string) => string; nombreSitio: (k: string) => string;
-  soloCambios: boolean; setSoloCambios: (b: boolean) => void;
-}) {
-  const grupos = cmp.materiales
-    .map((m) => ({ m, filas: m.sitios.filter((f) => !soloCambios || f.estado !== "igual") }))
-    .filter((g) => g.filas.length > 0)
-    .sort((x, y) => x.m.sku.localeCompare(y.m.sku));
-  const medida = (f: FilaCmp, lado: "a" | "b"): number | null => { const c = f[lado]; return c ? valorDe(c, u) : 0 };
-  return (
-    <section className="cvt-caja" aria-label="Tabla del comparativo">
-      <header className="cvt-cab">
-        <h2>TABLA · {cmp.diaA ? corta(cmp.diaA) : "A"} → {cmp.diaB ? corta(cmp.diaB) : "B"} ({UNIDADES.find((x) => x.k === u)!.t.toUpperCase()})</h2>
-        <span className="cvc-chips">
-          <button type="button" className="cvc-chip" aria-pressed={!soloCambios} onClick={() => setSoloCambios(false)}>Todo</button>
-          <button type="button" className="cvc-chip" aria-pressed={soloCambios} onClick={() => setSoloCambios(true)}>Solo cambios</button>
-        </span>
-      </header>
-      <div className="cvt-tabla-caja cvc-alta">
-        <table className="cvt-tabla cvc-excel">
-          <thead>
-            <tr><th>ESTADO</th><th>CÓDIGO</th><th>ALMACÉN</th><th>DESCRIPCIÓN</th><th>UBICACIONES (A → B)</th><th className="n">DÍA A</th><th className="n">DÍA B</th><th className="n">DIF.</th></tr>
-          </thead>
-          <tbody>
-            {grupos.map(({ m, filas }) => (
-              <Fragment key={m.sku}>
-                {filas.map((f) => {
-                  const a = medida(f, "a"), b = medida(f, "b"), d = a == null || b == null ? null : b - a;
-                  const ubic = f.a?.puesto === f.b?.puesto ? (f.b?.puesto ?? "—") : `${f.a?.puesto ?? "—"} → ${f.b?.puesto ?? "—"}`;
-                  return (
-                    <tr key={f.sitio} className={"cvc-f " + f.estado}>
-                      <td><span className={"cvc-pill " + f.estado}>{nombreEstado[f.estado]}</span></td>
-                      <td className="cod">{m.sku}</td>
-                      <td><i className="cvt-pt" style={{ background: colorSitio(f.sitio).fondo }} aria-hidden /> {nombreSitio(f.sitio)}</td>
-                      <td>{nom(m.sku)}</td>
-                      <td className="cvc-ubic">{ubic}{f.b?.calidad ? ` · ${f.b.calidad}` : ""}</td>
-                      <td className="n">{num(a, u)}</td>
-                      <td className="n">{num(b, u)}</td>
-                      <td className={"n tot cvc-dif " + clase(d, u)}>{conSigno(d, u)}</td>
-                    </tr>
-                  );
-                })}
-                <tr className="cvc-total-mat">
-                  <td colSpan={5}>Total {m.sku}</td>
-                  <td className="n">{num(valorDe(m.a, u), u)}</td><td className="n">{num(valorDe(m.b, u), u)}</td>
-                  <td className={"n tot cvc-dif " + clase(valorDe(m.d, u), u)}>{conSigno(valorDe(m.d, u), u)}</td>
-                </tr>
-              </Fragment>
-            ))}
-            {grupos.length === 0 && <tr><td colSpan={8} className="cvc-nota">No hay renglones con ese filtro.</td></tr>}
-          </tbody>
-          <tfoot>
-            <tr><td colSpan={5}>TOTAL GENERAL</td><td className="n">{num(valorDe(cmp.a, u), u)}</td><td className="n">{num(valorDe(cmp.b, u), u)}</td><td className={"n tot cvc-dif " + clase(valorDe(cmp.d, u), u)}>{conSigno(valorDe(cmp.d, u), u)}</td></tr>
-          </tfoot>
-        </table>
-      </div>
-    </section>
   );
 }
