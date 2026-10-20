@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { Analisis as Datos, FilaAnalisis } from "@/modulos/inventario/analisis-dif";
 import { guardarAnalisis, guardarNovedades, quitarNovedades } from "./actions";
 import { leerPlantilla } from "./leer-plantilla";
+import { Avisos } from "./Avisos";
 
 /**
  * LA HOJA DE ANÁLISIS: «¿dónde lo subo para que me pase a la hoja de análisis?».
@@ -109,7 +110,7 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
       {datos.faltaSql && <p className="ad-msg mal">Falta correr supabase/migraciones/2026-10-analisis-diferencia.sql en Supabase.</p>}
       {msg && <p className={"ad-msg" + (msg.mal ? " mal" : " bien")} role="status">{msg.t}</p>}
       {errores.length > 0 && <ul className="ad-errores">{errores.slice(0, 30).map((e) => <li key={e}>{e}</li>)}{errores.length > 30 && <li>… y {errores.length - 30} más.</li>}</ul>}
-      {datos.avisos.map((a) => <p key={a} className="ad-msg mal">{a}</p>)}
+      <Avisos avisos={datos.avisos} />
 
       {/* ---------- LO QUE ALIMENTA EL DÍA ---------- */}
       <div className="ad-fuentes">

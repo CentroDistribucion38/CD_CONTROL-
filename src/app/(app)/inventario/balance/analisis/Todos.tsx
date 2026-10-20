@@ -7,6 +7,7 @@
 import { Fragment, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ALMACENES, type Todos as Datos, type FilaTodos } from "@/modulos/inventario/todos-tipos";
+import { Avisos } from "./Avisos";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const n = (v: number | null | undefined) => (v == null ? "—" : nf.format(v));
@@ -38,7 +39,7 @@ export function Todos({ datos, hoy }: { datos: Datos; hoy: string }) {
           </div>
         ))}
       </div>
-      {datos.avisos.map((m) => <p key={m} className="ad-msg mal">{m}</p>)}
+      <Avisos avisos={datos.avisos} />
 
       <section className="ad-caja ad-hoja">
         <div className="ad-hoja-cab">
