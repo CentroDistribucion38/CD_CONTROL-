@@ -136,17 +136,18 @@ export function TablaUbicacion({ tab }: { tab: TablaUbDatos }) {
       <header className="cvt-cab">
         <h2>TABLA POR UBICACIÓN · CONTEO DEL {fA ? dmy(fA) : "—"} AL {fB ? dmy(fB) : "—"}</h2>
         <div className="cvx-barra">
-          <label className="cvx-campo">
-            <span>Estado</span>
+          <label className="cvx-campo" data-activo={est ? "1" : undefined}>
+            <span className="cvx-sr">Estado</span>
             <select value={est} onChange={(e) => setEstado(e.target.value)}>
               <option value="">Todos los estados</option>
               {todosEstados.map((e) => <option key={e} value={e}>{e}</option>)}
             </select>
           </label>
-          <label className="cvx-campo cvx-cod">
-            <span>Código</span>
+          <label className="cvx-campo cvx-cod" data-activo={busca.trim() ? "1" : undefined}>
+            <span className="cvx-sr">Código</span>
             <span className="cvx-cod-caja">
-              <input type="search" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="3500005 3500162… o parte del nombre" aria-label="Filtrar por código o nombre" />
+              <span aria-hidden="true" className="cvx-lupa">⌕</span>
+              <input type="search" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Código: 3500005 3500162… o parte del nombre" aria-label="Filtrar por código o nombre" />
               {busca && <button type="button" onClick={() => setBusca("")} aria-label="Quitar el filtro de código">×</button>}
             </span>
           </label>

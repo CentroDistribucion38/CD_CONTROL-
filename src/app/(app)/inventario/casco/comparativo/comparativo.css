@@ -150,17 +150,20 @@
 .cvc .cvx th.cvx-ini, .cvc .cvx td.cvx-ini { border-left: 2px solid #E0B100 }
 
 /* La barra de filtros de la tabla por ubicación: UNA sola fila recta — estado, código y solo cambios. */
-/* El título arriba y la barra debajo, a todo lo ancho (el encabezado del tablero los ponía lado a lado y «Solo cambios» saltaba de renglón). */
+/* El título arriba y la barra debajo, a todo lo ancho (el encabezado del tablero los ponía lado a lado y «Solo cambios» saltaba de renglón).
+   La barra va igual que la de la BD del conteo: controles blancos de 40 px, borde fino, el activo en amarillo. */
 .cvc .cvx-caja .cvt-cab { display: block }
-.cvc .cvx-barra { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-top: 14px }
-.cvc .cvx-campo { display: flex; flex-direction: column; gap: 4px }
-.cvc .cvx-campo > span:first-child { font: 700 10.5px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase; color: var(--fe-gris) }
-.cvc .cvx-campo select, .cvc .cvx-cod-caja input { min-height: 40px; padding: 0 12px; border: 1.5px solid var(--fe-linea); border-radius: 0; font: 600 14px var(--fe-texto); background: #fff; color: var(--fe-tinta) }
-.cvc .cvx-campo select { min-width: 190px }
-.cvc .cvx-cod { flex: 1 1 260px; max-width: 420px }
-.cvc .cvx-cod-caja { position: relative; display: flex }
-.cvc .cvx-cod-caja input { flex: 1; font-weight: 500 }
-.cvc .cvx-cod-caja input:focus, .cvc .cvx-campo select:focus { outline: 2px solid var(--fe-acento, #ffc20e); border-color: var(--fe-tinta) }
-.cvc .cvx-cod-caja button { position: absolute; right: 0; top: 0; width: 40px; height: 40px; border: 0; background: transparent; font-size: 20px; cursor: pointer }
-.cvc .cvx-solo { min-height: 40px; padding: 0 16px; border: 1.5px solid var(--fe-linea); background: #fff; border-radius: 0; font: 600 14px var(--fe-texto); color: var(--fe-tinta); cursor: pointer }
-.cvc .cvx-solo[aria-pressed="true"] { background: var(--fe-tinta); border-color: var(--fe-tinta); color: #fff }
+.cvc .cvx-barra { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px }
+.cvc .cvx-campo { display: block; min-width: 0 }
+.cvc .cvx-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap }
+.cvc .cvx-campo select { min-height: 40px; height: 40px; min-width: 190px; padding: 0 8px; border: 1px solid var(--fe-linea); border-radius: 0; background: #fff; font: 600 12.5px var(--fe-texto); color: var(--fe-tinta); cursor: pointer }
+.cvc .cvx-campo select:focus { outline: none; border-color: var(--fe-acento, #ffc20e) }
+.cvc .cvx-campo[data-activo] select { border-color: var(--fe-acento, #ffc20e); box-shadow: inset 0 -3px 0 var(--fe-acento, #ffc20e) }
+.cvc .cvx-cod { flex: 1 1 260px; max-width: 460px }
+.cvc .cvx-cod-caja { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 4px 0 12px; background: #fff; border: 1px solid var(--fe-linea); color: var(--fe-gris) }
+.cvc .cvx-cod-caja:focus-within, .cvc .cvx-cod[data-activo] .cvx-cod-caja { border-color: var(--fe-acento, #ffc20e) }
+.cvc .cvx-cod[data-activo] .cvx-cod-caja { box-shadow: inset 0 -3px 0 var(--fe-acento, #ffc20e) }
+.cvc .cvx-cod-caja input { flex: 1; min-width: 0; height: 38px; padding: 0; border: 0; outline: none; background: none; font: 500 13px var(--fe-texto); color: var(--fe-tinta) }
+.cvc .cvx-cod-caja button { width: 32px; height: 38px; border: 0; background: transparent; font-size: 20px; color: var(--fe-gris); cursor: pointer }
+.cvc .cvx-solo { min-height: 40px; padding: 0 14px; border: 1px solid var(--fe-linea); background: #fff; border-radius: 0; font: 700 12.5px var(--fe-titulo); color: var(--fe-gris-panel, #333); cursor: pointer }
+.cvc .cvx-solo[aria-pressed="true"] { background: var(--fe-acento, #ffc20e); border-color: var(--fe-acento, #ffc20e); color: var(--fe-sobre, #111) }
