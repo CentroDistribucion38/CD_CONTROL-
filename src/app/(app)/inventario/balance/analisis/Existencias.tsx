@@ -29,16 +29,16 @@ export function Existencias({ ex }: { ex: Ex | null | undefined }) {
     <section className="ad-caja ad-ex">
       <div className="ad-ex-cab">
         <h2>Existencias SAP por estado · AG18</h2>
-        <small>{ex.archivo ?? "ZEXI"}{hora ? ` · cargada ${hora}` : ""} · {ex.filas.length} materiales</small>
+        <span className="ad-ex-chips" aria-label="Totales por estado">
+          <span className="li"><i>Libre utiliz.</i><b>{nf.format(t.libre)}</b></span>
+          <span className="ca"><i>In control-cal</i><b>{nf.format(t.calidad)}</b></span>
+          <span className="bl"><i>Bloqueado</i><b>{nf.format(t.bloqueado)}</b></span>
+          <span className="to"><i>Total</i><b>{nf.format(t.total)}</b></span>
+        </span>
+        <small title={`${ex.archivo ?? "ZEXI"}${hora ? ` · cargada ${hora}` : ""} · ${ex.filas.length} materiales`}>{ex.archivo ?? "ZEXI"}{hora ? ` · ${hora}` : ""}</small>
         <button type="button" className="ad-ex-ver" aria-expanded={abierta} onClick={() => setAbierta((x) => !x)}>{abierta ? "Ocultar tabla" : "Ver tabla"}</button>
       </div>
 
-      <div className="ad-ex-k">
-        <div className="li"><span>Libre utiliz.</span><b>{nf.format(t.libre)}</b></div>
-        <div className="ca"><span>In control-cal</span><b>{nf.format(t.calidad)}</b></div>
-        <div className="bl"><span>Bloqueado</span><b>{nf.format(t.bloqueado)}</b></div>
-        <div className="to"><span>Total general</span><b>{nf.format(t.total)}</b></div>
-      </div>
       {!ex.conEstados && <p className="ad-ex-nota">Esta ZEXI solo trae el total: para ver los estados, cárgala con las columnas Libre utiliz., In control-cal y Bloqueado.</p>}
 
       {abierta && (

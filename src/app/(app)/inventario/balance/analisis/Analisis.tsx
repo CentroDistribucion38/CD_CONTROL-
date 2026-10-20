@@ -140,13 +140,16 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
         const b = donde["BODEGA"] ?? { renglones: 0, cajas: 0, estibas: 0, plasticas: 0 };
         const dEst = estibasAnalisis - b.estibas, dPl = plasticasAnalisis - b.plasticas;
         return (
-          <p className="ad-nota" title="Cajas = total de cajas contadas (producto, envase y cajas vacías). Estibas físicas = estibas completas + 1 por cada saldo. Cajas plásticas = todo lo que viaja en caja, sin barril ni madera. Es la misma cuenta del tablero del libro de inventario.">
+          <details className="ad-nota ad-nota-d">
+            <summary><b>Conteo sin segregar</b> · {n(T.cajas)} cajas · {n(T.estibas)} estibas físicas · {n(T.plasticas)} cajas plásticas<span> · ver cuentas</span></summary>
+          <p title="Cajas = total de cajas contadas (producto, envase y cajas vacías). Estibas físicas = estibas completas + 1 por cada saldo. Cajas plásticas = todo lo que viaja en caja, sin barril ni madera. Es la misma cuenta del tablero del libro de inventario.">
             <b>Conteo sin segregar (el tablero, todos los almacenes):</b> {n(T.cajas)} cajas · {n(T.estibas)} estibas físicas · {n(T.plasticas)} cajas plásticas
             {" "}({xs.map(([k, t]) => `${k === "BODEGA" ? "Bodega 38" : k} ${n(t.estibas)} estibas`).join(" · ")}).
             {" "}<b>Este análisis es de AG22 (Bodega 38):</b> Fábrica, AG17 y AG16 se balancean en sus Cuadres SAP y llegan aquí como BALANCE (lo movido) y DESCUADRE (lo que quedó sin cuadrar).
             {" "}Estiba 3500163 <b>{n(estibasAnalisis)}</b>{Math.abs(dEst) < 0.5 ? " = las estibas físicas de Bodega 38." : <>: {signo(dEst)} frente a las estibas físicas de Bodega 38 (las estibas contadas con su propio código entran por sus cajas).</>}
             {" "}Cajas plásticas (E01) <b>{n(plasticasAnalisis)}</b>{Math.abs(dPl) < 0.5 ? " = las de Bodega 38." : <>: {signo(dPl)} frente a las de Bodega 38 (producto sin envase retornable en el maestro, envase excluido, cajas sin factor, o lo que entra por pasivos y balance).</>}
           </p>
+          </details>
         );
       })()}
 

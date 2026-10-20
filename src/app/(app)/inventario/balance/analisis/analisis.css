@@ -232,3 +232,36 @@
 .ad .ad-avisos[open] summary { background: #FFF2CC }
 .ad .ad-fuentes .ad-avisos ul { position: absolute; left: 0; top: calc(100% + 4px); z-index: 20; width: min(720px, 100%); box-shadow: 0 8px 24px rgba(0,0,0,.18); margin: 0; }
 .ad .ad-avisos ul { margin: 6px 0 0; padding: 8px 12px 8px 26px; background: #fff; border: 1px solid var(--fe-linea); color: #555; display: flex; flex-direction: column; gap: 6px; line-height: 1.45 }
+
+/* ===== MÁS COMPACTO: la barra del día, las cifras, la nota del conteo y las existencias ===== */
+.ad .ad-barra { padding: 7px 12px; gap: 10px; margin: 0 0 8px }
+.ad .ad-barra .ad-dia { flex-direction: row; align-items: center; gap: 8px }
+.ad .ad-barra .ad-dia input { height: 32px; font-size: 13.5px }
+.ad .ad-barra .ad-carga b { font-size: 13.5px }
+.ad .ad-barra .ad-carga small { font-size: 11.5px }
+.ad .ad-barra .ad-bt { padding: 7px 14px; font-size: 13px }
+.ad .ad-fuentes { margin: 0 0 8px }
+.ad .ad-k.ad-k4 { gap: 8px; margin: 0 0 8px }
+.ad .ad-k.ad-k4 > div { padding: 6px 12px; gap: 0; border-bottom-width: 3px }
+.ad .ad-k.ad-k4 b { font-size: 20px; line-height: 1.15 }
+.ad .ad-k.ad-k4 span { font-size: 10px }
+.ad .ad-k.ad-k4 small { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.ad .ad-nota-d { margin: 0 0 8px; font-size: 12px }
+.ad .ad-nota-d summary { cursor: pointer; list-style: none; padding: 4px 10px; background: #fff; border: 1px solid var(--fe-linea); color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.ad .ad-nota-d summary::-webkit-details-marker { display: none }
+.ad .ad-nota-d summary span { color: #8a6d00; font-weight: 700 }
+.ad .ad-nota-d[open] summary { background: #FFF2CC }
+.ad .ad-nota-d p { margin: 0; padding: 8px 12px; background: #fff; border: 1px solid var(--fe-linea); border-top: 0; line-height: 1.5; color: #555 }
+.ad .ad-ex { padding: 8px 12px; margin: 0 0 8px }
+.ad .ad-ex-cab { align-items: center; gap: 10px; margin: 0 }
+.ad .ad-ex-cab h2 { font-size: 14px }
+.ad .ad-ex-chips { display: inline-flex; flex-wrap: wrap; gap: 6px }
+.ad .ad-ex-chips > span { display: inline-flex; align-items: baseline; gap: 6px; padding: 3px 10px; border: 1px solid var(--fe-linea); border-left: 4px solid var(--fe-tinta); background: #fff }
+.ad .ad-ex-chips i { font: 700 10px var(--fe-texto); font-style: normal; letter-spacing: .06em; text-transform: uppercase; color: var(--fe-gris) }
+.ad .ad-ex-chips b { font: 800 15px var(--fe-titulo, var(--fe-texto)); font-variant-numeric: tabular-nums; color: var(--fe-tinta) }
+.ad .ad-ex-chips .li { border-left-color: var(--ex-li) } .ad .ad-ex-chips .li b { color: var(--ex-li) }
+.ad .ad-ex-chips .ca { border-left-color: var(--ex-ca) } .ad .ad-ex-chips .ca b { color: #8A6200 }
+.ad .ad-ex-chips .bl { border-left-color: var(--ex-bl) } .ad .ad-ex-chips .bl b { color: var(--ex-bl) }
+.ad .ad-ex-cab small { flex: 1; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.ad .ad-ex-ver { padding: 4px 10px }
+.ad .ad-ex-ver + .ad-tabla-caja, .ad .ad-ex .ad-tabla-caja { margin-top: 8px }
