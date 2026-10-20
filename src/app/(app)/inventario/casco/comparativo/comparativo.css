@@ -1,0 +1,111 @@
+/* =====================================================================
+   COMPARATIVO DE CASCO DE VIDRIO — encima del tablero (cvt-). Todo lleva `cvc-`.
+   Subir (más casco por partir) = rojo; bajar = verde; sin cambio = gris. Siempre con su palabra o su flecha.
+   ===================================================================== */
+.cvc { display: flex; flex-direction: column; gap: 14px }
+.cvc .up { color: var(--fe-mal) }
+.cvc .dn { color: var(--fe-bien) }
+.cvc .eq { color: var(--fe-gris) }
+
+/* Controles */
+.cvc .cvc-ctrl input[type="date"] { min-height: 42px; padding: 0 10px; font: 500 14px var(--fe-texto); color: var(--fe-tinta); background: #fff; border: 1px solid var(--fe-linea); border-radius: 3px }
+.cvc .cvc-usa { font-size: 11.5px; color: var(--fe-gris) }
+.cvc .cvc-usa.mal { color: var(--fe-mal) }
+.cvc .cvc-cambiar { align-self: flex-end; min-height: 42px; min-width: 44px; border: 1px solid var(--fe-linea); background: #fff; font-size: 18px; color: var(--fe-tinta); border-radius: 3px; cursor: pointer }
+.cvc .cvc-cambiar:hover { background: var(--fe-fondo) }
+.cvc .cvc-chips { display: flex; flex-wrap: wrap; gap: 6px }
+.cvc .cvc-chip { min-height: 42px; padding: 0 14px; border: 1.5px solid var(--fe-linea); background: #fff; border-radius: 999px; font: 600 13px var(--fe-texto); color: var(--fe-tinta); cursor: pointer }
+.cvc .cvc-chip[aria-pressed="true"] { background: var(--fe-tinta); border-color: var(--fe-tinta); color: #fff }
+.cvc .cvc-tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--fe-linea) }
+.cvc .cvc-tab { min-height: 48px; padding: 0 22px; border: 0; border-bottom: 4px solid transparent; margin-bottom: -2px; background: transparent; font: 800 14px var(--fe-texto); color: var(--fe-gris); cursor: pointer }
+.cvc .cvc-tab[aria-selected="true"] { color: var(--fe-tinta); border-bottom-color: var(--fe-acento) }
+.cvc .cvc-nota { margin: 0; font-size: 12.5px; color: var(--fe-gris) }
+
+/* El cambio, en grande */
+.cvc .cvc-hero { display: grid; grid-template-columns: 1fr 1.2fr 1fr; align-items: stretch; border-radius: 4px; overflow: hidden; border: 1px solid var(--fe-linea) }
+.cvc .cvc-lado { background: var(--fe-papel); padding: 16px 20px; display: flex; flex-direction: column; gap: 4px; min-width: 0 }
+.cvc .cvc-lado.b { border-top: 4px solid var(--fe-acento) }
+.cvc .cvc-lado b { font: 900 clamp(30px, 4vw, 46px)/1.05 var(--fe-titulo); letter-spacing: -.03em; font-variant-numeric: tabular-nums; color: var(--fe-tinta) }
+.cvc .cvc-lado.a b { color: var(--fe-gris) }
+.cvc .cvc-lado b small, .cvc .cvc-centro b small { font: 700 14px var(--fe-texto); letter-spacing: 0 }
+.cvc .cvc-centro { background: var(--fe-tinta); color: #fff; padding: 16px 20px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 6px; text-align: center }
+.cvc .cvc-centro-et { font: 700 10.5px var(--fe-texto); letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.75) }
+.cvc .cvc-centro b { font: 900 clamp(34px, 5vw, 56px)/1.05 var(--fe-titulo); letter-spacing: -.03em; font-variant-numeric: tabular-nums }
+.cvc .cvc-centro.up b { color: color-mix(in srgb, var(--fe-mal) 62%, #fff) }
+.cvc .cvc-centro.dn b { color: color-mix(in srgb, var(--fe-bien) 55%, #fff) }
+.cvc .cvc-centro.eq b { color: #fff }
+.cvc .cvc-pct { padding: 3px 12px; font: 800 13px var(--fe-texto); border: 1px solid rgba(255,255,255,.4); border-radius: 2px }
+
+/* Una tarjeta por almacén */
+.cvc .cvc-almacenes { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)) }
+.cvc .cvc-alm { background: var(--fe-papel); border: 1px solid var(--fe-linea); border-left: 6px solid var(--fe-acento); border-radius: 3px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0 }
+.cvc .cvc-alm header { display: flex; justify-content: space-between; align-items: center; gap: 8px }
+.cvc .cvc-alm header b { font: 800 14px var(--fe-titulo); color: var(--fe-tinta) }
+.cvc .cvc-par { display: grid; grid-template-columns: auto 1fr auto; gap: 6px 10px; align-items: center; font-size: 12.5px; color: var(--fe-gris) }
+.cvc .cvc-par i { display: block; height: 12px; background: var(--fe-fondo); border-radius: 2px; overflow: hidden }
+.cvc .cvc-par em { display: block; height: 100%; font-style: normal }
+.cvc .cvc-par em.ant { opacity: .45 }
+.cvc .cvc-par b { color: var(--fe-tinta); font-variant-numeric: tabular-nums; text-align: right; min-width: 56px }
+.cvc .cvc-alm small { font-size: 12px; color: var(--fe-gris) }
+
+/* Las etiquetas de estado */
+.cvc .cvc-pill { display: inline-block; padding: 3px 8px; border-radius: 2px; font: 800 10.5px var(--fe-texto); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; background: var(--fe-fondo); color: var(--fe-tinta) }
+.cvc .cvc-pill.up, .cvc .cvc-pill.sube { background: var(--fe-mal); color: #fff }
+.cvc .cvc-pill.dn, .cvc .cvc-pill.baja { background: var(--fe-bien); color: #fff }
+.cvc .cvc-pill.eq, .cvc .cvc-pill.igual { background: var(--fe-fondo); color: var(--fe-tinta) }
+.cvc .cvc-pill.nuevo { background: transparent; border: 1px solid var(--fe-acento); color: var(--fe-tinta) }
+.cvc .cvc-pill.salio { background: transparent; border: 1px solid var(--fe-tinta); color: var(--fe-tinta) }
+
+/* Cascada y movimientos */
+.cvc .cvc-dos { display: grid; gap: 12px; grid-template-columns: 1.3fr 1fr }
+.cvc .cvc-casc { width: 100%; height: auto; display: block }
+.cvc .cvc-bar.ini { fill: var(--fe-gris) }
+.cvc .cvc-bar.fin { fill: var(--fe-tinta) }
+.cvc .cvc-bar.up { fill: var(--fe-mal) }
+.cvc .cvc-bar.dn { fill: var(--fe-bien) }
+.cvc .cvc-bar.eq { fill: var(--fe-gris) }
+.cvc .cvc-bar-txt { font: 800 12.5px var(--fe-texto); fill: var(--fe-tinta); font-variant-numeric: tabular-nums }
+.cvc .cvc-enlace { stroke: var(--fe-gris); stroke-dasharray: 3 3; stroke-width: 1 }
+.cvc .cvc-movs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px }
+.cvc .cvc-movs li { display: grid; grid-template-columns: minmax(120px, 190px) 1fr 64px; gap: 10px; align-items: center; font-size: 13px }
+.cvc .cvc-movs li > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.cvc .cvc-movs i { display: block; height: 14px; background: var(--fe-fondo) }
+.cvc .cvc-movs em { display: block; height: 100%; background: var(--fe-gris) }
+.cvc .cvc-movs em.up { background: var(--fe-mal) }
+.cvc .cvc-movs em.dn { background: var(--fe-bien) }
+.cvc .cvc-movs b { text-align: right; font-variant-numeric: tabular-nums }
+
+/* Tabla por material */
+.cvc .cvc-tabla .cvc-div { width: 32%; min-width: 150px }
+.cvc .cvc-dv { position: relative; display: block; height: 14px; background: var(--fe-fondo) }
+.cvc .cvc-dv-eje { position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--fe-gris) }
+.cvc .cvc-dv em { position: absolute; top: 0; bottom: 0; background: var(--fe-gris) }
+.cvc .cvc-dv em.up { background: var(--fe-mal) }
+.cvc .cvc-dv em.dn { background: var(--fe-bien) }
+.cvc .cvc-abrir { display: inline-flex; align-items: baseline; gap: 6px; background: none; border: 0; padding: 4px 0; min-height: 36px; font: inherit; color: var(--fe-tinta); cursor: pointer; text-align: left }
+.cvc .cvc-abrir small { color: var(--fe-gris); font: 600 12px ui-monospace, monospace }
+.cvc .cvc-tabla tr.abierto td { background: color-mix(in srgb, var(--fe-acento) 12%, #fff) }
+.cvc .cvc-tabla tr.cvc-sub td { background: color-mix(in srgb, var(--fe-acento) 6%, #fff); font-size: 13px }
+.cvc .cvc-ubic { display: block; color: var(--fe-gris); font-size: 12px }
+.cvc .cvc-tabla th.n, .cvc .cvc-excel th.n { text-align: right }
+
+/* La tabla, como el Excel */
+.cvc .cvc-alta { max-height: 640px }
+.cvc .cvc-excel { min-width: 900px }
+.cvc .cvc-excel td.cvc-ubic { display: table-cell; font-size: 12.5px }
+.cvc .cvc-excel tr.cvc-total-mat td { background: color-mix(in srgb, var(--fe-acento) 20%, #fff); font-weight: 800; border-top: 1px solid var(--fe-acento) }
+.cvc .cvc-excel td.cvc-dif { font-weight: 800 }
+.cvc .cvc-excel td.cvc-dif.up { background: color-mix(in srgb, var(--fe-mal) 16%, #fff); color: var(--fe-mal) }
+.cvc .cvc-excel td.cvc-dif.dn, .cvc .cvc-excel td.cvc-dif.eq { background: color-mix(in srgb, var(--fe-bien) 14%, #fff); color: var(--fe-bien) }
+.cvc .cvc-excel tr.cvc-total-mat td.cvc-dif.up { background: color-mix(in srgb, var(--fe-mal) 24%, #fff) }
+.cvc .cvc-excel tr.cvc-total-mat td.cvc-dif.dn, .cvc .cvc-excel tr.cvc-total-mat td.cvc-dif.eq { background: color-mix(in srgb, var(--fe-bien) 22%, #fff) }
+
+@media (max-width: 900px) {
+  .cvc .cvc-hero { grid-template-columns: 1fr }
+  .cvc .cvc-dos { grid-template-columns: 1fr }
+}
+@media (max-width: 520px) {
+  .cvc .cvc-tab { flex: 1 }
+  .cvc .cvc-movs li { grid-template-columns: 1fr 64px; }
+  .cvc .cvc-movs i { grid-column: 1 / -1; grid-row: 2 }
+}

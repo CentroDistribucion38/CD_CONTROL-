@@ -350,6 +350,14 @@ const IconoEntrada = () => (
     <path d="M4.5 14.5V19a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5v-4.5" />
   </svg>
 );
+/* COMPARATIVO: dos columnas de distinta altura con una flecha entre ellas (A contra B). */
+const IconoComparar = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <path d="M4.5 20.5v-7M9.5 20.5V8.5" />
+    <path d="M14.5 6.5h6M17.5 3.5l3 3-3 3" />
+    <path d="M20.5 17.5h-6M17.5 14.5l-3 3 3 3" />
+  </svg>
+);
 const IconoCuatroTablas = () => (
   <svg viewBox="0 0 24 24" {...P}>
     <rect x="3.5" y="3.5" width="7.5" height="7.5" rx="1.4" />
@@ -447,6 +455,7 @@ const ICONO_RUTA: Record<string, () => React.ReactElement> = {
   "/inventario/casco/registrar": IconoEntrada,
   "/inventario/casco": IconoCuatroTablas,
   "/inventario/casco/tablero": IconoTablero,
+  "/inventario/casco/comparativo": IconoComparar,
   "/inventario/balance": IconoBalanza,
   "/inventario/balance/alertas": IconoNovedad,
   "/inventario/balance/validacion": IconoVerificar,

@@ -728,6 +728,8 @@ export const MODULOS: Modulo[] = [
       { nombre: "Registrar", ruta: "/inventario/casco/registrar", rama: "casco" },
       { nombre: "Control", ruta: "/inventario/casco", rama: "casco" },
       { nombre: "Tablero", ruta: "/inventario/casco/tablero", rama: "casco" },
+      /* COMPARATIVO: qué cambió en el casco entre dos días (A contra B), en HL, estibas o cajas. Sale del mismo registro que el tablero. */
+      { nombre: "Comparativo", ruta: "/inventario/casco/comparativo", rama: "casco" },
       /* BALANCE: el cruce del último conteo FEFO contra el casco de vidrio.
          Son las cinco tablas dinámicas que hoy se arman a mano en el Excel
          (CONTEO FABRICA.xlsx), con la diferencia y la alerta al lado. Una
