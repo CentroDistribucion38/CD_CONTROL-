@@ -25,7 +25,7 @@
  * Se arma en el navegador (exceljs se carga al pedirlo).
  */
 import ExcelJS from "exceljs";
-import { esDueno } from "@/modulos/inventario/duenos";
+import { pendientePorSku, esDueno } from "@/modulos/inventario/duenos";
 import { esExcluido } from "@/modulos/pasivos/excluidos";
 
 export type FilaBajaPend = {
@@ -34,7 +34,7 @@ export type FilaBajaPend = {
   fisico_cajas: number; cajas_casco: number; dif_cajas: number; unidades: number | null;
   /** Solo ANDINA / HEINEKEN: sus estibas físicas, su diferencia en estibas y los SKU de donde provienen. */
   fisico_estibas?: number | null; dif_estibas?: number | null;
-  provenientes?: { codigo: string; material: string | null; cajas: number; cajas_estiba: number | null; estibas: number | null; un_caja: number | null; unidades: number | null }[];
+  provenientes?: { codigo: string; material: string | null; ubicacion: string; cajas: number; cajas_estiba: number | null; estibas: number | null; un_caja: number | null; unidades: number | null }[];
 };
 
 /** Una fila del pasivo del día con causal ROTURA DE LINEA (más los factores del maestro de pasivos). */
@@ -61,7 +61,7 @@ const relleno = (argb: string): ExcelJS.Fill => ({ type: "pattern", pattern: "so
 const letra = (size: number, color: string, bold = false): Partial<ExcelJS.Font> => ({ name: "Calibri", size, bold, color: { argb: color } });
 const NUM = '#,##0;[Red]-#,##0;"0"';
 
-type Linea = { zona: (typeof ZONAS)[number]; f: FilaBajaPend; un: number; dueno?: string };
+type Linea = { zona: (typeof ZONAS)[number]; f: FilaBajaPend; un: number; dueno?: string; /** Unidades que aporta ANDINA / HEINEKEN a esta línea (solo para la hoja de revisión; en Conteos no se nota). */ deDueno?: { dueno: string; un: number }[] };
 type Descartada = { zona: (typeof ZONAS)[number]; f: FilaBajaPend; motivo: string; dueno?: string };
 
 export function separarPendiente(filas: FilaBajaPend[]): { lineas: Linea[]; descartadas: Descartada[] } {
@@ -71,25 +71,17 @@ export function separarPendiente(filas: FilaBajaPend[]): { lineas: Linea[]; desc
       .sort((a, b) => a.codigo.localeCompare(b.codigo, "es", { numeric: true }));
     for (const f of delaZona) {
       if (esDueno(f.codigo)) {
-        /* Se abre en los SKU de donde provienen (el "ojito" del Balance), con las mismas unidades que "Traer del balance" manda a Pasivos:
-           cada proveniente = cajas × factor del SKU de origen, redondeado, sin descontar casco. */
+        /* Se abre en los SKU de donde provienen: la diferencia en estibas del dueño (contado − casco) llevada a cada SKU con su factor.
+           Es la misma cuenta que usa «Traer del balance» de Pasivos (pendientePorSku). */
         const dueno = f.codigo.trim().toUpperCase();
-        const prov = f.provenientes ?? [];
-        if (!prov.length) { descartadas.push({ zona, f, dueno, motivo: `${dueno}: no hay SKU de origen (nada se reasignó a ${dueno} en el Balance)` }); continue }
-        const porSku = new Map<string, { x: (typeof prov)[number]; un: number }>();
-        for (const x of prov) {
-          if (esExcluido(x.codigo, x.material)) continue;
-          if (!x.cajas) continue;
-          if (x.unidades == null || !x.un_caja) { descartadas.push({ zona, f: { ...f, codigo: x.codigo, material: x.material }, dueno, motivo: `Viene de ${dueno}, pero falta el factor caja de este SKU en el maestro` }); continue }
-          const a = porSku.get(x.codigo) ?? { x, un: 0 };
-          a.un += Math.round(x.unidades); porSku.set(x.codigo, a);
-        }
-        for (const { x, un } of porSku.values()) {
-          const u = Math.round(un);
-          if (u <= 0) continue;
-          const cajasSku = Math.round(u / (x.un_caja as number));
-          lineas.push({ zona, dueno, un: u, f: { estado: f.estado, alcance: f.alcance, codigo: x.codigo, material: x.material, cajas_estiba: x.cajas_estiba, un_caja: x.un_caja,
-            fisico_cajas: x.cajas, cajas_casco: 0, dif_cajas: cajasSku, unidades: u } });
+        if (!(f.provenientes ?? []).length) { descartadas.push({ zona, f, dueno, motivo: `${dueno}: no hay SKU de origen (nada se reasignó a ${dueno} en el Balance)` }); continue }
+        const sku = pendientePorSku(f).filter((x) => x.cajas && !esExcluido(x.codigo, x.material));
+        if (!sku.some((x) => x.cajas_pend > 0)) { descartadas.push({ zona, f, dueno, motivo: `${dueno}: lo contado no pasa del casco, no hay nada pendiente` }); continue }
+        for (const x of sku) {
+          if (!x.un_caja || x.unidades == null) { descartadas.push({ zona, f: { ...f, codigo: x.codigo, material: x.material }, dueno, motivo: `Viene de ${dueno}, pero falta el factor caja de este SKU en el maestro` }); continue }
+          if (x.cajas_pend <= 0) continue;
+          lineas.push({ zona, dueno, deDueno: [{ dueno, un: x.unidades }], un: x.unidades, f: { estado: f.estado, alcance: f.alcance, codigo: x.codigo, material: x.material, cajas_estiba: x.cajas_estiba, un_caja: x.un_caja,
+            fisico_cajas: x.cajas, cajas_casco: x.cajas - x.cajas_pend, dif_cajas: x.cajas_pend, unidades: x.unidades } });
         }
         continue;
       }
@@ -98,7 +90,20 @@ export function separarPendiente(filas: FilaBajaPend[]): { lineas: Linea[]; desc
       lineas.push({ zona, f, un: Math.round(f.dif_cajas * f.un_caja) });
     }
   }
-  return { lineas, descartadas };
+  /* Una sola fila por material y zona: lo que viene de ANDINA / HEINEKEN se suma al SKU si ese SKU ya tiene su fila en la zona. */
+  const unidas: Linea[] = [];
+  for (const l of lineas) {
+    const ya = unidas.find((u) => u.zona.tipo === l.zona.tipo && u.f.codigo === l.f.codigo);
+    if (!ya) { unidas.push(l); continue }
+    ya.un += l.un;
+    ya.deDueno = [...(ya.deDueno ?? []), ...(l.deDueno ?? [])];
+  }
+  for (const z of ZONAS) {
+    const orden = unidas.filter((u) => u.zona.tipo === z.tipo).sort((a, b) => a.f.codigo.localeCompare(b.f.codigo, "es", { numeric: true }));
+    const resto = unidas.filter((u) => u.zona.tipo !== z.tipo);
+    unidas.splice(0, unidas.length, ...resto, ...orden);
+  }
+  return { lineas: unidas, descartadas };
 }
 
 const ENCABEZADOS = ["Planta/CD", "Tipo de baja ", "Motivo ", "Descripcion de la baja", "Código / SKU", "Descipcion Material", "Total Unidades",
@@ -128,8 +133,8 @@ export async function armarLibroBajaPendiente(d: { fecha: string; filas: FilaBaj
     for (const l of lineas.filter((x) => x.zona.tipo === z.tipo)) {
       const est = l.f.cajas_estiba && l.f.un_caja ? Math.round((l.un / l.f.un_caja / l.f.cajas_estiba) * 100) / 100 : "";
       const r = h.getRow(n++);
-      r.values = ["Barranquilla", "EER", "ROTURA", l.dueno ?? z.desc, l.f.codigo, l.f.material ?? "", l.un, fecha, null, null, "", IMPACTO, "", CENTRO,
-        l.dueno ? "945" : z.mov, "", l.dueno ? `BAJA ${l.dueno}` : z.tipo, est, z.alm];
+      r.values = ["Barranquilla", "EER", "ROTURA", z.desc, l.f.codigo, l.f.material ?? "", l.un, fecha, null, null, "", IMPACTO, "", CENTRO,
+        z.mov, "", z.tipo, est, z.alm];
       r.getCell(7).numFmt = "#,##0"; r.getCell(8).numFmt = "yyyy-mm-dd"; r.getCell(18).numFmt = "0.00";
       r.eachCell((c) => { c.font = letra(10, TINTA); c.border = { bottom: { style: "thin", color: { argb: RAYA } } } });
     }
@@ -157,7 +162,7 @@ export async function armarLibroBajaPendiente(d: { fecha: string; filas: FilaBaj
   r2.columns = cols.map(([, w]) => ({ width: w }));
   const t1 = r2.getCell(1, 1); t1.value = `PENDIENTE POR DARLE DE BAJA · conteo del ${d.fecha}`; t1.font = letra(14, TINTA, true);
   const t2 = r2.getCell(2, 1);
-  t2.value = "Lo que muestra el Balance en Baja · Fábrica y Baja · Bodega 38: Dif cajas × factor caja, solo si el físico supera al casco. ANDINA y HEINEKEN se abren en los SKU de donde provienen.";
+  t2.value = "Lo que muestra el Balance en Baja · Fábrica y Baja · Bodega 38: Dif cajas × factor caja, solo si el físico supera al casco. Lo de ANDINA y HEINEKEN se abre en los SKU de donde provienen y se suma a la fila de ese SKU (en Conteos no se nombra).";
   t2.font = letra(9.5, GRIS);
   const hd = r2.getRow(4); hd.height = 26;
   cols.forEach(([tt], i) => {
@@ -167,15 +172,15 @@ export async function armarLibroBajaPendiente(d: { fecha: string; filas: FilaBaj
   let k = 5;
   for (const z of ZONAS) {
     const filas = [
-      ...lineas.filter((l) => l.zona.tipo === z.tipo).map((l) => ({ f: l.f, un: l.un as number | null, motivo: "", dueno: l.dueno })),
+      ...lineas.filter((l) => l.zona.tipo === z.tipo).map((l) => ({ f: l.f, un: l.un as number | null, motivo: "", dueno: l.deDueno?.map((d) => `${d.dueno} ${d.un.toLocaleString("es-CO")} u`).join(" + ") })),
       ...descartadas.filter((x) => x.zona.tipo === z.tipo).map((x) => ({ f: x.f, un: null as number | null, motivo: x.motivo, dueno: x.dueno })),
     ].sort((a, b) => a.f.codigo.localeCompare(b.f.codigo, "es", { numeric: true }));
     const ini = k;
     for (const x of filas) {
       const r = r2.getRow(k++);
-      const reparto = x.un == null ? "—" : x.dueno ? "945" : z.mov;
+      const reparto = x.un == null ? "—" : z.mov;
       r.values = [z.nombre, z.alm, x.f.codigo, x.f.material ?? "", x.f.fisico_cajas, x.f.cajas_casco, x.f.dif_cajas, x.f.un_caja ?? "—", x.un ?? "—", reparto,
-        x.un == null ? x.motivo : x.dueno ? `A dar de baja · viene de ${x.dueno}` : "A dar de baja"];
+        x.un == null ? x.motivo : x.dueno ? `A dar de baja · incluye ${x.dueno}` : "A dar de baja"];
       r.eachCell((c, i) => {
         c.font = letra(10, TINTA); c.border = { bottom: { style: "thin", color: { argb: RAYA } } };
         if (i >= 5 && i <= 9) { c.numFmt = NUM; c.alignment = { horizontal: "right" } }

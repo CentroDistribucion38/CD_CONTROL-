@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { todas } from "@/modulos/inventario/paginas";
 import { balanceDelDia, type FilaBalance } from "@/modulos/inventario/balance";
-import { esDueno } from "@/modulos/inventario/duenos";
+import { esDueno, pendientePorSku } from "@/modulos/inventario/duenos";
 import { esExcluido, excluye, type ReglaExcluidos } from "@/modulos/pasivos/excluidos";
 import { leerExcluidos } from "@/modulos/pasivos/excluidos-leer";
 
@@ -46,16 +46,18 @@ export function filasDeBalance(fecha: string, detalle: FilaBalance[], regla?: Re
   const sinFactor: string[] = [];
   const excluidos = new Set<string>();
   for (const f of detalle) {
-    /* LO REASIGNADO A ANDINA / HEINEKEN: nada queda por fuera. Cada código real va a la base con su causal ANDINA (o HEINEKEN), en BAJA,
-       en el almacén de donde se contó (Fábrica = AG18, Bodega 38 = AG22), con sus unidades. */
+    /* LO REASIGNADO A ANDINA / HEINEKEN: se abre en los SKU de donde provienen. Lo pendiente es la diferencia en estibas del dueño
+       (contado − casco) llevada a cada SKU con su factor (pendientePorSku): la misma cuenta del Excel de pendiente de baja.
+       Causal ANDINA (o HEINEKEN), en BAJA, en el almacén donde se contó (Fábrica = AG18, Bodega 38 = AG22). */
     if (esDueno(f.codigo)) {
       const alm = f.alcance === "SORTING" ? "AG18" : "AG22";
-      for (const x of f.provenientes ?? []) {
+      for (const x of pendientePorSku(f)) {
         if (regla ? excluye(regla, x.codigo, x.material) : esExcluido(x.codigo, x.material)) { excluidos.add(x.codigo); continue }
         if (!x.cajas) continue;
         if (x.unidades == null) { sinFactor.push(x.codigo); continue }
-        filas.push({ fecha, estado: "BAJA", causal: f.codigo, codigo: x.codigo, unidades: Math.round(x.unidades), almacen: alm,
-          nota: `Reasignado a ${f.codigo} en el Balance · ${Math.round(x.cajas).toLocaleString("es-CO")} cajas · ${x.ubicacion}` });
+        if (x.cajas_pend <= 0) continue;
+        filas.push({ fecha, estado: "BAJA", causal: f.codigo, codigo: x.codigo, unidades: x.unidades, almacen: alm,
+          nota: `Reasignado a ${f.codigo} en el Balance · pendiente ${x.cajas_pend.toLocaleString("es-CO")} de ${Math.round(x.cajas).toLocaleString("es-CO")} cajas (la diferencia contra el casco de ${f.codigo}) · ${x.ubicaciones.join(", ")}` });
       }
       continue;
     }

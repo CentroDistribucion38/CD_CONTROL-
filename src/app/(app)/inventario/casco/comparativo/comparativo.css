@@ -149,16 +149,16 @@
 .cvc .cvx thead th.cvx-band { background: #111; color: #FFC300; font-weight: 800; letter-spacing: .08em; border-left: 2px solid #fff }
 .cvc .cvx th.cvx-ini, .cvc .cvx td.cvx-ini { border-left: 2px solid #E0B100 }
 
-/* Filtro de SKU de la tabla por ubicación: un desplegable recto con búsqueda y casillas. */
-.cvc .cvx-sku { position: relative }
-.cvc .cvx-sku > summary { list-style: none; display: inline-flex; align-items: center }
-.cvc .cvx-sku > summary::-webkit-details-marker { display: none }
-.cvc .cvx-sku > summary[aria-pressed="true"] { background: var(--fe-tinta); border-color: var(--fe-tinta); color: #fff }
-.cvc .cvx-sku-caja { position: absolute; z-index: 20; top: calc(100% + 4px); right: 0; width: min(380px, 92vw); max-height: 360px; overflow: auto; background: #fff; border: 1.5px solid var(--fe-tinta); border-radius: 0; padding: 10px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 6px 18px rgba(0,0,0,.12) }
-.cvc .cvx-sku-caja input[type="search"] { min-height: 38px; padding: 0 10px; border: 1.5px solid var(--fe-linea); border-radius: 0; font: 500 14px var(--fe-texto) }
-.cvc .cvx-sku-acc { display: flex; gap: 6px; flex-wrap: wrap }
-.cvc .cvx-sku-acc button { min-height: 32px; padding: 0 10px; border: 1.5px solid var(--fe-linea); background: #fff; border-radius: 0; font: 600 12px var(--fe-texto); cursor: pointer }
-.cvc .cvx-sku-caja ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column }
-.cvc .cvx-sku-caja li label { display: flex; gap: 8px; align-items: center; padding: 6px 4px; font: 500 13px var(--fe-texto); cursor: pointer; border-bottom: 1px solid var(--fe-linea) }
-.cvc .cvx-sku-caja li label b { font-variant-numeric: tabular-nums }
-.cvc .cvx-sku-caja li.vacio { padding: 8px 4px; color: var(--fe-gris); font-size: 13px }
+/* La barra de filtros de la tabla por ubicación: UNA sola fila recta — estado, código y solo cambios. */
+.cvc .cvx-barra { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-top: 10px }
+.cvc .cvx-campo { display: flex; flex-direction: column; gap: 4px }
+.cvc .cvx-campo > span:first-child { font: 700 10.5px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase; color: var(--fe-gris) }
+.cvc .cvx-campo select, .cvc .cvx-cod-caja input { min-height: 40px; padding: 0 12px; border: 1.5px solid var(--fe-linea); border-radius: 0; font: 600 14px var(--fe-texto); background: #fff; color: var(--fe-tinta) }
+.cvc .cvx-campo select { min-width: 190px }
+.cvc .cvx-cod { flex: 1 1 260px; max-width: 420px }
+.cvc .cvx-cod-caja { position: relative; display: flex }
+.cvc .cvx-cod-caja input { flex: 1; font-weight: 500 }
+.cvc .cvx-cod-caja input:focus, .cvc .cvx-campo select:focus { outline: 2px solid var(--fe-acento, #ffc20e); border-color: var(--fe-tinta) }
+.cvc .cvx-cod-caja button { position: absolute; right: 0; top: 0; width: 40px; height: 40px; border: 0; background: transparent; font-size: 20px; cursor: pointer }
+.cvc .cvx-solo { min-height: 40px; padding: 0 16px; border: 1.5px solid var(--fe-linea); background: #fff; border-radius: 0; font: 600 14px var(--fe-texto); color: var(--fe-tinta); cursor: pointer }
+.cvc .cvx-solo[aria-pressed="true"] { background: var(--fe-tinta); border-color: var(--fe-tinta); color: #fff }
