@@ -78,7 +78,7 @@ export function Historico({ dias, detalle, faltaSql }: { dias: DiaHistorico[]; d
           <table className="ad-t ad-piv ad-aj ad-hist">
             <thead><tr>
               <th>Día</th><th className="n">SAP</th><th className="n">Conteo</th><th className="n">Diferencia</th><th className="n">Compensado</th>
-              <th className="barra">Faltante · Sobrante</th><th className="n">Ajuste neto</th><th className="n">Diferencia final</th><th>Códigos</th><th>Guardado</th><th />
+              <th className="ad-fb">Faltante · Sobrante</th><th className="n">Ajuste neto</th><th className="n">Diferencia final</th><th>Códigos</th><th>Guardado</th><th />
             </tr></thead>
             <tbody>
               {vistos.map((d) => (
@@ -88,7 +88,7 @@ export function Historico({ dias, detalle, faltaSql }: { dias: DiaHistorico[]; d
                   <td className="n">{n(d.conteo)}</td>
                   <td className={"n" + (d.diferencia < 0 ? " neg" : " pos")}>{signo(d.diferencia)}</td>
                   <td className="n">{n(d.compensado)}</td>
-                  <td className="barra">
+                  <td className="ad-fb">
                     {/* La barra en dos: el faltante crece a la izquierda del centro, el sobrante a la derecha. */}
                     <div className="ad-bar" title={`Faltante ${signo(d.faltante)} · Sobrante ${signo(d.sobrante)}`}>
                       <span className="f"><i style={{ width: `${(-d.faltante / tope) * 100}%` }} /></span>
