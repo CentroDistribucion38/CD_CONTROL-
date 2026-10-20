@@ -134,6 +134,20 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   let renglonesTodos = 0;
   /* La caja plástica que lleva el producto: cuántas cajas y de cuántos productos salieron. */
   let cajasProducto = 0; const prodConCaja = new Set<string>(), prodSinEnvase = new Set<string>();
+  /* NADA SE QUEDA SIN SU CAJA: si el maestro no le dio caja al producto (sin envase, o su envase sin caja), se busca la caja plástica de su
+     presentación —los cc y las unidades por caja: «750 x16» → «CAJA PLASTICA … 750cc x 16»— y se anota cuál se usó para que se pueda revisar.
+     Latas, PET, barril y aluminio no van en caja plástica. Si no hay UNA sola caja que calce, queda en la lista de «sin caja». */
+  const cajasPlasticas = [...M.values()].filter((m) => /^CAJA\s*PL/i.test(String(m.descripcion ?? "")));
+  const cajaPorPresentacion = (p: Prod | undefined): string | null => {
+    const nom = String(p?.nombre ?? ""), n = Number(p?.unidades_por_caja) || 0;
+    if (!p || !n || /LATA|PET\b|BARRIL|ALUM|CILINDRO/i.test(nom)) return null;
+    const ml = nom.match(/(\d{3,4})\s*(?:cc|ml)?\s*x\s*\d/i)?.[1] ?? nom.match(/(\d{3,4})\s*(?:cc|ml)/i)?.[1];
+    if (!ml) return null;
+    const re = new RegExp(`\\b${ml}\\s*cc\\s*x\\s*${n}\\b`, "i");
+    const c = cajasPlasticas.filter((m) => re.test(String(m.descripcion)));
+    return c.length === 1 ? String(c[0].codigo) : null;
+  };
+  const cajaPorPresentacionUsada = new Map<string, string>();
   /* Las estibas de lo que NO entra a este análisis (Fábrica, AG17, AG16): ya están cuadradas en su propio Cuadre SAP; se anotan aparte para el total. */
   const estFuera = new Map<string, number>();
   const vacio = (): TotConteo => ({ renglones: 0, cajas: 0, estibas: 0, plasticas: 0 });
@@ -179,9 +193,10 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
          El producto → su envase (maestro de productos) → la caja de ese envase (maestro de Pasivos). Si el envase
          está excluido (NR, foráneo…) o no tiene caja (lata, PET, NR), no aporta caja. EL PRODUCTO EN SÍ NO SE TOMA. */
       const env = P.get(c)?.envase_sku ? String(P.get(c)!.envase_sku) : null;
-      const cajaFija = !env ? CAJA_DE_PRODUCTO_SIN_ENVASE[c] ?? null : null;
-      if (!env && !cajaFija) prodSinEnvase.add(c);
-      const cajaP = env ? (!CAJA_FUERA_DEL_CUADRE.has(env) && !excluye(regla, env, nombre(env)) ? M.get(env)?.caja : null) : cajaFija;
+      const envFuera = !!env && (CAJA_FUERA_DEL_CUADRE.has(env) || excluye(regla, env, nombre(env)));
+      let cajaP: string | null = env ? (envFuera ? null : M.get(env)?.caja ?? null) : CAJA_DE_PRODUCTO_SIN_ENVASE[c] ?? null;
+      if (!cajaP && !envFuera) { const g = cajaPorPresentacion(P.get(c)); if (g) { cajaP = g; cajaPorPresentacionUsada.set(c, g) } }
+      if (!cajaP && !envFuera) prodSinEnvase.add(c);
       if (cajaP && cajas) { suma("conteo", String(cajaP), pre(`CONTEO · en producto ${c} ${nombre(c)}`), cajas); cajasProducto += cajas; prodConCaja.add(c) }
       continue;
     }
@@ -205,6 +220,7 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   /* Un producto sin envase en el maestro no aporta caja: se nombra para que se complete el maestro si es retornable. */
   if (prodConCaja.size || prodSinEnvase.size) fuentes.push({ nombre: "Caja del producto", ok: prodConCaja.size > 0,
     detalle: `${Math.round(cajasProducto).toLocaleString("es-CO")} cajas plásticas en ${prodConCaja.size} productos contados`
+      + (cajaPorPresentacionUsada.size ? ` · la caja se tomó por la presentación (cc y unidades por caja) en: ${[...cajaPorPresentacionUsada].map(([k, v]) => `${k}→${v}`).join(", ")}; confírmalo en el maestro` : "")
       + (prodSinEnvase.size ? ` · ${prodSinEnvase.size} productos sin envase en el maestro (lata, PET o falta completarlo; no aportan caja): ${[...prodSinEnvase].sort().slice(0, 12).join(", ")}${prodSinEnvase.size > 12 ? "…" : ""}` : "") });
   for (const e of [cons.error, c17.error, c16.error]) if (e) avisos.push(`No pude leer el conteo: ${e}`);
 
