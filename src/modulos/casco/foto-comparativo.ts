@@ -36,9 +36,10 @@ export type DatosComparativo = {
   topes: MaterialCmpFoto[];
 };
 export type DatosTablaFoto = {
-  tabla: TablaUb; fA: string; fB: string; estado: string; soloCambios: boolean; chips: string[];
+  tabla: TablaUb; fA: string; fB: string; estado: string; soloCambios: boolean; chips: string[]; unidad: Unidad;
 };
 
+const TXT_U: Record<Unidad, string> = { est: "Estibas", hl: "HL", caj: "Cajas" };
 const dmy = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
 const cero = (v: number, u: Unidad) => Math.abs(v) < (u === "est" ? 0.005 : 0.5);
 const fv = (v: number, u: Unidad) => (u === "est" ? fmt.est(v) : fmt.hl0(v));
@@ -250,7 +251,7 @@ export function dibujarTablaComparativo(d: DatosTablaFoto, extra: Extra = {}): H
   const H = 120 + TIT + CAB + filas * FILA + GEN + 44;
   const { c, ctx } = nuevoLienzo(W, H);
   cabecera(ctx, W, d.chips, P, extra.logo, "Casco de vidrio · Comparativo por ubicación",
-    `Estibas por ubicación · conteo del ${dmy(d.fA)} contra el del ${dmy(d.fB)}${d.estado ? ` · ${d.estado}` : ""}`);
+    `${TXT_U[d.unidad]} por ubicación · conteo del ${dmy(d.fA)} contra el del ${dmy(d.fB)}${d.estado ? ` · ${d.estado}` : ""}`);
 
   const x0 = M, ancho = W - 2 * M;
   const fijas = [110, 170, 0, 130, 170, 170, 130, 130, 130];
@@ -263,7 +264,7 @@ export function dibujarTablaComparativo(d: DatosTablaFoto, extra: Extra = {}): H
 
   // título y FECHA
   ctx.fillStyle = XL.titulo; ctx.fillRect(x0, y, ancho, TIT);
-  FUENTE_PESO(700); ctx.fillStyle = "#000"; ctx.textAlign = "left"; ctx.fillText("Suma de TOTAL ESTIBAS", x0 + 10, y + TIT / 2);
+  FUENTE_PESO(700); ctx.fillStyle = "#000"; ctx.textAlign = "left"; ctx.fillText(`Suma de TOTAL ${TXT_U[d.unidad].toUpperCase()}`, x0 + 10, y + TIT / 2);
   ctx.textAlign = "center"; ctx.fillText("FECHA", xs[6] + (ws[6] + ws[7]) / 2, y + TIT / 2);
   y += TIT;
   // encabezados
@@ -275,13 +276,14 @@ export function dibujarTablaComparativo(d: DatosTablaFoto, extra: Extra = {}): H
   ctx.fillStyle = XL.oro; ctx.fillRect(x0, y + CAB - 1, ancho, 1);
   y += CAB;
 
+  const fu = d.unidad === "est" ? fmt.est : d.unidad === "hl" ? fmt.hl : fmt.hl0;
   const celdaDif = (v: number, yy: number, fondoTotal: boolean) => {
     const sube = v > 0.0005;
     ctx.fillStyle = sube ? XL.sube : XL.bien; ctx.fillRect(xs[8], yy, ws[8], FILA);
     FUENTE_PESO(fondoTotal ? 800 : 700); ctx.fillStyle = sube ? XL.subeTinta : XL.bienTinta; ctx.textAlign = "center";
-    ctx.fillText(Math.abs(v) < 0.0005 ? "0" : (v > 0 ? "" : "-") + fmt.est(Math.abs(v)), cx(8), yy + FILA / 2);
+    ctx.fillText(Math.abs(v) < 0.0005 ? "0" : (v > 0 ? "" : "-") + fu(Math.abs(v)), cx(8), yy + FILA / 2);
   };
-  const num = (v: number) => (Math.abs(v) < 0.0005 ? "" : fmt.est(v));
+  const num = (v: number) => (Math.abs(v) < 0.0005 ? "" : fu(v));
 
   let n = 0;
   for (const g of d.tabla.grupos) {
@@ -314,13 +316,13 @@ export function dibujarTablaComparativo(d: DatosTablaFoto, extra: Extra = {}): H
   ctx.fillStyle = XL.cab; ctx.fillRect(x0, y, ancho, GEN);
   ctx.fillStyle = XL.oro; ctx.fillRect(x0, y, ancho, 2);
   letra(ctx, 800, 15); ctx.fillStyle = "#000"; ctx.textAlign = "left"; ctx.fillText("Total general", x0 + 10, y + GEN / 2 + 1);
-  ctx.textAlign = "center"; ctx.fillText(fmt.est(d.tabla.a), cx(6), y + GEN / 2 + 1); ctx.fillText(fmt.est(d.tabla.b), cx(7), y + GEN / 2 + 1);
+  ctx.textAlign = "center"; ctx.fillText(fu(d.tabla.a), cx(6), y + GEN / 2 + 1); ctx.fillText(fu(d.tabla.b), cx(7), y + GEN / 2 + 1);
   const sub = d.tabla.d > 0.0005;
   ctx.fillStyle = sub ? XL.sube : XL.bien; ctx.fillRect(xs[8], y + 2, ws[8], GEN - 2);
-  ctx.fillStyle = sub ? XL.subeTinta : XL.bienTinta; ctx.fillText(Math.abs(d.tabla.d) < 0.0005 ? "0" : (d.tabla.d > 0 ? "" : "-") + fmt.est(Math.abs(d.tabla.d)), cx(8), y + GEN / 2 + 1);
+  ctx.fillStyle = sub ? XL.subeTinta : XL.bienTinta; ctx.fillText(Math.abs(d.tabla.d) < 0.0005 ? "0" : (d.tabla.d > 0 ? "" : "-") + fu(Math.abs(d.tabla.d)), cx(8), y + GEN / 2 + 1);
 
   void TINTA; void anchoEspaciado;
-  pie(ctx, W, H, extra.generado ?? new Date(), "Estibas del conteo físico. Rosa: subió; verde: igual o bajó.");
+  pie(ctx, W, H, extra.generado ?? new Date(), `${TXT_U[d.unidad]} del conteo físico. Rosa: subió; verde: igual o bajó.`);
   return c;
 }
 

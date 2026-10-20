@@ -7,7 +7,7 @@ import { ejeNice, viajesSerpro, type Punto } from "@/modulos/casco/serie";
 import { colorSitio, corta, enOrdenInforme, larga } from "@/modulos/casco/informe";
 import { comparar, nombreEstado, valorDe, type FilaCmp, type Medida, type Unidad } from "@/modulos/casco/comparar";
 import type { DatosComparativo } from "@/modulos/casco/foto-comparativo";
-import { TablaUbicacion, useTablaUbicacion, type ConteoDia } from "./TablaUbicacion";
+import { TablaUbicacion, useTablaUbicacion, type ConteoDia, type Factores } from "./TablaUbicacion";
 import { BotonesComparativo } from "./BotonesComparativo";
 
 /**
@@ -68,8 +68,19 @@ export function Comparativo({ puntos, sitios, nombres, cajasPorEstiba, errorLect
     () => comparar(puntos.filter((p) => vis.includes(p.ubicacion)), diaA, diaB, cajasPorEstiba, enOrdenInforme),
     [puntos, vis, diaA, diaB, cajasPorEstiba]);
 
+  /* Cuánto vale una estiba de cada material, en HL (sale del mismo casco registrado) y en cajas (del maestro):
+     la Tabla viene del conteo en estibas y con esto sigue la unidad que se escoja arriba. */
+  const factores = useMemo<Factores>(() => {
+    const hl: Record<string, number> = {}, est: Record<string, number> = {};
+    for (const p of puntos) { const e = (p.inventario ?? 0) + (p.baja ?? 0); if (e > 0) { hl[p.sku] = (hl[p.sku] ?? 0) + p.hl; est[p.sku] = (est[p.sku] ?? 0) + e } }
+    const f: Factores = {};
+    for (const sku of new Set([...Object.keys(est), ...Object.keys(cajasPorEstiba)])) {
+      f[sku] = { hl: est[sku] ? hl[sku] / est[sku] : null, caj: cajasPorEstiba[sku] ?? null };
+    }
+    return f;
+  }, [puntos, cajasPorEstiba]);
   /* Los datos de la Tabla (y su foto) viven aquí para poder sacar la foto desde cualquier pestaña. */
-  const tabla = useTablaUbicacion(conteos, diaA, diaB, pestana === "tabla");
+  const tabla = useTablaUbicacion(conteos, diaA, diaB, pestana === "tabla", unidad, factores);
 
   const atajos: { k: string; t: string; a: string; b: string }[] = ultima ? [
     { k: "ant", t: "Último vs anterior", a: fechas[fechas.length - 2] ?? ultima, b: ultima },
