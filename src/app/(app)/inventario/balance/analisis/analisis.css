@@ -275,3 +275,8 @@
 .ad .ad-ex-cab small { flex: 1; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
 .ad .ad-ex-ver { padding: 4px 10px }
 .ad .ad-ex-ver + .ad-tabla-caja, .ad .ad-ex .ad-tabla-caja { margin-top: 8px }
+
+/* Los productos contados que no sumaron caja plástica: cerrado se ve una línea; abierto, cuáles y por qué. */
+.ad .ad-sincaja { margin: 0 0 10px; padding: 8px 12px; background: #fff; border: 1px solid var(--fe-linea); border-left: 4px solid #B42318; font-size: 12.5px }
+.ad .ad-sincaja summary { cursor: pointer }
+.ad .ad-sincaja table { margin-top: 8px; width: 100% }

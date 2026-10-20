@@ -56,7 +56,10 @@ export type Analisis = {
   /** EN LÍNEA: por código de envase o de caja plástica, los SKU que el plan de envase pone a correr ese día.
       Esos códigos son difíciles de cuadrar porque la línea está tomando envase mientras se cuenta. */
   enLinea?: Record<string, EnLinea[]>;
+  /** Los productos contados que NO sumaron caja plástica, con el motivo: para ver si falta alguno. */
+  sinCaja?: SinCaja[];
 };
+export type SinCaja = { codigo: string; nombre: string; cajas: number; motivo: string };
 /** Un SKU del plan de envase que corre ese día y usa el envase (o la caja) de la fila. */
 export type EnLinea = { tren: string; sap: string; sku: string; turnos: number[]; por: "envase" | "caja" };
 export type FilaExistencia = { codigo: string; descripcion: string; libre: number | null; calidad: number | null; bloqueado: number | null; total: number };
@@ -148,6 +151,7 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     return c.length === 1 ? String(c[0].codigo) : null;
   };
   const cajaPorPresentacionUsada = new Map<string, string>();
+  const sinCajaMap = new Map<string, SinCaja>();
   /* Las estibas de lo que NO entra a este análisis (Fábrica, AG17, AG16): ya están cuadradas en su propio Cuadre SAP; se anotan aparte para el total. */
   const estFuera = new Map<string, number>();
   const vacio = (): TotConteo => ({ renglones: 0, cajas: 0, estibas: 0, plasticas: 0 });
@@ -197,6 +201,12 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
       let cajaP: string | null = env ? (envFuera ? null : M.get(env)?.caja ?? null) : CAJA_DE_PRODUCTO_SIN_ENVASE[c] ?? null;
       if (!cajaP && !envFuera) { const g = cajaPorPresentacion(P.get(c)); if (g) { cajaP = g; cajaPorPresentacionUsada.set(c, g) } }
       if (!cajaP && !envFuera) prodSinEnvase.add(c);
+      if (!cajaP && cajas) {
+        const motivo = envFuera ? `su envase ${env} está excluido o su caja no se cuenta`
+          : !env ? "no tiene envase en el maestro (lata, PET, no retornable o falta completarlo)" : `su envase ${env} no tiene caja plástica en el maestro`;
+        const a = sinCajaMap.get(c) ?? { codigo: c, nombre: nombre(c), cajas: 0, motivo };
+        a.cajas += cajas; sinCajaMap.set(c, a);
+      }
       if (cajaP && cajas) { suma("conteo", String(cajaP), pre(`CONTEO · en producto ${c} ${nombre(c)}`), cajas); cajasProducto += cajas; prodConCaja.add(c) }
       continue;
     }
@@ -448,7 +458,7 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   /* Solo informa: el plan no mueve ningún número del análisis, así que si no hay plan ese día no se muestra nada. */
   if (sku.size) fuentes.push({ nombre: "Plan de envase", ok: true, detalle: `${sku.size} SKU en línea ese día · ${new Set([...sku.values()].map((x) => x.tren)).size} trenes${sinEnvase.length ? ` · sin envase en el maestro: ${sinEnvase.join(", ")}` : ""}` });
 
-  return { fecha, filas, fuentes, avisos, novedades, noEntran: noEntran.sort(), faltaSql, carga, contados, existencias, enLinea };
+  return { fecha, filas, fuentes, avisos, novedades, noEntran: noEntran.sort(), faltaSql, carga, contados, existencias, enLinea, sinCaja: [...sinCajaMap.values()].map((x) => ({ ...x, cajas: Math.round(x.cajas) })).sort((x, y) => y.cajas - x.cajas) };
 }
 
 

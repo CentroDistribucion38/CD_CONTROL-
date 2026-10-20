@@ -169,6 +169,13 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
             </button>
           )}
         </div>
+        {(datos.sinCaja?.length ?? 0) > 0 && (
+          <details className="ad-sincaja">
+            <summary><b>{datos.sinCaja!.length} {datos.sinCaja!.length === 1 ? "producto contado no suma" : "productos contados no suman"} caja plástica</b> · {n(datos.sinCaja!.reduce((t, x) => t + x.cajas, 0))} cajas · ver cuáles y por qué</summary>
+            <table className="ad-t"><thead><tr><th>Código</th><th>Producto</th><th className="n">Cajas</th><th>Por qué no suma</th></tr></thead>
+              <tbody>{datos.sinCaja!.map((x) => <tr key={x.codigo}><td className="mono">{x.codigo}</td><td>{x.nombre}</td><td className="n">{n(x.cajas)}</td><td>{x.motivo}</td></tr>)}</tbody></table>
+          </details>
+        )}
         {nEnLinea > 0 && (
           <p className="ad-enl-ley"><span className="ad-enl">EN LÍNEA</span> {nEnLinea} {nEnLinea === 1 ? "código está" : "códigos están"} en producción ese día según el plan de envase: la línea los está tomando mientras se cuenta, así que su diferencia puede no ser real. Pasa el mouse por la etiqueta para ver el SKU y el turno.</p>
         )}
