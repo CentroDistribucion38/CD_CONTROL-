@@ -6,6 +6,7 @@ import { avanceDesdeBD, type AvanceBD, type AvanceHoja } from "@/modulos/inventa
 import "../fefo.css";
 import "../corte/corte.css";
 import "./fiscal.css";
+import "./torre.css";
 import { Fiscal, type FiscalBD } from "./Fiscal";
 
 export const dynamic = "force-dynamic";

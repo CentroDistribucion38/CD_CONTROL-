@@ -4,26 +4,61 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { createClient } from "@/lib/supabase/client";
 import { traducirError } from "@/lib/errores";
 import {
-  avanceDesdeBD, estadoHoja, filaDesdeBD, ordenarCruce, puedeCruzar, resumenCruce, textoEquipo, titularCruce,
+  avanceDesdeBD, estadoHoja, filaDesdeBD, ordenarCruce, puedeCruzar, resumenCruce, textoEquipo, textoVenc, titularCruce, TEXTO_FILA,
   type AvanceBD, type AvanceHoja, type FilaCruce, type FilaCruceBD, type ResumenCruce,
 } from "@/modulos/inventario/fiscal-cruce";
 import type { HojaForm } from "@/modulos/inventario/fiscal";
 
 /* ===================================================================
-   EL PANEL DEL FISCAL · una tarjeta por pareja, en vivo
+   EL INVENTARIO FISCAL, TODO EN UN SOLO LUGAR · TORRE DE CONTROL
 
-   El fiscal ve todas las hojas a la vez y cómo va cada pareja SIN ver lo que contó
-   cada persona (el conteo sigue a ciegas):
-     · gris   — sin empezar
-     · ámbar  — contando, o ya terminó una y se espera a la otra
-     · verde  — COMPLETADA: las dos terminaron y todo coincide
-     · rojo   — las dos terminaron y HAY DIFERENCIAS: dice en qué ubicaciones
-   Solo cuando las dos personas terminaron se cruza la hoja (la base no deja antes).
+   Un inventario fiscal se ve completo en una pantalla:
+     · arriba, el avance de todo (anillo, contadores y «requiere al fiscal»);
+     · pestañas: TORRE DE CONTROL (una tarjeta por pareja, en vivo) · PAREJAS Y HOJAS
+       (donde se arman y se editan las parejas) · REVISIÓN (el cruce de cada hoja).
+
+   El conteo sigue a ciegas: la torre solo muestra cuántos renglones lleva cada
+   persona y si terminó. Lo contado aparece únicamente cuando las dos terminaron
+   (el cruce), y la base no lo entrega antes.
+
+   Estados de una pareja (siempre con su palabra y su icono, nunca solo color):
+     sin empezar · contando / esperando a la otra · completada (todo coincide) · con diferencias.
    Se actualiza sola cada 15 segundos mientras la pantalla está a la vista.
    =================================================================== */
+
+/* Iconos de línea (24×24). Siempre acompañan a una palabra. */
+const ICONOS = {
+  panel: '<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>',
+  parejas: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  persona: '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  ok: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/>',
+  alerta: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  reloj: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  pin: '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
+  bajar: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
+  refrescar: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+  lapiz: '<path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>',
+  ojo: '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
+  ojoNo: '<path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><path d="M2 2l20 20"/>',
+  papelera: '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>',
+  lista: '<path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/>',
+  escudo: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
+  calendario: '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',
+  mas: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+  vacio: '<circle cx="12" cy="12" r="10"/><path d="M8 12h8"/>',
+} as const;
+export type IcoNombre = keyof typeof ICONOS;
+export function Ico({ n, tam = 18 }: { n: IcoNombre; tam?: number }) {
+  return (
+    <svg className="vf-ico" width={tam} height={tam} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
+         strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" dangerouslySetInnerHTML={{ __html: ICONOS[n] }} />
+  );
+}
+
 type Resultado = { filas: FilaCruce[] } | { error: string };
-type Filtro = "todas" | "dif" | "ok" | "proceso";
 type Tipo = "sin" | "proceso" | "ok" | "dif";
+type Pestana = "torre" | "parejas" | "revision";
+type Filtro = "todas" | "proceso" | "ok" | "dif";
 
 /** Las ubicaciones con diferencia, con cuántos renglones no coinciden en cada una. */
 export function ubicacionesConDiferencia(filas: FilaCruce[]): { ubicacion: string; renglones: number }[] {
@@ -32,25 +67,14 @@ export function ubicacionesConDiferencia(filas: FilaCruce[]): { ubicacion: strin
   return [...m].map(([ubicacion, renglones]) => ({ ubicacion, renglones }))
     .sort((a, b) => a.ubicacion.localeCompare(b.ubicacion, "es", { numeric: true }));
 }
-
 const MAX_UBICACIONES = 8;
 
-export function PanelFiscal({ fiscalId, hojas, avanceInicial, quien, onDetalle, detalle, onCerrar }: {
-  fiscalId: string;
-  hojas: HojaForm[];
-  avanceInicial: Record<number, AvanceHoja>;
-  quien: (id: string) => string;
-  onDetalle: (numero: number) => void;
-  /** El cruce abierto (el detalle renglón por renglón), que dibuja la pantalla madre. */
-  detalle: ReactNode;
-  onCerrar: () => void;
-}) {
+/** El avance y el cruce de las hojas, renovados cada 15 s. Solo se cruzan las hojas donde las dos personas terminaron. */
+function useTorre(fiscalId: string, avanceInicial: Record<number, AvanceHoja>, activo: boolean) {
   const [avance, setAvance] = useState<Record<number, AvanceHoja>>(avanceInicial);
   const [cruces, setCruces] = useState<Record<number, Resultado>>({});
   const [hora, setHora] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [filtro, setFiltro] = useState<Filtro>("todas");
-  const nf = useMemo(() => new Intl.NumberFormat("es-CO"), []);
 
   const cargar = useCallback(async () => {
     const sb = createClient();
@@ -61,7 +85,6 @@ export function PanelFiscal({ fiscalId, hojas, avanceInicial, quien, onDetalle, 
     const av: Record<number, AvanceHoja> = {};
     for (const a of mias) av[a.numero] = avanceDesdeBD(a);
     setAvance(av);
-    /* Solo se cruzan las hojas donde las dos terminaron. */
     const listas = mias.filter((a) => puedeCruzar(av[a.numero]));
     const res = await Promise.all(listas.map(async (a): Promise<[number, Resultado]> => {
       const r = await sb.rpc("inv_fiscal_cruce", { p_hoja: a.hoja_id });
@@ -73,12 +96,63 @@ export function PanelFiscal({ fiscalId, hojas, avanceInicial, quien, onDetalle, 
   }, [fiscalId]);
 
   useEffect(() => {
+    if (!activo) return;
     cargar();
     const t = setInterval(() => { if (!document.hidden) cargar() }, 15_000);
     return () => clearInterval(t);
-  }, [cargar]);
+  }, [activo, cargar]);
 
-  /* Lo que dice cada tarjeta. */
+  return { avance, cruces, hora, error, cargar };
+}
+
+/** El anillo del avance: verde = completadas, rojo = con diferencias, ámbar = en conteo, el resto es el fondo. */
+function Anillo({ ok, dif, proceso, total }: { ok: number; dif: number; proceso: number; total: number }) {
+  const r = 54, c = 2 * Math.PI * r;
+  const tramo = (n: number, desde: number, clase: string) => total > 0 && n > 0 ? (
+    <circle key={clase} className={"vf-seg " + clase} cx="70" cy="70" r={r} fill="none" strokeWidth="14"
+            strokeDasharray={`${(n / total) * c} ${c}`} strokeDashoffset={-(desde / total) * c} transform="rotate(-90 70 70)" />
+  ) : null;
+  const pct = total > 0 ? Math.round((ok / total) * 100) : 0;
+  return (
+    <svg className="vf-anillo" width="150" height="150" viewBox="0 0 140 140" role="img" aria-label={`${pct}% de las hojas completadas`}>
+      <circle className="vf-seg fondo" cx="70" cy="70" r={r} fill="none" strokeWidth="14" />
+      {tramo(ok, 0, "ok")}{tramo(dif, ok, "dif")}{tramo(proceso, ok + dif, "proceso")}
+      <text x="70" y="68" textAnchor="middle" className="vf-pct">{pct}%</text>
+      <text x="70" y="88" textAnchor="middle" className="vf-pct-et">completado</text>
+    </svg>
+  );
+}
+
+function Kpi({ icono, valor, et, tono = "" }: { icono: IcoNombre; valor: number; et: string; tono?: string }) {
+  return (
+    <div className={"vf-kpi " + tono}>
+      <span className="vf-kpi-ico"><Ico n={icono} tam={18} /></span>
+      <b className="vf-kpi-v">{valor.toLocaleString("es-CO")}</b>
+      <small className="vf-kpi-et">{et}</small>
+    </div>
+  );
+}
+
+const ICO_TIPO: Record<Tipo, IcoNombre> = { sin: "vacio", proceso: "reloj", ok: "ok", dif: "alerta" };
+
+export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, visible, hojas, avanceInicial, conAvance, quien, acciones, parejas }: {
+  fiscalId: string; nombre: string; fechaTexto: string; cuando: string; abierto: boolean; visible: boolean;
+  hojas: HojaForm[]; avanceInicial: Record<number, AvanceHoja>;
+  /** false = el inventario no está visible en Contar (o falta el SQL del cruce): sin avance en vivo. */
+  conAvance: boolean;
+  quien: (id: string) => string;
+  /** Los botones de la cabecera (Excel, mostrar en Contar, editar, eliminar). */
+  acciones: ReactNode;
+  /** La pestaña «Parejas y hojas»: la tabla de parejas y su edición. */
+  parejas: ReactNode;
+}) {
+  const [pestana, setPestana] = useState<Pestana>("torre");
+  const [filtro, setFiltro] = useState<Filtro>("todas");
+  const [foco, setFoco] = useState<number | null>(null);
+  const [verTodo, setVerTodo] = useState<Record<number, boolean>>({});
+  const { avance, cruces, hora, error, cargar } = useTorre(fiscalId, avanceInicial, conAvance);
+  const nf = useMemo(() => new Intl.NumberFormat("es-CO"), []);
+
   const tarjetas = hojas.map((h) => {
     const av = avance[h.numero];
     const estado = av ? estadoHoja(av) : "sin-empezar";
@@ -89,14 +163,32 @@ export function PanelFiscal({ fiscalId, hojas, avanceInicial, quien, onDetalle, 
     else if (estado !== "sin-empezar") tipo = "proceso";
     return { h, av, estado, cr, resumen, tipo };
   });
+  type Tarjeta = (typeof tarjetas)[number];
+  const total = tarjetas.length;
   const cuenta = {
-    dif: tarjetas.filter((t) => t.tipo === "dif").length,
     ok: tarjetas.filter((t) => t.tipo === "ok").length,
-    proceso: tarjetas.filter((t) => t.tipo === "proceso" || t.tipo === "sin").length,
+    dif: tarjetas.filter((t) => t.tipo === "dif").length,
+    proceso: tarjetas.filter((t) => t.tipo === "proceso").length,
+    sin: tarjetas.filter((t) => t.tipo === "sin").length,
   };
-  const vistas = tarjetas.filter((t) => filtro === "todas" ? true : filtro === "dif" ? t.tipo === "dif" : filtro === "ok" ? t.tipo === "ok" : (t.tipo === "proceso" || t.tipo === "sin"));
+  let ubOk = 0, ubDif = 0;
+  for (const t of tarjetas) {
+    if (!t.cr || !("filas" in t.cr)) continue;
+    const m = new Map<string, boolean>();
+    for (const f of t.cr.filas) m.set(f.ubicacion, (m.get(f.ubicacion) ?? false) || f.estado !== "COINCIDE");
+    for (const v of m.values()) { if (v) ubDif++; else ubOk++ }
+  }
+  const renglones = tarjetas.reduce((s, t) => s + (t.av ? t.av.olRenglones + t.av.bavariaRenglones : 0), 0);
 
-  const texto = (t: (typeof tarjetas)[number]): string => {
+  const titulo = total === 0 ? "Arma las parejas para empezar"
+    : !conAvance ? "Muéstralo en Contar para ver el avance en vivo"
+    : cuenta.ok === total ? "Todas las hojas completadas"
+    : `${cuenta.ok} de ${total} ${total === 1 ? "hoja completada" : "hojas completadas"}`;
+  const subtitulo = !conAvance ? "Cuando lo muestres en Contar, cada pareja empieza a contar y aquí ves cómo va."
+    : ubOk + ubDif > 0 ? `${nf.format(ubOk)} ${ubOk === 1 ? "ubicación coincide" : "ubicaciones coinciden"} · ${nf.format(ubDif)} con diferencia`
+    : "Las ubicaciones aparecen cuando las dos personas de una hoja terminan.";
+
+  const texto = (t: Tarjeta): string => {
     if (t.tipo === "ok") return "Completada · todo coincide";
     if (t.tipo === "dif") return "Con diferencias";
     if (t.estado === "lista") return "Cruzando…";
@@ -104,76 +196,210 @@ export function PanelFiscal({ fiscalId, hojas, avanceInicial, quien, onDetalle, 
     if (t.estado === "contando") return "Contando";
     return "Sin empezar";
   };
+  const vistas = tarjetas.filter((t) => filtro === "todas" || (filtro === "proceso" ? (t.tipo === "proceso" || t.tipo === "sin") : t.tipo === filtro));
+
+  /* Al venir de una tarjeta roja, la revisión se abre en esa hoja. */
+  useEffect(() => {
+    if (pestana !== "revision" || foco === null) return;
+    document.getElementById("vf-h" + foco)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [pestana, foco]);
+  const abrirRevision = (n: number) => { setFoco(n); setPestana("revision") };
+
+  const persona = (id: string, et: string, rengl: number | undefined, termino: string | null | undefined, hay: boolean) => {
+    const fin = !!termino;
+    return (
+      <li className="vf-persona">
+        <span className="vf-rol"><Ico n="persona" tam={13} /> {et}</span>
+        <b>{id ? quien(id) : <em>sin asignar</em>}</b>
+        {hay && id && rengl !== undefined && (
+          <small className={fin ? "fin" : ""}><Ico n={fin ? "ok" : "reloj"} tam={13} /> {textoEquipo(rengl, termino ?? null)}</small>
+        )}
+      </li>
+    );
+  };
 
   const chip = (k: Filtro, et: string, n: number, clase = "") => (
-    <button type="button" key={k} className={"fp-chip " + clase} aria-pressed={filtro === k} onClick={() => setFiltro(filtro === k && k !== "todas" ? "todas" : k)}>
+    <button type="button" key={k} className={"vf-chip " + clase} aria-pressed={filtro === k} onClick={() => setFiltro(filtro === k && k !== "todas" ? "todas" : k)}>
       <b>{n}</b> {et}
     </button>
   );
 
+  const cruzadas = tarjetas.filter((t) => t.resumen && t.cr && "filas" in t.cr)
+    .sort((a, b) => (a.tipo === "dif" ? 0 : 1) - (b.tipo === "dif" ? 0 : 1) || a.h.numero - b.h.numero);
+
   return (
-    <section className="fp" aria-label="Panel del fiscal">
-      <div className="fp-cab">
-        <div>
-          <b className="fp-tit">Panel del fiscal</b>
-          <small className="fp-sub">
-            {hora ? `Actualizado ${hora.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", second: "2-digit" })} · se renueva solo cada 15 s` : "Cargando…"}
-          </small>
+    <section className="vf" aria-label={`Inventario fiscal ${nombre}`}>
+      <header className="vf-cab">
+        <div className="vf-tit">
+          <p className="vf-ojo">Inventario fiscal · por parejas</p>
+          <h2>{nombre}</h2>
+          <p className="vf-meta">
+            <Ico n="calendario" tam={15} /> {fechaTexto} · {cuando}
+            <span className={"vf-tag " + (abierto ? "abierto" : "cerrado")}>{abierto ? "Abierto" : "Cerrado"}</span>
+            {visible && <span className="vf-tag visible"><Ico n="ojo" tam={12} /> Visible en Contar</span>}
+          </p>
         </div>
-        <div className="fp-acc">
-          <button type="button" className="btn plano" onClick={cargar}>Actualizar ahora</button>
-          <button type="button" className="btn plano" onClick={onCerrar}>Cerrar panel</button>
+        <div className="vf-acc">{acciones}</div>
+      </header>
+
+      <div className="vf-hero">
+        <Anillo ok={cuenta.ok} dif={cuenta.dif} proceso={cuenta.proceso} total={total} />
+        <div className="vf-hero-txt">
+          <p className="vf-hero-ojo"><Ico n="escudo" tam={15} /> Torre de control</p>
+          <h3>{titulo}</h3>
+          <p className="vf-hero-sub">{subtitulo}</p>
+          <div className="vf-kpis">
+            <Kpi icono="parejas" valor={total} et={total === 1 ? "pareja" : "parejas"} />
+            <Kpi icono="reloj" valor={cuenta.proceso + cuenta.sin} et="en conteo" tono="proceso" />
+            <Kpi icono="ok" valor={cuenta.ok} et={cuenta.ok === 1 ? "completada" : "completadas"} tono="ok" />
+            <Kpi icono="alerta" valor={cuenta.dif} et={cuenta.dif > 0 ? "con diferencias · te esperan" : "con diferencias"} tono={cuenta.dif > 0 ? "dif" : ""} />
+            <Kpi icono="lista" valor={renglones} et="renglones contados" />
+          </div>
         </div>
+        {conAvance && (
+          <div className="vf-vivo">
+            <span className="vf-pulso" aria-hidden="true" /> En vivo
+            <small>{hora ? `Actualizado ${hora.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : "Cargando…"}</small>
+            <button type="button" className="vf-btn-claro" onClick={cargar}><Ico n="refrescar" tam={15} /> Actualizar</button>
+          </div>
+        )}
       </div>
       {error && <p className="cl-mal" role="alert">{error}</p>}
-      <div className="fp-resumen" role="group" aria-label="Filtrar las tarjetas">
-        {chip("todas", tarjetas.length === 1 ? "pareja" : "parejas", tarjetas.length)}
-        {chip("proceso", "en conteo", cuenta.proceso, "proceso")}
-        {chip("ok", cuenta.ok === 1 ? "completada" : "completadas", cuenta.ok, "ok")}
-        {chip("dif", cuenta.dif === 1 ? "con diferencias" : "con diferencias", cuenta.dif, "dif")}
+
+      <div className="vf-tabs" role="tablist" aria-label="Secciones del inventario fiscal">
+        <button type="button" role="tab" aria-selected={pestana === "torre"} className="vf-tab" onClick={() => setPestana("torre")}><Ico n="panel" tam={17} /> Torre de control</button>
+        <button type="button" role="tab" aria-selected={pestana === "parejas"} className="vf-tab" onClick={() => setPestana("parejas")}><Ico n="parejas" tam={17} /> Parejas y hojas <span className="vf-cont">{total}</span></button>
+        <button type="button" role="tab" aria-selected={pestana === "revision"} className="vf-tab" onClick={() => setPestana("revision")}>
+          <Ico n="alerta" tam={17} /> Revisión de diferencias {cuenta.dif > 0 && <span className="vf-cont rojo">{cuenta.dif}</span>}
+        </button>
       </div>
-      <div className="fp-grid">
-        {vistas.map((t) => {
-          const ubic = t.cr && "filas" in t.cr && t.tipo === "dif" ? ubicacionesConDiferencia(t.cr.filas) : [];
-          return (
-            <article key={t.h.numero} className={"fp-card " + t.tipo}>
-              <header className="fp-card-cab">
-                <b>Hoja {t.h.numero}</b>
-                <i className={"fp-estado " + t.tipo}>{texto(t)}</i>
-              </header>
-              <dl className="fp-pareja">
-                <div><dt>Operador logístico</dt>
-                  <dd>{t.h.ol ? quien(t.h.ol) : <em>sin asignar</em>}
-                    {t.av && t.h.ol && <small>{textoEquipo(t.av.olRenglones, t.av.olTermino)}</small>}</dd></div>
-                <div><dt>Bavaria</dt>
-                  <dd>{t.h.bavaria ? quien(t.h.bavaria) : <em>sin asignar</em>}
-                    {t.av && t.h.bavaria && <small>{textoEquipo(t.av.bavariaRenglones, t.av.bavariaTermino)}</small>}</dd></div>
-              </dl>
-              {t.tipo === "ok" && t.resumen && (
-                <p className="fp-ok">{nf.format(t.resumen.total)} {t.resumen.total === 1 ? "renglón" : "renglones"} iguales.</p>
-              )}
-              {t.tipo === "dif" && t.resumen && (
-                <div className="fp-dif">
-                  <p className="fp-dif-tit">{titularCruce(t.resumen)}</p>
-                  <p className="fp-dif-et">Ubicaciones con diferencia ({ubic.length})</p>
-                  <ul className="fp-ubic">
-                    {ubic.slice(0, MAX_UBICACIONES).map((u) => (
-                      <li key={u.ubicacion}><b>{u.ubicacion}</b>{u.renglones > 1 && <small> · {u.renglones}</small>}</li>
-                    ))}
-                    {ubic.length > MAX_UBICACIONES && <li className="mas">+{ubic.length - MAX_UBICACIONES} más</li>}
+
+      {pestana === "torre" && (
+        <div role="tabpanel">
+          {total === 0 ? (
+            <p className="fe-vacio">Todavía no hay hojas. Ve a «Parejas y hojas» para armarlas.</p>
+          ) : (
+            <>
+              <div className="vf-filtros" role="group" aria-label="Filtrar las tarjetas">
+                {chip("todas", total === 1 ? "pareja" : "parejas", total)}
+                {chip("proceso", "en conteo", cuenta.proceso + cuenta.sin)}
+                {chip("ok", cuenta.ok === 1 ? "completada" : "completadas", cuenta.ok, "ok")}
+                {chip("dif", "con diferencias", cuenta.dif, "dif")}
+              </div>
+              <div className="vf-grid">
+                {vistas.map((t) => {
+                  const ubic = t.cr && "filas" in t.cr && t.tipo === "dif" ? ubicacionesConDiferencia(t.cr.filas) : [];
+                  return (
+                    <article key={t.h.numero} className={"vf-card " + t.tipo}>
+                      <header className="vf-card-cab">
+                        <span className={"vf-card-ico " + t.tipo}><Ico n={ICO_TIPO[t.tipo]} tam={18} /></span>
+                        <h3>Hoja {t.h.numero}</h3>
+                        <span className={"vf-estado " + t.tipo}>{texto(t)}</span>
+                      </header>
+                      <ul className="vf-pareja">
+                        {persona(t.h.ol, "Operador logístico", t.av?.olRenglones, t.av?.olTermino, !!t.av)}
+                        {persona(t.h.bavaria, "Bavaria", t.av?.bavariaRenglones, t.av?.bavariaTermino, !!t.av)}
+                      </ul>
+                      {t.tipo === "ok" && t.resumen && (
+                        <p className="vf-ok"><Ico n="ok" tam={15} /> {nf.format(t.resumen.total)} {t.resumen.total === 1 ? "renglón igual" : "renglones iguales"}</p>
+                      )}
+                      {t.tipo === "dif" && t.resumen && (
+                        <div className="vf-dif">
+                          <p className="vf-dif-tit"><Ico n="alerta" tam={15} /> {titularCruce(t.resumen)}</p>
+                          <p className="vf-dif-et">Ubicaciones con diferencia ({ubic.length})</p>
+                          <ul className="vf-ubic">
+                            {ubic.slice(0, MAX_UBICACIONES).map((u) => (
+                              <li key={u.ubicacion}><Ico n="pin" tam={13} /><b>{u.ubicacion}</b>{u.renglones > 1 && <small>· {u.renglones}</small>}</li>
+                            ))}
+                            {ubic.length > MAX_UBICACIONES && <li className="mas">+{ubic.length - MAX_UBICACIONES} más</li>}
+                          </ul>
+                        </div>
+                      )}
+                      {t.cr && "error" in t.cr && <p className="cl-mal" role="alert">{t.cr.error}</p>}
+                      {(t.tipo === "ok" || t.tipo === "dif") && (
+                        <button type="button" className={"btn vf-ver " + (t.tipo === "dif" ? "rojo" : "plano")} onClick={() => abrirRevision(t.h.numero)}>
+                          <Ico n={t.tipo === "dif" ? "alerta" : "lista"} tam={16} /> {t.tipo === "dif" ? "Ver diferencias" : "Ver el cruce"}
+                        </button>
+                      )}
+                    </article>
+                  );
+                })}
+                {vistas.length === 0 && <p className="fe-vacio">No hay tarjetas con ese filtro.</p>}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {pestana === "parejas" && <div role="tabpanel" className="vf-parejas">{parejas}</div>}
+
+      {pestana === "revision" && (
+        <div role="tabpanel" className="vf-revision">
+          {cruzadas.length === 0 ? (
+            <div className="vf-vacio">
+              <Ico n="escudo" tam={34} />
+              <b>Todavía no hay nada que revisar</b>
+              <p>Cuando las dos personas de una hoja pulsan «terminé», el cruce aparece aquí. Si todo coincide, la hoja se pinta de verde; si no, ves en qué ubicaciones.</p>
+            </div>
+          ) : cruzadas.map((t) => {
+            const filas = t.cr && "filas" in t.cr ? t.cr.filas : [];
+            const r = t.resumen as ResumenCruce;
+            const todo = !!verTodo[t.h.numero];
+            const vis = t.tipo === "ok" ? (todo ? filas : []) : (todo ? filas : filas.filter((f) => f.estado !== "COINCIDE"));
+            const ubic = ubicacionesConDiferencia(filas);
+            return (
+              <section key={t.h.numero} id={"vf-h" + t.h.numero} className={"vf-rev " + t.tipo}>
+                <header className="vf-rev-cab">
+                  <span className={"vf-card-ico " + t.tipo}><Ico n={ICO_TIPO[t.tipo]} tam={18} /></span>
+                  <h3>Hoja {t.h.numero}</h3>
+                  <span className={"vf-estado " + t.tipo}>{texto(t)}</span>
+                  <small className="vf-rev-quien">{t.h.ol ? quien(t.h.ol) : "—"} · {t.h.bavaria ? quien(t.h.bavaria) : "—"}</small>
+                </header>
+                <p className={"vf-rev-titular " + t.tipo}>{titularCruce(r)}</p>
+                <ul className="vf-cifras" aria-label="Resumen del cruce">
+                  <li><b>{r.coinciden}</b> coinciden</li>
+                  <li><b>{r.difieren}</b> {r.difieren === 1 ? "difiere" : "difieren"}</li>
+                  <li><b>{r.soloOl}</b> solo el operador</li>
+                  <li><b>{r.soloBavaria}</b> solo Bavaria</li>
+                </ul>
+                {t.tipo === "dif" && (
+                  <ul className="vf-ubic" aria-label="Ubicaciones con diferencia">
+                    {ubic.map((u) => <li key={u.ubicacion}><Ico n="pin" tam={13} /><b>{u.ubicacion}</b>{u.renglones > 1 && <small>· {u.renglones}</small>}</li>)}
                   </ul>
-                </div>
-              )}
-              {t.cr && "error" in t.cr && <p className="cl-mal" role="alert">{t.cr.error}</p>}
-              {(t.tipo === "ok" || t.tipo === "dif") && (
-                <button type="button" className="btn plano fp-ver" onClick={() => onDetalle(t.h.numero)}>Ver detalle del cruce</button>
-              )}
-            </article>
-          );
-        })}
-        {vistas.length === 0 && <p className="fe-vacio">No hay tarjetas con ese filtro.</p>}
-      </div>
-      {detalle}
+                )}
+                {(t.tipo === "ok" || r.coinciden > 0) && (
+                  <button type="button" className="btn plano vf-toggle" aria-pressed={todo} onClick={() => setVerTodo({ ...verTodo, [t.h.numero]: !todo })}>
+                    <Ico n="lista" tam={15} /> {todo ? (t.tipo === "ok" ? "Ocultar el detalle" : "Ocultar los que coinciden") : (t.tipo === "ok" ? "Ver el detalle" : `Ver también los ${r.coinciden} que coinciden`)}
+                  </button>
+                )}
+                {vis.length > 0 && (
+                  <div className="vf-tabla-caja">
+                    <table className="vf-tabla">
+                      <thead><tr><th>Estado</th><th>Sitio</th><th>Material</th><th>Vence</th><th>Operador</th><th>Bavaria</th><th>Diferencia</th></tr></thead>
+                      <tbody>
+                        {vis.map((f, i) => (
+                          <tr key={i} className={"vf-f " + f.estado.toLowerCase()}>
+                            <td data-et="Estado"><i className={"vf-ef " + f.estado.toLowerCase()}>{TEXTO_FILA[f.estado]}</i></td>
+                            <td data-et="Sitio"><b>{f.ubicacion}</b></td>
+                            <td data-et="Material"><b>{f.sku}</b> {f.material}</td>
+                            <td data-et="Vence">{textoVenc(f.vencDia, f.vencMes, f.vencAnio)}</td>
+                            <td data-et="Operador" className="num">{f.cajasOl === null ? "—" : nf.format(f.cajasOl)}</td>
+                            <td data-et="Bavaria" className="num">{f.cajasBavaria === null ? "—" : nf.format(f.cajasBavaria)}</td>
+                            <td data-et="Diferencia" className="num">{f.diferencia === 0 ? "0" : (f.diferencia > 0 ? "+" : "") + nf.format(f.diferencia)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
+            );
+          })}
+          {cruzadas.length > 0 && (
+            <p className="vf-pie">Cajas contadas (estibas × cajas por estiba + saldo + cajas sueltas). Lo que contó solo uno de los dos cuenta como diferencia.</p>
+          )}
+        </div>
+      )}
     </section>
   );
 }
