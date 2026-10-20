@@ -12,7 +12,7 @@ const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const v = (x: number | null) => (x == null ? "—" : nf.format(x));
 
 export function Existencias({ ex }: { ex: Ex | null | undefined }) {
-  const [abierta, setAbierta] = useState(true);
+  const [abierta, setAbierta] = useState(false);   // cerrada: la tabla se abre solo cuando se toca «Ver tabla»
   if (!ex) {
     return (
       <section className="ad-caja ad-ex">
