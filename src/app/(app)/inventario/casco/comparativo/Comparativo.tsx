@@ -42,9 +42,9 @@ const sumaDias = (iso: string, n: number) => {
 
 type Pestana = "dashboard" | "tabla";
 
-export function Comparativo({ puntos, sitios, nombres, cajasPorEstiba, errorLectura, conteos }: {
+export function Comparativo({ puntos, sitios, nombres, cajasPorEstiba, hlPorEstibaMaestro, errorLectura, conteos }: {
   puntos: Punto[]; sitios: SitioCasco[]; nombres: Record<string, string>;
-  cajasPorEstiba: Record<string, number | null>; errorLectura: string | null;
+  cajasPorEstiba: Record<string, number | null>; hlPorEstibaMaestro: Record<string, number | null>; errorLectura: string | null;
   /** Los conteos físicos cerrados (para la Tabla por ubicación). */
   conteos: ConteoDia[];
 }) {
@@ -74,11 +74,12 @@ export function Comparativo({ puntos, sitios, nombres, cajasPorEstiba, errorLect
     const hl: Record<string, number> = {}, est: Record<string, number> = {};
     for (const p of puntos) { const e = (p.inventario ?? 0) + (p.baja ?? 0); if (e > 0) { hl[p.sku] = (hl[p.sku] ?? 0) + p.hl; est[p.sku] = (est[p.sku] ?? 0) + e } }
     const f: Factores = {};
-    for (const sku of new Set([...Object.keys(est), ...Object.keys(cajasPorEstiba)])) {
-      f[sku] = { hl: est[sku] ? hl[sku] / est[sku] : null, caj: cajasPorEstiba[sku] ?? null };
+    for (const sku of new Set([...Object.keys(est), ...Object.keys(cajasPorEstiba), ...Object.keys(hlPorEstibaMaestro)])) {
+      /* El del casco registrado manda (es el del Tablero); si no hay, el del maestro. */
+      f[sku] = { hl: est[sku] ? hl[sku] / est[sku] : hlPorEstibaMaestro[sku] ?? null, caj: cajasPorEstiba[sku] ?? null };
     }
     return f;
-  }, [puntos, cajasPorEstiba]);
+  }, [puntos, cajasPorEstiba, hlPorEstibaMaestro]);
   /* Los datos de la Tabla (y su foto) viven aquí para poder sacar la foto desde cualquier pestaña. */
   const tabla = useTablaUbicacion(conteos, diaA, diaB, pestana === "tabla", unidad, factores);
 

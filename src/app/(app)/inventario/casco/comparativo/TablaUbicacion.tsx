@@ -4,7 +4,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { createClient } from "@/lib/supabase/client";
 import { porTandas } from "@/modulos/inventario/paginas";
 import { diaEfectivo, type Unidad } from "@/modulos/casco/comparar";
-import { armarTablaUbicacion, type RenglonConteo, type Sitio } from "@/modulos/casco/comparar-ubicacion";
+import { armarTablaUbicacion, estadoDe, type RenglonConteo, type Sitio } from "@/modulos/casco/comparar-ubicacion";
 import type { DatosTablaFoto } from "@/modulos/casco/foto-comparativo";
 
 /**
@@ -89,11 +89,17 @@ export function useTablaUbicacion(conteos: ConteoDia[], diaA: string, diaB: stri
   const cA = useMemo(() => convertir(fA ? datos[fA] ?? [] : []), [datos, fA, convertir]);
   const cB = useMemo(() => convertir(fB ? datos[fB] ?? [] : []), [datos, fB, convertir]);
   const rA = cA.filas, rB = cB.filas;
-  const sinFactor = useMemo(() => [...new Set([...cA.sin, ...cB.sin])].sort(), [cA, cB]);
   const listo = (!fA || !!datos[fA]) && (!fB || !!datos[fB]);
   const todosEstados = useMemo(() => armarTablaUbicacion(rA, rB, "", false).estados, [rA, rB]);
   const est = estado ?? (todosEstados.includes("LAVADO") ? "LAVADO" : "");
   const t = useMemo(() => armarTablaUbicacion(rA, rB, est, soloCambios), [rA, rB, est, soloCambios]);
+  /* Solo avisa de los materiales que están en el estado que se está viendo. */
+  const sinFactor = useMemo(() => {
+    const s = new Set([...cA.sin, ...cB.sin]);
+    if (!s.size) return [] as string[];
+    const crudos = [...(fA ? datos[fA] ?? [] : []), ...(fB ? datos[fB] ?? [] : [])];
+    return [...new Set(crudos.filter((r) => s.has(r.codigo) && (est === "" || estadoDe(r.estado_envase) === est)).map((r) => r.codigo))].sort();
+  }, [cA, cB, datos, fA, fB, est]);
 
   /** Para la foto: lee lo que falte y entrega la tabla tal como se ve (null si no hay dos conteos distintos). */
   const cargar = useCallback(async (): Promise<DatosTablaFoto | null> => {
@@ -132,7 +138,10 @@ export function TablaUbicacion({ tab }: { tab: TablaUbDatos }) {
       {fA && fB && fA === fB && <p className="cvc-nota">Los dos días caen en el mismo conteo ({dmy(fA)}): no hay nada que comparar. Escoge otra fecha arriba.</p>}
       {(!fA || !fB) && <p className="cvc-nota">No hay un conteo cerrado hasta {!fA ? "el día A" : "el día B"}: escoge una fecha más reciente.</p>}
       {unidad !== "est" && sinFactor.length > 0 && (
-        <p className="cvc-nota">Sin {unidad === "hl" ? "HL" : "cajas"} por estiba en el maestro, y por eso no salen aquí: {sinFactor.join(", ")}. Cámbialo a Estibas para verlos.</p>
+        <details className="cvc-nota cvc-sin">
+          <summary>{sinFactor.length} {sinFactor.length === 1 ? "material no sale" : "materiales no salen"} en {unidad === "hl" ? "HL" : "cajas"}: el maestro no trae su {unidad === "hl" ? "HL" : "cajas"} por estiba. Cámbialo a Estibas para verlos.</summary>
+          <span>{sinFactor.join(", ")}</span>
+        </details>
       )}
       {error && <p className="cl-mal" role="alert">No se pudo leer el conteo: {error}</p>}
       {cargando && !listo && <p className="cvc-nota" role="status">Leyendo los conteos…</p>}

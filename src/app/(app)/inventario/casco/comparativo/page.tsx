@@ -63,12 +63,15 @@ export default async function ComparativoCascoPage() {
   /* CAJAS POR ESTIBA, para pasar estibas a cajas: las del maestro de productos. El que no la trae sale
      sin cajas (nunca se inventa). */
   const { data: ps } = await supabase.from("productos")
-    .select("sku, cajas_por_estiba, unidades_por_estiba, unidades_por_caja").eq("activo", true).limit(3000);
+    .select("sku, cajas_por_estiba, unidades_por_estiba, unidades_por_caja, hl").eq("activo", true).limit(3000);
   const cajasPorEstiba: Record<string, number | null> = {};
+  /* HL de una estiba según el maestro (HL de una unidad × unidades por estiba): para los materiales que no son casco. */
+  const hlPorEstibaMaestro: Record<string, number | null> = {};
   for (const p of ps ?? []) {
     const directo = p.cajas_por_estiba != null ? Number(p.cajas_por_estiba) : null;
     const deBotellas = p.unidades_por_estiba != null && p.unidades_por_caja ? Number(p.unidades_por_estiba) / Number(p.unidades_por_caja) : null;
     cajasPorEstiba[String(p.sku)] = directo || deBotellas || null;
+    hlPorEstibaMaestro[String(p.sku)] = p.hl != null && p.unidades_por_estiba != null && Number(p.hl) > 0 ? Number(p.hl) * Number(p.unidades_por_estiba) : null;
   }
 
   /* LOS CONTEOS FÍSICOS CERRADOS de la bodega del último conteo (de los últimos 120 días), para la Tabla por
@@ -89,7 +92,7 @@ export default async function ComparativoCascoPage() {
 
   return (
     <div className="fe cvt cvc">
-      <Comparativo puntos={puntos} sitios={sitios.lista} nombres={nombres} cajasPorEstiba={cajasPorEstiba} errorLectura={errorLectura} conteos={conteos} />
+      <Comparativo puntos={puntos} sitios={sitios.lista} nombres={nombres} cajasPorEstiba={cajasPorEstiba} hlPorEstibaMaestro={hlPorEstibaMaestro} errorLectura={errorLectura} conteos={conteos} />
     </div>
   );
 }

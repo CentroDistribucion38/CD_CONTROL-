@@ -141,3 +141,6 @@
 
 /* Todo recto en el Comparativo: sin esquinas redondeadas (también lo que viene del Tablero). */
 .cvc, .cvc * { border-radius: 0 !important }
+
+.cvc .cvc-sin summary { cursor: pointer; font-weight: 600 }
+.cvc .cvc-sin span { display: block; margin-top: 6px; word-break: break-word }
