@@ -109,6 +109,7 @@ export function Balance({
   diasCasco,
   consolidado,
   reasignaciones,
+  roturaLinea = [],
 }: {
   bloques: Bloque[];
   detalle: Fila[];
@@ -123,6 +124,8 @@ export function Balance({
   consolidado: LineaConsolidado[];
   /** La hoja «Reasignaciones»: el registro de los cambios de estado del día. */
   reasignaciones: Reasignacion[];
+  /** La rotura de línea que se subió al pasivo de ese día (causal ROTURA DE LINEA), para el Excel de lo pendiente por darle de baja. */
+  roturaLinea?: { codigo: string; descripcion: string; unidades: number; almacen: string; unidades_por_caja: number | null; cajas_por_estiba: number | null }[];
 }) {
   const router = useRouter();
   const [cambiando, startCambio] = useTransition();
@@ -151,7 +154,7 @@ export function Balance({
     setArmandoBaja(true); setMalBaja(null);
     try {
       const { armarLibroBajaPendiente } = await import("@/modulos/inventario/libro-baja-pendiente");
-      const buf = await armarLibroBajaPendiente({ fecha, filas: detalle });
+      const buf = await armarLibroBajaPendiente({ fecha, filas: detalle, roturaLinea });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
       a.download = `pendiente-baja-${fecha}.xlsx`; document.body.appendChild(a); a.click(); a.remove();
@@ -430,7 +433,7 @@ export function Balance({
               )}
               {hoja.estado === "BAJA" && fecha && (
                 <button type="button" className="bal-exp-baja" disabled={armandoBaja} onClick={exportarPendienteBaja}
-                        title="Un Excel con lo pendiente por darle de baja en Fábrica (SORTING) y Bodega 38 (PRESORTING), con las columnas de la hoja Conteos del CONSOLIDADO_BAJA">
+                        title="Un Excel con lo pendiente por darle de baja en Fábrica (SORTING) y Bodega 38 (PRESORTING) más la rotura de línea del pasivo del día, con las columnas de la hoja Conteos del CONSOLIDADO_BAJA">
                   {armandoBaja ? "Armando el Excel…" : "Exportar pendiente de baja"}
                 </button>
               )}

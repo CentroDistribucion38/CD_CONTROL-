@@ -10,6 +10,9 @@
  * Pendiente = Dif cajas × factor caja, SOLO si es positivo (físico mayor que el casco). Lo que sobra en el
  * casco, lo que no tiene factor y lo de ANDINA/HEINEKEN no se da de baja aquí: sale en «Revisión por zona».
  *
+ * ROTURA DE LÍNEA: se agrega lo que se subió al pasivo de ese mismo día (causal ROTURA DE LINEA): impacto SUPPLY,
+ * movimiento 951, una línea por cada fila del pasivo, en el almacén en que se subió.
+ *
  * Hoja 1 «Conteos»: A–S con los mismos encabezados de la plantilla, lista para copiar y pegar. Costo Lote COP
  * y BAJA HL (I y J) quedan vacías: en la plantilla ya traen su fórmula. DOCUMENTO y RESPONSABLE los llena quien
  * hace la baja en SAP. Hoja 2 «Revisión por zona»: la cuenta material por material.
@@ -22,6 +25,17 @@ export type FilaBajaPend = {
   estado: string; alcance: string; codigo: string; material: string | null;
   cajas_estiba: number | null; un_caja: number | null;
   fisico_cajas: number; cajas_casco: number; dif_cajas: number; unidades: number | null;
+};
+
+/** Una fila del pasivo del día con causal ROTURA DE LINEA (más los factores del maestro de pasivos). */
+export type FilaRoturaLinea = {
+  codigo: string; descripcion: string; unidades: number; almacen: string;
+  unidades_por_caja: number | null; cajas_por_estiba: number | null;
+};
+/** El COBAAG de cada envase en la rotura de línea, como en tus últimas bajas (13 de octubre; el 250 cc, del 22 de septiembre). Lo que no está, se deja vacío. */
+const COBAAG_ROTURA: Record<string, string> = {
+  "3500005": "COBAAG3162", "3500162": "COBAAG3163", "3501430": "COBAAG3163", "3500887": "COBAAG3174", "3500888": "COBAAG3174",
+  "3501225": "COBAAG3165", "3501226": "COBAAG3165",
 };
 
 /** Cómo se parte la baja de cada zona (lo que se viene haciendo en la plantilla). */
@@ -63,7 +77,9 @@ const ENCABEZADOS = ["Planta/CD", "Tipo de baja ", "Motivo ", "Descripcion de la
   "Fecha Solicitud ", "Costo Lote COP", "BAJA HL", "RESPONSABLE", "Impacto ", "DOCUMENTO", "Movimiento", "semana", "sorting", "tipo", "estibas", "almacen"];
 const ANCHOS = [13, 11, 10, 20, 12, 32, 14, 14, 14, 11, 16, 11, 14, 16, 24, 11, 18, 10, 10];
 
-export async function armarLibroBajaPendiente(d: { fecha: string; filas: FilaBajaPend[] }): Promise<ArrayBuffer> {
+export async function armarLibroBajaPendiente(d: { fecha: string; filas: FilaBajaPend[]; roturaLinea?: FilaRoturaLinea[] }): Promise<ArrayBuffer> {
+  const rotura = (d.roturaLinea ?? []).filter((x) => x.unidades > 0).sort((a, b) => a.almacen.localeCompare(b.almacen) || a.codigo.localeCompare(b.codigo, "es", { numeric: true }));
+  const roturaNeg = (d.roturaLinea ?? []).filter((x) => x.unidades <= 0);
   const { lineas, descartadas } = separarPendiente(d.filas);
   const [y, m, dd] = d.fecha.split("-").map(Number);
   const fecha = new Date(Date.UTC(y, m - 1, dd));
@@ -96,10 +112,19 @@ export async function armarLibroBajaPendiente(d: { fecha: string; filas: FilaBaj
       });
     }
   }
+  /* ROTURA DE LÍNEA: lo del pasivo del día, una línea por fila, impacto SUPPLY y movimiento 951. */
+  for (const x of rotura) {
+    const est = x.unidades_por_caja && x.cajas_por_estiba ? Math.round((x.unidades / x.unidades_por_caja / x.cajas_por_estiba) * 100) / 100 : "";
+    const r = h.getRow(n++);
+    r.values = ["Barranquilla", "EER", "ROTURA", "ROTURA DE LINEA", x.codigo, x.descripcion, x.unidades, fecha, null, null, "", "SUPPLY", "",
+      COBAAG_ROTURA[x.codigo] ?? "", "951", "", "BAJA ROTURA DE MAQUINA", est, x.almacen];
+    r.getCell(7).numFmt = "#,##0"; r.getCell(8).numFmt = "yyyy-mm-dd"; r.getCell(18).numFmt = "0.00";
+    r.eachCell((c) => { c.font = letra(10, TINTA); c.border = { bottom: { style: "thin", color: { argb: RAYA } } } });
+  }
   const finDatos = n - 1;
   const t = h.getRow(n + 1);
   t.getCell(6).value = "Total unidades"; t.getCell(6).font = letra(10, TINTA, true);
-  t.getCell(7).value = finDatos >= 2 ? { formula: `SUBTOTAL(9,G2:G${finDatos})`, result: lineas.reduce((s, l) => s + l.un, 0) } : 0;
+  t.getCell(7).value = finDatos >= 2 ? { formula: `SUBTOTAL(9,G2:G${finDatos})`, result: lineas.reduce((s, l) => s + l.un, 0) + rotura.reduce((s, x) => s + x.unidades, 0) } : 0;
   t.getCell(7).numFmt = "#,##0"; t.getCell(7).font = letra(10, TINTA, true); t.getCell(7).fill = relleno(BANDA);
   h.autoFilter = { from: { row: 1, column: 1 }, to: { row: Math.max(2, finDatos), column: ENCABEZADOS.length } };
 
@@ -146,6 +171,34 @@ export async function armarLibroBajaPendiente(d: { fecha: string; filas: FilaBaj
     }
     tot.getCell(9).numFmt = NUM; tot.getCell(9).alignment = { horizontal: "right" };
     k++;
+  }
+
+  /* ---------- 3 · ROTURA DE LÍNEA ---------- */
+  const r3 = wb.addWorksheet("Rotura de línea", { views: [{ showGridLines: false }] });
+  const c3 = [["Almacén", 10], ["Código", 12], ["Material", 34], ["Unidades", 13], ["COBAAG", 14], ["Estado", 52]] as const;
+  r3.columns = c3.map(([, w]) => ({ width: w }));
+  const a1 = r3.getCell(1, 1); a1.value = `ROTURA DE LÍNEA · pasivo del ${d.fecha}`; a1.font = letra(14, TINTA, true);
+  const a2 = r3.getCell(2, 1); a2.value = "Lo que se subió al pasivo de ese día con causal ROTURA DE LINEA. Va a Conteos con impacto SUPPLY y movimiento 951."; a2.font = letra(9.5, GRIS);
+  const h3 = r3.getRow(4); h3.height = 24;
+  c3.forEach(([tt], i) => { const c = h3.getCell(i + 1); c.value = tt; c.font = letra(9.5, BLANCO, true); c.fill = relleno(TINTA); c.alignment = { vertical: "middle", horizontal: i === 3 ? "center" : "left", indent: i === 3 ? 0 : 1 } });
+  let q = 5;
+  if (!rotura.length && !roturaNeg.length) {
+    r3.getCell(q, 1).value = `No hay rotura de línea en el pasivo del ${d.fecha}. Súbela en Pasivos (archivo plano) y vuelve a exportar.`;
+    r3.getCell(q, 1).font = letra(10, ROJO, true); q++;
+  }
+  for (const x of [...rotura, ...roturaNeg]) {
+    const r = r3.getRow(q++);
+    const aviso = x.unidades <= 0 ? "Cantidad en cero o negativa: no entra en Conteos" : !COBAAG_ROTURA[x.codigo] ? "Entra en Conteos, pero este envase no tiene COBAAG: complétalo" : "Entra en Conteos";
+    r.values = [x.almacen, x.codigo, x.descripcion, x.unidades, COBAAG_ROTURA[x.codigo] ?? "—", aviso];
+    r.eachCell((c) => { c.font = letra(10, TINTA); c.border = { bottom: { style: "thin", color: { argb: RAYA } } } });
+    r.getCell(4).numFmt = NUM; r.getCell(4).alignment = { horizontal: "right" };
+    r.getCell(6).font = letra(9.5, x.unidades > 0 && COBAAG_ROTURA[x.codigo] ? VERDE : ROJO, true);
+  }
+  if (rotura.length) {
+    const t = r3.getRow(q);
+    for (let c = 1; c <= c3.length; c++) { const x = t.getCell(c); x.fill = relleno(BANDA); x.font = letra(10, TINTA, true); x.border = { top: { style: "medium", color: { argb: TINTA } } } }
+    t.getCell(1).value = "Total rotura de línea";
+    t.getCell(4).value = { formula: `SUMIF(D5:D${q - 1},">0")`, result: rotura.reduce((s, x) => s + x.unidades, 0) }; t.getCell(4).numFmt = NUM; t.getCell(4).alignment = { horizontal: "right" };
   }
 
   return wb.xlsx.writeBuffer() as Promise<ArrayBuffer>;
