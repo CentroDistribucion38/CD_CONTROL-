@@ -66,6 +66,8 @@ type Maes = { codigo: string; descripcion: string; familia: string | null; unida
 type Prod = { id: string; sku: string; nombre: string | null; unidades_por_caja: number | null; cajas_por_estiba: number | null; envase_sku: string | null };
 
 const ESTIBA = "3500163";
+/** Envases cuya caja NO se suma a la caja plástica (como en el Excel de Fábrica y en el Cuadre SAP): la botella 850 (3501539) va en la caja 1000 x13 (3501211) pero esa caja no se cuenta. */
+const CAJA_FUERA_DEL_CUADRE = new Set(["3501539"]);
 const norm = (c: unknown) => String(c ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().replace(/\s+/g, " ").trim();
 const diaBogota = (iso: string) => new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Bogota" }).format(new Date(iso));
 const PASIVOS: Record<string, string> = { "PRESORTING": "PEND BAJA PRESORTING", "ROTURA DE LINEA": "PEND BAJA ROTURA LINEA", "EXTRASUCIO": "CON BAJA EXTRASUCIO" };
@@ -174,7 +176,7 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
          está excluido (NR, foráneo…) o no tiene caja (lata, PET, NR), no aporta caja. EL PRODUCTO EN SÍ NO SE TOMA. */
       const env = P.get(c)?.envase_sku ? String(P.get(c)!.envase_sku) : null;
       if (!env) prodSinEnvase.add(c);
-      const cajaP = env && !excluye(regla, env, nombre(env)) ? M.get(env)?.caja : null;
+      const cajaP = env && !CAJA_FUERA_DEL_CUADRE.has(env) && !excluye(regla, env, nombre(env)) ? M.get(env)?.caja : null;
       if (cajaP && cajas) { suma("conteo", String(cajaP), pre(`CONTEO · en producto ${c} ${nombre(c)}`), cajas); cajasProducto += cajas; prodConCaja.add(c) }
       continue;
     }
@@ -192,7 +194,7 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     suma("conteo", ESTIBA, pre(bajoQue(c)), est);
     /* Un envase excluido (foráneo, nuevo…) no aporta caja plástica: no viene en las nuestras. */
     if (excluye(regla, c, nombre(c))) continue;
-    const caja = M.get(c)?.caja; if (caja) suma("conteo", String(caja), pre(`CONTEO · en ${c} ${nombre(c)}`), cajas);
+    const caja = CAJA_FUERA_DEL_CUADRE.has(c) ? null : M.get(c)?.caja; if (caja) suma("conteo", String(caja), pre(`CONTEO · en ${c} ${nombre(c)}`), cajas);
   }
   fuentes.push({ nombre: "Conteo", ok: renglones > 0, detalle: renglones ? `${renglones} renglones de Bodega 38 (el tablero cuenta además Fábrica ${totD["FÁBRICA"].renglones} · AG17 ${totD.AG17.renglones} · AG16 ${totD.AG16.renglones})` : "No hay conteo enviado ese día" });
   /* Un producto sin envase en el maestro no aporta caja: se nombra para que se complete el maestro si es retornable. */
@@ -224,7 +226,7 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
       if (!e.m) { fuera.push(`${x.linea}: sin envase ni producto con envase en el maestro`); continue; }
       const env = e.m.sku, etq = `DEPA ${x.linea}`;
       suma("conteo", env, etq, cj * upc(env));
-      const caja = CAJA_EN_DEPA[env] ?? M.get(env)?.caja; if (caja) suma("conteo", String(caja), etq, cj);
+      const caja = CAJA_FUERA_DEL_CUADRE.has(env) ? null : CAJA_EN_DEPA[env] ?? M.get(env)?.caja; if (caja) suma("conteo", String(caja), etq, cj);
       tomadas.add(x.linea); depaDelCorte.add(norm(x.linea).replace(/\s+/g, ""));
       if (!primera) primera = String(x.corte_id);
     }
@@ -279,7 +281,9 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
       /* El producto no se toma (AG17 y AG16 lo traen en cajas): solo envase, cajas plásticas y estibas. */
       if (f.grupo === "PRODUCTO" || f.dif == null) continue;
       const cod = String(f.codigo);
-      if (Math.abs(f.movido) >= 0.005) { aplicar(cod, `BALANCE · ${alm}`, f.movido); nb++ }
+      /* La caja plástica ya quedó cuadrada en el Cuadre SAP de ese almacén: su BALANCE no entra al conteo de AG22 (solo lo de Bodega 38).
+         Lo que quedara sin cuadrar sí se muestra, como DESCUADRE. */
+      if (f.grupo !== "CAJA" && Math.abs(f.movido) >= 0.005) { aplicar(cod, `BALANCE · ${alm}`, f.movido); nb++ }
       if (f.queda != null && Math.abs(f.queda) >= 0.5) {
         aplicar(cod, `DESCUADRE · ${alm}`, -f.queda); nd++;
         const l = descuadresAlm.get(cod) ?? []; l.push({ alm, queda: Math.round(f.queda) }); descuadresAlm.set(cod, l);
