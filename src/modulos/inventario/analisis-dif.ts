@@ -33,6 +33,8 @@ export type FilaAnalisis = {
   descuadres?: { alm: string; queda: number }[];
   /** El BALANCE y el DESCUADRE del lado SAP que todavía NO están sumados porque la plantilla no trae la ZEXI de las 6: se ven, pero no suman. */
   pendSap?: Partida[];
+  /** Solo la estiba 3500163: las estibas de Fábrica, AG17 y AG16, por partida. Ya están cuadradas en el Cuadre SAP de su almacén: NO suman aquí, se muestran para que el total dé el del tablero. */
+  fuera?: Partida[];
   /** Códigos excluidos o sin factor: se muestran para que el conteo salga COMPLETO, pero no generan ajustes. */
   soloConteo?: boolean;
 };
@@ -126,6 +128,8 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   let renglonesTodos = 0;
   /* La caja plástica que lleva el producto: cuántas cajas y de cuántos productos salieron. */
   let cajasProducto = 0; const prodConCaja = new Set<string>(), prodSinEnvase = new Set<string>();
+  /* Las estibas de lo que NO entra a este análisis (Fábrica, AG17, AG16): ya están cuadradas en su propio Cuadre SAP; se anotan aparte para el total. */
+  const estFuera = new Map<string, number>();
   const vacio = (): TotConteo => ({ renglones: 0, cajas: 0, estibas: 0, plasticas: 0 });
   const totD: Record<Donde, TotConteo> = { BODEGA: vacio(), "FÁBRICA": vacio(), AG17: vacio(), AG16: vacio() };
   const lotes: { rs: Reng[]; fijo: Donde | null }[] = [{ rs: cons.vigentes, fijo: null }, { rs: c17.vigentes, fijo: "AG17" }, { rs: c16.vigentes, fijo: "AG16" }];
@@ -143,7 +147,16 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     }
     /* EL ANÁLISIS ES DE AG22 (Bodega 38): Fábrica, AG17 y AG16 se balancean en sus propios Cuadres SAP y llegan aquí por el BALANCE
        y por lo que quedó sin cuadrar en cada uno (DESCUADRE). Su conteo solo sirve para el total de referencia del tablero. */
-    if (donde !== "BODEGA") continue;
+    if (donde !== "BODEGA") {
+      const cF = String(r.codigo), cjF = Number(r.total_cajas) || 0;
+      const estF = (Number(r.estibas) || 0) + ((Number(r.cajas) || 0) + (Number(r.saldo) || 0) > 0 ? 1 : 0);
+      const esEst = grupo(cF) === "ESTIBA";
+      const que = esEst ? "estibas contadas" : r.tipo_material === "PRODUCTO" ? "bajo producto"
+        : r.tipo_material === "ENVASE" && grupo(cF) === "CAJA" ? "bajo cajas" : bajoQue(cF).replace("CONTEO · ", "");
+      const k = `${donde} · ${que}`;
+      estFuera.set(k, (estFuera.get(k) ?? 0) + (esEst ? cjF : estF));
+      continue;
+    }
     /* La visual: cuántos SKUs distintos se contaron (producto, envase y lo demás). */
     renglonesTodos++;
     (r.tipo_material === "PRODUCTO" ? skuP : r.tipo_material === "ENVASE" ? skuE : skuO).add(String(r.codigo));
@@ -237,6 +250,10 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
         nombre del almacén, para que nada quede por fuera. Planeado = ejecutado + descuadre, así que el total es el mismo del Cuadre. */
   const cu = await armarCuadre(fecha, "AG18");
   const zx = cu.fecha === fecha ? cu.guardado?.zexi ?? null : null;
+  /* Las estibas que están en el almacén AG18 (la tarjeta «Estibas en almacén AG18» del Cuadre SAP): se cuentan aparte, no estaban en el conteo.
+     Entran al total del tablero (Bodega 38 + otros almacenes), pero NO suman al conteo de esta estiba. */
+  const estAlmAG18 = cu.fecha === fecha ? Number(cu.guardado?.estibas_almacen ?? 0) || 0 : 0;
+  if (estAlmAG18 > 0) estFuera.set("AG18 · estibas en el almacén (digitadas en el Cuadre SAP)", estAlmAG18);
   const existencias: Existencias | null = zx?.length ? {
     archivo: cu.guardado?.zexi_archivo ?? null, en: cu.guardado?.zexi_en ?? null,
     conEstados: zx.some((z) => z.libre != null || z.calidad != null || z.bloqueado != null),
@@ -357,7 +374,8 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     const lista = (m: Map<string, number>) => [...m].map(([nombre, cantidad]) => ({ nombre, cantidad: Math.round(cantidad) })).sort((x, y) => pos(x.nombre) - pos(y.nombre) || y.cantidad - x.cantidad);
     const sap = Math.round([...a.sap.values()].reduce((t, v) => t + v, 0));
     const conteo = Math.round([...a.conteo.values()].reduce((t, v) => t + v, 0));
-    filas.push({ familia: familia as string, orden: orden as number, codigo, descripcion: nombre(codigo), sap, conteo, diferencia: conteo - sap, deSap: lista(a.sap), deConteo: lista(a.conteo), ...(soloConteo ? { soloConteo: true } : {}), ...(pendSap.get(codigo) ? { pendSap: pendSap.get(codigo) } : {}), ...(descuadresAlm.get(codigo) ? { descuadres: descuadresAlm.get(codigo) } : {}) });
+    filas.push({ familia: familia as string, orden: orden as number, codigo, descripcion: nombre(codigo), sap, conteo, diferencia: conteo - sap, deSap: lista(a.sap), deConteo: lista(a.conteo), ...(soloConteo ? { soloConteo: true } : {}),
+      ...(codigo === ESTIBA && estFuera.size ? { fuera: [...estFuera].map(([nombre, cantidad]) => ({ nombre, cantidad: Math.round(cantidad) })).sort((x, y) => y.cantidad - x.cantidad) } : {}), ...(pendSap.get(codigo) ? { pendSap: pendSap.get(codigo) } : {}), ...(descuadresAlm.get(codigo) ? { descuadres: descuadresAlm.get(codigo) } : {}) });
   }
   filas.sort((x, y) => x.orden - y.orden || x.codigo.localeCompare(y.codigo, "es", { numeric: true }));
   const estibasAnalisis = Math.round([...(acc.get(ESTIBA)?.conteo.values() ?? [])].reduce((t, v) => t + v, 0));
