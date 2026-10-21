@@ -81,10 +81,6 @@ type Prod = { id: string; sku: string; nombre: string | null; unidades_por_caja:
 const ESTIBA = "3500163";
 /** Envases cuya caja NO se suma a la caja plástica (como en el Excel de Fábrica y en el Cuadre SAP): la botella 850 (3501539) va en la caja 1000 x13 (3501211) pero esa caja no se cuenta. */
 const CAJA_FUERA_DEL_CUADRE = new Set(["3501539"]);
-/* PRODUCTOS QUE VAN EN NUESTRA CAJA PLÁSTICA AUNQUE EL MAESTRO NO LES TENGA ENVASE: producto → caja. El Aguila NRB 750 x16 (21187, Tw)
-   no tiene envase asignado (se lee como no retornable) pero viaja en la caja plástica marrón de 750 (3500374): sus 36 cajas por estiba cuentan.
-   Lo correcto a largo plazo es asignarle su envase en el maestro de productos; hasta entonces, aquí. */
-const CAJA_DE_PRODUCTO_SIN_ENVASE: Record<string, string> = { "21187": "3500374" };
 const norm = (c: unknown) => String(c ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().replace(/\s+/g, " ").trim();
 const diaBogota = (iso: string) => new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Bogota" }).format(new Date(iso));
 const PASIVOS: Record<string, string> = { "PRESORTING": "PEND BAJA PRESORTING", "ROTURA DE LINEA": "PEND BAJA ROTURA LINEA", "EXTRASUCIO": "CON BAJA EXTRASUCIO" };
@@ -114,6 +110,7 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   const cajaMaestro = new Map<string, string>();
   { const cj = await supabase.from("productos").select("sku, caja_sku").not("caja_sku", "is", null).limit(5000);
     if (!cj.error) for (const x of (cj.data ?? []) as { sku: string; caja_sku: string }[]) cajaMaestro.set(String(x.sku), String(x.caja_sku)) }
+  if (cajaMaestro.size === 0) avisos.push("Ningún producto tiene caja plástica en el maestro: corre supabase/migraciones/2026-10-maestro-caja-plastica.sql en Supabase. Sin eso los productos no suman caja.");
   const EMP = new Map<string, { empaque: string; caja: string | null }>();
   for (const e of (empR.data ?? []) as { sku: string; empaque: string; caja: string | null }[]) EMP.set(String(e.sku), { empaque: e.empaque, caja: e.caja });
   const faltaSql = !!novR.error && /analisis_dif|does not exist|PGRST205/i.test(`${novR.error.code} ${novR.error.message}`);
@@ -224,14 +221,15 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
         continue;
       }
       const envFuera = !!env && (CAJA_FUERA_DEL_CUADRE.has(env) || excluye(regla, env, nombre(env)));
+      /* LA CAJA DEL PRODUCTO LA DICE SOLO EL MAESTRO («Maestro Sku vs Caja», productos.caja_sku). No se deduce del envase
+         ni de la presentación: lo que no está en el maestro no suma caja plástica. Lo único que se respeta además es lo que
+         el usuario definió a mano en esta pantalla (cartón / caja escogida) y los envases que no entran al cuadre. */
       let cajaP: string | null = def?.empaque === "PLASTICA" && def.caja ? def.caja
-        : cajaMaestro.get(c) ?? (env ? (envFuera ? null : M.get(env)?.caja ?? null) : CAJA_DE_PRODUCTO_SIN_ENVASE[c] ?? null);
+        : envFuera ? null : cajaMaestro.get(c) ?? null;
       const cajaDefinida = def?.empaque === "PLASTICA" && !!def.caja;
-      if (!cajaP && !envFuera) { const g = cajaPorPresentacion(P.get(c)); if (g) { cajaP = g; cajaPorPresentacionUsada.set(c, g) } }
       if (!cajaP && !envFuera) prodSinEnvase.add(c);
       if (!cajaP && cajas) {
-        const motivo = envFuera ? `su envase ${env} está excluido o su caja no se cuenta`
-          : !env ? "no tiene envase en el maestro (lata, PET, no retornable o falta completarlo)" : `su envase ${env} no tiene caja plástica en el maestro`;
+        const motivo = envFuera ? `su envase ${env} está excluido o su caja no se cuenta` : "no está en el Maestro Sku vs Caja";
         const a = sinCajaMap.get(c) ?? { codigo: c, nombre: nombre(c), cajas: 0, motivo, sugerida: cajaPorPresentacion(P.get(c)) };
         a.cajas += cajas; sinCajaMap.set(c, a);
       }
@@ -491,7 +489,7 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   const maestroSistema: Record<string, { upc: number; cpe: number; caja: string | null }> = {};
   for (const x of P.values()) {
     const sk = String(x.sku);
-    maestroSistema[sk] = { upc: Number(x.unidades_por_caja) || 1, cpe: Number(x.cajas_por_estiba) || 0, caja: cajaMaestro.get(sk) ?? CAJA_DE_PRODUCTO_SIN_ENVASE[sk] ?? null };
+    maestroSistema[sk] = { upc: Number(x.unidades_por_caja) || 1, cpe: Number(x.cajas_por_estiba) || 0, caja: cajaMaestro.get(sk) ?? null };
   }
   for (const m of M.values()) {
     const c = String(m.codigo);
