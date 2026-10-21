@@ -118,25 +118,8 @@ export function Control({ personas, fiscales, conCruce, ahora }: {
 
   return (
     <>
-      <section className="cabeza fi-cabeza">
-        <div>
-          <p className="ojo">INVENTARIO · POR PAREJAS</p>
-          <h1>Control fiscal</h1>
-          <p className="sub">
-            El seguimiento del inventario fiscal que armaste en el Plan: el avance de cada pareja en vivo,
-            las hojas que ya terminaron las dos personas y, si algo no coincide, en qué ubicaciones.
-          </p>
-        </div>
-      </section>
-
       {aviso && <p className="cl-ok" role="status">{aviso}</p>}
       {mal && <p className="cl-mal" role="alert">{mal}</p>}
-      {!conCruce && (
-        <p className="cl-nota" role="note">
-          Para ver el avance de cada hoja y <b>cruzar a las dos personas</b> falta correr <code>supabase/migraciones/2026-10-fiscal-cruce.sql</code> en Supabase.
-        </p>
-      )}
-
       {fiscales.length === 0 && (
         <p className="fe-vacio">Todavía no hay ningún inventario fiscal. Se arma en el <Link href="/inventario/fiscal">Plan fiscal</Link>.</p>
       )}
@@ -149,12 +132,15 @@ export function Control({ personas, fiscales, conCruce, ahora }: {
           ))}
         </div>
       )}
-      {sel && !sel.publicado && (
-        <p className="cl-nota" role="note">
-          Este inventario todavía no se muestra en Contar, así que nadie ha empezado. En el <Link href="/inventario/fiscal">Plan fiscal</Link> pulsa «Mostrar en Contar».
-        </p>
-      )}
       {sel && vista(sel)}
+      {!conCruce && (
+        <details className="fi-avisos">
+          <summary>Avisos (1)</summary>
+          <p className="cl-nota" role="note">
+            Para ver el avance de cada hoja y <b>cruzar a las dos personas</b> falta correr <code>supabase/migraciones/2026-10-fiscal-cruce.sql</code> en Supabase.
+          </p>
+        </details>
+      )}
     </>
   );
 }
