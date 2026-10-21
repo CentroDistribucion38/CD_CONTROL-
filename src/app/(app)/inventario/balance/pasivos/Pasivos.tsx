@@ -147,7 +147,7 @@ export function Pasivos({ filas, error, desde, hasta, dias, diasConteo, codigos,
       if ("error" in r && r.error) { setAviso({ tipo: "mal", texto: r.error }); return }
       const sf = ("sinFactor" in r && r.sinFactor?.length ? ` Sin factor de caja (no entraron): ${r.sinFactor.join(", ")}.` : "")
         + ("excluidos" in r && r.excluidos?.length ? ` No van en Pasivos (envases nuevos / estiba): ${r.excluidos.join(", ")}.` : "")
-        + ("descuento" in r && r.descuento ? ` Se puso el descuento estándar de ${DE.codigo} (${n0(DE.unidades)} u en ${DE.almacen}).` : "");
+        + ("quitoDescuento" in r && r.quitoDescuento ? ` Se quitó el descuento estándar de ${DE.codigo} de esta base: el Balance ya lo resta.` : "");
       setAviso({ tipo: "ok", texto: `Del balance del ${ddmmaaaa(diaBal)}: ${"filas" in r ? r.filas : 0} filas (reemplazan lo que se había traído ese día).${sf}` });
       if (diaBal < desde || diaBal > hasta) ir(diaBal, diaBal);
     });
@@ -242,7 +242,7 @@ export function Pasivos({ filas, error, desde, hasta, dias, diasConteo, codigos,
               <b>Descontar a {DE.codigo} en {DE.almacen}</b>
               <small>{descuento
                 ? `Descontado: ${n0(Math.abs(descuento.unidades))} u (renglón manual ${DE.estado} · ${DE.causal}). Quedan ${n0(unidades3500005 + descuento.unidades)} u de ${n0(unidades3500005)}.`
-                : `Tiene ${n0(unidades3500005)} u en ${DE.almacen} este día. Al marcar, se le resta el valor estándar.`}</small>
+                : `Tiene ${n0(unidades3500005)} u en ${DE.almacen} este día. El Balance ya le resta ${n0(DE.unidades)} u (5.692 cajas) como ajuste automático: marcar esto lo restaría otra vez.`}</small>
             </span>
           </label>
           <span className="pas-desc-val">

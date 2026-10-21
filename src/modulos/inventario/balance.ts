@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { porTandas, todas } from "@/modulos/inventario/paginas";
 import { cruzar } from "@/modulos/inventario/base-cruce";
 import { esDueno } from "@/modulos/inventario/duenos";
+import { DESCUENTO_BALANCE } from "@/modulos/pasivos/excluidos";
 import type { ConteoFefo, Renglon } from "@/modulos/inventario/fefo";
 import { esUbicacionFabrica, esDeAG17oAG16, almacenDeRenglon } from "@/modulos/casco/ubicacion-sitio";
 
@@ -367,7 +368,13 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
     .map((a) => [`${a.estado}|${a.alcance}|${a.codigo}`, a]));
   const detalle: FilaBalance[] = [...filas.values()].map((f) => {
     const a = aj.get(`${f.estado}|${f.alcance}|${f.codigo}`);
-    const ajuste = a?.cajas ?? 0;
+    /* EL DESCUENTO ESTÁNDAR (3500005 · Baja · Bodega 38): se resta de lo físico como ajuste automático, sin tocar lo contado
+       (se sigue viendo el físico completo). Nunca más de lo que hay. */
+    const D = DESCUENTO_BALANCE;
+    const estandar = f.estado === D.estado && f.alcance === D.alcance && f.codigo === D.codigo && f.tieneFisico
+      ? Math.min(D.cajas, Math.max(0, f.fisico_cajas)) : 0;
+    const ajuste = (a?.cajas ?? 0) + estandar;
+    const notaAjuste = estandar ? [a?.nota, `${D.nota}: ${estandar} cajas`].filter(Boolean).join(" · ") : a?.nota ?? null;
     const dueno = esDueno(f.codigo);
     /* ANDINA / HEINEKEN: no tienen factor de caja; se cuadran EN ESTIBAS (cada código reasignado con su factor) contra las estibas casco. */
     const provenientes = dueno ? [...f.prov.values()].map((x) => ({ ...x, estibas: x.estibas == null ? null : r2(x.estibas) }))
@@ -382,7 +389,7 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
       ...(dueno ? { provenientes, fisico_estibas: fisEst, dif_estibas: difEst } : {}),
       ...(notas.length ? { notas } : {}),
       ubicacion: [...ubis].sort((x, y) => x.localeCompare(y, "es", { numeric: true })).join(", ") || null,
-      ajuste_cajas: ajuste, ajuste_nota: a?.nota ?? null, calidad: a?.calidad ?? null,
+      ajuste_cajas: ajuste, ajuste_nota: notaAjuste, calidad: a?.calidad ?? null,
       cuadre_fabrica: f.estado === "BAJA" && f.alcance === "SORTING" ? cuadres.get(f.codigo) ?? null : null,
       dif_cajas: dif,
       unidades: f.un_caja ? dif * f.un_caja : null,

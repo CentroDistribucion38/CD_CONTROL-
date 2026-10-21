@@ -60,3 +60,10 @@ export type PanelExcluidos = { ambito: AmbitoExcluidos; faltaSql: boolean; skus:
  * la base, suma en los totales y entra al cuadre de AG22.
  */
 export const DESCUENTO_ESTANDAR = { codigo: "3500005", almacen: "AG22", estado: "BAJA", causal: "PRESORTING", unidades: 216296, nota: "Descuento estándar" } as const;
+
+/**
+ * EL DESCUENTO ESTÁNDAR DENTRO DEL BALANCE: «a los 7.960 debes descontar es decir las 5.692». La pila estándar de
+ * presorting de 3500005 (105 estibas × 54 + 22 cajas = 5.692 cajas = 216.296 u) no es diferencia por bajar: el Balance
+ * la resta como ajuste automático de Baja · Bodega 38, y a Pasivos ya llega sin ella (ahí no se vuelve a descontar).
+ */
+export const DESCUENTO_BALANCE = { codigo: "3500005", estado: "BAJA", alcance: "PRESORTING", cajas: 5692, nota: "Descuento estándar presorting" } as const;
