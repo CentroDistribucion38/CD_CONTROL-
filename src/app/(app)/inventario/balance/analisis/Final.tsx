@@ -6,6 +6,7 @@ import { InformeCierre } from "./InformeCierre";
 import { useRouter } from "next/navigation";
 import type { FilaAjuste, Guardado } from "@/modulos/inventario/analisis-ajustes";
 import { analisisFinal } from "@/modulos/inventario/compensa";
+import type { Mov311 } from "@/modulos/inventario/analisis-dif";
 import { guardarFinal } from "./actions";
 import { EtiquetaEnLinea, LeyendaEnLinea, type MapaEnLinea } from "./EnLinea";
 
@@ -20,8 +21,8 @@ const signo = (v: number) => (v > 0 ? "+" : v < 0 ? "−" : "") + nf.format(Math
 const largo = (iso: string) => new Date(iso + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 const cuando = (iso: string) => new Date(iso).toLocaleString("es-CO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
-export function Final({ fecha, guardado, ajustes, final, puedeEditar, faltaSql, enLinea = {} }: {
-  enLinea?: MapaEnLinea; fecha: string; guardado: Guardado | null; ajustes: FilaAjuste[]; final: { en: string } | null; puedeEditar: boolean; faltaSql: string | null;
+export function Final({ fecha, guardado, ajustes, final, puedeEditar, faltaSql, enLinea = {}, movimientos311 }: {
+  movimientos311?: Mov311[]; enLinea?: MapaEnLinea; fecha: string; guardado: Guardado | null; ajustes: FilaAjuste[]; final: { en: string } | null; puedeEditar: boolean; faltaSql: string | null;
 }) {
   const router = useRouter();
   const [pend, start] = useTransition();
@@ -55,7 +56,7 @@ export function Final({ fecha, guardado, ajustes, final, puedeEditar, faltaSql, 
     setArmando(true); setMsg(null);
     try {
       const { armarLibroFinal } = await import("@/modulos/inventario/libro-ajustes");
-      const buf = await armarLibroFinal({ fecha, fechaLarga: largo(fecha), guardadoEn: guardado.guardado_en, guardadoPor: guardado.guardado_por, ajustes, analisis: guardado.filas, finalEn: final?.en ?? null });
+      const buf = await armarLibroFinal({ fecha, fechaLarga: largo(fecha), guardadoEn: guardado.guardado_en, guardadoPor: guardado.guardado_por, ajustes, analisis: guardado.filas, finalEn: final?.en ?? null, movimientos311 });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
       a.download = `analisis-final-bodega38-${fecha}.xlsx`; document.body.appendChild(a); a.click(); a.remove();

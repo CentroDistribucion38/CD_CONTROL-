@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { misPermisos } from "@/lib/permisos";
-import { armarAnalisis, enLineaDelDia } from "@/modulos/inventario/analisis-dif";
+import { armarAnalisis, enLineaDelDia, leerMovimientos311 } from "@/modulos/inventario/analisis-dif";
 import { leerAjustes, leerHistorico, leerPrecios } from "@/modulos/inventario/analisis-ajustes";
 import { armarTodos } from "@/modulos/inventario/analisis-todos";
 import { Analisis } from "./Analisis";
@@ -74,7 +74,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
     </nav>
   );
   if (paso === "final") {
-    const [aj, enLinea] = await Promise.all([leerAjustes(fecha), enLineaDelDia(fecha)]);
+    const [aj, enLinea, movimientos311] = await Promise.all([leerAjustes(fecha), enLineaDelDia(fecha), leerMovimientos311(fecha)]);
     return (
       <div className="fe bal ad">
         <section className="cabeza"><div>
@@ -83,7 +83,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
           <p className="sub">Cómo queda SAP con los ajustes realizados: SAP inicial + compensación hecha + ajuste hecho = SAP final, contra el mismo conteo. Lo que siga con diferencia es lo que falta.</p>
         </div></section>
         {pasos}
-        <Final enLinea={enLinea} fecha={fecha} guardado={aj.guardado} ajustes={aj.filas} final={aj.final} puedeEditar={puedeEditar}
+        <Final movimientos311={movimientos311} enLinea={enLinea} fecha={fecha} guardado={aj.guardado} ajustes={aj.filas} final={aj.final} puedeEditar={puedeEditar}
                faltaSql={aj.faltaSql ? "Falta correr supabase/migraciones/2026-10-analisis-diferencia-ajustes.sql en Supabase." : aj.faltaSqlFinal ? "Falta correr supabase/migraciones/2026-10-analisis-diferencia-final.sql en Supabase." : null} />
       </div>
     );
@@ -145,7 +145,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
     );
   }
   if (paso === "ajustes") {
-    const [aj, enLinea] = await Promise.all([leerAjustes(fecha), enLineaDelDia(fecha)]);
+    const [aj, enLinea, movimientos311] = await Promise.all([leerAjustes(fecha), enLineaDelDia(fecha), leerMovimientos311(fecha)]);
     return (
       <div className="fe bal ad">
         <section className="cabeza"><div>
@@ -157,7 +157,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
           </p>
         </div></section>
         {pasos}
-        <Ajustes enLinea={enLinea} fecha={fecha} guardado={aj.guardado} filas={aj.filas} puedeEditar={puedeEditar} faltaSql={aj.faltaSql} finalEn={aj.final?.en ?? null} />
+        <Ajustes movimientos311={movimientos311} enLinea={enLinea} fecha={fecha} guardado={aj.guardado} filas={aj.filas} puedeEditar={puedeEditar} faltaSql={aj.faltaSql} finalEn={aj.final?.en ?? null} />
       </div>
     );
   }

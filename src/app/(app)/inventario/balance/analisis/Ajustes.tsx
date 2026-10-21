@@ -4,6 +4,7 @@ import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
 import { InformeCierre } from "./InformeCierre";
 import type { FilaAjuste, Guardado } from "@/modulos/inventario/analisis-ajustes";
+import type { Mov311 } from "@/modulos/inventario/analisis-dif";
 import { guardarHecho, guardarObservacion } from "./actions";
 import { EtiquetaEnLinea, LeyendaEnLinea, type MapaEnLinea } from "./EnLinea";
 
@@ -17,8 +18,8 @@ const signo = (v: number) => (v > 0 ? "+" : v < 0 ? "−" : "") + nf.format(Math
 const largo = (iso: string) => new Date(iso + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 const sentido = (v: number) => (v > 0 ? "Sobrante · sube SAP" : v < 0 ? "Faltante · baja SAP" : "Cuadrado");
 
-export function Ajustes({ fecha, guardado, filas: inicio, puedeEditar, faltaSql, finalEn = null, enLinea = {} }: {
-  enLinea?: MapaEnLinea; fecha: string; guardado: Guardado | null; filas: FilaAjuste[]; puedeEditar: boolean; faltaSql: boolean; finalEn?: string | null;
+export function Ajustes({ fecha, guardado, filas: inicio, puedeEditar, faltaSql, finalEn = null, enLinea = {}, movimientos311 }: {
+  movimientos311?: Mov311[]; enLinea?: MapaEnLinea; fecha: string; guardado: Guardado | null; filas: FilaAjuste[]; puedeEditar: boolean; faltaSql: boolean; finalEn?: string | null;
 }) {
   const [filas, setFilas] = useState(inicio);
   /* «En otra hoja los sobrantes, los faltantes»: también en pantalla, una pestaña para cada uno. */
@@ -76,7 +77,7 @@ export function Ajustes({ fecha, guardado, filas: inicio, puedeEditar, faltaSql,
       const { armarLibroAjustes } = await import("@/modulos/inventario/libro-ajustes");
       const buf = await armarLibroAjustes({
         fecha, fechaLarga: largo(fecha), guardadoEn: guardado.guardado_en, guardadoPor: guardado.guardado_por,
-        ajustes: filas, analisis: guardado.filas,
+        ajustes: filas, analisis: guardado.filas, movimientos311,
       });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));

@@ -89,6 +89,29 @@ const norm = (c: unknown) => String(c ?? "").normalize("NFD").replace(/[̀-ͯ]/g
 const diaBogota = (iso: string) => new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Bogota" }).format(new Date(iso));
 const PASIVOS: Record<string, string> = { "PRESORTING": "PEND BAJA PRESORTING", "ROTURA DE LINEA": "PEND BAJA ROTURA LINEA", "EXTRASUCIO": "CON BAJA EXTRASUCIO" };
 
+/** Los 311 de un Cuadre SAP (AG18, AG17 o AG16) contra AG22, TODOS (cualquier grupo, aunque no entren al análisis). */
+function movs311DeCuadre(c: { filas: { codigo: string | number; material?: string | null; grupo: string; movido: number; documentos?: string[]; dif: number | null }[] }, alm: string, nombre: (c: string) => string): Mov311[] {
+  return c.filas.filter((f) => Math.abs(f.movido) >= 0.005).map((f) => ({
+    almacen: alm, codigo: String(f.codigo), descripcion: f.material ?? nombre(String(f.codigo)), grupo: String(f.grupo),
+    movido: Math.round(f.movido * 100) / 100, documentos: f.documentos ?? [],
+    entraAlAnalisis: f.grupo !== "PRODUCTO" && f.grupo !== "CAJA" && f.dif != null,
+  }));
+}
+
+/** Solo los 311 del día (para los pasos Ajustes y Análisis final, que no recalculan todo el análisis). */
+export async function leerMovimientos311(fecha: string): Promise<Mov311[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("productos").select("sku, nombre").limit(5000);
+  const nom = new Map(((data ?? []) as { sku: string; nombre: string | null }[]).map((p) => [String(p.sku), p.nombre ?? String(p.sku)]));
+  const salida: Mov311[] = [];
+  for (const alm of ["AG18", "AG17", "AG16"] as const) {
+    const c = await armarCuadre(fecha, alm);
+    if (c.fecha !== fecha || !c.guardado?.zexi?.length) continue;
+    salida.push(...movs311DeCuadre(c, alm, (k) => nom.get(k) ?? k));
+  }
+  return salida;
+}
+
 export async function armarAnalisis(fecha: string): Promise<Analisis> {
   const supabase = await createClient();
   const avisos: string[] = [];
@@ -348,9 +371,6 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     if (c.fecha !== fecha || !c.guardado?.zexi?.length) { sinZexiAlm.push(alm); continue }
     let nb = 0, nd = 0;
     for (const f of c.filas) {
-      /* Los 311 se listan TODOS (cualquier grupo), aunque no entren al análisis: es la hoja «311» del Excel. */
-      if (Math.abs(f.movido) >= 0.005) movimientos311.push({ almacen: alm, codigo: String(f.codigo), descripcion: f.material ?? nombre(String(f.codigo)), grupo: String(f.grupo),
-        movido: Math.round(f.movido * 100) / 100, documentos: f.documentos ?? [], entraAlAnalisis: f.grupo !== "PRODUCTO" && f.grupo !== "CAJA" && f.dif != null });
       /* El producto no se toma (AG17 y AG16 lo traen en cajas): solo envase, cajas plásticas y estibas. */
       if (f.grupo === "PRODUCTO" || f.dif == null) continue;
       const cod = String(f.codigo);
@@ -370,6 +390,7 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
         if (!acc.has(cod)) acc.set(cod, { sap: new Map(), conteo: new Map() });
       }
     }
+    movimientos311.push(...movs311DeCuadre(c, alm, nombre));
     detBal.push(`${alm}: ${nb} movidos · ${nd} sin cuadrar`);
   }
   fuentes.push({ nombre: "Balance y descuadre (Cuadre SAP)", ok: detBal.length > 0,
