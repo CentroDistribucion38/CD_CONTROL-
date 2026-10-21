@@ -22,8 +22,8 @@ import {
    diferencias, y el Excel del cruce de todas las hojas.
    Aquí no se arma ni se edita nada: eso es del Plan.
    =================================================================== */
-export function Control({ personas, fiscales, conCruce, ahora }: {
-  personas: Persona[]; fiscales: FiscalBD[]; conCruce: boolean; ahora: string;
+export function Control({ personas, fiscales, conCruce, ahora, puedeEditar }: {
+  personas: Persona[]; fiscales: FiscalBD[]; conCruce: boolean; ahora: string; puedeEditar: boolean;
 }) {
   const hoy = diaColombia(ahora);
   const [mal, setMal] = useState<string | null>(null);
@@ -112,7 +112,7 @@ export function Control({ personas, fiscales, conCruce, ahora }: {
     return (
       <VistaFiscal key={f.id} fiscalId={f.id} nombre={f.nombre} fechaTexto={fechaConDia(f.fecha)} cuando={textoCuando(hoy, f.fecha)}
                    abierto={f.estado === "abierto"} visible={!!f.publicado} hojas={f.hojas} avanceInicial={f.avance ?? {}}
-                   conAvance={conAvance} quien={(id) => nombre.get(id) ?? "—"} acciones={acciones} />
+                   conAvance={conAvance} puedeEditar={puedeEditar} quien={(id) => nombre.get(id) ?? "—"} acciones={acciones} />
     );
   };
 

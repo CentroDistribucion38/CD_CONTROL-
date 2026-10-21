@@ -5,6 +5,7 @@ import { diaColombia } from "@/modulos/inventario/corte";
 import { hojasParaContar, type MiHojaBD } from "@/modulos/inventario/fiscal";
 import "../fefo.css";
 import "./asignado.css";
+import "./revisiones.css";
 import { Contar } from "./Contar";
 import { ContarConFiscal } from "./ContarConFiscal";
 import { FiscalAsignado } from "./FiscalAsignado";

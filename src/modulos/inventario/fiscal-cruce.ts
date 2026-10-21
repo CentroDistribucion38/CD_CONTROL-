@@ -67,6 +67,8 @@ export function textoEquipo(renglones: number, termino: string | null): string {
 export type EstadoFila = "COINCIDE" | "DIFIERE" | "SOLO_OL" | "SOLO_BAVARIA";
 
 export type FilaCruce = {
+  /** El id de la ubicación (para mandarla a validar o aprobarla). */
+  ubicacionId?: string | null;
   ubicacion: string; sku: string; material: string;
   vencDia: number | null; vencMes: number | null; vencAnio: number | null;
   cajasOl: number | null; cajasBavaria: number | null; diferencia: number; estado: EstadoFila;
@@ -74,6 +76,7 @@ export type FilaCruce = {
 
 /** Lo que devuelve `inv_fiscal_cruce`. */
 export type FilaCruceBD = {
+  ubicacion_id?: string | null;
   ubicacion: string; sku: string; material: string;
   venc_dia: number | null; venc_mes: number | null; venc_anio: number | null;
   cajas_ol: number | string | null; cajas_bavaria: number | string | null; diferencia: number | string | null; estado: string;
@@ -85,6 +88,7 @@ const nul = (v: unknown): number | null => (v === null || v === undefined ? null
 export function filaDesdeBD(f: FilaCruceBD): FilaCruce {
   const estado = (ESTADOS as string[]).includes(f.estado) ? (f.estado as EstadoFila) : "DIFIERE";
   return {
+    ubicacionId: f.ubicacion_id ?? null,
     ubicacion: f.ubicacion, sku: f.sku, material: f.material,
     vencDia: nul(f.venc_dia), vencMes: nul(f.venc_mes), vencAnio: nul(f.venc_anio),
     cajasOl: nul(f.cajas_ol), cajasBavaria: nul(f.cajas_bavaria), diferencia: num(f.diferencia), estado,

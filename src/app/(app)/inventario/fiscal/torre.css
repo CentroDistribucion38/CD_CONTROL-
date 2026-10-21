@@ -147,3 +147,33 @@
 .fe .vf-sel-b small { font: 400 11.5px var(--fe-texto); color: var(--fe-gris) }
 .fe .vf-sel-b[aria-pressed="true"] { border-color: var(--fe-tinta); box-shadow: inset 0 -3px 0 var(--fe-acento) }
 @media (prefers-reduced-motion: reduce) { .fe .vf-pulso { animation: none } .fe .vf-seg { transition: none } }
+
+/* ===== VALIDAR Y APROBAR (el fiscal) · todo cuadrado ===== */
+.fe .vv { margin: 12px 0; border: 2px solid var(--fe-tinta); background: #fff; min-width: 0 }
+.fe .vv-cab { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 12px; padding: 10px 14px; background: var(--fe-tinta); color: #fff }
+.fe .vv-cab b { font: 800 14px var(--fe-titulo); letter-spacing: .04em; text-transform: uppercase }
+.fe .vv-cab span { font-size: 12.5px; opacity: .9 }
+.fe .vv-barra { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--fe-linea); background: var(--fe-fondo) }
+.fe .vv-sel, .fe .vv-acc { display: flex; flex-wrap: wrap; gap: 8px }
+.fe .vv-nota { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--fe-gris-panel) }
+.fe .vv-nota input { min-height: 44px; font-size: 14px; border-radius: 0 }
+.fe .vv-forzar { margin: 10px 14px }
+.fe .vv-forzar p { margin: 0 0 8px }
+.fe .vv > .cl-mal, .fe .vv > .cl-ok { margin: 10px 14px }
+.fe .vv-lista { list-style: none; margin: 0; padding: 0 }
+.fe .vv-fila { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 10px 14px; border-top: 1px solid var(--fe-linea); border-left: 6px solid var(--fe-linea); min-width: 0 }
+.fe .vv-fila.difiere { border-left-color: var(--fe-mal) }
+.fe .vv-fila.validando { border-left-color: var(--fe-aviso) }
+.fe .vv-fila.aprobada { border-left-color: var(--fe-bien) }
+.fe .vv-chk { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; font-size: 15px; cursor: pointer }
+.fe .vv-chk input { width: 22px; height: 22px; margin: 0 }
+.fe .vv-e { font: 800 10.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase; font-style: normal; padding: 3px 8px; border-radius: 0; background: var(--fe-fondo); color: var(--fe-tinta) }
+.fe .vv-e.difiere { background: var(--fe-mal); color: #fff }
+.fe .vv-e.validando { background: var(--fe-aviso); color: var(--fe-tinta) }
+.fe .vv-e.aprobada { background: var(--fe-bien); color: #fff }
+.fe .vv-resp { flex: 1 1 100%; font-size: 12.5px; color: var(--fe-gris) }
+.fe .vv-todas { margin: 8px 14px 12px }
+.fe .vv-sig { margin: 12px 14px; padding: 12px 14px; border: 2px solid var(--fe-tinta); background: var(--fe-fondo) }
+.fe .vv-sig b { font: 800 14px var(--fe-titulo); text-transform: uppercase; letter-spacing: .04em }
+.fe .vv-sig p { margin: 6px 0 10px; font-size: 13px; color: var(--fe-gris-panel) }
+.fe .vv-sig select { min-height: 48px; font-size: 15px; border-radius: 0 }

@@ -27,6 +27,7 @@ import type { KeyboardEvent, RefObject } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Buscador } from "@/components/Buscador";
+import { RevisionesFiscal } from "./RevisionesFiscal";
 import { useConfirmar } from "@/components/Confirmar";
 import { useAvisos } from "@/components/Aviso";
 import type { Material, Ubicacion } from "@/modulos/inventario/fefo";
@@ -291,6 +292,10 @@ export function ContarFiscal({
               </option>
             ))}
           </select></label>
+      )}
+
+      {hoja.puedeContar && (
+        <RevisionesFiscal hojaId={hoja.hojaId} mios={mios} materiales={materiales} avisar={avisar} alCambiar={() => leer(hoja.hojaId)} />
       )}
 
       {hoja.puedeContar && (

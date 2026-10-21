@@ -1,3 +1,4 @@
+import { misPermisos } from "@/lib/permisos";
 import { cargarFiscales } from "../fiscal/datos";
 import "../fefo.css";
 import "../corte/corte.css";
@@ -15,12 +16,12 @@ export const dynamic = "force-dynamic";
  * de las diferencias del cruce y el Excel con todo. Es de lectura: no arma nada.
  */
 export default async function ControlFiscalPage() {
-  const r = await cargarFiscales();
+  const [permisos, r] = await Promise.all([misPermisos(), cargarFiscales()]);
   if ("fallo" in r) return r.fallo;
   const { personas, fiscales, conCruce } = r.datos;
   return (
     <div className="fe">
-      <Control personas={personas} fiscales={fiscales} conCruce={conCruce} ahora={new Date().toISOString()} />
+      <Control personas={personas} fiscales={fiscales} conCruce={conCruce} ahora={new Date().toISOString()} puedeEditar={permisos.puedeEditar("/inventario/fiscal")} />
     </div>
   );
 }

@@ -1,0 +1,32 @@
+/* ===== «REVISA ESTA UBICACIÓN» (cada persona de la pareja) · todo cuadrado ===== */
+.fe .rv { margin: 0 0 14px; border: 3px solid var(--fe-mal); background: #fff; min-width: 0 }
+.fe .rv-cab { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; padding: 10px 14px; background: var(--fe-mal); color: #fff }
+.fe .rv-cab b { font: 800 15px var(--fe-titulo); letter-spacing: .03em; text-transform: uppercase }
+.fe .rv-cab span { font-size: 12.5px }
+.fe .rv-lista { list-style: none; margin: 0; padding: 0 }
+.fe .rv-ub { padding: 12px 14px; border-top: 1px solid var(--fe-linea); min-width: 0 }
+.fe .rv-ub:first-child { border-top: 0 }
+.fe .rv-ub h3 { margin: 0; font: 800 20px var(--fe-titulo); color: var(--fe-tinta) }
+.fe .rv-ub .rv-ronda { font: 700 11px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase; color: var(--fe-gris); margin-left: 8px }
+.fe .rv-nota { margin: 6px 0 0; padding: 8px 10px; border-left: 4px solid var(--fe-aviso); background: var(--fe-fondo); font-size: 13.5px }
+.fe .rv-mios { list-style: none; margin: 8px 0; padding: 0; font-size: 13.5px }
+.fe .rv-mios li { padding: 6px 0; border-top: 1px solid var(--fe-linea); overflow-wrap: anywhere }
+.fe .rv-mios li span { color: var(--fe-gris) }
+.fe .rv-vacio { margin: 8px 0; font-size: 13.5px; color: var(--fe-gris) }
+.fe .rv-acc { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px }
+.fe .rv-acc .btn { min-height: 48px }
+.fe .rv-enviada { margin: 8px 0 0; font-size: 13.5px; color: var(--fe-bien); font-weight: 700 }
+.fe .rv-ed { margin-top: 10px; border: 2px solid var(--fe-tinta); background: var(--fe-fondo); padding: 12px }
+.fe .rv-ed > p { margin: 0 0 10px; font-size: 13px; color: var(--fe-gris-panel) }
+.fe .rv-ren { display: grid; gap: 8px; padding: 10px; margin-bottom: 10px; border: 1px solid var(--fe-linea); background: #fff; grid-template-columns: repeat(2, minmax(0, 1fr)) }
+.fe .rv-ren label { display: flex; flex-direction: column; gap: 3px; font-size: 11.5px; color: var(--fe-gris); min-width: 0 }
+.fe .rv-ren input { min-height: 44px; font-size: 15px; width: 100%; border-radius: 0 }
+.fe .rv-ren .rv-w { grid-column: 1 / -1 }
+.fe .rv-ren .rv-desc { grid-column: 1 / -1; font-size: 13px; color: var(--fe-gris) }
+.fe .rv-ren .rv-desc.mal { color: var(--fe-mal); font-weight: 700 }
+.fe .rv-ren .rv-fecha { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px }
+.fe .rv-modo { display: grid; grid-template-columns: 1fr 1fr; border: 2px solid var(--fe-tinta) }
+.fe .rv-modo button { min-height: 44px; border: 0; background: #fff; color: var(--fe-tinta); font: 700 13px var(--fe-texto); cursor: pointer; border-radius: 0 }
+.fe .rv-modo button + button { border-left: 2px solid var(--fe-tinta) }
+.fe .rv-modo button.on { background: var(--fe-acento); color: var(--fe-sobre) }
+.fe .rv-ed .cl-mal { margin: 0 0 10px }

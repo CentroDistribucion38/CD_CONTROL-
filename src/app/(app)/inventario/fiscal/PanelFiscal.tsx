@@ -8,6 +8,7 @@ import {
   type AvanceBD, type AvanceHoja, type FilaCruce, type FilaCruceBD, type ResumenCruce,
 } from "@/modulos/inventario/fiscal-cruce";
 import type { HojaForm } from "@/modulos/inventario/fiscal";
+import { ValidarHoja, type RevisionBD } from "./ValidarHoja";
 
 /* ===================================================================
    EL INVENTARIO FISCAL, TODO EN UN SOLO LUGAR · TORRE DE CONTROL
@@ -69,12 +70,22 @@ export function ubicacionesConDiferencia(filas: FilaCruce[]): { ubicacion: strin
 }
 const MAX_UBICACIONES = 8;
 
+/** Las ubicaciones con diferencia que el fiscal todavía NO aprobó. Una ubicación aprobada ya no pesa: el fiscal la dio por buena. */
+export function difPendientes(filas: FilaCruce[], revs: RevisionBD[], numero: number): { ubicacion: string; renglones: number }[] {
+  const aprobadas = new Set(revs.filter((r) => r.numero === numero && r.estado === "APROBADA").map((r) => r.ubicacion));
+  return ubicacionesConDiferencia(filas).filter((u) => !aprobadas.has(u.ubicacion));
+}
+
 /** El avance y el cruce de las hojas, renovados cada 15 s. Solo se cruzan las hojas donde las dos personas terminaron. */
 function useTorre(fiscalId: string, avanceInicial: Record<number, AvanceHoja>, activo: boolean) {
   const [avance, setAvance] = useState<Record<number, AvanceHoja>>(avanceInicial);
   const [cruces, setCruces] = useState<Record<number, Resultado>>({});
   const [hora, setHora] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [revs, setRevs] = useState<RevisionBD[]>([]);
+  const [hojaIds, setHojaIds] = useState<Record<number, string>>({});
+  /** false = falta correr 2026-10-fiscal-validar.sql: la torre funciona igual, sin validar ni aprobar. */
+  const [conValidar, setConValidar] = useState(true);
 
   const cargar = useCallback(async () => {
     const sb = createClient();
@@ -85,6 +96,10 @@ function useTorre(fiscalId: string, avanceInicial: Record<number, AvanceHoja>, a
     const av: Record<number, AvanceHoja> = {};
     for (const a of mias) av[a.numero] = avanceDesdeBD(a);
     setAvance(av);
+    setHojaIds(Object.fromEntries(mias.map((a) => [a.numero, a.hoja_id])));
+    const rv = await sb.rpc("inv_fiscal_revisiones", { p_fiscal: fiscalId });
+    if (rv.error) { setConValidar(false); setRevs([]) }
+    else { setConValidar(true); setRevs((rv.data ?? []) as RevisionBD[]) }
     const listas = mias.filter((a) => puedeCruzar(av[a.numero]));
     const res = await Promise.all(listas.map(async (a): Promise<[number, Resultado]> => {
       const r = await sb.rpc("inv_fiscal_cruce", { p_hoja: a.hoja_id });
@@ -102,7 +117,7 @@ function useTorre(fiscalId: string, avanceInicial: Record<number, AvanceHoja>, a
     return () => clearInterval(t);
   }, [activo, cargar]);
 
-  return { avance, cruces, hora, error, cargar };
+  return { avance, cruces, hora, error, cargar, revs, hojaIds, conValidar };
 }
 
 /** El anillo del avance: verde = completadas, rojo = con diferencias, ámbar = en conteo, el resto es el fondo. */
@@ -135,7 +150,7 @@ function Kpi({ icono, valor, et, tono = "" }: { icono: IcoNombre; valor: number;
 
 const ICO_TIPO: Record<Tipo, IcoNombre> = { sin: "vacio", proceso: "reloj", ok: "ok", dif: "alerta" };
 
-export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, visible, hojas, avanceInicial, conAvance, quien, acciones, parejas }: {
+export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, visible, hojas, avanceInicial, conAvance, quien, acciones, parejas, puedeEditar = true }: {
   fiscalId: string; nombre: string; fechaTexto: string; cuando: string; abierto: boolean; visible: boolean;
   hojas: HojaForm[]; avanceInicial: Record<number, AvanceHoja>;
   /** false = el inventario no está visible en Contar (o falta el SQL del cruce): sin avance en vivo. */
@@ -145,12 +160,14 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
   acciones: ReactNode;
   /** La pestaña «Parejas y hojas»: la tabla de parejas y su edición. Sin ella (el Control fiscal) la pestaña no existe: eso es del Plan fiscal. */
   parejas?: ReactNode;
+  /** ¿Puede validar y aprobar? (permiso «Inventario fiscal» con edición). Sin él, ve el estado pero no los botones. */
+  puedeEditar?: boolean;
 }) {
   const [pestana, setPestana] = useState<Pestana>("torre");
   const [filtro, setFiltro] = useState<Filtro>("todas");
   const [foco, setFoco] = useState<number | null>(null);
   const [verTodo, setVerTodo] = useState<Record<number, boolean>>({});
-  const { avance, cruces, hora, error, cargar } = useTorre(fiscalId, avanceInicial, conAvance);
+  const { avance, cruces, hora, error, cargar, revs, hojaIds, conValidar } = useTorre(fiscalId, avanceInicial, conAvance);
   const nf = useMemo(() => new Intl.NumberFormat("es-CO"), []);
 
   const tarjetas = hojas.map((h) => {
@@ -158,10 +175,13 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
     const estado = av ? estadoHoja(av) : "sin-empezar";
     const cr = cruces[h.numero];
     const resumen: ResumenCruce | null = cr && "filas" in cr ? resumenCruce(cr.filas) : null;
+    const pend = cr && "filas" in cr ? difPendientes(cr.filas, revs, h.numero) : [];
+    const aprobadoTodo = !!resumen && resumen.conDiferencia > 0 && pend.length === 0;
+    const enValidacion = revs.filter((r) => r.numero === h.numero && r.estado === "A_VALIDAR").length;
     let tipo: Tipo = "sin";
-    if (estado === "lista") tipo = resumen ? (resumen.conDiferencia === 0 ? "ok" : "dif") : "proceso";
+    if (estado === "lista") tipo = resumen ? (pend.length === 0 ? "ok" : "dif") : "proceso";
     else if (estado !== "sin-empezar") tipo = "proceso";
-    return { h, av, estado, cr, resumen, tipo };
+    return { h, av, estado, cr, resumen, tipo, pend, aprobadoTodo, enValidacion };
   });
   type Tarjeta = (typeof tarjetas)[number];
   const total = tarjetas.length;
@@ -175,7 +195,8 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
   for (const t of tarjetas) {
     if (!t.cr || !("filas" in t.cr)) continue;
     const m = new Map<string, boolean>();
-    for (const f of t.cr.filas) m.set(f.ubicacion, (m.get(f.ubicacion) ?? false) || f.estado !== "COINCIDE");
+    const pendSet = new Set(t.pend.map((u) => u.ubicacion));
+    for (const f of t.cr.filas) m.set(f.ubicacion, (m.get(f.ubicacion) ?? false) || (f.estado !== "COINCIDE" && pendSet.has(f.ubicacion)));
     for (const v of m.values()) { if (v) ubDif++; else ubOk++ }
   }
   const renglones = tarjetas.reduce((s, t) => s + (t.av ? t.av.olRenglones + t.av.bavariaRenglones : 0), 0);
@@ -189,7 +210,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
     : "Las ubicaciones aparecen cuando las dos personas de una hoja terminan.";
 
   const texto = (t: Tarjeta): string => {
-    if (t.tipo === "ok") return "Completada · todo coincide";
+    if (t.tipo === "ok") return t.aprobadoTodo ? "Completada · aprobada" : "Completada · todo coincide";
     if (t.tipo === "dif") return "Con diferencias";
     if (t.estado === "lista") return "Cruzando…";
     if (t.estado === "una-termino") return t.av?.olTermino ? "Esperando a Bavaria" : "Esperando al operador";
@@ -288,7 +309,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
               </div>
               <div className="vf-grid">
                 {vistas.map((t) => {
-                  const ubic = t.cr && "filas" in t.cr && t.tipo === "dif" ? ubicacionesConDiferencia(t.cr.filas) : [];
+                  const ubic = t.tipo === "dif" ? t.pend : [];
                   return (
                     <article key={t.h.numero} className={"vf-card " + t.tipo}>
                       <header className="vf-card-cab">
@@ -301,12 +322,12 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                         {persona(t.h.bavaria, "Bavaria", t.av?.bavariaRenglones, t.av?.bavariaTermino, !!t.av)}
                       </ul>
                       {t.tipo === "ok" && t.resumen && (
-                        <p className="vf-ok"><Ico n="ok" tam={15} /> {nf.format(t.resumen.total)} {t.resumen.total === 1 ? "renglón igual" : "renglones iguales"}</p>
+                        <p className="vf-ok"><Ico n="ok" tam={15} /> {t.aprobadoTodo ? "Las diferencias fueron aprobadas por el fiscal" : `${nf.format(t.resumen.total)} ${t.resumen.total === 1 ? "renglón igual" : "renglones iguales"}`}</p>
                       )}
                       {t.tipo === "dif" && t.resumen && (
                         <div className="vf-dif">
                           <p className="vf-dif-tit"><Ico n="alerta" tam={15} /> {titularCruce(t.resumen)}</p>
-                          <p className="vf-dif-et">Ubicaciones con diferencia ({ubic.length})</p>
+                          <p className="vf-dif-et">Ubicaciones con diferencia ({ubic.length}){t.enValidacion > 0 ? ` · ${t.enValidacion} en validación` : ""}</p>
                           <ul className="vf-ubic">
                             {ubic.slice(0, MAX_UBICACIONES).map((u) => (
                               <li key={u.ubicacion}><Ico n="pin" tam={13} /><b>{u.ubicacion}</b>{u.renglones > 1 && <small>· {u.renglones}</small>}</li>
@@ -345,8 +366,9 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
             const filas = t.cr && "filas" in t.cr ? t.cr.filas : [];
             const r = t.resumen as ResumenCruce;
             const todo = !!verTodo[t.h.numero];
-            const vis = t.tipo === "ok" ? (todo ? filas : []) : (todo ? filas : filas.filter((f) => f.estado !== "COINCIDE"));
-            const ubic = ubicacionesConDiferencia(filas);
+            const pendSet = new Set(t.pend.map((u) => u.ubicacion));
+            const vis = t.tipo === "ok" ? (todo ? filas : []) : (todo ? filas : filas.filter((f) => f.estado !== "COINCIDE" && pendSet.has(f.ubicacion)));
+            const ubic = t.pend;
             return (
               <section key={t.h.numero} id={"vf-h" + t.h.numero} className={"vf-rev " + t.tipo}>
                 <header className="vf-rev-cab">
@@ -355,7 +377,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                   <span className={"vf-estado " + t.tipo}>{texto(t)}</span>
                   <small className="vf-rev-quien">{t.h.ol ? quien(t.h.ol) : "—"} · {t.h.bavaria ? quien(t.h.bavaria) : "—"}</small>
                 </header>
-                <p className={"vf-rev-titular " + t.tipo}>{titularCruce(r)}</p>
+                <p className={"vf-rev-titular " + t.tipo}>{t.aprobadoTodo ? "El fiscal aprobó todas las diferencias de esta hoja." : titularCruce(r)}</p>
                 <ul className="vf-cifras" aria-label="Resumen del cruce">
                   <li><b>{r.coinciden}</b> coinciden</li>
                   <li><b>{r.difieren}</b> {r.difieren === 1 ? "difiere" : "difieren"}</li>
@@ -371,6 +393,12 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                   <button type="button" className="btn plano vf-toggle" aria-pressed={todo} onClick={() => setVerTodo({ ...verTodo, [t.h.numero]: !todo })}>
                     <Ico n="lista" tam={15} /> {todo ? (t.tipo === "ok" ? "Ocultar el detalle" : "Ocultar los que coinciden") : (t.tipo === "ok" ? "Ver el detalle" : `Ver también los ${r.coinciden} que coinciden`)}
                   </button>
+                )}
+                {conValidar ? (
+                  <ValidarHoja hojaId={hojaIds[t.h.numero] ?? null} numero={t.h.numero} calle={t.h.calle} filas={filas} revs={revs}
+                               puedeEditar={puedeEditar} ol={t.h.ol ? quien(t.h.ol) : ""} bavaria={t.h.bavaria ? quien(t.h.bavaria) : ""} onCambio={cargar} />
+                ) : (
+                  <p className="cl-nota" role="note">Para validar y aprobar falta correr <code>supabase/migraciones/2026-10-fiscal-validar.sql</code> en Supabase.</p>
                 )}
                 {vis.length > 0 && (
                   <div className="vf-tabla-caja">
