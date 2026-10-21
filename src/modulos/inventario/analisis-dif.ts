@@ -45,7 +45,9 @@ export type Novedad = {
 /** Lo contado ese día, sin segregar (producto, envase, cajas vacías…), para compararlo con el tablero del libro de inventario. */
 export type TotConteo = { renglones: number; cajas: number; estibas: number; plasticas: number };
 /** Un movimiento 311 del Cuadre SAP de AG18, AG17 o AG16 contra AG22. `movido` es el neto en ese almacén: + entra a ese almacén (sale de AG22), − sale de ese almacén (entra a AG22). */
-export type Mov311 = { almacen: string; codigo: string; descripcion: string; grupo: string; movido: number; documentos: string[]; entraAlAnalisis: boolean };
+export type Mov311 = { almacen: string; codigo: string; descripcion: string; grupo: string; movido: number; documentos: string[]; entraAlAnalisis: boolean;
+  /** Del Cuadre SAP de ese almacén ese día: lo contado allá, el SAP después de los 311 y lo que QUEDÓ sin cuadrar (SAP después − conteo). */
+  conteoAlm: number | null; sapDespues: number | null; queda: number | null };
 export type Fuente = { nombre: string; ok: boolean; detalle: string };
 export type Analisis = {
   fecha: string; filas: FilaAnalisis[]; fuentes: Fuente[]; avisos: string[];
@@ -90,11 +92,12 @@ const diaBogota = (iso: string) => new Intl.DateTimeFormat("sv-SE", { timeZone: 
 const PASIVOS: Record<string, string> = { "PRESORTING": "PEND BAJA PRESORTING", "ROTURA DE LINEA": "PEND BAJA ROTURA LINEA", "EXTRASUCIO": "CON BAJA EXTRASUCIO" };
 
 /** Los 311 de un Cuadre SAP (AG18, AG17 o AG16) contra AG22, TODOS (cualquier grupo, aunque no entren al análisis). */
-function movs311DeCuadre(c: { filas: { codigo: string | number; material?: string | null; grupo: string; movido: number; documentos?: string[]; dif: number | null }[] }, alm: string, nombre: (c: string) => string): Mov311[] {
-  return c.filas.filter((f) => Math.abs(f.movido) >= 0.005).map((f) => ({
+function movs311DeCuadre(c: { filas: { codigo: string | number; material?: string | null; grupo: string; movido: number; documentos?: string[]; dif: number | null; total?: number | null; sapDespues?: number | null; queda?: number | null }[] }, alm: string, nombre: (c: string) => string): Mov311[] {
+  return c.filas.filter((f) => Math.abs(f.movido) >= 0.005 || Math.abs(f.queda ?? 0) >= 0.5).map((f) => ({
     almacen: alm, codigo: String(f.codigo), descripcion: f.material ?? nombre(String(f.codigo)), grupo: String(f.grupo),
     movido: Math.round(f.movido * 100) / 100, documentos: f.documentos ?? [],
     entraAlAnalisis: f.grupo !== "PRODUCTO" && f.grupo !== "CAJA" && f.dif != null,
+    conteoAlm: f.total ?? null, sapDespues: f.sapDespues ?? null, queda: f.queda ?? null,
   }));
 }
 

@@ -32,7 +32,7 @@ export type InsumosLibroAjustes = {
   guardadoEn: string | null; guardadoPor: string | null;
   ajustes: FilaAjuste[]; analisis: FilaAnalisis[];
   /** Los 311 de AG22 contra AG18, AG17 y AG16 por SKU (hoja «311»). */
-  movimientos311?: { almacen: string; codigo: string; descripcion: string; grupo: string; movido: number; documentos: string[]; entraAlAnalisis: boolean }[];
+  movimientos311?: { almacen: string; codigo: string; descripcion: string; grupo: string; movido: number; documentos: string[]; entraAlAnalisis: boolean; conteoAlm: number | null; sapDespues: number | null; queda: number | null }[];
 };
 
 /* EL SELLO DE LA B, arriba a la derecha de cada hoja, como en los demás libros. Se baja de /marca/logo-b.png
@@ -138,7 +138,7 @@ function agregarHojasAjustes(wb: ExcelJS.Workbook, d: InsumosLibroAjustes) {
     const h = wb.addWorksheet("311", { properties: { tabColor: { argb: VERDE } } });
     const cols: Col[] = [{ t: "Almacén", w: 10, centro: true }, { t: "Código", w: 12 }, { t: "Descripción", w: 44, texto: true }, { t: "Grupo", w: 12 }, { t: "Movimiento", w: 22, texto: true },
       { t: "Cantidad", w: 14, fmt: NUM }, { t: "Efecto en SAP de AG22", w: 18, fmt: SIG }, { t: "Entra al análisis", w: 14, centro: true }, { t: "Documentos", w: 40, texto: true }];
-    const ms = [...(d.movimientos311 ?? [])].sort((a, b) => a.almacen.localeCompare(b.almacen) || a.codigo.localeCompare(b.codigo, "es", { numeric: true }));
+    const ms = [...(d.movimientos311 ?? [])].filter((m) => Math.abs(m.movido) >= 0.005).sort((a, b) => a.almacen.localeCompare(b.almacen) || a.codigo.localeCompare(b.codigo, "es", { numeric: true }));
     banda(h, cols.length, "Movimientos 311 por SKU", `${ms.length} movimientos · AG22 contra AG18, AG17 y AG16 · ${sub}`);
     encabezado(h, 7, cols);
     ms.forEach((m, i) => {
@@ -156,6 +156,31 @@ function agregarHojasAjustes(wb: ExcelJS.Workbook, d: InsumosLibroAjustes) {
     const nota = h.getCell(ult + 3, 1);
     nota.value = "Cantidad en las unidades de cada Cuadre SAP (envase en unidades, cajas plásticas en cajas). «Efecto en SAP de AG22»: − lo que salió de AG22, + lo que entró. «Entra al análisis» = No para producto y cajas plásticas (ya cuadran en el Cuadre SAP de su almacén).";
     h.mergeCells(ult + 3, 1, ult + 3, cols.length); nota.font = letra(9, GRIS, false, true); nota.alignment = { wrapText: true, vertical: "top", indent: 1 }; h.getRow(ult + 3).height = 30;
+    h.views = [{ state: "frozen", ySplit: 7, showGridLines: false }];
+    h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, printTitlesRow: "7:7" };
+  }
+
+  /* ---------------- DESCUADRES: lo que quedó sin cuadrar en AG18, AG17 y AG16 después de los 311 ---------------- */
+  {
+    const h = wb.addWorksheet("Descuadres", { properties: { tabColor: { argb: ROJO } } });
+    const cols: Col[] = [{ t: "Almacén", w: 10, centro: true }, { t: "Código", w: 12 }, { t: "Descripción", w: 44, texto: true }, { t: "Grupo", w: 12 },
+      { t: "Conteo en el almacén", w: 16, fmt: NUM }, { t: "311 hechos", w: 14, fmt: SIG }, { t: "SAP después", w: 15, fmt: NUM }, { t: "Queda sin cuadrar", w: 16, fmt: SIG }, { t: "Qué significa", w: 46, texto: true }];
+    const ds = [...(d.movimientos311 ?? [])].filter((m) => Math.abs(m.queda ?? 0) >= 0.5)
+      .sort((a, b) => a.almacen.localeCompare(b.almacen) || a.codigo.localeCompare(b.codigo, "es", { numeric: true }));
+    banda(h, cols.length, "Descuadres de los otros almacenes", `${ds.length} códigos · lo que queda después de los 311 · ${sub}`);
+    encabezado(h, 7, cols);
+    ds.forEach((m, i) => {
+      const q = m.queda ?? 0;
+      const r = fila(h, 8 + i, cols, [m.almacen, m.codigo, m.descripcion, m.grupo, m.conteoAlm, m.movido || null, m.sapDespues, q,
+        q > 0 ? `SAP de ${m.almacen} tiene ${Math.round(q).toLocaleString("es-CO")} de más que lo contado` : `SAP de ${m.almacen} tiene ${Math.round(-q).toLocaleString("es-CO")} de menos que lo contado`], i % 2 === 1);
+      r.getCell(2).font = letra(9.5, TINTA, true);
+      r.getCell(8).font = letra(10, q < 0 ? ROJO : AZUL, true);
+    });
+    const ult = 7 + ds.length;
+    if (ds.length) {
+      total(h, ult + 1, cols.length, "TOTAL (lo filtrado)", { 8: { desde: 8, hasta: ult, valor: ds.reduce((t, m) => t + (m.queda ?? 0), 0), fmt: SIG } });
+      h.autoFilter = `A7:I${ult}`;
+    } else { const x = h.getCell(8, 1); x.value = "Ningún almacén quedó con descuadre ese día."; x.font = letra(10, VERDE, true) }
     h.views = [{ state: "frozen", ySplit: 7, showGridLines: false }];
     h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, printTitlesRow: "7:7" };
   }
