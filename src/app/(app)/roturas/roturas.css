@@ -2926,3 +2926,8 @@
 /* Qué material a cobro se queda por fuera y qué le falta en el maestro. */
 .rt .rq-faltan { margin: 0; padding: 0 24px 16px 40px; font-size: 12.5px; line-height: 1.6; color: #A30D25 }
 .rt .rq-faltan b { font-weight: 800 }
+
+/* Registrar rotura · la foto va primero (paso 2): sola, sin la caja de texto de «qué pasó». */
+.rt-rep .rp3-foto1 .rp3-ev { display: block }
+.rt-rep .rp3-foto1 .rp3-up { width: 100%; min-height: 150px }
+.rt-rep .rp3-sinfoto { margin-top: 10px; padding: 6px 0; background: none; border: 0; font: inherit; font-size: 13px; color: var(--rt-gris); text-decoration: underline; cursor: pointer }

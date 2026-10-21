@@ -12,7 +12,7 @@ import type { Area, Causa, Material, Proceso } from "@/modulos/roturas/datos";
 /**
  * REGISTRAR UNA ROTURA — dos pasos, en el orden en que pasan las cosas.
  *
- *   PASO 1  ¿QUÉ SE ROMPIÓ?      tipo, vidrio, material y cuántas
+ *   PASO 1  ¿QUÉ SE ROMPIÓ?      la foto primero; luego tipo, vidrio, material y cuántas
  *   PASO 2  ¿DE DÓNDE SALIÓ?     proceso, área, causa, foto y qué pasó
  *
  * EL EER NO PREGUNTA MATERIAL. «Si en EER no es material, ¿para qué
@@ -138,6 +138,9 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
   const [descripcion, setDescripcion] = useState("");
 
   const [foto, setFoto] = useState<Foto | null>(null);
+  /* «Seguir sin foto»: la foto va primero, pero no siempre se puede tomar en ese momento. */
+  const [sinFotoOk, setSinFotoOk] = useState(false);
+  const fotoListo = !!foto || sinFotoOk;
   const [sellando, setSellando] = useState(false);
   const camara = useRef<HTMLInputElement>(null);
 
@@ -416,7 +419,7 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
   const puedeSeguir = paso === 0
     ? origen === "encontrada" || (origen === "opm" && !!opm)
     : paso === 1
-    ? (!!material || delTipo.length === 0) && (unidades + (esPT ? contaminadas : 0)) > 0
+    ? fotoListo && (!!material || delTipo.length === 0) && (unidades + (esPT ? contaminadas : 0)) > 0
     : !!proceso && !!area && !!causa && (!exigeFoto || !!foto);
 
   /* SE BUSCA AL COMPLETAR LOS CUATRO DÍGITOS, no con un botón: un botón
@@ -572,6 +575,7 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
             setListo(null); setMal(null); setPaso(1);
             setUnidades(1); setContaminadas(0); setTocoBotellas(false);
             if (foto) { URL.revokeObjectURL(foto.url); setFoto(null) }
+            setSinFotoOk(false);
           }}>
             Registrar otra
           </button>
@@ -606,7 +610,7 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
           {paso === 0
             ? "Paso 1 de 3 · Si la reportó un operario o si alguien se la encontró ya rota."
             : paso === 1
-            ? "Paso 2 de 3 · Qué material y cuántas unidades. En sitio siempre se cuenta en unidades."
+            ? "Paso 2 de 3 · Primero la foto; después qué material y cuántas unidades. En sitio siempre se cuenta en unidades."
             : "Paso 3 de 3 · De qué proceso salió, en qué área pasó y por qué."}
         </p>
       </div>
@@ -686,6 +690,45 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
           </>
         ) : paso === 1 ? (
           <>
+            {/* PRIMERO LA FOTO, DESPUÉS LAS CANTIDADES. A quien está parado frente a lo roto le pesa teclear cuántas
+                cajas son sin tenerlas claras; con la foto tomada las cuenta mirándola. Hasta que no haya foto (o se
+                diga que no se puede) no salen el material ni las cantidades. La causa —que es lo que decide si la
+                foto es obligatoria— se escoge en el paso siguiente, por eso aquí se puede seguir sin ella; si la
+                causa la exige, el último paso lo dice y deja tomarla ahí. */}
+            <div className="rp3-f rp3-foto1">
+              <div className="rp3-lb">
+                <b>1 · Toma la foto</b>
+                <span>{fotoListo ? (foto ? "Mírala para contar las cajas." : "Sin foto por ahora: se puede agregar después.") : "Primero la foto; luego las cantidades."}</span>
+              </div>
+              <div className="rp3-ev">
+                <button type="button" className={"rp3-up" + (foto ? " con" : "")}
+                        onClick={abrirCamara} disabled={sellando}
+                        aria-label={foto ? "Tomar otra foto" : "Tomar la foto"}>
+                  {foto
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    ? <img src={foto.url} alt="La rotura" />
+                    : <span className="ci" aria-hidden>
+                        <svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></svg>
+                      </span>}
+                  <span className="tx">
+                    {sellando ? "Sellando…" : foto ? "Tomar otra foto" : "Tomar foto"}
+                    <small>{foto ? "con sello de fecha y lugar" : "con la cámara"}</small>
+                  </span>
+                </button>
+                <input ref={camara} type="file" accept="image/*" capture="environment"
+                       onChange={tomarFoto} hidden />
+              </div>
+              {!fotoListo && (
+                <button type="button" className="rp3-sinfoto" onClick={() => setSinFotoOk(true)}>
+                  No puedo tomarla ahora · seguir sin foto
+                </button>
+              )}
+            </div>
+
+            {mal && !fotoListo && <div className="negro"><span className="punto" /><span>{mal}</span></div>}
+
+            {fotoListo && (
+              <>
             <div className="linea-campos">
               <div>
                 <span className="rot-campo">¿Qué se rompió?</span>
@@ -797,6 +840,8 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
                 anotó en su momento. Deja de pedirse, no de existir; y
                 `p_botellas` viaja en null, que es lo que la función ya
                 acepta. */}
+              </>
+            )}
           </>
         ) : (
           <>
@@ -930,7 +975,7 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
           {paso === 0
             ? (!origen ? "Falta decir quién la reportó"
               : origen === "opm" && !opm ? "Falta el PIN del operario" : "Siguiente")
-            : paso === 1 ? "Siguiente"
+            : paso === 1 ? (fotoListo ? "Siguiente" : "Falta la foto")
             : mandando ? "Enviando…"
             /* EL BOTÓN DICE QUÉ FALTA. Un botón apagado sin explicación
                es la forma más cara de pedir un dato: la persona lo toca
