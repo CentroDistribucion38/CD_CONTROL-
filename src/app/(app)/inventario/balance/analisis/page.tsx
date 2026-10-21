@@ -45,7 +45,7 @@ const FUENTES: Fuente[] = [
   { renglon: "ZEXI de las 6 a. m.", lado: "SAP", deDonde: "Plantilla de novedades, tipo ZEXI 6 AM: la ZEXI de Bodega 38 descargada a las 6, ANTES de balancear (Total General por código, en unidades; el cilindro de AG01 también).", estado: "falta",
     nota: "Si se descarga después de balancear, ya no sirve." },
   { renglon: "BALANCE · movimientos entre AG22 y AG18 · AG17 · AG16", lado: "SAP", deDonde: "Cuadre SAP de cada almacén: lo que se movió por 311 después de las 6 a. m. Lo que ENTRÓ a AG22 suma a SAP y lo que SALIÓ de AG22 resta a SAP, para que SAP quede como el AG22 real. Cada almacén sale como su propia partida.", estado: "ok",
-    nota: "Solo se aplica cuando la plantilla trae la ZEXI de las 6 a. m.; sin ella SAP queda en 0 y esto se ve en el detalle de cada código." },
+    nota: "Lo que sale de AG22 resta a SAP siempre. Lo que entra a AG22 se suma cuando la plantilla trae la ZEXI de las 6 a. m.; sin ella se ve en el detalle de cada código." },
   { renglon: "DESCUADRE · de AG18 · AG17 · AG16 a AG22", lado: "SAP", deDonde: "Lo que quedó sin cuadrar cuando el SAP de ese almacén tiene de más que el conteo (p. ej. la 3500005 en AG16).", estado: "ok",
     nota: "Solo suma a SAP cuando la plantilla trae la ZEXI de las 6 a. m.; sin ella SAP queda en 0 y esto se ve en el detalle de cada código." },
   { renglon: "PEND NOVEDADES CD", lado: "SAP", deDonde: "Plantilla de novedades: una fila por entrega pendiente, con su N° de entrega (o SOCIO); suma su caja plástica.", estado: "falta" },

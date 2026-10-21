@@ -333,7 +333,9 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
      El DESCUADRE conserva su regla de siempre. La diferencia final es la misma de cualquier forma. */
   const aplicar = (codigo: string, partida: string, t: number, todoSap = false) => {
     if (Math.abs(t) < 0.005) return;
-    if (todoSap) { zexiOtros.push({ codigo, partida, cant: -t }); return }
+    /* Lo que SALIÓ de AG22 resta a SAP YA, haya o no ZEXI de las 6: antes sumaba al conteo y contaba siempre, así que la diferencia no puede cambiar.
+       Lo que ENTRÓ sigue esperando la ZEXI (como siempre). */
+    if (todoSap) { if (t > 0) suma("sap", codigo, partida, -t); else zexiOtros.push({ codigo, partida, cant: -t }); return }
     if (t > 0) suma("conteo", codigo, partida, t); else zexiOtros.push({ codigo, partida, cant: -t });
   };
   for (const alm of ["AG18", "AG17", "AG16"] as const) {
