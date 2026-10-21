@@ -18,9 +18,9 @@ import { CAJA_EN_DEPA, lineaDeDepa } from "./depa";
  *            también cuenta como caja) + DEPA (corte inicial del día)
  *          + Pasivos AG22 (PRESORTING, ROTURA DE LINEA, EXTRASUCIO)
  *          + novedades de la plantilla que suman al conteo.
- *          + BALANCE (lo que se movió por 311 contra AG22 en los Cuadres SAP de AG18, AG17 y AG16, hacia AG22) y DESCUADRE (lo que
- *            quedó sin cuadrar en cada uno: se refleja aparte para que nada quede por fuera).
- *   SAP    = ZEXI 6 AM (plantilla, AG22) + el BALANCE y el DESCUADRE que van del lado SAP + novedades que suman a SAP.
+ *          + DESCUADRE (lo que quedó sin cuadrar en AG18, AG17 y AG16: se refleja aparte para que nada quede por fuera).
+ *   SAP    = ZEXI 6 AM (plantilla, AG22) + BALANCE (lo que se movió por 311 contra AG22 después de las 6: lo que entra suma, lo que sale resta)
+ *          + el DESCUADRE que va del lado SAP + novedades que suman a SAP.
  *   DIFERENCIA = CONTEO − SAP.
  * Cada lado guarda de qué partida sale cada número, para abrir el detalle.
  */
@@ -306,7 +306,7 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   fuentes.push({ nombre: "Pasivos AG22", ok: nPas > 0, detalle: nPas ? `${nPas} filas (presorting, rotura de línea, extrasucio)` : "Sin base de Pasivos ese día" });
 
   /* 4. LOS OTROS ALMACENES: el Cuadre SAP de AG18 (Fábrica), AG17 (EXPORTACION) y AG16 (BTS), cada uno balanceado contra su conteo.
-        Lo que se movió por 311 contra AG22 entra como BALANCE («de AG22 a …» suma al CONTEO, «de … a AG22» a SAP). Lo que QUEDÓ sin
+        Lo que se movió por 311 contra AG22 entra como BALANCE, todo del lado SAP («de … a AG22» suma a SAP, «de AG22 a …» resta a SAP). Lo que QUEDÓ sin
         cuadrar en ese almacén (no se puede pasar a AG22: el material está físicamente allá) entra como DESCUADRE, aparte y con el
         nombre del almacén, para que nada quede por fuera. Planeado = ejecutado + descuadre, así que el total es el mismo del Cuadre. */
   const cu = await armarCuadre(fecha, "AG18");
@@ -328,8 +328,12 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   /* Lo que cada Cuadre SAP dejó sin cuadrar (después de los 311): si un almacén queda con diferencia, el código lo muestra. */
   const descuadresAlm = new Map<string, { alm: string; queda: number }[]>();
   /* Una cantidad con la regla de siempre: positiva = «de AG22 a ese almacén» (suma al CONTEO); negativa = «de ese almacén a AG22» (suma a SAP). */
-  const aplicar = (codigo: string, partida: string, t: number) => {
+  /* EL BALANCE VA TODO DEL LADO SAP: lo que entró a AG22 desde otro almacén SUMA a SAP y lo que salió de AG22 hacia otro RESTA a SAP
+     (la ZEXI de las 6 a. m. no trae los movimientos hechos después). Así SAP queda como el AG22 real y el conteo es solo lo contado.
+     El DESCUADRE conserva su regla de siempre. La diferencia final es la misma de cualquier forma. */
+  const aplicar = (codigo: string, partida: string, t: number, todoSap = false) => {
     if (Math.abs(t) < 0.005) return;
+    if (todoSap) { zexiOtros.push({ codigo, partida, cant: -t }); return }
     if (t > 0) suma("conteo", codigo, partida, t); else zexiOtros.push({ codigo, partida, cant: -t });
   };
   for (const alm of ["AG18", "AG17", "AG16"] as const) {
@@ -346,7 +350,7 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
          ya estaba en SAP. Ese sobrante va UNA sola vez, en el lado CONTEO (como BALANCE de ese almacén): no se repite como DESCUADRE en SAP. */
       const yaEstabaEnSap = f.sap === 0 && f.movido > 0.005 && (f.dif ?? 0) >= -0.5;
       if (yaEstabaEnSap) avisos.push(`${cod} ${nombre(cod)}: la ZEXI de antes de ${alm} no lo traía (SAP 0) y la nueva trae ${Math.round(f.movido).toLocaleString("es-CO")} u sin que el cuadre pidiera moverlas: ya estaba en SAP. Va una sola vez, en el CONTEO (BALANCE · ${alm}); no se repite como DESCUADRE.`);
-      if (f.grupo !== "CAJA" && Math.abs(f.movido) >= 0.005) { aplicar(cod, `BALANCE · ${alm}`, f.movido); nb++ }
+      if (f.grupo !== "CAJA" && Math.abs(f.movido) >= 0.005) { aplicar(cod, `BALANCE · ${alm}`, f.movido, true); nb++ }
       /* CASCO DE MÁS: el casco registrado superó lo contado y el Cuadre dejó la meta en 0. Ese sobrante es del Balance de casco: se avisa, no es DESCUADRE. */
       if (f.cascoDeMas) avisos.push(`${cod} ${nombre(cod)}: en el Cuadre ${alm} el casco registrado supera lo contado en ${Math.round(f.cascoDeMas).toLocaleString("es-CO")} u. Esa diferencia va en el Balance de casco; no se pone como DESCUADRE en SAP.`);
       if (yaEstabaEnSap) continue;
