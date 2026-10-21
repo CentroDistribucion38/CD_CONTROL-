@@ -142,8 +142,26 @@ export function ContarFiscal({
       const k = claveBase(f);
       if (!m.has(k)) m.set(k, { base: k, calle: f.calle, modulo: f.modulo });
     }
-    return [...m.values()].sort((x, y) => ordenCalle(x.calle, y.calle) || x.modulo.localeCompare(y.modulo, "es", { numeric: true }));
-  }, [ubicaciones, b.calle]);
+    /* CADA UNO DE LA PAREJA EMPIEZA POR UN EXTREMO DE LA CALLE: el operador logístico ve los módulos del 01
+       hacia arriba y Bavaria del último hacia abajo. Así los dos cuentan la misma calle sin ir uno detrás del
+       otro ni copiarse, y se encuentran a mitad de camino; el cruce de los conteos se hace después. Los
+       sitios que no son una posición numerada (PASILLO, TANDEM, DEPA…) quedan al final para los dos. */
+    const alReves = hoja?.equipo === "Bavaria";
+    const esNum = (v: string) => /^\d+$/.test(v);
+    return [...m.values()].sort((x, y) => {
+      const c = ordenCalle(x.calle, y.calle);
+      if (c) return c;
+      if (alReves && esNum(x.modulo) && esNum(y.modulo)) return Number(y.modulo) - Number(x.modulo);
+      return x.modulo.localeCompare(y.modulo, "es", { numeric: true });
+    });
+  }, [ubicaciones, b.calle, hoja?.equipo]);
+  /** «01 → 36» u «36 → 01»: por dónde empieza esta persona en la calle escogida (solo con una calle puesta). */
+  const miOrden = useMemo(() => {
+    if (b.calle === "") return null;
+    const num = modulos.filter((m) => /^\d+$/.test(m.modulo));
+    if (num.length < 2) return null;
+    return `${num[0].modulo} → ${num[num.length - 1].modulo}`;
+  }, [modulos, b.calle]);
   const lados = useMemo(() => {
     const delModulo = ubicaciones.filter((u) => u.activa && claveBase(u) === b.base);
     if (delModulo.length > 0 && delModulo.every((u) => (u.lado ?? "") === "")) return [""];
@@ -311,7 +329,7 @@ export function ContarFiscal({
                     const sigue = b.base.startsWith(nueva + "|");
                     setB((x) => ({ ...x, calle: nueva, base: nueva === "" || sigue ? x.base : "", lado: nueva === "" || sigue ? x.lado : "" }));
                   }} /></label>
-              <label><span>Módulo</span>
+              <label><span>Módulo{miOrden && <small className="fc-orden" title="Por dónde empiezas tú en esta calle; tu pareja empieza por el otro extremo"> · tu orden {miOrden}</small>}</span>
                 <Buscador valor={b.base} marcador="Escribe o escoge…" sinOpciones="Esa calle no tiene módulos activos."
                   teclado="numerico" desdeElSiguiente
                   opciones={modulos.map((m) => ({ valor: m.base, texto: m.modulo, pista: b.calle === "" ? `Calle ${m.calle}` : null }))}
