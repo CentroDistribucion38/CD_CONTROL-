@@ -118,3 +118,25 @@
 /* Los avisos, al final y cerrados. */
 .fe .fi-avisos { margin-top: 14px; border-top: 1px solid var(--fe-linea); padding-top: 8px }
 .fe .fi-avisos > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font: 700 11px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase; color: var(--fe-gris) }
+
+/* LA CALLE DE CADA HOJA y su mapa (todo recto). */
+.fe .fi-calle { display: inline-block; font: 800 10.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase; padding: 3px 8px; margin-top: 6px; background: var(--fe-acento); color: var(--c-marca-txt, var(--fe-tinta)) }
+.fe .fi-mapa-cab .fi-calle { margin: 0 0 0 10px }
+.fe .fi-sentido { font-style: normal; font-weight: 800; letter-spacing: .04em; margin-left: 8px; color: var(--fe-tinta); text-transform: none }
+.fe .fi-calle-sel { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; max-width: 360px }
+.fe .fi-calle-sel > span { font: 600 10.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase; color: var(--fe-gris) }
+.fe .fi-calle-sel select { min-height: 44px; padding: 0 10px; font: 500 15px var(--fe-texto); color: var(--fe-tinta); background: #fff; border: 1.5px solid var(--fe-linea); border-radius: 2px }
+.fe .fi-calle-sel small { font-size: 12px; color: var(--fe-gris) }
+.fe .fi-mapa { display: flex; flex-direction: column; gap: 14px; margin-top: 10px }
+.fe .fi-mapa-hoja { border: 1px solid var(--fe-linea); background: var(--fe-papel); padding: 12px 14px }
+.fe .fi-mapa-cab { margin: 0 0 8px; display: flex; align-items: center }
+.fe .fi-mapa-cab b { font: 900 16px var(--fe-titulo) }
+.fe .fi-flecha { margin: 0; display: flex; justify-content: space-between; gap: 10px; font-size: 13px; padding: 4px 0 }
+.fe .fi-flecha span { font-weight: 700; color: var(--fe-tinta) }
+.fe .fi-flecha em { font-style: normal; font: 800 13px var(--fe-texto); font-variant-numeric: tabular-nums }
+.fe .fi-flecha.ol { border-bottom: 3px solid var(--fe-acento) }
+.fe .fi-flecha.ba { border-top: 3px solid var(--fe-tinta); flex-direction: row-reverse }
+.fe .fi-pista { display: grid; gap: 2px; margin: 6px 0 }
+.fe .fi-pista i { height: 16px; background: var(--fe-fondo) }
+.fe .fi-pista i.cruce { background: var(--fe-tinta) }
+.fe .fi-mapa-pie { margin: 6px 0 0; font-size: 12px; color: var(--fe-gris) }

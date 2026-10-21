@@ -10,9 +10,10 @@ import Link from "next/link";
 import { Ico } from "./PanelFiscal";
 import {
   agregarHojas, agrupar, aPayload, completarRoles, conteoPorRol, fechaConDia, hojasVacias, opcionesPersonas,
-  nombreAuto, ponerPersona, proximoDia, quitarHoja, revisar, rolPorDefecto, sumarDias, textoCuando, textoResumen,
+  nombreAuto, ponerCalle, ponerPersona, proximoDia, quitarHoja, revisar, rolPorDefecto, sumarDias, textoCuando, textoResumen,
   type Equipo, type HojaForm, type PersonaF, type RolF,
 } from "@/modulos/inventario/fiscal";
+import { MODULOS_DE_LA_HOJA } from "@/modulos/inventario/modulos-hoja";
 import {
   estadoHoja, textoEquipo, TEXTO_ESTADO, type AvanceHoja, type EstadoHoja,
 } from "@/modulos/inventario/fiscal-cruce";
@@ -45,6 +46,39 @@ function Medidor({ renglones, termino }: { renglones: number; termino: string | 
   return <span className={"fi-med " + est} aria-hidden="true"><i /></span>;
 }
 
+/** Las calles con las que se puede numerar una hoja, en orden (las de una letra primero). */
+const CALLES = Object.keys(MODULOS_DE_LA_HOJA)
+  .filter((c) => MODULOS_DE_LA_HOJA[c].some((m) => /^\d/.test(m)))
+  .sort((a, b) => (a.length === 1 ? 0 : 1) - (b.length === 1 ? 0 : 1) || a.localeCompare(b, "es", { numeric: true }));
+/** Los módulos numerados de una calle ("01"…"36"): por ahí se cruzan las dos personas. */
+const numeradosDe = (calle: string | undefined): string[] =>
+  calle ? (MODULOS_DE_LA_HOJA[calle] ?? []).filter((m) => /^\d/.test(m)) : [];
+
+/** El mapa de la calle: por dónde empieza y hacia dónde va cada equipo, para que se crucen a mitad de camino. */
+function MapaCalles({ hojas, nombre }: { hojas: HojaForm[]; nombre: Map<string, string> }) {
+  const con = hojas.filter((h) => numeradosDe(h.calle).length >= 2);
+  if (con.length === 0) return <p className="cl-nota">Ninguna hoja tiene calle todavía. Escógela en «Editar parejas y hojas».</p>;
+  return (
+    <div className="fi-mapa">
+      {con.map((h) => {
+        const mods = numeradosDe(h.calle);
+        const medio = Math.ceil(mods.length / 2);
+        return (
+          <div key={h.numero} className="fi-mapa-hoja">
+            <p className="fi-mapa-cab"><b>Hoja {h.numero}</b><span className="fi-calle">Calle {h.calle}</span></p>
+            <p className="fi-flecha ol"><span>{h.ol ? nombre.get(h.ol) ?? "—" : "Operador logístico"}</span><em>{mods[0]} → {mods[mods.length - 1]}</em></p>
+            <div className="fi-pista" style={{ gridTemplateColumns: `repeat(${mods.length}, minmax(0, 1fr))` }} aria-hidden="true">
+              {mods.map((m, i) => <i key={m} className={i + 1 === medio ? "cruce" : ""} title={m} />)}
+            </div>
+            <p className="fi-flecha ba"><span>{h.bavaria ? nombre.get(h.bavaria) ?? "—" : "Bavaria"}</span><em>{mods[mods.length - 1]} → {mods[0]}</em></p>
+            <p className="fi-mapa-pie">Si los dos van al mismo paso se cruzan hacia el módulo {mods[medio - 1]}.</p>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 const ORDEN_ESTADOS: EstadoHoja[] = ["lista", "una-termino", "contando", "sin-empezar"];
 export type Persona = PersonaF;
 export type FiscalBD = {
@@ -58,13 +92,15 @@ export type FiscalBD = {
 /** `manual`: el nombre lo escribió alguien. Mientras no, sigue a la fecha («FISCAL OCTUBRE 2026 · viernes 02/10»). */
 type FormF = { id: string | null; nombre: string; fecha: string; hojas: HojaForm[]; manual: boolean };
 
-export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puedePublicar = true, conCruce = true, manda, ahora }: {
+export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puedePublicar = true, conCruce = true, conCalle = true, manda, ahora }: {
   bodegaId: string; personas: Persona[]; roles: RolF[]; fiscales: FiscalBD[];
   puedeEditar: boolean; manda: boolean; ahora: string;
   /** false = a la base le falta 2026-10-fiscal-publicar.sql: no se ofrece el botón de Contar. */
   puedePublicar?: boolean;
   /** false = a la base le falta 2026-10-fiscal-cruce.sql: no hay avance ni cruce. */
   conCruce?: boolean;
+  /** false = a la base le falta 2026-10-fiscal-calle.sql: no se ofrece escoger la calle. */
+  conCalle?: boolean;
 }) {
   const router = useRouter();
   const hoy = diaColombia(ahora);
@@ -173,9 +209,13 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
         { v: r.aMedias, et: "a medias", tono: r.aMedias ? "proceso" : undefined },
         { v: r.vacias, et: "sin nadie", tono: r.vacias ? "proceso" : undefined },
       ];
-    const equipo = (id: string, et: string, renglones: number | undefined, termino: string | null | undefined) => (
+    const sentidoDe = (calle: string | undefined, eq: Equipo) => {
+      const m = numeradosDe(calle);
+      return m.length < 2 ? undefined : eq === "ol" ? `${m[0]} → ${m[m.length - 1]}` : `${m[m.length - 1]} → ${m[0]}`;
+    };
+    const equipo = (id: string, et: string, renglones: number | undefined, termino: string | null | undefined, sentido?: string) => (
       <div className="fi-eq">
-        <span className="fi-eq-et">{et}</span>
+        <span className="fi-eq-et">{et}{sentido && <em className="fi-sentido">{sentido}</em>}</span>
         {id ? (
           <>
             <span className="fi-quien">{nombre.get(id) ?? "—"}</span>
@@ -202,9 +242,9 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
             const est = av ? estadoHoja(av) : "sin-empezar";
             return (
               <li key={h.numero} className={"fi-fila " + est}>
-                <div className="fi-num"><small>Hoja</small><b>{h.numero}</b></div>
-                {equipo(h.ol, "Operador logístico", av?.olRenglones, av?.olTermino)}
-                {equipo(h.bavaria, "Bavaria", av?.bavariaRenglones, av?.bavariaTermino)}
+                <div className="fi-num"><small>Hoja</small><b>{h.numero}</b>{h.calle && <span className="fi-calle">Calle {h.calle}</span>}</div>
+                {equipo(h.ol, "Operador logístico", av?.olRenglones, av?.olTermino, sentidoDe(h.calle, "ol"))}
+                {equipo(h.bavaria, "Bavaria", av?.bavariaRenglones, av?.bavariaTermino, sentidoDe(h.calle, "bavaria"))}
                 {conAvance && av && <i className={"fi-av " + est}>{TEXTO_ESTADO[est]}</i>}
               </li>
             );
@@ -221,6 +261,7 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
     const avisos: ReactNode[] = [];
     if (!conCruce && puedeEditar) avisos.push(<>Para ver el avance de cada hoja y <b>cruzar a las dos personas</b> falta correr <code>supabase/migraciones/2026-10-fiscal-cruce.sql</code> en Supabase.</>);
     if (!puedePublicar && puedeEditar) avisos.push(<>Para poder <b>mostrar un plan en Contar</b> falta correr <code>supabase/migraciones/2026-10-fiscal-publicar.sql</code> en Supabase.</>);
+    if (!conCalle && puedeEditar) avisos.push(<>Para poder <b>poner una calle a cada hoja</b> falta correr <code>supabase/migraciones/2026-10-fiscal-calle.sql</code> en Supabase.</>);
     if (f.publicado) avisos.push(<>Ya se ve en Contar. Para seguir el avance en vivo y revisar las diferencias: <Link href="/inventario/control-fiscal">abrir el Control fiscal</Link>.</>);
     return (
       <section key={f.id} className="vf fi-plan" aria-label={`Plan fiscal ${f.nombre}`}>
@@ -237,6 +278,12 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
           <div className="vf-acc">{acciones}</div>
         </header>
         <div className="vf-parejas">{parejas}</div>
+        {conCalle && f.hojas.some((h) => h.calle) && (
+          <details className="fi-avisos">
+            <summary>Mapa de la calle: por dónde cuenta cada equipo</summary>
+            <MapaCalles hojas={f.hojas} nombre={nombre} />
+          </details>
+        )}
         {avisos.length > 0 && (
           <details className="fi-avisos">
             <summary>Avisos ({avisos.length})</summary>
@@ -264,7 +311,7 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
       {mal && !form && <p className="cl-mal" role="alert">{mal}</p>}
 
       {form ? (
-        <FormFiscal form={form} setForm={setForm} personas={personas} roles={roles} hoy={hoy} ocupado={ocupado} mal={mal}
+        <FormFiscal form={form} setForm={setForm} personas={personas} roles={roles} hoy={hoy} ocupado={ocupado} mal={mal} conCalle={conCalle}
                     onGuardar={guardar} onCancelar={() => { setForm(null); setMal(null) }} />
       ) : (
         <>
@@ -301,8 +348,8 @@ function rolInicial(equipo: Equipo, roles: RolF[]): string {
   return rolPorDefecto(roles, equipo);
 }
 
-function FormFiscal({ form, setForm, personas, roles: rolesIn, hoy, ocupado, mal, onGuardar, onCancelar }: {
-  form: FormF; setForm: (f: FormF) => void; personas: Persona[]; roles: RolF[]; hoy: string; ocupado: boolean; mal: string | null;
+function FormFiscal({ form, setForm, personas, roles: rolesIn, hoy, ocupado, mal, conCalle, onGuardar, onCancelar }: {
+  form: FormF; setForm: (f: FormF) => void; personas: Persona[]; roles: RolF[]; hoy: string; ocupado: boolean; mal: string | null; conCalle: boolean;
   onGuardar: () => void; onCancelar: () => void;
 }) {
   const roles = useMemo(() => completarRoles(personas, rolesIn), [personas, rolesIn]);
@@ -408,6 +455,20 @@ function FormFiscal({ form, setForm, personas, roles: rolesIn, hoy, ocupado, mal
               <button type="button" className="cl-quitar" onClick={() => cambia(quitarHoja(form.hojas, h.numero))}
                       aria-label={`Quitar la hoja ${h.numero}`}>Quitar</button>
             </div>
+            {conCalle && (
+              <label className="fi-calle-sel">
+                <span>Calle donde se cuenta</span>
+                <select value={h.calle ?? ""} onChange={(e) => cambia(ponerCalle(form.hojas, h.numero, e.target.value))}>
+                  <option value="">Sin calle todavía</option>
+                  {CALLES.map((c) => <option key={c} value={c}>Calle {c}</option>)}
+                </select>
+                {numeradosDe(h.calle).length >= 2 && (
+                  <small>
+                    El operador logístico cuenta de {numeradosDe(h.calle)[0]} a {numeradosDe(h.calle).at(-1)} y Bavaria de {numeradosDe(h.calle).at(-1)} a {numeradosDe(h.calle)[0]}: se cruzan a mitad de camino.
+                  </small>
+                )}
+              </label>
+            )}
             <div className="fi-pareja">
               {casilla(h, "ol", "Operador logístico")}
               {casilla(h, "bavaria", "Bavaria")}

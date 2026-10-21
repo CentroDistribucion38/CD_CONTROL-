@@ -24,7 +24,7 @@ export const dynamic = "force-dynamic";
 export default async function FiscalPage() {
   const [permisos, r] = await Promise.all([misPermisos(), cargarFiscales()]);
   if ("fallo" in r) return r.fallo;
-  const { bodegaId, personas, roles, fiscales, conPublicar, conCruce } = r.datos;
+  const { bodegaId, personas, roles, fiscales, conPublicar, conCruce, conCalle } = r.datos;
   const puedeEditar = permisos.puedeEditar("/inventario/fiscal");
 
   return (
@@ -43,6 +43,7 @@ export default async function FiscalPage() {
         puedeEditar={puedeEditar}
         puedePublicar={conPublicar}
         conCruce={conCruce}
+        conCalle={conCalle}
         manda={permisos.manda}
         ahora={new Date().toISOString()}
       />

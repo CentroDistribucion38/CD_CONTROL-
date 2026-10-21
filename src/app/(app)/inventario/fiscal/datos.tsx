@@ -17,6 +17,8 @@ export type DatosFiscal = {
   fiscales: FiscalBD[];
   conPublicar: boolean;
   conCruce: boolean;
+  /** false = a la base le falta 2026-10-fiscal-calle.sql. */
+  conCalle: boolean;
 };
 
 export async function cargarFiscales(): Promise<{ fallo: ReactNode } | { datos: DatosFiscal }> {
@@ -60,9 +62,16 @@ export async function cargarFiscales(): Promise<{ fallo: ReactNode } | { datos: 
   let fisP = await leerFiscales("id,nombre,fecha,estado,creado_en,publicado_en");
   const conPublicar = !fisP.error;
   if (fisP.error) fisP = await leerFiscales("id,nombre,fecha,estado,creado_en");
+  /* `calle` llega con 2026-10-fiscal-calle.sql: sin él se leen las hojas como antes. */
+  const leerHojas = async () => {
+    const c = await supabase.from("inv_fiscal_hojas").select("id,fiscal_id,numero,calle").limit(5000);
+    if (!c.error) return { ...c, conCalle: true };
+    const v = await supabase.from("inv_fiscal_hojas").select("id,fiscal_id,numero").limit(5000);
+    return { ...v, conCalle: false };
+  };
   const [fis, hoj, mie, per, rol, ava] = await Promise.all([
     Promise.resolve(fisP as unknown as { data: Record<string, unknown>[] | null; error: unknown }),
-    supabase.from("inv_fiscal_hojas").select("id,fiscal_id,numero").limit(5000),
+    leerHojas(),
     supabase.from("inv_fiscal_miembros").select("hoja_id,equipo,user_id").limit(10000),
     supabase.from("perfiles").select("id,nombre,activo,rol").order("nombre").limit(2000),
     supabase.from("roles").select("clave,nombre").order("orden", { nullsFirst: false }).limit(200),
@@ -87,7 +96,7 @@ export async function cargarFiscales(): Promise<{ fallo: ReactNode } | { datos: 
   const hojasDe = new Map<string, HojaForm[]>();
   for (const h of hoj.data ?? []) {
     const mm = miembros.get(h.id) ?? {};
-    hojasDe.set(h.fiscal_id, [...(hojasDe.get(h.fiscal_id) ?? []), { numero: h.numero, ol: mm.OL ?? "", bavaria: mm.BAVARIA ?? "" }]);
+    hojasDe.set(h.fiscal_id, [...(hojasDe.get(h.fiscal_id) ?? []), { numero: h.numero, ol: mm.OL ?? "", bavaria: mm.BAVARIA ?? "", calle: ((h as { calle?: string | null }).calle ?? "") }]);
   }
   const fiscales: FiscalBD[] = (fis.data ?? []).map((f) => ({
     id: f.id as string, nombre: f.nombre as string, fecha: String(f.fecha).slice(0, 10), estado: f.estado as "abierto" | "cerrado",
@@ -102,5 +111,5 @@ export async function cargarFiscales(): Promise<{ fallo: ReactNode } | { datos: 
     .map((p) => ({ id: p.id, nombre: p.nombre as string, activo: Boolean(p.activo), rol: (p.rol ?? "") as string }));
   const roles = (rol.data ?? []).map((r) => ({ clave: r.clave as string, nombre: r.nombre as string }));
 
-  return { datos: { bodegaId: bodega.id, personas, roles, fiscales, conPublicar, conCruce } };
+  return { datos: { bodegaId: bodega.id, personas, roles, fiscales, conPublicar, conCruce, conCalle: hoj.conCalle } };
 }

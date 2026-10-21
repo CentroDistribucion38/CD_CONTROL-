@@ -10,7 +10,7 @@
  * esté en dos sitios, resumir cómo va el armado y armar lo que se manda a la
  * base (que vuelve a revisar lo mismo: esto es para avisar antes de enviar).
  */
-export type HojaForm = { numero: number; ol: string; bavaria: string };   // "" = sin persona
+export type HojaForm = { numero: number; ol: string; bavaria: string; calle?: string };   // "" = sin persona / sin calle
 export type Equipo = "ol" | "bavaria";
 
 export const hojasVacias = (n: number): HojaForm[] =>
@@ -32,6 +32,10 @@ export function agregarHojas(hojas: HojaForm[], n: number): HojaForm[] {
 /** Quita una hoja. Las demás conservan su número: la hoja 4 ya pudo repartirse impresa. */
 export const quitarHoja = (hojas: HojaForm[], numero: number): HojaForm[] =>
   hojas.filter((h) => h.numero !== numero);
+
+/** La calle donde se cuenta la hoja ("" = todavía sin calle). */
+export const ponerCalle = (hojas: HojaForm[], numero: number, calle: string): HojaForm[] =>
+  hojas.map((h) => (h.numero === numero ? { ...h, calle } : h));
 
 export const ponerPersona = (hojas: HojaForm[], numero: number, equipo: Equipo, id: string): HojaForm[] =>
   hojas.map((h) => (h.numero === numero ? { ...h, [equipo]: id } : h));
@@ -69,7 +73,7 @@ export function revisar(hojas: HojaForm[]): Revision {
 /** Lo que va a la base: «» pasa a null y las hojas van en orden de número. */
 export const aPayload = (hojas: HojaForm[]) =>
   [...hojas].sort((a, b) => a.numero - b.numero)
-    .map((h) => ({ numero: h.numero, ol: h.ol || null, bavaria: h.bavaria || null }));
+    .map((h) => ({ numero: h.numero, ol: h.ol || null, bavaria: h.bavaria || null, calle: h.calle || null }));
 
 /** «5 hojas · 4 parejas completas · 1 a medias»: lo que se dice de un inventario en la lista. */
 export function textoResumen(r: Pick<Revision, "total" | "completas" | "aMedias" | "vacias">): string {
