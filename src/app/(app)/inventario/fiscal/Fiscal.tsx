@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { traducirError } from "@/lib/errores";
@@ -14,7 +14,7 @@ import {
   type Equipo, type HojaForm, type PersonaF, type RolF,
 } from "@/modulos/inventario/fiscal";
 import {
-  estadoHoja, textoEquipo, TEXTO_ESTADO, type AvanceHoja,
+  estadoHoja, textoEquipo, TEXTO_ESTADO, type AvanceHoja, type EstadoHoja,
 } from "@/modulos/inventario/fiscal-cruce";
 
 /* ===================================================================
@@ -37,6 +37,15 @@ import {
    en dos sitios.
    =================================================================== */
 const NADIE = "__nadie";
+
+/** Cuánto lleva un equipo en su hoja. No se sabe cuántos renglones serán, así que no es un porcentaje:
+    vacío = sin empezar, rayado = contando, lleno = terminó. */
+function Medidor({ renglones, termino }: { renglones: number; termino: string | null }) {
+  const est = termino !== null ? "listo" : renglones > 0 ? "contando" : "nada";
+  return <span className={"fi-med " + est} aria-hidden="true"><i /></span>;
+}
+
+const ORDEN_ESTADOS: EstadoHoja[] = ["lista", "una-termino", "contando", "sin-empezar"];
 export type Persona = PersonaF;
 export type FiscalBD = {
   id: string; nombre: string; fecha: string; estado: "abierto" | "cerrado"; hojas: HojaForm[];
@@ -144,23 +153,49 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
         ))}
       </>
     );
+    /* Cuántas hojas hay en cada punto: lo primero que se quiere saber el día del inventario. */
+    const porEstado = new Map<EstadoHoja, number>();
+    if (conAvance) for (const h of f.hojas) {
+      const av = f.avance?.[h.numero];
+      if (av) porEstado.set(estadoHoja(av), (porEstado.get(estadoHoja(av)) ?? 0) + 1);
+    }
+    const celdaEquipo = (id: string, et: string, renglones: number | undefined, termino: string | null | undefined) => (
+      <td data-et={et}>
+        {id ? (
+          <>
+            <span className="fi-quien">{nombre.get(id) ?? "—"}</span>
+            {renglones !== undefined && (
+              <>
+                <Medidor renglones={renglones} termino={termino ?? null} />
+                <small className="fi-sub">{textoEquipo(renglones, termino ?? null)}</small>
+              </>
+            )}
+          </>
+        ) : <em>falta</em>}
+      </td>
+    );
     const parejas = (
       <>
         <p className="cl-sub">{textoResumen(r)}</p>
+        {conAvance && porEstado.size > 0 && (
+          <ul className="fi-cuenta" aria-label="Hojas por estado">
+            {ORDEN_ESTADOS.filter((e) => porEstado.has(e)).map((e) => (
+              <li key={e} className={e}><b>{porEstado.get(e)}</b> {TEXTO_ESTADO[e].toLowerCase()}</li>
+            ))}
+          </ul>
+        )}
         <table className="fi-hojas">
-          <thead><tr><th>Hoja</th><th>Operador logístico</th><th>Bavaria</th>{conAvance && <th>Avance</th>}</tr></thead>
+          <thead><tr><th>Hoja</th><th>Operador logístico</th><th>Bavaria</th>{conAvance && <th>Estado</th>}</tr></thead>
           <tbody>
             {f.hojas.map((h) => {
               const av = conAvance ? f.avance?.[h.numero] : undefined;
               return (
                 <tr key={h.numero}>
                   <th scope="row">{h.numero}</th>
-                  <td data-et="Operador logístico">{h.ol ? nombre.get(h.ol) ?? "—" : <em>falta</em>}
-                    {av && h.ol && <small className="fi-sub">{textoEquipo(av.olRenglones, av.olTermino)}</small>}</td>
-                  <td data-et="Bavaria">{h.bavaria ? nombre.get(h.bavaria) ?? "—" : <em>falta</em>}
-                    {av && h.bavaria && <small className="fi-sub">{textoEquipo(av.bavariaRenglones, av.bavariaTermino)}</small>}</td>
+                  {celdaEquipo(h.ol, "Operador logístico", av?.olRenglones, av?.olTermino)}
+                  {celdaEquipo(h.bavaria, "Bavaria", av?.bavariaRenglones, av?.bavariaTermino)}
                   {conAvance && (
-                    <td data-et="Avance">
+                    <td data-et="Estado">
                       {av ? <i className={"fi-av " + estadoHoja(av)}>{TEXTO_ESTADO[estadoHoja(av)]}</i> : <em>—</em>}
                     </td>
                   )}
@@ -176,6 +211,11 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
         )}
       </>
     );
+    /* Los avisos van al final y cerrados: lo principal es la tabla. */
+    const avisos: ReactNode[] = [];
+    if (!conCruce && puedeEditar) avisos.push(<>Para ver el avance de cada hoja y <b>cruzar a las dos personas</b> falta correr <code>supabase/migraciones/2026-10-fiscal-cruce.sql</code> en Supabase.</>);
+    if (!puedePublicar && puedeEditar) avisos.push(<>Para poder <b>mostrar un plan en Contar</b> falta correr <code>supabase/migraciones/2026-10-fiscal-publicar.sql</code> en Supabase.</>);
+    if (f.publicado) avisos.push(<>Ya se ve en Contar. Para seguir el avance en vivo y revisar las diferencias: <Link href="/inventario/control-fiscal">abrir el Control fiscal</Link>.</>);
     return (
       <section key={f.id} className="vf fi-plan" aria-label={`Plan fiscal ${f.nombre}`}>
         <header className="vf-cab">
@@ -191,10 +231,11 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
           <div className="vf-acc">{acciones}</div>
         </header>
         <div className="vf-parejas">{parejas}</div>
-        {f.publicado && (
-          <p className="cl-nota" role="note">
-            Ya se ve en Contar. Para seguir el avance en vivo y revisar las diferencias: <Link href="/inventario/control-fiscal">abrir el Control fiscal</Link>.
-          </p>
+        {avisos.length > 0 && (
+          <details className="fi-avisos">
+            <summary>Avisos ({avisos.length})</summary>
+            {avisos.map((a, i) => <p key={i} className="cl-nota" role="note">{a}</p>)}
+          </details>
         )}
       </section>
     );
@@ -207,25 +248,13 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
           <p className="ojo">INVENTARIO · POR PAREJAS</p>
           <h1>Plan fiscal</h1>
           <p className="sub">
-            Cada hoja de conteo la cuentan dos personas, <b>una del operador logístico y una de Bavaria</b>,
-            cada una por su lado. Aquí lo planificas con tiempo: escoges la fecha del inventario, armas las
-            parejas y numeras las hojas. Son las que hagan falta, y una hoja puede quedar con una sola
-            persona mientras terminas de armarlas.
+            Cada hoja la cuentan dos personas, <b>una del operador logístico y una de Bavaria</b>, cada una por su lado.
+            Escoge la fecha, arma las parejas y numera las hojas.
           </p>
         </div>
       </section>
 
       {aviso && <p className="cl-ok" role="status">{aviso}</p>}
-      {!conCruce && puedeEditar && (
-        <p className="cl-nota" role="note">
-          Para ver el avance de cada hoja y <b>cruzar a las dos personas</b> falta correr <code>supabase/migraciones/2026-10-fiscal-cruce.sql</code> en Supabase.
-        </p>
-      )}
-      {!puedePublicar && puedeEditar && (
-        <p className="cl-nota" role="note">
-          Para poder <b>mostrar un plan en Contar</b> falta correr <code>supabase/migraciones/2026-10-fiscal-publicar.sql</code> en Supabase.
-        </p>
-      )}
       {mal && !form && <p className="cl-mal" role="alert">{mal}</p>}
 
       {form ? (

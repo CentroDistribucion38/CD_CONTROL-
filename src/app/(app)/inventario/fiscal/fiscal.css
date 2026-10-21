@@ -81,3 +81,21 @@
   .fe .fi-cruce-tabla td { border: 0; padding: 1px 0; text-align: left !important }
   .fe .fi-cruce-tabla td::before { content: attr(data-et) ": "; color: var(--fe-gris); font-size: 12px }
 }
+
+/* PLAN FISCAL · la tabla de hojas con el avance de cada equipo (sin esquinas redondeadas). */
+.fe .fi-cuenta { display: flex; flex-wrap: wrap; gap: 6px 18px; list-style: none; margin: 8px 0 0; padding: 0; font-size: 13px; color: var(--fe-gris) }
+.fe .fi-cuenta b { font: 900 16px var(--fe-titulo); color: var(--fe-tinta); font-variant-numeric: tabular-nums }
+.fe .fi-cuenta .lista b { color: var(--fe-bien) }
+.fe .fi-cuenta .una-termino b { color: var(--fe-acento) }
+.fe .fi-hojas td { vertical-align: top }
+.fe .fi-quien { display: block; font-weight: 700; color: var(--fe-tinta) }
+.fe .fi-med { display: block; height: 6px; margin: 6px 0 3px; background: var(--fe-fondo); max-width: 240px; overflow: hidden }
+.fe .fi-med i { display: block; height: 100% }
+.fe .fi-med.listo i { background: var(--fe-bien) }
+.fe .fi-med.contando i { background: repeating-linear-gradient(135deg, var(--fe-acento) 0 6px, color-mix(in srgb, var(--fe-acento) 40%, transparent) 6px 12px) }
+.fe .fi-av.una-termino { border: 1px solid var(--fe-acento); background: transparent; color: var(--fe-acento) }
+.fe .fi-av.sin-empezar { color: var(--fe-gris) }
+
+/* Los avisos, al final y cerrados. */
+.fe .fi-avisos { margin-top: 14px; border-top: 1px solid var(--fe-linea); padding-top: 8px }
+.fe .fi-avisos > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font: 700 11px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase; color: var(--fe-gris) }
