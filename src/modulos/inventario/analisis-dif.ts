@@ -358,7 +358,7 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   /* Una cantidad con la regla de siempre: positiva = «de AG22 a ese almacén» (suma al CONTEO); negativa = «de ese almacén a AG22» (suma a SAP). */
   /* EL BALANCE VA TODO DEL LADO SAP: lo que entró a AG22 desde otro almacén SUMA a SAP y lo que salió de AG22 hacia otro RESTA a SAP
      (la ZEXI de las 6 a. m. no trae los movimientos hechos después). Así SAP queda como el AG22 real y el conteo es solo lo contado.
-     El DESCUADRE conserva su regla de siempre. La diferencia final es la misma de cualquier forma. */
+     El DESCUADRE también va del lado SAP: el CONTEO queda SIEMPRE como lo contado (más DEPA, Pasivos y novedades). La diferencia final es la misma de cualquier forma. */
   const aplicar = (codigo: string, partida: string, t: number, todoSap = false) => {
     if (Math.abs(t) < 0.005) return;
     /* Lo que SALIÓ de AG22 resta a SAP YA, haya o no ZEXI de las 6: antes sumaba al conteo y contaba siempre, así que la diferencia no puede cambiar.
@@ -385,7 +385,7 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
       if (f.cascoDeMas) avisos.push(`${cod} ${nombre(cod)}: en el Cuadre ${alm} el casco registrado supera lo contado en ${Math.round(f.cascoDeMas).toLocaleString("es-CO")} u. Esa diferencia va en el Balance de casco; no se pone como DESCUADRE en SAP.`);
       if (yaEstabaEnSap) continue;
       if (f.queda != null && Math.abs(f.queda) >= 0.5) {
-        aplicar(cod, `DESCUADRE · ${alm}`, -f.queda); nd++;
+        aplicar(cod, `DESCUADRE · ${alm}`, -f.queda, true); nd++;
         const l = descuadresAlm.get(cod) ?? []; l.push({ alm, queda: Math.round(f.queda) }); descuadresAlm.set(cod, l);
         if (!acc.has(cod)) acc.set(cod, { sap: new Map(), conteo: new Map() });
       }
