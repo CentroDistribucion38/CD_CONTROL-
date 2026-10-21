@@ -1,15 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
 import { useConfirmar } from "@/components/Confirmar";
 import { usePedirTexto } from "@/components/PedirTexto";
 import type { Rotura } from "@/modulos/roturas/datos";
-import { Evidencia } from "../../Evidencia";
+import { Caso, type Corr } from "./Caso";
 import { etiquetaRotura, HORARIO_TURNO, TURNOS, turnoYDia, type Etiqueta } from "@/modulos/roturas/cierre";
 import { Cierre } from "./Cierre";
+import "./corregir.css";
 import { Rango, type Dia } from "../../../sider/seguimiento/Rango";
 
 /**
@@ -52,10 +53,12 @@ const pelado = (t: string) =>
  *  se puede llamar distinto a lo mismo. */
 const etiquetaDe = (r: Rotura): Etiqueta => etiquetaRotura(r);
 
-export function Tablero({ roturas, nombres, manda }: {
+export function Tablero({ roturas, nombres, manda, correcciones }: {
   roturas: Rotura[];
   nombres: Record<string, string>;
   manda: boolean;
+  /** Las correcciones de cantidades que ya se hicieron, por rotura (la más nueva primero). */
+  correcciones: Record<string, Corr[]>;
 }) {
   const router = useRouter();
   const supabase = createClient();
@@ -162,6 +165,34 @@ export function Tablero({ roturas, nombres, manda }: {
       setBajando(false);
     }
   }
+
+  /* CORREGIR LAS CANTIDADES de un caso (rotas y contaminadas). Es del administrador; la base
+     guarda la cifra anterior con el motivo y el cobro se recalcula solo. */
+  async function corregir(r: Rotura, rotas: number, contaminadas: number, motivo: string) {
+    setMandando(true);
+    const { error } = await supabase.rpc("rotura_corregir", {
+      p_id: r.id, p_rotas: rotas, p_contaminadas: contaminadas, p_motivo: motivo,
+    });
+    setMandando(false);
+    if (error) { avisar.mal(error.message); return }
+    avisar.bien(`${r.codigo} corregida: ${rotas} rotas${r.tipo === "eer" ? "" : ` y ${contaminadas} contaminadas`}. El cobro se recalculó.`);
+    router.refresh();
+  }
+
+  /* EL CASO ABIERTO Y SUS VECINOS: ↑ ↓ pasan de un caso al otro sin soltar la foto; Esc lo cierra. */
+  const iAbierta = abierta ? vistas.findIndex((x) => x.id === abierta) : -1;
+  useEffect(() => {
+    if (iAbierta < 0 || cierre) return;
+    const tecla = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+      if (e.key === "Escape") setAbierta(null);
+      else if (e.key === "ArrowDown" && vistas[iAbierta + 1]) { e.preventDefault(); setAbierta(vistas[iAbierta + 1].id) }
+      else if (e.key === "ArrowUp" && vistas[iAbierta - 1]) { e.preventDefault(); setAbierta(vistas[iAbierta - 1].id) }
+    };
+    document.addEventListener("keydown", tecla);
+    return () => document.removeEventListener("keydown", tecla);
+  }, [iAbierta, vistas, cierre]);
 
   async function anular(r: Rotura) {
     /* NADA DE `window.prompt()`. Salía con «cd-control-one.vercel.app
@@ -325,6 +356,7 @@ export function Tablero({ roturas, nombres, manda }: {
             página: nueve columnas no caben en un teléfono, y una
             página que se mueve entera al deslizar es lo que hace que
             nadie la use de pie. */}
+        <div className={"tb-split" + (iAbierta >= 0 ? " abierto" : "")}>
         <div className="tb-rueda">
           <table className="tb-tabla">
             <thead>
@@ -344,7 +376,7 @@ export function Tablero({ roturas, nombres, manda }: {
                 <th>Código</th><th>Cuándo</th><th>Material</th>
                 <th className="tb-num">Rotas</th>
                 <th className="tb-num">Contam.</th>
-                <th>Causa</th><th>Proceso</th><th>Quién</th>
+                <th>Causa</th><th className="tb-oculta">Proceso</th><th className="tb-oculta">Quién</th>
                 <th>Estado</th><th />
               </tr>
             </thead>
@@ -375,10 +407,11 @@ export function Tablero({ roturas, nombres, manda }: {
                    está el riesgo, no en esconder la puerta. */
                 const sePuedeBorrar = manda;
                 return (
-                  <tr key={r.id} className={r.estado === "anulada" ? "tb-anulada" : ""}>
+                  <tr key={r.id} className={(r.estado === "anulada" ? "tb-anulada" : "") + (abierta === r.id ? " tb-sel" : "")}
+                      onClick={() => setAbierta(abierta === r.id ? null : r.id)}>
                     <td className="tb-cod">
                       <button type="button" className="tb-link"
-                              onClick={() => setAbierta(abierta === r.id ? null : r.id)}>
+                              onClick={(e) => { e.stopPropagation(); setAbierta(abierta === r.id ? null : r.id) }}>
                         {r.codigo}
                       </button>
                     </td>
@@ -387,7 +420,10 @@ export function Tablero({ roturas, nombres, manda }: {
                       <i className="tb-t" title={`Turno ${turnoYDia(r.reportada_en).turno}`}>{turnoYDia(r.reportada_en).turno}</i>
                     </td>
                     <td>{r.material_nombre}</td>
-                    <td className="tb-num">{r.unidades}</td>
+                    <td className="tb-num">{r.unidades}
+                      {correcciones[r.id]?.length > 0 && (
+                        <span className="tb-corregida" title={`Corregida: antes ${correcciones[r.id][correcciones[r.id].length - 1].antes_rotas} rotas${correcciones[r.id][correcciones[r.id].length - 1].antes_contaminadas ? ` y ${correcciones[r.id][correcciones[r.id].length - 1].antes_contaminadas} contaminadas` : ""}`}>corregida</span>
+                      )}</td>
                     {/* EN EER NO HAY CONTAMINADAS: es envase vacío, no
                         hay líquido que se pueda contaminar. Un cero ahí
                         diría «se contaminaron cero» —un dato— y lo que
@@ -396,10 +432,10 @@ export function Tablero({ roturas, nombres, manda }: {
                       {r.tipo === "eer" ? <span className="tb-na">—</span> : (r.contaminadas ?? 0)}
                     </td>
                     <td className={r.grupo === "no_asumida" ? "tb-no" : ""}>{r.causa_nombre}</td>
-                    <td>{r.proceso_nombre}</td>
-                    <td>{nombres[r.reportada_por ?? ""] ?? "—"}</td>
+                    <td className="tb-oculta">{r.proceso_nombre}</td>
+                    <td className="tb-oculta">{nombres[r.reportada_por ?? ""] ?? "—"}</td>
                     <td><span className={"tb-eti " + e.clase}>{e.txt}</span></td>
-                    <td className="tb-acc">
+                    <td className="tb-acc" onClick={(e) => e.stopPropagation()}>
                       {/* ANULAR SOLO LO QUE NO ESTÉ YA ANULADO; BORRAR
                           hasta lo anulado, que es precisamente lo que
                           alguien querría sacar de la lista del todo. */}
@@ -415,43 +451,20 @@ export function Tablero({ roturas, nombres, manda }: {
                   </tr>
                 );
               })}
-              {abierta && vistas.some((r) => r.id === abierta) && (
-                <tr className="tb-detalle">
-                  <td colSpan={10}>
-                    {(() => {
-                      const r = vistas.find((x) => x.id === abierta)!;
-                      return (
-                        <div className="tb-ficha">
-                          <div className="tb-datos">
-                            <div><b>Área</b> {r.area_nombre ?? "—"}</div>
-                            {/* LO QUE SE PERDIÓ Y LO QUE SE COBRA: cajas × unid. por caja × precio de la botella (v_roturas). */}
-                            <div><b>Se perdió</b>{" "}
-                              {`${r.unidades} caja${r.unidades === 1 ? "" : "s"} ${r.tipo === "eer" ? "de envase" : "rotas"}`
-                                + (r.contaminadas ? ` y ${r.contaminadas} contaminada${r.contaminadas === 1 ? "" : "s"}` : "")
-                                + (r.factor_caja ? ` · ${r.factor_caja} por caja` : " · sin unid. por caja en el maestro")}
-                            </div>
-                            <div><b>Cobro</b>{" "}
-                              {r.cobro_total != null
-                                ? new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(Number(r.cobro_total))
-                                : "sin precio o sin factor"}
-                            </div>
-                            <div><b>Fotos</b> {r.fotos}</div>
-                            {r.ol_nota && <div><b>Dice el OL</b> «{r.ol_nota}»</div>}
-                            {r.nota_decision && <div><b>Decisión</b> {r.nota_decision}</div>}
-                            {r.motivo_anulacion && (
-                              <div><b>Anulada porque</b> {r.motivo_anulacion}</div>
-                            )}
-                            {r.descripcion && <div><b>Qué pasó</b> {r.descripcion}</div>}
-                          </div>
-                          <Evidencia id={r.id} />
-                        </div>
-                      );
-                    })()}
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
+        </div>
+        {iAbierta >= 0 && (() => {
+          const r = vistas[iAbierta];
+          return (
+            <Caso r={r} etiqueta={etiquetaDe(r)} nombres={nombres} historial={correcciones[r.id] ?? []}
+                  manda={manda} guardando={mandando} pos={iAbierta + 1} total={vistas.length}
+                  anterior={iAbierta > 0 ? () => setAbierta(vistas[iAbierta - 1].id) : null}
+                  siguiente={iAbierta < vistas.length - 1 ? () => setAbierta(vistas[iAbierta + 1].id) : null}
+                  cerrar={() => setAbierta(null)}
+                  corregir={(a, b, c) => corregir(r, a, b, c)} />
+          );
+        })()}
         </div>
       </section>
     </>

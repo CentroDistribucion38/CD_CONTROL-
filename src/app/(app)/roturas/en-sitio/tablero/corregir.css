@@ -1,0 +1,60 @@
+
+/* =====================================================================
+   EL CASO AL LADO DE LA TABLA + CORREGIR CANTIDADES  ·  prefijos `tb-caso` y `co-`
+   ===================================================================== */
+.rt .tb-split { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start }
+.rt .tb-split.abierto { grid-template-columns: minmax(0, 1fr) 430px }
+.rt .tb-split.abierto .tb-tabla { min-width: 700px }
+.rt .tb-split.abierto .tb-oculta { display: none }
+.rt .tb-tabla tbody tr { cursor: pointer }
+.rt .tb-tabla tr.tb-sel td { background: color-mix(in srgb, var(--rt-oro) 22%, #fff) }
+.rt .tb-corregida {
+  display: inline-block; margin-left: 6px; padding: 1px 6px; vertical-align: 1px;
+  font: 700 9.5px var(--rt-titulo); letter-spacing: .08em; text-transform: uppercase;
+  background: #FFF3D6; color: #6B5518; cursor: help;
+}
+
+.rt .tb-caso {
+  position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto;
+  background: var(--rt-papel); border: 1px solid var(--rt-linea); border-top: 3px solid var(--rt-tinta);
+  display: flex; flex-direction: column; gap: 14px; padding: 14px 16px 16px;
+}
+.rt .tb-caso-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px }
+.rt .tb-caso-cab b { font: 900 17px var(--rt-titulo); letter-spacing: -.02em; margin-right: 6px }
+.rt .tb-caso-cab small { display: block; margin-top: 4px; font-size: 12.5px; color: var(--rt-gris) }
+.rt .tb-caso-nav { display: flex; align-items: center; gap: 6px; flex: none }
+.rt .tb-caso-nav span { font-size: 12px; color: var(--rt-gris); font-variant-numeric: tabular-nums; min-width: 44px; text-align: center }
+.rt .tb-caso-nav .btn { min-height: 36px; min-width: 36px; padding: 0 8px }
+.rt .tb-caso .panel { padding: 0; border: 0; background: none }
+.rt .tb-caso-datos { grid-template-columns: 1fr }
+
+.rt .co-form { border-top: 1px solid var(--rt-linea); padding-top: 12px; display: flex; flex-direction: column; gap: 10px }
+.rt .co-form h3, .rt .co-hist h3 { margin: 0; font: 900 13px var(--rt-titulo); letter-spacing: -.01em }
+.rt .co-form h3 small { font: 500 11.5px var(--rt-texto); color: var(--rt-gris) }
+.rt .co-aviso { margin: 0; font-size: 12px; color: #6B5518; background: #FFF3D6; padding: 7px 9px }
+.rt .co-cifras { display: flex; gap: 12px }
+.rt .co-cifras label, .rt .co-motivo { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0 }
+.rt .co-cifras span, .rt .co-motivo span { font: 700 10px var(--rt-titulo); letter-spacing: .12em; text-transform: uppercase; color: var(--rt-gris-panel) }
+.rt .co-cifras em { font-style: normal; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--rt-gris) }
+.rt .co-cifras input, .rt .co-motivo textarea {
+  border: 1.5px solid var(--rt-linea); border-radius: 0; background: #fff; color: var(--rt-tinta);
+  font: 700 18px var(--rt-texto); padding: 8px 10px; min-height: 44px; width: 100%; box-sizing: border-box; text-align: right;
+}
+.rt .co-motivo textarea { font: 500 13.5px var(--rt-texto); text-align: left; min-height: 0; resize: vertical }
+.rt .co-cifras input:focus, .rt .co-motivo textarea:focus { outline: none; border-color: var(--rt-tinta); box-shadow: 0 0 0 3px rgba(0,0,0,.12) }
+.rt .co-cobro { margin: 0; font-size: 13px; font-variant-numeric: tabular-nums }
+.rt .co-guardar { min-height: 44px; border-radius: 0 }
+.rt .co-guardar:disabled { opacity: .6; cursor: not-allowed }
+
+.rt .co-hist { border-top: 1px solid var(--rt-linea); padding-top: 12px }
+.rt .co-hist ul { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px }
+.rt .co-hist li { font-size: 12.5px; line-height: 1.45 }
+.rt .co-hist li span { display: block; color: var(--rt-gris); font-size: 11.5px }
+
+/* Pantallas estrechas: el caso se abre como un panel que se desliza desde la derecha. */
+@media (max-width: 1100px) {
+  .rt .tb-split.abierto { grid-template-columns: minmax(0, 1fr) }
+  .rt .tb-split.abierto .tb-oculta { display: table-cell }
+  .rt .tb-caso { position: fixed; z-index: 70; top: 0; right: 0; bottom: 0; max-height: none; width: min(440px, 100%);
+    box-shadow: -18px 0 40px -20px rgba(0,0,0,.45) }
+}

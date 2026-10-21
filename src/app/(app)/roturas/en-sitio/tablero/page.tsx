@@ -4,6 +4,8 @@ import { nombresTodos } from "@/modulos/sider/datos";
 import { roturas as leerRoturas } from "@/modulos/roturas/datos";
 import "../../roturas.css";
 import { SinTablas } from "../../comunes";
+import { createClient } from "@/lib/supabase/server";
+import type { Corr } from "./Caso";
 import { Tablero } from "./Tablero";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +26,28 @@ export default async function TableroEnSitioPage() {
 
   if (datos.falta) return <div className="rt"><SinTablas /></div>;
 
+  /* LAS CORRECCIONES DE CANTIDADES, por rotura. Tolerante: si todavía no se corrió
+     2026-10-roturas-corregir-cifras.sql la tabla no existe y la pantalla sale sin marcas. */
+  const correcciones: Record<string, Corr[]> = {};
+  let falta = false;
+  {
+    const supabase = await createClient();
+    const { data, error } = await supabase.from("roturas_correcciones")
+      .select("rotura_id, antes_rotas, antes_contaminadas, despues_rotas, despues_contaminadas, motivo, corregida_por, corregida_en")
+      .order("corregida_en", { ascending: false }).limit(2000);
+    if (error) falta = true;
+    for (const c of (data ?? []) as {
+      rotura_id: string; antes_rotas: number; antes_contaminadas: number | null; despues_rotas: number;
+      despues_contaminadas: number | null; motivo: string; corregida_por: string | null; corregida_en: string;
+    }[]) {
+      (correcciones[c.rotura_id] ??= []).push({
+        antes_rotas: c.antes_rotas, antes_contaminadas: c.antes_contaminadas,
+        despues_rotas: c.despues_rotas, despues_contaminadas: c.despues_contaminadas,
+        motivo: c.motivo, por: nombres[c.corregida_por ?? ""] ?? "—", en: c.corregida_en,
+      });
+    }
+  }
+
   const vivas = datos.roturas.filter((r) => r.estado !== "anulada");
   /* LAS DOS CIFRAS, NO UNA. El pie decía «341 unidades» contando solo
      las rotas, así que las contaminadas —que están guardadas en el mismo
@@ -43,7 +67,7 @@ export default async function TableroEnSitioPage() {
             Cada rotura con el estado en que quedó: si espera al operador logístico, si está
             en desacuerdo, si se va a cobrar o si ya se descartó. Aquí se <b>busca</b>; las
             bandejas son para decidir, de una en una.
-            {permisos.manda && <> Y aquí el administrador anula y borra — que no son lo mismo.</>}
+            {permisos.manda && <> Y aquí el administrador anula, borra —que no son lo mismo— y corrige las cantidades de cada caso.</>}
           </p>
         </div>
         <div className="kpi">
@@ -59,7 +83,13 @@ export default async function TableroEnSitioPage() {
         </div>
       </section>
 
-      <Tablero roturas={datos.roturas} nombres={nombres} manda={permisos.manda} />
+      {falta && permisos.manda && (
+        <div className="aviso">
+          Para <b>corregir cantidades</b> falta correr <code>2026-10-roturas-corregir-cifras.sql</code> en Supabase.
+        </div>
+      )}
+
+      <Tablero roturas={datos.roturas} nombres={nombres} manda={permisos.manda} correcciones={correcciones} />
 
       {!permisos.manda && (
         <div className="aviso">
