@@ -280,3 +280,16 @@
 .ad .ad-sincaja { margin: 0 0 10px; padding: 8px 12px; background: #fff; border: 1px solid var(--fe-linea); border-left: 4px solid #B42318; font-size: 12.5px }
 .ad .ad-sincaja summary { cursor: pointer }
 .ad .ad-sincaja table { margin-top: 8px; width: 100% }
+
+/* Cómo va empacado cada producto: tres listas cerradas (sin definir · cartón · suman caja), cada fila con su selector. */
+.ad .ad-emp { display: flex; flex-direction: column; gap: 8px; margin: 0 0 10px }
+.ad .ad-emp .ad-sincaja, .ad .ad-emp .ad-cartones, .ad .ad-emp .ad-concaja { margin: 0; padding: 8px 12px; background: #fff; border: 1px solid var(--fe-linea); font-size: 12.5px }
+.ad .ad-emp .ad-sincaja { border-left: 4px solid #B42318 }
+.ad .ad-emp .ad-cartones { border-left: 4px solid #1F7A3D }
+.ad .ad-emp .ad-concaja { border-left: 4px solid var(--fe-gris) }
+.ad .ad-emp summary { cursor: pointer }
+.ad .ad-emp table { margin-top: 8px; width: 100% }
+.ad .ad-emp-sel { font: inherit; font-size: 12px; padding: 4px 6px; border: 1px solid var(--fe-linea); background: #fff; color: var(--fe-tinta); border-radius: 0; max-width: 260px; width: 100% }
+.ad .ad-emp-sel:disabled { opacity: .6 }
+.ad .ad-emp-filtro { display: block; margin-top: 8px; font: inherit; font-size: 12px; padding: 5px 8px; border: 1px solid var(--fe-linea); background: #fff; border-radius: 0; width: 260px; max-width: 100% }
+.ad .ad-emp-err { margin: 0; padding: 6px 10px; background: #FDECEA; border: 1px solid #B42318; color: #8A1C12; font-size: 12.5px }

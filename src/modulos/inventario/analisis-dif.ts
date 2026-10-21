@@ -58,8 +58,15 @@ export type Analisis = {
   enLinea?: Record<string, EnLinea[]>;
   /** Los productos contados que NO sumaron caja plástica, con el motivo: para ver si falta alguno. */
   sinCaja?: SinCaja[];
+  /** Los productos que se marcaron «va en cartón»: no suman caja plástica. */
+  cartones?: SinCaja[];
+  /** Los productos que SÍ sumaron caja plástica (para poder marcar los que en realidad van en cartón). */
+  conCaja?: ConCaja[];
+  /** Las cajas plásticas del maestro, para escoger la de cada producto. */
+  cajasLista?: { codigo: string; nombre: string }[];
 };
-export type SinCaja = { codigo: string; nombre: string; cajas: number; motivo: string };
+export type SinCaja = { codigo: string; nombre: string; cajas: number; motivo: string; sugerida?: string | null };
+export type ConCaja = { codigo: string; nombre: string; cajas: number; caja: string; cajaNombre: string; definido: boolean };
 /** Un SKU del plan de envase que corre ese día y usa el envase (o la caja) de la fila. */
 export type EnLinea = { tren: string; sap: string; sku: string; turnos: number[]; por: "envase" | "caja" };
 export type FilaExistencia = { codigo: string; descripcion: string; libre: number | null; calidad: number | null; bloqueado: number | null; total: number };
@@ -82,7 +89,7 @@ const PASIVOS: Record<string, string> = { "PRESORTING": "PEND BAJA PRESORTING", 
 export async function armarAnalisis(fecha: string): Promise<Analisis> {
   const supabase = await createClient();
   const avisos: string[] = [];
-  const [{ conteos }, maesR, prodR, pas, novR, cortesR, regla, planR] = await Promise.all([
+  const [{ conteos }, maesR, prodR, pas, novR, cortesR, regla, planR, empR] = await Promise.all([
     diasConConteo(),
     supabase.from("pasivos_maestro").select("codigo, descripcion, familia, unidades_por_caja, cajas_por_estiba, caja"),
     supabase.from("productos").select("id, sku, nombre, unidades_por_caja, cajas_por_estiba, envase_sku").limit(5000),
@@ -96,7 +103,16 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     /* EL PLAN DE ENVASE DEL DÍA: qué SKU corre en cada tren (Recepción · Plan de envase). Si no hay plan o no se
        puede ver, el análisis sale igual, solo que sin la marca de «en línea». */
     supabase.from("plan_envase_bloques").select("tren, sap, turno").eq("fecha", fecha).limit(2000),
+    /* CÓMO VA EMPACADO cada producto (cartón o caja plástica), definido por el usuario. Si la tabla no existe, sigue la regla de siempre. */
+    supabase.from("analisis_dif_empaque").select("sku, empaque, caja").limit(5000),
   ]);
+  /* LA CAJA QUE TRAE EL MAESTRO DE INVENTARIO para cada producto (productos.caja_sku): es la relación oficial
+     producto → caja plástica. Si la columna no existe todavía, se sigue por la regla de siempre. */
+  const cajaMaestro = new Map<string, string>();
+  { const cj = await supabase.from("productos").select("sku, caja_sku").not("caja_sku", "is", null).limit(5000);
+    if (!cj.error) for (const x of (cj.data ?? []) as { sku: string; caja_sku: string }[]) cajaMaestro.set(String(x.sku), String(x.caja_sku)) }
+  const EMP = new Map<string, { empaque: string; caja: string | null }>();
+  for (const e of (empR.data ?? []) as { sku: string; empaque: string; caja: string | null }[]) EMP.set(String(e.sku), { empaque: e.empaque, caja: e.caja });
   const faltaSql = !!novR.error && /analisis_dif|does not exist|PGRST205/i.test(`${novR.error.code} ${novR.error.message}`);
   const M = new Map(((maesR.data ?? []) as Maes[]).map((m) => [String(m.codigo), m]));
   const P = new Map(((prodR.data ?? []) as Prod[]).map((p) => [String(p.sku), p]));
@@ -152,6 +168,7 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   };
   const cajaPorPresentacionUsada = new Map<string, string>();
   const sinCajaMap = new Map<string, SinCaja>();
+  const cartonMap = new Map<string, SinCaja>(), conCajaMap = new Map<string, ConCaja>();
   /* Las estibas de lo que NO entra a este análisis (Fábrica, AG17, AG16): ya están cuadradas en su propio Cuadre SAP; se anotan aparte para el total. */
   const estFuera = new Map<string, number>();
   const vacio = (): TotConteo => ({ renglones: 0, cajas: 0, estibas: 0, plasticas: 0 });
@@ -197,17 +214,27 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
          El producto → su envase (maestro de productos) → la caja de ese envase (maestro de Pasivos). Si el envase
          está excluido (NR, foráneo…) o no tiene caja (lata, PET, NR), no aporta caja. EL PRODUCTO EN SÍ NO SE TOMA. */
       const env = P.get(c)?.envase_sku ? String(P.get(c)!.envase_sku) : null;
+      const def = EMP.get(c);
+      if (def?.empaque === "CARTON") {
+        /* Definido por el usuario: va en cartón, no lleva caja plástica. */
+        if (cajas) { const a = cartonMap.get(c) ?? { codigo: c, nombre: nombre(c), cajas: 0, motivo: "marcado: va en cartón" }; a.cajas += cajas; cartonMap.set(c, a) }
+        continue;
+      }
       const envFuera = !!env && (CAJA_FUERA_DEL_CUADRE.has(env) || excluye(regla, env, nombre(env)));
-      let cajaP: string | null = env ? (envFuera ? null : M.get(env)?.caja ?? null) : CAJA_DE_PRODUCTO_SIN_ENVASE[c] ?? null;
+      let cajaP: string | null = def?.empaque === "PLASTICA" && def.caja ? def.caja
+        : cajaMaestro.get(c) ?? (env ? (envFuera ? null : M.get(env)?.caja ?? null) : CAJA_DE_PRODUCTO_SIN_ENVASE[c] ?? null);
+      const cajaDefinida = def?.empaque === "PLASTICA" && !!def.caja;
       if (!cajaP && !envFuera) { const g = cajaPorPresentacion(P.get(c)); if (g) { cajaP = g; cajaPorPresentacionUsada.set(c, g) } }
       if (!cajaP && !envFuera) prodSinEnvase.add(c);
       if (!cajaP && cajas) {
         const motivo = envFuera ? `su envase ${env} está excluido o su caja no se cuenta`
           : !env ? "no tiene envase en el maestro (lata, PET, no retornable o falta completarlo)" : `su envase ${env} no tiene caja plástica en el maestro`;
-        const a = sinCajaMap.get(c) ?? { codigo: c, nombre: nombre(c), cajas: 0, motivo };
+        const a = sinCajaMap.get(c) ?? { codigo: c, nombre: nombre(c), cajas: 0, motivo, sugerida: cajaPorPresentacion(P.get(c)) };
         a.cajas += cajas; sinCajaMap.set(c, a);
       }
-      if (cajaP && cajas) { suma("conteo", String(cajaP), pre(`CONTEO · en producto ${c} ${nombre(c)}`), cajas); cajasProducto += cajas; prodConCaja.add(c) }
+      if (cajaP && cajas) { suma("conteo", String(cajaP), pre(`CONTEO · en producto ${c} ${nombre(c)}`), cajas); cajasProducto += cajas; prodConCaja.add(c);
+        const k = conCajaMap.get(c) ?? { codigo: c, nombre: nombre(c), cajas: 0, caja: String(cajaP), cajaNombre: nombre(String(cajaP)), definido: cajaDefinida };
+        k.cajas += cajas; conCajaMap.set(c, k) }
       continue;
     }
     if (r.tipo_material !== "ENVASE") { suma("conteo", ESTIBA, pre(bajoQue(c)), est); continue }
@@ -458,7 +485,10 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   /* Solo informa: el plan no mueve ningún número del análisis, así que si no hay plan ese día no se muestra nada. */
   if (sku.size) fuentes.push({ nombre: "Plan de envase", ok: true, detalle: `${sku.size} SKU en línea ese día · ${new Set([...sku.values()].map((x) => x.tren)).size} trenes${sinEnvase.length ? ` · sin envase en el maestro: ${sinEnvase.join(", ")}` : ""}` });
 
-  return { fecha, filas, fuentes, avisos, novedades, noEntran: noEntran.sort(), faltaSql, carga, contados, existencias, enLinea, sinCaja: [...sinCajaMap.values()].map((x) => ({ ...x, cajas: Math.round(x.cajas) })).sort((x, y) => y.cajas - x.cajas) };
+  return { fecha, filas, fuentes, avisos, novedades, noEntran: noEntran.sort(), faltaSql, carga, contados, existencias, enLinea, sinCaja: [...sinCajaMap.values()].map((x) => ({ ...x, cajas: Math.round(x.cajas) })).sort((x, y) => y.cajas - x.cajas),
+    cartones: [...cartonMap.values()].map((x) => ({ ...x, cajas: Math.round(x.cajas) })).sort((x, y) => y.cajas - x.cajas),
+    conCaja: [...conCajaMap.values()].map((x) => ({ ...x, cajas: Math.round(x.cajas) })).sort((x, y) => y.cajas - x.cajas),
+    cajasLista: cajasPlasticas.map((m) => ({ codigo: String(m.codigo), nombre: String(m.descripcion ?? m.codigo) })).sort((x, y) => x.nombre.localeCompare(y.nombre)) };
 }
 
 

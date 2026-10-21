@@ -118,3 +118,29 @@ export async function extrasInforme(fecha: string) {
   const det = h.detalle.filter((f) => f.fecha <= fecha);
   return { precios, recurrencia: recurrencias(det, fecha, 30, 3), ayer: contraAnterior(det, fecha) };
 }
+
+/* ---------------- CÓMO VA EMPACADO CADA PRODUCTO ----------------
+   Hay productos que van en cartón y no en caja plástica. Se define aquí, producto por producto, y queda para siempre:
+   «carton» → no suma caja plástica; «plastica» → suma la caja escogida; «sin» → vuelve a la regla de siempre. */
+const SQL4 = "Falta correr supabase/migraciones/2026-10-analisis-diferencia-empaque.sql en Supabase.";
+const falta4 = (m: string) => (/analisis_dif_empaque|does not exist|PGRST205/i.test(m) ? SQL4 : m);
+
+export async function guardarEmpaque(sku: string, empaque: "carton" | "plastica" | "sin", caja: string | null) {
+  const codigo = String(sku ?? "").trim();
+  if (!codigo) return { error: "Falta el producto." };
+  const supabase = await createClient();
+  if (empaque === "sin") {
+    const { error } = await supabase.from("analisis_dif_empaque").delete().eq("sku", codigo);
+    if (error) return { error: falta4(`${error.code} ${error.message}`) };
+  } else {
+    if (empaque === "plastica" && !String(caja ?? "").trim()) return { error: "Escoge la caja plástica en la que va." };
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from("analisis_dif_empaque").upsert({
+      sku: codigo, empaque: empaque === "carton" ? "CARTON" : "PLASTICA", caja: empaque === "plastica" ? String(caja).trim() : null,
+      actualizado_por: user?.id ?? null, actualizado_en: new Date().toISOString(),
+    }, { onConflict: "sku" });
+    if (error) return { error: falta4(`${error.code} ${error.message}`) };
+  }
+  revalidatePath(RUTA);
+  return { ok: true };
+}

@@ -68,6 +68,10 @@ export type Material = {
      Null en los no retornables y en los envases mismos. */
   precio_botella: number | null;
   envase_sku: string | null;
+  /** LA CAJA PLÁSTICA EN LA QUE VA EL PRODUCTO (código de la caja, que también es un material de este maestro).
+      Viene del «Maestro Sku vs Caja» de la cervecería. Opcional: si falta correr 2026-10-maestro-caja-plastica.sql la
+      columna no existe y la pantalla se pinta igual, diciendo que falta. */
+  caja_sku?: string | null;
 };
 
 export type Ubicacion = {
@@ -175,7 +179,9 @@ const sinTablas = (m: string) =>
  * alguna vez el número que vuelve es exactamente el del límite, se sabe
  * dónde mirar.
  */
-export async function maestroInventario() {
+/** `caja: true` solo lo pide la pantalla del maestro: trae la caja plástica de cada producto (una consulta más), que
+ *  las pantallas de contar no necesitan. */
+export async function maestroInventario(op: { caja?: boolean } = {}) {
   const supabase = await createClient();
   const [m, u, b, e] = await Promise.all([
     /* LA LISTA DE COLUMNAS, Y NO `*`. Aquí decía `*` con un comentario
@@ -219,16 +225,28 @@ export async function maestroInventario() {
     ).order("sku").limit(5000) as typeof m;
   }
 
+  /* LA CAJA PLÁSTICA DE CADA PRODUCTO, PEDIDA APARTE: si la columna no existe (falta el SQL) esto falla solo
+     y el maestro se pinta igual, en vez de quedarse en blanco por una columna. */
+  let cajaOk = true;
+  if (!mat.error && op.caja) {
+    const cj = await supabase.from("productos").select("id,caja_sku").limit(5000);
+    if (cj.error) cajaOk = false;
+    else {
+      const por = new Map((cj.data ?? []).map((x) => [x.id as string, (x.caja_sku as string | null) ?? null]));
+      mat = { ...mat, data: (mat.data ?? []).map((x) => ({ ...x, caja_sku: por.get(x.id as string) ?? null })) } as typeof mat;
+    }
+  }
+
   if (mat.error || u.error) {
     const msg = mat.error?.message ?? u.error?.message ?? "";
     return {
-      falta: sinTablas(msg), cruce,
+      falta: sinTablas(msg), cruce, cajaOk,
       materiales: [] as Material[], ubicaciones: [] as Ubicacion[],
       bodegas: [] as Bodega[], errorBodegas: null as string | null, estados: [] as string[],
     };
   }
   return {
-    falta: false, cruce,
+    falta: false, cruce, cajaOk,
     materiales: (mat.data ?? []) as Material[],
     ubicaciones: (u.data ?? []) as Ubicacion[],
     bodegas: (b.data ?? []) as Bodega[],

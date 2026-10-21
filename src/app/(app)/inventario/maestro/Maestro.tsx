@@ -107,11 +107,13 @@ export const alTeclear = (
    es como se usa un maestro: nadie recorre 494 de arriba abajo. */
 const TOPE = 60;
 
-export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEditor }: {
+export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEditor, cajaOk = true }: {
   materiales: Material[];
   ubicaciones: Ubicacion[];
   bodegas: Bodega[];
   esEditor: boolean;
+  /** false si falta correr 2026-10-maestro-caja-plastica.sql: no se ofrece el campo para no guardar contra una columna que no existe. */
+  cajaOk?: boolean;
 }) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
@@ -140,6 +142,15 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
   const [borrador, setBorrador] = useState<Record<string, string>>({});
 
   const q = busca.trim().toLowerCase();
+
+  /* LAS CAJAS PLÁSTICAS que se pueden escoger para un producto: los materiales del maestro que son caja o canasta
+     plástica, más cualquiera que ya esté amarrada a algún producto. */
+  const cajasOpc = useMemo(() => {
+    const usadas = new Set(materiales.map((m) => m.caja_sku).filter(Boolean) as string[]);
+    return materiales.filter((m) => usadas.has(m.sku) || /^(CAJA|CANASTA)\s+PL/i.test(m.nombre) || /^CAJA\s+MARR/i.test(m.nombre))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre));
+  }, [materiales]);
+  const nombreDe = (sku: string | null | undefined) => (sku ? materiales.find((x) => x.sku === sku)?.nombre ?? null : null);
 
   const matFiltrados = useMemo(() => materiales.filter((m) =>
     (verInactivos || m.activo) &&
@@ -235,6 +246,8 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
       en_sitio: (borrador.en_sitio ?? (m.en_sitio ? "1" : "0")) === "1",
       activo: borrador.activo === "1",
       actualizado_en: new Date().toISOString(),
+      /* La caja plástica solo viaja si la columna existe, y solo la tocan los productos. */
+      ...(cajaOk ? { caja_sku: (borrador.tipo_material ?? m.tipo_material) === "PRODUCTO" ? ((borrador.caja_sku ?? "").trim() || null) : null } : {}),
     };
 
     setGuardando(true);
@@ -641,6 +654,7 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
                             dias_minimo: txt(m.dias_minimo),
                             familia: m.familia ?? "",
                             tipo_material: m.tipo_material,
+                            caja_sku: m.caja_sku ?? "",
                             activo: m.activo ? "1" : "0",
                           })}>
                     Editar
@@ -688,6 +702,11 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
                 <div><dt>HL por unidad</dt>
                   <dd>{m.hl ? Number(m.hl).toFixed(5).replace(".", ",") : "—"}</dd></div>
                 <div><dt>Referencia</dt><dd>{m.referencia ?? "—"}</dd></div>
+                {cajaOk && m.tipo_material === "PRODUCTO" && (
+                  <div><dt>Caja plástica</dt>
+                    <dd className={m.caja_sku ? undefined : "falta"}>
+                      {m.caja_sku ? `${m.caja_sku} · ${nombreDe(m.caja_sku) ?? "no está en el maestro"}` : "sin caja"}</dd></div>
+                )}
               </dl>
 
               {abierto && (
@@ -747,6 +766,16 @@ export function Maestro({ materiales: matIni, ubicaciones: ubiIni, bodegas, esEd
                         <option value="PRODUCTO">Producto</option>
                         <option value="ENVASE">Envase</option>
                       </select></label>
+                    {/* LA CAJA PLÁSTICA EN LA QUE VA EL PRODUCTO. Es lo que le permite al análisis sumar su caja: sin esto el
+                        producto contado no aporta caja. Latas, PET y lo que va en cartón se dejan sin caja. */}
+                    {cajaOk && (borrador.tipo_material ?? m.tipo_material) === "PRODUCTO" && (
+                      <label className="ancho"><span>Caja plástica</span>
+                        <select value={borrador.caja_sku ?? ""} onChange={(e) => poner("caja_sku", e.target.value)}>
+                          <option value="">Sin caja plástica (cartón, lata, PET…)</option>
+                          {cajasOpc.map((c) => <option key={c.id} value={c.sku}>{c.sku} · {c.nombre}</option>)}
+                          {borrador.caja_sku && !cajasOpc.some((c) => c.sku === borrador.caja_sku) && <option value={borrador.caja_sku}>{borrador.caja_sku}</option>}
+                        </select></label>
+                    )}
 
                     {/* ============ SALE EN SITIO ============
                         El maestro tiene todos los materiales del CD
