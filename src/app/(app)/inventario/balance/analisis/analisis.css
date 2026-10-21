@@ -293,3 +293,8 @@
 .ad .ad-emp-sel:disabled { opacity: .6 }
 .ad .ad-emp-filtro { display: block; margin-top: 8px; font: inherit; font-size: 12px; padding: 5px 8px; border: 1px solid var(--fe-linea); background: #fff; border-radius: 0; width: 260px; max-width: 100% }
 .ad .ad-emp-err { margin: 0; padding: 6px 10px; background: #FDECEA; border: 1px solid #B42318; color: #8A1C12; font-size: 12.5px }
+
+/* Lo del día que no es el análisis (fuentes, conteo sin segregar, existencias SAP): cerrado, debajo de la tabla. */
+.ad .ad-resto { margin: 12px 0 0; padding: 8px 12px; background: #fff; border: 1px solid var(--fe-linea); font-size: 12.5px }
+.ad .ad-resto > summary { cursor: pointer }
+.ad .ad-resto > .ad-fuentes, .ad .ad-resto > details, .ad .ad-resto > div { margin-top: 10px }

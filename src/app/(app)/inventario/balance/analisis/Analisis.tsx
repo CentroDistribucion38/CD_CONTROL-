@@ -107,18 +107,11 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
         {puedeEditar && datos.carga && <button type="button" className="ad-bt alt" disabled={pend} onClick={quitar}>Quitar</button>}
         {puedeEditar && <button type="button" className="ad-bt" disabled={pend || datos.faltaSql} onClick={() => archivo.current?.click()}>{pend ? "Subiendo…" : datos.carga ? "Cambiar plantilla" : "Subir plantilla"}</button>}
         <a className="ad-bt alt" href="/plantillas/analisis-diferencia-novedades.xlsx" download>Plantilla vacía</a>
+        <Avisos avisos={datos.avisos} />
       </div>
       {datos.faltaSql && <p className="ad-msg mal">Falta correr supabase/migraciones/2026-10-analisis-diferencia.sql en Supabase.</p>}
       {msg && <p className={"ad-msg" + (msg.mal ? " mal" : " bien")} role="status">{msg.t}</p>}
       {errores.length > 0 && <ul className="ad-errores">{errores.slice(0, 30).map((e) => <li key={e}>{e}</li>)}{errores.length > 30 && <li>… y {errores.length - 30} más.</li>}</ul>}
-
-      {/* ---------- LO QUE ALIMENTA EL DÍA: una sola fila chica (el detalle sale al pasar el mouse) y los avisos al lado ---------- */}
-      <div className="ad-fuentes">
-        <Avisos avisos={datos.avisos} />
-        {datos.fuentes.map((f) => (
-          <span key={f.nombre} className={"ad-fuente" + (f.ok ? " ok" : "")} title={`${f.nombre}: ${f.detalle}`}><i>{f.ok ? "✓" : "!"}</i><b>{f.nombre}</b></span>
-        ))}
-      </div>
 
       {/* ---------- LOS TOTALES ---------- */}
       <div className="ad-k ad-k4">
@@ -133,30 +126,6 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
         <div className={"dif" + (tot.conteo - tot.sap < 0 ? " neg" : "")}><span>DIFERENCIA (CONTEO − SAP)</span><b>{signo(tot.conteo - tot.sap)}</b><small>{filas.filter((f) => f.diferencia !== 0).length} de {filas.length} códigos con diferencia</small></div>
       </div>
 
-      {/* ---------- EL CONTEO SIN SEGREGAR: para compararlo con el tablero del libro de inventario ---------- */}
-      {datos.contados?.totales && (() => {
-        const { donde, estibasAnalisis, plasticasAnalisis } = datos.contados.totales;
-        const xs = Object.entries(donde).filter(([, t]) => t.renglones > 0);
-        const T = xs.reduce((a, [, t]) => ({ cajas: a.cajas + t.cajas, estibas: a.estibas + t.estibas, plasticas: a.plasticas + t.plasticas, renglones: a.renglones + t.renglones }), { cajas: 0, estibas: 0, plasticas: 0, renglones: 0 });
-        const b = donde["BODEGA"] ?? { renglones: 0, cajas: 0, estibas: 0, plasticas: 0 };
-        const dEst = estibasAnalisis - b.estibas, dPl = plasticasAnalisis - b.plasticas;
-        return (
-          <details className="ad-nota ad-nota-d">
-            <summary><b>Conteo sin segregar</b> · {n(T.cajas)} cajas · {n(T.estibas)} estibas físicas · {n(T.plasticas)} cajas plásticas<span> · ver cuentas</span></summary>
-          <p title="Cajas = total de cajas contadas (producto, envase y cajas vacías). Estibas físicas = estibas completas + 1 por cada saldo. Cajas plásticas = todo lo que viaja en caja, sin barril ni madera. Es la misma cuenta del tablero del libro de inventario.">
-            <b>Conteo sin segregar (el tablero, todos los almacenes):</b> {n(T.cajas)} cajas · {n(T.estibas)} estibas físicas · {n(T.plasticas)} cajas plásticas
-            {" "}({xs.map(([k, t]) => `${k === "BODEGA" ? "Bodega 38" : k} ${n(t.estibas)} estibas`).join(" · ")}).
-            {" "}<b>Este análisis es de AG22 (Bodega 38):</b> Fábrica, AG17 y AG16 se balancean en sus Cuadres SAP y llegan aquí como BALANCE (lo movido) y DESCUADRE (lo que quedó sin cuadrar).
-            {" "}Estiba 3500163 <b>{n(estibasAnalisis)}</b>{Math.abs(dEst) < 0.5 ? " = las estibas físicas de Bodega 38." : <>: {signo(dEst)} frente a las estibas físicas de Bodega 38 (las estibas contadas con su propio código entran por sus cajas).</>}
-            {" "}Cajas plásticas (E01) <b>{n(plasticasAnalisis)}</b>{Math.abs(dPl) < 0.5 ? " = las de Bodega 38." : <>: {signo(dPl)} frente a las de Bodega 38 (producto sin envase retornable en el maestro, envase excluido, cajas sin factor, o lo que entra por pasivos y balance).</>}
-          </p>
-          </details>
-        );
-      })()}
-
-      {/* ---------- LAS EXISTENCIAS DE SAP POR ESTADO (ZEXI AG18) ---------- */}
-      <Existencias ex={datos.existencias} />
-
       {/* ---------- LA TABLA ---------- */}
       <section className="ad-caja ad-hoja">
         <div className="ad-hoja-cab">
@@ -170,9 +139,6 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
             </button>
           )}
         </div>
-        {nEnLinea > 0 && (
-          <p className="ad-enl-ley"><span className="ad-enl">EN LÍNEA</span> {nEnLinea} {nEnLinea === 1 ? "código está" : "códigos están"} en producción ese día según el plan de envase: la línea los está tomando mientras se cuenta, así que su diferencia puede no ser real. Pasa el mouse por la etiqueta para ver el SKU y el turno.</p>
-        )}
         {filas.length === 0 ? <p className="ad-vacio">No hay nada para ese día: falta el conteo, el cuadre o la plantilla.</p> : (
           <div className="ad-tabla-caja">
             <table className="ad-t ad-piv">
@@ -231,10 +197,44 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
             </table>
           </div>
         )}
-        <p className="ad-nota">Toca un código para ver de qué partida sale cada lado. Unidades; cajas plásticas y estibas por unidad.
+        <p className="ad-nota">Toca un código para ver de qué partida sale cada lado. Unidades; cajas plásticas y estibas por unidad.{nEnLinea > 0 && <> <span className="ad-enl">EN LÍNEA</span> = la línea está tomando ese código mientras se cuenta (plan de envase), así que su diferencia puede no ser real; pasa el mouse por la etiqueta para ver el SKU y el turno.</>}
           {datos.noEntran.length > 0 && <> No entran: {datos.noEntran.join(", ")}.</>}</p>
         {informativas.length > 0 && <p className="ad-nota">Informativo (no suma): {informativas.map((x) => `${x.tipo} ${x.codigo} ${n(Number(x.unidades))}`).join(" · ")}.</p>}
       </section>
+      {/* ---------- LO DEL DÍA QUE NO ES EL ANÁLISIS: de dónde sale cada lado y las cuentas del tablero. Cerrado: lo que se ve es el análisis. ---------- */}
+      <details className="ad-resto">
+        <summary><b>Fuentes y cuentas del día</b> · {datos.fuentes.filter((f) => f.ok).length} de {datos.fuentes.length} fuentes · conteo sin segregar y existencias SAP</summary>
+      <div className="ad-fuentes">
+        {datos.fuentes.map((f) => (
+          <span key={f.nombre} className={"ad-fuente" + (f.ok ? " ok" : "")} title={`${f.nombre}: ${f.detalle}`}><i>{f.ok ? "✓" : "!"}</i><b>{f.nombre}</b></span>
+        ))}
+      </div>
+
+      {/* ---------- EL CONTEO SIN SEGREGAR: para compararlo con el tablero del libro de inventario ---------- */}
+      {datos.contados?.totales && (() => {
+        const { donde, estibasAnalisis, plasticasAnalisis } = datos.contados.totales;
+        const xs = Object.entries(donde).filter(([, t]) => t.renglones > 0);
+        const T = xs.reduce((a, [, t]) => ({ cajas: a.cajas + t.cajas, estibas: a.estibas + t.estibas, plasticas: a.plasticas + t.plasticas, renglones: a.renglones + t.renglones }), { cajas: 0, estibas: 0, plasticas: 0, renglones: 0 });
+        const b = donde["BODEGA"] ?? { renglones: 0, cajas: 0, estibas: 0, plasticas: 0 };
+        const dEst = estibasAnalisis - b.estibas, dPl = plasticasAnalisis - b.plasticas;
+        return (
+          <details className="ad-nota ad-nota-d">
+            <summary><b>Conteo sin segregar</b> · {n(T.cajas)} cajas · {n(T.estibas)} estibas físicas · {n(T.plasticas)} cajas plásticas<span> · ver cuentas</span></summary>
+          <p title="Cajas = total de cajas contadas (producto, envase y cajas vacías). Estibas físicas = estibas completas + 1 por cada saldo. Cajas plásticas = todo lo que viaja en caja, sin barril ni madera. Es la misma cuenta del tablero del libro de inventario.">
+            <b>Conteo sin segregar (el tablero, todos los almacenes):</b> {n(T.cajas)} cajas · {n(T.estibas)} estibas físicas · {n(T.plasticas)} cajas plásticas
+            {" "}({xs.map(([k, t]) => `${k === "BODEGA" ? "Bodega 38" : k} ${n(t.estibas)} estibas`).join(" · ")}).
+            {" "}<b>Este análisis es de AG22 (Bodega 38):</b> Fábrica, AG17 y AG16 se balancean en sus Cuadres SAP y llegan aquí como BALANCE (lo movido) y DESCUADRE (lo que quedó sin cuadrar).
+            {" "}Estiba 3500163 <b>{n(estibasAnalisis)}</b>{Math.abs(dEst) < 0.5 ? " = las estibas físicas de Bodega 38." : <>: {signo(dEst)} frente a las estibas físicas de Bodega 38 (las estibas contadas con su propio código entran por sus cajas).</>}
+            {" "}Cajas plásticas (E01) <b>{n(plasticasAnalisis)}</b>{Math.abs(dPl) < 0.5 ? " = las de Bodega 38." : <>: {signo(dPl)} frente a las de Bodega 38 (producto sin envase retornable en el maestro, envase excluido, cajas sin factor, o lo que entra por pasivos y balance).</>}
+          </p>
+          </details>
+        );
+      })()}
+
+      {/* ---------- LAS EXISTENCIAS DE SAP POR ESTADO (ZEXI AG18) ---------- */}
+      <Existencias ex={datos.existencias} />
+
+      </details>
       {/* AL FINAL: cómo va empacado cada producto (cartón o caja plástica) es para revisar después de ver el análisis. */}
       <Empaque datos={datos} puedeEditar={puedeEditar} />
     </>
