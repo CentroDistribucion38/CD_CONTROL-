@@ -13,7 +13,10 @@ const codigo = (v: Celda) => txt(v).replace(/\.0+$/, "");
 export type FilaPlantilla = { tipo: string; lado: "CONTEO" | "SAP" | "NO SUMA"; documento: string | null; codigo: string; unidades: number; caja_codigo: string | null; cajas: number | null };
 export type Lectura = { fecha: string | null; filas: FilaPlantilla[]; errores: string[] };
 
-export async function leerPlantilla(archivo: File): Promise<Lectura> {
+/** El maestro del sistema: lo que se usa cuando la hoja MAESTRO de la plantilla no trae el código o no trae su caja. */
+export type MaestroSistema = Record<string, { upc: number; cpe: number; caja: string | null }>;
+
+export async function leerPlantilla(archivo: File, sistema: MaestroSistema = {}): Promise<Lectura> {
   const XLSX = await import("xlsx");
   const libro = XLSX.read(await archivo.arrayBuffer(), { type: "array" });
   const hoja = (n: string) => libro.Sheets[n];
@@ -44,11 +47,16 @@ export async function leerPlantilla(archivo: File): Promise<Lectura> {
     const fila = i + 6;
     const tipo = txt(f[0]).toUpperCase(), cod = codigo(f[2]);
     if (!tipo && !cod) return;
-    const t = tipos.get(tipo), m = maestro.get(cod);
+    const t = tipos.get(tipo), sis = sistema[cod];
+    /* La hoja MAESTRO de la plantilla manda; si no trae el código, o lo trae sin caja, se completa con el maestro del sistema. */
+    const propio = maestro.get(cod);
+    const m = propio
+      ? (!propio.caja && sis?.caja ? { upc: propio.upc > 1 ? propio.upc : sis.upc, cpe: propio.cpe || sis.cpe, caja: sis.caja } : propio)
+      : sis ? { upc: sis.upc || 1, cpe: sis.cpe, caja: sis.caja } : undefined;
     if (!tipo) { errores.push(`Fila ${fila}: falta el tipo.`); return }
     if (!t || !["CONTEO", "SAP", "NO SUMA"].includes(t.lado)) { errores.push(`Fila ${fila}: el tipo «${tipo}» no tiene «SUMA EN» en la hoja TIPOS.`); return }
     if (!cod) { errores.push(`Fila ${fila}: falta el código.`); return }
-    if (!m) { errores.push(`Fila ${fila}: el código ${cod} no está en el maestro de la plantilla.`); return }
+    if (!m) { errores.push(`Fila ${fila}: el código ${cod} no está en el maestro de la plantilla ni en el del sistema.`); return }
     const est = num(f[3]), cajas = num(f[4]), sueltas = num(f[5]);
     if (est > 0 && !m.cpe) { errores.push(`Fila ${fila}: ${cod} no tiene cajas por estiba: escribe cajas.`); return }
     const doc = txt(f[1]) || null;

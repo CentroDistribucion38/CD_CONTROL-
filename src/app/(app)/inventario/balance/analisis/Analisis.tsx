@@ -49,7 +49,7 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
 
   async function subir(a: File) {
     setMsg(null); setErrores([]);
-    const r = await leerPlantilla(a);
+    const r = await leerPlantilla(a, datos.maestroSistema);
     if (r.errores.length) { setErrores(r.errores); setMsg({ mal: true, t: `La plantilla tiene ${r.errores.length} ${r.errores.length === 1 ? "fila con problema" : "filas con problemas"}: corrígelas y vuelve a subirla. No se subió nada.` }); return }
     const dia = r.fecha ?? fecha;
     start(async () => {

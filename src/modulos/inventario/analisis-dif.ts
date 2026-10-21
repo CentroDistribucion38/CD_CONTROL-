@@ -64,6 +64,9 @@ export type Analisis = {
   conCaja?: ConCaja[];
   /** Las cajas plásticas del maestro, para escoger la de cada producto. */
   cajasLista?: { codigo: string; nombre: string }[];
+  /** El maestro del sistema (productos y envases): unidades por caja, cajas por estiba y caja plástica de cada código.
+      La plantilla de novedades lo usa cuando su hoja MAESTRO no trae el código o no trae su caja. */
+  maestroSistema?: Record<string, { upc: number; cpe: number; caja: string | null }>;
 };
 export type SinCaja = { codigo: string; nombre: string; cajas: number; motivo: string; sugerida?: string | null };
 export type ConCaja = { codigo: string; nombre: string; cajas: number; caja: string; cajaNombre: string; definido: boolean };
@@ -485,7 +488,17 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   /* Solo informa: el plan no mueve ningún número del análisis, así que si no hay plan ese día no se muestra nada. */
   if (sku.size) fuentes.push({ nombre: "Plan de envase", ok: true, detalle: `${sku.size} SKU en línea ese día · ${new Set([...sku.values()].map((x) => x.tren)).size} trenes${sinEnvase.length ? ` · sin envase en el maestro: ${sinEnvase.join(", ")}` : ""}` });
 
-  return { fecha, filas, fuentes, avisos, novedades, noEntran: noEntran.sort(), faltaSql, carga, contados, existencias, enLinea, sinCaja: [...sinCajaMap.values()].map((x) => ({ ...x, cajas: Math.round(x.cajas) })).sort((x, y) => y.cajas - x.cajas),
+  const maestroSistema: Record<string, { upc: number; cpe: number; caja: string | null }> = {};
+  for (const x of P.values()) {
+    const sk = String(x.sku);
+    maestroSistema[sk] = { upc: Number(x.unidades_por_caja) || 1, cpe: Number(x.cajas_por_estiba) || 0, caja: cajaMaestro.get(sk) ?? CAJA_DE_PRODUCTO_SIN_ENVASE[sk] ?? null };
+  }
+  for (const m of M.values()) {
+    const c = String(m.codigo);
+    maestroSistema[c] = { upc: Number(m.unidades_por_caja) || 1, cpe: Number(m.cajas_por_estiba) || 0, caja: m.caja ? String(m.caja) : maestroSistema[c]?.caja ?? null };
+  }
+
+  return { fecha, filas, fuentes, avisos, novedades, noEntran: noEntran.sort(), faltaSql, carga, contados, existencias, enLinea, maestroSistema, sinCaja: [...sinCajaMap.values()].map((x) => ({ ...x, cajas: Math.round(x.cajas) })).sort((x, y) => y.cajas - x.cajas),
     cartones: [...cartonMap.values()].map((x) => ({ ...x, cajas: Math.round(x.cajas) })).sort((x, y) => y.cajas - x.cajas),
     conCaja: [...conCajaMap.values()].map((x) => ({ ...x, cajas: Math.round(x.cajas) })).sort((x, y) => y.cajas - x.cajas),
     cajasLista: cajasPlasticas.map((m) => ({ codigo: String(m.codigo), nombre: String(m.descripcion ?? m.codigo) })).sort((x, y) => x.nombre.localeCompare(y.nombre)) };
