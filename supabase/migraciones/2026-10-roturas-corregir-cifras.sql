@@ -35,7 +35,7 @@ create index if not exists roturas_correcciones_rotura on public.roturas_correcc
 alter table public.roturas_correcciones enable row level security;
 drop policy if exists roturas_correcciones_leer on public.roturas_correcciones;
 create policy roturas_correcciones_leer on public.roturas_correcciones
-  for select to authenticated using (true);
+  for select to authenticated using (public.manda());
 -- Solo select: escribir lo hace `rotura_corregir`, que es security definer.
 grant select on public.roturas_correcciones to authenticated;
 
@@ -50,7 +50,7 @@ create table if not exists public.roturas_revision (
 alter table public.roturas_revision enable row level security;
 drop policy if exists roturas_revision_leer on public.roturas_revision;
 create policy roturas_revision_leer on public.roturas_revision
-  for select to authenticated using (true);
+  for select to authenticated using (public.manda());
 grant select on public.roturas_revision to authenticated;
 
 create or replace function public.rotura_revisar(p_id uuid, p_ok boolean default true)

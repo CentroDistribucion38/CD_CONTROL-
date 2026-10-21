@@ -452,7 +452,7 @@ export function Tablero({ roturas, nombres, manda, correcciones, revisadas }: {
                               onClick={(e) => { e.stopPropagation(); setAbierta(abierta === r.id ? null : r.id) }}>
                         {r.codigo}
                       </button>
-                      {rev.has(r.id) && <span className="tb-rev" title="Revisada">✓</span>}
+                      {manda && rev.has(r.id) && <span className="tb-rev" title="Revisada">✓</span>}
                     </td>
                     <td className="tb-cuando">
                       {dma(r.reportada_en)} <span>{hm(r.reportada_en)}</span>
@@ -460,7 +460,7 @@ export function Tablero({ roturas, nombres, manda, correcciones, revisadas }: {
                     </td>
                     <td>{r.material_nombre}</td>
                     <td className="tb-num">{r.unidades}
-                      {correcciones[r.id]?.length > 0 && (
+                      {manda && correcciones[r.id]?.length > 0 && (
                         <span className="tb-corregida" title={`Corregida: antes ${correcciones[r.id][correcciones[r.id].length - 1].antes_rotas} rotas${correcciones[r.id][correcciones[r.id].length - 1].antes_contaminadas ? ` y ${correcciones[r.id][correcciones[r.id].length - 1].antes_contaminadas} contaminadas` : ""}`}>corregida</span>
                       )}</td>
                     {/* EN EER NO HAY CONTAMINADAS: es envase vacío, no
@@ -496,7 +496,7 @@ export function Tablero({ roturas, nombres, manda, correcciones, revisadas }: {
         {iAbierta >= 0 && (() => {
           const r = vistas[iAbierta];
           return (
-            <Caso r={r} etiqueta={etiquetaDe(r)} nombres={nombres} historial={correcciones[r.id] ?? []}
+            <Caso r={r} etiqueta={etiquetaDe(r)} nombres={nombres} historial={manda ? (correcciones[r.id] ?? []) : []}
                   manda={manda} guardando={mandando} pos={iAbierta + 1} total={vistas.length}
                   anterior={iAbierta > 0 ? () => setAbierta(vistas[iAbierta - 1].id) : null}
                   siguiente={iAbierta < vistas.length - 1 ? () => setAbierta(vistas[iAbierta + 1].id) : null}

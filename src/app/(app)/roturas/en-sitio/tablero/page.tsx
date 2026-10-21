@@ -26,12 +26,13 @@ export default async function TableroEnSitioPage() {
 
   if (datos.falta) return <div className="rt"><SinTablas /></div>;
 
-  /* LAS CORRECCIONES DE CANTIDADES, por rotura. Tolerante: si todavía no se corrió
+  /* LAS CORRECCIONES DE CANTIDADES, por rotura. SOLO PARA EL ADMINISTRADOR: el resto ni recibe estos datos (ni la marca «corregida» ni la de «revisada»).
+     Tolerante: si todavía no se corrió
      2026-10-roturas-corregir-cifras.sql la tabla no existe y la pantalla sale sin marcas. */
   const correcciones: Record<string, Corr[]> = {};
   let falta = false;
   let revisadas: string[] = [];
-  {
+  if (permisos.manda) {
     const supabase = await createClient();
     const { data, error } = await supabase.from("roturas_correcciones")
       .select("rotura_id, antes_rotas, antes_contaminadas, despues_rotas, despues_contaminadas, motivo, corregida_por, corregida_en")
