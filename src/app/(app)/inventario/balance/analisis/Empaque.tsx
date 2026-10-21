@@ -57,7 +57,7 @@ export function Empaque({ datos, puedeEditar }: { datos: Datos; puedeEditar: boo
       {error && <p className="ad-emp-err" role="alert">{error}</p>}
 
       {sin.length > 0 && (
-        <details className="ad-sincaja" open>
+        <details className="ad-sincaja">
           <summary><b>{sin.length} {sin.length === 1 ? "producto contado no suma" : "productos contados no suman"} caja plástica</b> · {n(sin.reduce((t, x) => t + x.cajas, 0))} cajas · define cómo van empacados</summary>
           <table className="ad-t"><thead><tr><th>Código</th><th>Producto</th><th className="n">Cajas</th><th>Por qué no suma</th><th>Cómo va empacado</th></tr></thead>
             <tbody>{sin.map((x) => (
