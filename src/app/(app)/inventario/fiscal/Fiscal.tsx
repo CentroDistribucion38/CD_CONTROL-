@@ -159,8 +159,23 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
       const av = f.avance?.[h.numero];
       if (av) porEstado.set(estadoHoja(av), (porEstado.get(estadoHoja(av)) ?? 0) + 1);
     }
-    const celdaEquipo = (id: string, et: string, renglones: number | undefined, termino: string | null | undefined) => (
-      <td data-et={et}>
+    const n = (e: EstadoHoja) => porEstado.get(e) ?? 0;
+    const cifras: { v: number; et: string; tono?: string }[] = conAvance
+      ? [
+        { v: r.total, et: r.total === 1 ? "hoja" : "hojas" },
+        { v: r.completas, et: r.completas === 1 ? "pareja completa" : "parejas completas" },
+        { v: n("contando") + n("una-termino"), et: "contando ahora", tono: "proceso" },
+        { v: n("lista"), et: "listas para cruzar", tono: "ok" },
+      ]
+      : [
+        { v: r.total, et: r.total === 1 ? "hoja" : "hojas" },
+        { v: r.completas, et: r.completas === 1 ? "pareja completa" : "parejas completas", tono: "ok" },
+        { v: r.aMedias, et: "a medias", tono: r.aMedias ? "proceso" : undefined },
+        { v: r.vacias, et: "sin nadie", tono: r.vacias ? "proceso" : undefined },
+      ];
+    const equipo = (id: string, et: string, renglones: number | undefined, termino: string | null | undefined) => (
+      <div className="fi-eq">
+        <span className="fi-eq-et">{et}</span>
         {id ? (
           <>
             <span className="fi-quien">{nombre.get(id) ?? "—"}</span>
@@ -171,39 +186,30 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
               </>
             )}
           </>
-        ) : <em>falta</em>}
-      </td>
+        ) : <em className="fi-falta">Falta asignar</em>}
+      </div>
     );
     const parejas = (
       <>
-        <p className="cl-sub">{textoResumen(r)}</p>
-        {conAvance && porEstado.size > 0 && (
-          <ul className="fi-cuenta" aria-label="Hojas por estado">
-            {ORDEN_ESTADOS.filter((e) => porEstado.has(e)).map((e) => (
-              <li key={e} className={e}><b>{porEstado.get(e)}</b> {TEXTO_ESTADO[e].toLowerCase()}</li>
-            ))}
-          </ul>
-        )}
-        <table className="fi-hojas">
-          <thead><tr><th>Hoja</th><th>Operador logístico</th><th>Bavaria</th>{conAvance && <th>Estado</th>}</tr></thead>
-          <tbody>
-            {f.hojas.map((h) => {
-              const av = conAvance ? f.avance?.[h.numero] : undefined;
-              return (
-                <tr key={h.numero}>
-                  <th scope="row">{h.numero}</th>
-                  {celdaEquipo(h.ol, "Operador logístico", av?.olRenglones, av?.olTermino)}
-                  {celdaEquipo(h.bavaria, "Bavaria", av?.bavariaRenglones, av?.bavariaTermino)}
-                  {conAvance && (
-                    <td data-et="Estado">
-                      {av ? <i className={"fi-av " + estadoHoja(av)}>{TEXTO_ESTADO[estadoHoja(av)]}</i> : <em>—</em>}
-                    </td>
-                  )}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <ul className="fi-cifras" aria-label="Resumen del inventario">
+          {cifras.map((c) => (
+            <li key={c.et} className={c.tono ?? ""}><b>{c.v}</b><span>{c.et}</span></li>
+          ))}
+        </ul>
+        <ol className="fi-filas">
+          {f.hojas.map((h) => {
+            const av = conAvance ? f.avance?.[h.numero] : undefined;
+            const est = av ? estadoHoja(av) : "sin-empezar";
+            return (
+              <li key={h.numero} className={"fi-fila " + est}>
+                <div className="fi-num"><small>Hoja</small><b>{h.numero}</b></div>
+                {equipo(h.ol, "Operador logístico", av?.olRenglones, av?.olTermino)}
+                {equipo(h.bavaria, "Bavaria", av?.bavariaRenglones, av?.bavariaTermino)}
+                {conAvance && av && <i className={"fi-av " + est}>{TEXTO_ESTADO[est]}</i>}
+              </li>
+            );
+          })}
+        </ol>
         {puedeEditar && (f.estado === "abierto" || manda) && (
           <div className="cl-botones">
             <button type="button" className="btn" onClick={() => editar(f)}><Ico n="lapiz" tam={16} /> Editar parejas y hojas</button>

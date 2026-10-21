@@ -82,19 +82,38 @@
   .fe .fi-cruce-tabla td::before { content: attr(data-et) ": "; color: var(--fe-gris); font-size: 12px }
 }
 
-/* PLAN FISCAL · la tabla de hojas con el avance de cada equipo (sin esquinas redondeadas). */
-.fe .fi-cuenta { display: flex; flex-wrap: wrap; gap: 6px 18px; list-style: none; margin: 8px 0 0; padding: 0; font-size: 13px; color: var(--fe-gris) }
-.fe .fi-cuenta b { font: 900 16px var(--fe-titulo); color: var(--fe-tinta); font-variant-numeric: tabular-nums }
-.fe .fi-cuenta .lista b { color: var(--fe-bien) }
-.fe .fi-cuenta .una-termino b { color: var(--fe-acento) }
-.fe .fi-hojas td { vertical-align: top }
-.fe .fi-quien { display: block; font-weight: 700; color: var(--fe-tinta) }
-.fe .fi-med { display: block; height: 6px; margin: 6px 0 3px; background: var(--fe-fondo); max-width: 240px; overflow: hidden }
+/* PLAN FISCAL · resumen en banda oscura y una fila grande por hoja (todo recto). */
+.fe .fi-cifras { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; list-style: none; margin: 16px 0 0; padding: 0; background: rgba(255,255,255,.16); border: 1px solid var(--fe-tinta) }
+.fe .fi-cifras li { display: flex; flex-direction: column; gap: 2px; padding: 14px 18px; background: var(--fe-tinta); color: #fff }
+.fe .fi-cifras b { font: 900 38px/1 var(--fe-titulo); font-variant-numeric: tabular-nums }
+.fe .fi-cifras span { font: 600 11px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase; color: rgba(255,255,255,.78) }
+.fe .fi-cifras .proceso b { color: var(--fe-acento) }
+.fe .fi-cifras .ok b { color: color-mix(in srgb, var(--fe-bien) 55%, #fff) }
+
+.fe .fi-filas { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px }
+.fe .fi-fila { display: grid; grid-template-columns: 84px minmax(0,1fr) minmax(0,1fr) auto; align-items: stretch; background: var(--fe-papel); border: 1px solid var(--fe-linea); border-left: 6px solid var(--fe-linea) }
+.fe .fi-fila.contando, .fe .fi-fila.una-termino { border-left-color: var(--fe-acento) }
+.fe .fi-fila.lista { border-left-color: var(--fe-bien) }
+.fe .fi-num { display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--fe-fondo); padding: 10px 6px }
+.fe .fi-num small { font: 700 10px var(--fe-texto); letter-spacing: .14em; text-transform: uppercase; color: var(--fe-gris) }
+.fe .fi-num b { font: 900 34px/1 var(--fe-titulo); font-variant-numeric: tabular-nums; color: var(--fe-tinta) }
+.fe .fi-eq { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 14px 18px; min-width: 0; border-left: 1px solid var(--fe-linea) }
+.fe .fi-eq-et { font: 700 10.5px var(--fe-texto); letter-spacing: .12em; text-transform: uppercase; color: var(--fe-gris) }
+.fe .fi-quien { font: 800 19px/1.2 var(--fe-titulo); color: var(--fe-tinta); overflow-wrap: anywhere }
+.fe .fi-falta { font: 700 15px var(--fe-texto); font-style: normal; color: var(--fe-aviso) }
+.fe .fi-med { display: block; height: 8px; margin: 8px 0 4px; background: var(--fe-fondo); max-width: 300px; overflow: hidden }
 .fe .fi-med i { display: block; height: 100% }
 .fe .fi-med.listo i { background: var(--fe-bien) }
 .fe .fi-med.contando i { background: repeating-linear-gradient(135deg, var(--fe-acento) 0 6px, color-mix(in srgb, var(--fe-acento) 40%, transparent) 6px 12px) }
-.fe .fi-av.una-termino { border: 1px solid var(--fe-acento); background: transparent; color: var(--fe-acento) }
+.fe .fi-fila > .fi-av { align-self: center; margin: 0 18px }
+.fe .fi-av.una-termino, .fe .fi-av.contando { border: 1px solid var(--fe-acento); background: transparent; color: var(--fe-tinta) }
 .fe .fi-av.sin-empezar { color: var(--fe-gris) }
+@media (max-width: 760px) {
+  .fe .fi-fila { grid-template-columns: 64px minmax(0,1fr) }
+  .fe .fi-num { grid-row: 1 / span 3 }
+  .fe .fi-eq { border-left: 0; border-top: 1px solid var(--fe-linea); padding: 10px 14px }
+  .fe .fi-fila > .fi-av { grid-column: 2; margin: 0 14px 12px; justify-self: start }
+}
 
 /* Los avisos, al final y cerrados. */
 .fe .fi-avisos { margin-top: 14px; border-top: 1px solid var(--fe-linea); padding-top: 8px }
