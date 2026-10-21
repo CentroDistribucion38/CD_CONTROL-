@@ -94,7 +94,8 @@ export function Cierre({ roturas, nombres, desde, hasta, turnos, filtros, cerrar
   const imagen = useFotoCompartir(async (tipo: TipoFoto) => {
     const paleta = leerPaleta(raiz.current) ?? PALETA_MARCA;
     const [fo, logo] = await Promise.all([import("@/modulos/roturas/foto"), logoMarca()]);
-    const extra = { paleta, logo, generado: armado, titulo, ojo, periodo, filtros };
+    const sello = await fo.traerSello();
+    const extra = { paleta, logo, sello, generado: armado, titulo, ojo, periodo, filtros };
     if (tipo === "dashboard") return { lienzo: fo.dibujarDashboardCierre(c, extra), nombre: fo.nombreFotoCierre(c, "dashboard") };
     const porId = new Map(roturas.map((r) => [r.id, r]));
     const filas = c.turnos.flatMap((x) => x.filas).filter((f) => !f.anulada && (porId.get(f.id)?.fotos ?? 0) > 0);
