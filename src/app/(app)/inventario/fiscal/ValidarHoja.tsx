@@ -22,11 +22,14 @@ export type RevisionBD = {
   ronda: number; nota: string | null; ol_envio: boolean; bavaria_envio: boolean; pedido_en: string | null; aprobado_en: string | null;
 };
 
+/** Lo que ya está en La base de esta hoja (inv_fiscal_consolidados). */
+export type ConsolidadoBD = { hoja_id: string; numero: number; conteo: string; ubicaciones: number; renglones: number; cajas: number | string; enviado_en: string | null };
+
 type Ub = { id: string | null; clave: string; dif: boolean; renglones: number; rev?: RevisionBD };
 const orden = (a: string, b: string) => a.localeCompare(b, "es", { numeric: true });
 
-export function ValidarHoja({ hojaId, numero, calle, filas, revs, puedeEditar, ol, bavaria, onCambio }: {
-  hojaId: string | null; numero: number; calle?: string; filas: FilaCruce[]; revs: RevisionBD[]; puedeEditar: boolean;
+export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeEditar, ol, bavaria, onCambio }: {
+  hojaId: string | null; numero: number; calle?: string; filas: FilaCruce[]; revs: RevisionBD[]; consol?: ConsolidadoBD | null; puedeEditar: boolean;
   ol: string; bavaria: string; onCambio: () => Promise<void>;
 }) {
   const [sel, setSel] = useState<Set<string>>(new Set());
@@ -81,6 +84,33 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, puedeEditar, o
     setOk(listo);
     setSel(new Set()); setForzar(null);
     if (fn === "inv_fiscal_validar") setNota("");
+    /* Al aprobar, lo aprobado y coincidente se manda solo a La base (si falta el SQL de consolidar, se aprueba igual). */
+    if (fn === "inv_fiscal_aprobar") {
+      const c = await consolidar();
+      if (c) setOk(`${listo} ${c}`);
+    }
+    await onCambio();
+  }
+
+  /** Manda a La base lo aprobado y coincidente de esta hoja. Devuelve el mensaje, o null si falta el SQL. */
+  async function consolidar(): Promise<string | null> {
+    if (!hojaId) return null;
+    const { data, error } = await createClient().rpc("inv_fiscal_consolidar", { p_hoja: hojaId });
+    if (error) {
+      if (/inv_fiscal_consolidar|schema cache|does not exist|no existe la funci/i.test(error.message)) return null;
+      if (/no hay nada que consolidar/i.test(error.message)) return "Todavía no hay nada aprobado que coincida para mandar a La base.";
+      setMal(traducirError(error.message)); return null;
+    }
+    const r = ((data ?? []) as { ubicaciones: number; renglones: number; sin_consolidar: number; conteo: string }[])[0];
+    if (!r) return null;
+    return `En La base (${r.conteo}): ${r.ubicaciones} ${r.ubicaciones === 1 ? "ubicación" : "ubicaciones"}, ${r.renglones} ${r.renglones === 1 ? "renglón" : "renglones"}.` +
+      (r.sin_consolidar > 0 ? ` ${r.sin_consolidar} aprobada${r.sin_consolidar === 1 ? "" : "s"} no se mandó porque aún difiere.` : "");
+  }
+  async function consolidarYa() {
+    setMal(null); setOk(null); setOcupado(true);
+    const m = await consolidar();
+    setOcupado(false);
+    setOk(m ?? "Falta correr 2026-10-fiscal-consolidar.sql en Supabase.");
     await onCambio();
   }
 
@@ -199,6 +229,16 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, puedeEditar, o
               </>
             )}
           </div>
+        </div>
+      )}
+      {(consol || nAprobadas > 0) && (
+        <div className="vv-sig vv-base">
+          <b>En La base{consol ? ` · ${consol.conteo}` : ""}</b>
+          <p>{consol
+            ? `${consol.ubicaciones} ${consol.ubicaciones === 1 ? "ubicación" : "ubicaciones"} · ${consol.renglones} ${consol.renglones === 1 ? "renglón" : "renglones"} · ${Number(consol.cajas).toLocaleString("es-CO")} cajas. Es un solo conteo de la hoja (no uno por persona): lo aprobado que coincide entre las dos.`
+            : "Todavía no se manda nada. Al aprobar, lo aprobado que coincide entre las dos personas pasa solo a La base, como un solo conteo de la hoja."}
+            {ubs.some((u) => estado(u) === "aprobada" && u.dif) && " Una ubicación aprobada que aún difiere no se manda hasta que coincida."}</p>
+          {puedeEditar && <div className="vv-acc"><button type="button" className="btn plano" disabled={ocupado || nAprobadas === 0} onClick={consolidarYa}>Actualizar La base ahora</button></div>}
         </div>
       )}
       {ubs.some((u) => estado(u) === "coincide") && (

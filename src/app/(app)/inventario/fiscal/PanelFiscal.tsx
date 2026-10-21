@@ -8,7 +8,7 @@ import {
   type AvanceBD, type AvanceHoja, type FilaCruce, type FilaCruceBD, type ResumenCruce,
 } from "@/modulos/inventario/fiscal-cruce";
 import type { HojaForm } from "@/modulos/inventario/fiscal";
-import { ValidarHoja, type RevisionBD } from "./ValidarHoja";
+import { ValidarHoja, type ConsolidadoBD, type RevisionBD } from "./ValidarHoja";
 
 /* ===================================================================
    EL INVENTARIO FISCAL, TODO EN UN SOLO LUGAR · TORRE DE CONTROL
@@ -83,6 +83,7 @@ function useTorre(fiscalId: string, avanceInicial: Record<number, AvanceHoja>, a
   const [hora, setHora] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [revs, setRevs] = useState<RevisionBD[]>([]);
+  const [consolidados, setConsolidados] = useState<Record<number, ConsolidadoBD>>({});
   const [hojaIds, setHojaIds] = useState<Record<number, string>>({});
   /** false = falta correr 2026-10-fiscal-validar.sql: la torre funciona igual, sin validar ni aprobar. */
   const [conValidar, setConValidar] = useState(true);
@@ -100,6 +101,8 @@ function useTorre(fiscalId: string, avanceInicial: Record<number, AvanceHoja>, a
     const rv = await sb.rpc("inv_fiscal_revisiones", { p_fiscal: fiscalId });
     if (rv.error) { setConValidar(false); setRevs([]) }
     else { setConValidar(true); setRevs((rv.data ?? []) as RevisionBD[]) }
+    const cs = await sb.rpc("inv_fiscal_consolidados", { p_fiscal: fiscalId });
+    setConsolidados(cs.error ? {} : Object.fromEntries(((cs.data ?? []) as ConsolidadoBD[]).map((c) => [c.numero, c])));
     const listas = mias.filter((a) => puedeCruzar(av[a.numero]));
     const res = await Promise.all(listas.map(async (a): Promise<[number, Resultado]> => {
       const r = await sb.rpc("inv_fiscal_cruce", { p_hoja: a.hoja_id });
@@ -117,7 +120,7 @@ function useTorre(fiscalId: string, avanceInicial: Record<number, AvanceHoja>, a
     return () => clearInterval(t);
   }, [activo, cargar]);
 
-  return { avance, cruces, hora, error, cargar, revs, hojaIds, conValidar };
+  return { avance, cruces, hora, error, cargar, revs, hojaIds, conValidar, consolidados };
 }
 
 /** El anillo del avance: verde = completadas, rojo = con diferencias, ámbar = en conteo, el resto es el fondo. */
@@ -167,7 +170,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
   const [filtro, setFiltro] = useState<Filtro>("todas");
   const [foco, setFoco] = useState<number | null>(null);
   const [verTodo, setVerTodo] = useState<Record<number, boolean>>({});
-  const { avance, cruces, hora, error, cargar, revs, hojaIds, conValidar } = useTorre(fiscalId, avanceInicial, conAvance);
+  const { avance, cruces, hora, error, cargar, revs, hojaIds, conValidar, consolidados } = useTorre(fiscalId, avanceInicial, conAvance);
   const nf = useMemo(() => new Intl.NumberFormat("es-CO"), []);
 
   const tarjetas = hojas.map((h) => {
@@ -395,7 +398,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                   </button>
                 )}
                 {conValidar ? (
-                  <ValidarHoja hojaId={hojaIds[t.h.numero] ?? null} numero={t.h.numero} calle={t.h.calle} filas={filas} revs={revs}
+                  <ValidarHoja hojaId={hojaIds[t.h.numero] ?? null} numero={t.h.numero} calle={t.h.calle} filas={filas} revs={revs} consol={consolidados[t.h.numero] ?? null}
                                puedeEditar={puedeEditar} ol={t.h.ol ? quien(t.h.ol) : ""} bavaria={t.h.bavaria ? quien(t.h.bavaria) : ""} onCambio={cargar} />
                 ) : (
                   <p className="cl-nota" role="note">Para validar y aprobar falta correr <code>supabase/migraciones/2026-10-fiscal-validar.sql</code> en Supabase.</p>

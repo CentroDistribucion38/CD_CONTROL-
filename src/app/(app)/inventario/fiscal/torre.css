@@ -177,3 +177,4 @@
 .fe .vv-sig b { font: 800 14px var(--fe-titulo); text-transform: uppercase; letter-spacing: .04em }
 .fe .vv-sig p { margin: 6px 0 10px; font-size: 13px; color: var(--fe-gris-panel) }
 .fe .vv-sig select { min-height: 48px; font-size: 15px; border-radius: 0 }
+.fe .vv-base { border-color: var(--fe-bien) }
