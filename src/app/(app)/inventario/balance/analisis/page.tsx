@@ -38,6 +38,7 @@ const FUENTES: Fuente[] = [
   { renglon: "PEND BAJA ROTURA LÍNEA", lado: "CONTEO", deDonde: "Pasivos AG22 · causal ROTURA DE LINEA.", estado: "ok" },
   { renglon: "CON BAJA EXTRASUCIO", lado: "CONTEO", deDonde: "Pasivos AG22 · causal EXTRASUCIO.", estado: "ok" },
   { renglon: "DESCUADRE · AG18 · AG17 · AG16", lado: "CONTEO", deDonde: "Lo que quedó sin cuadrar en cada almacén después de los 311 y que no se puede pasar a AG22 porque el material está físicamente allá (p. ej. el Trophy en AG18). Aquí suma al CONTEO cuando el SAP de ese almacén tiene de menos que el conteo.", estado: "ok" },
+  { renglon: "CASCO CON BAJA (resta)", lado: "CONTEO", deDonde: "Balance de materiales · casco de Bodega 38 (Baja y Extrasucio con baja): lo contado que ya salió de SAP con su baja se RESTA del conteo, como valor negativo, hasta el tope del casco.", estado: "ok" },
   { renglon: "BAJA PENDIENTE POR DISPOSICIÓN", lado: "CONTEO", deDonde: "Plantilla de novedades (suma su caja plástica).", estado: "falta" },
   { renglon: "SINIESTRO", lado: "CONTEO", deDonde: "Plantilla de novedades (suma su caja plástica).", estado: "falta" },
   { renglon: "AJUSTE INV BAJA PRESORTING", lado: "CONTEO", deDonde: "Plantilla de novedades.", estado: "falta" },

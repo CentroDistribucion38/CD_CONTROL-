@@ -1,6 +1,6 @@
 import { envaseDelRenglon } from "@/modulos/inventario/corte";
 import { createClient } from "@/lib/supabase/server";
-import { consolidadoDelDia, diasConConteo } from "@/modulos/inventario/balance";
+import { balanceDelDia, consolidadoDelDia, diasConConteo } from "@/modulos/inventario/balance";
 import { armarCuadre } from "@/modulos/inventario/cuadre";
 import { conReclasificaciones } from "@/modulos/inventario/reclasificaciones";
 import { esUbicacionFabrica } from "@/modulos/casco/ubicacion-sitio";
@@ -285,6 +285,28 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     const caja = CAJA_FUERA_DEL_CUADRE.has(c) ? null : M.get(c)?.caja; if (caja) suma("conteo", String(caja), pre(`CONTEO · en ${c} ${nombre(c)}`), cajas);
   }
   fuentes.push({ nombre: "Conteo", ok: renglones > 0, detalle: renglones ? `${renglones} renglones de Bodega 38 (el tablero cuenta además Fábrica ${totD["FÁBRICA"].renglones} · AG17 ${totD.AG17.renglones} · AG16 ${totD.AG16.renglones})` : "No hay conteo enviado ese día" });
+  /* 1b. EL CASCO QUE YA TIENE BAJA SE RESTA DEL CONTEO. Lo que está contado en Bodega 38 como BAJA o EXTRASUCIO y que el casco de vidrio ya
+        registra (Inventario casco · Extrasucio con baja) ya salió de SAP con su baja, pero sigue contado físicamente: sale del CONTEO como partida
+        NEGATIVA. Se resta lo contado hasta el tope del casco (si el casco es mayor que lo contado, ese casco ya no está aquí). Es el mismo casco
+        que cruza el Balance de materiales (Baja · Bodega 38 y Extrasucio · Bodega 38). */
+  {
+    const bal = await balanceDelDia(fecha);
+    if (!bal.error && bal.fecha === fecha) {
+      let nCasco = 0, uCasco = 0; const sinFactor: string[] = [];
+      for (const f of bal.detalle) {
+        if (f.alcance !== "PRESORTING" || (f.estado !== "BAJA" && f.estado !== "EXTRASUCIO")) continue;
+        const cajas = Math.min(f.fisico_cajas, f.cajas_casco);
+        if (cajas <= 0) continue;
+        if (!f.un_caja) { sinFactor.push(f.codigo); continue }
+        const u = cajas * f.un_caja;
+        suma("conteo", f.codigo, f.estado === "BAJA" ? "CASCO · baja ya registrada (Bodega 38)" : "CASCO · extrasucio con baja (Bodega 38)", -u);
+        nCasco++; uCasco += u;
+      }
+      fuentes.push({ nombre: "Casco con baja (resta)", ok: bal.fechaCasco != null,
+        detalle: bal.fechaCasco ? `${nCasco} códigos · −${Math.round(uCasco).toLocaleString("es-CO")} u del conteo · casco del ${bal.fechaCasco}` : "No hay casco registrado: no se restó nada" });
+      if (sinFactor.length) avisos.push(`Casco con baja: ${sinFactor.slice(0, 8).join(", ")}${sinFactor.length > 8 ? "…" : ""} no tienen unidades por caja en el maestro; no se pudo restar su casco del conteo.`);
+    } else fuentes.push({ nombre: "Casco con baja (resta)", ok: false, detalle: bal.error ? `No pude leer el casco (${bal.error})` : "El Balance de ese día no está disponible: no se restó el casco" });
+  }
   /* Un producto sin envase en el maestro no aporta caja: se nombra para que se complete el maestro si es retornable. */
   if (prodConCaja.size || prodSinEnvase.size) fuentes.push({ nombre: "Caja del producto", ok: prodConCaja.size > 0,
     detalle: `${Math.round(cajasProducto).toLocaleString("es-CO")} cajas plásticas en ${prodConCaja.size} productos contados`
