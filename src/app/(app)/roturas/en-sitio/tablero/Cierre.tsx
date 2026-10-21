@@ -33,6 +33,8 @@ import {
   type Cuenta, type TurnoCierre,
 } from "@/modulos/roturas/cierre";
 import { leerPaleta } from "@/app/(app)/quiebra/rotura/HojaFirma";
+import { PALETA_MARCA } from "@/modulos/rotlinea/hoja";
+import { logoMarca, useFotoCompartir, type TipoFoto } from "@/components/FotoCompartir";
 import "./cierre.css";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
@@ -87,6 +89,24 @@ export function Cierre({ roturas, nombres, desde, hasta, turnos, filtros, cerrar
   const ojo = turnos.length === 1 ? `TURNO ${turnos[0]} · ${HORARIO_TURNO[turnos[0] as "C" | "A" | "B"]}`
     : turnos.length === 2 ? `TURNOS ${letras(turnos)}` : "LOS TRES TURNOS · C, A Y B";
 
+  /* COPIAR IMAGEN, EN DOS PARTES COMO EN EL CASCO: el Dashboard (las cifras, los turnos y «a qué corresponde») y las
+     Fotos del reporte (la foto de cada rotura con su código, hora y causa). Se dibujan del mismo `c` que ve la pantalla. */
+  const imagen = useFotoCompartir(async (tipo: TipoFoto) => {
+    const paleta = leerPaleta(raiz.current) ?? PALETA_MARCA;
+    const [fo, logo] = await Promise.all([import("@/modulos/roturas/foto"), logoMarca()]);
+    const extra = { paleta, logo, generado: armado, titulo, ojo, periodo, filtros };
+    if (tipo === "dashboard") return { lienzo: fo.dibujarDashboardCierre(c, extra), nombre: fo.nombreFotoCierre(c, "dashboard") };
+    const porId = new Map(roturas.map((r) => [r.id, r]));
+    const filas = c.turnos.flatMap((x) => x.filas).filter((f) => !f.anulada && (porId.get(f.id)?.fotos ?? 0) > 0);
+    const bajadas = await fo.traerFotosRotura(filas.slice(0, fo.TOPE_FOTOS).map((f) => f.id));
+    const lista = filas.map((f) => ({
+      codigo: f.codigo, turno: f.turno, dia: f.dia, hora: f.hora, material: f.material_nombre, rotas: f.rotas,
+      contaminadas: f.contaminadas, eer: f.tipo === "eer", causa: f.causa, proceso: f.proceso, area: f.area, estado: f.estado,
+      imagen: bajadas.get(f.id) ?? null, tieneFoto: true,
+    }));
+    return { lienzo: fo.dibujarFotosCierre(c, lista, extra), nombre: fo.nombreFotoCierre(c, "fotos") };
+  }, "Cierre de roturas en sitio", { dashboard: "Dashboard", detalle: "Fotos del reporte" });
+
   /* Escape cierra, y el foco entra a la ficha: sin eso, el teclado sigue
      detrás, en un botón que ya no se ve. */
   const alTeclear = useCallback((e: KeyboardEvent) => { if (e.key === "Escape") cerrar() }, [cerrar]);
@@ -100,6 +120,8 @@ export function Cierre({ roturas, nombres, desde, hasta, turnos, filtros, cerrar
     setAviso({ txt, mal });
     setTimeout(() => setAviso(null), 3200);
   };
+
+  useEffect(() => { if (imagen.mal) dicho("No se pudo armar la imagen. Intenta otra vez.", true) }, [imagen.mal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function copiarTexto() {
     const texto = textoCierre(c, { rotulo: periodo, filtros, generado: armado });
@@ -256,6 +278,11 @@ export function Cierre({ roturas, nombres, desde, hasta, turnos, filtros, cerrar
               <svg viewBox="0 0 24 24" aria-hidden><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16" /></svg>
               <span>{armando ? "Armando…" : "PDF"}</span>
             </button>
+            <button type="button" className="rtc-bt" onClick={() => imagen.abrir("dashboard")} disabled={imagen.armando != null}
+                    title="Copiar el cierre como imagen: Dashboard y Fotos del reporte">
+              <svg viewBox="0 0 24 24" aria-hidden><rect x="3" y="4" width="18" height="16" rx="1.5" /><circle cx="9" cy="10" r="1.6" /><path d="m4 18 5-5 4 4 3-3 4 4" /></svg>
+              <span>{imagen.armando != null ? "Armando…" : "Copiar imagen"}</span>
+            </button>
             <button type="button" className="rtc-bt" onClick={copiarTexto} title="Copiar el cierre como texto">
               <svg viewBox="0 0 24 24" aria-hidden><rect x="9" y="9" width="11" height="11" rx="1.5" /><path d="M6 15H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v1" /></svg>
               <span>Copiar texto</span>
@@ -388,6 +415,7 @@ export function Cierre({ roturas, nombres, desde, hasta, turnos, filtros, cerrar
           </p>
         </div>
       </section>
+      {imagen.vista}
     </div>
   );
 }

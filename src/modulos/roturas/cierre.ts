@@ -250,16 +250,9 @@ export function armarCierre(
   const desde = opc.desde || dias[0] || "";
   const hasta = opc.hasta || dias[dias.length - 1] || "";
 
-  /* CON EL RANGO PUESTO SE ENSEÑAN TAMBIÉN LOS TURNOS VACÍOS. Un turno
-     sin registros es una respuesta —«no se rompió nada»— y no un hueco;
-     si desaparece de la lista, nadie sabe si no hubo o si no se miró.
-     Con más de dos semanas se enseñan solo los que tienen algo: noventa
-     tarjetas en cero no dicen nada. */
+  /* SOLO LOS TURNOS QUE TUVIERON REGISTROS. Un turno sin nada (por ejemplo el B de un día en que no se rompió
+     nada en la tarde) no se enseña: ni tarjeta gris ni línea en el PDF ni en el texto. */
   const claves = new Set<string>();
-  if (opc.desde && opc.hasta && opc.desde <= opc.hasta) {
-    const n = Math.round((Date.parse(opc.hasta) - Date.parse(opc.desde)) / DIA_MS) + 1;
-    if (n <= 14) for (let i = 0; i < n; i++) for (const t of turnosOk) claves.add(sumaDias(opc.desde, i) + "|" + t);
-  }
   for (const f of filas) claves.add(f.dia + "|" + f.turno);
 
   const orden = (t: string) => TURNOS.indexOf(t as TurnoR);
