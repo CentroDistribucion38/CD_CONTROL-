@@ -11,7 +11,11 @@
 -- motivo, quién y cuándo). El cobro se recalcula solo, porque `v_roturas` lo
 -- calcula de esas dos columnas.
 --
--- Se puede correr varias veces.
+--
+-- Y EL MODO REVISIÓN: `roturas_revision` guarda qué casos el administrador ya miró (foto y cifras) antes
+-- de cobrar. Corregir un caso lo deja revisado. Va en tabla aparte para no tocar `v_roturas`.
+--
+-- Se puede correr varias veces (si ya lo corriste, corre este archivo completo otra vez).
 -- =====================================================================
 
 create table if not exists public.roturas_correcciones (
@@ -34,6 +38,44 @@ create policy roturas_correcciones_leer on public.roturas_correcciones
   for select to authenticated using (true);
 -- Solo select: escribir lo hace `rotura_corregir`, que es security definer.
 grant select on public.roturas_correcciones to authenticated;
+
+-- ---------------------------------------------------------------------
+-- LOS CASOS YA REVISADOS
+-- ---------------------------------------------------------------------
+create table if not exists public.roturas_revision (
+  rotura_id    uuid primary key references public.roturas(id) on delete cascade,
+  revisada_por uuid references public.perfiles(id) on delete set null,
+  revisada_en  timestamptz not null default now()
+);
+alter table public.roturas_revision enable row level security;
+drop policy if exists roturas_revision_leer on public.roturas_revision;
+create policy roturas_revision_leer on public.roturas_revision
+  for select to authenticated using (true);
+grant select on public.roturas_revision to authenticated;
+
+create or replace function public.rotura_revisar(p_id uuid, p_ok boolean default true)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.manda() then
+    raise exception 'Revisar los casos es del administrador';
+  end if;
+  if not exists (select 1 from public.roturas where id = p_id) then
+    raise exception 'Esa rotura no existe';
+  end if;
+  if p_ok then
+    insert into public.roturas_revision (rotura_id, revisada_por, revisada_en)
+    values (p_id, auth.uid(), now())
+    on conflict (rotura_id) do update set revisada_por = excluded.revisada_por, revisada_en = excluded.revisada_en;
+  else
+    delete from public.roturas_revision where rotura_id = p_id;
+  end if;
+end $$;
+
+grant execute on function public.rotura_revisar(uuid, boolean) to authenticated;
 
 create or replace function public.rotura_corregir(
   p_id uuid, p_rotas integer, p_contaminadas integer, p_motivo text
@@ -91,6 +133,11 @@ begin
   update public.roturas
      set unidades = p_rotas, contaminadas = v_cont, botellas = v_bot
    where id = p_id;
+
+  -- Un caso corregido es un caso revisado.
+  insert into public.roturas_revision (rotura_id, revisada_por, revisada_en)
+  values (p_id, auth.uid(), now())
+  on conflict (rotura_id) do update set revisada_por = excluded.revisada_por, revisada_en = excluded.revisada_en;
 end $$;
 
 grant execute on function public.rotura_corregir(uuid, integer, integer, text) to authenticated;
@@ -98,3 +145,8 @@ grant execute on function public.rotura_corregir(uuid, integer, integer, text) t
 -- PARA MIRARLO:
 --   select codigo, antes_rotas, antes_contaminadas, despues_rotas, despues_contaminadas, motivo, corregida_en
 --     from public.roturas_correcciones order by corregida_en desc;
+
+--   -- cuántos casos quedan por revisar:
+--   select count(*) filter (where r.estado <> 'anulada' and v.rotura_id is null) as pendientes,
+--          count(*) filter (where v.rotura_id is not null) as revisadas
+--     from public.roturas r left join public.roturas_revision v on v.rotura_id = r.id;

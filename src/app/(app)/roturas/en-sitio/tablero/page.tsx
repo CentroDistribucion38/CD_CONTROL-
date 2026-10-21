@@ -30,12 +30,15 @@ export default async function TableroEnSitioPage() {
      2026-10-roturas-corregir-cifras.sql la tabla no existe y la pantalla sale sin marcas. */
   const correcciones: Record<string, Corr[]> = {};
   let falta = false;
+  let revisadas: string[] = [];
   {
     const supabase = await createClient();
     const { data, error } = await supabase.from("roturas_correcciones")
       .select("rotura_id, antes_rotas, antes_contaminadas, despues_rotas, despues_contaminadas, motivo, corregida_por, corregida_en")
       .order("corregida_en", { ascending: false }).limit(2000);
     if (error) falta = true;
+    const rv = await supabase.from("roturas_revision").select("rotura_id").limit(5000);
+    revisadas = ((rv.data ?? []) as { rotura_id: string }[]).map((x) => x.rotura_id);
     for (const c of (data ?? []) as {
       rotura_id: string; antes_rotas: number; antes_contaminadas: number | null; despues_rotas: number;
       despues_contaminadas: number | null; motivo: string; corregida_por: string | null; corregida_en: string;
@@ -89,7 +92,7 @@ export default async function TableroEnSitioPage() {
         </div>
       )}
 
-      <Tablero roturas={datos.roturas} nombres={nombres} manda={permisos.manda} correcciones={correcciones} />
+      <Tablero roturas={datos.roturas} nombres={nombres} manda={permisos.manda} correcciones={correcciones} revisadas={revisadas} />
 
       {!permisos.manda && (
         <div className="aviso">

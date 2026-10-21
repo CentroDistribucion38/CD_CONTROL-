@@ -17,7 +17,7 @@ import type { Rotura } from "@/modulos/roturas/datos";
 const cop = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
 
 /** El cobro de unas cantidades con los precios por caja de la rotura (null si falta un precio). */
-function cobroDe(r: Rotura, rotas: number, contam: number): number | null {
+export function cobroDe(r: Rotura, rotas: number, contam: number): number | null {
   const pe = r.precio_caja_envase, pp = r.precio_caja_producto;
   if (pe == null) return null;
   if (contam > 0 && pp == null) return null;

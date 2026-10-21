@@ -8,6 +8,7 @@ import { useConfirmar } from "@/components/Confirmar";
 import { usePedirTexto } from "@/components/PedirTexto";
 import type { Rotura } from "@/modulos/roturas/datos";
 import { Caso, type Corr } from "./Caso";
+import { Revision } from "./Revision";
 import { etiquetaRotura, HORARIO_TURNO, TURNOS, turnoYDia, type Etiqueta } from "@/modulos/roturas/cierre";
 import { Cierre } from "./Cierre";
 import "./corregir.css";
@@ -53,12 +54,14 @@ const pelado = (t: string) =>
  *  se puede llamar distinto a lo mismo. */
 const etiquetaDe = (r: Rotura): Etiqueta => etiquetaRotura(r);
 
-export function Tablero({ roturas, nombres, manda, correcciones }: {
+export function Tablero({ roturas, nombres, manda, correcciones, revisadas }: {
   roturas: Rotura[];
   nombres: Record<string, string>;
   manda: boolean;
   /** Las correcciones de cantidades que ya se hicieron, por rotura (la más nueva primero). */
   correcciones: Record<string, Corr[]>;
+  /** Los id de las roturas que el administrador ya revisó (foto y cifras). */
+  revisadas: string[];
 }) {
   const router = useRouter();
   const supabase = createClient();
@@ -69,6 +72,10 @@ export function Tablero({ roturas, nombres, manda, correcciones }: {
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<"todas" | "espera_ol" | "desacuerdo" | "cobro" | "anulada">("todas");
   const [abierta, setAbierta] = useState<string | null>(null);
+  /* EL MODO REVISIÓN: el índice del caso con el que se abrió (null = cerrado) y los casos ya revisados. */
+  const [revisando, setRevisando] = useState<number | null>(null);
+  const [rev, setRev] = useState<Set<string>>(() => new Set(revisadas));
+  useEffect(() => { setRev(new Set(revisadas)) }, [revisadas]);
   const [mandando, setMandando] = useState(false);
   /* EL DÍA Y EL TURNO. El turno no se guarda en la rotura: sale de la hora
      en que se registró (ver `modulos/roturas/cierre.ts`), con el mismo
@@ -168,21 +175,38 @@ export function Tablero({ roturas, nombres, manda, correcciones }: {
 
   /* CORREGIR LAS CANTIDADES de un caso (rotas y contaminadas). Es del administrador; la base
      guarda la cifra anterior con el motivo y el cobro se recalcula solo. */
-  async function corregir(r: Rotura, rotas: number, contaminadas: number, motivo: string) {
+  async function corregir(r: Rotura, rotas: number, contaminadas: number, motivo: string): Promise<boolean> {
     setMandando(true);
     const { error } = await supabase.rpc("rotura_corregir", {
       p_id: r.id, p_rotas: rotas, p_contaminadas: contaminadas, p_motivo: motivo,
     });
     setMandando(false);
-    if (error) { avisar.mal(error.message); return }
+    if (error) { avisar.mal(error.message); return false }
+    setRev((p) => new Set(p).add(r.id));
     avisar.bien(`${r.codigo} corregida: ${rotas} rotas${r.tipo === "eer" ? "" : ` y ${contaminadas} contaminadas`}. El cobro se recalculó.`);
     router.refresh();
+    return true;
   }
+
+  /* MARCAR (O QUITAR) «REVISADA». Se pinta al instante y se confirma con la base; si falla, se devuelve. */
+  async function revisar(r: Rotura, ok: boolean): Promise<boolean> {
+    setRev((p) => { const n = new Set(p); if (ok) n.add(r.id); else n.delete(r.id); return n });
+    const { error } = await supabase.rpc("rotura_revisar", { p_id: r.id, p_ok: ok });
+    if (error) {
+      setRev((p) => { const n = new Set(p); if (ok) n.delete(r.id); else n.add(r.id); return n });
+      avisar.mal(error.message);
+      return false;
+    }
+    return true;
+  }
+
+  const paraRevisar = useMemo(() => vistas.filter((r) => r.estado !== "anulada"), [vistas]);
+  const porRevisar = paraRevisar.filter((r) => !rev.has(r.id)).length;
 
   /* EL CASO ABIERTO Y SUS VECINOS: ↑ ↓ pasan de un caso al otro sin soltar la foto; Esc lo cierra. */
   const iAbierta = abierta ? vistas.findIndex((x) => x.id === abierta) : -1;
   useEffect(() => {
-    if (iAbierta < 0 || cierre) return;
+    if (iAbierta < 0 || cierre || revisando !== null) return;
     const tecla = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
       if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
@@ -192,7 +216,7 @@ export function Tablero({ roturas, nombres, manda, correcciones }: {
     };
     document.addEventListener("keydown", tecla);
     return () => document.removeEventListener("keydown", tecla);
-  }, [iAbierta, vistas, cierre]);
+  }, [iAbierta, vistas, cierre, revisando]);
 
   async function anular(r: Rotura) {
     /* NADA DE `window.prompt()`. Salía con «cd-control-one.vercel.app
@@ -319,6 +343,14 @@ export function Tablero({ roturas, nombres, manda, correcciones }: {
             Quitar fecha y turno
           </button>
         )}
+        {manda && (
+          <button type="button" className="btn si rv-btn" disabled={!paraRevisar.length}
+                  onClick={() => setRevisando(Math.max(0, paraRevisar.findIndex((r) => !rev.has(r.id))))}
+                  title="Pasar los casos uno por uno, con la foto grande, antes de cobrar">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="12" cy="12" r="3" /><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z" /></svg>
+            Revisar casos{porRevisar > 0 ? ` · ${porRevisar} por revisar` : " · todos revisados"}
+          </button>
+        )}
         <button type="button" className="btn tb-exportar" onClick={exportar} disabled={bajando || !vistas.length}
                 title="Resumen con indicadores, detalle y evidencias con foto de lo que está filtrado">
           <svg viewBox="0 0 24 24" aria-hidden><path d="M4 4h16v16H4z" /><path d="M4 9h16M9 9v11M8 13l3 3M11 13l-3 3" /></svg>
@@ -329,6 +361,12 @@ export function Tablero({ roturas, nombres, manda, correcciones }: {
           Cierre de turno
         </button>
       </div>
+
+      {revisando !== null && (
+        <Revision lista={paraRevisar} nombres={nombres} revisadas={rev} correcciones={correcciones} inicio={revisando}
+                  guardando={mandando} cerrar={() => setRevisando(null)} revisar={revisar}
+                  corregir={corregir} />
+      )}
 
       {cierre && (
         <Cierre roturas={porEstado} nombres={nombres} desde={desde} hasta={hasta} turnos={turnos}
@@ -414,6 +452,7 @@ export function Tablero({ roturas, nombres, manda, correcciones }: {
                               onClick={(e) => { e.stopPropagation(); setAbierta(abierta === r.id ? null : r.id) }}>
                         {r.codigo}
                       </button>
+                      {rev.has(r.id) && <span className="tb-rev" title="Revisada">✓</span>}
                     </td>
                     <td className="tb-cuando">
                       {dma(r.reportada_en)} <span>{hm(r.reportada_en)}</span>
