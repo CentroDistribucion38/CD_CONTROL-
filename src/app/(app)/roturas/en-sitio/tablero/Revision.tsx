@@ -80,7 +80,8 @@ export function Revision({ lista, nombres, revisadas, correcciones, inicio, guar
     setRotas(String(r.unidades)); setContam(String(r.contaminadas ?? 0)); setMotivo(""); setEditando(true);
   }, [r]);
 
-  const entero = (s: string) => (/^\d+$/.test(s.trim()) ? Number(s) : NaN);
+  /* UNA CASILLA VACÍA CUENTA COMO 0: no hay que llenar las dos, basta con la que cambia. */
+  const entero = (s: string) => (s.trim() === "" ? 0 : /^\d+$/.test(s.trim()) ? Number(s) : NaN);
   const eer = r?.tipo === "eer";
   const nr = entero(rotas), nc = eer ? 0 : entero(contam);
   const valido = Number.isFinite(nr) && Number.isFinite(nc);

@@ -36,14 +36,15 @@ export function Corregir({ r, decidida, guardando, guardar }: {
   const [contam, setContam] = useState(String(r.contaminadas ?? 0));
   const [motivo, setMotivo] = useState("");
 
-  const entero = (s: string) => (/^\d+$/.test(s.trim()) ? Number(s) : NaN);
+  /* UNA CASILLA VACÍA CUENTA COMO 0: no hay que llenar las dos, basta con la que cambia. */
+  const entero = (s: string) => (s.trim() === "" ? 0 : /^\d+$/.test(s.trim()) ? Number(s) : NaN);
   const nr = entero(rotas), nc = esEER ? 0 : entero(contam);
   const valido = Number.isFinite(nr) && Number.isFinite(nc);
   const igual = valido && nr === r.unidades && nc === (r.contaminadas ?? 0);
   const vacia = valido && nr + nc === 0;
   const antes = r.cobro_total != null ? Number(r.cobro_total) : cobroDe(r, r.unidades, r.contaminadas ?? 0);
   const despues = valido ? cobroDe(r, nr, nc) : null;
-  const falta = !valido ? "Pon un número entero en cada casilla"
+  const falta = !valido ? "Pon solo números enteros"
     : vacia ? "No pueden quedar las dos en cero: si no pasó nada, se anula"
     : igual ? "Cambia alguna cifra"
     : motivo.trim().length < 4 ? "Escribe por qué se corrige"
