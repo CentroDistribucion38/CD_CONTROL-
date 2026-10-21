@@ -2,7 +2,7 @@
 -- INVENTARIO · MAESTRO · CAJA PLÁSTICA DE CADA PRODUCTO
 --
 -- Amarra cada producto terminado con la caja plástica en la que va, tal como lo dice el «Maestro Sku vs Caja»
--- de la cervecería (2026.10.20: 114 productos, 5 tipos de caja). Queda como columna `caja_sku` de `productos`
+-- de la cervecería (2026.10.20 actualizado: 117 productos, 5 tipos de caja). Queda como columna `caja_sku` de `productos`
 -- (se ve y se corrige en Inventario · Maestro) y el Análisis de diferencia la usa para sumar la caja de lo contado.
 --
 -- Se puede correr varias veces. Lo último que devuelve es la VALIDACIÓN: si no sale ninguna fila, todo quedó amarrado.
@@ -31,13 +31,14 @@ insert into _maestro_caja (sku, caja) values
   ('19954P','3501224'),
   ('20205','3501224'),
   ('20251P','3500159'),
+  ('20282','3500159'),
   ('20546','3501224'),
   ('20867','3500159'),
   ('20867P','3500159'),
   ('20877','3500374'),
   ('20877P','3500374'),
   ('21145','3501211'),
-  ('21156P','3500159'),
+  ('21156','3500159'),
   ('21165P','3500159'),
   ('21182','3500159'),
   ('21184','3500159'),
@@ -54,6 +55,8 @@ insert into _maestro_caja (sku, caja) values
   ('22272','3500159'),
   ('2228','3500159'),
   ('22363P','3500159'),
+  ('22512','3500159'),
+  ('22513P','3500159'),
   ('22613','3500159'),
   ('22613P','3500159'),
   ('22615','3500159'),
