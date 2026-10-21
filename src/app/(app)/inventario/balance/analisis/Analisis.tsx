@@ -81,7 +81,7 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
       const [{ armarLibroAnalisis }, { calcularAjustes }] = await Promise.all([import("@/modulos/inventario/libro-ajustes"), import("@/modulos/inventario/compensa")]);
       const buf = await armarLibroAnalisis({
         fecha, fechaLarga: largo(fecha), guardadoEn, guardadoPor,
-        analisis: filas, ajustes: calcularAjustes(filas, obs), fuentes: datos.fuentes, noEntran: datos.noEntran,
+        analisis: filas, ajustes: calcularAjustes(filas, obs), fuentes: datos.fuentes, noEntran: datos.noEntran, movimientos311: datos.movimientos311,
       });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));

@@ -292,6 +292,8 @@ function agregarHojasAjustes(wb: ExcelJS.Workbook, d: InsumosLibroAjustes) {
 export type InsumosLibroAnalisis = InsumosLibroAjustes & {
   fuentes: { nombre: string; ok: boolean; detalle: string }[];
   noEntran: string[];
+  /** Los 311 de AG22 contra AG18, AG17 y AG16 por SKU (hoja «311»). */
+  movimientos311?: { almacen: string; codigo: string; descripcion: string; grupo: string; movido: number; documentos: string[]; entraAlAnalisis: boolean }[];
 };
 
 export async function armarLibroAnalisis(d: InsumosLibroAnalisis): Promise<ArrayBuffer> {
@@ -378,6 +380,33 @@ export async function armarLibroAnalisis(d: InsumosLibroAnalisis): Promise<Array
     if (base.length) h.autoFilter = `A7:F${ult}`;
     h.views = [{ state: "frozen", ySplit: 7, showGridLines: false }];
     h.pageSetup = { orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, printTitlesRow: "7:7" };
+  }
+
+  /* ---------------- 311: los movimientos entre AG22 y los otros almacenes, por SKU ---------------- */
+  {
+    const h = wb.addWorksheet("311", { properties: { tabColor: { argb: VERDE } } });
+    const cols: Col[] = [{ t: "Almacén", w: 10, centro: true }, { t: "Código", w: 12 }, { t: "Descripción", w: 44, texto: true }, { t: "Grupo", w: 12 }, { t: "Movimiento", w: 22, texto: true },
+      { t: "Cantidad", w: 14, fmt: NUM }, { t: "Efecto en SAP de AG22", w: 18, fmt: SIG }, { t: "Entra al análisis", w: 14, centro: true }, { t: "Documentos", w: 40, texto: true }];
+    const ms = [...(d.movimientos311 ?? [])].sort((a, b) => a.almacen.localeCompare(b.almacen) || a.codigo.localeCompare(b.codigo, "es", { numeric: true }));
+    banda(h, cols.length, "Movimientos 311 por SKU", `${ms.length} movimientos · AG22 contra AG18, AG17 y AG16 · ${sub}`);
+    encabezado(h, 7, cols);
+    ms.forEach((m, i) => {
+      const sale = m.movido > 0; // + entra al otro almacén = sale de AG22
+      const r = fila(h, 8 + i, cols, [m.almacen, m.codigo, m.descripcion, m.grupo, sale ? `De AG22 a ${m.almacen}` : `De ${m.almacen} a AG22`,
+        Math.abs(m.movido), sale ? -Math.abs(m.movido) : Math.abs(m.movido), m.entraAlAnalisis ? "Sí" : "No", m.documentos.join(", ")], i % 2 === 1);
+      r.getCell(2).font = letra(9.5, TINTA, true);
+      r.getCell(7).font = letra(10, sale ? ROJO : VERDE, true);
+    });
+    const ult = 7 + ms.length;
+    if (ms.length) {
+      total(h, ult + 1, cols.length, "TOTAL (lo filtrado)", { 6: { desde: 8, hasta: ult, valor: ms.reduce((t, m) => t + Math.abs(m.movido), 0), fmt: NUM }, 7: { desde: 8, hasta: ult, valor: ms.reduce((t, m) => t - m.movido, 0), fmt: SIG } });
+      h.autoFilter = `A7:I${ult}`;
+    } else { const x = h.getCell(8, 1); x.value = "Ese día no hay movimientos 311 en los Cuadres SAP de AG18, AG17 ni AG16."; x.font = letra(10, GRIS, false, true) }
+    const nota = h.getCell(ult + 3, 1);
+    nota.value = "Cantidad en las unidades de cada Cuadre SAP (envase en unidades, cajas plásticas en cajas). «Efecto en SAP de AG22»: − lo que salió de AG22, + lo que entró. «Entra al análisis» = No para producto y cajas plásticas (ya cuadran en el Cuadre SAP de su almacén).";
+    h.mergeCells(ult + 3, 1, ult + 3, cols.length); nota.font = letra(9, GRIS, false, true); nota.alignment = { wrapText: true, vertical: "top", indent: 1 }; h.getRow(ult + 3).height = 30;
+    h.views = [{ state: "frozen", ySplit: 7, showGridLines: false }];
+    h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, printTitlesRow: "7:7" };
   }
 
   /* ---------------- FUENTES: qué alimentó el día ---------------- */

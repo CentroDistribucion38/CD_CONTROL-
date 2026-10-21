@@ -44,10 +44,14 @@ export type Novedad = {
 };
 /** Lo contado ese día, sin segregar (producto, envase, cajas vacías…), para compararlo con el tablero del libro de inventario. */
 export type TotConteo = { renglones: number; cajas: number; estibas: number; plasticas: number };
+/** Un movimiento 311 del Cuadre SAP de AG18, AG17 o AG16 contra AG22. `movido` es el neto en ese almacén: + entra a ese almacén (sale de AG22), − sale de ese almacén (entra a AG22). */
+export type Mov311 = { almacen: string; codigo: string; descripcion: string; grupo: string; movido: number; documentos: string[]; entraAlAnalisis: boolean };
 export type Fuente = { nombre: string; ok: boolean; detalle: string };
 export type Analisis = {
   fecha: string; filas: FilaAnalisis[]; fuentes: Fuente[]; avisos: string[];
   novedades: Novedad[]; noEntran: string[]; faltaSql: boolean;
+  /** Todos los 311 que se hicieron ese día entre AG22 y los otros almacenes, por SKU (para la hoja «311» del Excel). */
+  movimientos311?: Mov311[];
   carga: { archivo: string | null; filas: number; subido_en: string | null } | null;
   /** SKUs distintos contados en Bodega ese día (sin FÁBRICA), para tener la visual del conteo. */
   contados?: { skus: number; producto: number; envase: number; otros: number; renglones: number; totales?: { donde: Record<string, TotConteo>; estibasAnalisis: number; plasticasAnalisis: number } };
@@ -323,6 +327,7 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
       .sort((a, b) => a.codigo.localeCompare(b.codigo)),
   } : null;
   const detBal: string[] = []; const sinZexiAlm: string[] = [];
+  const movimientos311: Mov311[] = [];
   /* El lado SAP del BALANCE y del DESCUADRE se suma a la ZEXI de las 6: si la plantilla no la trae, SAP queda en 0 y esto se ve aparte. */
   const zexiOtros: { codigo: string; partida: string; cant: number }[] = [];
   /* Lo que cada Cuadre SAP dejó sin cuadrar (después de los 311): si un almacén queda con diferencia, el código lo muestra. */
@@ -343,6 +348,9 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     if (c.fecha !== fecha || !c.guardado?.zexi?.length) { sinZexiAlm.push(alm); continue }
     let nb = 0, nd = 0;
     for (const f of c.filas) {
+      /* Los 311 se listan TODOS (cualquier grupo), aunque no entren al análisis: es la hoja «311» del Excel. */
+      if (Math.abs(f.movido) >= 0.005) movimientos311.push({ almacen: alm, codigo: String(f.codigo), descripcion: f.material ?? nombre(String(f.codigo)), grupo: String(f.grupo),
+        movido: Math.round(f.movido * 100) / 100, documentos: f.documentos ?? [], entraAlAnalisis: f.grupo !== "PRODUCTO" && f.grupo !== "CAJA" && f.dif != null });
       /* El producto no se toma (AG17 y AG16 lo traen en cajas): solo envase, cajas plásticas y estibas. */
       if (f.grupo === "PRODUCTO" || f.dif == null) continue;
       const cod = String(f.codigo);
@@ -502,7 +510,7 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     maestroSistema[c] = { upc: Number(m.unidades_por_caja) || 1, cpe: Number(m.cajas_por_estiba) || 0, caja: m.caja ? String(m.caja) : maestroSistema[c]?.caja ?? null };
   }
 
-  return { fecha, filas, fuentes, avisos, novedades, noEntran: noEntran.sort(), faltaSql, carga, contados, existencias, enLinea, maestroSistema, sinCaja: [...sinCajaMap.values()].map((x) => ({ ...x, cajas: Math.round(x.cajas) })).sort((x, y) => y.cajas - x.cajas),
+  return { fecha, filas, fuentes, avisos, novedades, movimientos311, noEntran: noEntran.sort(), faltaSql, carga, contados, existencias, enLinea, maestroSistema, sinCaja: [...sinCajaMap.values()].map((x) => ({ ...x, cajas: Math.round(x.cajas) })).sort((x, y) => y.cajas - x.cajas),
     cartones: [...cartonMap.values()].map((x) => ({ ...x, cajas: Math.round(x.cajas) })).sort((x, y) => y.cajas - x.cajas),
     conCaja: [...conCajaMap.values()].map((x) => ({ ...x, cajas: Math.round(x.cajas) })).sort((x, y) => y.cajas - x.cajas),
     cajasLista: cajasPlasticas.map((m) => ({ codigo: String(m.codigo), nombre: String(m.descripcion ?? m.codigo) })).sort((x, y) => x.nombre.localeCompare(y.nombre)) };
