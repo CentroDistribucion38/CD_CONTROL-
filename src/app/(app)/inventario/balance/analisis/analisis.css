@@ -282,7 +282,7 @@
 .ad .ad-sincaja table { margin-top: 8px; width: 100% }
 
 /* Cómo va empacado cada producto: tres listas cerradas (sin definir · cartón · suman caja), cada fila con su selector. */
-.ad .ad-emp { display: flex; flex-direction: column; gap: 8px; margin: 0 0 10px }
+.ad .ad-emp { display: flex; flex-direction: column; gap: 8px; margin: 16px 0 10px }
 .ad .ad-emp .ad-sincaja, .ad .ad-emp .ad-cartones, .ad .ad-emp .ad-concaja { margin: 0; padding: 8px 12px; background: #fff; border: 1px solid var(--fe-linea); font-size: 12.5px }
 .ad .ad-emp .ad-sincaja { border-left: 4px solid #B42318 }
 .ad .ad-emp .ad-cartones { border-left: 4px solid #1F7A3D }

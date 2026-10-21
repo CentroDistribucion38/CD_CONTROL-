@@ -170,7 +170,6 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
             </button>
           )}
         </div>
-        <Empaque datos={datos} puedeEditar={puedeEditar} />
         {nEnLinea > 0 && (
           <p className="ad-enl-ley"><span className="ad-enl">EN LÍNEA</span> {nEnLinea} {nEnLinea === 1 ? "código está" : "códigos están"} en producción ese día según el plan de envase: la línea los está tomando mientras se cuenta, así que su diferencia puede no ser real. Pasa el mouse por la etiqueta para ver el SKU y el turno.</p>
         )}
@@ -236,6 +235,8 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
           {datos.noEntran.length > 0 && <> No entran: {datos.noEntran.join(", ")}.</>}</p>
         {informativas.length > 0 && <p className="ad-nota">Informativo (no suma): {informativas.map((x) => `${x.tipo} ${x.codigo} ${n(Number(x.unidades))}`).join(" · ")}.</p>}
       </section>
+      {/* AL FINAL: cómo va empacado cada producto (cartón o caja plástica) es para revisar después de ver el análisis. */}
+      <Empaque datos={datos} puedeEditar={puedeEditar} />
     </>
   );
 }
