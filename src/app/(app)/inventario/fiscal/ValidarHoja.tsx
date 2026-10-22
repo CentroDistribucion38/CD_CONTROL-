@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { MODULOS_DE_LA_HOJA } from "@/modulos/inventario/modulos-hoja";
 import { createClient } from "@/lib/supabase/client";
@@ -129,6 +130,9 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
   const marcadas = ubs.filter((u) => sel.has(u.clave));
   /* Todo en verde: lo que falta por aprobar coincide por completo (nada difiere, nada espera respuesta). */
   const todoVerde = coincidenSinAprobar.length > 0 && ubs.every((u) => estado(u) === "coincide" || estado(u) === "aprobada");
+  /* El sitio junto al título de la hoja (lo pone el panel): ahí va el check de aprobar, para verlo de una. */
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => { setSlot(document.getElementById(`vf-acc-h${numero}`)) }, [numero]);
 
   const alternar = (c: string) => setSel((s) => { const n = new Set(s); if (n.has(c)) n.delete(c); else n.add(c); return n });
   const marcar = (f: (u: Ub) => boolean) => setSel(new Set(ubs.filter(f).map((u) => u.clave)));
@@ -189,6 +193,24 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
 
   /* SIGUIENTE CALLE: solo cuando no queda nada por validar ni con diferencia sin aprobar. */
   const hayAbierto = ubs.some((u) => ["difiere", "validando"].includes(estado(u)));
+  const estiloCheck = { display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "10px 18px", border: 0, borderRadius: 0,
+    fontSize: "1rem", fontWeight: 800 } as const;
+  const iconoCheck = <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="square" aria-hidden="true"><path d="M4 12.5 9.5 18 20 6.5" /></svg>;
+  /* Todo en verde: UN clic aprueba a las dos personas a la vez. */
+  const botonAprobar = puedeEditar && todoVerde ? (
+    <button type="button" disabled={ocupado} onClick={() => aprobar(coincidenSinAprobar, false, null)}
+            title="Aprueba a las dos personas de una vez; lo aprobado pasa a La base"
+            style={{ ...estiloCheck, background: "#0b7a3e", color: "#fff", cursor: ocupado ? "wait" : "pointer", opacity: ocupado ? 0.7 : 1 }}>
+      {iconoCheck} Aprobar {coincidenSinAprobar.length === 1 ? "la ubicación" : `las ${coincidenSinAprobar.length} ubicaciones`}
+    </button>
+  ) : puedeEditar && !hayAbierto && coincidenSinAprobar.length === 0 && nAprobadas > 0 ? (
+    <button type="button"
+            onClick={() => { const el = document.getElementById(`vv-sig-${numero}`); el?.scrollIntoView({ behavior: "smooth", block: "center" }); (document.getElementById(`vv-calle-${numero}`) as HTMLSelectElement | null)?.focus() }}
+            title="Aprobada: ahora escoge la calle a la que pasan las dos personas"
+            style={{ ...estiloCheck, background: "transparent", color: "#0b7a3e", boxShadow: "inset 0 0 0 2px #0b7a3e", cursor: "pointer" }}>
+      {iconoCheck} Aprobada · Siguiente calle
+    </button>
+  ) : null;
   const otras = Object.keys(MODULOS_DE_LA_HOJA).filter((c) => c !== (calle ?? ""));
   async function siguienteCalle() {
     setMal(null); setOk(null);
@@ -215,6 +237,7 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
 
   return (
     <div className="vv">
+      {slot && botonAprobar && createPortal(botonAprobar, slot)}
       <header className="vv-cab">
         <b>Validar y aprobar</b>
         <span>{nAprobadas} de {ubs.length} {ubs.length === 1 ? "ubicación aprobada" : "ubicaciones aprobadas"}</span>
@@ -222,14 +245,7 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
 
       {puedeEditar && (
         <div className="vv-barra">
-          {todoVerde && (
-            <button type="button" disabled={ocupado} onClick={() => aprobar(coincidenSinAprobar, !!unaSola, null)}
-                    style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, width: "100%", padding: "18px 20px", margin: "0 0 14px",
-                             background: "#0b7a3e", color: "#fff", border: 0, borderRadius: 0, fontSize: "1.15rem", fontWeight: 800, cursor: ocupado ? "wait" : "pointer", opacity: ocupado ? 0.7 : 1 }}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="square" aria-hidden="true"><path d="M4 12.5 9.5 18 20 6.5" /></svg>
-              Todo coincide · Aprobar {coincidenSinAprobar.length === 1 ? "la ubicación" : `las ${coincidenSinAprobar.length} ubicaciones`}
-            </button>
-          )}
+          {!slot && botonAprobar}
           <div className="vv-sel" role="group" aria-label="Marcar ubicaciones">
             <button type="button" className="btn plano" onClick={() => marcar((u) => estado(u) === "difiere")}>Marcar las que difieren</button>
             <button type="button" className="btn plano" onClick={() => marcar((u) => estado(u) === "validando" && !!u.rev?.ol_envio && !!u.rev?.bavaria_envio)}>Marcar las ya respondidas</button>
@@ -322,11 +338,11 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
         {visibles.length === 0 && <li className="vv-fila"><span>Todas las ubicaciones coinciden.</span></li>}
       </ul>
       {puedeEditar && !hayAbierto && ubs.length > 0 && (
-        <div className="vv-sig">
+        <div className="vv-sig" id={`vv-sig-${numero}`}>
           <b>Siguiente calle{calle ? ` · ahora está en la calle ${calle}` : ""}</b>
           <p>Esta hoja ya no tiene diferencias sin aprobar. Si la pareja sigue con otra calle, la misma hoja cambia de calle y las dos personas la ven reabierta para contar. Lo de esta calle se conserva.</p>
           <div className="vv-acc">
-            <select value={nueva} onChange={(e) => { setNueva(e.target.value); setSeguro(false) }} aria-label="Calle a la que pasan">
+            <select id={`vv-calle-${numero}`} value={nueva} onChange={(e) => { setNueva(e.target.value); setSeguro(false) }} aria-label="Calle a la que pasan">
               <option value="">Escoge la calle…</option>
               {otras.map((c) => <option key={c} value={c}>Calle {c}</option>)}
             </select>

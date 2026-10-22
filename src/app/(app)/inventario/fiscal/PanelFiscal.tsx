@@ -431,6 +431,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                   <span className={"vf-card-ico " + t.tipo}><Ico n={ICO_TIPO[t.tipo]} tam={18} /></span>
                   <h3>Hoja {t.h.numero}</h3>
                   <span className={"vf-estado " + t.tipo}>{texto(t)}</span>
+                  <span id={"vf-acc-h" + t.h.numero} className="vf-rev-acc" />
                   <small className="vf-rev-quien">{t.h.ol ? quien(t.h.ol) : "—"} · {t.h.bavaria ? quien(t.h.bavaria) : "—"}</small>
                 </header>
                 <p className={"vf-rev-titular " + t.tipo}>{t.aprobadoTodo ? "El fiscal aprobó todas las diferencias de esta hoja." : titularCruce(r)}</p>
