@@ -38,9 +38,11 @@ type Ub = { id: string | null; clave: string; dif: boolean; comp: number; renglo
 const orden = (a: string, b: string) => a.localeCompare(b, "es", { numeric: true });
 export const moduloDe = (clave: string) => clave.replace(/_(IZQ|DER)$/i, "");
 
-export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeEditar, ol, bavaria, onCambio, unaSola = null, compensando = false }: {
+export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeEditar, ol, bavaria, onCambio, unaSola = null, compensando = false, cerrada = false }: {
   /** El fiscal pulsó «Compensar»: las diferencias compensadas no cuentan y al aprobar se manda p_compensar. */
   compensando?: boolean;
+  /** El fiscal ya cerró esta hoja: nadie más cuenta en ella hasta que la reabra o pase a otra calle. */
+  cerrada?: boolean;
   /** Nombre de la única persona que terminó (la otra aún no): no hay cruce y se aprueba confirmando. */
   unaSola?: string | null;
   hojaId: string | null; numero: number; calle?: string; filas: FilaCruce[]; revs: RevisionBD[]; consol?: ConsolidadoBD | null; puedeEditar: boolean;
@@ -58,6 +60,7 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
   const [adoptar, setAdoptar] = useState<"OL" | "BAVARIA" | null>(null);
   const router = useRouter();
   const [nueva, setNueva] = useState("");
+  const [mas, setMas] = useState(false);
   const [seguro, setSeguro] = useState(false);
 
   /* Lo que marcaron en Contar (mezclado / sin acceso). Si a la base le falta el SQL, simplemente no hay marcas. */
@@ -193,10 +196,25 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
     /* Si ya no difiere (coincide o quedó compensado) no hace falta esperar la respuesta: se aprueba directo. */
     const sinRespuesta = lista.filter((u) => u.rev?.estado === "A_VALIDAR" && !(u.rev.ol_envio && u.rev.bavaria_envio));
     const faltan = sinRespuesta.filter((u) => u.dif);
-    if (sinRespuesta.length > faltan.length) forzando = true;
+    const forzarSrv = forzando || sinRespuesta.length > faltan.length;
     if (faltan.length > 0 && !forzando) { setForzar(faltan); return }
-    void correr("inv_fiscal_aprobar", lista, { p_forzar: forzando, ...(quedaCon ? { p_adoptar: quedaCon } : {}), ...(compensando ? { p_compensar: true } : {}) },
+    void correr("inv_fiscal_aprobar", lista, { p_forzar: forzarSrv, ...(quedaCon ? { p_adoptar: quedaCon } : {}), ...(compensando ? { p_compensar: true } : {}) },
       `${lista.length} ${lista.length === 1 ? "ubicación aprobada" : "ubicaciones aprobadas"}${quedaCon ? `, dejando como definitivo lo de ${quedaCon === "OL" ? (ol || "el operador") : (bavaria || "Bavaria")}` : ""}.`);
+  }
+
+  async function cerrarHoja(abrir: boolean) {
+    setMal(null); setOk(null);
+    if (!hojaId) return;
+    setOcupado(true);
+    const { error } = await createClient().rpc(abrir ? "inv_fiscal_reabrir_hoja" : "inv_fiscal_cerrar_hoja", { p_hoja: hojaId });
+    setOcupado(false);
+    if (error) {
+      setMal(/inv_fiscal_cerrar_hoja|inv_fiscal_reabrir_hoja|schema cache|does not exist|no existe la funci/i.test(error.message) ? "Falta correr 2026-10-fiscal-TODO.sql en Supabase." : traducirError(error.message));
+      return;
+    }
+    setOk(abrir ? "Hoja reabierta: las dos personas pueden volver a contar." : "Hoja cerrada: lo aprobado quedó en La base y nadie más cuenta en ella.");
+    await onCambio();
+    router.refresh();
   }
 
   /* SIGUIENTE CALLE: solo cuando no queda nada por validar ni con diferencia sin aprobar. */
@@ -219,6 +237,20 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
       {iconoCheck} Aprobada · Siguiente calle
     </button>
   ) : null;
+  const listoParaCerrar = puedeEditar && !hayAbierto && porAprobar.length === 0 && nAprobadas > 0;
+  const botonCerrar = cerrada ? (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+      <b style={{ color: "#0b7a3e" }}>Hoja cerrada ✓</b>
+      {puedeEditar && <button type="button" className="btn plano" disabled={ocupado} onClick={() => cerrarHoja(true)} title="Vuelve a dejar contar a las dos personas">Reabrir</button>}
+    </span>
+  ) : listoParaCerrar ? (
+    <button type="button" disabled={ocupado} onClick={() => cerrarHoja(false)}
+            title="Cierra el conteo de esta hoja: lo aprobado pasa a La base y nadie más cuenta en ella"
+            style={{ ...estiloCheck, background: "#0b7a3e", color: "#fff", cursor: ocupado ? "wait" : "pointer", opacity: ocupado ? 0.7 : 1 }}>
+      {iconoCheck} Cerrar hoja
+    </button>
+  ) : null;
+  const botones = (botonAprobar || botonCerrar) ? <>{botonAprobar}{botonCerrar}</> : null;
   /* Se ofrece también la calle actual: sirve para seguir contando lo que falta de ella (la hoja se reabre para las dos personas). */
   const otras = Object.keys(MODULOS_DE_LA_HOJA);
   async function siguienteCalle() {
@@ -246,52 +278,86 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
 
   return (
     <div className="vv">
-      {slot && botonAprobar && createPortal(botonAprobar, slot)}
+      <style>{`
+        .vv .vv-cab{padding:6px 12px;font-size:.78rem;min-height:0}
+        .vv .vv-cab b{font-size:.78rem;letter-spacing:.04em}
+        .vv .btn{padding:4px 10px;font-size:.78rem;min-height:0;line-height:1.3}
+        .vv .vv-mas{border-bottom:1px solid rgba(127,127,127,.25)}
+        .vv .vv-mas>summary{cursor:pointer;padding:6px 12px;font-size:.76rem;opacity:.75;list-style:none}
+        .vv .vv-mas>summary::before{content:"▸ "}
+        .vv .vv-mas[open]>summary::before{content:"▾ "}
+        .vv .vv-mas[open]:not(.vv-compacto)>summary{display:none}
+        .vv .vv-barra{padding:8px 12px;display:flex;flex-direction:column;gap:8px}
+        .vv .vv-fila1,.vv .vv-fila2{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+        .vv .vv-et{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;opacity:.65;margin-right:2px}
+        .vv .vv-fila2 input{flex:1 1 220px;padding:4px 8px;font-size:.78rem;min-height:0}
+        .vv .vv-otros{position:relative}
+        .vv .vv-otros>summary{list-style:none;cursor:pointer;display:inline-block}
+        .vv .vv-otros>summary::-webkit-details-marker,.vv .vv-mas>summary::-webkit-details-marker{display:none}
+        .vv .vv-menu{position:absolute;right:0;top:100%;z-index:5;display:flex;flex-direction:column;gap:4px;padding:6px;background:var(--fondo,#fff);border:1px solid rgba(127,127,127,.4);box-shadow:0 4px 12px rgba(0,0,0,.15);min-width:230px}
+        .vv .vv-sig{padding:5px 12px;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;margin:0;border:0;border-top:1px solid rgba(127,127,127,.25);background:transparent}
+        .vv .vv-sig b{font-size:.74rem;text-transform:uppercase;letter-spacing:.05em}
+        .vv .vv-sig p{margin:0;font-size:.74rem;opacity:.75;flex:1 1 auto}
+        .vv .vv-sig select{padding:3px 6px;font-size:.78rem;min-height:0}
+        .vv .vv-sig .vv-acc{display:flex;gap:6px;align-items:center;margin-left:auto}
+        .vv .vv-base{border-left:3px solid #0b7a3e}
+        .vv .cl-nota{font-size:.74rem;margin:4px 12px}
+      `}</style>
+      {slot && botones && createPortal(botones, slot)}
       <header className="vv-cab">
         <b>Validar y aprobar</b>
         <span>{nAprobadas} de {ubs.length} {ubs.length === 1 ? "ubicación aprobada" : "ubicaciones aprobadas"}</span>
       </header>
 
       {puedeEditar && (
-        <div className="vv-barra">
-          {!slot && botonAprobar}
-          <div className="vv-sel" role="group" aria-label="Marcar ubicaciones">
-            <button type="button" className="btn plano" onClick={() => marcar((u) => estado(u) === "difiere")}>Marcar las que difieren</button>
-            <button type="button" className="btn plano" onClick={() => marcar((u) => estado(u) === "respondida")}>Marcar las ya respondidas</button>
-            {compensando && ubs.some((u) => estado(u) === "compensada") && (
-              <button type="button" className="btn plano" onClick={() => marcar((u) => estado(u) === "compensada")}>Marcar las compensadas</button>
-            )}
-            {sel.size > 0 && <button type="button" className="btn plano" onClick={() => setSel(new Set())}>Quitar marcas</button>}
-          </div>
-          <label className="vv-nota"><span>Nota para las dos personas (opcional)</span>
-            <input value={nota} maxLength={200} placeholder="Ej. revisen la estiba del fondo" onChange={(e) => setNota(e.target.value)} />
-          </label>
-          <div className="vv-acc">
-            <button type="button" className="btn" disabled={ocupado || marcadas.length === 0 || !!unaSola} title={unaSola ? "Se manda a validar cuando las dos personas terminen" : undefined} onClick={validar}>
-              Mandar a validar{marcadas.length > 0 ? ` (${marcadas.length})` : ""}
-            </button>
-            <button type="button" className="btn" disabled={ocupado || marcadas.length === 0} onClick={() => aprobar(marcadas, false, null)}>
-              Aprobar{marcadas.length > 0 ? ` (${marcadas.length})` : ""}
-            </button>
-            {!unaSola && (
-              <>
-                <button type="button" className="btn plano" disabled={ocupado || marcadas.length === 0} onClick={() => aprobar(marcadas, false, "OL")}
-                        title="Si el módulo sigue difiriendo, queda como definitivo lo que contó el operador y pasa a La base">
-                  Aprobar con lo de {ol || "el operador"}
-                </button>
-                <button type="button" className="btn plano" disabled={ocupado || marcadas.length === 0} onClick={() => aprobar(marcadas, false, "BAVARIA")}
-                        title="Si el módulo sigue difiriendo, queda como definitivo lo que contó Bavaria y pasa a La base">
-                  Aprobar con lo de {bavaria || "Bavaria"}
-                </button>
-              </>
-            )}
-            {coincidenSinAprobar.length > 0 && !todoVerde && (
-              <button type="button" className="btn plano" disabled={ocupado} onClick={() => aprobar(coincidenSinAprobar, false, null)}>
-                Aprobar las {coincidenSinAprobar.length} que coinciden
+        <details className={"vv-mas" + (listoParaCerrar || cerrada ? " vv-compacto" : "")} open={!(listoParaCerrar || cerrada) || mas} onToggle={(e) => setMas(e.currentTarget.open)}>
+          <summary>Marcar y validar a mano</summary>
+          <div className="vv-barra">
+            {!slot && botones}
+            <div className="vv-fila1">
+              <span className="vv-et">Marcar</span>
+              <button type="button" className="btn plano" onClick={() => marcar((u) => estado(u) === "difiere")}>Las que difieren</button>
+              <button type="button" className="btn plano" onClick={() => marcar((u) => estado(u) === "respondida")}>Las ya respondidas</button>
+              {compensando && ubs.some((u) => estado(u) === "compensada") && (
+                <button type="button" className="btn plano" onClick={() => marcar((u) => estado(u) === "compensada")}>Las compensadas</button>
+              )}
+              {sel.size > 0 && <button type="button" className="btn plano" onClick={() => setSel(new Set())}>Quitar marcas ({sel.size})</button>}
+            </div>
+            <div className="vv-fila2">
+              <input value={nota} maxLength={200} placeholder="Nota para las dos personas (opcional)" aria-label="Nota para las dos personas" onChange={(e) => setNota(e.target.value)} />
+              <button type="button" className="btn" disabled={ocupado || marcadas.length === 0 || !!unaSola} title={unaSola ? "Se manda a validar cuando las dos personas terminen" : "Las dos personas vuelven a contar lo marcado"} onClick={validar}>
+                Mandar a validar{marcadas.length > 0 ? ` (${marcadas.length})` : ""}
               </button>
-            )}
+              <button type="button" className="btn" disabled={ocupado || marcadas.length === 0} onClick={() => aprobar(marcadas, false, null)}>
+                Aprobar{marcadas.length > 0 ? ` (${marcadas.length})` : ""}
+              </button>
+              {(!unaSola || (coincidenSinAprobar.length > 0 && !todoVerde)) && (
+                <details className="vv-otros">
+                  <summary className="btn plano">Más</summary>
+                  <div className="vv-menu">
+                    {!unaSola && (
+                      <>
+                        <button type="button" className="btn plano" disabled={ocupado || marcadas.length === 0} onClick={() => aprobar(marcadas, false, "OL")}
+                                title="Si el módulo sigue difiriendo, queda como definitivo lo que contó el operador y pasa a La base">
+                          Aprobar con lo de {ol || "el operador"}
+                        </button>
+                        <button type="button" className="btn plano" disabled={ocupado || marcadas.length === 0} onClick={() => aprobar(marcadas, false, "BAVARIA")}
+                                title="Si el módulo sigue difiriendo, queda como definitivo lo que contó Bavaria y pasa a La base">
+                          Aprobar con lo de {bavaria || "Bavaria"}
+                        </button>
+                      </>
+                    )}
+                    {coincidenSinAprobar.length > 0 && !todoVerde && (
+                      <button type="button" className="btn plano" disabled={ocupado} onClick={() => aprobar(coincidenSinAprobar, false, null)}>
+                        Aprobar las {coincidenSinAprobar.length} que coinciden
+                      </button>
+                    )}
+                  </div>
+                </details>
+              )}
+            </div>
           </div>
-        </div>
+        </details>
       )}
 
       {unaSola && (
@@ -349,7 +415,7 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
       {puedeEditar && !hayAbierto && ubs.length > 0 && (
         <div className="vv-sig" id={`vv-sig-${numero}`}>
           <b>Siguiente calle{calle ? ` · ahora está en la calle ${calle}` : ""}</b>
-          <p>Esta hoja ya no tiene diferencias sin aprobar. Si la pareja sigue con otra calle, la misma hoja cambia de calle y las dos personas la ven reabierta para contar. Lo de esta calle se conserva.</p>
+          <p title="Si la pareja sigue con otra calle, la misma hoja cambia de calle y las dos personas la ven reabierta para contar. Lo de esta calle se conserva.">Sin diferencias pendientes.</p>
           <div className="vv-acc">
             <select id={`vv-calle-${numero}`} value={nueva} onChange={(e) => { setNueva(e.target.value); setSeguro(false) }} aria-label="Calle a la que pasan">
               <option value="">Escoge la calle…</option>
@@ -369,11 +435,11 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
       {(consol || nAprobadas > 0) && (
         <div className="vv-sig vv-base">
           <b>En La base{consol ? ` · ${consol.conteo}` : ""}</b>
-          <p>{consol
-            ? `${consol.ubicaciones} ${consol.ubicaciones === 1 ? "ubicación" : "ubicaciones"} · ${consol.renglones} ${consol.renglones === 1 ? "renglón" : "renglones"} · ${Number(consol.cajas).toLocaleString("es-CO")} cajas. Es un solo conteo de la hoja (no uno por persona): lo aprobado que coincide entre las dos.`
-            : "Todavía no se manda nada. Al aprobar, lo aprobado que coincide entre las dos personas pasa solo a La base, como un solo conteo de la hoja."}
-            {ubs.some((u) => estado(u) === "aprobada" && u.dif && !u.rev?.adoptado && !u.rev?.compensado) && " Un módulo aprobado que aún difiere no se manda hasta que coincida o hasta que dejes como definitivo el conteo de uno de los dos."}</p>
-          {puedeEditar && <div className="vv-acc"><button type="button" className="btn plano" disabled={ocupado || nAprobadas === 0} onClick={consolidarYa}>Actualizar La base ahora</button></div>}
+          <p title="Es un solo conteo de la hoja (no uno por persona): lo aprobado que coincide entre las dos. Un módulo aprobado que aún difiere no se manda hasta que coincida o hasta que dejes como definitivo el conteo de uno de los dos.">{consol
+            ? `${consol.ubicaciones} ${consol.ubicaciones === 1 ? "ubicación" : "ubicaciones"} · ${consol.renglones} ${consol.renglones === 1 ? "renglón" : "renglones"} · ${Number(consol.cajas).toLocaleString("es-CO")} cajas`
+            : "Todavía no se manda nada."}
+            {ubs.some((u) => estado(u) === "aprobada" && u.dif && !u.rev?.adoptado && !u.rev?.compensado) && " · hay aprobados que aún difieren (no se mandan)"}</p>
+          {puedeEditar && <div className="vv-acc"><button type="button" className="btn plano" disabled={ocupado || nAprobadas === 0} onClick={consolidarYa}>Actualizar La base</button></div>}
         </div>
       )}
       {ubs.some((u) => estado(u) === "coincide") && (

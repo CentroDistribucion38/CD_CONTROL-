@@ -2106,6 +2106,10 @@ grant execute on function public.inv_fiscal_reaperturas(uuid) to authenticated;
 -- ---------------------------------------------------------------------
 -- MIS HOJAS, ahora con la calle que puso el fiscal (las dos personas cuentan esa)
 -- ---------------------------------------------------------------------
+-- CERRAR UNA HOJA: el fiscal la da por terminada. Lo aprobado queda en La base y nadie más anota ni cambia renglones en ella.
+alter table public.inv_fiscal_hojas add column if not exists cerrada_en timestamptz;
+alter table public.inv_fiscal_hojas add column if not exists cerrada_por uuid references public.perfiles(id) on delete set null;
+
 drop function if exists public.inv_fiscal_mis_hojas();
 create function public.inv_fiscal_mis_hojas()
 returns table (
@@ -2124,8 +2128,8 @@ as $$
          h.id,
          (f.fecha <= (now() at time zone 'America/Bogota')::date),
          (select count(*) from public.inv_fiscal_conteos c where c.hoja_id = h.id and c.contado_por = auth.uid()),
-         exists (select 1 from public.inv_fiscal_terminos t where t.hoja_id = h.id and t.user_id = auth.uid()),
-         exists (select 1 from public.inv_fiscal_terminos t where t.hoja_id = h.id and t.user_id = o.user_id),
+         (h.cerrada_en is not null or exists (select 1 from public.inv_fiscal_terminos t where t.hoja_id = h.id and t.user_id = auth.uid())),
+         (h.cerrada_en is not null or exists (select 1 from public.inv_fiscal_terminos t where t.hoja_id = h.id and t.user_id = o.user_id)),
          h.calle
     from public.inv_fiscal_miembros m
     join public.inv_fiscales f on f.id = m.fiscal_id
@@ -2302,6 +2306,171 @@ end $$;
 revoke all on function public.inv_fiscal_bd_hoja(uuid) from public, anon;
 grant execute on function public.inv_fiscal_bd_hoja(uuid) to authenticated;
 
+-- ---------------------------------------------------------------------
+-- CERRAR HOJAS
+-- ---------------------------------------------------------------------
+-- En una hoja cerrada no se anota, no se corrige y no se quita ningún renglón (lo pide el fiscal: ya está aprobada).
+create or replace function public.inv_fiscal_conteos_hoja_cerrada()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_hoja uuid := coalesce(new.hoja_id, old.hoja_id);
+begin
+  if exists (select 1 from public.inv_fiscal_hojas h where h.id = v_hoja and h.cerrada_en is not null) then
+    raise exception 'Esta hoja ya la cerró el fiscal: no se puede anotar ni cambiar nada en ella.';
+  end if;
+  return coalesce(new, old);
+end $$;
+drop trigger if exists inv_fiscal_conteos_cerrada on public.inv_fiscal_conteos;
+create trigger inv_fiscal_conteos_cerrada before insert or update or delete on public.inv_fiscal_conteos
+  for each row execute function public.inv_fiscal_conteos_hoja_cerrada();
+
+-- ¿La hoja se puede cerrar? Nada en validación y todos los módulos con renglones, aprobados. Devuelve el motivo si no; null si sí.
+drop function if exists public.inv_fiscal_hoja_motivo_no_cierra(uuid);
+create function public.inv_fiscal_hoja_motivo_no_cierra(p_hoja uuid)
+returns text
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare v_n integer;
+begin
+  if not exists (select 1 from public.inv_fiscal_hojas where id = p_hoja) then return 'Esa hoja no existe.'; end if;
+  if not exists (select 1 from public.inv_fiscal_conteos where hoja_id = p_hoja) then return 'La hoja no tiene renglones contados.'; end if;
+  if exists (select 1 from public.inv_fiscal_revisiones where hoja_id = p_hoja and estado = 'A_VALIDAR') then
+    return 'Todavía hay ubicaciones esperando validación.';
+  end if;
+  select count(distinct regexp_replace(u.clave, '_(IZQ|DER)$', '')) into v_n
+    from public.inv_fiscal_conteos c join public.ubicaciones u on u.id = c.ubicacion_id
+   where c.hoja_id = p_hoja
+     and not exists (select 1 from public.inv_fiscal_revisiones r join public.ubicaciones ur on ur.id = r.ubicacion_id
+                      where r.hoja_id = p_hoja and r.estado = 'APROBADA'
+                        and regexp_replace(ur.clave, '_(IZQ|DER)$', '') = regexp_replace(u.clave, '_(IZQ|DER)$', ''));
+  if v_n > 0 then return 'Quedan ' || v_n || ' módulos sin aprobar.'; end if;
+  return null;
+end $$;
+revoke all on function public.inv_fiscal_hoja_motivo_no_cierra(uuid) from public, anon, authenticated;
+
+drop function if exists public.inv_fiscal_cerrar_hoja(uuid);
+create function public.inv_fiscal_cerrar_hoja(p_hoja uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_motivo text;
+begin
+  if not public.puede_editar('/inventario/fiscal') then
+    raise exception 'Cerrar una hoja requiere el permiso «Inventario fiscal» (Roles)';
+  end if;
+  if exists (select 1 from public.inv_fiscal_hojas where id = p_hoja and cerrada_en is not null) then return; end if;
+  v_motivo := public.inv_fiscal_hoja_motivo_no_cierra(p_hoja);
+  if v_motivo is not null then raise exception 'No se puede cerrar la hoja: %', v_motivo; end if;
+  -- Lo aprobado pasa a La base (si ya estaba, se vuelve a poner igual).
+  begin
+    perform public.inv_fiscal_consolidar(p_hoja);
+  exception when others then
+    if sqlerrm not ilike '%nada que consolidar%' then raise; end if;
+  end;
+  update public.inv_fiscal_hojas set cerrada_en = now(), cerrada_por = auth.uid() where id = p_hoja;
+end $$;
+revoke all on function public.inv_fiscal_cerrar_hoja(uuid) from public, anon;
+grant execute on function public.inv_fiscal_cerrar_hoja(uuid) to authenticated;
+
+-- Cierra DE UNA todas las hojas del inventario que ya se pueden cerrar; las demás quedan como están.
+drop function if exists public.inv_fiscal_cerrar_hojas(uuid);
+create function public.inv_fiscal_cerrar_hojas(p_fiscal uuid)
+returns table (cerradas integer, pendientes integer)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare r record; v_ok integer := 0; v_no integer := 0;
+begin
+  if not public.puede_editar('/inventario/fiscal') then
+    raise exception 'Cerrar hojas requiere el permiso «Inventario fiscal» (Roles)';
+  end if;
+  for r in select h.id from public.inv_fiscal_hojas h where h.fiscal_id = p_fiscal and h.cerrada_en is null order by h.numero loop
+    if public.inv_fiscal_hoja_motivo_no_cierra(r.id) is null then
+      begin
+        perform public.inv_fiscal_cerrar_hoja(r.id);
+        v_ok := v_ok + 1;
+      exception when others then
+        v_no := v_no + 1;
+      end;
+    elsif exists (select 1 from public.inv_fiscal_conteos c where c.hoja_id = r.id) then
+      v_no := v_no + 1;
+    end if;
+  end loop;
+  return query select v_ok, v_no;
+end $$;
+revoke all on function public.inv_fiscal_cerrar_hojas(uuid) from public, anon;
+grant execute on function public.inv_fiscal_cerrar_hojas(uuid) to authenticated;
+
+drop function if exists public.inv_fiscal_reabrir_hoja(uuid);
+create function public.inv_fiscal_reabrir_hoja(p_hoja uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.puede_editar('/inventario/fiscal') then
+    raise exception 'Reabrir una hoja requiere el permiso «Inventario fiscal» (Roles)';
+  end if;
+  update public.inv_fiscal_hojas set cerrada_en = null, cerrada_por = null where id = p_hoja;
+end $$;
+revoke all on function public.inv_fiscal_reabrir_hoja(uuid) from public, anon;
+grant execute on function public.inv_fiscal_reabrir_hoja(uuid) to authenticated;
+
+-- Qué hojas del inventario están cerradas (para mostrarlo en la pantalla del fiscal).
+drop function if exists public.inv_fiscal_hojas_cerradas(uuid);
+create function public.inv_fiscal_hojas_cerradas(p_fiscal uuid)
+returns table (numero integer, cerrada_en timestamptz)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select h.numero, h.cerrada_en from public.inv_fiscal_hojas h
+   where h.fiscal_id = p_fiscal and h.cerrada_en is not null and public.puede_ver('/inventario/fiscal')
+$$;
+revoke all on function public.inv_fiscal_hojas_cerradas(uuid) from public, anon;
+grant execute on function public.inv_fiscal_hojas_cerradas(uuid) to authenticated;
+
+-- Pasar a la siguiente calle reabre la hoja si estaba cerrada.
+drop function if exists public.inv_fiscal_siguiente_calle(uuid, text);
+create function public.inv_fiscal_siguiente_calle(p_hoja uuid, p_calle text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_estado text; v_calle text := nullif(upper(btrim(coalesce(p_calle, ''))), '');
+begin
+  if not public.puede_editar('/inventario/fiscal') then
+    raise exception 'Pasar a la siguiente calle requiere el permiso «Inventario fiscal» (Roles)';
+  end if;
+  if v_calle is null then raise exception 'Escoge la calle.'; end if;
+  if length(v_calle) > 20 then raise exception 'La calle es demasiado larga.'; end if;
+  select f.estado into v_estado
+    from public.inv_fiscal_hojas h join public.inv_fiscales f on f.id = h.fiscal_id where h.id = p_hoja;
+  if v_estado is null then raise exception 'Esa hoja no existe.'; end if;
+  if v_estado <> 'abierto' then raise exception 'Este inventario fiscal ya está cerrado.'; end if;
+  if exists (select 1 from public.inv_fiscal_revisiones where hoja_id = p_hoja and estado = 'A_VALIDAR') then
+    raise exception 'Todavía hay ubicaciones esperando validación: apruébalas antes de pasar a la siguiente calle.';
+  end if;
+
+  update public.inv_fiscal_hojas set calle = v_calle, cerrada_en = null, cerrada_por = null where id = p_hoja;
+  delete from public.inv_fiscal_terminos where hoja_id = p_hoja;
+end $$;
+revoke all on function public.inv_fiscal_siguiente_calle(uuid, text) from public, anon;
+grant execute on function public.inv_fiscal_siguiente_calle(uuid, text) to authenticated;
+
 do $$
 begin
   if to_regprocedure('public.inv_fiscal_mis_diferencias(uuid)') is null
@@ -2315,6 +2484,7 @@ begin
      or to_regprocedure('public.inv_fiscal_reaperturas(uuid)') is null
      or to_regprocedure('public.inv_fiscal_borradores_base()') is null
      or to_regprocedure('public.inv_fiscal_bd_hoja(uuid)') is null
+     or to_regprocedure('public.inv_fiscal_cerrar_hojas(uuid)') is null
      or to_regprocedure('public.inv_fiscal_cruce(uuid)') is null
      or to_regprocedure('public.inv_fiscal_consolidar(uuid)') is null then
     raise exception 'No quedaron las funciones de validar por módulo. Revisa que corrieron antes validar y consolidar.';

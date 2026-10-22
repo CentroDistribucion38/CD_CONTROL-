@@ -113,6 +113,8 @@ function useTorre(fiscalId: string, avanceInicial: Record<number, AvanceHoja>, a
   /** Fotos de los renglones por hoja (para abrirlas desde el cruce). Sin el SQL o sin permiso: vacío. */
   const [fotos, setFotos] = useState<Record<number, FotoCruce[]>>({});
   const [reaps, setReaps] = useState<ReaperturaBD[]>([]);
+  /** Hojas que el fiscal ya cerró (número → cuándo). Sin el SQL: vacío. */
+  const [cerradas, setCerradas] = useState<Record<number, string>>({});
   /** false = falta correr 2026-10-fiscal-validar.sql: la torre funciona igual, sin validar ni aprobar. */
   const [conValidar, setConValidar] = useState(true);
 
@@ -145,6 +147,8 @@ function useTorre(fiscalId: string, avanceInicial: Record<number, AvanceHoja>, a
     setFotos(Object.fromEntries(fs));
     const rp = await sb.rpc("inv_fiscal_reaperturas", { p_fiscal: fiscalId });
     setReaps(rp.error ? [] : ((rp.data ?? []) as ReaperturaBD[]));
+    const ce = await sb.rpc("inv_fiscal_hojas_cerradas", { p_fiscal: fiscalId });
+    setCerradas(ce.error ? {} : Object.fromEntries(((ce.data ?? []) as { numero: number; cerrada_en: string }[]).map((c) => [c.numero, c.cerrada_en])));
     setHora(new Date());
   }, [fiscalId]);
 
@@ -155,7 +159,7 @@ function useTorre(fiscalId: string, avanceInicial: Record<number, AvanceHoja>, a
     return () => clearInterval(t);
   }, [activo, cargar]);
 
-  return { avance, cruces, hora, error, cargar, revs, hojaIds, conValidar, consolidados, fotos, reaps };
+  return { avance, cruces, hora, error, cargar, revs, hojaIds, conValidar, consolidados, fotos, reaps, cerradas };
 }
 
 /** El anillo del avance: verde = completadas, rojo = con diferencias, ámbar = en conteo, el resto es el fondo. */
@@ -209,7 +213,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
   const [verTodo, setVerTodo] = useState<Record<number, boolean>>({});
   /** Hojas donde el fiscal pulsó «Compensar»: las diferencias iguales y contrarias de un mismo módulo se dan por compensadas. */
   const [compensar, setCompensar] = useState<Record<number, boolean>>({});
-  const { avance, cruces, hora, error, cargar, revs, hojaIds, conValidar, consolidados, fotos, reaps } = useTorre(fiscalId, avanceInicial, conAvance);
+  const { avance, cruces, hora, error, cargar, revs, hojaIds, conValidar, consolidados, fotos, reaps, cerradas } = useTorre(fiscalId, avanceInicial, conAvance);
   const nf = useMemo(() => new Intl.NumberFormat("es-CO"), []);
 
   const tarjetas = hojas.map((h) => {
@@ -410,7 +414,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
       {pestana === "parejas" && parejas && <div role="tabpanel" className="vf-parejas">{parejas}</div>}
 
       {pestana === "bd" && (
-        <BdFiscal nombre={nombre} fecha={new Date().toLocaleDateString("en-CA")} quien="" puedeEditar={puedeEditar && conValidar} revs={revs}
+        <BdFiscal fiscalId={fiscalId} cerradas={cerradas} nombre={nombre} fecha={new Date().toLocaleDateString("en-CA")} quien="" puedeEditar={puedeEditar && conValidar} revs={revs}
                   actualizado={hora ? hora.getTime() : 0} onCambio={cargar}
                   compensar={compensar} onCompensar={(n, v) => setCompensar({ ...compensar, [n]: v })}
                   hojas={tarjetas.map((t): HojaBd => ({ numero: t.h.numero, id: hojaIds[t.h.numero] ?? null, calle: t.h.calle, ol: t.h.ol ? quien(t.h.ol) : "", bavaria: t.h.bavaria ? quien(t.h.bavaria) : "",
@@ -493,7 +497,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                 )}
                 {compensando && <p className="cl-nota" role="note">Compensadas {compBase.pares} {compBase.pares === 1 ? "pareja" : "parejas"} de diferencias iguales y de signo contrario (en un mismo módulo, o el mismo material entre dos módulos): ya no aparecen como diferencia. Quedan solo las que no se compensan.</p>}
                 {conValidar ? (
-                  <ValidarHoja compensando={compensando} hojaId={hojaIds[t.h.numero] ?? null} numero={t.h.numero} calle={t.h.calle} filas={filas} revs={revs} unaSola={t.estado === "una-termino" ? (t.av?.olTermino ? (t.h.ol ? quien(t.h.ol) : "el operador") : (t.h.bavaria ? quien(t.h.bavaria) : "Bavaria")) : null} consol={consolidados[t.h.numero] ?? null}
+                  <ValidarHoja cerrada={!!cerradas[t.h.numero]} compensando={compensando} hojaId={hojaIds[t.h.numero] ?? null} numero={t.h.numero} calle={t.h.calle} filas={filas} revs={revs} unaSola={t.estado === "una-termino" ? (t.av?.olTermino ? (t.h.ol ? quien(t.h.ol) : "el operador") : (t.h.bavaria ? quien(t.h.bavaria) : "Bavaria")) : null} consol={consolidados[t.h.numero] ?? null}
                                puedeEditar={puedeEditar} ol={t.h.ol ? quien(t.h.ol) : ""} bavaria={t.h.bavaria ? quien(t.h.bavaria) : ""} onCambio={cargar} />
                 ) : (
                   <p className="cl-nota" role="note">Para validar y aprobar falta correr <code>supabase/migraciones/2026-10-fiscal-validar.sql</code> en Supabase.</p>

@@ -34,7 +34,9 @@ const FILTROS: [FiltroBd, string][] = [
 ];
 const signo = (v: number) => (v === 0 ? "0" : (v > 0 ? "+" : "") + NF.format(v));
 
-export function BdFiscal({ nombre, fecha, hojas, revs, puedeEditar, compensar, onCompensar, onCambio, actualizado, quien }: {
+export function BdFiscal({ fiscalId, cerradas, nombre, fecha, hojas, revs, puedeEditar, compensar, onCompensar, onCambio, actualizado, quien }: {
+  /** Fiscal al que pertenecen las hojas, y qué hojas ya están cerradas (número → cuándo). */
+  fiscalId: string; cerradas: Record<number, string>;
   nombre: string; fecha: string; hojas: HojaBd[]; revs: (RevMin & { ubicacion_id: string })[]; puedeEditar: boolean;
   compensar: Record<number, boolean>; onCompensar: (numero: number, v: boolean) => void; onCambio: () => Promise<void>;
   /** Cambia cada vez que el panel refresca (para volver a leer lo contado). */
@@ -120,6 +122,28 @@ export function BdFiscal({ nombre, fecha, hojas, revs, puedeEditar, compensar, o
   const aprobarVerdes = () => accion("inv_fiscal_aprobar", verdes.map((m) => m.ubicacionId),
     { p_forzar: true, ...(compensando ? { p_compensar: true } : {}) }, `${verdes.length} ${verdes.length === 1 ? "módulo aprobado" : "módulos aprobados"}.`);
 
+  const msgSql = (m: string) => /inv_fiscal_cerrar|inv_fiscal_reabrir|schema cache|does not exist|no existe la funci/i.test(m) ? "Falta correr 2026-10-fiscal-TODO.sql en Supabase." : traducirError(m);
+  const hojaCerrada = !!(hoja && cerradas[hoja.numero]);
+  async function cerrarEsta(abrir: boolean) {
+    if (!hoja?.id) return;
+    setMal(null); setOk(null); setOcupado(true);
+    const { error } = await createClient().rpc(abrir ? "inv_fiscal_reabrir_hoja" : "inv_fiscal_cerrar_hoja", { p_hoja: hoja.id });
+    setOcupado(false);
+    if (error) { setMal(msgSql(error.message)); return }
+    setOk(abrir ? `Hoja ${hoja.numero} reabierta: las dos personas pueden volver a contar.` : `Hoja ${hoja.numero} cerrada: nadie más cuenta en ella.`);
+    await onCambio();
+  }
+  async function cerrarTodas() {
+    setMal(null); setOk(null); setOcupado(true);
+    const { data, error } = await createClient().rpc("inv_fiscal_cerrar_hojas", { p_fiscal: fiscalId });
+    setOcupado(false);
+    if (error) { setMal(msgSql(error.message)); return }
+    const r = (Array.isArray(data) ? data[0] : data) as { cerradas: number; pendientes: number } | null;
+    const c = r?.cerradas ?? 0, p = r?.pendientes ?? 0;
+    setOk(`${c === 1 ? "Se cerró 1 hoja" : `Se cerraron ${c} hojas`}${p > 0 ? `; ${p === 1 ? "1 sigue" : `${p} siguen`} con pendientes por validar o aprobar.` : "."}`);
+    await onCambio();
+  }
+
   async function excel(que: "hoja" | "todas") {
     if (!hoja) return;
     setMal(null); setOk(null); setArmando(que);
@@ -202,6 +226,16 @@ export function BdFiscal({ nombre, fecha, hojas, revs, puedeEditar, compensar, o
           </button>
         ))}
         <span className="bd-der">
+          {puedeEditar && (hojaCerrada ? (
+            <button type="button" className="btn plano" disabled={ocupado} onClick={() => cerrarEsta(true)} title="Hoja cerrada: vuelve a dejar contar a las dos personas">Hoja {hoja.numero} cerrada ✓ · Reabrir</button>
+          ) : (
+            <button type="button" className="btn" disabled={ocupado} onClick={() => cerrarEsta(false)} style={{ background: VERDE, color: "#fff" }}
+                    title="Cierra el conteo de esta hoja si todo está aprobado: nadie más cuenta en ella">Cerrar esta hoja</button>
+          ))}
+          {puedeEditar && (
+            <button type="button" className="btn" disabled={ocupado} onClick={cerrarTodas} style={{ background: VERDE, color: "#fff" }}
+                    title="Cierra de una vez todas las hojas que ya tienen todo aprobado; las que tienen pendientes se dejan abiertas">Cerrar todas las hojas aprobadas</button>
+          )}
           <button type="button" className="btn plano" disabled={armando !== null || cargando} onClick={() => excel("hoja")}>{armando === "hoja" ? "Armando…" : "Excel de esta hoja"}</button>
           <button type="button" className="btn plano" disabled={armando !== null || cargando} onClick={() => excel("todas")}>{armando === "todas" ? "Armando…" : "Excel de todas las hojas"}</button>
         </span>
