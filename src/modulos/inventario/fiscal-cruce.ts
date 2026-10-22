@@ -211,7 +211,8 @@ export function cruceModulo(filas: FilaCruce[]): FilaCruce[] {
   });
 }
 
-/* LA COMPENSACIÓN. Un click del fiscal, en dos pasos:
+/* LA COMPENSACIÓN. Un click del fiscal. Primero, un código que en total cuadra en la hoja (suma 0) se compensa entero. Luego lo más seguro: el mismo código y la misma cantidad (+N / −N) en cualquier sitio de la
+   hoja. Después, en dos pasos:
      1. En cada módulo, una diferencia de +45 en un material y otra de −45 en otro se dan por compensadas (casi siempre es el
         mismo material anotado con otro código por cada persona).
      2. Entre módulos de la hoja, el MISMO código de material (sin mirar avería, estado ni PNC) y la misma cantidad, con +588 en un módulo y −588 en otro: uno
@@ -226,10 +227,39 @@ export function compensarCruce(filas: FilaCruce[]): { filas: FilaCruce[]; pares:
   }
   const marcadas = new Set<FilaCruce>();
   let pares = 0;
-  for (const l of porModulo.values()) {
-    const neg = l.filter((f) => f.diferencia < 0);
+  /* Paso -1: un código que en TOTAL cuadra en la hoja (la suma de sus diferencias es 0: +52 +52 en un sitio y −104 en otro) se
+     compensa entero, renglón por renglón, aunque las cantidades no sean iguales una a una. */
+  const totales = new Map<string, FilaCruce[]>();
+  for (const f of filas) {
+    if (f.estado === "COINCIDE" || f.diferencia === 0) continue;
+    const l = totales.get(f.sku) ?? [];
+    l.push(f); totales.set(f.sku, l);
+  }
+  for (const l of totales.values()) {
+    if (l.length < 2 || l.reduce((t, f) => t + f.diferencia, 0) !== 0) continue;
+    for (const f of l) marcadas.add(f);
+    pares += Math.max(1, Math.min(l.filter((f) => f.diferencia > 0).length, l.filter((f) => f.diferencia < 0).length));
+  }
+  /* Paso 0 (el primero): el MISMO código y la MISMA cantidad, una positiva y otra negativa, en cualquier sitio de la hoja
+     (también dentro del mismo módulo). Va primero para que ese par no se lo «robe» otro material de +45/−45 en el módulo. */
+  const porSku = new Map<string, FilaCruce[]>();
+  for (const f of filas) {
+    if (f.estado === "COINCIDE" || f.diferencia === 0 || marcadas.has(f)) continue;
+    const l = porSku.get(f.sku) ?? [];
+    l.push(f); porSku.set(f.sku, l);
+  }
+  for (const l of porSku.values()) {
     const usadas = new Set<FilaCruce>();
     for (const p of l.filter((f) => f.diferencia > 0)) {
+      const q = l.find((n) => n.diferencia < 0 && !usadas.has(n) && -n.diferencia === p.diferencia);
+      if (!q) continue;
+      usadas.add(q); marcadas.add(p); marcadas.add(q); pares++;
+    }
+  }
+  for (const l of porModulo.values()) {
+    const neg = l.filter((f) => f.diferencia < 0 && !marcadas.has(f));
+    const usadas = new Set<FilaCruce>();
+    for (const p of l.filter((f) => f.diferencia > 0 && !marcadas.has(f))) {
       const q = neg.find((n) => !usadas.has(n) && -n.diferencia === p.diferencia);
       if (!q) continue;
       usadas.add(q); marcadas.add(p); marcadas.add(q); pares++;

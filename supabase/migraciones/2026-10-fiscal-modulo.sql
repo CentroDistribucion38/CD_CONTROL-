@@ -323,7 +323,10 @@ as $$
                 and ((select count(*) from g g2 where g2.modulo = g.modulo and g2.dif = g.dif)
                        = (select count(*) from g g3 where g3.modulo = g.modulo and g3.dif = -g.dif)
                      or exists (select 1 from g g4
-                                 where g4.modulo <> g.modulo and g4.producto_id = g.producto_id and g4.dif = -g.dif)))
+                                 where g4.modulo <> g.modulo and g4.producto_id = g.producto_id and g4.dif = -g.dif)
+                     -- (c) el mismo código que en TOTAL cuadra en toda la hoja (la suma de sus diferencias es 0)
+                     or (select count(*) from g g5 where g5.producto_id = g.producto_id and (g5.co is null or g5.cb is null or g5.co <> g5.cb)) > 1
+                        and (select sum(g6.dif) from g g6 where g6.producto_id = g.producto_id) = 0))
   )
 $$;
 revoke all on function public.inv_fiscal_modulo_difiere(uuid, uuid, boolean) from public, anon, authenticated;
