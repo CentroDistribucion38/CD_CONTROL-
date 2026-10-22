@@ -621,6 +621,28 @@ export function ContarFiscal({
   const estadoT = terminos[hoja.hojaId] ?? { termine: hoja.termine, parejaTermino: hoja.parejaTermino };
   /* Terminada: solo si la base ya sabe terminar hojas y la persona la terminó. */
   const cerrada = hoja.puedeContar && hoja.puedeTerminar && estadoT.termine;
+  /* El aviso de que la hoja terminada espera al fiscal (se ve en «Anotar» y debajo de lo que llevo anotado). */
+  const avisoEspera = cerrada ? (() => {
+            const aprobada = enBase > 0 && (mios?.length ?? 0) === 0;
+            const esperaFiscal = estadoT.parejaTermino && !aprobada;
+            const fondo = aprobada ? "#d6f0e0" : "#fff1b8";
+            const borde = aprobada ? "#0b7a3e" : "#c99700";
+            return (
+              <div role="status" style={{ background: fondo, color: "#1a1a1a", border: `2px solid ${borde}`, borderRadius: 0, padding: "14px 16px", margin: "0 0 12px" }}>
+                <b style={{ display: "block", fontSize: "1.05rem" }}>
+                  {aprobada ? "El fiscal aprobó tu hoja: ya está en La base."
+                    : esperaFiscal ? "En espera de la aprobación del fiscal."
+                    : `En espera de que ${hoja.pareja ?? "tu pareja"} termine su hoja.`}
+                </b>
+                <span style={{ display: "block", marginTop: 4 }}>
+                  {aprobada ? "No tienes nada pendiente en esta hoja."
+                    : esperaFiscal ? "Ya terminaron los dos. Esta pantalla se actualiza sola cuando el fiscal apruebe; no tienes que hacer nada."
+                    : "Cuando termine, el fiscal podrá cruzar y aprobar las dos hojas."}
+                  {enBase > 0 && !aprobada && <> Ya pasaron a La base {enBase} {enBase === 1 ? "renglón aprobado" : "renglones aprobados"}.</>}
+                </span>
+              </div>
+            );
+          })() : null;
   const totalMio = (mios ?? []).reduce((s, r) => s + Number(r.total_cajas || 0), 0);
 
   const reabrirUI = (clase: string) => reap.autorizado ? (
@@ -988,6 +1010,7 @@ export function ContarFiscal({
       {cerrada && (
         <section className="fe-anotar fc-terminada" hidden={pestania !== "anotar"} role="status" aria-label="Hoja terminada">
           <div className="fe-anotar-cab"><p className="fe-paso">Hoja {hoja.numero} · terminada</p></div>
+          {avisoEspera}
           <p className="fc-term-dice"><b>Terminaste tu hoja.</b>{" "}
             {estadoT.parejaTermino
               ? "Tu pareja también terminó: quien arma el plan ya puede cruzar las dos hojas."
@@ -1040,6 +1063,7 @@ export function ContarFiscal({
             <p>El fiscal los aprobó y pasaron a La base; por eso ya no aparecen en tu borrador.</p>
           </details>
         )}
+        {cerrada && avisoEspera}
         {cerrada && (
           <p className="fc-nota-term" role="status">Tu hoja está terminada: para cambiar algo, el fiscal tiene que darte el OK para reabrirla.{" "}
             {reabrirUI("fe-mini fc-reabrir")}</p>
