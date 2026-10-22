@@ -47,6 +47,7 @@ const ICONOS = {
   escudo: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
   calendario: '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',
   mas: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+  campana: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
   vacio: '<circle cx="12" cy="12" r="10"/><path d="M8 12h8"/>',
 } as const;
 export type IcoNombre = keyof typeof ICONOS;
@@ -89,7 +90,7 @@ type Filtro = "todas" | "proceso" | "ok" | "dif";
 /** Las ubicaciones con diferencia, con cuántos renglones no coinciden en cada una. */
 export function ubicacionesConDiferencia(filas: FilaCruce[]): { ubicacion: string; renglones: number }[] {
   const m = new Map<string, number>();
-  for (const f of filas) if (f.estado !== "COINCIDE") m.set(f.ubicacion, (m.get(f.ubicacion) ?? 0) + 1);
+  for (const f of filas) if (f.estado !== "COINCIDE" && !f.compensada) m.set(f.ubicacion, (m.get(f.ubicacion) ?? 0) + 1);
   return [...m].map(([ubicacion, renglones]) => ({ ubicacion, renglones }))
     .sort((a, b) => a.ubicacion.localeCompare(b.ubicacion, "es", { numeric: true }));
 }
@@ -211,7 +212,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
   /** La hoja que se mira en «Revisión»: una a la vez, no todas apiladas. */
   const [hojaRev, setHojaRev] = useState<number | null>(null);
   const [verTodo, setVerTodo] = useState<Record<number, boolean>>({});
-  /** Hojas donde el fiscal pulsó «Compensar»: las diferencias iguales y contrarias de un mismo módulo se dan por compensadas. */
+  /** La compensación es automática al abrir cada hoja; aquí solo se guardan las hojas donde el fiscal la quitó (false). */
   const [compensar, setCompensar] = useState<Record<number, boolean>>({});
   const { avance, cruces, hora, error, cargar, revs, hojaIds, conValidar, consolidados, fotos, reaps, cerradas } = useTorre(fiscalId, avanceInicial, conAvance);
   const nf = useMemo(() => new Intl.NumberFormat("es-CO"), []);
@@ -221,8 +222,9 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
     const estado = av ? estadoHoja(av) : "sin-empezar";
     const cr = cruces[h.numero];
     const resumen: ResumenCruce | null = cr && "filas" in cr ? resumenCruce(cr.filas) : null;
-    const pend = cr && "filas" in cr ? difPendientes(cr.filas, revs, h.numero) : [];
-    const aprobadoTodo = !!resumen && resumen.conDiferencia > 0 && pend.length === 0;
+    const filasEf = cr && "filas" in cr ? (compensar[h.numero] !== false ? compensarCruce(cr.filas).filas : cr.filas) : null;
+    const pend = filasEf ? difPendientes(filasEf, revs, h.numero) : [];
+    const aprobadoTodo = !!resumen && resumen.conDiferencia > 0 && pend.length === 0 && revs.some((r) => r.numero === h.numero && r.estado === "APROBADA");
     const enValidacion = revs.filter((r) => r.numero === h.numero && r.estado === "A_VALIDAR").length;
     let tipo: Tipo = "sin";
     if (estado === "lista" || (estado === "una-termino" && resumen)) tipo = resumen ? (pend.length === 0 ? "ok" : "dif") : "proceso";
@@ -271,18 +273,18 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
     if (pestana !== "revision" || foco === null) return;
     document.getElementById("vf-h" + foco)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [pestana, foco]);
-  const [okMal, setOkMal] = useState<string | null>(null);
-  async function darOkReabrir(hojaId: string | undefined, equipo: "OL" | "BAVARIA", si: boolean) {
-    if (!hojaId) return;
-    setOkMal(null);
+  /** Hoja cuya caja de pasos está abierta (la abre «Aprobada · Siguiente paso» o la campanita). */
+  const [caja, setCaja] = useState<number | null>(null);
+  async function darOkReabrir(hojaId: string | undefined, equipo: "OL" | "BAVARIA", si: boolean): Promise<string | null> {
+    if (!hojaId) return "No se pudo identificar la hoja.";
     const { error } = await createClient().rpc("inv_fiscal_reabrir_autorizar", { p_hoja: hojaId, p_equipo: equipo, p_si: si });
-    if (error) {
-      setOkMal(/inv_fiscal_reabrir_autorizar|schema cache|does not exist/i.test(error.message) ? "Falta correr 2026-10-fiscal-TODO.sql en Supabase." : traducirError(error.message));
-      return;
-    }
+    if (error) return /inv_fiscal_reabrir_autorizar|schema cache|does not exist/i.test(error.message) ? "Falta correr 2026-10-fiscal-TODO.sql en Supabase." : traducirError(error.message);
     await cargar();
+    return null;
   }
+  const pidieronHoja = (n: number) => reaps.filter((x) => x.numero === n && x.pedido_en && !x.autorizado_en).length;
   const abrirRevision = (n: number) => { setFoco(n); setHojaRev(n); setPestana("revision") };
+  const abrirCaja = (n: number) => { abrirRevision(n); setCaja(n) };
 
   const persona = (id: string, et: string, rengl: number | undefined, termino: string | null | undefined, hay: boolean) => {
     const fin = !!termino;
@@ -375,6 +377,13 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                         <span className={"vf-card-ico " + t.tipo}><Ico n={ICO_TIPO[t.tipo]} tam={18} /></span>
                         <h3>Hoja {t.h.numero}</h3>
                         <span className={"vf-estado " + t.tipo}>{texto(t)}</span>
+                        {puedeEditar && (t.av?.olTermino || t.av?.bavariaTermino) && (
+                          <button type="button" className="btn plano" onClick={() => abrirCaja(t.h.numero)} aria-label={`Hoja ${t.h.numero}: reabrir`}
+                                  title={pidieronHoja(t.h.numero) > 0 ? "Pidieron reabrir su hoja: toca para darles el OK" : "Reabrir la hoja a las personas"}
+                                  style={{ marginLeft: "auto", padding: "4px 8px", ...(pidieronHoja(t.h.numero) > 0 ? { background: "#b71c1c", color: "#fff", borderColor: "#b71c1c" } : { opacity: 0.6 }) }}>
+                            <Ico n="campana" tam={16} />{pidieronHoja(t.h.numero) > 0 ? ` ${pidieronHoja(t.h.numero)}` : ""}
+                          </button>
+                        )}
                       </header>
                       <ul className="vf-pareja">
                         {persona(t.h.ol, "Operador logístico", t.av?.olRenglones, t.av?.olTermino, !!t.av)}
@@ -434,10 +443,18 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
               {cruzadas.map((t) => {
                 const on = (hojaRev ?? cruzadas[0].h.numero) === t.h.numero;
                 return (
-                  <button key={t.h.numero} type="button" role="tab" aria-selected={on} className={"btn " + (on ? "" : "plano")}
-                          onClick={() => setHojaRev(t.h.numero)} title={`${t.h.ol ? quien(t.h.ol) : "—"} · ${t.h.bavaria ? quien(t.h.bavaria) : "—"}`}>
-                    Hoja {t.h.numero} · {t.tipo === "dif" ? `${t.pend.length} por revisar` : t.tipo === "ok" ? "lista" : "en proceso"}
-                  </button>
+                  <span key={t.h.numero} style={{ display: "inline-flex" }}>
+                    <button type="button" role="tab" aria-selected={on} className={"btn " + (on ? "" : "plano")}
+                            onClick={() => setHojaRev(t.h.numero)} title={`${t.h.ol ? quien(t.h.ol) : "—"} · ${t.h.bavaria ? quien(t.h.bavaria) : "—"}`}>
+                      Hoja {t.h.numero} · {t.tipo === "dif" ? `${t.pend.length} por revisar` : t.tipo === "ok" ? "lista" : "en proceso"}
+                    </button>
+                    {puedeEditar && pidieronHoja(t.h.numero) > 0 && (
+                      <button type="button" className="btn" onClick={() => abrirCaja(t.h.numero)} style={{ background: "#b71c1c", color: "#fff", padding: "0 10px" }}
+                              title="Pidieron reabrir su hoja: toca para darles el OK" aria-label={`Hoja ${t.h.numero}: pidieron reabrir`}>
+                        <Ico n="campana" tam={16} /> {pidieronHoja(t.h.numero)}
+                      </button>
+                    )}
+                  </span>
                 );
               })}
             </div>
@@ -445,7 +462,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
           {cruzadas.length > 0 && cruzadas.filter((t) => t.h.numero === (hojaRev ?? cruzadas[0].h.numero)).map((t) => {
             const filasBase = t.cr && "filas" in t.cr ? t.cr.filas : [];
             const compBase = compensarCruce(filasBase);
-            const compensando = !!compensar[t.h.numero] && compBase.pares > 0;
+            const compensando = compensar[t.h.numero] !== false && compBase.pares > 0;
             const filas = compensando ? compBase.filas : filasBase;
             const r = t.resumen as ResumenCruce;
             const todo = !!verTodo[t.h.numero];
@@ -495,9 +512,14 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                     <Ico n="lista" tam={15} /> {compensando ? `Quitar la compensación (${compBase.pares} ${compBase.pares === 1 ? "par" : "pares"})` : `Compensar (${compBase.pares} ${compBase.pares === 1 ? "par" : "pares"})`}
                   </button>
                 )}
-                {compensando && <p className="cl-nota" role="note">Compensadas {compBase.pares} {compBase.pares === 1 ? "pareja" : "parejas"} de diferencias iguales y de signo contrario (en un mismo módulo, o el mismo material entre dos módulos): ya no aparecen como diferencia. Quedan solo las que no se compensan.</p>}
                 {conValidar ? (
-                  <ValidarHoja cerrada={!!cerradas[t.h.numero]} compensando={compensando} hojaId={hojaIds[t.h.numero] ?? null} numero={t.h.numero} calle={t.h.calle} filas={filas} revs={revs} unaSola={t.estado === "una-termino" ? (t.av?.olTermino ? (t.h.ol ? quien(t.h.ol) : "el operador") : (t.h.bavaria ? quien(t.h.bavaria) : "Bavaria")) : null} consol={consolidados[t.h.numero] ?? null}
+                  <ValidarHoja cajaAbierta={caja === t.h.numero} onCaja={(v) => setCaja(v ? t.h.numero : null)}
+                               reabrir={([["OL", t.av?.olTermino, t.h.ol], ["BAVARIA", t.av?.bavariaTermino, t.h.bavaria]] as const).filter(([, term]) => !!term).map(([eq, , uid]) => {
+                                 const rr = reaps.find((x) => x.numero === t.h.numero && x.equipo === eq);
+                                 return { equipo: eq, nombre: uid ? quien(uid) : eq === "OL" ? "Operador" : "Bavaria", pidio: !!rr?.pedido_en, ok: !!rr?.autorizado_en };
+                               })}
+                               onOkReabrir={(eq, si) => darOkReabrir(hojaIds[t.h.numero], eq, si)}
+                               cerrada={!!cerradas[t.h.numero]} compensando={compensando} hojaId={hojaIds[t.h.numero] ?? null} numero={t.h.numero} calle={t.h.calle} filas={filas} revs={revs} unaSola={t.estado === "una-termino" ? (t.av?.olTermino ? (t.h.ol ? quien(t.h.ol) : "el operador") : (t.h.bavaria ? quien(t.h.bavaria) : "Bavaria")) : null} consol={consolidados[t.h.numero] ?? null}
                                puedeEditar={puedeEditar} ol={t.h.ol ? quien(t.h.ol) : ""} bavaria={t.h.bavaria ? quien(t.h.bavaria) : ""} onCambio={cargar} />
                 ) : (
                   <p className="cl-nota" role="note">Para validar y aprobar falta correr <code>supabase/migraciones/2026-10-fiscal-validar.sql</code> en Supabase.</p>
@@ -535,33 +557,6 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                     </table>
                   </div>
                 )}
-                {puedeEditar && (t.av?.olTermino || t.av?.bavariaTermino) && (() => {
-                  const hid = hojaIds[t.h.numero];
-                  const eqs = ([["OL", t.av?.olTermino, t.h.ol], ["BAVARIA", t.av?.bavariaTermino, t.h.bavaria]] as const).filter(([, term]) => !!term);
-                  const lista = reaps.filter((x) => x.numero === t.h.numero);
-                  const pidieron = lista.filter((x) => !x.autorizado_en).length;
-                  return (
-                    <details className="vf-reabrir">
-                      <summary>Reabrir la hoja a las personas{pidieron > 0 ? ` · ${pidieron} ${pidieron === 1 ? "pidió" : "pidieron"} reabrir` : ""}</summary>
-                      <p className="cl-nota" role="note">Una hoja terminada solo se reabre con tu OK. Da el OK a quien necesite corregir; esa persona la reabre desde Contar y vuelve a terminar.</p>
-                      {okMal && <p className="cl-mal" role="alert">{okMal}</p>}
-                      <ul>
-                        {eqs.map(([eq, , uid]) => {
-                          const r = lista.find((x) => x.equipo === eq);
-                          const nombreP = uid ? quien(uid) : eq === "OL" ? "Operador" : "Bavaria";
-                          return (
-                            <li key={eq}>
-                              <b>{nombreP}</b>{" "}
-                              {r?.autorizado_en ? <>· OK dado. <button type="button" className="btn plano" onClick={() => darOkReabrir(hid, eq, false)}>Quitar el OK</button></>
-                                : <>{r?.pedido_en ? "· pidió reabrir su hoja. " : "· hoja terminada. "}
-                                    <button type="button" className="btn plano" onClick={() => darOkReabrir(hid, eq, true)}>Dar el OK para reabrir</button></>}
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </details>
-                  );
-                })()}
               </section>
             );
           })}

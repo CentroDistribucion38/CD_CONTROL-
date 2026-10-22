@@ -38,11 +38,16 @@ type Ub = { id: string | null; clave: string; dif: boolean; comp: number; renglo
 const orden = (a: string, b: string) => a.localeCompare(b, "es", { numeric: true });
 export const moduloDe = (clave: string) => clave.replace(/_(IZQ|DER)$/i, "");
 
-export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeEditar, ol, bavaria, onCambio, unaSola = null, compensando = false, cerrada = false }: {
+export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeEditar, ol, bavaria, onCambio, unaSola = null, compensando = false, cerrada = false, reabrir = [], onOkReabrir, cajaAbierta, onCaja }: {
   /** El fiscal pulsó «Compensar»: las diferencias compensadas no cuentan y al aprobar se manda p_compensar. */
   compensando?: boolean;
   /** El fiscal ya cerró esta hoja: nadie más cuenta en ella hasta que la reabra o pase a otra calle. */
   cerrada?: boolean;
+  /** Quién terminó su hoja y si pidió reabrir / ya tiene el OK del fiscal. */
+  reabrir?: { equipo: "OL" | "BAVARIA"; nombre: string; pidio: boolean; ok: boolean }[];
+  onOkReabrir?: (equipo: "OL" | "BAVARIA", si: boolean) => Promise<string | null>;
+  /** La caja de pasos puede abrirla desde fuera (la campanita). */
+  cajaAbierta?: boolean; onCaja?: (v: boolean) => void;
   /** Nombre de la única persona que terminó (la otra aún no): no hay cruce y se aprueba confirmando. */
   unaSola?: string | null;
   hojaId: string | null; numero: number; calle?: string; filas: FilaCruce[]; revs: RevisionBD[]; consol?: ConsolidadoBD | null; puedeEditar: boolean;
@@ -61,6 +66,10 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
   const router = useRouter();
   const [nueva, setNueva] = useState("");
   const [mas, setMas] = useState(false);
+  const [cajaInt, setCajaInt] = useState(false);
+  const abierta = cajaAbierta ?? cajaInt;
+  const setCaja = (v: boolean) => { if (onCaja) onCaja(v); else setCajaInt(v) };
+  const [esperaCaja, setEsperaCaja] = useState(false);
   const [seguro, setSeguro] = useState(false);
 
   /* Lo que marcaron en Contar (mezclado / sin acceso). Si a la base le falta el SQL, simplemente no hay marcas. */
@@ -160,6 +169,7 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
     if (fn === "inv_fiscal_aprobar") {
       const c = await consolidar();
       if (c) setOk(`${listo} ${c}`);
+      setEsperaCaja(true); setTimeout(() => setEsperaCaja(false), 8000);
     }
     await onCambio();
   }
@@ -212,6 +222,8 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
       setMal(/inv_fiscal_cerrar_hoja|inv_fiscal_reabrir_hoja|schema cache|does not exist|no existe la funci/i.test(error.message) ? "Falta correr 2026-10-fiscal-TODO.sql en Supabase." : traducirError(error.message));
       return;
     }
+    /* Al reabrir, quien ya había pedido reabrir su hoja recibe el OK en el mismo paso. */
+    if (abrir && onOkReabrir) for (const r of reabrir.filter((x) => x.pidio && !x.ok)) await onOkReabrir(r.equipo, true);
     setOk(abrir ? "Hoja reabierta: las dos personas pueden volver a contar." : "Hoja cerrada: lo aprobado quedó en La base y nadie más cuenta en ella.");
     await onCambio();
     router.refresh();
@@ -229,28 +241,21 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
             style={{ ...estiloCheck, background: "#0b7a3e", color: "#fff", cursor: ocupado ? "wait" : "pointer", opacity: ocupado ? 0.7 : 1 }}>
       {iconoCheck} Aprobar {porAprobar.length === 1 ? "la ubicación" : `las ${porAprobar.length} ubicaciones`}
     </button>
-  ) : puedeEditar && !hayAbierto && porAprobar.length === 0 && nAprobadas > 0 ? (
-    <button type="button"
-            onClick={() => { const el = document.getElementById(`vv-sig-${numero}`); el?.scrollIntoView({ behavior: "smooth", block: "center" }); (document.getElementById(`vv-calle-${numero}`) as HTMLSelectElement | null)?.focus() }}
-            title="Aprobada: ahora escoge la calle a la que pasan las dos personas"
-            style={{ ...estiloCheck, background: "transparent", color: "#0b7a3e", boxShadow: "inset 0 0 0 2px #0b7a3e", cursor: "pointer" }}>
-      {iconoCheck} Aprobada · Siguiente calle
-    </button>
   ) : null;
   const listoParaCerrar = puedeEditar && !hayAbierto && porAprobar.length === 0 && nAprobadas > 0;
-  const botonCerrar = cerrada ? (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-      <b style={{ color: "#0b7a3e" }}>Hoja cerrada ✓</b>
-      {puedeEditar && <button type="button" className="btn plano" disabled={ocupado} onClick={() => cerrarHoja(true)} title="Vuelve a dejar contar a las dos personas">Reabrir</button>}
-    </span>
-  ) : listoParaCerrar ? (
-    <button type="button" disabled={ocupado} onClick={() => cerrarHoja(false)}
-            title="Cierra el conteo de esta hoja: lo aprobado pasa a La base y nadie más cuenta en ella"
-            style={{ ...estiloCheck, background: "#0b7a3e", color: "#fff", cursor: ocupado ? "wait" : "pointer", opacity: ocupado ? 0.7 : 1 }}>
-      {iconoCheck} Cerrar hoja
+  const nPidieron = reabrir.filter((r) => r.pidio && !r.ok).length;
+  /* Aprobado todo, se abre sola la caja de pasos (La base · cerrar · siguiente calle · reabrir). */
+  useEffect(() => {
+    if (esperaCaja && listoParaCerrar) { setCaja(true); setEsperaCaja(false) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [esperaCaja, listoParaCerrar]);
+  const botonCaja = puedeEditar && !botonAprobar && (listoParaCerrar || cerrada || nPidieron > 0) ? (
+    <button type="button" onClick={() => setCaja(true)} title="Abre los pasos de la hoja: La base, cerrar, siguiente calle y reabrir"
+            style={{ ...estiloCheck, background: cerrada ? "transparent" : "#0b7a3e", color: cerrada ? "#0b7a3e" : "#fff", boxShadow: cerrada ? "inset 0 0 0 2px #0b7a3e" : "none", cursor: "pointer" }}>
+      {iconoCheck} {cerrada ? "Hoja cerrada · Pasos" : listoParaCerrar ? "Aprobada · Siguiente paso" : `${nPidieron} ${nPidieron === 1 ? "pidió" : "pidieron"} reabrir`}
     </button>
   ) : null;
-  const botones = (botonAprobar || botonCerrar) ? <>{botonAprobar}{botonCerrar}</> : null;
+  const botones = (botonAprobar || botonCaja) ? <>{botonAprobar}{botonCaja}</> : null;
   /* Se ofrece también la calle actual: sirve para seguir contando lo que falta de ella (la hoja se reabre para las dos personas). */
   const otras = Object.keys(MODULOS_DE_LA_HOJA);
   async function siguienteCalle() {
@@ -261,10 +266,104 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
     setOcupado(false);
     if (error) { setMal(traducirError(error.message)); return }
     setOk(`La hoja pasó a la calle ${nueva}. Las dos personas la ven reabierta en Contar.`);
-    setSeguro(false); setNueva("");
+    setSeguro(false); setNueva(""); setCaja(false);
     await onCambio();
     router.refresh();
   }
+
+  /* ── LA CAJA DE PASOS: lo que sigue después de aprobar, en un solo lugar y en orden ── */
+  const [okReab, setOkReab] = useState<string | null>(null);
+  async function okReabrir(eq: "OL" | "BAVARIA", si: boolean) {
+    if (!onOkReabrir) return;
+    setOkReab(null); setOcupado(true);
+    const m = await onOkReabrir(eq, si);
+    setOcupado(false);
+    if (m) setOkReab(m);
+  }
+  const bloqueada = hayAbierto || ubs.length === 0;
+  const textoBase = consol
+    ? `${consol.ubicaciones} ${consol.ubicaciones === 1 ? "ubicación" : "ubicaciones"} · ${consol.renglones} ${consol.renglones === 1 ? "renglón" : "renglones"} · ${Number(consol.cajas).toLocaleString("es-CO")} cajas`
+    : "Todavía no se manda nada.";
+  const caja = abierta && typeof document !== "undefined" ? createPortal(
+    <div className="vvc-velo" onClick={() => setCaja(false)}>
+      <div className="vvc" role="dialog" aria-modal="true" aria-label={`Pasos de la hoja ${numero}`} onClick={(e) => e.stopPropagation()}>
+        <header className="vvc-cab">
+          <b>Hoja {numero}{calle ? ` · calle ${calle}` : ""}</b>
+          <button type="button" onClick={() => setCaja(false)} aria-label="Cerrar esta ventana">✕</button>
+        </header>
+        <div className="vvc-cuerpo">
+          {(mal || ok) && <p className={mal ? "vvc-msg mal" : "vvc-msg"} role={mal ? "alert" : "status"}>{mal ?? ok}</p>}
+
+          <section className="vvc-paso">
+            <span className={"vvc-n" + (bloqueada ? "" : " ok")}>{bloqueada ? "1" : "✓"}</span>
+            <div><b>Validado</b><p>{bloqueada ? "Faltan ubicaciones por aprobar en esta hoja." : `${nAprobadas} de ${ubs.length} ubicaciones aprobadas.`}</p></div>
+          </section>
+
+          <section className="vvc-paso">
+            <span className={"vvc-n" + (consol ? " ok" : "")}>{consol ? "✓" : "2"}</span>
+            <div><b>En La base</b><p>{textoBase}</p></div>
+            {puedeEditar && <button type="button" className="vvc-b" disabled={ocupado || nAprobadas === 0} onClick={consolidarYa}>Actualizar</button>}
+          </section>
+
+          <section className="vvc-paso vvc-dos">
+            <span className="vvc-n">3</span>
+            <div className="vvc-opc">
+              <b>Y ahora, ¿qué sigue?</b>
+              <div className="vvc-cols">
+                <div className="vvc-col">
+                  <small>Seguir con otra calle</small>
+                  <select value={nueva} disabled={bloqueada || ocupado} onChange={(e) => { setNueva(e.target.value); setSeguro(false) }} aria-label="Calle a la que pasan">
+                    <option value="">Escoge la calle…</option>
+                    {otras.map((c) => <option key={c} value={c}>Calle {c}{c === (calle ?? "") ? " (la actual)" : ""}</option>)}
+                  </select>
+                  {!seguro ? (
+                    <button type="button" className="vvc-b" disabled={bloqueada || ocupado || !nueva} onClick={() => setSeguro(true)}>Pasar a esa calle</button>
+                  ) : (
+                    <div className="vvc-conf">
+                      <button type="button" className="vvc-b fuerte" disabled={ocupado} onClick={siguienteCalle}>Sí, pasar a la calle {nueva}</button>
+                      <button type="button" className="vvc-b" onClick={() => setSeguro(false)}>No</button>
+                    </div>
+                  )}
+                  <p>La misma hoja cambia de calle y las dos personas la ven reabierta. Lo de esta calle se conserva.</p>
+                </div>
+                <div className="vvc-col">
+                  <small>Terminar el conteo</small>
+                  {cerrada ? (
+                    <>
+                      <p className="vvc-ok">Hoja cerrada ✓ · nadie más cuenta en ella.</p>
+                      <button type="button" className="vvc-b" disabled={ocupado} onClick={() => cerrarHoja(true)}>Reabrir la hoja</button>
+                    </>
+                  ) : (
+                    <>
+                      <button type="button" className="vvc-b fuerte" disabled={!listoParaCerrar || ocupado} onClick={() => cerrarHoja(false)}>Cerrar la hoja</button>
+                      <p>{listoParaCerrar ? "Lo aprobado queda en La base y nadie más cuenta en esta hoja." : "Se puede cerrar cuando todo esté aprobado."}</p>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {reabrir.length > 0 && (
+            <section className="vvc-reab">
+              <b>Reabrir a las personas</b>
+              <p>Una hoja terminada solo se reabre con tu OK; esa persona la reabre desde Contar y vuelve a terminar.</p>
+              {okReab && <p className="vvc-msg mal" role="alert">{okReab}</p>}
+              <ul>
+                {reabrir.map((r) => (
+                  <li key={r.equipo}>
+                    <span>{r.pidio && !r.ok && <i className="vvc-camp" title="Pidió reabrir">🔔</i>}<b>{r.nombre}</b> <small>{r.ok ? "· OK dado" : r.pidio ? "· pidió reabrir su hoja" : "· hoja terminada"}</small></span>
+                    {puedeEditar && (r.ok
+                      ? <button type="button" className="vvc-b" disabled={ocupado} onClick={() => okReabrir(r.equipo, false)}>Quitar el OK</button>
+                      : <button type="button" className={"vvc-b" + (r.pidio ? " fuerte" : "")} disabled={ocupado} onClick={() => okReabrir(r.equipo, true)}>Dar el OK</button>)}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </div>
+      </div>
+    </div>, document.body) : null;
 
   const quien = (u: Ub) => {
     if (u.rev?.estado !== "A_VALIDAR") return null;
@@ -302,6 +401,38 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
         .vv .vv-sig .vv-acc{display:flex;gap:6px;align-items:center;margin-left:auto}
         .vv .vv-base{border-left:3px solid #0b7a3e}
         .vv .cl-nota{font-size:.74rem;margin:4px 12px}
+        .vv .vv-detalle>summary{cursor:pointer;padding:8px 12px;font-size:.8rem;list-style:none;border-bottom:1px solid rgba(127,127,127,.25)}
+        .vv .vv-detalle>summary::-webkit-details-marker{display:none}
+        .vv .vv-detalle>summary::before{content:"▸ "}
+        .vv .vv-detalle[open]>summary::before{content:"▾ "}
+        .vvc-velo{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px}
+        .vvc{width:min(580px,100%);max-height:92vh;overflow:auto;background:var(--c-fdfdff,#fff);color:var(--c-04203f,#1a1a1a);border-radius:0;box-shadow:0 18px 50px rgba(0,0,0,.35)}
+        .vvc-cab{display:flex;align-items:center;justify-content:space-between;background:#111;color:#fff;padding:12px 16px;font-size:.95rem;letter-spacing:.02em}
+        .vvc-cab button{background:transparent;border:0;color:#fff;font-size:1.1rem;cursor:pointer;padding:2px 8px}
+        .vvc-cuerpo{padding:4px 0 8px}
+        .vvc-paso{display:flex;gap:14px;align-items:flex-start;padding:14px 16px;border-bottom:1px solid rgba(127,127,127,.22)}
+        .vvc-paso>div{flex:1;min-width:0}
+        .vvc-paso b{font-size:.92rem}
+        .vvc-paso p{margin:2px 0 0;font-size:.78rem;opacity:.72}
+        .vvc-n{flex:0 0 28px;height:28px;display:flex;align-items:center;justify-content:center;border:2px solid currentColor;font-size:.82rem;font-weight:800;opacity:.55}
+        .vvc-n.ok{background:#0b7a3e;border-color:#0b7a3e;color:#fff;opacity:1}
+        .vvc-b{padding:7px 14px;font-size:.8rem;font-weight:700;border:1px solid currentColor;background:transparent;color:inherit;cursor:pointer;border-radius:0;white-space:nowrap}
+        .vvc-b:disabled{opacity:.4;cursor:not-allowed}
+        .vvc-b.fuerte{background:#0b7a3e;border-color:#0b7a3e;color:#fff}
+        .vvc-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:10px}
+        .vvc-col{display:flex;flex-direction:column;gap:8px;align-items:stretch;padding-left:12px;border-left:2px solid rgba(127,127,127,.3)}
+        .vvc-col small{font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;opacity:.65}
+        .vvc-col select{padding:7px 8px;font-size:.82rem;border-radius:0}
+        .vvc-conf{display:flex;gap:6px;flex-wrap:wrap}
+        .vvc-ok{color:#0b7a3e;font-weight:700}
+        .vvc-reab{padding:14px 16px}
+        .vvc-reab p{margin:2px 0 8px;font-size:.76rem;opacity:.7}
+        .vvc-reab ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+        .vvc-reab li{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border:1px solid rgba(127,127,127,.3)}
+        .vvc-camp{font-style:normal;margin-right:6px}
+        .vvc-msg{margin:10px 16px 0;padding:8px 10px;font-size:.8rem;border-left:3px solid #0b7a3e;background:rgba(11,122,62,.08)}
+        .vvc-msg.mal{border-left-color:#b71c1c;background:rgba(183,28,28,.08)}
+        @media (max-width:560px){.vvc-cols{grid-template-columns:1fr}}
       `}</style>
       {slot && botones && createPortal(botones, slot)}
       <header className="vv-cab">
@@ -384,6 +515,8 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
       {mal && <p className="cl-mal" role="alert">{mal}</p>}
       {ok && <p className="cl-ok" role="status">{ok}</p>}
 
+      <details className="vv-detalle" open={hayAbierto || todas}>
+        <summary>{hayAbierto ? "Ubicaciones por resolver" : `Ver las ${nAprobadas} ${nAprobadas === 1 ? "ubicación aprobada" : "ubicaciones aprobadas"}`}</summary>
       <ul className="vv-lista">
         {visibles.map((u) => {
           const e = estado(u);
@@ -412,36 +545,8 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
         })}
         {visibles.length === 0 && <li className="vv-fila"><span>Todas las ubicaciones coinciden.</span></li>}
       </ul>
-      {puedeEditar && !hayAbierto && ubs.length > 0 && (
-        <div className="vv-sig" id={`vv-sig-${numero}`}>
-          <b>Siguiente calle{calle ? ` · ahora está en la calle ${calle}` : ""}</b>
-          <p title="Si la pareja sigue con otra calle, la misma hoja cambia de calle y las dos personas la ven reabierta para contar. Lo de esta calle se conserva.">Sin diferencias pendientes.</p>
-          <div className="vv-acc">
-            <select id={`vv-calle-${numero}`} value={nueva} onChange={(e) => { setNueva(e.target.value); setSeguro(false) }} aria-label="Calle a la que pasan">
-              <option value="">Escoge la calle…</option>
-              {otras.map((c) => <option key={c} value={c}>Calle {c}{c === (calle ?? "") ? " (la actual: seguir contando lo que falta)" : ""}</option>)}
-            </select>
-            {!seguro ? (
-              <button type="button" className="btn" disabled={ocupado || !nueva} onClick={() => setSeguro(true)}>Pasar a la siguiente calle</button>
-            ) : (
-              <>
-                <button type="button" className="btn" disabled={ocupado} onClick={siguienteCalle}>Sí, pasar a la calle {nueva}</button>
-                <button type="button" className="btn plano" onClick={() => setSeguro(false)}>No</button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-      {(consol || nAprobadas > 0) && (
-        <div className="vv-sig vv-base">
-          <b>En La base{consol ? ` · ${consol.conteo}` : ""}</b>
-          <p title="Es un solo conteo de la hoja (no uno por persona): lo aprobado que coincide entre las dos. Un módulo aprobado que aún difiere no se manda hasta que coincida o hasta que dejes como definitivo el conteo de uno de los dos.">{consol
-            ? `${consol.ubicaciones} ${consol.ubicaciones === 1 ? "ubicación" : "ubicaciones"} · ${consol.renglones} ${consol.renglones === 1 ? "renglón" : "renglones"} · ${Number(consol.cajas).toLocaleString("es-CO")} cajas`
-            : "Todavía no se manda nada."}
-            {ubs.some((u) => estado(u) === "aprobada" && u.dif && !u.rev?.adoptado && !u.rev?.compensado) && " · hay aprobados que aún difieren (no se mandan)"}</p>
-          {puedeEditar && <div className="vv-acc"><button type="button" className="btn plano" disabled={ocupado || nAprobadas === 0} onClick={consolidarYa}>Actualizar La base</button></div>}
-        </div>
-      )}
+      </details>
+      {caja}
       {ubs.some((u) => estado(u) === "coincide") && (
         <button type="button" className="btn plano vv-todas" aria-pressed={todas} onClick={() => setTodas(!todas)}>
           {todas ? "Ocultar las que coinciden" : `Ver también las ${ubs.filter((u) => estado(u) === "coincide").length} que coinciden`}

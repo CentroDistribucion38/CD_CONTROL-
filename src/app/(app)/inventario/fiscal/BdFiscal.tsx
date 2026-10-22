@@ -71,7 +71,7 @@ export function BdFiscal({ fiscalId, cerradas, nombre, fecha, hojas, revs, puede
     return () => { vivo = false };
   }, [hoja?.id, actualizado, leer]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const compensando = !!hoja && !!compensar[hoja.numero];
+  const compensando = !!hoja && compensar[hoja.numero] !== false;
   const pares = useMemo(() => (hoja?.filas ? compensarCruce(hoja.filas).pares : 0), [hoja]);
   const modulos = useMemo(() => (hoja ? armarModulos(raw, hoja.filas, revs, hoja.numero, compensando) : []), [raw, hoja, revs, compensando]);
 
@@ -153,7 +153,7 @@ export function BdFiscal({ fiscalId, cerradas, nombre, fecha, hojas, revs, puede
       for (const h of lista) {
         const r = h.numero === hoja.numero ? raw : await leer(h);
         if (!r) throw new Error("No se pudo leer la hoja " + h.numero);
-        hojasX.push({ numero: h.numero, calle: h.calle ?? "", ol: h.ol, bavaria: h.bavaria, modulos: armarModulos(r, h.filas, revs, h.numero, !!compensar[h.numero]), renglones: r });
+        hojasX.push({ numero: h.numero, calle: h.calle ?? "", ol: h.ol, bavaria: h.bavaria, modulos: armarModulos(r, h.filas, revs, h.numero, compensar[h.numero] !== false), renglones: r });
       }
       const { armarBdExcel } = await import("@/modulos/inventario/bd-fiscal-xlsx");
       const buf = await armarBdExcel({ nombre, fecha, quien, hojas: hojasX });
