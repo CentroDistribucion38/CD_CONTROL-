@@ -103,9 +103,11 @@ export function argumentosFiscal(hojaId: string, ubicacionId: string, mat: Mater
     p_mes: fecha ? cantidad(b.mes) : null,
     p_anio: fecha ? cantidad(b.anio) : null,
     p_nota: b.nota.trim() === "" ? null : b.nota.trim(),
-    p_estado: pideEstadoFiscal(mat) && b.estado.trim() !== "" ? b.estado.trim() : null,
-    p_averia: b.averia, p_pnc: b.pnc,
-    p_pnc_rotulo: b.pnc ? b.pncRotulo : null, p_pnc_bloqueo: b.pnc ? b.pncBloqueo : null,
+    /* Estado, avería y PNC solo viajan cuando el renglón los trae: así un renglón común sigue funcionando
+       aunque a la base aún le falte 2026-10-fiscal-estado.sql. */
+    ...(pideEstadoFiscal(mat) && b.estado.trim() !== "" ? { p_estado: b.estado.trim() } : {}),
+    ...(b.averia ? { p_averia: true } : {}),
+    ...(b.pnc ? { p_pnc: true, p_pnc_rotulo: b.pncRotulo, p_pnc_bloqueo: b.pncBloqueo } : {}),
   };
 }
 
