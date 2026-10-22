@@ -12,9 +12,8 @@
        renglones (o dice «aquí no hay nada») y lo envía. Lo enviado REEMPLAZA lo anterior
        de ese módulo; todo o nada.
 
-   La revisión es por CALLE Y MÓDULO (A01): nunca se muestra el lado, porque delataría dónde
-   está cada cosa. Solo al contar de nuevo la persona dice en qué lado puso cada renglón
-   (así queda guardado), pero esa pregunta no sale en la lista.
+   La revisión es por CALLE Y MÓDULO (A01): el lado no se muestra ni se pregunta, porque delataría
+   dónde está cada cosa. El cruce tampoco lo cuenta: lo de los dos lados suma en el módulo.
 
    Sigue funcionando aunque la persona ya haya terminado su hoja: la base deja tocar solo
    las ubicaciones que el fiscal mandó a validar. Cuando las dos responden, el fiscal ve el
@@ -34,7 +33,6 @@ type Reng = BorradorFiscal & { k: number; ub: string };
 /** Un módulo (A01) = sus dos lados juntos. */
 type Modulo = { modulo: string; filas: RevisionMia[]; ronda: number; nota: string | null; yaEnvie: boolean };
 const moduloDe = (clave: string) => clave.replace(/_(IZQ|DER)$/i, "");
-const ladoDe = (clave: string) => (/_IZQ$/i.test(clave) ? "Izquierdo" : /_DER$/i.test(clave) ? "Derecho" : "");
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const dd = (n: number | null) => (n == null ? "··" : String(n).padStart(2, "0"));
@@ -67,12 +65,16 @@ export function RevisionesFiscal({ hojaId, mios, materiales, alCambiar, avisar }
   const [rengs, setRengs] = useState<Reng[]>([]);
   const [mal, setMal] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  /* Ids de MIS renglones que no cuadran con mi pareja. null = la base aún no tiene la función (se muestra todo, como antes). */
+  const [difieren, setDifieren] = useState<Set<string> | null>(null);
 
   const leer = useCallback(async () => {
     const { data, error } = await supabase.rpc("inv_fiscal_mis_revisiones");
     /* Si a la base le falta 2026-10-fiscal-validar.sql, la persona no ve nada y cuenta como siempre. */
     if (error) { setRevs([]); return }
     setRevs(((data ?? []) as RevisionMia[]).filter((r) => r.hoja_id === hojaId));
+    const d = await supabase.rpc("inv_fiscal_mis_diferencias", { p_hoja: hojaId });
+    setDifieren(d.error ? null : new Set(((d.data ?? []) as { conteo_id: string }[]).map((x) => x.conteo_id)));
   }, [supabase, hojaId]);
 
   useEffect(() => {
@@ -99,7 +101,14 @@ export function RevisionesFiscal({ hojaId, mios, materiales, alCambiar, avisar }
   if (revs.length === 0) return null;
 
   const matDe = (sku: string) => materiales.find((m) => m.activo && m.sku === sku.trim()) ?? null;
-  const misDe = (m: Modulo) => (mios ?? []).filter((r) => m.filas.some((f) => f.ubicacion_id === r.ubicacion_id));
+  const todosDe = (m: Modulo) => (mios ?? []).filter((r) => m.filas.some((f) => f.ubicacion_id === r.ubicacion_id));
+  /** Solo lo que no cuadra: lo que coincide con la pareja no se muestra, para no enredar. */
+  const misDe = (m: Modulo) => todosDe(m).filter((r) => difieren === null || difieren.has(r.id));
+  /** Lo que sí cuadra se conserva tal cual al enviar el nuevo conteo. */
+  const raw = (r: RenglonFiscal) => ({
+    ubicacion_id: r.ubicacion_id, producto_id: r.producto_id, estibas: r.estibas, saldo: r.saldo, cajas: r.cajas,
+    dia: r.venc_dia, mes: r.venc_mes, anio: r.venc_anio, nota: r.nota,
+  });
   const textoCant = (r: RenglonFiscal) => {
     if (r.cajas != null) return `${nf.format(r.cajas)} caja${r.cajas === 1 ? "" : "s"}`;
     const e = r.estibas ?? 0, s = r.saldo ?? 0;
@@ -136,14 +145,17 @@ export function RevisionesFiscal({ hojaId, mios, materiales, alCambiar, avisar }
       const mat = matDe(x.codigo);
       const falla = revisarFiscal(x, mat, "x");
       if (falla || !mat) { setMal(`${x.codigo.trim() || "Un renglón"}: ${falla ?? "falta el código del material."}`); return }
-      const ub = m.filas.length === 1 ? m.filas[0].ubicacion_id : x.ub;
-      if (!ub) { setMal(`${mat.sku}: dime en qué lado del módulo ${m.modulo} lo pusiste.`); return }
+      /* El lado no se pregunta: lo que ya tenía conserva su sitio y lo nuevo va al primero del módulo. */
+      const ub = x.ub || m.filas[0].ubicacion_id;
       const a = argumentosFiscal(hojaId, ub, mat, x);
       const clave = `${ub}|${mat.id}|${a.p_dia ?? ""}|${a.p_mes ?? ""}|${a.p_anio ?? ""}`;
       if (claves.has(clave)) { setMal(`${mat.sku} está dos veces con el mismo vencimiento y lado: junta las cantidades en un solo renglón.`); return }
       claves.add(clave);
       salida.push({ ubicacion_id: ub, producto_id: a.p_producto, estibas: a.p_estibas, saldo: a.p_saldo, cajas: a.p_cajas, dia: a.p_dia, mes: a.p_mes, anio: a.p_anio, nota: a.p_nota });
     }
+    /* Los renglones que cuadraban no se mostraron, pero siguen: se mandan igual que estaban. */
+    const mostrados = new Set(misDe(m).map((x) => x.id));
+    for (const x of todosDe(m)) if (!mostrados.has(x.id)) salida.push(raw(x));
     void enviar(m, salida);
   }
 
@@ -163,7 +175,7 @@ export function RevisionesFiscal({ hojaId, mios, materiales, alCambiar, avisar }
               {r.nota && <p className="rv-nota"><b>Nota del fiscal:</b> {r.nota}</p>}
               {!abierto && (
                 <>
-                  {mias.length === 0 ? <p className="rv-vacio">En este módulo anotaste que no hay nada (o no anotaste nada).</p> : (
+                  {mias.length === 0 ? <p className="rv-vacio">En este módulo no tienes renglones con diferencia. Si crees que falta algo por anotar, usa «Contar de nuevo» y agrégalo.</p> : (
                     <ul className="rv-mios" aria-label={`Lo que anotaste en ${r.modulo}`}>
                       {mias.map((x) => (
                         <li key={x.id}><b>{x.sku}</b> {x.material}<br /><span>{textoCant(x)} = <b>{nf.format(Number(x.total_cajas))}</b> cajas
@@ -179,7 +191,7 @@ export function RevisionesFiscal({ hojaId, mios, materiales, alCambiar, avisar }
               )}
               {abierto && (
                 <div className="rv-ed">
-                  <p>Cuenta otra vez este módulo. Lo que envíes <b>reemplaza</b> lo que habías anotado aquí. Si no hay nada, quita todos los renglones y envía.</p>
+                  <p>Estos son solo los renglones que no cuadran. Corrígelos, <b>quita</b> el que no deba estar o agrega uno que falte. Lo que cuadraba se queda como estaba.</p>
                   {mal && <p className="cl-mal" role="alert">{mal}</p>}
                   {rengs.map((x) => {
                     const mat = matDe(x.codigo);
@@ -192,14 +204,6 @@ export function RevisionesFiscal({ hojaId, mios, materiales, alCambiar, avisar }
                         <p className={"rv-desc" + (x.codigo && !mat ? " mal" : "")}>
                           {!x.codigo ? "Teclea el código y te digo qué es." : mat ? `✓ ${mat.nombre}${mat.cajas_por_estiba != null ? ` · ${mat.cajas_por_estiba} cajas/estiba` : ""}` : "Ese código no está en el maestro."}
                         </p>
-                        {r.filas.length > 1 && (
-                          <label className="rv-w"><span>Lado donde lo pusiste</span>
-                            <select value={x.ub} onChange={(e) => ponRen(x.k, { ub: e.target.value } as Partial<BorradorFiscal>)}>
-                              <option value="">Escoge el lado…</option>
-                              {r.filas.map((f) => <option key={f.ubicacion_id} value={f.ubicacion_id}>{ladoDe(f.ubicacion) || f.ubicacion}</option>)}
-                            </select>
-                          </label>
-                        )}
                         <div className="rv-w">
                           <span className="fe-etiq-fecha">Vence{env ? " (sin fecha)" : ""}</span>
                           <div className="rv-fecha">
@@ -228,13 +232,13 @@ export function RevisionesFiscal({ hojaId, mios, materiales, alCambiar, avisar }
                   })}
                   <div className="rv-acc">
                     <button type="button" className="btn plano" disabled={ocupado}
-                            onClick={() => setRengs((l) => [...l, { ...VACIO_FISCAL, base: "x", lado: "x", ub: r.filas.length === 1 ? r.filas[0].ubicacion_id : "", k: Math.max(-1, ...l.map((y) => y.k)) + 1 }])}>
+                            onClick={() => setRengs((l) => [...l, { ...VACIO_FISCAL, base: "x", lado: "x", ub: "", k: Math.max(-1, ...l.map((y) => y.k)) + 1 }])}>
                       Agregar un renglón
                     </button>
                   </div>
                   <div className="rv-acc">
                     <button type="button" className="btn" disabled={ocupado} onClick={() => enviarNuevo(r)}>
-                      {rengs.length === 0 ? "Enviar: aquí no hay nada" : "Enviar mi nuevo conteo"}
+                      {rengs.length === 0 ? "Enviar: quitar estos renglones" : "Enviar mi nuevo conteo"}
                     </button>
                     <button type="button" className="btn plano" disabled={ocupado} onClick={() => { setEditando(null); setMal(null) }}>Cancelar</button>
                   </div>

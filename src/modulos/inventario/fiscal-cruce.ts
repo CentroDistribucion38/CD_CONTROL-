@@ -169,3 +169,26 @@ export function ordenarCruce(filas: FilaCruce[]): FilaCruce[] {
     .sort((a, b) => (a.f.estado === "COINCIDE" ? 1 : 0) - (b.f.estado === "COINCIDE" ? 1 : 0) || a.i - b.i)
     .map((x) => x.f);
 }
+
+/* ---------------------------------------------------------------- el cruce por MÓDULO
+   El lado (izquierdo/derecho) NO cuenta: es muy perceptivo y delata dónde está cada cosa.
+   Se compara por calle + módulo (A01): lo que una persona puso en un lado y la otra en el otro
+   suma en el mismo módulo. Un mismo material con el mismo vencimiento se junta. */
+export const moduloDeUbicacion = (clave: string): string => clave.replace(/_(IZQ|DER)$/i, "");
+
+export function cruceModulo(filas: FilaCruce[]): FilaCruce[] {
+  const m = new Map<string, FilaCruce>();
+  for (const f of filas) {
+    const mod = moduloDeUbicacion(f.ubicacion);
+    const k = [mod, f.sku, f.vencDia ?? "", f.vencMes ?? "", f.vencAnio ?? ""].join("|");
+    const x = m.get(k);
+    if (!x) { m.set(k, { ...f, ubicacion: mod }); continue }
+    x.cajasOl = f.cajasOl == null ? x.cajasOl : (x.cajasOl ?? 0) + f.cajasOl;
+    x.cajasBavaria = f.cajasBavaria == null ? x.cajasBavaria : (x.cajasBavaria ?? 0) + f.cajasBavaria;
+    if (!x.ubicacionId && f.ubicacionId) x.ubicacionId = f.ubicacionId;
+  }
+  return [...m.values()].map((f) => {
+    const estado: EstadoFila = f.cajasOl == null ? "SOLO_BAVARIA" : f.cajasBavaria == null ? "SOLO_OL" : f.cajasOl === f.cajasBavaria ? "COINCIDE" : "DIFIERE";
+    return { ...f, diferencia: (f.cajasOl ?? 0) - (f.cajasBavaria ?? 0), estado };
+  });
+}

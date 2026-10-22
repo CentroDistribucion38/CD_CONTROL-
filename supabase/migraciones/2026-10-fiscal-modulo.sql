@@ -303,9 +303,53 @@ end $$;
 revoke all on function public.inv_fiscal_consolidar(uuid) from public, anon;
 grant execute on function public.inv_fiscal_consolidar(uuid) to authenticated;
 
+-- ---------------------------------------------------------------------
+-- LO QUE VE CADA PERSONA AL REVISAR: SOLO SUS RENGLONES CON DIFERENCIA
+-- Compara por módulo (sin lado), material y vencimiento. Devuelve solo los ids de los renglones
+-- de quien pregunta que no cuadran con su pareja (o que la pareja no anotó). Nunca devuelve la
+-- cantidad de la pareja, y lo que solo anotó la pareja no se le muestra: lo resuelve el fiscal.
+-- ---------------------------------------------------------------------
+drop function if exists public.inv_fiscal_mis_diferencias(uuid);
+create function public.inv_fiscal_mis_diferencias(p_hoja uuid)
+returns table (conteo_id uuid)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with yo as (
+    select m.equipo from public.inv_fiscal_miembros m where m.hoja_id = p_hoja and m.user_id = auth.uid()
+  ), t as (
+    select c.id, c.contado_por, c.equipo, c.producto_id,
+           regexp_replace(u.clave, '_(IZQ|DER)$', '') as modulo,
+           coalesce(c.venc_dia, 0) as vd, coalesce(c.venc_mes, 0) as vm, coalesce(c.venc_anio, 0) as va,
+           coalesce(p.cajas_por_estiba, 0) * coalesce(c.estibas, 0) + coalesce(c.saldo, 0) + coalesce(c.cajas, 0) as cajas
+      from public.inv_fiscal_conteos c
+      join public.ubicaciones u on u.id = c.ubicacion_id
+      join public.productos p on p.id = c.producto_id
+     where c.hoja_id = p_hoja
+  ), g as (
+    select modulo, producto_id, vd, vm, va, equipo, sum(cajas) as cajas from t group by 1, 2, 3, 4, 5, 6
+  )
+  select t.id
+    from t
+    join yo on yo.equipo = t.equipo
+   where t.contado_por = auth.uid()
+     and not exists (
+       select 1 from g mi join g otro
+         on otro.modulo = mi.modulo and otro.producto_id = mi.producto_id and otro.vd = mi.vd and otro.vm = mi.vm and otro.va = mi.va
+        and otro.equipo <> mi.equipo
+       where mi.modulo = t.modulo and mi.producto_id = t.producto_id and mi.vd = t.vd and mi.vm = t.vm and mi.va = t.va
+         and mi.equipo = t.equipo and otro.cajas = mi.cajas
+     )
+$$;
+revoke all on function public.inv_fiscal_mis_diferencias(uuid) from public, anon;
+grant execute on function public.inv_fiscal_mis_diferencias(uuid) to authenticated;
+
 do $$
 begin
-  if to_regprocedure('public.inv_fiscal_revision_enviar_modulo(uuid,uuid[],jsonb)') is null
+  if to_regprocedure('public.inv_fiscal_mis_diferencias(uuid)') is null
+     or to_regprocedure('public.inv_fiscal_revision_enviar_modulo(uuid,uuid[],jsonb)') is null
      or to_regprocedure('public.inv_fiscal_validar(uuid,uuid[],text)') is null
      or to_regprocedure('public.inv_fiscal_aprobar(uuid,uuid[],boolean)') is null
      or to_regprocedure('public.inv_fiscal_consolidar(uuid)') is null then

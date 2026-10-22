@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { createClient } from "@/lib/supabase/client";
 import { traducirError } from "@/lib/errores";
 import {
-  avanceDesdeBD, estadoHoja, filaDesdeBD, ordenarCruce, puedeCruzar, resumenCruce, textoEquipo, textoVenc, titularCruce, TEXTO_FILA,
+  avanceDesdeBD, estadoHoja, cruceModulo, filaDesdeBD, ordenarCruce, puedeCruzar, resumenCruce, textoEquipo, textoVenc, titularCruce, TEXTO_FILA,
   type AvanceBD, type AvanceHoja, type FilaCruce, type FilaCruceBD, type ResumenCruce,
 } from "@/modulos/inventario/fiscal-cruce";
 import type { HojaForm } from "@/modulos/inventario/fiscal";
@@ -107,7 +107,7 @@ function useTorre(fiscalId: string, avanceInicial: Record<number, AvanceHoja>, a
     const res = await Promise.all(listas.map(async (a): Promise<[number, Resultado]> => {
       const r = await sb.rpc("inv_fiscal_cruce", { p_hoja: a.hoja_id });
       if (r.error) return [a.numero, { error: traducirError(r.error.message) }];
-      return [a.numero, { filas: ordenarCruce(((r.data ?? []) as FilaCruceBD[]).map(filaDesdeBD)) }];
+      return [a.numero, { filas: ordenarCruce(cruceModulo(((r.data ?? []) as FilaCruceBD[]).map(filaDesdeBD))) }];
     }));
     setCruces(Object.fromEntries(res));
     setHora(new Date());

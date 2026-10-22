@@ -10,7 +10,7 @@ import { Ico, VistaFiscal } from "../fiscal/PanelFiscal";
 import type { FiscalBD, Persona } from "../fiscal/Fiscal";
 import { agrupar, fechaConDia, textoCuando } from "@/modulos/inventario/fiscal";
 import {
-  conteoDesdeBD, estadoHoja, filaDesdeBD, ordenarCruce, puedeCruzar,
+  conteoDesdeBD, estadoHoja, cruceModulo, filaDesdeBD, ordenarCruce, puedeCruzar,
   type ConteoPersona, type ConteoPersonaBD, type FilaCruce, type FilaCruceBD,
 } from "@/modulos/inventario/fiscal-cruce";
 
@@ -54,7 +54,7 @@ export function Control({ personas, fiscales, conCruce, ahora, puedeEditar }: {
         if (av && id && puedeCruzar(av)) {
           const [cr, co] = await Promise.all([sb.rpc("inv_fiscal_cruce", { p_hoja: id }), sb.rpc("inv_fiscal_conteos", { p_hoja: id })]);
           if (cr.error) throw new Error(cr.error.message);
-          filas = ordenarCruce(((cr.data ?? []) as FilaCruceBD[]).map(filaDesdeBD));
+          filas = ordenarCruce(cruceModulo(((cr.data ?? []) as FilaCruceBD[]).map(filaDesdeBD)));
           /* Lo que anotó cada persona viene de 2026-10-fiscal-conteos-por-persona.sql: si a la base le falta, el cruce sale igual y el libro lo avisa. */
           if (co.error) {
             if (/inv_fiscal_conteos|schema cache|does not exist|no existe la funci/i.test(co.error.message)) sinConteos = true;
