@@ -34,7 +34,7 @@ import type { Material, Ubicacion } from "@/modulos/inventario/fefo";
 import { MODULOS_DE_LA_HOJA, moduloConLados, modulosQueFaltan } from "@/modulos/inventario/modulos-hoja";
 import { fechaConDia, type HojaParaContar } from "@/modulos/inventario/fiscal";
 import {
-  VACIO_FISCAL, argumentosFiscal, revisarFiscal, totalCajas, pideEstadoFiscal, esCilindroFiscal, opcionesEstadoFiscal,
+  VACIO_FISCAL, argumentosFiscal, revisarFiscal, totalCajas, esCuenta, cantidad, pideEstadoFiscal, esCilindroFiscal, opcionesEstadoFiscal,
   type BorradorFiscal, type RenglonFiscal,
 } from "@/modulos/inventario/fiscal-contar";
 
@@ -94,6 +94,30 @@ export function ContarFiscal({
   const campoAnio = useRef<HTMLInputElement>(null);
   const campoCantidad = useRef<HTMLInputElement>(null);
   const campoSaldo = useRef<HTMLInputElement>(null);
+
+  /* ---------- LA CALCULADORA (igual que en el conteo normal) ----------
+     Al tocar una cantidad sube un panel fijo al pie con el teclado completo (el del celular se suprime con
+     `inputMode="none"`). En el computador no hay panel flotante: se escribe con el teclado y la fila de signos queda a la vista. */
+  const campoActivo = useRef<"estibas" | "saldo" | "cajas">("estibas");
+  const [calcAbierta, setCalcAbierta] = useState(false);
+  const [calcBajo, setCalcBajo] = useState(0);
+  const [escritorio, setEscritorio] = useState(false);
+  const [calcActiva, setCalcActiva] = useState<"estibas" | "saldo" | "cajas">("estibas");
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 900px) and (hover: hover) and (pointer: fine)");
+    const act = () => setEscritorio(mq.matches);
+    act(); mq.addEventListener("change", act);
+    return () => mq.removeEventListener("change", act);
+  }, []);
+  useEffect(() => {
+    if (!calcAbierta) { setCalcBajo(0); return }
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const medir = () => setCalcBajo(Math.max(0, Math.round(window.innerHeight - (vv.height + vv.offsetTop))));
+    medir();
+    vv.addEventListener("resize", medir); vv.addEventListener("scroll", medir);
+    return () => { vv.removeEventListener("resize", medir); vv.removeEventListener("scroll", medir) };
+  }, [calcAbierta]);
 
   /* ---------- LO QUE YA LLEVO ANOTADO ---------- */
   const leer = useCallback(async (id: string) => {
@@ -192,6 +216,51 @@ export function ContarFiscal({
     if (b.estado && (!esEnvase || !opcionesEstadoFiscal(material).includes(b.estado))) setB((x) => ({ ...x, estado: "" }));
   }, [b.estado, esEnvase, material]);
   const cuenta = useMemo(() => totalCajas(b, material), [b, material]);
+
+  /** Resuelve la cuenta de una casilla: «3×40+5» queda en «125». Lo que no es una cuenta válida se deja como está. */
+  function resolverCuenta(k: "estibas" | "saldo" | "cajas") {
+    setB((x) => {
+      const t = x[k];
+      if (!esCuenta(t)) return x;
+      const r = cantidad(t);
+      return r == null ? x : { ...x, [k]: String(r) };
+    });
+  }
+  /** Un signo de la calculadora, donde está el cursor de la casilla activa. */
+  function signo(op: string) {
+    const k = campoActivo.current;
+    const el = k === "saldo" ? campoSaldo.current : campoCantidad.current;
+    if (op === "=") { resolverCuenta(k); el?.focus(); return }
+    const ini = el?.selectionStart ?? b[k].length, fin = el?.selectionEnd ?? ini;
+    pon(k, b[k].slice(0, ini) + op + b[k].slice(fin));
+    setTimeout(() => { el?.focus(); el?.setSelectionRange(ini + op.length, ini + op.length) }, 0);
+  }
+  function borrarUno() {
+    const k = campoActivo.current;
+    const el = k === "saldo" ? campoSaldo.current : campoCantidad.current;
+    const ini = el?.selectionStart ?? b[k].length, fin = el?.selectionEnd ?? ini;
+    const desde = fin > ini ? ini : Math.max(0, ini - 1);
+    pon(k, b[k].slice(0, desde) + b[k].slice(fin));
+    setTimeout(() => { el?.focus(); el?.setSelectionRange(desde, desde) }, 0);
+  }
+  function abrirCalc(k: "estibas" | "saldo" | "cajas", el: HTMLInputElement) {
+    campoActivo.current = k;
+    setCalcActiva(k);
+    setCalcAbierta(true);
+    setTimeout(() => el.scrollIntoView({ block: "center" }), 60);
+  }
+  /** Al salir de una cantidad: se resuelve la cuenta y, si el cursor no pasó a otra cantidad, la calculadora baja. */
+  function soltarCalc(k: "estibas" | "saldo" | "cajas") {
+    resolverCuenta(k);
+    setTimeout(() => {
+      if (!(document.activeElement as HTMLElement | null)?.closest?.(".fe-cuanto-campo")) setCalcAbierta(false);
+    }, 0);
+  }
+  function listoCalc() {
+    resolverCuenta(campoActivo.current);
+    setCalcAbierta(false);
+    (document.activeElement as HTMLElement | null)?.blur?.();
+  }
 
   /* ---------- EL SALTO ENTRE CASILLAS ---------- */
   function tecleaFecha(k: "dia" | "mes" | "anio", v: string, siguiente?: RefObject<HTMLInputElement | null>) {
@@ -431,13 +500,19 @@ export function ContarFiscal({
               {b.modo === "estibas" ? (
                 <>
                   <label className="fe-cuanto-campo"><span>Estibas completas</span>
-                    <input ref={campoCantidad} inputMode="numeric" value={b.estibas} onChange={(e) => pon("estibas", e.target.value)} onKeyDown={(e) => saltaCon(e, campoSaldo)} /></label>
+                    <input ref={campoCantidad} inputMode={escritorio ? "numeric" : "none"} value={b.estibas}
+                      onFocus={(e) => abrirCalc("estibas", e.currentTarget)} onBlur={() => soltarCalc("estibas")}
+                      onChange={(e) => pon("estibas", e.target.value)} onKeyDown={(e) => saltaCon(e, campoSaldo)} /></label>
                   <label className="fe-cuanto-campo"><span>Saldo · cajas</span>
-                    <input ref={campoSaldo} inputMode="numeric" value={b.saldo} onChange={(e) => pon("saldo", e.target.value)} onKeyDown={(e) => saltaCon(e)} /></label>
+                    <input ref={campoSaldo} inputMode={escritorio ? "numeric" : "none"} value={b.saldo}
+                      onFocus={(e) => abrirCalc("saldo", e.currentTarget)} onBlur={() => soltarCalc("saldo")}
+                      onChange={(e) => pon("saldo", e.target.value)} onKeyDown={(e) => saltaCon(e)} /></label>
                 </>
               ) : (
                 <label className="fe-cuanto-campo ancho"><span>Cajas</span>
-                  <input ref={campoCantidad} inputMode="numeric" value={b.cajas} onChange={(e) => pon("cajas", e.target.value)} onKeyDown={(e) => saltaCon(e)} /></label>
+                  <input ref={campoCantidad} inputMode={escritorio ? "numeric" : "none"} value={b.cajas}
+                    onFocus={(e) => abrirCalc("cajas", e.currentTarget)} onBlur={() => soltarCalc("cajas")}
+                    onChange={(e) => pon("cajas", e.target.value)} onKeyDown={(e) => saltaCon(e)} /></label>
               )}
               <div className="fe-cuanto-total">
                 <span className="fe-cuanto-rot">Total</span>
@@ -446,6 +521,30 @@ export function ContarFiscal({
                 </output>
               </div>
             </div>
+            {(calcAbierta || escritorio) && (
+              <div className={"fe-calc fe-calc-fija" + (escritorio ? " en-linea" : "")} role="group" aria-label="Calculadora para las cantidades"
+                   style={escritorio ? undefined : { bottom: calcBajo }}>
+                <div className="fe-calc-cab">
+                  <span>{calcActiva === "estibas" ? "Estibas completas" : calcActiva === "saldo" ? "Saldo · cajas" : "Cajas"}</span>
+                  <p className="fe-calc-vista" aria-live="polite">
+                    {b[calcActiva].trim() === "" ? <i>toca los números</i>
+                      : esCuenta(b[calcActiva])
+                        ? <>{b[calcActiva].trim()} = {cantidad(b[calcActiva]) != null ? <b>{nf.format(cantidad(b[calcActiva])!)}</b> : <b className="ojo">no entiendo la cuenta</b>}</>
+                        : <b>{b[calcActiva].trim()}</b>}
+                  </p>
+                </div>
+                <div className="fe-calc-teclas">
+                  {["7", "8", "9", "÷", "4", "5", "6", "×", "1", "2", "3", "−", "0", "+"].map((t) => (
+                    <button key={t} type="button" className={/\d/.test(t) ? "num" : "op"}
+                            aria-label={/\d/.test(t) ? `Número ${t}` : `Signo ${t}`}
+                            onMouseDown={(e) => e.preventDefault()} onClick={() => signo(t)}>{t}</button>
+                  ))}
+                  <button type="button" aria-label="Borrar el último carácter" onMouseDown={(e) => e.preventDefault()} onClick={borrarUno}>⌫</button>
+                  <button type="button" className="igual" aria-label="Resolver la cuenta" onMouseDown={(e) => e.preventDefault()} onClick={() => signo("=")}>=</button>
+                  <button type="button" className="listo" aria-label="Cerrar la calculadora" onMouseDown={(e) => e.preventDefault()} onClick={listoCalc}>Listo</button>
+                </div>
+              </div>
+            )}
             {cuenta && (
               <p className="fe-cuenta-linea">
                 {cuenta.total == null

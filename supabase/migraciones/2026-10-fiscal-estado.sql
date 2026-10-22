@@ -4,7 +4,7 @@
 -- En el conteo normal el envase se cuenta con su estado (RETORNO, LAVADO, NUEVO, BAJA, EXTRASUCIO,
 -- OTROS, MAL ESTADO; el cilindro, LLENO o VACÍO). El fiscal ahora también lo pide:
 --   · AVERÍA y PNC (con su política: rótulo y bloqueo mecánico) se anotan como en el normal;
---   · el mismo material, sitio y vencimiento con otro estado, avería o PNC es OTRO renglón;
+--   · el mismo material, sitio y vencimiento se puede anotar varias veces (cada una es un renglón; no se suma);
 --   · el cruce y la validación comparan también el estado, la avería y el PNC;
 --   · al mandar a La base el estado va con el renglón.
 --
@@ -20,9 +20,11 @@ alter table public.inv_fiscal_conteos add column if not exists pnc_rotulo boolea
 alter table public.inv_fiscal_conteos add column if not exists pnc_bloqueo_mecanico boolean;
 alter table public.inv_fiscal_conteos drop constraint if exists inv_fiscal_conteos_averia_pnc;
 alter table public.inv_fiscal_conteos add constraint inv_fiscal_conteos_averia_pnc check (not (averia and pnc));
+-- El mismo material, sitio, vencimiento y estado se puede anotar VARIAS veces: cada una es su renglón y todos se ven.
+-- El cruce y la validación los suman por módulo. Por eso ya no hay llave única.
 drop index if exists public.inv_fiscal_conteos_unico;
-create unique index inv_fiscal_conteos_unico on public.inv_fiscal_conteos
-  (hoja_id, contado_por, ubicacion_id, producto_id, venc_dia, venc_mes, venc_anio, estado_envase, averia, pnc) nulls not distinct;
+create index if not exists inv_fiscal_conteos_clave_idx on public.inv_fiscal_conteos
+  (hoja_id, contado_por, ubicacion_id, producto_id);
 
 drop function if exists public.inv_fiscal_contar_agregar(uuid, uuid, uuid, integer, integer, integer, smallint, smallint, smallint, text);
 drop function if exists public.inv_fiscal_contar_agregar(uuid, uuid, uuid, integer, integer, integer, smallint, smallint, smallint, text, text);
@@ -82,7 +84,7 @@ begin
     returning id into v_id;
   exception
     when unique_violation then
-      raise exception 'Ya anotaste ese material en ese sitio con ese vencimiento y estado. Quita el renglón anterior y vuelve a anotarlo.';
+      raise exception 'No se pudo anotar el renglón.';
     when foreign_key_violation then
       raise exception 'Ese sitio o ese material no existe.';
   end;

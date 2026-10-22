@@ -36,10 +36,53 @@ export const esCilindroFiscal = (m: Material | null) => /cilindro/i.test(m?.tipo
 export const pideEstadoFiscal = (m: Material | null) => !!m && (m.tipo_material === "ENVASE" || esCilindroFiscal(m));
 export const opcionesEstadoFiscal = (m: Material | null): readonly string[] => (esCilindroFiscal(m) ? ["LLENO", "VACÍO"] : ESTADOS_ENVASE);
 
-/** Una cantidad: vacío es «no se contó»; 0 es «se contó y no hay». */
+/* LA CALCULADORA: las casillas de cantidad aceptan una cuenta —3×40+5, 12+8, (2+1)*40— además del número solo.
+   Es la misma del conteo normal. Se evalúa a mano (suma, resta, multiplicación, división y paréntesis); no se usa eval. */
+export const OPERADOR = /[+\-−*/×÷xX()]/;
+export const calcular = (texto: string): number | null => {
+  const t = texto.replace(/[×xX]/g, "*").replace(/÷/g, "/").replace(/−/g, "-").replace(/[\s,]/g, "");
+  if (t === "" || !/^[0-9+\-*/().]+$/.test(t)) return null;
+  let i = 0;
+  const num = (): number | null => {
+    if (t[i] === "(") { i++; const v = suma(); if (v == null || t[i] !== ")") return null; i++; return v }
+    const ini = i;
+    while (i < t.length && /[0-9.]/.test(t[i])) i++;
+    if (i === ini) return null;
+    const v = Number(t.slice(ini, i));
+    return Number.isFinite(v) ? v : null;
+  };
+  const prod = (): number | null => {
+    let v = num();
+    while (v != null && (t[i] === "*" || t[i] === "/")) {
+      const op = t[i++]; const w = num();
+      if (w == null || (op === "/" && w === 0)) return null;
+      v = op === "*" ? v * w : v / w;
+    }
+    return v;
+  };
+  const suma = (): number | null => {
+    let v = prod();
+    while (v != null && (t[i] === "+" || t[i] === "-")) {
+      const op = t[i++]; const w = prod();
+      if (w == null) return null;
+      v = op === "+" ? v + w : v - w;
+    }
+    return v;
+  };
+  const r = suma();
+  return r != null && i === t.length && Number.isFinite(r) ? r : null;
+};
+/** ¿Lo escrito es una cuenta (y no solo un número)? */
+export const esCuenta = (s: string) => OPERADOR.test(s.trim()) && /[0-9]/.test(s);
+
+/** Una cantidad: vacío es «no se contó»; 0 es «se contó y no hay». Una cuenta se resuelve («3×40+5» = 125). */
 export const cantidad = (s: string): number | null => {
   const t = s.trim();
   if (t === "") return null;
+  if (esCuenta(t) && !/^[xX]+$/.test(t)) {
+    const r = calcular(t);
+    return r != null && Number.isInteger(r) && r >= 0 ? r : null;
+  }
   const d = t.replace(/\D/g, "");
   return d === "" ? null : Number(d);
 };
@@ -68,6 +111,9 @@ export function revisarFiscal(b: BorradorFiscal, mat: Material | null, claveEsco
   if (!b.base) return "Escoge el módulo.";
   if (!claveEscogida) return "Falta decir de qué lado del módulo.";
   if (!mat) return b.codigo.trim() === "" ? "Falta el código del material." : `El código «${b.codigo.trim()}» no está en el maestro.`;
+  for (const [campo, v] of [["estibas", b.estibas], ["saldo", b.saldo], ["cajas", b.cajas]] as const) {
+    if (esCuenta(v) && cantidad(v) == null) return `No entiendo la cuenta de ${campo}: revisa los números y los signos (+ − × ÷), y que el resultado sea un entero.`;
+  }
   if (b.modo === "cajas") {
     if (cantidad(b.cajas) == null) return "¿Cuántas cajas? Si no hay nada, anota 0.";
   } else {

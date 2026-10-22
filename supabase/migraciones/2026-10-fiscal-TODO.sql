@@ -1,0 +1,1567 @@
+-- ##################### 2026-10-fiscal-cruce.sql #####################
+-- =====================================================================
+-- INVENTARIO FISCAL · «TERMINÉ MI HOJA» Y EL CRUCE DE LA PAREJA
+--
+-- «Hoy se anota a ciegas, pero nada compara ni cierra.»
+--
+-- QUÉ HACE
+--   1. «Terminé mi hoja»: cada persona avisa que ya contó lo suyo. Mientras
+--      su hoja está terminada no puede anotar ni quitar renglones (se puede
+--      REABRIR, y entonces el cruce deja de estar disponible hasta que
+--      vuelva a terminar). No se puede terminar una hoja sin ningún renglón:
+--      el cero cuenta como renglón, el vacío no.
+--   2. «Mis hojas» (lo que ve cada quien en Contar) dice si ya terminé y si mi
+--      pareja ya terminó. Solo eso: NUNCA lo que contó. Sigue siendo a ciegas.
+--   3. El AVANCE de cada hoja, para quien ve la pantalla del inventario fiscal:
+--      cuántos renglones lleva cada equipo y si ya terminó. Solo cifras de
+--      avance, no el contenido.
+--   4. El CRUCE de una hoja: solo para quien edita «Inventario fiscal», y
+--      solo cuando LAS DOS personas terminaron. Compara, por sitio + material +
+--      vencimiento, las cajas totales de cada equipo (solo de las personas que
+--      hoy están en la hoja: si cambian a alguien, lo suyo no se mezcla) (estibas × factor +
+--      saldo, o las cajas): COINCIDE si son iguales, DIFIERE si no, y SOLO_OL /
+--      SOLO_BAVARIA si lo anotó una sola de las dos personas.
+--
+-- QUIÉN TERMINÓ SE GUARDA APARTE (`inv_fiscal_terminos`), y no en la tabla
+-- de las parejas, porque editar el plan repone las parejas y se llevaría por
+-- delante lo que ya se terminó.
+--
+-- Se puede correr dos veces. Necesita 2026-10-fiscal-contar.sql.
+-- =====================================================================
+begin;
+
+create table if not exists public.inv_fiscal_terminos (
+  hoja_id    uuid not null references public.inv_fiscal_hojas(id) on delete cascade,
+  user_id    uuid not null references public.perfiles(id) on delete cascade,
+  termino_en timestamptz not null default now(),
+  primary key (hoja_id, user_id)
+);
+/* Nadie la lee por su cuenta: todo pasa por las funciones de abajo. */
+alter table public.inv_fiscal_terminos enable row level security;
+revoke all on public.inv_fiscal_terminos from public, anon, authenticated;
+
+-- ---------------------------------------------------------------------
+-- UNA HOJA TERMINADA NO SE TOCA: ni se anota ni se quita en ella.
+-- (Borrar el plan o la hoja entera sí: ahí ya no hay hoja que proteger.)
+-- ---------------------------------------------------------------------
+create or replace function public.inv_fiscal_conteo_terminado() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare v_hoja uuid; v_user uuid;
+begin
+  if tg_op = 'DELETE' then
+    if not exists (select 1 from public.inv_fiscal_hojas where id = old.hoja_id) then return old; end if;
+    v_hoja := old.hoja_id; v_user := old.contado_por;
+  else
+    v_hoja := new.hoja_id; v_user := new.contado_por;
+  end if;
+  if exists (select 1 from public.inv_fiscal_terminos where hoja_id = v_hoja and user_id = v_user) then
+    raise exception 'Ya terminaste tu hoja. Reábrela si necesitas cambiar algo.';
+  end if;
+  if tg_op = 'DELETE' then return old; end if;
+  return new;
+end $$;
+drop trigger if exists inv_fiscal_conteos_terminado on public.inv_fiscal_conteos;
+create trigger inv_fiscal_conteos_terminado before insert or delete on public.inv_fiscal_conteos
+  for each row execute function public.inv_fiscal_conteo_terminado();
+
+-- ---------------------------------------------------------------------
+-- TERMINAR MI HOJA / REABRIRLA
+-- ---------------------------------------------------------------------
+drop function if exists public.inv_fiscal_terminar(uuid, boolean);
+create function public.inv_fiscal_terminar(p_hoja uuid, p_terminado boolean default true)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_yo uuid := auth.uid();
+  v_equipo text; v_estado text; v_pub timestamptz; v_fecha date;
+begin
+  if v_yo is null then raise exception 'Hay que entrar para contar.'; end if;
+  select m.equipo, f.estado, f.publicado_en, f.fecha
+    into v_equipo, v_estado, v_pub, v_fecha
+    from public.inv_fiscal_miembros m join public.inv_fiscales f on f.id = m.fiscal_id
+   where m.hoja_id = p_hoja and m.user_id = v_yo;
+  if v_equipo is null then raise exception 'Esa hoja no es tuya.'; end if;
+  if v_pub is null then raise exception 'Este inventario fiscal no está visible en Contar.'; end if;
+  if v_estado <> 'abierto' then raise exception 'Este inventario fiscal ya está cerrado.'; end if;
+  if v_fecha > (now() at time zone 'America/Bogota')::date then
+    raise exception 'Todavía no es el día: este inventario fiscal se cuenta el %.', to_char(v_fecha, 'DD/MM/YYYY');
+  end if;
+
+  if coalesce(p_terminado, true) then
+    if not exists (select 1 from public.inv_fiscal_conteos where hoja_id = p_hoja and contado_por = v_yo) then
+      raise exception 'Anota al menos un renglón antes de terminar tu hoja.';
+    end if;
+    insert into public.inv_fiscal_terminos (hoja_id, user_id) values (p_hoja, v_yo)
+      on conflict (hoja_id, user_id) do nothing;
+  else
+    delete from public.inv_fiscal_terminos where hoja_id = p_hoja and user_id = v_yo;
+  end if;
+end $$;
+revoke all on function public.inv_fiscal_terminar(uuid, boolean) from public, anon;
+grant execute on function public.inv_fiscal_terminar(uuid, boolean) to authenticated;
+
+-- ---------------------------------------------------------------------
+-- MIS HOJAS (lo que ve cada persona en Contar), ahora con «terminé» y «mi pareja terminó»
+-- ---------------------------------------------------------------------
+drop function if exists public.inv_fiscal_mis_hojas();
+create function public.inv_fiscal_mis_hojas()
+returns table (
+  fiscal_id uuid, nombre text, fecha date, hoja integer, equipo text,
+  pareja text, pareja_equipo text,
+  hoja_id uuid, puede_contar boolean, mis_renglones bigint,
+  termine boolean, pareja_termino boolean
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select f.id, f.nombre, f.fecha, h.numero, m.equipo,
+         p.nombre, o.equipo,
+         h.id,
+         (f.fecha <= (now() at time zone 'America/Bogota')::date),
+         (select count(*) from public.inv_fiscal_conteos c where c.hoja_id = h.id and c.contado_por = auth.uid()),
+         exists (select 1 from public.inv_fiscal_terminos t where t.hoja_id = h.id and t.user_id = auth.uid()),
+         exists (select 1 from public.inv_fiscal_terminos t where t.hoja_id = h.id and t.user_id = o.user_id)
+    from public.inv_fiscal_miembros m
+    join public.inv_fiscales f on f.id = m.fiscal_id
+    join public.inv_fiscal_hojas h on h.id = m.hoja_id
+    left join public.inv_fiscal_miembros o on o.hoja_id = m.hoja_id and o.user_id <> m.user_id
+    left join public.perfiles p on p.id = o.user_id
+   where m.user_id = auth.uid()
+     and f.publicado_en is not null
+     and f.estado = 'abierto'
+     and f.fecha >= (now() at time zone 'America/Bogota')::date
+   order by f.fecha, h.numero
+$$;
+revoke all on function public.inv_fiscal_mis_hojas() from public, anon;
+grant execute on function public.inv_fiscal_mis_hojas() to authenticated;
+
+-- ---------------------------------------------------------------------
+-- EL AVANCE DE CADA HOJA (para la pantalla del inventario fiscal): solo cifras.
+-- ---------------------------------------------------------------------
+drop function if exists public.inv_fiscal_avance();
+create function public.inv_fiscal_avance()
+returns table (
+  fiscal_id uuid, hoja_id uuid, numero integer,
+  ol_renglones bigint, ol_termino timestamptz,
+  bavaria_renglones bigint, bavaria_termino timestamptz
+)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  if not public.puede_ver('/inventario/fiscal') then
+    raise exception 'Ver el avance del inventario fiscal requiere el permiso «Inventario fiscal» (Roles)';
+  end if;
+  return query
+  select h.fiscal_id, h.id, h.numero,
+         (select count(*) from public.inv_fiscal_conteos c
+            join public.inv_fiscal_miembros m on m.hoja_id = c.hoja_id and m.user_id = c.contado_por
+           where c.hoja_id = h.id and m.equipo = 'OL'),
+         (select t.termino_en from public.inv_fiscal_miembros m
+            join public.inv_fiscal_terminos t on t.hoja_id = m.hoja_id and t.user_id = m.user_id
+           where m.hoja_id = h.id and m.equipo = 'OL'),
+         (select count(*) from public.inv_fiscal_conteos c
+            join public.inv_fiscal_miembros m on m.hoja_id = c.hoja_id and m.user_id = c.contado_por
+           where c.hoja_id = h.id and m.equipo = 'BAVARIA'),
+         (select t.termino_en from public.inv_fiscal_miembros m
+            join public.inv_fiscal_terminos t on t.hoja_id = m.hoja_id and t.user_id = m.user_id
+           where m.hoja_id = h.id and m.equipo = 'BAVARIA')
+    from public.inv_fiscal_hojas h
+   order by h.fiscal_id, h.numero;
+end $$;
+revoke all on function public.inv_fiscal_avance() from public, anon;
+grant execute on function public.inv_fiscal_avance() to authenticated;
+
+-- ---------------------------------------------------------------------
+-- EL CRUCE DE UNA HOJA: lo de un equipo contra lo del otro.
+-- Una fila por sitio + material + vencimiento. Las que no coinciden, primero.
+-- ---------------------------------------------------------------------
+drop function if exists public.inv_fiscal_cruce(uuid);
+create function public.inv_fiscal_cruce(p_hoja uuid)
+returns table (
+  ubicacion_id uuid, ubicacion text, producto_id uuid, sku text, material text,
+  venc_dia smallint, venc_mes smallint, venc_anio smallint,
+  cajas_ol bigint, cajas_bavaria bigint, diferencia bigint, estado text
+)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  if not public.puede_editar('/inventario/fiscal') then
+    raise exception 'Cruzar el inventario fiscal requiere el permiso «Inventario fiscal» (Roles)';
+  end if;
+  if not exists (select 1 from public.inv_fiscal_hojas where id = p_hoja) then
+    raise exception 'Esa hoja no existe.';
+  end if;
+  if (select count(distinct m.equipo)
+        from public.inv_fiscal_miembros m
+        join public.inv_fiscal_terminos t on t.hoja_id = m.hoja_id and t.user_id = m.user_id
+       where m.hoja_id = p_hoja) < 2 then
+    raise exception 'El cruce se hace cuando las dos personas de la hoja terminan de contar.';
+  end if;
+
+  return query
+  with t as (
+    select c.ubicacion_id, c.producto_id, c.venc_dia, c.venc_mes, c.venc_anio, m.equipo,
+           sum(coalesce(p.cajas_por_estiba, 0) * coalesce(c.estibas, 0) + coalesce(c.saldo, 0) + coalesce(c.cajas, 0))::bigint as cajas
+      from public.inv_fiscal_conteos c
+      join public.inv_fiscal_miembros m on m.hoja_id = c.hoja_id and m.user_id = c.contado_por
+      join public.productos p on p.id = c.producto_id
+     where c.hoja_id = p_hoja
+     group by c.ubicacion_id, c.producto_id, c.venc_dia, c.venc_mes, c.venc_anio, m.equipo
+  ), o as (select * from t where equipo = 'OL'), b as (select * from t where equipo = 'BAVARIA'),
+  j as (
+    select coalesce(o.ubicacion_id, b.ubicacion_id) as ubi, coalesce(o.producto_id, b.producto_id) as prod,
+           coalesce(o.venc_dia, b.venc_dia) as vd, coalesce(o.venc_mes, b.venc_mes) as vm, coalesce(o.venc_anio, b.venc_anio) as va,
+           o.cajas as co, b.cajas as cb
+      from o full join b
+        on o.ubicacion_id = b.ubicacion_id and o.producto_id = b.producto_id
+       and coalesce(o.venc_dia, 0) = coalesce(b.venc_dia, 0)
+       and coalesce(o.venc_mes, 0) = coalesce(b.venc_mes, 0)
+       and coalesce(o.venc_anio, 0) = coalesce(b.venc_anio, 0)
+  )
+  select j.ubi, u.clave, j.prod, pr.sku, pr.nombre, j.vd, j.vm, j.va, j.co, j.cb,
+         (coalesce(j.co, 0) - coalesce(j.cb, 0))::bigint,
+         case when j.co is null then 'SOLO_BAVARIA'
+              when j.cb is null then 'SOLO_OL'
+              when j.co = j.cb then 'COINCIDE'
+              else 'DIFIERE' end
+    from j
+    join public.ubicaciones u on u.id = j.ubi
+    join public.productos pr on pr.id = j.prod
+   order by (case when j.co is not null and j.cb is not null and j.co = j.cb then 1 else 0 end), u.clave, pr.sku, j.va, j.vm, j.vd;
+end $$;
+revoke all on function public.inv_fiscal_cruce(uuid) from public, anon;
+grant execute on function public.inv_fiscal_cruce(uuid) to authenticated;
+
+do $$
+begin
+  if to_regprocedure('public.inv_fiscal_terminar(uuid,boolean)') is null
+     or to_regprocedure('public.inv_fiscal_avance()') is null
+     or to_regprocedure('public.inv_fiscal_cruce(uuid)') is null then
+    raise exception 'No quedaron las funciones de terminar y cruzar el inventario fiscal.';
+  end if;
+  raise notice 'Listo: cada persona puede terminar su hoja y quien arma el plan puede cruzar la pareja.';
+end $$;
+
+commit;
+
+-- ##################### 2026-10-fiscal-calle.sql #####################
+-- =====================================================================
+-- INVENTARIO FISCAL · LA CALLE DE CADA HOJA
+-- Cada hoja se cuenta en una calle (A, B, C…). Las dos personas de la pareja la
+-- cuentan en sentido contrario para cruzarse a mitad de camino: el operador
+-- logístico de 01 hacia arriba y Bavaria desde el último hacia abajo.
+--
+-- Es opcional (una hoja puede quedar sin calle) y se puede correr de nuevo:
+-- solo agrega la columna y vuelve a crear «inv_fiscal_guardar» con la calle.
+-- =====================================================================
+begin;
+
+alter table public.inv_fiscal_hojas add column if not exists calle text;
+
+drop function if exists public.inv_fiscal_guardar(uuid, uuid, text, date, jsonb);
+create function public.inv_fiscal_guardar(
+  p_id     uuid,
+  p_bodega uuid,
+  p_nombre text,
+  p_fecha  date,
+  p_hojas  jsonb
+) returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_id      uuid := p_id;
+  v_estado  text;
+  v_h       jsonb;
+  v_num     integer;
+  v_nums    integer[] := '{}';
+  v_gente   uuid[] := '{}';
+  v_hoja    uuid;
+  v_p       uuid;
+  v_ol      uuid;
+  v_ba      uuid;
+  v_calle   text;
+begin
+  if not public.puede_editar('/inventario/fiscal') then
+    raise exception 'Armar el inventario fiscal requiere el permiso «Inventario fiscal» (Roles)';
+  end if;
+  if p_nombre is null or length(btrim(p_nombre)) = 0 then
+    raise exception 'El inventario fiscal necesita un nombre';
+  end if;
+  if p_fecha is null then
+    raise exception 'El inventario fiscal necesita una fecha';
+  end if;
+  if p_hojas is null or jsonb_typeof(p_hojas) <> 'array' or jsonb_array_length(p_hojas) = 0 then
+    raise exception 'El inventario fiscal necesita al menos una hoja';
+  end if;
+  if not exists (select 1 from public.bodegas where id = p_bodega) then
+    raise exception 'Esa bodega no existe';
+  end if;
+
+  /* Se revisa todo ANTES de escribir: o queda completo o no queda nada. */
+  for v_h in select * from jsonb_array_elements(p_hojas) loop
+    v_num := nullif(v_h ->> 'numero', '')::integer;
+    if v_num is null or v_num < 1 then
+      raise exception 'Cada hoja lleva un número desde el 1';
+    end if;
+    if v_num = any (v_nums) then
+      raise exception 'La hoja % está repetida', v_num;
+    end if;
+    v_nums := v_nums || v_num;
+    v_ol := nullif(v_h ->> 'ol', '')::uuid;
+    v_ba := nullif(v_h ->> 'bavaria', '')::uuid;
+    if v_ol is not null and v_ol = v_ba then
+      raise exception 'En la hoja % la misma persona no puede ser del OL y de Bavaria', v_num;
+    end if;
+    foreach v_p in array array_remove(array[v_ol, v_ba], null) loop
+      if v_p = any (v_gente) then
+        raise exception 'Una persona solo puede estar en una hoja del mismo inventario (hoja %)', v_num;
+      end if;
+      if not exists (select 1 from public.perfiles where id = v_p and activo) then
+        raise exception 'Una de las personas de la hoja % no existe o está desactivada', v_num;
+      end if;
+      v_gente := v_gente || v_p;
+    end loop;
+  end loop;
+
+  if v_id is null then
+    insert into public.inv_fiscales (bodega_id, nombre, fecha)
+         values (p_bodega, btrim(p_nombre), p_fecha)
+      returning id into v_id;
+  else
+    select estado into v_estado from public.inv_fiscales where id = v_id for update;
+    if v_estado is null then raise exception 'Ese inventario fiscal ya no existe'; end if;
+    /* UN CERRADO SOLO LO TOCA QUIEN ADMINISTRA: «que el super admin pueda
+       editar, borrar y eliminar el plan». El resto lo ve cerrado y ya. */
+    if v_estado <> 'abierto' and not public.manda() then raise exception 'Ese inventario fiscal ya está cerrado'; end if;
+    update public.inv_fiscales set nombre = btrim(p_nombre), fecha = p_fecha, bodega_id = p_bodega
+     where id = v_id;
+    /* Las hojas que ya no están. Las parejas de las que quedan se reponen abajo. */
+    delete from public.inv_fiscal_hojas where fiscal_id = v_id and numero <> all (v_nums);
+    delete from public.inv_fiscal_miembros where fiscal_id = v_id;
+  end if;
+
+  for v_h in select * from jsonb_array_elements(p_hojas) loop
+    v_num := (v_h ->> 'numero')::integer;
+    v_calle := nullif(upper(btrim(coalesce(v_h ->> 'calle', ''))), '');
+    if v_calle is not null and length(v_calle) > 20 then
+      raise exception 'La calle de la hoja % es demasiado larga', v_num;
+    end if;
+    insert into public.inv_fiscal_hojas (fiscal_id, numero, calle) values (v_id, v_num, v_calle)
+      on conflict (fiscal_id, numero) do update set calle = excluded.calle
+      returning id into v_hoja;
+    v_ol := nullif(v_h ->> 'ol', '')::uuid;
+    v_ba := nullif(v_h ->> 'bavaria', '')::uuid;
+    if v_ol is not null then
+      insert into public.inv_fiscal_miembros (hoja_id, fiscal_id, equipo, user_id) values (v_hoja, v_id, 'OL', v_ol);
+    end if;
+    if v_ba is not null then
+      insert into public.inv_fiscal_miembros (hoja_id, fiscal_id, equipo, user_id) values (v_hoja, v_id, 'BAVARIA', v_ba);
+    end if;
+  end loop;
+
+  return v_id;
+end $$;
+
+revoke all on function public.inv_fiscal_guardar(uuid, uuid, text, date, jsonb) from public, anon;
+grant execute on function public.inv_fiscal_guardar(uuid, uuid, text, date, jsonb) to authenticated;
+
+commit;
+
+-- ##################### 2026-10-fiscal-validar.sql #####################
+-- =====================================================================
+-- INVENTARIO FISCAL · VALIDAR Y APROBAR UBICACIONES (paso 2 del fiscal)
+--
+-- «El fiscal manda a cada usuario a validar esas ubicaciones, a ambos; si está
+--  bien le dan enviar y si no se sobreescribe con el envío; y el fiscal aprueba.»
+--
+-- CÓMO FUNCIONA
+--   1. Las dos personas de una hoja terminan (ya existía) y el fiscal ve el cruce.
+--   2. El fiscal escoge las UBICACIONES con diferencia y las MANDA A VALIDAR
+--      (`inv_fiscal_validar`). Cada vez que lo hace, la ubicación entra en una
+--      RONDA nueva: 1 la primera vez, 2 si hay reconteo, etc.
+--   3. Cada persona ve SOLO «revisa esta ubicación» (`inv_fiscal_mis_revisiones`):
+--      nunca el número de su pareja, el conteo sigue a ciegas.
+--   4. Cada persona responde por esa ubicación (`inv_fiscal_revision_enviar`):
+--        · sin renglones nuevos = «está bien, lo que conté es correcto»;
+--        · con renglones = REEMPLAZA lo que había contado en esa ubicación.
+--      Todo en un solo paso: o queda lo nuevo o no cambia nada.
+--   5. Cuando las dos enviaron, el fiscal ve el cruce otra vez y APRUEBA la
+--      ubicación (`inv_fiscal_aprobar`) o la manda a otra ronda (paso 2).
+--      El fiscal aprueba siempre con un clic, también las que coincidieron desde
+--      el principio. Si una persona aún no envió, solo se aprueba forzándola.
+--
+-- LO QUE NO CAMBIA
+--   · Una hoja terminada sigue sin poder tocarse… salvo SOLO las ubicaciones que
+--     el fiscal mandó a validar, y solo a quien todavía no respondió esa ronda.
+--   · El cruce, el avance y el conteo a ciegas siguen igual.
+--
+-- Se puede correr dos veces. Necesita 2026-10-fiscal-cruce.sql.
+-- Sin cambios visibles en pantalla hasta que se suba el código del paso 2.
+-- =====================================================================
+begin;
+
+-- ---------------------------------------------------------------------
+-- LAS REVISIONES: una fila por hoja + ubicación (su estado de hoy y su ronda)
+-- LOS ENVÍOS: quién ya respondió en esa ronda
+-- ---------------------------------------------------------------------
+create table if not exists public.inv_fiscal_revisiones (
+  hoja_id      uuid not null references public.inv_fiscal_hojas(id) on delete cascade,
+  ubicacion_id uuid not null references public.ubicaciones(id) on delete restrict,
+  estado       text not null check (estado in ('A_VALIDAR', 'APROBADA')),
+  ronda        integer not null default 0 check (ronda >= 0),
+  nota         text,
+  pedido_por   uuid references public.perfiles(id) on delete set null,
+  pedido_en    timestamptz,
+  aprobado_por uuid references public.perfiles(id) on delete set null,
+  aprobado_en  timestamptz,
+  primary key (hoja_id, ubicacion_id)
+);
+alter table public.inv_fiscal_revisiones enable row level security;
+revoke all on public.inv_fiscal_revisiones from public, anon, authenticated;
+
+create table if not exists public.inv_fiscal_revision_envios (
+  hoja_id      uuid not null references public.inv_fiscal_hojas(id) on delete cascade,
+  ubicacion_id uuid not null references public.ubicaciones(id) on delete restrict,
+  user_id      uuid not null references public.perfiles(id) on delete cascade,
+  ronda        integer not null check (ronda >= 1),
+  enviado_en   timestamptz not null default now(),
+  primary key (hoja_id, ubicacion_id, user_id)
+);
+alter table public.inv_fiscal_revision_envios enable row level security;
+revoke all on public.inv_fiscal_revision_envios from public, anon, authenticated;
+
+-- ---------------------------------------------------------------------
+-- UNA HOJA TERMINADA NO SE TOCA… salvo una ubicación mandada a validar,
+-- mientras esta persona no haya respondido la ronda en curso.
+-- ---------------------------------------------------------------------
+create or replace function public.inv_fiscal_conteo_terminado() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare v_hoja uuid; v_user uuid; v_ubi uuid;
+begin
+  if tg_op = 'DELETE' then
+    if not exists (select 1 from public.inv_fiscal_hojas where id = old.hoja_id) then return old; end if;
+    v_hoja := old.hoja_id; v_user := old.contado_por; v_ubi := old.ubicacion_id;
+  else
+    v_hoja := new.hoja_id; v_user := new.contado_por; v_ubi := new.ubicacion_id;
+  end if;
+  if exists (select 1 from public.inv_fiscal_terminos where hoja_id = v_hoja and user_id = v_user) then
+    if not exists (
+      select 1 from public.inv_fiscal_revisiones r
+       where r.hoja_id = v_hoja and r.ubicacion_id = v_ubi and r.estado = 'A_VALIDAR'
+         and not exists (select 1 from public.inv_fiscal_revision_envios e
+                          where e.hoja_id = r.hoja_id and e.ubicacion_id = r.ubicacion_id
+                            and e.user_id = v_user and e.ronda = r.ronda)
+    ) then
+      raise exception 'Ya terminaste tu hoja. Solo se pueden cambiar las ubicaciones que el fiscal te mandó a validar.';
+    end if;
+  end if;
+  if tg_op = 'DELETE' then return old; end if;
+  return new;
+end $$;
+drop trigger if exists inv_fiscal_conteos_terminado on public.inv_fiscal_conteos;
+create trigger inv_fiscal_conteos_terminado before insert or delete on public.inv_fiscal_conteos
+  for each row execute function public.inv_fiscal_conteo_terminado();
+
+-- ---------------------------------------------------------------------
+-- EL FISCAL MANDA A VALIDAR (o a reconteo) UNAS UBICACIONES DE UNA HOJA
+-- ---------------------------------------------------------------------
+drop function if exists public.inv_fiscal_validar(uuid, uuid[], text);
+create function public.inv_fiscal_validar(p_hoja uuid, p_ubicaciones uuid[], p_nota text default null)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_yo uuid := auth.uid();
+  v_ubi uuid; v_n integer := 0; v_estado text; v_lista uuid[];
+begin
+  if not public.puede_editar('/inventario/fiscal') then
+    raise exception 'Mandar a validar requiere el permiso «Inventario fiscal» (Roles)';
+  end if;
+  if coalesce(array_length(p_ubicaciones, 1), 0) = 0 then raise exception 'Escoge al menos una ubicación.'; end if;
+  select f.estado into v_estado
+    from public.inv_fiscal_hojas h join public.inv_fiscales f on f.id = h.fiscal_id where h.id = p_hoja;
+  if v_estado is null then raise exception 'Esa hoja no existe.'; end if;
+  if v_estado <> 'abierto' then raise exception 'Este inventario fiscal ya está cerrado.'; end if;
+  if (select count(distinct m.equipo)
+        from public.inv_fiscal_miembros m
+        join public.inv_fiscal_terminos t on t.hoja_id = m.hoja_id and t.user_id = m.user_id
+       where m.hoja_id = p_hoja) < 2 then
+    raise exception 'Se manda a validar cuando las dos personas de la hoja terminaron.';
+  end if;
+
+  v_lista := (select array_agg(distinct u) from unnest(p_ubicaciones) u);
+  foreach v_ubi in array v_lista loop
+    if not exists (select 1 from public.inv_fiscal_conteos where hoja_id = p_hoja and ubicacion_id = v_ubi) then
+      raise exception 'Nadie contó en una de esas ubicaciones: no hay nada que validar.';
+    end if;
+    insert into public.inv_fiscal_revisiones (hoja_id, ubicacion_id, estado, ronda, nota, pedido_por, pedido_en)
+    values (p_hoja, v_ubi, 'A_VALIDAR', 1, nullif(btrim(coalesce(p_nota, '')), ''), v_yo, now())
+    on conflict (hoja_id, ubicacion_id) do update
+      set estado = 'A_VALIDAR', ronda = public.inv_fiscal_revisiones.ronda + 1,
+          nota = nullif(btrim(coalesce(p_nota, '')), ''), pedido_por = v_yo, pedido_en = now(),
+          aprobado_por = null, aprobado_en = null;
+    v_n := v_n + 1;
+  end loop;
+  return v_n;
+end $$;
+revoke all on function public.inv_fiscal_validar(uuid, uuid[], text) from public, anon;
+grant execute on function public.inv_fiscal_validar(uuid, uuid[], text) to authenticated;
+
+-- ---------------------------------------------------------------------
+-- LO QUE VE CADA PERSONA: LAS UBICACIONES QUE LE MANDARON A REVISAR (sin números de la pareja)
+-- ---------------------------------------------------------------------
+drop function if exists public.inv_fiscal_mis_revisiones();
+create function public.inv_fiscal_mis_revisiones()
+returns table (
+  fiscal_id uuid, hoja_id uuid, hoja integer, ubicacion_id uuid, ubicacion text,
+  ronda integer, nota text, pedido_en timestamptz, ya_envie boolean
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select f.id, h.id, h.numero, r.ubicacion_id, u.clave, r.ronda, r.nota, r.pedido_en,
+         exists (select 1 from public.inv_fiscal_revision_envios e
+                  where e.hoja_id = r.hoja_id and e.ubicacion_id = r.ubicacion_id
+                    and e.user_id = auth.uid() and e.ronda = r.ronda)
+    from public.inv_fiscal_revisiones r
+    join public.inv_fiscal_hojas h on h.id = r.hoja_id
+    join public.inv_fiscales f on f.id = h.fiscal_id
+    join public.inv_fiscal_miembros m on m.hoja_id = h.id and m.user_id = auth.uid()
+    join public.ubicaciones u on u.id = r.ubicacion_id
+   where r.estado = 'A_VALIDAR'
+     and f.publicado_en is not null
+     and f.estado = 'abierto'
+   order by h.numero, u.clave
+$$;
+revoke all on function public.inv_fiscal_mis_revisiones() from public, anon;
+grant execute on function public.inv_fiscal_mis_revisiones() to authenticated;
+
+-- ---------------------------------------------------------------------
+-- RESPONDER UNA UBICACIÓN: «está bien» (sin renglones) o REEMPLAZAR lo contado allí.
+-- p_renglones: [{producto_id, estibas, saldo, cajas, dia, mes, anio, nota}, …]
+--   · null  → «está bien»: lo contado se queda igual y solo se marca como enviado.
+--   · lista → borra lo que esta persona contó en esa ubicación y pone estos renglones
+--             (una lista vacía = «aquí no hay nada»). Todo o nada.
+-- ---------------------------------------------------------------------
+drop function if exists public.inv_fiscal_revision_enviar(uuid, uuid, jsonb);
+create function public.inv_fiscal_revision_enviar(p_hoja uuid, p_ubicacion uuid, p_renglones jsonb default null)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_yo uuid := auth.uid();
+  v_equipo text; v_fiscal uuid; v_estado text; v_pub timestamptz;
+  v_ronda integer; v_rev text;
+  x jsonb; v_est integer; v_sal integer; v_caj integer; v_d smallint; v_m smallint; v_a smallint; v_prod uuid;
+begin
+  if v_yo is null then raise exception 'Hay que entrar para contar.'; end if;
+  select m.equipo, m.fiscal_id, f.estado, f.publicado_en
+    into v_equipo, v_fiscal, v_estado, v_pub
+    from public.inv_fiscal_miembros m join public.inv_fiscales f on f.id = m.fiscal_id
+   where m.hoja_id = p_hoja and m.user_id = v_yo;
+  if v_equipo is null then raise exception 'Esa hoja no es tuya.'; end if;
+  if v_pub is null then raise exception 'Este inventario fiscal no está visible en Contar.'; end if;
+  if v_estado <> 'abierto' then raise exception 'Este inventario fiscal ya está cerrado.'; end if;
+
+  select r.estado, r.ronda into v_rev, v_ronda
+    from public.inv_fiscal_revisiones r where r.hoja_id = p_hoja and r.ubicacion_id = p_ubicacion;
+  if v_rev is distinct from 'A_VALIDAR' then raise exception 'El fiscal no te pidió validar esa ubicación.'; end if;
+  if exists (select 1 from public.inv_fiscal_revision_envios e
+              where e.hoja_id = p_hoja and e.ubicacion_id = p_ubicacion and e.user_id = v_yo and e.ronda = v_ronda) then
+    raise exception 'Ya enviaste esa ubicación. Espera a que el fiscal la apruebe o la mande otra vez.';
+  end if;
+
+  if p_renglones is not null then
+    if jsonb_typeof(p_renglones) <> 'array' then raise exception 'Los renglones deben ir en una lista.'; end if;
+    delete from public.inv_fiscal_conteos where hoja_id = p_hoja and contado_por = v_yo and ubicacion_id = p_ubicacion;
+    for x in select * from jsonb_array_elements(p_renglones) loop
+      v_prod := nullif(x->>'producto_id', '')::uuid;
+      v_est := nullif(x->>'estibas', '')::integer; v_sal := nullif(x->>'saldo', '')::integer; v_caj := nullif(x->>'cajas', '')::integer;
+      v_d := nullif(x->>'dia', '')::smallint; v_m := nullif(x->>'mes', '')::smallint; v_a := nullif(x->>'anio', '')::smallint;
+      if v_prod is null then raise exception 'A un renglón le falta el material.'; end if;
+      if num_nonnulls(v_est, v_sal, v_caj) = 0 then raise exception 'A un renglón le falta la cantidad.'; end if;
+      if v_caj is not null and (v_est is not null or v_sal is not null) then
+        raise exception 'Se cuentan estibas (con su saldo) o cajas, no las dos cosas.';
+      end if;
+      if coalesce(v_est, 0) < 0 or coalesce(v_sal, 0) < 0 or coalesce(v_caj, 0) < 0 then
+        raise exception 'Las cantidades no pueden ser negativas.';
+      end if;
+      if num_nonnulls(v_d, v_m, v_a) not in (0, 3) then raise exception 'La fecha de vencimiento va completa (día, mes y año) o vacía.'; end if;
+      if v_d is not null and not (v_d between 1 and 31 and v_m between 1 and 12 and v_a between 0 and 99) then
+        raise exception 'La fecha de vencimiento no es válida.';
+      end if;
+      begin
+        insert into public.inv_fiscal_conteos
+          (fiscal_id, hoja_id, equipo, contado_por, ubicacion_id, producto_id, estibas, saldo, cajas, venc_dia, venc_mes, venc_anio, nota)
+        values (v_fiscal, p_hoja, v_equipo, v_yo, p_ubicacion, v_prod, v_est, v_sal, v_caj, v_d, v_m, v_a,
+                nullif(btrim(coalesce(x->>'nota', '')), ''));
+      exception
+        when unique_violation then
+          raise exception 'Hay dos renglones iguales (mismo material y vencimiento) en esa ubicación.';
+        when foreign_key_violation then
+          raise exception 'Ese material no existe.';
+      end;
+    end loop;
+  end if;
+
+  insert into public.inv_fiscal_revision_envios (hoja_id, ubicacion_id, user_id, ronda, enviado_en)
+  values (p_hoja, p_ubicacion, v_yo, v_ronda, now())
+  on conflict (hoja_id, ubicacion_id, user_id) do update set ronda = excluded.ronda, enviado_en = now();
+end $$;
+revoke all on function public.inv_fiscal_revision_enviar(uuid, uuid, jsonb) from public, anon;
+grant execute on function public.inv_fiscal_revision_enviar(uuid, uuid, jsonb) to authenticated;
+
+-- ---------------------------------------------------------------------
+-- EL FISCAL APRUEBA UNAS UBICACIONES (siempre con su clic)
+-- Si estaban a validar, las dos personas tienen que haber enviado; con p_forzar se aprueba igual.
+-- ---------------------------------------------------------------------
+drop function if exists public.inv_fiscal_aprobar(uuid, uuid[], boolean);
+create function public.inv_fiscal_aprobar(p_hoja uuid, p_ubicaciones uuid[], p_forzar boolean default false)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_yo uuid := auth.uid();
+  v_ubi uuid; v_n integer := 0; v_estado text; v_rev text; v_ronda integer; v_envios integer; v_clave text; v_lista uuid[];
+begin
+  if not public.puede_editar('/inventario/fiscal') then
+    raise exception 'Aprobar requiere el permiso «Inventario fiscal» (Roles)';
+  end if;
+  if coalesce(array_length(p_ubicaciones, 1), 0) = 0 then raise exception 'Escoge al menos una ubicación.'; end if;
+  select f.estado into v_estado
+    from public.inv_fiscal_hojas h join public.inv_fiscales f on f.id = h.fiscal_id where h.id = p_hoja;
+  if v_estado is null then raise exception 'Esa hoja no existe.'; end if;
+  if v_estado <> 'abierto' then raise exception 'Este inventario fiscal ya está cerrado.'; end if;
+  if (select count(distinct m.equipo)
+        from public.inv_fiscal_miembros m
+        join public.inv_fiscal_terminos t on t.hoja_id = m.hoja_id and t.user_id = m.user_id
+       where m.hoja_id = p_hoja) < 2 then
+    raise exception 'Se aprueba cuando las dos personas de la hoja terminaron.';
+  end if;
+
+  v_lista := (select array_agg(distinct u) from unnest(p_ubicaciones) u);
+  foreach v_ubi in array v_lista loop
+    select r.estado, r.ronda into v_rev, v_ronda
+      from public.inv_fiscal_revisiones r where r.hoja_id = p_hoja and r.ubicacion_id = v_ubi;
+    if v_rev = 'A_VALIDAR' and not coalesce(p_forzar, false) then
+      select count(*) into v_envios from public.inv_fiscal_revision_envios e
+       where e.hoja_id = p_hoja and e.ubicacion_id = v_ubi and e.ronda = v_ronda;
+      if v_envios < 2 then
+        select clave into v_clave from public.ubicaciones where id = v_ubi;
+        raise exception 'En % todavía falta que las dos personas envíen su validación.', coalesce(v_clave, 'una ubicación');
+      end if;
+    end if;
+    insert into public.inv_fiscal_revisiones (hoja_id, ubicacion_id, estado, ronda, aprobado_por, aprobado_en)
+    values (p_hoja, v_ubi, 'APROBADA', 0, v_yo, now())
+    on conflict (hoja_id, ubicacion_id) do update
+      set estado = 'APROBADA', aprobado_por = v_yo, aprobado_en = now();
+    v_n := v_n + 1;
+  end loop;
+  return v_n;
+end $$;
+revoke all on function public.inv_fiscal_aprobar(uuid, uuid[], boolean) from public, anon;
+grant execute on function public.inv_fiscal_aprobar(uuid, uuid[], boolean) to authenticated;
+
+-- ---------------------------------------------------------------------
+-- EL ESTADO DE LAS UBICACIONES DE UN INVENTARIO (para el panel del fiscal): solo estados, no cantidades.
+-- ---------------------------------------------------------------------
+drop function if exists public.inv_fiscal_revisiones(uuid);
+create function public.inv_fiscal_revisiones(p_fiscal uuid)
+returns table (
+  hoja_id uuid, numero integer, ubicacion_id uuid, ubicacion text, estado text, ronda integer, nota text,
+  ol_envio boolean, bavaria_envio boolean, pedido_en timestamptz, aprobado_en timestamptz
+)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  if not public.puede_ver('/inventario/fiscal') then
+    raise exception 'Ver las revisiones del inventario fiscal requiere el permiso «Inventario fiscal» (Roles)';
+  end if;
+  return query
+  select r.hoja_id, h.numero, r.ubicacion_id, u.clave, r.estado, r.ronda, r.nota,
+         exists (select 1 from public.inv_fiscal_revision_envios e
+                   join public.inv_fiscal_miembros m on m.hoja_id = e.hoja_id and m.user_id = e.user_id
+                  where e.hoja_id = r.hoja_id and e.ubicacion_id = r.ubicacion_id and e.ronda = r.ronda and m.equipo = 'OL'),
+         exists (select 1 from public.inv_fiscal_revision_envios e
+                   join public.inv_fiscal_miembros m on m.hoja_id = e.hoja_id and m.user_id = e.user_id
+                  where e.hoja_id = r.hoja_id and e.ubicacion_id = r.ubicacion_id and e.ronda = r.ronda and m.equipo = 'BAVARIA'),
+         r.pedido_en, r.aprobado_en
+    from public.inv_fiscal_revisiones r
+    join public.inv_fiscal_hojas h on h.id = r.hoja_id
+    join public.ubicaciones u on u.id = r.ubicacion_id
+   where h.fiscal_id = p_fiscal
+   order by h.numero, u.clave;
+end $$;
+revoke all on function public.inv_fiscal_revisiones(uuid) from public, anon;
+grant execute on function public.inv_fiscal_revisiones(uuid) to authenticated;
+
+do $$
+begin
+  if to_regprocedure('public.inv_fiscal_validar(uuid,uuid[],text)') is null
+     or to_regprocedure('public.inv_fiscal_mis_revisiones()') is null
+     or to_regprocedure('public.inv_fiscal_revision_enviar(uuid,uuid,jsonb)') is null
+     or to_regprocedure('public.inv_fiscal_aprobar(uuid,uuid[],boolean)') is null
+     or to_regprocedure('public.inv_fiscal_revisiones(uuid)') is null then
+    raise exception 'No quedaron las funciones de validar y aprobar el inventario fiscal.';
+  end if;
+  raise notice 'Listo: el fiscal puede mandar a validar y aprobar ubicaciones; cada persona responde las suyas.';
+end $$;
+
+commit;
+
+-- ##################### 2026-10-fiscal-siguiente-calle.sql #####################
+-- =====================================================================
+-- INVENTARIO FISCAL · SIGUIENTE CALLE
+--
+-- Cuando el fiscal aprobó todas las diferencias de la calle de una hoja, le da
+-- «Pasar a la siguiente calle» a esa pareja:
+--   · la MISMA hoja cambia de calle (lo contado en la calle anterior se conserva
+--     y sus ubicaciones siguen aprobadas);
+--   · las dos personas quedan con la hoja REABIERTA (se borra su «terminé»)
+--     para contar la calle nueva, siempre a ciegas.
+--
+-- No se puede si queda alguna ubicación a validar (sin aprobar ni responder).
+-- Se puede correr dos veces. Necesita 2026-10-fiscal-calle.sql y
+-- 2026-10-fiscal-validar.sql.
+-- =====================================================================
+begin;
+
+drop function if exists public.inv_fiscal_siguiente_calle(uuid, text);
+create function public.inv_fiscal_siguiente_calle(p_hoja uuid, p_calle text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_estado text; v_calle text := nullif(upper(btrim(coalesce(p_calle, ''))), '');
+begin
+  if not public.puede_editar('/inventario/fiscal') then
+    raise exception 'Pasar a la siguiente calle requiere el permiso «Inventario fiscal» (Roles)';
+  end if;
+  if v_calle is null then raise exception 'Escoge la calle.'; end if;
+  if length(v_calle) > 20 then raise exception 'La calle es demasiado larga.'; end if;
+  select f.estado into v_estado
+    from public.inv_fiscal_hojas h join public.inv_fiscales f on f.id = h.fiscal_id where h.id = p_hoja;
+  if v_estado is null then raise exception 'Esa hoja no existe.'; end if;
+  if v_estado <> 'abierto' then raise exception 'Este inventario fiscal ya está cerrado.'; end if;
+  if exists (select 1 from public.inv_fiscal_revisiones where hoja_id = p_hoja and estado = 'A_VALIDAR') then
+    raise exception 'Todavía hay ubicaciones esperando validación: apruébalas antes de pasar a la siguiente calle.';
+  end if;
+
+  update public.inv_fiscal_hojas set calle = v_calle where id = p_hoja;
+  delete from public.inv_fiscal_terminos where hoja_id = p_hoja;
+end $$;
+revoke all on function public.inv_fiscal_siguiente_calle(uuid, text) from public, anon;
+grant execute on function public.inv_fiscal_siguiente_calle(uuid, text) to authenticated;
+
+do $$
+begin
+  if to_regprocedure('public.inv_fiscal_siguiente_calle(uuid,text)') is null then
+    raise exception 'Falta inv_fiscal_siguiente_calle: no se creó. Revisa que corrieron antes calle y validar.';
+  end if;
+end $$;
+
+commit;
+select 'OK · siguiente calle lista' as resultado;
+
+-- ##################### 2026-10-fiscal-consolidar.sql #####################
+-- =====================================================================
+-- INVENTARIO FISCAL · CONSOLIDAR EN LA BASE (UN CONTEO POR HOJA)
+--
+-- «Cuando el fiscal aprueba lo de ambos, eso se envía a la base de datos de una:
+--  el conteo debe corresponder y coincidir. Para mi análisis y todo lo que hago
+--  sería por hoja y no por usuario.»
+--
+-- QUÉ HACE
+--   · Cada HOJA del fiscal tiene UN solo conteo en La base (tipo FEFO, ya enviado),
+--     con código FISCAL-AAAAMMDD-H01, firmado por quien aprueba. Balance, Análisis
+--     de diferencia, Tablero y demás lo leen como cualquier recorrido, por hoja y no
+--     por persona. Su fecha de análisis es la del inventario fiscal.
+--   · Entra SOLO lo que el fiscal APROBÓ y donde el operador y Bavaria COINCIDEN.
+--     Una ubicación aprobada que todavía difiere NO se consolida (se avisa cuántas):
+--     primero tiene que coincidir.
+--   · Los renglones que entran son los del operador logístico (idénticos en cajas a
+--     los de Bavaria, que es lo que significa coincidir).
+--   · Se puede repetir las veces que sea: cada vez deja en La base exactamente lo
+--     aprobado y coincidente hoy (si una ubicación vuelve a validarse, sale hasta
+--     que se apruebe de nuevo). Cada calle que se aprueba se suma al mismo conteo.
+--   · NO toca los conteos de las personas (inv_fiscal_conteos): el fiscal sigue a ciegas.
+--
+-- Se puede correr dos veces. Necesita 2026-10-fiscal-validar.sql.
+-- =====================================================================
+begin;
+
+alter table public.inv_fiscal_hojas
+  add column if not exists conteo_id uuid references public.conteos(id) on delete set null;
+
+-- El cruce de siempre, pero sin exigir que las dos personas hayan terminado
+-- (esa regla es del botón «cruzar»). Solo lo usa la función de abajo.
+drop function if exists public.inv_fiscal_cruce_filas(uuid);
+create function public.inv_fiscal_cruce_filas(p_hoja uuid)
+returns table (ubicacion_id uuid, estado text)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with t as (
+    select c.ubicacion_id, c.producto_id, c.venc_dia, c.venc_mes, c.venc_anio, c.equipo,
+           sum(coalesce(p.cajas_por_estiba, 0) * coalesce(c.estibas, 0) + coalesce(c.saldo, 0) + coalesce(c.cajas, 0))::bigint as cajas
+      from public.inv_fiscal_conteos c
+      join public.productos p on p.id = c.producto_id
+     where c.hoja_id = p_hoja
+     group by c.ubicacion_id, c.producto_id, c.venc_dia, c.venc_mes, c.venc_anio, c.equipo
+  ), o as (select * from t where equipo = 'OL'), b as (select * from t where equipo = 'BAVARIA')
+  select coalesce(o.ubicacion_id, b.ubicacion_id),
+         case when o.cajas is null then 'SOLO_BAVARIA' when b.cajas is null then 'SOLO_OL'
+              when o.cajas = b.cajas then 'COINCIDE' else 'DIFIERE' end
+    from o full join b
+      on o.ubicacion_id = b.ubicacion_id and o.producto_id = b.producto_id
+     and coalesce(o.venc_dia, 0) = coalesce(b.venc_dia, 0)
+     and coalesce(o.venc_mes, 0) = coalesce(b.venc_mes, 0)
+     and coalesce(o.venc_anio, 0) = coalesce(b.venc_anio, 0)
+$$;
+revoke all on function public.inv_fiscal_cruce_filas(uuid) from public, anon, authenticated;
+
+-- ---------------------------------------------------------------------
+-- CONSOLIDAR UNA HOJA
+-- ---------------------------------------------------------------------
+drop function if exists public.inv_fiscal_consolidar(uuid);
+create function public.inv_fiscal_consolidar(p_hoja uuid)
+returns table (ubicaciones integer, renglones integer, sin_consolidar integer, conteo text)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_yo uuid := auth.uid();
+  v_num integer; v_conteo uuid; v_fecha date; v_bodega uuid; v_codigo text;
+  v_ok uuid[]; v_sin integer; v_ren integer;
+begin
+  if not public.puede_editar('/inventario/fiscal') then
+    raise exception 'Consolidar requiere el permiso «Inventario fiscal» (Roles)';
+  end if;
+  select h.numero, h.conteo_id, f.fecha into v_num, v_conteo, v_fecha
+    from public.inv_fiscal_hojas h join public.inv_fiscales f on f.id = h.fiscal_id where h.id = p_hoja;
+  if v_num is null then raise exception 'Esa hoja no existe.'; end if;
+
+  -- Lo aprobado Y coincidente (todos sus renglones iguales entre las dos personas).
+  v_ok := array(
+    select r.ubicacion_id from public.inv_fiscal_revisiones r
+     where r.hoja_id = p_hoja and r.estado = 'APROBADA'
+       and exists (select 1 from public.inv_fiscal_conteos c where c.hoja_id = p_hoja and c.ubicacion_id = r.ubicacion_id)
+       and not exists (select 1 from public.inv_fiscal_cruce_filas(p_hoja) x
+                        where x.ubicacion_id = r.ubicacion_id and x.estado <> 'COINCIDE'));
+  select count(*) into v_sin from public.inv_fiscal_revisiones r
+   where r.hoja_id = p_hoja and r.estado = 'APROBADA' and not (r.ubicacion_id = any (v_ok));
+
+  if v_conteo is null then
+    if coalesce(array_length(v_ok, 1), 0) = 0 then
+      raise exception 'Todavía no hay ubicaciones aprobadas que coincidan en esta hoja: no hay nada que consolidar.';
+    end if;
+    select u.bodega_id into v_bodega from public.ubicaciones u where u.id = v_ok[1];
+    v_codigo := 'FISCAL-' || to_char(v_fecha, 'YYYYMMDD') || '-H' || lpad(v_num::text, 2, '0');
+    if exists (select 1 from public.conteos where codigo = v_codigo) then
+      v_codigo := v_codigo || '-' || substr(p_hoja::text, 1, 4);
+    end if;
+    insert into public.conteos (codigo, bodega_id, tipo, estado, responsable_id, iniciado_en, cerrado_en, enviado_por, enviado_en, nota)
+    values (v_codigo, v_bodega, 'fefo', 'cerrado', v_yo, now(), now(), v_yo,
+            ((v_fecha::timestamp + interval '12 hours') at time zone 'America/Bogota'),
+            'Inventario fiscal · Hoja ' || v_num || ' · lo aprobado por el fiscal y coincidente entre las dos personas')
+    returning id into v_conteo;
+    update public.inv_fiscal_hojas set conteo_id = v_conteo where id = p_hoja;
+  end if;
+
+  -- Lo que ya no está aprobado y coincidente sale; lo que sí, se vuelve a poner tal cual está hoy.
+  delete from public.conteo_lineas where conteo_id = v_conteo;
+  insert into public.conteo_lineas
+    (conteo_id, producto_id, ubicacion_id, estibas, cajas, saldo, venc_dia, venc_mes, venc_anio,
+     rotacion, averia, pnc, estado_envase, nota, cantidad_contada, contado_por, contado_en)
+  select v_conteo, c.producto_id, c.ubicacion_id, c.estibas, c.cajas, c.saldo, c.venc_dia, c.venc_mes, c.venc_anio,
+         null, false, false, null, c.nota,
+         coalesce(p.cajas_por_estiba, 0) * coalesce(c.estibas, 0) + coalesce(c.cajas, 0) + coalesce(c.saldo, 0),
+         v_yo, c.contado_en
+    from public.inv_fiscal_conteos c join public.productos p on p.id = c.producto_id
+   where c.hoja_id = p_hoja and c.equipo = 'OL' and c.ubicacion_id = any (v_ok);
+  get diagnostics v_ren = row_count;
+
+  return query select coalesce(array_length(v_ok, 1), 0), v_ren, v_sin,
+                      (select cn.codigo from public.conteos cn where cn.id = v_conteo);
+end $$;
+revoke all on function public.inv_fiscal_consolidar(uuid) from public, anon;
+grant execute on function public.inv_fiscal_consolidar(uuid) to authenticated;
+
+-- ---------------------------------------------------------------------
+-- LO CONSOLIDADO DE CADA HOJA (para mostrarlo en el panel del fiscal)
+-- ---------------------------------------------------------------------
+drop function if exists public.inv_fiscal_consolidados(uuid);
+create function public.inv_fiscal_consolidados(p_fiscal uuid)
+returns table (hoja_id uuid, numero integer, conteo text, ubicaciones integer, renglones integer, cajas bigint, enviado_en timestamptz)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  if not public.puede_ver('/inventario/fiscal') then
+    raise exception 'Ver lo consolidado del inventario fiscal requiere el permiso «Inventario fiscal» (Roles)';
+  end if;
+  return query
+  select h.id, h.numero, c.codigo,
+         count(distinct cl.ubicacion_id)::integer, count(cl.id)::integer,
+         coalesce(sum(coalesce(p.cajas_por_estiba, 0) * coalesce(cl.estibas, 0) + coalesce(cl.cajas, 0) + coalesce(cl.saldo, 0)), 0)::bigint,
+         c.enviado_en
+    from public.inv_fiscal_hojas h
+    join public.conteos c on c.id = h.conteo_id
+    left join public.conteo_lineas cl on cl.conteo_id = c.id
+    left join public.productos p on p.id = cl.producto_id
+   where h.fiscal_id = p_fiscal
+   group by h.id, h.numero, c.codigo, c.enviado_en
+   order by h.numero;
+end $$;
+revoke all on function public.inv_fiscal_consolidados(uuid) from public, anon;
+grant execute on function public.inv_fiscal_consolidados(uuid) to authenticated;
+
+do $$
+begin
+  if to_regprocedure('public.inv_fiscal_consolidar(uuid)') is null
+     or to_regprocedure('public.inv_fiscal_consolidados(uuid)') is null then
+    raise exception 'No quedaron las funciones de consolidar. Revisa que corrió antes 2026-10-fiscal-validar.sql.';
+  end if;
+end $$;
+
+commit;
+select 'OK · consolidar listo' as resultado;
+
+-- ##################### 2026-10-fiscal-estado.sql #####################
+-- =====================================================================
+-- INVENTARIO FISCAL · ESTADO DEL ENVASE, AVERÍA Y PNC EN EL CONTEO (el conteo fiscal es gemelo del normal)
+--
+-- En el conteo normal el envase se cuenta con su estado (RETORNO, LAVADO, NUEVO, BAJA, EXTRASUCIO,
+-- OTROS, MAL ESTADO; el cilindro, LLENO o VACÍO). El fiscal ahora también lo pide:
+--   · AVERÍA y PNC (con su política: rótulo y bloqueo mecánico) se anotan como en el normal;
+--   · el mismo material, sitio y vencimiento se puede anotar varias veces (cada una es un renglón; no se suma);
+--   · el cruce y la validación comparan también el estado, la avería y el PNC;
+--   · al mandar a La base el estado va con el renglón.
+--
+-- Orden: correr DESPUÉS de 2026-10-fiscal-consolidar.sql y ANTES de 2026-10-fiscal-modulo.sql.
+-- Se puede correr dos veces. No borra conteos.
+-- =====================================================================
+begin;
+
+alter table public.inv_fiscal_conteos add column if not exists estado_envase text;
+alter table public.inv_fiscal_conteos add column if not exists averia boolean not null default false;
+alter table public.inv_fiscal_conteos add column if not exists pnc boolean not null default false;
+alter table public.inv_fiscal_conteos add column if not exists pnc_rotulo boolean;
+alter table public.inv_fiscal_conteos add column if not exists pnc_bloqueo_mecanico boolean;
+alter table public.inv_fiscal_conteos drop constraint if exists inv_fiscal_conteos_averia_pnc;
+alter table public.inv_fiscal_conteos add constraint inv_fiscal_conteos_averia_pnc check (not (averia and pnc));
+-- El mismo material, sitio, vencimiento y estado se puede anotar VARIAS veces: cada una es su renglón y todos se ven.
+-- El cruce y la validación los suman por módulo. Por eso ya no hay llave única.
+drop index if exists public.inv_fiscal_conteos_unico;
+create index if not exists inv_fiscal_conteos_clave_idx on public.inv_fiscal_conteos
+  (hoja_id, contado_por, ubicacion_id, producto_id);
+
+drop function if exists public.inv_fiscal_contar_agregar(uuid, uuid, uuid, integer, integer, integer, smallint, smallint, smallint, text);
+drop function if exists public.inv_fiscal_contar_agregar(uuid, uuid, uuid, integer, integer, integer, smallint, smallint, smallint, text, text);
+drop function if exists public.inv_fiscal_contar_agregar(uuid, uuid, uuid, integer, integer, integer, smallint, smallint, smallint, text, text, boolean, boolean, boolean, boolean);
+create function public.inv_fiscal_contar_agregar(
+  p_hoja uuid, p_ubicacion uuid, p_producto uuid,
+  p_estibas integer, p_saldo integer, p_cajas integer,
+  p_dia smallint, p_mes smallint, p_anio smallint, p_nota text, p_estado text default null,
+  p_averia boolean default false, p_pnc boolean default false, p_pnc_rotulo boolean default null, p_pnc_bloqueo boolean default null
+) returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_yo uuid := auth.uid();
+  v_equipo text; v_fiscal uuid; v_estado text; v_pub timestamptz; v_fecha date;
+  v_id uuid;
+begin
+  if v_yo is null then raise exception 'Hay que entrar para contar.'; end if;
+
+  select m.equipo, m.fiscal_id, f.estado, f.publicado_en, f.fecha
+    into v_equipo, v_fiscal, v_estado, v_pub, v_fecha
+    from public.inv_fiscal_miembros m join public.inv_fiscales f on f.id = m.fiscal_id
+   where m.hoja_id = p_hoja and m.user_id = v_yo;
+  if v_equipo is null then raise exception 'Esa hoja no es tuya.'; end if;
+  if v_pub is null then raise exception 'Este inventario fiscal no está visible en Contar.'; end if;
+  if v_estado <> 'abierto' then raise exception 'Este inventario fiscal ya está cerrado.'; end if;
+  if v_fecha > (now() at time zone 'America/Bogota')::date then
+    raise exception 'Todavía no es el día: este inventario fiscal se cuenta el %.', to_char(v_fecha, 'DD/MM/YYYY');
+  end if;
+
+  if num_nonnulls(p_estibas, p_saldo, p_cajas) = 0 then raise exception 'Falta la cantidad.'; end if;
+  if p_cajas is not null and (p_estibas is not null or p_saldo is not null) then
+    raise exception 'Se cuentan estibas (con su saldo) o cajas, no las dos cosas.';
+  end if;
+  if coalesce(p_estibas, 0) < 0 or coalesce(p_saldo, 0) < 0 or coalesce(p_cajas, 0) < 0 then
+    raise exception 'Las cantidades no pueden ser negativas.';
+  end if;
+  if coalesce(p_averia, false) and coalesce(p_pnc, false) then raise exception 'Una estiba es avería o PNC, no las dos cosas.'; end if;
+  if coalesce(p_pnc, false) and (p_pnc_rotulo is null or p_pnc_bloqueo is null) then
+    raise exception 'El PNC pide dos respuestas: si tiene rótulo y si tiene bloqueo mecánico.';
+  end if;
+  if num_nonnulls(p_dia, p_mes, p_anio) not in (0, 3) then raise exception 'La fecha de vencimiento va completa (día, mes y año) o vacía.'; end if;
+  if p_dia is not null and not (p_dia between 1 and 31 and p_mes between 1 and 12 and p_anio between 0 and 99) then
+    raise exception 'La fecha de vencimiento no es válida.';
+  end if;
+
+  begin
+    insert into public.inv_fiscal_conteos
+      (fiscal_id, hoja_id, equipo, contado_por, ubicacion_id, producto_id, estibas, saldo, cajas, venc_dia, venc_mes, venc_anio, nota, estado_envase, averia, pnc, pnc_rotulo, pnc_bloqueo_mecanico)
+    values
+      (v_fiscal, p_hoja, v_equipo, v_yo, p_ubicacion, p_producto, p_estibas, p_saldo, p_cajas, p_dia, p_mes, p_anio,
+       nullif(btrim(coalesce(p_nota, '')), ''), nullif(btrim(coalesce(p_estado, '')), ''),
+       coalesce(p_averia, false), coalesce(p_pnc, false),
+       case when coalesce(p_pnc, false) then p_pnc_rotulo end, case when coalesce(p_pnc, false) then p_pnc_bloqueo end)
+    returning id into v_id;
+  exception
+    when unique_violation then
+      raise exception 'No se pudo anotar el renglón.';
+    when foreign_key_violation then
+      raise exception 'Ese sitio o ese material no existe.';
+  end;
+  return v_id;
+end $$;
+revoke all on function public.inv_fiscal_contar_agregar(uuid, uuid, uuid, integer, integer, integer, smallint, smallint, smallint, text, text, boolean, boolean, boolean, boolean) from public, anon;
+grant execute on function public.inv_fiscal_contar_agregar(uuid, uuid, uuid, integer, integer, integer, smallint, smallint, smallint, text, text, boolean, boolean, boolean, boolean) to authenticated;
+
+drop function if exists public.inv_fiscal_contar_mios(uuid);
+create function public.inv_fiscal_contar_mios(p_hoja uuid)
+returns table (
+  id uuid, ubicacion_id uuid, ubicacion text, producto_id uuid, sku text, material text,
+  estibas integer, saldo integer, cajas integer, total_cajas bigint,
+  venc_dia smallint, venc_mes smallint, venc_anio smallint, nota text, contado_en timestamptz, estado_envase text,
+  averia boolean, pnc boolean, pnc_rotulo boolean, pnc_bloqueo_mecanico boolean
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select c.id, c.ubicacion_id, u.clave, c.producto_id, p.sku, p.nombre,
+         c.estibas, c.saldo, c.cajas,
+         (coalesce(p.cajas_por_estiba, 0) * coalesce(c.estibas, 0) + coalesce(c.saldo, 0) + coalesce(c.cajas, 0))::bigint,
+         c.venc_dia, c.venc_mes, c.venc_anio, c.nota, c.contado_en, c.estado_envase,
+         c.averia, c.pnc, c.pnc_rotulo, c.pnc_bloqueo_mecanico
+    from public.inv_fiscal_conteos c
+    join public.ubicaciones u on u.id = c.ubicacion_id
+    join public.productos p on p.id = c.producto_id
+   where c.hoja_id = p_hoja and c.contado_por = auth.uid()
+   order by c.contado_en desc
+$$;
+revoke all on function public.inv_fiscal_contar_mios(uuid) from public, anon;
+grant execute on function public.inv_fiscal_contar_mios(uuid) to authenticated;
+
+do $$
+begin
+  if to_regprocedure('public.inv_fiscal_contar_agregar(uuid,uuid,uuid,integer,integer,integer,smallint,smallint,smallint,text,text,boolean,boolean,boolean,boolean)') is null
+     or to_regprocedure('public.inv_fiscal_contar_mios(uuid)') is null then
+    raise exception 'No quedaron las funciones de contar con estado.';
+  end if;
+end $$;
+
+commit;
+select 'OK · estado del envase en el conteo fiscal' as resultado;
+
+-- ##################### 2026-10-fiscal-modulo.sql #####################
+-- =====================================================================
+-- INVENTARIO FISCAL · VALIDAR POR CALLE Y MÓDULO (SIN LADO)
+--
+-- «En la validación que sea calle y módulo, pero lado no, porque es muy perceptivo.»
+--
+-- Decirle a las personas «revisa A01_IZQ» les señala el lado donde está la diferencia.
+-- Ahora se valida el MÓDULO completo (A01 = sus dos lados):
+--   · Al mandar a validar una ubicación, entran en validación TODAS las de su módulo
+--     (izquierdo y derecho, aunque en uno de los dos nadie haya contado).
+--   · Al aprobar, se aprueba el módulo (las ubicaciones con conteo o ya en validación).
+--   · La persona recuenta el módulo entero y dice en qué lado va cada renglón;
+--     se envía todo junto, o todo o nada (inv_fiscal_revision_enviar_modulo).
+--
+-- Se puede correr dos veces. Necesita 2026-10-fiscal-validar.sql, 2026-10-fiscal-consolidar.sql y 2026-10-fiscal-estado.sql (antes de este).
+-- Vuelve a crear también «consolidar» (ya no cuenta como pendiente un lado donde nadie contó).
+-- =====================================================================
+begin;
+
+-- Las ubicaciones del mismo módulo (calle + módulo) de las que se piden, incluidas las pedidas.
+drop function if exists public.inv_fiscal_hermanas(uuid[]);
+create function public.inv_fiscal_hermanas(p_ubicaciones uuid[])
+returns uuid[]
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(array_agg(distinct x), '{}'::uuid[]) from (
+    select unnest(p_ubicaciones) as x
+    union
+    select s.id
+      from public.ubicaciones u
+      join public.ubicaciones s on s.bodega_id = u.bodega_id and s.calle = u.calle and s.modulo = u.modulo and s.activa
+     where u.id = any (p_ubicaciones)
+  ) t
+$$;
+revoke all on function public.inv_fiscal_hermanas(uuid[]) from public, anon, authenticated;
+
+-- ---------------------------------------------------------------------
+-- MANDAR A VALIDAR: el módulo completo
+-- ---------------------------------------------------------------------
+drop function if exists public.inv_fiscal_validar(uuid, uuid[], text);
+create function public.inv_fiscal_validar(p_hoja uuid, p_ubicaciones uuid[], p_nota text default null)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_yo uuid := auth.uid();
+  v_ubi uuid; v_n integer := 0; v_estado text; v_lista uuid[]; v_pedidas uuid[];
+begin
+  if not public.puede_editar('/inventario/fiscal') then
+    raise exception 'Mandar a validar requiere el permiso «Inventario fiscal» (Roles)';
+  end if;
+  if coalesce(array_length(p_ubicaciones, 1), 0) = 0 then raise exception 'Escoge al menos un módulo.'; end if;
+  select f.estado into v_estado
+    from public.inv_fiscal_hojas h join public.inv_fiscales f on f.id = h.fiscal_id where h.id = p_hoja;
+  if v_estado is null then raise exception 'Esa hoja no existe.'; end if;
+  if v_estado <> 'abierto' then raise exception 'Este inventario fiscal ya está cerrado.'; end if;
+  if (select count(distinct m.equipo)
+        from public.inv_fiscal_miembros m
+        join public.inv_fiscal_terminos t on t.hoja_id = m.hoja_id and t.user_id = m.user_id
+       where m.hoja_id = p_hoja) < 2 then
+    raise exception 'Se manda a validar cuando las dos personas de la hoja terminaron.';
+  end if;
+
+  v_pedidas := (select array_agg(distinct u) from unnest(p_ubicaciones) u);
+  foreach v_ubi in array v_pedidas loop
+    if not exists (select 1 from public.inv_fiscal_conteos c
+                    where c.hoja_id = p_hoja and c.ubicacion_id = any (public.inv_fiscal_hermanas(array[v_ubi]))) then
+      raise exception 'Nadie contó en uno de esos módulos: no hay nada que validar.';
+    end if;
+  end loop;
+
+  v_lista := public.inv_fiscal_hermanas(v_pedidas);
+  foreach v_ubi in array v_lista loop
+    insert into public.inv_fiscal_revisiones (hoja_id, ubicacion_id, estado, ronda, nota, pedido_por, pedido_en)
+    values (p_hoja, v_ubi, 'A_VALIDAR', 1, nullif(btrim(coalesce(p_nota, '')), ''), v_yo, now())
+    on conflict (hoja_id, ubicacion_id) do update
+      set estado = 'A_VALIDAR', ronda = public.inv_fiscal_revisiones.ronda + 1,
+          nota = nullif(btrim(coalesce(p_nota, '')), ''), pedido_por = v_yo, pedido_en = now(),
+          aprobado_por = null, aprobado_en = null;
+    v_n := v_n + 1;
+  end loop;
+  return v_n;
+end $$;
+revoke all on function public.inv_fiscal_validar(uuid, uuid[], text) from public, anon;
+grant execute on function public.inv_fiscal_validar(uuid, uuid[], text) to authenticated;
+
+-- ---------------------------------------------------------------------
+-- APROBAR: el módulo completo (sus ubicaciones con conteo o ya en validación)
+-- ---------------------------------------------------------------------
+drop function if exists public.inv_fiscal_aprobar(uuid, uuid[], boolean);
+create function public.inv_fiscal_aprobar(p_hoja uuid, p_ubicaciones uuid[], p_forzar boolean default false)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_yo uuid := auth.uid();
+  v_ubi uuid; v_n integer := 0; v_estado text; v_rev text; v_ronda integer; v_envios integer; v_clave text; v_lista uuid[];
+  v_equipos integer;
+begin
+  if not public.puede_editar('/inventario/fiscal') then
+    raise exception 'Aprobar requiere el permiso «Inventario fiscal» (Roles)';
+  end if;
+  if coalesce(array_length(p_ubicaciones, 1), 0) = 0 then raise exception 'Escoge al menos un módulo.'; end if;
+  select f.estado into v_estado
+    from public.inv_fiscal_hojas h join public.inv_fiscales f on f.id = h.fiscal_id where h.id = p_hoja;
+  if v_estado is null then raise exception 'Esa hoja no existe.'; end if;
+  if v_estado <> 'abierto' then raise exception 'Este inventario fiscal ya está cerrado.'; end if;
+  select count(distinct m.equipo) into v_equipos
+    from public.inv_fiscal_miembros m
+    join public.inv_fiscal_terminos t on t.hoja_id = m.hoja_id and t.user_id = m.user_id
+   where m.hoja_id = p_hoja;
+  if v_equipos < 1 then
+    raise exception 'Se aprueba cuando al menos una persona de la hoja terminó.';
+  end if;
+  -- Con una sola persona no hay cruce: se aprueba solo si el fiscal lo confirma.
+  if v_equipos < 2 and not coalesce(p_forzar, false) then
+    raise exception 'Solo terminó una persona de la hoja: no hay cruce. Confirma para aprobar con una sola persona.';
+  end if;
+
+  v_lista := array(
+    select distinct h
+      from unnest(public.inv_fiscal_hermanas((select array_agg(distinct u) from unnest(p_ubicaciones) u))) h
+     where h = any (p_ubicaciones)
+        or exists (select 1 from public.inv_fiscal_conteos c where c.hoja_id = p_hoja and c.ubicacion_id = h)
+        or exists (select 1 from public.inv_fiscal_revisiones r where r.hoja_id = p_hoja and r.ubicacion_id = h));
+  foreach v_ubi in array v_lista loop
+    select r.estado, r.ronda into v_rev, v_ronda
+      from public.inv_fiscal_revisiones r where r.hoja_id = p_hoja and r.ubicacion_id = v_ubi;
+    if v_rev = 'A_VALIDAR' and not coalesce(p_forzar, false) then
+      select count(*) into v_envios from public.inv_fiscal_revision_envios e
+       where e.hoja_id = p_hoja and e.ubicacion_id = v_ubi and e.ronda = v_ronda;
+      if v_envios < 2 then
+        select clave into v_clave from public.ubicaciones where id = v_ubi;
+        raise exception 'En % todavía falta que las dos personas envíen su validación.', coalesce(regexp_replace(v_clave, '_(IZQ|DER)$', ''), 'un módulo');
+      end if;
+    end if;
+    insert into public.inv_fiscal_revisiones (hoja_id, ubicacion_id, estado, ronda, aprobado_por, aprobado_en)
+    values (p_hoja, v_ubi, 'APROBADA', 0, v_yo, now())
+    on conflict (hoja_id, ubicacion_id) do update
+      set estado = 'APROBADA', aprobado_por = v_yo, aprobado_en = now();
+    v_n := v_n + 1;
+  end loop;
+  return v_n;
+end $$;
+revoke all on function public.inv_fiscal_aprobar(uuid, uuid[], boolean) from public, anon;
+grant execute on function public.inv_fiscal_aprobar(uuid, uuid[], boolean) to authenticated;
+
+-- ---------------------------------------------------------------------
+-- RESPONDER UN MÓDULO: «está bien» (sin renglones) o REEMPLAZAR lo contado en él.
+-- p_ubicaciones: las ubicaciones del módulo (con una basta: se completan los dos lados).
+-- p_renglones: [{ubicacion_id, producto_id, estibas, saldo, cajas, dia, mes, anio, nota}, …]
+--   · null  → «está bien»: no cambia nada, solo se marca como enviado.
+--   · lista → borra lo que esta persona contó en el módulo y pone estos renglones (vacía = «aquí no hay nada»).
+-- ---------------------------------------------------------------------
+drop function if exists public.inv_fiscal_revision_enviar_modulo(uuid, uuid[], jsonb);
+create function public.inv_fiscal_revision_enviar_modulo(p_hoja uuid, p_ubicaciones uuid[], p_renglones jsonb default null)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_yo uuid := auth.uid();
+  v_equipo text; v_fiscal uuid; v_estado text; v_pub timestamptz;
+  v_lista uuid[]; v_ubi uuid; v_ronda integer; v_rev text; v_rondas integer[] := '{}'; v_i integer := 0;
+  x jsonb; v_u uuid; v_est integer; v_sal integer; v_caj integer; v_d smallint; v_m smallint; v_a smallint; v_prod uuid;
+begin
+  if v_yo is null then raise exception 'Hay que entrar para contar.'; end if;
+  select m.equipo, m.fiscal_id, f.estado, f.publicado_en
+    into v_equipo, v_fiscal, v_estado, v_pub
+    from public.inv_fiscal_miembros m join public.inv_fiscales f on f.id = m.fiscal_id
+   where m.hoja_id = p_hoja and m.user_id = v_yo;
+  if v_equipo is null then raise exception 'Esa hoja no es tuya.'; end if;
+  if v_pub is null then raise exception 'Este inventario fiscal no está visible en Contar.'; end if;
+  if v_estado <> 'abierto' then raise exception 'Este inventario fiscal ya está cerrado.'; end if;
+  if coalesce(array_length(p_ubicaciones, 1), 0) = 0 then raise exception 'Falta el módulo.'; end if;
+
+  -- Solo las ubicaciones del módulo que el fiscal mandó a validar y que esta persona todavía no respondió.
+  v_lista := array(select h from unnest(public.inv_fiscal_hermanas(p_ubicaciones)) h
+                    where exists (select 1 from public.inv_fiscal_revisiones r
+                                   where r.hoja_id = p_hoja and r.ubicacion_id = h and r.estado = 'A_VALIDAR'));
+  if coalesce(array_length(v_lista, 1), 0) = 0 then raise exception 'El fiscal no te pidió validar ese módulo.'; end if;
+  foreach v_ubi in array v_lista loop
+    select r.ronda into v_ronda from public.inv_fiscal_revisiones r where r.hoja_id = p_hoja and r.ubicacion_id = v_ubi;
+    if exists (select 1 from public.inv_fiscal_revision_envios e
+                where e.hoja_id = p_hoja and e.ubicacion_id = v_ubi and e.user_id = v_yo and e.ronda = v_ronda) then
+      raise exception 'Ya enviaste ese módulo. Espera a que el fiscal lo apruebe o lo mande otra vez.';
+    end if;
+    v_rondas := v_rondas || v_ronda;
+  end loop;
+
+  if p_renglones is not null then
+    if jsonb_typeof(p_renglones) <> 'array' then raise exception 'Los renglones deben ir en una lista.'; end if;
+    delete from public.inv_fiscal_conteos where hoja_id = p_hoja and contado_por = v_yo and ubicacion_id = any (v_lista);
+    for x in select * from jsonb_array_elements(p_renglones) loop
+      v_u := nullif(x->>'ubicacion_id', '')::uuid;
+      if v_u is null or not (v_u = any (v_lista)) then raise exception 'A un renglón le falta el lado (izquierdo o derecho) de ese módulo.'; end if;
+      v_prod := nullif(x->>'producto_id', '')::uuid;
+      v_est := nullif(x->>'estibas', '')::integer; v_sal := nullif(x->>'saldo', '')::integer; v_caj := nullif(x->>'cajas', '')::integer;
+      v_d := nullif(x->>'dia', '')::smallint; v_m := nullif(x->>'mes', '')::smallint; v_a := nullif(x->>'anio', '')::smallint;
+      if v_prod is null then raise exception 'A un renglón le falta el material.'; end if;
+      if num_nonnulls(v_est, v_sal, v_caj) = 0 then raise exception 'A un renglón le falta la cantidad.'; end if;
+      if v_caj is not null and (v_est is not null or v_sal is not null) then
+        raise exception 'Se cuentan estibas (con su saldo) o cajas, no las dos cosas.';
+      end if;
+      if coalesce(v_est, 0) < 0 or coalesce(v_sal, 0) < 0 or coalesce(v_caj, 0) < 0 then
+        raise exception 'Las cantidades no pueden ser negativas.';
+      end if;
+      if num_nonnulls(v_d, v_m, v_a) not in (0, 3) then raise exception 'La fecha de vencimiento va completa (día, mes y año) o vacía.'; end if;
+      if v_d is not null and not (v_d between 1 and 31 and v_m between 1 and 12 and v_a between 0 and 99) then
+        raise exception 'La fecha de vencimiento no es válida.';
+      end if;
+      begin
+        insert into public.inv_fiscal_conteos
+          (fiscal_id, hoja_id, equipo, contado_por, ubicacion_id, producto_id, estibas, saldo, cajas, venc_dia, venc_mes, venc_anio, nota, estado_envase, averia, pnc, pnc_rotulo, pnc_bloqueo_mecanico)
+        values (v_fiscal, p_hoja, v_equipo, v_yo, v_u, v_prod, v_est, v_sal, v_caj, v_d, v_m, v_a,
+                nullif(btrim(coalesce(x->>'nota', '')), ''), nullif(btrim(coalesce(x->>'estado', '')), ''),
+                coalesce((x->>'averia')::boolean, false), coalesce((x->>'pnc')::boolean, false),
+                case when coalesce((x->>'pnc')::boolean, false) then (x->>'pnc_rotulo')::boolean end,
+                case when coalesce((x->>'pnc')::boolean, false) then (x->>'pnc_bloqueo')::boolean end);
+      exception
+        when unique_violation then
+          raise exception 'Hay dos renglones iguales (mismo material, vencimiento y lado) en ese módulo.';
+        when foreign_key_violation then
+          raise exception 'Ese material no existe.';
+      end;
+    end loop;
+  end if;
+
+  foreach v_ubi in array v_lista loop
+    v_i := v_i + 1;
+    insert into public.inv_fiscal_revision_envios (hoja_id, ubicacion_id, user_id, ronda, enviado_en)
+    values (p_hoja, v_ubi, v_yo, v_rondas[v_i], now())
+    on conflict (hoja_id, ubicacion_id, user_id) do update set ronda = excluded.ronda, enviado_en = now();
+  end loop;
+end $$;
+revoke all on function public.inv_fiscal_revision_enviar_modulo(uuid, uuid[], jsonb) from public, anon;
+grant execute on function public.inv_fiscal_revision_enviar_modulo(uuid, uuid[], jsonb) to authenticated;
+
+-- ¿El módulo de esta ubicación NO cuadra entre las dos personas? (por módulo, material y vencimiento; sin lado)
+drop function if exists public.inv_fiscal_modulo_difiere(uuid, uuid);
+create function public.inv_fiscal_modulo_difiere(p_hoja uuid, p_ubi uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with t as (
+    select regexp_replace(u.clave, '_(IZQ|DER)$', '') as modulo, c.producto_id,
+           coalesce(c.venc_dia, 0) as vd, coalesce(c.venc_mes, 0) as vm, coalesce(c.venc_anio, 0) as va, c.estado_envase as ee, c.averia as av, c.pnc as pn, c.equipo,
+           coalesce(p.cajas_por_estiba, 0) * coalesce(c.estibas, 0) + coalesce(c.saldo, 0) + coalesce(c.cajas, 0) as cajas
+      from public.inv_fiscal_conteos c
+      join public.ubicaciones u on u.id = c.ubicacion_id
+      join public.productos p on p.id = c.producto_id
+     where c.hoja_id = p_hoja
+  ), g as (
+    select modulo, producto_id, vd, vm, va, ee, av, pn,
+           sum(case when equipo = 'OL' then cajas end) as co, sum(case when equipo = 'BAVARIA' then cajas end) as cb
+      from t
+     where modulo = (select regexp_replace(u2.clave, '_(IZQ|DER)$', '') from public.ubicaciones u2 where u2.id = p_ubi)
+     group by 1, 2, 3, 4, 5, 6, 7, 8
+  )
+  select exists (select 1 from g where co is null or cb is null or co <> cb)
+$$;
+revoke all on function public.inv_fiscal_modulo_difiere(uuid, uuid) from public, anon, authenticated;
+
+-- El cruce también se puede pedir cuando terminó una sola persona (todo sale «solo …», sin cruce).
+drop function if exists public.inv_fiscal_cruce(uuid);
+create function public.inv_fiscal_cruce(p_hoja uuid)
+returns table (
+  ubicacion_id uuid, ubicacion text, producto_id uuid, sku text, material text,
+  venc_dia smallint, venc_mes smallint, venc_anio smallint,
+  cajas_ol bigint, cajas_bavaria bigint, diferencia bigint, estado text, estado_envase text, averia boolean, pnc boolean
+)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  if not public.puede_editar('/inventario/fiscal') then
+    raise exception 'Cruzar el inventario fiscal requiere el permiso «Inventario fiscal» (Roles)';
+  end if;
+  if not exists (select 1 from public.inv_fiscal_hojas where id = p_hoja) then
+    raise exception 'Esa hoja no existe.';
+  end if;
+  if (select count(distinct m.equipo)
+        from public.inv_fiscal_miembros m
+        join public.inv_fiscal_terminos t on t.hoja_id = m.hoja_id and t.user_id = m.user_id
+       where m.hoja_id = p_hoja) < 1 then
+    raise exception 'El cruce se hace cuando al menos una persona de la hoja terminó de contar.';
+  end if;
+
+  return query
+  with t as (
+    select c.ubicacion_id, c.producto_id, c.venc_dia, c.venc_mes, c.venc_anio, c.estado_envase, c.averia, c.pnc, m.equipo,
+           sum(coalesce(p.cajas_por_estiba, 0) * coalesce(c.estibas, 0) + coalesce(c.saldo, 0) + coalesce(c.cajas, 0))::bigint as cajas
+      from public.inv_fiscal_conteos c
+      join public.inv_fiscal_miembros m on m.hoja_id = c.hoja_id and m.user_id = c.contado_por
+      join public.productos p on p.id = c.producto_id
+     where c.hoja_id = p_hoja
+     group by c.ubicacion_id, c.producto_id, c.venc_dia, c.venc_mes, c.venc_anio, c.estado_envase, c.averia, c.pnc, m.equipo
+  ), o as (select * from t where equipo = 'OL'), b as (select * from t where equipo = 'BAVARIA'),
+  j as (
+    select coalesce(o.ubicacion_id, b.ubicacion_id) as ubi, coalesce(o.producto_id, b.producto_id) as prod,
+           coalesce(o.venc_dia, b.venc_dia) as vd, coalesce(o.venc_mes, b.venc_mes) as vm, coalesce(o.venc_anio, b.venc_anio) as va,
+           coalesce(o.estado_envase, b.estado_envase) as ee, coalesce(o.averia, b.averia) as av, coalesce(o.pnc, b.pnc) as pn, o.cajas as co, b.cajas as cb
+      from o full join b
+        on o.ubicacion_id = b.ubicacion_id and o.producto_id = b.producto_id
+       and coalesce(o.venc_dia, 0) = coalesce(b.venc_dia, 0)
+       and coalesce(o.venc_mes, 0) = coalesce(b.venc_mes, 0)
+       and coalesce(o.venc_anio, 0) = coalesce(b.venc_anio, 0)
+       and o.estado_envase is not distinct from b.estado_envase
+       and o.averia = b.averia and o.pnc = b.pnc
+  )
+  select j.ubi, u.clave, j.prod, pr.sku, pr.nombre, j.vd, j.vm, j.va, j.co, j.cb,
+         (coalesce(j.co, 0) - coalesce(j.cb, 0))::bigint,
+         case when j.co is null then 'SOLO_BAVARIA'
+              when j.cb is null then 'SOLO_OL'
+              when j.co = j.cb then 'COINCIDE'
+              else 'DIFIERE' end,
+         j.ee, j.av, j.pn
+    from j
+    join public.ubicaciones u on u.id = j.ubi
+    join public.productos pr on pr.id = j.prod
+   order by (case when j.co is not null and j.cb is not null and j.co = j.cb then 1 else 0 end), u.clave, pr.sku, j.va, j.vm, j.vd;
+end $$;
+revoke all on function public.inv_fiscal_cruce(uuid) from public, anon;
+grant execute on function public.inv_fiscal_cruce(uuid) to authenticated;
+
+-- ---------------------------------------------------------------------
+-- CONSOLIDAR (igual que antes; un lado donde nadie contó ya no cuenta como pendiente)
+-- ---------------------------------------------------------------------
+drop function if exists public.inv_fiscal_consolidar(uuid);
+create function public.inv_fiscal_consolidar(p_hoja uuid)
+returns table (ubicaciones integer, renglones integer, sin_consolidar integer, conteo text)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_yo uuid := auth.uid();
+  v_num integer; v_conteo uuid; v_fecha date; v_bodega uuid; v_codigo text;
+  v_ok uuid[]; v_sin integer; v_ren integer; v_equipos integer; v_eq text := 'OL';
+begin
+  if not public.puede_editar('/inventario/fiscal') then
+    raise exception 'Consolidar requiere el permiso «Inventario fiscal» (Roles)';
+  end if;
+  select h.numero, h.conteo_id, f.fecha into v_num, v_conteo, v_fecha
+    from public.inv_fiscal_hojas h join public.inv_fiscales f on f.id = h.fiscal_id where h.id = p_hoja;
+  if v_num is null then raise exception 'Esa hoja no existe.'; end if;
+
+  -- ¿Terminó una sola persona? Entonces no hay cruce: lo aprobado se toma de la persona que terminó.
+  select count(distinct m.equipo), coalesce(min(m.equipo), 'OL') into v_equipos, v_eq
+    from public.inv_fiscal_miembros m
+    join public.inv_fiscal_terminos t on t.hoja_id = m.hoja_id and t.user_id = m.user_id
+   where m.hoja_id = p_hoja;
+  if v_equipos <> 1 then v_eq := 'OL'; end if;
+
+  -- Lo aprobado Y coincidente por módulo (sin lado). Con una sola persona: todo lo aprobado que ella contó.
+  v_ok := array(
+    select r.ubicacion_id from public.inv_fiscal_revisiones r
+     where r.hoja_id = p_hoja and r.estado = 'APROBADA'
+       and exists (select 1 from public.inv_fiscal_conteos c where c.hoja_id = p_hoja and c.ubicacion_id = r.ubicacion_id
+                    and (v_equipos <> 1 or c.equipo = v_eq))
+       and (v_equipos = 1 or not public.inv_fiscal_modulo_difiere(p_hoja, r.ubicacion_id)));
+  select count(*) into v_sin from public.inv_fiscal_revisiones r
+   where r.hoja_id = p_hoja and r.estado = 'APROBADA' and not (r.ubicacion_id = any (v_ok))
+     and exists (select 1 from public.inv_fiscal_conteos c where c.hoja_id = p_hoja and c.ubicacion_id = r.ubicacion_id);
+
+  if v_conteo is null then
+    if coalesce(array_length(v_ok, 1), 0) = 0 then
+      raise exception 'Todavía no hay ubicaciones aprobadas que coincidan en esta hoja: no hay nada que consolidar.';
+    end if;
+    select u.bodega_id into v_bodega from public.ubicaciones u where u.id = v_ok[1];
+    v_codigo := 'FISCAL-' || to_char(v_fecha, 'YYYYMMDD') || '-H' || lpad(v_num::text, 2, '0');
+    if exists (select 1 from public.conteos where codigo = v_codigo) then
+      v_codigo := v_codigo || '-' || substr(p_hoja::text, 1, 4);
+    end if;
+    insert into public.conteos (codigo, bodega_id, tipo, estado, responsable_id, iniciado_en, cerrado_en, enviado_por, enviado_en, nota)
+    values (v_codigo, v_bodega, 'fefo', 'cerrado', v_yo, now(), now(), v_yo,
+            ((v_fecha::timestamp + interval '12 hours') at time zone 'America/Bogota'),
+            'Inventario fiscal · Hoja ' || v_num || case when v_equipos = 1 then ' · lo aprobado por el fiscal, contado por una sola persona (sin cruce)' else ' · lo aprobado por el fiscal y coincidente entre las dos personas' end)
+    returning id into v_conteo;
+    update public.inv_fiscal_hojas set conteo_id = v_conteo where id = p_hoja;
+  end if;
+
+  -- Lo que ya no está aprobado y coincidente sale; lo que sí, se vuelve a poner tal cual está hoy.
+  delete from public.conteo_lineas where conteo_id = v_conteo;
+  insert into public.conteo_lineas
+    (conteo_id, producto_id, ubicacion_id, estibas, cajas, saldo, venc_dia, venc_mes, venc_anio,
+     rotacion, averia, pnc, estado_envase, nota, cantidad_contada, contado_por, contado_en, pnc_rotulo, pnc_bloqueo_mecanico)
+  select v_conteo, c.producto_id, c.ubicacion_id, c.estibas, c.cajas, c.saldo, c.venc_dia, c.venc_mes, c.venc_anio,
+         null, c.averia, c.pnc, c.estado_envase, c.nota,
+         coalesce(p.cajas_por_estiba, 0) * coalesce(c.estibas, 0) + coalesce(c.cajas, 0) + coalesce(c.saldo, 0),
+         v_yo, c.contado_en, c.pnc_rotulo, c.pnc_bloqueo_mecanico
+    from public.inv_fiscal_conteos c join public.productos p on p.id = c.producto_id
+   where c.hoja_id = p_hoja and c.equipo = v_eq and c.ubicacion_id = any (v_ok);
+  get diagnostics v_ren = row_count;
+
+  return query select coalesce(array_length(v_ok, 1), 0), v_ren, v_sin,
+                      (select cn.codigo from public.conteos cn where cn.id = v_conteo);
+end $$;
+revoke all on function public.inv_fiscal_consolidar(uuid) from public, anon;
+grant execute on function public.inv_fiscal_consolidar(uuid) to authenticated;
+
+-- ---------------------------------------------------------------------
+-- LO QUE VE CADA PERSONA AL REVISAR: SOLO SUS RENGLONES CON DIFERENCIA
+-- Compara por módulo (sin lado), material y vencimiento. Devuelve solo los ids de los renglones
+-- de quien pregunta que no cuadran con su pareja (o que la pareja no anotó). Nunca devuelve la
+-- cantidad de la pareja, y lo que solo anotó la pareja no se le muestra: lo resuelve el fiscal.
+-- ---------------------------------------------------------------------
+drop function if exists public.inv_fiscal_mis_diferencias(uuid);
+create function public.inv_fiscal_mis_diferencias(p_hoja uuid)
+returns table (conteo_id uuid)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with yo as (
+    select m.equipo from public.inv_fiscal_miembros m where m.hoja_id = p_hoja and m.user_id = auth.uid()
+  ), t as (
+    select c.id, c.contado_por, c.equipo, c.producto_id,
+           regexp_replace(u.clave, '_(IZQ|DER)$', '') as modulo,
+           coalesce(c.venc_dia, 0) as vd, coalesce(c.venc_mes, 0) as vm, coalesce(c.venc_anio, 0) as va, c.estado_envase as ee, c.averia as av, c.pnc as pn,
+           coalesce(p.cajas_por_estiba, 0) * coalesce(c.estibas, 0) + coalesce(c.saldo, 0) + coalesce(c.cajas, 0) as cajas
+      from public.inv_fiscal_conteos c
+      join public.ubicaciones u on u.id = c.ubicacion_id
+      join public.productos p on p.id = c.producto_id
+     where c.hoja_id = p_hoja
+  ), g as (
+    select modulo, producto_id, vd, vm, va, ee, av, pn, equipo, sum(cajas) as cajas from t group by 1, 2, 3, 4, 5, 6, 7, 8, 9
+  )
+  select t.id
+    from t
+    join yo on yo.equipo = t.equipo
+   where t.contado_por = auth.uid()
+     and not exists (
+       select 1 from g mi join g otro
+         on otro.modulo = mi.modulo and otro.producto_id = mi.producto_id and otro.vd = mi.vd and otro.vm = mi.vm and otro.va = mi.va and otro.ee is not distinct from mi.ee and otro.av = mi.av and otro.pn = mi.pn
+        and otro.equipo <> mi.equipo
+       where mi.modulo = t.modulo and mi.producto_id = t.producto_id and mi.vd = t.vd and mi.vm = t.vm and mi.va = t.va and mi.ee is not distinct from t.ee and mi.av = t.av and mi.pn = t.pn
+         and mi.equipo = t.equipo and otro.cajas = mi.cajas
+     )
+$$;
+revoke all on function public.inv_fiscal_mis_diferencias(uuid) from public, anon;
+grant execute on function public.inv_fiscal_mis_diferencias(uuid) to authenticated;
+
+do $$
+begin
+  if to_regprocedure('public.inv_fiscal_mis_diferencias(uuid)') is null
+     or to_regprocedure('public.inv_fiscal_revision_enviar_modulo(uuid,uuid[],jsonb)') is null
+     or to_regprocedure('public.inv_fiscal_validar(uuid,uuid[],text)') is null
+     or to_regprocedure('public.inv_fiscal_aprobar(uuid,uuid[],boolean)') is null
+     or to_regprocedure('public.inv_fiscal_modulo_difiere(uuid,uuid)') is null
+     or to_regprocedure('public.inv_fiscal_cruce(uuid)') is null
+     or to_regprocedure('public.inv_fiscal_consolidar(uuid)') is null then
+    raise exception 'No quedaron las funciones de validar por módulo. Revisa que corrieron antes validar y consolidar.';
+  end if;
+end $$;
+
+commit;
+select 'OK · validar por calle y módulo listo' as resultado;
+

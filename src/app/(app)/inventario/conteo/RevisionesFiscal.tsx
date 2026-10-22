@@ -141,7 +141,6 @@ export function RevisionesFiscal({ hojaId, mios, materiales, alCambiar, avisar }
   const ponRen = (k: number, cambio: Partial<BorradorFiscal>) => setRengs((l) => l.map((x) => (x.k === k ? { ...x, ...cambio } : x)));
 
   function enviarNuevo(m: Modulo) {
-    const claves = new Set<string>();
     const salida: object[] = [];
     for (const x of rengs) {
       const mat = matDe(x.codigo);
@@ -150,9 +149,6 @@ export function RevisionesFiscal({ hojaId, mios, materiales, alCambiar, avisar }
       /* El lado no se pregunta: lo que ya tenía conserva su sitio y lo nuevo va al primero del módulo. */
       const ub = x.ub || m.filas[0].ubicacion_id;
       const a = argumentosFiscal(hojaId, ub, mat, x);
-      const clave = `${ub}|${mat.id}|${a.p_estado ?? ""}|${a.p_averia ? "A" : ""}${a.p_pnc ? "P" : ""}|${a.p_dia ?? ""}|${a.p_mes ?? ""}|${a.p_anio ?? ""}`;
-      if (claves.has(clave)) { setMal(`${mat.sku} está dos veces con el mismo vencimiento y lado: junta las cantidades en un solo renglón.`); return }
-      claves.add(clave);
       salida.push({ ubicacion_id: ub, producto_id: a.p_producto, estibas: a.p_estibas, saldo: a.p_saldo, cajas: a.p_cajas, dia: a.p_dia, mes: a.p_mes, anio: a.p_anio, nota: a.p_nota, estado: a.p_estado,
         averia: a.p_averia, pnc: a.p_pnc, pnc_rotulo: a.p_pnc_rotulo, pnc_bloqueo: a.p_pnc_bloqueo });
     }
