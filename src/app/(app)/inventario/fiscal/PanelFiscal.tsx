@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { createClient } from "@/lib/supabase/client";
 import { traducirError } from "@/lib/errores";
 import {
-  avanceDesdeBD, estadoHoja, cruceModulo, filaDesdeBD, ordenarCruce, puedeCruzar, unaSolaTermino, resumenCruce, textoEquipo, textoVenc, titularCruce, TEXTO_FILA,
+  avanceDesdeBD, estadoHoja, cruceModulo, marcasDeFila, filaDesdeBD, ordenarCruce, puedeCruzar, unaSolaTermino, resumenCruce, textoEquipo, textoVenc, titularCruce, TEXTO_FILA,
   type AvanceBD, type AvanceHoja, type FilaCruce, type FilaCruceBD, type ResumenCruce,
 } from "@/modulos/inventario/fiscal-cruce";
 import type { HojaForm } from "@/modulos/inventario/fiscal";
@@ -413,7 +413,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                           <tr key={i} className={"vf-f " + f.estado.toLowerCase()}>
                             <td data-et="Estado"><i className={"vf-ef " + f.estado.toLowerCase()}>{TEXTO_FILA[f.estado]}</i></td>
                             <td data-et="Sitio"><b>{f.ubicacion}</b></td>
-                            <td data-et="Material"><b>{f.sku}</b> {f.material}{f.estadoEnvase ? <> · <i>{f.estadoEnvase}</i></> : null}</td>
+                            <td data-et="Material"><b>{f.sku}</b> {f.material}{marcasDeFila(f) ? <> · <i>{marcasDeFila(f)}</i></> : null}</td>
                             <td data-et="Vence">{textoVenc(f.vencDia, f.vencMes, f.vencAnio)}</td>
                             <td data-et="Operador" className="num">{f.cajasOl === null ? "—" : nf.format(f.cajasOl)}</td>
                             <td data-et="Bavaria" className="num">{f.cajasBavaria === null ? "—" : nf.format(f.cajasBavaria)}</td>

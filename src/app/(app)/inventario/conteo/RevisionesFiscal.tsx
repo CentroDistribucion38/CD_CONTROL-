@@ -47,6 +47,7 @@ function desdeRenglon(r: RenglonFiscal, k: number): Reng {
     dia: r.venc_dia == null ? "" : dd(r.venc_dia), mes: r.venc_mes == null ? "" : dd(r.venc_mes), anio: r.venc_anio == null ? "" : dd(r.venc_anio),
     modo: r.cajas != null ? "cajas" : "estibas",
     estibas: aTexto(r.estibas), saldo: aTexto(r.saldo), cajas: aTexto(r.cajas), nota: r.nota ?? "", estado: r.estado_envase ?? "",
+    averia: !!r.averia, pnc: !!r.pnc, pncRotulo: r.pnc ? r.pnc_rotulo ?? null : null, pncBloqueo: r.pnc ? r.pnc_bloqueo_mecanico ?? null : null,
   };
 }
 
@@ -108,6 +109,7 @@ export function RevisionesFiscal({ hojaId, mios, materiales, alCambiar, avisar }
   const raw = (r: RenglonFiscal) => ({
     ubicacion_id: r.ubicacion_id, producto_id: r.producto_id, estibas: r.estibas, saldo: r.saldo, cajas: r.cajas,
     dia: r.venc_dia, mes: r.venc_mes, anio: r.venc_anio, nota: r.nota, estado: r.estado_envase ?? null,
+    averia: !!r.averia, pnc: !!r.pnc, pnc_rotulo: r.pnc ? r.pnc_rotulo ?? null : null, pnc_bloqueo: r.pnc ? r.pnc_bloqueo_mecanico ?? null : null,
   });
   const textoCant = (r: RenglonFiscal) => {
     if (r.cajas != null) return `${nf.format(r.cajas)} caja${r.cajas === 1 ? "" : "s"}`;
@@ -148,10 +150,11 @@ export function RevisionesFiscal({ hojaId, mios, materiales, alCambiar, avisar }
       /* El lado no se pregunta: lo que ya tenía conserva su sitio y lo nuevo va al primero del módulo. */
       const ub = x.ub || m.filas[0].ubicacion_id;
       const a = argumentosFiscal(hojaId, ub, mat, x);
-      const clave = `${ub}|${mat.id}|${a.p_estado ?? ""}|${a.p_dia ?? ""}|${a.p_mes ?? ""}|${a.p_anio ?? ""}`;
+      const clave = `${ub}|${mat.id}|${a.p_estado ?? ""}|${a.p_averia ? "A" : ""}${a.p_pnc ? "P" : ""}|${a.p_dia ?? ""}|${a.p_mes ?? ""}|${a.p_anio ?? ""}`;
       if (claves.has(clave)) { setMal(`${mat.sku} está dos veces con el mismo vencimiento y lado: junta las cantidades en un solo renglón.`); return }
       claves.add(clave);
-      salida.push({ ubicacion_id: ub, producto_id: a.p_producto, estibas: a.p_estibas, saldo: a.p_saldo, cajas: a.p_cajas, dia: a.p_dia, mes: a.p_mes, anio: a.p_anio, nota: a.p_nota, estado: a.p_estado });
+      salida.push({ ubicacion_id: ub, producto_id: a.p_producto, estibas: a.p_estibas, saldo: a.p_saldo, cajas: a.p_cajas, dia: a.p_dia, mes: a.p_mes, anio: a.p_anio, nota: a.p_nota, estado: a.p_estado,
+        averia: a.p_averia, pnc: a.p_pnc, pnc_rotulo: a.p_pnc_rotulo, pnc_bloqueo: a.p_pnc_bloqueo });
     }
     /* Los renglones que cuadraban no se mostraron, pero siguen: se mandan igual que estaban. */
     const mostrados = new Set(misDe(m).map((x) => x.id));
@@ -178,7 +181,7 @@ export function RevisionesFiscal({ hojaId, mios, materiales, alCambiar, avisar }
                   {mias.length === 0 ? <p className="rv-vacio">En este módulo no tienes renglones con diferencia. Si crees que falta algo por anotar, usa «Contar de nuevo» y agrégalo.</p> : (
                     <ul className="rv-mios" aria-label={`Lo que anotaste en ${r.modulo}`}>
                       {mias.map((x) => (
-                        <li key={x.id}><b>{x.sku}</b> {x.material}{x.estado_envase ? <> · {x.estado_envase}</> : null}<br /><span>{textoCant(x)} = <b>{nf.format(Number(x.total_cajas))}</b> cajas
+                        <li key={x.id}><b>{x.sku}</b> {x.material}{[x.estado_envase, x.averia && "AVERÍA", x.pnc && "PNC"].filter(Boolean).length > 0 ? <> · {[x.estado_envase, x.averia && "AVERÍA", x.pnc && "PNC"].filter(Boolean).join(" · ")}</> : null}<br /><span>{textoCant(x)} = <b>{nf.format(Number(x.total_cajas))}</b> cajas
                           {x.venc_dia != null && <> · vence {dd(x.venc_dia)}/{dd(x.venc_mes)}/{dd(x.venc_anio)}</>}</span></li>
                       ))}
                     </ul>
@@ -219,6 +222,26 @@ export function RevisionesFiscal({ hojaId, mios, materiales, alCambiar, avisar }
                                       onClick={() => ponRen(x.k, { estado: x.estado === e ? "" : e })}>{e}</button>
                             ))}
                           </div>
+                        )}
+                        <div className="rv-modo rv-w" role="group" aria-label="Avería o PNC">
+                          <button type="button" className={x.averia ? "on" : ""} aria-pressed={x.averia}
+                                  onClick={() => ponRen(x.k, { averia: !x.averia, pnc: false, pncRotulo: null, pncBloqueo: null })}>Avería</button>
+                          <button type="button" className={x.pnc ? "on" : ""} aria-pressed={x.pnc}
+                                  onClick={() => ponRen(x.k, { pnc: !x.pnc, averia: false, pncRotulo: null, pncBloqueo: null })}>PNC</button>
+                        </div>
+                        {x.pnc && (
+                          <>
+                            <div className="rv-modo rv-w" role="group" aria-label="¿Tiene rótulo?">
+                              <span>¿Tiene rótulo?</span>
+                              <button type="button" className={x.pncRotulo === false ? "on" : ""} aria-pressed={x.pncRotulo === false} onClick={() => ponRen(x.k, { pncRotulo: false })}>No</button>
+                              <button type="button" className={x.pncRotulo === true ? "on" : ""} aria-pressed={x.pncRotulo === true} onClick={() => ponRen(x.k, { pncRotulo: true })}>Sí</button>
+                            </div>
+                            <div className="rv-modo rv-w" role="group" aria-label="¿Tiene bloqueo mecánico?">
+                              <span>¿Tiene bloqueo mecánico?</span>
+                              <button type="button" className={x.pncBloqueo === false ? "on" : ""} aria-pressed={x.pncBloqueo === false} onClick={() => ponRen(x.k, { pncBloqueo: false })}>No</button>
+                              <button type="button" className={x.pncBloqueo === true ? "on" : ""} aria-pressed={x.pncBloqueo === true} onClick={() => ponRen(x.k, { pncBloqueo: true })}>Sí</button>
+                            </div>
+                          </>
                         )}
                         <div className="rv-modo rv-w" role="group" aria-label="Qué cuentas">
                           <button type="button" className={x.modo === "estibas" ? "on" : ""} aria-pressed={x.modo === "estibas"} onClick={() => ponRen(x.k, { modo: "estibas" })}>Estibas</button>

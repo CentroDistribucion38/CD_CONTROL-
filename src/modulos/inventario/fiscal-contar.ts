@@ -21,10 +21,13 @@ export type BorradorFiscal = {
   nota: string;
   /** Estado del envase (RETORNO, BAJA…) o LLENO/VACÍO del cilindro; vacío si lo contado es producto. */
   estado: string;
+  /** Avería y PNC no van juntas; el PNC pide rótulo y bloqueo mecánico (null = sin contestar). */
+  averia: boolean; pnc: boolean; pncRotulo: boolean | null; pncBloqueo: boolean | null;
 };
 export const VACIO_FISCAL: BorradorFiscal = {
   calle: "", base: "", lado: "", codigo: "", dia: "", mes: "", anio: "",
   modo: "estibas", estibas: "", saldo: "", cajas: "", nota: "", estado: "",
+  averia: false, pnc: false, pncRotulo: null, pncBloqueo: null,
 };
 
 /* El mismo estado que el conteo diario pide para el envase. */
@@ -72,6 +75,7 @@ export function revisarFiscal(b: BorradorFiscal, mat: Material | null, claveEsco
     if (e == null && s == null) return "¿Cuántas estibas? Si solo hay sueltas, anótalas en el saldo; si no hay nada, anota 0.";
     if (e != null && e > 0 && mat.cajas_por_estiba == null) return "Este material no dice cuántas cajas lleva una estiba: cuéntalo por cajas.";
   }
+  if (b.pnc && (b.pncRotulo == null || b.pncBloqueo == null)) return "El PNC pide dos respuestas: ¿tiene rótulo? y ¿tiene bloqueo mecánico?";
   if (pideEstadoFiscal(mat) && b.estado.trim() === "") return esCilindroFiscal(mat) ? "Escoge si el cilindro está lleno o vacío." : "Escoge el estado del envase.";
   if (!env && !(b.dia.trim() !== "" && b.mes.trim() !== "" && b.anio.trim() !== "")) return "Falta la fecha de vencimiento.";
   if (hayFecha(b)) {
@@ -100,6 +104,8 @@ export function argumentosFiscal(hojaId: string, ubicacionId: string, mat: Mater
     p_anio: fecha ? cantidad(b.anio) : null,
     p_nota: b.nota.trim() === "" ? null : b.nota.trim(),
     p_estado: pideEstadoFiscal(mat) && b.estado.trim() !== "" ? b.estado.trim() : null,
+    p_averia: b.averia, p_pnc: b.pnc,
+    p_pnc_rotulo: b.pnc ? b.pncRotulo : null, p_pnc_bloqueo: b.pnc ? b.pncBloqueo : null,
   };
 }
 
@@ -108,4 +114,5 @@ export type RenglonFiscal = {
   id: string; ubicacion_id: string; ubicacion: string; producto_id: string; sku: string; material: string;
   estibas: number | null; saldo: number | null; cajas: number | null; total_cajas: number | string;
   venc_dia: number | null; venc_mes: number | null; venc_anio: number | null; nota: string | null; contado_en: string; estado_envase?: string | null;
+  averia?: boolean; pnc?: boolean; pnc_rotulo?: boolean | null; pnc_bloqueo_mecanico?: boolean | null;
 };

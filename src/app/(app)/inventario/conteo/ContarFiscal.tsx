@@ -79,6 +79,7 @@ export function ContarFiscal({
   const [b, setB] = useState<BorradorFiscal>(VACIO_FISCAL);
   const [mios, setMios] = useState<RenglonFiscal[] | null>(null);
   /* LAS DOS PESTAÑAS, IGUAL QUE EN «FEFO diario»: Anotar y El borrador (lo que llevo). */
+  const [mas, setMas] = useState(false);
   const [pestania, setPestania] = useState<"anotar" | "borrador">("anotar");
   const [guardando, setGuardando] = useState(false);
   const router = useRouter();
@@ -452,9 +453,63 @@ export function ContarFiscal({
                   : <>{cuenta.formula} = <b>{nf.format(cuenta.total)}</b> cajas</>}
               </p>
             )}
-            <label className="fe-nota"><span>Observación</span>
-              <input value={b.nota} placeholder="Opcional" onChange={(e) => pon("nota", e.target.value)} /></label>
           </div>
+
+          {/* ===== DATOS ADICIONALES · AVERÍA · PNC · OBSERVACIÓN (igual que en el conteo normal) ===== */}
+          <details className="fe-mas" open={mas} onToggle={(e) => setMas((e.currentTarget as HTMLDetailsElement).open)}>
+            <summary>
+              <span className="fe-mas-tx"><b>Datos adicionales</b><span>Avería · PNC · observación</span></span>
+              <span className="fe-mas-marcas">
+                {([b.averia && "AVERÍA", b.pnc && "PNC"].filter(Boolean) as string[]).map((m) => <em key={m}>{m}</em>)}
+              </span>
+              <span className="fe-mas-fl" aria-hidden>▾</span>
+            </summary>
+            <div className="fe-mas-dentro">
+              <div className="fe-mas-dos">
+                <div className="fe-rota">
+                  <span id="fc-rot-averia">¿Está averiada?</span>
+                  <div className="fe-si-no" role="group" aria-labelledby="fc-rot-averia">
+                    <button type="button" className={!b.averia ? "on" : ""} aria-pressed={!b.averia}
+                            onClick={() => setB((x) => ({ ...x, averia: false }))}>No</button>
+                    <button type="button" className={b.averia ? "on" : ""} aria-pressed={b.averia}
+                            onClick={() => setB((x) => ({ ...x, averia: true, pnc: false, pncRotulo: null, pncBloqueo: null }))}>Sí, avería</button>
+                  </div>
+                </div>
+                <div className="fe-marca-campo">
+                  <span id="fc-rot-marca">PNC <em>(opcional)</em></span>
+                  <div className="fe-marcas uno" role="group" aria-labelledby="fc-rot-marca">
+                    <button type="button" className={"fe-marca" + (b.pnc ? " on" : "")} aria-pressed={b.pnc}
+                            onClick={() => setB((x) => ({ ...x, averia: false, pnc: !x.pnc, pncRotulo: null, pncBloqueo: null }))}>PNC</button>
+                  </div>
+                </div>
+              </div>
+              {b.pnc && (
+                <div className="fe-pnc-pol" role="group" aria-label="Política de bloqueo del PNC">
+                  <p className="fe-pnc-cab">Política de bloqueo <em className="fe-obliga">· obligatorio</em></p>
+                  {([["rotulo", "¿Tiene rótulo?", b.pncRotulo], ["bloqueo", "¿Tiene bloqueo mecánico?", b.pncBloqueo]] as const).map(([k, txt, v]) => (
+                    <div className="fe-rota" key={k}>
+                      <span id={`fc-pnc-${k}`}>{txt}</span>
+                      <div className="fe-si-no" role="group" aria-labelledby={`fc-pnc-${k}`}>
+                        <button type="button" className={v === false ? "on" : ""} aria-pressed={v === false}
+                                onClick={() => setB((x) => ({ ...x, [k === "rotulo" ? "pncRotulo" : "pncBloqueo"]: false }))}>No</button>
+                        <button type="button" className={v === true ? "on" : ""} aria-pressed={v === true}
+                                onClick={() => setB((x) => ({ ...x, [k === "rotulo" ? "pncRotulo" : "pncBloqueo"]: true }))}>Sí</button>
+                      </div>
+                    </div>
+                  ))}
+                  {b.pncRotulo != null && b.pncBloqueo != null && (
+                    <p className={"fe-pnc-veredicto " + (b.pncRotulo && b.pncBloqueo ? "cumple" : "falta")}>
+                      {b.pncRotulo && b.pncBloqueo
+                        ? "Cumple la política de bloqueo."
+                        : `No cumple la política de bloqueo: falta ${[!b.pncRotulo && "el rótulo", !b.pncBloqueo && "el bloqueo mecánico"].filter(Boolean).join(" y ")}.`}
+                    </p>
+                  )}
+                </div>
+              )}
+              <label className="fe-nota"><span>Observación</span>
+                <input value={b.nota} placeholder="Opcional — lo que haya que decir de esta estiba" onChange={(e) => pon("nota", e.target.value)} /></label>
+            </div>
+          </details>
 
           <div className="fe-barra-fija">
             <p className="fe-fija-cuenta"><b>{mios?.length ?? 0}</b> anotados</p>
@@ -505,7 +560,7 @@ export function ContarFiscal({
                 <div className="fc-ren">
                   <b>{r.ubicacion}</b> · {r.sku} · {r.material}
                   <br />
-                  <span>{r.estado_envase ? <>{r.estado_envase} · </> : null}{textoCantidad(r)} = <b>{nf.format(Number(r.total_cajas))}</b> cajas
+                  <span>{[r.estado_envase, r.averia && "AVERÍA", r.pnc && "PNC"].filter(Boolean).join(" · ")}{r.estado_envase || r.averia || r.pnc ? " · " : ""}{textoCantidad(r)} = <b>{nf.format(Number(r.total_cajas))}</b> cajas
                     {r.venc_dia != null && <> · vence {dd(r.venc_dia)}/{dd(r.venc_mes)}/{dd(r.venc_anio)}</>}
                     {r.nota && <> · {r.nota}</>}</span>
                 </div>

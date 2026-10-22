@@ -76,6 +76,7 @@ export type FilaCruce = {
   ubicacion: string; sku: string; material: string;
   /** Estado del envase (BAJA, RETORNO…); null si es producto. */
   estadoEnvase?: string | null;
+  averia?: boolean; pnc?: boolean;
   vencDia: number | null; vencMes: number | null; vencAnio: number | null;
   cajasOl: number | null; cajasBavaria: number | null; diferencia: number; estado: EstadoFila;
 };
@@ -87,6 +88,7 @@ export type FilaCruceBD = {
   venc_dia: number | null; venc_mes: number | null; venc_anio: number | null;
   cajas_ol: number | string | null; cajas_bavaria: number | string | null; diferencia: number | string | null; estado: string;
   estado_envase?: string | null;
+  averia?: boolean | null; pnc?: boolean | null;
 };
 
 const ESTADOS: EstadoFila[] = ["COINCIDE", "DIFIERE", "SOLO_OL", "SOLO_BAVARIA"];
@@ -96,7 +98,7 @@ export function filaDesdeBD(f: FilaCruceBD): FilaCruce {
   const estado = (ESTADOS as string[]).includes(f.estado) ? (f.estado as EstadoFila) : "DIFIERE";
   return {
     ubicacionId: f.ubicacion_id ?? null,
-    ubicacion: f.ubicacion, sku: f.sku, material: f.material, estadoEnvase: f.estado_envase ?? null,
+    ubicacion: f.ubicacion, sku: f.sku, material: f.material, estadoEnvase: f.estado_envase ?? null, averia: !!f.averia, pnc: !!f.pnc,
     vencDia: nul(f.venc_dia), vencMes: nul(f.venc_mes), vencAnio: nul(f.venc_anio),
     cajasOl: nul(f.cajas_ol), cajasBavaria: nul(f.cajas_bavaria), diferencia: num(f.diferencia), estado,
   };
@@ -187,7 +189,7 @@ export function cruceModulo(filas: FilaCruce[]): FilaCruce[] {
   const m = new Map<string, FilaCruce>();
   for (const f of filas) {
     const mod = moduloDeUbicacion(f.ubicacion);
-    const k = [mod, f.sku, f.estadoEnvase ?? "", f.vencDia ?? "", f.vencMes ?? "", f.vencAnio ?? ""].join("|");
+    const k = [mod, f.sku, f.estadoEnvase ?? "", f.averia ? "A" : "", f.pnc ? "P" : "", f.vencDia ?? "", f.vencMes ?? "", f.vencAnio ?? ""].join("|");
     const x = m.get(k);
     if (!x) { m.set(k, { ...f, ubicacion: mod }); continue }
     x.cajasOl = f.cajasOl == null ? x.cajasOl : (x.cajasOl ?? 0) + f.cajasOl;
@@ -199,3 +201,7 @@ export function cruceModulo(filas: FilaCruce[]): FilaCruce[] {
     return { ...f, diferencia: (f.cajasOl ?? 0) - (f.cajasBavaria ?? 0), estado };
   });
 }
+
+/** «BAJA · AVERÍA» / «PNC» / «»: lo que acompaña al material en el cruce (estado, avería, PNC). */
+export const marcasDeFila = (f: Pick<FilaCruce, "estadoEnvase" | "averia" | "pnc">): string =>
+  [f.estadoEnvase, f.averia && "AVERÍA", f.pnc && "PNC"].filter(Boolean).join(" · ");
