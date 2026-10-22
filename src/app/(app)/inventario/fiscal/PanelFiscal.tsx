@@ -8,7 +8,7 @@ import {
   type AvanceBD, type AvanceHoja, type FilaCruce, type FilaCruceBD, type ResumenCruce,
 } from "@/modulos/inventario/fiscal-cruce";
 import type { HojaForm } from "@/modulos/inventario/fiscal";
-import { ValidarHoja, type ConsolidadoBD, type RevisionBD } from "./ValidarHoja";
+import { ValidarHoja, moduloDe, type ConsolidadoBD, type RevisionBD } from "./ValidarHoja";
 import { BdFiscal, type HojaBd } from "./BdFiscal";
 
 /* ===================================================================
@@ -275,6 +275,8 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
   }, [pestana, foco]);
   /** Hoja cuya caja de pasos está abierta (la abre «Aprobada · Siguiente paso» o la campanita). */
   const [caja, setCaja] = useState<number | null>(null);
+  /** Ubicaciones marcadas (tocando las fichas) para recontar o aprobar, por hoja. */
+  const [marcadasHoja, setMarcadasHoja] = useState<Record<number, Set<string>>>({});
   async function darOkReabrir(hojaId: string | undefined, equipo: "OL" | "BAVARIA", si: boolean): Promise<string | null> {
     if (!hojaId) return "No se pudo identificar la hoja.";
     const { error } = await createClient().rpc("inv_fiscal_reabrir_autorizar", { p_hoja: hojaId, p_equipo: equipo, p_si: si });
@@ -496,24 +498,43 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                   <li><b>{r.soloBavaria}</b> solo Bavaria</li>
                 </ul>
                 {t.tipo === "dif" && (
-                  <ul className="vf-ubic" aria-label="Ubicaciones con diferencia">
-                    {ubic.map((u) => { const v = compensando && !quedanUbi.has(u.ubicacion); return <li key={u.ubicacion} style={v ? verde : undefined}><Ico n="pin" tam={13} /><b>{u.ubicacion}</b>{u.renglones > 1 && <small>· {u.renglones}</small>}{v && <small> · compensada</small>}</li>; })}
+                  <ul className="vf-ubic" aria-label="Ubicaciones con diferencia: toca para marcar y recontar o aprobar">
+                    {ubic.map((u) => {
+                      const k = moduloDe(u.ubicacion); const on = !!marcadasHoja[t.h.numero]?.has(k);
+                      const alt = () => { const n = new Set(marcadasHoja[t.h.numero] ?? []); if (n.has(k)) n.delete(k); else n.add(k); setMarcadasHoja({ ...marcadasHoja, [t.h.numero]: n }) };
+                      return (
+                        <li key={u.ubicacion} role={puedeEditar ? "button" : undefined} tabIndex={puedeEditar ? 0 : undefined} aria-pressed={puedeEditar ? on : undefined}
+                            onClick={puedeEditar ? alt : undefined} onKeyDown={puedeEditar ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); alt() } } : undefined}
+                            style={{ borderRadius: 0, cursor: puedeEditar ? "pointer" : undefined, ...(on ? { background: "#b71c1c", color: "#fff", borderColor: "#b71c1c" } : {}) }}>
+                          <Ico n="pin" tam={13} /><b>{u.ubicacion}</b>{u.renglones > 1 && <small>· {u.renglones}</small>}
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
-                {(t.tipo === "ok" || r.coinciden > 0) && (
-                  <button type="button" className="btn plano vf-toggle" aria-pressed={todo} onClick={() => setVerTodo({ ...verTodo, [t.h.numero]: !todo })}>
-                    <Ico n="lista" tam={15} /> {todo ? (t.tipo === "ok" ? "Ocultar el detalle" : "Ocultar los que coinciden") : (t.tipo === "ok" ? "Ver el detalle" : `Ver también los ${r.coinciden} que coinciden`)}
-                  </button>
-                )}
-                {compBase.pares > 0 && puedeEditar && (
-                  <button type="button" className="btn plano vf-toggle" aria-pressed={compensando}
-                          onClick={() => setCompensar({ ...compensar, [t.h.numero]: !compensando })}
-                          title="Da por compensadas las diferencias iguales y de signo contrario: dentro de un mismo módulo (+45 en un material y −45 en otro) o entre módulos con el mismo material (+588 en uno y −588 en el de al lado)">
-                    <Ico n="lista" tam={15} /> {compensando ? `Quitar la compensación (${compBase.pares} ${compBase.pares === 1 ? "par" : "pares"})` : `Compensar (${compBase.pares} ${compBase.pares === 1 ? "par" : "pares"})`}
-                  </button>
-                )}
+                <div id={"vf-sel-h" + t.h.numero} />
+                <div className="vf-fila-botones" style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "8px 0" }}>
+                  {(t.tipo === "ok" || r.coinciden > 0) && (
+                    <button type="button" className="btn plano" style={{ padding: "4px 10px", fontSize: ".78rem", minHeight: 0 }} aria-pressed={todo} onClick={() => setVerTodo({ ...verTodo, [t.h.numero]: !todo })}>
+                      <Ico n="lista" tam={14} /> {todo ? (t.tipo === "ok" ? "Ocultar el detalle" : "Ocultar los que coinciden") : (t.tipo === "ok" ? "Ver el detalle" : `Ver también los ${r.coinciden} que coinciden`)}
+                    </button>
+                  )}
+                  {compBase.pares > 0 && puedeEditar && (
+                    <button type="button" className="btn plano" style={{ padding: "4px 10px", fontSize: ".78rem", minHeight: 0 }} aria-pressed={compensando}
+                            onClick={() => setCompensar({ ...compensar, [t.h.numero]: !compensando })}
+                            title="Da por compensadas las diferencias del mismo código (mismo SKU) que son iguales y de signo contrario o cuadran en total">
+                      <Ico n="lista" tam={14} /> {compensando ? `Quitar la compensación (${compBase.pares} ${compBase.pares === 1 ? "par" : "pares"})` : `Compensar (${compBase.pares} ${compBase.pares === 1 ? "par" : "pares"})`}
+                    </button>
+                  )}
+                  {puedeEditar && t.tipo === "dif" && ubic.length > 0 && (
+                    <button type="button" className="btn plano" style={{ padding: "4px 10px", fontSize: ".78rem", minHeight: 0 }}
+                            onClick={() => setMarcadasHoja({ ...marcadasHoja, [t.h.numero]: (marcadasHoja[t.h.numero]?.size ?? 0) >= ubic.length ? new Set() : new Set(ubic.map((u) => moduloDe(u.ubicacion))) })}>
+                      <Ico n="pin" tam={14} /> {(marcadasHoja[t.h.numero]?.size ?? 0) >= ubic.length ? "Quitar marcas" : `Marcar las ${ubic.length}`}
+                    </button>
+                  )}
+                </div>
                 {conValidar ? (
-                  <ValidarHoja cajaAbierta={caja === t.h.numero} onCaja={(v) => setCaja(v ? t.h.numero : null)}
+                  <ValidarHoja selExt={marcadasHoja[t.h.numero] ?? new Set<string>()} onSelExt={(n) => setMarcadasHoja({ ...marcadasHoja, [t.h.numero]: n })} cajaAbierta={caja === t.h.numero} onCaja={(v) => setCaja(v ? t.h.numero : null)}
                                reabrir={([["OL", t.av?.olTermino, t.h.ol], ["BAVARIA", t.av?.bavariaTermino, t.h.bavaria]] as const).filter(([, term]) => !!term).map(([eq, , uid]) => {
                                  const rr = reaps.find((x) => x.numero === t.h.numero && x.equipo === eq);
                                  return { equipo: eq, nombre: uid ? quien(uid) : eq === "OL" ? "Operador" : "Bavaria", pidio: !!rr?.pedido_en, ok: !!rr?.autorizado_en };

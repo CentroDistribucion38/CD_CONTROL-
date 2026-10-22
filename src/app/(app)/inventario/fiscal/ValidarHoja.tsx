@@ -38,7 +38,7 @@ type Ub = { id: string | null; clave: string; dif: boolean; comp: number; renglo
 const orden = (a: string, b: string) => a.localeCompare(b, "es", { numeric: true });
 export const moduloDe = (clave: string) => clave.replace(/_(IZQ|DER)$/i, "");
 
-export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeEditar, ol, bavaria, onCambio, unaSola = null, compensando = false, cerrada = false, reabrir = [], onOkReabrir, cajaAbierta, onCaja }: {
+export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeEditar, ol, bavaria, onCambio, unaSola = null, compensando = false, cerrada = false, reabrir = [], onOkReabrir, cajaAbierta, onCaja, selExt, onSelExt }: {
   /** El fiscal pulsó «Compensar»: las diferencias compensadas no cuentan y al aprobar se manda p_compensar. */
   compensando?: boolean;
   /** El fiscal ya cerró esta hoja: nadie más cuenta en ella hasta que la reabra o pase a otra calle. */
@@ -46,6 +46,8 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
   /** Quién terminó su hoja y si pidió reabrir / ya tiene el OK del fiscal. */
   reabrir?: { equipo: "OL" | "BAVARIA"; nombre: string; pidio: boolean; ok: boolean }[];
   onOkReabrir?: (equipo: "OL" | "BAVARIA", si: boolean) => Promise<string | null>;
+  /** Ubicaciones marcadas desde las fichas de arriba (el panel las guarda para poder tocarlas ahí). */
+  selExt?: Set<string>; onSelExt?: (s: Set<string>) => void;
   /** La caja de pasos puede abrirla desde fuera (la campanita). */
   cajaAbierta?: boolean; onCaja?: (v: boolean) => void;
   /** Nombre de la única persona que terminó (la otra aún no): no hay cruce y se aprueba confirmando. */
@@ -53,7 +55,9 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
   hojaId: string | null; numero: number; calle?: string; filas: FilaCruce[]; revs: RevisionBD[]; consol?: ConsolidadoBD | null; puedeEditar: boolean;
   ol: string; bavaria: string; onCambio: () => Promise<void>;
 }) {
-  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [selInt, setSelInt] = useState<Set<string>>(new Set());
+  const sel = selExt ?? selInt;
+  const setSel = (v: Set<string> | ((s: Set<string>) => Set<string>)) => { const n = typeof v === "function" ? v(sel) : v; if (onSelExt) onSelExt(n); else setSelInt(n) };
   const [nota, setNota] = useState("");
   const [todas, setTodas] = useState(false);
   const [ocupado, setOcupado] = useState(false);
@@ -149,7 +153,8 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
   const todoVerde = porAprobar.length > 0 && ubs.every((u) => ["coincide", "compensada", "aprobada"].includes(estado(u)));
   /* El sitio junto al título de la hoja (lo pone el panel): ahí va el check de aprobar, para verlo de una. */
   const [slot, setSlot] = useState<HTMLElement | null>(null);
-  useEffect(() => { setSlot(document.getElementById(`vf-acc-h${numero}`)) }, [numero]);
+  const [slotSel, setSlotSel] = useState<HTMLElement | null>(null);
+  useEffect(() => { setSlot(document.getElementById(`vf-acc-h${numero}`)); setSlotSel(document.getElementById(`vf-sel-h${numero}`)) }, [numero]);
 
   const alternar = (c: string) => setSel((s) => { const n = new Set(s); if (n.has(c)) n.delete(c); else n.add(c); return n });
   const marcar = (f: (u: Ub) => boolean) => setSel(new Set(ubs.filter(f).map((u) => u.clave)));
@@ -405,6 +410,10 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
         .vv .vv-detalle>summary::-webkit-details-marker{display:none}
         .vv .vv-detalle>summary::before{content:"▸ "}
         .vv .vv-detalle[open]>summary::before{content:"▾ "}
+        .vvs{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;padding:8px 10px;margin:8px 0;border:1px solid #b71c1c;background:rgba(183,28,28,.06)}
+        .vvs b{font-size:.8rem}
+        .vvs input{flex:1 1 220px;padding:4px 8px;font-size:.78rem;min-height:0;border-radius:0}
+        .vvs .btn{padding:4px 12px;font-size:.78rem;min-height:0;border-radius:0}
         .vvc-velo{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px}
         .vvc{width:min(580px,100%);max-height:92vh;overflow:auto;background:var(--c-fdfdff,#fff);color:var(--c-04203f,#1a1a1a);border-radius:0;box-shadow:0 18px 50px rgba(0,0,0,.35)}
         .vvc-cab{display:flex;align-items:center;justify-content:space-between;background:#111;color:#fff;padding:12px 16px;font-size:.95rem;letter-spacing:.02em}
@@ -435,6 +444,19 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
         @media (max-width:560px){.vvc-cols{grid-template-columns:1fr}}
       `}</style>
       {slot && botones && createPortal(botones, slot)}
+      {slotSel && puedeEditar && sel.size > 0 && createPortal(
+        <div className="vvs">
+          <b>{sel.size} {sel.size === 1 ? "ubicación marcada" : "ubicaciones marcadas"}</b>
+          <input value={nota} maxLength={200} placeholder="Nota para las dos personas (opcional)" aria-label="Nota para las dos personas" onChange={(e) => setNota(e.target.value)} />
+          <button type="button" className="btn" disabled={ocupado || marcadas.length === 0 || !!unaSola} onClick={validar}
+                  title={unaSola ? "Se manda a recontar cuando las dos personas terminen" : "Las dos personas vuelven a contar solo lo marcado y se comparan otra vez"}>
+            Recontar y validar ({marcadas.length})
+          </button>
+          <button type="button" className="btn" disabled={ocupado || marcadas.length === 0} onClick={() => aprobar(marcadas, false, null)} style={{ background: "#0b7a3e", color: "#fff", borderColor: "#0b7a3e" }}>
+            Aprobar ({marcadas.length})
+          </button>
+          <button type="button" className="btn plano" onClick={() => setSel(new Set())}>Quitar marcas</button>
+        </div>, slotSel)}
       <header className="vv-cab">
         <b>Validar y aprobar</b>
         <span>{nAprobadas} de {ubs.length} {ubs.length === 1 ? "ubicación aprobada" : "ubicaciones aprobadas"}</span>
@@ -457,7 +479,7 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
             <div className="vv-fila2">
               <input value={nota} maxLength={200} placeholder="Nota para las dos personas (opcional)" aria-label="Nota para las dos personas" onChange={(e) => setNota(e.target.value)} />
               <button type="button" className="btn" disabled={ocupado || marcadas.length === 0 || !!unaSola} title={unaSola ? "Se manda a validar cuando las dos personas terminen" : "Las dos personas vuelven a contar lo marcado"} onClick={validar}>
-                Mandar a validar{marcadas.length > 0 ? ` (${marcadas.length})` : ""}
+                Recontar y validar{marcadas.length > 0 ? ` (${marcadas.length})` : ""}
               </button>
               <button type="button" className="btn" disabled={ocupado || marcadas.length === 0} onClick={() => aprobar(marcadas, false, null)}>
                 Aprobar{marcadas.length > 0 ? ` (${marcadas.length})` : ""}
