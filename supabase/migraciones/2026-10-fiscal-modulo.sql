@@ -619,6 +619,158 @@ end $$;
 revoke all on function public.inv_fiscal_revisiones(uuid) from public, anon;
 grant execute on function public.inv_fiscal_revisiones(uuid) to authenticated;
 
+-- ---------------------------------------------------------------------
+-- REABRIR UNA HOJA TERMINADA: SOLO CON EL OK DEL FISCAL
+-- La persona pide que se la reabran; el fiscal (permiso «Inventario fiscal») da el OK; solo entonces la hoja se puede reabrir.
+-- ---------------------------------------------------------------------
+create table if not exists public.inv_fiscal_reaperturas (
+  hoja_id        uuid not null references public.inv_fiscal_hojas(id) on delete cascade,
+  user_id        uuid not null references public.perfiles(id) on delete cascade,
+  pedido_en      timestamptz,
+  autorizado_por uuid references public.perfiles(id) on delete set null,
+  autorizado_en  timestamptz,
+  primary key (hoja_id, user_id)
+);
+alter table public.inv_fiscal_reaperturas enable row level security;
+revoke all on public.inv_fiscal_reaperturas from public, anon, authenticated;
+
+drop function if exists public.inv_fiscal_terminar(uuid, boolean);
+create function public.inv_fiscal_terminar(p_hoja uuid, p_terminado boolean default true)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_yo uuid := auth.uid();
+  v_equipo text; v_estado text; v_pub timestamptz; v_fecha date;
+begin
+  if v_yo is null then raise exception 'Hay que entrar para contar.'; end if;
+  select m.equipo, f.estado, f.publicado_en, f.fecha
+    into v_equipo, v_estado, v_pub, v_fecha
+    from public.inv_fiscal_miembros m join public.inv_fiscales f on f.id = m.fiscal_id
+   where m.hoja_id = p_hoja and m.user_id = v_yo;
+  if v_equipo is null then raise exception 'Esa hoja no es tuya.'; end if;
+  if v_pub is null then raise exception 'Este inventario fiscal no está visible en Contar.'; end if;
+  if v_estado <> 'abierto' then raise exception 'Este inventario fiscal ya está cerrado.'; end if;
+  if v_fecha > (now() at time zone 'America/Bogota')::date then
+    raise exception 'Todavía no es el día: este inventario fiscal se cuenta el %.', to_char(v_fecha, 'DD/MM/YYYY');
+  end if;
+
+  if coalesce(p_terminado, true) then
+    if not exists (select 1 from public.inv_fiscal_conteos where hoja_id = p_hoja and contado_por = v_yo) then
+      raise exception 'Anota al menos un renglón antes de terminar tu hoja.';
+    end if;
+    insert into public.inv_fiscal_terminos (hoja_id, user_id) values (p_hoja, v_yo)
+      on conflict (hoja_id, user_id) do nothing;
+  else
+    -- Reabrir pide el OK del fiscal.
+    if exists (select 1 from public.inv_fiscal_terminos where hoja_id = p_hoja and user_id = v_yo)
+       and not exists (select 1 from public.inv_fiscal_reaperturas r
+                        where r.hoja_id = p_hoja and r.user_id = v_yo and r.autorizado_en is not null) then
+      raise exception 'Para reabrir tu hoja hace falta el OK del fiscal. Pídeselo con «Pedir que me reabran la hoja».';
+    end if;
+    delete from public.inv_fiscal_terminos where hoja_id = p_hoja and user_id = v_yo;
+    delete from public.inv_fiscal_reaperturas where hoja_id = p_hoja and user_id = v_yo;
+  end if;
+end $$;
+revoke all on function public.inv_fiscal_terminar(uuid, boolean) from public, anon;
+grant execute on function public.inv_fiscal_terminar(uuid, boolean) to authenticated;
+
+drop function if exists public.inv_fiscal_reabrir_pedir(uuid);
+create function public.inv_fiscal_reabrir_pedir(p_hoja uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_yo uuid := auth.uid(); v_estado text;
+begin
+  if v_yo is null then raise exception 'Hay que entrar para contar.'; end if;
+  select f.estado into v_estado
+    from public.inv_fiscal_miembros m join public.inv_fiscales f on f.id = m.fiscal_id
+   where m.hoja_id = p_hoja and m.user_id = v_yo;
+  if v_estado is null then raise exception 'Esa hoja no es tuya.'; end if;
+  if v_estado <> 'abierto' then raise exception 'Este inventario fiscal ya está cerrado.'; end if;
+  if not exists (select 1 from public.inv_fiscal_terminos where hoja_id = p_hoja and user_id = v_yo) then
+    raise exception 'Tu hoja no está terminada: ya puedes anotar.';
+  end if;
+  insert into public.inv_fiscal_reaperturas (hoja_id, user_id, pedido_en) values (p_hoja, v_yo, now())
+    on conflict (hoja_id, user_id) do update set pedido_en = coalesce(public.inv_fiscal_reaperturas.pedido_en, now());
+end $$;
+revoke all on function public.inv_fiscal_reabrir_pedir(uuid) from public, anon;
+grant execute on function public.inv_fiscal_reabrir_pedir(uuid) to authenticated;
+
+drop function if exists public.inv_fiscal_mi_reapertura(uuid);
+create function public.inv_fiscal_mi_reapertura(p_hoja uuid)
+returns table (pedido_en timestamptz, autorizado_en timestamptz)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select r.pedido_en, r.autorizado_en from public.inv_fiscal_reaperturas r where r.hoja_id = p_hoja and r.user_id = auth.uid()
+$$;
+revoke all on function public.inv_fiscal_mi_reapertura(uuid) from public, anon;
+grant execute on function public.inv_fiscal_mi_reapertura(uuid) to authenticated;
+
+-- El fiscal da el OK (o lo quita) para que UNA de las dos personas de la hoja pueda reabrirla.
+drop function if exists public.inv_fiscal_reabrir_autorizar(uuid, text, boolean);
+create function public.inv_fiscal_reabrir_autorizar(p_hoja uuid, p_equipo text, p_si boolean default true)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_user uuid; v_estado text;
+begin
+  if not public.puede_editar('/inventario/fiscal') then
+    raise exception 'Autorizar la reapertura requiere el permiso «Inventario fiscal» (Roles)';
+  end if;
+  if p_equipo not in ('OL', 'BAVARIA') then raise exception 'Escoge el operador o Bavaria.'; end if;
+  select m.user_id, f.estado into v_user, v_estado
+    from public.inv_fiscal_miembros m join public.inv_fiscales f on f.id = m.fiscal_id
+   where m.hoja_id = p_hoja and m.equipo = p_equipo;
+  if v_user is null then raise exception 'Esa hoja no tiene a esa persona.'; end if;
+  if v_estado <> 'abierto' then raise exception 'Este inventario fiscal ya está cerrado.'; end if;
+  if coalesce(p_si, true) then
+    if not exists (select 1 from public.inv_fiscal_terminos where hoja_id = p_hoja and user_id = v_user) then
+      raise exception 'Esa persona no ha terminado su hoja: ya puede anotar.';
+    end if;
+    insert into public.inv_fiscal_reaperturas (hoja_id, user_id, pedido_en, autorizado_por, autorizado_en)
+    values (p_hoja, v_user, now(), auth.uid(), now())
+    on conflict (hoja_id, user_id) do update set autorizado_por = auth.uid(), autorizado_en = now();
+  else
+    delete from public.inv_fiscal_reaperturas where hoja_id = p_hoja and user_id = v_user;
+  end if;
+end $$;
+revoke all on function public.inv_fiscal_reabrir_autorizar(uuid, text, boolean) from public, anon;
+grant execute on function public.inv_fiscal_reabrir_autorizar(uuid, text, boolean) to authenticated;
+
+-- Para el fiscal: quién pidió reabrir y a quién ya le dio el OK, por hoja.
+drop function if exists public.inv_fiscal_reaperturas(uuid);
+create function public.inv_fiscal_reaperturas(p_fiscal uuid)
+returns table (hoja_id uuid, numero integer, equipo text, pedido_en timestamptz, autorizado_en timestamptz)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  if not public.puede_ver('/inventario/fiscal') then
+    raise exception 'Esto requiere el permiso «Inventario fiscal» (Roles)';
+  end if;
+  return query
+    select r.hoja_id, h.numero, m.equipo, r.pedido_en, r.autorizado_en
+      from public.inv_fiscal_reaperturas r
+      join public.inv_fiscal_hojas h on h.id = r.hoja_id
+      join public.inv_fiscal_miembros m on m.hoja_id = r.hoja_id and m.user_id = r.user_id
+     where h.fiscal_id = p_fiscal
+     order by h.numero, m.equipo;
+end $$;
+revoke all on function public.inv_fiscal_reaperturas(uuid) from public, anon;
+grant execute on function public.inv_fiscal_reaperturas(uuid) to authenticated;
+
 do $$
 begin
   if to_regprocedure('public.inv_fiscal_mis_diferencias(uuid)') is null
@@ -628,6 +780,8 @@ begin
      or to_regprocedure('public.inv_fiscal_modulo_difiere(uuid,uuid,boolean)') is null
      or to_regprocedure('public.inv_fiscal_modulos_hoja(uuid)') is null
      or to_regprocedure('public.inv_fiscal_fotos_hoja(uuid)') is null
+     or to_regprocedure('public.inv_fiscal_reabrir_autorizar(uuid,text,boolean)') is null
+     or to_regprocedure('public.inv_fiscal_reaperturas(uuid)') is null
      or to_regprocedure('public.inv_fiscal_cruce(uuid)') is null
      or to_regprocedure('public.inv_fiscal_consolidar(uuid)') is null then
     raise exception 'No quedaron las funciones de validar por módulo. Revisa que corrieron antes validar y consolidar.';

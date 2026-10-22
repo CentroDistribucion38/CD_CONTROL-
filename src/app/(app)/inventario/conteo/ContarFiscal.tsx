@@ -537,6 +537,33 @@ export function ContarFiscal({
     await leer(hoja.hojaId);
   }
 
+  /* ---------- REABRIR: SOLO CON EL OK DEL FISCAL ---------- */
+  const [reap, setReap] = useState<{ pedido: string | null; autorizado: string | null }>({ pedido: null, autorizado: null });
+  const leerReap = useCallback(async (id: string) => {
+    const { data, error } = await supabase.rpc("inv_fiscal_mi_reapertura", { p_hoja: id });
+    if (error) return;
+    const f = ((data ?? []) as { pedido_en: string | null; autorizado_en: string | null }[])[0];
+    setReap({ pedido: f?.pedido_en ?? null, autorizado: f?.autorizado_en ?? null });
+  }, [supabase]);
+  /* Se mira cada 10 s si el fiscal ya dio el OK (solo mientras la hoja está terminada). */
+  const hojaIdReap = hoja?.hojaId;
+  const terminadaReap = hoja ? (terminos[hoja.hojaId] ?? { termine: hoja.termine }).termine : false;
+  useEffect(() => {
+    if (!hojaIdReap || !terminadaReap) return;
+    void leerReap(hojaIdReap);
+    const t = setInterval(() => { if (!document.hidden) void leerReap(hojaIdReap) }, 10_000);
+    return () => clearInterval(t);
+  }, [hojaIdReap, terminadaReap, leerReap]);
+  async function pedirReabrir() {
+    if (!hoja) return;
+    setGuardando(true);
+    const { error } = await supabase.rpc("inv_fiscal_reabrir_pedir", { p_hoja: hoja.hojaId });
+    setGuardando(false);
+    if (error) { avisar.mal(/inv_fiscal_reabrir_pedir|schema cache|does not exist/i.test(error.message) ? "Falta correr 2026-10-fiscal-TODO.sql en Supabase." : error.message); return }
+    avisar.bien("Le avisaste al fiscal. Cuando dé el OK, aquí aparece «Reabrir mi hoja».");
+    await leerReap(hoja.hojaId);
+  }
+
   /* ---------- TERMINÉ MI HOJA / REABRIR ---------- */
   async function terminar(activo: boolean) {
     if (!hoja) return;
@@ -545,7 +572,7 @@ export function ContarFiscal({
       const ok = await pedir({
         titulo: "¿Terminaste tu hoja?",
         dice: <>Llevas {mios.length} {mios.length === 1 ? "renglón" : "renglones"}. Al terminar ya no podrás anotar ni quitar nada;
-          si te equivocas, puedes reabrir tu hoja.</>,
+          si te equivocas, pídele al fiscal que te la reabra: él da el OK.</>,
         confirmar: "Sí, terminé mi hoja",
       });
       if (!ok) return;
@@ -556,6 +583,7 @@ export function ContarFiscal({
     if (error) { avisar.mal(error.message); return }
     setTerminos((t) => ({ ...t, [hoja.hojaId]: { termine: activo, parejaTermino: (t[hoja.hojaId] ?? hoja).parejaTermino } }));
     avisar.bien(activo ? "Hoja terminada." : "Hoja reabierta: ya puedes anotar y quitar renglones.");
+    setReap({ pedido: null, autorizado: null });
     router.refresh();
   }
 
@@ -564,6 +592,15 @@ export function ContarFiscal({
   /* Terminada: solo si la base ya sabe terminar hojas y la persona la terminó. */
   const cerrada = hoja.puedeContar && hoja.puedeTerminar && estadoT.termine;
   const totalMio = (mios ?? []).reduce((s, r) => s + Number(r.total_cajas || 0), 0);
+
+  const reabrirUI = (clase: string) => reap.autorizado ? (
+    <button type="button" className={clase} disabled={guardando} onClick={() => terminar(false)}>Reabrir mi hoja (el fiscal ya dio el OK)</button>
+  ) : reap.pedido ? (
+    <span className="fc-pidio">Ya pediste que te reabran la hoja: falta el OK del fiscal.{" "}
+      <button type="button" className="fe-mini" disabled={guardando} onClick={() => hoja && leerReap(hoja.hojaId)}>Ver si ya lo dio</button></span>
+  ) : (
+    <button type="button" className={clase} disabled={guardando} onClick={pedirReabrir}>Pedir que me reabran la hoja</button>
+  );
 
   return (
     <>
@@ -922,7 +959,7 @@ export function ContarFiscal({
               : `Falta que ${hoja.pareja ?? "tu pareja"} termine la suya.`}</p>
           <p className="fc-term-cuenta">Llevas {mios?.length ?? 0} {(mios?.length ?? 0) === 1 ? "renglón" : "renglones"} · {nf.format(totalMio)} cajas.</p>
           <div className="cl-botones">
-            <button type="button" className="btn plano fc-reabrir" disabled={guardando} onClick={() => terminar(false)}>Reabrir mi hoja</button>
+            {reabrirUI("btn plano fc-reabrir")}
           </div>
         </section>
       )}
@@ -963,8 +1000,8 @@ export function ContarFiscal({
           </ul>
         )}
         {cerrada && (
-          <p className="fc-nota-term" role="status">Tu hoja está terminada: para cambiar algo, reábrela.{" "}
-            <button type="button" className="fe-mini fc-reabrir" disabled={guardando} onClick={() => terminar(false)}>Reabrir mi hoja</button></p>
+          <p className="fc-nota-term" role="status">Tu hoja está terminada: para cambiar algo, el fiscal tiene que darte el OK para reabrirla.{" "}
+            {reabrirUI("fe-mini fc-reabrir")}</p>
         )}
         {!cerrada && hoja.puedeTerminar && hoja.puedeContar && (mios?.length ?? 0) > 0 && (
           <div className="fc-terminar">

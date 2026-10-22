@@ -59,6 +59,8 @@ export function Ico({ n, tam = 18 }: { n: IcoNombre; tam?: number }) {
 type Resultado = { filas: FilaCruce[] } | { error: string };
 /** La foto de un renglón contado (la lleva su equipo: el cruce no dice quién anotó cada cosa, la foto sí). */
 type FotoCruce = { conteo_id: string; ubicacion: string; equipo: "OL" | "BAVARIA"; sku: string; averia: boolean; pnc: boolean; ruta: string };
+/** Quién pidió reabrir su hoja y a quién el fiscal ya le dio el OK. */
+type ReaperturaBD = { hoja_id: string; numero: number; equipo: "OL" | "BAVARIA"; pedido_en: string | null; autorizado_en: string | null };
 const moduloClave = (u: string) => u.replace(/_(IZQ|DER)$/i, "");
 async function abrirFoto(ruta: string) {
   const w = window.open("", "_blank");
@@ -96,6 +98,7 @@ function useTorre(fiscalId: string, avanceInicial: Record<number, AvanceHoja>, a
   const [hojaIds, setHojaIds] = useState<Record<number, string>>({});
   /** Fotos de los renglones por hoja (para abrirlas desde el cruce). Sin el SQL o sin permiso: vacío. */
   const [fotos, setFotos] = useState<Record<number, FotoCruce[]>>({});
+  const [reaps, setReaps] = useState<ReaperturaBD[]>([]);
   /** false = falta correr 2026-10-fiscal-validar.sql: la torre funciona igual, sin validar ni aprobar. */
   const [conValidar, setConValidar] = useState(true);
 
@@ -126,6 +129,8 @@ function useTorre(fiscalId: string, avanceInicial: Record<number, AvanceHoja>, a
       return [a.numero, r.error ? [] : ((r.data ?? []) as FotoCruce[])];
     }));
     setFotos(Object.fromEntries(fs));
+    const rp = await sb.rpc("inv_fiscal_reaperturas", { p_fiscal: fiscalId });
+    setReaps(rp.error ? [] : ((rp.data ?? []) as ReaperturaBD[]));
     setHora(new Date());
   }, [fiscalId]);
 
@@ -136,7 +141,7 @@ function useTorre(fiscalId: string, avanceInicial: Record<number, AvanceHoja>, a
     return () => clearInterval(t);
   }, [activo, cargar]);
 
-  return { avance, cruces, hora, error, cargar, revs, hojaIds, conValidar, consolidados, fotos };
+  return { avance, cruces, hora, error, cargar, revs, hojaIds, conValidar, consolidados, fotos, reaps };
 }
 
 /** El anillo del avance: verde = completadas, rojo = con diferencias, ámbar = en conteo, el resto es el fondo. */
@@ -185,10 +190,12 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
   const [pestana, setPestana] = useState<Pestana>("torre");
   const [filtro, setFiltro] = useState<Filtro>("todas");
   const [foco, setFoco] = useState<number | null>(null);
+  /** La hoja que se mira en «Revisión»: una a la vez, no todas apiladas. */
+  const [hojaRev, setHojaRev] = useState<number | null>(null);
   const [verTodo, setVerTodo] = useState<Record<number, boolean>>({});
   /** Hojas donde el fiscal pulsó «Compensar»: las diferencias iguales y contrarias de un mismo módulo se dan por compensadas. */
   const [compensar, setCompensar] = useState<Record<number, boolean>>({});
-  const { avance, cruces, hora, error, cargar, revs, hojaIds, conValidar, consolidados, fotos } = useTorre(fiscalId, avanceInicial, conAvance);
+  const { avance, cruces, hora, error, cargar, revs, hojaIds, conValidar, consolidados, fotos, reaps } = useTorre(fiscalId, avanceInicial, conAvance);
   const nf = useMemo(() => new Intl.NumberFormat("es-CO"), []);
 
   const tarjetas = hojas.map((h) => {
@@ -246,7 +253,18 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
     if (pestana !== "revision" || foco === null) return;
     document.getElementById("vf-h" + foco)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [pestana, foco]);
-  const abrirRevision = (n: number) => { setFoco(n); setPestana("revision") };
+  const [okMal, setOkMal] = useState<string | null>(null);
+  async function darOkReabrir(hojaId: string | undefined, equipo: "OL" | "BAVARIA", si: boolean) {
+    if (!hojaId) return;
+    setOkMal(null);
+    const { error } = await createClient().rpc("inv_fiscal_reabrir_autorizar", { p_hoja: hojaId, p_equipo: equipo, p_si: si });
+    if (error) {
+      setOkMal(/inv_fiscal_reabrir_autorizar|schema cache|does not exist/i.test(error.message) ? "Falta correr 2026-10-fiscal-TODO.sql en Supabase." : traducirError(error.message));
+      return;
+    }
+    await cargar();
+  }
+  const abrirRevision = (n: number) => { setFoco(n); setHojaRev(n); setPestana("revision") };
 
   const persona = (id: string, et: string, rengl: number | undefined, termino: string | null | undefined, hay: boolean) => {
     const fin = !!termino;
@@ -384,7 +402,20 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
               <b>Todavía no hay nada que revisar</b>
               <p>Cuando las dos personas de una hoja pulsan «terminé», el cruce aparece aquí. Si todo coincide, la hoja se pinta de verde; si no, ves en qué ubicaciones.</p>
             </div>
-          ) : cruzadas.map((t) => {
+          ) : (
+            <div className="vf-hojas" role="tablist" aria-label="Hojas con cruce" style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "0 0 12px" }}>
+              {cruzadas.map((t) => {
+                const on = (hojaRev ?? cruzadas[0].h.numero) === t.h.numero;
+                return (
+                  <button key={t.h.numero} type="button" role="tab" aria-selected={on} className={"btn " + (on ? "" : "plano")}
+                          onClick={() => setHojaRev(t.h.numero)} title={`${t.h.ol ? quien(t.h.ol) : "—"} · ${t.h.bavaria ? quien(t.h.bavaria) : "—"}`}>
+                    Hoja {t.h.numero} · {t.tipo === "dif" ? `${t.pend.length} por revisar` : t.tipo === "ok" ? "lista" : "en proceso"}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {cruzadas.length > 0 && cruzadas.filter((t) => t.h.numero === (hojaRev ?? cruzadas[0].h.numero)).map((t) => {
             const filasBase = t.cr && "filas" in t.cr ? t.cr.filas : [];
             const compBase = compensarCruce(filasBase);
             const compensando = !!compensar[t.h.numero] && compBase.pares > 0;
@@ -456,6 +487,33 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                     </table>
                   </div>
                 )}
+                {puedeEditar && (t.av?.olTermino || t.av?.bavariaTermino) && (() => {
+                  const hid = hojaIds[t.h.numero];
+                  const eqs = ([["OL", t.av?.olTermino, t.h.ol], ["BAVARIA", t.av?.bavariaTermino, t.h.bavaria]] as const).filter(([, term]) => !!term);
+                  const lista = reaps.filter((x) => x.numero === t.h.numero);
+                  const pidieron = lista.filter((x) => !x.autorizado_en).length;
+                  return (
+                    <details className="vf-reabrir">
+                      <summary>Reabrir la hoja a las personas{pidieron > 0 ? ` · ${pidieron} ${pidieron === 1 ? "pidió" : "pidieron"} reabrir` : ""}</summary>
+                      <p className="cl-nota" role="note">Una hoja terminada solo se reabre con tu OK. Da el OK a quien necesite corregir; esa persona la reabre desde Contar y vuelve a terminar.</p>
+                      {okMal && <p className="cl-mal" role="alert">{okMal}</p>}
+                      <ul>
+                        {eqs.map(([eq, , uid]) => {
+                          const r = lista.find((x) => x.equipo === eq);
+                          const nombreP = uid ? quien(uid) : eq === "OL" ? "Operador" : "Bavaria";
+                          return (
+                            <li key={eq}>
+                              <b>{nombreP}</b>{" "}
+                              {r?.autorizado_en ? <>· OK dado. <button type="button" className="btn plano" onClick={() => darOkReabrir(hid, eq, false)}>Quitar el OK</button></>
+                                : <>{r?.pedido_en ? "· pidió reabrir su hoja. " : "· hoja terminada. "}
+                                    <button type="button" className="btn plano" onClick={() => darOkReabrir(hid, eq, true)}>Dar el OK para reabrir</button></>}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </details>
+                  );
+                })()}
               </section>
             );
           })}
