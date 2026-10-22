@@ -403,7 +403,7 @@ declare
   v_yo uuid := auth.uid();
   v_num integer; v_conteo uuid; v_fecha date; v_bodega uuid; v_codigo text;
   v_ok uuid[]; v_sin integer; v_ren integer; v_equipos integer; v_eq text := 'OL';
-  r record; v_lid uuid;
+  rg record; v_lid uuid;
 begin
   if not public.puede_editar('/inventario/fiscal') then
     raise exception 'Consolidar requiere el permiso «Inventario fiscal» (Roles)';
@@ -452,7 +452,7 @@ begin
   delete from public.conteo_lineas where conteo_id = v_conteo;
   delete from public.conteo_modulos where conteo_id = v_conteo;
   v_ren := 0;
-  for r in
+  for rg in
     select c.id as cid, c.producto_id, c.ubicacion_id, c.estibas, c.cajas, c.saldo, c.venc_dia, c.venc_mes, c.venc_anio,
            c.averia, c.pnc, c.estado_envase, c.nota, c.contado_en, c.pnc_rotulo, c.pnc_bloqueo_mecanico,
            coalesce(p.cajas_por_estiba, 0) * coalesce(c.estibas, 0) + coalesce(c.cajas, 0) + coalesce(c.saldo, 0) as total
@@ -465,13 +465,13 @@ begin
     insert into public.conteo_lineas
       (conteo_id, producto_id, ubicacion_id, estibas, cajas, saldo, venc_dia, venc_mes, venc_anio,
        rotacion, averia, pnc, estado_envase, nota, cantidad_contada, contado_por, contado_en, pnc_rotulo, pnc_bloqueo_mecanico)
-    values (v_conteo, r.producto_id, r.ubicacion_id, r.estibas, r.cajas, r.saldo, r.venc_dia, r.venc_mes, r.venc_anio,
-            null, r.averia, r.pnc, r.estado_envase, r.nota, r.total, v_yo, r.contado_en, r.pnc_rotulo, r.pnc_bloqueo_mecanico)
+    values (v_conteo, rg.producto_id, rg.ubicacion_id, rg.estibas, rg.cajas, rg.saldo, rg.venc_dia, rg.venc_mes, rg.venc_anio,
+            null, rg.averia, rg.pnc, rg.estado_envase, rg.nota, rg.total, v_yo, rg.contado_en, rg.pnc_rotulo, rg.pnc_bloqueo_mecanico)
     returning id into v_lid;
     -- La foto del renglón (si la hay) viaja con él a La base.
     insert into public.conteo_fotos (linea_id, conteo_id, ruta, bytes, ancho, alto, tomada_en, lat, lng, precision_m, subida_por, subida_en)
     select v_lid, v_conteo, f.ruta, f.bytes, f.ancho, f.alto, f.tomada_en, f.lat, f.lng, f.precision_m, f.subida_por, f.subida_en
-      from public.inv_fiscal_fotos f where f.conteo_id = r.cid;
+      from public.inv_fiscal_fotos f where f.conteo_id = rg.cid;
     v_ren := v_ren + 1;
   end loop;
   -- Mezclado / sin acceso de quien contó: de lo que pasó a La base y de los módulos donde nadie anotó renglones.

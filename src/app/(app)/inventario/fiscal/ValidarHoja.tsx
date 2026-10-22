@@ -127,6 +127,8 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
   const visibles = ubs.filter((u) => todas || estado(u) !== "coincide");
   const coincidenSinAprobar = ubs.filter((u) => estado(u) === "coincide");
   const marcadas = ubs.filter((u) => sel.has(u.clave));
+  /* Todo en verde: lo que falta por aprobar coincide por completo (nada difiere, nada espera respuesta). */
+  const todoVerde = coincidenSinAprobar.length > 0 && ubs.every((u) => estado(u) === "coincide" || estado(u) === "aprobada");
 
   const alternar = (c: string) => setSel((s) => { const n = new Set(s); if (n.has(c)) n.delete(c); else n.add(c); return n });
   const marcar = (f: (u: Ub) => boolean) => setSel(new Set(ubs.filter(f).map((u) => u.clave)));
@@ -220,6 +222,14 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
 
       {puedeEditar && (
         <div className="vv-barra">
+          {todoVerde && (
+            <button type="button" disabled={ocupado} onClick={() => aprobar(coincidenSinAprobar, !!unaSola, null)}
+                    style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, width: "100%", padding: "18px 20px", margin: "0 0 14px",
+                             background: "#0b7a3e", color: "#fff", border: 0, borderRadius: 0, fontSize: "1.15rem", fontWeight: 800, cursor: ocupado ? "wait" : "pointer", opacity: ocupado ? 0.7 : 1 }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="square" aria-hidden="true"><path d="M4 12.5 9.5 18 20 6.5" /></svg>
+              Todo coincide · Aprobar {coincidenSinAprobar.length === 1 ? "la ubicación" : `las ${coincidenSinAprobar.length} ubicaciones`}
+            </button>
+          )}
           <div className="vv-sel" role="group" aria-label="Marcar ubicaciones">
             <button type="button" className="btn plano" onClick={() => marcar((u) => estado(u) === "difiere")}>Marcar las que difieren</button>
             <button type="button" className="btn plano" onClick={() => marcar((u) => estado(u) === "validando" && !!u.rev?.ol_envio && !!u.rev?.bavaria_envio)}>Marcar las ya respondidas</button>
@@ -250,7 +260,7 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
                 </button>
               </>
             )}
-            {coincidenSinAprobar.length > 0 && (
+            {coincidenSinAprobar.length > 0 && !todoVerde && (
               <button type="button" className="btn plano" disabled={ocupado} onClick={() => aprobar(coincidenSinAprobar, false, null)}>
                 Aprobar las {coincidenSinAprobar.length} que coinciden
               </button>
