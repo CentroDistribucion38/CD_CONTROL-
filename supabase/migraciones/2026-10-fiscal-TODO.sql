@@ -2259,6 +2259,49 @@ end $$;
 revoke all on function public.inv_fiscal_borradores_base() from public, anon;
 grant execute on function public.inv_fiscal_borradores_base() to authenticated;
 
+-- ---------------------------------------------------------------------
+-- LA BD DEL FISCAL: todo lo que contó cada persona de una hoja, renglón por renglón, con quién, la hora real y la foto.
+-- Solo para quien tiene el permiso «Inventario fiscal» (ver). Es lo que se lee lado a lado en la pestaña BD del fiscal.
+-- ---------------------------------------------------------------------
+drop function if exists public.inv_fiscal_bd_hoja(uuid);
+create function public.inv_fiscal_bd_hoja(p_hoja uuid)
+returns table (
+  id uuid, equipo text, persona text, contado_en timestamptz, ubicacion_id uuid, ubicacion text, modulo text,
+  sku text, material text, venc_dia integer, venc_mes integer, venc_anio integer,
+  estibas integer, saldo integer, cajas integer, cajas_por_estiba integer, total_cajas bigint,
+  estado_envase text, averia boolean, pnc boolean, nota text, ruta text, en_base boolean
+)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  if not public.puede_ver('/inventario/fiscal') then
+    raise exception 'La BD del fiscal requiere el permiso «Inventario fiscal»';
+  end if;
+  return query
+  select c.id, c.equipo::text, pe.nombre::text, c.contado_en, c.ubicacion_id, u.clave::text,
+         regexp_replace(u.clave, '_(IZQ|DER)$', '')::text,
+         p.sku::text, p.nombre::text, c.venc_dia::integer, c.venc_mes::integer, c.venc_anio::integer,
+         coalesce(c.estibas, 0)::integer, coalesce(c.saldo, 0)::integer, coalesce(c.cajas, 0)::integer, coalesce(p.cajas_por_estiba, 0)::integer,
+         (coalesce(p.cajas_por_estiba, 0) * coalesce(c.estibas, 0) + coalesce(c.saldo, 0) + coalesce(c.cajas, 0))::bigint,
+         c.estado_envase::text, coalesce(c.averia, false), coalesce(c.pnc, false), c.nota::text,
+         (select f.ruta::text from public.inv_fiscal_fotos f where f.conteo_id = c.id limit 1),
+         (exists (select 1 from public.inv_fiscal_hojas h
+                    join public.conteo_lineas cl on cl.conteo_id = h.conteo_id and cl.ubicacion_id = c.ubicacion_id
+                   where h.id = c.hoja_id)
+          or public.inv_fiscal_modulo_resuelto(c.hoja_id, c.ubicacion_id))
+    from public.inv_fiscal_conteos c
+    join public.ubicaciones u on u.id = c.ubicacion_id
+    join public.productos p on p.id = c.producto_id
+    left join public.perfiles pe on pe.id = c.contado_por
+   where c.hoja_id = p_hoja
+   order by u.clave, p.sku, c.equipo, c.contado_en;
+end $$;
+revoke all on function public.inv_fiscal_bd_hoja(uuid) from public, anon;
+grant execute on function public.inv_fiscal_bd_hoja(uuid) to authenticated;
+
 do $$
 begin
   if to_regprocedure('public.inv_fiscal_mis_diferencias(uuid)') is null
@@ -2271,6 +2314,7 @@ begin
      or to_regprocedure('public.inv_fiscal_reabrir_autorizar(uuid,text,boolean)') is null
      or to_regprocedure('public.inv_fiscal_reaperturas(uuid)') is null
      or to_regprocedure('public.inv_fiscal_borradores_base()') is null
+     or to_regprocedure('public.inv_fiscal_bd_hoja(uuid)') is null
      or to_regprocedure('public.inv_fiscal_cruce(uuid)') is null
      or to_regprocedure('public.inv_fiscal_consolidar(uuid)') is null then
     raise exception 'No quedaron las funciones de validar por módulo. Revisa que corrieron antes validar y consolidar.';

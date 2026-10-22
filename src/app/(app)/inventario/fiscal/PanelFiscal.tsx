@@ -9,6 +9,7 @@ import {
 } from "@/modulos/inventario/fiscal-cruce";
 import type { HojaForm } from "@/modulos/inventario/fiscal";
 import { ValidarHoja, type ConsolidadoBD, type RevisionBD } from "./ValidarHoja";
+import { BdFiscal, type HojaBd } from "./BdFiscal";
 
 /* ===================================================================
    EL INVENTARIO FISCAL, TODO EN UN SOLO LUGAR · TORRE DE CONTROL
@@ -82,7 +83,7 @@ async function abrirFoto(ruta: string) {
   if (w) w.location.href = data.signedUrl; else window.location.href = data.signedUrl;
 }
 type Tipo = "sin" | "proceso" | "ok" | "dif";
-type Pestana = "torre" | "parejas" | "revision";
+type Pestana = "torre" | "parejas" | "revision" | "bd";
 type Filtro = "todas" | "proceso" | "ok" | "dif";
 
 /** Las ubicaciones con diferencia, con cuántos renglones no coinciden en cada una. */
@@ -346,6 +347,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
         <button type="button" role="tab" aria-selected={pestana === "revision"} className="vf-tab" onClick={() => setPestana("revision")}>
           <Ico n="alerta" tam={17} /> Revisión de diferencias {cuenta.dif > 0 && <span className="vf-cont rojo">{cuenta.dif}</span>}
         </button>
+        <button type="button" role="tab" aria-selected={pestana === "bd"} className="vf-tab" onClick={() => setPestana("bd")}><Ico n="lista" tam={17} /> BD</button>
       </div>
 
       {pestana === "torre" && (
@@ -406,6 +408,14 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
       )}
 
       {pestana === "parejas" && parejas && <div role="tabpanel" className="vf-parejas">{parejas}</div>}
+
+      {pestana === "bd" && (
+        <BdFiscal nombre={nombre} fecha={new Date().toLocaleDateString("en-CA")} quien="" puedeEditar={puedeEditar && conValidar} revs={revs}
+                  actualizado={hora ? hora.getTime() : 0} onCambio={cargar}
+                  compensar={compensar} onCompensar={(n, v) => setCompensar({ ...compensar, [n]: v })}
+                  hojas={tarjetas.map((t): HojaBd => ({ numero: t.h.numero, id: hojaIds[t.h.numero] ?? null, calle: t.h.calle, ol: t.h.ol ? quien(t.h.ol) : "", bavaria: t.h.bavaria ? quien(t.h.bavaria) : "",
+                    filas: t.cr && "filas" in t.cr ? t.cr.filas : null }))} />
+      )}
 
       {pestana === "revision" && (
         <div role="tabpanel" className="vf-revision">

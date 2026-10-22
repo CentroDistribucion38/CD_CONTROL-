@@ -833,6 +833,59 @@ grant execute on function public.inv_fiscal_mis_hojas() to authenticated;
 -- mismo formato de renglón que usa La base. Solo lo ve quien tiene el permiso del inventario fiscal (el conteo es a
 -- ciegas entre la pareja: ellas no se ven entre sí).
 -- ---------------------------------------------------------------------
+-- ¿El módulo de esta ubicación ya lo aprobó el fiscal y ya está resuelto (va a La base con el conteo definitivo)?
+-- Sirve para que lo que anotó la OTRA persona de la pareja en ese módulo deje de verse como borrador y le quede en cero.
+drop function if exists public.inv_fiscal_modulo_resuelto(uuid, uuid);
+create function public.inv_fiscal_modulo_resuelto(p_hoja uuid, p_ubi uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.inv_fiscal_revisiones r
+      join public.ubicaciones ur on ur.id = r.ubicacion_id
+     where r.hoja_id = p_hoja and r.estado = 'APROBADA'
+       and regexp_replace(ur.clave, '_(IZQ|DER)$', '') = (select regexp_replace(u.clave, '_(IZQ|DER)$', '') from public.ubicaciones u where u.id = p_ubi)
+       and (r.adoptado is not null or not public.inv_fiscal_modulo_difiere(p_hoja, r.ubicacion_id, r.compensado))
+  )
+$$;
+revoke all on function public.inv_fiscal_modulo_resuelto(uuid, uuid) from public, anon;
+grant execute on function public.inv_fiscal_modulo_resuelto(uuid, uuid) to authenticated;
+
+-- Lo mío en esta hoja: lo que ya está en La base (o cuyo módulo ya resolvió el fiscal) se marca «en_base» y a mi pantalla le queda en cero.
+drop function if exists public.inv_fiscal_contar_mios(uuid);
+create function public.inv_fiscal_contar_mios(p_hoja uuid)
+returns table (
+  id uuid, ubicacion_id uuid, ubicacion text, producto_id uuid, sku text, material text,
+  estibas integer, saldo integer, cajas integer, total_cajas bigint,
+  venc_dia smallint, venc_mes smallint, venc_anio smallint, nota text, contado_en timestamptz, estado_envase text,
+  averia boolean, pnc boolean, pnc_rotulo boolean, pnc_bloqueo_mecanico boolean, en_base boolean
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select c.id, c.ubicacion_id, u.clave, c.producto_id, p.sku, p.nombre,
+         c.estibas, c.saldo, c.cajas,
+         (coalesce(p.cajas_por_estiba, 0) * coalesce(c.estibas, 0) + coalesce(c.saldo, 0) + coalesce(c.cajas, 0))::bigint,
+         c.venc_dia, c.venc_mes, c.venc_anio, c.nota, c.contado_en, c.estado_envase,
+         c.averia, c.pnc, c.pnc_rotulo, c.pnc_bloqueo_mecanico,
+         (exists (select 1 from public.inv_fiscal_hojas h
+                    join public.conteo_lineas cl on cl.conteo_id = h.conteo_id and cl.ubicacion_id = c.ubicacion_id
+                   where h.id = c.hoja_id)
+          or public.inv_fiscal_modulo_resuelto(c.hoja_id, c.ubicacion_id))
+    from public.inv_fiscal_conteos c
+    join public.ubicaciones u on u.id = c.ubicacion_id
+    join public.productos p on p.id = c.producto_id
+   where c.hoja_id = p_hoja and c.contado_por = auth.uid()
+   order by c.contado_en desc
+$$;
+revoke all on function public.inv_fiscal_contar_mios(uuid) from public, anon;
+grant execute on function public.inv_fiscal_contar_mios(uuid) to authenticated;
+
 drop function if exists public.inv_fiscal_borradores_base();
 create function public.inv_fiscal_borradores_base()
 returns jsonb
@@ -860,6 +913,8 @@ begin
       left join public.perfiles pe on pe.id = c.contado_por
      where f.estado = 'abierto'
        and not exists (select 1 from public.conteo_lineas cl where cl.conteo_id = h.conteo_id and cl.ubicacion_id = c.ubicacion_id)
+        -- Ni lo de la otra persona de la pareja en un módulo que el fiscal ya aprobó: eso ya está en La base con el conteo definitivo.
+        and not public.inv_fiscal_modulo_resuelto(h.id, c.ubicacion_id)
   )
   select
     coalesce((select jsonb_agg(jsonb_build_object(
@@ -890,6 +945,49 @@ end $$;
 revoke all on function public.inv_fiscal_borradores_base() from public, anon;
 grant execute on function public.inv_fiscal_borradores_base() to authenticated;
 
+-- ---------------------------------------------------------------------
+-- LA BD DEL FISCAL: todo lo que contó cada persona de una hoja, renglón por renglón, con quién, la hora real y la foto.
+-- Solo para quien tiene el permiso «Inventario fiscal» (ver). Es lo que se lee lado a lado en la pestaña BD del fiscal.
+-- ---------------------------------------------------------------------
+drop function if exists public.inv_fiscal_bd_hoja(uuid);
+create function public.inv_fiscal_bd_hoja(p_hoja uuid)
+returns table (
+  id uuid, equipo text, persona text, contado_en timestamptz, ubicacion_id uuid, ubicacion text, modulo text,
+  sku text, material text, venc_dia integer, venc_mes integer, venc_anio integer,
+  estibas integer, saldo integer, cajas integer, cajas_por_estiba integer, total_cajas bigint,
+  estado_envase text, averia boolean, pnc boolean, nota text, ruta text, en_base boolean
+)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  if not public.puede_ver('/inventario/fiscal') then
+    raise exception 'La BD del fiscal requiere el permiso «Inventario fiscal»';
+  end if;
+  return query
+  select c.id, c.equipo::text, pe.nombre::text, c.contado_en, c.ubicacion_id, u.clave::text,
+         regexp_replace(u.clave, '_(IZQ|DER)$', '')::text,
+         p.sku::text, p.nombre::text, c.venc_dia::integer, c.venc_mes::integer, c.venc_anio::integer,
+         coalesce(c.estibas, 0)::integer, coalesce(c.saldo, 0)::integer, coalesce(c.cajas, 0)::integer, coalesce(p.cajas_por_estiba, 0)::integer,
+         (coalesce(p.cajas_por_estiba, 0) * coalesce(c.estibas, 0) + coalesce(c.saldo, 0) + coalesce(c.cajas, 0))::bigint,
+         c.estado_envase::text, coalesce(c.averia, false), coalesce(c.pnc, false), c.nota::text,
+         (select f.ruta::text from public.inv_fiscal_fotos f where f.conteo_id = c.id limit 1),
+         (exists (select 1 from public.inv_fiscal_hojas h
+                    join public.conteo_lineas cl on cl.conteo_id = h.conteo_id and cl.ubicacion_id = c.ubicacion_id
+                   where h.id = c.hoja_id)
+          or public.inv_fiscal_modulo_resuelto(c.hoja_id, c.ubicacion_id))
+    from public.inv_fiscal_conteos c
+    join public.ubicaciones u on u.id = c.ubicacion_id
+    join public.productos p on p.id = c.producto_id
+    left join public.perfiles pe on pe.id = c.contado_por
+   where c.hoja_id = p_hoja
+   order by u.clave, p.sku, c.equipo, c.contado_en;
+end $$;
+revoke all on function public.inv_fiscal_bd_hoja(uuid) from public, anon;
+grant execute on function public.inv_fiscal_bd_hoja(uuid) to authenticated;
+
 do $$
 begin
   if to_regprocedure('public.inv_fiscal_mis_diferencias(uuid)') is null
@@ -902,6 +1000,7 @@ begin
      or to_regprocedure('public.inv_fiscal_reabrir_autorizar(uuid,text,boolean)') is null
      or to_regprocedure('public.inv_fiscal_reaperturas(uuid)') is null
      or to_regprocedure('public.inv_fiscal_borradores_base()') is null
+     or to_regprocedure('public.inv_fiscal_bd_hoja(uuid)') is null
      or to_regprocedure('public.inv_fiscal_cruce(uuid)') is null
      or to_regprocedure('public.inv_fiscal_consolidar(uuid)') is null then
     raise exception 'No quedaron las funciones de validar por módulo. Revisa que corrieron antes validar y consolidar.';
