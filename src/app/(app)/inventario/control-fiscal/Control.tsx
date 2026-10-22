@@ -19,7 +19,25 @@ type BdLinea = {
   equipo: string; persona: string | null; ubicacion: string; sku: string; material: string;
   cajas_por_estiba: number | null; estibas: number | null; saldo: number | null; cajas: number | null; total_cajas: number | string | null;
   venc_dia: number | null; venc_mes: number | null; venc_anio: number | null; nota: string | null; contado_en: string | null;
+  ubicacion_id?: string | null; estado_envase?: string | null; averia?: boolean | null; pnc?: boolean | null;
 };
+
+/** El cruce de una hoja que todavía no se cierra, armado con lo contado HASTA AHORA (mismo criterio que `inv_fiscal_cruce`). */
+function cruceParcial(l: BdLinea[]): FilaCruce[] {
+  const m = new Map<string, FilaCruceBD>();
+  for (const r of l) {
+    const k = [r.ubicacion, r.sku, r.venc_dia ?? 0, r.venc_mes ?? 0, r.venc_anio ?? 0, r.estado_envase ?? "", r.averia ? 1 : 0, r.pnc ? 1 : 0].join("|");
+    let f = m.get(k);
+    if (!f) {
+      f = { ubicacion_id: r.ubicacion_id ?? null, ubicacion: r.ubicacion, sku: r.sku, material: r.material, venc_dia: r.venc_dia, venc_mes: r.venc_mes, venc_anio: r.venc_anio,
+            cajas_ol: null, cajas_bavaria: null, diferencia: 0, estado: "DIFIERE", estado_envase: r.estado_envase ?? null, averia: !!r.averia, pnc: !!r.pnc };
+      m.set(k, f);
+    }
+    const t = Number(r.total_cajas) || 0;
+    if (r.equipo === "BAVARIA") f.cajas_bavaria = (Number(f.cajas_bavaria) || 0) + t; else f.cajas_ol = (Number(f.cajas_ol) || 0) + t;
+  }
+  return ordenarCruce(cruceModulo([...m.values()].map((f) => filaDesdeBD({ ...f, diferencia: (Number(f.cajas_ol) || 0) - (Number(f.cajas_bavaria) || 0) }))));
+}
 
 /* ===================================================================
    CONTROL FISCAL — VER Y EJECUTAR EL CONTROL DEL INVENTARIO FISCAL
@@ -45,8 +63,9 @@ export function Control({ personas, fiscales, conCruce, ahora, puedeEditar }: {
   /* EL EXCEL DEL CRUCE, EN UNO SOLO: el cruce de TODAS las hojas del inventario
      en un archivo (resumen por pareja, diferencias, por material y detalle).
      Los CONTEOS de cada persona bajan de TODAS las hojas, hasta donde hayan llegado
-     (contando, sin cruzar o cerradas). El cruce (diferencias) solo sale de las hojas
-     donde las dos ya terminaron; nunca se inventa un cruce. */
+     (contando, sin cruzar o cerradas). Las hojas donde las dos ya terminaron salen con su
+     cruce completo; las demás salen con un cruce PARCIAL (lo contado hasta ahora), marcado
+     como tal en el Resumen, para poder comparar OL contra Bavaria en las 5 hojas. */
   async function excelDelCruce(f: FiscalBD) {
     setMal(null); setAviso(null); setArmando(f.id);
     try {
@@ -59,6 +78,7 @@ export function Control({ personas, fiscales, conCruce, ahora, puedeEditar }: {
         const id = f.hojaIds?.[h.numero];
         let filas: FilaCruce[] | null = null;
         let conteos: ConteoPersona[] | null = null;
+        let parcial = false;
         /* Lo que marcaron de los módulos (mezclado / sin acceso). Si falta el SQL, simplemente no hay pestaña. */
         let marcas: { ubicacion: string; equipo: "OL" | "BAVARIA"; mezclado: boolean; sin_acceso: boolean; foto: boolean }[] | null = null;
         if (id) {
@@ -76,6 +96,8 @@ export function Control({ personas, fiscales, conCruce, ahora, puedeEditar }: {
         if (id) {
           const bd = await sb.rpc("inv_fiscal_bd_hoja", { p_hoja: id });
           if (!bd.error) {
+            /* Hoja que todavía no se puede cruzar: se compara con lo contado hasta ahora, marcado como PARCIAL. */
+            if (!filas && ((bd.data ?? []) as BdLinea[]).length > 0) { filas = cruceParcial((bd.data ?? []) as BdLinea[]); parcial = true }
             conteos = ((bd.data ?? []) as BdLinea[]).map((l) => conteoDesdeBD({
               equipo: l.equipo, persona: l.persona, ubicacion: l.ubicacion, sku: l.sku, material: l.material,
               cajas_por_estiba: l.cajas_por_estiba, estibas: l.estibas, saldo: l.saldo, cajas: l.cajas, total_cajas: l.total_cajas,
@@ -98,7 +120,7 @@ export function Control({ personas, fiscales, conCruce, ahora, puedeEditar }: {
           olRenglones: av?.olRenglones ?? 0,
           bavariaRenglones: av?.bavariaRenglones ?? 0,
           olTermino: av?.olTermino ?? null, bavariaTermino: av?.bavariaTermino ?? null,
-          filas, conteos, marcas,
+          filas, parcial, conteos, marcas,
         };
       }));
       const P = leerPaleta(document.querySelector(".fe"));
@@ -116,13 +138,13 @@ export function Control({ personas, fiscales, conCruce, ahora, puedeEditar }: {
       a.download = `cruce-fiscal-${f.fecha}.xlsx`;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
-      const n = hojas.filter((h) => h.filas).length;
+      const n = hojas.filter((h) => h.filas && !h.parcial).length;
       const renglones = hojas.reduce((t, h) => t + (h.conteos?.length ?? 0), 0);
       const conAlgo = hojas.filter((h) => (h.conteos?.length ?? 0) > 0).length;
       setAviso(sinConteos
         ? "Excel listo, pero SIN lo que contó cada persona: falta correr 2026-10-fiscal-TODO.sql en Supabase."
         : `Excel listo: ${renglones} renglones contados de ${conAlgo} de ${hojas.length} hojas, hasta donde llegó cada persona` +
-          (n > 0 ? `; el cruce de diferencias sale de las ${n} hojas donde las dos ya terminaron.` : "; todavía ninguna hoja tiene a las dos personas terminadas, por eso aún no hay cruce de diferencias."));
+          (`; ${n} ${n === 1 ? "hoja cruzada completa" : "hojas cruzadas completas"}` + (conAlgo > n ? ` y ${conAlgo - n} con cruce PARCIAL (lo contado hasta ahora, marcado en el Resumen).` : ".")));
     } catch (e) {
       setMal(e instanceof Error && e.message ? traducirError(e.message) : "No se pudo armar el Excel del cruce.");
     } finally { setArmando(null) }

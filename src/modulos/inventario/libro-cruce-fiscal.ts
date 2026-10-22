@@ -48,6 +48,8 @@ export type HojaCruzada = {
   olRenglones: number; bavariaRenglones: number;
   /** null = todavía no se pudo cruzar (falta que alguien termine). */
   filas: FilaCruce[] | null;
+  /** true = las filas se armaron con lo contado HASTA AHORA (las dos personas todavía no terminan): sirve para comparar, pero puede cambiar. */
+  parcial?: boolean;
   /** Lo que anotó cada persona, renglón por renglón. null = no se pudo leer (hoja sin cruzar, o falta el SQL). */
   conteos?: ConteoPersona[] | null;
   /** Cuándo terminó cada una (ISO), si ya terminó. */
@@ -109,7 +111,8 @@ export function lecturaHoja(h: HojaCruzada): string {
   if (h.filas) {
     if (h.filas.length === 0) return "Ninguno de los dos contó nada.";
     const dif = h.filas.filter((f) => f.estado !== "COINCIDE").length;
-    return dif === 0 ? `Todo coincide (${h.filas.length} renglones).` : `${dif} de ${h.filas.length} renglones no coinciden.`;
+    const base = dif === 0 ? `Todo coincide (${h.filas.length} renglones).` : `${dif} de ${h.filas.length} renglones no coinciden.`;
+    return h.parcial ? `Cruce PARCIAL, con lo contado hasta ahora (aún no terminan las dos personas). ${base}` : base;
   }
   const n = h.conteos?.length ?? 0;
   const hasta = n > 0 ? ` Lo contado hasta ahora (${n} ${n === 1 ? "renglón" : "renglones"}) está en «Conteos por persona».` : "";
@@ -256,7 +259,7 @@ export async function armarCruceFiscal(o: InsumosCruce): Promise<ArrayBuffer> {
   const RA = [2, 7, 24, 24, 17, 11, 11, 11, 11, 11, 14, 14, 13, 13, 15, 14, 44, 2];
   rs.columns = RA.map((w) => ({ width: w }));
   cabecera(rs, P, sello, "Cruce del inventario fiscal · por pareja", sub, RA.length, false);
-  const listas = cruzadas.length;
+  const listas = cruzadas.filter((h) => !h.parcial).length, parciales = cruzadas.length - listas;
   const totFilas = todas.length, coinc = todas.filter((x) => x.f.estado === "COINCIDE").length;
   const sumOl = todas.reduce((t, x) => t + (x.f.cajasOl ?? 0), 0), sumBa = todas.reduce((t, x) => t + (x.f.cajasBavaria ?? 0), 0);
   const dist = todas.reduce((t, x) => t + Math.abs(x.f.diferencia), 0);
@@ -318,7 +321,7 @@ export async function armarCruceFiscal(o: InsumosCruce): Promise<ArrayBuffer> {
   const filaT: ExcelJS.CellValue[] = ["", "TOTAL DEL INVENTARIO", "", "", ...totales.map((v, i) => {
     const col = String.fromCharCode(70 + i);                                                           // F, G, … N
     return { formula: `SUM(${col}${RF0 + 1}:${col}${T - 1})`, result: v } as ExcelJS.CellValue;
-  }), pctInv, exInv, `${listas} de ${o.hojas.length} hojas cruzadas`];
+  }), pctInv, exInv, `${listas} de ${o.hojas.length} hojas cruzadas${parciales ? ` + ${parciales} parcial${parciales === 1 ? "" : "es"}` : ""}`];
   filaT.forEach((v, k) => {
     const c = tot.getCell(2 + k); if (v !== "") c.value = v;
     c.font = letra(10.5, BLANCO, true); c.fill = relleno(P.TINTA);
