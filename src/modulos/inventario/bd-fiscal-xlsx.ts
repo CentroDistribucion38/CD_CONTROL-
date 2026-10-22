@@ -107,6 +107,9 @@ function pintarEstado(x: ExcelJS.Cell, tipo: "ok" | "comp" | "mal" | "ambar" | "
 
 const cuando = (iso: string) => new Date(iso).toLocaleString("es-CO", { timeZone: "America/Bogota", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 const es = (v: number) => Math.round(v).toLocaleString("es-CO");
+/* Excel guarda la hora tal cual; para que se vea la de Colombia (UTC−5) se corre el instante cinco horas. */
+const horaCo = (iso: string | null): Date | null => (iso ? new Date(new Date(iso).getTime() - 5 * 3600_000) : null);
+const BAV_ROJO = "FFB42318";
 
 type FilaSku = { hoja: number; calle: string; ol: string; bav: string; m: Modulo; s: SkuMod };
 function estadoSku(s: SkuMod): { texto: string; tipo: "ok" | "comp" | "mal" } {
@@ -203,6 +206,91 @@ export async function armarBdExcel(o: { nombre: string; fecha: string; quien?: s
     h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9 };
   }
 
+  /* ======================= CRUCE · OPERADOR A UN LADO, BAVARIA AL OTRO ======================= */
+  {
+    const h = wb.addWorksheet("Cruce OL vs Bavaria", { properties: { tabColor: { argb: BAV_ROJO } } });
+    const cols: Col[] = [
+      { t: "Hoja", w: 6, centro: true }, { t: "Módulo", w: 12 }, { t: "Código", w: 10 }, { t: "Material", w: 36, texto: true },
+      { t: "Cajas", w: 11, fmt: NUM }, { t: "Estibas", w: 8, fmt: NUM }, { t: "Saldo", w: 8, fmt: NUM }, { t: "Sueltas", w: 8, fmt: NUM }, { t: "Vence", w: 13 }, { t: "Envase", w: 11 }, { t: "Hora", w: 8, fmt: "hh:mm" },
+      { t: "Cajas", w: 11, fmt: NUM }, { t: "Estibas", w: 8, fmt: NUM }, { t: "Saldo", w: 8, fmt: NUM }, { t: "Sueltas", w: 8, fmt: NUM }, { t: "Vence", w: 13 }, { t: "Envase", w: 11 }, { t: "Hora", w: 8, fmt: "hh:mm" },
+      { t: "Suma operador", w: 13, fmt: NUM }, { t: "Suma Bavaria", w: 13, fmt: NUM }, { t: "Diferencia", w: 13, fmt: SIG }, { t: "Estado", w: 16 },
+    ];
+    banda(h, cols.length, "Cruce · operador de un lado, Bavaria del otro", `Cada código con lo que anotó cada persona, renglón por renglón, y la diferencia · ${sub}`);
+    encabezado(h, 7, cols);
+    /* Rótulos de grupo sobre el encabezado: OPERADOR (negro) · BAVARIA (rojo) · CRUCE (negro). */
+    h.getRow(6).height = 18;
+    const grupo = (d: number, a: number, txt: string, color: string) => {
+      h.mergeCells(6, d, 6, a);
+      const x = h.getCell(6, d); x.value = txt; x.font = letra(10, BLANCO, true); x.alignment = { vertical: "middle", horizontal: "center" };
+      for (let c = d; c <= a; c++) h.getCell(6, c).fill = relleno(color);
+    };
+    grupo(1, 4, "CÓDIGO", TINTA); grupo(5, 11, "OPERADOR LOGÍSTICO", TINTA); grupo(12, 18, "BAVARIA", BAV_ROJO); grupo(19, 22, "CRUCE", TINTA);
+    for (let c = 12; c <= 18; c++) h.getCell(7, c).fill = relleno(BAV_ROJO);
+
+    const lado = (rs: RenglonBd[], k: number): ExcelJS.CellValue[] => {
+      const r = rs[k];
+      return r ? [r.total, r.estibas, r.saldo, r.cajas, textoVenc(r.vencDia, r.vencMes, r.vencAnio), r.estadoEnvase ?? "", horaCo(r.contadoEn)]
+               : [k === 0 && rs.length === 0 ? "no anotó" : "", "", "", "", "", "", ""];
+    };
+    let n = 7, ini = 8, sumaOl = 0, sumaBv = 0, nFilas = 0;
+    const nota0 = (x: ExcelJS.Cell) => { x.font = letra(9.5, GRIS, false, true) };
+    for (const hj of o.hojas) {
+      if (hj.modulos.length === 0) continue;
+      /* Banda de la hoja: quién contó de cada lado. */
+      n++;
+      h.mergeCells(n, 1, n, cols.length);
+      const bh = h.getCell(n, 1);
+      bh.value = `HOJA ${hj.numero}${hj.calle ? ` · calle ${hj.calle}` : ""}   —   Operador: ${hj.ol || "—"}   ·   Bavaria: ${hj.bavaria || "—"}`;
+      bh.font = letra(11, TINTA, true); bh.alignment = { vertical: "middle", indent: 1 };
+      for (let c = 1; c <= cols.length; c++) h.getCell(n, c).fill = relleno(BANDA);
+      h.getRow(n).height = 22;
+      for (const m of hj.modulos) {
+        /* Banda del módulo, como en la pantalla: nombre, estado y totales de los dos lados. */
+        n++;
+        h.mergeCells(n, 1, n, cols.length);
+        const bm = h.getCell(n, 1);
+        bm.value = `${m.clave}   ·   ${TEXTO_MOD[m.estado]}   ·   Operador ${es(m.sumOl)}   ·   Bavaria ${es(m.sumBav)}   ·   ${m.dif > 0 ? "+" : ""}${es(m.dif)}`;
+        const tipo = m.estado === "aprobado" || m.estado === "coincide" ? [VERDE_F, VERDE] : m.estado === "compensado" ? [AZUL_F, AZUL] : m.estado === "difiere" ? [ROJO_F, ROJO] : m.estado === "contando" ? [FONDO, GRIS] : [AMBAR_F, AMBAR];
+        bm.font = letra(10.5, tipo[1], true); bm.alignment = { vertical: "middle", indent: 1 };
+        for (let c = 1; c <= cols.length; c++) { h.getCell(n, c).fill = relleno(tipo[0]); h.getCell(n, c).border = { top: { style: "thin", color: { argb: tipo[1] } } } }
+        h.getRow(n).height = 20;
+        m.skus.forEach((sk) => {
+          const e = estadoSku(sk);
+          const lineas = Math.max(sk.ol.length, sk.bav.length, 1);
+          for (let k = 0; k < lineas; k++) {
+            n++; nFilas++;
+            const prim = k === 0;
+            const vals: ExcelJS.CellValue[] = [hj.numero, m.clave, sk.sku, sk.material, ...lado(sk.ol, k), ...lado(sk.bav, k),
+              prim ? sk.sumOl : null, prim ? sk.sumBav : null, prim ? sk.dif : null, prim ? e.texto : ""];
+            const r = fila(h, n, cols, vals, false);
+            r.getCell(3).font = letra(9.5, TINTA, true);
+            if (!prim) for (const c of [1, 2, 3, 4]) r.getCell(c).font = letra(9.5, GRIS_CLARO);
+            r.getCell(5).font = letra(10, TINTA, true); r.getCell(12).font = letra(10, TINTA, true);
+            for (const c of [5, 12]) if (r.getCell(c).value === "no anotó") nota0(r.getCell(c));
+            r.getCell(11).font = letra(9, GRIS); r.getCell(18).font = letra(9, GRIS);
+            r.getCell(10).font = letra(9, AMBAR, true); r.getCell(17).font = letra(9, AMBAR, true);
+            r.getCell(19).font = letra(10, TINTA, true); r.getCell(20).font = letra(10, TINTA, true);
+            r.getCell(21).font = letra(10.5, sk.dif === 0 ? VERDE : sk.compensado ? AZUL : ROJO, true);
+            if (prim) pintarEstado(r.getCell(22), e.tipo);
+            /* Una línea gruesa a la mitad separa los dos lados. */
+            for (const c of [5, 12, 19]) r.getCell(c).border = { ...r.getCell(c).border, left: { style: "thin", color: { argb: GRIS_CLARO } } };
+            if (k === lineas - 1) for (let c = 1; c <= cols.length; c++) r.getCell(c).border = { ...r.getCell(c).border, bottom: raya(GRIS_CLARO) };
+            if (prim) { sumaOl += sk.sumOl; sumaBv += sk.sumBav }
+          }
+        });
+      }
+    }
+    const ult = n;
+    if (nFilas > 0) {
+      total(h, ult + 1, cols.length, "TOTAL", {
+        19: { desde: ini, hasta: ult, valor: sumaOl, fmt: NUM }, 20: { desde: ini, hasta: ult, valor: sumaBv, fmt: NUM }, 21: { desde: ini, hasta: ult, valor: sumaOl - sumaBv, fmt: SIG },
+      });
+    } else { const x = h.getCell(8, 1); x.value = "Todavía no hay renglones contados."; x.font = letra(10, GRIS, false, true) }
+    pie(h, ult, cols.length, "Igual que la pantalla de la BD: a la izquierda lo del operador, a la derecha lo de Bavaria, y al final la diferencia (operador − Bavaria). Un código con varios renglones (p. ej. NUEVO y RETORNO) ocupa varias líneas y su suma va en la primera. «no anotó» = esa persona no contó ese código. Cajas = estibas × cajas por estiba + saldo + sueltas. La hora es la de Colombia.");
+    h.views = [{ state: "frozen", ySplit: 7, xSplit: 4, showGridLines: false }];
+    h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, printTitlesRow: "6:7" };
+  }
+
   /* ======================= COMPARATIVO ======================= */
   const COLS: Col[] = [
     { t: "Hoja", w: 7, centro: true }, { t: "Calle", w: 8, centro: true }, { t: "Módulo", w: 13 }, { t: "Código", w: 11 }, { t: "Material", w: 40, texto: true },
@@ -259,7 +347,7 @@ export async function armarBdExcel(o: { nombre: string; fecha: string; quien?: s
     banda(h, cols.length, "Renglones contados", `${rs.length} renglones · lo que anotó cada persona · ${sub}`);
     encabezado(h, 7, cols);
     rs.forEach(({ hoja, r }, i) => {
-      const f = fila(h, 8 + i, cols, [hoja, r.modulo, r.ubicacion, r.equipo === "OL" ? "Operador" : "Bavaria", r.persona, r.contadoEn ? new Date(r.contadoEn) : null, r.sku, r.material,
+      const f = fila(h, 8 + i, cols, [hoja, r.modulo, r.ubicacion, r.equipo === "OL" ? "Operador" : "Bavaria", r.persona, horaCo(r.contadoEn), r.sku, r.material,
         textoVenc(r.vencDia, r.vencMes, r.vencAnio), r.estibas, r.saldo, r.cajas, r.total, r.averia ? "Sí" : "", r.pnc ? "Sí" : "", r.estadoEnvase ?? "", r.nota ?? "", r.ruta ? "Sí" : "", r.enBase ? "Sí" : ""], i % 2 === 1);
       f.getCell(7).font = letra(9.5, TINTA, true);
       f.getCell(13).font = letra(10, TINTA, true);
