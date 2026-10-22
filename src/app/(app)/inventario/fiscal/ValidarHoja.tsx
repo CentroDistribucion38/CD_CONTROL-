@@ -120,16 +120,21 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
     return [...porClave.values()].sort((a, b) => orden(a.clave, b.clave));
   }, [filas, revs, numero, marcas]);
 
-  const estado = (u: Ub): "aprobada" | "validando" | "difiere" | "compensada" | "coincide" =>
-    u.rev?.estado === "APROBADA" ? "aprobada" : u.rev?.estado === "A_VALIDAR" ? "validando" : u.dif ? "difiere" : u.comp > 0 ? "compensada" : "coincide";
-  const TEXTO = { aprobada: "Aprobada", validando: "En validación", difiere: "Difiere", compensada: "Compensada", coincide: "Coincide" } as const;
+  /* En validación: falta que respondan. Cuando las dos personas ya respondieron: si ahora coincide, es verde; si aún difiere, decide el fiscal. */
+  const estado = (u: Ub): "aprobada" | "validando" | "respondida" | "difiere" | "compensada" | "coincide" =>
+    u.rev?.estado === "APROBADA" ? "aprobada"
+      : u.rev?.estado === "A_VALIDAR" ? (!u.dif ? (u.comp > 0 ? "compensada" : "coincide") : u.rev.ol_envio && u.rev.bavaria_envio ? "respondida" : "validando")
+      : u.dif ? "difiere" : u.comp > 0 ? "compensada" : "coincide";
+  const TEXTO = { aprobada: "Aprobada", validando: "En validación", respondida: "Respondieron · decide el fiscal", difiere: "Difiere", compensada: "Compensada", coincide: "Coincide" } as const;
 
   const nAprobadas = ubs.filter((u) => estado(u) === "aprobada").length;
   const visibles = ubs.filter((u) => todas || estado(u) !== "coincide");
   const coincidenSinAprobar = ubs.filter((u) => estado(u) === "coincide");
   const marcadas = ubs.filter((u) => sel.has(u.clave));
   /* Todo en verde: lo que falta por aprobar coincide por completo (nada difiere, nada espera respuesta). */
-  const todoVerde = coincidenSinAprobar.length > 0 && ubs.every((u) => estado(u) === "coincide" || estado(u) === "aprobada");
+  /* Lo compensado también es verde: cuadra en total, y se aprueba junto con lo que coincide. */
+  const porAprobar = ubs.filter((u) => estado(u) === "coincide" || estado(u) === "compensada");
+  const todoVerde = porAprobar.length > 0 && ubs.every((u) => ["coincide", "compensada", "aprobada"].includes(estado(u)));
   /* El sitio junto al título de la hoja (lo pone el panel): ahí va el check de aprobar, para verlo de una. */
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   useEffect(() => { setSlot(document.getElementById(`vf-acc-h${numero}`)) }, [numero]);
@@ -185,25 +190,28 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
     setAdoptar(quedaCon);
     /* Con una sola persona no hay cruce: se pide confirmar antes de aprobar. */
     if (unaSola && !forzando) { setConfUna(lista); return }
-    const faltan = lista.filter((u) => u.rev?.estado === "A_VALIDAR" && !(u.rev.ol_envio && u.rev.bavaria_envio));
+    /* Si ya no difiere (coincide o quedó compensado) no hace falta esperar la respuesta: se aprueba directo. */
+    const sinRespuesta = lista.filter((u) => u.rev?.estado === "A_VALIDAR" && !(u.rev.ol_envio && u.rev.bavaria_envio));
+    const faltan = sinRespuesta.filter((u) => u.dif);
+    if (sinRespuesta.length > faltan.length) forzando = true;
     if (faltan.length > 0 && !forzando) { setForzar(faltan); return }
     void correr("inv_fiscal_aprobar", lista, { p_forzar: forzando, ...(quedaCon ? { p_adoptar: quedaCon } : {}), ...(compensando ? { p_compensar: true } : {}) },
       `${lista.length} ${lista.length === 1 ? "ubicación aprobada" : "ubicaciones aprobadas"}${quedaCon ? `, dejando como definitivo lo de ${quedaCon === "OL" ? (ol || "el operador") : (bavaria || "Bavaria")}` : ""}.`);
   }
 
   /* SIGUIENTE CALLE: solo cuando no queda nada por validar ni con diferencia sin aprobar. */
-  const hayAbierto = ubs.some((u) => ["difiere", "validando"].includes(estado(u)));
+  const hayAbierto = ubs.some((u) => ["difiere", "validando", "respondida"].includes(estado(u)));
   const estiloCheck = { display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "10px 18px", border: 0, borderRadius: 0,
     fontSize: "1rem", fontWeight: 800 } as const;
   const iconoCheck = <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="square" aria-hidden="true"><path d="M4 12.5 9.5 18 20 6.5" /></svg>;
   /* Todo en verde: UN clic aprueba a las dos personas a la vez. */
   const botonAprobar = puedeEditar && todoVerde ? (
-    <button type="button" disabled={ocupado} onClick={() => aprobar(coincidenSinAprobar, false, null)}
+    <button type="button" disabled={ocupado} onClick={() => aprobar(porAprobar, false, null)}
             title="Aprueba a las dos personas de una vez; lo aprobado pasa a La base"
             style={{ ...estiloCheck, background: "#0b7a3e", color: "#fff", cursor: ocupado ? "wait" : "pointer", opacity: ocupado ? 0.7 : 1 }}>
-      {iconoCheck} Aprobar {coincidenSinAprobar.length === 1 ? "la ubicación" : `las ${coincidenSinAprobar.length} ubicaciones`}
+      {iconoCheck} Aprobar {porAprobar.length === 1 ? "la ubicación" : `las ${porAprobar.length} ubicaciones`}
     </button>
-  ) : puedeEditar && !hayAbierto && coincidenSinAprobar.length === 0 && nAprobadas > 0 ? (
+  ) : puedeEditar && !hayAbierto && porAprobar.length === 0 && nAprobadas > 0 ? (
     <button type="button"
             onClick={() => { const el = document.getElementById(`vv-sig-${numero}`); el?.scrollIntoView({ behavior: "smooth", block: "center" }); (document.getElementById(`vv-calle-${numero}`) as HTMLSelectElement | null)?.focus() }}
             title="Aprobada: ahora escoge la calle a la que pasan las dos personas"
@@ -249,7 +257,7 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
           {!slot && botonAprobar}
           <div className="vv-sel" role="group" aria-label="Marcar ubicaciones">
             <button type="button" className="btn plano" onClick={() => marcar((u) => estado(u) === "difiere")}>Marcar las que difieren</button>
-            <button type="button" className="btn plano" onClick={() => marcar((u) => estado(u) === "validando" && !!u.rev?.ol_envio && !!u.rev?.bavaria_envio)}>Marcar las ya respondidas</button>
+            <button type="button" className="btn plano" onClick={() => marcar((u) => estado(u) === "respondida")}>Marcar las ya respondidas</button>
             {compensando && ubs.some((u) => estado(u) === "compensada") && (
               <button type="button" className="btn plano" onClick={() => marcar((u) => estado(u) === "compensada")}>Marcar las compensadas</button>
             )}
@@ -314,11 +322,11 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
         {visibles.map((u) => {
           const e = estado(u);
           return (
-            <li key={u.clave} className={"vv-fila " + e}>
+            <li key={u.clave} className={"vv-fila " + e} style={e === "respondida" ? { boxShadow: "inset 6px 0 0 #b7791f", background: "rgba(183,121,31,.08)" } : e === "compensada" ? { boxShadow: "inset 6px 0 0 #0b7a3e", background: "rgba(11,122,62,.08)" } : undefined}>
               {puedeEditar ? (
                 <label className="vv-chk"><input type="checkbox" checked={sel.has(u.clave)} onChange={() => alternar(u.clave)} /><b>{u.clave}</b></label>
               ) : <b className="vv-chk">{u.clave}</b>}
-              <i className={"vv-e " + e}>{TEXTO[e]}</i>
+              <i className={"vv-e " + e} style={e === "respondida" ? { background: "#b7791f", color: "#fff" } : e === "compensada" ? { background: "#0b7a3e", color: "#fff" } : undefined}>{e === "compensada" ? "✓ Compensada" : TEXTO[e]}</i>
               {quien(u)}
               {u.rev?.estado === "APROBADA" && u.rev.adoptado && (
                 <small className="vv-resp">Definitivo: lo que contó {u.rev.adoptado === "OL" ? (ol || "el operador") : (bavaria || "Bavaria")}</small>

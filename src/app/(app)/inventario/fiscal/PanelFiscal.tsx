@@ -438,16 +438,26 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
             const pendSet = new Set(t.pend.map((u) => u.ubicacion));
             const vis = t.tipo === "ok" ? (todo ? filas : []) : (todo ? filas : filas.filter((f) => f.estado !== "COINCIDE" && !f.compensada && pendSet.has(f.ubicacion)));
             const ubic = t.pend;
+            /* Con la compensación puesta: lo que queda por revisar y lo que ya cuadra (verde). */
+            const quedan = filas.filter((f) => f.estado !== "COINCIDE" && !f.compensada);
+            const nComp = filas.filter((f) => f.compensada).length;
+            const quedanUbi = new Set(quedan.map((f) => f.ubicacion));
+            const todoCompensado = compensando && quedan.length === 0 && nComp > 0;
+            const verde = { borderColor: "#0b7a3e", color: "#0b7a3e", background: "rgba(11,122,62,.08)" } as const;
             return (
               <section key={t.h.numero} id={"vf-h" + t.h.numero} className={"vf-rev " + t.tipo}>
                 <header className="vf-rev-cab">
                   <span className={"vf-card-ico " + t.tipo}><Ico n={ICO_TIPO[t.tipo]} tam={18} /></span>
                   <h3>Hoja {t.h.numero}</h3>
-                  <span className={"vf-estado " + t.tipo}>{texto(t)}</span>
+                  <span className={"vf-estado " + (todoCompensado ? "ok" : t.tipo)}>{todoCompensado ? "Todo compensado" : texto(t)}</span>
                   <span id={"vf-acc-h" + t.h.numero} className="vf-rev-acc" style={{ marginLeft: "auto" }} />
                   <small className="vf-rev-quien">{t.h.ol ? quien(t.h.ol) : "—"} · {t.h.bavaria ? quien(t.h.bavaria) : "—"}</small>
                 </header>
-                <p className={"vf-rev-titular " + t.tipo}>{t.aprobadoTodo ? "El fiscal aprobó todas las diferencias de esta hoja." : titularCruce(r)}</p>
+                <p className={"vf-rev-titular " + (todoCompensado ? "ok" : t.tipo)} style={compensando ? { color: quedan.length === 0 ? "#0b7a3e" : undefined } : undefined}>
+                  {t.aprobadoTodo ? "El fiscal aprobó todas las diferencias de esta hoja."
+                    : compensando ? (quedan.length === 0 ? `Todo cuadra: las ${nComp} diferencias quedaron compensadas.` : `${quedan.length} de ${filas.length} renglones no coinciden · ${nComp} ya compensados (en verde).`)
+                    : titularCruce(r)}
+                </p>
                 <ul className="vf-cifras" aria-label="Resumen del cruce">
                   <li><b>{r.coinciden}</b> coinciden</li>
                   <li><b>{r.difieren}</b> {r.difieren === 1 ? "difiere" : "difieren"}</li>
@@ -456,7 +466,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                 </ul>
                 {t.tipo === "dif" && (
                   <ul className="vf-ubic" aria-label="Ubicaciones con diferencia">
-                    {ubic.map((u) => <li key={u.ubicacion}><Ico n="pin" tam={13} /><b>{u.ubicacion}</b>{u.renglones > 1 && <small>· {u.renglones}</small>}</li>)}
+                    {ubic.map((u) => { const v = compensando && !quedanUbi.has(u.ubicacion); return <li key={u.ubicacion} style={v ? verde : undefined}><Ico n="pin" tam={13} /><b>{u.ubicacion}</b>{u.renglones > 1 && <small>· {u.renglones}</small>}{v && <small> · compensada</small>}</li>; })}
                   </ul>
                 )}
                 {(t.tipo === "ok" || r.coinciden > 0) && (
