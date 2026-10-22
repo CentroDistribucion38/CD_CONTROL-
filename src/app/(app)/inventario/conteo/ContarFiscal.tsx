@@ -133,9 +133,8 @@ export function ContarFiscal({
     const pendientes = todos.filter((r) => !r.en_base);
     setMios(pendientes);
     setEnBase(todos.length - pendientes.length);
-    if (todos.length > 0 && pendientes.length === 0) {
-      try { localStorage.removeItem(`fiscal.renglon.${id}`) } catch { /* sin almacenamiento */ }
-    }
+    /* Si todo lo anotado ya quedó aprobado, la persona arranca de nuevo por su extremo de la calle (no por el módulo donde se quedó). */
+    if (todos.length > 0 && pendientes.length === 0) setB((x) => (x.base === "" ? x : { ...x, base: "", lado: "" }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase]);
   useEffect(() => { if (hoja?.hojaId) { setMios(null); void leer(hoja.hojaId) } }, [hoja?.hojaId, leer]);
@@ -167,9 +166,14 @@ export function ContarFiscal({
   }, [b, llave, corrigiendo]);
 
   /* ---------- LAS LISTAS (igual que en el conteo diario) ---------- */
+  /* LA CALLE LA PONE EL FISCAL: si la hoja trae calle, las dos personas cuentan esa y no pueden cambiarla. */
+  const calleFija = hoja?.calle ?? "";
   const calles = useMemo(
-    () => [...new Set([...ubicaciones.filter((u) => u.activa).map((u) => u.calle), ...Object.keys(MODULOS_DE_LA_HOJA)])].sort(ordenCalle),
-    [ubicaciones]);
+    () => calleFija ? [calleFija] : [...new Set([...ubicaciones.filter((u) => u.activa).map((u) => u.calle), ...Object.keys(MODULOS_DE_LA_HOJA)])].sort(ordenCalle),
+    [ubicaciones, calleFija]);
+  useEffect(() => {
+    if (calleFija && b.calle !== calleFija) setB((x) => ({ ...x, calle: calleFija, base: "", lado: "" }));
+  }, [calleFija, b.calle]);
   const modulos = useMemo(() => {
     const m = new Map<string, { base: string; calle: string; modulo: string }>();
     for (const u of ubicaciones) {
@@ -202,6 +206,11 @@ export function ContarFiscal({
     if (num.length < 2) return null;
     return `${num[0].modulo} → ${num[num.length - 1].modulo}`;
   }, [modulos, b.calle]);
+  /* Con la calle puesta, cada persona arranca por SU extremo: el operador por el primer módulo y Bavaria por el último. */
+  useEffect(() => {
+    if (corrigiendo || b.calle === "" || b.base !== "" || modulos.length === 0) return;
+    setB((x) => (x.base === "" && x.calle !== "" ? { ...x, base: modulos[0].base, lado: "" } : x));
+  }, [b.calle, b.base, modulos, corrigiendo]);
   const lados = useMemo(() => {
     const delModulo = ubicaciones.filter((u) => u.activa && claveBase(u) === b.base);
     if (delModulo.length > 0 && delModulo.every((u) => (u.lado ?? "") === "")) return [""];
@@ -560,9 +569,21 @@ export function ContarFiscal({
   useEffect(() => {
     if (!hojaIdReap || !terminadaReap) return;
     void leerReap(hojaIdReap);
-    const t = setInterval(() => { if (!document.hidden) { void leerReap(hojaIdReap); void leer(hojaIdReap) } }, 10_000);
+    /* También se refresca la pantalla: si el fiscal pasó la hoja a otra calle (o la reabrió), llega sola. */
+    const t = setInterval(() => { if (!document.hidden) { void leerReap(hojaIdReap); void leer(hojaIdReap); router.refresh() } }, 10_000);
     return () => clearInterval(t);
-  }, [hojaIdReap, terminadaReap, leerReap, leer]);
+  }, [hojaIdReap, terminadaReap, leerReap, leer, router]);
+  /* Si el servidor dice que la hoja ya no está terminada (el fiscal la reabrió o la pasó de calle), vale eso y no lo que se marcó aquí. */
+  const termineServidor = hoja?.termine ?? false;
+  const antesTermine = useRef(termineServidor);
+  useEffect(() => {
+    if (antesTermine.current && !termineServidor && hoja) {
+      setTerminos((t) => { const { [hoja.hojaId]: _quitar, ...resto } = t; return resto });
+      void leer(hoja.hojaId);
+    }
+    antesTermine.current = termineServidor;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [termineServidor]);
   async function pedirReabrir() {
     if (!hoja) return;
     setGuardando(true);
@@ -666,6 +687,10 @@ export function ContarFiscal({
           <div className="fe-bloque">
             <p className="fe-bloque-cab">Dónde</p>
             <div className="fe-tres dos fe-donde3">
+              {calleFija ? (
+                <label><span>Calle <small className="fc-orden" title="La puso el fiscal para toda la hoja"> · la puso el fiscal</small></span>
+                  <output className="fe-lado">{calleFija}</output></label>
+              ) : (
               <label><span>Calle</span>
                 <Buscador campo={campoCalle} valor={b.calle} marcador="Todas" teclado="ninguno" desdeElSiguiente
                   opciones={[{ valor: "", texto: "Todas" }, ...calles.map((c) => ({ valor: c, texto: c }))]}
@@ -673,6 +698,7 @@ export function ContarFiscal({
                     const sigue = b.base.startsWith(nueva + "|");
                     setB((x) => ({ ...x, calle: nueva, base: nueva === "" || sigue ? x.base : "", lado: nueva === "" || sigue ? x.lado : "" }));
                   }} /></label>
+              )}
               <label><span>Módulo{miOrden && <small className="fc-orden" title="Por dónde empiezas tú en esta calle; tu pareja empieza por el otro extremo"> · tu orden {miOrden}</small>}</span>
                 <Buscador valor={b.base} marcador="Escribe o escoge…" sinOpciones="Esa calle no tiene módulos activos."
                   teclado="numerico" desdeElSiguiente

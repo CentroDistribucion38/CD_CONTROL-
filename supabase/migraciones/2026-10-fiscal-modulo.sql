@@ -777,6 +777,44 @@ end $$;
 revoke all on function public.inv_fiscal_reaperturas(uuid) from public, anon;
 grant execute on function public.inv_fiscal_reaperturas(uuid) to authenticated;
 
+-- ---------------------------------------------------------------------
+-- MIS HOJAS, ahora con la calle que puso el fiscal (las dos personas cuentan esa)
+-- ---------------------------------------------------------------------
+drop function if exists public.inv_fiscal_mis_hojas();
+create function public.inv_fiscal_mis_hojas()
+returns table (
+  fiscal_id uuid, nombre text, fecha date, hoja integer, equipo text,
+  pareja text, pareja_equipo text,
+  hoja_id uuid, puede_contar boolean, mis_renglones bigint,
+  termine boolean, pareja_termino boolean, calle text
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select f.id, f.nombre, f.fecha, h.numero, m.equipo,
+         p.nombre, o.equipo,
+         h.id,
+         (f.fecha <= (now() at time zone 'America/Bogota')::date),
+         (select count(*) from public.inv_fiscal_conteos c where c.hoja_id = h.id and c.contado_por = auth.uid()),
+         exists (select 1 from public.inv_fiscal_terminos t where t.hoja_id = h.id and t.user_id = auth.uid()),
+         exists (select 1 from public.inv_fiscal_terminos t where t.hoja_id = h.id and t.user_id = o.user_id),
+         h.calle
+    from public.inv_fiscal_miembros m
+    join public.inv_fiscales f on f.id = m.fiscal_id
+    join public.inv_fiscal_hojas h on h.id = m.hoja_id
+    left join public.inv_fiscal_miembros o on o.hoja_id = m.hoja_id and o.user_id <> m.user_id
+    left join public.perfiles p on p.id = o.user_id
+   where m.user_id = auth.uid()
+     and f.publicado_en is not null
+     and f.estado = 'abierto'
+     and f.fecha >= (now() at time zone 'America/Bogota')::date
+   order by f.fecha, h.numero
+$$;
+revoke all on function public.inv_fiscal_mis_hojas() from public, anon;
+grant execute on function public.inv_fiscal_mis_hojas() to authenticated;
+
 do $$
 begin
   if to_regprocedure('public.inv_fiscal_mis_diferencias(uuid)') is null
