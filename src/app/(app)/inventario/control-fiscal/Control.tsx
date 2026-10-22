@@ -152,7 +152,8 @@ export function Control({ personas, fiscales, conCruce, ahora, puedeEditar }: {
 
 
   const vista = (f: FiscalBD) => {
-    const conAvance = conCruce && !!f.avance && !!f.publicado;
+    /* «Quitar de Contar» solo esconde el conteo a quienes cuentan: el avance y el cruce siguen para quien analiza y valida. */
+    const conAvance = conCruce && !!f.avance;
     const acciones = (
       <>
         {conAvance && (

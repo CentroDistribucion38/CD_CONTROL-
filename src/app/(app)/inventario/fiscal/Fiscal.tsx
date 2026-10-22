@@ -161,7 +161,8 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
 
   const tarjeta = (f: FiscalBD) => {
     const r = revisar(f.hojas);
-    const conAvance = conCruce && !!f.avance && !!f.publicado;
+    /* «Quitar de Contar» solo esconde el conteo a quienes cuentan: el avance y el cruce siguen para quien analiza y valida. */
+    const conAvance = conCruce && !!f.avance;
     const puedeVer = !(f.hojas.every((h) => !h.ol && !h.bavaria) || r.total === 0);
     const acciones = (
       <>
