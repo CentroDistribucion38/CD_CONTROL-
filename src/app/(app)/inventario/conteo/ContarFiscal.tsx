@@ -83,6 +83,8 @@ export function ContarFiscal({
   const [mas, setMas] = useState(false);
   const [pestania, setPestania] = useState<"anotar" | "borrador">("anotar");
   const [guardando, setGuardando] = useState(false);
+  /* El renglón que se está corrigiendo (id): el formulario trae sus datos y «Anotar» lo cambia en su sitio. */
+  const [corrigiendo, setCorrigiendo] = useState<string | null>(null);
   const router = useRouter();
   /* Lo que se terminó o reabrió desde que se abrió la pantalla; sin eso valen los datos que trajo la página. */
   const [terminos, setTerminos] = useState<Record<string, { termine: boolean; parejaTermino: boolean }>>({});
@@ -149,9 +151,11 @@ export function ContarFiscal({
     if (!llave) return;
     try {
       const hayAlgo = Object.entries(b).some(([k, v]) => v !== VACIO_FISCAL[k as keyof BorradorFiscal] && v !== "");
+      /* Una corrección no se guarda como borrador: si se recarga, volvería como renglón nuevo y quedaría repetido. */
+      if (corrigiendo) return;
       if (hayAlgo) localStorage.setItem(llave, JSON.stringify(b)); else localStorage.removeItem(llave);
     } catch { /* ver arriba */ }
-  }, [b, llave]);
+  }, [b, llave, corrigiendo]);
 
   /* ---------- LAS LISTAS (igual que en el conteo diario) ---------- */
   const calles = useMemo(
@@ -418,7 +422,7 @@ export function ContarFiscal({
     if (!hoja || guardando) return;
     const mal = revisarFiscal(b, material, claveEscogida);
     if (mal || !material) { avisar.mal(mal ?? "Falta el código del material."); return }
-    if (b.averia && !fotoNueva) { avisar.mal("Avería: falta la foto de la estiba. Sin ella no se anota."); return }
+    if (b.averia && !fotoNueva && !(corrigiendo && fotosDe[corrigiendo])) { avisar.mal("Avería: falta la foto de la estiba. Sin ella no se anota."); return }
     if ((mod.mezclado || mod.sinAcceso) && !fotoMod && !marcaGuardada?.ruta) {
       avisar.mal(mod.sinAcceso ? "Módulo sin acceso: falta la foto de evidencia." : "Módulo mezclado: falta la foto de evidencia."); return;
     }
@@ -432,12 +436,36 @@ export function ContarFiscal({
       if (malM) { setGuardando(false); avisar.mal(malM); return }
       setFotoMod((x) => { if (x) URL.revokeObjectURL(x.url); return null });
     }
-    const { data: nuevoId, error } = await supabase.rpc("inv_fiscal_contar_agregar", argumentosFiscal(hoja.hojaId, idU, material, b));
-    if (error) { setGuardando(false); avisar.mal(error.message); return }
+    let nuevoId: string | null = null;
+    if (corrigiendo) {
+      /* Corregir: el renglón cambia en su sitio y conserva su foto. */
+      const { p_hoja: _h, ...resto } = argumentosFiscal(hoja.hojaId, idU, material, b);
+      void _h;
+      const { error } = await supabase.rpc("inv_fiscal_contar_corregir", { p_id: corrigiendo, ...resto });
+      if (error) {
+        setGuardando(false);
+        avisar.mal(/inv_fiscal_contar_corregir|schema cache|does not exist/i.test(error.message) ? "Falta correr 2026-10-fiscal-TODO.sql en Supabase." : error.message);
+        return;
+      }
+      nuevoId = corrigiendo;
+    } else {
+      const { data, error } = await supabase.rpc("inv_fiscal_contar_agregar", argumentosFiscal(hoja.hojaId, idU, material, b));
+      if (error) { setGuardando(false); avisar.mal(error.message); return }
+      nuevoId = (data as string) ?? null;
+    }
     let malFoto: string | null = null;
-    if (fotoNueva && nuevoId) malFoto = await subirFotoRenglon(nuevoId as string, fotoNueva);
+    if (fotoNueva && nuevoId) malFoto = await subirFotoRenglon(nuevoId, fotoNueva);
     setGuardando(false);
-    avisar.bien(`${material.sku} anotado en ${claveEscogida}${cuenta?.total != null ? ` · ${nf.format(cuenta.total)} cajas` : ""}.`);
+    avisar.bien(`${material.sku} ${corrigiendo ? "corregido" : "anotado"} en ${claveEscogida}${cuenta?.total != null ? ` · ${nf.format(cuenta.total)} cajas` : ""}.`);
+    if (corrigiendo) {
+      /* Al terminar de corregir, el formulario vuelve a vacío y se regresa a la lista. */
+      setCorrigiendo(null);
+      setFotoNueva((x) => { if (x) URL.revokeObjectURL(x.url); return null });
+      setB(VACIO_FISCAL);
+      await leer(hoja.hojaId);
+      setPestania("borrador");
+      return;
+    }
     if (malFoto) avisar.mal(`${malFoto} El renglón quedó anotado: ponle la foto desde «Lo que llevas anotado».`);
     /* Igual que el conteo normal: el renglón se vacía pero el sitio (calle, módulo y lado) se queda para el siguiente. */
     setFotoNueva((x) => { if (x) URL.revokeObjectURL(x.url); return null });
@@ -462,6 +490,29 @@ export function ContarFiscal({
     avisar.bien(`${claveEscogida} anotado SIN ACCESO.`);
   }
 
+  /** Trae un renglón al formulario para corregirlo (sitio, material, fecha, cantidad, estado…). */
+  function corregir(r: RenglonFiscal) {
+    const u = ubicaciones.find((x) => x.id === r.ubicacion_id);
+    if (!u) { avisar.mal("No encontré el sitio de ese renglón."); return }
+    const t = (n: number | null | undefined) => (n == null ? "" : String(n));
+    setFotoNueva((x) => { if (x) URL.revokeObjectURL(x.url); return null });
+    setB({
+      calle: u.calle, base: claveBase(u), lado: u.lado ?? "", codigo: r.sku,
+      dia: r.venc_dia == null ? "" : dd(r.venc_dia), mes: r.venc_mes == null ? "" : dd(r.venc_mes), anio: r.venc_anio == null ? "" : dd(r.venc_anio),
+      modo: r.cajas != null ? "cajas" : "estibas", estibas: t(r.estibas), saldo: t(r.saldo), cajas: t(r.cajas),
+      nota: r.nota ?? "", estado: r.estado_envase ?? "",
+      averia: !!r.averia, pnc: !!r.pnc, pncRotulo: r.pnc ? r.pnc_rotulo ?? null : null, pncBloqueo: r.pnc ? r.pnc_bloqueo_mecanico ?? null : null,
+    });
+    setCorrigiendo(r.id);
+    setPestania("anotar");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  function cancelarCorreccion() {
+    setCorrigiendo(null);
+    setFotoNueva((x) => { if (x) URL.revokeObjectURL(x.url); return null });
+    setB(VACIO_FISCAL);
+  }
+
   async function quitar(r: RenglonFiscal) {
     const ok = await pedir({
       titulo: "¿Quitar este renglón?",
@@ -473,6 +524,7 @@ export function ContarFiscal({
     const { error } = await supabase.rpc("inv_fiscal_contar_quitar", { p_id: r.id });
     setGuardando(false);
     if (error) { avisar.mal(error.message); return }
+    if (corrigiendo === r.id) cancelarCorreccion();
     avisar.bien("Renglón quitado.");
     await leer(hoja.hojaId);
   }
@@ -549,6 +601,12 @@ export function ContarFiscal({
             <p className="fe-paso">Hoja {hoja.numero} · anotar lo que hay</p>
           </div>
           <p className="fc-ciego">Cuentas a ciegas: solo ves lo que anotas tú. El cruce con tu pareja se hace después.</p>
+          {corrigiendo && (
+            <p className="fc-corrigiendo" role="status" style={{ border: "1px solid currentColor", padding: "8px 10px", margin: "8px 0" }}>
+              <b>Estás corrigiendo un renglón.</b> Cambia lo que haga falta y toca «Guardar corrección»; la foto se conserva.{" "}
+              <button type="button" className="fe-mini" disabled={guardando} onClick={cancelarCorreccion}>Cancelar</button>
+            </p>
+          )}
 
           {/* ===== DÓNDE ===== */}
           <div className="fe-bloque">
@@ -840,7 +898,7 @@ export function ContarFiscal({
               </button>
             )}
             <button type="button" className="btn grande" disabled={guardando} onClick={anotar}>
-              {guardando ? "Guardando…" : "Anotar renglón"}
+              {guardando ? "Guardando…" : corrigiendo ? "Guardar corrección" : "Anotar renglón"}
             </button>
           </div>
         </section>
@@ -866,7 +924,7 @@ export function ContarFiscal({
         <div className="fe-rec-cab">
           <div>
             <h2>Lo que llevas anotado</h2>
-            <p className="fe-rec-dice">Es solo lo tuyo. Si algo quedó mal, quítalo y vuelve a anotarlo.</p>
+            <p className="fe-rec-dice">Es solo lo tuyo. Si algo quedó mal, toca «Corregir» o quítalo.</p>
           </div>
           <span>
             {mios == null ? "Cargando…" : `${mios.length} ${mios.length === 1 ? "renglón" : "renglones"} · ${nf.format(totalMio)} cajas`}
@@ -889,6 +947,7 @@ export function ContarFiscal({
                         onClick={() => { filaDeFoto.current = r.id; pedirUbi(); camaraFila.current?.click() }}>
                   {fotosDe[r.id] ? "Cambiar foto" : r.averia ? "Poner foto (falta)" : "Foto"}
                 </button>
+                <button type="button" className="fe-mini" disabled={guardando || cerrada} onClick={() => corregir(r)}>{corrigiendo === r.id ? "Corrigiendo…" : "Corregir"}</button>
                 <button type="button" className="fe-mini" disabled={guardando || cerrada} onClick={() => quitar(r)}>Quitar</button>
               </li>
             ))}

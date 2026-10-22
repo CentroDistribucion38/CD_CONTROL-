@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MODULOS_DE_LA_HOJA } from "@/modulos/inventario/modulos-hoja";
 import { createClient } from "@/lib/supabase/client";
@@ -27,6 +27,8 @@ export type ConsolidadoBD = { hoja_id: string; numero: number; conteo: string; u
 
 /* La validación es por CALLE Y MÓDULO (A01), nunca por lado: el lado es muy perceptivo y delataría dónde está cada cosa.
    Un módulo junta sus dos lados; el SQL expande al aprobar/validar. */
+/** Lo que la gente marcó de un módulo en Contar: mezclado o sin acceso, con su foto de evidencia. */
+type MarcaMod = { ubicacion_id: string; ubicacion: string; equipo: "OL" | "BAVARIA"; mezclado: boolean; sin_acceso: boolean; ruta: string | null; tomada_en: string | null };
 type Ub = { id: string | null; clave: string; dif: boolean; renglones: number; revs: RevisionBD[]; rev?: RevisionBD };
 const orden = (a: string, b: string) => a.localeCompare(b, "es", { numeric: true });
 export const moduloDe = (clave: string) => clave.replace(/_(IZQ|DER)$/i, "");
@@ -49,6 +51,24 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
   const [nueva, setNueva] = useState("");
   const [seguro, setSeguro] = useState(false);
 
+  /* Lo que marcaron en Contar (mezclado / sin acceso). Si a la base le falta el SQL, simplemente no hay marcas. */
+  const [marcas, setMarcas] = useState<MarcaMod[]>([]);
+  useEffect(() => {
+    if (!hojaId || !puedeEditar) { setMarcas([]); return }
+    let vivo = true;
+    void createClient().rpc("inv_fiscal_modulos_hoja", { p_hoja: hojaId }).then(({ data, error }) => {
+      if (vivo) setMarcas(error ? [] : ((data ?? []) as MarcaMod[]));
+    });
+    return () => { vivo = false };
+  }, [hojaId, puedeEditar, filas, revs]);
+  async function verFoto(ruta: string) {
+    const w = window.open("", "_blank");
+    const { data, error } = await createClient().storage.from("inventario").createSignedUrl(ruta, 600);
+    if (error || !data?.signedUrl) { w?.close(); setMal("No pude abrir la foto: " + (error?.message ?? "sin enlace")); return }
+    if (w) w.location.href = data.signedUrl; else window.location.href = data.signedUrl;
+  }
+  const marcasDe = (clave: string) => marcas.filter((m) => moduloDe(m.ubicacion) === clave);
+
   const ubs = useMemo<Ub[]>(() => {
     const porClave = new Map<string, Ub>();
     for (const f of filas) {
@@ -66,6 +86,14 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
       u.revs.push(r);
       porClave.set(m, u);
     }
+    /* Un módulo marcado «sin acceso» puede no tener renglones: igual se muestra, para que el fiscal lo decida. */
+    for (const mk of marcas) {
+      const m = moduloDe(mk.ubicacion);
+      const u = porClave.get(m) ?? { id: mk.ubicacion_id, clave: m, dif: false, renglones: 0, revs: [] };
+      if (mk.sin_acceso && u.renglones === 0) u.dif = true;
+      if (!u.id) u.id = mk.ubicacion_id;
+      porClave.set(m, u);
+    }
     /* Estado del módulo = lo que dicen sus lados juntos. */
     for (const u of porClave.values()) {
       if (u.revs.length === 0) continue;
@@ -80,7 +108,7 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
       };
     }
     return [...porClave.values()].sort((a, b) => orden(a.clave, b.clave));
-  }, [filas, revs, numero]);
+  }, [filas, revs, numero, marcas]);
 
   const estado = (u: Ub): "aprobada" | "validando" | "difiere" | "coincide" =>
     u.rev?.estado === "APROBADA" ? "aprobada" : u.rev?.estado === "A_VALIDAR" ? "validando" : u.dif ? "difiere" : "coincide";
@@ -241,6 +269,12 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
               <i className={"vv-e " + e}>{TEXTO[e]}</i>
               {quien(u)}
               {u.rev?.estado === "A_VALIDAR" && u.rev.nota && <small className="vv-resp">Nota: {u.rev.nota}</small>}
+              {marcasDe(u.clave).map((m) => (
+                <small key={m.ubicacion + m.equipo} className="vv-resp vv-marca">
+                  <b>{m.sin_acceso ? "SIN ACCESO" : "MEZCLADO"}</b> · {m.equipo === "OL" ? (ol || "Operador") : (bavaria || "Bavaria")}
+                  {m.ruta && <> · <button type="button" className="fe-mini" onClick={() => verFoto(m.ruta as string)}>Ver foto</button></>}
+                </small>
+              ))}
             </li>
           );
         })}

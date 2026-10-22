@@ -490,6 +490,33 @@ $$;
 revoke all on function public.inv_fiscal_mis_diferencias(uuid) from public, anon;
 grant execute on function public.inv_fiscal_mis_diferencias(uuid) to authenticated;
 
+-- ---------------------------------------------------------------------
+-- LO QUE LA GENTE MARCÓ DE CADA MÓDULO (para el fiscal que valida)
+-- «Mezclado» y «sin acceso», con la foto de evidencia y quién lo marcó. Solo lo ve quien edita «Inventario fiscal».
+-- ---------------------------------------------------------------------
+drop function if exists public.inv_fiscal_modulos_hoja(uuid);
+create function public.inv_fiscal_modulos_hoja(p_hoja uuid)
+returns table (ubicacion_id uuid, ubicacion text, equipo text, mezclado boolean, sin_acceso boolean, ruta text, tomada_en timestamptz)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  if not public.puede_editar('/inventario/fiscal') then
+    raise exception 'Esto requiere el permiso «Inventario fiscal» (Roles)';
+  end if;
+  return query
+    select m.ubicacion_id, u.clave, mi.equipo, m.mezclado, m.sin_acceso, m.ruta, m.tomada_en
+      from public.inv_fiscal_modulos m
+      join public.ubicaciones u on u.id = m.ubicacion_id
+      join public.inv_fiscal_miembros mi on mi.hoja_id = m.hoja_id and mi.user_id = m.user_id
+     where m.hoja_id = p_hoja and (m.mezclado or m.sin_acceso)
+     order by u.clave, mi.equipo;
+end $$;
+revoke all on function public.inv_fiscal_modulos_hoja(uuid) from public, anon;
+grant execute on function public.inv_fiscal_modulos_hoja(uuid) to authenticated;
+
 do $$
 begin
   if to_regprocedure('public.inv_fiscal_mis_diferencias(uuid)') is null
@@ -497,6 +524,7 @@ begin
      or to_regprocedure('public.inv_fiscal_validar(uuid,uuid[],text)') is null
      or to_regprocedure('public.inv_fiscal_aprobar(uuid,uuid[],boolean)') is null
      or to_regprocedure('public.inv_fiscal_modulo_difiere(uuid,uuid)') is null
+     or to_regprocedure('public.inv_fiscal_modulos_hoja(uuid)') is null
      or to_regprocedure('public.inv_fiscal_cruce(uuid)') is null
      or to_regprocedure('public.inv_fiscal_consolidar(uuid)') is null then
     raise exception 'No quedaron las funciones de validar por módulo. Revisa que corrieron antes validar y consolidar.';
