@@ -306,20 +306,25 @@ as $$
       join public.productos p on p.id = c.producto_id
      where c.hoja_id = p_hoja
   ), g as (
-    -- Sin fecha de vencimiento: se compara módulo, código y estado.
+    -- Sin fecha de vencimiento: se compara módulo, código y estado. Se calcula para TODA la hoja (la compensación mira otros módulos).
     select modulo, producto_id, ee, av, pn,
-           sum(case when equipo = 'OL' then cajas end) as co, sum(case when equipo = 'BAVARIA' then cajas end) as cb
+           sum(case when equipo = 'OL' then cajas end) as co, sum(case when equipo = 'BAVARIA' then cajas end) as cb,
+           coalesce(sum(case when equipo = 'OL' then cajas end), 0) - coalesce(sum(case when equipo = 'BAVARIA' then cajas end), 0) as dif
       from t
-     where modulo = (select regexp_replace(u2.clave, '_(IZQ|DER)$', '') from public.ubicaciones u2 where u2.id = p_ubi)
      group by 1, 2, 3, 4, 5
   )
-  -- Con «compensar», una diferencia no cuenta si hay otra igual y de signo contrario en el mismo módulo.
+  -- Con «compensar», una diferencia no cuenta si (a) hay otra igual y de signo contrario en el mismo módulo, o (b) el MISMO
+  -- material tiene la diferencia contraria en otro módulo de la hoja (uno lo contó en un sitio y el otro en el de al lado).
   select exists (
     select 1 from g
-     where (co is null or cb is null or co <> cb)
+     where g.modulo = (select regexp_replace(u2.clave, '_(IZQ|DER)$', '') from public.ubicaciones u2 where u2.id = p_ubi)
+       and (g.co is null or g.cb is null or g.co <> g.cb)
        and not (coalesce(p_compensar, false)
-                and (select count(*) from g g2 where coalesce(g2.co, 0) - coalesce(g2.cb, 0) = coalesce(g.co, 0) - coalesce(g.cb, 0))
-                  = (select count(*) from g g3 where coalesce(g3.co, 0) - coalesce(g3.cb, 0) = -(coalesce(g.co, 0) - coalesce(g.cb, 0))))
+                and ((select count(*) from g g2 where g2.modulo = g.modulo and g2.dif = g.dif)
+                       = (select count(*) from g g3 where g3.modulo = g.modulo and g3.dif = -g.dif)
+                     or exists (select 1 from g g4
+                                 where g4.modulo <> g.modulo and g4.producto_id = g.producto_id and g4.ee is not distinct from g.ee
+                                   and g4.av = g.av and g4.pn = g.pn and g4.dif = -g.dif)))
   )
 $$;
 revoke all on function public.inv_fiscal_modulo_difiere(uuid, uuid, boolean) from public, anon, authenticated;

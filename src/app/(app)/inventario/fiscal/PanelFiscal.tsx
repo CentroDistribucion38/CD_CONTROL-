@@ -431,7 +431,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                   <span className={"vf-card-ico " + t.tipo}><Ico n={ICO_TIPO[t.tipo]} tam={18} /></span>
                   <h3>Hoja {t.h.numero}</h3>
                   <span className={"vf-estado " + t.tipo}>{texto(t)}</span>
-                  <span id={"vf-acc-h" + t.h.numero} className="vf-rev-acc" />
+                  <span id={"vf-acc-h" + t.h.numero} className="vf-rev-acc" style={{ marginLeft: "auto" }} />
                   <small className="vf-rev-quien">{t.h.ol ? quien(t.h.ol) : "—"} · {t.h.bavaria ? quien(t.h.bavaria) : "—"}</small>
                 </header>
                 <p className={"vf-rev-titular " + t.tipo}>{t.aprobadoTodo ? "El fiscal aprobó todas las diferencias de esta hoja." : titularCruce(r)}</p>
@@ -454,11 +454,11 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                 {compBase.pares > 0 && puedeEditar && (
                   <button type="button" className="btn plano vf-toggle" aria-pressed={compensando}
                           onClick={() => setCompensar({ ...compensar, [t.h.numero]: !compensando })}
-                          title="Da por compensadas las diferencias iguales y de signo contrario dentro de un mismo módulo (ej. +45 en un material y −45 en otro)">
+                          title="Da por compensadas las diferencias iguales y de signo contrario: dentro de un mismo módulo (+45 en un material y −45 en otro) o entre módulos con el mismo material (+588 en uno y −588 en el de al lado)">
                     <Ico n="lista" tam={15} /> {compensando ? `Quitar la compensación (${compBase.pares} ${compBase.pares === 1 ? "par" : "pares"})` : `Compensar (${compBase.pares} ${compBase.pares === 1 ? "par" : "pares"})`}
                   </button>
                 )}
-                {compensando && <p className="cl-nota" role="note">Compensadas {compBase.pares} {compBase.pares === 1 ? "pareja" : "parejas"} de diferencias iguales y de signo contrario dentro de un mismo módulo: ya no aparecen como diferencia. Quedan solo las que no se compensan.</p>}
+                {compensando && <p className="cl-nota" role="note">Compensadas {compBase.pares} {compBase.pares === 1 ? "pareja" : "parejas"} de diferencias iguales y de signo contrario (en un mismo módulo, o el mismo material entre dos módulos): ya no aparecen como diferencia. Quedan solo las que no se compensan.</p>}
                 {conValidar ? (
                   <ValidarHoja compensando={compensando} hojaId={hojaIds[t.h.numero] ?? null} numero={t.h.numero} calle={t.h.calle} filas={filas} revs={revs} unaSola={t.estado === "una-termino" ? (t.av?.olTermino ? (t.h.ol ? quien(t.h.ol) : "el operador") : (t.h.bavaria ? quien(t.h.bavaria) : "Bavaria")) : null} consol={consolidados[t.h.numero] ?? null}
                                puedeEditar={puedeEditar} ol={t.h.ol ? quien(t.h.ol) : ""} bavaria={t.h.bavaria ? quien(t.h.bavaria) : ""} onCambio={cargar} />

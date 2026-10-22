@@ -211,9 +211,12 @@ export function cruceModulo(filas: FilaCruce[]): FilaCruce[] {
   });
 }
 
-/* LA COMPENSACIÓN. Un click del fiscal: en cada módulo, una diferencia de +45 en un material y otra de −45 en otro
-   se dan por compensadas (casi siempre es el mismo material anotado con otro código por cada persona). Solo se
-   compensan cantidades EXACTAS y de signo contrario; lo demás queda como diferencia. */
+/* LA COMPENSACIÓN. Un click del fiscal, en dos pasos:
+     1. En cada módulo, una diferencia de +45 en un material y otra de −45 en otro se dan por compensadas (casi siempre es el
+        mismo material anotado con otro código por cada persona).
+     2. Entre módulos de la hoja, el MISMO material (código, estado, avería y PNC) con +588 en un módulo y −588 en otro: uno
+        contó esas cajas en un sitio y el otro en el de al lado, y en total cuadra.
+   Solo se compensan cantidades EXACTAS y de signo contrario; lo demás queda como diferencia. */
 export function compensarCruce(filas: FilaCruce[]): { filas: FilaCruce[]; pares: number } {
   const porModulo = new Map<string, FilaCruce[]>();
   for (const f of filas) {
@@ -228,6 +231,22 @@ export function compensarCruce(filas: FilaCruce[]): { filas: FilaCruce[]; pares:
     const usadas = new Set<FilaCruce>();
     for (const p of l.filter((f) => f.diferencia > 0)) {
       const q = neg.find((n) => !usadas.has(n) && -n.diferencia === p.diferencia);
+      if (!q) continue;
+      usadas.add(q); marcadas.add(p); marcadas.add(q); pares++;
+    }
+  }
+  /* Paso 2: el mismo material, módulos distintos. */
+  const porMaterial = new Map<string, FilaCruce[]>();
+  for (const f of filas) {
+    if (f.estado === "COINCIDE" || f.diferencia === 0 || marcadas.has(f)) continue;
+    const k = `${f.sku}|${f.estadoEnvase ?? ""}|${f.averia ? 1 : 0}|${f.pnc ? 1 : 0}`;
+    const l = porMaterial.get(k) ?? [];
+    l.push(f); porMaterial.set(k, l);
+  }
+  for (const l of porMaterial.values()) {
+    const usadas = new Set<FilaCruce>();
+    for (const p of l.filter((f) => f.diferencia > 0)) {
+      const q = l.find((n) => n.diferencia < 0 && !usadas.has(n) && -n.diferencia === p.diferencia && n.ubicacion !== p.ubicacion);
       if (!q) continue;
       usadas.add(q); marcadas.add(p); marcadas.add(q); pares++;
     }
