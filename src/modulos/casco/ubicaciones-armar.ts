@@ -180,6 +180,10 @@ export function ubicacionDeFila(
       : alla.length
         ? alla.map((o) => `${o.estado} en ${o.fabrica ? "Fábrica" : "Bodega"}: ${pocas(o.ubic)}`).join(" | ")
         : resto.length ? `No está en ${estados.join("/")} (solo en ${resto.join(", ")})` : "No está en el conteo";
+    /* «Hay que ver en qué ubicación está»: si no está en el estado que le toca pero SÍ en otro estado del casco del mismo almacén
+       (p. ej. el casco lo tiene en Extrasucio y el conteo en BAJA: CARPA, P_30_DER), se pone ahí para no dejarlo sin sitio,
+       y el aviso sigue diciendo que el estado no coincide. */
+    if (aqui.length) partes.push(...aqui.map((o) => o.ubic));
     const casco = `${nf.format(valor)} est. en ${columna}`;
     const debe = `${estados.join("/")} · ${zona}`;
     avisos.push({ casco, debe, conteo, texto: `${casco} → debe estar en ${debe}. Conteo: ${conteo}.` });

@@ -36,6 +36,9 @@ export type Proveniente = {
 /** Lo que quien contó escribió en el comentario de un renglón (p. ej. «es andina»): se ve con el ojito de la fila. */
 export type NotaConteo = { ubicacion: string; cajas: number; nota: string; recorrido: string | null };
 
+/** Dónde SÍ está en el conteo un material que el casco tiene y el conteo no trae en ese estado (otro estado de la misma zona). */
+export type DondeEstaConteo = { estado: string; ubicaciones: string; cajas: number };
+
 export type FilaBalance = {
   fecha: string | null; estado: string; alcance: string; codigo: string;
   material: string | null; ubicacion: string | null;
@@ -53,6 +56,8 @@ export type FilaBalance = {
   provenientes?: Proveniente[];
   /** Las notas escritas en el conteo de los renglones de esta fila. */
   notas?: NotaConteo[];
+  /** Solo en las filas «En casco y no contado»: en qué estado y ubicación SÍ aparece ese material en el conteo del día. */
+  donde?: DondeEstaConteo[];
   /** Solo en ANDINA / HEINEKEN: lo reasignado en estibas (cada código con su factor) y su diferencia contra las estibas casco. */
   fisico_estibas?: number | null; dif_estibas?: number | null;
 };
@@ -366,6 +371,23 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
   /* AJUSTES y cierre de cada fila */
   const aj = new Map(((ajustesR.data ?? []) as { estado: string; alcance: string; codigo: string; cajas: number; nota: string | null; calidad: string | null }[])
     .map((a) => [`${a.estado}|${a.alcance}|${a.codigo}`, a]));
+  /* DÓNDE ESTÁ en el conteo cada material (por zona y estado), para explicar lo que el casco tiene y el conteo no trae en ese estado. */
+  const dondeIdx = new Map<string, Map<string, { ubis: Set<string>; cajas: number }>>();
+  for (const l of lineas.values()) {
+    const k = `${l.codigo}|${l.zona}`;
+    const porEstado = dondeIdx.get(k) ?? new Map<string, { ubis: Set<string>; cajas: number }>();
+    const x = porEstado.get(l.estado) ?? { ubis: new Set<string>(), cajas: 0 };
+    if (l.ubicacion && l.ubicacion !== "—") x.ubis.add(l.ubicacion);
+    x.cajas += l.cajas;
+    porEstado.set(l.estado, x); dondeIdx.set(k, porEstado);
+  }
+  const dondeEsta = (f: { codigo: string; alcance: string; estado: string }): DondeEstaConteo[] => {
+    const porEstado = dondeIdx.get(`${f.codigo}|${f.alcance === "SORTING" ? "Fábrica" : "Bodega 38"}`);
+    if (!porEstado) return [];
+    return [...porEstado].filter(([e]) => e !== f.estado)
+      .map(([estado, x]) => ({ estado, ubicaciones: [...x.ubis].sort((a, b) => a.localeCompare(b, "es", { numeric: true })).join(", "), cajas: x.cajas }))
+      .sort((a, b) => b.cajas - a.cajas);
+  };
   const detalle: FilaBalance[] = [...filas.values()].map((f) => {
     const a = aj.get(`${f.estado}|${f.alcance}|${f.codigo}`);
     /* EL DESCUENTO ESTÁNDAR (3500005 · Baja · Bodega 38): se resta de lo físico como ajuste automático, sin tocar lo contado
@@ -388,6 +410,7 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
       ...resto,
       ...(dueno ? { provenientes, fisico_estibas: fisEst, dif_estibas: difEst } : {}),
       ...(notas.length ? { notas } : {}),
+      ...(!tieneFisico ? (() => { const d = dondeEsta(f); return d.length ? { donde: d } : {} })() : {}),
       ubicacion: [...ubis].sort((x, y) => x.localeCompare(y, "es", { numeric: true })).join(", ") || null,
       ajuste_cajas: ajuste, ajuste_nota: notaAjuste, calidad: a?.calidad ?? null,
       cuadre_fabrica: f.estado === "BAJA" && f.alcance === "SORTING" ? cuadres.get(f.codigo) ?? null : null,

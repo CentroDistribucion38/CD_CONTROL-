@@ -729,6 +729,7 @@ export function Balance({
                       <th className="r">Estibas casco</th>
                       <th className="r">Cajas casco</th>
                       <th className="r">Unidades</th>
+                      <th>Dónde está en el conteo</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -739,6 +740,13 @@ export function Balance({
                         <td className="r">{n(f.estibas_casco)}</td>
                         <td className="r">{n(f.cajas_casco)}</td>
                         <td className="r">{n(f.un_caja ? f.cajas_casco * f.un_caja : null)}</td>
+                        <td>
+                          {f.donde?.length
+                            ? f.donde.map((d) => (
+                                <div key={d.estado}><b>{d.estado}</b>{d.ubicaciones ? `: ${d.ubicaciones}` : ""} <small>({n(d.cajas)} cajas)</small></div>
+                              ))
+                            : <span className="mut">No aparece en el conteo en ningún estado</span>}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -749,6 +757,7 @@ export function Balance({
                         <td className="r"><b>{n(suma(sinFisico, "estibas_casco"))}</b></td>
                         <td className="r"><b>{n(suma(sinFisico, "cajas_casco"))}</b></td>
                         <td className="r"><b>{n(sinFisico.reduce((t, f) => t + (f.un_caja ? f.cajas_casco * f.un_caja : 0), 0))}</b></td>
+                        <td />
                       </tr>
                     </tfoot>
                   )}
