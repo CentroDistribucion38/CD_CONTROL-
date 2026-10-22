@@ -166,14 +166,22 @@ export function ContarFiscal({
   }, [b, llave, corrigiendo]);
 
   /* ---------- LAS LISTAS (igual que en el conteo diario) ---------- */
-  /* LA CALLE LA PONE EL FISCAL: si la hoja trae calle, las dos personas cuentan esa y no pueden cambiarla. */
-  const calleFija = hoja?.calle ?? "";
+  /* LA CALLE LA PROPONE EL FISCAL: llega puesta, pero cada persona puede cambiarla. Se vuelve a poner sola solo cuando el fiscal
+     cambia la calle de la hoja (o si no había ninguna escogida). */
+  const calleFiscal = hoja?.calle ?? "";
   const calles = useMemo(
-    () => calleFija ? [calleFija] : [...new Set([...ubicaciones.filter((u) => u.activa).map((u) => u.calle), ...Object.keys(MODULOS_DE_LA_HOJA)])].sort(ordenCalle),
-    [ubicaciones, calleFija]);
+    () => [...new Set([...ubicaciones.filter((u) => u.activa).map((u) => u.calle), ...Object.keys(MODULOS_DE_LA_HOJA), ...(calleFiscal ? [calleFiscal] : [])])].sort(ordenCalle),
+    [ubicaciones, calleFiscal]);
+  const hojaIdCalle = hoja?.hojaId;
   useEffect(() => {
-    if (calleFija && b.calle !== calleFija) setB((x) => ({ ...x, calle: calleFija, base: "", lado: "" }));
-  }, [calleFija, b.calle]);
+    if (!hojaIdCalle || !calleFiscal) return;
+    const k = `fiscal.calle.${hojaIdCalle}`;
+    let visto: string | null = null;
+    try { visto = localStorage.getItem(k) } catch { /* sin almacenamiento */ }
+    const cambio = visto !== calleFiscal;
+    if (cambio) { try { localStorage.setItem(k, calleFiscal) } catch { /* sin almacenamiento */ } }
+    setB((x) => (cambio || x.calle === "" ? (x.calle === calleFiscal ? x : { ...x, calle: calleFiscal, base: "", lado: "" }) : x));
+  }, [hojaIdCalle, calleFiscal]);
   const modulos = useMemo(() => {
     const m = new Map<string, { base: string; calle: string; modulo: string }>();
     for (const u of ubicaciones) {
@@ -631,7 +639,7 @@ export function ContarFiscal({
               <div role="status" style={{ background: fondo, color: "#1a1a1a", border: `2px solid ${borde}`, borderRadius: 0, padding: "14px 16px", margin: "0 0 12px" }}>
                 <b style={{ display: "block", fontSize: "1.05rem" }}>
                   {aprobada ? "El fiscal aprobó tu hoja: ya está en La base."
-                    : esperaFiscal ? "En espera de la aprobación del fiscal."
+                    : esperaFiscal ? "En espera de la aprobación del fiscal para continuar los conteos."
                     : `En espera de que ${hoja.pareja ?? "tu pareja"} termine su hoja.`}
                 </b>
                 <span style={{ display: "block", marginTop: 4 }}>
@@ -709,18 +717,13 @@ export function ContarFiscal({
           <div className="fe-bloque">
             <p className="fe-bloque-cab">Dónde</p>
             <div className="fe-tres dos fe-donde3">
-              {calleFija ? (
-                <label><span>Calle <small className="fc-orden" title="La puso el fiscal para toda la hoja"> · la puso el fiscal</small></span>
-                  <output className="fe-lado">{calleFija}</output></label>
-              ) : (
-              <label><span>Calle</span>
+              <label><span>Calle{calleFiscal && b.calle === calleFiscal && <small className="fc-orden" title="La propuso el fiscal; puedes cambiarla"> · la propuso el fiscal</small>}</span>
                 <Buscador campo={campoCalle} valor={b.calle} marcador="Todas" teclado="ninguno" desdeElSiguiente
                   opciones={[{ valor: "", texto: "Todas" }, ...calles.map((c) => ({ valor: c, texto: c }))]}
                   onEscoge={(nueva) => {
                     const sigue = b.base.startsWith(nueva + "|");
                     setB((x) => ({ ...x, calle: nueva, base: nueva === "" || sigue ? x.base : "", lado: nueva === "" || sigue ? x.lado : "" }));
                   }} /></label>
-              )}
               <label><span>Módulo{miOrden && <small className="fc-orden" title="Por dónde empiezas tú en esta calle; tu pareja empieza por el otro extremo"> · tu orden {miOrden}</small>}</span>
                 <Buscador valor={b.base} marcador="Escribe o escoge…" sinOpciones="Esa calle no tiene módulos activos."
                   teclado="numerico" desdeElSiguiente
