@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { porTandas, todas } from "@/modulos/inventario/paginas";
+import { esDueno } from "@/modulos/inventario/duenos";
 import { armarUbicaciones, type RenglonUbic, type UbicacionesInventario } from "./ubicaciones-armar";
 
 /**
@@ -42,12 +43,33 @@ export async function ubicacionesDelInventario(): Promise<UbicacionesInventario 
     const diaDe = new Map(cs.map((c) => [c.id, String(c.fecha_analisis).slice(0, 10)]));
     /* El estado se compara sin mayúsculas ni espacios aquí, no en la consulta: «Baja» o «BAJA »
        también cuentan. */
-    const { data: rs, error: eR } = await porTandas<Omit<RenglonUbic, "fecha"> & { conteo_id: string }>(cs.map((c) => c.id), (t, d, h) => supabase.from("v_conteo_fefo")
-      .select("conteo_id, codigo, ubicacion, ubicacion_combinada, calle, estado_envase")
+    const { data: rs, error: eR } = await porTandas<Omit<RenglonUbic, "fecha"> & { id: string; conteo_id: string }>(cs.map((c) => c.id), (t, d, h) => supabase.from("v_conteo_fefo")
+      .select("id, conteo_id, codigo, ubicacion, ubicacion_combinada, calle, estado_envase")
       .in("conteo_id", t).not("estado_envase", "is", null)
       .order("id").range(d, h));
     if (eR) return null;
-    return armarUbicaciones(rs.map((x) => ({ ...x, fecha: diaDe.get(x.conteo_id) ?? "" })));
+    const base: RenglonUbic[] = rs.map((x) => ({ ...x, fecha: diaDe.get(x.conteo_id) ?? "" }));
+
+    /* ANDINA Y HEINEKEN NO SON UN CÓDIGO DEL CONTEO: son renglones de otros códigos que el Balance reasignó al dueño del envase
+       (balance_reclasificaciones). Sus ubicaciones son las de esos renglones: se agregan al conteo como si «ANDINA» / «HEINEKEN»
+       se hubieran contado en BAJA, para que el Casco las ponga y no diga «No está en el conteo». Si no se pueden leer, se sigue sin ellas. */
+    try {
+      const rc = await porTandas<{ conteo_envase_id: string; estado_nuevo: string }>(rs.map((x) => x.id), (t, d, h) =>
+        supabase.from("balance_reclasificaciones").select("conteo_envase_id, estado_nuevo, creado_en")
+          .in("conteo_envase_id", t).order("creado_en").order("id").range(d, h), 100);
+      if (!rc.error) {
+        const nuevo = new Map<string, string>();
+        for (const x of rc.data) nuevo.set(String(x.conteo_envase_id), x.estado_nuevo);   // la más nueva de cada renglón manda
+        for (const x of rs) {
+          const dueno = nuevo.get(String(x.id));
+          if (!esDueno(dueno)) continue;
+          /* Sin la palabra del estado ni la nota «(Andina)»: en la fila de ANDINA solo van los nombres de los sitios. */
+          base.push({ codigo: dueno!.trim().toUpperCase(), ubicacion: x.ubicacion ?? x.ubicacion_combinada, ubicacion_combinada: null,
+                      calle: x.calle, estado_envase: "BAJA", fecha: diaDe.get(x.conteo_id) ?? "" });
+        }
+      }
+    } catch { /* sin reasignaciones: queda como antes */ }
+    return armarUbicaciones(base);
   } catch {
     return null;
   }
