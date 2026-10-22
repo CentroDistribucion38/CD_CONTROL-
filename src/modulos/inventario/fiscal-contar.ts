@@ -163,4 +163,6 @@ export type RenglonFiscal = {
   estibas: number | null; saldo: number | null; cajas: number | null; total_cajas: number | string;
   venc_dia: number | null; venc_mes: number | null; venc_anio: number | null; nota: string | null; contado_en: string; estado_envase?: string | null;
   averia?: boolean; pnc?: boolean; pnc_rotulo?: boolean | null; pnc_bloqueo_mecanico?: boolean | null;
+  /** Ya aprobado por el fiscal y pasado a La base. */
+  en_base?: boolean;
 };

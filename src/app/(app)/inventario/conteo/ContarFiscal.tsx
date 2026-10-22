@@ -79,6 +79,8 @@ export function ContarFiscal({
 
   const [b, setB] = useState<BorradorFiscal>(VACIO_FISCAL);
   const [mios, setMios] = useState<RenglonFiscal[] | null>(null);
+  /* Cuántos de mis renglones ya aprobó el fiscal y están en La base (no se muestran en el borrador). */
+  const [enBase, setEnBase] = useState(0);
   /* LAS DOS PESTAÑAS, IGUAL QUE EN «FEFO diario»: Anotar y El borrador (lo que llevo). */
   const [mas, setMas] = useState(false);
   const [pestania, setPestania] = useState<"anotar" | "borrador">("anotar");
@@ -126,7 +128,14 @@ export function ContarFiscal({
   const leer = useCallback(async (id: string) => {
     const { data, error } = await supabase.rpc("inv_fiscal_contar_mios", { p_hoja: id });
     if (error) { avisar.mal(error.message); setMios([]); return }
-    setMios((data ?? []) as RenglonFiscal[]);
+    const todos = (data ?? []) as RenglonFiscal[];
+    /* Lo que el fiscal ya aprobó y pasó a La base sale del borrador: ya quedó ok. */
+    const pendientes = todos.filter((r) => !r.en_base);
+    setMios(pendientes);
+    setEnBase(todos.length - pendientes.length);
+    if (todos.length > 0 && pendientes.length === 0) {
+      try { localStorage.removeItem(`fiscal.renglon.${id}`) } catch { /* sin almacenamiento */ }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase]);
   useEffect(() => { if (hoja?.hojaId) { setMios(null); void leer(hoja.hojaId) } }, [hoja?.hojaId, leer]);
@@ -177,7 +186,7 @@ export function ContarFiscal({
        hacia arriba y Bavaria del último hacia abajo. Así los dos cuentan la misma calle sin ir uno detrás del
        otro ni copiarse, y se encuentran a mitad de camino; el cruce de los conteos se hace después. Los
        sitios que no son una posición numerada (PASILLO, TANDEM, DEPA…) quedan al final para los dos. */
-    const alReves = hoja?.equipo === "Bavaria";
+    const alReves = String(hoja?.equipo ?? "").toUpperCase() === "BAVARIA";
     const esNum = (v: string) => /^\d+$/.test(v);
     return [...m.values()].sort((x, y) => {
       const c = ordenCalle(x.calle, y.calle);
@@ -551,9 +560,9 @@ export function ContarFiscal({
   useEffect(() => {
     if (!hojaIdReap || !terminadaReap) return;
     void leerReap(hojaIdReap);
-    const t = setInterval(() => { if (!document.hidden) void leerReap(hojaIdReap) }, 10_000);
+    const t = setInterval(() => { if (!document.hidden) { void leerReap(hojaIdReap); void leer(hojaIdReap) } }, 10_000);
     return () => clearInterval(t);
-  }, [hojaIdReap, terminadaReap, leerReap]);
+  }, [hojaIdReap, terminadaReap, leerReap, leer]);
   async function pedirReabrir() {
     if (!hoja) return;
     setGuardando(true);
@@ -998,6 +1007,12 @@ export function ContarFiscal({
               </li>
             ))}
           </ul>
+        )}
+        {enBase > 0 && (
+          <details className="fc-en-base">
+            <summary>{enBase} {enBase === 1 ? "renglón ya está" : "renglones ya están"} en La base</summary>
+            <p>El fiscal los aprobó y pasaron a La base; por eso ya no aparecen en tu borrador.</p>
+          </details>
         )}
         {cerrada && (
           <p className="fc-nota-term" role="status">Tu hoja está terminada: para cambiar algo, el fiscal tiene que darte el OK para reabrirla.{" "}

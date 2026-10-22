@@ -159,6 +159,12 @@ begin
       set estado = 'APROBADA', aprobado_por = v_yo, aprobado_en = now(), adoptado = p_adoptar, compensado = coalesce(p_compensar, false);
     v_n := v_n + 1;
   end loop;
+  -- Al aprobar, lo que coincide pasa solo a La base (y sale del borrador de cada persona). Si aún no hay nada que pasar, no pasa nada.
+  begin
+    perform public.inv_fiscal_consolidar(p_hoja);
+  exception when others then
+    null;
+  end;
   return v_n;
 end $$;
 revoke all on function public.inv_fiscal_aprobar(uuid, uuid[], boolean, text, boolean) from public, anon;

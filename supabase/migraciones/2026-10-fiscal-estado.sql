@@ -99,7 +99,7 @@ returns table (
   id uuid, ubicacion_id uuid, ubicacion text, producto_id uuid, sku text, material text,
   estibas integer, saldo integer, cajas integer, total_cajas bigint,
   venc_dia smallint, venc_mes smallint, venc_anio smallint, nota text, contado_en timestamptz, estado_envase text,
-  averia boolean, pnc boolean, pnc_rotulo boolean, pnc_bloqueo_mecanico boolean
+  averia boolean, pnc boolean, pnc_rotulo boolean, pnc_bloqueo_mecanico boolean, en_base boolean
 )
 language sql
 stable
@@ -110,7 +110,11 @@ as $$
          c.estibas, c.saldo, c.cajas,
          (coalesce(p.cajas_por_estiba, 0) * coalesce(c.estibas, 0) + coalesce(c.saldo, 0) + coalesce(c.cajas, 0))::bigint,
          c.venc_dia, c.venc_mes, c.venc_anio, c.nota, c.contado_en, c.estado_envase,
-         c.averia, c.pnc, c.pnc_rotulo, c.pnc_bloqueo_mecanico
+         c.averia, c.pnc, c.pnc_rotulo, c.pnc_bloqueo_mecanico,
+         -- Ya está en La base: el fiscal aprobó el módulo y se consolidó la hoja con él.
+         exists (select 1 from public.inv_fiscal_hojas h
+                   join public.conteo_lineas cl on cl.conteo_id = h.conteo_id and cl.ubicacion_id = c.ubicacion_id
+                  where h.id = c.hoja_id)
     from public.inv_fiscal_conteos c
     join public.ubicaciones u on u.id = c.ubicacion_id
     join public.productos p on p.id = c.producto_id
