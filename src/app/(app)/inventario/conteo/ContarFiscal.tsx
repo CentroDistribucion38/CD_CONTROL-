@@ -513,6 +513,14 @@ export function ContarFiscal({
     setB(VACIO_FISCAL);
   }
 
+  /** Abre la foto de un renglón ya guardado. */
+  async function verFotoRenglon(ruta: string) {
+    const w = window.open("", "_blank");
+    const { data, error } = await supabase.storage.from("inventario").createSignedUrl(ruta, 600);
+    if (error || !data?.signedUrl) { w?.close(); avisar.mal("No pude abrir la foto: " + (error?.message ?? "sin enlace")); return }
+    if (w) w.location.href = data.signedUrl; else window.location.href = data.signedUrl;
+  }
+
   async function quitar(r: RenglonFiscal) {
     const ok = await pedir({
       titulo: "¿Quitar este renglón?",
@@ -947,6 +955,7 @@ export function ContarFiscal({
                         onClick={() => { filaDeFoto.current = r.id; pedirUbi(); camaraFila.current?.click() }}>
                   {fotosDe[r.id] ? "Cambiar foto" : r.averia ? "Poner foto (falta)" : "Foto"}
                 </button>
+                {fotosDe[r.id] && <button type="button" className="fe-mini" onClick={() => verFotoRenglon(fotosDe[r.id])}>Ver foto</button>}
                 <button type="button" className="fe-mini" disabled={guardando || cerrada} onClick={() => corregir(r)}>{corrigiendo === r.id ? "Corrigiendo…" : "Corregir"}</button>
                 <button type="button" className="fe-mini" disabled={guardando || cerrada} onClick={() => quitar(r)}>Quitar</button>
               </li>

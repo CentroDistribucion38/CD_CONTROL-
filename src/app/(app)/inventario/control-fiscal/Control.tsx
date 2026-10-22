@@ -51,6 +51,13 @@ export function Control({ personas, fiscales, conCruce, ahora, puedeEditar }: {
         const id = f.hojaIds?.[h.numero];
         let filas: FilaCruce[] | null = null;
         let conteos: ConteoPersona[] | null = null;
+        /* Lo que marcaron de los módulos (mezclado / sin acceso). Si falta el SQL, simplemente no hay pestaña. */
+        let marcas: { ubicacion: string; equipo: "OL" | "BAVARIA"; mezclado: boolean; sin_acceso: boolean; foto: boolean }[] | null = null;
+        if (av && id) {
+          const mk = await sb.rpc("inv_fiscal_modulos_hoja", { p_hoja: id });
+          if (!mk.error) marcas = ((mk.data ?? []) as { ubicacion: string; equipo: "OL" | "BAVARIA"; mezclado: boolean; sin_acceso: boolean; ruta: string | null }[])
+            .map((m) => ({ ubicacion: m.ubicacion, equipo: m.equipo, mezclado: m.mezclado, sin_acceso: m.sin_acceso, foto: !!m.ruta }));
+        }
         if (av && id && puedeCruzar(av)) {
           const [cr, co] = await Promise.all([sb.rpc("inv_fiscal_cruce", { p_hoja: id }), sb.rpc("inv_fiscal_conteos", { p_hoja: id })]);
           if (cr.error) throw new Error(cr.error.message);
@@ -69,7 +76,7 @@ export function Control({ personas, fiscales, conCruce, ahora, puedeEditar }: {
           olRenglones: av?.olRenglones ?? 0,
           bavariaRenglones: av?.bavariaRenglones ?? 0,
           olTermino: av?.olTermino ?? null, bavariaTermino: av?.bavariaTermino ?? null,
-          filas, conteos,
+          filas, conteos, marcas,
         };
       }));
       const P = leerPaleta(document.querySelector(".fe"));

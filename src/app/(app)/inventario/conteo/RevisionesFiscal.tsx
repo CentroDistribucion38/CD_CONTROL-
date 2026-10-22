@@ -19,9 +19,10 @@
    las ubicaciones que el fiscal mandó a validar. Cuando las dos responden, el fiscal ve el
    cruce otra vez y aprueba (o la manda a otra ronda).
    =================================================================== */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { traducirError } from "@/lib/errores";
+import { usePosicion, sellar, type Foto } from "@/lib/evidencia";
 import type { Material } from "@/modulos/inventario/fefo";
 import { argumentosFiscal, revisarFiscal, totalCajas, VACIO_FISCAL, pideEstadoFiscal, opcionesEstadoFiscal, type BorradorFiscal, type RenglonFiscal } from "@/modulos/inventario/fiscal-contar";
 
@@ -68,6 +69,13 @@ export function RevisionesFiscal({ hojaId, mios, materiales, alCambiar, avisar }
   const [ocupado, setOcupado] = useState(false);
   /* Ids de MIS renglones que no cuadran con mi pareja. null = la base aún no tiene la función (se muestra todo, como antes). */
   const [difieren, setDifieren] = useState<Set<string> | null>(null);
+  /* FOTOS: las que ya tenían mis renglones (conteo → ruta) y las nuevas que se toman en el editor (por renglón del editor). */
+  const { ubi: ubiFoto, direccion: dirFoto, pedir: pedirUbi } = usePosicion();
+  const [fotosPrev, setFotosPrev] = useState<Record<string, string>>({});
+  const [fotosNuevas, setFotosNuevas] = useState<Record<number, Foto>>({});
+  const camara = useRef<HTMLInputElement>(null);
+  const kDeFoto = useRef<number | null>(null);
+  const [sellando, setSellando] = useState(false);
 
   const leer = useCallback(async () => {
     const { data, error } = await supabase.rpc("inv_fiscal_mis_revisiones");
@@ -127,29 +135,72 @@ export function RevisionesFiscal({ hojaId, mios, materiales, alCambiar, avisar }
     return true;
   }
 
+  async function verFotoPrev(ruta: string) {
+    const w = window.open("", "_blank");
+    const { data, error } = await supabase.storage.from("inventario").createSignedUrl(ruta, 600);
+    if (error || !data?.signedUrl) { w?.close(); setMal("No pude abrir la foto."); return }
+    if (w) w.location.href = data.signedUrl; else window.location.href = data.signedUrl;
+  }
+  async function tomarFoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const archivo = e.target.files?.[0];
+    e.target.value = "";
+    const k = kDeFoto.current;
+    if (!archivo || k == null) return;
+    const r = rengs.find((x) => x.k === k);
+    setSellando(true);
+    try {
+      const f = await sellar(archivo, { titulo: (r?.codigo ? `${r.codigo} · ${editando ?? ""}` : "CONTEO").toUpperCase(), ubi: ubiFoto, direccion: dirFoto, etiqueta: "CONTEO FISCAL" });
+      if (f) setFotosNuevas((x) => ({ ...x, [k]: f }));
+    } catch (er) {
+      setMal(er instanceof Error ? er.message : "No se pudo preparar la foto.");
+    } finally { setSellando(false) }
+  }
+
   function abrirEditor(m: Modulo) {
     setMal(null);
+    setFotosNuevas({});
+    pedirUbi();
+    void supabase.rpc("inv_fiscal_mis_fotos", { p_hoja: hojaId }).then(({ data, error }) => {
+      if (!error) setFotosPrev(Object.fromEntries(((data ?? []) as { conteo_id: string; ruta: string }[]).map((f) => [f.conteo_id, f.ruta])));
+    });
     setRengs(misDe(m).map((x, i) => desdeRenglon(x, i)));
     setEditando(m.modulo);
   }
   const ponRen = (k: number, cambio: Partial<BorradorFiscal>) => setRengs((l) => l.map((x) => (x.k === k ? { ...x, ...cambio } : x)));
 
-  function enviarNuevo(m: Modulo) {
+  async function enviarNuevo(m: Modulo) {
     const salida: object[] = [];
     for (const x of rengs) {
       const mat = matDe(x.codigo);
       const falla = revisarFiscal(x, mat, "x");
       if (falla || !mat) { setMal(`${x.codigo.trim() || "Un renglón"}: ${falla ?? "falta el código del material."}`); return }
+      if (x.averia && !fotosNuevas[x.k] && !(x.origen && fotosPrev[x.origen])) {
+        setMal(`${x.codigo.trim()}: avería sin foto. Toma la foto de la estiba antes de enviar.`); return;
+      }
+    }
+    setOcupado(true);
+    for (const x of rengs) {
+      const mat = matDe(x.codigo)!;
       /* El lado no se pregunta: lo que ya tenía conserva su sitio y lo nuevo va al primero del módulo. */
       const ub = x.ub || m.filas[0].ubicacion_id;
       const a = argumentosFiscal(hojaId, ub, mat, x);
+      const fo = fotosNuevas[x.k];
+      let foto: object | null = null;
+      if (fo) {
+        const ruta = `fiscal/${hojaId}/rev-${crypto.randomUUID()}.jpg`;
+        const { error: eS } = await supabase.storage.from("inventario").upload(ruta, fo.blob, { contentType: "image/jpeg", upsert: true });
+        if (eS) { setOcupado(false); setMal("La foto no subió: " + eS.message); return }
+        foto = { ruta, bytes: fo.blob.size, ancho: fo.ancho, alto: fo.alto, tomada: fo.tomada,
+                 lat: ubiFoto?.lat ?? null, lng: ubiFoto?.lng ?? null, precision: ubiFoto ? Math.round(ubiFoto.precision) : null };
+      }
       salida.push({ ubicacion_id: ub, producto_id: a.p_producto, estibas: a.p_estibas, saldo: a.p_saldo, cajas: a.p_cajas, dia: a.p_dia, mes: a.p_mes, anio: a.p_anio, nota: a.p_nota, estado: a.p_estado,
         averia: a.p_averia, pnc: a.p_pnc, pnc_rotulo: a.p_pnc_rotulo, pnc_bloqueo: a.p_pnc_bloqueo,
-        desde: x.origen ?? null });
+        desde: x.origen ?? null, foto });
     }
     /* Los renglones que cuadraban no se mostraron, pero siguen tal cual (con su foto): solo viaja su id. */
     const mostrados = new Set(misDe(m).map((x) => x.id));
     for (const x of todosDe(m)) if (!mostrados.has(x.id)) salida.push({ id: x.id });
+    setOcupado(false);
     void enviar(m, salida);
   }
 
@@ -185,6 +236,7 @@ export function RevisionesFiscal({ hojaId, mios, materiales, alCambiar, avisar }
               )}
               {abierto && (
                 <div className="rv-ed">
+                  <input ref={camara} type="file" accept="image/jpeg,image/png,image/webp,image/heic" capture="environment" hidden onChange={tomarFoto} />
                   <p>Estos son solo los renglones que no cuadran. Corrígelos, <b>quita</b> el que no deba estar o agrega uno que falte. Lo que cuadraba se queda como estaba.</p>
                   {mal && <p className="cl-mal" role="alert">{mal}</p>}
                   {rengs.map((x) => {
@@ -248,6 +300,21 @@ export function RevisionesFiscal({ hojaId, mios, materiales, alCambiar, avisar }
                         )}
                         <p className="rv-desc rv-w">{cuenta?.total != null ? <>Total: <b>{nf.format(cuenta.total)}</b> cajas</> : "Total: —"}</p>
                         <label className="rv-w"><span>Observación</span><input value={x.nota} placeholder="Opcional" onChange={(e) => ponRen(x.k, { nota: e.target.value })} /></label>
+                        <div className="rv-w rv-foto">
+                          <span>Foto{x.averia ? " (obligatoria en avería)" : " (opcional)"}</span>
+                          {fotosNuevas[x.k] ? <p className="rv-desc">✓ Foto nueva tomada.</p>
+                            : x.origen && fotosPrev[x.origen] ? <p className="rv-desc">✓ Conserva la foto que ya tenía.</p>
+                            : <p className={"rv-desc" + (x.averia ? " mal" : "")}>{x.averia ? "Falta la foto." : "Sin foto."}</p>}
+                          <div className="rv-acc">
+                            <button type="button" className="btn plano" disabled={ocupado || sellando}
+                                    onClick={() => { kDeFoto.current = x.k; camara.current?.click() }}>
+                              {sellando ? "Preparando…" : fotosNuevas[x.k] || (x.origen && fotosPrev[x.origen]) ? "Cambiar foto" : "Tomar foto"}
+                            </button>
+                            {x.origen && fotosPrev[x.origen] && !fotosNuevas[x.k] && (
+                              <button type="button" className="btn plano" disabled={ocupado} onClick={() => verFotoPrev(fotosPrev[x.origen as string])}>Ver foto</button>
+                            )}
+                          </div>
+                        </div>
                         <button type="button" className="btn plano rv-w" disabled={ocupado} onClick={() => setRengs((l) => l.filter((y) => y.k !== x.k))}>Quitar este renglón</button>
                       </div>
                     );

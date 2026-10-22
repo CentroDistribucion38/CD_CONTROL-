@@ -57,6 +57,15 @@ export function Ico({ n, tam = 18 }: { n: IcoNombre; tam?: number }) {
 }
 
 type Resultado = { filas: FilaCruce[] } | { error: string };
+/** La foto de un renglón contado (la lleva su equipo: el cruce no dice quién anotó cada cosa, la foto sí). */
+type FotoCruce = { conteo_id: string; ubicacion: string; equipo: "OL" | "BAVARIA"; sku: string; averia: boolean; pnc: boolean; ruta: string };
+const moduloClave = (u: string) => u.replace(/_(IZQ|DER)$/i, "");
+async function abrirFoto(ruta: string) {
+  const w = window.open("", "_blank");
+  const { data, error } = await createClient().storage.from("inventario").createSignedUrl(ruta, 600);
+  if (error || !data?.signedUrl) { w?.close(); return }
+  if (w) w.location.href = data.signedUrl; else window.location.href = data.signedUrl;
+}
 type Tipo = "sin" | "proceso" | "ok" | "dif";
 type Pestana = "torre" | "parejas" | "revision";
 type Filtro = "todas" | "proceso" | "ok" | "dif";
@@ -85,6 +94,8 @@ function useTorre(fiscalId: string, avanceInicial: Record<number, AvanceHoja>, a
   const [revs, setRevs] = useState<RevisionBD[]>([]);
   const [consolidados, setConsolidados] = useState<Record<number, ConsolidadoBD>>({});
   const [hojaIds, setHojaIds] = useState<Record<number, string>>({});
+  /** Fotos de los renglones por hoja (para abrirlas desde el cruce). Sin el SQL o sin permiso: vacío. */
+  const [fotos, setFotos] = useState<Record<number, FotoCruce[]>>({});
   /** false = falta correr 2026-10-fiscal-validar.sql: la torre funciona igual, sin validar ni aprobar. */
   const [conValidar, setConValidar] = useState(true);
 
@@ -110,6 +121,11 @@ function useTorre(fiscalId: string, avanceInicial: Record<number, AvanceHoja>, a
       return [a.numero, { filas: ordenarCruce(cruceModulo(((r.data ?? []) as FilaCruceBD[]).map(filaDesdeBD))) }];
     }));
     setCruces(Object.fromEntries(res));
+    const fs = await Promise.all(listas.map(async (a): Promise<[number, FotoCruce[]]> => {
+      const r = await sb.rpc("inv_fiscal_fotos_hoja", { p_hoja: a.hoja_id });
+      return [a.numero, r.error ? [] : ((r.data ?? []) as FotoCruce[])];
+    }));
+    setFotos(Object.fromEntries(fs));
     setHora(new Date());
   }, [fiscalId]);
 
@@ -120,7 +136,7 @@ function useTorre(fiscalId: string, avanceInicial: Record<number, AvanceHoja>, a
     return () => clearInterval(t);
   }, [activo, cargar]);
 
-  return { avance, cruces, hora, error, cargar, revs, hojaIds, conValidar, consolidados };
+  return { avance, cruces, hora, error, cargar, revs, hojaIds, conValidar, consolidados, fotos };
 }
 
 /** El anillo del avance: verde = completadas, rojo = con diferencias, ámbar = en conteo, el resto es el fondo. */
@@ -170,7 +186,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
   const [filtro, setFiltro] = useState<Filtro>("todas");
   const [foco, setFoco] = useState<number | null>(null);
   const [verTodo, setVerTodo] = useState<Record<number, boolean>>({});
-  const { avance, cruces, hora, error, cargar, revs, hojaIds, conValidar, consolidados } = useTorre(fiscalId, avanceInicial, conAvance);
+  const { avance, cruces, hora, error, cargar, revs, hojaIds, conValidar, consolidados, fotos } = useTorre(fiscalId, avanceInicial, conAvance);
   const nf = useMemo(() => new Intl.NumberFormat("es-CO"), []);
 
   const tarjetas = hojas.map((h) => {
@@ -413,7 +429,10 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                           <tr key={i} className={"vf-f " + f.estado.toLowerCase()}>
                             <td data-et="Estado"><i className={"vf-ef " + f.estado.toLowerCase()}>{TEXTO_FILA[f.estado]}</i></td>
                             <td data-et="Sitio"><b>{f.ubicacion}</b></td>
-                            <td data-et="Material"><b>{f.sku}</b> {f.material}{marcasDeFila(f) ? <> · <i>{marcasDeFila(f)}</i></> : null}</td>
+                            <td data-et="Material"><b>{f.sku}</b> {f.material}{marcasDeFila(f) ? <> · <i>{marcasDeFila(f)}</i></> : null}
+                              {(fotos[t.h.numero] ?? []).filter((x) => moduloClave(x.ubicacion) === moduloClave(f.ubicacion) && x.sku === f.sku).map((x) => (
+                                <span key={x.conteo_id}> · <button type="button" className="fe-mini" onClick={() => abrirFoto(x.ruta)} title="Foto del renglón">Foto {x.equipo === "OL" ? (t.h.ol ? quien(t.h.ol) : "operador") : (t.h.bavaria ? quien(t.h.bavaria) : "Bavaria")}{x.averia ? " (avería)" : ""}</button></span>
+                              ))}</td>
                             <td data-et="Vence">{textoVenc(f.vencDia, f.vencMes, f.vencAnio)}</td>
                             <td data-et="Operador" className="num">{f.cajasOl === null ? "—" : nf.format(f.cajasOl)}</td>
                             <td data-et="Bavaria" className="num">{f.cajasBavaria === null ? "—" : nf.format(f.cajasBavaria)}</td>

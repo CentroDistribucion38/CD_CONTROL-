@@ -38,6 +38,9 @@ import { textoVenc, marcasDeFila, TEXTO_FILA, TEXTO_ESTADO, type ConteoPersona, 
 export type ColoresLibro = { tinta: string; banda: string };   // RRGGBB
 const MARCA: ColoresLibro = { tinta: "12263A", banda: "FFC000" };
 
+/** Lo que una persona marcó de un módulo en Contar: mezclado o sin acceso (con foto de evidencia). */
+export type MarcaModuloLibro = { ubicacion: string; equipo: "OL" | "BAVARIA"; mezclado: boolean; sin_acceso: boolean; foto: boolean };
+
 export type HojaCruzada = {
   numero: number;
   ol: string | null; bavaria: string | null;
@@ -49,6 +52,8 @@ export type HojaCruzada = {
   conteos?: ConteoPersona[] | null;
   /** Cuándo terminó cada una (ISO), si ya terminó. */
   olTermino?: string | null; bavariaTermino?: string | null;
+  /** Módulos marcados como mezclados o sin acceso por quienes contaron. */
+  marcas?: MarcaModuloLibro[] | null;
 };
 
 export type InsumosCruce = {
@@ -181,6 +186,28 @@ export async function armarCruceFiscal(o: InsumosCruce): Promise<ArrayBuffer> {
   const pp = wb.addWorksheet("Por persona", { properties: { tabColor: { argb: P.BANDA } } });
   const cp = wb.addWorksheet(S_CON, { properties: { tabColor: { argb: P.TINTA } } });
   const d = wb.addWorksheet(S_DET, { properties: { tabColor: { argb: P.TINTA } } });
+  /* Módulos que la gente marcó en Contar (mezclado / sin acceso): una pestaña aparte, al final, solo si hay marcas. */
+  const marcadas = o.hojas.flatMap((h) => (h.marcas ?? []).map((m) => ({ h, m })));
+  if (marcadas.length > 0) {
+    const mk = wb.addWorksheet("Módulos marcados", { properties: { tabColor: { argb: NARANJA } } });
+    const KC = ["Hoja", "Pareja (operador · Bavaria)", "Módulo / lado", "Quién lo marcó", "Marca", "Con foto de evidencia"];
+    const KA = [2, 7, 34, 17, 20, 16, 20, 2];
+    mk.columns = KA.map((w) => ({ width: w }));
+    cabecera(mk, P, sello, "Módulos mezclados o sin acceso", `${sub}  ·  ${marcadas.length} ${marcadas.length === 1 ? "marca" : "marcas"}`, KA.length);
+    mk.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9 };
+    encabezado(mk, 7, P, KC);
+    marcadas.sort((a, b) => a.h.numero - b.h.numero || a.m.ubicacion.localeCompare(b.m.ubicacion, "es", { numeric: true }))
+      .forEach(({ h, m }, i) => {
+        const r = 8 + i, row = mk.getRow(r); row.height = 20;
+        [h.numero, pareja(h), m.ubicacion, m.equipo === "OL" ? (h.ol ?? "Operador") : (h.bavaria ?? "Bavaria"),
+          m.sin_acceso ? "SIN ACCESO" : "MEZCLADO", m.foto ? "Sí" : "No"].forEach((v, k) => {
+          const c = row.getCell(2 + k); c.value = v;
+          celda(c, P, i % 2 === 1, { centro: k === 0 || k === 4 || k === 5, negrita: k === 4 });
+        });
+        const e = row.getCell(6); e.font = letra(9, BLANCO, true); e.fill = relleno(m.sin_acceso ? ROJO : NARANJA);
+      });
+    mk.views = [{ showGridLines: false, state: "frozen", ySplit: 7 }];
+  }
   wb.calcProperties = { fullCalcOnLoad: true };
   /* Para imprimir: horizontal y todas las columnas en el ancho de la hoja. */
   for (const w of [rs, df, pm, pp, cp, d]) w.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9 };

@@ -182,16 +182,23 @@ export function ordenarCruce(filas: FilaCruce[]): FilaCruce[] {
 /* ---------------------------------------------------------------- el cruce por MÓDULO
    El lado (izquierdo/derecho) NO cuenta: es muy perceptivo y delata dónde está cada cosa.
    Se compara por calle + módulo (A01): lo que una persona puso en un lado y la otra en el otro
-   suma en el mismo módulo. Un mismo material con el mismo vencimiento se junta. */
+   suma en el mismo módulo. Un mismo material con el mismo estado se junta, sin mirar el vencimiento. */
 export const moduloDeUbicacion = (clave: string): string => clave.replace(/_(IZQ|DER)$/i, "");
 
 export function cruceModulo(filas: FilaCruce[]): FilaCruce[] {
   const m = new Map<string, FilaCruce>();
   for (const f of filas) {
     const mod = moduloDeUbicacion(f.ubicacion);
-    const k = [mod, f.sku, f.estadoEnvase ?? "", f.averia ? "A" : "", f.pnc ? "P" : "", f.vencDia ?? "", f.vencMes ?? "", f.vencAnio ?? ""].join("|");
+    /* Se compara módulo, código y estado: la fecha de vencimiento NO entra (daría diferencias de más). */
+    const k = [mod, f.sku, f.estadoEnvase ?? "", f.averia ? "A" : "", f.pnc ? "P" : ""].join("|");
     const x = m.get(k);
     if (!x) { m.set(k, { ...f, ubicacion: mod }); continue }
+    /* De las fechas de un mismo renglón se muestra la más próxima. */
+    if (f.vencDia != null && f.vencMes != null && f.vencAnio != null) {
+      const nueva = f.vencAnio * 10000 + f.vencMes * 100 + f.vencDia;
+      const vieja = x.vencDia != null && x.vencMes != null && x.vencAnio != null ? x.vencAnio * 10000 + x.vencMes * 100 + x.vencDia : null;
+      if (vieja == null || nueva < vieja) { x.vencDia = f.vencDia; x.vencMes = f.vencMes; x.vencAnio = f.vencAnio }
+    }
     x.cajasOl = f.cajasOl == null ? x.cajasOl : (x.cajasOl ?? 0) + f.cajasOl;
     x.cajasBavaria = f.cajasBavaria == null ? x.cajasBavaria : (x.cajasBavaria ?? 0) + f.cajasBavaria;
     if (!x.ubicacionId && f.ubicacionId) x.ubicacionId = f.ubicacionId;

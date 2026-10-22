@@ -20,6 +20,8 @@ import type { FilaCruce } from "@/modulos/inventario/fiscal-cruce";
 export type RevisionBD = {
   hoja_id: string; numero: number; ubicacion_id: string; ubicacion: string; estado: "A_VALIDAR" | "APROBADA";
   ronda: number; nota: string | null; ol_envio: boolean; bavaria_envio: boolean; pedido_en: string | null; aprobado_en: string | null;
+  /** Si el módulo siguió difiriendo, el conteo que el fiscal dejó como definitivo. */
+  adoptado?: "OL" | "BAVARIA" | null;
 };
 
 /** Lo que ya está en La base de esta hoja (inv_fiscal_consolidados). */
@@ -47,6 +49,8 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
   const [ok, setOk] = useState<string | null>(null);
   const [forzar, setForzar] = useState<Ub[] | null>(null);
   const [confUna, setConfUna] = useState<Ub[] | null>(null);
+  /** Al aprobar un módulo que sigue difiriendo: de quién queda el conteo definitivo (null = ninguno, solo pasa si coinciden). */
+  const [adoptar, setAdoptar] = useState<"OL" | "BAVARIA" | null>(null);
   const router = useRouter();
   const [nueva, setNueva] = useState("");
   const [seguro, setSeguro] = useState(false);
@@ -166,13 +170,14 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
   const validar = () => correr("inv_fiscal_validar", marcadas, { p_nota: nota.trim() || null },
     `${marcadas.length} ${marcadas.length === 1 ? "ubicación enviada" : "ubicaciones enviadas"} a validar. Las dos personas ya la ven en Contar.`);
 
-  function aprobar(lista: Ub[], forzando = false) {
+  function aprobar(lista: Ub[], forzando = false, quedaCon: "OL" | "BAVARIA" | null = adoptar) {
+    setAdoptar(quedaCon);
     /* Con una sola persona no hay cruce: se pide confirmar antes de aprobar. */
     if (unaSola && !forzando) { setConfUna(lista); return }
     const faltan = lista.filter((u) => u.rev?.estado === "A_VALIDAR" && !(u.rev.ol_envio && u.rev.bavaria_envio));
     if (faltan.length > 0 && !forzando) { setForzar(faltan); return }
-    void correr("inv_fiscal_aprobar", lista, { p_forzar: forzando },
-      `${lista.length} ${lista.length === 1 ? "ubicación aprobada" : "ubicaciones aprobadas"}.`);
+    void correr("inv_fiscal_aprobar", lista, { p_forzar: forzando, ...(quedaCon ? { p_adoptar: quedaCon } : {}) },
+      `${lista.length} ${lista.length === 1 ? "ubicación aprobada" : "ubicaciones aprobadas"}${quedaCon ? `, dejando como definitivo lo de ${quedaCon === "OL" ? (ol || "el operador") : (bavaria || "Bavaria")}` : ""}.`);
   }
 
   /* SIGUIENTE CALLE: solo cuando no queda nada por validar ni con diferencia sin aprobar. */
@@ -222,11 +227,23 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
             <button type="button" className="btn" disabled={ocupado || marcadas.length === 0 || !!unaSola} title={unaSola ? "Se manda a validar cuando las dos personas terminen" : undefined} onClick={validar}>
               Mandar a validar{marcadas.length > 0 ? ` (${marcadas.length})` : ""}
             </button>
-            <button type="button" className="btn" disabled={ocupado || marcadas.length === 0} onClick={() => aprobar(marcadas)}>
+            <button type="button" className="btn" disabled={ocupado || marcadas.length === 0} onClick={() => aprobar(marcadas, false, null)}>
               Aprobar{marcadas.length > 0 ? ` (${marcadas.length})` : ""}
             </button>
+            {!unaSola && (
+              <>
+                <button type="button" className="btn plano" disabled={ocupado || marcadas.length === 0} onClick={() => aprobar(marcadas, false, "OL")}
+                        title="Si el módulo sigue difiriendo, queda como definitivo lo que contó el operador y pasa a La base">
+                  Aprobar con lo de {ol || "el operador"}
+                </button>
+                <button type="button" className="btn plano" disabled={ocupado || marcadas.length === 0} onClick={() => aprobar(marcadas, false, "BAVARIA")}
+                        title="Si el módulo sigue difiriendo, queda como definitivo lo que contó Bavaria y pasa a La base">
+                  Aprobar con lo de {bavaria || "Bavaria"}
+                </button>
+              </>
+            )}
             {coincidenSinAprobar.length > 0 && (
-              <button type="button" className="btn plano" disabled={ocupado} onClick={() => aprobar(coincidenSinAprobar)}>
+              <button type="button" className="btn plano" disabled={ocupado} onClick={() => aprobar(coincidenSinAprobar, false, null)}>
                 Aprobar las {coincidenSinAprobar.length} que coinciden
               </button>
             )}
@@ -241,7 +258,7 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
         <div className="cl-mal vv-forzar" role="alert">
           <p>Solo terminó {unaSola}. Si apruebas {confUna.map((u) => u.clave).join(", ")}, pasa a La base con el conteo de una sola persona, sin cruce. ¿Aprobar de todos modos?</p>
           <div className="cl-botones">
-            <button type="button" className="btn plano mal" disabled={ocupado} onClick={() => aprobar(confUna, true)}>Sí, aprobar con una sola persona</button>
+            <button type="button" className="btn plano mal" disabled={ocupado} onClick={() => aprobar(confUna, true, null)}>Sí, aprobar con una sola persona</button>
             <button type="button" className="btn plano" onClick={() => setConfUna(null)}>No, esperar a la otra</button>
           </div>
         </div>
@@ -250,7 +267,7 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
         <div className="cl-mal vv-forzar" role="alert">
           <p>Todavía falta la respuesta de alguna persona en {forzar.map((u) => u.clave).join(", ")}. Lo normal es avisarle antes. ¿Aprobar de todos modos?</p>
           <div className="cl-botones">
-            <button type="button" className="btn plano mal" disabled={ocupado} onClick={() => aprobar(marcadas, true)}>Sí, aprobar sin su respuesta</button>
+            <button type="button" className="btn plano mal" disabled={ocupado} onClick={() => aprobar(marcadas, true, adoptar)}>Sí, aprobar sin su respuesta</button>
             <button type="button" className="btn plano" onClick={() => setForzar(null)}>No, esperar</button>
           </div>
         </div>
@@ -268,6 +285,9 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
               ) : <b className="vv-chk">{u.clave}</b>}
               <i className={"vv-e " + e}>{TEXTO[e]}</i>
               {quien(u)}
+              {u.rev?.estado === "APROBADA" && u.rev.adoptado && (
+                <small className="vv-resp">Definitivo: lo que contó {u.rev.adoptado === "OL" ? (ol || "el operador") : (bavaria || "Bavaria")}</small>
+              )}
               {u.rev?.estado === "A_VALIDAR" && u.rev.nota && <small className="vv-resp">Nota: {u.rev.nota}</small>}
               {marcasDe(u.clave).map((m) => (
                 <small key={m.ubicacion + m.equipo} className="vv-resp vv-marca">
@@ -306,7 +326,7 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
           <p>{consol
             ? `${consol.ubicaciones} ${consol.ubicaciones === 1 ? "ubicación" : "ubicaciones"} · ${consol.renglones} ${consol.renglones === 1 ? "renglón" : "renglones"} · ${Number(consol.cajas).toLocaleString("es-CO")} cajas. Es un solo conteo de la hoja (no uno por persona): lo aprobado que coincide entre las dos.`
             : "Todavía no se manda nada. Al aprobar, lo aprobado que coincide entre las dos personas pasa solo a La base, como un solo conteo de la hoja."}
-            {ubs.some((u) => estado(u) === "aprobada" && u.dif) && " Una ubicación aprobada que aún difiere no se manda hasta que coincida."}</p>
+            {ubs.some((u) => estado(u) === "aprobada" && u.dif && !u.rev?.adoptado) && " Un módulo aprobado que aún difiere no se manda hasta que coincida o hasta que dejes como definitivo el conteo de uno de los dos."}</p>
           {puedeEditar && <div className="vv-acc"><button type="button" className="btn plano" disabled={ocupado || nAprobadas === 0} onClick={consolidarYa}>Actualizar La base ahora</button></div>}
         </div>
       )}
