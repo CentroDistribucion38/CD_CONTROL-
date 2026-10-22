@@ -1,5 +1,5 @@
 -- =====================================================================
--- INVENTARIO FISCAL · ESTADO DEL ENVASE, AVERÍA Y PNC EN EL CONTEO (el conteo fiscal es gemelo del normal)
+-- INVENTARIO FISCAL · ESTADO DEL ENVASE, AVERÍA, PNC Y FOTOS EN EL CONTEO (el conteo fiscal es gemelo del normal)
 --
 -- En el conteo normal el envase se cuenta con su estado (RETORNO, LAVADO, NUEVO, BAJA, EXTRASUCIO,
 -- OTROS, MAL ESTADO; el cilindro, LLENO o VACÍO). El fiscal ahora también lo pide:
@@ -120,10 +120,150 @@ $$;
 revoke all on function public.inv_fiscal_contar_mios(uuid) from public, anon;
 grant execute on function public.inv_fiscal_contar_mios(uuid) to authenticated;
 
+-- ---------------------------------------------------------------------
+-- LAS FOTOS DEL CONTEO FISCAL (igual que en el conteo normal)
+--   · una foto por renglón (obligatoria si es avería), sellada con hora y lugar en el teléfono;
+--   · el estado del MÓDULO: «mezclado» y «sin acceso», que piden foto de evidencia.
+-- Cada persona ve solo lo suyo (el conteo es a ciegas): todo entra y sale por funciones.
+-- Los archivos van al bucket «inventario», en la carpeta «fiscal/».
+-- ---------------------------------------------------------------------
+create table if not exists public.inv_fiscal_fotos (
+  conteo_id   uuid primary key references public.inv_fiscal_conteos(id) on delete cascade,
+  hoja_id     uuid not null references public.inv_fiscal_hojas(id) on delete cascade,
+  ruta        text not null,
+  bytes       integer,
+  ancho       integer,
+  alto        integer,
+  tomada_en   timestamptz,
+  lat         numeric(10,7),
+  lng         numeric(10,7),
+  precision_m numeric(8,2),
+  subida_por  uuid references public.perfiles(id) on delete set null default auth.uid(),
+  subida_en   timestamptz not null default now()
+);
+create index if not exists inv_fiscal_fotos_hoja_idx on public.inv_fiscal_fotos (hoja_id);
+alter table public.inv_fiscal_fotos enable row level security;
+revoke all on public.inv_fiscal_fotos from public, anon, authenticated;
+
+create table if not exists public.inv_fiscal_modulos (
+  hoja_id      uuid not null references public.inv_fiscal_hojas(id) on delete cascade,
+  user_id      uuid not null default auth.uid() references public.perfiles(id) on delete cascade,
+  ubicacion_id uuid not null references public.ubicaciones(id) on delete cascade,
+  mezclado     boolean not null default false,
+  sin_acceso   boolean not null default false,
+  ruta         text,
+  bytes        integer,
+  ancho        integer,
+  alto         integer,
+  tomada_en    timestamptz,
+  lat          numeric(10,7),
+  lng          numeric(10,7),
+  precision_m  numeric(8,2),
+  marcado_en   timestamptz not null default now(),
+  primary key (hoja_id, user_id, ubicacion_id)
+);
+alter table public.inv_fiscal_modulos enable row level security;
+revoke all on public.inv_fiscal_modulos from public, anon, authenticated;
+
+drop function if exists public.inv_fiscal_foto_guardar(uuid, text, integer, integer, integer, timestamptz, numeric, numeric, numeric);
+create function public.inv_fiscal_foto_guardar(
+  p_conteo uuid, p_ruta text, p_bytes integer, p_ancho integer, p_alto integer,
+  p_tomada timestamptz, p_lat numeric, p_lng numeric, p_precision numeric
+) returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_hoja uuid;
+begin
+  if auth.uid() is null then raise exception 'Hay que entrar para contar.'; end if;
+  select c.hoja_id into v_hoja from public.inv_fiscal_conteos c where c.id = p_conteo and c.contado_por = auth.uid();
+  if v_hoja is null then raise exception 'Ese renglón no es tuyo o ya no existe.'; end if;
+  if coalesce(btrim(p_ruta), '') = '' then raise exception 'Falta la ruta de la foto.'; end if;
+  insert into public.inv_fiscal_fotos (conteo_id, hoja_id, ruta, bytes, ancho, alto, tomada_en, lat, lng, precision_m, subida_por, subida_en)
+  values (p_conteo, v_hoja, p_ruta, p_bytes, p_ancho, p_alto, p_tomada, p_lat, p_lng, p_precision, auth.uid(), now())
+  on conflict (conteo_id) do update
+    set ruta = excluded.ruta, bytes = excluded.bytes, ancho = excluded.ancho, alto = excluded.alto,
+        tomada_en = excluded.tomada_en, lat = excluded.lat, lng = excluded.lng, precision_m = excluded.precision_m,
+        subida_por = auth.uid(), subida_en = now();
+end $$;
+revoke all on function public.inv_fiscal_foto_guardar(uuid, text, integer, integer, integer, timestamptz, numeric, numeric, numeric) from public, anon;
+grant execute on function public.inv_fiscal_foto_guardar(uuid, text, integer, integer, integer, timestamptz, numeric, numeric, numeric) to authenticated;
+
+drop function if exists public.inv_fiscal_mis_fotos(uuid);
+create function public.inv_fiscal_mis_fotos(p_hoja uuid)
+returns table (conteo_id uuid, ruta text)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select f.conteo_id, f.ruta from public.inv_fiscal_fotos f
+   where f.hoja_id = p_hoja and f.subida_por = auth.uid()
+$$;
+revoke all on function public.inv_fiscal_mis_fotos(uuid) from public, anon;
+grant execute on function public.inv_fiscal_mis_fotos(uuid) to authenticated;
+
+drop function if exists public.inv_fiscal_modulo_marcar(uuid, uuid, boolean, boolean, text, integer, integer, integer, timestamptz, numeric, numeric, numeric);
+create function public.inv_fiscal_modulo_marcar(
+  p_hoja uuid, p_ubicacion uuid, p_mezclado boolean, p_sin_acceso boolean,
+  p_ruta text, p_bytes integer, p_ancho integer, p_alto integer, p_tomada timestamptz,
+  p_lat numeric, p_lng numeric, p_precision numeric
+) returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_estado text; v_pub timestamptz;
+begin
+  if auth.uid() is null then raise exception 'Hay que entrar para contar.'; end if;
+  select f.estado, f.publicado_en into v_estado, v_pub
+    from public.inv_fiscal_miembros m join public.inv_fiscales f on f.id = m.fiscal_id
+   where m.hoja_id = p_hoja and m.user_id = auth.uid();
+  if v_estado is null then raise exception 'Esa hoja no es tuya.'; end if;
+  if v_pub is null then raise exception 'Este inventario fiscal no está visible en Contar.'; end if;
+  if v_estado <> 'abierto' then raise exception 'Este inventario fiscal ya está cerrado.'; end if;
+  if not coalesce(p_mezclado, false) and not coalesce(p_sin_acceso, false) then
+    delete from public.inv_fiscal_modulos where hoja_id = p_hoja and user_id = auth.uid() and ubicacion_id = p_ubicacion;
+    return;
+  end if;
+  insert into public.inv_fiscal_modulos (hoja_id, user_id, ubicacion_id, mezclado, sin_acceso, ruta, bytes, ancho, alto, tomada_en, lat, lng, precision_m, marcado_en)
+  values (p_hoja, auth.uid(), p_ubicacion, coalesce(p_mezclado, false), coalesce(p_sin_acceso, false), p_ruta, p_bytes, p_ancho, p_alto, p_tomada, p_lat, p_lng, p_precision, now())
+  on conflict (hoja_id, user_id, ubicacion_id) do update
+    set mezclado = excluded.mezclado, sin_acceso = excluded.sin_acceso,
+        ruta = coalesce(excluded.ruta, public.inv_fiscal_modulos.ruta),
+        bytes = case when excluded.ruta is null then public.inv_fiscal_modulos.bytes else excluded.bytes end,
+        ancho = case when excluded.ruta is null then public.inv_fiscal_modulos.ancho else excluded.ancho end,
+        alto = case when excluded.ruta is null then public.inv_fiscal_modulos.alto else excluded.alto end,
+        tomada_en = case when excluded.ruta is null then public.inv_fiscal_modulos.tomada_en else excluded.tomada_en end,
+        lat = case when excluded.ruta is null then public.inv_fiscal_modulos.lat else excluded.lat end,
+        lng = case when excluded.ruta is null then public.inv_fiscal_modulos.lng else excluded.lng end,
+        precision_m = case when excluded.ruta is null then public.inv_fiscal_modulos.precision_m else excluded.precision_m end,
+        marcado_en = now();
+end $$;
+revoke all on function public.inv_fiscal_modulo_marcar(uuid, uuid, boolean, boolean, text, integer, integer, integer, timestamptz, numeric, numeric, numeric) from public, anon;
+grant execute on function public.inv_fiscal_modulo_marcar(uuid, uuid, boolean, boolean, text, integer, integer, integer, timestamptz, numeric, numeric, numeric) to authenticated;
+
+drop function if exists public.inv_fiscal_mis_modulos(uuid);
+create function public.inv_fiscal_mis_modulos(p_hoja uuid)
+returns table (ubicacion_id uuid, mezclado boolean, sin_acceso boolean, ruta text)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select m.ubicacion_id, m.mezclado, m.sin_acceso, m.ruta from public.inv_fiscal_modulos m
+   where m.hoja_id = p_hoja and m.user_id = auth.uid()
+$$;
+revoke all on function public.inv_fiscal_mis_modulos(uuid) from public, anon;
+grant execute on function public.inv_fiscal_mis_modulos(uuid) to authenticated;
+
 do $$
 begin
   if to_regprocedure('public.inv_fiscal_contar_agregar(uuid,uuid,uuid,integer,integer,integer,smallint,smallint,smallint,text,text,boolean,boolean,boolean,boolean)') is null
-     or to_regprocedure('public.inv_fiscal_contar_mios(uuid)') is null then
+     or to_regprocedure('public.inv_fiscal_contar_mios(uuid)') is null
+     or to_regprocedure('public.inv_fiscal_foto_guardar(uuid,text,integer,integer,integer,timestamptz,numeric,numeric,numeric)') is null
+     or to_regprocedure('public.inv_fiscal_modulo_marcar(uuid,uuid,boolean,boolean,text,integer,integer,integer,timestamptz,numeric,numeric,numeric)') is null then
     raise exception 'No quedaron las funciones de contar con estado.';
   end if;
 end $$;

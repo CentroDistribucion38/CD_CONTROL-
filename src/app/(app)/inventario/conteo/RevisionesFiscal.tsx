@@ -29,7 +29,7 @@ type RevisionMia = {
   fiscal_id: string; hoja_id: string; hoja: number; ubicacion_id: string; ubicacion: string;
   ronda: number; nota: string | null; pedido_en: string | null; ya_envie: boolean;
 };
-type Reng = BorradorFiscal & { k: number; ub: string };
+type Reng = BorradorFiscal & { k: number; ub: string; origen?: string };
 /** Un módulo (A01) = sus dos lados juntos. */
 type Modulo = { modulo: string; filas: RevisionMia[]; ronda: number; nota: string | null; yaEnvie: boolean };
 const moduloDe = (clave: string) => clave.replace(/_(IZQ|DER)$/i, "");
@@ -42,7 +42,7 @@ const dos = (v: string) => v.replace(/\D/g, "").slice(0, 2);
 const aTexto = (n: number | null) => (n == null ? "" : String(n));
 function desdeRenglon(r: RenglonFiscal, k: number): Reng {
   return {
-    ...VACIO_FISCAL, k, ub: r.ubicacion_id,
+    ...VACIO_FISCAL, k, ub: r.ubicacion_id, origen: r.id,
     base: "x", lado: "x", codigo: r.sku,
     dia: r.venc_dia == null ? "" : dd(r.venc_dia), mes: r.venc_mes == null ? "" : dd(r.venc_mes), anio: r.venc_anio == null ? "" : dd(r.venc_anio),
     modo: r.cajas != null ? "cajas" : "estibas",
@@ -105,12 +105,6 @@ export function RevisionesFiscal({ hojaId, mios, materiales, alCambiar, avisar }
   const todosDe = (m: Modulo) => (mios ?? []).filter((r) => m.filas.some((f) => f.ubicacion_id === r.ubicacion_id));
   /** Solo lo que no cuadra: lo que coincide con la pareja no se muestra, para no enredar. */
   const misDe = (m: Modulo) => todosDe(m).filter((r) => difieren === null || difieren.has(r.id));
-  /** Lo que sí cuadra se conserva tal cual al enviar el nuevo conteo. */
-  const raw = (r: RenglonFiscal) => ({
-    ubicacion_id: r.ubicacion_id, producto_id: r.producto_id, estibas: r.estibas, saldo: r.saldo, cajas: r.cajas,
-    dia: r.venc_dia, mes: r.venc_mes, anio: r.venc_anio, nota: r.nota, estado: r.estado_envase ?? null,
-    averia: !!r.averia, pnc: !!r.pnc, pnc_rotulo: r.pnc ? r.pnc_rotulo ?? null : null, pnc_bloqueo: r.pnc ? r.pnc_bloqueo_mecanico ?? null : null,
-  });
   const textoCant = (r: RenglonFiscal) => {
     if (r.cajas != null) return `${nf.format(r.cajas)} caja${r.cajas === 1 ? "" : "s"}`;
     const e = r.estibas ?? 0, s = r.saldo ?? 0;
@@ -150,11 +144,12 @@ export function RevisionesFiscal({ hojaId, mios, materiales, alCambiar, avisar }
       const ub = x.ub || m.filas[0].ubicacion_id;
       const a = argumentosFiscal(hojaId, ub, mat, x);
       salida.push({ ubicacion_id: ub, producto_id: a.p_producto, estibas: a.p_estibas, saldo: a.p_saldo, cajas: a.p_cajas, dia: a.p_dia, mes: a.p_mes, anio: a.p_anio, nota: a.p_nota, estado: a.p_estado,
-        averia: a.p_averia, pnc: a.p_pnc, pnc_rotulo: a.p_pnc_rotulo, pnc_bloqueo: a.p_pnc_bloqueo });
+        averia: a.p_averia, pnc: a.p_pnc, pnc_rotulo: a.p_pnc_rotulo, pnc_bloqueo: a.p_pnc_bloqueo,
+        desde: x.origen ?? null });
     }
-    /* Los renglones que cuadraban no se mostraron, pero siguen: se mandan igual que estaban. */
+    /* Los renglones que cuadraban no se mostraron, pero siguen tal cual (con su foto): solo viaja su id. */
     const mostrados = new Set(misDe(m).map((x) => x.id));
-    for (const x of todosDe(m)) if (!mostrados.has(x.id)) salida.push(raw(x));
+    for (const x of todosDe(m)) if (!mostrados.has(x.id)) salida.push({ id: x.id });
     void enviar(m, salida);
   }
 

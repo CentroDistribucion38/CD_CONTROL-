@@ -27,6 +27,7 @@ import type { KeyboardEvent, RefObject } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Buscador } from "@/components/Buscador";
+import { usePosicion, sellar, type Foto } from "@/lib/evidencia";
 import { RevisionesFiscal } from "./RevisionesFiscal";
 import { useConfirmar } from "@/components/Confirmar";
 import { useAvisos } from "@/components/Aviso";
@@ -217,6 +218,130 @@ export function ContarFiscal({
   }, [b.estado, esEnvase, material]);
   const cuenta = useMemo(() => totalCajas(b, material), [b, material]);
 
+  /* ---------- LAS FOTOS Y EL ESTADO DEL MÓDULO (igual que en el conteo normal) ----------
+     · Una foto por renglón (opcional; obligatoria si es avería). Sube al anotar.
+     · «Mezclado» y «sin acceso» son del MÓDULO y piden foto de evidencia.
+     Cada persona ve solo lo suyo: todo entra y sale por funciones de la base. */
+  const { ubi: ubiFoto, direccion: dirFoto, pedir: pedirUbi } = usePosicion();
+  const [fotoNueva, setFotoNueva] = useState<Foto | null>(null);
+  const [sellando, setSellando] = useState(false);
+  const [fotosDe, setFotosDe] = useState<Record<string, string>>({});
+  const camaraNueva = useRef<HTMLInputElement>(null);
+  const camaraFila = useRef<HTMLInputElement>(null);
+  const filaDeFoto = useRef<string | null>(null);
+  type MarcaModulo = { mezclado: boolean; sin_acceso: boolean; ruta: string | null };
+  const [marcasMod, setMarcasMod] = useState<Record<string, MarcaModulo>>({});
+  const [mod, setMod] = useState({ mezclado: false, sinAcceso: false });
+  const [fotoMod, setFotoMod] = useState<Foto | null>(null);
+  const camaraMod = useRef<HTMLInputElement>(null);
+
+  const leerExtras = useCallback(async (id: string) => {
+    const f = await supabase.rpc("inv_fiscal_mis_fotos", { p_hoja: id });
+    if (!f.error) setFotosDe(Object.fromEntries(((f.data ?? []) as { conteo_id: string; ruta: string }[]).map((x) => [x.conteo_id, x.ruta])));
+    const m = await supabase.rpc("inv_fiscal_mis_modulos", { p_hoja: id });
+    if (!m.error) setMarcasMod(Object.fromEntries(((m.data ?? []) as { ubicacion_id: string; mezclado: boolean; sin_acceso: boolean; ruta: string | null }[])
+      .map((x) => [x.ubicacion_id, { mezclado: x.mezclado, sin_acceso: x.sin_acceso, ruta: x.ruta }])));
+  }, [supabase]);
+  useEffect(() => { if (hoja?.hojaId) void leerExtras(hoja.hojaId) }, [hoja?.hojaId, leerExtras]);
+
+  const marcaGuardada = ubicacion ? marcasMod[ubicacion.id] ?? null : null;
+  /* Al cambiar de módulo, las dos preguntas arrancan con lo que ya se dijo de ESE módulo. */
+  useEffect(() => {
+    setMod({ mezclado: marcaGuardada?.mezclado ?? false, sinAcceso: marcaGuardada?.sin_acceso ?? false });
+    setFotoMod((x) => { if (x) URL.revokeObjectURL(x.url); return null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [claveEscogida, ubicacion?.id]);
+  useEffect(() => () => { if (fotoMod) URL.revokeObjectURL(fotoMod.url) }, [fotoMod]);
+  useEffect(() => () => { if (fotoNueva) URL.revokeObjectURL(fotoNueva.url) }, [fotoNueva]);
+
+  /** Sella la foto en el teléfono, al tomarla: la hora que queda es la de tomarla, no la de subirla. */
+  async function sellarFoto(archivo: File, titulo: string): Promise<Foto | null> {
+    setSellando(true);
+    try {
+      return await sellar(archivo, { titulo: titulo.toUpperCase(), ubi: ubiFoto, direccion: dirFoto, etiqueta: "CONTEO FISCAL" });
+    } catch (e) {
+      avisar.mal(e instanceof Error ? e.message : "No se pudo procesar esa foto. Vuelve a tomarla.");
+      return null;
+    } finally { setSellando(false) }
+  }
+  async function tomarNueva(e: React.ChangeEvent<HTMLInputElement>) {
+    const archivo = e.target.files?.[0];
+    e.target.value = "";
+    if (!archivo) return;
+    const f = await sellarFoto(archivo, b.codigo ? `${b.codigo} · ${claveEscogida ?? ""}` : "CONTEO");
+    if (f) { setFotoNueva((x) => { if (x) URL.revokeObjectURL(x.url); return f }); setMas(true) }
+  }
+  async function tomarMod(e: React.ChangeEvent<HTMLInputElement>) {
+    const archivo = e.target.files?.[0];
+    e.target.value = "";
+    if (!archivo) return;
+    const f = await sellarFoto(archivo, `${mod.sinAcceso ? "SIN ACCESO" : "MEZCLADO"} · ${claveEscogida ?? ""}`);
+    if (f) setFotoMod((x) => { if (x) URL.revokeObjectURL(x.url); return f });
+  }
+  /** Sube la foto de un renglón que YA está en la base. Devuelve el problema, o null si quedó. */
+  async function subirFotoRenglon(conteoId: string, f: Foto): Promise<string | null> {
+    if (!hoja) return "No hay hoja abierta.";
+    const ruta = `fiscal/${hoja.hojaId}/${conteoId}.jpg`;
+    const { error: eS } = await supabase.storage.from("inventario").upload(ruta, f.blob, { contentType: "image/jpeg", upsert: true });
+    if (eS) return "La foto no subió: " + eS.message;
+    const { error } = await supabase.rpc("inv_fiscal_foto_guardar", {
+      p_conteo: conteoId, p_ruta: ruta, p_bytes: f.blob.size, p_ancho: f.ancho, p_alto: f.alto, p_tomada: f.tomada,
+      p_lat: ubiFoto?.lat ?? null, p_lng: ubiFoto?.lng ?? null, p_precision: ubiFoto ? Math.round(ubiFoto.precision) : null,
+    });
+    if (error) return /does not exist|schema cache|inv_fiscal_foto_guardar/i.test(error.message)
+      ? "Falta correr 2026-10-fiscal-estado.sql en Supabase." : "La foto subió pero no quedó registrada: " + error.message;
+    setFotosDe((x) => ({ ...x, [conteoId]: ruta }));
+    return null;
+  }
+  async function tomarFila(e: React.ChangeEvent<HTMLInputElement>) {
+    const archivo = e.target.files?.[0];
+    e.target.value = "";
+    const id = filaDeFoto.current;
+    if (!archivo || !id) return;
+    const r = (mios ?? []).find((x) => x.id === id);
+    const f = await sellarFoto(archivo, r ? `${r.sku} · ${r.ubicacion}` : "CONTEO");
+    if (!f) return;
+    setGuardando(true);
+    const mal = await subirFotoRenglon(id, f);
+    setGuardando(false);
+    URL.revokeObjectURL(f.url);
+    if (mal) avisar.mal(mal); else avisar.bien("Foto guardada.");
+  }
+  /** Guarda «mezclado / sin acceso» del módulo (y su foto, si hay una nueva). Devuelve el problema, o null si quedó. */
+  async function guardarModulo(idU: string, flags: { mezclado: boolean; sinAcceso: boolean }, foto: Foto | null): Promise<string | null> {
+    if (!hoja) return "No hay hoja abierta.";
+    if (!navigator.onLine) return "Sin señal: marcar un módulo mezclado o sin acceso necesita conexión para subir la foto.";
+    let ruta = marcasMod[idU]?.ruta ?? null;
+    let extra = { p_bytes: null as number | null, p_ancho: null as number | null, p_alto: null as number | null, p_tomada: null as string | null,
+      p_lat: null as number | null, p_lng: null as number | null, p_precision: null as number | null };
+    if (foto) {
+      ruta = `fiscal/${hoja.hojaId}/modulo-${idU}.jpg`;
+      const { error: eS } = await supabase.storage.from("inventario").upload(ruta, foto.blob, { contentType: "image/jpeg", upsert: true });
+      if (eS) return "La foto no subió: " + eS.message;
+      extra = { p_bytes: foto.blob.size, p_ancho: foto.ancho, p_alto: foto.alto, p_tomada: foto.tomada,
+        p_lat: ubiFoto?.lat ?? null, p_lng: ubiFoto?.lng ?? null, p_precision: ubiFoto ? Math.round(ubiFoto.precision) : null };
+    }
+    const { error } = await supabase.rpc("inv_fiscal_modulo_marcar", {
+      p_hoja: hoja.hojaId, p_ubicacion: idU, p_mezclado: flags.mezclado, p_sin_acceso: flags.sinAcceso, p_ruta: foto ? ruta : null, ...extra,
+    });
+    if (error) return /does not exist|schema cache|inv_fiscal_modulo_marcar/i.test(error.message)
+      ? "Falta correr 2026-10-fiscal-estado.sql en Supabase." : error.message;
+    setMarcasMod((m) => {
+      const n = { ...m };
+      if (flags.mezclado || flags.sinAcceso) n[idU] = { mezclado: flags.mezclado, sin_acceso: flags.sinAcceso, ruta };
+      else delete n[idU];
+      return n;
+    });
+    return null;
+  }
+  async function idDeLaPosicion(): Promise<string | null> {
+    if (ubicacion) return ubicacion.id;
+    const [calle, modulo] = b.base.split("|");
+    const r = await supabase.rpc("conteo_ubicacion_asegurar", { p_bodega: bodegaId, p_calle: calle, p_modulo: modulo, p_lado: b.lado || null });
+    if (r.error) { avisar.mal(r.error.message); return null }
+    return r.data as string;
+  }
+
   /** Resuelve la cuenta de una casilla: «3×40+5» queda en «125». Lo que no es una cuenta válida se deja como está. */
   function resolverCuenta(k: "estibas" | "saldo" | "cajas") {
     setB((x) => {
@@ -293,22 +418,48 @@ export function ContarFiscal({
     if (!hoja || guardando) return;
     const mal = revisarFiscal(b, material, claveEscogida);
     if (mal || !material) { avisar.mal(mal ?? "Falta el código del material."); return }
-    setGuardando(true);
-    let idU = ubicacion?.id ?? null;
-    if (!idU) {
-      const [calle, modulo] = b.base.split("|");
-      const r = await supabase.rpc("conteo_ubicacion_asegurar", { p_bodega: bodegaId, p_calle: calle, p_modulo: modulo, p_lado: b.lado || null });
-      if (r.error) { setGuardando(false); avisar.mal(r.error.message); return }
-      idU = r.data as string;
+    if (b.averia && !fotoNueva) { avisar.mal("Avería: falta la foto de la estiba. Sin ella no se anota."); return }
+    if ((mod.mezclado || mod.sinAcceso) && !fotoMod && !marcaGuardada?.ruta) {
+      avisar.mal(mod.sinAcceso ? "Módulo sin acceso: falta la foto de evidencia." : "Módulo mezclado: falta la foto de evidencia."); return;
     }
-    const { error } = await supabase.rpc("inv_fiscal_contar_agregar", argumentosFiscal(hoja.hojaId, idU, material, b));
+    setGuardando(true);
+    const idU = await idDeLaPosicion();
+    if (!idU) { setGuardando(false); return }
+    /* La marca del módulo se guarda si cambió o si hay foto nueva. */
+    const cambia = mod.mezclado !== (marcaGuardada?.mezclado ?? false) || mod.sinAcceso !== !!marcaGuardada?.sin_acceso;
+    if (cambia || ((mod.mezclado || mod.sinAcceso) && fotoMod)) {
+      const malM = await guardarModulo(idU, mod, fotoMod);
+      if (malM) { setGuardando(false); avisar.mal(malM); return }
+      setFotoMod((x) => { if (x) URL.revokeObjectURL(x.url); return null });
+    }
+    const { data: nuevoId, error } = await supabase.rpc("inv_fiscal_contar_agregar", argumentosFiscal(hoja.hojaId, idU, material, b));
+    if (error) { setGuardando(false); avisar.mal(error.message); return }
+    let malFoto: string | null = null;
+    if (fotoNueva && nuevoId) malFoto = await subirFotoRenglon(nuevoId as string, fotoNueva);
     setGuardando(false);
-    if (error) { avisar.mal(error.message); return }
     avisar.bien(`${material.sku} anotado en ${claveEscogida}${cuenta?.total != null ? ` · ${nf.format(cuenta.total)} cajas` : ""}.`);
+    if (malFoto) avisar.mal(`${malFoto} El renglón quedó anotado: ponle la foto desde «Lo que llevas anotado».`);
     /* Igual que el conteo normal: el renglón se vacía pero el sitio (calle, módulo y lado) se queda para el siguiente. */
+    setFotoNueva((x) => { if (x) URL.revokeObjectURL(x.url); return null });
     setB((x) => ({ ...VACIO_FISCAL, calle: x.calle, base: x.base, lado: x.lado }));
     await leer(hoja.hojaId);
     setTimeout(() => campoCodigo.current?.focus(), 0);
+  }
+
+  /** «Sin acceso»: el módulo se anota SIN renglones, con su foto. */
+  async function anotarSinAcceso() {
+    if (!hoja || guardando) return;
+    if (!b.base) { avisar.mal("Escoge el módulo."); return }
+    if (!claveEscogida) { avisar.mal("Falta decir de qué lado del módulo."); return }
+    if (!fotoMod && !marcaGuardada?.ruta) { avisar.mal("Sin acceso: falta la foto de evidencia."); return }
+    setGuardando(true);
+    const idU = await idDeLaPosicion();
+    if (!idU) { setGuardando(false); return }
+    const malM = await guardarModulo(idU, { mezclado: mod.mezclado, sinAcceso: true }, fotoMod);
+    setGuardando(false);
+    if (malM) { avisar.mal(malM); return }
+    setFotoMod((x) => { if (x) URL.revokeObjectURL(x.url); return null });
+    avisar.bien(`${claveEscogida} anotado SIN ACCESO.`);
   }
 
   async function quitar(r: RenglonFiscal) {
@@ -437,6 +588,47 @@ export function ContarFiscal({
             </div>
           </div>
 
+          {/* ===== ESTADO DEL MÓDULO · MEZCLADO · ACCESO (igual que en el conteo normal) ===== */}
+          {claveEscogida && (
+            <div className="fe-bloque fe-estmod">
+              <p className="fe-bloque-cab">Estado del módulo</p>
+              <div className="fe-estmod-fila">
+                <div className="fe-acceso">
+                  <span id="fc-rot-acceso">¿Tienes acceso al módulo?</span>
+                  <div className="fe-si-no" role="group" aria-labelledby="fc-rot-acceso">
+                    <button type="button" className={!mod.sinAcceso ? "on" : ""} aria-pressed={!mod.sinAcceso}
+                            onClick={() => setMod((x) => ({ ...x, sinAcceso: false }))}>Sí</button>
+                    <button type="button" className={mod.sinAcceso ? "on" : ""} aria-pressed={mod.sinAcceso}
+                            onClick={() => setMod((x) => ({ ...x, sinAcceso: true }))}>No</button>
+                  </div>
+                </div>
+                <label className={"fe-mezclado" + (mod.mezclado ? " on" : "")}>
+                  <input type="checkbox" checked={mod.mezclado} onChange={(e) => setMod((x) => ({ ...x, mezclado: e.target.checked }))} />
+                  <span><b>Módulo mezclado</b></span>
+                </label>
+              </div>
+              {(mod.mezclado || mod.sinAcceso) && (
+                <div className="fe-foto fe-foto-mod">
+                  <span id="fc-rot-fotomod">Foto de evidencia · obligatoria</span>
+                  <input ref={camaraMod} type="file" accept="image/jpeg,image/png,image/webp,image/heic" capture="environment" hidden onChange={tomarMod} />
+                  <div className="fe-foto-fila" role="group" aria-labelledby="fc-rot-fotomod">
+                    <button type="button" className={"fe-foto-btn" + (fotoMod ? " con" : "")} disabled={sellando}
+                            onClick={() => { pedirUbi(); camaraMod.current?.click() }}>
+                      {fotoMod
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        ? <img src={fotoMod.url} alt="La foto del módulo" />
+                        : <svg viewBox="0 0 24 24" aria-hidden><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></svg>}
+                      <b>{sellando ? "Procesando…" : fotoMod ? "Tomar otra" : "Tomar foto"}</b>
+                    </button>
+                    <p>{fotoMod ? "La foto sube al anotar."
+                      : marcaGuardada?.ruta ? "Este módulo ya tiene foto. Tomar otra la reemplaza."
+                      : mod.sinAcceso ? "Sin acceso: foto de por qué no se pudo contar." : "Mezclado: foto de cómo está el módulo."}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* ===== QUÉ ===== */}
           <div className="fe-bloque">
             <p className="fe-bloque-cab">Qué</p>
@@ -557,9 +749,9 @@ export function ContarFiscal({
           {/* ===== DATOS ADICIONALES · AVERÍA · PNC · OBSERVACIÓN (igual que en el conteo normal) ===== */}
           <details className="fe-mas" open={mas} onToggle={(e) => setMas((e.currentTarget as HTMLDetailsElement).open)}>
             <summary>
-              <span className="fe-mas-tx"><b>Datos adicionales</b><span>Avería · PNC · observación</span></span>
+              <span className="fe-mas-tx"><b>Datos adicionales</b><span>Avería · PNC · observación · foto</span></span>
               <span className="fe-mas-marcas">
-                {([b.averia && "AVERÍA", b.pnc && "PNC"].filter(Boolean) as string[]).map((m) => <em key={m}>{m}</em>)}
+                {([b.averia && "AVERÍA", b.pnc && "PNC", fotoNueva && "FOTO"].filter(Boolean) as string[]).map((m) => <em key={m}>{m}</em>)}
               </span>
               <span className="fe-mas-fl" aria-hidden>▾</span>
             </summary>
@@ -607,6 +799,29 @@ export function ContarFiscal({
               )}
               <label className="fe-nota"><span>Observación</span>
                 <input value={b.nota} placeholder="Opcional — lo que haya que decir de esta estiba" onChange={(e) => pon("nota", e.target.value)} /></label>
+              {/* LA CAMARITA: evidencia de un mixeo, de una avería, de lo que sea. Una por renglón; obligatoria si es avería. */}
+              <div className="fe-foto">
+                <span id="fc-rot-foto">Evidencia{b.averia && <em className="fe-obliga"> · obligatoria</em>}</span>
+                <input ref={camaraNueva} type="file" accept="image/jpeg,image/png,image/webp,image/heic" capture="environment" hidden onChange={tomarNueva} />
+                <div className="fe-foto-fila" role="group" aria-labelledby="fc-rot-foto">
+                  <button type="button" className={"fe-foto-btn" + (fotoNueva ? " con" : "")} disabled={sellando}
+                          aria-label={fotoNueva ? "Tomar otra foto" : "Tomar foto"}
+                          onClick={() => { pedirUbi(); camaraNueva.current?.click() }}>
+                    {fotoNueva
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      ? <img src={fotoNueva.url} alt="La foto de este renglón" />
+                      : <svg viewBox="0 0 24 24" aria-hidden><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></svg>}
+                    <b>{sellando ? "Procesando…" : fotoNueva ? "Tomar otra" : "Tomar foto"}</b>
+                  </button>
+                  <p>
+                    {fotoNueva
+                      ? <>La foto va con este renglón. <button type="button" className="fe-foto-quitar"
+                          onClick={() => setFotoNueva((x) => { if (x) URL.revokeObjectURL(x.url); return null })}>Quitarla</button></>
+                      : b.averia ? "Avería: foto de la estiba rota. Sin ella no se anota."
+                      : "Opcional: un mixeo, lo que haga falta para tener soporte."}
+                  </p>
+                </div>
+              </div>
             </div>
           </details>
 
@@ -616,6 +831,12 @@ export function ContarFiscal({
               <button type="button" className="btn plano fc-terminar-ir" disabled={guardando || (mios?.length ?? 0) === 0}
                       title={(mios?.length ?? 0) === 0 ? "Anota al menos un renglón" : undefined} onClick={() => terminar(true)}>
                 Terminé mi hoja
+              </button>
+            )}
+            {mod.sinAcceso && (
+              <button type="button" className="btn" disabled={guardando} onClick={anotarSinAcceso}
+                      title="Anota el módulo SIN ACCESO sin renglones (no se pudo contar nada)">
+                Solo marcar sin acceso
               </button>
             )}
             <button type="button" className="btn grande" disabled={guardando} onClick={anotar}>
@@ -651,6 +872,7 @@ export function ContarFiscal({
             {mios == null ? "Cargando…" : `${mios.length} ${mios.length === 1 ? "renglón" : "renglones"} · ${nf.format(totalMio)} cajas`}
           </span>
         </div>
+        <input ref={camaraFila} type="file" accept="image/jpeg,image/png,image/webp,image/heic" capture="environment" hidden onChange={tomarFila} />
         {mios != null && mios.length === 0 && <p className="fc-vacio">Todavía no has anotado nada en esta hoja.</p>}
         {mios != null && mios.length > 0 && (
           <ul className="fc-lista">
@@ -663,6 +885,10 @@ export function ContarFiscal({
                     {r.venc_dia != null && <> · vence {dd(r.venc_dia)}/{dd(r.venc_mes)}/{dd(r.venc_anio)}</>}
                     {r.nota && <> · {r.nota}</>}</span>
                 </div>
+                <button type="button" className="fe-mini" disabled={guardando || sellando}
+                        onClick={() => { filaDeFoto.current = r.id; pedirUbi(); camaraFila.current?.click() }}>
+                  {fotosDe[r.id] ? "Cambiar foto" : r.averia ? "Poner foto (falta)" : "Foto"}
+                </button>
                 <button type="button" className="fe-mini" disabled={guardando || cerrada} onClick={() => quitar(r)}>Quitar</button>
               </li>
             ))}

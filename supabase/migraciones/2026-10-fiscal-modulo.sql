@@ -11,6 +11,7 @@
 --   · La persona recuenta el módulo entero y dice en qué lado va cada renglón;
 --     se envía todo junto, o todo o nada (inv_fiscal_revision_enviar_modulo).
 --
+-- Con fotos: al mandar a La base viajan las fotos de los renglones y las marcas «mezclado / sin acceso» (necesita las tablas de fotos de 2026-10-fiscal-estado.sql).
 -- Se puede correr dos veces. Necesita 2026-10-fiscal-validar.sql, 2026-10-fiscal-consolidar.sql y 2026-10-fiscal-estado.sql (antes de este).
 -- Vuelve a crear también «consolidar» (ya no cuenta como pendiente un lado donde nadie contó).
 -- =====================================================================
@@ -170,6 +171,7 @@ declare
   v_equipo text; v_fiscal uuid; v_estado text; v_pub timestamptz;
   v_lista uuid[]; v_ubi uuid; v_ronda integer; v_rev text; v_rondas integer[] := '{}'; v_i integer := 0;
   x jsonb; v_u uuid; v_est integer; v_sal integer; v_caj integer; v_d smallint; v_m smallint; v_a smallint; v_prod uuid;
+  v_keep uuid[] := '{}'; v_nuevos uuid[] := '{}'; v_nuevo uuid; v_desde uuid;
 begin
   if v_yo is null then raise exception 'Hay que entrar para contar.'; end if;
   select m.equipo, m.fiscal_id, f.estado, f.publicado_en
@@ -197,8 +199,10 @@ begin
 
   if p_renglones is not null then
     if jsonb_typeof(p_renglones) <> 'array' then raise exception 'Los renglones deben ir en una lista.'; end if;
-    delete from public.inv_fiscal_conteos where hoja_id = p_hoja and contado_por = v_yo and ubicacion_id = any (v_lista);
+    -- Los renglones que se conservan tal cual (con su foto) llegan solo con su «id»: no se tocan.
+    v_keep := array(select (e->>'id')::uuid from jsonb_array_elements(p_renglones) e where nullif(e->>'id', '') is not null);
     for x in select * from jsonb_array_elements(p_renglones) loop
+      if nullif(x->>'id', '') is not null then continue; end if;
       v_u := nullif(x->>'ubicacion_id', '')::uuid;
       if v_u is null or not (v_u = any (v_lista)) then raise exception 'A un renglón le falta el lado (izquierdo o derecho) de ese módulo.'; end if;
       v_prod := nullif(x->>'producto_id', '')::uuid;
@@ -223,14 +227,25 @@ begin
                 nullif(btrim(coalesce(x->>'nota', '')), ''), nullif(btrim(coalesce(x->>'estado', '')), ''),
                 coalesce((x->>'averia')::boolean, false), coalesce((x->>'pnc')::boolean, false),
                 case when coalesce((x->>'pnc')::boolean, false) then (x->>'pnc_rotulo')::boolean end,
-                case when coalesce((x->>'pnc')::boolean, false) then (x->>'pnc_bloqueo')::boolean end);
+                case when coalesce((x->>'pnc')::boolean, false) then (x->>'pnc_bloqueo')::boolean end)
+        returning id into v_nuevo;
+        v_nuevos := v_nuevos || v_nuevo;
+        -- Un renglón corregido conserva la foto del que reemplaza.
+        v_desde := nullif(x->>'desde', '')::uuid;
+        if v_desde is not null then
+          update public.inv_fiscal_fotos set conteo_id = v_nuevo where conteo_id = v_desde and subida_por = v_yo;
+        end if;
       exception
         when unique_violation then
-          raise exception 'Hay dos renglones iguales (mismo material, vencimiento y lado) en ese módulo.';
+          raise exception 'No se pudo guardar un renglón.';
         when foreign_key_violation then
           raise exception 'Ese material no existe.';
       end;
     end loop;
+    -- Lo anterior que no se conservó ni se reemplazó se quita (su foto se va con él).
+    delete from public.inv_fiscal_conteos
+     where hoja_id = p_hoja and contado_por = v_yo and ubicacion_id = any (v_lista)
+       and not (id = any (v_keep)) and not (id = any (v_nuevos));
   end if;
 
   foreach v_ubi in array v_lista loop
@@ -349,6 +364,7 @@ declare
   v_yo uuid := auth.uid();
   v_num integer; v_conteo uuid; v_fecha date; v_bodega uuid; v_codigo text;
   v_ok uuid[]; v_sin integer; v_ren integer; v_equipos integer; v_eq text := 'OL';
+  r record; v_lid uuid;
 begin
   if not public.puede_editar('/inventario/fiscal') then
     raise exception 'Consolidar requiere el permiso «Inventario fiscal» (Roles)';
@@ -394,16 +410,36 @@ begin
 
   -- Lo que ya no está aprobado y coincidente sale; lo que sí, se vuelve a poner tal cual está hoy.
   delete from public.conteo_lineas where conteo_id = v_conteo;
-  insert into public.conteo_lineas
-    (conteo_id, producto_id, ubicacion_id, estibas, cajas, saldo, venc_dia, venc_mes, venc_anio,
-     rotacion, averia, pnc, estado_envase, nota, cantidad_contada, contado_por, contado_en, pnc_rotulo, pnc_bloqueo_mecanico)
-  select v_conteo, c.producto_id, c.ubicacion_id, c.estibas, c.cajas, c.saldo, c.venc_dia, c.venc_mes, c.venc_anio,
-         null, c.averia, c.pnc, c.estado_envase, c.nota,
-         coalesce(p.cajas_por_estiba, 0) * coalesce(c.estibas, 0) + coalesce(c.cajas, 0) + coalesce(c.saldo, 0),
-         v_yo, c.contado_en, c.pnc_rotulo, c.pnc_bloqueo_mecanico
-    from public.inv_fiscal_conteos c join public.productos p on p.id = c.producto_id
-   where c.hoja_id = p_hoja and c.equipo = v_eq and c.ubicacion_id = any (v_ok);
-  get diagnostics v_ren = row_count;
+  delete from public.conteo_modulos where conteo_id = v_conteo;
+  v_ren := 0;
+  for r in
+    select c.id as cid, c.producto_id, c.ubicacion_id, c.estibas, c.cajas, c.saldo, c.venc_dia, c.venc_mes, c.venc_anio,
+           c.averia, c.pnc, c.estado_envase, c.nota, c.contado_en, c.pnc_rotulo, c.pnc_bloqueo_mecanico,
+           coalesce(p.cajas_por_estiba, 0) * coalesce(c.estibas, 0) + coalesce(c.cajas, 0) + coalesce(c.saldo, 0) as total
+      from public.inv_fiscal_conteos c join public.productos p on p.id = c.producto_id
+     where c.hoja_id = p_hoja and c.equipo = v_eq and c.ubicacion_id = any (v_ok)
+     order by c.contado_en
+  loop
+    insert into public.conteo_lineas
+      (conteo_id, producto_id, ubicacion_id, estibas, cajas, saldo, venc_dia, venc_mes, venc_anio,
+       rotacion, averia, pnc, estado_envase, nota, cantidad_contada, contado_por, contado_en, pnc_rotulo, pnc_bloqueo_mecanico)
+    values (v_conteo, r.producto_id, r.ubicacion_id, r.estibas, r.cajas, r.saldo, r.venc_dia, r.venc_mes, r.venc_anio,
+            null, r.averia, r.pnc, r.estado_envase, r.nota, r.total, v_yo, r.contado_en, r.pnc_rotulo, r.pnc_bloqueo_mecanico)
+    returning id into v_lid;
+    -- La foto del renglón (si la hay) viaja con él a La base.
+    insert into public.conteo_fotos (linea_id, conteo_id, ruta, bytes, ancho, alto, tomada_en, lat, lng, precision_m, subida_por, subida_en)
+    select v_lid, v_conteo, f.ruta, f.bytes, f.ancho, f.alto, f.tomada_en, f.lat, f.lng, f.precision_m, f.subida_por, f.subida_en
+      from public.inv_fiscal_fotos f where f.conteo_id = r.cid;
+    v_ren := v_ren + 1;
+  end loop;
+  -- Mezclado / sin acceso de quien contó: de lo que pasó a La base y de los módulos donde nadie anotó renglones.
+  insert into public.conteo_modulos (conteo_id, ubicacion_id, mezclado, sin_acceso, ruta, bytes, ancho, alto, tomada_en, lat, lng, precision_m, marcado_por, marcado_en)
+  select v_conteo, m.ubicacion_id, m.mezclado, m.sin_acceso, m.ruta, m.bytes, m.ancho, m.alto, m.tomada_en, m.lat, m.lng, m.precision_m, m.user_id, m.marcado_en
+    from public.inv_fiscal_modulos m
+    join public.inv_fiscal_miembros mi on mi.hoja_id = m.hoja_id and mi.user_id = m.user_id
+   where m.hoja_id = p_hoja and mi.equipo = v_eq
+     and (m.ubicacion_id = any (v_ok)
+          or not exists (select 1 from public.inv_fiscal_conteos c where c.hoja_id = p_hoja and c.ubicacion_id = m.ubicacion_id));
 
   return query select coalesce(array_length(v_ok, 1), 0), v_ren, v_sin,
                       (select cn.codigo from public.conteos cn where cn.id = v_conteo);

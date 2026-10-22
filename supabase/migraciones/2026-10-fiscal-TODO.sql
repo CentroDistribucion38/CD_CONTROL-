@@ -960,7 +960,7 @@ select 'OK · consolidar listo' as resultado;
 
 -- ##################### 2026-10-fiscal-estado.sql #####################
 -- =====================================================================
--- INVENTARIO FISCAL · ESTADO DEL ENVASE, AVERÍA Y PNC EN EL CONTEO (el conteo fiscal es gemelo del normal)
+-- INVENTARIO FISCAL · ESTADO DEL ENVASE, AVERÍA, PNC Y FOTOS EN EL CONTEO (el conteo fiscal es gemelo del normal)
 --
 -- En el conteo normal el envase se cuenta con su estado (RETORNO, LAVADO, NUEVO, BAJA, EXTRASUCIO,
 -- OTROS, MAL ESTADO; el cilindro, LLENO o VACÍO). El fiscal ahora también lo pide:
@@ -1081,10 +1081,150 @@ $$;
 revoke all on function public.inv_fiscal_contar_mios(uuid) from public, anon;
 grant execute on function public.inv_fiscal_contar_mios(uuid) to authenticated;
 
+-- ---------------------------------------------------------------------
+-- LAS FOTOS DEL CONTEO FISCAL (igual que en el conteo normal)
+--   · una foto por renglón (obligatoria si es avería), sellada con hora y lugar en el teléfono;
+--   · el estado del MÓDULO: «mezclado» y «sin acceso», que piden foto de evidencia.
+-- Cada persona ve solo lo suyo (el conteo es a ciegas): todo entra y sale por funciones.
+-- Los archivos van al bucket «inventario», en la carpeta «fiscal/».
+-- ---------------------------------------------------------------------
+create table if not exists public.inv_fiscal_fotos (
+  conteo_id   uuid primary key references public.inv_fiscal_conteos(id) on delete cascade,
+  hoja_id     uuid not null references public.inv_fiscal_hojas(id) on delete cascade,
+  ruta        text not null,
+  bytes       integer,
+  ancho       integer,
+  alto        integer,
+  tomada_en   timestamptz,
+  lat         numeric(10,7),
+  lng         numeric(10,7),
+  precision_m numeric(8,2),
+  subida_por  uuid references public.perfiles(id) on delete set null default auth.uid(),
+  subida_en   timestamptz not null default now()
+);
+create index if not exists inv_fiscal_fotos_hoja_idx on public.inv_fiscal_fotos (hoja_id);
+alter table public.inv_fiscal_fotos enable row level security;
+revoke all on public.inv_fiscal_fotos from public, anon, authenticated;
+
+create table if not exists public.inv_fiscal_modulos (
+  hoja_id      uuid not null references public.inv_fiscal_hojas(id) on delete cascade,
+  user_id      uuid not null default auth.uid() references public.perfiles(id) on delete cascade,
+  ubicacion_id uuid not null references public.ubicaciones(id) on delete cascade,
+  mezclado     boolean not null default false,
+  sin_acceso   boolean not null default false,
+  ruta         text,
+  bytes        integer,
+  ancho        integer,
+  alto         integer,
+  tomada_en    timestamptz,
+  lat          numeric(10,7),
+  lng          numeric(10,7),
+  precision_m  numeric(8,2),
+  marcado_en   timestamptz not null default now(),
+  primary key (hoja_id, user_id, ubicacion_id)
+);
+alter table public.inv_fiscal_modulos enable row level security;
+revoke all on public.inv_fiscal_modulos from public, anon, authenticated;
+
+drop function if exists public.inv_fiscal_foto_guardar(uuid, text, integer, integer, integer, timestamptz, numeric, numeric, numeric);
+create function public.inv_fiscal_foto_guardar(
+  p_conteo uuid, p_ruta text, p_bytes integer, p_ancho integer, p_alto integer,
+  p_tomada timestamptz, p_lat numeric, p_lng numeric, p_precision numeric
+) returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_hoja uuid;
+begin
+  if auth.uid() is null then raise exception 'Hay que entrar para contar.'; end if;
+  select c.hoja_id into v_hoja from public.inv_fiscal_conteos c where c.id = p_conteo and c.contado_por = auth.uid();
+  if v_hoja is null then raise exception 'Ese renglón no es tuyo o ya no existe.'; end if;
+  if coalesce(btrim(p_ruta), '') = '' then raise exception 'Falta la ruta de la foto.'; end if;
+  insert into public.inv_fiscal_fotos (conteo_id, hoja_id, ruta, bytes, ancho, alto, tomada_en, lat, lng, precision_m, subida_por, subida_en)
+  values (p_conteo, v_hoja, p_ruta, p_bytes, p_ancho, p_alto, p_tomada, p_lat, p_lng, p_precision, auth.uid(), now())
+  on conflict (conteo_id) do update
+    set ruta = excluded.ruta, bytes = excluded.bytes, ancho = excluded.ancho, alto = excluded.alto,
+        tomada_en = excluded.tomada_en, lat = excluded.lat, lng = excluded.lng, precision_m = excluded.precision_m,
+        subida_por = auth.uid(), subida_en = now();
+end $$;
+revoke all on function public.inv_fiscal_foto_guardar(uuid, text, integer, integer, integer, timestamptz, numeric, numeric, numeric) from public, anon;
+grant execute on function public.inv_fiscal_foto_guardar(uuid, text, integer, integer, integer, timestamptz, numeric, numeric, numeric) to authenticated;
+
+drop function if exists public.inv_fiscal_mis_fotos(uuid);
+create function public.inv_fiscal_mis_fotos(p_hoja uuid)
+returns table (conteo_id uuid, ruta text)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select f.conteo_id, f.ruta from public.inv_fiscal_fotos f
+   where f.hoja_id = p_hoja and f.subida_por = auth.uid()
+$$;
+revoke all on function public.inv_fiscal_mis_fotos(uuid) from public, anon;
+grant execute on function public.inv_fiscal_mis_fotos(uuid) to authenticated;
+
+drop function if exists public.inv_fiscal_modulo_marcar(uuid, uuid, boolean, boolean, text, integer, integer, integer, timestamptz, numeric, numeric, numeric);
+create function public.inv_fiscal_modulo_marcar(
+  p_hoja uuid, p_ubicacion uuid, p_mezclado boolean, p_sin_acceso boolean,
+  p_ruta text, p_bytes integer, p_ancho integer, p_alto integer, p_tomada timestamptz,
+  p_lat numeric, p_lng numeric, p_precision numeric
+) returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_estado text; v_pub timestamptz;
+begin
+  if auth.uid() is null then raise exception 'Hay que entrar para contar.'; end if;
+  select f.estado, f.publicado_en into v_estado, v_pub
+    from public.inv_fiscal_miembros m join public.inv_fiscales f on f.id = m.fiscal_id
+   where m.hoja_id = p_hoja and m.user_id = auth.uid();
+  if v_estado is null then raise exception 'Esa hoja no es tuya.'; end if;
+  if v_pub is null then raise exception 'Este inventario fiscal no está visible en Contar.'; end if;
+  if v_estado <> 'abierto' then raise exception 'Este inventario fiscal ya está cerrado.'; end if;
+  if not coalesce(p_mezclado, false) and not coalesce(p_sin_acceso, false) then
+    delete from public.inv_fiscal_modulos where hoja_id = p_hoja and user_id = auth.uid() and ubicacion_id = p_ubicacion;
+    return;
+  end if;
+  insert into public.inv_fiscal_modulos (hoja_id, user_id, ubicacion_id, mezclado, sin_acceso, ruta, bytes, ancho, alto, tomada_en, lat, lng, precision_m, marcado_en)
+  values (p_hoja, auth.uid(), p_ubicacion, coalesce(p_mezclado, false), coalesce(p_sin_acceso, false), p_ruta, p_bytes, p_ancho, p_alto, p_tomada, p_lat, p_lng, p_precision, now())
+  on conflict (hoja_id, user_id, ubicacion_id) do update
+    set mezclado = excluded.mezclado, sin_acceso = excluded.sin_acceso,
+        ruta = coalesce(excluded.ruta, public.inv_fiscal_modulos.ruta),
+        bytes = case when excluded.ruta is null then public.inv_fiscal_modulos.bytes else excluded.bytes end,
+        ancho = case when excluded.ruta is null then public.inv_fiscal_modulos.ancho else excluded.ancho end,
+        alto = case when excluded.ruta is null then public.inv_fiscal_modulos.alto else excluded.alto end,
+        tomada_en = case when excluded.ruta is null then public.inv_fiscal_modulos.tomada_en else excluded.tomada_en end,
+        lat = case when excluded.ruta is null then public.inv_fiscal_modulos.lat else excluded.lat end,
+        lng = case when excluded.ruta is null then public.inv_fiscal_modulos.lng else excluded.lng end,
+        precision_m = case when excluded.ruta is null then public.inv_fiscal_modulos.precision_m else excluded.precision_m end,
+        marcado_en = now();
+end $$;
+revoke all on function public.inv_fiscal_modulo_marcar(uuid, uuid, boolean, boolean, text, integer, integer, integer, timestamptz, numeric, numeric, numeric) from public, anon;
+grant execute on function public.inv_fiscal_modulo_marcar(uuid, uuid, boolean, boolean, text, integer, integer, integer, timestamptz, numeric, numeric, numeric) to authenticated;
+
+drop function if exists public.inv_fiscal_mis_modulos(uuid);
+create function public.inv_fiscal_mis_modulos(p_hoja uuid)
+returns table (ubicacion_id uuid, mezclado boolean, sin_acceso boolean, ruta text)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select m.ubicacion_id, m.mezclado, m.sin_acceso, m.ruta from public.inv_fiscal_modulos m
+   where m.hoja_id = p_hoja and m.user_id = auth.uid()
+$$;
+revoke all on function public.inv_fiscal_mis_modulos(uuid) from public, anon;
+grant execute on function public.inv_fiscal_mis_modulos(uuid) to authenticated;
+
 do $$
 begin
   if to_regprocedure('public.inv_fiscal_contar_agregar(uuid,uuid,uuid,integer,integer,integer,smallint,smallint,smallint,text,text,boolean,boolean,boolean,boolean)') is null
-     or to_regprocedure('public.inv_fiscal_contar_mios(uuid)') is null then
+     or to_regprocedure('public.inv_fiscal_contar_mios(uuid)') is null
+     or to_regprocedure('public.inv_fiscal_foto_guardar(uuid,text,integer,integer,integer,timestamptz,numeric,numeric,numeric)') is null
+     or to_regprocedure('public.inv_fiscal_modulo_marcar(uuid,uuid,boolean,boolean,text,integer,integer,integer,timestamptz,numeric,numeric,numeric)') is null then
     raise exception 'No quedaron las funciones de contar con estado.';
   end if;
 end $$;
@@ -1106,6 +1246,7 @@ select 'OK · estado del envase en el conteo fiscal' as resultado;
 --   · La persona recuenta el módulo entero y dice en qué lado va cada renglón;
 --     se envía todo junto, o todo o nada (inv_fiscal_revision_enviar_modulo).
 --
+-- Con fotos: al mandar a La base viajan las fotos de los renglones y las marcas «mezclado / sin acceso» (necesita las tablas de fotos de 2026-10-fiscal-estado.sql).
 -- Se puede correr dos veces. Necesita 2026-10-fiscal-validar.sql, 2026-10-fiscal-consolidar.sql y 2026-10-fiscal-estado.sql (antes de este).
 -- Vuelve a crear también «consolidar» (ya no cuenta como pendiente un lado donde nadie contó).
 -- =====================================================================
@@ -1265,6 +1406,7 @@ declare
   v_equipo text; v_fiscal uuid; v_estado text; v_pub timestamptz;
   v_lista uuid[]; v_ubi uuid; v_ronda integer; v_rev text; v_rondas integer[] := '{}'; v_i integer := 0;
   x jsonb; v_u uuid; v_est integer; v_sal integer; v_caj integer; v_d smallint; v_m smallint; v_a smallint; v_prod uuid;
+  v_keep uuid[] := '{}'; v_nuevos uuid[] := '{}'; v_nuevo uuid; v_desde uuid;
 begin
   if v_yo is null then raise exception 'Hay que entrar para contar.'; end if;
   select m.equipo, m.fiscal_id, f.estado, f.publicado_en
@@ -1292,8 +1434,10 @@ begin
 
   if p_renglones is not null then
     if jsonb_typeof(p_renglones) <> 'array' then raise exception 'Los renglones deben ir en una lista.'; end if;
-    delete from public.inv_fiscal_conteos where hoja_id = p_hoja and contado_por = v_yo and ubicacion_id = any (v_lista);
+    -- Los renglones que se conservan tal cual (con su foto) llegan solo con su «id»: no se tocan.
+    v_keep := array(select (e->>'id')::uuid from jsonb_array_elements(p_renglones) e where nullif(e->>'id', '') is not null);
     for x in select * from jsonb_array_elements(p_renglones) loop
+      if nullif(x->>'id', '') is not null then continue; end if;
       v_u := nullif(x->>'ubicacion_id', '')::uuid;
       if v_u is null or not (v_u = any (v_lista)) then raise exception 'A un renglón le falta el lado (izquierdo o derecho) de ese módulo.'; end if;
       v_prod := nullif(x->>'producto_id', '')::uuid;
@@ -1318,14 +1462,25 @@ begin
                 nullif(btrim(coalesce(x->>'nota', '')), ''), nullif(btrim(coalesce(x->>'estado', '')), ''),
                 coalesce((x->>'averia')::boolean, false), coalesce((x->>'pnc')::boolean, false),
                 case when coalesce((x->>'pnc')::boolean, false) then (x->>'pnc_rotulo')::boolean end,
-                case when coalesce((x->>'pnc')::boolean, false) then (x->>'pnc_bloqueo')::boolean end);
+                case when coalesce((x->>'pnc')::boolean, false) then (x->>'pnc_bloqueo')::boolean end)
+        returning id into v_nuevo;
+        v_nuevos := v_nuevos || v_nuevo;
+        -- Un renglón corregido conserva la foto del que reemplaza.
+        v_desde := nullif(x->>'desde', '')::uuid;
+        if v_desde is not null then
+          update public.inv_fiscal_fotos set conteo_id = v_nuevo where conteo_id = v_desde and subida_por = v_yo;
+        end if;
       exception
         when unique_violation then
-          raise exception 'Hay dos renglones iguales (mismo material, vencimiento y lado) en ese módulo.';
+          raise exception 'No se pudo guardar un renglón.';
         when foreign_key_violation then
           raise exception 'Ese material no existe.';
       end;
     end loop;
+    -- Lo anterior que no se conservó ni se reemplazó se quita (su foto se va con él).
+    delete from public.inv_fiscal_conteos
+     where hoja_id = p_hoja and contado_por = v_yo and ubicacion_id = any (v_lista)
+       and not (id = any (v_keep)) and not (id = any (v_nuevos));
   end if;
 
   foreach v_ubi in array v_lista loop
@@ -1444,6 +1599,7 @@ declare
   v_yo uuid := auth.uid();
   v_num integer; v_conteo uuid; v_fecha date; v_bodega uuid; v_codigo text;
   v_ok uuid[]; v_sin integer; v_ren integer; v_equipos integer; v_eq text := 'OL';
+  r record; v_lid uuid;
 begin
   if not public.puede_editar('/inventario/fiscal') then
     raise exception 'Consolidar requiere el permiso «Inventario fiscal» (Roles)';
@@ -1489,16 +1645,36 @@ begin
 
   -- Lo que ya no está aprobado y coincidente sale; lo que sí, se vuelve a poner tal cual está hoy.
   delete from public.conteo_lineas where conteo_id = v_conteo;
-  insert into public.conteo_lineas
-    (conteo_id, producto_id, ubicacion_id, estibas, cajas, saldo, venc_dia, venc_mes, venc_anio,
-     rotacion, averia, pnc, estado_envase, nota, cantidad_contada, contado_por, contado_en, pnc_rotulo, pnc_bloqueo_mecanico)
-  select v_conteo, c.producto_id, c.ubicacion_id, c.estibas, c.cajas, c.saldo, c.venc_dia, c.venc_mes, c.venc_anio,
-         null, c.averia, c.pnc, c.estado_envase, c.nota,
-         coalesce(p.cajas_por_estiba, 0) * coalesce(c.estibas, 0) + coalesce(c.cajas, 0) + coalesce(c.saldo, 0),
-         v_yo, c.contado_en, c.pnc_rotulo, c.pnc_bloqueo_mecanico
-    from public.inv_fiscal_conteos c join public.productos p on p.id = c.producto_id
-   where c.hoja_id = p_hoja and c.equipo = v_eq and c.ubicacion_id = any (v_ok);
-  get diagnostics v_ren = row_count;
+  delete from public.conteo_modulos where conteo_id = v_conteo;
+  v_ren := 0;
+  for r in
+    select c.id as cid, c.producto_id, c.ubicacion_id, c.estibas, c.cajas, c.saldo, c.venc_dia, c.venc_mes, c.venc_anio,
+           c.averia, c.pnc, c.estado_envase, c.nota, c.contado_en, c.pnc_rotulo, c.pnc_bloqueo_mecanico,
+           coalesce(p.cajas_por_estiba, 0) * coalesce(c.estibas, 0) + coalesce(c.cajas, 0) + coalesce(c.saldo, 0) as total
+      from public.inv_fiscal_conteos c join public.productos p on p.id = c.producto_id
+     where c.hoja_id = p_hoja and c.equipo = v_eq and c.ubicacion_id = any (v_ok)
+     order by c.contado_en
+  loop
+    insert into public.conteo_lineas
+      (conteo_id, producto_id, ubicacion_id, estibas, cajas, saldo, venc_dia, venc_mes, venc_anio,
+       rotacion, averia, pnc, estado_envase, nota, cantidad_contada, contado_por, contado_en, pnc_rotulo, pnc_bloqueo_mecanico)
+    values (v_conteo, r.producto_id, r.ubicacion_id, r.estibas, r.cajas, r.saldo, r.venc_dia, r.venc_mes, r.venc_anio,
+            null, r.averia, r.pnc, r.estado_envase, r.nota, r.total, v_yo, r.contado_en, r.pnc_rotulo, r.pnc_bloqueo_mecanico)
+    returning id into v_lid;
+    -- La foto del renglón (si la hay) viaja con él a La base.
+    insert into public.conteo_fotos (linea_id, conteo_id, ruta, bytes, ancho, alto, tomada_en, lat, lng, precision_m, subida_por, subida_en)
+    select v_lid, v_conteo, f.ruta, f.bytes, f.ancho, f.alto, f.tomada_en, f.lat, f.lng, f.precision_m, f.subida_por, f.subida_en
+      from public.inv_fiscal_fotos f where f.conteo_id = r.cid;
+    v_ren := v_ren + 1;
+  end loop;
+  -- Mezclado / sin acceso de quien contó: de lo que pasó a La base y de los módulos donde nadie anotó renglones.
+  insert into public.conteo_modulos (conteo_id, ubicacion_id, mezclado, sin_acceso, ruta, bytes, ancho, alto, tomada_en, lat, lng, precision_m, marcado_por, marcado_en)
+  select v_conteo, m.ubicacion_id, m.mezclado, m.sin_acceso, m.ruta, m.bytes, m.ancho, m.alto, m.tomada_en, m.lat, m.lng, m.precision_m, m.user_id, m.marcado_en
+    from public.inv_fiscal_modulos m
+    join public.inv_fiscal_miembros mi on mi.hoja_id = m.hoja_id and mi.user_id = m.user_id
+   where m.hoja_id = p_hoja and mi.equipo = v_eq
+     and (m.ubicacion_id = any (v_ok)
+          or not exists (select 1 from public.inv_fiscal_conteos c where c.hoja_id = p_hoja and c.ubicacion_id = m.ubicacion_id));
 
   return query select coalesce(array_length(v_ok, 1), 0), v_ren, v_sin,
                       (select cn.codigo from public.conteos cn where cn.id = v_conteo);
@@ -1564,4 +1740,3 @@ end $$;
 
 commit;
 select 'OK · validar por calle y módulo listo' as resultado;
-
