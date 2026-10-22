@@ -79,6 +79,8 @@ export type FilaCruce = {
   averia?: boolean; pnc?: boolean;
   vencDia: number | null; vencMes: number | null; vencAnio: number | null;
   cajasOl: number | null; cajasBavaria: number | null; diferencia: number; estado: EstadoFila;
+  /** true = esta diferencia se compensa con otra igual y de signo contrario en el mismo módulo (ver `compensarCruce`). */
+  compensada?: boolean;
 };
 
 /** Lo que devuelve `inv_fiscal_cruce`. */
@@ -207,6 +209,30 @@ export function cruceModulo(filas: FilaCruce[]): FilaCruce[] {
     const estado: EstadoFila = f.cajasOl == null ? "SOLO_BAVARIA" : f.cajasBavaria == null ? "SOLO_OL" : f.cajasOl === f.cajasBavaria ? "COINCIDE" : "DIFIERE";
     return { ...f, diferencia: (f.cajasOl ?? 0) - (f.cajasBavaria ?? 0), estado };
   });
+}
+
+/* LA COMPENSACIÓN. Un click del fiscal: en cada módulo, una diferencia de +45 en un material y otra de −45 en otro
+   se dan por compensadas (casi siempre es el mismo material anotado con otro código por cada persona). Solo se
+   compensan cantidades EXACTAS y de signo contrario; lo demás queda como diferencia. */
+export function compensarCruce(filas: FilaCruce[]): { filas: FilaCruce[]; pares: number } {
+  const porModulo = new Map<string, FilaCruce[]>();
+  for (const f of filas) {
+    if (f.estado === "COINCIDE" || f.diferencia === 0) continue;
+    const l = porModulo.get(f.ubicacion) ?? [];
+    l.push(f); porModulo.set(f.ubicacion, l);
+  }
+  const marcadas = new Set<FilaCruce>();
+  let pares = 0;
+  for (const l of porModulo.values()) {
+    const neg = l.filter((f) => f.diferencia < 0);
+    const usadas = new Set<FilaCruce>();
+    for (const p of l.filter((f) => f.diferencia > 0)) {
+      const q = neg.find((n) => !usadas.has(n) && -n.diferencia === p.diferencia);
+      if (!q) continue;
+      usadas.add(q); marcadas.add(p); marcadas.add(q); pares++;
+    }
+  }
+  return { filas: filas.map((f) => (marcadas.has(f) ? { ...f, compensada: true } : f)), pares };
 }
 
 /** «BAJA · AVERÍA» / «PNC» / «»: lo que acompaña al material en el cruce (estado, avería, PNC). */

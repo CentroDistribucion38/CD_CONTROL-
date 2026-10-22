@@ -22,6 +22,8 @@ export type RevisionBD = {
   ronda: number; nota: string | null; ol_envio: boolean; bavaria_envio: boolean; pedido_en: string | null; aprobado_en: string | null;
   /** Si el módulo siguió difiriendo, el conteo que el fiscal dejó como definitivo. */
   adoptado?: "OL" | "BAVARIA" | null;
+  /** El fiscal aprobó dando por compensadas las diferencias iguales y contrarias. */
+  compensado?: boolean;
 };
 
 /** Lo que ya está en La base de esta hoja (inv_fiscal_consolidados). */
@@ -31,11 +33,13 @@ export type ConsolidadoBD = { hoja_id: string; numero: number; conteo: string; u
    Un módulo junta sus dos lados; el SQL expande al aprobar/validar. */
 /** Lo que la gente marcó de un módulo en Contar: mezclado o sin acceso, con su foto de evidencia. */
 type MarcaMod = { ubicacion_id: string; ubicacion: string; equipo: "OL" | "BAVARIA"; mezclado: boolean; sin_acceso: boolean; ruta: string | null; tomada_en: string | null };
-type Ub = { id: string | null; clave: string; dif: boolean; renglones: number; revs: RevisionBD[]; rev?: RevisionBD };
+type Ub = { id: string | null; clave: string; dif: boolean; comp: number; renglones: number; revs: RevisionBD[]; rev?: RevisionBD };
 const orden = (a: string, b: string) => a.localeCompare(b, "es", { numeric: true });
 export const moduloDe = (clave: string) => clave.replace(/_(IZQ|DER)$/i, "");
 
-export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeEditar, ol, bavaria, onCambio, unaSola = null }: {
+export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeEditar, ol, bavaria, onCambio, unaSola = null, compensando = false }: {
+  /** El fiscal pulsó «Compensar»: las diferencias compensadas no cuentan y al aprobar se manda p_compensar. */
+  compensando?: boolean;
   /** Nombre de la única persona que terminó (la otra aún no): no hay cruce y se aprueba confirmando. */
   unaSola?: string | null;
   hojaId: string | null; numero: number; calle?: string; filas: FilaCruce[]; revs: RevisionBD[]; consol?: ConsolidadoBD | null; puedeEditar: boolean;
@@ -77,15 +81,16 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
     const porClave = new Map<string, Ub>();
     for (const f of filas) {
       const m = moduloDe(f.ubicacion);
-      const u = porClave.get(m) ?? { id: f.ubicacionId ?? null, clave: m, dif: false, renglones: 0, revs: [] };
+      const u = porClave.get(m) ?? { id: f.ubicacionId ?? null, clave: m, dif: false, comp: 0, renglones: 0, revs: [] };
       u.renglones++;
-      if (f.estado !== "COINCIDE") u.dif = true;
+      if (f.estado !== "COINCIDE" && !f.compensada) u.dif = true;
+      if (f.compensada) u.comp++;
       if (!u.id && f.ubicacionId) u.id = f.ubicacionId;
       porClave.set(m, u);
     }
     for (const r of revs.filter((x) => x.numero === numero)) {
       const m = moduloDe(r.ubicacion);
-      const u = porClave.get(m) ?? { id: r.ubicacion_id, clave: m, dif: false, renglones: 0, revs: [] };
+      const u = porClave.get(m) ?? { id: r.ubicacion_id, clave: m, dif: false, comp: 0, renglones: 0, revs: [] };
       if (!u.id) u.id = r.ubicacion_id;
       u.revs.push(r);
       porClave.set(m, u);
@@ -93,7 +98,7 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
     /* Un módulo marcado «sin acceso» puede no tener renglones: igual se muestra, para que el fiscal lo decida. */
     for (const mk of marcas) {
       const m = moduloDe(mk.ubicacion);
-      const u = porClave.get(m) ?? { id: mk.ubicacion_id, clave: m, dif: false, renglones: 0, revs: [] };
+      const u = porClave.get(m) ?? { id: mk.ubicacion_id, clave: m, dif: false, comp: 0, renglones: 0, revs: [] };
       if (mk.sin_acceso && u.renglones === 0) u.dif = true;
       if (!u.id) u.id = mk.ubicacion_id;
       porClave.set(m, u);
@@ -114,9 +119,9 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
     return [...porClave.values()].sort((a, b) => orden(a.clave, b.clave));
   }, [filas, revs, numero, marcas]);
 
-  const estado = (u: Ub): "aprobada" | "validando" | "difiere" | "coincide" =>
-    u.rev?.estado === "APROBADA" ? "aprobada" : u.rev?.estado === "A_VALIDAR" ? "validando" : u.dif ? "difiere" : "coincide";
-  const TEXTO = { aprobada: "Aprobada", validando: "En validación", difiere: "Difiere", coincide: "Coincide" } as const;
+  const estado = (u: Ub): "aprobada" | "validando" | "difiere" | "compensada" | "coincide" =>
+    u.rev?.estado === "APROBADA" ? "aprobada" : u.rev?.estado === "A_VALIDAR" ? "validando" : u.dif ? "difiere" : u.comp > 0 ? "compensada" : "coincide";
+  const TEXTO = { aprobada: "Aprobada", validando: "En validación", difiere: "Difiere", compensada: "Compensada", coincide: "Coincide" } as const;
 
   const nAprobadas = ubs.filter((u) => estado(u) === "aprobada").length;
   const visibles = ubs.filter((u) => todas || estado(u) !== "coincide");
@@ -176,7 +181,7 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
     if (unaSola && !forzando) { setConfUna(lista); return }
     const faltan = lista.filter((u) => u.rev?.estado === "A_VALIDAR" && !(u.rev.ol_envio && u.rev.bavaria_envio));
     if (faltan.length > 0 && !forzando) { setForzar(faltan); return }
-    void correr("inv_fiscal_aprobar", lista, { p_forzar: forzando, ...(quedaCon ? { p_adoptar: quedaCon } : {}) },
+    void correr("inv_fiscal_aprobar", lista, { p_forzar: forzando, ...(quedaCon ? { p_adoptar: quedaCon } : {}), ...(compensando ? { p_compensar: true } : {}) },
       `${lista.length} ${lista.length === 1 ? "ubicación aprobada" : "ubicaciones aprobadas"}${quedaCon ? `, dejando como definitivo lo de ${quedaCon === "OL" ? (ol || "el operador") : (bavaria || "Bavaria")}` : ""}.`);
   }
 
@@ -218,6 +223,9 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
           <div className="vv-sel" role="group" aria-label="Marcar ubicaciones">
             <button type="button" className="btn plano" onClick={() => marcar((u) => estado(u) === "difiere")}>Marcar las que difieren</button>
             <button type="button" className="btn plano" onClick={() => marcar((u) => estado(u) === "validando" && !!u.rev?.ol_envio && !!u.rev?.bavaria_envio)}>Marcar las ya respondidas</button>
+            {compensando && ubs.some((u) => estado(u) === "compensada") && (
+              <button type="button" className="btn plano" onClick={() => marcar((u) => estado(u) === "compensada")}>Marcar las compensadas</button>
+            )}
             {sel.size > 0 && <button type="button" className="btn plano" onClick={() => setSel(new Set())}>Quitar marcas</button>}
           </div>
           <label className="vv-nota"><span>Nota para las dos personas (opcional)</span>
@@ -288,6 +296,9 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
               {u.rev?.estado === "APROBADA" && u.rev.adoptado && (
                 <small className="vv-resp">Definitivo: lo que contó {u.rev.adoptado === "OL" ? (ol || "el operador") : (bavaria || "Bavaria")}</small>
               )}
+              {u.rev?.estado === "APROBADA" && u.rev.compensado && (
+                <small className="vv-resp">Aprobado dando por compensadas las diferencias iguales y contrarias del módulo</small>
+              )}
               {u.rev?.estado === "A_VALIDAR" && u.rev.nota && <small className="vv-resp">Nota: {u.rev.nota}</small>}
               {marcasDe(u.clave).map((m) => (
                 <small key={m.ubicacion + m.equipo} className="vv-resp vv-marca">
@@ -326,7 +337,7 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
           <p>{consol
             ? `${consol.ubicaciones} ${consol.ubicaciones === 1 ? "ubicación" : "ubicaciones"} · ${consol.renglones} ${consol.renglones === 1 ? "renglón" : "renglones"} · ${Number(consol.cajas).toLocaleString("es-CO")} cajas. Es un solo conteo de la hoja (no uno por persona): lo aprobado que coincide entre las dos.`
             : "Todavía no se manda nada. Al aprobar, lo aprobado que coincide entre las dos personas pasa solo a La base, como un solo conteo de la hoja."}
-            {ubs.some((u) => estado(u) === "aprobada" && u.dif && !u.rev?.adoptado) && " Un módulo aprobado que aún difiere no se manda hasta que coincida o hasta que dejes como definitivo el conteo de uno de los dos."}</p>
+            {ubs.some((u) => estado(u) === "aprobada" && u.dif && !u.rev?.adoptado && !u.rev?.compensado) && " Un módulo aprobado que aún difiere no se manda hasta que coincida o hasta que dejes como definitivo el conteo de uno de los dos."}</p>
           {puedeEditar && <div className="vv-acc"><button type="button" className="btn plano" disabled={ocupado || nAprobadas === 0} onClick={consolidarYa}>Actualizar La base ahora</button></div>}
         </div>
       )}

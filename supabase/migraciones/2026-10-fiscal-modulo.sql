@@ -19,6 +19,8 @@ begin;
 
 -- Cuando un módulo sigue difiriendo, el fiscal puede dejar como definitivo lo contado por un equipo (OL o BAVARIA).
 alter table public.inv_fiscal_revisiones add column if not exists adoptado text;
+-- «Compensar»: el fiscal dio por compensadas las diferencias iguales y de signo contrario del módulo (+45 en un material, −45 en otro).
+alter table public.inv_fiscal_revisiones add column if not exists compensado boolean not null default false;
 alter table public.inv_fiscal_revisiones drop constraint if exists inv_fiscal_revisiones_adoptado_chk;
 alter table public.inv_fiscal_revisiones add constraint inv_fiscal_revisiones_adoptado_chk check (adoptado is null or adoptado in ('OL', 'BAVARIA'));
 
@@ -86,7 +88,7 @@ begin
     on conflict (hoja_id, ubicacion_id) do update
       set estado = 'A_VALIDAR', ronda = public.inv_fiscal_revisiones.ronda + 1,
           nota = nullif(btrim(coalesce(p_nota, '')), ''), pedido_por = v_yo, pedido_en = now(),
-          aprobado_por = null, aprobado_en = null, adoptado = null;
+          aprobado_por = null, aprobado_en = null, adoptado = null, compensado = false;
     v_n := v_n + 1;
   end loop;
   return v_n;
@@ -99,7 +101,8 @@ grant execute on function public.inv_fiscal_validar(uuid, uuid[], text) to authe
 -- ---------------------------------------------------------------------
 drop function if exists public.inv_fiscal_aprobar(uuid, uuid[], boolean);
 drop function if exists public.inv_fiscal_aprobar(uuid, uuid[], boolean, text);
-create function public.inv_fiscal_aprobar(p_hoja uuid, p_ubicaciones uuid[], p_forzar boolean default false, p_adoptar text default null)
+drop function if exists public.inv_fiscal_aprobar(uuid, uuid[], boolean, text, boolean);
+create function public.inv_fiscal_aprobar(p_hoja uuid, p_ubicaciones uuid[], p_forzar boolean default false, p_adoptar text default null, p_compensar boolean default false)
 returns integer
 language plpgsql
 security definer
@@ -131,7 +134,7 @@ begin
   end if;
   if p_adoptar is not null and p_adoptar not in ('OL', 'BAVARIA') then raise exception 'Escoge qué conteo queda como definitivo: el del operador o el de Bavaria.'; end if;
   -- «Dejar lo de un equipo» solo tiene sentido cuando hay dos conteos que cruzar.
-  if v_equipos < 2 then p_adoptar := null; end if;
+  if v_equipos < 2 then p_adoptar := null; p_compensar := false; end if;
 
   v_lista := array(
     select distinct h
@@ -150,16 +153,16 @@ begin
         raise exception 'En % todavía falta que las dos personas envíen su validación.', coalesce(regexp_replace(v_clave, '_(IZQ|DER)$', ''), 'un módulo');
       end if;
     end if;
-    insert into public.inv_fiscal_revisiones (hoja_id, ubicacion_id, estado, ronda, aprobado_por, aprobado_en, adoptado)
-    values (p_hoja, v_ubi, 'APROBADA', 0, v_yo, now(), p_adoptar)
+    insert into public.inv_fiscal_revisiones (hoja_id, ubicacion_id, estado, ronda, aprobado_por, aprobado_en, adoptado, compensado)
+    values (p_hoja, v_ubi, 'APROBADA', 0, v_yo, now(), p_adoptar, coalesce(p_compensar, false))
     on conflict (hoja_id, ubicacion_id) do update
-      set estado = 'APROBADA', aprobado_por = v_yo, aprobado_en = now(), adoptado = p_adoptar;
+      set estado = 'APROBADA', aprobado_por = v_yo, aprobado_en = now(), adoptado = p_adoptar, compensado = coalesce(p_compensar, false);
     v_n := v_n + 1;
   end loop;
   return v_n;
 end $$;
-revoke all on function public.inv_fiscal_aprobar(uuid, uuid[], boolean, text) from public, anon;
-grant execute on function public.inv_fiscal_aprobar(uuid, uuid[], boolean, text) to authenticated;
+revoke all on function public.inv_fiscal_aprobar(uuid, uuid[], boolean, text, boolean) from public, anon;
+grant execute on function public.inv_fiscal_aprobar(uuid, uuid[], boolean, text, boolean) to authenticated;
 
 -- ---------------------------------------------------------------------
 -- RESPONDER UN MÓDULO: «está bien» (sin renglones) o REEMPLAZAR lo contado en él.
@@ -280,7 +283,8 @@ grant execute on function public.inv_fiscal_revision_enviar_modulo(uuid, uuid[],
 
 -- ¿El módulo de esta ubicación NO cuadra entre las dos personas? (por módulo, material y vencimiento; sin lado)
 drop function if exists public.inv_fiscal_modulo_difiere(uuid, uuid);
-create function public.inv_fiscal_modulo_difiere(p_hoja uuid, p_ubi uuid)
+drop function if exists public.inv_fiscal_modulo_difiere(uuid, uuid, boolean);
+create function public.inv_fiscal_modulo_difiere(p_hoja uuid, p_ubi uuid, p_compensar boolean default false)
 returns boolean
 language sql
 stable
@@ -303,9 +307,16 @@ as $$
      where modulo = (select regexp_replace(u2.clave, '_(IZQ|DER)$', '') from public.ubicaciones u2 where u2.id = p_ubi)
      group by 1, 2, 3, 4, 5
   )
-  select exists (select 1 from g where co is null or cb is null or co <> cb)
+  -- Con «compensar», una diferencia no cuenta si hay otra igual y de signo contrario en el mismo módulo.
+  select exists (
+    select 1 from g
+     where (co is null or cb is null or co <> cb)
+       and not (coalesce(p_compensar, false)
+                and (select count(*) from g g2 where coalesce(g2.co, 0) - coalesce(g2.cb, 0) = coalesce(g.co, 0) - coalesce(g.cb, 0))
+                  = (select count(*) from g g3 where coalesce(g3.co, 0) - coalesce(g3.cb, 0) = -(coalesce(g.co, 0) - coalesce(g.cb, 0))))
+  )
 $$;
-revoke all on function public.inv_fiscal_modulo_difiere(uuid, uuid) from public, anon, authenticated;
+revoke all on function public.inv_fiscal_modulo_difiere(uuid, uuid, boolean) from public, anon, authenticated;
 
 -- El cruce también se puede pedir cuando terminó una sola persona (todo sale «solo …», sin cruce).
 drop function if exists public.inv_fiscal_cruce(uuid);
@@ -408,7 +419,8 @@ begin
      where r.hoja_id = p_hoja and r.estado = 'APROBADA'
        and exists (select 1 from public.inv_fiscal_conteos c where c.hoja_id = p_hoja and c.ubicacion_id = r.ubicacion_id
                     and (v_equipos <> 1 or c.equipo = v_eq))
-       and (v_equipos = 1 or r.adoptado is not null or not public.inv_fiscal_modulo_difiere(p_hoja, r.ubicacion_id)));
+       and (v_equipos = 1 or r.adoptado is not null
+            or not public.inv_fiscal_modulo_difiere(p_hoja, r.ubicacion_id, r.compensado)));
   select count(*) into v_sin from public.inv_fiscal_revisiones r
    where r.hoja_id = p_hoja and r.estado = 'APROBADA' and not (r.ubicacion_id = any (v_ok))
      and exists (select 1 from public.inv_fiscal_conteos c where c.hoja_id = p_hoja and c.ubicacion_id = r.ubicacion_id);
@@ -578,7 +590,7 @@ drop function if exists public.inv_fiscal_revisiones(uuid);
 create function public.inv_fiscal_revisiones(p_fiscal uuid)
 returns table (
   hoja_id uuid, numero integer, ubicacion_id uuid, ubicacion text, estado text, ronda integer, nota text,
-  ol_envio boolean, bavaria_envio boolean, pedido_en timestamptz, aprobado_en timestamptz, adoptado text
+  ol_envio boolean, bavaria_envio boolean, pedido_en timestamptz, aprobado_en timestamptz, adoptado text, compensado boolean
 )
 language plpgsql
 stable
@@ -597,7 +609,7 @@ begin
          exists (select 1 from public.inv_fiscal_revision_envios e
                    join public.inv_fiscal_miembros m on m.hoja_id = e.hoja_id and m.user_id = e.user_id
                   where e.hoja_id = r.hoja_id and e.ubicacion_id = r.ubicacion_id and e.ronda = r.ronda and m.equipo = 'BAVARIA'),
-         r.pedido_en, r.aprobado_en, r.adoptado
+         r.pedido_en, r.aprobado_en, r.adoptado, r.compensado
     from public.inv_fiscal_revisiones r
     join public.inv_fiscal_hojas h on h.id = r.hoja_id
     join public.ubicaciones u on u.id = r.ubicacion_id
@@ -612,8 +624,8 @@ begin
   if to_regprocedure('public.inv_fiscal_mis_diferencias(uuid)') is null
      or to_regprocedure('public.inv_fiscal_revision_enviar_modulo(uuid,uuid[],jsonb)') is null
      or to_regprocedure('public.inv_fiscal_validar(uuid,uuid[],text)') is null
-     or to_regprocedure('public.inv_fiscal_aprobar(uuid,uuid[],boolean,text)') is null
-     or to_regprocedure('public.inv_fiscal_modulo_difiere(uuid,uuid)') is null
+     or to_regprocedure('public.inv_fiscal_aprobar(uuid,uuid[],boolean,text,boolean)') is null
+     or to_regprocedure('public.inv_fiscal_modulo_difiere(uuid,uuid,boolean)') is null
      or to_regprocedure('public.inv_fiscal_modulos_hoja(uuid)') is null
      or to_regprocedure('public.inv_fiscal_fotos_hoja(uuid)') is null
      or to_regprocedure('public.inv_fiscal_cruce(uuid)') is null

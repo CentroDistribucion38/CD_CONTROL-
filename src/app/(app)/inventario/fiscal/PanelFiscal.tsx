@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { createClient } from "@/lib/supabase/client";
 import { traducirError } from "@/lib/errores";
 import {
-  avanceDesdeBD, estadoHoja, cruceModulo, marcasDeFila, filaDesdeBD, ordenarCruce, puedeCruzar, unaSolaTermino, resumenCruce, textoEquipo, textoVenc, titularCruce, TEXTO_FILA,
+  avanceDesdeBD, estadoHoja, cruceModulo, compensarCruce, marcasDeFila, filaDesdeBD, ordenarCruce, puedeCruzar, unaSolaTermino, resumenCruce, textoEquipo, textoVenc, titularCruce, TEXTO_FILA,
   type AvanceBD, type AvanceHoja, type FilaCruce, type FilaCruceBD, type ResumenCruce,
 } from "@/modulos/inventario/fiscal-cruce";
 import type { HojaForm } from "@/modulos/inventario/fiscal";
@@ -186,6 +186,8 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
   const [filtro, setFiltro] = useState<Filtro>("todas");
   const [foco, setFoco] = useState<number | null>(null);
   const [verTodo, setVerTodo] = useState<Record<number, boolean>>({});
+  /** Hojas donde el fiscal pulsó «Compensar»: las diferencias iguales y contrarias de un mismo módulo se dan por compensadas. */
+  const [compensar, setCompensar] = useState<Record<number, boolean>>({});
   const { avance, cruces, hora, error, cargar, revs, hojaIds, conValidar, consolidados, fotos } = useTorre(fiscalId, avanceInicial, conAvance);
   const nf = useMemo(() => new Intl.NumberFormat("es-CO"), []);
 
@@ -383,11 +385,14 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
               <p>Cuando las dos personas de una hoja pulsan «terminé», el cruce aparece aquí. Si todo coincide, la hoja se pinta de verde; si no, ves en qué ubicaciones.</p>
             </div>
           ) : cruzadas.map((t) => {
-            const filas = t.cr && "filas" in t.cr ? t.cr.filas : [];
+            const filasBase = t.cr && "filas" in t.cr ? t.cr.filas : [];
+            const compBase = compensarCruce(filasBase);
+            const compensando = !!compensar[t.h.numero] && compBase.pares > 0;
+            const filas = compensando ? compBase.filas : filasBase;
             const r = t.resumen as ResumenCruce;
             const todo = !!verTodo[t.h.numero];
             const pendSet = new Set(t.pend.map((u) => u.ubicacion));
-            const vis = t.tipo === "ok" ? (todo ? filas : []) : (todo ? filas : filas.filter((f) => f.estado !== "COINCIDE" && pendSet.has(f.ubicacion)));
+            const vis = t.tipo === "ok" ? (todo ? filas : []) : (todo ? filas : filas.filter((f) => f.estado !== "COINCIDE" && !f.compensada && pendSet.has(f.ubicacion)));
             const ubic = t.pend;
             return (
               <section key={t.h.numero} id={"vf-h" + t.h.numero} className={"vf-rev " + t.tipo}>
@@ -414,8 +419,16 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                     <Ico n="lista" tam={15} /> {todo ? (t.tipo === "ok" ? "Ocultar el detalle" : "Ocultar los que coinciden") : (t.tipo === "ok" ? "Ver el detalle" : `Ver también los ${r.coinciden} que coinciden`)}
                   </button>
                 )}
+                {compBase.pares > 0 && puedeEditar && (
+                  <button type="button" className="btn plano vf-toggle" aria-pressed={compensando}
+                          onClick={() => setCompensar({ ...compensar, [t.h.numero]: !compensando })}
+                          title="Da por compensadas las diferencias iguales y de signo contrario dentro de un mismo módulo (ej. +45 en un material y −45 en otro)">
+                    <Ico n="lista" tam={15} /> {compensando ? `Quitar la compensación (${compBase.pares} ${compBase.pares === 1 ? "par" : "pares"})` : `Compensar (${compBase.pares} ${compBase.pares === 1 ? "par" : "pares"})`}
+                  </button>
+                )}
+                {compensando && <p className="cl-nota" role="note">Compensadas {compBase.pares} {compBase.pares === 1 ? "pareja" : "parejas"} de diferencias iguales y de signo contrario dentro de un mismo módulo: ya no aparecen como diferencia. Quedan solo las que no se compensan.</p>}
                 {conValidar ? (
-                  <ValidarHoja hojaId={hojaIds[t.h.numero] ?? null} numero={t.h.numero} calle={t.h.calle} filas={filas} revs={revs} unaSola={t.estado === "una-termino" ? (t.av?.olTermino ? (t.h.ol ? quien(t.h.ol) : "el operador") : (t.h.bavaria ? quien(t.h.bavaria) : "Bavaria")) : null} consol={consolidados[t.h.numero] ?? null}
+                  <ValidarHoja compensando={compensando} hojaId={hojaIds[t.h.numero] ?? null} numero={t.h.numero} calle={t.h.calle} filas={filas} revs={revs} unaSola={t.estado === "una-termino" ? (t.av?.olTermino ? (t.h.ol ? quien(t.h.ol) : "el operador") : (t.h.bavaria ? quien(t.h.bavaria) : "Bavaria")) : null} consol={consolidados[t.h.numero] ?? null}
                                puedeEditar={puedeEditar} ol={t.h.ol ? quien(t.h.ol) : ""} bavaria={t.h.bavaria ? quien(t.h.bavaria) : ""} onCambio={cargar} />
                 ) : (
                   <p className="cl-nota" role="note">Para validar y aprobar falta correr <code>supabase/migraciones/2026-10-fiscal-validar.sql</code> en Supabase.</p>
@@ -427,7 +440,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                       <tbody>
                         {vis.map((f, i) => (
                           <tr key={i} className={"vf-f " + f.estado.toLowerCase()}>
-                            <td data-et="Estado"><i className={"vf-ef " + f.estado.toLowerCase()}>{TEXTO_FILA[f.estado]}</i></td>
+                            <td data-et="Estado"><i className={"vf-ef " + f.estado.toLowerCase()}>{f.compensada ? "Compensada" : TEXTO_FILA[f.estado]}</i></td>
                             <td data-et="Sitio"><b>{f.ubicacion}</b></td>
                             <td data-et="Material"><b>{f.sku}</b> {f.material}{marcasDeFila(f) ? <> · <i>{marcasDeFila(f)}</i></> : null}
                               {(fotos[t.h.numero] ?? []).filter((x) => moduloClave(x.ubicacion) === moduloClave(f.ubicacion) && x.sku === f.sku).map((x) => (
