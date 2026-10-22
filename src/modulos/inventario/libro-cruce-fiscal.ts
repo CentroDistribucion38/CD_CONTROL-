@@ -204,7 +204,7 @@ export async function armarCruceFiscal(o: InsumosCruce): Promise<ArrayBuffer> {
   todas.forEach(({ h, f }, i) => {
     const r = DF0 + 1 + i, row = d.getRow(r); row.height = 20;
     const ol = f.cajasOl, ba = f.cajasBavaria, mayor = Math.max(ol ?? 0, ba ?? 0);
-    const vals: ExcelJS.CellValue[] = [h.numero, pareja(h), TEXTO_FILA[f.estado], f.ubicacion, f.sku, f.material,
+    const vals: ExcelJS.CellValue[] = [h.numero, pareja(h), TEXTO_FILA[f.estado], f.ubicacion, f.sku, f.estadoEnvase ? `${f.material} · ${f.estadoEnvase}` : f.material,
       textoVenc(f.vencDia, f.vencMes, f.vencAnio), ol, ba,
       { formula: `N(I${r})-N(J${r})`, result: f.diferencia },
       { formula: `ABS(K${r})`, result: Math.abs(f.diferencia) },
@@ -385,7 +385,7 @@ export async function armarCruceFiscal(o: InsumosCruce): Promise<ArrayBuffer> {
     const quien = f.diferencia > 0 ? "El operador" : f.diferencia < 0 ? "Bavaria" : "—";
     const c = causa.get(f);
     row.height = Math.max(22, 14 * Math.max(lineas(c?.detalle ?? "", 74), lineas(c?.revisar ?? "", 54)) + 8);
-    [h.numero, pareja(h), TEXTO_FILA[f.estado], f.ubicacion, f.sku, f.material, textoVenc(f.vencDia, f.vencMes, f.vencAnio), f.cajasOl, f.cajasBavaria, f.diferencia, quien,
+    [h.numero, pareja(h), TEXTO_FILA[f.estado], f.ubicacion, f.sku, f.estadoEnvase ? `${f.material} · ${f.estadoEnvase}` : f.material, textoVenc(f.vencDia, f.vencMes, f.vencAnio), f.cajasOl, f.cajasBavaria, f.diferencia, quien,
       c?.etiqueta ?? "", c?.detalle ?? "", c?.revisar ?? ""]
       .forEach((v, k) => {
         const x = row.getCell(2 + k); x.value = v;

@@ -23,7 +23,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { traducirError } from "@/lib/errores";
 import type { Material } from "@/modulos/inventario/fefo";
-import { argumentosFiscal, revisarFiscal, totalCajas, VACIO_FISCAL, type BorradorFiscal, type RenglonFiscal } from "@/modulos/inventario/fiscal-contar";
+import { argumentosFiscal, revisarFiscal, totalCajas, VACIO_FISCAL, pideEstadoFiscal, opcionesEstadoFiscal, type BorradorFiscal, type RenglonFiscal } from "@/modulos/inventario/fiscal-contar";
 
 type RevisionMia = {
   fiscal_id: string; hoja_id: string; hoja: number; ubicacion_id: string; ubicacion: string;
@@ -46,7 +46,7 @@ function desdeRenglon(r: RenglonFiscal, k: number): Reng {
     base: "x", lado: "x", codigo: r.sku,
     dia: r.venc_dia == null ? "" : dd(r.venc_dia), mes: r.venc_mes == null ? "" : dd(r.venc_mes), anio: r.venc_anio == null ? "" : dd(r.venc_anio),
     modo: r.cajas != null ? "cajas" : "estibas",
-    estibas: aTexto(r.estibas), saldo: aTexto(r.saldo), cajas: aTexto(r.cajas), nota: r.nota ?? "",
+    estibas: aTexto(r.estibas), saldo: aTexto(r.saldo), cajas: aTexto(r.cajas), nota: r.nota ?? "", estado: r.estado_envase ?? "",
   };
 }
 
@@ -107,7 +107,7 @@ export function RevisionesFiscal({ hojaId, mios, materiales, alCambiar, avisar }
   /** Lo que sí cuadra se conserva tal cual al enviar el nuevo conteo. */
   const raw = (r: RenglonFiscal) => ({
     ubicacion_id: r.ubicacion_id, producto_id: r.producto_id, estibas: r.estibas, saldo: r.saldo, cajas: r.cajas,
-    dia: r.venc_dia, mes: r.venc_mes, anio: r.venc_anio, nota: r.nota,
+    dia: r.venc_dia, mes: r.venc_mes, anio: r.venc_anio, nota: r.nota, estado: r.estado_envase ?? null,
   });
   const textoCant = (r: RenglonFiscal) => {
     if (r.cajas != null) return `${nf.format(r.cajas)} caja${r.cajas === 1 ? "" : "s"}`;
@@ -148,10 +148,10 @@ export function RevisionesFiscal({ hojaId, mios, materiales, alCambiar, avisar }
       /* El lado no se pregunta: lo que ya tenía conserva su sitio y lo nuevo va al primero del módulo. */
       const ub = x.ub || m.filas[0].ubicacion_id;
       const a = argumentosFiscal(hojaId, ub, mat, x);
-      const clave = `${ub}|${mat.id}|${a.p_dia ?? ""}|${a.p_mes ?? ""}|${a.p_anio ?? ""}`;
+      const clave = `${ub}|${mat.id}|${a.p_estado ?? ""}|${a.p_dia ?? ""}|${a.p_mes ?? ""}|${a.p_anio ?? ""}`;
       if (claves.has(clave)) { setMal(`${mat.sku} está dos veces con el mismo vencimiento y lado: junta las cantidades en un solo renglón.`); return }
       claves.add(clave);
-      salida.push({ ubicacion_id: ub, producto_id: a.p_producto, estibas: a.p_estibas, saldo: a.p_saldo, cajas: a.p_cajas, dia: a.p_dia, mes: a.p_mes, anio: a.p_anio, nota: a.p_nota });
+      salida.push({ ubicacion_id: ub, producto_id: a.p_producto, estibas: a.p_estibas, saldo: a.p_saldo, cajas: a.p_cajas, dia: a.p_dia, mes: a.p_mes, anio: a.p_anio, nota: a.p_nota, estado: a.p_estado });
     }
     /* Los renglones que cuadraban no se mostraron, pero siguen: se mandan igual que estaban. */
     const mostrados = new Set(misDe(m).map((x) => x.id));
@@ -178,7 +178,7 @@ export function RevisionesFiscal({ hojaId, mios, materiales, alCambiar, avisar }
                   {mias.length === 0 ? <p className="rv-vacio">En este módulo no tienes renglones con diferencia. Si crees que falta algo por anotar, usa «Contar de nuevo» y agrégalo.</p> : (
                     <ul className="rv-mios" aria-label={`Lo que anotaste en ${r.modulo}`}>
                       {mias.map((x) => (
-                        <li key={x.id}><b>{x.sku}</b> {x.material}<br /><span>{textoCant(x)} = <b>{nf.format(Number(x.total_cajas))}</b> cajas
+                        <li key={x.id}><b>{x.sku}</b> {x.material}{x.estado_envase ? <> · {x.estado_envase}</> : null}<br /><span>{textoCant(x)} = <b>{nf.format(Number(x.total_cajas))}</b> cajas
                           {x.venc_dia != null && <> · vence {dd(x.venc_dia)}/{dd(x.venc_mes)}/{dd(x.venc_anio)}</>}</span></li>
                       ))}
                     </ul>
@@ -212,6 +212,14 @@ export function RevisionesFiscal({ hojaId, mios, materiales, alCambiar, avisar }
                             <input inputMode="numeric" maxLength={2} placeholder="AA" aria-label="Año" value={x.anio} onChange={(e) => ponRen(x.k, { anio: dos(e.target.value) })} />
                           </div>
                         </div>
+                        {pideEstadoFiscal(mat) && (
+                          <div className="rv-modo rv-w" role="group" aria-label="Estado del envase">
+                            {opcionesEstadoFiscal(mat).map((e) => (
+                              <button key={e} type="button" className={x.estado === e ? "on" : ""} aria-pressed={x.estado === e}
+                                      onClick={() => ponRen(x.k, { estado: x.estado === e ? "" : e })}>{e}</button>
+                            ))}
+                          </div>
+                        )}
                         <div className="rv-modo rv-w" role="group" aria-label="Qué cuentas">
                           <button type="button" className={x.modo === "estibas" ? "on" : ""} aria-pressed={x.modo === "estibas"} onClick={() => ponRen(x.k, { modo: "estibas" })}>Estibas</button>
                           <button type="button" className={x.modo === "cajas" ? "on" : ""} aria-pressed={x.modo === "cajas"} onClick={() => ponRen(x.k, { modo: "cajas" })}>Cajas</button>

@@ -3,9 +3,8 @@ import type { Material } from "./fefo";
 /* ===================================================================
    CONTAR LA HOJA DEL INVENTARIO FISCAL — lo que se teclea y cómo se revisa
 
-   Es el mismo renglón del conteo diario (dónde, qué, vence, cuánto), pero
-   más corto: en el fiscal no se pregunta por rotación, avería ni estado del
-   envase. Y UN CERO CUENTA: «0 cajas» es contar que ahí no hay nada, y en un
+   Es el mismo renglón del conteo diario (dónde, qué, estado del envase, vence, cuánto):
+   deben ser gemelos. Por ahora no pregunta rotación, avería ni PNC. Y UN CERO CUENTA: «0 cajas» es contar que ahí no hay nada, y en un
    inventario fiscal eso es un dato, no un renglón vacío (en el diario
    no se puede anotar cero porque no se cuenta lo que no está).
    =================================================================== */
@@ -20,11 +19,19 @@ export type BorradorFiscal = {
   dia: string; mes: string; anio: string;
   modo: ModoFiscal; estibas: string; saldo: string; cajas: string;
   nota: string;
+  /** Estado del envase (RETORNO, BAJA…) o LLENO/VACÍO del cilindro; vacío si lo contado es producto. */
+  estado: string;
 };
 export const VACIO_FISCAL: BorradorFiscal = {
   calle: "", base: "", lado: "", codigo: "", dia: "", mes: "", anio: "",
-  modo: "estibas", estibas: "", saldo: "", cajas: "", nota: "",
+  modo: "estibas", estibas: "", saldo: "", cajas: "", nota: "", estado: "",
 };
+
+/* El mismo estado que el conteo diario pide para el envase. */
+export const ESTADOS_ENVASE = ["RETORNO", "LAVADO", "NUEVO", "BAJA", "EXTRASUCIO", "OTROS", "MAL ESTADO"] as const;
+export const esCilindroFiscal = (m: Material | null) => /cilindro/i.test(m?.tipo_envase ?? "");
+export const pideEstadoFiscal = (m: Material | null) => !!m && (m.tipo_material === "ENVASE" || esCilindroFiscal(m));
+export const opcionesEstadoFiscal = (m: Material | null): readonly string[] => (esCilindroFiscal(m) ? ["LLENO", "VACÍO"] : ESTADOS_ENVASE);
 
 /** Una cantidad: vacío es «no se contó»; 0 es «se contó y no hay». */
 export const cantidad = (s: string): number | null => {
@@ -54,7 +61,7 @@ export function totalCajas(b: BorradorFiscal, mat: Material | null): { formula: 
 
 /** Lo que falta o está mal en el renglón, dicho como lo diría una persona; null si se puede anotar. */
 export function revisarFiscal(b: BorradorFiscal, mat: Material | null, claveEscogida: string | null): string | null {
-  const env = mat?.tipo_material === "ENVASE";
+  const env = pideEstadoFiscal(mat);
   if (!b.base) return "Escoge el módulo.";
   if (!claveEscogida) return "Falta decir de qué lado del módulo.";
   if (!mat) return b.codigo.trim() === "" ? "Falta el código del material." : `El código «${b.codigo.trim()}» no está en el maestro.`;
@@ -65,6 +72,7 @@ export function revisarFiscal(b: BorradorFiscal, mat: Material | null, claveEsco
     if (e == null && s == null) return "¿Cuántas estibas? Si solo hay sueltas, anótalas en el saldo; si no hay nada, anota 0.";
     if (e != null && e > 0 && mat.cajas_por_estiba == null) return "Este material no dice cuántas cajas lleva una estiba: cuéntalo por cajas.";
   }
+  if (pideEstadoFiscal(mat) && b.estado.trim() === "") return esCilindroFiscal(mat) ? "Escoge si el cilindro está lleno o vacío." : "Escoge el estado del envase.";
   if (!env && !(b.dia.trim() !== "" && b.mes.trim() !== "" && b.anio.trim() !== "")) return "Falta la fecha de vencimiento.";
   if (hayFecha(b)) {
     const d = cantidad(b.dia), m = cantidad(b.mes), a = cantidad(b.anio);
@@ -91,6 +99,7 @@ export function argumentosFiscal(hojaId: string, ubicacionId: string, mat: Mater
     p_mes: fecha ? cantidad(b.mes) : null,
     p_anio: fecha ? cantidad(b.anio) : null,
     p_nota: b.nota.trim() === "" ? null : b.nota.trim(),
+    p_estado: pideEstadoFiscal(mat) && b.estado.trim() !== "" ? b.estado.trim() : null,
   };
 }
 
@@ -98,5 +107,5 @@ export function argumentosFiscal(hojaId: string, ubicacionId: string, mat: Mater
 export type RenglonFiscal = {
   id: string; ubicacion_id: string; ubicacion: string; producto_id: string; sku: string; material: string;
   estibas: number | null; saldo: number | null; cajas: number | null; total_cajas: number | string;
-  venc_dia: number | null; venc_mes: number | null; venc_anio: number | null; nota: string | null; contado_en: string;
+  venc_dia: number | null; venc_mes: number | null; venc_anio: number | null; nota: string | null; contado_en: string; estado_envase?: string | null;
 };

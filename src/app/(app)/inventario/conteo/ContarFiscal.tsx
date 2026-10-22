@@ -34,7 +34,7 @@ import type { Material, Ubicacion } from "@/modulos/inventario/fefo";
 import { MODULOS_DE_LA_HOJA, moduloConLados, modulosQueFaltan } from "@/modulos/inventario/modulos-hoja";
 import { fechaConDia, type HojaParaContar } from "@/modulos/inventario/fiscal";
 import {
-  VACIO_FISCAL, argumentosFiscal, revisarFiscal, totalCajas,
+  VACIO_FISCAL, argumentosFiscal, revisarFiscal, totalCajas, pideEstadoFiscal, esCilindroFiscal, opcionesEstadoFiscal,
   type BorradorFiscal, type RenglonFiscal,
 } from "@/modulos/inventario/fiscal-contar";
 
@@ -184,7 +184,12 @@ export function ContarFiscal({
   }, [b.base, b.lado, lados]);
 
   const material = useMemo(() => materiales.find((m) => m.activo && m.sku === b.codigo.trim()) ?? null, [materiales, b.codigo]);
-  const esEnvase = material?.tipo_material === "ENVASE";
+  const esEnvase = pideEstadoFiscal(material);
+  const esCilindro = esCilindroFiscal(material);
+  /* Si cambia el material y el estado ya no aplica (o no está en su lista), se limpia. */
+  useEffect(() => {
+    if (b.estado && (!esEnvase || !opcionesEstadoFiscal(material).includes(b.estado))) setB((x) => ({ ...x, estado: "" }));
+  }, [b.estado, esEnvase, material]);
   const cuenta = useMemo(() => totalCajas(b, material), [b, material]);
 
   /* ---------- EL SALTO ENTRE CASILLAS ---------- */
@@ -230,9 +235,10 @@ export function ContarFiscal({
     setGuardando(false);
     if (error) { avisar.mal(error.message); return }
     avisar.bien(`${material.sku} anotado en ${claveEscogida}${cuenta?.total != null ? ` · ${nf.format(cuenta.total)} cajas` : ""}.`);
-    setB(VACIO_FISCAL);
+    /* Igual que el conteo normal: el renglón se vacía pero el sitio (calle, módulo y lado) se queda para el siguiente. */
+    setB((x) => ({ ...VACIO_FISCAL, calle: x.calle, base: x.base, lado: x.lado }));
     await leer(hoja.hojaId);
-    setTimeout(() => campoCalle.current?.focus(), 0);
+    setTimeout(() => campoCodigo.current?.focus(), 0);
   }
 
   async function quitar(r: RenglonFiscal) {
@@ -396,6 +402,20 @@ export function ContarFiscal({
             )}
           </div>
 
+          {/* ===== ESTADO DEL ENVASE (igual que en el conteo normal; solo si lo contado es envase) ===== */}
+          {esEnvase && (
+            <div className="fe-bloque fe-estenv">
+              <p className="fe-bloque-cab">Estado del envase</p>
+              <p className="fe-obliga">Obligatorio: {esCilindro ? "escoge lleno o vacío" : "escoge uno"}.</p>
+              <div className="fe-estados" role="group" aria-label={esCilindro ? "Cilindro lleno o vacío" : "Estado del envase"}>
+                {opcionesEstadoFiscal(material).map((e) => (
+                  <button key={e} type="button" className={b.estado === e ? "on" : ""} aria-pressed={b.estado === e}
+                          onClick={() => { pon("estado", b.estado === e ? "" : e); if (b.estado !== e) setTimeout(() => campoCantidad.current?.focus(), 60) }}>{e}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* ===== CUÁNTO ===== */}
           <div className="fe-bloque">
             <p className="fe-bloque-cab">Cuánto</p>
@@ -485,7 +505,7 @@ export function ContarFiscal({
                 <div className="fc-ren">
                   <b>{r.ubicacion}</b> · {r.sku} · {r.material}
                   <br />
-                  <span>{textoCantidad(r)} = <b>{nf.format(Number(r.total_cajas))}</b> cajas
+                  <span>{r.estado_envase ? <>{r.estado_envase} · </> : null}{textoCantidad(r)} = <b>{nf.format(Number(r.total_cajas))}</b> cajas
                     {r.venc_dia != null && <> · vence {dd(r.venc_dia)}/{dd(r.venc_mes)}/{dd(r.venc_anio)}</>}
                     {r.nota && <> · {r.nota}</>}</span>
                 </div>

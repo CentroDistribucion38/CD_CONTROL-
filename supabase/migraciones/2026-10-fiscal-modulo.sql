@@ -11,7 +11,7 @@
 --   · La persona recuenta el módulo entero y dice en qué lado va cada renglón;
 --     se envía todo junto, o todo o nada (inv_fiscal_revision_enviar_modulo).
 --
--- Se puede correr dos veces. Necesita 2026-10-fiscal-validar.sql y 2026-10-fiscal-consolidar.sql.
+-- Se puede correr dos veces. Necesita 2026-10-fiscal-validar.sql, 2026-10-fiscal-consolidar.sql y 2026-10-fiscal-estado.sql (antes de este).
 -- Vuelve a crear también «consolidar» (ya no cuenta como pendiente un lado donde nadie contó).
 -- =====================================================================
 begin;
@@ -218,9 +218,9 @@ begin
       end if;
       begin
         insert into public.inv_fiscal_conteos
-          (fiscal_id, hoja_id, equipo, contado_por, ubicacion_id, producto_id, estibas, saldo, cajas, venc_dia, venc_mes, venc_anio, nota)
+          (fiscal_id, hoja_id, equipo, contado_por, ubicacion_id, producto_id, estibas, saldo, cajas, venc_dia, venc_mes, venc_anio, nota, estado_envase)
         values (v_fiscal, p_hoja, v_equipo, v_yo, v_u, v_prod, v_est, v_sal, v_caj, v_d, v_m, v_a,
-                nullif(btrim(coalesce(x->>'nota', '')), ''));
+                nullif(btrim(coalesce(x->>'nota', '')), ''), nullif(btrim(coalesce(x->>'estado', '')), ''));
       exception
         when unique_violation then
           raise exception 'Hay dos renglones iguales (mismo material, vencimiento y lado) en ese módulo.';
@@ -251,18 +251,18 @@ set search_path = public
 as $$
   with t as (
     select regexp_replace(u.clave, '_(IZQ|DER)$', '') as modulo, c.producto_id,
-           coalesce(c.venc_dia, 0) as vd, coalesce(c.venc_mes, 0) as vm, coalesce(c.venc_anio, 0) as va, c.equipo,
+           coalesce(c.venc_dia, 0) as vd, coalesce(c.venc_mes, 0) as vm, coalesce(c.venc_anio, 0) as va, c.estado_envase as ee, c.equipo,
            coalesce(p.cajas_por_estiba, 0) * coalesce(c.estibas, 0) + coalesce(c.saldo, 0) + coalesce(c.cajas, 0) as cajas
       from public.inv_fiscal_conteos c
       join public.ubicaciones u on u.id = c.ubicacion_id
       join public.productos p on p.id = c.producto_id
      where c.hoja_id = p_hoja
   ), g as (
-    select modulo, producto_id, vd, vm, va,
+    select modulo, producto_id, vd, vm, va, ee,
            sum(case when equipo = 'OL' then cajas end) as co, sum(case when equipo = 'BAVARIA' then cajas end) as cb
       from t
      where modulo = (select regexp_replace(u2.clave, '_(IZQ|DER)$', '') from public.ubicaciones u2 where u2.id = p_ubi)
-     group by 1, 2, 3, 4, 5
+     group by 1, 2, 3, 4, 5, 6
   )
   select exists (select 1 from g where co is null or cb is null or co <> cb)
 $$;
@@ -274,7 +274,7 @@ create function public.inv_fiscal_cruce(p_hoja uuid)
 returns table (
   ubicacion_id uuid, ubicacion text, producto_id uuid, sku text, material text,
   venc_dia smallint, venc_mes smallint, venc_anio smallint,
-  cajas_ol bigint, cajas_bavaria bigint, diferencia bigint, estado text
+  cajas_ol bigint, cajas_bavaria bigint, diferencia bigint, estado text, estado_envase text
 )
 language plpgsql
 stable
@@ -297,30 +297,32 @@ begin
 
   return query
   with t as (
-    select c.ubicacion_id, c.producto_id, c.venc_dia, c.venc_mes, c.venc_anio, m.equipo,
+    select c.ubicacion_id, c.producto_id, c.venc_dia, c.venc_mes, c.venc_anio, c.estado_envase, m.equipo,
            sum(coalesce(p.cajas_por_estiba, 0) * coalesce(c.estibas, 0) + coalesce(c.saldo, 0) + coalesce(c.cajas, 0))::bigint as cajas
       from public.inv_fiscal_conteos c
       join public.inv_fiscal_miembros m on m.hoja_id = c.hoja_id and m.user_id = c.contado_por
       join public.productos p on p.id = c.producto_id
      where c.hoja_id = p_hoja
-     group by c.ubicacion_id, c.producto_id, c.venc_dia, c.venc_mes, c.venc_anio, m.equipo
+     group by c.ubicacion_id, c.producto_id, c.venc_dia, c.venc_mes, c.venc_anio, c.estado_envase, m.equipo
   ), o as (select * from t where equipo = 'OL'), b as (select * from t where equipo = 'BAVARIA'),
   j as (
     select coalesce(o.ubicacion_id, b.ubicacion_id) as ubi, coalesce(o.producto_id, b.producto_id) as prod,
            coalesce(o.venc_dia, b.venc_dia) as vd, coalesce(o.venc_mes, b.venc_mes) as vm, coalesce(o.venc_anio, b.venc_anio) as va,
-           o.cajas as co, b.cajas as cb
+           coalesce(o.estado_envase, b.estado_envase) as ee, o.cajas as co, b.cajas as cb
       from o full join b
         on o.ubicacion_id = b.ubicacion_id and o.producto_id = b.producto_id
        and coalesce(o.venc_dia, 0) = coalesce(b.venc_dia, 0)
        and coalesce(o.venc_mes, 0) = coalesce(b.venc_mes, 0)
        and coalesce(o.venc_anio, 0) = coalesce(b.venc_anio, 0)
+       and o.estado_envase is not distinct from b.estado_envase
   )
   select j.ubi, u.clave, j.prod, pr.sku, pr.nombre, j.vd, j.vm, j.va, j.co, j.cb,
          (coalesce(j.co, 0) - coalesce(j.cb, 0))::bigint,
          case when j.co is null then 'SOLO_BAVARIA'
               when j.cb is null then 'SOLO_OL'
               when j.co = j.cb then 'COINCIDE'
-              else 'DIFIERE' end
+              else 'DIFIERE' end,
+         j.ee
     from j
     join public.ubicaciones u on u.id = j.ubi
     join public.productos pr on pr.id = j.prod
@@ -392,7 +394,7 @@ begin
     (conteo_id, producto_id, ubicacion_id, estibas, cajas, saldo, venc_dia, venc_mes, venc_anio,
      rotacion, averia, pnc, estado_envase, nota, cantidad_contada, contado_por, contado_en)
   select v_conteo, c.producto_id, c.ubicacion_id, c.estibas, c.cajas, c.saldo, c.venc_dia, c.venc_mes, c.venc_anio,
-         null, false, false, null, c.nota,
+         null, false, false, c.estado_envase, c.nota,
          coalesce(p.cajas_por_estiba, 0) * coalesce(c.estibas, 0) + coalesce(c.cajas, 0) + coalesce(c.saldo, 0),
          v_yo, c.contado_en
     from public.inv_fiscal_conteos c join public.productos p on p.id = c.producto_id
@@ -424,14 +426,14 @@ as $$
   ), t as (
     select c.id, c.contado_por, c.equipo, c.producto_id,
            regexp_replace(u.clave, '_(IZQ|DER)$', '') as modulo,
-           coalesce(c.venc_dia, 0) as vd, coalesce(c.venc_mes, 0) as vm, coalesce(c.venc_anio, 0) as va,
+           coalesce(c.venc_dia, 0) as vd, coalesce(c.venc_mes, 0) as vm, coalesce(c.venc_anio, 0) as va, c.estado_envase as ee,
            coalesce(p.cajas_por_estiba, 0) * coalesce(c.estibas, 0) + coalesce(c.saldo, 0) + coalesce(c.cajas, 0) as cajas
       from public.inv_fiscal_conteos c
       join public.ubicaciones u on u.id = c.ubicacion_id
       join public.productos p on p.id = c.producto_id
      where c.hoja_id = p_hoja
   ), g as (
-    select modulo, producto_id, vd, vm, va, equipo, sum(cajas) as cajas from t group by 1, 2, 3, 4, 5, 6
+    select modulo, producto_id, vd, vm, va, ee, equipo, sum(cajas) as cajas from t group by 1, 2, 3, 4, 5, 6, 7
   )
   select t.id
     from t
@@ -439,9 +441,9 @@ as $$
    where t.contado_por = auth.uid()
      and not exists (
        select 1 from g mi join g otro
-         on otro.modulo = mi.modulo and otro.producto_id = mi.producto_id and otro.vd = mi.vd and otro.vm = mi.vm and otro.va = mi.va
+         on otro.modulo = mi.modulo and otro.producto_id = mi.producto_id and otro.vd = mi.vd and otro.vm = mi.vm and otro.va = mi.va and otro.ee is not distinct from mi.ee
         and otro.equipo <> mi.equipo
-       where mi.modulo = t.modulo and mi.producto_id = t.producto_id and mi.vd = t.vd and mi.vm = t.vm and mi.va = t.va
+       where mi.modulo = t.modulo and mi.producto_id = t.producto_id and mi.vd = t.vd and mi.vm = t.vm and mi.va = t.va and mi.ee is not distinct from t.ee
          and mi.equipo = t.equipo and otro.cajas = mi.cajas
      )
 $$;
