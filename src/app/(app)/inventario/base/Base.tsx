@@ -56,6 +56,8 @@ import { FiltroCampo, VACIAS } from "./FiltroCampo";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const POR_PAGINA = 100;
+/** El recorrido que sale de aprobar una hoja del inventario fiscal (código FISCAL-AAAAMMDD-Hnn). */
+const esFiscal = (c: { codigo?: string | null }) => (c.codigo ?? "").startsWith("FISCAL-");
 const TZ = "America/Bogota";
 
 /** Un renglón de la tabla: el que vale (o el borrador) con lo que hace falta para pintarlo, calculado una vez. */
@@ -375,7 +377,9 @@ export function Base({
       ...r,
       pasado: yaPasados.has(r.id),
       unidades: u ? Number(r.total_cajas) * u : null,
-      quien: c?.envio_nombre ?? c?.responsable ?? "—",
+      /* El recorrido del inventario fiscal es UNO por hoja pero lo contaron varias personas: ahí vale la persona de cada renglón,
+         no quien aprobó. En los demás recorridos sigue siendo quien lo envió. */
+      quien: (c && esFiscal(c) ? r.conto : null) ?? c?.envio_nombre ?? c?.responsable ?? "—",
       cuando: c?.enviado_en ?? "",
       dia: f,
       /* Un borrador lleva la fecha de HOY: es el día en que se está contando y en que se enviaría. El día en
@@ -475,7 +479,7 @@ export function Base({
      «Envase») les deja cero, siguen saliendo con «0» para que no parezca que se perdieron. */
   const personas = useMemo(() => {
     const m = new Map<string, number>();
-    for (const c of recorridosDe) m.set(c.envio_nombre ?? c.responsable ?? "—", 0);
+    for (const c of recorridosDe) if (!esFiscal(c)) m.set(c.envio_nombre ?? c.responsable ?? "—", 0);
     for (const r of sinQuien) if (!fTipo || r.tipo_material === fTipo) m.set(r.quien, (m.get(r.quien) ?? 0) + 1);
     return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0], "es"));
   }, [recorridosDe, sinQuien, fTipo]);
