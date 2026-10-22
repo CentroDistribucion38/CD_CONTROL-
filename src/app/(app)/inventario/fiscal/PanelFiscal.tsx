@@ -165,19 +165,14 @@ function useTorre(fiscalId: string, avanceInicial: Record<number, AvanceHoja>, a
 
 /** El anillo del avance: verde = completadas, rojo = con diferencias, ámbar = en conteo, el resto es el fondo. */
 function Anillo({ ok, dif, proceso, total }: { ok: number; dif: number; proceso: number; total: number }) {
-  const r = 54, c = 2 * Math.PI * r;
-  const tramo = (n: number, desde: number, clase: string) => total > 0 && n > 0 ? (
-    <circle key={clase} className={"vf-seg " + clase} cx="70" cy="70" r={r} fill="none" strokeWidth="14"
-            strokeDasharray={`${(n / total) * c} ${c}`} strokeDashoffset={-(desde / total) * c} transform="rotate(-90 70 70)" />
-  ) : null;
   const pct = total > 0 ? Math.round((ok / total) * 100) : 0;
+  const w = (n: number) => (total > 0 ? (n / total) * 100 : 0) + "%";
   return (
-    <svg className="vf-anillo" width="150" height="150" viewBox="0 0 140 140" role="img" aria-label={`${pct}% de las hojas completadas`}>
-      <circle className="vf-seg fondo" cx="70" cy="70" r={r} fill="none" strokeWidth="14" />
-      {tramo(ok, 0, "ok")}{tramo(dif, ok, "dif")}{tramo(proceso, ok + dif, "proceso")}
-      <text x="70" y="68" textAnchor="middle" className="vf-pct">{pct}%</text>
-      <text x="70" y="88" textAnchor="middle" className="vf-pct-et">completado</text>
-    </svg>
+    <div className="vf-pct-box" role="img" aria-label={`${pct}% de las hojas completadas`}>
+      <b>{pct}%</b>
+      <small>Completado</small>
+      <span className="vf-barra" aria-hidden="true"><i className="ok" style={{ width: w(ok) }} /><i className="dif" style={{ width: w(dif) }} /><i className="proceso" style={{ width: w(proceso) }} /></span>
+    </div>
   );
 }
 
@@ -325,6 +320,45 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
 
   return (
     <section className="vf" aria-label={`Inventario fiscal ${nombre}`}>
+      {/* Todo recto en el control fiscal: nada ovalado ni con esquinas redondeadas. */}
+      <style>{`
+        .vf, .vf *, .vf *::before, .vf *::after, .vvc-velo, .vvc-velo *{border-radius:0 !important}
+        /* ── Torre: encabezado negro compacto y tarjetas blancas con una línea de color ── */
+        .fe .vf .vf-hero{display:flex;flex-wrap:wrap;align-items:center;gap:12px 32px;padding:18px 24px 14px;border-bottom:4px solid var(--fe-acento,#ffc400)}
+        .fe .vf .vf-hero::after{display:none}
+        .fe .vf .vf-pct-box{display:flex;flex-direction:column;gap:2px;min-width:110px}
+        .fe .vf .vf-pct-box b{font:900 44px/1 var(--fe-titulo);color:var(--fe-acento,#ffc400);font-variant-numeric:tabular-nums}
+        .fe .vf .vf-pct-box small{font:700 10px var(--fe-texto);letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.7)}
+        .fe .vf .vf-barra{display:flex;height:4px;margin-top:6px;background:rgba(255,255,255,.16)}
+        .fe .vf .vf-barra i{display:block;height:4px}
+        .fe .vf .vf-barra i.ok{background:#5ed08a}.fe .vf .vf-barra i.dif{background:#ff5a72}.fe .vf .vf-barra i.proceso{background:var(--fe-acento,#ffc400)}
+        .fe .vf .vf-hero-txt{flex:1 1 320px}
+        .fe .vf .vf-hero-txt h3{font-size:22px}
+        .fe .vf .vf-hero-sub{margin:0 0 10px}
+        .fe .vf .vf-kpis{display:flex;flex-wrap:wrap;gap:6px 30px}
+        .fe .vf .vf-kpi{background:transparent;border:0;padding:0;grid-template-columns:auto auto;grid-template-areas:"i v" "e e";justify-content:start;column-gap:8px}
+        .fe .vf .vf-kpi-ico{display:inline-flex;color:rgba(255,255,255,.75)}
+        .fe .vf .vf-kpi.dif{border:0}
+        .fe .vf .vf-kpi-v{font-size:26px;line-height:1}
+        .fe .vf .vf-kpi-et{font-size:11px}
+        .fe .vf .vf-vivo{padding-top:10px}
+        .fe .vf .vf-cerrar{display:inline-flex;gap:8px;align-items:center;flex-wrap:wrap}
+        .fe .vf .vf-cerrar-q{font:400 12px var(--fe-texto);letter-spacing:0;text-transform:none;color:rgba(255,255,255,.85)}
+        .fe .vf .vf-fin{color:#5ed08a;font-size:12px}
+        .fe .vf .vf-mostaza{min-height:44px;padding:0 18px;font:800 13px var(--fe-texto);background:var(--fe-acento,#ffc400);color:#111;border:0;cursor:pointer;letter-spacing:.02em}
+        .fe .vf .vf-mostaza:hover{filter:brightness(1.07)}.fe .vf .vf-mostaza:disabled{opacity:.6;cursor:wait}
+        .fe .vf .vf-grid{gap:14px}
+        .fe .vf .vf-card{gap:8px;padding:18px;background:var(--fe-papel);box-shadow:none;border:1px solid var(--fe-linea);border-top:4px solid var(--fe-linea)}
+        .fe .vf .vf-card.proceso{border-color:var(--fe-linea);border-top-color:var(--fe-acento,#ffc400)}
+        .fe .vf .vf-card.ok{background:var(--fe-papel);border-color:var(--fe-linea);border-top-color:var(--fe-bien)}
+        .fe .vf .vf-card.dif{background:var(--fe-papel);border-color:var(--fe-linea);border-top-color:var(--fe-mal)}
+        .fe .vf .vf-card-cab{gap:8px}
+        .fe .vf .vf-card-ico{display:none}
+        .fe .vf .vf-card-cab h3{font-size:19px}
+        .fe .vf .vf-persona{background:transparent;padding:10px 0 2px;border-top:1px solid var(--fe-linea)}
+        .fe .vf .vf-pareja{gap:0}
+        .fe .vf .vf-ver{min-height:40px}
+      `}</style>
       <header className="vf-cab">
         <div className="vf-tit">
           <p className="vf-ojo">{parejas ? "Inventario fiscal · por parejas" : "Control fiscal · en vivo"}</p>
@@ -357,6 +391,24 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
             <span className="vf-pulso" aria-hidden="true" /> En vivo
             <small>{hora ? `Actualizado ${hora.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : "Cargando…"}</small>
             <button type="button" className="vf-btn-claro" onClick={cargar}><Ico n="refrescar" tam={15} /> Actualizar</button>
+            {puedeEditar && conValidar && (
+              <span className="vf-cerrar">
+                {total > 0 && Object.keys(cerradas).length >= total ? (
+                  <b className="vf-fin">Corte fiscal finalizado ✓</b>
+                ) : cierre === "conf" ? (
+                  <>
+                    <span className="vf-cerrar-q">¿Cerrar todas las hojas aprobadas? Nadie más contará en ellas.</span>
+                    <button type="button" className="vf-mostaza" onClick={cerrarTodas}>Sí, cerrar todas</button>
+                    <button type="button" className="vf-btn-claro" onClick={() => setCierre("")}>No</button>
+                  </>
+                ) : (
+                  <button type="button" className="vf-mostaza" disabled={cierre === "ocupado"} onClick={() => setCierre("conf")}
+                          title="Cierra de un solo clic todas las hojas que ya tienen todo aprobado y termina el corte fiscal">
+                    {cierre === "ocupado" ? "Cerrando…" : "Cerrar todas las hojas"}
+                  </button>
+                )}
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -382,24 +434,6 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                 {chip("proceso", "en conteo", cuenta.proceso + cuenta.sin)}
                 {chip("ok", cuenta.ok === 1 ? "completada" : "completadas", cuenta.ok, "ok")}
                 {chip("dif", "con diferencias", cuenta.dif, "dif")}
-                {puedeEditar && conValidar && (
-                  <span style={{ marginLeft: "auto", display: "inline-flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                    {total > 0 && Object.keys(cerradas).length >= total ? (
-                      <b style={{ color: "#0b7a3e" }}>Corte fiscal finalizado ✓ · todas las hojas cerradas</b>
-                    ) : cierre === "conf" ? (
-                      <>
-                        <span style={{ fontSize: ".8rem" }}>¿Cerrar todas las hojas que ya están aprobadas? Nadie más contará en ellas.</span>
-                        <button type="button" className="btn" style={{ background: "#0b7a3e", color: "#fff", borderRadius: 0 }} onClick={cerrarTodas}>Sí, cerrar todas</button>
-                        <button type="button" className="btn plano" style={{ borderRadius: 0 }} onClick={() => setCierre("")}>No</button>
-                      </>
-                    ) : (
-                      <button type="button" className="btn" disabled={cierre === "ocupado"} onClick={() => setCierre("conf")} style={{ background: "#0b7a3e", color: "#fff", borderRadius: 0 }}
-                              title="Cierra de un solo clic todas las hojas que ya tienen todo aprobado y termina el corte fiscal">
-                        {cierre === "ocupado" ? "Cerrando…" : "Cerrar todas las hojas"}
-                      </button>
-                    )}
-                  </span>
-                )}
               </div>
               {cierreMsg && <p className="cl-nota" role="status">{cierreMsg}</p>}
               <div className="vf-grid">
