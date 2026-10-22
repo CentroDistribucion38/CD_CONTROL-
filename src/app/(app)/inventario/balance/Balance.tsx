@@ -48,6 +48,8 @@ type Fila = {
   notas?: NotaConteo[];
   fisico_estibas?: number | null;
   dif_estibas?: number | null;
+  /** Solo en «En casco y sin contar»: en qué estado y ubicación SÍ aparece en el conteo. */
+  donde?: { estado: string; ubicaciones: string; cajas: number }[];
 };
 
 /* ------------------------------------------------------------------ */
