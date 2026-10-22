@@ -438,7 +438,15 @@ export async function baseFefo(bodegaId: string | null) {
     .limit(TOPE_RECORRIDOS);
   if (error) return { ...vacio, falta: sinTablas(error.message) };
 
-  const conteos = (c ?? []) as ConteoFefo[];
+  let conteos = (c ?? []) as ConteoFefo[];
+  /* LOS BORRADORES DEL INVENTARIO FISCAL (de todas las personas, solo para quien tiene el permiso del fiscal): lo contado que aún
+     no pasó a La base. Si el SQL no se corrió o no hay permiso, simplemente no hay nada que sumar a los borradores. */
+  let fiscalFilas: Renglon[] = [];
+  try {
+    const fb = await supabase.rpc("inv_fiscal_borradores_base");
+    const v = fb.data as { filas?: Renglon[]; conteos?: ConteoFefo[] } | null;
+    if (!fb.error && v) { fiscalFilas = v.filas ?? []; conteos = [...conteos, ...(v.conteos ?? [])] }
+  } catch { /* sin eso, La base sigue igual */ }
   /* ANULADO NO ES NI LO UNO NI LO OTRO: se descarta a propósito. Un
      recorrido anulado se anuló por algo, y arrastrarlo «para tener la
      visual» es exactamente cómo vuelve a contarse. */
@@ -449,11 +457,14 @@ export async function baseFefo(bodegaId: string | null) {
      después: son dos listas para la pantalla, pero una sola ida al
      servidor. Dos consultas costaban el doble de espera para partir por
      una columna que ya viene en cada fila. */
-  const ids = [...enviados, ...abiertos].map((x) => x.id);
-  if (ids.length === 0) return { ...vacio, conteos };
+  const idsFiscal = new Set(fiscalFilas.map((r) => r.conteo_id));
+  const ids = [...enviados, ...abiertos].map((x) => x.id).filter((id) => !idsFiscal.has(id));
+  if (ids.length === 0 && fiscalFilas.length === 0) return { ...vacio, conteos };
 
-  const { data: lineas } = await porTandas<Renglon>(ids, (t, d, h) =>
-    supabase.from("v_conteo_fefo").select("*").in("conteo_id", t).order("id").range(d, h));
+  const { data: lineas } = ids.length > 0
+    ? await porTandas<Renglon>(ids, (t, d, h) =>
+      supabase.from("v_conteo_fefo").select("*").in("conteo_id", t).order("id").range(d, h))
+    : { data: [] as Renglon[] };
 
   const deEnviados = new Set(enviados.map((x) => x.id));
   return {
@@ -461,7 +472,7 @@ export async function baseFefo(bodegaId: string | null) {
     conteos,
     /* Lo enviado, con lo que se reclasificó en el Balance (el estado nuevo y de dónde venía en la nota). */
     enviadas: await conReclasificaciones(lineas.filter((r) => deEnviados.has(r.conteo_id))),
-    abiertas: lineas.filter((r) => !deEnviados.has(r.conteo_id)),
+    abiertas: [...lineas.filter((r) => !deEnviados.has(r.conteo_id)), ...fiscalFilas],
     tope: false,
   };
 }

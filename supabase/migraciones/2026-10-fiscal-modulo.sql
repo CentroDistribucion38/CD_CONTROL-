@@ -820,6 +820,69 @@ $$;
 revoke all on function public.inv_fiscal_mis_hojas() from public, anon;
 grant execute on function public.inv_fiscal_mis_hojas() to authenticated;
 
+-- ---------------------------------------------------------------------
+-- LOS BORRADORES DE TODOS EN «LA BASE» (solo para mirar)
+-- Lo que las personas llevan contado en el inventario fiscal y todavía no pasó a La base, de TODAS las personas, con el
+-- mismo formato de renglón que usa La base. Solo lo ve quien tiene el permiso del inventario fiscal (el conteo es a
+-- ciegas entre la pareja: ellas no se ven entre sí).
+-- ---------------------------------------------------------------------
+drop function if exists public.inv_fiscal_borradores_base();
+create function public.inv_fiscal_borradores_base()
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare v_filas jsonb; v_conteos jsonb;
+begin
+  if not public.puede_ver('/inventario/fiscal') then
+    return jsonb_build_object('filas', '[]'::jsonb, 'conteos', '[]'::jsonb);
+  end if;
+  with b as (
+    select c.id, h.id as hoja_id, h.numero, f.fecha, c.ubicacion_id, c.producto_id, c.estibas, c.saldo, c.cajas,
+           c.venc_dia, c.venc_mes, c.venc_anio, c.averia, c.pnc, c.estado_envase, c.nota, c.contado_en,
+           u.clave, u.calle, u.modulo, u.lado, p.sku, p.nombre as material, p.tipo_material, p.cajas_por_estiba,
+           pe.nombre as conto,
+           coalesce(p.cajas_por_estiba, 0) * coalesce(c.estibas, 0) + coalesce(c.saldo, 0) + coalesce(c.cajas, 0) as total
+      from public.inv_fiscal_conteos c
+      join public.inv_fiscal_hojas h on h.id = c.hoja_id
+      join public.inv_fiscales f on f.id = h.fiscal_id
+      join public.ubicaciones u on u.id = c.ubicacion_id
+      join public.productos p on p.id = c.producto_id
+      left join public.perfiles pe on pe.id = c.contado_por
+     where f.estado = 'abierto'
+       and not exists (select 1 from public.conteo_lineas cl where cl.conteo_id = h.conteo_id and cl.ubicacion_id = c.ubicacion_id)
+  )
+  select
+    coalesce((select jsonb_agg(jsonb_build_object(
+      'id', b.id, 'conteo_id', b.hoja_id,
+      'conteo', 'FISCAL-' || to_char(b.fecha, 'YYYYMMDD') || '-H' || lpad(b.numero::text, 2, '0') || ' · en conteo',
+      'estado', 'en_proceso', 'codigo', b.sku, 'material', b.material, 'tipo_material', b.tipo_material,
+      'familia', null, 'factor_estibado', b.cajas_por_estiba,
+      'ubicacion', b.clave, 'calle', b.calle, 'modulo', b.modulo, 'lado', b.lado,
+      'estibas', b.estibas, 'cajas', b.cajas, 'saldo', b.saldo, 'total_cajas', b.total,
+      'total_estibas', case when coalesce(b.cajas_por_estiba, 0) > 0 then round(b.total::numeric / b.cajas_por_estiba, 2) else 0 end,
+      'capacidad', null, 'venc_dia', b.venc_dia, 'venc_mes', b.venc_mes, 'venc_anio', b.venc_anio,
+      'fab_dia', null, 'fab_mes', null, 'fab_anio', null, 'fabricacion', null, 'vencimiento', null,
+      'dias_para_vencer', null, 'dias_para_salir', null, 'rotacion', null,
+      'averia', coalesce(b.averia, false), 'pnc', coalesce(b.pnc, false), 'estado_envase', b.estado_envase, 'nota', b.nota,
+      'ubicacion_combinada', regexp_replace(b.clave, '_(IZQ|DER)$', ''), 'conto', b.conto, 'contado_en', b.contado_en,
+      'producto_id', b.producto_id, 'ubicacion_id', b.ubicacion_id) order by b.contado_en desc) from b), '[]'::jsonb),
+    coalesce((select jsonb_agg(x) from (
+      select jsonb_build_object(
+        'id', b.hoja_id,
+        'codigo', 'FISCAL-' || to_char(b.fecha, 'YYYYMMDD') || '-H' || lpad(b.numero::text, 2, '0') || ' · en conteo',
+        'estado', 'en_proceso', 'bodega', '', 'responsable', 'Inventario fiscal · Hoja ' || b.numero,
+        'fecha_analisis', b.fecha, 'enviado_en', null, 'envio_nombre', null,
+        'renglones', count(*), 'ubicaciones', count(distinct b.ubicacion_id), 'total_cajas', sum(b.total)) as x
+        from b group by b.hoja_id, b.numero, b.fecha) q), '[]'::jsonb)
+  into v_filas, v_conteos;
+  return jsonb_build_object('filas', v_filas, 'conteos', v_conteos);
+end $$;
+revoke all on function public.inv_fiscal_borradores_base() from public, anon;
+grant execute on function public.inv_fiscal_borradores_base() to authenticated;
+
 do $$
 begin
   if to_regprocedure('public.inv_fiscal_mis_diferencias(uuid)') is null
@@ -831,6 +894,7 @@ begin
      or to_regprocedure('public.inv_fiscal_fotos_hoja(uuid)') is null
      or to_regprocedure('public.inv_fiscal_reabrir_autorizar(uuid,text,boolean)') is null
      or to_regprocedure('public.inv_fiscal_reaperturas(uuid)') is null
+     or to_regprocedure('public.inv_fiscal_borradores_base()') is null
      or to_regprocedure('public.inv_fiscal_cruce(uuid)') is null
      or to_regprocedure('public.inv_fiscal_consolidar(uuid)') is null then
     raise exception 'No quedaron las funciones de validar por módulo. Revisa que corrieron antes validar y consolidar.';
