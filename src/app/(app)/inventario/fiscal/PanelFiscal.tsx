@@ -285,6 +285,19 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
     return null;
   }
   const pidieronHoja = (n: number) => reaps.filter((x) => x.numero === n && x.pedido_en && !x.autorizado_en).length;
+  /** Terminar el corte fiscal: cierra de una vez todas las hojas que ya tienen todo aprobado. */
+  const [cierre, setCierre] = useState<"" | "conf" | "ocupado">("");
+  const [cierreMsg, setCierreMsg] = useState<string | null>(null);
+  async function cerrarTodas() {
+    setCierreMsg(null); setCierre("ocupado");
+    const { data, error } = await createClient().rpc("inv_fiscal_cerrar_hojas", { p_fiscal: fiscalId });
+    setCierre("");
+    if (error) { setCierreMsg(/inv_fiscal_cerrar|schema cache|does not exist|no existe la funci/i.test(error.message) ? "Falta correr 2026-10-fiscal-TODO.sql en Supabase." : traducirError(error.message)); return }
+    const r = (Array.isArray(data) ? data[0] : data) as { cerradas: number; pendientes: number } | null;
+    const c = r?.cerradas ?? 0, pe = r?.pendientes ?? 0;
+    setCierreMsg(`${c === 1 ? "Se cerró 1 hoja" : `Se cerraron ${c} hojas`}${pe > 0 ? `; ${pe === 1 ? "1 sigue" : `${pe} siguen`} con pendientes (abre su Revisión para terminarlas).` : ". Corte fiscal finalizado."}`);
+    await cargar();
+  }
   const abrirRevision = (n: number) => { setFoco(n); setHojaRev(n); setPestana("revision") };
   const abrirCaja = (n: number) => { abrirRevision(n); setCaja(n) };
 
@@ -369,7 +382,26 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                 {chip("proceso", "en conteo", cuenta.proceso + cuenta.sin)}
                 {chip("ok", cuenta.ok === 1 ? "completada" : "completadas", cuenta.ok, "ok")}
                 {chip("dif", "con diferencias", cuenta.dif, "dif")}
+                {puedeEditar && conValidar && (
+                  <span style={{ marginLeft: "auto", display: "inline-flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                    {total > 0 && Object.keys(cerradas).length >= total ? (
+                      <b style={{ color: "#0b7a3e" }}>Corte fiscal finalizado ✓ · todas las hojas cerradas</b>
+                    ) : cierre === "conf" ? (
+                      <>
+                        <span style={{ fontSize: ".8rem" }}>¿Cerrar todas las hojas que ya están aprobadas? Nadie más contará en ellas.</span>
+                        <button type="button" className="btn" style={{ background: "#0b7a3e", color: "#fff", borderRadius: 0 }} onClick={cerrarTodas}>Sí, cerrar todas</button>
+                        <button type="button" className="btn plano" style={{ borderRadius: 0 }} onClick={() => setCierre("")}>No</button>
+                      </>
+                    ) : (
+                      <button type="button" className="btn" disabled={cierre === "ocupado"} onClick={() => setCierre("conf")} style={{ background: "#0b7a3e", color: "#fff", borderRadius: 0 }}
+                              title="Cierra de un solo clic todas las hojas que ya tienen todo aprobado y termina el corte fiscal">
+                        {cierre === "ocupado" ? "Cerrando…" : "Cerrar todas las hojas"}
+                      </button>
+                    )}
+                  </span>
+                )}
               </div>
+              {cierreMsg && <p className="cl-nota" role="status">{cierreMsg}</p>}
               <div className="vf-grid">
                 {vistas.map((t) => {
                   const ubic = t.tipo === "dif" ? t.pend : [];
@@ -378,14 +410,14 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                       <header className="vf-card-cab">
                         <span className={"vf-card-ico " + t.tipo}><Ico n={ICO_TIPO[t.tipo]} tam={18} /></span>
                         <h3>Hoja {t.h.numero}</h3>
-                        <span className={"vf-estado " + t.tipo}>{texto(t)}</span>
                         {puedeEditar && (t.av?.olTermino || t.av?.bavariaTermino) && (
                           <button type="button" className="btn plano" onClick={() => abrirCaja(t.h.numero)} aria-label={`Hoja ${t.h.numero}: reabrir`}
                                   title={pidieronHoja(t.h.numero) > 0 ? "Pidieron reabrir su hoja: toca para darles el OK" : "Reabrir la hoja a las personas"}
-                                  style={{ marginLeft: "auto", padding: "4px 8px", ...(pidieronHoja(t.h.numero) > 0 ? { background: "#b71c1c", color: "#fff", borderColor: "#b71c1c" } : { opacity: 0.6 }) }}>
-                            <Ico n="campana" tam={16} />{pidieronHoja(t.h.numero) > 0 ? ` ${pidieronHoja(t.h.numero)}` : ""}
+                                  style={{ padding: "2px 7px", minHeight: 0, ...(pidieronHoja(t.h.numero) > 0 ? { background: "#b71c1c", color: "#fff", borderColor: "#b71c1c" } : { opacity: 0.6 }) }}>
+                            <Ico n="campana" tam={15} />{pidieronHoja(t.h.numero) > 0 ? ` ${pidieronHoja(t.h.numero)}` : ""}
                           </button>
                         )}
+                        <span className={"vf-estado " + t.tipo}>{texto(t)}</span>
                       </header>
                       <ul className="vf-pareja">
                         {persona(t.h.ol, "Operador logístico", t.av?.olRenglones, t.av?.olTermino, !!t.av)}
