@@ -211,7 +211,8 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
       {iconoCheck} Aprobada · Siguiente calle
     </button>
   ) : null;
-  const otras = Object.keys(MODULOS_DE_LA_HOJA).filter((c) => c !== (calle ?? ""));
+  /* Se ofrece también la calle actual: sirve para seguir contando lo que falta de ella (la hoja se reabre para las dos personas). */
+  const otras = Object.keys(MODULOS_DE_LA_HOJA);
   async function siguienteCalle() {
     setMal(null); setOk(null);
     if (!hojaId || !nueva) { setMal("Escoge la calle a la que pasan."); return }
@@ -344,7 +345,7 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
           <div className="vv-acc">
             <select id={`vv-calle-${numero}`} value={nueva} onChange={(e) => { setNueva(e.target.value); setSeguro(false) }} aria-label="Calle a la que pasan">
               <option value="">Escoge la calle…</option>
-              {otras.map((c) => <option key={c} value={c}>Calle {c}</option>)}
+              {otras.map((c) => <option key={c} value={c}>Calle {c}{c === (calle ?? "") ? " (la actual: seguir contando lo que falta)" : ""}</option>)}
             </select>
             {!seguro ? (
               <button type="button" className="btn" disabled={ocupado || !nueva} onClick={() => setSeguro(true)}>Pasar a la siguiente calle</button>
