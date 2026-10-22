@@ -1768,7 +1768,7 @@ begin
   v_ren := 0;
   for rg in
     select c.id as cid, c.producto_id, c.ubicacion_id, c.estibas, c.cajas, c.saldo, c.venc_dia, c.venc_mes, c.venc_anio,
-           c.averia, c.pnc, c.estado_envase, c.nota, c.contado_en, c.pnc_rotulo, c.pnc_bloqueo_mecanico,
+           c.averia, c.pnc, c.estado_envase, c.nota, c.contado_en, c.contado_por, c.pnc_rotulo, c.pnc_bloqueo_mecanico,
            coalesce(p.cajas_por_estiba, 0) * coalesce(c.estibas, 0) + coalesce(c.cajas, 0) + coalesce(c.saldo, 0) as total
       from public.inv_fiscal_conteos c join public.productos p on p.id = c.producto_id
      where c.hoja_id = p_hoja and c.ubicacion_id = any (v_ok)
@@ -1780,7 +1780,7 @@ begin
       (conteo_id, producto_id, ubicacion_id, estibas, cajas, saldo, venc_dia, venc_mes, venc_anio,
        rotacion, averia, pnc, estado_envase, nota, cantidad_contada, contado_por, contado_en, pnc_rotulo, pnc_bloqueo_mecanico)
     values (v_conteo, rg.producto_id, rg.ubicacion_id, rg.estibas, rg.cajas, rg.saldo, rg.venc_dia, rg.venc_mes, rg.venc_anio,
-            null, rg.averia, rg.pnc, rg.estado_envase, rg.nota, rg.total, v_yo, rg.contado_en, rg.pnc_rotulo, rg.pnc_bloqueo_mecanico)
+            null, rg.averia, rg.pnc, rg.estado_envase, rg.nota, rg.total, coalesce(rg.contado_por, v_yo), rg.contado_en, rg.pnc_rotulo, rg.pnc_bloqueo_mecanico)
     returning id into v_lid;
     -- La foto del renglón (si la hay) viaja con él a La base.
     insert into public.conteo_fotos (linea_id, conteo_id, ruta, bytes, ancho, alto, tomada_en, lat, lng, precision_m, subida_por, subida_en)
@@ -1788,6 +1788,11 @@ begin
       from public.inv_fiscal_fotos f where f.conteo_id = rg.cid;
     v_ren := v_ren + 1;
   end loop;
+  -- La hora real del conteo: del primer al último renglón que pasó (no la de quien aprueba).
+  update public.conteos cn
+     set iniciado_en = coalesce((select min(l.contado_en) from public.conteo_lineas l where l.conteo_id = v_conteo), cn.iniciado_en),
+         cerrado_en  = coalesce((select max(l.contado_en) from public.conteo_lineas l where l.conteo_id = v_conteo), cn.cerrado_en)
+   where cn.id = v_conteo;
   -- Mezclado / sin acceso de quien contó: de lo que pasó a La base y de los módulos donde nadie anotó renglones.
   insert into public.conteo_modulos (conteo_id, ubicacion_id, mezclado, sin_acceso, ruta, bytes, ancho, alto, tomada_en, lat, lng, precision_m, marcado_por, marcado_en)
   select v_conteo, m.ubicacion_id, m.mezclado, m.sin_acceso, m.ruta, m.bytes, m.ancho, m.alto, m.tomada_en, m.lat, m.lng, m.precision_m, m.user_id, m.marcado_en
