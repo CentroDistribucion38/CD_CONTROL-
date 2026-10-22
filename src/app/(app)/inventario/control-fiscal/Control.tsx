@@ -14,6 +14,13 @@ import {
   type ConteoPersona, type ConteoPersonaBD, type FilaCruce, type FilaCruceBD,
 } from "@/modulos/inventario/fiscal-cruce";
 
+/** Una línea de `inv_fiscal_bd_hoja` (solo lo que usa el Excel del cruce). */
+type BdLinea = {
+  equipo: string; persona: string | null; ubicacion: string; sku: string; material: string;
+  cajas_por_estiba: number | null; estibas: number | null; saldo: number | null; cajas: number | null; total_cajas: number | string | null;
+  venc_dia: number | null; venc_mes: number | null; venc_anio: number | null; nota: string | null; contado_en: string | null;
+};
+
 /* ===================================================================
    CONTROL FISCAL — VER Y EJECUTAR EL CONTROL DEL INVENTARIO FISCAL
 
@@ -37,8 +44,9 @@ export function Control({ personas, fiscales, conCruce, ahora, puedeEditar }: {
 
   /* EL EXCEL DEL CRUCE, EN UNO SOLO: el cruce de TODAS las hojas del inventario
      en un archivo (resumen por pareja, diferencias, por material y detalle).
-     Las hojas que todavía no se pueden cruzar salen en el resumen con lo que
-     les falta; nunca se inventa un cruce. */
+     Los CONTEOS de cada persona bajan de TODAS las hojas, hasta donde hayan llegado
+     (contando, sin cruzar o cerradas). El cruce (diferencias) solo sale de las hojas
+     donde las dos ya terminaron; nunca se inventa un cruce. */
   async function excelDelCruce(f: FiscalBD) {
     setMal(null); setAviso(null); setArmando(f.id);
     try {
@@ -53,20 +61,34 @@ export function Control({ personas, fiscales, conCruce, ahora, puedeEditar }: {
         let conteos: ConteoPersona[] | null = null;
         /* Lo que marcaron de los módulos (mezclado / sin acceso). Si falta el SQL, simplemente no hay pestaña. */
         let marcas: { ubicacion: string; equipo: "OL" | "BAVARIA"; mezclado: boolean; sin_acceso: boolean; foto: boolean }[] | null = null;
-        if (av && id) {
+        if (id) {
           const mk = await sb.rpc("inv_fiscal_modulos_hoja", { p_hoja: id });
           if (!mk.error) marcas = ((mk.data ?? []) as { ubicacion: string; equipo: "OL" | "BAVARIA"; mezclado: boolean; sin_acceso: boolean; ruta: string | null }[])
             .map((m) => ({ ubicacion: m.ubicacion, equipo: m.equipo, mezclado: m.mezclado, sin_acceso: m.sin_acceso, foto: !!m.ruta }));
         }
         if (av && id && puedeCruzar(av)) {
-          const [cr, co] = await Promise.all([sb.rpc("inv_fiscal_cruce", { p_hoja: id }), sb.rpc("inv_fiscal_conteos", { p_hoja: id })]);
+          const cr = await sb.rpc("inv_fiscal_cruce", { p_hoja: id });
           if (cr.error) throw new Error(cr.error.message);
           filas = ordenarCruce(cruceModulo(((cr.data ?? []) as FilaCruceBD[]).map(filaDesdeBD)));
-          /* Lo que anotó cada persona viene de 2026-10-fiscal-conteos-por-persona.sql: si a la base le falta, el cruce sale igual y el libro lo avisa. */
-          if (co.error) {
-            if (/inv_fiscal_conteos|schema cache|does not exist|no existe la funci/i.test(co.error.message)) sinConteos = true;
-            else throw new Error(co.error.message);
-          } else conteos = ((co.data ?? []) as ConteoPersonaBD[]).map(conteoDesdeBD);
+        }
+        /* Lo que anotó cada persona, de TODAS las hojas y hasta donde llegaron: primero la BD completa de la hoja
+           (cualquier estado); si a la base le falta esa función, la de conteos por persona (solo hojas cruzables). */
+        if (id) {
+          const bd = await sb.rpc("inv_fiscal_bd_hoja", { p_hoja: id });
+          if (!bd.error) {
+            conteos = ((bd.data ?? []) as BdLinea[]).map((l) => conteoDesdeBD({
+              equipo: l.equipo, persona: l.persona, ubicacion: l.ubicacion, sku: l.sku, material: l.material,
+              cajas_por_estiba: l.cajas_por_estiba, estibas: l.estibas, saldo: l.saldo, cajas: l.cajas, total_cajas: l.total_cajas,
+              venc_dia: l.venc_dia, venc_mes: l.venc_mes, venc_anio: l.venc_anio, nota: l.nota, contado_en: l.contado_en,
+            }));
+          } else if (av && puedeCruzar(av)) {
+            const co = await sb.rpc("inv_fiscal_conteos", { p_hoja: id });
+            if (co.error) {
+              if (/inv_fiscal_conteos|schema cache|does not exist|no existe la funci/i.test(co.error.message)) sinConteos = true;
+              else throw new Error(co.error.message);
+            } else conteos = ((co.data ?? []) as ConteoPersonaBD[]).map(conteoDesdeBD);
+          } else if (/inv_fiscal_bd_hoja|schema cache|does not exist|no existe la funci/i.test(bd.error.message)) sinConteos = true;
+          else throw new Error(bd.error.message);
         }
         return {
           numero: h.numero,
@@ -95,8 +117,12 @@ export function Control({ personas, fiscales, conCruce, ahora, puedeEditar }: {
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
       const n = hojas.filter((h) => h.filas).length;
-      setAviso(`Excel del cruce listo: ${n} de ${hojas.length} hojas cruzadas en un solo archivo` +
-        (n === 0 ? "." : sinConteos ? ", pero SIN lo que contó cada persona: falta correr 2026-10-fiscal-conteos-por-persona.sql en Supabase." : ", con lo que contó cada persona."));
+      const renglones = hojas.reduce((t, h) => t + (h.conteos?.length ?? 0), 0);
+      const conAlgo = hojas.filter((h) => (h.conteos?.length ?? 0) > 0).length;
+      setAviso(sinConteos
+        ? "Excel listo, pero SIN lo que contó cada persona: falta correr 2026-10-fiscal-TODO.sql en Supabase."
+        : `Excel listo: ${renglones} renglones contados de ${conAlgo} de ${hojas.length} hojas, hasta donde llegó cada persona` +
+          (n > 0 ? `; el cruce de diferencias sale de las ${n} hojas donde las dos ya terminaron.` : "; todavía ninguna hoja tiene a las dos personas terminadas, por eso aún no hay cruce de diferencias."));
     } catch (e) {
       setMal(e instanceof Error && e.message ? traducirError(e.message) : "No se pudo armar el Excel del cruce.");
     } finally { setArmando(null) }

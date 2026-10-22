@@ -111,9 +111,11 @@ export function lecturaHoja(h: HojaCruzada): string {
     const dif = h.filas.filter((f) => f.estado !== "COINCIDE").length;
     return dif === 0 ? `Todo coincide (${h.filas.length} renglones).` : `${dif} de ${h.filas.length} renglones no coinciden.`;
   }
-  if (h.estado === "una-termino") return "Falta que la otra persona termine.";
-  if (h.estado === "contando") return "Todavía están contando.";
-  return "Sin empezar.";
+  const n = h.conteos?.length ?? 0;
+  const hasta = n > 0 ? ` Lo contado hasta ahora (${n} ${n === 1 ? "renglón" : "renglones"}) está en «Conteos por persona».` : "";
+  if (h.estado === "una-termino") return "Falta que la otra persona termine." + hasta;
+  if (h.estado === "contando") return "Todavía están contando." + hasta;
+  return n > 0 ? "Sin cruzar." + hasta : "Sin empezar.";
 }
 
 function cabecera(h: ExcelJS.Worksheet, P: Paleta, sello: number | null, titulo: string, sub: string, ancho: number, volver = true) {
@@ -459,14 +461,15 @@ export async function armarCruceFiscal(o: InsumosCruce): Promise<ArrayBuffer> {
   pm.views = [{ showGridLines: false, state: "frozen", ySplit: MF0 }];
 
   /* =================== POR PERSONA =================== */
-  const hayCon = (h: HojaCruzada) => !!h.filas && !!h.conteos;
+  /* Los conteos de cada persona bajan SIEMPRE, hasta donde hayan llegado: la hoja no necesita estar cruzada. */
+  const hayCon = (h: HojaCruzada) => !!h.conteos;
   const conHojas = o.hojas.filter(hayCon);
   const aviso = (w: ExcelJS.Worksheet, hasta: number, fila: number) => {
     w.mergeCells(fila, 2, fila, hasta);
     const c = w.getCell(fila, 2);
     c.value = o.sinConteos
       ? "Lo que anotó cada persona todavía no se puede leer: falta correr supabase/migraciones/2026-10-fiscal-conteos-por-persona.sql en Supabase. El cruce de las hojas sí está completo en las demás pestañas."
-      : cruzadas.length ? "Esta hoja no trajo los conteos de las personas." : "Todavía no hay hojas cruzadas: los conteos de cada persona se ven cuando las dos terminan.";
+      : "Todavía nadie anotó renglones en estas hojas.";
     c.font = letra(11, o.sinConteos ? NARANJA : P.GRIS, true); c.alignment = { indent: 1, vertical: "middle", wrapText: true };
     w.getRow(fila).height = 34;
   };
