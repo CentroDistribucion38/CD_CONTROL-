@@ -8,9 +8,13 @@
    (nunca lo de su pareja: el conteo sigue a ciegas) y dos caminos:
 
      · «Está bien»: lo que conté es correcto. No cambia nada, solo avisa que ya revisó.
-     · «Contar de nuevo»: se abre lo que anotó en esa ubicación; lo corrige, agrega o quita
+     · «Contar de nuevo»: se abre lo que anotó en ese módulo; lo corrige, agrega o quita
        renglones (o dice «aquí no hay nada») y lo envía. Lo enviado REEMPLAZA lo anterior
-       de esa ubicación; todo o nada.
+       de ese módulo; todo o nada.
+
+   La revisión es por CALLE Y MÓDULO (A01): nunca se muestra el lado, porque delataría dónde
+   está cada cosa. Solo al contar de nuevo la persona dice en qué lado puso cada renglón
+   (así queda guardado), pero esa pregunta no sale en la lista.
 
    Sigue funcionando aunque la persona ya haya terminado su hoja: la base deja tocar solo
    las ubicaciones que el fiscal mandó a validar. Cuando las dos responden, el fiscal ve el
@@ -26,7 +30,11 @@ type RevisionMia = {
   fiscal_id: string; hoja_id: string; hoja: number; ubicacion_id: string; ubicacion: string;
   ronda: number; nota: string | null; pedido_en: string | null; ya_envie: boolean;
 };
-type Reng = BorradorFiscal & { k: number };
+type Reng = BorradorFiscal & { k: number; ub: string };
+/** Un módulo (A01) = sus dos lados juntos. */
+type Modulo = { modulo: string; filas: RevisionMia[]; ronda: number; nota: string | null; yaEnvie: boolean };
+const moduloDe = (clave: string) => clave.replace(/_(IZQ|DER)$/i, "");
+const ladoDe = (clave: string) => (/_IZQ$/i.test(clave) ? "Izquierdo" : /_DER$/i.test(clave) ? "Derecho" : "");
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const dd = (n: number | null) => (n == null ? "··" : String(n).padStart(2, "0"));
@@ -36,7 +44,7 @@ const dos = (v: string) => v.replace(/\D/g, "").slice(0, 2);
 const aTexto = (n: number | null) => (n == null ? "" : String(n));
 function desdeRenglon(r: RenglonFiscal, k: number): Reng {
   return {
-    ...VACIO_FISCAL, k,
+    ...VACIO_FISCAL, k, ub: r.ubicacion_id,
     base: "x", lado: "x", codigo: r.sku,
     dia: r.venc_dia == null ? "" : dd(r.venc_dia), mes: r.venc_mes == null ? "" : dd(r.venc_mes), anio: r.venc_anio == null ? "" : dd(r.venc_anio),
     modo: r.cajas != null ? "cajas" : "estibas",
@@ -73,70 +81,90 @@ export function RevisionesFiscal({ hojaId, mios, materiales, alCambiar, avisar }
     return () => clearInterval(t);
   }, [leer, editando]);
 
-  const pendientes = revs.filter((r) => !r.ya_envie);
-  const enviadas = revs.filter((r) => r.ya_envie);
+  const modulos = useMemo<Modulo[]>(() => {
+    const m = new Map<string, Modulo>();
+    for (const r of revs) {
+      const k = moduloDe(r.ubicacion);
+      const x = m.get(k) ?? { modulo: k, filas: [], ronda: 0, nota: null, yaEnvie: true };
+      x.filas.push(r);
+      x.ronda = Math.max(x.ronda, r.ronda);
+      x.nota = x.nota ?? r.nota;
+      if (!r.ya_envie) x.yaEnvie = false;
+      m.set(k, x);
+    }
+    return [...m.values()].sort((a, b) => a.modulo.localeCompare(b.modulo, "es", { numeric: true }));
+  }, [revs]);
+  const pendientes = modulos.filter((m) => !m.yaEnvie);
+  const enviadas = modulos.filter((m) => m.yaEnvie);
   if (revs.length === 0) return null;
 
   const matDe = (sku: string) => materiales.find((m) => m.activo && m.sku === sku.trim()) ?? null;
-  const misDe = (ubId: string) => (mios ?? []).filter((r) => r.ubicacion_id === ubId);
+  const misDe = (m: Modulo) => (mios ?? []).filter((r) => m.filas.some((f) => f.ubicacion_id === r.ubicacion_id));
   const textoCant = (r: RenglonFiscal) => {
     if (r.cajas != null) return `${nf.format(r.cajas)} caja${r.cajas === 1 ? "" : "s"}`;
     const e = r.estibas ?? 0, s = r.saldo ?? 0;
     return [e > 0 || s === 0 ? `${nf.format(e)} estiba${e === 1 ? "" : "s"}` : "", s > 0 ? `${nf.format(s)} caja${s === 1 ? "" : "s"}` : ""].filter(Boolean).join(" + ");
   };
 
-  async function enviar(r: RevisionMia, renglones: object[] | null) {
+  async function enviar(m: Modulo, renglones: object[] | null) {
     setOcupado(true); setMal(null);
-    const { error } = await supabase.rpc("inv_fiscal_revision_enviar", { p_hoja: r.hoja_id, p_ubicacion: r.ubicacion_id, p_renglones: renglones });
+    const { error } = await supabase.rpc("inv_fiscal_revision_enviar_modulo", { p_hoja: hojaId, p_ubicaciones: m.filas.map((f) => f.ubicacion_id), p_renglones: renglones });
     setOcupado(false);
-    if (error) { setMal(traducirError(error.message)); return false }
-    avisar.bien(renglones === null ? `${r.ubicacion}: enviaste que está bien.` : `${r.ubicacion}: enviaste tu nuevo conteo.`);
+    if (error) {
+      setMal(/inv_fiscal_revision_enviar_modulo|schema cache|does not exist|no existe la funci/i.test(error.message)
+        ? "Falta correr 2026-10-fiscal-modulo.sql en Supabase."
+        : traducirError(error.message));
+      return false;
+    }
+    avisar.bien(renglones === null ? `${m.modulo}: enviaste que está bien.` : `${m.modulo}: enviaste tu nuevo conteo.`);
     setEditando(null);
     await Promise.all([leer(), alCambiar()]);
     return true;
   }
 
-  function abrirEditor(r: RevisionMia) {
+  function abrirEditor(m: Modulo) {
     setMal(null);
-    setRengs(misDe(r.ubicacion_id).map((x, i) => desdeRenglon(x, i)));
-    setEditando(r.ubicacion_id);
+    setRengs(misDe(m).map((x, i) => desdeRenglon(x, i)));
+    setEditando(m.modulo);
   }
   const ponRen = (k: number, cambio: Partial<BorradorFiscal>) => setRengs((l) => l.map((x) => (x.k === k ? { ...x, ...cambio } : x)));
 
-  function enviarNuevo(r: RevisionMia) {
+  function enviarNuevo(m: Modulo) {
     const claves = new Set<string>();
     const salida: object[] = [];
     for (const x of rengs) {
       const mat = matDe(x.codigo);
       const falla = revisarFiscal(x, mat, "x");
       if (falla || !mat) { setMal(`${x.codigo.trim() || "Un renglón"}: ${falla ?? "falta el código del material."}`); return }
-      const a = argumentosFiscal(r.hoja_id, r.ubicacion_id, mat, x);
-      const clave = `${mat.id}|${a.p_dia ?? ""}|${a.p_mes ?? ""}|${a.p_anio ?? ""}`;
-      if (claves.has(clave)) { setMal(`${mat.sku} está dos veces con el mismo vencimiento: junta las cantidades en un solo renglón.`); return }
+      const ub = m.filas.length === 1 ? m.filas[0].ubicacion_id : x.ub;
+      if (!ub) { setMal(`${mat.sku}: dime en qué lado del módulo ${m.modulo} lo pusiste.`); return }
+      const a = argumentosFiscal(hojaId, ub, mat, x);
+      const clave = `${ub}|${mat.id}|${a.p_dia ?? ""}|${a.p_mes ?? ""}|${a.p_anio ?? ""}`;
+      if (claves.has(clave)) { setMal(`${mat.sku} está dos veces con el mismo vencimiento y lado: junta las cantidades en un solo renglón.`); return }
       claves.add(clave);
-      salida.push({ producto_id: a.p_producto, estibas: a.p_estibas, saldo: a.p_saldo, cajas: a.p_cajas, dia: a.p_dia, mes: a.p_mes, anio: a.p_anio, nota: a.p_nota });
+      salida.push({ ubicacion_id: ub, producto_id: a.p_producto, estibas: a.p_estibas, saldo: a.p_saldo, cajas: a.p_cajas, dia: a.p_dia, mes: a.p_mes, anio: a.p_anio, nota: a.p_nota });
     }
-    void enviar(r, salida);
+    void enviar(m, salida);
   }
 
   return (
-    <section className="rv" aria-label="Ubicaciones que te pidieron revisar" role="region">
+    <section className="rv" aria-label="Módulos que te pidieron revisar" role="region">
       <header className="rv-cab">
-        <b>{pendientes.length > 0 ? `Revisa ${pendientes.length === 1 ? "esta ubicación" : `estas ${pendientes.length} ubicaciones`}` : "Revisión enviada"}</b>
+        <b>{pendientes.length > 0 ? `Revisa ${pendientes.length === 1 ? "este módulo" : `estos ${pendientes.length} módulos`}` : "Revisión enviada"}</b>
         <span>{pendientes.length > 0 ? "El fiscal te pide confirmar tu conteo" : "Falta la aprobación del fiscal"}</span>
       </header>
       <ul className="rv-lista">
         {pendientes.map((r) => {
-          const mias = misDe(r.ubicacion_id);
-          const abierto = editando === r.ubicacion_id;
+          const mias = misDe(r);
+          const abierto = editando === r.modulo;
           return (
-            <li key={r.ubicacion_id} className="rv-ub">
-              <h3>{r.ubicacion}<span className="rv-ronda">Ronda {r.ronda}</span></h3>
+            <li key={r.modulo} className="rv-ub">
+              <h3>{r.modulo}<span className="rv-ronda">Ronda {r.ronda}</span></h3>
               {r.nota && <p className="rv-nota"><b>Nota del fiscal:</b> {r.nota}</p>}
               {!abierto && (
                 <>
-                  {mias.length === 0 ? <p className="rv-vacio">Aquí anotaste que no hay nada (o no anotaste nada).</p> : (
-                    <ul className="rv-mios" aria-label={`Lo que anotaste en ${r.ubicacion}`}>
+                  {mias.length === 0 ? <p className="rv-vacio">En este módulo anotaste que no hay nada (o no anotaste nada).</p> : (
+                    <ul className="rv-mios" aria-label={`Lo que anotaste en ${r.modulo}`}>
                       {mias.map((x) => (
                         <li key={x.id}><b>{x.sku}</b> {x.material}<br /><span>{textoCant(x)} = <b>{nf.format(Number(x.total_cajas))}</b> cajas
                           {x.venc_dia != null && <> · vence {dd(x.venc_dia)}/{dd(x.venc_mes)}/{dd(x.venc_anio)}</>}</span></li>
@@ -151,7 +179,7 @@ export function RevisionesFiscal({ hojaId, mios, materiales, alCambiar, avisar }
               )}
               {abierto && (
                 <div className="rv-ed">
-                  <p>Cuenta otra vez esta ubicación. Lo que envíes <b>reemplaza</b> lo que habías anotado aquí. Si no hay nada, quita todos los renglones y envía.</p>
+                  <p>Cuenta otra vez este módulo. Lo que envíes <b>reemplaza</b> lo que habías anotado aquí. Si no hay nada, quita todos los renglones y envía.</p>
                   {mal && <p className="cl-mal" role="alert">{mal}</p>}
                   {rengs.map((x) => {
                     const mat = matDe(x.codigo);
@@ -164,6 +192,14 @@ export function RevisionesFiscal({ hojaId, mios, materiales, alCambiar, avisar }
                         <p className={"rv-desc" + (x.codigo && !mat ? " mal" : "")}>
                           {!x.codigo ? "Teclea el código y te digo qué es." : mat ? `✓ ${mat.nombre}${mat.cajas_por_estiba != null ? ` · ${mat.cajas_por_estiba} cajas/estiba` : ""}` : "Ese código no está en el maestro."}
                         </p>
+                        {r.filas.length > 1 && (
+                          <label className="rv-w"><span>Lado donde lo pusiste</span>
+                            <select value={x.ub} onChange={(e) => ponRen(x.k, { ub: e.target.value } as Partial<BorradorFiscal>)}>
+                              <option value="">Escoge el lado…</option>
+                              {r.filas.map((f) => <option key={f.ubicacion_id} value={f.ubicacion_id}>{ladoDe(f.ubicacion) || f.ubicacion}</option>)}
+                            </select>
+                          </label>
+                        )}
                         <div className="rv-w">
                           <span className="fe-etiq-fecha">Vence{env ? " (sin fecha)" : ""}</span>
                           <div className="rv-fecha">
@@ -192,7 +228,7 @@ export function RevisionesFiscal({ hojaId, mios, materiales, alCambiar, avisar }
                   })}
                   <div className="rv-acc">
                     <button type="button" className="btn plano" disabled={ocupado}
-                            onClick={() => setRengs((l) => [...l, { ...VACIO_FISCAL, base: "x", lado: "x", k: Math.max(-1, ...l.map((y) => y.k)) + 1 }])}>
+                            onClick={() => setRengs((l) => [...l, { ...VACIO_FISCAL, base: "x", lado: "x", ub: r.filas.length === 1 ? r.filas[0].ubicacion_id : "", k: Math.max(-1, ...l.map((y) => y.k)) + 1 }])}>
                       Agregar un renglón
                     </button>
                   </div>
@@ -208,9 +244,9 @@ export function RevisionesFiscal({ hojaId, mios, materiales, alCambiar, avisar }
           );
         })}
         {enviadas.map((r) => (
-          <li key={r.ubicacion_id} className="rv-ub">
-            <h3>{r.ubicacion}<span className="rv-ronda">Ronda {r.ronda}</span></h3>
-            <p className="rv-enviada">Ya enviaste esta ubicación. Falta la aprobación del fiscal.</p>
+          <li key={r.modulo} className="rv-ub">
+            <h3>{r.modulo}<span className="rv-ronda">Ronda {r.ronda}</span></h3>
+            <p className="rv-enviada">Ya enviaste este módulo. Falta la aprobación del fiscal.</p>
           </li>
         ))}
       </ul>

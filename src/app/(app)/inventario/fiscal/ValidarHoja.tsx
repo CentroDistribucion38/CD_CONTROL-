@@ -25,8 +25,11 @@ export type RevisionBD = {
 /** Lo que ya está en La base de esta hoja (inv_fiscal_consolidados). */
 export type ConsolidadoBD = { hoja_id: string; numero: number; conteo: string; ubicaciones: number; renglones: number; cajas: number | string; enviado_en: string | null };
 
-type Ub = { id: string | null; clave: string; dif: boolean; renglones: number; rev?: RevisionBD };
+/* La validación es por CALLE Y MÓDULO (A01), nunca por lado: el lado es muy perceptivo y delataría dónde está cada cosa.
+   Un módulo junta sus dos lados; el SQL expande al aprobar/validar. */
+type Ub = { id: string | null; clave: string; dif: boolean; renglones: number; revs: RevisionBD[]; rev?: RevisionBD };
 const orden = (a: string, b: string) => a.localeCompare(b, "es", { numeric: true });
+export const moduloDe = (clave: string) => clave.replace(/_(IZQ|DER)$/i, "");
 
 export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeEditar, ol, bavaria, onCambio }: {
   hojaId: string | null; numero: number; calle?: string; filas: FilaCruce[]; revs: RevisionBD[]; consol?: ConsolidadoBD | null; puedeEditar: boolean;
@@ -46,17 +49,32 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
   const ubs = useMemo<Ub[]>(() => {
     const porClave = new Map<string, Ub>();
     for (const f of filas) {
-      const u = porClave.get(f.ubicacion) ?? { id: f.ubicacionId ?? null, clave: f.ubicacion, dif: false, renglones: 0 };
+      const m = moduloDe(f.ubicacion);
+      const u = porClave.get(m) ?? { id: f.ubicacionId ?? null, clave: m, dif: false, renglones: 0, revs: [] };
       u.renglones++;
       if (f.estado !== "COINCIDE") u.dif = true;
       if (!u.id && f.ubicacionId) u.id = f.ubicacionId;
-      porClave.set(f.ubicacion, u);
+      porClave.set(m, u);
     }
-    const rv = new Map(revs.filter((r) => r.numero === numero).map((r) => [r.ubicacion, r]));
-    for (const [k, r] of rv) {
-      const u = porClave.get(k);
-      if (u) u.rev = r;
-      else porClave.set(k, { id: r.ubicacion_id, clave: k, dif: false, renglones: 0, rev: r });
+    for (const r of revs.filter((x) => x.numero === numero)) {
+      const m = moduloDe(r.ubicacion);
+      const u = porClave.get(m) ?? { id: r.ubicacion_id, clave: m, dif: false, renglones: 0, revs: [] };
+      if (!u.id) u.id = r.ubicacion_id;
+      u.revs.push(r);
+      porClave.set(m, u);
+    }
+    /* Estado del módulo = lo que dicen sus lados juntos. */
+    for (const u of porClave.values()) {
+      if (u.revs.length === 0) continue;
+      const abiertas = u.revs.filter((r) => r.estado === "A_VALIDAR");
+      if (abiertas.length === 0) { u.rev = u.revs[0]; continue }
+      u.rev = {
+        ...abiertas[0],
+        ronda: Math.max(...abiertas.map((r) => r.ronda)),
+        ol_envio: abiertas.every((r) => r.ol_envio),
+        bavaria_envio: abiertas.every((r) => r.bavaria_envio),
+        nota: abiertas.find((r) => r.nota)?.nota ?? null,
+      };
     }
     return [...porClave.values()].sort((a, b) => orden(a.clave, b.clave));
   }, [filas, revs, numero]);
