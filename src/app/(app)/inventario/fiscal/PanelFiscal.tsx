@@ -224,6 +224,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
     let tipo: Tipo = "sin";
     if (estado === "lista" || (estado === "una-termino" && resumen)) tipo = resumen ? (pend.length === 0 ? "ok" : "dif") : "proceso";
     else if (estado !== "sin-empezar") tipo = "proceso";
+    if (cerradas[h.numero]) tipo = "ok";
     return { h, av, estado, cr, resumen, tipo, pend, aprobadoTodo, enValidacion };
   });
   type Tarjeta = (typeof tarjetas)[number];
@@ -253,7 +254,8 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
     : "Las ubicaciones aparecen cuando las dos personas de una hoja terminan.";
 
   const texto = (t: Tarjeta): string => {
-    if (t.estado === "una-termino" && t.resumen) return t.av?.olTermino ? "Solo terminó el operador · sin cruce" : "Solo terminó Bavaria · sin cruce";
+    if (!cerradas[t.h.numero] && t.estado === "una-termino" && t.resumen) return t.av?.olTermino ? "Solo terminó el operador · sin cruce" : "Solo terminó Bavaria · sin cruce";
+    if (cerradas[t.h.numero]) return "Hoja cerrada";
     if (t.tipo === "ok") return t.aprobadoTodo ? "Completada · aprobada" : "Completada · todo coincide";
     if (t.tipo === "dif") return "Con diferencias";
     if (t.estado === "lista") return "Cruzando…";
@@ -285,25 +287,25 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
   const [cierreMsg, setCierreMsg] = useState<string | null>(null);
   async function cerrarTodas() {
     setCierreMsg(null); setCierre("ocupado");
-    const { data, error } = await createClient().rpc("inv_fiscal_cerrar_hojas", { p_fiscal: fiscalId });
+    const { data, error } = await createClient().rpc("inv_fiscal_cerrar_todo", { p_fiscal: fiscalId });
     setCierre("");
-    if (error) { setCierreMsg(/inv_fiscal_cerrar|schema cache|does not exist|no existe la funci/i.test(error.message) ? "Falta correr 2026-10-fiscal-TODO.sql en Supabase." : traducirError(error.message)); return }
-    const r = (Array.isArray(data) ? data[0] : data) as { cerradas: number; pendientes: number } | null;
-    const c = r?.cerradas ?? 0, pe = r?.pendientes ?? 0;
-    setCierreMsg(`${c === 1 ? "Se cerró 1 hoja" : `Se cerraron ${c} hojas`}${pe > 0 ? `; ${pe === 1 ? "1 sigue" : `${pe} siguen`} con pendientes (abre su Revisión para terminarlas).` : ". Corte fiscal finalizado."}`);
+    if (error) { setCierreMsg(/inv_fiscal_cerrar_todo|schema cache|does not exist|no existe la funci/i.test(error.message) ? "Falta correr 2026-10-fiscal-TODO.sql en Supabase." : traducirError(error.message)); return }
+    const r = (Array.isArray(data) ? data[0] : data) as { cerradas: number; modulos_forzados: number } | null;
+    const c = r?.cerradas ?? 0, fz = r?.modulos_forzados ?? 0;
+    setCierreMsg(`${c === 1 ? "Se cerró 1 hoja" : `Se cerraron ${c} hojas`} y todo lo contado bajó a La base. Corte fiscal finalizado.${fz > 0 ? ` ${fz} ${fz === 1 ? "módulo no estaba aprobado" : "módulos no estaban aprobados"} y se aprobaron al cerrar (si no cuadraban, quedó lo del operador).` : ""}`);
     await cargar();
   }
   const abrirRevision = (n: number) => { setFoco(n); setHojaRev(n); setPestana("revision") };
   const abrirCaja = (n: number) => { abrirRevision(n); setCaja(n) };
 
-  const persona = (id: string, et: string, rengl: number | undefined, termino: string | null | undefined, hay: boolean) => {
-    const fin = !!termino;
+  const persona = (id: string, et: string, rengl: number | undefined, termino: string | null | undefined, hay: boolean, cerrada = false) => {
+    const fin = !!termino || cerrada;
     return (
       <li className="vf-persona">
         <span className="vf-rol"><Ico n="persona" tam={13} /> {et}</span>
         <b>{id ? quien(id) : <em>sin asignar</em>}</b>
         {hay && id && rengl !== undefined && (
-          <small className={fin ? "fin" : ""}><Ico n={fin ? "ok" : "reloj"} tam={13} /> {textoEquipo(rengl, termino ?? null)}</small>
+          <small className={fin ? "fin" : ""}><Ico n={fin ? "ok" : "reloj"} tam={13} /> {cerrada ? `${nf.format(rengl)} ${rengl === 1 ? "renglón" : "renglones"} · cerrada` : textoEquipo(rengl, termino ?? null)}</small>
         )}
       </li>
     );
@@ -397,13 +399,13 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                   <b className="vf-fin">Corte fiscal finalizado ✓</b>
                 ) : cierre === "conf" ? (
                   <>
-                    <span className="vf-cerrar-q">¿Cerrar todas las hojas aprobadas? Nadie más contará en ellas.</span>
+                    <span className="vf-cerrar-q">¿Cerrar TODO el corte? Lo que siga contando o sin aprobar baja a La base (si no cuadra, queda lo del operador) y nadie más cuenta.</span>
                     <button type="button" className="vf-mostaza" onClick={cerrarTodas}>Sí, cerrar todas</button>
                     <button type="button" className="vf-btn-claro" onClick={() => setCierre("")}>No</button>
                   </>
                 ) : (
                   <button type="button" className="vf-mostaza" disabled={cierre === "ocupado"} onClick={() => setCierre("conf")}
-                          title="Cierra de un solo clic todas las hojas que ya tienen todo aprobado y termina el corte fiscal">
+                          title="Cierra todas las hojas de una vez, aunque algo siga contando: todo lo contado baja a La base y termina el corte fiscal">
                     {cierre === "ocupado" ? "Cerrando…" : "Cerrar todas las hojas"}
                   </button>
                 )}
@@ -454,11 +456,11 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                         <span className={"vf-estado " + t.tipo}>{texto(t)}</span>
                       </header>
                       <ul className="vf-pareja">
-                        {persona(t.h.ol, "Operador logístico", t.av?.olRenglones, t.av?.olTermino, !!t.av)}
-                        {persona(t.h.bavaria, "Bavaria", t.av?.bavariaRenglones, t.av?.bavariaTermino, !!t.av)}
+                        {persona(t.h.ol, "Operador logístico", t.av?.olRenglones, t.av?.olTermino, !!t.av, !!cerradas[t.h.numero])}
+                        {persona(t.h.bavaria, "Bavaria", t.av?.bavariaRenglones, t.av?.bavariaTermino, !!t.av, !!cerradas[t.h.numero])}
                       </ul>
                       {t.tipo === "ok" && t.resumen && (
-                        <p className="vf-ok"><Ico n="ok" tam={15} /> {t.aprobadoTodo ? "Las diferencias fueron aprobadas por el fiscal" : `${nf.format(t.resumen.total)} ${t.resumen.total === 1 ? "renglón igual" : "renglones iguales"}`}</p>
+                        <p className="vf-ok"><Ico n="ok" tam={15} /> {cerradas[t.h.numero] ? "Hoja cerrada: lo contado bajó a La base" : t.aprobadoTodo ? "Las diferencias fueron aprobadas por el fiscal" : `${nf.format(t.resumen.total)} ${t.resumen.total === 1 ? "renglón igual" : "renglones iguales"}`}</p>
                       )}
                       {t.tipo === "dif" && t.resumen && (
                         <div className="vf-dif">

@@ -1157,6 +1157,71 @@ end $$;
 revoke all on function public.inv_fiscal_siguiente_calle(uuid, text) from public, anon;
 grant execute on function public.inv_fiscal_siguiente_calle(uuid, text) to authenticated;
 
+-- ---------------------------------------------------------------------
+-- CERRAR TODO EL CORTE: cierra DE UNA todas las hojas, aunque algo siga contando, en validación o sin aprobar.
+-- Todo lo contado baja a La base. Lo que aún no estaba aprobado se aprueba al cerrar:
+--   · si solo una persona contó el módulo, queda lo de esa persona;
+--   · si las dos contaron y no cuadra (ni compensando), queda lo del operador;
+--   · si cuadra o se compensa, queda como está.
+-- Después de esto nadie más cuenta en esas hojas (se reabren una a una si hace falta).
+-- ---------------------------------------------------------------------
+drop function if exists public.inv_fiscal_cerrar_todo(uuid);
+create function public.inv_fiscal_cerrar_todo(p_fiscal uuid)
+returns table (cerradas integer, modulos_forzados integer)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_yo uuid := auth.uid();
+  v_estado text; h record; r record;
+  v_cerr integer := 0; v_forz integer := 0;
+  v_ol boolean; v_bv boolean; v_adopt text; v_ya boolean;
+begin
+  if not public.puede_editar('/inventario/fiscal') then
+    raise exception 'Cerrar el corte requiere el permiso «Inventario fiscal» (Roles)';
+  end if;
+  select f.estado into v_estado from public.inv_fiscales f where f.id = p_fiscal;
+  if v_estado is null then raise exception 'Ese inventario fiscal no existe.'; end if;
+  if v_estado <> 'abierto' then raise exception 'Este inventario fiscal ya está cerrado.'; end if;
+
+  for h in select x.id from public.inv_fiscal_hojas x where x.fiscal_id = p_fiscal and x.cerrada_en is null order by x.numero loop
+    for r in
+      select distinct c.ubicacion_id as ubi, regexp_replace(u.clave, '_(IZQ|DER)$', '') as md
+        from public.inv_fiscal_conteos c join public.ubicaciones u on u.id = c.ubicacion_id
+       where c.hoja_id = h.id
+    loop
+      select exists (select 1 from public.inv_fiscal_revisiones rv where rv.hoja_id = h.id and rv.ubicacion_id = r.ubi and rv.estado = 'APROBADA') into v_ya;
+      if v_ya then continue; end if;
+      select exists (select 1 from public.inv_fiscal_conteos c join public.ubicaciones u on u.id = c.ubicacion_id
+                      where c.hoja_id = h.id and c.equipo = 'OL' and regexp_replace(u.clave, '_(IZQ|DER)$', '') = r.md),
+             exists (select 1 from public.inv_fiscal_conteos c join public.ubicaciones u on u.id = c.ubicacion_id
+                      where c.hoja_id = h.id and c.equipo = 'BAVARIA' and regexp_replace(u.clave, '_(IZQ|DER)$', '') = r.md)
+        into v_ol, v_bv;
+      v_adopt := case when v_ol and not v_bv then 'OL'
+                      when v_bv and not v_ol then 'BAVARIA'
+                      when public.inv_fiscal_modulo_difiere(h.id, r.ubi, true) then 'OL'
+                      else null end;
+      insert into public.inv_fiscal_revisiones (hoja_id, ubicacion_id, estado, ronda, aprobado_por, aprobado_en, adoptado, compensado)
+      values (h.id, r.ubi, 'APROBADA', 0, v_yo, now(), v_adopt, true)
+      on conflict (hoja_id, ubicacion_id) do update
+        set estado = 'APROBADA', aprobado_por = v_yo, aprobado_en = now(), adoptado = v_adopt, compensado = true;
+      v_forz := v_forz + 1;
+    end loop;
+    -- Todo lo contado baja a La base.
+    begin
+      perform public.inv_fiscal_consolidar(h.id);
+    exception when others then
+      if sqlerrm not ilike '%nada que consolidar%' then raise; end if;
+    end;
+    update public.inv_fiscal_hojas set cerrada_en = now(), cerrada_por = v_yo where id = h.id;
+    v_cerr := v_cerr + 1;
+  end loop;
+  return query select v_cerr, v_forz;
+end $$;
+revoke all on function public.inv_fiscal_cerrar_todo(uuid) from public, anon;
+grant execute on function public.inv_fiscal_cerrar_todo(uuid) to authenticated;
+
 do $$
 begin
   if to_regprocedure('public.inv_fiscal_mis_diferencias(uuid)') is null
@@ -1171,6 +1236,7 @@ begin
      or to_regprocedure('public.inv_fiscal_borradores_base()') is null
      or to_regprocedure('public.inv_fiscal_bd_hoja(uuid)') is null
      or to_regprocedure('public.inv_fiscal_cerrar_hojas(uuid)') is null
+     or to_regprocedure('public.inv_fiscal_cerrar_todo(uuid)') is null
      or to_regprocedure('public.inv_fiscal_cruce(uuid)') is null
      or to_regprocedure('public.inv_fiscal_consolidar(uuid)') is null then
     raise exception 'No quedaron las funciones de validar por módulo. Revisa que corrieron antes validar y consolidar.';
