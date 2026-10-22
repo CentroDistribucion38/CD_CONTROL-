@@ -214,7 +214,7 @@ export function cruceModulo(filas: FilaCruce[]): FilaCruce[] {
 /* LA COMPENSACIÓN. Un click del fiscal, en dos pasos:
      1. En cada módulo, una diferencia de +45 en un material y otra de −45 en otro se dan por compensadas (casi siempre es el
         mismo material anotado con otro código por cada persona).
-     2. Entre módulos de la hoja, el MISMO material (código, estado, avería y PNC) con +588 en un módulo y −588 en otro: uno
+     2. Entre módulos de la hoja, el MISMO código de material (sin mirar avería, estado ni PNC) y la misma cantidad, con +588 en un módulo y −588 en otro: uno
         contó esas cajas en un sitio y el otro en el de al lado, y en total cuadra.
    Solo se compensan cantidades EXACTAS y de signo contrario; lo demás queda como diferencia. */
 export function compensarCruce(filas: FilaCruce[]): { filas: FilaCruce[]; pares: number } {
@@ -239,7 +239,7 @@ export function compensarCruce(filas: FilaCruce[]): { filas: FilaCruce[]; pares:
   const porMaterial = new Map<string, FilaCruce[]>();
   for (const f of filas) {
     if (f.estado === "COINCIDE" || f.diferencia === 0 || marcadas.has(f)) continue;
-    const k = `${f.sku}|${f.estadoEnvase ?? ""}|${f.averia ? 1 : 0}|${f.pnc ? 1 : 0}`;
+    const k = f.sku; /* mismo código; la avería, el estado y el PNC no impiden compensar */
     const l = porMaterial.get(k) ?? [];
     l.push(f); porMaterial.set(k, l);
   }

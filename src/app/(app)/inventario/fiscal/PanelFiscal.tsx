@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { traducirError } from "@/lib/errores";
 import {
@@ -61,6 +61,19 @@ type Resultado = { filas: FilaCruce[] } | { error: string };
 type FotoCruce = { conteo_id: string; ubicacion: string; equipo: "OL" | "BAVARIA"; sku: string; averia: boolean; pnc: boolean; ruta: string };
 /** Quién pidió reabrir su hoja y a quién el fiscal ya le dio el OK. */
 type ReaperturaBD = { hoja_id: string; numero: number; equipo: "OL" | "BAVARIA"; pedido_en: string | null; autorizado_en: string | null };
+/** Agrupa las filas por CÓDIGO de material (sin importar sitio ni avería) para ver dónde está la diferencia de cada material:
+ *  una cabecera por código con lo que contó cada equipo y el neto, y debajo sus sitios. Orden: código, y dentro, sitio. */
+function agruparPorCodigo(filas: FilaCruce[]): { sku: string; material: string; ol: number; bav: number; neto: number; filas: FilaCruce[] }[] {
+  const m = new Map<string, { sku: string; material: string; ol: number; bav: number; neto: number; filas: FilaCruce[] }>();
+  for (const f of filas) {
+    let g = m.get(f.sku);
+    if (!g) { g = { sku: f.sku, material: f.material, ol: 0, bav: 0, neto: 0, filas: [] }; m.set(f.sku, g); }
+    g.ol += f.cajasOl ?? 0; g.bav += f.cajasBavaria ?? 0; g.neto += f.diferencia; g.filas.push(f);
+  }
+  const arr = [...m.values()].sort((a, b) => a.sku.localeCompare(b.sku, "es", { numeric: true }));
+  for (const g of arr) g.filas.sort((a, b) => a.ubicacion.localeCompare(b.ubicacion, "es", { numeric: true }));
+  return arr;
+}
 const moduloClave = (u: string) => u.replace(/_(IZQ|DER)$/i, "");
 async function abrirFoto(ruta: string) {
   const w = window.open("", "_blank");
@@ -470,7 +483,15 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                     <table className="vf-tabla">
                       <thead><tr><th>Estado</th><th>Sitio</th><th>Material</th><th>Vence</th><th>Operador</th><th>Bavaria</th><th>Diferencia</th></tr></thead>
                       <tbody>
-                        {vis.map((f, i) => (
+                        {agruparPorCodigo(vis).map((g) => (
+                          <Fragment key={g.sku}>
+                          <tr className="vf-grupo">
+                            <td colSpan={7} style={{ background: "rgba(127,127,127,.12)", borderTop: "2px solid currentColor", padding: "8px 10px" }}>
+                              <b>{g.sku}</b> {g.material}
+                              <span className="vf-grupo-sum"> · Operador {nf.format(g.ol)} · Bavaria {nf.format(g.bav)} · {g.neto === 0 ? "cuadra en total (0)" : "neto " + (g.neto > 0 ? "+" : "") + nf.format(g.neto)}{g.filas.length > 1 ? ` · ${g.filas.length} renglones` : ""}</span>
+                            </td>
+                          </tr>
+                          {g.filas.map((f, i) => (
                           <tr key={i} className={"vf-f " + f.estado.toLowerCase()}>
                             <td data-et="Estado"><i className={"vf-ef " + f.estado.toLowerCase()}>{f.compensada ? "Compensada" : TEXTO_FILA[f.estado]}</i></td>
                             <td data-et="Sitio"><b>{f.ubicacion}</b></td>
@@ -483,6 +504,8 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                             <td data-et="Bavaria" className="num">{f.cajasBavaria === null ? "—" : nf.format(f.cajasBavaria)}</td>
                             <td data-et="Diferencia" className="num">{f.diferencia === 0 ? "0" : (f.diferencia > 0 ? "+" : "") + nf.format(f.diferencia)}</td>
                           </tr>
+                          ))}
+                          </Fragment>
                         ))}
                       </tbody>
                     </table>

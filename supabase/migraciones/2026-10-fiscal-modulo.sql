@@ -314,7 +314,7 @@ as $$
      group by 1, 2, 3, 4, 5
   )
   -- Con «compensar», una diferencia no cuenta si (a) hay otra igual y de signo contrario en el mismo módulo, o (b) el MISMO
-  -- material tiene la diferencia contraria en otro módulo de la hoja (uno lo contó en un sitio y el otro en el de al lado).
+  -- material (mismo código y misma cantidad, sin mirar avería ni estado) tiene la diferencia contraria en otro módulo de la hoja (uno lo contó en un sitio y el otro en el de al lado).
   select exists (
     select 1 from g
      where g.modulo = (select regexp_replace(u2.clave, '_(IZQ|DER)$', '') from public.ubicaciones u2 where u2.id = p_ubi)
@@ -323,8 +323,7 @@ as $$
                 and ((select count(*) from g g2 where g2.modulo = g.modulo and g2.dif = g.dif)
                        = (select count(*) from g g3 where g3.modulo = g.modulo and g3.dif = -g.dif)
                      or exists (select 1 from g g4
-                                 where g4.modulo <> g.modulo and g4.producto_id = g.producto_id and g4.ee is not distinct from g.ee
-                                   and g4.av = g.av and g4.pn = g.pn and g4.dif = -g.dif)))
+                                 where g4.modulo <> g.modulo and g4.producto_id = g.producto_id and g4.dif = -g.dif)))
   )
 $$;
 revoke all on function public.inv_fiscal_modulo_difiere(uuid, uuid, boolean) from public, anon, authenticated;
