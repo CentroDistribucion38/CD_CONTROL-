@@ -49,6 +49,10 @@ export function estadoHoja(a: AvanceHoja): EstadoHoja {
 /** El cruce solo se puede pedir cuando las dos personas terminaron. */
 export const puedeCruzar = (a: AvanceHoja | undefined): boolean => !!a && estadoHoja(a) === "lista";
 
+/** Terminó una sola persona (y contó algo): el fiscal igual puede ver lo que hay y aprobarlo, sin cruce. */
+export const unaSolaTermino = (a: AvanceHoja | undefined): boolean =>
+  !!a && estadoHoja(a) === "una-termino" && (a.olTermino !== null ? a.olRenglones : a.bavariaRenglones) > 0;
+
 export const TEXTO_ESTADO: Record<EstadoHoja, string> = {
   "sin-empezar": "Sin empezar",
   "contando": "Contando",

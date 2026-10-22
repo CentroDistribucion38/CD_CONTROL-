@@ -101,6 +101,7 @@ as $$
 declare
   v_yo uuid := auth.uid();
   v_ubi uuid; v_n integer := 0; v_estado text; v_rev text; v_ronda integer; v_envios integer; v_clave text; v_lista uuid[];
+  v_equipos integer;
 begin
   if not public.puede_editar('/inventario/fiscal') then
     raise exception 'Aprobar requiere el permiso «Inventario fiscal» (Roles)';
@@ -110,11 +111,16 @@ begin
     from public.inv_fiscal_hojas h join public.inv_fiscales f on f.id = h.fiscal_id where h.id = p_hoja;
   if v_estado is null then raise exception 'Esa hoja no existe.'; end if;
   if v_estado <> 'abierto' then raise exception 'Este inventario fiscal ya está cerrado.'; end if;
-  if (select count(distinct m.equipo)
-        from public.inv_fiscal_miembros m
-        join public.inv_fiscal_terminos t on t.hoja_id = m.hoja_id and t.user_id = m.user_id
-       where m.hoja_id = p_hoja) < 2 then
-    raise exception 'Se aprueba cuando las dos personas de la hoja terminaron.';
+  select count(distinct m.equipo) into v_equipos
+    from public.inv_fiscal_miembros m
+    join public.inv_fiscal_terminos t on t.hoja_id = m.hoja_id and t.user_id = m.user_id
+   where m.hoja_id = p_hoja;
+  if v_equipos < 1 then
+    raise exception 'Se aprueba cuando al menos una persona de la hoja terminó.';
+  end if;
+  -- Con una sola persona no hay cruce: se aprueba solo si el fiscal lo confirma.
+  if v_equipos < 2 and not coalesce(p_forzar, false) then
+    raise exception 'Solo terminó una persona de la hoja: no hay cruce. Confirma para aprobar con una sola persona.';
   end if;
 
   v_lista := array(
@@ -234,6 +240,95 @@ end $$;
 revoke all on function public.inv_fiscal_revision_enviar_modulo(uuid, uuid[], jsonb) from public, anon;
 grant execute on function public.inv_fiscal_revision_enviar_modulo(uuid, uuid[], jsonb) to authenticated;
 
+-- ¿El módulo de esta ubicación NO cuadra entre las dos personas? (por módulo, material y vencimiento; sin lado)
+drop function if exists public.inv_fiscal_modulo_difiere(uuid, uuid);
+create function public.inv_fiscal_modulo_difiere(p_hoja uuid, p_ubi uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with t as (
+    select regexp_replace(u.clave, '_(IZQ|DER)$', '') as modulo, c.producto_id,
+           coalesce(c.venc_dia, 0) as vd, coalesce(c.venc_mes, 0) as vm, coalesce(c.venc_anio, 0) as va, c.equipo,
+           coalesce(p.cajas_por_estiba, 0) * coalesce(c.estibas, 0) + coalesce(c.saldo, 0) + coalesce(c.cajas, 0) as cajas
+      from public.inv_fiscal_conteos c
+      join public.ubicaciones u on u.id = c.ubicacion_id
+      join public.productos p on p.id = c.producto_id
+     where c.hoja_id = p_hoja
+  ), g as (
+    select modulo, producto_id, vd, vm, va,
+           sum(case when equipo = 'OL' then cajas end) as co, sum(case when equipo = 'BAVARIA' then cajas end) as cb
+      from t
+     where modulo = (select regexp_replace(u2.clave, '_(IZQ|DER)$', '') from public.ubicaciones u2 where u2.id = p_ubi)
+     group by 1, 2, 3, 4, 5
+  )
+  select exists (select 1 from g where co is null or cb is null or co <> cb)
+$$;
+revoke all on function public.inv_fiscal_modulo_difiere(uuid, uuid) from public, anon, authenticated;
+
+-- El cruce también se puede pedir cuando terminó una sola persona (todo sale «solo …», sin cruce).
+drop function if exists public.inv_fiscal_cruce(uuid);
+create function public.inv_fiscal_cruce(p_hoja uuid)
+returns table (
+  ubicacion_id uuid, ubicacion text, producto_id uuid, sku text, material text,
+  venc_dia smallint, venc_mes smallint, venc_anio smallint,
+  cajas_ol bigint, cajas_bavaria bigint, diferencia bigint, estado text
+)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  if not public.puede_editar('/inventario/fiscal') then
+    raise exception 'Cruzar el inventario fiscal requiere el permiso «Inventario fiscal» (Roles)';
+  end if;
+  if not exists (select 1 from public.inv_fiscal_hojas where id = p_hoja) then
+    raise exception 'Esa hoja no existe.';
+  end if;
+  if (select count(distinct m.equipo)
+        from public.inv_fiscal_miembros m
+        join public.inv_fiscal_terminos t on t.hoja_id = m.hoja_id and t.user_id = m.user_id
+       where m.hoja_id = p_hoja) < 1 then
+    raise exception 'El cruce se hace cuando al menos una persona de la hoja terminó de contar.';
+  end if;
+
+  return query
+  with t as (
+    select c.ubicacion_id, c.producto_id, c.venc_dia, c.venc_mes, c.venc_anio, m.equipo,
+           sum(coalesce(p.cajas_por_estiba, 0) * coalesce(c.estibas, 0) + coalesce(c.saldo, 0) + coalesce(c.cajas, 0))::bigint as cajas
+      from public.inv_fiscal_conteos c
+      join public.inv_fiscal_miembros m on m.hoja_id = c.hoja_id and m.user_id = c.contado_por
+      join public.productos p on p.id = c.producto_id
+     where c.hoja_id = p_hoja
+     group by c.ubicacion_id, c.producto_id, c.venc_dia, c.venc_mes, c.venc_anio, m.equipo
+  ), o as (select * from t where equipo = 'OL'), b as (select * from t where equipo = 'BAVARIA'),
+  j as (
+    select coalesce(o.ubicacion_id, b.ubicacion_id) as ubi, coalesce(o.producto_id, b.producto_id) as prod,
+           coalesce(o.venc_dia, b.venc_dia) as vd, coalesce(o.venc_mes, b.venc_mes) as vm, coalesce(o.venc_anio, b.venc_anio) as va,
+           o.cajas as co, b.cajas as cb
+      from o full join b
+        on o.ubicacion_id = b.ubicacion_id and o.producto_id = b.producto_id
+       and coalesce(o.venc_dia, 0) = coalesce(b.venc_dia, 0)
+       and coalesce(o.venc_mes, 0) = coalesce(b.venc_mes, 0)
+       and coalesce(o.venc_anio, 0) = coalesce(b.venc_anio, 0)
+  )
+  select j.ubi, u.clave, j.prod, pr.sku, pr.nombre, j.vd, j.vm, j.va, j.co, j.cb,
+         (coalesce(j.co, 0) - coalesce(j.cb, 0))::bigint,
+         case when j.co is null then 'SOLO_BAVARIA'
+              when j.cb is null then 'SOLO_OL'
+              when j.co = j.cb then 'COINCIDE'
+              else 'DIFIERE' end
+    from j
+    join public.ubicaciones u on u.id = j.ubi
+    join public.productos pr on pr.id = j.prod
+   order by (case when j.co is not null and j.cb is not null and j.co = j.cb then 1 else 0 end), u.clave, pr.sku, j.va, j.vm, j.vd;
+end $$;
+revoke all on function public.inv_fiscal_cruce(uuid) from public, anon;
+grant execute on function public.inv_fiscal_cruce(uuid) to authenticated;
+
 -- ---------------------------------------------------------------------
 -- CONSOLIDAR (igual que antes; un lado donde nadie contó ya no cuenta como pendiente)
 -- ---------------------------------------------------------------------
@@ -247,7 +342,7 @@ as $$
 declare
   v_yo uuid := auth.uid();
   v_num integer; v_conteo uuid; v_fecha date; v_bodega uuid; v_codigo text;
-  v_ok uuid[]; v_sin integer; v_ren integer;
+  v_ok uuid[]; v_sin integer; v_ren integer; v_equipos integer; v_eq text := 'OL';
 begin
   if not public.puede_editar('/inventario/fiscal') then
     raise exception 'Consolidar requiere el permiso «Inventario fiscal» (Roles)';
@@ -256,13 +351,20 @@ begin
     from public.inv_fiscal_hojas h join public.inv_fiscales f on f.id = h.fiscal_id where h.id = p_hoja;
   if v_num is null then raise exception 'Esa hoja no existe.'; end if;
 
-  -- Lo aprobado Y coincidente (todos sus renglones iguales entre las dos personas).
+  -- ¿Terminó una sola persona? Entonces no hay cruce: lo aprobado se toma de la persona que terminó.
+  select count(distinct m.equipo), coalesce(min(m.equipo), 'OL') into v_equipos, v_eq
+    from public.inv_fiscal_miembros m
+    join public.inv_fiscal_terminos t on t.hoja_id = m.hoja_id and t.user_id = m.user_id
+   where m.hoja_id = p_hoja;
+  if v_equipos <> 1 then v_eq := 'OL'; end if;
+
+  -- Lo aprobado Y coincidente por módulo (sin lado). Con una sola persona: todo lo aprobado que ella contó.
   v_ok := array(
     select r.ubicacion_id from public.inv_fiscal_revisiones r
      where r.hoja_id = p_hoja and r.estado = 'APROBADA'
-       and exists (select 1 from public.inv_fiscal_conteos c where c.hoja_id = p_hoja and c.ubicacion_id = r.ubicacion_id)
-       and not exists (select 1 from public.inv_fiscal_cruce_filas(p_hoja) x
-                        where x.ubicacion_id = r.ubicacion_id and x.estado <> 'COINCIDE'));
+       and exists (select 1 from public.inv_fiscal_conteos c where c.hoja_id = p_hoja and c.ubicacion_id = r.ubicacion_id
+                    and (v_equipos <> 1 or c.equipo = v_eq))
+       and (v_equipos = 1 or not public.inv_fiscal_modulo_difiere(p_hoja, r.ubicacion_id)));
   select count(*) into v_sin from public.inv_fiscal_revisiones r
    where r.hoja_id = p_hoja and r.estado = 'APROBADA' and not (r.ubicacion_id = any (v_ok))
      and exists (select 1 from public.inv_fiscal_conteos c where c.hoja_id = p_hoja and c.ubicacion_id = r.ubicacion_id);
@@ -279,7 +381,7 @@ begin
     insert into public.conteos (codigo, bodega_id, tipo, estado, responsable_id, iniciado_en, cerrado_en, enviado_por, enviado_en, nota)
     values (v_codigo, v_bodega, 'fefo', 'cerrado', v_yo, now(), now(), v_yo,
             ((v_fecha::timestamp + interval '12 hours') at time zone 'America/Bogota'),
-            'Inventario fiscal · Hoja ' || v_num || ' · lo aprobado por el fiscal y coincidente entre las dos personas')
+            'Inventario fiscal · Hoja ' || v_num || case when v_equipos = 1 then ' · lo aprobado por el fiscal, contado por una sola persona (sin cruce)' else ' · lo aprobado por el fiscal y coincidente entre las dos personas' end)
     returning id into v_conteo;
     update public.inv_fiscal_hojas set conteo_id = v_conteo where id = p_hoja;
   end if;
@@ -294,7 +396,7 @@ begin
          coalesce(p.cajas_por_estiba, 0) * coalesce(c.estibas, 0) + coalesce(c.cajas, 0) + coalesce(c.saldo, 0),
          v_yo, c.contado_en
     from public.inv_fiscal_conteos c join public.productos p on p.id = c.producto_id
-   where c.hoja_id = p_hoja and c.equipo = 'OL' and c.ubicacion_id = any (v_ok);
+   where c.hoja_id = p_hoja and c.equipo = v_eq and c.ubicacion_id = any (v_ok);
   get diagnostics v_ren = row_count;
 
   return query select coalesce(array_length(v_ok, 1), 0), v_ren, v_sin,
@@ -352,6 +454,8 @@ begin
      or to_regprocedure('public.inv_fiscal_revision_enviar_modulo(uuid,uuid[],jsonb)') is null
      or to_regprocedure('public.inv_fiscal_validar(uuid,uuid[],text)') is null
      or to_regprocedure('public.inv_fiscal_aprobar(uuid,uuid[],boolean)') is null
+     or to_regprocedure('public.inv_fiscal_modulo_difiere(uuid,uuid)') is null
+     or to_regprocedure('public.inv_fiscal_cruce(uuid)') is null
      or to_regprocedure('public.inv_fiscal_consolidar(uuid)') is null then
     raise exception 'No quedaron las funciones de validar por módulo. Revisa que corrieron antes validar y consolidar.';
   end if;

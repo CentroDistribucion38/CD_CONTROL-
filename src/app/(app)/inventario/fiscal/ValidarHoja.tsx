@@ -31,7 +31,9 @@ type Ub = { id: string | null; clave: string; dif: boolean; renglones: number; r
 const orden = (a: string, b: string) => a.localeCompare(b, "es", { numeric: true });
 export const moduloDe = (clave: string) => clave.replace(/_(IZQ|DER)$/i, "");
 
-export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeEditar, ol, bavaria, onCambio }: {
+export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeEditar, ol, bavaria, onCambio, unaSola = null }: {
+  /** Nombre de la única persona que terminó (la otra aún no): no hay cruce y se aprueba confirmando. */
+  unaSola?: string | null;
   hojaId: string | null; numero: number; calle?: string; filas: FilaCruce[]; revs: RevisionBD[]; consol?: ConsolidadoBD | null; puedeEditar: boolean;
   ol: string; bavaria: string; onCambio: () => Promise<void>;
 }) {
@@ -42,6 +44,7 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
   const [mal, setMal] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [forzar, setForzar] = useState<Ub[] | null>(null);
+  const [confUna, setConfUna] = useState<Ub[] | null>(null);
   const router = useRouter();
   const [nueva, setNueva] = useState("");
   const [seguro, setSeguro] = useState(false);
@@ -100,7 +103,7 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
     setOcupado(false);
     if (error) { setMal(traducirError(error.message)); return }
     setOk(listo);
-    setSel(new Set()); setForzar(null);
+    setSel(new Set()); setForzar(null); setConfUna(null);
     if (fn === "inv_fiscal_validar") setNota("");
     /* Al aprobar, lo aprobado y coincidente se manda solo a La base (si falta el SQL de consolidar, se aprueba igual). */
     if (fn === "inv_fiscal_aprobar") {
@@ -136,6 +139,8 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
     `${marcadas.length} ${marcadas.length === 1 ? "ubicación enviada" : "ubicaciones enviadas"} a validar. Las dos personas ya la ven en Contar.`);
 
   function aprobar(lista: Ub[], forzando = false) {
+    /* Con una sola persona no hay cruce: se pide confirmar antes de aprobar. */
+    if (unaSola && !forzando) { setConfUna(lista); return }
     const faltan = lista.filter((u) => u.rev?.estado === "A_VALIDAR" && !(u.rev.ol_envio && u.rev.bavaria_envio));
     if (faltan.length > 0 && !forzando) { setForzar(faltan); return }
     void correr("inv_fiscal_aprobar", lista, { p_forzar: forzando },
@@ -186,7 +191,7 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
             <input value={nota} maxLength={200} placeholder="Ej. revisen la estiba del fondo" onChange={(e) => setNota(e.target.value)} />
           </label>
           <div className="vv-acc">
-            <button type="button" className="btn" disabled={ocupado || marcadas.length === 0} onClick={validar}>
+            <button type="button" className="btn" disabled={ocupado || marcadas.length === 0 || !!unaSola} title={unaSola ? "Se manda a validar cuando las dos personas terminen" : undefined} onClick={validar}>
               Mandar a validar{marcadas.length > 0 ? ` (${marcadas.length})` : ""}
             </button>
             <button type="button" className="btn" disabled={ocupado || marcadas.length === 0} onClick={() => aprobar(marcadas)}>
@@ -201,6 +206,18 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
         </div>
       )}
 
+      {unaSola && (
+        <p className="cl-nota" role="note">Solo terminó {unaSola}. Todavía no hay cruce: puedes aprobar módulos con su conteo, sin que los compare la otra persona.</p>
+      )}
+      {confUna && (
+        <div className="cl-mal vv-forzar" role="alert">
+          <p>Solo terminó {unaSola}. Si apruebas {confUna.map((u) => u.clave).join(", ")}, pasa a La base con el conteo de una sola persona, sin cruce. ¿Aprobar de todos modos?</p>
+          <div className="cl-botones">
+            <button type="button" className="btn plano mal" disabled={ocupado} onClick={() => aprobar(confUna, true)}>Sí, aprobar con una sola persona</button>
+            <button type="button" className="btn plano" onClick={() => setConfUna(null)}>No, esperar a la otra</button>
+          </div>
+        </div>
+      )}
       {forzar && (
         <div className="cl-mal vv-forzar" role="alert">
           <p>Todavía falta la respuesta de alguna persona en {forzar.map((u) => u.clave).join(", ")}. Lo normal es avisarle antes. ¿Aprobar de todos modos?</p>

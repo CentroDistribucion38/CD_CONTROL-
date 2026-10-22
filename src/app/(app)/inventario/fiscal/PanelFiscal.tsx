@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { createClient } from "@/lib/supabase/client";
 import { traducirError } from "@/lib/errores";
 import {
-  avanceDesdeBD, estadoHoja, cruceModulo, filaDesdeBD, ordenarCruce, puedeCruzar, resumenCruce, textoEquipo, textoVenc, titularCruce, TEXTO_FILA,
+  avanceDesdeBD, estadoHoja, cruceModulo, filaDesdeBD, ordenarCruce, puedeCruzar, unaSolaTermino, resumenCruce, textoEquipo, textoVenc, titularCruce, TEXTO_FILA,
   type AvanceBD, type AvanceHoja, type FilaCruce, type FilaCruceBD, type ResumenCruce,
 } from "@/modulos/inventario/fiscal-cruce";
 import type { HojaForm } from "@/modulos/inventario/fiscal";
@@ -103,7 +103,7 @@ function useTorre(fiscalId: string, avanceInicial: Record<number, AvanceHoja>, a
     else { setConValidar(true); setRevs((rv.data ?? []) as RevisionBD[]) }
     const cs = await sb.rpc("inv_fiscal_consolidados", { p_fiscal: fiscalId });
     setConsolidados(cs.error ? {} : Object.fromEntries(((cs.data ?? []) as ConsolidadoBD[]).map((c) => [c.numero, c])));
-    const listas = mias.filter((a) => puedeCruzar(av[a.numero]));
+    const listas = mias.filter((a) => puedeCruzar(av[a.numero]) || unaSolaTermino(av[a.numero]));
     const res = await Promise.all(listas.map(async (a): Promise<[number, Resultado]> => {
       const r = await sb.rpc("inv_fiscal_cruce", { p_hoja: a.hoja_id });
       if (r.error) return [a.numero, { error: traducirError(r.error.message) }];
@@ -182,7 +182,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
     const aprobadoTodo = !!resumen && resumen.conDiferencia > 0 && pend.length === 0;
     const enValidacion = revs.filter((r) => r.numero === h.numero && r.estado === "A_VALIDAR").length;
     let tipo: Tipo = "sin";
-    if (estado === "lista") tipo = resumen ? (pend.length === 0 ? "ok" : "dif") : "proceso";
+    if (estado === "lista" || (estado === "una-termino" && resumen)) tipo = resumen ? (pend.length === 0 ? "ok" : "dif") : "proceso";
     else if (estado !== "sin-empezar") tipo = "proceso";
     return { h, av, estado, cr, resumen, tipo, pend, aprobadoTodo, enValidacion };
   });
@@ -213,6 +213,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
     : "Las ubicaciones aparecen cuando las dos personas de una hoja terminan.";
 
   const texto = (t: Tarjeta): string => {
+    if (t.estado === "una-termino" && t.resumen) return t.av?.olTermino ? "Solo terminó el operador · sin cruce" : "Solo terminó Bavaria · sin cruce";
     if (t.tipo === "ok") return t.aprobadoTodo ? "Completada · aprobada" : "Completada · todo coincide";
     if (t.tipo === "dif") return "Con diferencias";
     if (t.estado === "lista") return "Cruzando…";
@@ -398,7 +399,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                   </button>
                 )}
                 {conValidar ? (
-                  <ValidarHoja hojaId={hojaIds[t.h.numero] ?? null} numero={t.h.numero} calle={t.h.calle} filas={filas} revs={revs} consol={consolidados[t.h.numero] ?? null}
+                  <ValidarHoja hojaId={hojaIds[t.h.numero] ?? null} numero={t.h.numero} calle={t.h.calle} filas={filas} revs={revs} unaSola={t.estado === "una-termino" ? (t.av?.olTermino ? (t.h.ol ? quien(t.h.ol) : "el operador") : (t.h.bavaria ? quien(t.h.bavaria) : "Bavaria")) : null} consol={consolidados[t.h.numero] ?? null}
                                puedeEditar={puedeEditar} ol={t.h.ol ? quien(t.h.ol) : ""} bavaria={t.h.bavaria ? quien(t.h.bavaria) : ""} onCambio={cargar} />
                 ) : (
                   <p className="cl-nota" role="note">Para validar y aprobar falta correr <code>supabase/migraciones/2026-10-fiscal-validar.sql</code> en Supabase.</p>
