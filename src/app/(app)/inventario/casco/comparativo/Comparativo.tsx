@@ -115,8 +115,8 @@ export function Comparativo({ puntos, sitios, nombres, cajasPorEstiba, hlPorEsti
   const maxMov = Math.max(1e-9, ...topes.map((m) => Math.abs(v(m.d) ?? 0)));
   const maxMat = Math.max(1e-9, ...cmp.materiales.map((m) => Math.abs(v(m.d) ?? 0)));
   const nuevos = cmp.cuentas.nuevo + cmp.cuentas.salio;
-  const viajesA = cmp.sitios.reduce((t, s) => t + viajesSerpro(s.a.est, centroSitio(s.clave)), 0);
-  const viajesB = cmp.sitios.reduce((t, s) => t + viajesSerpro(s.b.est, centroSitio(s.clave)), 0);
+  const viajesA = cmp.sitios.reduce((t, s) => t + s.a.est, 0) / 100;
+  const viajesB = cmp.sitios.reduce((t, s) => t + s.b.est, 0) / 100;
 
   /* Lo que pinta la foto del Dashboard: la misma unidad y los mismos filtros que se ven en pantalla. */
   const datosFoto: DatosComparativo | null = cmp.filas.length === 0 ? null : {
@@ -236,7 +236,7 @@ export function Comparativo({ puntos, sitios, nombres, cajasPorEstiba, hlPorEsti
               <div className="cvc-kpi">
                 <span className="cvc-kpi-et">Viajes SERPRO</span>
                 <b>{nf1.format(viajesB)}</b>
-                <small>{nf1.format(viajesA)} → {nf1.format(viajesB)} ({viajesB - viajesA > 0 ? "+" : viajesB - viajesA < 0 ? "−" : ""}{nf1.format(Math.abs(viajesB - viajesA))}) · estibas ÷ 36 o ÷ 100</small>
+                <small>{nf1.format(viajesA)} → {nf1.format(viajesB)} ({viajesB - viajesA > 0 ? "+" : viajesB - viajesA < 0 ? "−" : ""}{nf1.format(Math.abs(viajesB - viajesA))}) · total de estibas ÷ 100</small>
               </div>
               <div className="cvc-kpi">
                 <span className="cvc-kpi-et">El que más cambió</span>

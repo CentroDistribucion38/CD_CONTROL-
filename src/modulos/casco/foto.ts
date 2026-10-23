@@ -148,7 +148,7 @@ export function dibujarDashboardCasco(d: DatosInformeCasco, extra: Extra = {}): 
         ? { t: "Vs día anterior", v: "—", nota: "primer día del periodo" }
         /* MÁS CASCO POR PARTIR ES PEOR: sube en rojo, baja en verde. */
         : { t: `Vs ${corta(d.anterior!.fecha)}`, v: `${conSigno(dif)} HL`, nota: `ese día: ${fmt.hl0(d.anterior!.total)} HL`, col: dif > 0 ? SUBE : dif < 0 ? BAJA_OK : undefined },
-      { t: "Viajes SERPRO", v: fmt.viajes(d.viajes), nota: "estibas del último conteo ÷ 36 o ÷ 100" },
+      { t: "Viajes SERPRO", v: fmt.viajes(d.viajes), nota: "total de estibas del último conteo ÷ 100" },
       d.pico ? { t: "Pico del periodo", v: fmt.hl0(d.pico.total), nota: `el ${corta(d.pico.fecha)}` } : { t: "Pico del periodo", v: "—" },
     ];
     const th = (H1 - G * (tarjetas.length - 1)) / tarjetas.length;

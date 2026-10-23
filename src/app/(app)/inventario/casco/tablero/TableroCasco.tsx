@@ -104,7 +104,7 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura, delInventa
   const hoyD = serie[serie.length - 1], antes = serie[serie.length - 2];
   const delta = hoyD && antes ? hoyD.total - antes.total : null;
   const pico = serie.reduce<typeof hoyD | undefined>((m, d) => (!m || d.total > m.total ? d : m), undefined);
-  /* Cada almacén con su divisor (Fábrica y Bodega ÷ 36, Carnaval y los demás ÷ 100), y se suman. */
+  /* El total: todas las estibas ÷ 100 (cada almacén, aparte, usa su divisor: Fábrica y Bodega ÷ 36, los demás ÷ 100). */
   const centroDe = useCallback((u: string) => sitios.find((s) => s.clave === u)?.centro ?? null, [sitios]);
   const viajesHoy = useMemo(() => (ultima ? viajesDelDia(puntos, ultima, centroDe) : 0), [puntos, ultima, centroDe]);
 
@@ -251,7 +251,7 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura, delInventa
               <i>{antes ? `HL desde el ${corta(antes.fecha)}` : "no hay día anterior en el periodo"}</i>
             </div>
             <div className="cvt-cif"><span className="cvt-lb">Pico del periodo</span><b>{pico ? nf0.format(pico.total) : "—"}</b><i>{pico ? `HL el ${corta(pico.fecha)}` : ""}</i></div>
-            <div className="cvt-cif cvt-serpro"><span className="cvt-lb">Viajes SERPRO</span><b>{nf1.format(viajesHoy)}</b><i>estibas del {ultima ? corta(ultima) : "—"}: Carnaval ÷ 100, Fábrica y Bodega ÷ 36</i></div>
+            <div className="cvt-cif cvt-serpro"><span className="cvt-lb">Viajes SERPRO</span><b>{nf1.format(viajesHoy)}</b><i>total de estibas del {ultima ? corta(ultima) : "—"} ÷ 100</i></div>
           </div>
 
           {/* ---------- GRÁFICA ---------- */}

@@ -111,13 +111,9 @@ export const ESTIBAS_POR_VIAJE: Record<string, number> = { AG18: 36, AG22: 36 };
 export const estibasPorViaje = (centro: string | null | undefined) => ESTIBAS_POR_VIAJE[(centro ?? "").toUpperCase()] ?? 100;
 export const viajesSerpro = (estibas: number, centro?: string | null) => estibas / estibasPorViaje(centro);
 
-/** Viajes de un día, almacén por almacén con SU divisor, y sumados. `centroDe` da el centro SAP de cada tabla. */
-export function viajesDelDia(puntos: Punto[], fecha: string, centroDe: (ubicacion: string) => string | null | undefined): number {
-  const porSitio = new Map<string, number>();
-  for (const p of puntos) if (p.fecha === fecha) porSitio.set(p.ubicacion, (porSitio.get(p.ubicacion) ?? 0) + (p.inventario ?? 0) + (p.baja ?? 0));
-  let t = 0;
-  for (const [u, est] of porSitio) t += viajesSerpro(est, centroDe(u));
-  return t;
+/** Viajes SERPRO del TOTAL de un día: todas las estibas de todos los almacenes ÷ 100. (Cada almacén, aparte, usa su propio divisor.) */
+export function viajesDelDia(puntos: Punto[], fecha: string, _centroDe?: (ubicacion: string) => string | null | undefined): number {
+  return estibasDelDia(puntos, fecha) / 100;
 }
 
 /** Un tope «redondo» para el eje de la gráfica y sus marcas: 0, 1000, 2000… */
