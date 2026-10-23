@@ -26,7 +26,7 @@ const Icono = () => (
   </svg>
 );
 
-export function Partidas311({ fecha, partidas, filas, elegidas }: { fecha: string; partidas: Partida311[]; filas: FilaCuadre[]; elegidas: string[] }) {
+export function Partidas311({ fecha, partidas, filas, elegidas, cubiertas = [] }: { fecha: string; partidas: Partida311[]; filas: FilaCuadre[]; elegidas: string[]; cubiertas?: string[] }) {
   const router = useRouter();
   const dlg = useRef<HTMLDialogElement>(null);
   const [sel, setSel] = useState<Set<string>>(new Set(elegidas));
@@ -40,7 +40,9 @@ export function Partidas311({ fecha, partidas, filas, elegidas }: { fecha: strin
   const hayZexi = filas.some((f) => f.sap != null);
   const guardadas = elegidas.length;
 
-  const efectoDe = (codigo: string, claves: Set<string>) => partidas.filter((p) => p.codigo === codigo && claves.has(p.clave)).reduce((t, p) => t + p.efecto, 0);
+  /* Los materiales que ya trae el archivo de SAP: ese archivo manda y estas partidas no se cuentan otra vez. */
+  const cubre = new Set(cubiertas);
+  const efectoDe = (codigo: string, claves: Set<string>) => cubre.has(codigo) ? 0 : partidas.filter((p) => p.codigo === codigo && claves.has(p.clave)).reduce((t, p) => t + p.efecto, 0);
   const visibles = useMemo(() => {
     const t = q.trim().toUpperCase(), partes = t.split(/[\s,;]+/).filter(Boolean);
     return partidas.filter((p) => {
@@ -52,7 +54,7 @@ export function Partidas311({ fecha, partidas, filas, elegidas }: { fecha: strin
   const cuentas = { todos: partidas.length, AG18: partidas.filter((p) => p.almacen === "AG18").length, AG17: partidas.filter((p) => p.almacen === "AG17").length,
     AG16: partidas.filter((p) => p.almacen === "AG16").length, marcadas: partidas.filter((p) => sel.has(p.clave)).length };
   const sinGuardar = partidas.some((p) => sel.has(p.clave) !== elegidas.includes(p.clave));
-  const efectoTotal = partidas.filter((p) => sel.has(p.clave)).reduce((t, p) => t + p.efecto, 0);
+  const efectoTotal = partidas.filter((p) => sel.has(p.clave) && !cubre.has(p.codigo)).reduce((t, p) => t + p.efecto, 0);
 
   const abrir = () => { setMsg(null); setSel(new Set(elegidas)); setQ(""); setVista("todos"); dlg.current?.showModal() };
   const cerrar = () => dlg.current?.close();
@@ -96,20 +98,21 @@ export function Partidas311({ fecha, partidas, filas, elegidas }: { fecha: strin
 
           <ul className="cs-exc-lista cs-311-lista" aria-label="Partidas del 311">
             {visibles.map((p) => {
-              const on = sel.has(p.clave);
+              const on = sel.has(p.clave) && !cubre.has(p.codigo);
+              const cub = cubre.has(p.codigo);
               const z = zexiDe.get(p.codigo);
               const despues = z == null ? null : z + efectoDe(p.codigo, sel);
               return (
                 <li key={p.clave} className={on ? "fuera" : ""}>
                   <label>
-                    <input type="checkbox" checked={on} onChange={(e) => poner([p.clave], e.target.checked)} />
+                    <input type="checkbox" checked={on} disabled={cub} onChange={(e) => poner([p.clave], e.target.checked)} />
                     <code>{p.codigo}</code>
                     <span className="cs-exc-n">{p.material}
                       <small>{p.almacen}: {p.cantidad > 0 ? "entró" : "salió"} {n(Math.abs(p.cantidad))}{p.archivo ? ` · ${p.archivo}` : ""}{p.hora ? ` · ${hora(p.hora)}` : ""}{p.documentos.length ? ` · doc ${p.documentos.slice(0, 2).join(", ")}${p.documentos.length > 2 ? ` +${p.documentos.length - 2}` : ""}` : ""}</small>
                     </span>
                     <span className="cs-311-efecto">
                       <b className={p.efecto > 0 ? "suma" : "resta"}>{p.efecto > 0 ? "Suma" : "Resta"} {n(Math.abs(p.efecto))}</b>
-                      <small>{hayZexi ? (z == null ? "sin ZEXI" : on ? `ZEXI ${n(z)} → ${n(despues ?? z)}` : `ZEXI ${n(z)}`) : "falta la ZEXI"}</small>
+                      <small>{cub ? "ya viene en el archivo de SAP" : hayZexi ? (z == null ? "sin ZEXI" : on ? `ZEXI ${n(z)} → ${n(despues ?? z)}` : `ZEXI ${n(z)}`) : "falta la ZEXI"}</small>
                     </span>
                   </label>
                 </li>

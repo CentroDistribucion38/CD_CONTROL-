@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Rango } from "../../../sider/seguimiento/Rango";
 import type { Aplicado, Almacen, CuadreGuardado, DiaHistorial, Estados, FilaCuadre, LineaOtros, Partida311 } from "@/modulos/inventario/cuadre";
-import { asignarOtros, guardarBalanceo, guardarMovimientos, guardarOpciones, guardarZexi, quitarMovimientos } from "./actions";
+import { asignarOtros, guardarBalanceo, guardarMovimientos, guardarMovsSap, guardarOpciones, guardarZexi, quitarMovimientos, quitarMovsSap } from "./actions";
 import { leerMovimientos, leerZexi } from "./leer";
 import { Excluidos } from "./Excluidos";
 import { Partidas311 } from "./Partidas311";
@@ -70,6 +70,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
   const [estibas, setEstibas] = useState(guardado?.estibas_almacen != null ? String(guardado.estibas_almacen) : "");
   const zexiRef = useRef<HTMLInputElement>(null);
   const movRef = useRef<HTMLInputElement>(null);
+  const movsSapRef = useRef<HTMLInputElement>(null);
   const [verOtros, setVerOtros] = useState(false);
   const [copiado, setCopiado] = useState<string | null>(null);
   /* Los documentos del 311 que ya se hicieron en SAP (de a 9 posiciones). Se recuerdan en este equipo, por día. */
@@ -227,6 +228,14 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
     const r = await leerZexi(a, ALM, campoZexi);
     if (r.error) { setMsg({ mal: true, t: r.error }); return }
     hacer(guardarZexi(fecha!, JSON.stringify(r.filas), a.name, ALM), `ZEXI cargado: ${r.filas.length} materiales de ${ALM}${esAG22 ? " (bloqueado)" : ""}.${r.faltanEstados ? ` ⚠ ${r.faltanEstados}` : ""}`);
+  }
+  /* AG22 · LOS MOVIMIENTOS DE SAP: se sube el archivo, se leen los 311 de AG22 (entra +, sale −) y se aplican solos a la ZEXI de las 6 AM. */
+  async function subirMovsSap(a: File) {
+    setMsg(null);
+    const r = await leerMovimientos(a, "AG22");
+    if (r.error) { setMsg({ mal: true, t: r.error }); return }
+    const suman = r.filas.filter((f) => f.cantidad > 0).length, restan = r.filas.filter((f) => f.cantidad < 0).length;
+    hacer(guardarMovsSap(fecha!, JSON.stringify(r.filas), a.name), `Movimientos de SAP aplicados a la ZEXI: ${r.filas.length} materiales (${suman} suman · ${restan} restan en AG22).`);
   }
   async function subirMov(a: File) {
     setMsg(null);
@@ -438,9 +447,17 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
             <span className="cs-txt">
               <b className="cs-v" title={conZexi ? guardado!.zexi_archivo ?? "" : undefined}>{conZexi ? guardado!.zexi_archivo : "Sin subir"}</b>
               <small>{conZexi ? `${guardado!.zexi!.length} materiales · ${hora(guardado!.zexi_en)}` : `El ${esAG22 ? "bloqueado" : "stock"} de ${ALM} de ese día`}</small>
+              {esAG22 && guardado?.movs_sap && <small title={guardado.movs_sap.archivo}>311 de SAP: {guardado.movs_sap.archivo} · {guardado.movs_sap.filas.length} materiales · <button type="button" className="cs-quitar" disabled={pend} onClick={() => hacer(quitarMovsSap(fecha!), "Archivo de movimientos de SAP quitado.")}>quitar</button></small>}
             </span>
             <input ref={zexiRef} type="file" accept=".xlsx,.xls,.csv" hidden onChange={(e) => { const a = e.target.files?.[0]; e.target.value = ""; if (a) void subirZexi(a) }} />
-            {esAG22 && fecha && <Partidas311 fecha={fecha} partidas={partidas311} filas={filas} elegidas={guardado?.ajustes311 ?? []} />}
+            {esAG22 && fecha && <>
+              <input ref={movsSapRef} type="file" accept=".xlsx,.xls,.csv" hidden onChange={(e) => { const a = e.target.files?.[0]; e.target.value = ""; if (a) void subirMovsSap(a) }} />
+              <button type="button" className={"cs-bt alt cs-311-bt" + (guardado?.movs_sap ? " on" : "")} disabled={pend} onClick={() => movsSapRef.current?.click()}
+                title="Sube el archivo de movimientos de SAP (311): la app lee lo que entró y salió de AG22 y lo suma o resta solo a la ZEXI de las 6 AM">
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square"><path d="M12 16V4M7 9l5-5 5 5" /><path d="M4 16v4h16v-4" /></svg> Mov. SAP
+              </button>
+              <Partidas311 fecha={fecha} partidas={partidas311} filas={filas} elegidas={guardado?.ajustes311 ?? []} cubiertas={(guardado?.movs_sap?.filas ?? []).map((f) => String(f.codigo))} />
+            </>}
             <button type="button" className={"cs-bt" + (conZexi ? " alt" : "")} disabled={pend} onClick={() => zexiRef.current?.click()}>{conZexi ? "Cambiar" : "Subir ZEXI"}</button>
           </span>
         </div>

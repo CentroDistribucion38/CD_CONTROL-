@@ -72,6 +72,8 @@ export type CuadreGuardado = {
   otros?: Record<string, string> | null;
   /** AG22: las partidas del 311 (clave «AG18|código») que se aplican a la ZEXI de las 6 AM. */
   ajustes311?: string[] | null;
+  /** AG22: el archivo de movimientos de SAP (311) que se subió: lo que ENTRÓ (+) o SALIÓ (−) de AG22, por material. Manda sobre las partidas escogidas de los otros almacenes. */
+  movs_sap?: { archivo: string; en: string; filas: MovFila[] } | null;
   /** El balanceo guardado de ese día (el botón «Guardar balanceo del día»). */
   cierre?: BalanceoGuardado | null; cerrado_en?: string | null; cerrado_nombre?: string | null;
 };
@@ -558,6 +560,12 @@ async function armarCuadreAG22(pedida?: string | null) {
   const elegidas311 = new Set((guardado?.ajustes311 ?? []).map(String));
   const ajuste311 = new Map<string, number>();
   for (const x of partidas311) if (elegidas311.has(x.clave)) ajuste311.set(x.codigo, redondo((ajuste311.get(x.codigo) ?? 0) + x.efecto));
+  /* EL ARCHIVO DE MOVIMIENTOS DE SAP: ya viene neto en AG22 (+ entró, − salió) y se aplica solo. Si un material está en el archivo, ese valor manda
+     (las partidas escogidas de ese material no se cuentan otra vez). */
+  const movsSap = guardado?.movs_sap ?? null;
+  const delArchivo = new Map<string, MovFila>();
+  for (const f of movsSap?.filas ?? []) { const c = String(f.codigo); const v = Number(f.cantidad); if (c && Number.isFinite(v) && Math.abs(v) > 1e-9) delArchivo.set(c, f) }
+  for (const [c, f] of delArchivo) ajuste311.set(c, redondo(Number(f.cantidad)));
 
   const sap = new Map((guardado?.zexi ?? []).map((z) => [String(z.codigo), z]));
   const mov = new Map((guardado?.movimientos ?? []).map((m) => [String(m.codigo), m]));
@@ -614,8 +622,9 @@ async function armarCuadreAG22(pedida?: string | null) {
 
   for (const [c, v] of ajuste311) {
     const a = acc.get(c); if (!a || !listados.has(c)) continue;
+    const fa = delArchivo.get(c);
     aplicados.push({ codigo: c, material: a.material, que: "311 aplicado a la ZEXI", cantidad: v, unidad: "u",
-      porque: partidas311.filter((x) => x.codigo === c && elegidas311.has(x.clave)).map((x) => `${x.almacen}: ${x.cantidad > 0 ? "entró" : "salió"} ${new Intl.NumberFormat("es-CO").format(Math.abs(x.cantidad))} → ${x.efecto > 0 ? "suma" : "resta"} en AG22`).join(" · ") });
+      porque: fa ? `Archivo de SAP ${movsSap?.archivo ?? ""}: ${v > 0 ? "entró a" : "salió de"} AG22 → ${v > 0 ? "suma" : "resta"}${fa.documentos?.length ? ` · doc ${fa.documentos.slice(0, 3).join(", ")}${fa.documentos.length > 3 ? "…" : ""}` : ""}` : partidas311.filter((x) => x.codigo === c && elegidas311.has(x.clave)).map((x) => `${x.almacen}: ${x.cantidad > 0 ? "entró" : "salió"} ${new Intl.NumberFormat("es-CO").format(Math.abs(x.cantidad))} → ${x.efecto > 0 ? "suma" : "resta"} en AG22`).join(" · ") });
   }
 
   return { ...base, filas, guardado, avisos, aplicados, excluidos, partidas311, ...hist };

@@ -11,3 +11,5 @@
 -- Se puede correr varias veces.
 -- =====================================================================
 alter table public.cuadre_sap add column if not exists ajustes311 jsonb;
+-- El archivo de movimientos de SAP (311) subido en AG22: { archivo, en, filas:[{codigo, cantidad (+ entró / − salió de AG22), documentos}] }.
+alter table public.cuadre_sap add column if not exists movs_sap jsonb;

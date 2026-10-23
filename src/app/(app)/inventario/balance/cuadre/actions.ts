@@ -9,7 +9,7 @@ import { armarCuadre, esAlmacen, type Almacen, type BalanceoGuardado, type MovFi
 const SQL_OTROS = "Falta correr supabase/migraciones/2026-10-cuadre-sap-otros.sql en Supabase.";
 const SQL_HIST = "Falta correr supabase/migraciones/2026-10-cuadre-sap-historial.sql en Supabase.";
 const SQL_311 = "Falta correr supabase/migraciones/2026-10-cuadre-sap-311-ag22.sql en Supabase.";
-const faltaSql = (m: string) => (/ajustes311/.test(m) ? SQL_311 : /cierre|cerrado/.test(m) ? SQL_HIST : /otros/.test(m) ? SQL_OTROS : m);
+const faltaSql = (m: string) => (/ajustes311|movs_sap/.test(m) ? SQL_311 : /cierre|cerrado/.test(m) ? SQL_HIST : /otros/.test(m) ? SQL_OTROS : m);
 
 /**
  * LO QUE SE GUARDA DEL CUADRE SAP: el ZEXI (paso 1), las estibas del almacén y el interruptor del
@@ -79,6 +79,22 @@ export async function guardarAjustes311(fecha: string, clavesJson: string) {
   try { claves = JSON.parse(clavesJson) } catch { return { error: "No se pudo leer la selección." } }
   claves = [...new Set((Array.isArray(claves) ? claves : []).map(String).filter((c) => /^(AG18|AG17|AG16)\|[\w.\-]{1,40}$/.test(c)))];
   const r = await poner(fecha, "AG22", { ajustes311: claves.length ? claves : null });
+  return r.error ? r : regrabarSiEstaGuardado(fecha, "AG22");
+}
+
+/** AG22 · EL ARCHIVO DE MOVIMIENTOS DE SAP (311): lo que entró o salió de AG22, por material, ya leído en el navegador. Reemplaza el anterior y se aplica solo a la ZEXI. */
+export async function guardarMovsSap(fecha: string, filasJson: string, archivo: string) {
+  let filas: MovFila[] = [];
+  try { filas = JSON.parse(filasJson) } catch { return { error: "El archivo no se pudo leer." } }
+  filas = filas.filter((f) => f.codigo && Number.isFinite(Number(f.cantidad)));
+  if (!filas.length) return { error: "El archivo no trae movimientos de AG22." };
+  const r = await poner(fecha, "AG22", { movs_sap: { archivo: String(archivo).slice(0, 200), en: new Date().toISOString(), filas } });
+  return r.error ? r : regrabarSiEstaGuardado(fecha, "AG22");
+}
+
+/** Quitar el archivo de movimientos de SAP: la ZEXI vuelve a las partidas escogidas (o a la de las 6 AM sola). */
+export async function quitarMovsSap(fecha: string) {
+  const r = await poner(fecha, "AG22", { movs_sap: null });
   return r.error ? r : regrabarSiEstaGuardado(fecha, "AG22");
 }
 

@@ -329,3 +329,5 @@
 .cs .cs-311-efecto small { font-size: 11.5px; color: var(--fe-gris) }
 .cs .cs-311 .cs-exc-lista li.fuera { background: #F2FAF5 }
 @media (max-width: 720px) { .cs .cs-311-lista label { grid-template-columns: 22px 78px minmax(0, 1fr); } .cs .cs-311-efecto { grid-column: 2 / -1; align-items: flex-start; text-align: left } }
+
+.cs .cs-quitar { border: 0; background: none; padding: 0; color: #0B4EA2; font: 600 inherit var(--fe-texto); text-decoration: underline; cursor: pointer }
