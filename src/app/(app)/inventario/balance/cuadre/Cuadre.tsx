@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Rango } from "../../../sider/seguimiento/Rango";
-import type { Aplicado, Almacen, CuadreGuardado, DiaHistorial, Estados, FilaCuadre, LineaOtros } from "@/modulos/inventario/cuadre";
+import type { Aplicado, Almacen, CuadreGuardado, DiaHistorial, Estados, FilaCuadre, LineaOtros, Partida311 } from "@/modulos/inventario/cuadre";
 import { asignarOtros, guardarBalanceo, guardarMovimientos, guardarOpciones, guardarZexi, quitarMovimientos } from "./actions";
 import { leerMovimientos, leerZexi } from "./leer";
 import { Excluidos } from "./Excluidos";
+import { Partidas311 } from "./Partidas311";
 import type { PanelExcluidos } from "@/modulos/pasivos/excluidos";
 
 /**
@@ -44,11 +45,11 @@ const IconoOtros = () => (
   </svg>
 );
 
-export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, error, otros, envases, aplicados, excluidos, historial, faltaHist, vista: vistaInicial = "cuadre", almacen = "AG18" }: {
+export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, error, otros, envases, aplicados, excluidos, historial, faltaHist, partidas311 = [], vista: vistaInicial = "cuadre", almacen = "AG18" }: {
   fecha: string | null; dias: string[]; filas: FilaCuadre[]; guardado: CuadreGuardado | null;
   estibasBodega: number; avisos: string[]; error: string | null;
   otros: LineaOtros[]; envases: { codigo: string; material: string }[]; aplicados: Aplicado[]; excluidos?: PanelExcluidos | null;
-  historial: DiaHistorial[]; faltaHist: boolean; vista?: "cuadre" | "historico"; almacen?: Almacen;
+  historial: DiaHistorial[]; faltaHist: boolean; partidas311?: Partida311[]; vista?: "cuadre" | "historico"; almacen?: Almacen;
 }) {
   const router = useRouter();
   /* EL ALMACÉN DEL CUADRE: AG18 (fábrica, contra el conteo) o AG22 (la base de Pasivos contra el Bloqueado). */
@@ -439,6 +440,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
               <small>{conZexi ? `${guardado!.zexi!.length} materiales · ${hora(guardado!.zexi_en)}` : `El ${esAG22 ? "bloqueado" : "stock"} de ${ALM} de ese día`}</small>
             </span>
             <input ref={zexiRef} type="file" accept=".xlsx,.xls,.csv" hidden onChange={(e) => { const a = e.target.files?.[0]; e.target.value = ""; if (a) void subirZexi(a) }} />
+            {esAG22 && fecha && <Partidas311 fecha={fecha} partidas={partidas311} filas={filas} elegidas={guardado?.ajustes311 ?? []} />}
             <button type="button" className={"cs-bt" + (conZexi ? " alt" : "")} disabled={pend} onClick={() => zexiRef.current?.click()}>{conZexi ? "Cambiar" : "Subir ZEXI"}</button>
           </span>
         </div>
@@ -592,7 +594,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                 <td className="n">{f.almacen ? n(f.almacen) : "—"}</td>
                 </>)}
                 <td className="n"><b>{n(f.total)}</b>{f.cascoDeMas ? <small className="cs-ext" title="El casco registrado es mayor que lo contado: SAP no puede tener negativo, la meta queda en 0 y esta diferencia va en el Balance de casco.">casco de más {n(f.cascoDeMas)}</small> : null}</td>
-                <td className="n">{f.sap == null ? "—" : n(f.sap)}</td>
+                <td className="n">{f.sap == null ? "—" : n(f.sap)}{f.ajuste311 ? <small className="cs-ext" title="La ZEXI de las 6 AM más los 311 que marcaste (el icono 311 de arriba)">ZEXI {f.sapZexi == null ? "—" : n(f.sapZexi)} · 311 {conSigno(f.ajuste311)}</small> : null}</td>
                 <td className={"n" + (f.dif == null || cero(f.dif) ? "" : f.dif < 0 ? " neg" : " amb")}><b>{f.dif == null ? "—" : cero(f.dif) ? "0" : conSigno(f.dif)}</b></td>
                 <td className={"n" + (f.dif == null || cero(f.dif) ? "" : f.dif < 0 ? " neg" : " amb")} title={f.grupo === "ENVASE" ? `${n(f.upc)} unidades por caja` : undefined}>{cajasTxt(enCajas(f, f.dif))}</td>
                 <td>{f.dif == null ? <span className="cs-chip">Sin SAP</span> : cero(f.dif) ? <span className="cs-chip ok">Cuadra</span>

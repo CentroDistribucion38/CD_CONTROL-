@@ -1,0 +1,13 @@
+-- =====================================================================
+-- CUADRE SAP · AG22 · LOS 311 DE AG18 / AG17 / AG16
+--
+-- «La ZEXI de AG22 la tomo a las 6 AM, pero durante el día hago 311 en los otros almacenes y eso
+--  cambia lo que hay en AG22. Quiero un icono que me traiga las partidas de los 311, las selecciono
+--  en un toolbox y se suman o restan solas a la ZEXI que subí.»
+--
+-- Por día en la fila de AG22: las partidas escogidas, como «AG18|3500005» (almacén | código).
+-- La cantidad y el signo salen solos de lo que se subió en el paso 3 de cada almacén.
+--
+-- Se puede correr varias veces.
+-- =====================================================================
+alter table public.cuadre_sap add column if not exists ajustes311 jsonb;

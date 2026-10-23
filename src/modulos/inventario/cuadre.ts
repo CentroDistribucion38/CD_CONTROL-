@@ -54,6 +54,10 @@ const CAJA_FUERA_DEL_CUADRE = new Set(["3501539"]);
 export type ZexiFila = { codigo: string; descripcion: string; cantidad: number;
   /** Cómo está repartido en SAP (si el ZEXI trae las columnas): para saber si algo que hay que sacar está bloqueado. */
   libre?: number; calidad?: number; bloqueado?: number };
+/** UNA PARTIDA DEL 311 hecha en AG18 / AG17 / AG16 (lo que se subió en el paso 3 de ese almacén). `cantidad` es lo que ENTRÓ (+) o SALIÓ (−) de ese almacén;
+ *  `efecto` es lo que le hace a AG22, automático: lo que entró allá salió de AG22 (resta) y lo que salió de allá entró a AG22 (suma). */
+export type Partida311 = { clave: string; almacen: "AG18" | "AG17" | "AG16"; codigo: string; material: string; cantidad: number; efecto: number;
+  documentos: string[]; archivo: string | null; hora: string | null };
 export type MovFila = { codigo: string; cantidad: number; documentos: string[];
   /** Con la ZEXI nueva: cómo quedó repartido (para ver si algo quedó en libre y falta el 344). */
   libre?: number; bloqueado?: number; calidad?: number };
@@ -66,6 +70,8 @@ export type CuadreGuardado = {
   movimientos: MovFila[] | null; mov_archivo: string | null; mov_en: string | null;
   /** A qué envase va cada línea OTROS: { id del renglón: código | "NO" }. Sin la línea = al que se contó. */
   otros?: Record<string, string> | null;
+  /** AG22: las partidas del 311 (clave «AG18|código») que se aplican a la ZEXI de las 6 AM. */
+  ajustes311?: string[] | null;
   /** El balanceo guardado de ese día (el botón «Guardar balanceo del día»). */
   cierre?: BalanceoGuardado | null; cerrado_en?: string | null; cerrado_nombre?: string | null;
 };
@@ -136,6 +142,8 @@ export type FilaCuadre = {
   estadoFinal?: Estados | null;
   /** CAJAS: la ZEXI nueva quedó igual a `meta` en los tres estados (null = no se puede saber todavía). */
   estadoOk?: boolean | null;
+  /** AG22: lo que los 311 escogidos le suman (+) o restan (−) a la ZEXI de las 6 AM, y la ZEXI tal cual. `sap` ya trae el ajuste. */
+  ajuste311?: number; sapZexi?: number | null;
   /** SAP − total (el 311 que hay que hacer). null si no hay ZEXI. */
   dif: number | null;
   /** Lo movido en SAP (neto en AG18: + entra, − sale). */
@@ -172,7 +180,7 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
   const { dias, conteos, error: e0 } = await diasConConteo();
   const fecha = pedida && dias.includes(pedida) ? pedida : (dias[0] ?? null);
   const base = { fecha, dias, filas: [] as FilaCuadre[], guardado: null as CuadreGuardado | null, estibasBodega: 0, avisos: [] as string[], error: e0, faltaSql: false, historial: [] as DiaHistorial[], faltaHist: false,
-    otros: [] as LineaOtros[], envases: [] as { codigo: string; material: string }[], aplicados: [] as Aplicado[], excluidos: null as PanelExcluidos | null, conteoBodega: [] as ConteoBodega[] };
+    otros: [] as LineaOtros[], envases: [] as { codigo: string; material: string }[], aplicados: [] as Aplicado[], excluidos: null as PanelExcluidos | null, conteoBodega: [] as ConteoBodega[], partidas311: [] as Partida311[] };
   if (!fecha) return base;
 
   const [cons, prodR, maesR, pas, casco, sitiosR, guardR, hist, regla, bal] = await Promise.all([
@@ -445,16 +453,17 @@ async function armarCuadreAG22(pedida?: string | null) {
   const fecha = pedida && dias.includes(pedida) ? pedida : (dias[0] ?? null);
   const base = { fecha, dias, filas: [] as FilaCuadre[], guardado: null as CuadreGuardado | null, estibasBodega: 0, avisos: [] as string[], error: null as string | null,
     faltaSql: false, historial: [] as DiaHistorial[], faltaHist: false,
-    otros: [] as LineaOtros[], envases: [] as { codigo: string; material: string }[], aplicados: [] as Aplicado[], excluidos: null as PanelExcluidos | null, conteoBodega: [] as ConteoBodega[] };
+    otros: [] as LineaOtros[], envases: [] as { codigo: string; material: string }[], aplicados: [] as Aplicado[], excluidos: null as PanelExcluidos | null, conteoBodega: [] as ConteoBodega[], partidas311: [] as Partida311[] };
   if (!fecha) return { ...base, ...(await leerHistorial(supabase)) };
 
-  const [pas, prodR, maesR, guardR, hist, regla] = await Promise.all([
+  const [pas, prodR, maesR, guardR, hist, regla, movsR] = await Promise.all([
     leerPasivos(fecha, fecha),
     supabase.from("productos").select("sku, nombre, unidades_por_caja, cajas_por_estiba"),
     supabase.from("pasivos_maestro").select("codigo, descripcion, familia, unidades_por_caja, cajas_por_estiba, caja"),
     supabase.from("cuadre_sap").select("*").eq("fecha", fecha).eq("almacen", "AG22").maybeSingle(),
     leerHistorial(supabase),
     leerExcluidos("AG22"),
+    supabase.from("cuadre_sap").select("almacen, movimientos, mov_archivo, mov_en").eq("fecha", fecha).in("almacen", ["AG18", "AG17", "AG16"]),
   ]);
   if (guardR.error && /cuadre_sap|does not exist|PGRST205/i.test(`${guardR.error.code} ${guardR.error.message}`)) return { ...base, faltaSql: true };
   const avisos: string[] = [];
@@ -533,11 +542,29 @@ async function armarCuadreAG22(pedida?: string | null) {
     if (!hayConteo) avisos.push(`No hay conteo de Bodega 38 para ${fecha}: las cajas plásticas no se pueden armar por estado.`);
   }
 
+  /* LOS 311 DEL DÍA en AG18 / AG17 / AG16 (lo que se subió en el paso 3 de cada uno). AUTOMÁTICO: lo que ENTRÓ a ese almacén SALIÓ de AG22 (resta) y lo que SALIÓ de ese almacén ENTRÓ a AG22 (suma). */
+  const partidas311: Partida311[] = [];
+  for (const r of ((movsR.data ?? []) as { almacen: string; movimientos: MovFila[] | null; mov_archivo: string | null; mov_en: string | null }[])) {
+    if (r.almacen !== "AG18" && r.almacen !== "AG17" && r.almacen !== "AG16") continue;
+    for (const m of r.movimientos ?? []) {
+      const cantidad = Number(m.cantidad);
+      if (!Number.isFinite(cantidad) || Math.abs(cantidad) < 1e-9) continue;
+      const codigo = String(m.codigo);
+      partidas311.push({ clave: `${r.almacen}|${codigo}`, almacen: r.almacen, codigo, material: nombre(codigo), cantidad: redondo(cantidad), efecto: redondo(-cantidad),
+        documentos: m.documentos ?? [], archivo: r.mov_archivo, hora: r.mov_en });
+    }
+  }
+  partidas311.sort((x, y) => x.almacen.localeCompare(y.almacen) || x.codigo.localeCompare(y.codigo));
+  const elegidas311 = new Set((guardado?.ajustes311 ?? []).map(String));
+  const ajuste311 = new Map<string, number>();
+  for (const x of partidas311) if (elegidas311.has(x.clave)) ajuste311.set(x.codigo, redondo((ajuste311.get(x.codigo) ?? 0) + x.efecto));
+
   const sap = new Map((guardado?.zexi ?? []).map((z) => [String(z.codigo), z]));
   const mov = new Map((guardado?.movimientos ?? []).map((m) => [String(m.codigo), m]));
   const fueraNuevos = new Set<string>();
   for (const z of sap.values()) { if (excluye(regla, z.codigo, z.descripcion ?? nombre(String(z.codigo)))) { fueraNuevos.add(String(z.codigo)); continue } de(String(z.codigo), z.descripcion) }
   for (const m of mov.values()) if (!excluye(regla, m.codigo, nombre(String(m.codigo)))) de(String(m.codigo));
+  for (const c of ajuste311.keys()) de(c);
   for (const [c, k] of cajasConteo) if (k.sueltas || k.conEnvase) de(c, k.material);
   const excluidos = panelExcluidos(regla, catalogo(M, P), fueraNuevos);
 
@@ -552,10 +579,13 @@ async function armarCuadreAG22(pedida?: string | null) {
     const total = meta ? redondo(meta.libre + meta.calidad + meta.bloqueado) : redondo(Object.values(a.partes).reduce((t, v) => t + v, 0));
     /* «Lo que no tiene SAP me tiene que decir que del 22 debo pasarlo al 18, ya que allá no tiene»: con ZEXI
        cargado, un material que no viene en él es 0 en SAP (no «sin dato»), y entra a la lista del 311 / 344. */
-    const sapV = z ? (meta && z.libre != null ? redondo((z.libre ?? 0) + (z.calidad ?? 0) + (z.bloqueado ?? 0)) : Number(z.cantidad)) : (guardado?.zexi?.length ? 0 : null);
+    const sapZexi = z ? (meta && z.libre != null ? redondo((z.libre ?? 0) + (z.calidad ?? 0) + (z.bloqueado ?? 0)) : Number(z.cantidad)) : (guardado?.zexi?.length ? 0 : null);
+    /* Los 311 escogidos se suman o restan a la ZEXI de las 6 AM. Con la ZEXI nueva ya cargada (paso 3) «lo movido» trae esos 311: se parte de la ZEXI tal cual, sin contarlos dos veces. */
+    const aj = ajuste311.get(a.codigo) ?? 0;
+    const sapV = sapZexi == null ? null : redondo(sapZexi + aj);
     const movido = m ? Number(m.cantidad) : 0;
     const dif = sapV == null ? null : redondo(sapV - total);
-    const sapDespues = sapV == null ? null : redondo(sapV + movido);
+    const sapDespues = sapZexi == null ? null : redondo((m ? sapZexi : sapZexi + aj) + movido);
     const queda = sapDespues == null ? null : redondo(sapDespues - total);
     const estadoFinal: Estados | null = meta && m?.libre != null ? { libre: redondo(m.libre ?? 0), calidad: redondo(m.calidad ?? 0), bloqueado: redondo(m.bloqueado ?? 0) } : null;
     /* Balanceado en estados = ningún estado falta mientras otro sobra (si la cantidad total no cuadra es diferencia de inventario, no hay nada más que mover). */
@@ -565,6 +595,7 @@ async function armarCuadreAG22(pedida?: string | null) {
       pendBaja: 0, lavadoBaja: 0, andina: 0, almacen: 0,
       otrosCajas: 0, upc: grupo === "ENVASE" ? upc(a.codigo) : 1, partes: meta ? {} : a.partes,
       total, sap: sapV, dif, movido, documentos: m?.documentos ?? [], sapDespues, queda,
+      ...(aj ? { ajuste311: aj, sapZexi } : {}),
       ...(meta ? { libre: z?.libre ?? null, bloqueado: z?.bloqueado ?? null, calidad: z?.calidad ?? null, meta, estadoFinal,
         estadoOk: estadoFinal ? mismoLado(estadoFinal, meta) : null } : {}) };
   })
@@ -581,7 +612,13 @@ async function armarCuadreAG22(pedida?: string | null) {
       aplicados.push({ codigo: a.codigo, material: a.material, que: c, cantidad: redondo(a.partes[c]), unidad: "u",
         porque: `Base de Pasivos · AG22 · ${[...(a.estados[c] ?? [])].join("/") || "—"} · causal ${c} del día` });
 
-  return { ...base, filas, guardado, avisos, aplicados, excluidos, ...hist };
+  for (const [c, v] of ajuste311) {
+    const a = acc.get(c); if (!a || !listados.has(c)) continue;
+    aplicados.push({ codigo: c, material: a.material, que: "311 aplicado a la ZEXI", cantidad: v, unidad: "u",
+      porque: partidas311.filter((x) => x.codigo === c && elegidas311.has(x.clave)).map((x) => `${x.almacen}: ${x.cantidad > 0 ? "entró" : "salió"} ${new Intl.NumberFormat("es-CO").format(Math.abs(x.cantidad))} → ${x.efecto > 0 ? "suma" : "resta"} en AG22`).join(" · ") });
+  }
+
+  return { ...base, filas, guardado, avisos, aplicados, excluidos, partidas311, ...hist };
 }
 
 
@@ -602,7 +639,7 @@ async function armarCuadreSimple(pedida: string | null | undefined, almacen: Alm
   const { dias, conteos, error: e0 } = await diasConConteo();
   const fecha = pedida && dias.includes(pedida) ? pedida : (dias[0] ?? null);
   const base = { fecha, dias, filas: [] as FilaCuadre[], guardado: null as CuadreGuardado | null, estibasBodega: 0, avisos: [] as string[], error: e0, faltaSql: false, historial: [] as DiaHistorial[], faltaHist: false,
-    otros: [] as LineaOtros[], envases: [] as { codigo: string; material: string }[], aplicados: [] as Aplicado[], excluidos: null as PanelExcluidos | null, conteoBodega: [] as ConteoBodega[] };
+    otros: [] as LineaOtros[], envases: [] as { codigo: string; material: string }[], aplicados: [] as Aplicado[], excluidos: null as PanelExcluidos | null, conteoBodega: [] as ConteoBodega[], partidas311: [] as Partida311[] };
   if (!fecha) return { ...base, ...(await leerHistorial(supabase)) };
 
   const [cons, prodR, maesR, guardR, hist] = await Promise.all([

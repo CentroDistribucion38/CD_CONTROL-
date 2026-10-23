@@ -8,7 +8,8 @@ import { armarCuadre, esAlmacen, type Almacen, type BalanceoGuardado, type MovFi
 
 const SQL_OTROS = "Falta correr supabase/migraciones/2026-10-cuadre-sap-otros.sql en Supabase.";
 const SQL_HIST = "Falta correr supabase/migraciones/2026-10-cuadre-sap-historial.sql en Supabase.";
-const faltaSql = (m: string) => (/cierre|cerrado/.test(m) ? SQL_HIST : /otros/.test(m) ? SQL_OTROS : m);
+const SQL_311 = "Falta correr supabase/migraciones/2026-10-cuadre-sap-311-ag22.sql en Supabase.";
+const faltaSql = (m: string) => (/ajustes311/.test(m) ? SQL_311 : /cierre|cerrado/.test(m) ? SQL_HIST : /otros/.test(m) ? SQL_OTROS : m);
 
 /**
  * LO QUE SE GUARDA DEL CUADRE SAP: el ZEXI (paso 1), las estibas del almacén y el interruptor del
@@ -70,6 +71,15 @@ export async function quitarMovimientos(fecha: string, almacen?: string) {
   const a = alm(almacen);
   const r = await poner(fecha, a, { movimientos: null, mov_archivo: null, mov_en: null });
   return r.error ? r : regrabarSiEstaGuardado(fecha, a);
+}
+
+/** AG22 · LOS 311 QUE SE APLICAN A LA ZEXI DE LAS 6 AM. Llegan las claves «AG18|código» que se marcaron en el toolbox; la suma o resta sale sola de lo que se hizo en cada almacén. */
+export async function guardarAjustes311(fecha: string, clavesJson: string) {
+  let claves: string[] = [];
+  try { claves = JSON.parse(clavesJson) } catch { return { error: "No se pudo leer la selección." } }
+  claves = [...new Set((Array.isArray(claves) ? claves : []).map(String).filter((c) => /^(AG18|AG17|AG16)\|[\w.\-]{1,40}$/.test(c)))];
+  const r = await poner(fecha, "AG22", { ajustes311: claves.length ? claves : null });
+  return r.error ? r : regrabarSiEstaGuardado(fecha, "AG22");
 }
 
 /** OTROS (Andina…): a qué envase se suma una línea del conteo (solo AG18). Volver al código con que se

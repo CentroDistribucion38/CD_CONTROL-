@@ -31,7 +31,7 @@ export default async function CuadrePage({ searchParams }: { searchParams: Promi
   }
   return (
     <div className="fe bal cs">
-      <Cuadre fecha={c.fecha} dias={c.dias} filas={c.filas} guardado={c.guardado} estibasBodega={c.estibasBodega} avisos={c.avisos} error={c.error} otros={c.otros} envases={c.envases} aplicados={c.aplicados} excluidos={c.excluidos} historial={c.historial} faltaHist={c.faltaHist} vista={q.vista === "historico" ? "historico" : "cuadre"} almacen={almacen} />
+      <Cuadre fecha={c.fecha} dias={c.dias} filas={c.filas} guardado={c.guardado} estibasBodega={c.estibasBodega} avisos={c.avisos} error={c.error} otros={c.otros} envases={c.envases} aplicados={c.aplicados} excluidos={c.excluidos} historial={c.historial} faltaHist={c.faltaHist} partidas311={c.partidas311} vista={q.vista === "historico" ? "historico" : "cuadre"} almacen={almacen} />
     </div>
   );
 }
