@@ -88,6 +88,8 @@ export async function quitarReclasificacion(fd: FormData) {
   if (!ids.length) return { error: "No se encontró el material en el consolidado del día" };
   const { error } = await supabase.from("balance_reclasificaciones").delete().in("conteo_envase_id", ids);
   if (error) return { error: error.message };
+  /* Las cajas que se habían separado de una ubicación vuelven a ella (la tabla puede no existir todavía). */
+  await supabase.from("balance_divisiones").delete().in("id", ids);
   revalidatePath("/inventario/balance");
   return { ok: true, pasivos: await alinearPasivos(fecha) };
 }
@@ -138,15 +140,16 @@ export async function reasignarRenglones(fd: FormData) {
  * REASIGNAR VARIAS UBICACIONES DE UNA VEZ, cada grupo a su estado (desde el modal del Balance).
  * Igual que `reasignarRenglones`, pero en UNA sola pasada: el consolidado del día se calcula una vez y la
  * Base de pasivos se alinea una vez (antes eran dos llamadas seguidas y pesaban el doble).
- * `grupos`: [{ estado_nuevo, ids }]
+ * `grupos`: [{ estado_nuevo, ids, partes? }] — `partes` {id: cajas} pasa SOLO esas cajas de la ubicación (si son menos
+ * que las que tiene): la ubicación se parte en dos renglones y solo la parte nueva cambia de estado.
  */
 export async function reasignarPorDestino(fd: FormData) {
   try {
     const fecha = String(fd.get("fecha") ?? "");
     const motivo = (fd.get("motivo") as string) || null;
-    let grupos: { estado_nuevo: string; ids: string[] }[] = [];
+    let grupos: { estado_nuevo: string; ids: string[]; partes?: Record<string, number> }[] = [];
     try { grupos = JSON.parse(String(fd.get("grupos") ?? "[]")) } catch { /* nada */ }
-    grupos = grupos.map((g) => ({ estado_nuevo: String(g.estado_nuevo ?? "").trim().toUpperCase(), ids: (g.ids ?? []).map(String) })).filter((g) => g.estado_nuevo && g.ids.length);
+    grupos = grupos.map((g) => ({ estado_nuevo: String(g.estado_nuevo ?? "").trim().toUpperCase(), ids: (g.ids ?? []).map(String), partes: g.partes ?? {} })).filter((g) => g.estado_nuevo && g.ids.length);
     if (!fecha || !grupos.length) return { error: "Faltan datos" };
 
     const supabase = await createClient();
@@ -163,9 +166,18 @@ export async function reasignarPorDestino(fd: FormData) {
 
     const vuelven: string[] = [];
     const filas: { conteo_envase_id: string; estado_original: string; estado_nuevo: string; motivo: string | null }[] = [];
+    /* Las que pasan solo una parte: [renglón, cajas, estado nuevo]. */
+    const partidas: { id: string; cajas: number; estado_nuevo: string; efectivo: string; contado: string }[] = [];
     for (const g of grupos) {
       for (const id of g.ids) {
         const r = porId.get(id); if (!r) continue;
+        const total = Number(r.total_cajas) || 0;
+        const x = Math.round(Number(g.partes?.[id]) || 0);
+        const efectivo = actual.get(id) ?? normEstado(r.estado_envase);
+        if (x > 0 && x < total) {
+          if (efectivo !== g.estado_nuevo) partidas.push({ id, cajas: x, estado_nuevo: g.estado_nuevo, efectivo, contado: normEstado(r.estado_envase) });
+          continue;
+        }
         if (normEstado(r.estado_envase) === g.estado_nuevo) vuelven.push(id);
         else if ((actual.get(id) ?? "") !== g.estado_nuevo) filas.push({ conteo_envase_id: id, estado_original: actual.get(id) ?? normEstado(r.estado_envase), estado_nuevo: g.estado_nuevo, motivo });
       }
@@ -180,8 +192,24 @@ export async function reasignarPorDestino(fd: FormData) {
       const { error } = await supabase.from("balance_reclasificaciones").insert(filas);
       if (error) return { error: error.message };
     }
+    /* Las partes: primero se separan las cajas del renglón, luego esa parte nueva cambia de estado. */
+    let partidasHechas = 0;
+    for (const p of partidas) {
+      const { data: d, error: eD } = await supabase.from("balance_divisiones").insert({ conteo_envase_id: p.id, cajas: p.cajas }).select("id").single();
+      if (eD || !d) {
+        return { error: /balance_divisiones|relation|schema cache/i.test(eD?.message ?? "")
+          ? "Para pasar solo una parte de las cajas falta correr el SQL «2026-10-balance-divisiones.sql» en Supabase."
+          : (eD?.message ?? "No se pudo separar esa parte") };
+      }
+      /* La parte nace con el estado con que se contó; si el que se quiere es ese, no necesita reasignación. */
+      if (p.estado_nuevo !== p.contado) {
+        const { error } = await supabase.from("balance_reclasificaciones").insert({ conteo_envase_id: d.id, estado_original: p.efectivo, estado_nuevo: p.estado_nuevo, motivo });
+        if (error) return { error: error.message };
+      }
+      partidasHechas++;
+    }
     revalidatePath("/inventario/balance");
-    return { ok: true, movidos: filas.length + vuelven.length, pasivos: await alinearPasivos(fecha) };
+    return { ok: true, movidos: filas.length + vuelven.length + partidasHechas, pasivos: await alinearPasivos(fecha) };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "No se pudo reasignar" };
   }

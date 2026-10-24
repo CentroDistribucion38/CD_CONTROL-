@@ -145,6 +145,8 @@ export function Balance({
   const [avisoMov, setAvisoMov] = useState<string | null>(null);
   /* A qué estado va CADA ubicación: así se pasan varias de una sola vez, cada una a su estado. */
   const [destinoLinea, setDestinoLinea] = useState<Record<string, string>>({});
+  /* Cuántas cajas pasa CADA ubicación (texto de la casilla): vacío o todas = la ubicación entera. */
+  const [cajasPasar, setCajasPasar] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
   /* «Otros estados»: por defecto SOLO lo que debe ir a pasivo (OTROS y MAL ESTADO), para saber qué falta reasignar. */
   const [soloPasivo, setSoloPasivo] = useState(true);
@@ -217,6 +219,11 @@ export function Balance({
     return consolidado.filter((l) => l.codigo === reclas.codigo && l.estado.trim().toUpperCase() === reclas.estado.trim().toUpperCase() && (!zona || l.zona === zona));
   }, [reclas, consolidado]);
   const marcadasModal = lineasReclas.filter((l) => marcadasReclas.has(l.clave));
+  /** Las cajas que pasan de esa ubicación: lo que se escribió (entre 1 y las que tiene) o todas. */
+  const cajasDe = (l: LineaConsolidado) => {
+    const t = cajasPasar[l.clave]; if (t == null || t === "") return l.cajas;
+    const x = Math.floor(Number(t)); return Number.isFinite(x) && x >= 1 ? Math.min(x, l.cajas) : l.cajas;
+  };
   const alternarReclas = (clave: string) => setMarcadasReclas((m) => { const x = new Set(m); if (x.has(clave)) x.delete(clave); else x.add(clave); return x });
 
   /* ---- handlers reclasificación ---- */
@@ -229,6 +236,7 @@ export function Balance({
       const ini = ESTADOS_DESTINO.find((e) => e !== f.estado) ?? ESTADOS_DESTINO[0];
       setMarcadasReclas(new Set(ls.map((l) => l.clave)));
       setDestinoLinea(Object.fromEntries(ls.map((l) => [l.clave, ini])));
+      setCajasPasar({});
     }
     setNuevoEstado(
       ESTADOS_DESTINO.find((e) => e !== f.estado) ?? ESTADOS_DESTINO[0],
@@ -243,15 +251,21 @@ export function Balance({
     if (lineasReclas.length > 0) {
       if (!marcadasModal.length) { setErrorReclas("Marca al menos una ubicación."); return }
       /* Las marcadas se agrupan por el estado al que va cada una y se pasan todas de una vez. */
-      const grupos = new Map<string, string[]>();
-      for (const l of marcadasModal) { const d = destinoLinea[l.clave] ?? nuevoEstado; grupos.set(d, [...(grupos.get(d) ?? []), ...l.ids]) }
-      const resumen = [...grupos.entries()].map(([d, ids]) => `${ids.length} → ${d}`).join(" · ");
+      const grupos = new Map<string, { ids: string[]; partes: Record<string, number> }>();
+      for (const l of marcadasModal) {
+        const d = destinoLinea[l.clave] ?? nuevoEstado;
+        const g = grupos.get(d) ?? { ids: [], partes: {} };
+        g.ids.push(...l.ids);
+        if (cajasDe(l) < l.cajas && l.ids.length === 1) g.partes[l.ids[0]] = cajasDe(l);
+        grupos.set(d, g);
+      }
+      const resumen = [...grupos.entries()].map(([d, g]) => `${g.ids.length} → ${d}`).join(" · ");
       startTransition(async () => {
         try {
           const fd = new FormData();
           fd.set("fecha", reclas.fecha ?? fecha ?? "");
           fd.set("motivo", motivo);
-          fd.set("grupos", JSON.stringify([...grupos.entries()].map(([estado_nuevo, ids]) => ({ estado_nuevo, ids }))));
+          fd.set("grupos", JSON.stringify([...grupos.entries()].map(([estado_nuevo, g]) => ({ estado_nuevo, ids: g.ids, partes: g.partes }))));
           const r = await reasignarPorDestino(fd);
           if ("error" in r && r.error) { setErrorReclas(r.error); return }
           setAvisoMov(`${reclas.codigo} ${reclas.material ?? ""}: pasaron ${resumen} (renglones del conteo).`);
@@ -783,7 +797,7 @@ export function Balance({
       {/* ---- MODAL RECLASIFICACIÓN: todo recto, claro, cada ubicación con su propio estado ---- */}
       {reclas && (() => {
         const totalCajas = lineasReclas.reduce((t, l) => t + l.cajas, 0);
-        const marcCajas = marcadasModal.reduce((t, l) => t + l.cajas, 0);
+        const marcCajas = marcadasModal.reduce((t, l) => t + cajasDe(l), 0);
         const maxCajas = Math.max(1, ...lineasReclas.map((l) => l.cajas));
         const hay = lineasReclas.length > 0;
         const pct = totalCajas ? (marcCajas / totalCajas) * 100 : 0;
@@ -791,7 +805,7 @@ export function Balance({
         const destDe = (l: LineaConsolidado) => destinoLinea[l.clave] ?? nuevoEstado;
         /* A dónde va lo marcado: un solo estado, o «VARIOS» si cada ubicación va a uno distinto. */
         const porDestino = new Map<string, number>();
-        for (const l of marcadasModal) porDestino.set(destDe(l), (porDestino.get(destDe(l)) ?? 0) + l.cajas);
+        for (const l of marcadasModal) porDestino.set(destDe(l), (porDestino.get(destDe(l)) ?? 0) + cajasDe(l));
         const resumenDestino = hay ? (porDestino.size === 0 ? nuevoEstado : porDestino.size === 1 ? [...porDestino.keys()][0] : "VARIOS") : nuevoEstado;
         const botonMover = pending ? "Guardando…" : hay && marcadasModal.length < lineasReclas.length ? `Mover ${marcadasModal.length} de ${lineasReclas.length}` : hay && lineasReclas.length > 1 ? `Mover las ${lineasReclas.length}` : "Mover";
         const poner = (e: string) => { setNuevoEstado(e); setDestinoLinea(Object.fromEntries(lineasReclas.map((l) => [l.clave, e]))) };
@@ -844,6 +858,15 @@ export function Balance({
                               <i className="barra" aria-hidden><em style={{ width: (l.cajas / maxCajas) * 100 + "%" }} /></i>
                               <span className="c">{n(l.cajas)}<small> cajas</small></span>
                               {l.estibas != null && <span className="e">{n(l.estibas, 1)}<small> est.</small></span>}
+                              <label className="p">
+                                <small>CAJAS A PASAR</small>
+                                <input type="number" inputMode="numeric" min={1} max={l.cajas} step={1} disabled={!on}
+                                  value={cajasPasar[l.clave] ?? String(l.cajas)}
+                                  onChange={(e) => setCajasPasar((m) => ({ ...m, [l.clave]: e.target.value }))}
+                                  onFocus={(e) => e.currentTarget.select()}
+                                  aria-label={`Cajas a pasar de ${l.ubicacion} (tiene ${l.cajas})`} />
+                                {on && cajasDe(l) < l.cajas && <small className="rest">se quedan {n(l.cajas - cajasDe(l))}</small>}
+                              </label>
                               <label className="a">
                                 <small>PASA A</small>
                                 <select value={destDe(l)} disabled={!on} onChange={(e) => setDestinoLinea((m) => ({ ...m, [l.clave]: e.target.value }))} aria-label={`Estado nuevo de ${l.ubicacion}`}>
