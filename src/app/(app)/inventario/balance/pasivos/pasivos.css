@@ -98,3 +98,24 @@
 .pas-conf-resumen b { display: block; font: 800 16px var(--fe-texto, inherit); color: #111; font-variant-numeric: tabular-nums }
 .bal-mx .bal-btn.confirmar.peligro { background: #B42318; border-color: #8f1b11; color: #fff }
 .bal-mx .bal-btn.confirmar.peligro:hover:not(:disabled) { background: #cf2a1c }
+
+/* LA BARRA DE LO MARCADO — blanca, recta, pegada abajo mientras se recorre la tabla */
+.pas-barra, .pas-barra * { border-radius: 0 !important }
+.pas-barra { position: sticky; bottom: 14px; z-index: 5; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; margin: 12px 0; padding: 12px 18px 12px 0;
+  background: #fff; border: 1px solid #cfcfcf; border-left: 8px solid var(--fe-acento, #FFC300); box-shadow: 0 10px 28px rgba(0,0,0,.22) }
+.pas-barra-n { display: flex; align-items: baseline; gap: 10px; padding-left: 16px; padding-right: 18px; border-right: 1px solid #e3e3e3 }
+.pas-barra-n b { font: 800 34px/1 var(--fe-texto, inherit); color: #111; font-variant-numeric: tabular-nums }
+.pas-barra-n span { font: 800 11px var(--fe-texto, inherit); letter-spacing: .14em; text-transform: uppercase; color: #555 }
+.pas-barra-acc { display: flex; gap: 10px; flex-wrap: wrap }
+.pas-barra .pb { appearance: none; cursor: pointer; padding: 12px 24px; font: 800 13px var(--fe-texto, inherit); letter-spacing: .06em; text-transform: uppercase; border: 1px solid #111; transition: transform .08s, box-shadow .08s }
+.pas-barra .pb:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 3px 0 #111 }
+.pas-barra .pb:active:not(:disabled) { transform: none; box-shadow: none }
+.pas-barra .pb:focus-visible { outline: 3px solid #111; outline-offset: 2px }
+.pas-barra .pb:disabled { opacity: .45; cursor: not-allowed }
+.pas-barra .pb.descartar { background: var(--fe-acento, #FFC300); color: #111 }
+.pas-barra .pb.reactivar { background: #fff; color: #111 }
+.pas-barra .pb.borrar { background: #111; color: #fff }
+.pas-barra .pb.borrar:hover:not(:disabled) { background: #B42318; border-color: #B42318; box-shadow: 0 3px 0 #7a1810 }
+.pas-barra .pb-quitar { appearance: none; margin-left: auto; background: none; border: 0; padding: 8px 4px; font: 700 12px var(--fe-texto, inherit); letter-spacing: .06em; text-transform: uppercase; color: #666; cursor: pointer; text-decoration: underline; text-underline-offset: 3px }
+.pas-barra .pb-quitar:hover { color: #111 }
+@media (max-width: 640px) { .pas-barra { bottom: 8px; padding-right: 10px } .pas-barra-n { border-right: 0 } .pas-barra .pb { padding: 11px 16px } }

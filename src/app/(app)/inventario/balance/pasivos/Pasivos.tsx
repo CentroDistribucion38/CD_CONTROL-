@@ -352,12 +352,17 @@ export function Pasivos({ filas, error, desde, hasta, dias, diasConteo, codigos,
       </div>
 
       {marcadasVistas.length > 0 && puedeEditar && (
-        <div className="bal-conso-barra">
-          <b>{marcadasVistas.length} marcada{marcadasVistas.length === 1 ? "" : "s"}</b>
-          <button type="button" className="bal-btn confirmar" disabled={pending} onClick={() => descartar(true)} title="Se quedan a la vista pero no suman ni restan">Descartar</button>
-          {marcadasVistas.some((f) => f.descartada) && <button type="button" className="bal-btn cancelar" disabled={pending} onClick={() => descartar(false)}>Reactivar</button>}
-          <button type="button" className="bal-btn confirmar pas-borrar" disabled={pending} onClick={() => setConfirmaBorrar(true)}>Borrar</button>
-          <button type="button" className="bal-btn cancelar" onClick={() => setMarcadas(new Set())}>Quitar marcas</button>
+        <div className="pas-barra" role="toolbar" aria-label="Qué hacer con las filas marcadas">
+          <div className="pas-barra-n">
+            <b>{marcadasVistas.length}</b>
+            <span>{marcadasVistas.length === 1 ? "fila marcada" : "filas marcadas"}</span>
+          </div>
+          <div className="pas-barra-acc">
+            <button type="button" className="pb descartar" disabled={pending} onClick={() => descartar(true)} title="Se quedan a la vista pero no suman ni restan">Descartar</button>
+            {marcadasVistas.some((f) => f.descartada) && <button type="button" className="pb reactivar" disabled={pending} onClick={() => descartar(false)} title="Vuelven a sumar">Reactivar</button>}
+            <button type="button" className="pb borrar" disabled={pending} onClick={() => setConfirmaBorrar(true)}>Borrar</button>
+          </div>
+          <button type="button" className="pb-quitar" onClick={() => setMarcadas(new Set())}>Quitar marcas</button>
         </div>
       )}
 
