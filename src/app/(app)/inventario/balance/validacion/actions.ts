@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { conDescartes, leerDescartes } from "@/modulos/pasivos/datos";
 import { validacionPasivo, validacionPasivoAG22 } from "@/modulos/inventario/validacion-pasivo";
 import {
   ALMACEN_PENDIENTE_AG22, CAUSAL_PENDIENTE_EXTRASUCIO, ESTADO_PENDIENTE_EXTRASUCIO,
@@ -37,13 +38,14 @@ export async function enviarPendienteBaja(fecha: string) {
     for (const [u, estado, causal] of partes) { const unidades = Math.round(u); if (unidades > 0) filas.push({ codigo: f.codigo, estado, causal, unidades }) }
   }
 
+  const descartes = await leerDescartes([fecha]);
   const { error: eD } = await supabase.from("pasivos_base").delete()
     .eq("fecha", fecha).eq("almacen", ALMACEN_PENDIENTE_BAJA).in("causal", CAUSALES_PENDIENTES).eq("origen", "manual");
   if (eD) return { error: eD.message };
   if (filas.length) {
-    const { error: eI } = await supabase.from("pasivos_base").insert(filas.map((f) => ({
+    const { error: eI } = await supabase.from("pasivos_base").insert(conDescartes(filas.map((f) => ({ ...f, fecha, almacen: ALMACEN_PENDIENTE_BAJA })), descartes, "manual").map((f) => ({
       fecha, estado: f.estado, causal: f.causal, codigo: f.codigo, unidades: f.unidades,
-      almacen: ALMACEN_PENDIENTE_BAJA, origen: "manual", nota: NOTA_PENDIENTE_BAJA,
+      almacen: ALMACEN_PENDIENTE_BAJA, origen: "manual", nota: NOTA_PENDIENTE_BAJA, ...(f.descartada ? { descartada: true } : {}),
     })));
     if (eI) return { error: /row-level security|policy/i.test(eI.message) ? "No tienes permiso de editar la Base de pasivos." : eI.message };
   }
@@ -83,13 +85,14 @@ export async function enviarPendienteAG22(fecha: string) {
     for (const [u, estado, causal] of partes) { const unidades = Math.round(u); if (unidades > 0) filas.push({ codigo: f.codigo, estado, causal, unidades }) }
   }
 
+  const descartes = await leerDescartes([fecha]);
   const { error: eD } = await supabase.from("pasivos_base").delete()
     .eq("fecha", fecha).eq("almacen", ALMACEN_PENDIENTE_AG22).in("causal", CAUSALES_PENDIENTES).eq("origen", "manual");
   if (eD) return { error: eD.message };
   if (filas.length) {
-    const { error: eI } = await supabase.from("pasivos_base").insert(filas.map((f) => ({
+    const { error: eI } = await supabase.from("pasivos_base").insert(conDescartes(filas.map((f) => ({ ...f, fecha, almacen: ALMACEN_PENDIENTE_AG22 })), descartes, "manual").map((f) => ({
       fecha, estado: f.estado, causal: f.causal, codigo: f.codigo, unidades: f.unidades,
-      almacen: ALMACEN_PENDIENTE_AG22, origen: "manual", nota: NOTA_PENDIENTE_BAJA,
+      almacen: ALMACEN_PENDIENTE_AG22, origen: "manual", nota: NOTA_PENDIENTE_BAJA, ...(f.descartada ? { descartada: true } : {}),
     })));
     if (eI) return { error: /row-level security|policy/i.test(eI.message) ? "No tienes permiso de editar la Base de pasivos." : eI.message };
   }

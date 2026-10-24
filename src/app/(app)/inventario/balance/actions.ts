@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { consolidadoDelDia, diasConConteo } from "@/modulos/inventario/balance";
-import { balanceParaPasivos } from "@/modulos/pasivos/datos";
+import { balanceParaPasivos, conDescartes, leerDescartes } from "@/modulos/pasivos/datos";
 
 const normEstado = (e: string | null | undefined) => {
   const t = (e ?? "").trim().toUpperCase();
@@ -28,10 +28,11 @@ async function alinearPasivos(fecha: string): Promise<number | null> {
     if (hist || !ya || (cierre.data ?? []).length) return null;
     const { filas, error } = await balanceParaPasivos(fecha);
     if (error && !filas.length) return null;
+    const descartes = await leerDescartes([fecha]);
     const { error: eB } = await supabase.from("pasivos_base").delete().eq("fecha", fecha).eq("origen", "balance");
     if (eB) return null;
     if (filas.length) {
-      const { error: eI } = await supabase.from("pasivos_base").insert(filas.map((f) => ({ ...f, origen: "balance" })));
+      const { error: eI } = await supabase.from("pasivos_base").insert(conDescartes(filas.map((f) => ({ ...f, fecha })), descartes, "balance").map((f) => ({ ...f, origen: "balance" })));
       if (eI) return null;
     }
     revalidatePath("/inventario/balance/pasivos");

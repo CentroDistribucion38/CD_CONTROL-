@@ -39,7 +39,7 @@ export default async function PasivosPage({ searchParams }: { searchParams: Prom
   const ultimo = dias[dias.length - 1] ?? hoy;
   const desde = dia(q.desde) ?? ultimo;
   const hasta = dia(q.hasta) ?? (dia(q.desde) ? desde : ultimo);
-  const filas = await leerPasivos(desde <= hasta ? desde : hasta, desde <= hasta ? hasta : desde);
+  const filas = await leerPasivos(desde <= hasta ? desde : hasta, desde <= hasta ? hasta : desde, true);
 
   return (
     <div className="fe bal pas">

@@ -22,6 +22,8 @@ export type FilaPasivo = {
   descripcion: string; unidades: number; almacen: string; hl: number | null; cajas: number | null;
   anio: number; mes: number; dia: number; costo: number | null;
   origen: "balance" | "archivo" | "manual" | "historico"; archivo: string | null; nota: string | null; sin_maestro: boolean;
+  /** Descartada: se ve en la base pero NO suma ni resta (tabla pasivos_base.descartada). */
+  descartada?: boolean;
 };
 export type MaestroPasivo = {
   codigo: string; material: string | null; descripcion: string; familia: string | null;
@@ -82,7 +84,11 @@ export async function balanceParaPasivos(fecha: string, casco?: string | null) {
   return { ...filasDeBalance(fecha, b.detalle, regla), error: b.error };
 }
 
-export async function leerPasivos(desde: string, hasta: string) {
+/**
+ * `conDescartadas`: solo la pantalla de la Base las pide (se ven tachadas, sin sumar). Todo lo demás —cuadre, informe,
+ * validación, guardar el día— las deja fuera: «están ahí visualmente pero no suman ni restan».
+ */
+export async function leerPasivos(desde: string, hasta: string, conDescartadas = false) {
   const supabase = await createClient();
   const regla = await leerExcluidos("AG22");
   const r = await todas<FilaPasivo>((d, h) => supabase.from("v_pasivos_base").select("*")
@@ -90,7 +96,28 @@ export async function leerPasivos(desde: string, hasta: string) {
     .order("fecha", { ascending: false }).order("almacen").order("estado").order("causal").order("codigo").order("id")
     .range(d, h));
   /* Envases nuevos (barril, 412644, 412671, 412707) y la estiba 3500163: no cuentan en Pasivos aunque hayan quedado cargados. */
-  return { ...r, data: r.data.filter((f) => !excluye(regla, f.codigo, f.descripcion)) };
+  return { ...r, data: r.data.filter((f) => !excluye(regla, f.codigo, f.descripcion) && (conDescartadas || !f.descartada)) };
+}
+
+/* LO DESCARTADO SOBREVIVE A TRAER / SUBIR OTRA VEZ: esas acciones borran y vuelven a insertar las filas del día,
+   así que antes se anota cuáles estaban descartadas (por fecha · origen · estado · causal · código · almacén) y la
+   fila nueva que sea igual nace descartada. Si la columna todavía no existe, no pasa nada. */
+type ClaveFila = { fecha: string; estado: string; causal: string; codigo: string; almacen: string };
+const claveDescarte = (f: ClaveFila, origen: string) => `${f.fecha}|${origen}|${f.estado}|${f.causal}|${f.codigo}|${f.almacen}`;
+export async function leerDescartes(fechas: string[]): Promise<Set<string>> {
+  const out = new Set<string>();
+  if (!fechas.length) return out;
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase.from("pasivos_base").select("fecha, origen, estado, causal, codigo, almacen").in("fecha", fechas).eq("descartada", true).limit(5000);
+    if (error) return out;
+    for (const x of (data ?? []) as (ClaveFila & { origen: string })[]) out.add(claveDescarte(x, x.origen));
+  } catch { /* nada */ }
+  return out;
+}
+export function conDescartes<T extends ClaveFila>(filas: T[], descartes: Set<string>, origen: string): (T & { descartada?: true })[] {
+  if (!descartes.size) return filas;
+  return filas.map((f) => (descartes.has(claveDescarte(f, origen)) ? { ...f, descartada: true as const } : f));
 }
 
 /** Los días que tienen algo cargado (para el calendario). */

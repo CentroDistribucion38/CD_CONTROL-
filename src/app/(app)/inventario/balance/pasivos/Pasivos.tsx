@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
 import type { CierrePasivos, FilaPasivo, NuevaFila } from "@/modulos/pasivos/datos";
 import { Rango } from "../../../sider/seguimiento/Rango";
-import { borrarFilas, descuentoEstandar, guardarDiaPasivos, subirArchivo, traerDelBalance } from "./actions";
+import { borrarFilas, descartarFilas, descuentoEstandar, guardarDiaPasivos, subirArchivo, traerDelBalance } from "./actions";
 import { DESCUENTO_ESTANDAR } from "@/modulos/pasivos/excluidos";
 
 /**
@@ -94,7 +94,7 @@ export function Pasivos({ filas, error, desde, hasta, dias, diasConteo, codigos,
   const DE = DESCUENTO_ESTANDAR;
   const descuento = unDia ? filas.find((f) => f.fecha === unDia && f.codigo === DE.codigo && f.almacen === DE.almacen && f.origen === "manual" && (f.nota ?? "").startsWith(DE.nota)) ?? null : null;
   const [valorDesc, setValorDesc] = useState(String(DE.unidades));
-  const unidades3500005 = unDia ? filas.filter((f) => f.fecha === unDia && f.codigo === DE.codigo && f.almacen === DE.almacen && f !== descuento).reduce((t, f) => t + f.unidades, 0) : 0;
+  const unidades3500005 = unDia ? filas.filter((f) => f.fecha === unDia && f.codigo === DE.codigo && f.almacen === DE.almacen && f !== descuento && !f.descartada).reduce((t, f) => t + f.unidades, 0) : 0;
   function cambiarDescuento(poner: boolean) {
     if (!unDia) return;
     const v = Number(valorDesc.replace(/\D/g, ""));
@@ -129,10 +129,13 @@ export function Pasivos({ filas, error, desde, hasta, dias, diasConteo, codigos,
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ), [filas, estados, causal, almacen, q]);
 
-  const tot = useMemo(() => vistas.reduce((t, f) => ({
+  /* Lo descartado se ve pero NO suma ni resta. */
+  const suman = useMemo(() => vistas.filter((f) => !f.descartada), [vistas]);
+  const nDescartadas = vistas.length - suman.length;
+  const tot = useMemo(() => suman.reduce((t, f) => ({
     unidades: t.unidades + f.unidades, cajas: t.cajas + (f.cajas ?? 0), hl: t.hl + (f.hl ?? 0), costo: t.costo + (f.costo ?? 0),
-  }), { unidades: 0, cajas: 0, hl: 0, costo: 0 }), [vistas]);
-  const sinMaestro = vistas.filter((f) => f.sin_maestro).length;
+  }), { unidades: 0, cajas: 0, hl: 0, costo: 0 }), [suman]);
+  const sinMaestro = suman.filter((f) => f.sin_maestro).length;
 
   const ir = (d: string, h: string) => startCarga(() => router.push(`/inventario/balance/pasivos?desde=${d}&hasta=${h}`));
   const hayFiltro = estados.size > 0 || !!causal || !!almacen || !!q;
@@ -176,6 +179,17 @@ export function Pasivos({ filas, error, desde, hasta, dias, diasConteo, codigos,
       const r = await borrarFilas(JSON.stringify(ids));
       if ("error" in r && r.error) { setAviso({ tipo: "mal", texto: r.error }); return }
       setMarcadas(new Set()); setAviso({ tipo: "ok", texto: `${ids.length} filas borradas.` });
+    });
+  }
+  function descartar(poner: boolean) {
+    const ids = vistas.filter((f) => marcadas.has(f.id) && !!f.descartada !== poner).map((f) => f.id);
+    if (!ids.length) { setAviso({ tipo: "mal", texto: poner ? "Las marcadas ya están descartadas." : "Las marcadas no están descartadas." }); return }
+    start(async () => {
+      const r = await descartarFilas(JSON.stringify(ids), poner);
+      if ("error" in r && r.error) { setAviso({ tipo: "mal", texto: r.error }); return }
+      setMarcadas(new Set());
+      setAviso({ tipo: "ok", texto: poner ? `${ids.length} fila${ids.length === 1 ? "" : "s"} descartada${ids.length === 1 ? "" : "s"}: se ven en la base pero ya no suman.` : `${ids.length} fila${ids.length === 1 ? "" : "s"} reactivada${ids.length === 1 ? "" : "s"}: vuelven a sumar.` });
+      router.refresh();
     });
   }
   const marcadasVistas = vistas.filter((f) => marcadas.has(f.id));
@@ -328,7 +342,7 @@ export function Pasivos({ filas, error, desde, hasta, dias, diasConteo, codigos,
 
       {/* ---- LA SUMA DE LO FILTRADO ---- */}
       <div className="pas-tarjetas">
-        <div className="pas-t total"><span>Unidades</span><b>{n0(tot.unidades)}</b><i>{vistas.length} fila{vistas.length === 1 ? "" : "s"}</i></div>
+        <div className="pas-t total"><span>Unidades</span><b>{n0(tot.unidades)}</b><i>{suman.length} fila{suman.length === 1 ? "" : "s"}{nDescartadas > 0 ? ` · ${nDescartadas} descartada${nDescartadas === 1 ? "" : "s"} (no suman)` : ""}</i></div>
         <div className="pas-t"><span>Cajas</span><b>{n0(tot.cajas)}</b></div>
         <div className="pas-t"><span>HL</span><b>{n2(tot.hl)}</b></div>
         <div className="pas-t"><span>Costo</span><b>{plata(tot.costo)}</b>{sinMaestro > 0 && <i className="mal">{sinMaestro} sin maestro (sin costo)</i>}</div>
@@ -337,6 +351,8 @@ export function Pasivos({ filas, error, desde, hasta, dias, diasConteo, codigos,
       {marcadasVistas.length > 0 && puedeEditar && (
         <div className="bal-conso-barra">
           <b>{marcadasVistas.length} marcada{marcadasVistas.length === 1 ? "" : "s"}</b>
+          <button type="button" className="bal-btn confirmar" disabled={pending} onClick={() => descartar(true)} title="Se quedan a la vista pero no suman ni restan">Descartar</button>
+          {marcadasVistas.some((f) => f.descartada) && <button type="button" className="bal-btn cancelar" disabled={pending} onClick={() => descartar(false)}>Reactivar</button>}
           <button type="button" className="bal-btn confirmar pas-borrar" disabled={pending} onClick={borrar}>Borrar</button>
           <button type="button" className="bal-btn cancelar" onClick={() => setMarcadas(new Set())}>Quitar marcas</button>
         </div>
@@ -354,14 +370,14 @@ export function Pasivos({ filas, error, desde, hasta, dias, diasConteo, codigos,
           </thead>
           <tbody>
             {vistas.map((f) => (
-              <tr key={f.id} className={marcadas.has(f.id) ? "marcada" : f.sin_maestro ? "con-alerta" : ""}>
+              <tr key={f.id} className={(marcadas.has(f.id) ? "marcada" : f.sin_maestro && !f.descartada ? "con-alerta" : "") + (f.descartada ? " descartada" : "")}>
                 {puedeEditar && <td className="bal-col-chk"><input type="checkbox" aria-label={`Marcar ${f.codigo}`} checked={marcadas.has(f.id)} onChange={() => setMarcadas(alternar(marcadas, f.id))} /></td>}
                 <td className="mono">{ddmmaaaa(f.fecha)}</td>
                 <td>{f.estado}</td>
                 <td>{f.causal}</td>
                 <td className="mono">{f.caja ?? "—"}</td>
                 <td className="mono">{f.codigo}</td>
-                <td>{f.descripcion}{f.sin_maestro && <span className="pas-sin"> · no está en el maestro</span>}</td>
+                <td>{f.descripcion}{f.descartada && <span className="pas-desc-tag">DESCARTADA · no suma</span>}{f.sin_maestro && <span className="pas-sin"> · no está en el maestro</span>}</td>
                 <td className={`r ${f.unidades < 0 ? "bal-dif" : ""}`}>{n0(f.unidades)}</td>
                 <td>{f.almacen}</td>
                 <td className="r">{n2(f.hl)}</td>

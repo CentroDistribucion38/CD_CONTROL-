@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { balanceParaPasivos, leerPasivos, resumirPasivos, type NuevaFila, type MaestroPasivo } from "@/modulos/pasivos/datos";
+import { balanceParaPasivos, conDescartes, leerDescartes, leerPasivos, resumirPasivos, type NuevaFila, type MaestroPasivo } from "@/modulos/pasivos/datos";
 import { DESCUENTO_ESTANDAR, excluye } from "@/modulos/pasivos/excluidos";
 import { leerExcluidos } from "@/modulos/pasivos/excluidos-leer";
 
@@ -21,11 +21,11 @@ export async function traerDelBalance(fecha: string, casco?: string | null) {
   if (count) return { error: `El ${fecha.split("-").reverse().join("/")} ya está cargado tal cual tu Excel (histórico). No se trae del balance para no duplicarlo.` };
   const { filas, sinFactor, excluidos, error } = await balanceParaPasivos(fecha, casco);
   if (error && !filas.length) return { error };
-  /* ¿Es la primera vez que se trae este día? (para el descuento estándar, abajo) */
+  const descartes = await leerDescartes([fecha]);
   const { error: eB } = await supabase.from("pasivos_base").delete().eq("fecha", fecha).eq("origen", "balance");
   if (eB) return { error: eB.message };
   if (filas.length) {
-    const { error: eI } = await supabase.from("pasivos_base").insert(filas.map((f) => ({ ...f, origen: "balance" })));
+    const { error: eI } = await supabase.from("pasivos_base").insert(conDescartes(filas.map((f) => ({ ...f, fecha })), descartes, "balance").map((f) => ({ ...f, origen: "balance" })));
     if (eI) return { error: eI.message };
   }
   /* EL DESCUENTO ESTÁNDAR YA LO RESTA EL BALANCE (5.692 cajas de 3500005 en Baja · Bodega 38, como ajuste automático), así
@@ -72,6 +72,7 @@ export async function subirArchivo(filasJson: string, archivo: string) {
     filas = filas.filter((f) => !yaHist.has(f.fecha));
     if (!filas.length) return { error: `Esas fechas ya están cargadas tal cual tu Excel (histórico): ${[...yaHist].join(", ")}. No se subió nada.` };
   }
+  const descartes = await leerDescartes(fechas);
   const pares = [...new Set(filas.map((f) => `${f.fecha}|${f.causal}`))];
   for (const p of pares) {
     const [fecha, causal] = p.split("|");
@@ -79,9 +80,9 @@ export async function subirArchivo(filasJson: string, archivo: string) {
     if (error) return { error: error.message };
   }
   for (let i = 0; i < filas.length; i += 500) {
-    const { error } = await supabase.from("pasivos_base").insert(filas.slice(i, i + 500).map((f) => ({
-      fecha: f.fecha, estado: f.estado, causal: f.causal, codigo: String(f.codigo), unidades: Number(f.unidades),
-      almacen: f.almacen, nota: f.nota || null, origen: "archivo", archivo,
+    const { error } = await supabase.from("pasivos_base").insert(conDescartes(filas.slice(i, i + 500).map((f) => ({ ...f, codigo: String(f.codigo) })), descartes, "archivo").map((f) => ({
+      fecha: f.fecha, estado: f.estado, causal: f.causal, codigo: f.codigo, unidades: Number(f.unidades),
+      almacen: f.almacen, nota: f.nota || null, origen: "archivo", archivo, ...(f.descartada ? { descartada: true } : {}),
     })));
     if (error) return { error: error.message };
   }
@@ -100,6 +101,27 @@ export async function borrarFilas(idsJson: string) {
     if (error) return { error: error.message };
   }
   revalidatePath(RUTA);
+  return { ok: true, filas: ids.length };
+}
+
+/**
+ * DESCARTAR / REACTIVAR las filas marcadas — «están allí visualmente pero no suman ni restan». No se borra nada:
+ * la fila sigue en la base (tachada) y vuelve a sumar si se reactiva.
+ */
+export async function descartarFilas(idsJson: string, descartar: boolean) {
+  let ids: string[] = [];
+  try { ids = JSON.parse(idsJson) } catch { /* nada */ }
+  if (!ids.length) return { error: "No hay filas marcadas." };
+  const supabase = await createClient();
+  for (let i = 0; i < ids.length; i += 200) {
+    const { error } = await supabase.from("pasivos_base").update({ descartada: descartar }).in("id", ids.slice(i, i + 200));
+    if (error) {
+      return { error: /descartada|schema cache|column/i.test(error.message)
+        ? "Para descartar falta correr el SQL «2026-10-pasivos-descartar.sql» en Supabase."
+        : /row-level security|policy/i.test(error.message) ? "No tienes permiso de editar la Base de pasivos." : error.message };
+    }
+  }
+  revalidatePath(RUTA); revalidatePath(RUTA + "/informe"); revalidatePath("/inventario/balance/cuadre");
   return { ok: true, filas: ids.length };
 }
 
