@@ -7,6 +7,7 @@ import type { CierrePasivos, FilaPasivo, NuevaFila } from "@/modulos/pasivos/dat
 import { Rango } from "../../../sider/seguimiento/Rango";
 import { borrarFilas, descartarFilas, descuentoEstandar, guardarDiaPasivos, subirArchivo, traerDelBalance } from "./actions";
 import { DESCUENTO_ESTANDAR } from "@/modulos/pasivos/excluidos";
+import { Confirmar } from "./Confirmar";
 
 /**
  * PASIVOS · LA BASE. Lo de la hoja DATA de BLOQUEADOS.xlsx: se filtra por fechas (el calendario de
@@ -77,6 +78,7 @@ export function Pasivos({ filas, error, desde, hasta, dias, diasConteo, codigos,
   const [almacen, setAlmacen] = useState("");
   const [q, setQ] = useState("");
   const [marcadas, setMarcadas] = useState<Set<string>>(new Set());
+  const [confirmaBorrar, setConfirmaBorrar] = useState(false);
   const [aviso, setAviso] = useState<{ tipo: "ok" | "mal"; texto: string } | null>(null);
   const [diaBal, setDiaBal] = useState(diasConteo[0] ?? "");
   const [leida, setLeida] = useState<(Leida & { archivo: string }) | null>(null);
@@ -174,9 +176,10 @@ export function Pasivos({ filas, error, desde, hasta, dias, diasConteo, codigos,
   }
   function borrar() {
     const ids = vistas.filter((f) => marcadas.has(f.id)).map((f) => f.id);
-    if (!ids.length || !confirm(`¿Borrar ${ids.length} fila${ids.length === 1 ? "" : "s"}? No se puede deshacer.`)) return;
+    if (!ids.length) { setConfirmaBorrar(false); return }
     start(async () => {
       const r = await borrarFilas(JSON.stringify(ids));
+      setConfirmaBorrar(false);
       if ("error" in r && r.error) { setAviso({ tipo: "mal", texto: r.error }); return }
       setMarcadas(new Set()); setAviso({ tipo: "ok", texto: `${ids.length} filas borradas.` });
     });
@@ -353,7 +356,7 @@ export function Pasivos({ filas, error, desde, hasta, dias, diasConteo, codigos,
           <b>{marcadasVistas.length} marcada{marcadasVistas.length === 1 ? "" : "s"}</b>
           <button type="button" className="bal-btn confirmar" disabled={pending} onClick={() => descartar(true)} title="Se quedan a la vista pero no suman ni restan">Descartar</button>
           {marcadasVistas.some((f) => f.descartada) && <button type="button" className="bal-btn cancelar" disabled={pending} onClick={() => descartar(false)}>Reactivar</button>}
-          <button type="button" className="bal-btn confirmar pas-borrar" disabled={pending} onClick={borrar}>Borrar</button>
+          <button type="button" className="bal-btn confirmar pas-borrar" disabled={pending} onClick={() => setConfirmaBorrar(true)}>Borrar</button>
           <button type="button" className="bal-btn cancelar" onClick={() => setMarcadas(new Set())}>Quitar marcas</button>
         </div>
       )}
@@ -399,6 +402,25 @@ export function Pasivos({ filas, error, desde, hasta, dias, diasConteo, codigos,
           )}
         </table>
       </div>
+
+      {confirmaBorrar && marcadasVistas.length > 0 && (() => {
+        const n = marcadasVistas.length;
+        const suma = marcadasVistas.filter((f) => !f.descartada);
+        const u = suma.reduce((t, f) => t + f.unidades, 0), cj = suma.reduce((t, f) => t + (f.cajas ?? 0), 0);
+        return (
+          <Confirmar cabecera="BORRAR DE LA BASE" titulo={`¿Borrar ${n} fila${n === 1 ? "" : "s"} de la base?`} textoConfirmar={`Borrar ${n} fila${n === 1 ? "" : "s"}`}
+                     ocupado={pending} alConfirmar={borrar} alCancelar={() => setConfirmaBorrar(false)}>
+            <ul className="pas-conf-lista">
+              {marcadasVistas.slice(0, 8).map((f) => (
+                <li key={f.id}><span className="c">{f.codigo}</span><span>{f.descripcion} · {f.estado} · {f.almacen}</span><span className="u">{n0(f.unidades)} u</span></li>
+              ))}
+              {n > 8 && <li className="mas"><i>y {n - 8} más…</i></li>}
+            </ul>
+            <p className="pas-conf-resumen"><span>Unidades que dejan de sumar<b>{n0(u)}</b></span><span>Cajas<b>{n0(cj)}</b></span></p>
+            <p className="pas-conf-nota">Esto <b>no se puede deshacer</b>. Si solo no quieres que sumen, cancela y usa <b>Descartar</b>: se quedan a la vista y las puedes reactivar.</p>
+          </Confirmar>
+        );
+      })()}
       </>)}
     </>
   );

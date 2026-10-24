@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import type { MaestroPasivo } from "@/modulos/pasivos/datos";
 import { borrarMaestro, guardarMaestro } from "../actions";
+import { Confirmar } from "../Confirmar";
 
 /**
  * EL MAESTRO DE PASIVOS, como la hoja MAESTRO del Excel: cada celda se edita en el sitio y la fila se
@@ -22,6 +23,7 @@ export function MaestroPasivos({ filas, error, puedeEditar }: { filas: MaestroPa
   const [cambios, setCambios] = useState<Record<string, MaestroPasivo>>({});
   const [nueva, setNueva] = useState<MaestroPasivo | null>(null);
   const [q, setQ] = useState("");
+  const [quitando, setQuitando] = useState<MaestroPasivo | null>(null);
   const [aviso, setAviso] = useState<{ tipo: "ok" | "mal"; texto: string } | null>(null);
   const [pending, start] = useTransition();
 
@@ -43,9 +45,9 @@ export function MaestroPasivos({ filas, error, puedeEditar }: { filas: MaestroPa
     });
   }
   function borrar(f: MaestroPasivo) {
-    if (!confirm(`¿Quitar ${f.codigo} ${f.descripcion} del maestro? Las filas de la base con ese código quedan sin costo ni HL.`)) return;
     start(async () => {
       const r = await borrarMaestro(f.codigo);
+      setQuitando(null);
       setAviso("error" in r && r.error ? { tipo: "mal", texto: r.error } : { tipo: "ok", texto: `${f.codigo} quitado.` });
     });
   }
@@ -104,7 +106,7 @@ export function MaestroPasivos({ filas, error, puedeEditar }: { filas: MaestroPa
                           <button type="button" className="bal-btn cancelar" onClick={() => setCambios((c) => { const x = { ...c }; delete x[f.codigo]; return x })}>Deshacer</button>
                         </>
                       ) : (
-                        <button type="button" className="bal-btn cancelar" disabled={pending} onClick={() => borrar(f)} title="Quitar del maestro">×</button>
+                        <button type="button" className="bal-btn cancelar" disabled={pending} onClick={() => setQuitando(f)} title="Quitar del maestro">×</button>
                       )}
                     </td>
                   )}
@@ -114,6 +116,14 @@ export function MaestroPasivos({ filas, error, puedeEditar }: { filas: MaestroPa
           </tbody>
         </table>
       </div>
+
+      {quitando && (
+        <Confirmar cabecera="QUITAR DEL MAESTRO" titulo={`¿Quitar ${quitando.codigo} del maestro?`} textoConfirmar="Quitar del maestro"
+                   ocupado={pending} alConfirmar={() => borrar(quitando)} alCancelar={() => setQuitando(null)}>
+          <ul className="pas-conf-lista"><li><span className="c">{quitando.codigo}</span><span>{quitando.descripcion}</span><span /></li></ul>
+          <p className="pas-conf-nota">Las filas de la base con ese código quedan <b>sin costo ni HL</b> hasta que lo vuelvas a agregar.</p>
+        </Confirmar>
+      )}
     </>
   );
 }
