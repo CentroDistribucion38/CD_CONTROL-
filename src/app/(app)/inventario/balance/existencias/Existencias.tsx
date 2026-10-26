@@ -23,7 +23,7 @@ export function Existencias({ datos, inicial }: { datos: DatosExistencias; inici
   const vistas = useMemo(() => (soloDif ? b.filas.filter((f) => f.estado !== "cuadra") : b.filas), [b, soloDif]);
   const cuadran = b.filas.filter((f) => f.estado === "cuadra").length;
   const difs = noCuadran(b);
-  const queBase = alm === "AG18" ? "Baja + Lavado de AG18" : "PRESORTING, ROTURA DE LINEA, LAVADO, EXTRASUCIO y BAJA PROYECTADA de AG22";
+  const queBase = alm === "AG18" ? "Baja + Lavado de AG18" : "PRESORTING, ROTURA DE LINEA, LAVADO, EXTRASUCIO, BAJA PROYECTADA, DIF INV y SINIESTRO de AG22";
   const cuadre = fecha ? `/inventario/balance/cuadre?fecha=${fecha}&alm=${alm}` : "/inventario/balance/cuadre";
 
   return (

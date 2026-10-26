@@ -41,7 +41,7 @@ export const esAlmacen = (a: unknown): a is Almacen => a === "AG18" || a === "AG
 export type AlmacenSimple = "AG17" | "AG16";
 export const esAlmacenSimple = (a: unknown): a is AlmacenSimple => a === "AG17" || a === "AG16";
 /** AG22: las causales de la base de Pasivos que entran al cuadre («el agenciamiento»). */
-export const CAUSALES_AG22 = ["PRESORTING", "ROTURA DE LINEA", "LAVADO", "EXTRASUCIO", "BAJA PROYECTADA"] as const;
+export const CAUSALES_AG22 = ["PRESORTING", "ROTURA DE LINEA", "LAVADO", "EXTRASUCIO", "BAJA PROYECTADA", "DIF INV", "SINIESTRO"] as const;
 const normCausal = (c: unknown) => String(c ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/\s+/g, " ").trim();
 const ESTIBA = "3500163";
 /** «No sumar»: la línea OTROS no entra a ningún envase. */
@@ -437,7 +437,7 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
  * CUADRE SAP · AG22 — la base de Pasivos de AG22 del día contra el BLOQUEADO de SAP de AG22.
  *
  * «En el AG22 debe estar alineado al bloqueado de la existencia en SAP; toma como input la base: todo lo
- *  que es causal PRESORTING, ROTURA DE LINEA, LAVADO, EXTRASUCIO y BAJA PROYECTADA.»
+ *  que es causal PRESORTING, ROTURA DE LINEA, LAVADO, EXTRASUCIO y BAJA PROYECTADA.» (y también DIF INV y SINIESTRO: son partidas del bloqueado.)
  *
  * TOTAL BASE de cada material = Σ unidades de Pasivos AG22 de esas causales ese día. Las demás causales
  * (ANDINA…) no entran y se avisan. DIFERENCIA = SAP bloqueado − total base. Aquí NO se cambia de almacén:

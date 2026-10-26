@@ -94,7 +94,7 @@ export async function existenciasPasivo(pedida?: string | null): Promise<DatosEx
     };
   } else if (c18.faltaSql) ag18 = sinDia("AG18", ["Falta crear las tablas del Cuadre SAP."]);
 
-  /* ---------------- AG22: Bloqueado de SAP vs las 5 causales de la Base ---------------- */
+  /* ---------------- AG22: Bloqueado de SAP vs las causales de la Base ---------------- */
   let ag22 = sinDia("AG22");
   if (c22.fecha === fecha && !c22.faltaSql) {
     const hayZexi = !!c22.guardado?.zexi?.length;

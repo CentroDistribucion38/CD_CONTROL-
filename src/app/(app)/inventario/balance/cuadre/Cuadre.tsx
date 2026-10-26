@@ -18,8 +18,8 @@ import type { PanelExcluidos } from "@/modulos/pasivos/excluidos";
  *      movido: cada material queda «Balanceado» o dice cuánto falta y hacia dónde.
  */
 /* Las causales de la base de Pasivos que entran al cuadre de AG22 (las mismas de modulos/inventario/cuadre.ts). */
-const CAUSALES_AG22 = ["PRESORTING", "ROTURA DE LINEA", "LAVADO", "EXTRASUCIO", "BAJA PROYECTADA"];
-const CAUSAL_CORTA: Record<string, string> = { "PRESORTING": "Presorting", "ROTURA DE LINEA": "Rotura de línea", "LAVADO": "Lavado", "EXTRASUCIO": "Extrasucio", "BAJA PROYECTADA": "Baja proyectada" };
+const CAUSALES_AG22 = ["PRESORTING", "ROTURA DE LINEA", "LAVADO", "EXTRASUCIO", "BAJA PROYECTADA", "DIF INV", "SINIESTRO"];
+const CAUSAL_CORTA: Record<string, string> = { "PRESORTING": "Presorting", "ROTURA DE LINEA": "Rotura de línea", "LAVADO": "Lavado", "EXTRASUCIO": "Extrasucio", "BAJA PROYECTADA": "Baja proyectada", "DIF INV": "Dif. inv.", "SINIESTRO": "Siniestro" };
 /* El mismo valor que NO_SUMAR de modulos/inventario/cuadre.ts: ese archivo es del servidor y aquí solo se importan sus tipos. */
 const NO_SUMAR = "NO";
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
@@ -382,7 +382,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
           <p className="sub">{esSimple
             ? <>Lo contado en la calle <b>{CALLE_DE[almacen]}</b> el <b>{largo(fecha)}</b> contra el stock de SAP de <b>{almacen}</b> (ZEXI). La diferencia es el movimiento 311 entre {almacen} y AG22.</>
             : esAG22
-            ? <>La base de Pasivos <b>AG22</b> del <b>{largo(fecha)}</b> (PRESORTING, ROTURA DE LINEA, LAVADO, EXTRASUCIO y BAJA PROYECTADA) contra el <b>Bloqueado</b> de SAP (ZEXI). La diferencia es lo que hay que pasar de <b>libre a bloqueado</b> (o al revés) dentro del mismo AG22.</>
+            ? <>La base de Pasivos <b>AG22</b> del <b>{largo(fecha)}</b> (PRESORTING, ROTURA DE LINEA, LAVADO, EXTRASUCIO, BAJA PROYECTADA, DIF INV y SINIESTRO) contra el <b>Bloqueado</b> de SAP (ZEXI). La diferencia es lo que hay que pasar de <b>libre a bloqueado</b> (o al revés) dentro del mismo AG22.</>
             : <>El conteo del <b>{largo(fecha)}</b> contra el stock de SAP (ZEXI). La diferencia es el movimiento 311 entre AG18 y AG22.</>}{pend && " · guardando…"}</p>
         </div>
         {/* GUARDAR EL BALANCEO DEL DÍA: queda en el histórico de abajo. Volver a guardar lo reemplaza. */}
@@ -597,7 +597,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
           )}</thead>
           <tbody>
             {filas.map((f, i) => [
-              (i === 0 || filas[i - 1].grupo !== f.grupo) && <tr key={`g-${f.grupo}`} className="g"><td colSpan={esSimple ? 7 : 12}>{GRUPO[f.grupo]}</td></tr>,
+              (i === 0 || filas[i - 1].grupo !== f.grupo) && <tr key={`g-${f.grupo}`} className="g"><td colSpan={esSimple ? 7 : esAG22 ? 2 + CAUSALES_AG22.length + 5 : 12}>{GRUPO[f.grupo]}</td></tr>,
               <tr key={f.codigo}>
                 <td className="mono">{f.codigo}</td>
                 <td>{f.material}{f.detalle && <small>{f.detalle}</small>}
@@ -623,7 +623,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
         </table>
       </div>
       {esSimple ? <p className="cs-nota">Cantidades: producto y cajas plásticas en cajas, envase en unidades (cajas × unidades por caja) y estibas de madera en estibas. Diferencia = SAP − conteo. Negativo = se contó más de lo que dice SAP: pasar de AG22 a {ALM}. Positivo = SAP tiene de más: pasar de {ALM} a AG22.</p> :
-      esAG22 ? <p className="cs-nota">Unidades. Total base = lo de la base de Pasivos AG22 del día en las causales PRESORTING, ROTURA DE LINEA, LAVADO, EXTRASUCIO y BAJA PROYECTADA (las demás no entran y se avisan arriba).
+      esAG22 ? <p className="cs-nota">Unidades. Total base = lo de la base de Pasivos AG22 del día en las causales PRESORTING, ROTURA DE LINEA, LAVADO, EXTRASUCIO, BAJA PROYECTADA, DIF INV y SINIESTRO (las demás no entran y se avisan arriba).
         SAP bloqueado = la columna Bloqueado de la ZEXI de AG22. Negativo = la base tiene más de lo que SAP tiene bloqueado: pasar de libre a bloqueado en AG22. Positivo = SAP tiene bloqueado de más: pasar de bloqueado a libre.
         Cajas plásticas: Total base = lo contado en Bodega 38 (libre + control-cal + bloqueado) y SAP = los tres estados de la ZEXI de AG22; aquí no hay 311: la diferencia es de inventario y solo se balancean los estados.</p> :
       <p className="cs-nota">Unidades (las cajas plásticas en cajas y las estibas en estibas). Conteo fábrica = lo contado en ubicaciones FABRICA_, todos los estados; lo de OTROS suma al envase escogido arriba (si no se escoge, al código con que se contó).
