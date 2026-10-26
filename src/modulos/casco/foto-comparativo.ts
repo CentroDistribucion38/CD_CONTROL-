@@ -256,18 +256,57 @@ export function dibujarTablaComparativo(d: DatosTablaFoto, extra: Extra = {}): H
     `${nombreU} por ubicación · conteo del ${dmy(d.fA)} contra el del ${dmy(d.fB)}${d.estado ? ` · ${d.estado}` : ""}`);
 
   const x0 = M, ancho = W - 2 * M;
-  /* Seis columnas fijas y, por cada unidad, tres (conteo A, conteo B, diferencia); la descripción se lleva el resto. */
-  const wU0 = us.length === 1 ? 130 : us.length === 2 ? 112 : 94;
-  const fijas = [92, 130, 0, 96, 130, 118];
-  /* La descripción mide lo que mide el material más largo (con un poco de aire), no lo que sobre: lo que sobra
-     se reparte entre las columnas de cantidades, así la tabla sigue ocupando todo el ancho de la imagen. */
-  letra(ctx, 800, 13.5);
-  const masLargo = Math.max(0, ...d.tabla.grupos.flatMap((g) => g.filas.map((f) => ctx.measureText(f.material).width)));
-  const resto0 = ancho - fijas.reduce((t, w) => t + w, 0) - 3 * us.length * wU0;
-  const wDesc0 = Math.min(Math.max(150, masLargo + 28), Math.max(160, resto0));
-  const wU = Math.floor(wU0 + Math.max(0, resto0 - wDesc0) / (3 * us.length));
-  const ws = [...fijas, ...us.flatMap(() => [wU, wU, wU])];
-  ws[2] = Math.max(160, ancho - ws.reduce((t, w) => t + w, 0));
+  /* Cada columna mide lo que mide SU contenido (el encabezado o la celda más ancha, con un poco de aire a cada lado):
+     el código no desperdicia espacio y las cantidades largas no se aprietan. Lo que sobre se reparte en proporción,
+     así la tabla sigue ocupando todo el ancho; si no cabe, se reduce el aire y, al final, se recorta la descripción. */
+  const fu0 = (u: Unidad, v: number) => (u === "est" ? fmt.est(v) : u === "hl" ? fmt.hl(v) : fmt.hl0(v));
+  const num0 = (u: Unidad, v: number | null) => (v == null ? "—" : Math.abs(v) < 0.0005 ? "" : fu0(u, v));
+  const dd0 = (u: Unidad, v: number | null) => (v == null ? "—" : Math.abs(v) < 0.0005 ? "0" : (v > 0 ? "" : "-") + fu0(u, Math.abs(v)));
+  const med = (peso: number, px: number, ...textos: string[]) => {
+    letra(ctx, peso, px);
+    return Math.max(0, ...textos.map((t) => ctx.measureText(t).width));
+  };
+  const filasD = d.tabla.grupos.flatMap((g) => g.filas);
+  const natural: number[] = [
+    med(800, 13.5, ...filasD.map((f) => f.codigo)),
+    med(800, 13.5, ...filasD.map((f) => f.sitio)),
+    med(800, 13.5, ...filasD.map((f) => f.material)),
+    med(600, 13.5, ...filasD.map((f) => f.modulo)),
+    med(800, 13.5, ...filasD.map((f) => f.numero)),
+    med(700, 13.5, ...filasD.map((f) => f.estado)),
+  ];
+  const cabs = ["CODIGO", "UBICACIÓN", "DESCRIPCION", "MODULO", "NUMERO", "ESTADO ENVASE"];
+  cabs.forEach((t, i) => { natural[i] = Math.max(natural[i], med(800, 13, t)) });
+  us.forEach((u) => {
+    const cA = filasD.map((f) => num0(u, enUnidad(u, f.codigo, f.a, d.factores)));
+    const cB = filasD.map((f) => num0(u, enUnidad(u, f.codigo, f.b, d.factores)));
+    const cD = filasD.map((f) => dd0(u, enUnidad(u, f.codigo, f.d, d.factores)));
+    const tot = d.tabla.grupos.flatMap((g) => [
+      num0(u, enUnidad(u, g.codigo, g.a, d.factores)), num0(u, enUnidad(u, g.codigo, g.b, d.factores)),
+      dd0(u, enUnidad(u, g.codigo, g.d, d.factores)),
+    ]);
+    const T = totalEnUnidad(d.tabla, u, d.factores);
+    natural.push(
+      Math.max(med(800, 13, dmy(d.fA)), med(800, 15, num0(u, T.a)), med(800, 13.5, ...cA, ...tot)),
+      Math.max(med(800, 13, dmy(d.fB)), med(800, 15, num0(u, T.b)), med(800, 13.5, ...cB, ...tot)),
+      Math.max(med(800, 14, "Diferencia"), med(800, 15, dd0(u, T.d)), med(800, 13.5, ...cD, ...tot)),
+    );
+  });
+  const minimo = [60, 60, 150, 56, 56, 80];
+  let aire = 28;
+  const anchoCon = (a: number) => natural.map((w) => Math.ceil(w + a));
+  let ws = anchoCon(aire);
+  while (ws.reduce((t, w) => t + w, 0) > ancho && aire > 12) { aire -= 2; ws = anchoCon(aire) }
+  const suma0 = ws.reduce((t, w) => t + w, 0);
+  if (suma0 < ancho) {
+    // reparto proporcional de lo que sobra, para que ninguna columna quede apretada y la tabla llene la imagen
+    const extraW = ancho - suma0;
+    ws = ws.map((w) => w + Math.floor((extraW * w) / suma0));
+  } else if (suma0 > ancho) {
+    // aún así no cabe: la descripción cede lo que haga falta (se recorta con «…»)
+    ws[2] = Math.max(minimo[2], ws[2] - (suma0 - ancho));
+  }
+  ws[2] += ancho - ws.reduce((t, w) => t + w, 0);
   const xs: number[] = []; ws.reduce((x, w) => { xs.push(x); return x + w }, x0);
   const cx = (i: number) => xs[i] + ws[i] / 2;
   const anchoTotal = ws.reduce((t, w) => t + w, 0);
@@ -283,7 +322,7 @@ export function dibujarTablaComparativo(d: DatosTablaFoto, extra: Extra = {}): H
   ctx.fillStyle = XL.titulo; ctx.fillRect(x0, y, anchoTotal, TIT);
   FUENTE_PESO(700); ctx.fillStyle = "#000"; ctx.textAlign = "left"; ctx.fillText(`Suma de TOTAL ${nombreU.toUpperCase()}`, x0 + 10, y + TIT / 2);
   us.forEach((u, k) => {
-    const bx = xs[iA(k)], bw = wU * 3;
+    const bx = xs[iA(k)], bw = ws[iA(k)] + ws[iB(k)] + ws[iD(k)];
     ctx.fillStyle = "#111111"; ctx.fillRect(bx, y, bw, TIT);
     ctx.fillStyle = "#FFFFFF"; ctx.fillRect(bx, y, 2, TIT);
     letra(ctx, 800, 14); ctx.fillStyle = "#FFC300"; ctx.textAlign = "center"; ctx.fillText(TXT_U[u].toUpperCase(), bx + bw / 2, y + TIT / 2);
