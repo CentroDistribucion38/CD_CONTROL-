@@ -1062,8 +1062,8 @@ export function ContarFiscal({
         )}
         {enBase > 0 && (
           <details className="fc-en-base">
-            <summary>{enBase} {enBase === 1 ? "renglón ya está" : "renglones ya están"} en La base</summary>
-            <p>El fiscal los aprobó y pasaron a La base; por eso ya no aparecen en tu borrador.</p>
+            <summary>{enBase} {enBase === 1 ? "renglón ya lo recibió" : "renglones ya los recibió"} el fiscal</summary>
+            <p>El fiscal ya aprobó ese módulo: tu conteo quedó guardado en la BD del fiscal y por eso ya no aparece en tu borrador.</p>
           </details>
         )}
         {cerrada && avisoEspera}
