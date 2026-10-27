@@ -119,3 +119,4 @@
 /* Ajuste por almacén: el + y el − se distinguen de un vistazo. */
 .reg-sig.mas { color: #0E5C35; font-weight: 800; background: #E3F3EA }
 .reg-sig.menos { color: #A4102A; font-weight: 800; background: #FDE7EB }
+.reg a.btn { display: inline-flex; align-items: center; text-decoration: none }

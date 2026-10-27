@@ -54,25 +54,6 @@ const cuando = (ts: string) =>
 const sinTilde = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 const FILTROS_VACIOS = { desde: "", hasta: "", sitio: "", texto: "", destino: "", archivo: "" };
 
-/** LA PLANTILLA DE HOY: la misma hoja «Baja» que baja de SAP (mismas 14 columnas y orden), con lo fijo ya puesto (la fecha de hoy,
- *  Centro AG01, Almacén AG18, Posición 0, UN e Importe 0) para escribir solo lo necesario: Documento material, Material, Cantidad
- *  (en NEGATIVO) y Texto cab.documento. Se sube aquí tal cual. */
-function descargarPlantilla(hoy: string) {
-  const [a, m, d] = hoy.split("-").map(Number);
-  const serie = Math.round(Date.UTC(a, m - 1, d) / 86400000) + 25569;
-  const fecha = () => ({ t: "n", v: serie, z: "dd/mm/yyyy" });
-  const enc = ["Fe.contabilización", "Fecha de entrada", "Centro", "Almacén", "Posición", "Documento material", "Material", "Texto breve de material", "Cantidad",
-    "Unidad medida base", "Importe ML", "Texto cab.documento", "Nombre del usuario", "Clase de movimiento"];
-  const filas: unknown[][] = [enc];
-  for (let i = 0; i < 40; i++) filas.push([fecha(), fecha(), "AG01", "AG18", "0", null, null, null, null, "UN", 0, null, null, null]);
-  const ws = XLSX.utils.aoa_to_sheet(filas);
-  ws["!cols"] = [16, 15, 7, 9, 8, 18, 10, 35, 10, 12, 10, 30, 16, 12].map((wch) => ({ wch }));
-  ws["!autofilter"] = { ref: `A1:N${filas.length}` };
-  const libro = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(libro, ws, "Baja");
-  XLSX.writeFile(libro, `Baja_plantilla_${hoy}.xlsx`);
-}
-
 export function Baja({ sitios, materiales, puedeEditar, hoy }: {
   sitios: SitioCasco[]; materiales: MaterialCasco[]; puedeEditar: boolean; hoy: string;
 }) {
@@ -372,7 +353,7 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
               <input ref={entrada} type="file" accept=".xlsx,.xlsm,.xls" hidden disabled={!puedeEditar || leyendo || aplicando}
                      onChange={(e) => { const f = e.target.files?.[0]; if (f) void leer(f) }} />
             </div>
-            <button type="button" className="btn" onClick={() => descargarPlantilla(hoy)} title={`Excel con la hoja Baja y la fecha de hoy (${corto(hoy)}) ya puesta`}>Descargar plantilla de hoy</button>
+            <a className="btn" href={`/inventario/casco/registrar/plantilla?fecha=${hoy}`} download title={`Excel de la hoja Baja con la fecha de hoy (${corto(hoy)}) ya puesta`}>Descargar plantilla de hoy</a>
             {archivo && <button type="button" className="btn" onClick={limpiar} disabled={aplicando}>Quitar archivo</button>}
           </div>
           <details className="reg-reglas">
