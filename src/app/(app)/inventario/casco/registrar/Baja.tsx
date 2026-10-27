@@ -54,28 +54,22 @@ const cuando = (ts: string) =>
 const sinTilde = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 const FILTROS_VACIOS = { desde: "", hasta: "", sitio: "", texto: "", destino: "", archivo: "" };
 
-/** LA PLANTILLA DE HOY: el Excel con la hoja «Baja» y los mismos encabezados de SAP, con la fecha de hoy ya puesta en cada fila
- *  (y el almacén AG18 y la unidad UN), para llenar Material, Cantidad (en NEGATIVO) y Texto y volver a subirlo aquí. */
+/** LA PLANTILLA DE HOY: la misma hoja «Baja» que baja de SAP (mismas 14 columnas y orden), con lo fijo ya puesto (la fecha de hoy,
+ *  Centro AG01, Almacén AG18, Posición 0, UN e Importe 0) para escribir solo lo necesario: Documento material, Material, Cantidad
+ *  (en NEGATIVO) y Texto cab.documento. Se sube aquí tal cual. */
 function descargarPlantilla(hoy: string) {
   const [a, m, d] = hoy.split("-").map(Number);
   const serie = Math.round(Date.UTC(a, m - 1, d) / 86400000) + 25569;
-  const enc = ["Fe.contabilización", "Almacén", "Documento material", "Material", "Texto breve de material", "Cantidad", "Unidad medida base", "Texto cab.documento", "Clase de movimiento"];
+  const fecha = () => ({ t: "n", v: serie, z: "dd/mm/yyyy" });
+  const enc = ["Fe.contabilización", "Fecha de entrada", "Centro", "Almacén", "Posición", "Documento material", "Material", "Texto breve de material", "Cantidad",
+    "Unidad medida base", "Importe ML", "Texto cab.documento", "Nombre del usuario", "Clase de movimiento"];
   const filas: unknown[][] = [enc];
-  for (let i = 0; i < 40; i++) filas.push([{ t: "n", v: serie, z: "dd/mm/yyyy" }, "AG18", null, null, null, null, "UN", null, null]);
+  for (let i = 0; i < 40; i++) filas.push([fecha(), fecha(), "AG01", "AG18", "0", null, null, null, null, "UN", 0, null, null, null]);
   const ws = XLSX.utils.aoa_to_sheet(filas);
-  ws["!cols"] = [{ wch: 18 }, { wch: 10 }, { wch: 18 }, { wch: 12 }, { wch: 34 }, { wch: 12 }, { wch: 18 }, { wch: 28 }, { wch: 18 }];
-  const ayuda = XLSX.utils.aoa_to_sheet([
-    ["Cómo llenar la hoja «Baja»"],
-    ["La fecha, el almacén (AG18) y la unidad (UN) ya vienen puestos: cámbialos si hace falta."],
-    ["Material: el código del envase (por ejemplo 3500005)."],
-    ["Cantidad: en UNIDADES y en NEGATIVO (una baja es una salida), por ejemplo -1200."],
-    ["Texto cab.documento: el motivo (BAJA LAVADO, BAJA EXTRASUCIO, SORTING, PRESORTING…). Es el que manda a qué columna va la fila."],
-    ["Las filas que dejes sin material ni cantidad se ignoran."],
-  ]);
-  ayuda["!cols"] = [{ wch: 110 }];
+  ws["!cols"] = [16, 15, 7, 9, 8, 18, 10, 35, 10, 12, 10, 30, 16, 12].map((wch) => ({ wch }));
+  ws["!autofilter"] = { ref: `A1:N${filas.length}` };
   const libro = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(libro, ws, "Baja");
-  XLSX.utils.book_append_sheet(libro, ayuda, "Cómo llenar");
   XLSX.writeFile(libro, `Baja_plantilla_${hoy}.xlsx`);
 }
 
