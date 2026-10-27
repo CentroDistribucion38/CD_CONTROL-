@@ -557,7 +557,9 @@ async function armarCuadreAG22(pedida?: string | null) {
     }
   }
   partidas311.sort((x, y) => x.almacen.localeCompare(y.almacen) || x.codigo.localeCompare(y.codigo));
-  const elegidas311 = new Set((guardado?.ajustes311 ?? []).map(String));
+  /* Lo que se hizo en AG18, AG17 y AG16 entra solo a AG22: mientras nadie haya tocado la selección (nada guardado) van TODAS marcadas.
+     Si el analista la guarda (aunque sea vacía) manda lo que dejó marcado. */
+  const elegidas311 = new Set(guardado?.ajustes311 == null ? partidas311.map((x) => x.clave) : guardado.ajustes311.map(String));
   const ajuste311 = new Map<string, number>();
   for (const x of partidas311) if (elegidas311.has(x.clave)) ajuste311.set(x.codigo, redondo((ajuste311.get(x.codigo) ?? 0) + x.efecto));
   /* EL ARCHIVO DE MOVIMIENTOS DE SAP: ya viene neto en AG22 (+ entró, − salió) y se aplica solo. Si un material está en el archivo, ese valor manda
@@ -627,7 +629,7 @@ async function armarCuadreAG22(pedida?: string | null) {
       porque: fa ? `Archivo de SAP ${movsSap?.archivo ?? ""}: ${v > 0 ? "entró a" : "salió de"} AG22 → ${v > 0 ? "suma" : "resta"}${fa.documentos?.length ? ` · doc ${fa.documentos.slice(0, 3).join(", ")}${fa.documentos.length > 3 ? "…" : ""}` : ""}` : partidas311.filter((x) => x.codigo === c && elegidas311.has(x.clave)).map((x) => `${x.almacen}: ${x.cantidad > 0 ? "entró" : "salió"} ${new Intl.NumberFormat("es-CO").format(Math.abs(x.cantidad))} → ${x.efecto > 0 ? "suma" : "resta"} en AG22`).join(" · ") });
   }
 
-  return { ...base, filas, guardado, avisos, aplicados, excluidos, partidas311, ...hist };
+  return { ...base, filas, guardado: guardado ? { ...guardado, ajustes311: [...elegidas311] } : guardado, avisos, aplicados, excluidos, partidas311, ...hist };
 }
 
 

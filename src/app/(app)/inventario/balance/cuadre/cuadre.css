@@ -331,3 +331,11 @@
 @media (max-width: 720px) { .cs .cs-311-lista label { grid-template-columns: 22px 78px minmax(0, 1fr); } .cs .cs-311-efecto { grid-column: 2 / -1; align-items: flex-start; text-align: left } }
 
 .cs .cs-quitar { border: 0; background: none; padding: 0; color: #0B4EA2; font: 600 inherit var(--fe-texto); text-decoration: underline; cursor: pointer }
+
+/* Lo que cambió desde que se guardó el balanceo: aviso secundario, siempre cerrado, recto */
+.cs .cs-cambio { margin: 12px 0; background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea); border-left: 4px solid #B00020 }
+.cs .cs-cambio > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 14px; cursor: pointer; list-style: none; font: 500 13.5px var(--fe-texto) }
+.cs .cs-cambio > summary::-webkit-details-marker { display: none }
+.cs .cs-cambio > summary b { font-weight: 700; letter-spacing: .1em }
+.cs .cs-cambio > summary span { font-size: 12px; color: var(--fe-gris) }
+.cs .cs-cambio > .cs-nota, .cs .cs-cambio > .cs-scroll { margin: 0 14px 12px }

@@ -78,7 +78,7 @@ export async function guardarAjustes311(fecha: string, clavesJson: string) {
   let claves: string[] = [];
   try { claves = JSON.parse(clavesJson) } catch { return { error: "No se pudo leer la selección." } }
   claves = [...new Set((Array.isArray(claves) ? claves : []).map(String).filter((c) => /^(AG18|AG17|AG16)\|[\w.\-]{1,40}$/.test(c)))];
-  const r = await poner(fecha, "AG22", { ajustes311: claves.length ? claves : null });
+  const r = await poner(fecha, "AG22", { ajustes311: claves });
   return r.error ? r : regrabarSiEstaGuardado(fecha, "AG22");
 }
 

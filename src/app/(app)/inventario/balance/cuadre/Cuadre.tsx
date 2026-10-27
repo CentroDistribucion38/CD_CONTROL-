@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Rango } from "../../../sider/seguimiento/Rango";
-import type { Aplicado, Almacen, CuadreGuardado, DiaHistorial, Estados, FilaCuadre, LineaOtros, Partida311 } from "@/modulos/inventario/cuadre";
+import type { Aplicado, Almacen, CuadreGuardado, DiaHistorial, Estados, FilaCuadre, FilaGuardada, LineaOtros, Partida311 } from "@/modulos/inventario/cuadre";
 import { asignarOtros, guardarBalanceo, guardarMovimientos, guardarMovsSap, guardarOpciones, guardarZexi, quitarMovimientos, quitarMovsSap } from "./actions";
 import { leerMovimientos, leerZexi } from "./leer";
 import { Excluidos } from "./Excluidos";
@@ -107,6 +107,18 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
   }
 
   const conZexi = !!guardado?.zexi?.length;
+  /* Lo que hoy da distinto a como quedó al guardar el balanceo (solo si ese día se guardó con movimientos). */
+  const cambiaron = useMemo(() => {
+    const c = guardado?.cierre;
+    if (!c || !c.resumen.conMov) return [] as { f: FilaCuadre; g: FilaGuardada | undefined }[];
+    const gm = new Map(c.filas.map((x) => [x.codigo, x]));
+    const dist = (a: number | null | undefined, b: number | null | undefined) => (a ?? 0) - (b ?? 0);
+    return filas.filter((f) => f.sap != null).flatMap((f) => {
+      const g = gm.get(f.codigo);
+      const igual = g && Math.abs(dist(g.total, f.total)) < 0.5 && Math.abs(dist(g.sapDespues, f.sapDespues)) < 0.5 && Math.abs(dist(g.queda, f.queda)) < 0.5;
+      return igual ? [] : [{ f, g }];
+    });
+  }, [guardado, filas]);
   const conMov = !!guardado?.movimientos?.length;
   const sumarPend = false; /* el pend. baja ya no entra al cuadre de AG18 */
   const conDif = filas.filter((f) => f.dif != null);
@@ -622,6 +634,24 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
           </tbody>
         </table>
       </div>
+      {cambiaron.length > 0 && (
+        <details className="cs-cambio">
+          <summary><b>CAMBIÓ DESDE QUE GUARDASTE</b><span>{cambiaron.length} {cambiaron.length === 1 ? "material" : "materiales"} · guardado {hora(guardado?.cerrado_en ?? null)}</span></summary>
+          <p className="cs-nota">Estos materiales hoy dan distinto a como quedaron cuando guardaste el balanceo. Es porque cambió algo de lo que alimenta el cuadre después de guardar (el Balance: estados, ajustes o casco; Pasivos; la ZEXI o los 311). La ZEXI no cambia sola: si «SAP» es igual y «Meta» cambió, lo que se movió fue el conteo / Balance / Pasivos.</p>
+          <div className="cs-scroll">
+            <table className="cs-t chica">
+              <thead><tr><th>Código</th><th>Material</th><th className="n">Meta al guardar</th><th className="n">Meta hoy</th><th className="n">SAP al guardar</th><th className="n">SAP hoy</th><th className="n">Queda al guardar</th><th className="n">Queda hoy</th></tr></thead>
+              <tbody>{cambiaron.map(({ f, g }) => (
+                <tr key={f.codigo}>
+                  <td className="mono">{f.codigo}</td><td>{f.material}</td>
+                  <td className="n">{g ? n(g.total) : "—"}</td><td className="n">{n(f.total)}</td>
+                  <td className="n">{g?.sapDespues != null ? n(g.sapDespues) : "—"}</td><td className="n">{f.sapDespues != null ? n(f.sapDespues) : "—"}</td>
+                  <td className="n">{g?.queda != null ? n(g.queda) : "—"}</td><td className="n">{f.queda != null ? n(f.queda) : "—"}</td>
+                </tr>))}</tbody>
+            </table>
+          </div>
+        </details>
+      )}
       {esSimple ? <p className="cs-nota">Cantidades: producto y cajas plásticas en cajas, envase en unidades (cajas × unidades por caja) y estibas de madera en estibas. Diferencia = SAP − conteo. Negativo = se contó más de lo que dice SAP: pasar de AG22 a {ALM}. Positivo = SAP tiene de más: pasar de {ALM} a AG22.</p> :
       esAG22 ? <p className="cs-nota">Unidades. Total base = lo de la base de Pasivos AG22 del día en las causales PRESORTING, ROTURA DE LINEA, LAVADO, EXTRASUCIO, BAJA PROYECTADA, DIF INV y SINIESTRO (las demás no entran y se avisan arriba).
         SAP bloqueado = la columna Bloqueado de la ZEXI de AG22. Negativo = la base tiene más de lo que SAP tiene bloqueado: pasar de libre a bloqueado en AG22. Positivo = SAP tiene bloqueado de más: pasar de bloqueado a libre.
