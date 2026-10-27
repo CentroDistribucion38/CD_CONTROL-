@@ -15,6 +15,7 @@
  *   «BAJA LAVADO»      → columna «Lavado con baja» del almacén de la fila (Fábrica).
  *   «BAJA EXTRASUCIO»  → columna «Extrasucio con baja» del almacén de la fila (Bodega 38).
  *   «BAJA ROTURA DE MAQUINA» → SOLO REGISTRO: no suma ni resta en ningún almacén.
+ *   «OBSOLETO» y «ESTIBAS TIPO C» (en el texto o en la descripción del material) → SOLO REGISTRO: ni suman ni restan.
  *   «AJUSTE INV…»      → SOLO REGISTRO: se guarda para que conste, pero ni suma ni resta (es un ajuste de inventario).
  *   cualquier otro (SORTING, PRESORTING…) → se SUMA al inventario del almacén.
  *
@@ -68,6 +69,14 @@ export const NOTA_AJUSTE_INV = "AJUSTE INV · solo registro (no mueve el kárdex
 /** La nota que la deja en solo registro. Lleva «solo registro» para que la base la reconozca con la
  *  misma regla de «no haga nada» (`casco_registrar_bajas`), sin tener que cambiar la base. */
 export const NOTA_ROTURA_MAQUINA = "ROTURA DE MAQUINA · solo registro (no mueve el kárdex)";
+
+const sinAcento = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+/** «Cuando salga OBSOLETO no lo suma ni lo resta»: se registra y queda como solo registro. */
+export const esObsoleto = (texto: string) => /OBSOLET/.test(sinAcento(texto));
+export const NOTA_OBSOLETO = "OBSOLETO · solo registro (no mueve el kárdex)";
+/** «Así mismo las estibas tipo C»: tampoco suman ni restan. */
+export const esEstibaTipoC = (texto: string) => /ESTIBAS?\s+(DE\s+)?TIPO\s+C\b/.test(sinAcento(texto));
+export const NOTA_ESTIBA_TIPO_C = "ESTIBAS TIPO C · solo registro (no mueve el kárdex)";
 
 /** La regla de «solo registro». Tiene que decir lo mismo que `casco_registrar_bajas`. */
 export const NOTA_SOLO_REGISTRO = /(no haga nada|no hacer nada|no hace nada|solo registro|quede en el registro|queda en el registro)/;
@@ -179,7 +188,11 @@ export function leerBaja(filas: unknown[][], hoja: string | null = null): Lectur
     const k = (vistas.get(base) ?? 0) + 1;
     vistas.set(base, k);
 
-    const nota = notaSoloRegistro(r) ?? (esRoturaMaquina(texto) ? NOTA_ROTURA_MAQUINA : esAjusteInv(texto) ? NOTA_AJUSTE_INV : null);
+    const desc = cDesc >= 0 ? String(r[cDesc] ?? "").trim() : "";
+    /* OBSOLETO y ESTIBAS TIPO C se buscan en el texto del documento y en la descripción del material. */
+    const dicen = `${texto} ${desc}`;
+    const nota = notaSoloRegistro(r) ?? (esRoturaMaquina(texto) ? NOTA_ROTURA_MAQUINA : esAjusteInv(texto) ? NOTA_AJUSTE_INV
+      : esObsoleto(dicen) ? NOTA_OBSOLETO : esEstibaTipoC(dicen) ? NOTA_ESTIBA_TIPO_C : null);
     out.push({
       fila: n, nota, fecha, centro, sku, descripcion: cDesc >= 0 ? String(r[cDesc] ?? "").trim() : "",
       unidades, texto, documento, clase: cClase >= 0 ? String(r[cClase] ?? "").trim() : "",

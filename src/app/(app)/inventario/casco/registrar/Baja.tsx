@@ -360,7 +360,7 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
             <summary>Cómo se aplica cada fila</summary>
             <ul className="reg-regla">
               <li>El <b>Texto cab.documento</b> manda: «BAJA LAVADO» se <b>resta</b> en <b>Lavado con baja</b> y «BAJA EXTRASUCIO» en <b>Extrasucio con baja</b>.</li>
-              <li>Si el texto dice <b>«AJUSTE INV»</b> (o «ROTURA DE MÁQUINA»), la fila <b>se registra y queda como solo registro</b>: <b>ni se suma ni se resta</b> en Control.</li>
+              <li>Si el texto dice <b>«AJUSTE INV»</b>, «ROTURA DE MÁQUINA» u <b>«OBSOLETO»</b>, o habla de <b>«ESTIBAS TIPO C»</b> (en el texto o en la descripción del material), la fila <b>se registra y queda como solo registro</b>: <b>ni se suma ni se resta</b> en Control.</li>
               <li>Cualquier otro texto (sorting, presorting…) se <b>suma al inventario</b> del almacén de la fila.</li>
               <li>Si en la fila alguien escribió <b>«NO HAGA NADA»</b> (por ejemplo «QUEDE EN EL REGISTRO - NO HAGA NADA EN EL KARDEX»), la fila <b>queda en el registro</b> pero <b>no mueve</b> el inventario ni la columna de baja.</li>
               <li>Cada fila va a la tabla de su <b>Almacén</b>, en el día de Control escogido. Las unidades se dividen por las botellas por estiba del maestro.</li>
