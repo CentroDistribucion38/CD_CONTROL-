@@ -151,6 +151,8 @@ export function leerBaja(filas: unknown[][], hoja: string | null = null): Lectur
     const r = filas[i] ?? [];
     const sku = String(r[cSku] ?? "").trim();
     if (!sku && r.every((x) => x == null || x === "")) continue;
+    /* Las filas de la plantilla traen la fecha y el almacén ya puestos: sin material ni cantidad no hay nada que leer. */
+    if (!sku && (r[cCant] == null || String(r[cCant]).trim() === "")) continue;
     const n = i + 1;
     if (!sku) { descartadas.push({ fila: n, motivo: "No trae material" }); continue }
     const cant = numero(r[cCant]);

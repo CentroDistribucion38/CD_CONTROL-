@@ -54,6 +54,31 @@ const cuando = (ts: string) =>
 const sinTilde = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 const FILTROS_VACIOS = { desde: "", hasta: "", sitio: "", texto: "", destino: "", archivo: "" };
 
+/** LA PLANTILLA DE HOY: el Excel con la hoja «Baja» y los mismos encabezados de SAP, con la fecha de hoy ya puesta en cada fila
+ *  (y el almacén AG18 y la unidad UN), para llenar Material, Cantidad (en NEGATIVO) y Texto y volver a subirlo aquí. */
+function descargarPlantilla(hoy: string) {
+  const [a, m, d] = hoy.split("-").map(Number);
+  const serie = Math.round(Date.UTC(a, m - 1, d) / 86400000) + 25569;
+  const enc = ["Fe.contabilización", "Almacén", "Documento material", "Material", "Texto breve de material", "Cantidad", "Unidad medida base", "Texto cab.documento", "Clase de movimiento"];
+  const filas: unknown[][] = [enc];
+  for (let i = 0; i < 40; i++) filas.push([{ t: "n", v: serie, z: "dd/mm/yyyy" }, "AG18", null, null, null, null, "UN", null, null]);
+  const ws = XLSX.utils.aoa_to_sheet(filas);
+  ws["!cols"] = [{ wch: 18 }, { wch: 10 }, { wch: 18 }, { wch: 12 }, { wch: 34 }, { wch: 12 }, { wch: 18 }, { wch: 28 }, { wch: 18 }];
+  const ayuda = XLSX.utils.aoa_to_sheet([
+    ["Cómo llenar la hoja «Baja»"],
+    ["La fecha, el almacén (AG18) y la unidad (UN) ya vienen puestos: cámbialos si hace falta."],
+    ["Material: el código del envase (por ejemplo 3500005)."],
+    ["Cantidad: en UNIDADES y en NEGATIVO (una baja es una salida), por ejemplo -1200."],
+    ["Texto cab.documento: el motivo (BAJA LAVADO, BAJA EXTRASUCIO, SORTING, PRESORTING…). Es el que manda a qué columna va la fila."],
+    ["Las filas que dejes sin material ni cantidad se ignoran."],
+  ]);
+  ayuda["!cols"] = [{ wch: 110 }];
+  const libro = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(libro, ws, "Baja");
+  XLSX.utils.book_append_sheet(libro, ayuda, "Cómo llenar");
+  XLSX.writeFile(libro, `Baja_plantilla_${hoy}.xlsx`);
+}
+
 export function Baja({ sitios, materiales, puedeEditar, hoy }: {
   sitios: SitioCasco[]; materiales: MaterialCasco[]; puedeEditar: boolean; hoy: string;
 }) {
@@ -353,6 +378,7 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
               <input ref={entrada} type="file" accept=".xlsx,.xlsm,.xls" hidden disabled={!puedeEditar || leyendo || aplicando}
                      onChange={(e) => { const f = e.target.files?.[0]; if (f) void leer(f) }} />
             </div>
+            <button type="button" className="btn" onClick={() => descargarPlantilla(hoy)} title={`Excel con la hoja Baja y la fecha de hoy (${corto(hoy)}) ya puesta`}>Descargar plantilla de hoy</button>
             {archivo && <button type="button" className="btn" onClick={limpiar} disabled={aplicando}>Quitar archivo</button>}
           </div>
           <details className="reg-reglas">
