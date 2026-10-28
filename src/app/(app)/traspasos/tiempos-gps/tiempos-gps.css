@@ -26,7 +26,8 @@
 .tg-kpis span { font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: #b9bec6 }
 
 .tg-cuerpo { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 12px; align-items: stretch }
-.tg-mapa-col { position: relative; min-height: 560px; height: calc(100vh - 330px); max-height: 760px; border: 1px solid var(--tg-tinta); background: #dfe5ea }
+/* isolation: las capas de Leaflet llevan z-index de hasta 1000; sin esto el mapa se pinta ENCIMA del menú lateral y de los avisos de la app */
+.tg-mapa-col { position: relative; z-index: 0; isolation: isolate; min-height: 560px; height: calc(100vh - 330px); max-height: 760px; border: 1px solid var(--tg-tinta); background: #dfe5ea }
 .tg-mapa-col.dibujando { outline: 3px solid var(--tg-amarillo); outline-offset: -3px }
 .tg-mapa-caja, .tg-mapa { position: absolute; inset: 0 }
 .tg-mapa-msg { position: absolute; inset: 0; margin: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--tg-gris); background: #e9edf0 }
@@ -34,7 +35,7 @@
 .tg-guia { position: absolute; z-index: 800; left: 50%; top: 12px; transform: translateX(-50%); display: flex; gap: 12px; align-items: center; padding: 9px 14px; background: var(--tg-tinta); color: #fff; font-size: .82rem; box-shadow: 0 6px 20px rgba(0,0,0,.35) }
 .tg-guia button { border: 1px solid #fff; background: transparent; color: #fff; padding: 4px 10px; font: 700 .74rem Arial, sans-serif; cursor: pointer }
 .tg-leyenda { position: absolute; z-index: 700; left: 10px; bottom: 10px; display: flex; gap: 14px; padding: 7px 12px; background: rgba(20,22,26,.88); color: #fff; font-size: .7rem }
-.tg-leyenda i { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 50% !important; vertical-align: -1px }
+.tg-leyenda i { display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: -1px }
 
 /* ---- lo que se dibuja dentro del mapa (Leaflet) ---- */
 .tg-mapa .leaflet-container { font-family: inherit; background: #dfe5ea }
