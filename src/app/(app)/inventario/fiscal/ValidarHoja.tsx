@@ -7,6 +7,7 @@ import { MODULOS_DE_LA_HOJA } from "@/modulos/inventario/modulos-hoja";
 import { createClient } from "@/lib/supabase/client";
 import { traducirError } from "@/lib/errores";
 import type { FilaCruce } from "@/modulos/inventario/fiscal-cruce";
+import { useConfirmar } from "@/components/Confirmar";
 
 /* ===================================================================
    VALIDAR Y APROBAR LAS UBICACIONES DE UNA HOJA (lo hace el fiscal)
@@ -68,6 +69,7 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
   /** Al aprobar un módulo que sigue difiriendo: de quién queda el conteo definitivo (null = ninguno, solo pasa si coinciden). */
   const [adoptar, setAdoptar] = useState<"OL" | "BAVARIA" | null>(null);
   const router = useRouter();
+  const [pedir, dialogoConfirmar] = useConfirmar();
   const [nueva, setNueva] = useState("");
   const [mas, setMas] = useState(false);
   const [cajaInt, setCajaInt] = useState(false);
@@ -220,6 +222,50 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
     if (faltan.length > 0 && !forzando) { setForzar(faltan); return }
     void correr("inv_fiscal_aprobar", lista, { p_forzar: forzarSrv, ...(quedaCon ? { p_adoptar: quedaCon } : {}), ...(compensando ? { p_compensar: true } : {}) },
       `${lista.length} ${lista.length === 1 ? "ubicación aprobada" : "ubicaciones aprobadas"}${quedaCon ? `, dejando como definitivo lo de ${quedaCon === "OL" ? (ol || "el operador") : (bavaria || "Bavaria")}` : ""}.`);
+  }
+
+
+  /* APROBAR TODO CON LO ÚLTIMO: nadie va a recontar (el conteo ya se acabó). Lo que coincide o está compensado se aprueba tal cual;
+     lo que aún difiere queda con el conteo del operador (misma regla de «cerrar todo»), y si el operador no tiene nada ahí, con el de Bavaria. */
+  const pendientes = ubs.filter((u) => estado(u) !== "aprobada" && u.id);
+  const verdesP = pendientes.filter((u) => ["coincide", "compensada"].includes(estado(u)));
+  const dudasP = pendientes.filter((u) => ["difiere", "validando", "respondida"].includes(estado(u)));
+  const conOl = (u: Ub) => filas.some((f) => moduloDe(f.ubicacion) === u.clave && Number(f.cajasOl) > 0);
+  const dudasOl = dudasP.filter(conOl), dudasBav = dudasP.filter((u) => !conOl(u));
+  async function aprobarTodoComoQuedo() {
+    const si = await pedir({
+      titulo: `Aprobar toda la hoja ${numero} con lo último`,
+      dice: <>Nadie vuelve a contar: se aprueba lo que quedó guardado. {verdesP.length} {verdesP.length === 1 ? "ubicación coincide o está compensada" : "ubicaciones coinciden o están compensadas"} (se aprueban tal cual)
+        {dudasOl.length > 0 ? `; ${dudasOl.length} con diferencia quedan con el conteo de ${ol || "el operador"}` : ""}
+        {dudasBav.length > 0 ? `; ${dudasBav.length} con diferencia quedan con el conteo de ${bavaria || "Bavaria"} (el operador no tiene nada ahí)` : ""}. Lo aprobado pasa a La base.</>,
+      confirmar: "Aprobar todo",
+    });
+    if (!si || !hojaId) return;
+    setMal(null); setOk(null); setOcupado(true);
+    const tandas: { lista: Ub[]; adopt: "OL" | "BAVARIA" | null }[] = [
+      { lista: verdesP, adopt: null }, { lista: dudasOl, adopt: "OL" }, { lista: dudasBav, adopt: "BAVARIA" },
+    ];
+    let hechas = 0;
+    for (const t of tandas) {
+      if (t.lista.length === 0) continue;
+      const { error } = await createClient().rpc("inv_fiscal_aprobar", {
+        p_hoja: hojaId, p_ubicaciones: t.lista.map((u) => u.id as string), p_forzar: true,
+        ...(t.adopt ? { p_adoptar: t.adopt } : {}), ...(compensando ? { p_compensar: true } : {}),
+      });
+      if (error) {
+        setOcupado(false);
+        setMal(`${hechas > 0 ? `Se aprobaron ${hechas}; ` : ""}${traducirError(error.message)}${/terminos|termin/i.test(error.message) ? " Usa antes «Pasar a validar»." : ""}`);
+        await onCambio();
+        return;
+      }
+      hechas += t.lista.length;
+    }
+    const c = await consolidar();
+    setOcupado(false);
+    setOk(`${hechas} ${hechas === 1 ? "ubicación aprobada" : "ubicaciones aprobadas"} con lo último.${c ? ` ${c}` : ""}`);
+    setSel(new Set());
+    setEsperaCaja(true); setTimeout(() => setEsperaCaja(false), 8000);
+    await onCambio();
   }
 
   async function cerrarHoja(abrir: boolean) {
@@ -387,6 +433,7 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
 
   return (
     <div className="vv">
+      {dialogoConfirmar}
       <style>{`
         .vv .vv-cab{padding:6px 12px;font-size:.78rem;min-height:0}
         .vv .vv-cab b{font-size:.78rem;letter-spacing:.04em}
@@ -547,6 +594,13 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
                 title="Cuadran en total: se aprueban dándolas por compensadas"
                 style={{ background: "#0b7a3e", color: "#fff", borderColor: "#0b7a3e", margin: "8px 0" }}>
           ✓ Aprobar {compensadas.length === 1 ? "la ubicación compensada" : `las ${compensadas.length} compensadas`}
+        </button>
+      )}
+      {puedeEditar && pendientes.length > 0 && !unaSola && (
+        <button type="button" className="btn" disabled={ocupado} onClick={() => void aprobarTodoComoQuedo()}
+                title="Nadie vuelve a contar: aprueba toda la hoja con lo último que quedó guardado"
+                style={{ background: "#0b7a3e", color: "#fff", borderColor: "#0b7a3e", margin: "8px 0 8px 8px" }}>
+          ✓ Aprobar todo con lo último ({pendientes.length})
         </button>
       )}
       <details className="vv-detalle" open={hayAbierto || todas}>
