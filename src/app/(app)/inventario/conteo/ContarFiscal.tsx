@@ -28,7 +28,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Buscador } from "@/components/Buscador";
 import { usePosicion, sellar, type Foto } from "@/lib/evidencia";
-import { RevisionesFiscal } from "./RevisionesFiscal";
+import { RevisionesFiscal, type ModuloRevision } from "./RevisionesFiscal";
 import { useConfirmar } from "@/components/Confirmar";
 import { useAvisos } from "@/components/Aviso";
 import type { Material, Ubicacion } from "@/modulos/inventario/fefo";
@@ -87,6 +87,11 @@ export function ContarFiscal({
   const [guardando, setGuardando] = useState(false);
   /* El renglón que se está corrigiendo (id): el formulario trae sus datos y «Anotar» lo cambia en su sitio. */
   const [corrigiendo, setCorrigiendo] = useState<string | null>(null);
+  /* VALIDACIÓN: el fiscal mandó módulos a revisar. Mientras haya algo por responder, esta pantalla muestra SOLO eso
+     (ver RevisionesFiscal) y el formulario de abajo se usa para corregir o agregar. `agregandoV` = el módulo al que se agrega. */
+  const [validando, setValidando] = useState(false);
+  const [agregandoV, setAgregandoV] = useState<string | null>(null);
+  const alHaberPendientes = useCallback((n: number) => setValidando(n > 0), []);
   const router = useRouter();
   /* Lo que se terminó o reabrió desde que se abrió la pantalla; sin eso valen los datos que trajo la página. */
   const [terminos, setTerminos] = useState<Record<string, { termine: boolean; parejaTermino: boolean }>>({});
@@ -492,6 +497,16 @@ export function ContarFiscal({
       setPestania("borrador");
       return;
     }
+    if (agregandoV !== null) {
+      /* Agregado en una validación: el formulario vuelve a vacío y se regresa a la lista del módulo. */
+      if (malFoto) avisar.mal(`${malFoto} El renglón quedó anotado.`);
+      setAgregandoV(null);
+      setFotoNueva((x) => { if (x) URL.revokeObjectURL(x.url); return null });
+      setB(VACIO_FISCAL);
+      await leer(hoja.hojaId);
+      setPestania("borrador");
+      return;
+    }
     if (malFoto) avisar.mal(`${malFoto} El renglón quedó anotado: ponle la foto desde «Lo que llevas anotado».`);
     /* Igual que el conteo normal: el renglón se vacía pero el sitio (calle, módulo y lado) se queda para el siguiente. */
     setFotoNueva((x) => { if (x) URL.revokeObjectURL(x.url); return null });
@@ -533,8 +548,20 @@ export function ContarFiscal({
     setPestania("anotar");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
+  /** Validación: abre el formulario para agregar un renglón que faltaba, ya puesto en ese módulo. */
+  function abrirAgregarValidacion(m: ModuloRevision) {
+    const u = ubicaciones.find((x) => x.id === m.filas[0]?.ubicacion_id);
+    if (!u) { avisar.mal("No encontré el sitio de ese módulo."); return }
+    setFotoNueva((x) => { if (x) URL.revokeObjectURL(x.url); return null });
+    setCorrigiendo(null);
+    setB({ ...VACIO_FISCAL, calle: u.calle, base: claveBase(u), lado: u.lado ?? "" });
+    setAgregandoV(m.modulo);
+    setPestania("anotar");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
   function cancelarCorreccion() {
     setCorrigiendo(null);
+    setAgregandoV(null);
     setFotoNueva((x) => { if (x) URL.revokeObjectURL(x.url); return null });
     setB(VACIO_FISCAL);
   }
@@ -629,6 +656,9 @@ export function ContarFiscal({
   const estadoT = terminos[hoja.hojaId] ?? { termine: hoja.termine, parejaTermino: hoja.parejaTermino };
   /* Terminada: solo si la base ya sabe terminar hojas y la persona la terminó. */
   const cerrada = hoja.puedeContar && hoja.puedeTerminar && estadoT.termine;
+  /* Con módulos por validar la pantalla muestra solo eso; el formulario aparece únicamente para corregir o agregar. */
+  const enValidacion = hoja.puedeContar && validando;
+  const editandoValidacion = enValidacion && (corrigiendo !== null || agregandoV !== null);
   /* El aviso de que la hoja terminada espera al fiscal (se ve en «Anotar» y debajo de lo que llevo anotado). */
   const avisoEspera = cerrada ? (() => {
             const aprobada = enBase > 0 && (mios?.length ?? 0) === 0;
@@ -679,10 +709,13 @@ export function ContarFiscal({
       )}
 
       {hoja.puedeContar && (
-        <RevisionesFiscal hojaId={hoja.hojaId} mios={mios} materiales={materiales} avisar={avisar} alCambiar={() => leer(hoja.hojaId)} />
+        <div hidden={editandoValidacion}>
+          <RevisionesFiscal hojaId={hoja.hojaId} mios={mios} avisar={avisar} alCambiar={() => leer(hoja.hojaId)} ocupado={guardando}
+                            alCorregir={corregir} alQuitar={(r) => void quitar(r)} alAgregar={abrirAgregarValidacion} alHaberPendientes={alHaberPendientes} />
+        </div>
       )}
 
-      {hoja.puedeContar && (
+      {hoja.puedeContar && !enValidacion && (
         <div className="fe-pes fe-pes-conteo fc-pes" role="tablist">
           <button type="button" role="tab" aria-selected={pestania === "anotar"}
                   className={pestania === "anotar" ? "on" : ""} onClick={() => setPestania("anotar")}>
@@ -701,7 +734,7 @@ export function ContarFiscal({
           <b>{fechaConDia(hoja.fecha)}</b>. Ese día aquí aparece el formulario para anotar.</p>
         </section>
       ) : (
-        <section className="fe-anotar fc-anotar" hidden={pestania !== "anotar" || cerrada}>
+        <section className="fe-anotar fc-anotar" hidden={pestania !== "anotar" || (enValidacion ? !editandoValidacion : cerrada)}>
           <div className="fe-anotar-cab">
             <p className="fe-paso">Hoja {hoja.numero} · anotar lo que hay</p>
           </div>
@@ -709,6 +742,13 @@ export function ContarFiscal({
           {corrigiendo && (
             <p className="fc-corrigiendo" role="status" style={{ border: "1px solid currentColor", padding: "8px 10px", margin: "8px 0" }}>
               <b>Estás corrigiendo un renglón.</b> Cambia lo que haga falta y toca «Guardar corrección»; la foto se conserva.{" "}
+              <button type="button" className="fe-mini" disabled={guardando} onClick={cancelarCorreccion}>Cancelar</button>
+            </p>
+          )}
+
+          {agregandoV && (
+            <p className="fc-corrigiendo" role="status" style={{ border: "1px solid currentColor", padding: "8px 10px", margin: "8px 0" }}>
+              <b>Estás agregando un renglón que faltaba en {agregandoV}.</b> Anótalo y toca «Anotar renglón»; después envías el módulo.{" "}
               <button type="button" className="fe-mini" disabled={guardando} onClick={cancelarCorreccion}>Cancelar</button>
             </p>
           )}
@@ -1010,7 +1050,7 @@ export function ContarFiscal({
       )}
 
       {/* ===== HOJA TERMINADA ===== */}
-      {cerrada && (
+      {cerrada && !enValidacion && (
         <section className="fe-anotar fc-terminada" hidden={pestania !== "anotar"} role="status" aria-label="Hoja terminada">
           <div className="fe-anotar-cab"><p className="fe-paso">Hoja {hoja.numero} · terminada</p></div>
           {avisoEspera}
@@ -1026,7 +1066,7 @@ export function ContarFiscal({
       )}
 
       {/* ===== LO QUE LLEVO ===== */}
-      <section className="fe-recorrido fc-mios" aria-label="Lo que llevas anotado" hidden={hoja.puedeContar && pestania !== "borrador"}>
+      <section className="fe-recorrido fc-mios" aria-label="Lo que llevas anotado" hidden={hoja.puedeContar && (pestania !== "borrador" || enValidacion)}>
         <div className="fe-rec-cab">
           <div>
             <h2>Lo que llevas anotado</h2>
