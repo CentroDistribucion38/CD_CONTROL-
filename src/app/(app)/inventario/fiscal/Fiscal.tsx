@@ -8,6 +8,7 @@ import { Buscador } from "@/components/Buscador";
 import { diaColombia } from "@/modulos/inventario/corte";
 import Link from "next/link";
 import { Ico } from "./PanelFiscal";
+import { SelectorInventario } from "./SelectorInventario";
 import {
   agregarHojas, agrupar, aPayload, completarRoles, conteoPorRol, fechaConDia, hojasVacias, opcionesPersonas,
   nombreAuto, ponerCalle, ponerPersona, proximoDia, quitarHoja, revisar, rolPorDefecto, sumarDias, textoCuando, textoResumen,
@@ -325,13 +326,8 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
             <p className="fe-vacio">Todavía no hay ninguno. {puedeEditar ? "Arma el primero con el botón de arriba." : ""}</p>
           )}
           {todos.length > 1 && (
-            <div className="vf-sel" role="group" aria-label="Inventarios fiscales">
-              {todos.map((f) => (
-                <button type="button" key={f.id} className="vf-sel-b" aria-pressed={sel?.id === f.id} onClick={() => setSelId(f.id)}>
-                  {f.nombre}<small>{fechaConDia(f.fecha)} · {textoCuando(hoy, f.fecha)}</small>
-                </button>
-              ))}
-            </div>
+            <SelectorInventario actual={sel?.id ?? null} escoger={setSelId}
+              items={todos.map((f) => ({ id: f.id, nombre: f.nombre, fecha: fechaConDia(f.fecha), cuando: textoCuando(hoy, f.fecha), abierto: f.estado === "abierto" }))} />
           )}
           {sel && tarjeta(sel)}
         </>
