@@ -83,8 +83,9 @@ export function armarModulos(raw: RenglonBd[], filas: FilaCruce[] | null, revs: 
     const hayDif = skus.some((s) => s.dif !== 0 && !s.compensado);
     const hayComp = skus.some((s) => s.dif !== 0 && s.compensado);
     let estado: EstadoMod;
-    if (!filas) estado = "contando";
-    else if (abiertas.length === 0 && aprobadas.length > 0) estado = "aprobado";
+    // Lo que el fiscal ya aprobó se respeta aunque la hoja esté reabierta (sin cruce): no vuelve a «contando».
+    if (abiertas.length === 0 && aprobadas.length > 0) estado = "aprobado";
+    else if (!filas) estado = "contando";
     else if (abiertas.length > 0) estado = !hayDif ? (hayComp ? "compensado" : "coincide") : abiertas.every((r) => r.ol_envio && r.bavaria_envio) ? "respondida" : "validando";
     else estado = hayDif ? "difiere" : hayComp ? "compensado" : "coincide";
     out.push({

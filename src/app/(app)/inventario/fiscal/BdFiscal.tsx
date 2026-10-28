@@ -325,8 +325,8 @@ export function BdFiscal({ fiscalId, cerradas, nombre, fecha, hojas, revs, puede
                       </>
                     )}
                   </td>
-                  <td className="bd-dif" style={{ color: s.dif === 0 || s.compensado ? VERDE : ROJO }}>
-                    {s.dif === 0 ? "✓ 0" : s.compensado ? `✓ ${signo(s.dif)} compensado` : signo(s.dif)}
+                  <td className="bd-dif" style={{ color: s.dif === 0 || s.compensado || m.estado === "aprobado" ? VERDE : ROJO }}>
+                    {s.dif === 0 ? "✓ 0" : s.compensado ? `✓ ${signo(s.dif)} compensado` : m.estado === "aprobado" ? `✓ ${signo(s.dif)} aprobado` : signo(s.dif)}
                   </td>
                 </tr>
               ))}
