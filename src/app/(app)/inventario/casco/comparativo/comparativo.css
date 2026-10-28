@@ -169,7 +169,7 @@
 .cvc .cvx-solo[aria-pressed="true"] { background: var(--fe-acento, #ffc20e); border-color: var(--fe-acento, #ffc20e); color: var(--fe-sobre, #111) }
 
 /* ── Selector de SKU (selección múltiple) ── */
-.cvc .cvx-sku { position: relative; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex: 1 1 260px }
+.cvc .cvx-sku { position: relative; display: flex; align-items: center }
 .cvc .cvx-sku-b { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 12px; border: 1px solid var(--fe-linea); background: #fff; border-radius: 0; font: 700 12.5px var(--fe-titulo); color: var(--fe-tinta); cursor: pointer }
 .cvc .cvx-sku-b[data-activo] { border-color: var(--fe-acento, #ffc20e); box-shadow: inset 0 -3px 0 var(--fe-acento, #ffc20e) }
 .cvc .cvx-sku-b .cvx-lupa { color: var(--fe-gris) }
@@ -197,3 +197,6 @@
 .cvc .cvx-sku-vacio { margin: 0; padding: 14px 12px; font-size: 12.5px; color: var(--fe-gris) }
 .cvc .cvx-sku-p { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px }
 .cvc .cvx-sku-ok { min-height: 36px; padding: 0 22px; border: 0; background: var(--fe-acento, #ffc20e); color: var(--fe-sobre, #111); font: 800 13px var(--fe-titulo); cursor: pointer }
+.cvc .cvx-sku-chips { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 12px 8px }
+.cvc .cvx-sku-l label.corto { grid-template-columns: 22px 1fr auto }
+.cvc .cvx-sku-pop { width: min(360px, calc(100vw - 32px)) }
