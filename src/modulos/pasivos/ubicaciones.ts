@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { porTandas, todas } from "@/modulos/inventario/paginas";
 import { lineaDeUbicaciones, type RenglonUbic } from "@/modulos/casco/ubicaciones-armar";
-import { esUbicacionFabrica, esDeAG17oAG16 } from "@/modulos/casco/ubicacion-sitio";
+import { esUbicacionFabrica, almacenDeRenglon } from "@/modulos/casco/ubicacion-sitio";
 
 /**
  * DÓNDE ESTÁ CADA PASIVO EN LA BODEGA — «en Bodega 38 y Fábrica hay que agregar una columna con
@@ -44,8 +44,9 @@ export async function ubicacionesParaPasivos(dia: string): Promise<UbicPasivos> 
     for (const x of rs) {
       const estado = (x.estado_envase ?? "").trim().toUpperCase(), sku = String(x.codigo ?? "").trim();
       if (!estado || !sku) continue;
-      if (esDeAG17oAG16(x)) continue; /* EXPORTACION (AG17) y BTS (AG16) tienen sus propios almacenes */
-      const almacen = esUbicacionFabrica(x.ubicacion ?? x.ubicacion_combinada) ? "AG18" : "AG22";
+      /* EXPORTACION (AG17) y BTS (AG16) tienen sus propios almacenes; FABRICA es AG18 y lo demás AG22. */
+      const alm = almacenDeRenglon(x);
+      const almacen = alm === "AG22" && esUbicacionFabrica(x.ubicacion ?? x.ubicacion_combinada) ? "AG18" : alm;
       const k = `${almacen}|${estado}|${sku}`;
       (grupos.get(k) ?? grupos.set(k, []).get(k)!).push({ ...x, fecha });
     }

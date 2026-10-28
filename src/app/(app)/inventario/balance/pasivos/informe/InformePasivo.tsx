@@ -39,7 +39,7 @@ const enOrden = (a: string, b: string) => {
   const i = (x: string) => { const k = ORDEN.indexOf(x); return k < 0 ? 9 : k };
   return i(a) - i(b) || a.localeCompare(b);
 };
-const ALMACEN: Record<string, string> = { AG22: "Bodega 38", AG18: "Fábrica", AG07: "Carnaval" };
+const ALMACEN: Record<string, string> = { AG22: "Bodega 38", AG18: "Fábrica", AG17: "Exportación", AG16: "BTS", AG07: "Carnaval" };
 
 export function InformePasivo({ dia, dias, filas, error, nombresCaja, ubic = { fecha: null, mapa: {} } }: {
   dia: string | null; dias: string[]; filas: FilaPasivo[]; error: string | null; nombresCaja: Record<string, string>;
