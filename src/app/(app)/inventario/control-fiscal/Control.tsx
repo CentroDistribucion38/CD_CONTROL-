@@ -75,6 +75,7 @@ export function Control({ personas, fiscales, conCruce, ahora, puedeEditar }: {
       let sinConteos = false;
       /* Lo que el fiscal decidió de cada módulo: el Excel trae el cruce CRUDO y con esto marca qué ya quedó resuelto. */
       const resol = new Map<number, Record<string, string>>();
+      const defin = new Map<number, Record<string, "OL" | "BAVARIA">>();
       const rv = await sb.rpc("inv_fiscal_revisiones", { p_fiscal: f.id });
       if (!rv.error) for (const r of (rv.data ?? []) as { numero: number; ubicacion: string; estado: string; adoptado: string | null; compensado: boolean }[]) {
         const t = r.estado === "APROBADA"
@@ -83,6 +84,7 @@ export function Control({ personas, fiscales, conCruce, ahora, puedeEditar }: {
         if (!t) continue;
         const m = r.ubicacion.replace(/_(IZQ|DER)$/i, "");
         resol.set(r.numero, { ...(resol.get(r.numero) ?? {}), [m]: t });
+        if (r.estado === "APROBADA" && (r.adoptado === "OL" || r.adoptado === "BAVARIA")) defin.set(r.numero, { ...(defin.get(r.numero) ?? {}), [m]: r.adoptado });
       }
       const hojas = await Promise.all(f.hojas.map(async (h) => {
         const av = f.avance?.[h.numero];
@@ -131,7 +133,7 @@ export function Control({ personas, fiscales, conCruce, ahora, puedeEditar }: {
           olRenglones: av?.olRenglones ?? 0,
           bavariaRenglones: av?.bavariaRenglones ?? 0,
           olTermino: av?.olTermino ?? null, bavariaTermino: av?.bavariaTermino ?? null,
-          filas, parcial, conteos, marcas, resolucion: resol.get(h.numero) ?? null,
+          filas, parcial, conteos, marcas, resolucion: resol.get(h.numero) ?? null, definitivo: defin.get(h.numero) ?? null,
         };
       }));
       const P = leerPaleta(document.querySelector(".fe"));

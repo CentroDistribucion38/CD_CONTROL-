@@ -58,6 +58,8 @@ export type HojaCruzada = {
   marcas?: MarcaModuloLibro[] | null;
   /** Lo que el fiscal decidió de cada módulo (por clave sin _IZQ/_DER): «Compensada por el fiscal», «Aprobada con lo de Bavaria»… Sin entrada = sin resolver. */
   resolucion?: Record<string, string> | null;
+  /** El equipo cuyo conteo el fiscal dejó como definitivo en cada módulo aprobado (si no escogió, el del operador). */
+  definitivo?: Record<string, "OL" | "BAVARIA"> | null;
 };
 
 export type InsumosCruce = {
@@ -182,12 +184,17 @@ export async function armarCruceFiscal(o: InsumosCruce): Promise<ArrayBuffer> {
   }
   const mal = todas.filter((x) => x.f.estado !== "COINCIDE")
     .sort((a, b) => Math.abs(b.f.diferencia) - Math.abs(a.f.diferencia) || a.h.numero - b.h.numero);
+  /* Este cruce es el CRUDO (lo que anotó cada persona): lo que el fiscal compensó o aprobó sigue apareciendo como diferencia, pero esta columna dice qué se decidió. */
+  const modDe = (ubic: string) => ubic.replace(/_(IZQ|DER)$/i, "");
+  const resDe = (h: HojaCruzada, ubic: string) => h.resolucion?.[modDe(ubic)] ?? "Sin resolver";
+  const estaResuelta = (h: HojaCruzada, f: FilaCruce) => f.estado === "COINCIDE" || !["Sin resolver", "En validación"].includes(resDe(h, f.ubicacion));
   const hoy = new Date().toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric" });
   const fechaInv = o.fecha.split("-").reverse().join("/");
   const sub = `${o.nombre}  ·  inventario del ${fechaInv}  ·  exportado${o.quien ? ` por ${o.quien}` : ""} el ${hoy}`;
 
   /* LAS PESTAÑAS EN SU ORDEN: primero lo que se lee, al final el detalle. */
   const rs = wb.addWorksheet("Resumen", { properties: { tabColor: { argb: P.BANDA } } });
+  const cn = wb.addWorksheet("Conciliado", { properties: { tabColor: { argb: VERDE } } });
   const df = wb.addWorksheet("Diferencias", { properties: { tabColor: { argb: NARANJA } } });
   const pm = wb.addWorksheet("Por material", { properties: { tabColor: { argb: P.TINTA } } });
   const pp = wb.addWorksheet("Por persona", { properties: { tabColor: { argb: P.BANDA } } });
@@ -408,8 +415,6 @@ export async function armarCruceFiscal(o: InsumosCruce): Promise<ArrayBuffer> {
   const FC = ["Hoja", "Pareja (operador · Bavaria)", "Estado del cruce", "Sitio", "Código", "Material", "Vence", "Cajas operador", "Cajas Bavaria", "Diferencia (operador − Bavaria)", "Quién contó más",
     "Causa técnica", "Qué pasó exactamente", "Qué revisar", "Resolución del fiscal"];
   const FA = [2, 7, 34, 17, 18, 11, 38, 13, 13, 13, 17, 22, 28, 70, 52, 28, 2];
-  /* Este cruce es el CRUDO (lo que anotó cada persona): lo que el fiscal compensó o aprobó sigue apareciendo como diferencia, pero esta columna dice qué se decidió. */
-  const resDe = (h: HojaCruzada, ubic: string) => h.resolucion?.[ubic.replace(/_(IZQ|DER)$/i, "")] ?? "Sin resolver";
   const resueltas = mal.filter(({ h, f }) => resDe(h, f.ubicacion) !== "Sin resolver").length;
   df.columns = FA.map((w) => ({ width: w }));
   cabecera(df, P, sello, "Lo que no coincide · lo más grande primero", `${sub}  ·  ${mal.length} ${mal.length === 1 ? "renglón" : "renglones"}${resueltas ? `  ·  ${resueltas} ya resuelto${resueltas === 1 ? "" : "s"} por el fiscal (ver la última columna)` : ""}`, FA.length);
@@ -440,6 +445,62 @@ export async function armarCruceFiscal(o: InsumosCruce): Promise<ArrayBuffer> {
     df.getRow(FF0 + 1).height = 30;
   } else df.autoFilter = { from: { row: FF0, column: 2 }, to: { row: FF0 + mal.length, column: 1 + FC.length } };
   df.views = [{ showGridLines: false, state: "frozen", ySplit: FF0 }];
+
+  /* =================== CONCILIADO =================== */
+  /* El cruce DESPUÉS de lo que decidió el fiscal: lo compensado o aprobado queda en 0 y se ve el conteo definitivo. Lo que no se resolvió sigue en rojo. */
+  {
+    const CC = ["Hoja", "Pareja (operador · Bavaria)", "Sitio", "Código", "Material", "Cajas operador", "Cajas Bavaria", "Diferencia cruda", "Resolución del fiscal", "Diferencia final", "Conteo definitivo", "Cajas definitivas"];
+    const CA = [2, 7, 34, 18, 11, 38, 13, 13, 13, 28, 13, 16, 14, 2];
+    cn.columns = CA.map((w) => ({ width: w }));
+    const filasC = todas.slice().sort((a, b) => a.h.numero - b.h.numero || a.f.ubicacion.localeCompare(b.f.ubicacion, "es", { numeric: true }) || a.f.sku.localeCompare(b.f.sku, "es", { numeric: true }));
+    const sinRes = filasC.filter(({ h, f }) => !estaResuelta(h, f)).length;
+    cabecera(cn, P, sello, "Conciliado · como quedó después del fiscal",
+      `${sub}  ·  ${filasC.length} renglones  ·  ${filasC.length - sinRes} resueltos  ·  ${sinRes} sin resolver`, CA.length);
+    cn.mergeCells(6, 3, 6, 13);
+    const nt = cn.getCell(6, 3);
+    nt.value = "Diferencia final = 0 en lo que el fiscal compensó o aprobó (y en lo que coincide); lo que sigue sin resolver conserva su diferencia en rojo. Conteo definitivo = el que el fiscal dejó (si no escogió, el del operador).";
+    nt.font = letra(8.5, P.GRIS); nt.alignment = { vertical: "middle", indent: 0 }; cn.getRow(6).height = 18;
+    encabezado(cn, 7, P, CC);
+    const equipoDe = (h: HojaCruzada, ubic: string): "OL" | "BAVARIA" => {
+      const m = modDe(ubic);
+      const ad = h.definitivo?.[m];
+      if (ad) return ad;
+      return (h.filas ?? []).some((x) => modDe(x.ubicacion) === m && x.cajasOl != null) ? "OL" : "BAVARIA";
+    };
+    filasC.forEach(({ h, f }, i) => {
+      const r = 8 + i, row = cn.getRow(r);
+      const ok = estaResuelta(h, f), res = f.estado === "COINCIDE" ? "Coincide" : resDe(h, f.ubicacion);
+      const eq = equipoDe(h, f.ubicacion);
+      const def = ok ? (eq === "OL" ? f.cajasOl ?? 0 : f.cajasBavaria ?? 0) : null;
+      row.height = 20;
+      [h.numero, pareja(h), f.ubicacion, f.sku, f.material, f.cajasOl, f.cajasBavaria, f.diferencia, res,
+        { formula: `IF(OR(J${r}="Sin resolver",J${r}="En validación"),I${r},0)`, result: ok ? 0 : f.diferencia }, ok ? (eq === "OL" ? "Operador" : "Bavaria") : "—", def ?? "—"]
+        .forEach((v, k) => {
+          const x = row.getCell(2 + k); x.value = v as ExcelJS.CellValue;
+          celda(x, P, i % 2 === 1, { num: k === 5 || k === 6 || k === 7 || k === 9 || k === 11, centro: k === 0 || k === 10, fmt: k === 7 || k === 9 ? DIF : k === 5 || k === 6 || k === 11 ? NF : undefined, negrita: k === 3 || k === 9 });
+        });
+      row.getCell(10).font = letra(10, ok ? VERDE : ROJO, true);
+      row.getCell(11).font = letra(10, ok ? VERDE : ROJO, true);
+    });
+    const ult = 7 + filasC.length, tr = ult + 1;
+    if (filasC.length > 0) {
+      cn.getRow(tr).height = 24;
+      cn.mergeCells(tr, 2, tr, 6);
+      const tt = cn.getCell(tr, 2); tt.value = "Total"; tt.font = letra(10.5, BLANCO, true); tt.fill = relleno(P.TINTA); tt.alignment = { vertical: "middle", indent: 1 };
+      const suma = (col: string, col0: number, val: number) => {
+        const x = cn.getCell(tr, col0); x.value = { formula: `SUM(${col}8:${col}${ult})`, result: val }; x.font = letra(10.5, BLANCO, true); x.fill = relleno(P.TINTA);
+        x.alignment = { vertical: "middle", horizontal: "right" }; x.numFmt = col === "I" || col === "K" ? DIF : NF;
+      };
+      suma("G", 7, filasC.reduce((t, x) => t + (x.f.cajasOl ?? 0), 0));
+      suma("H", 8, filasC.reduce((t, x) => t + (x.f.cajasBavaria ?? 0), 0));
+      suma("I", 9, filasC.reduce((t, x) => t + x.f.diferencia, 0));
+      suma("K", 11, filasC.reduce((t, x) => t + (estaResuelta(x.h, x.f) ? 0 : x.f.diferencia), 0));
+      suma("M", 13, filasC.reduce((t, x) => t + (estaResuelta(x.h, x.f) ? (equipoDe(x.h, x.f.ubicacion) === "OL" ? x.f.cajasOl ?? 0 : x.f.cajasBavaria ?? 0) : 0), 0));
+      [10, 12].forEach((c0) => { const x = cn.getCell(tr, c0); x.fill = relleno(P.TINTA) });
+      cn.autoFilter = { from: { row: 7, column: 2 }, to: { row: ult, column: 1 + CC.length } };
+    }
+    cn.views = [{ showGridLines: false, state: "frozen", ySplit: 7 }];
+  }
 
   /* =================== POR MATERIAL =================== */
   const porSku = new Map<string, { sku: string; material: string; renglones: number; conDif: number; ol: number; ba: number; dist: number }>();
