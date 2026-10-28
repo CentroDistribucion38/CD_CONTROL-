@@ -11,6 +11,7 @@ import { Caso, type Corr } from "./Caso";
 import { Revision } from "./Revision";
 import { etiquetaRotura, HORARIO_TURNO, TURNOS, turnoYDia, type Etiqueta } from "@/modulos/roturas/cierre";
 import { Cierre } from "./Cierre";
+import { exportarTodo } from "./exportar-todo";
 import "./corregir.css";
 import { Rango, type Dia } from "../../../sider/seguimiento/Rango";
 
@@ -85,6 +86,7 @@ export function Tablero({ roturas, nombres, manda, correcciones, revisadas }: {
   const [turnos, setTurnos] = useState<string[]>([]);
   const [cierre, setCierre] = useState(false);
   const [bajando, setBajando] = useState(false);
+  const [progreso, setProgreso] = useState("");
 
   const q = pelado(busca.trim());
   /* LO QUE PASÓ POR EL ESTADO Y LA BÚSQUEDA, sin día ni turno. Es lo que
@@ -141,13 +143,33 @@ export function Tablero({ roturas, nombres, manda, correcciones, revisadas }: {
 
   /* EL EXCEL DE LO QUE SE VE: van los id de la tabla (estado, búsqueda, fecha y
      turno ya aplicados) y el servidor arma Resumen, Detalle y Evidencias con foto. */
+  const periodoTxt = () => !desde && !hasta ? "Todas las fechas"
+    : desde && hasta && desde !== hasta ? `Del ${desde.split("-").reverse().join("/")} al ${hasta.split("-").reverse().join("/")}`
+    : `Día ${(desde || hasta).split("-").reverse().join("/")}`;
+
+  /* LO NORMAL: el navegador baja TODAS las fotos y entrega el Excel con todas y el .zip con los originales
+     (ver exportar-todo.ts). Si eso falla, queda el Excel armado por el servidor, con las fotos que quepan. */
   async function exportar() {
     if (!vistas.length || bajando) return;
+    setBajando(true); setProgreso("");
+    try {
+      const r = await exportarTodo({ roturas: vistas, nombres, periodo: periodoTxt(), filtros: filtrosTxt, avance: setProgreso });
+      avisar.bien(r.fotos === 0
+        ? `Excel listo con ${r.roturas} roturas (sin fotos).`
+        : `Listo: Excel con ${r.roturas} roturas y ${r.enExcel} fotos adentro, y ${r.zips === 1 ? "un ZIP" : `${r.zips} ZIP`} con las ${r.fotos} fotos originales.`
+          + (r.fallaron ? ` ${r.fallaron} no se pudieron bajar: revisa la señal y repite.` : ""));
+      setBajando(false); setProgreso("");
+      return;
+    } catch {
+      avisar.mal("No se pudo armar todo en este equipo; bajo el Excel normal, con las fotos que quepan.");
+    }
+    await exportarServidor();
+  }
+
+  async function exportarServidor() {
     setBajando(true);
     try {
-      const periodo = !desde && !hasta ? "Todas las fechas"
-        : desde && hasta && desde !== hasta ? `Del ${desde.split("-").reverse().join("/")} al ${hasta.split("-").reverse().join("/")}`
-        : `Día ${(desde || hasta).split("-").reverse().join("/")}`;
+      const periodo = periodoTxt();
       const res = await fetch("/api/roturas/exportar", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids: vistas.map((r) => r.id), periodo, filtros: filtrosTxt }),
@@ -352,9 +374,9 @@ export function Tablero({ roturas, nombres, manda, correcciones, revisadas }: {
           </button>
         )}
         <button type="button" className="btn tb-exportar" onClick={exportar} disabled={bajando || !vistas.length}
-                title="Resumen con indicadores, detalle y evidencias con foto de lo que está filtrado">
+                title="Excel con todas las fotos adentro y un ZIP con las fotos originales de lo que está filtrado">
           <svg viewBox="0 0 24 24" aria-hidden><path d="M4 4h16v16H4z" /><path d="M4 9h16M9 9v11M8 13l3 3M11 13l-3 3" /></svg>
-          {bajando ? "Armando el Excel…" : "Exportar Excel"}
+          {bajando ? (progreso || "Armando el Excel…") : "Exportar Excel"}
         </button>
         <button type="button" className="btn si tb-cierre" onClick={() => setCierre(true)}>
           <svg viewBox="0 0 24 24" aria-hidden><path d="M7 3h8l4 4v14H7z" /><path d="M14 3v5h5M10 13h6M10 17h6" /></svg>

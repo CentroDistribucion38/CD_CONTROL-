@@ -27,7 +27,7 @@ import { etiquetaRotura, faseRotura, turnoYDia, ORIGEN_TXT, type OrigenR } from 
 type BufferDeExcel = Parameters<ExcelJS.Workbook["addImage"]>[0]["buffer"];
 
 export type FotoLibro = {
-  rotura_id: string; papel: "rotura" | "descargo"; foto: Buffer;
+  rotura_id: string; papel: "rotura" | "descargo"; foto: Buffer | Uint8Array;
   ancho: number | null; alto: number | null; extension: "jpeg" | "png";
 };
 
@@ -41,7 +41,7 @@ export type InsumosRoturas = {
   periodo: string;
   filtros: string;
   quien: string;
-  logo: Buffer | null;
+  logo: Buffer | Uint8Array | null;
 };
 
 /* ---- La paleta de CONTROL: tinta negra, banda amarilla. ---- */
@@ -96,7 +96,7 @@ function agrupar(rs: Rotura[], clave: (r: Rotura) => string, color?: (r: Rotura)
   return [...m.values()];
 }
 
-export async function armarLibroRoturas(d: InsumosRoturas): Promise<Buffer> {
+export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer> {
   const wb = new ExcelJS.Workbook();
   wb.creator = "CONTROL · Roturas"; wb.created = new Date();
   wb.calcProperties = { fullCalcOnLoad: true };
@@ -328,13 +328,15 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<Buffer> {
   /* ======================= 3 · EVIDENCIAS ======================= */
   {
     const h = wb.addWorksheet("Evidencias", { properties: { tabColor: { argb: "FFDC2626" } } });
-    /* A código · B ficha · C estado · D E F tres fotos (≈ 270 px de ancho cada una). */
-    h.columns = [12, 44, 18, 38, 38, 38].map((w) => ({ width: w }));
+    /* A código · B ficha · C estado · D en adelante, una columna por foto (≈ 270 px de ancho cada una):
+       tantas como tenga la rotura con más fotos (mínimo tres). */
+    const NF = Math.max(3, ...conFoto.map((r) => (fotosDe.get(r.id) ?? []).length));
+    h.columns = [12, 44, 18, ...Array.from({ length: NF }, () => 38)].map((w) => ({ width: w }));
     const sinFoto = todas.filter((r) => !(fotosDe.get(r.id) ?? []).length);
-    banda(h, 6, `Evidencias · ${d.fotos.length} foto${d.fotos.length === 1 ? "" : "s"}`,
+    banda(h, 3 + NF, `Evidencias · ${d.fotos.length} foto${d.fotos.length === 1 ? "" : "s"}`,
       `${conFoto.length} rotura${conFoto.length === 1 ? "" : "s"} con foto${d.fotosFuera ? ` · otras ${d.fotosFuera} fotos no entraron por peso: se ven en la app` : ""} · ${sub}`, null);
     const cab = h.getRow(8); cab.height = 24;
-    ["Código", "Ficha", "Estado", "Foto 1", "Foto 2", "Foto 3"].forEach((t, i) => {
+    ["Código", "Ficha", "Estado", ...Array.from({ length: NF }, (_, k) => `Foto ${k + 1}`)].forEach((t, i) => {
       const c = cab.getCell(i + 1); c.value = t; c.font = letra(9, BLANCO, true); c.fill = relleno(TINTA); c.alignment = { vertical: "middle", indent: 1 };
     });
     conFoto.forEach((r, i) => {
@@ -362,13 +364,13 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<Buffer> {
       row.getCell(1).value = r.codigo; row.getCell(1).font = letra(11, TINTA, true);
       row.getCell(2).value = { richText: lineas };
       row.getCell(3).value = e.txt; row.getCell(3).font = letra(8.5, est.tinta, true); row.getCell(3).fill = relleno(est.fondo);
-      for (let c = 1; c <= 6; c++) {
+      for (let c = 1; c <= 3 + NF; c++) {
         const cel = row.getCell(c);
         cel.alignment = { vertical: "top", wrapText: true, indent: 1 };
         cel.border = { bottom: raya(GRIS_CLARO) };
       }
       row.getCell(3).alignment = { vertical: "top", horizontal: "center", wrapText: true };
-      fs.slice(0, 3).forEach((x, k) => {
+      fs.forEach((x, k) => {
         const aw = x.ancho && x.alto ? x.ancho : 4, ah = x.ancho && x.alto ? x.alto : 3;
         const esc = Math.min(262 / aw, 212 / ah);
         const id = wb.addImage({ buffer: x.foto as unknown as BufferDeExcel, extension: x.extension });
@@ -378,7 +380,7 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<Buffer> {
     let f = 9 + conFoto.length + 1;
     if (sinFoto.length) {
       const a = h.getCell(f, 1); a.value = "SIN FOTO"; a.font = letra(8.5, ROJO, true);
-      h.mergeCells(f, 2, f, 6);
+      h.mergeCells(f, 2, f, 3 + NF);
       const b = h.getCell(f, 2); b.value = sinFoto.map((r) => r.codigo).join(", "); b.font = letra(9, TINTA); b.alignment = { wrapText: true, vertical: "top" };
       h.getRow(f).height = Math.min(120, 18 + Math.floor(sinFoto.length / 14) * 14);
       f++;
@@ -387,5 +389,5 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<Buffer> {
     h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9 };
   }
 
-  return Buffer.from(await wb.xlsx.writeBuffer());
+  return (await wb.xlsx.writeBuffer()) as ArrayBuffer;
 }
