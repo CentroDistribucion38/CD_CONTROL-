@@ -144,7 +144,12 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
   const TEXTO = { aprobada: "Aprobada", validando: "En validación", respondida: "Respondieron · decide el fiscal", difiere: "Difiere", compensada: "Compensada", coincide: "Coincide" } as const;
 
   const nAprobadas = ubs.filter((u) => estado(u) === "aprobada").length;
-  const visibles = ubs.filter((u) => todas || estado(u) !== "coincide");
+  /* SOLO LO QUE DIFIERE: lo aprobado, lo compensado y lo que coincide queda recogido (se ve con el botón de abajo),
+     para no enredarse. Lo compensado se aprueba con su propio botón verde. */
+  const porDecidir = (u: Ub) => ["difiere", "validando", "respondida"].includes(estado(u));
+  const visibles = ubs.filter((u) => todas || porDecidir(u));
+  const nOtras = ubs.filter((u) => !porDecidir(u)).length;
+  const compensadas = ubs.filter((u) => estado(u) === "compensada");
   const coincidenSinAprobar = ubs.filter((u) => estado(u) === "coincide");
   const marcadas = ubs.filter((u) => sel.has(u.clave));
   /* Todo en verde: lo que falta por aprobar coincide por completo (nada difiere, nada espera respuesta). */
@@ -537,6 +542,13 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
       {mal && <p className="cl-mal" role="alert">{mal}</p>}
       {ok && <p className="cl-ok" role="status">{ok}</p>}
 
+      {puedeEditar && compensadas.length > 0 && !todoVerde && (
+        <button type="button" className="btn" disabled={ocupado} onClick={() => aprobar(compensadas, false, null)}
+                title="Cuadran en total: se aprueban dándolas por compensadas"
+                style={{ background: "#0b7a3e", color: "#fff", borderColor: "#0b7a3e", margin: "8px 0" }}>
+          ✓ Aprobar {compensadas.length === 1 ? "la ubicación compensada" : `las ${compensadas.length} compensadas`}
+        </button>
+      )}
       <details className="vv-detalle" open={hayAbierto || todas}>
         <summary>{hayAbierto ? "Ubicaciones por resolver" : `Ver las ${nAprobadas} ${nAprobadas === 1 ? "ubicación aprobada" : "ubicaciones aprobadas"}`}</summary>
       <ul className="vv-lista">
@@ -565,13 +577,13 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
             </li>
           );
         })}
-        {visibles.length === 0 && <li className="vv-fila"><span>Todas las ubicaciones coinciden.</span></li>}
+        {visibles.length === 0 && <li className="vv-fila"><span>{nOtras > 0 ? "Nada difiere: lo demás está compensado, aprobado o coincide." : "Todas las ubicaciones coinciden."}</span></li>}
       </ul>
       </details>
       {caja}
-      {ubs.some((u) => estado(u) === "coincide") && (
+      {nOtras > 0 && (
         <button type="button" className="btn plano vv-todas" aria-pressed={todas} onClick={() => setTodas(!todas)}>
-          {todas ? "Ocultar las que coinciden" : `Ver también las ${ubs.filter((u) => estado(u) === "coincide").length} que coinciden`}
+          {todas ? "Ocultar las que no difieren" : `Ver también las ${nOtras} que no difieren (compensadas, aprobadas o que coinciden)`}
         </button>
       )}
     </div>
