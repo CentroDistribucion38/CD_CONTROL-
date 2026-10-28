@@ -1,0 +1,20 @@
+.cu { max-width: 520px; margin: 0 auto; font-family: Arial, Helvetica, sans-serif; color: #15171a }
+.cu-cab { padding: 18px 16px 14px; background: #15171a; color: #fff; border-bottom: 4px solid #ffc20e }
+.cu-cab p { margin: 0 0 4px; font: 700 .68rem "IBM Plex Mono", ui-monospace, monospace; letter-spacing: .16em; text-transform: uppercase; color: #8a94a0 }
+.cu-cab h1 { margin: 0; font-size: 1.35rem; line-height: 1.15 }
+.cu-caja { display: flex; flex-direction: column; gap: 14px; padding: 16px; background: #fff; border: 1px solid #d8dce0; border-top: 0 }
+.cu-campo { display: flex; flex-direction: column; gap: 6px; font: 700 .74rem Arial, sans-serif; letter-spacing: .06em; text-transform: uppercase; color: #5a6470 }
+.cu-campo input { height: 56px; padding: 0 14px; border: 2px solid #15171a; border-radius: 0; font: 800 1.7rem "IBM Plex Mono", ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; text-align: center; background: #fff; color: #15171a }
+.cu-campo input:disabled { background: #eef0f2; color: #5a6470 }
+.cu-boton { min-height: 64px; border: 0; border-radius: 0; background: #ffc20e; color: #15171a; font: 800 1.1rem Arial, sans-serif; letter-spacing: .02em; cursor: pointer }
+.cu-boton.parar { background: #15171a; color: #fff }
+.cu-boton:focus-visible, .cu-campo input:focus-visible { outline: 3px solid #1d9bd1; outline-offset: 2px }
+.cu-aviso { margin: 0; padding: 10px 12px; border-left: 4px solid #ffc20e; background: #fff8dc; font-size: .86rem }
+.cu-aviso.mal { border-left-color: #d64550; background: #fdeaea }
+.cu-estado { display: flex; gap: 14px; align-items: center; padding: 14px; background: #e8f6ee; border: 1px solid #2fa66a }
+.cu-estado b { display: block; font-size: 1.02rem }
+.cu-estado small { display: block; margin-top: 3px; color: #3b5a49; font-size: .76rem }
+.cu-pulso { width: 14px; height: 14px; flex: none; background: #2fa66a; animation: cu-p 1.4s ease-in-out infinite }
+@keyframes cu-p { 0%, 100% { opacity: 1 } 50% { opacity: .25 } }
+.cu-notas { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 8px; font-size: .82rem; color: #3b434c }
+@media (prefers-reduced-motion: reduce) { .cu-pulso { animation: none } }

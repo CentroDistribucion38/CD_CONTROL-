@@ -126,7 +126,7 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
       await cargar();
     };
     void vuelta();
-    const t = setInterval(() => void vuelta(), conectado ? 15_000 : 30_000);
+    const t = setInterval(() => void vuelta(), conectado ? 15_000 : 10_000);
     return () => clearInterval(t);
   }, [conectado, cargar]);
 
@@ -298,7 +298,7 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
         </div>
       </header>
 
-      {enDemo && <p className="tg-aviso" role="note"><b>MODO DEMO.</b> Todavía no hay Traccar conectado: los vehículos son simulados (el reloj corre 20 veces más rápido) y nada se guarda. Para conectarlo se ponen <code>TRACCAR_URL</code> y <code>TRACCAR_TOKEN</code> en Vercel. Las zonas sí son de verdad: dibújalas en la pestaña «Zonas».</p>}
+      {enDemo && <p className="tg-aviso" role="note"><b>MODO DEMO.</b> Todavía nadie está compartiendo su ubicación: estos vehículos son simulados (el reloj corre 20 veces más rápido) y nada se guarda. Para verlo de verdad, el conductor abre <b>Traspasos → Compartir ubicación</b> en su celular (o se conecta Traccar). Las zonas sí son de verdad: dibújalas en la pestaña «Zonas».</p>}
       {conectado && nVeh === 0 && <p className="tg-aviso" role="status">Traccar conectado. Esperando la primera posición de los equipos…</p>}
       {mal && <p className="tg-aviso mal" role="alert">{mal}</p>}
       {ok && <p className="tg-aviso bien" role="status">{ok}</p>}
