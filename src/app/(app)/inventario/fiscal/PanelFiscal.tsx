@@ -283,6 +283,22 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
     return null;
   }
   const [pedir, dialogo] = useConfirmar();
+  /** «Pasar a validar»: como si las dos personas hubieran tocado «Terminé» (la hoja reabierta queda en «contando» y no cruza). */
+  async function pasarAValidar(n: number) {
+    const id = hojaIds[n];
+    if (!id) { setCierreMsg("No se pudo identificar la hoja."); return }
+    const ok = await pedir({
+      titulo: `¿Pasar la hoja ${n} a validar?`,
+      dice: <>Es como si las dos personas te la hubieran enviado: se marca terminada la hoja de quien ya anotó algo, y tú ves el cruce, mandas a validar y apruebas. No se cambia nada de lo contado. Quien quiera seguir contando puede pedir que le reabran la hoja.</>,
+      confirmar: "Pasar a validar", cancelar: "Cancelar",
+    });
+    if (!ok) return;
+    setCierreMsg(null);
+    const { data, error } = await createClient().rpc("inv_fiscal_pasar_a_validar", { p_hoja: id });
+    if (error) { setCierreMsg(/inv_fiscal_pasar_a_validar|schema cache|does not exist|no existe la funci/i.test(error.message) ? "Falta correr 2026-10-fiscal-pasar-a-validar.sql en Supabase." : traducirError(error.message)); return }
+    setCierreMsg(Number(data) > 0 ? `Hoja ${n} lista para validar.` : `Hoja ${n}: ya estaba lista para validar.`);
+    await cargar();
+  }
   /** Reabrir una hoja ya cerrada (la que se cerró de más): las dos personas pueden volver a contar y el fiscal, a revisar. */
   async function reabrirCerrada(n: number) {
     const id = hojaIds[n];
@@ -497,6 +513,12 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                       {puedeEditar && !!cerradas[t.h.numero] && (
                         <button type="button" className="btn plano vf-ver" onClick={() => void reabrirCerrada(t.h.numero)}>
                           <Ico n="campana" tam={16} /> Reabrir hoja
+                        </button>
+                      )}
+                      {puedeEditar && !cerradas[t.h.numero] && (t.estado === "contando" || t.estado === "una-termino") && (
+                        <button type="button" className="btn vf-ver" onClick={() => void pasarAValidar(t.h.numero)}
+                                title="Como si las personas te hubieran enviado la hoja: marca su hoja como terminada y habilita el cruce">
+                          <Ico n="lista" tam={16} /> Pasar a validar
                         </button>
                       )}
                       {(t.tipo === "ok" || t.tipo === "dif") && (
