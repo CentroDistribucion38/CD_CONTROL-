@@ -1,0 +1,59 @@
+/* ===== AG07 CARNAVAL (.cv) — usa el mismo papel y la misma tinta del Cuadre SAP ===== */
+.cs .cv-sub { display: flex; gap: 0; margin: 12px 0 14px; width: fit-content; max-width: 100%; border: 1px solid var(--fe-linea) }
+.cs .cv-sub a { padding: 8px 22px; font: 700 13.5px var(--fe-texto); color: var(--fe-tinta); text-decoration: none; background: var(--fe-papel, #fff); border-right: 1px solid var(--fe-linea) }
+.cs .cv-sub a:last-child { border-right: 0 }
+.cs .cv-sub a.on { background: var(--fe-tinta); color: var(--fe-papel, #fff); box-shadow: inset 0 -3px 0 var(--fe-acento, #FFC400) }
+.cs .cv-sub a:focus-visible { outline: 3px solid var(--fe-acento, #FFC400); outline-offset: 2px }
+
+.cs .cv-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-bottom: 12px }
+.cs .cv-barra label { display: flex; align-items: center; gap: 8px; font: 600 13px var(--fe-texto); color: var(--fe-tinta) }
+.cs .cv-barra .cv-fecha, .cs .cv-form input, .cs .cv-form select { height: 38px; padding: 0 10px; border: 2px solid var(--fe-tinta); background: #fff; color: var(--fe-tinta); font: 600 14px var(--fe-texto) }
+.cs .cv-barra .grow { flex: 1 }
+
+.cs .cv-cifras { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px }
+.cs .cv-cif { background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea); display: flex; flex-direction: column; min-width: 0 }
+.cs .cv-cif > span { padding: 6px 12px; background: var(--fe-tinta); color: var(--fe-papel, #fff); font: 700 10.5px var(--fe-texto); letter-spacing: .11em; text-transform: uppercase }
+.cs .cv-cif > b { padding: 10px 12px; font: 700 22px var(--fe-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; color: var(--fe-tinta) }
+
+.cs .cv-tabla-cont { overflow-x: auto; background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea) }
+.cs .cv-tabla { width: 100%; border-collapse: collapse; font-size: 13.5px }
+.cs .cv-tabla th { text-align: left; padding: 8px 12px; background: var(--fe-tinta); color: var(--fe-papel, #fff); font: 700 11px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase; white-space: nowrap }
+.cs .cv-tabla td { padding: 8px 12px; border-top: 1px solid var(--fe-linea); vertical-align: middle }
+.cs .cv-tabla .r { text-align: right; font-variant-numeric: tabular-nums }
+.cs .cv-tabla code { font: 700 12.5px var(--fe-mono, ui-monospace, monospace) }
+.cs .cv-tabla tr.cero td { color: var(--fe-gris) }
+.cs .cv-tabla tfoot td { border-top: 2px solid var(--fe-tinta); font-weight: 700; background: color-mix(in srgb, var(--fe-acento, #FFC400) 12%, var(--fe-papel, #fff)) }
+.cs .cv-neg { color: #A50D25; font-weight: 700 }
+.cs .cv-nota { margin: 10px 0 0; font-size: 12.5px; color: var(--fe-gris); line-height: 1.45 }
+
+.cs .cv-bloque { background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea); margin-bottom: 14px }
+.cs .cv-bloque > h2 { margin: 0; padding: 8px 14px; background: var(--fe-tinta); color: var(--fe-papel, #fff); font: 700 12px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase }
+.cs .cv-bloque > div { padding: 12px 14px }
+.cs .cv-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 12px }
+.cs .cv-form label { display: flex; flex-direction: column; gap: 3px; font: 600 11.5px var(--fe-texto); color: var(--fe-gris) }
+.cs .cv-form .ancho { flex: 1; min-width: 200px }
+.cs .cv-form .ancho input { width: 100% }
+.cs .cv-msg { margin: 10px 0 0; padding: 8px 12px; font-size: 13px; border-left: 4px solid #1E8E3E; background: #EAF6EE }
+.cs .cv-msg.mal { border-left-color: #A50D25; background: #FDE7EA }
+.cs details.cv-hist > summary { cursor: pointer; padding: 10px 14px; font: 700 13px var(--fe-texto); background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea) }
+.cs .cv-anular { border: 0; background: none; color: #A50D25; font: 600 12.5px var(--fe-texto); text-decoration: underline; cursor: pointer }
+.cs tr.anulado td { text-decoration: line-through; color: var(--fe-gris) }
+
+/* La ventana de aprobación (toolbox): centrada, como la de SKU fuera del cuadre */
+.cs .cv-dlg { position: fixed; inset: 0; margin: auto; padding: 0; border: 0; background: transparent; width: min(980px, calc(100vw - 24px)); max-width: none; height: fit-content; max-height: calc(100vh - 32px) }
+.cs .cv-dlg::backdrop { background: rgb(18 38 58 / .55) }
+.cs .cv-dlg-caja { display: flex; flex-direction: column; max-height: calc(100vh - 32px); background: var(--fe-papel, #fff); color: var(--fe-tinta); border-top: 5px solid var(--fe-acento, #FFC400); box-shadow: 0 18px 50px rgb(0 0 0 / .3) }
+.cs .cv-dlg-cab { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 14px 18px 10px; background: var(--fe-tinta); color: var(--fe-papel, #fff) }
+.cs .cv-dlg-cab p { margin: 0; font: 700 10.5px var(--fe-texto); letter-spacing: .12em; text-transform: uppercase; color: var(--fe-acento, #FFC400) }
+.cs .cv-dlg-cab h2 { margin: 2px 0 0; font: 700 20px var(--fe-titulo, var(--fe-texto)) }
+.cs .cv-dlg-x { flex: none; width: 34px; height: 34px; border: 1px solid rgb(255 255 255 / .35); background: transparent; color: inherit; font-size: 22px; line-height: 1; cursor: pointer }
+.cs .cv-dlg-cuerpo { overflow-y: auto; padding: 12px 18px; display: flex; flex-direction: column; gap: 14px }
+.cs .cv-dlg-pie { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 18px; border-top: 1px solid var(--fe-linea) }
+.cs .cv-resumen { display: flex; flex-wrap: wrap; gap: 8px }
+.cs .cv-resumen span { padding: 5px 10px; border: 1px solid var(--fe-linea); font-size: 12.5px; background: var(--fe-papel, #fff) }
+.cs .cv-resumen span b { font-variant-numeric: tabular-nums }
+.cs .cv-resumen span.alerta { border-color: #E0A100; background: #FFF6D6 }
+.cs .cv-cambio td { background: #FFF6D6 }
+.cs .cv-dlg h3 { margin: 0 0 6px; font: 700 13px var(--fe-texto) }
+.cs .cv-flecha { color: var(--fe-gris) }
+@media (max-width: 760px) { .cs .cv-cifras { grid-template-columns: repeat(2, minmax(0, 1fr)) } }

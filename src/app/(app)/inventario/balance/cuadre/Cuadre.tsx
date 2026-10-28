@@ -428,6 +428,9 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
             </button>
           );
         })}
+        <button type="button" role="tab" aria-selected={false} className="bal-tab" onClick={() => start(() => router.push("/inventario/balance/carnaval/control"))}>
+          <span className="bal-tab-label">AG07 · Carnaval</span>
+        </button>
         <button type="button" role="tab" aria-selected={vista === "historico"} className={`bal-tab ${vista === "historico" ? "activa" : ""}`} onClick={() => irA("historico")}>
           <span className="bal-tab-label">Histórico</span>
           {historial.length > 0 && <span className="bal-tab-n" title="días guardados">{historial.length}</span>}
