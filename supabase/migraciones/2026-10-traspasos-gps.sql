@@ -48,6 +48,8 @@ create table if not exists public.gps_zonas (
   creado_en  timestamptz not null default now(),
   constraint gps_zonas_poligono check (jsonb_typeof(poligono) = 'array' and jsonb_array_length(poligono) >= 3)
 );
+/* El punto de Traspasos al que corresponde la zona (para cruzar con el plan y los viajes). */
+alter table public.gps_zonas add column if not exists punto text references public.traspasos_puntos(clave) on delete set null;
 create unique index if not exists gps_zonas_nombre on public.gps_zonas (lower(nombre)) where activa;
 create unique index if not exists gps_zonas_traccar on public.gps_zonas (traccar_id) where traccar_id is not null;
 

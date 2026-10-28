@@ -129,3 +129,18 @@
   .tg-lado > :not(.tg-pest) { overflow: visible }
   .tg-kpis { grid-template-columns: repeat(2, 1fr) }
 }
+
+/* ---- pestaña Plan: lo planeado contra lo que vio el GPS ---- */
+.tg-mini { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--tg-linea); border: 1px solid var(--tg-linea) }
+.tg-mini > div { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; background: #fff }
+.tg-mini b { font: 800 1.05rem Arial, sans-serif; color: var(--tg-tinta) }
+.tg-mini span { font-size: .64rem; text-transform: uppercase; letter-spacing: .05em; color: var(--tg-gris) }
+.tg-vj li > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px }
+.tg-est { margin-left: auto; padding: 2px 8px; font: 700 .64rem Arial, sans-serif; letter-spacing: .05em; text-transform: uppercase; border: 1px solid currentColor }
+.tg-est.ok { color: #1c7a4a; background: #e8f6ee }
+.tg-est.ruta { color: #7a5b00; background: #fff4cc }
+.tg-est.aviso { color: #a3262f; background: #fdeaea }
+.tg-est.nada { color: var(--tg-gris); background: #f0f2f4 }
+.tg-nueva select, .tg-punto { height: 36px; padding: 0 8px; border: 1px solid var(--tg-linea); background: #fff; font: 600 .8rem Arial, sans-serif; border-radius: 0 }
+.tg-punto { margin-top: 4px; max-width: 100%; height: 30px; font-size: .74rem }
+.tg-pest button { padding-left: 4px; padding-right: 4px }
