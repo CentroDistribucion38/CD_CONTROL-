@@ -4,7 +4,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { createClient } from "@/lib/supabase/client";
 import { porTandas } from "@/modulos/inventario/paginas";
 import { diaEfectivo, type Unidad } from "@/modulos/casco/comparar";
-import { armarTablaUbicacion, enUnidad, totalEnUnidad, type Factores, type RenglonConteo, type Sitio } from "@/modulos/casco/comparar-ubicacion";
+import { armarTablaUbicacion, estadoDe, enUnidad, totalEnUnidad, type Factores, type RenglonConteo, type Sitio } from "@/modulos/casco/comparar-ubicacion";
 import type { DatosTablaFoto } from "@/modulos/casco/foto-comparativo";
 
 /**
@@ -39,14 +39,9 @@ export function useTablaUbicacion(conteos: ConteoDia[], diaA: string, diaB: stri
   const [error, setError] = useState<string | null>(null);
   const [estado, setEstado] = useState<string | null>(null);   // null = todavía no se escogió (arranca en LAVADO si hay)
   const [soloCambios, setSoloCambios] = useState(false);
-  /* FILTRO POR CÓDIGO: se teclea uno o varios códigos (espacio o coma) o palabras del nombre; vacío = todos. Vale para la tabla y para la foto. */
-  const [busca, setBusca] = useState("");
-  const pasa = useMemo(() => {
-    const ts = sinTildeF(busca).split(/[\s,;]+/).filter(Boolean);
-    if (!ts.length) return null;
-    const soloCodigos = ts.every((x) => /^\d+$/.test(x));
-    return (r: RenglonConteo) => soloCodigos ? ts.some((x) => r.codigo.includes(x)) : ts.every((x) => r.codigo.includes(x) || sinTildeF(r.material ?? "").includes(x));
-  }, [busca]);
+  /* FILTRO POR SKU: se marcan uno o VARIOS materiales (vacío = todos). Vale para la tabla y para la foto. */
+  const [skus, setSkus] = useState<ReadonlySet<string>>(new Set());
+  const pasa = useMemo(() => (skus.size ? (r: RenglonConteo) => skus.has(r.codigo) : null), [skus]);
   const cache = useRef<Record<string, RenglonConteo[]>>({});
   const enVuelo = useRef<Record<string, Promise<RenglonConteo[]>>>({});
 
@@ -90,6 +85,18 @@ export function useTablaUbicacion(conteos: ConteoDia[], diaA: string, diaB: stri
   const listo = (!fA || !!datos[fA]) && (!fB || !!datos[fB]);
   const todosEstados = useMemo(() => armarTablaUbicacion(rA0, rB0, "", false).estados, [rA0, rB0]);
   const est = estado ?? (todosEstados.includes("LAVADO") ? "LAVADO" : "");
+  /* Los SKU que se pueden marcar: los que hay en cualquiera de los dos conteos con el estado escogido (cuántos renglones tiene cada uno). */
+  const opcionesSku = useMemo(() => {
+    const m = new Map<string, { codigo: string; material: string; n: number }>();
+    for (const r of [...rA0, ...rB0]) {
+      if (est && estadoDe(r.estado_envase) !== est) continue;
+      const x = m.get(r.codigo) ?? { codigo: r.codigo, material: r.material ?? "", n: 0 };
+      x.n++;
+      if (!x.material && r.material) x.material = r.material;
+      m.set(r.codigo, x);
+    }
+    return [...m.values()].sort((a, b) => a.codigo.localeCompare(b.codigo, "es", { numeric: true }));
+  }, [rA0, rB0, est]);
   /* La tabla se arma SIEMPRE en estibas (lo que trae el conteo); HL y cajas se calculan por material al pintar. */
   const t = useMemo(() => armarTablaUbicacion(rA, rB, est, soloCambios), [rA, rB, est, soloCambios]);
   /* Por unidad, los materiales a la vista que el maestro no trae: no se inventan, salen con «—». */
@@ -113,16 +120,91 @@ export function useTablaUbicacion(conteos: ConteoDia[], diaA: string, diaB: stri
     return {
       tabla: armarTablaUbicacion(fa, fb, e, soloCambios), fA, fB, estado: e, soloCambios, unidades, factores,
       chips: [`Unidad${unidades.length > 1 ? "es" : ""}: ${unidades.map((u) => TXT_NOMBRE[u]).join(" · ")}`, e || "Todos los estados", ...(soloCambios ? ["Solo cambios"] : []),
-        ...(busca.trim() ? [`Código: ${busca.trim()}`] : [])],
+        ...(skus.size ? [`SKU: ${[...skus].sort().join(", ")}`] : [])],
     };
-  }, [fA, fB, leer, unidades, factores, estado, soloCambios, busca, pasa]);
+  }, [fA, fB, leer, unidades, factores, estado, soloCambios, skus, pasa]);
 
-  return { fA, fB, cargando, error, listo, todosEstados, est, t, soloCambios, setEstado, setSoloCambios, cargar, hayConteos: conteos.length > 0, unidades, factores, sinFactor, busca, setBusca };
+  return { fA, fB, cargando, error, listo, todosEstados, est, t, soloCambios, setEstado, setSoloCambios, cargar, hayConteos: conteos.length > 0, unidades, factores, sinFactor, skus, setSkus, opcionesSku };
 }
 export type TablaUbDatos = ReturnType<typeof useTablaUbicacion>;
 
+/**
+ * SELECTOR DE SKU CON SELECCIÓN MÚLTIPLE (el mismo estilo del filtro de La base): un botón abre la lista de
+ * materiales con su código, nombre y cuántos renglones tiene; se escribe para buscar (varios códigos pegados
+ * juntos también valen), se marca uno por uno o «todo lo buscado», y la tabla se filtra al instante.
+ */
+function SelectorSku({ opciones, elegidos, cambiar }: { opciones: { codigo: string; material: string; n: number }[]; elegidos: ReadonlySet<string>; cambiar: (s: ReadonlySet<string>) => void }) {
+  const [abierto, setAbierto] = useState(false);
+  const [q, setQ] = useState("");
+  const caja = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!abierto) return;
+    const fuera = (e: MouseEvent) => { if (caja.current && !caja.current.contains(e.target as Node)) setAbierto(false) };
+    const tecla = (e: KeyboardEvent) => { if (e.key === "Escape") setAbierto(false) };
+    document.addEventListener("mousedown", fuera); document.addEventListener("keydown", tecla);
+    return () => { document.removeEventListener("mousedown", fuera); document.removeEventListener("keydown", tecla) };
+  }, [abierto]);
+
+  const vistos = useMemo(() => {
+    const ts = sinTildeF(q).split(/[\s,;]+/).filter(Boolean);
+    if (!ts.length) return opciones;
+    const soloCodigos = ts.every((x) => /^\d+$/.test(x));
+    return opciones.filter((o) => soloCodigos ? ts.some((x) => o.codigo.includes(x)) : ts.every((x) => o.codigo.includes(x) || sinTildeF(o.material).includes(x)));
+  }, [opciones, q]);
+  const todosVistos = vistos.length > 0 && vistos.every((o) => elegidos.has(o.codigo));
+  const alterna = (c: string) => { const n = new Set(elegidos); if (n.has(c)) n.delete(c); else n.add(c); cambiar(n) };
+  const alternaVistos = () => { const n = new Set(elegidos); if (todosVistos) vistos.forEach((o) => n.delete(o.codigo)); else vistos.forEach((o) => n.add(o.codigo)); cambiar(n) };
+  const nombreDe = (c: string) => opciones.find((o) => o.codigo === c)?.material ?? "";
+  const lista = [...elegidos].sort();
+
+  return (
+    <div className="cvx-sku" ref={caja}>
+      <button type="button" className="cvx-sku-b" data-activo={elegidos.size ? "1" : undefined} aria-expanded={abierto} aria-haspopup="dialog" onClick={() => setAbierto(!abierto)}>
+        <span aria-hidden="true" className="cvx-lupa">⌕</span>
+        {elegidos.size === 0 ? "Todos los SKU" : elegidos.size === 1 ? `SKU ${lista[0]}` : `${elegidos.size} SKU`}
+        <span aria-hidden="true" className="cvx-sku-f">▾</span>
+      </button>
+      {elegidos.size > 0 && (
+        <span className="cvx-sku-chips">
+          {lista.slice(0, 4).map((c) => (
+            <button key={c} type="button" className="cvx-chip" title={nombreDe(c) || c} onClick={() => alterna(c)} aria-label={`Quitar ${c}`}>{c}<i aria-hidden="true">×</i></button>
+          ))}
+          {lista.length > 4 && <span className="cvx-chip mas">+{lista.length - 4}</span>}
+          <button type="button" className="cvx-limpia" onClick={() => cambiar(new Set())}>Quitar todos</button>
+        </span>
+      )}
+      {abierto && (
+        <div className="cvx-sku-pop" role="dialog" aria-label="Escoger SKU">
+          <div className="cvx-sku-t">Filtrar · <b>SKU</b><span>{elegidos.size ? `${elegidos.size} marcados` : "sin filtro"}</span></div>
+          <input className="cvx-sku-q" autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Código o nombre… (puedes pegar varios códigos)"
+                 aria-label="Buscar SKU" onKeyDown={(e) => { if (e.key === "Enter") setAbierto(false) }} />
+          <div className="cvx-sku-l">
+            <label className="cvx-sku-todo">
+              <input type="checkbox" checked={todosVistos} onChange={alternaVistos} />
+              <span>(Seleccionar todo{q.trim() ? " lo buscado" : ""})</span>
+            </label>
+            {vistos.map((o) => (
+              <label key={o.codigo} data-on={elegidos.has(o.codigo) ? "1" : undefined}>
+                <input type="checkbox" checked={elegidos.has(o.codigo)} onChange={() => alterna(o.codigo)} />
+                <b>{o.codigo}</b>
+                <span>{o.material}</span>
+                <i>{o.n}</i>
+              </label>
+            ))}
+            {vistos.length === 0 && <p className="cvx-sku-vacio">{opciones.length === 0 ? "No hay materiales con este estado." : `Nada con «${q}».`}</p>}
+          </div>
+          <div className="cvx-sku-p">
+            <button type="button" className="cvx-limpia" onClick={() => cambiar(new Set())} disabled={elegidos.size === 0}>Quitar filtro</button>
+            <button type="button" className="cvx-sku-ok" onClick={() => setAbierto(false)}>Listo</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function TablaUbicacion({ tab }: { tab: TablaUbDatos }) {
-  const { fA, fB, cargando, error, listo, todosEstados, est, t, soloCambios, setEstado, setSoloCambios, hayConteos, unidades, factores, sinFactor, busca, setBusca } = tab;
+  const { fA, fB, cargando, error, listo, todosEstados, est, t, soloCambios, setEstado, setSoloCambios, hayConteos, unidades, factores, sinFactor, skus, setSkus, opcionesSku } = tab;
   const cel = (u: Unidad, v: number | null) => (v == null ? "—" : Math.abs(v) < 0.0005 ? "" : nfs[u].format(v));
   const dif = (u: Unidad, v: number | null) => (v == null ? "—" : Math.abs(v) < 0.0005 ? "0" : (v > 0 ? "" : "-") + nfs[u].format(Math.abs(v)));
   const cls = (v: number | null) => "cvx-d " + (v != null && v > 0.0005 ? "sube" : "bien");
@@ -143,14 +225,7 @@ export function TablaUbicacion({ tab }: { tab: TablaUbDatos }) {
               {todosEstados.map((e) => <option key={e} value={e}>{e}</option>)}
             </select>
           </label>
-          <label className="cvx-campo cvx-cod" data-activo={busca.trim() ? "1" : undefined}>
-            <span className="cvx-sr">Código</span>
-            <span className="cvx-cod-caja">
-              <span aria-hidden="true" className="cvx-lupa">⌕</span>
-              <input type="search" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Código: 3500005 3500162… o parte del nombre" aria-label="Filtrar por código o nombre" />
-              {busca && <button type="button" onClick={() => setBusca("")} aria-label="Quitar el filtro de código">×</button>}
-            </span>
-          </label>
+          <SelectorSku opciones={opcionesSku} elegidos={skus} cambiar={setSkus} />
           <button type="button" className="cvx-solo" aria-pressed={soloCambios} onClick={() => setSoloCambios(!soloCambios)}>Solo cambios</button>
         </div>
       </header>
