@@ -455,6 +455,8 @@ export const MODULOS: Modulo[] = [
          pantalla. */
       { nombre: "Facturación", ruta: "/traspasos/facturacion" },
       { nombre: "Control", ruta: "/traspasos/control" },
+      /* TIEMPOS GPS: el mapa de los vehículos con sus zonas (Fábrica, Bodega 38, Arenosa…); se mira después de Control. */
+      { nombre: "Tiempos GPS", ruta: "/traspasos/tiempos-gps" },
       /* IMPORTAR VA DESPUÉS DE CONTROL Y ANTES DEL MAESTRO, porque ese
          es el orden del proceso: se planea, se registra lo que sale, se
          mira si se cumplió el plan, y al final del día se sube el corte
