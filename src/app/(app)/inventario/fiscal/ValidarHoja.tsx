@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { traducirError } from "@/lib/errores";
 import type { FilaCruce } from "@/modulos/inventario/fiscal-cruce";
 import { useConfirmar } from "@/components/Confirmar";
+import { SelectorMulti } from "@/components/SelectorMulti";
 
 /* ===================================================================
    VALIDAR Y APROBAR LAS UBICACIONES DE UNA HOJA (lo hace el fiscal)
@@ -60,7 +61,9 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
   const sel = selExt ?? selInt;
   const setSel = (v: Set<string> | ((s: Set<string>) => Set<string>)) => { const n = typeof v === "function" ? v(sel) : v; if (onSelExt) onSelExt(n); else setSelInt(n) };
   const [nota, setNota] = useState("");
-  const [todas, setTodas] = useState(false);
+  /* Qué se ve: lo que hay por resolver (lo normal), o las compensadas / las que coinciden / las aprobadas / todas. Más el filtro de SKU. */
+  const [vista, setVista] = useState<"resolver" | "compensadas" | "coinciden" | "aprobadas" | "todas">("resolver");
+  const [fSku, setFSku] = useState<ReadonlySet<string>>(new Set());
   const [ocupado, setOcupado] = useState(false);
   const [mal, setMal] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
@@ -149,8 +152,38 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
   /* SOLO LO QUE DIFIERE: lo aprobado, lo compensado y lo que coincide queda recogido (se ve con el botón de abajo),
      para no enredarse. Lo compensado se aprueba con su propio botón verde. */
   const porDecidir = (u: Ub) => ["difiere", "validando", "respondida"].includes(estado(u));
-  const visibles = ubs.filter((u) => todas || porDecidir(u));
+  const pasaVista = (u: Ub) => vista === "todas" || (vista === "resolver" ? porDecidir(u) : vista === "compensadas" ? estado(u) === "compensada" : vista === "coinciden" ? estado(u) === "coincide" : estado(u) === "aprobada");
+  const filasPorMod = useMemo(() => {
+    const m = new Map<string, FilaCruce[]>();
+    for (const f of filas) { const k = moduloDe(f.ubicacion); const a = m.get(k); if (a) a.push(f); else m.set(k, [f]) }
+    return m;
+  }, [filas]);
+  const pasaSku = (u: Ub) => fSku.size === 0 || (filasPorMod.get(u.clave) ?? []).some((f) => fSku.has(f.sku));
+  const visibles = ubs.filter((u) => pasaVista(u) && pasaSku(u));
   const nOtras = ubs.filter((u) => !porDecidir(u)).length;
+  /* Los SKU que se pueden marcar: los de los módulos de esta vista, con cuántos renglones tiene cada uno. */
+  const opcionesSku = useMemo(() => {
+    const m = new Map<string, { clave: string; detalle: string; n: number }>();
+    for (const u of ubs) {
+      if (!pasaVista(u)) continue;
+      for (const f of filasPorMod.get(u.clave) ?? []) {
+        const x = m.get(f.sku) ?? { clave: f.sku, detalle: f.material, n: 0 };
+        x.n++; m.set(f.sku, x);
+      }
+    }
+    return [...m.values()].sort((a, b) => a.clave.localeCompare(b.clave, "es", { numeric: true }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ubs, filasPorMod, vista]);
+  /* Los renglones que se ven dentro de cada módulo: con SKU marcado, los de esos SKU; si no, solo los que difieren (o están compensados). */
+  const renglonesDe = (u: Ub): FilaCruce[] => {
+    const fs = filasPorMod.get(u.clave) ?? [];
+    if (fSku.size) return fs.filter((f) => fSku.has(f.sku));
+    if (vista === "coinciden" || vista === "aprobadas") return [];
+    if (vista === "compensadas") return fs.filter((f) => f.compensada);
+    return fs.filter((f) => f.estado !== "COINCIDE" || f.compensada);
+  };
+  const nRenglonesVistos = fSku.size ? visibles.reduce((t, u) => t + renglonesDe(u).length, 0) : 0;
+  const visiblesAprobables = visibles.filter((u) => estado(u) !== "aprobada" && u.id);
   const compensadas = ubs.filter((u) => estado(u) === "compensada");
   const coincidenSinAprobar = ubs.filter((u) => estado(u) === "coincide");
   const marcadas = ubs.filter((u) => sel.has(u.clave));
@@ -457,6 +490,19 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
         .vv .vv-sig select{padding:3px 6px;font-size:.78rem;min-height:0}
         .vv .vv-sig .vv-acc{display:flex;gap:6px;align-items:center;margin-left:auto}
         .vv .vv-base{border-left:3px solid #0b7a3e}
+        .vv .vv-filtros{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px;border-bottom:1px solid rgba(127,127,127,.25)}
+        .vv .vv-q{min-height:38px;padding:0 12px;border:1px solid rgba(127,127,127,.45);background:#fff;color:#111;border-radius:0;font:600 .8rem Arial,sans-serif;cursor:pointer}
+        .vv .vv-q.on{background:#ffc20e;border-color:#ffc20e;font-weight:800}
+        .vv .vv-sep{width:10px}
+        .vv .vv-res{display:flex;flex-wrap:wrap;gap:8px 16px;justify-content:space-between;align-items:center;padding:10px 12px;background:#fff7d6;border-bottom:1px solid #ffc20e;font-size:.8rem}
+        .vv .vv-res-b{display:inline-flex;gap:8px;flex-wrap:wrap}
+        .vv .vv-rg{flex-basis:100%;width:100%;border-collapse:collapse;margin:6px 0 2px;font-size:.78rem}
+        .vv .vv-rg th{background:#111;color:#fff;font:700 .66rem Arial,sans-serif;letter-spacing:.06em;text-transform:uppercase;text-align:left;padding:6px 8px}
+        .vv .vv-rg td{padding:6px 8px;border-bottom:1px solid rgba(127,127,127,.2)}
+        .vv .vv-rg .n{text-align:right;font-variant-numeric:tabular-nums}
+        .vv .vv-rg .d{font-weight:800}
+        .vv .vv-rg tr.dif .d{color:#b71c1c}
+        .vv .vv-rg tr.comp .d,.vv .vv-rg tr.ok .d{color:#0b7a3e}
         .vv .cl-nota{font-size:.74rem;margin:4px 12px}
         .vv .vv-detalle>summary{cursor:pointer;padding:8px 12px;font-size:.8rem;list-style:none;border-bottom:1px solid rgba(127,127,127,.25)}
         .vv .vv-detalle>summary::-webkit-details-marker{display:none}
@@ -603,7 +649,30 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
           ✓ Aprobar todo con lo último ({pendientes.length})
         </button>
       )}
-      <details className="vv-detalle" open={hayAbierto || todas}>
+      <div className="vv-filtros" role="group" aria-label="Qué ver">
+        {([["resolver", "Por resolver", ubs.filter(porDecidir).length], ["compensadas", "Compensadas", compensadas.length], ["coinciden", "Coinciden", coincidenSinAprobar.length], ["aprobadas", "Aprobadas", nAprobadas], ["todas", "Todas", ubs.length]] as const)
+          .filter(([k, , n]) => k === "resolver" || k === "todas" || n > 0 || vista === k)
+          .map(([k, et, n]) => (
+            <button key={k} type="button" className={"vv-q" + (vista === k ? " on" : "")} aria-pressed={vista === k} onClick={() => setVista(k)}>{et} · {n}</button>
+          ))}
+        <span className="vv-sep" aria-hidden="true" />
+        <SelectorMulti titulo="SKU" todos="Todos los SKU" unidad="SKU" opciones={opcionesSku} elegidos={fSku} cambiar={setFSku} />
+        {(fSku.size > 0 || vista !== "resolver") && <button type="button" className="smx-lim" onClick={() => { setFSku(new Set()); setVista("resolver") }}>Quitar filtros</button>}
+      </div>
+      {fSku.size > 0 && (
+        <div className="vv-res" role="status">
+          <span>Mostrando <b>{nRenglonesVistos} {nRenglonesVistos === 1 ? "renglón" : "renglones"}</b> de <b>{fSku.size} SKU</b> en <b>{visibles.length} {visibles.length === 1 ? "módulo" : "módulos"}</b>. Aprobar y recontar siguen siendo por módulo completo.</span>
+          {puedeEditar && visiblesAprobables.length > 0 && (
+            <span className="vv-res-b">
+              <button type="button" className="btn plano" onClick={() => setSel(new Set(visiblesAprobables.map((u) => u.clave)))}>Marcar los {visiblesAprobables.length} visibles</button>
+              <button type="button" className="btn" disabled={ocupado} onClick={() => aprobar(visiblesAprobables, false, null)} style={{ background: "#0b7a3e", color: "#fff", borderColor: "#0b7a3e" }}>
+                ✓ Aprobar los {visiblesAprobables.length} módulos visibles
+              </button>
+            </span>
+          )}
+        </div>
+      )}
+      <details className="vv-detalle" open={hayAbierto || vista !== "resolver" || fSku.size > 0}>
         <summary>{hayAbierto ? "Ubicaciones por resolver" : `Ver las ${nAprobadas} ${nAprobadas === 1 ? "ubicación aprobada" : "ubicaciones aprobadas"}`}</summary>
       <ul className="vv-lista">
         {visibles.map((u) => {
@@ -622,6 +691,23 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
                 <small className="vv-resp">Aprobado dando por compensadas las diferencias iguales y contrarias del módulo</small>
               )}
               {u.rev?.estado === "A_VALIDAR" && u.rev.nota && <small className="vv-resp">Nota: {u.rev.nota}</small>}
+              {renglonesDe(u).length > 0 && (
+                <table className="vv-rg" aria-label={`Renglones de ${u.clave}`}>
+                  <thead><tr><th>SKU</th><th>Material</th><th>Ubicación</th><th className="n">{ol || "Operador"}</th><th className="n">{bavaria || "Bavaria"}</th><th className="n">Diferencia</th></tr></thead>
+                  <tbody>
+                    {renglonesDe(u).map((f, i) => (
+                      <tr key={i} className={f.compensada ? "comp" : f.estado === "COINCIDE" ? "ok" : "dif"}>
+                        <td><b>{f.sku}</b></td>
+                        <td>{f.material}{[f.estadoEnvase, f.averia && "AVERÍA", f.pnc && "PNC"].filter(Boolean).length > 0 ? ` · ${[f.estadoEnvase, f.averia && "AVERÍA", f.pnc && "PNC"].filter(Boolean).join(" · ")}` : ""}</td>
+                        <td>{f.ubicacion.replace(/_/g, " ")}</td>
+                        <td className="n">{f.cajasOl ?? "—"}</td>
+                        <td className="n">{f.cajasBavaria ?? "—"}</td>
+                        <td className="n d">{f.compensada ? "✓ " : ""}{f.diferencia > 0 ? "+" : f.diferencia < 0 ? "−" : ""}{Math.abs(f.diferencia)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
               {marcasDe(u.clave).map((m) => (
                 <small key={m.ubicacion + m.equipo} className="vv-resp vv-marca">
                   <b>{m.sin_acceso ? "SIN ACCESO" : "MEZCLADO"}</b> · {m.equipo === "OL" ? (ol || "Operador") : (bavaria || "Bavaria")}
@@ -631,15 +717,10 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
             </li>
           );
         })}
-        {visibles.length === 0 && <li className="vv-fila"><span>{nOtras > 0 ? "Nada difiere: lo demás está compensado, aprobado o coincide." : "Todas las ubicaciones coinciden."}</span></li>}
+        {visibles.length === 0 && <li className="vv-fila"><span>{fSku.size > 0 ? "Ningún módulo de esta vista tiene esos SKU." : vista !== "resolver" ? "No hay ubicaciones en esta vista." : nOtras > 0 ? "Nada difiere: lo demás está compensado, aprobado o coincide." : "Todas las ubicaciones coinciden."}</span></li>}
       </ul>
       </details>
       {caja}
-      {nOtras > 0 && (
-        <button type="button" className="btn plano vv-todas" aria-pressed={todas} onClick={() => setTodas(!todas)}>
-          {todas ? "Ocultar las que no difieren" : `Ver también las ${nOtras} que no difieren (compensadas, aprobadas o que coinciden)`}
-        </button>
-      )}
     </div>
   );
 }
