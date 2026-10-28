@@ -1,4 +1,7 @@
-import { areaM2, puntoEnPoligono, type Punto } from "./geo";
+import { areaM2, distanciaAPoligonoM, puntoEnPoligono, type Punto } from "./geo";
+
+/** Para SALIR de una zona hay que alejarse de su borde más de esto: el GPS «baila» unos metros y sin este margen una sola lectura mala cerraba la visita y abría otra. */
+export const HISTERESIS_SALIDA_M = 25;
 
 /**
  * EL MOTOR DE ZONAS — sin pantalla y sin base de datos.
@@ -38,7 +41,12 @@ export function procesarPosiciones(zonas: Zona[], previos: EstadoVehiculo[], pos
     /* Lo que ya se procesó no se repite. */
     if (e.fixEn && p.en <= e.fixEn) { estados.set(p.vehiculo, e); continue }
     const z = zonaDe([p.lat, p.lng], zonas);
-    const nueva = z?.id ?? null;
+    let nueva = z?.id ?? null;
+    /* Sigue «adentro» de la zona en que estaba si apenas se asomó por el borde (ruido del GPS). */
+    if (!nueva && e.zonaId) {
+      const anterior = zonas.find((x) => x.id === e.zonaId);
+      if (anterior && distanciaAPoligonoM([p.lat, p.lng], anterior.poligono) <= HISTERESIS_SALIDA_M) nueva = e.zonaId;
+    }
     if (nueva !== e.zonaId) {
       if (e.zonaId) eventos.push({ vehiculo: p.vehiculo, zonaId: e.zonaId, tipo: "sale", en: p.en });
       if (nueva) eventos.push({ vehiculo: p.vehiculo, zonaId: nueva, tipo: "entra", en: p.en });

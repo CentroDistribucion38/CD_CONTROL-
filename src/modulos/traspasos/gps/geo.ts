@@ -130,3 +130,18 @@ export function cuadradoEn(c: Punto, ladoM = 120): Punto[] {
   const dLat = mitad / 111_320, dLng = mitad / (111_320 * Math.cos((c[0] * Math.PI) / 180));
   return [[c[0] + dLat, c[1] - dLng], [c[0] + dLat, c[1] + dLng], [c[0] - dLat, c[1] + dLng], [c[0] - dLat, c[1] - dLng]];
 }
+
+/** Distancia en metros del punto al borde del polígono (0 si está adentro). */
+export function distanciaAPoligonoM(p: Punto, poli: Punto[]): number {
+  if (puntoEnPoligono(p, poli)) return 0;
+  const ky = 110_540, kx = 111_320 * Math.cos((p[0] * Math.PI) / 180);
+  const xy = (q: Punto): [number, number] => [(q[1] - p[1]) * kx, (q[0] - p[0]) * ky];
+  let mejor = Infinity;
+  for (let i = 0, j = poli.length - 1; i < poli.length; j = i++) {
+    const [ax, ay] = xy(poli[j]), [bx, by] = xy(poli[i]);
+    const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
+    const t = l2 === 0 ? 0 : Math.max(0, Math.min(1, (-ax * dx - ay * dy) / l2));
+    mejor = Math.min(mejor, Math.hypot(ax + t * dx, ay + t * dy));
+  }
+  return mejor;
+}

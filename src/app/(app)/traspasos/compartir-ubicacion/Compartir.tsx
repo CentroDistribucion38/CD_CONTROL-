@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
    aplicación, el navegador pausa el GPS y se deja de reportar).
    =================================================================== */
 const CADA_MS = 10_000;
+const PRECISION_MAX_M = 50;   // igual que en el servidor: con más error no se puede decir en qué zona está
 type Fix = { lat: number; lng: number; precision: number; velocidad: number | null; rumbo: number | null; en: number };
 type Ultimo = { hora: string; zona: string | null; precision: number };
 
@@ -44,6 +45,7 @@ export function Compartir() {
   const mandar = useCallback(async () => {
     const f = fixRef.current;
     if (!f || f.en === enviadoRef.current) return;
+    if (f.precision > PRECISION_MAX_M) { setAviso(`Tu ubicación tiene ±${Math.round(f.precision)} m de error: todavía no sirve. Usa el celular con el GPS encendido (un computador no alcanza) y sal a un sitio abierto.`); return }
     enviadoRef.current = f.en;
     const r = await fetch("/api/traspasos/gps/celular", {
       method: "POST", headers: { "Content-Type": "application/json" },

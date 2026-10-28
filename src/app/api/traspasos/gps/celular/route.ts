@@ -15,7 +15,8 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 const PANTALLA = "/traspasos/compartir-ubicacion";
-const PRECISION_MAX_M = 200;
+/* Una lectura con más error que esto no sirve para decir en qué zona está: se descarta. Los celulares con GPS dan 5-20 m; un computador o un celular sin GPS (por Wi-Fi o por la antena) da 100 m a varios km. */
+const PRECISION_MAX_M = 50;
 
 export async function POST(req: Request) {
   const supabase = await createClient();
@@ -31,7 +32,7 @@ export async function POST(req: Request) {
   if (!placaValida(placa)) return NextResponse.json({ error: "Escribe la placa del vehículo (ej. ABC123)." }, { status: 400 });
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return NextResponse.json({ error: "Ubicación inválida." }, { status: 400 });
   const precision = Number(c.precision);
-  if (Number.isFinite(precision) && precision > PRECISION_MAX_M) return NextResponse.json({ ok: false, debil: true, error: `Señal débil (±${Math.round(precision)} m). Espera a tener mejor GPS.` });
+  if (!Number.isFinite(precision) || precision > PRECISION_MAX_M) return NextResponse.json({ ok: false, debil: true, error: `La ubicación tiene ±${Math.round(precision)} m de error y no sirve para marcar zonas. Usa el celular con el GPS encendido (no un computador) y sal a un sitio abierto.` });
 
   const db = clienteDeServicio();
   if (!db) return NextResponse.json({ error: "Falta SUPABASE_SERVICE_ROLE_KEY en Vercel." }, { status: 503 });
