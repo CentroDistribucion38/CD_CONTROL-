@@ -8,7 +8,8 @@ import { diaColombia } from "@/modulos/inventario/corte";
 import { leerPaleta } from "../informe";
 import { Ico, VistaFiscal } from "../fiscal/PanelFiscal";
 import type { FiscalBD, Persona } from "../fiscal/Fiscal";
-import { agrupar, fechaConDia, textoCuando } from "@/modulos/inventario/fiscal";
+import { fechaConDia, separarHistorial, textoCuando } from "@/modulos/inventario/fiscal";
+import { SelectorInventario } from "../fiscal/SelectorInventario";
 import {
   conteoDesdeBD, estadoHoja, cruceModulo, filaDesdeBD, ordenarCruce, puedeCruzar,
   type ConteoPersona, type ConteoPersonaBD, type FilaCruce, type FilaCruceBD,
@@ -47,16 +48,18 @@ function cruceParcial(l: BdLinea[]): FilaCruce[] {
    diferencias, y el Excel del cruce de todas las hojas.
    Aquí no se arma ni se edita nada: eso es del Plan.
    =================================================================== */
-export function Control({ personas, fiscales, conCruce, ahora, puedeEditar }: {
+export function Control({ personas, fiscales, conCruce, ahora, puedeEditar, modo = "control" }: {
   personas: Persona[]; fiscales: FiscalBD[]; conCruce: boolean; ahora: string; puedeEditar: boolean;
+  /** «control» = lo vigente; «historial» = los inventarios que ya pasaron (mismo detalle, con selector y buscador). */
+  modo?: "control" | "historial";
 }) {
   const hoy = diaColombia(ahora);
   const [mal, setMal] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [armando, setArmando] = useState<string | null>(null);
   const nombre = useMemo(() => new Map(personas.map((p) => [p.id, p.nombre])), [personas]);
-  const { proximos, anteriores } = useMemo(() => agrupar(fiscales, hoy), [fiscales, hoy]);
-  const todos = useMemo(() => [...proximos, ...anteriores], [proximos, anteriores]);
+  const { vigentes, historial } = useMemo(() => separarHistorial(fiscales, hoy), [fiscales, hoy]);
+  const todos = modo === "historial" ? historial : vigentes;
   const [selId, setSelId] = useState<string | null>(null);
   const sel = todos.find((f) => f.id === selId) ?? todos[0] ?? null;
 
@@ -192,16 +195,17 @@ export function Control({ personas, fiscales, conCruce, ahora, puedeEditar }: {
       {fiscales.length === 0 && (
         <p className="fe-vacio">Todavía no hay ningún inventario fiscal. Se arma en el <Link href="/inventario/fiscal">Plan fiscal</Link>.</p>
       )}
-      {todos.length > 1 && (
-        <div className="vf-sel" role="group" aria-label="Inventarios fiscales">
-          {todos.map((f) => (
-            <button type="button" key={f.id} className="vf-sel-b" aria-pressed={sel?.id === f.id} onClick={() => setSelId(f.id)}>
-              {f.nombre}<small>{fechaConDia(f.fecha)} · {textoCuando(hoy, f.fecha)}</small>
-            </button>
-          ))}
-        </div>
+      {modo === "historial" && fiscales.length > 0 && historial.length === 0 && (
+        <p className="fe-vacio">Todavía no hay inventarios fiscales anteriores. Cuando pasen unos días, el Control fiscal los manda aquí.</p>
+      )}
+      {(modo === "historial" ? todos.length > 0 : todos.length > 1) && (
+        <SelectorInventario actual={sel?.id ?? null} escoger={setSelId}
+          items={todos.map((f) => ({ id: f.id, nombre: f.nombre, fecha: fechaConDia(f.fecha), cuando: textoCuando(hoy, f.fecha), abierto: f.estado === "abierto" }))} />
       )}
       {sel && vista(sel)}
+      {modo === "control" && historial.length > 0 && (
+        <p className="cl-nota" role="note">Los inventarios anteriores ({historial.length}) están en el <Link href="/inventario/historial-fiscal">Historial fiscal</Link>.</p>
+      )}
       {!conCruce && (
         <details className="fi-avisos">
           <summary>Avisos (1)</summary>

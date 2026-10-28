@@ -692,6 +692,8 @@ export const MODULOS: Modulo[] = [
       /* EL FISCAL ES UN GRUPO, como Pasivos dentro del Balance: el Plan (se arma) y el Control (se sigue y se revisa). */
       { nombre: "Plan fiscal", ruta: "/inventario/fiscal", rama: "conteos", grupo: "Fiscal" },
       { nombre: "Control fiscal", ruta: "/inventario/control-fiscal", rama: "conteos", grupo: "Fiscal" },
+      /* Lo vigente se sigue en el Control; lo que ya pasó se consulta aquí. */
+      { nombre: "Historial fiscal", ruta: "/inventario/historial-fiscal", rama: "conteos", grupo: "Fiscal" },
       { nombre: "Corte de líneas", ruta: "/inventario/corte", rama: "conteos" },
       /* CONTAR LLEVA DOS CONTEOS: el FEFO diario y la hoja del inventario fiscal
          (esta última solo a quien el plan le asignó una). */

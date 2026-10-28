@@ -169,6 +169,23 @@ export function nombreAuto(f: string): string {
 }
 
 /** Los que vienen (de hoy en adelante, el más cercano primero) y los que ya pasaron (el más reciente primero). */
+/** Hasta cuántos días atrás un inventario fiscal sigue en el Control fiscal; lo más viejo pasa al Historial fiscal. */
+export const DIAS_EN_CONTROL = 2;
+
+/**
+ * CONTROL FISCAL vs HISTORIAL FISCAL: el Control solo muestra lo vigente (de hoy, futuro o de los últimos días);
+ * lo que ya pasó se consulta en el Historial. Si no hay nada vigente se deja el más reciente en el Control,
+ * para que la pantalla nunca quede vacía teniendo inventarios.
+ */
+export function separarHistorial<T extends { fecha: string }>(lista: T[], hoy: string): { vigentes: T[]; historial: T[] } {
+  const desde = sumarDias(hoy, -DIAS_EN_CONTROL);
+  const orden = [...lista].sort((a, b) => b.fecha.localeCompare(a.fecha));
+  let vigentes = orden.filter((x) => x.fecha >= desde);
+  if (vigentes.length === 0 && orden.length > 0) vigentes = [orden[0]];
+  const ids = new Set(vigentes);
+  return { vigentes, historial: orden.filter((x) => !ids.has(x)) };
+}
+
 export function agrupar<T extends { fecha: string }>(lista: T[], hoy: string): { proximos: T[]; anteriores: T[] } {
   return {
     proximos: lista.filter((x) => x.fecha >= hoy).sort((a, b) => a.fecha.localeCompare(b.fecha)),
