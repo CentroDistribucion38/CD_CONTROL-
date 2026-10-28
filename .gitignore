@@ -24,3 +24,10 @@ next-env.d.ts
 # «../../comunes» desde su sitio de antes, aquí esa ruta ya no existe, y
 # Vercel se cayó con «Cannot find module» en un archivo que ya nadie usa.
 _to_delete/
+
+# Borradores de Claude: solo los .sql se guardan
+Claude outputs/*.ts
+Claude outputs/*.tsx
+Claude outputs/*.css
+Claude outputs/*.xlsx
+/Baja_plantilla_*.xlsx
