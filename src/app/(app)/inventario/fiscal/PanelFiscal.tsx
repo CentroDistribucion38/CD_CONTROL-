@@ -3,6 +3,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { traducirError } from "@/lib/errores";
+import { useConfirmar } from "@/components/Confirmar";
 import {
   avanceDesdeBD, estadoHoja, cruceModulo, compensarCruce, marcasDeFila, filaDesdeBD, ordenarCruce, puedeCruzar, unaSolaTermino, resumenCruce, textoEquipo, textoVenc, titularCruce, TEXTO_FILA,
   type AvanceBD, type AvanceHoja, type FilaCruce, type FilaCruceBD, type ResumenCruce,
@@ -281,6 +282,23 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
     await cargar();
     return null;
   }
+  const [pedir, dialogo] = useConfirmar();
+  /** Reabrir una hoja ya cerrada (la que se cerró de más): las dos personas pueden volver a contar y el fiscal, a revisar. */
+  async function reabrirCerrada(n: number) {
+    const id = hojaIds[n];
+    if (!id) { setCierreMsg("No se pudo identificar la hoja."); return }
+    const ok = await pedir({
+      titulo: `¿Reabrir la hoja ${n}?`,
+      dice: <>La hoja deja de estar cerrada: las dos personas pueden volver a contar y tú vuelves a revisar y aprobar. Lo que ya bajó a La base no se borra; al cerrarla otra vez se pone de nuevo con lo aprobado.</>,
+      confirmar: "Reabrir hoja", cancelar: "Cancelar",
+    });
+    if (!ok) return;
+    setCierreMsg(null);
+    const { error } = await createClient().rpc("inv_fiscal_reabrir_hoja", { p_hoja: id });
+    if (error) { setCierreMsg(/inv_fiscal_reabrir_hoja|schema cache|does not exist|no existe la funci/i.test(error.message) ? "Falta correr 2026-10-fiscal-TODO.sql en Supabase." : traducirError(error.message)); return }
+    setCierreMsg(`Hoja ${n} reabierta: las dos personas pueden volver a contar.`);
+    await cargar();
+  }
   const pidieronHoja = (n: number) => reaps.filter((x) => x.numero === n && x.pedido_en && !x.autorizado_en).length;
   /** Terminar el corte fiscal: cierra de una vez todas las hojas que ya tienen todo aprobado. */
   const [cierre, setCierre] = useState<"" | "conf" | "ocupado">("");
@@ -322,6 +340,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
 
   return (
     <section className="vf" aria-label={`Inventario fiscal ${nombre}`}>
+      {dialogo}
       {/* Todo recto en el control fiscal: nada ovalado ni con esquinas redondeadas. */}
       <style>{`
         .vf, .vf *, .vf *::before, .vf *::after, .vvc-velo, .vvc-velo *{border-radius:0 !important}
@@ -475,6 +494,11 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                         </div>
                       )}
                       {t.cr && "error" in t.cr && <p className="cl-mal" role="alert">{t.cr.error}</p>}
+                      {puedeEditar && !!cerradas[t.h.numero] && (
+                        <button type="button" className="btn plano vf-ver" onClick={() => void reabrirCerrada(t.h.numero)}>
+                          <Ico n="campana" tam={16} /> Reabrir hoja
+                        </button>
+                      )}
                       {(t.tipo === "ok" || t.tipo === "dif") && (
                         <button type="button" className={"btn vf-ver " + (t.tipo === "dif" ? "rojo" : "plano")} onClick={() => abrirRevision(t.h.numero)}>
                           <Ico n={t.tipo === "dif" ? "alerta" : "lista"} tam={16} /> {t.tipo === "dif" ? "Ver diferencias" : "Ver el cruce"}

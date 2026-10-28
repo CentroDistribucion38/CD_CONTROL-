@@ -56,6 +56,8 @@ export type HojaCruzada = {
   olTermino?: string | null; bavariaTermino?: string | null;
   /** Módulos marcados como mezclados o sin acceso por quienes contaron. */
   marcas?: MarcaModuloLibro[] | null;
+  /** Lo que el fiscal decidió de cada módulo (por clave sin _IZQ/_DER): «Compensada por el fiscal», «Aprobada con lo de Bavaria»… Sin entrada = sin resolver. */
+  resolucion?: Record<string, string> | null;
 };
 
 export type InsumosCruce = {
@@ -404,12 +406,15 @@ export async function armarCruceFiscal(o: InsumosCruce): Promise<ArrayBuffer> {
 
   /* =================== DIFERENCIAS =================== */
   const FC = ["Hoja", "Pareja (operador · Bavaria)", "Estado del cruce", "Sitio", "Código", "Material", "Vence", "Cajas operador", "Cajas Bavaria", "Diferencia (operador − Bavaria)", "Quién contó más",
-    "Causa técnica", "Qué pasó exactamente", "Qué revisar"];
-  const FA = [2, 7, 34, 17, 18, 11, 38, 13, 13, 13, 17, 22, 28, 70, 52, 2];
+    "Causa técnica", "Qué pasó exactamente", "Qué revisar", "Resolución del fiscal"];
+  const FA = [2, 7, 34, 17, 18, 11, 38, 13, 13, 13, 17, 22, 28, 70, 52, 28, 2];
+  /* Este cruce es el CRUDO (lo que anotó cada persona): lo que el fiscal compensó o aprobó sigue apareciendo como diferencia, pero esta columna dice qué se decidió. */
+  const resDe = (h: HojaCruzada, ubic: string) => h.resolucion?.[ubic.replace(/_(IZQ|DER)$/i, "")] ?? "Sin resolver";
+  const resueltas = mal.filter(({ h, f }) => resDe(h, f.ubicacion) !== "Sin resolver").length;
   df.columns = FA.map((w) => ({ width: w }));
-  cabecera(df, P, sello, "Lo que no coincide · lo más grande primero", `${sub}  ·  ${mal.length} ${mal.length === 1 ? "renglón" : "renglones"}`, FA.length);
+  cabecera(df, P, sello, "Lo que no coincide · lo más grande primero", `${sub}  ·  ${mal.length} ${mal.length === 1 ? "renglón" : "renglones"}${resueltas ? `  ·  ${resueltas} ya resuelto${resueltas === 1 ? "" : "s"} por el fiscal (ver la última columna)` : ""}`, FA.length);
   const FF0 = FF_ROW0;
-  leyenda(df, 15);
+  leyenda(df, 16);
   encabezado(df, FF0, P, FC);
   const lineas = (t: string, ancho: number) => Math.max(1, Math.ceil(t.length / ancho));
   mal.forEach(({ h, f }, i) => {
@@ -418,7 +423,7 @@ export async function armarCruceFiscal(o: InsumosCruce): Promise<ArrayBuffer> {
     const c = causa.get(f);
     row.height = Math.max(22, 14 * Math.max(lineas(c?.detalle ?? "", 74), lineas(c?.revisar ?? "", 54)) + 8);
     [h.numero, pareja(h), TEXTO_FILA[f.estado], f.ubicacion, f.sku, marcasDeFila(f) ? `${f.material} · ${marcasDeFila(f)}` : f.material, textoVenc(f.vencDia, f.vencMes, f.vencAnio), f.cajasOl, f.cajasBavaria, f.diferencia, quien,
-      c?.etiqueta ?? "", c?.detalle ?? "", c?.revisar ?? ""]
+      c?.etiqueta ?? "", c?.detalle ?? "", c?.revisar ?? "", resDe(h, f.ubicacion)]
       .forEach((v, k) => {
         const x = row.getCell(2 + k); x.value = v;
         celda(x, P, i % 2 === 1, { num: k >= 7 && k <= 9, centro: k === 0 || k === 2 || k === 6 || k === 10, fmt: k === 9 ? DIF : k === 7 || k === 8 ? NF : undefined, negrita: k === 4 || k === 11 });
@@ -426,6 +431,8 @@ export async function armarCruceFiscal(o: InsumosCruce): Promise<ArrayBuffer> {
       });
     const e = row.getCell(4); e.fill = relleno(COLOR_ESTADO[f.estado]); e.font = letra(9, BLANCO, true);
     const ce = row.getCell(13); ce.font = letra(10, P.TINTA, true);
+    const rf = row.getCell(16), sin = resDe(h, f.ubicacion) === "Sin resolver";
+    rf.font = letra(10, sin ? ROJO : VERDE, true);
   });
   if (mal.length === 0) {
     df.mergeCells(FF0 + 1, 2, FF0 + 1, 12);
