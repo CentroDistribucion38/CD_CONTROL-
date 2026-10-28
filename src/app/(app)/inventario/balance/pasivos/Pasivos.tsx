@@ -275,7 +275,7 @@ export function Pasivos({ filas, error, desde, hasta, dias, diasConteo, codigos,
         <div className="pas-entradas">
           <div className="pas-caja">
             <h3>Traer del balance</h3>
-            <p>Las hojas Baja/Lavado/Extrasucio de Fábrica y Bodega 38 del día escogido, más lo bloqueado contado en las calles EXPORTACION (AG17) y BTS (AG16), en unidades. Si ya se había traído ese día, se reemplaza.</p>
+            <p>Las hojas Baja/Lavado/Extrasucio de Fábrica y Bodega 38 del día escogido, en unidades. Si ya se había traído ese día, se reemplaza.</p>
             <div className="pas-fila">
               <div className="sd bal-cal">
                 <Rango rotulo="Día del balance" desde={diaBal} hasta={diaBal}

@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { todas } from "@/modulos/inventario/paginas";
-import { balanceDelDia, consolidadoDelDia, diasConConteo, normEstado, type FilaBalance } from "@/modulos/inventario/balance";
+import { balanceDelDia, type FilaBalance } from "@/modulos/inventario/balance";
 import { esDueno, pendientePorSku } from "@/modulos/inventario/duenos";
 import { esExcluido, excluye, type ReglaExcluidos } from "@/modulos/pasivos/excluidos";
 import { leerExcluidos } from "@/modulos/pasivos/excluidos-leer";
@@ -78,64 +78,10 @@ export function filasDeBalance(fecha: string, detalle: FilaBalance[], regla?: Re
   return { filas, sinFactor: [...new Set(sinFactor)], excluidos: [...excluidos] };
 }
 
-/**
- * LOS ALMACENES PROPIOS — AG17 (calle EXPORTACION) y AG16 (calle BTS). Lo bloqueado que se contó allí (BAJA, LAVADO, EXTRASUCIO)
- * también llega a la Base de pasivos, en SU almacén: no se mezcla con AG18 ni con AG22 (los cuadres de esos dos leen solo lo suyo).
- * Se cuenta tal cual el conteo: sin casco ni reasignaciones (esas hojas del Balance son de Fábrica y Bodega 38).
- * BAJA va con causal EXPORTACION / BTS; LAVADO y EXTRASUCIO con su propia causal, como en los otros almacenes.
- */
-const CAUSAL_BAJA_PROPIO = { AG17: "EXPORTACION", AG16: "BTS" } as const;
-export async function filasAlmacenesPropios(fecha: string, regla: ReglaExcluidos) {
-  const filas: NuevaFila[] = [];
-  const sinFactor: string[] = [];
-  const excluidos = new Set<string>();
-  const { conteos } = await diasConConteo();
-  const supabase = await createClient();
-  const { data: maestro } = await supabase.from("productos").select("sku, nombre, unidades_por_caja");
-  const prod = new Map(((maestro ?? []) as { sku: string; nombre: string | null; unidades_por_caja: number | null }[]).map((p) => [String(p.sku), p]));
-  const cajaPlastica = (t: string | null | undefined) => /CAJA\s+PL/i.test(t ?? "");
-  for (const alm of ["AG17", "AG16"] as const) {
-    const { vigentes } = await consolidadoDelDia(fecha, conteos, alm);
-    const acc = new Map<string, { estado: string; codigo: string; cajas: number; ubis: Set<string> }>();
-    for (const r of vigentes) {
-      const estado = normEstado(r.estado_envase);
-      if (estado !== "BAJA" && estado !== "LAVADO" && estado !== "EXTRASUCIO") continue;
-      const codigo = String(r.codigo);
-      if (cajaPlastica(r.material) || cajaPlastica(prod.get(codigo)?.nombre)) continue;
-      if (excluye(regla, codigo, r.material)) { excluidos.add(codigo); continue }
-      const cajas = Number(r.total_cajas) || 0;
-      if (!cajas) continue;
-      const k = `${estado}|${codigo}`;
-      const x = acc.get(k) ?? { estado, codigo, cajas: 0, ubis: new Set<string>() };
-      x.cajas += cajas;
-      const u = (r.ubicacion ?? r.ubicacion_combinada ?? "").trim(); if (u) x.ubis.add(u);
-      acc.set(k, x);
-    }
-    for (const x of acc.values()) {
-      const upc = Number(prod.get(x.codigo)?.unidades_por_caja) || null;
-      if (!upc) { sinFactor.push(x.codigo); continue }
-      filas.push({
-        fecha, estado: x.estado === "BAJA" ? "BAJA" : "LAVADO",
-        causal: x.estado === "BAJA" ? CAUSAL_BAJA_PROPIO[alm] : x.estado,
-        codigo: x.codigo, unidades: Math.round(x.cajas * upc), almacen: alm,
-        nota: `Contado en la calle ${alm === "AG17" ? "EXPORTACION" : "BTS"}${x.ubis.size ? ` · ${[...x.ubis].sort((a, b) => a.localeCompare(b, "es", { numeric: true })).join(", ")}` : ""}`,
-      });
-    }
-  }
-  return { filas, sinFactor, excluidos: [...excluidos] };
-}
-
 export async function balanceParaPasivos(fecha: string, casco?: string | null) {
   const [b, regla] = await Promise.all([balanceDelDia(fecha, casco ?? null), leerExcluidos("AG22")]);
   if (b.fecha !== fecha) return { filas: [] as NuevaFila[], sinFactor: [] as string[], excluidos: [] as string[], error: `No hay conteo enviado el ${fecha}.` };
-  const base = filasDeBalance(fecha, b.detalle, regla);
-  const propios = await filasAlmacenesPropios(fecha, regla);
-  return {
-    filas: [...base.filas, ...propios.filas],
-    sinFactor: [...new Set([...base.sinFactor, ...propios.sinFactor])],
-    excluidos: [...new Set([...base.excluidos, ...propios.excluidos])],
-    error: b.error,
-  };
+  return { ...filasDeBalance(fecha, b.detalle, regla), error: b.error };
 }
 
 /**

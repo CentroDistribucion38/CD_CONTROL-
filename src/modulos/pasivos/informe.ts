@@ -43,7 +43,7 @@ export type DatosInformePasivo = {
 export function estadoDelConteo(estado: string, causal: string): string | null {
   const e = (estado ?? "").trim().toUpperCase(), c = (causal ?? "").trim().toUpperCase();
   if (c === "EXTRASUCIO" || c === "PENDIENTE EXTRASUCIO") return "EXTRASUCIO";
-  if (e === "BAJA" && (c === "SORTING" || c === "PRESORTING" || c === "EXPORTACION" || c === "BTS")) return "BAJA";
+  if (e === "BAJA" && (c === "SORTING" || c === "PRESORTING")) return "BAJA";
   if (e === "LAVADO" && c === "LAVADO") return "LAVADO";
   return null;
 }
