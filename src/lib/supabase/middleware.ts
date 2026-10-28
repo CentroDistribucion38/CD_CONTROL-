@@ -17,6 +17,7 @@ const RUTAS_PUBLICAS = [
   "/sw.js",
   "/sin-conexion.html",
   "/api/version",
+  "/api/traspasos/gps/cron",   // reloj de fondo: se protege con GPS_CRON_SECRET
 ];
 
 export async function actualizarSesion(request: NextRequest) {

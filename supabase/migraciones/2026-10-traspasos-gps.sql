@@ -132,7 +132,9 @@ as $$
 declare
   e jsonb; v_id uuid; n_ent int := 0; n_sal int := 0;
 begin
-  if public.mi_nivel('/traspasos/tiempos-gps') = 'ninguno' then
+  /* El reloj de fondo entra con la llave de servicio (sin usuario): ese sí pasa. */
+  if coalesce(auth.role(), '') <> 'service_role'
+     and public.mi_nivel('/traspasos/tiempos-gps') = 'ninguno' then
     raise exception 'No tienes permiso para ver Tiempos GPS.';
   end if;
 
@@ -177,7 +179,7 @@ begin
 end $$;
 
 revoke all on function public.gps_registrar(jsonb, jsonb, jsonb) from public, anon;
-grant execute on function public.gps_registrar(jsonb, jsonb, jsonb) to authenticated;
+grant execute on function public.gps_registrar(jsonb, jsonb, jsonb) to authenticated, service_role;
 
 -- ---------------------------------------------------------------------
 -- 4. LOS TRAMOS EN TRÁNSITO: de la salida de una zona a la entrada de la siguiente
