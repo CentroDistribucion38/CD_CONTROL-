@@ -134,9 +134,11 @@ export async function cascoAl(fecha: string): Promise<Record<string, CascoSitio 
 
 /** Lo que se trae solo para la hoja de un día: los pallets de la app y el casco de AG07 y CA22. */
 export async function contextoAuto(fecha: string): Promise<{ error: string | null; ctx: ContextoAuto }> {
-  const [pc, s, casco] = await Promise.all([productosYCorte(), saldosA(fecha), cascoAl(fecha)]);
+  const [pc, s, casco, em] = await Promise.all([productosYCorte(), saldosA(fecha), cascoAl(fecha), pendientesEM(fecha)]);
   const error = pc.error ?? s.error;
-  return { error, ctx: { fecha, pallets: Object.fromEntries(s.saldos), carnaval: pc.productos.map((p) => p.codigo), casco } };
+  /* Los pallets del Inventario son los mismos de Control: sin los que todavía no tienen entrada de mercancía (no están en SAP). */
+  const netos = Object.fromEntries([...s.saldos].map(([c, v]) => [c, Math.max(0, Math.round((v - (em.pendientes.get(c) ?? 0)) * 100) / 100)]));
+  return { error, ctx: { fecha, pallets: netos, carnaval: pc.productos.map((p) => p.codigo), casco } };
 }
 
 /** La hoja de la que arranca un día sin guardar: la guardada más reciente antes de ese día (o, si no hay, la más cercana después). */

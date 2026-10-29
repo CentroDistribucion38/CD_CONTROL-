@@ -188,7 +188,7 @@ export function Inventario({ fecha, hoy, guardado, base, dias, puedeEditar, maes
           <details className="cv-hist" style={{ marginTop: 14 }}>
             <summary>De dónde sale cada dato</summary>
             <p className="cv-nota" style={{ margin: "8px 0 0" }}>
-              PALLET: los pallets que lleva la app (pestaña Control) al cierre del día. CASCO DE VIDRIO B38: el saldo de AG07 Alm. Bodega Carnaval en Casco de vidrio. CASCO VIDRIO CERVECERIA ATLANTICO: el saldo de CA22 ERR Atlántico en Casco de vidrio.
+              PALLET: los pallets que lleva la app (pestaña Control) al cierre del día, sin los que todavía no tienen entrada de mercancía. CASCO DE VIDRIO B38: el saldo de AG07 Alm. Bodega Carnaval en Casco de vidrio. CASCO VIDRIO CERVECERIA ATLANTICO: el saldo de CA22 ERR Atlántico en Casco de vidrio.
               Esos tres no se escriben aquí: se actualizan solos cuando cambian en su módulo. Lo demás (envase, cajas, estibas de madera, pendiente de baja, lavado, caja mala) se escribe a mano. El nombre de cada SKU sale del maestro.
             </p>
           </details>
