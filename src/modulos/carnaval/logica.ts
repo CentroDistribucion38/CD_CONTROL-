@@ -245,7 +245,7 @@ export function aHojaGuardada(v: SeccionVista[]): SeccionHoja[] {
    CUADRE SAP DE AG07 · PASO 1: LOS PALLETS CONTRA LA ZEXI
    El conteo es el inventario de pallets de CONTROL, SIN los pallets que todavía no tienen entrada de mercancía (no están en SAP y no se
    pueden meter a control de calidad). En SAP, el envase de AG07 vive en CONTROL DE CALIDAD — con una excepción: el 3500005 (Costeñita 175R)
-   no se toca en control-cal: lo que haya ahí se pasa al AG71 en libre utilización. Solo ese SKU va a ese almacén.
+   no se toca en control-cal (lo que haya ahí no se mueve y no cuenta: se muestra en rojo) y se cuadra solo contra el AG71 en libre utilización.
    ===================================================================== */
 export type ZexiAlm = { almacen: string; codigo: string; descripcion: string; libre: number; calidad: number; bloqueado: number; total: number };
 export const SKU_A_AG71 = new Set(["3500005"]);
@@ -270,8 +270,8 @@ export function cuadrePallets07(productos: { codigo: string; descripcion: string
     const movs: Mov07[] = []; let sinAlcanzar = 0, dif: number, destino: FilaCuadre07["destino"], libre71: number | null = null;
     if (SKU_A_AG71.has(p.codigo)) {
       destino = "AG71 libre"; libre71 = a71?.libre ?? 0;
-      if (calidad > 0.5) movs.push({ titulo: "AG07 control de calidad → AG71 libre utilización", cantidad: Math.round(calidad) });
-      dif = redondear(libre71 + Math.max(0, calidad) - conteo);
+      /* Lo que haya en control-cal de AG07 NO se mira ni se mueve (no se puede): no cuenta y permanece. Solo se compara AG71 libre contra el conteo. */
+      dif = redondear(libre71 - conteo);
     } else {
       destino = "AG07 control-cal"; dif = redondear(calidad - conteo);
       if (dif < -0.5) {

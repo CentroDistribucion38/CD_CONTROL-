@@ -15,7 +15,7 @@ const IR = (f?: string) => `/inventario/balance/cuadre?alm=AG07&sub=cuadre${f ? 
 /**
  * AG07 · CUADRE SAP, en dos pasos.
  *   PASO 1 · PALLETS: el conteo es el inventario de pallets de Control (sin los que no tienen entrada de mercancía) contra la ZEXI de AG07
- *            en control de calidad. El 3500005 no se toca en control-cal: lo que haya ahí se pasa al AG71 en libre utilización.
+ *            en control de calidad. El 3500005 se mide solo en AG71 libre; su control-cal de AG07 no se mueve ni cuenta.
  *   PASO 2 · INVENTARIO: la hoja (estibas y cajas, pasadas a unidades con los factores del maestro) contra la ZEXI de AG07.
  */
 export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada, zexi, puedeEditar, faltaSql }: {
@@ -97,11 +97,12 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
                     <td className="r">{nf.format(f.palletsSap)}</td>
                     <td className="r">{f.pendientes ? <span className="cv-sinem">−{nf.format(f.pendientes)}</span> : ""}</td>
                     <td className="r"><b>{ent.format(f.conteo)}</b></td>
-                    <td className="r">{zexi ? ent.format(f.calidad) : "—"}</td>
+                    <td className="r">{!zexi ? "—" : f.libre71 != null && f.calidad > 0.5 ? <b className="cv-neg" title="No se puede mover y no cuenta">{ent.format(f.calidad)}</b> : ent.format(f.calidad)}</td>
                     <td className="r">{f.libre71 == null ? "" : zexi ? ent.format(f.libre71) : "—"}</td>
                     <td className="r">{zexi ? (Math.abs(f.dif) < 0.5 ? "0" : <b className="cv-neg">{conSigno(f.dif)}</b>) : "—"}</td>
                     <td>{!zexi ? "—" : f.movs.length ? f.movs.map((m) => `${m.titulo}: ${ent.format(m.cantidad)}`).join(" · ")
                       : f.sinAlcanzar ? "" : <span className="cv-ok">Cuadra</span>}
+                      {zexi && f.libre71 != null && f.calidad > 0.5 && <div className="cv-neg">AG07 control de calidad: {ent.format(f.calidad)} no se puede mover y no cuenta; esa cantidad permanece ahí.</div>}
                       {zexi && f.sinAlcanzar > 0 && <span className="cv-neg"> Faltan {ent.format(f.sinAlcanzar)} que no hay en libre ni bloqueado</span>}</td>
                   </tr>
                 );
