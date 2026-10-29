@@ -300,10 +300,7 @@ export async function agregarPartida(fecha: string, paso: number, codigo: string
   if (paso === 1) {
     const pc = await productosYCorte();
     if (!pc.productos.some((p) => p.codigo === cod)) return { error: "En el paso 1 el código debe ser de un envase de Carnaval (con pallets)." };
-  } else {
-    const m = await maestroSku();
-    if (!m.some((x) => x.codigo === cod)) return { error: `El código ${cod} no está en el maestro de SKU.` };
-  }
+  } else if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,29}$/.test(cod)) return { error: "El código solo lleva letras, números y guion." }
   const supabase = await createClient();
   const { error } = await supabase.from("carnaval_partidas").insert({ fecha, paso, codigo: cod, cantidad: cant, lado, nota: (nota ?? "").trim() || null });
   if (error) return { error: /carnaval_partidas|schema cache|does not exist/i.test(error.message) ? "Falta correr supabase/migraciones/2026-10-carnaval-partidas.sql en Supabase." : error.message };
