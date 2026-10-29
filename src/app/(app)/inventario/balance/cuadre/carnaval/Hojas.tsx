@@ -7,7 +7,7 @@ import Link from "next/link";
 const ALMACENES = [["AG18", "AG18 · Fábrica"], ["AG17", "AG17 · Exportación"], ["AG16", "AG16 · BTS"], ["AG22", "AG22 · Bloqueado"]] as const;
 const A = "/inventario/balance/cuadre";
 
-export function Hojas({ activa }: { activa: "registro" | "control" }) {
+export function Hojas({ activa }: { activa: "registro" | "control" | "inventario" }) {
   return (
     <>
       <nav className="bal-tabs cs-hojas" aria-label="Hojas del Cuadre SAP">
@@ -19,6 +19,7 @@ export function Hojas({ activa }: { activa: "registro" | "control" }) {
       </nav>
       <nav className="cv-sub" aria-label="Carnaval">
         <Link href={`${A}?alm=AG07&sub=control`} className={activa === "control" ? "on" : ""}>Control</Link>
+        <Link href={`${A}?alm=AG07&sub=inventario`} className={activa === "inventario" ? "on" : ""}>Inventario</Link>
         <Link href={`${A}?alm=AG07&sub=registro`} className={activa === "registro" ? "on" : ""}>Registro</Link>
       </nav>
     </>

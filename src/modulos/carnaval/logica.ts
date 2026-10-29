@@ -83,3 +83,52 @@ export function compararPeldar(filas: FilaPeldar[], existentes: Existente[], pro
 
 /** El día de hoy en Colombia (AAAA-MM-DD). */
 export const hoyCO = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
+
+/* =====================================================================
+   INVENTARIO DIARIO (la hoja «EXISTENCIAS DIARIAS» de Carnaval)
+   Se lee de la foto, se revisa en pantalla y se guarda un renglón por día. La sección PALLET se compara
+   con el saldo de pallets que lleva la app: si no coincide, una persona decide (dejar o ajustar la app).
+   ===================================================================== */
+export type FilaHoja = { concepto: string; a: number | null; b: number | null };
+export type SeccionHoja = { titulo: string; colA: string; colB: string; filas: FilaHoja[] };
+export type Hoja = { fecha: string; secciones: SeccionHoja[] };
+
+const limpio = (v: string) => v.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+
+/** Cómo se llama cada línea de PALLET en la hoja → el código de Carnaval. */
+export const MAPA_PALLET: Record<string, string> = {
+  "costenita 175r": "3500005",
+  "palleth clover cc320": "3501430", "pallet clover cc320": "3501430", "palleth clover cc 320": "3501430", "clover cc320": "3501430",
+  "flint 330r": "412707",
+  "marron 330r": "412644",
+  "marron 1000cc": "3500888",
+  "flint 1000r": "3500887",
+  "marron 250 cc": "3501226", "marron 250cc": "3501226",
+  "flint 250": "3501225",
+  "trophy": "3500446",
+};
+export const codigoDePallet = (concepto: string) => MAPA_PALLET[limpio(concepto)] ?? null;
+export const esSeccionPallet = (titulo: string) => limpio(titulo) === "pallet";
+
+export type FilaValidacion = { codigo: string; nombreHoja: string; hoja: number; app: number; dif: number; faltaEnHoja?: boolean };
+export type Validacion = { filas: FilaValidacion[]; sinEmparejar: string[]; sinSeccion: boolean };
+
+/** Compara la sección PALLET de la hoja contra el saldo de la app (solo las líneas con diferencia, o con saldo que la hoja no trae). */
+export function validarPallet(hoja: Hoja, saldos: Record<string, number>, nombres: Record<string, string>): Validacion {
+  const sec = hoja.secciones.find((s) => esSeccionPallet(s.titulo));
+  if (!sec) return { filas: [], sinEmparejar: [], sinSeccion: true };
+  const filas: FilaValidacion[] = [];
+  const sinEmparejar: string[] = [];
+  const vistos = new Set<string>();
+  for (const f of sec.filas) {
+    const cod = codigoDePallet(f.concepto);
+    if (!cod) { if ((f.a ?? 0) !== 0) sinEmparejar.push(f.concepto); continue }
+    vistos.add(cod);
+    const hojaQ = f.a ?? 0, app = redondear(saldos[cod] ?? 0);
+    if (redondear(hojaQ) !== app) filas.push({ codigo: cod, nombreHoja: f.concepto, hoja: hojaQ, app, dif: redondear(hojaQ - app) });
+  }
+  for (const [cod, q] of Object.entries(saldos)) {
+    if (!vistos.has(cod) && redondear(q) !== 0 && nombres[cod]) filas.push({ codigo: cod, nombreHoja: nombres[cod], hoja: 0, app: redondear(q), dif: redondear(-q), faltaEnHoja: true });
+  }
+  return { filas, sinEmparejar, sinSeccion: false };
+}

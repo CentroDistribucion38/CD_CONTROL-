@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function CuadrePage({ searchParams }: { searchParams: Promise<{ fecha?: string; vista?: string; alm?: string; sub?: string }> }) {
   const q = await searchParams;
-  if (q.alm === "AG07") return <Ag07 sub={q.sub === "registro" ? "registro" : "control"} fecha={q.fecha} />;
+  if (q.alm === "AG07") return <Ag07 sub={q.sub === "registro" ? "registro" : q.sub === "inventario" ? "inventario" : "control"} fecha={q.fecha} />;
   const dia = /^\d{4}-\d{2}-\d{2}$/.test(q.fecha ?? "") ? q.fecha! : null;
   const almacen = q.alm === "AG22" || q.alm === "AG17" || q.alm === "AG16" ? q.alm : "AG18";
   const c = await armarCuadre(dia, almacen);

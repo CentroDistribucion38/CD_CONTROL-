@@ -50,3 +50,15 @@ export async function ultimosMovimientos(limite = 150) {
     .order("fecha", { ascending: false }).order("creado_en", { ascending: false }).limit(limite);
   return { error: error?.message ?? null, filas: ((data ?? []) as Movimiento[]).map((x) => ({ ...x, pallets: Number(x.pallets), und: x.und == null ? null : Number(x.und), fecha: String(x.fecha) })) };
 }
+
+/** El inventario diario guardado de un día (la hoja completa) y los días que tienen inventario. */
+export async function inventarioDe(fecha: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("carnaval_existencias").select("fecha, secciones, validacion, foto_nombre, actualizado_en").eq("fecha", fecha).maybeSingle();
+  return { error: error?.message ?? null, fila: data as { fecha: string; secciones: import("./logica").SeccionHoja[]; validacion: (import("./logica").FilaValidacion & { decision?: string })[]; foto_nombre: string | null; actualizado_en: string } | null };
+}
+export async function diasConInventario() {
+  const supabase = await createClient();
+  const { data } = await supabase.from("carnaval_existencias").select("fecha").order("fecha", { ascending: false }).limit(60);
+  return ((data ?? []) as { fecha: string }[]).map((x) => String(x.fecha));
+}

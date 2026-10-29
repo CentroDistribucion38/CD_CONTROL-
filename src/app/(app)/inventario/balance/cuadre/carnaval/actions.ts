@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { usuarioActual } from "@/lib/sesion";
 import { misPermisos } from "@/lib/permisos";
-import { compararPeldar, redondear, type Comparacion, type FilaPeldar } from "@/modulos/carnaval/logica";
+import { compararPeldar, redondear, validarPallet, type Comparacion, type FilaPeldar, type Hoja } from "@/modulos/carnaval/logica";
 import { faltaTabla, ingresosCargados, productosYCorte, RUTA_CUADRE, saldosA, SQL_FALTA } from "@/modulos/carnaval/datos";
 
 /**
@@ -120,3 +120,62 @@ export async function anularMovimiento(id: string, motivo: string): Promise<{ er
   return { ok: true };
 }
 
+
+/** Los pallets que lleva la app de cada código al cierre de un día (para validar la hoja de inventario). */
+export async function saldosAl(fecha: string): Promise<{ error?: string; saldos?: Record<string, number> }> {
+  if (!esDia(fecha)) return { error: "Día inválido." };
+  const r = await saldosA(fecha);
+  if (r.error) return { error: faltaTabla(r.error) ? SQL_FALTA : r.error };
+  return { saldos: Object.fromEntries(r.saldos) };
+}
+
+function leerHoja(json: string): Hoja | null {
+  try {
+    const h = JSON.parse(json);
+    if (!h || !esDia(String(h.fecha)) || !Array.isArray(h.secciones) || !h.secciones.length) return null;
+    const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+    return {
+      fecha: String(h.fecha),
+      secciones: h.secciones.map((s: { titulo?: string; colA?: string; colB?: string; filas?: { concepto?: string; a?: unknown; b?: unknown }[] }) => ({
+        titulo: String(s.titulo ?? "").trim(), colA: String(s.colA ?? ""), colB: String(s.colB ?? ""),
+        filas: (s.filas ?? []).map((f) => ({ concepto: String(f.concepto ?? "").trim(), a: num(f.a), b: num(f.b) })).filter((f) => f.concepto),
+      })).filter((s: { titulo: string }) => s.titulo),
+    };
+  } catch { return null }
+}
+
+/**
+ * GUARDAR EL INVENTARIO DEL DÍA. La sección PALLET se valida otra vez AQUÍ contra el saldo de la app: las líneas
+ * que la persona aprobó ajustar (`ajustar`: códigos) crean un AJUSTE por la diferencia; las demás quedan como alerta
+ * registrada. Volver a guardar un día reemplaza la hoja de ese día.
+ */
+export async function guardarInventario(hojaJson: string, ajustar: string[], fotoNombre: string): Promise<{ error?: string; ok?: true; ajustes?: number }> {
+  const sin = await permiso(); if (sin) return { error: sin };
+  const hoja = leerHoja(hojaJson);
+  if (!hoja) return { error: "La hoja no se pudo leer: revisa la fecha y que tenga secciones." };
+  const pc = await productosYCorte();
+  if (pc.error) return { error: faltaTabla(pc.error) ? SQL_FALTA : pc.error };
+  const sal = await saldosA(hoja.fecha);
+  if (sal.error) return { error: faltaTabla(sal.error) ? SQL_FALTA : sal.error };
+  const nombres = Object.fromEntries(pc.productos.map((p) => [p.codigo, p.descripcion]));
+  const v = validarPallet(hoja, Object.fromEntries(sal.saldos), nombres);
+  const aprobar = new Set(ajustar);
+  const supabase = await createClient();
+
+  let ajustes = 0;
+  const decididas = [];
+  for (const f of v.filas) {
+    const ajusta = aprobar.has(f.codigo);
+    if (ajusta) {
+      const { error } = await supabase.from("carnaval_movimientos").insert({ fecha: hoja.fecha, tipo: "AJUSTE", codigo: f.codigo, pallets: f.dif, nota: `Ajuste por inventario del ${hoja.fecha}: la hoja dice ${redondear(f.hoja)} y la app tenía ${redondear(f.app)}` });
+      if (error) return { error: faltaTabla(error.message) ? SQL_FALTA : `Ajuste de ${f.codigo}: ${error.message}`, ajustes };
+      ajustes++;
+    }
+    decididas.push({ ...f, decision: ajusta ? "ajustado" : "dejado" });
+  }
+  const { error } = await supabase.from("carnaval_existencias").upsert(
+    { fecha: hoja.fecha, secciones: hoja.secciones, validacion: decididas, foto_nombre: fotoNombre || null, actualizado_en: new Date().toISOString() }, { onConflict: "fecha" });
+  if (error) return { error: /carnaval_existencias|does not exist|schema cache/i.test(error.message) ? "Falta correr supabase/migraciones/2026-10-carnaval-inventario.sql en Supabase." : error.message, ajustes };
+  refrescar();
+  return { ok: true, ajustes };
+}
