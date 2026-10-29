@@ -89,7 +89,7 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
   const grupos2 = useMemo(() => {
     const m = new Map<string, { codigo: string; descripcion: string; cantidad: number }[]>();
     for (const f of difs2) {
-      const t = `${f.tipo === "ENVASE" ? "Envase" : "Caja plástica"} AG07 · ${f.dif < 0 ? "SAP tiene menos que la hoja: sumar a libre" : "SAP tiene más que la hoja: restar"}`;
+      const t = `${f.tipo === "ENVASE" ? "Envase" : "Caja plástica"} AG07 · ${f.dif < 0 ? "Mov 701 (SAP tiene menos que la hoja: entra a libre)" : "Mov 702 (SAP tiene más que la hoja: sale de libre)"}`;
       m.set(t, [...(m.get(t) ?? []), { codigo: f.codigo, descripcion: f.descripcion, cantidad: Math.abs(f.dif) }]);
     }
     return [...m];
@@ -207,7 +207,7 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
                 {inventario.length > difs2.length && <p className="cv-nota">{inventario.length - difs2.length} renglón(es) ya cuadran con la ZEXI y no se muestran.</p>}
               </>
             )}
-            <p className="cv-nota">Diferencia = SAP − hoja. Positiva: SAP tiene más de lo contado; negativa: SAP tiene menos. Los movimientos son de ajuste de inventario (el número de movimiento lo eliges en SAP). Las estibas de madera, el pendiente de baja y el lavado no entran en esta comparación.</p>
+            <p className="cv-nota">Diferencia = SAP − hoja. Positiva: SAP tiene más de lo contado; negativa: SAP tiene menos. Los movimientos son de ajuste de inventario (701 entra, 702 sale). Las estibas de madera, el pendiente de baja y el lavado no entran en esta comparación.</p>
           </>
         )}
     </>

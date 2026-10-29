@@ -272,14 +272,22 @@ export function cuadrePallets07(productos: { codigo: string; descripcion: string
       destino = "AG71 libre"; libre71 = a71?.libre ?? 0;
       /* Lo que haya en control-cal de AG07 NO se mira ni se mueve (no se puede): no cuenta y permanece. Solo se compara AG71 libre contra el conteo. */
       dif = redondear(libre71 - conteo);
+      if (dif < -0.5) {
+        /* AG71 tiene menos que el conteo: se trae de AG07 con 311 (de libre; lo bloqueado primero pasa a libre con 343) */
+        let falta = -dif, a311 = 0;
+        const dl = Math.min(falta, Math.max(0, libre)); if (dl > 0.5) { a311 += dl; falta -= dl }
+        const db = Math.min(falta, Math.max(0, bloqueado)); if (db > 0.5) { movs.push({ titulo: "Mov 343 en AG07 (Bloqueado → Libre)", cantidad: Math.round(db) }); a311 += db; falta -= db }
+        if (a311 > 0.5) movs.push({ titulo: "Mov 311 (AG07 Libre → AG71 Libre)", cantidad: Math.round(a311) });
+        sinAlcanzar = falta > 0.5 ? Math.round(falta) : 0;
+      } else if (dif > 0.5) movs.push({ titulo: "Mov 311 (AG71 Libre → AG07 Libre)", cantidad: Math.round(dif) });
     } else {
       destino = "AG07 control-cal"; dif = redondear(calidad - conteo);
       if (dif < -0.5) {
         let falta = -dif;
-        const dl = Math.min(falta, Math.max(0, libre)); if (dl > 0.5) { movs.push({ titulo: "Mov 322 en AG07 (Libre → Control-cal)", cantidad: Math.round(dl) }); falta -= dl }
-        const db = Math.min(falta, Math.max(0, bloqueado)); if (db > 0.5) { movs.push({ titulo: "Mov 349 en AG07 (Bloqueado → Control-cal)", cantidad: Math.round(db) }); falta -= db }
+        const dl = Math.min(falta, Math.max(0, libre)); if (dl > 0.5) { movs.push({ titulo: "Mov 322 en AG07 (Libre → Control de calidad)", cantidad: Math.round(dl) }); falta -= dl }
+        const db = Math.min(falta, Math.max(0, bloqueado)); if (db > 0.5) { movs.push({ titulo: "Mov 349 en AG07 (Bloqueado → Control de calidad)", cantidad: Math.round(db) }); falta -= db }
         sinAlcanzar = falta > 0.5 ? Math.round(falta) : 0;
-      } else if (dif > 0.5) movs.push({ titulo: "AG07: Control-cal → Libre", cantidad: Math.round(dif) });
+      } else if (dif > 0.5) movs.push({ titulo: "Mov 321 en AG07 (Control de calidad → Libre)", cantidad: Math.round(dif) });
     }
     out.push({ codigo: p.codigo, descripcion: p.descripcion, undPorPallet: p.und_por_pallet, pallets, pendientes, palletsSap, conteo, libre, calidad, bloqueado, libre71, enZexi: !!a7 || !!a71, dif, destino, movs, sinAlcanzar });
   }
