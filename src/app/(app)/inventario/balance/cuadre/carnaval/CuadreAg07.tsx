@@ -59,6 +59,7 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
   }
 
   const sinFilas = filas.length === 0;
+  const balanceado = !sinFilas && filas.every((f) => Math.abs(f.dif) < 0.5 && f.movs.length === 0 && !f.sinAlcanzar);
   return (
     <>
       {aviso && <p className={`cv-msg ${aviso.mal ? "mal" : ""}`} role="status">{aviso.t}</p>}
@@ -70,7 +71,7 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
         </label>
         <span className="grow" />
         {zexi && puedeEditar && <button type="button" className="cs-bt alt" disabled={pend} onClick={quitar}>Quitar la ZEXI</button>}
-        {puedeEditar && <button type="button" className="cs-bt" disabled={pend} onClick={() => input.current?.click()}>{pend ? "Guardando…" : zexi ? "Cambiar la ZEXI de AG07" : "Subir la ZEXI de AG07"}</button>}
+        {puedeEditar && <button type="button" className="cs-bt" disabled={pend} onClick={() => input.current?.click()}>{pend ? "Guardando…" : zexi ? "Subir la ZEXI nueva (confirmar)" : "Subir la ZEXI de AG07"}</button>}
         <input ref={input} type="file" accept=".xlsx,.xlsm,.xls" hidden onChange={(e) => { void alElegir(e.target.files?.[0]); e.target.value = "" }} />
       </div>
 
@@ -79,6 +80,9 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
         {zexi ? `ZEXI: ${zexi.archivo ?? "sin nombre"} · subida ${new Date(zexi.actualizado_en).toLocaleString("es-CO", { timeZone: "America/Bogota", dateStyle: "short", timeStyle: "short" })}`
           : "Sube la ZEXI de AG07 (la que también trae AG71) para cuadrar los pallets."}
       </p>
+      {zexi && !sinFilas && (balanceado
+        ? <p className="cv-msg" style={{ borderLeftColor: "#1E6B37", background: "#E7F4EC" }}><b>Pallets balanceados.</b> Lo que dice SAP en esta ZEXI coincide con el conteo de Control.</p>
+        : <p className="cv-msg mal">Los pallets <b>no están balanceados</b> con esta ZEXI. Haz en SAP lo que sale abajo y luego sube la ZEXI nueva (botón «Subir la ZEXI nueva») para confirmar que quedó en cero.</p>)}
 
       {sinFilas ? <p className="cv-msg" style={{ borderLeftColor: "var(--fe-linea)", background: "#fff" }}>No hay pallets en Carnaval a esta fecha.</p> : (
         <div className="cv-tabla-cont">
@@ -141,7 +145,7 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
           </div>
         </>
       )}
-      {zexi && !sinFilas && grupos.length === 0 && <p className="cv-msg" style={{ borderLeftColor: "#1E6B37", background: "#E7F4EC" }}>Los pallets cuadran con la ZEXI: no hay nada que mover en SAP.</p>}
+      
 
       <h2 className="cs-h" style={{ marginTop: 22 }}><i>2</i> Inventario contra la ZEXI de AG07 <small className="cs-h-s">cajas, estibas y lo demás de la hoja</small></h2>
       {!zexi ? <p className="cv-nota">Sube la ZEXI de AG07 para compararla con la hoja de Inventario.</p>
