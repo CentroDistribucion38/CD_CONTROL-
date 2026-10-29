@@ -122,29 +122,34 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
         : <p className="cv-msg mal">Los pallets <b>no están balanceados</b> con esta ZEXI. Haz en SAP lo que sale abajo y luego sube la ZEXI nueva (botón «Subir la ZEXI nueva») para confirmar que quedó en cero.</p>)}
 
       {sinFilas ? <p className="cv-msg" style={{ borderLeftColor: "var(--fe-linea)", background: "#fff" }}>No hay pallets en Carnaval a esta fecha.</p> : (
-        <div className="cv-tabla-cont">
-          <table className="cv-tabla">
+        <div className="cs-scroll">
+          <table className="cs-t">
             <thead><tr>
-              <th>Código</th><th>Material</th><th className="r">Pallets</th><th className="r" title="Sin entrada de mercancía: no están en SAP">Sin EM</th>
-              <th className="r">Conteo (unid.)</th><th className="r">AG07 control-cal</th><th className="r">AG71 libre</th><th className="r">Diferencia</th><th>Qué hacer</th>
+              <th>Código</th><th>Material</th><th className="n">Conteo</th><th className="n">SAP antes</th><th className="n">Diferencia</th>
+              <th className="n">Cambio en SAP</th><th className="n">SAP después</th><th className="n">Queda</th><th>Estado</th>
             </tr></thead>
             <tbody>
               {filas.map((f) => {
-                const cuadra = zexi && f.movs.length === 0 && Math.abs(f.dif) < 0.5;
+                const sapAntes = f.libre71 != null ? f.libre71 : f.calidad;
+                const queda = f.dif < -0.5 ? -f.sinAlcanzar : 0;
+                const cuadra = !!zexi && Math.abs(f.dif) < 0.5;
+                const rojo = !!zexi && f.libre71 != null && f.calidad > 0.5;
                 return (
-                  <tr key={f.codigo} className={cuadra ? "" : ""}>
-                    <td><code>{f.codigo}</code></td>
+                  <tr key={f.codigo} className={!zexi || cuadra ? "" : "pend"}>
+                    <td className="mono">{f.codigo}</td>
                     <td>{f.descripcion}</td>
-                    <td className="r">{nf.format(f.palletsSap)}</td>
-                    <td className="r">{f.pendientes ? <span className="cv-sinem">−{nf.format(f.pendientes)}</span> : ""}</td>
-                    <td className="r"><b>{ent.format(f.conteo)}</b></td>
-                    <td className="r">{!zexi ? "—" : f.libre71 != null && f.calidad > 0.5 ? <b className="cv-neg" title="No se puede mover y no cuenta">{ent.format(f.calidad)}</b> : ent.format(f.calidad)}</td>
-                    <td className="r">{f.libre71 == null ? "" : zexi ? ent.format(f.libre71) : "—"}</td>
-                    <td className="r">{zexi ? (Math.abs(f.dif) < 0.5 ? "0" : <b className="cv-neg">{conSigno(f.dif)}</b>) : "—"}</td>
-                    <td>{!zexi ? "—" : f.movs.length ? f.movs.map((m) => `${m.titulo}: ${ent.format(m.cantidad)}`).join(" · ")
-                      : f.sinAlcanzar ? "" : <span className="cv-ok">Cuadra</span>}
-                      {zexi && f.libre71 != null && f.calidad > 0.5 && <div className="cv-neg">AG07 control de calidad: {ent.format(f.calidad)} no se puede mover y no cuenta; esa cantidad permanece ahí.</div>}
-                      {zexi && f.sinAlcanzar > 0 && <span className="cv-neg"> Faltan {ent.format(f.sinAlcanzar)} que no hay en libre ni bloqueado</span>}</td>
+                    <td className="n">{ent.format(f.conteo)}{f.pendientes > 0 && <small className="cs-ext" title="Pallets sin entrada de mercancía: no están en SAP y no cuentan">{nf.format(f.palletsSap)} pallets · sin EM −{nf.format(f.pendientes)}</small>}</td>
+                    <td className="n">{zexi ? ent.format(sapAntes) : "—"}<small className="cs-ext">{f.libre71 != null ? "AG71 libre" : "AG07 control-cal"}</small></td>
+                    <td className="n">{!zexi ? "—" : cuadra ? "0" : conSigno(f.dif)}</td>
+                    <td className="n">{!zexi || !f.movs.length ? "—" : f.movs.map((m) => <div key={m.titulo + m.cantidad}>{ent.format(m.cantidad)} <em>{m.titulo.replace(/^Mov /, "")}</em></div>)}</td>
+                    <td className="n">{zexi ? ent.format(f.conteo + queda) : "—"}</td>
+                    <td className="n"><b>{!zexi ? "—" : queda ? conSigno(queda) : "0"}</b></td>
+                    <td>
+                      {!zexi ? "—" : cuadra ? <span className="cs-chip ok">Balanceado</span>
+                        : f.sinAlcanzar > 0 ? <span className="cs-chip in">Faltan {ent.format(f.sinAlcanzar)} que no hay en libre ni bloqueado</span>
+                        : <span className="cs-chip in">Falta hacer {f.movs.length > 1 ? "los movimientos" : "el movimiento"} en SAP</span>}
+                      {rojo && <div className="cv-neg" style={{ marginTop: 4 }}>AG07 control de calidad: {ent.format(f.calidad)} no se puede mover y no cuenta; esa cantidad permanece ahí.</div>}
+                    </td>
                   </tr>
                 );
               })}
@@ -180,21 +185,22 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
                   ? <p className="cv-msg" style={{ borderLeftColor: "#1E6B37", background: "#E7F4EC" }}><b>Inventario balanceado.</b> Todo lo de la hoja (envase y cajas) coincide con la ZEXI.</p>
                   : (
                     <>
-                      <div className="cv-tabla-cont">
-                        <table className="cv-tabla">
-                          <thead><tr><th>Código</th><th>Material</th><th className="r">Estibas</th><th className="r">Cajas</th><th className="r">Hoja (unid.)</th><th className="r">Libre</th><th className="r">Bloqueado</th><th className="r">SAP</th><th className="r">Diferencia</th></tr></thead>
+                      <div className="cs-scroll">
+                        <table className="cs-t">
+                          <thead><tr><th>Código</th><th>Material</th><th className="n">Estibas</th><th className="n">Cajas</th><th className="n">Hoja (unid.)</th><th className="n">Libre</th><th className="n">Bloqueado</th><th className="n">SAP</th><th className="n">Diferencia</th><th>Estado</th></tr></thead>
                           <tbody>
                             {difs2.map((f, i) => (
-                              <tr key={f.codigo} className={i > 0 && difs2[i - 1].tipo !== f.tipo ? "cv-corte" : ""}>
-                                <td><code>{f.codigo}</code></td>
+                              <tr key={f.codigo} className="pend">
+                                <td className="mono">{f.codigo}</td>
                                 <td>{f.descripcion}{f.tipo === "CAJA" && <span className="cv-tag" style={{ marginLeft: 6 }}>Caja</span>}{f.sinFactor && <span className="cv-neg"> · sin cajas por estiba en el maestro</span>}</td>
-                                <td className="r">{f.estibas ? nf.format(f.estibas) : ""}</td>
-                                <td className="r">{f.cajas ? nf.format(f.cajas) : ""}</td>
-                                <td className="r"><b>{ent.format(f.unidades)}</b></td>
-                                <td className="r">{ent.format(f.libre)}</td>
-                                <td className="r">{f.bloqueado ? ent.format(f.bloqueado) : ""}</td>
-                                <td className="r">{ent.format(f.sap)}</td>
-                                <td className="r"><b className="cv-neg">{conSigno(f.dif)}</b></td>
+                                <td className="n">{f.estibas ? nf.format(f.estibas) : ""}</td>
+                                <td className="n">{f.cajas ? nf.format(f.cajas) : ""}</td>
+                                <td className="n"><b>{ent.format(f.unidades)}</b></td>
+                                <td className="n">{ent.format(f.libre)}</td>
+                                <td className="n">{f.bloqueado ? ent.format(f.bloqueado) : ""}</td>
+                                <td className="n">{ent.format(f.sap)}</td>
+                                <td className="n"><b>{conSigno(f.dif)}</b></td>
+                                <td><span className="cs-chip in">{f.dif < 0 ? `Faltan ${ent.format(-f.dif)} en SAP` : `Sobran ${ent.format(f.dif)} en SAP`}</span></td>
                               </tr>
                             ))}
                           </tbody>
