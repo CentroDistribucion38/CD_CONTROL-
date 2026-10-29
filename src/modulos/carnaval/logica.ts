@@ -330,7 +330,8 @@ export function cuadreInventario07(secciones: SeccionHoja[], zexi: ZexiAlm[], fa
   }
   /* LA ESTIBA DE MADERA (3500163): además de las que se cuentan solas, cada ESTIBA de producto (envase, cajas…) va montada sobre una estiba de madera, y también cuenta. */
   let sobre = 0;
-  for (const [c, x] of acc) if (!SKU_UNIDADES_DIRECTAS.has(c)) sobre += x.estibas;
+  /* Las cajas sueltas de un renglón (ej. 17 cajas del 3500005) también vienen sobre UNA estiba: cuenta una más. */
+  for (const [c, x] of acc) if (!SKU_UNIDADES_DIRECTAS.has(c)) sobre += x.estibas + (x.cajas > 0 ? 1 : 0);
   for (const c of SKU_UNIDADES_DIRECTAS) {
     const x = acc.get(c);
     if (x) { x.unidades += sobre }
@@ -346,7 +347,7 @@ export function cuadreInventario07(secciones: SeccionHoja[], zexi: ZexiAlm[], fa
     /* Contra libre utilización: el control de calidad ya quedó cuadrado en el paso 1. */
     const sap = libre;
     out.push({ codigo, descripcion: nombres.get(codigo) ?? a?.descripcion ?? x.concepto, tipo: x.tipo, estibas: x.estibas, cajas: x.cajas, unidades: Math.round(x.unidades), sinFactor: x.estibas > 0 && !fa.cpe && !SKU_UNIDADES_DIRECTAS.has(codigo),
-      nota: SKU_UNIDADES_DIRECTAS.has(codigo) ? `${Math.round(x.unidades - sobre)} contadas solas + ${Math.round(sobre)} estibas que van debajo del producto` : undefined,
+      nota: SKU_UNIDADES_DIRECTAS.has(codigo) ? `${Math.round(x.unidades - sobre)} contadas solas + ${Math.round(sobre)} estibas que van debajo del producto (cada renglón con cajas sueltas cuenta una estiba más)` : undefined,
       libre, calidad, bloqueado, sap, dif: Math.round(sap - x.unidades) });
   }
   return out.sort((a, b) => (a.tipo === b.tipo ? a.codigo.localeCompare(b.codigo) : a.tipo === "ENVASE" ? -1 : 1));
