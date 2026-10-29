@@ -125,7 +125,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
   /* AG18 · EL ENVASE SOLO PUEDE QUEDAR BLOQUEADO Y LO QUE ESTÉ LIBRE SALE AL 22: lo que hoy está libre en AG18 (ZEXI de antes) se manda a AG22 con el 311
      y, para que AG18 siga igual al conteo, vuelve a entrar lo mismo por el 311 de AG22 y se bloquea con el 344 (los mismos documentos de lo que entra).
      Sale = lo mayor entre lo libre y lo que sobra frente al conteo; entra = lo que sale − la diferencia (SAP − conteo). Sin reparto en la ZEXI, queda como estaba. */
-  const conLibreFuera = !esAG22 && !esSimple;
+  const conLibreFuera = !esAG22; /* AG18, AG17 y AG16 */
   const salidaEnvase = (f: FilaCuadre) => conLibreFuera && f.grupo === "ENVASE" && f.dif != null && f.libre != null && f.sap != null
     ? Math.round(Math.max(Math.min(f.libre, f.sap), f.dif > 0 ? f.dif : 0)) : null;
   const sale18 = (f: FilaCuadre) => { const o = salidaEnvase(f); return o == null ? (f.dif ?? 0) : o };
@@ -145,7 +145,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
   /* AG17 / AG16: TODO el envase y las estibas tienen que quedar BLOQUEADOS (las cajas plásticas van por estado, con su meta en bloqueado). Lo que hay libre en SAP hoy, más lo que llega por el 311 (llega en libre),
      menos lo que sale (sale de lo libre), es lo que falta bloquear con el Mov 344. `dif` = SAP − conteo: positivo sale, negativo entra. */
   const aBloquear = esSimple ? filas.filter((f) => (f.grupo === "ENVASE" || f.grupo === "ESTIBA") && f.sap != null && f.libre != null)
-    .map((f) => ({ f, q: Math.round((f.libre ?? 0) - (f.dif ?? 0)) })).filter((x) => x.q > 0).map((x) => ({ ...x.f, dif: x.q, sap: null })) : [];
+    .map((f) => ({ f, q: salidaEnvase(f) != null ? entra18(f) : Math.round((f.libre ?? 0) - (f.dif ?? 0)) })).filter((x) => x.q > 0).map((x) => ({ ...x.f, dif: x.q, sap: null })) : [];
   const sinLibreZexi = esSimple && conZexi && filas.some((f) => (f.grupo === "ENVASE" || f.grupo === "ESTIBA" || f.grupo === "CAJA") && f.sap != null && f.libre == null);
   /* DOS BALANCEOS APARTE: primero el ENVASE (y la estiba) —311 y todo a bloqueado— y después las CAJAS
      PLÁSTICAS, que van por estado (libre · control-cal · bloqueado). En AG22 igual, pero sin 311 (no se cambia de almacén). */
@@ -723,7 +723,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
           {esSimple && (
             <div className="cs-antes azul" id="p-344">
               <p className="cs-antes-t"><b>Al final, en {ALM}: Mov 344 (Libre → Bloqueado) · envase y estibas</b>
-                <span>Todo el envase y las estibas de madera de {ALM} deben quedar en <b>bloqueado</b>. Esto es lo que hoy está libre en SAP, más lo que llega del 311 (llega en libre) y menos lo que sale. Hazlo después del 311 y antes de bajar la ZEXI nueva.</span></p>
+                <span>Todo el envase y las estibas de madera de {ALM} deben quedar en <b>bloqueado</b>. En el envase es lo que entra por el 311 (el libre de hoy sale al 22 y vuelve a entrar para bloquearse); en las estibas, lo libre en SAP más lo que llega del 311 y menos lo que sale. Hazlo después del 311 y antes de bajar la ZEXI nueva.</span></p>
               {sinLibreZexi && <p className="cs-nota">La ZEXI guardada no dice cuánto está libre o bloqueado: vuelve a subirla con esas columnas para calcular el 344.</p>}
               {aBloquear.length ? documentos(aBloquear, "bloq344") : <p className="cs-vacio">{sinLibreZexi ? "—" : "Nada: el envase y las estibas ya están bloqueados."}</p>}
             </div>
