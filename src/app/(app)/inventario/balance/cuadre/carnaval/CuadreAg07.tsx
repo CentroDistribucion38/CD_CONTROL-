@@ -102,7 +102,7 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
                     <td className="r">{zexi ? (Math.abs(f.dif) < 0.5 ? "0" : <b className="cv-neg">{conSigno(f.dif)}</b>) : "—"}</td>
                     <td>{!zexi ? "—" : f.movs.length ? f.movs.map((m) => `${m.titulo}: ${ent.format(m.cantidad)}`).join(" · ")
                       : f.sinAlcanzar ? "" : <span className="cv-ok">Cuadra</span>}
-                      {f.sinAlcanzar > 0 && <span className="cv-neg"> Faltan {ent.format(f.sinAlcanzar)} que no hay en libre ni bloqueado</span>}</td>
+                      {zexi && f.sinAlcanzar > 0 && <span className="cv-neg"> Faltan {ent.format(f.sinAlcanzar)} que no hay en libre ni bloqueado</span>}</td>
                   </tr>
                 );
               })}
