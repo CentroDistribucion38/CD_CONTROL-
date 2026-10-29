@@ -209,7 +209,7 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
           <>
             <p className="cv-nota" style={{ margin: "0 0 10px" }}>
               {hojaGuardada ? `Hoja de Inventario del ${fecha}.` : `El ${fecha} no tiene hoja guardada: se usa la del ${hojaDe}.`} Estibas y cajas pasan a unidades con los factores del maestro (unidades por caja, cajas por estiba).
-              Entra toda la hoja menos PALLET (ya se cuadró en el paso 1) y el casco de vidrio, y se compara contra la libre utilización de AG07 en la ZEXI (el control de calidad ya quedó en el paso 1). En AG07 nada debe quedar en bloqueado: todo el bloqueado pasa a libre con el 343.
+              Entra toda la hoja menos PALLET (ya se cuadró en el paso 1), incluidos los dos casco de vidrio, y se compara contra la libre utilización de AG07 en la ZEXI (el control de calidad ya quedó en el paso 1). En AG07 nada debe quedar en bloqueado: todo el bloqueado pasa a libre con el 343.
             </p>
             {difs2.length === 0
               ? <p className="cv-msg" style={{ borderLeftColor: "#1E6B37", background: "#E7F4EC" }}><b>Inventario balanceado.</b> Todo lo de la hoja (envase y cajas) coincide con la ZEXI.</p>
@@ -239,7 +239,7 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
               </table>
             </div>
             {difs2.length > 0 && (<><h3 className="cv-sub-h">Qué hacer en SAP</h3>{renderGrupos(grupos2, "p2")}</>)}
-            <p className="cv-nota">Diferencia = SAP − hoja. Positiva: SAP tiene más de lo contado; negativa: SAP tiene menos. Lo que falta en SAP entra a AG07 desde AG22 y lo que sobra sale hacia AG22, ambos con el 311. El casco de vidrio no entra: sale del módulo de Casco.</p>
+            <p className="cv-nota">Diferencia = SAP − hoja. Positiva: SAP tiene más de lo contado; negativa: SAP tiene menos. Lo que falta en SAP entra a AG07 desde AG22 y lo que sobra sale hacia AG22, ambos con el 311. Solo la sección PALLET queda fuera (paso 1).</p>
           </>
         )}
 

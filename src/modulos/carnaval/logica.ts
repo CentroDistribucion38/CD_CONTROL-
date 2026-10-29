@@ -330,19 +330,10 @@ const SKU_UNIDADES_DIRECTAS = new Set(["3500163"]);
 export function cuadreInventario07(secciones: SeccionHoja[], zexi: ZexiAlm[], factores: Map<string, FactorSku>, nombres: Map<string, string>, partidas: Partida[] = []): FilaInv07[] {
   /* TODA la hoja menos lo que ya se cuadró aparte: la sección PALLET (paso 1) y los casco de vidrio (salen del módulo de Casco). */
   const acc = new Map<string, { tipo: "ENVASE" | "CAJA"; estibas: number; cajas: number; unidades: number; concepto: string }>();
-  /* EL CASCO DE VIDRIO DE AG07 (B38): sus estibas traen cajas plásticas, que sí cuentan en la caja de ese envase (el envase del casco no se suma al envase). */
-  const cascoCajas = new Map<string, number>();
+  /* TODA la hoja entra (incluidos los dos casco de vidrio): lo único que se deja fuera es la sección PALLET, que ya se cuadró en el paso 1. */
   for (const s of secciones) {
     const t = limpio(s.titulo);
-    if (CENTRO_DE_CASCO[t] === "AG07") {
-      for (const f of s.filas) {
-        const c = f.codigo && f.codigo !== SIN_SKU ? f.codigo : null; if (!c) continue;
-        const fa = factores.get(c); if (!fa?.caja || !fa.cpe) continue;
-        const n = (f.a ?? 0) * fa.cpe; if (n > 0) cascoCajas.set(fa.caja, (cascoCajas.get(fa.caja) ?? 0) + n);
-      }
-      continue;
-    }
-    if (t === "pallet" || t in CENTRO_DE_CASCO || t.startsWith("casco")) continue;
+    if (t === "pallet") continue;
     const tipo: "ENVASE" | "CAJA" = t.includes("caja") ? "CAJA" : "ENVASE";
     for (const f of s.filas) {
       const c = f.codigo && f.codigo !== SIN_SKU ? f.codigo : null; if (!c) continue;
@@ -361,7 +352,6 @@ export function cuadreInventario07(secciones: SeccionHoja[], zexi: ZexiAlm[], fa
     const fa = factores.get(c); if (!fa?.caja) continue;
     const n = x.estibas * fa.cpe + x.cajas; if (n > 0) enEnvase.set(fa.caja, (enEnvase.get(fa.caja) ?? 0) + n);
   }
-  for (const [caja, n] of cascoCajas) enEnvase.set(caja, (enEnvase.get(caja) ?? 0) + n);
   for (const [caja, n] of enEnvase) {
     const x = acc.get(caja) ?? { tipo: "CAJA" as const, estibas: 0, cajas: 0, unidades: 0, concepto: nombres.get(caja) ?? caja };
     x.unidades += n; acc.set(caja, x);
@@ -388,7 +378,7 @@ export function cuadreInventario07(secciones: SeccionHoja[], zexi: ZexiAlm[], fa
     const pt = sumaPartidas(partidas, 2, codigo);
     const sap = libre + bloqueado + pt.sap;
     out.push({ codigo, descripcion: nombres.get(codigo) ?? a?.descripcion ?? x.concepto, tipo: x.tipo, estibas: x.estibas, cajas: x.cajas, unidades: Math.round(x.unidades), sinFactor: x.estibas > 0 && !fa.cpe && !SKU_UNIDADES_DIRECTAS.has(codigo),
-      nota: [enEnvase.get(codigo) ? `incluye ${Math.round(enEnvase.get(codigo)!)} cajas que van en envases${cascoCajas.get(codigo) ? ` (${Math.round(cascoCajas.get(codigo)!)} del casco de vidrio)` : ""}` : "", pt.conteo || pt.sap ? `partidas: ${pt.conteo ? `${pt.conteo > 0 ? "+" : ""}${Math.round(pt.conteo)} al conteo` : ""}${pt.conteo && pt.sap ? " · " : ""}${pt.sap ? `${pt.sap > 0 ? "+" : ""}${Math.round(pt.sap)} a la ZEXI` : ""}` : "", SKU_UNIDADES_DIRECTAS.has(codigo) ? `${Math.round(x.unidades - sobre)} contadas solas + ${Math.round(sobre)} estibas que van debajo del producto (cada renglón con cajas sueltas cuenta una estiba más)` : ""].filter(Boolean).join(" · ") || undefined,
+      nota: [enEnvase.get(codigo) ? `incluye ${Math.round(enEnvase.get(codigo)!)} cajas que van en envases` : "", pt.conteo || pt.sap ? `partidas: ${pt.conteo ? `${pt.conteo > 0 ? "+" : ""}${Math.round(pt.conteo)} al conteo` : ""}${pt.conteo && pt.sap ? " · " : ""}${pt.sap ? `${pt.sap > 0 ? "+" : ""}${Math.round(pt.sap)} a la ZEXI` : ""}` : "", SKU_UNIDADES_DIRECTAS.has(codigo) ? `${Math.round(x.unidades - sobre)} contadas solas + ${Math.round(sobre)} estibas que van debajo del producto (cada renglón con cajas sueltas cuenta una estiba más)` : ""].filter(Boolean).join(" · ") || undefined,
       libre, calidad, bloqueado, sap, dif: Math.round(sap - x.unidades) });
   }
   return out.sort((a, b) => (a.tipo === b.tipo ? a.codigo.localeCompare(b.codigo) : a.tipo === "ENVASE" ? -1 : 1));
