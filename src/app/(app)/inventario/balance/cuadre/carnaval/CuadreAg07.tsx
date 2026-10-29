@@ -179,40 +179,34 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
               {hojaGuardada ? `Hoja de Inventario del ${fecha}.` : `El ${fecha} no tiene hoja guardada: se usa la del ${hojaDe}.`} Estibas y cajas pasan a unidades con los factores del maestro (unidades por caja, cajas por estiba).
               En el envase se compara contra libre + bloqueado (el control de calidad son los pallets del paso 1); en las cajas plásticas, contra los tres estados.
             </p>
-            {!balanceado ? <p className="cv-msg mal">Primero balancea los pallets (paso 1): sube la ZEXI nueva y, cuando salgan en cero, aquí aparece lo que falta del inventario.</p> : (
-              <>
-                {difs2.length === 0
-                  ? <p className="cv-msg" style={{ borderLeftColor: "#1E6B37", background: "#E7F4EC" }}><b>Inventario balanceado.</b> Todo lo de la hoja (envase y cajas) coincide con la ZEXI.</p>
-                  : (
-                    <>
-                      <div className="cs-scroll">
-                        <table className="cs-t">
-                          <thead><tr><th>Código</th><th>Material</th><th className="n">Estibas</th><th className="n">Cajas</th><th className="n">Hoja (unid.)</th><th className="n">Libre</th><th className="n">Bloqueado</th><th className="n">SAP</th><th className="n">Diferencia</th><th>Estado</th></tr></thead>
-                          <tbody>
-                            {difs2.map((f, i) => (
-                              <tr key={f.codigo} className="pend">
-                                <td className="mono">{f.codigo}</td>
-                                <td>{f.descripcion}{f.tipo === "CAJA" && <span className="cv-tag" style={{ marginLeft: 6 }}>Caja</span>}{f.sinFactor && <span className="cv-neg"> · sin cajas por estiba en el maestro</span>}</td>
-                                <td className="n">{f.estibas ? nf.format(f.estibas) : ""}</td>
-                                <td className="n">{f.cajas ? nf.format(f.cajas) : ""}</td>
-                                <td className="n"><b>{ent.format(f.unidades)}</b></td>
-                                <td className="n">{ent.format(f.libre)}</td>
-                                <td className="n">{f.bloqueado ? ent.format(f.bloqueado) : ""}</td>
-                                <td className="n">{ent.format(f.sap)}</td>
-                                <td className="n"><b>{conSigno(f.dif)}</b></td>
-                                <td><span className="cs-chip in">{f.dif < 0 ? `Faltan ${ent.format(-f.dif)} en SAP` : `Sobran ${ent.format(f.dif)} en SAP`}</span></td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                      <h3 className="cv-sub-h">Qué hacer en SAP</h3>
-                      {renderGrupos(grupos2, "p2")}
-                    </>
-                  )}
-                {inventario.length > difs2.length && <p className="cv-nota">{inventario.length - difs2.length} renglón(es) ya cuadran con la ZEXI y no se muestran.</p>}
-              </>
-            )}
+            {difs2.length === 0
+              ? <p className="cv-msg" style={{ borderLeftColor: "#1E6B37", background: "#E7F4EC" }}><b>Inventario balanceado.</b> Todo lo de la hoja (envase y cajas) coincide con la ZEXI.</p>
+              : <p className="cv-msg mal">Hay <b>{difs2.length}</b> renglón(es) del inventario que no cuadran con la ZEXI. Haz en SAP lo que sale abajo y sube la ZEXI nueva para confirmar.</p>}
+            <div className="cs-scroll">
+              <table className="cs-t">
+                <thead><tr><th>Código</th><th>Material</th><th className="n">Estibas</th><th className="n">Cajas</th><th className="n">Hoja (unid.)</th><th className="n">Libre</th><th className="n">Bloqueado</th><th className="n">SAP</th><th className="n">Diferencia</th><th>Estado</th></tr></thead>
+                <tbody>
+                  {inventario.map((f, i) => {
+                    const cero = Math.abs(f.dif) < 0.5;
+                    return (
+                      <tr key={f.codigo} className={(cero ? "" : "pend ") + (i > 0 && inventario[i - 1].tipo !== f.tipo ? "cv-corte" : "")}>
+                        <td className="mono">{f.codigo}</td>
+                        <td>{f.descripcion}{f.tipo === "CAJA" && <span className="cv-tag" style={{ marginLeft: 6 }}>Caja</span>}{f.sinFactor && <span className="cv-neg"> · sin cajas por estiba en el maestro</span>}</td>
+                        <td className="n">{f.estibas ? nf.format(f.estibas) : ""}</td>
+                        <td className="n">{f.cajas ? nf.format(f.cajas) : ""}</td>
+                        <td className="n"><b>{ent.format(f.unidades)}</b></td>
+                        <td className="n">{ent.format(f.libre)}</td>
+                        <td className="n">{f.bloqueado ? ent.format(f.bloqueado) : ""}</td>
+                        <td className="n">{ent.format(f.sap)}</td>
+                        <td className="n">{cero ? "0" : <b>{conSigno(f.dif)}</b>}</td>
+                        <td>{cero ? <span className="cs-chip ok">Balanceado</span> : <span className="cs-chip in">{f.dif < 0 ? `Faltan ${ent.format(-f.dif)} en SAP` : `Sobran ${ent.format(f.dif)} en SAP`}</span>}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {difs2.length > 0 && (<><h3 className="cv-sub-h">Qué hacer en SAP</h3>{renderGrupos(grupos2, "p2")}</>)}
             <p className="cv-nota">Diferencia = SAP − hoja. Positiva: SAP tiene más de lo contado; negativa: SAP tiene menos. Los movimientos son de ajuste de inventario (701 entra, 702 sale). Las estibas de madera, el pendiente de baja y el lavado no entran en esta comparación.</p>
           </>
         )}
