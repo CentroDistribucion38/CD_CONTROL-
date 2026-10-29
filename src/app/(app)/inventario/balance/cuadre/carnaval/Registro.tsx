@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Producto, Movimiento } from "@/modulos/carnaval/datos";
 import type { Comparacion } from "@/modulos/carnaval/logica";
 import { leerPeldar, type Lectura } from "@/modulos/carnaval/leer";
+import { SelectorCodigo } from "./SelectorCodigo";
 import { anularMovimiento, aplicarPeldar, previsualizarPeldar, registrarMovimiento } from "./actions";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 });
@@ -12,7 +13,7 @@ const TIPO: Record<string, string> = { INICIAL: "Inicial", INGRESO: "Ingreso Pel
 const conSigno = (v: number) => (v > 0 ? "+" : v < 0 ? "−" : "") + nf.format(Math.abs(v));
 type Aviso = { t: string; mal?: boolean } | null;
 
-export function Registro({ productos, corte, hoy, puedeEditar, movimientos }: { productos: Producto[]; corte: string; hoy: string; puedeEditar: boolean; movimientos: Movimiento[] }) {
+export function Registro({ productos, corte, hoy, puedeEditar, movimientos, saldos }: { productos: Producto[]; corte: string; hoy: string; puedeEditar: boolean; movimientos: Movimiento[]; saldos: Record<string, number> }) {
   const router = useRouter();
   const dlg = useRef<HTMLDialogElement>(null);
   const [pend, start] = useTransition();
@@ -125,11 +126,8 @@ export function Registro({ productos, corte, hoy, puedeEditar, movimientos }: { 
             <label style={{ width: 150 }}>Día
               <input type="date" value={fecha} max={hoy} onChange={(e) => setFecha(e.target.value)} disabled={!puedeEditar} />
             </label>
-            <label className="ancho">Código
-              <select value={codigo} onChange={(e) => setCodigo(e.target.value)} disabled={!puedeEditar} style={{ width: "100%" }}>
-                <option value="">Elige…</option>
-                {productos.map((p) => <option key={p.codigo} value={p.codigo}>{p.codigo} · {p.descripcion}</option>)}
-              </select>
+            <label className="ancho" style={{ minWidth: 260 }}>Código
+              <SelectorCodigo productos={productos} saldos={saldos} value={codigo} onChange={setCodigo} soloConSaldo={tipo === "TRASIEGO"} disabled={!puedeEditar} />
             </label>
             <label style={{ width: 110 }}>Pallets{tipo === "AJUSTE" ? " (− si resta)" : ""}
               <input inputMode="decimal" value={pallets} onChange={(e) => setPallets(e.target.value)} placeholder={tipo === "TRASIEGO" ? "20" : "-3"} style={{ width: "100%" }} disabled={!puedeEditar} />

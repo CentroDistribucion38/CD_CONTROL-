@@ -17,7 +17,7 @@ export async function Ag07({ sub, fecha: f }: { sub: "registro" | "control"; fec
   const fecha = /^\d{4}-\d{2}-\d{2}$/.test(f ?? "") ? f! : hoy;
   const perm = await misPermisos();
   const pc = await productosYCorte();
-  const s = pc.error || sub !== "control" ? null : await saldosA(fecha);
+  const s = pc.error ? null : await saldosA(sub === "control" ? fecha : hoy);
   const mv = pc.error || sub !== "registro" ? null : await ultimosMovimientos();
   const err = pc.error ?? s?.error ?? mv?.error ?? null;
   const error = err ? (faltaTabla(err) ? SQL_FALTA : err) : null;
@@ -32,7 +32,7 @@ export async function Ag07({ sub, fecha: f }: { sub: "registro" | "control"; fec
       <Hojas activa={sub} />
       {error ? <p className="cv-msg mal">{error}</p>
         : sub === "control" ? <Control fecha={fecha} hoy={hoy} filas={filas} />
-        : <Registro productos={pc.productos} corte={pc.corte} hoy={hoy} puedeEditar={perm.puedeEditar(RUTA_CUADRE)} movimientos={mv?.filas ?? []} />}
+        : <Registro productos={pc.productos} corte={pc.corte} hoy={hoy} puedeEditar={perm.puedeEditar(RUTA_CUADRE)} movimientos={mv?.filas ?? []} saldos={Object.fromEntries(s?.saldos ?? [])} />}
     </div>
   );
 }
