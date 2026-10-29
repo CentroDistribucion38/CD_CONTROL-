@@ -257,6 +257,8 @@ export type FilaCuadre07 = {
   /** SAP − conteo en el lugar donde debe quedar el envase (control-cal de AG07; para el 3500005, libre de AG71 DESPUÉS del traslado) */
   dif: number; destino: "AG07 control-cal" | "AG71 libre";
   movs: Mov07[]; sinAlcanzar: number;
+  /** Bloqueado de AG07 que quedaría sin pasar a libre: en AG07 nada debe quedar en bloqueado (343) */
+  bloqRestante: number;
 };
 export function cuadrePallets07(productos: { codigo: string; descripcion: string; und_por_pallet: number }[], saldos: Map<string, number>, pend: Map<string, number>, zexi: ZexiAlm[]): FilaCuadre07[] {
   const z = (alm: string, c: string) => zexi.find((x) => x.almacen === alm && x.codigo === c);
@@ -267,7 +269,7 @@ export function cuadrePallets07(productos: { codigo: string; descripcion: string
     if (!pallets && !pendientes && !(a7?.calidad) && !(a71?.libre && SKU_A_AG71.has(p.codigo))) continue;
     const palletsSap = redondear(pallets - pendientes), conteo = palletsSap * p.und_por_pallet;
     const libre = a7?.libre ?? 0, calidad = a7?.calidad ?? 0, bloqueado = a7?.bloqueado ?? 0;
-    const movs: Mov07[] = []; let sinAlcanzar = 0, dif: number, destino: FilaCuadre07["destino"], libre71: number | null = null;
+    const movs: Mov07[] = []; let sinAlcanzar = 0, bloqUsado = 0, dif: number, destino: FilaCuadre07["destino"], libre71: number | null = null;
     if (SKU_A_AG71.has(p.codigo)) {
       destino = "AG71 libre"; libre71 = a71?.libre ?? 0;
       /* Lo que haya en control-cal de AG07 NO se mira ni se mueve (no se puede): no cuenta y permanece. Solo se compara AG71 libre contra el conteo. */
@@ -276,7 +278,7 @@ export function cuadrePallets07(productos: { codigo: string; descripcion: string
         /* AG71 tiene menos que el conteo: se trae de AG07 con 311 (de libre; lo bloqueado primero pasa a libre con 343) */
         let falta = -dif, a311 = 0;
         const dl = Math.min(falta, Math.max(0, libre)); if (dl > 0.5) { a311 += dl; falta -= dl }
-        const db = Math.min(falta, Math.max(0, bloqueado)); if (db > 0.5) { movs.push({ titulo: "Mov 343 en AG07 (Bloqueado → Libre)", cantidad: Math.round(db) }); a311 += db; falta -= db }
+        const db = Math.min(falta, Math.max(0, bloqueado)); if (db > 0.5) { a311 += db; bloqUsado += db; falta -= db }
         if (a311 > 0.5) movs.push({ titulo: "Mov 311 (AG07 Libre → AG71 Libre)", cantidad: Math.round(a311) });
         sinAlcanzar = falta > 0.5 ? Math.round(falta) : 0;
       } else if (dif > 0.5) movs.push({ titulo: "Mov 311 (AG71 Libre → AG07 Libre)", cantidad: Math.round(dif) });
@@ -285,11 +287,14 @@ export function cuadrePallets07(productos: { codigo: string; descripcion: string
       if (dif < -0.5) {
         let falta = -dif;
         const dl = Math.min(falta, Math.max(0, libre)); if (dl > 0.5) { movs.push({ titulo: "Mov 322 en AG07 (Libre → Control de calidad)", cantidad: Math.round(dl) }); falta -= dl }
-        const db = Math.min(falta, Math.max(0, bloqueado)); if (db > 0.5) { movs.push({ titulo: "Mov 349 en AG07 (Bloqueado → Control de calidad)", cantidad: Math.round(db) }); falta -= db }
+        const db = Math.min(falta, Math.max(0, bloqueado)); if (db > 0.5) { movs.push({ titulo: "Mov 349 en AG07 (Bloqueado → Control de calidad)", cantidad: Math.round(db) }); bloqUsado += db; falta -= db }
         sinAlcanzar = falta > 0.5 ? Math.round(falta) : 0;
       } else if (dif > 0.5) movs.push({ titulo: "Mov 321 en AG07 (Control de calidad → Libre)", cantidad: Math.round(dif) });
     }
-    out.push({ codigo: p.codigo, descripcion: p.descripcion, undPorPallet: p.und_por_pallet, pallets, pendientes, palletsSap, conteo, libre, calidad, bloqueado, libre71, enZexi: !!a7 || !!a71, dif, destino, movs, sinAlcanzar });
+    /* NADA debe quedar en bloqueado: lo que no se usó para cuadrar pasa a libre con el 343 (3500005: todo el bloqueado pasa antes del 311). */
+    const bloqRestante = SKU_A_AG71.has(p.codigo) ? Math.max(0, bloqueado) : Math.max(0, bloqueado - bloqUsado);
+    if (bloqRestante > 0.5) movs.unshift({ titulo: "Mov 343 en AG07 (Bloqueado → Libre)", cantidad: Math.round(bloqRestante) });
+    out.push({ codigo: p.codigo, descripcion: p.descripcion, undPorPallet: p.und_por_pallet, pallets, pendientes, palletsSap, conteo, libre, calidad, bloqueado, libre71, enZexi: !!a7 || !!a71, dif, destino, movs, sinAlcanzar, bloqRestante: bloqRestante > 0.5 ? Math.round(bloqRestante) : 0 });
   }
   return out;
 }
@@ -344,8 +349,8 @@ export function cuadreInventario07(secciones: SeccionHoja[], zexi: ZexiAlm[], fa
   for (const [codigo, x] of acc) {
     const fa = factores.get(codigo) ?? { upc: 1, cpe: 0 };
     const a = z(codigo), libre = a?.libre ?? 0, calidad = a?.calidad ?? 0, bloqueado = a?.bloqueado ?? 0;
-    /* Contra libre utilización: el control de calidad ya quedó cuadrado en el paso 1. */
-    const sap = libre;
+    /* Contra libre utilización: el control de calidad ya quedó cuadrado en el paso 1. El bloqueado primero pasa a libre (343): en AG07 nada queda bloqueado. */
+    const sap = libre + bloqueado;
     out.push({ codigo, descripcion: nombres.get(codigo) ?? a?.descripcion ?? x.concepto, tipo: x.tipo, estibas: x.estibas, cajas: x.cajas, unidades: Math.round(x.unidades), sinFactor: x.estibas > 0 && !fa.cpe && !SKU_UNIDADES_DIRECTAS.has(codigo),
       nota: SKU_UNIDADES_DIRECTAS.has(codigo) ? `${Math.round(x.unidades - sobre)} contadas solas + ${Math.round(sobre)} estibas que van debajo del producto (cada renglón con cajas sueltas cuenta una estiba más)` : undefined,
       libre, calidad, bloqueado, sap, dif: Math.round(sap - x.unidades) });

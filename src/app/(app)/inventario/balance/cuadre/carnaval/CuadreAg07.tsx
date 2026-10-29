@@ -85,10 +85,15 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
   }
 
   /* Paso 2: solo lo que NO da cero. SAP menos que la hoja → hay que sumar; SAP más que la hoja → hay que restar. */
-  const difs2 = inventario.filter((f) => Math.abs(f.dif) >= 0.5);
+  const difs2 = inventario.filter((f) => Math.abs(f.dif) >= 0.5 || f.bloqueado > 0.5);
   const grupos2 = useMemo(() => {
     const m = new Map<string, { codigo: string; descripcion: string; cantidad: number }[]>();
-    for (const f of difs2) {
+    /* En AG07 nada debe quedar en bloqueado: primero todo el bloqueado pasa a libre (343); después se cuadra la diferencia con el 311. */
+    for (const f of difs2) if (f.bloqueado > 0.5) {
+      const t = "Mov 343 en AG07 (Bloqueado → Libre: nada debe quedar en bloqueado)";
+      m.set(t, [...(m.get(t) ?? []), { codigo: f.codigo, descripcion: f.descripcion, cantidad: Math.round(f.bloqueado) }]);
+    }
+    for (const f of difs2) if (Math.abs(f.dif) >= 0.5) {
       const t = `${f.tipo === "ENVASE" ? "Envase" : "Caja plástica"} AG07 · ${f.dif < 0 ? "Mov 311 (AG22 → AG07 libre: SAP tiene menos que la hoja)" : "Mov 311 (AG07 libre → AG22: SAP tiene más que la hoja)"}`;
       m.set(t, [...(m.get(t) ?? []), { codigo: f.codigo, descripcion: f.descripcion, cantidad: Math.abs(f.dif) }]);
     }
@@ -96,7 +101,7 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
   }, [difs2]);
 
   const sinFilas = filas.length === 0;
-  const balanceado = !sinFilas && filas.every((f) => Math.abs(f.dif) < 0.5 && f.movs.length === 0 && !f.sinAlcanzar);
+  const balanceado = !sinFilas && filas.every((f) => Math.abs(f.dif) < 0.5 && f.movs.length === 0 && !f.sinAlcanzar && !f.bloqRestante);
   return (
     <>
       {aviso && <p className={`cv-msg ${aviso.mal ? "mal" : ""}`} role="status">{aviso.t}</p>}
@@ -111,6 +116,14 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
         {puedeEditar && <button type="button" className="cs-bt" disabled={pend} onClick={() => input.current?.click()}>{pend ? "Guardando…" : zexi ? "Subir la ZEXI nueva (confirmar)" : "Subir la ZEXI de AG07"}</button>}
         <input ref={input} type="file" accept=".xlsx,.xlsm,.xls" hidden onChange={(e) => { void alElegir(e.target.files?.[0]); e.target.value = "" }} />
       </div>
+
+      {zexi && !sinFilas && (() => {
+        const p1 = filas.filter((f) => Math.abs(f.dif) >= 0.5 || f.bloqRestante > 0).length;
+        const p2 = hojaDe ? difs2.length : 0;
+        return p1 + p2 === 0
+          ? <p className="cv-msg" style={{ borderLeftColor: "#1E6B37", background: "#E7F4EC" }}><b>Todo quedó balanceado</b> con esta ZEXI: pallets e inventario.</p>
+          : <p className="cv-msg mal"><b>Falta balancear:</b> {p1} material(es) en pallets{hojaDe ? ` y ${p2} renglón(es) en inventario` : ""}. Haz los movimientos en SAP y sube la ZEXI nueva: aquí te dice si ya quedó todo en cero.</p>;
+      })()}
 
       <h2 className="cs-h"><i>1</i> Cuadre de pallets <small className="cs-h-s">el conteo de Control contra la ZEXI de AG07 en control de calidad</small></h2>
       <p className="cv-nota" style={{ margin: "0 0 10px" }}>
@@ -132,7 +145,7 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
               {filas.map((f) => {
                 const sapAntes = f.libre71 != null ? f.libre71 : f.calidad;
                 const queda = f.dif < -0.5 ? -f.sinAlcanzar : 0;
-                const cuadra = !!zexi && Math.abs(f.dif) < 0.5;
+                const cuadra = !!zexi && Math.abs(f.dif) < 0.5 && !f.bloqRestante;
                 const rojo = !!zexi && f.libre71 != null && f.calidad > 0.5;
                 return (
                   <tr key={f.codigo} className={!zexi || cuadra ? "" : "pend"}>
@@ -146,6 +159,7 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
                     <td className="n"><b>{!zexi ? "—" : queda ? conSigno(queda) : "0"}</b></td>
                     <td>
                       {!zexi ? "—" : cuadra ? <span className="cs-chip ok">Balanceado</span>
+                        : f.bloqRestante > 0 && Math.abs(f.dif) < 0.5 ? <span className="cs-chip in">Quedan {ent.format(f.bloqRestante)} en bloqueado: pasarlos a libre (343)</span>
                         : f.sinAlcanzar > 0 ? <span className="cs-chip in">Faltan {ent.format(f.sinAlcanzar)} que no hay en libre ni bloqueado</span>
                         : <span className="cs-chip in">Falta hacer {f.movs.length > 1 ? "los movimientos" : "el movimiento"} en SAP</span>}
                       {rojo && <div className="cv-neg" style={{ marginTop: 4 }}>AG07 control de calidad: {ent.format(f.calidad)} no se puede mover y no cuenta; esa cantidad permanece ahí.</div>}
@@ -177,27 +191,29 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
           <>
             <p className="cv-nota" style={{ margin: "0 0 10px" }}>
               {hojaGuardada ? `Hoja de Inventario del ${fecha}.` : `El ${fecha} no tiene hoja guardada: se usa la del ${hojaDe}.`} Estibas y cajas pasan a unidades con los factores del maestro (unidades por caja, cajas por estiba).
-              Entra toda la hoja menos PALLET (ya se cuadró en el paso 1) y el casco de vidrio, y se compara contra la libre utilización de AG07 en la ZEXI (el control de calidad ya quedó en el paso 1).
+              Entra toda la hoja menos PALLET (ya se cuadró en el paso 1) y el casco de vidrio, y se compara contra la libre utilización de AG07 en la ZEXI (el control de calidad ya quedó en el paso 1). En AG07 nada debe quedar en bloqueado: todo el bloqueado pasa a libre con el 343.
             </p>
             {difs2.length === 0
               ? <p className="cv-msg" style={{ borderLeftColor: "#1E6B37", background: "#E7F4EC" }}><b>Inventario balanceado.</b> Todo lo de la hoja (envase y cajas) coincide con la ZEXI.</p>
               : <p className="cv-msg mal">Hay <b>{difs2.length}</b> renglón(es) del inventario que no cuadran con la ZEXI. Haz en SAP lo que sale abajo y sube la ZEXI nueva para confirmar.</p>}
             <div className="cs-scroll">
               <table className="cs-t">
-                <thead><tr><th>Código</th><th>Material</th><th className="n">Estibas</th><th className="n">Cajas</th><th className="n">Hoja (unid.)</th><th className="n">Libre utilización (SAP)</th><th className="n">Diferencia</th><th>Estado</th></tr></thead>
+                <thead><tr><th>Código</th><th>Material</th><th className="n">Estibas</th><th className="n">Cajas</th><th className="n">Hoja (unid.)</th><th className="n">Libre</th><th className="n">Bloqueado</th><th className="n">SAP</th><th className="n">Diferencia</th><th>Estado</th></tr></thead>
                 <tbody>
                   {inventario.map((f, i) => {
                     const cero = Math.abs(f.dif) < 0.5;
                     return (
-                      <tr key={f.codigo} className={(cero ? "" : "pend ") + (i > 0 && inventario[i - 1].tipo !== f.tipo ? "cv-corte" : "")}>
+                      <tr key={f.codigo} className={(cero && !f.bloqueado ? "" : "pend ") + (i > 0 && inventario[i - 1].tipo !== f.tipo ? "cv-corte" : "")}>
                         <td className="mono">{f.codigo}</td>
                         <td>{f.descripcion}{f.tipo === "CAJA" && <span className="cv-tag" style={{ marginLeft: 6 }}>Caja</span>}{f.sinFactor && <span className="cv-neg"> · sin cajas por estiba en el maestro</span>}{f.nota && <small className="cs-ext">{f.nota}</small>}</td>
                         <td className="n">{f.estibas ? nf.format(f.estibas) : ""}</td>
                         <td className="n">{f.cajas ? nf.format(f.cajas) : ""}</td>
                         <td className="n"><b>{ent.format(f.unidades)}</b></td>
+                        <td className="n">{ent.format(f.libre)}</td>
+                        <td className="n">{f.bloqueado ? <b className="cv-neg">{ent.format(f.bloqueado)}</b> : ""}</td>
                         <td className="n">{ent.format(f.sap)}</td>
                         <td className="n">{cero ? "0" : <b>{conSigno(f.dif)}</b>}</td>
-                        <td>{cero ? <span className="cs-chip ok">Balanceado</span> : <span className="cs-chip in">{f.dif < 0 ? `Faltan ${ent.format(-f.dif)} en SAP` : `Sobran ${ent.format(f.dif)} en SAP`}</span>}</td>
+                        <td>{cero && !f.bloqueado ? <span className="cs-chip ok">Balanceado</span> : cero ? <span className="cs-chip in">Pasar {ent.format(f.bloqueado)} de bloqueado a libre (343)</span> : <span className="cs-chip in">{f.dif < 0 ? `Faltan ${ent.format(-f.dif)} en SAP` : `Sobran ${ent.format(f.dif)} en SAP`}</span>}</td>
                       </tr>
                     );
                   })}
