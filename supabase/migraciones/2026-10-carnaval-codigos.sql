@@ -117,7 +117,10 @@ insert into public.carnaval_equivalencias (seccion, concepto, codigo) values
   ('pendiente de baja', 'envase costenita 175r', '3500005'),
   ('pendiente de baja', 'envase flint 1000r', '3500887'),
   ('pendiente de baja', 'envase marron 1000cc', '3500888'),
-  ('pendiente de baja', 'envase trophy 850', '3501539')
+  ('pendiente de baja', 'envase trophy 850', '3501539'),
+  ('estibas de madera cerv', 'tipo a', '3500163'),
+  ('estibas de madera cerv', 'tipo b', '3500163'),
+  ('estibas de madera cerv', 'tipo c', '3500163')
 -- Si se vuelve a correr, corrige la semilla pero NO pisa lo que una persona asignó a mano en pantalla (esas filas tienen quién las puso).
 on conflict (seccion, concepto) do update set codigo = excluded.codigo, actualizado_en = now()
   where public.carnaval_equivalencias.actualizado_por is null;
