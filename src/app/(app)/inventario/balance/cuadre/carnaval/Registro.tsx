@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Producto, Movimiento } from "@/modulos/carnaval/datos";
 import type { Comparacion } from "@/modulos/carnaval/logica";
 import { leerPeldar, type Lectura } from "@/modulos/carnaval/leer";
-import { anularMovimiento, aplicarPeldar, previsualizarPeldar, registrarMovimiento } from "../actions";
+import { anularMovimiento, aplicarPeldar, previsualizarPeldar, registrarMovimiento } from "./actions";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 });
 const TIPO: Record<string, string> = { INICIAL: "Inicial", INGRESO: "Ingreso Peldar", TRASIEGO: "Trasiego", AJUSTE: "Ajuste" };
@@ -97,7 +97,7 @@ export function Registro({ productos, corte, hoy, puedeEditar, movimientos }: { 
   return (
     <>
       {aviso && <p className={`cv-msg ${aviso.mal ? "mal" : ""}`} role="status">{aviso.t}</p>}
-      {!puedeEditar && <p className="cv-msg mal">Tu rol solo puede ver. Para registrar necesitas permiso de «editar» en Carnaval · Registro (Admin → Roles).</p>}
+      {!puedeEditar && <p className="cv-msg mal">Tu rol solo puede ver. Para registrar necesitas permiso de «editar» en Cuadre SAP (Admin → Roles).</p>}
 
       <section className="cv-bloque">
         <h2>1 · Archivo de Peldar (suma)</h2>

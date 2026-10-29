@@ -58,32 +58,29 @@ create unique index if not exists carnaval_mov_clave on public.carnaval_movimien
 create index if not exists carnaval_mov_fecha on public.carnaval_movimientos (fecha);
 create index if not exists carnaval_mov_codigo on public.carnaval_movimientos (codigo);
 
--- 4) RLS: ver con «ver» o «editar» en Registro o Control; escribir solo con «editar» en Registro
+-- 4) RLS: los mismos permisos del Cuadre SAP (ver / editar)
 alter table public.carnaval_productos enable row level security;
 alter table public.carnaval_config enable row level security;
 alter table public.carnaval_movimientos enable row level security;
 
 drop policy if exists carnaval_prod_ver on public.carnaval_productos;
 create policy carnaval_prod_ver on public.carnaval_productos for select
-  using (public.mi_nivel_pantalla('/inventario/balance/carnaval/registro') <> 'ninguno'
-      or public.mi_nivel_pantalla('/inventario/balance/carnaval/control') <> 'ninguno');
+  using (public.mi_nivel_pantalla('/inventario/balance/cuadre') <> 'ninguno');
 
 drop policy if exists carnaval_cfg_ver on public.carnaval_config;
 create policy carnaval_cfg_ver on public.carnaval_config for select
-  using (public.mi_nivel_pantalla('/inventario/balance/carnaval/registro') <> 'ninguno'
-      or public.mi_nivel_pantalla('/inventario/balance/carnaval/control') <> 'ninguno');
+  using (public.mi_nivel_pantalla('/inventario/balance/cuadre') <> 'ninguno');
 
 drop policy if exists carnaval_mov_ver on public.carnaval_movimientos;
 create policy carnaval_mov_ver on public.carnaval_movimientos for select
-  using (public.mi_nivel_pantalla('/inventario/balance/carnaval/registro') <> 'ninguno'
-      or public.mi_nivel_pantalla('/inventario/balance/carnaval/control') <> 'ninguno');
+  using (public.mi_nivel_pantalla('/inventario/balance/cuadre') <> 'ninguno');
 drop policy if exists carnaval_mov_ins on public.carnaval_movimientos;
 create policy carnaval_mov_ins on public.carnaval_movimientos for insert
-  with check (public.mi_nivel_pantalla('/inventario/balance/carnaval/registro') = 'editar');
+  with check (public.mi_nivel_pantalla('/inventario/balance/cuadre') = 'editar');
 drop policy if exists carnaval_mov_upd on public.carnaval_movimientos;
 create policy carnaval_mov_upd on public.carnaval_movimientos for update
-  using (public.mi_nivel_pantalla('/inventario/balance/carnaval/registro') = 'editar')
-  with check (public.mi_nivel_pantalla('/inventario/balance/carnaval/registro') = 'editar');
+  using (public.mi_nivel_pantalla('/inventario/balance/cuadre') = 'editar')
+  with check (public.mi_nivel_pantalla('/inventario/balance/cuadre') = 'editar');
 -- nadie borra: lo equivocado se anula (queda la huella)
 
 grant select on public.carnaval_productos, public.carnaval_config to authenticated;

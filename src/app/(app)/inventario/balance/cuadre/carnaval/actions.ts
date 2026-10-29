@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { usuarioActual } from "@/lib/sesion";
 import { misPermisos } from "@/lib/permisos";
 import { compararPeldar, redondear, type Comparacion, type FilaPeldar } from "@/modulos/carnaval/logica";
-import { faltaTabla, ingresosCargados, productosYCorte, RUTA_CONTROL, RUTA_REGISTRO, saldosA, SQL_FALTA } from "@/modulos/carnaval/datos";
+import { faltaTabla, ingresosCargados, productosYCorte, RUTA_CUADRE, saldosA, SQL_FALTA } from "@/modulos/carnaval/datos";
 
 /**
  * AG07 CARNAVAL · LO QUE SE GUARDA.
@@ -15,11 +15,11 @@ import { faltaTabla, ingresosCargados, productosYCorte, RUTA_CONTROL, RUTA_REGIS
  *  · anularMovimiento: nada se borra; lo equivocado se anula y queda la huella.
  */
 const esDia = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v);
-const refrescar = () => { revalidatePath(RUTA_REGISTRO); revalidatePath(RUTA_CONTROL) };
+const refrescar = () => revalidatePath(RUTA_CUADRE);
 
 async function permiso() {
   const p = await misPermisos();
-  return p.puedeEditar(RUTA_REGISTRO) ? null : "No tienes permiso para registrar en Carnaval (Admin → Roles → Carnaval · Registro).";
+  return p.puedeEditar(RUTA_CUADRE) ? null : "No tienes permiso para registrar en Carnaval (Admin → Roles → Cuadre SAP).";
 }
 
 function leerFilas(json: string): FilaPeldar[] | null {

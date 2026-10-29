@@ -39,9 +39,9 @@ export function Control({ fecha, hoy, filas }: { fecha: string; hoy: string; fil
       <div className="cv-barra">
         <label>Inventario al día
           <input type="date" className="cv-fecha" value={fecha} max={hoy} disabled={pend}
-                 onChange={(e) => e.target.value && start(() => router.push(`/inventario/balance/carnaval/control?fecha=${e.target.value}`))} />
+                 onChange={(e) => e.target.value && start(() => router.push(`/inventario/balance/cuadre?alm=AG07&sub=control&fecha=${e.target.value}`))} />
         </label>
-        {fecha !== hoy && <button type="button" className="cs-bt alt" onClick={() => start(() => router.push("/inventario/balance/carnaval/control"))}>Volver a hoy</button>}
+        {fecha !== hoy && <button type="button" className="cs-bt alt" onClick={() => start(() => router.push("/inventario/balance/cuadre?alm=AG07&sub=control"))}>Volver a hoy</button>}
         <label><input type="checkbox" checked={soloConSaldo} onChange={(e) => setSolo(e.target.checked)} /> Ocultar códigos en cero</label>
         <span className="grow" />
         <button type="button" className="cs-bt" onClick={excel}>Descargar Excel</button>

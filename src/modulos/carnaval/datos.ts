@@ -3,8 +3,8 @@ import { todas } from "@/modulos/inventario/paginas";
 import type { Existente } from "./logica";
 
 /** AG07 CARNAVAL · lo que se lee de Supabase (el maestro de productos, el corte, los saldos y los movimientos). */
-export const RUTA_REGISTRO = "/inventario/balance/carnaval/registro";
-export const RUTA_CONTROL = "/inventario/balance/carnaval/control";
+/** AG07 vive DENTRO del Cuadre SAP: mismos permisos que el Cuadre (ver / editar). */
+export const RUTA_CUADRE = "/inventario/balance/cuadre";
 export const SQL_FALTA = "Falta correr supabase/migraciones/2026-10-carnaval-ag07.sql en Supabase.";
 export const faltaTabla = (m: string) => /carnaval_|does not exist|schema cache/i.test(m);
 

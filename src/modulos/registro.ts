@@ -748,10 +748,6 @@ export const MODULOS: Modulo[] = [
       /* CUADRE SAP: el conteo del día contra el ZEXI de AG18 → el 311 que hay que hacer, y con la
          transacción del 311 ya bajada de SAP, si todo quedó balanceado. */
       { nombre: "Cuadre SAP", ruta: "/inventario/balance/cuadre", rama: "balance" },
-      /* AG07 CARNAVAL (dentro del Cuadre SAP): el envase vacío de Peldar por pallets. REGISTRO: se carga el archivo diario
-         (suma), los trasiegos (resta) y los ajustes (±); CONTROL: el inventario por código (pallets, unidades, HL). */
-      { nombre: "Registro", ruta: "/inventario/balance/carnaval/registro", rama: "balance", grupo: "Carnaval AG07" },
-      { nombre: "Control", ruta: "/inventario/balance/carnaval/control", rama: "balance", grupo: "Carnaval AG07" },
       /* PASIVOS (BLOQUEADOS.xlsx): la base se alimenta del balance y del archivo plano de la baja
          proyectada y la rotura de línea; el maestro va al final. El informe viene después. */
       { nombre: "Base", ruta: "/inventario/balance/pasivos", rama: "balance", grupo: "Pasivos" },
