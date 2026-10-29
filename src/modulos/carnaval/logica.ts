@@ -307,6 +307,8 @@ export type FilaInv07 = {
   codigo: string; descripcion: string; tipo: "ENVASE" | "CAJA";
   estibas: number; cajas: number; unidades: number; sinFactor: boolean;
   libre: number; calidad: number; bloqueado: number; sap: number; dif: number;
+  /** Para la estiba de madera: cuántas van debajo de producto (se suman a las que se cuentan solas). */
+  nota?: string;
 };
 /** Estiba de madera: la cantidad de la hoja ya son unidades. */
 const SKU_UNIDADES_DIRECTAS = new Set(["3500163"]);
@@ -326,6 +328,14 @@ export function cuadreInventario07(secciones: SeccionHoja[], zexi: ZexiAlm[], fa
       x.estibas += est; x.cajas += caj; x.unidades += u; acc.set(c, x);
     }
   }
+  /* LA ESTIBA DE MADERA (3500163): además de las que se cuentan solas, cada ESTIBA de producto (envase, cajas…) va montada sobre una estiba de madera, y también cuenta. */
+  let sobre = 0;
+  for (const [c, x] of acc) if (!SKU_UNIDADES_DIRECTAS.has(c)) sobre += x.estibas;
+  for (const c of SKU_UNIDADES_DIRECTAS) {
+    const x = acc.get(c);
+    if (x) { x.unidades += sobre }
+    else if (sobre > 0) acc.set(c, { tipo: "ENVASE", estibas: 0, cajas: 0, unidades: sobre, concepto: "Estiba de madera" });
+  }
   const z = (c: string) => zexi.find((x) => x.almacen === "AG07" && x.codigo === c);
   /* Materiales de AG07 con libre utilización que la hoja no trae: también se muestran, contra una hoja en cero. */
   for (const x of zexi) if (x.almacen === "AG07" && !acc.has(x.codigo) && x.libre) acc.set(x.codigo, { tipo: /caja/i.test(x.descripcion) ? "CAJA" : "ENVASE", estibas: 0, cajas: 0, unidades: 0, concepto: x.descripcion });
@@ -336,6 +346,7 @@ export function cuadreInventario07(secciones: SeccionHoja[], zexi: ZexiAlm[], fa
     /* Contra libre utilización: el control de calidad ya quedó cuadrado en el paso 1. */
     const sap = libre;
     out.push({ codigo, descripcion: nombres.get(codigo) ?? a?.descripcion ?? x.concepto, tipo: x.tipo, estibas: x.estibas, cajas: x.cajas, unidades: Math.round(x.unidades), sinFactor: x.estibas > 0 && !fa.cpe && !SKU_UNIDADES_DIRECTAS.has(codigo),
+      nota: SKU_UNIDADES_DIRECTAS.has(codigo) ? `${Math.round(x.unidades - sobre)} contadas solas + ${Math.round(sobre)} estibas que van debajo del producto` : undefined,
       libre, calidad, bloqueado, sap, dif: Math.round(sap - x.unidades) });
   }
   return out.sort((a, b) => (a.tipo === b.tipo ? a.codigo.localeCompare(b.codigo) : a.tipo === "ENVASE" ? -1 : 1));

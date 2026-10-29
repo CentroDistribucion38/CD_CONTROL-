@@ -191,7 +191,7 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
                     return (
                       <tr key={f.codigo} className={(cero ? "" : "pend ") + (i > 0 && inventario[i - 1].tipo !== f.tipo ? "cv-corte" : "")}>
                         <td className="mono">{f.codigo}</td>
-                        <td>{f.descripcion}{f.tipo === "CAJA" && <span className="cv-tag" style={{ marginLeft: 6 }}>Caja</span>}{f.sinFactor && <span className="cv-neg"> · sin cajas por estiba en el maestro</span>}</td>
+                        <td>{f.descripcion}{f.tipo === "CAJA" && <span className="cv-tag" style={{ marginLeft: 6 }}>Caja</span>}{f.sinFactor && <span className="cv-neg"> · sin cajas por estiba en el maestro</span>}{f.nota && <small className="cs-ext">{f.nota}</small>}</td>
                         <td className="n">{f.estibas ? nf.format(f.estibas) : ""}</td>
                         <td className="n">{f.cajas ? nf.format(f.cajas) : ""}</td>
                         <td className="n"><b>{ent.format(f.unidades)}</b></td>
