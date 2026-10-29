@@ -219,3 +219,30 @@ export async function asignarCodigo(seccion: string, concepto: string, codigo: s
   refrescar();
   return { ok: true };
 }
+
+
+/**
+ * ELIMINAR EL INVENTARIO DE UN DÍA (la hoja guardada). Si esa hoja hizo ajustes de pallets, se pueden anular también (quedan
+ * anulados con el motivo, no se borran: el movimiento conserva su huella). Pide motivo.
+ */
+export async function eliminarInventario(fecha: string, motivo: string, anularAjustes: boolean): Promise<{ error?: string; ok?: true; anulados?: number }> {
+  const sin = await permiso(); if (sin) return { error: sin };
+  if (!esDia(fecha)) return { error: "Día inválido." };
+  const m = (motivo ?? "").trim();
+  if (!m) return { error: "Escribe el motivo." };
+  const supabase = await createClient();
+  const { data: borradas, error } = await supabase.from("carnaval_existencias").delete().eq("fecha", fecha).select("fecha");
+  if (error) return { error: faltaTabla(error.message) || /carnaval_existencias|does not exist|schema cache/i.test(error.message) ? "Falta correr supabase/migraciones/2026-10-carnaval-inventario-eliminar.sql en Supabase." : error.message };
+  if (!borradas || borradas.length === 0) return { error: "No se pudo eliminar: ya no existe, o falta correr supabase/migraciones/2026-10-carnaval-inventario-eliminar.sql en Supabase." };
+  let anulados = 0;
+  if (anularAjustes) {
+    const user = await usuarioActual();
+    const { data, error: e2 } = await supabase.from("carnaval_movimientos")
+      .update({ anulado: true, anulado_motivo: `Se eliminó el inventario del ${fecha}: ${m}`, anulado_por: user?.id ?? null, anulado_en: new Date().toISOString() })
+      .eq("tipo", "AJUSTE").eq("fecha", fecha).eq("anulado", false).like("nota", `Ajuste por inventario del ${fecha}%`).select("id");
+    if (e2) return { error: `El inventario se eliminó, pero no se pudieron anular sus ajustes: ${e2.message}` };
+    anulados = data?.length ?? 0;
+  }
+  refrescar();
+  return { ok: true, anulados };
+}

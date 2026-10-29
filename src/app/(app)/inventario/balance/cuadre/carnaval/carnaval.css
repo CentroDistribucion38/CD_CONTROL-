@@ -119,3 +119,6 @@
 .cs .cv-cod.nada { color: #9AA2A9; font-weight: 500 }
 .cs .cv-btn-cod { height: 26px; padding: 0 9px; border: 1px dashed #C58A00; background: #FFF6D6; color: var(--fe-tinta); font: 600 12px var(--fe-texto); cursor: pointer }
 .cs .cv-btn-cod:focus-visible { outline: 3px solid var(--fe-acento, #FFC400) }
+.cs .cv-dlg.chico { width: min(520px, calc(100vw - 24px)) }
+.cs .cv-bt-borrar { background: #A50D25; color: #fff; border-color: #A50D25 }
+.cs .cv-marca { display: flex; gap: 8px; align-items: flex-start; font-size: 13px }

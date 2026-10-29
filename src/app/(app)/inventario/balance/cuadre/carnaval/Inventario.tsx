@@ -7,7 +7,7 @@ import type { Sku } from "@/modulos/carnaval/datos";
 import { PLANTILLA_INICIAL } from "@/modulos/carnaval/plantilla";
 import { leerFotoLocal } from "@/modulos/carnaval/leerFoto";
 import { leerInventario } from "@/modulos/carnaval/leerInventario";
-import { asignarCodigo, guardarInventario, saldosAl } from "./actions";
+import { asignarCodigo, eliminarInventario, guardarInventario, saldosAl } from "./actions";
 import { SelectorCodigo } from "./SelectorCodigo";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 });
@@ -20,6 +20,9 @@ type Guardado = { fecha: string; secciones: SeccionHoja[]; validacion: (FilaVali
 export function Inventario({ fecha, hoy, guardado, dias, puedeEditar, nombres, molde, maestro, eq }: { fecha: string; hoy: string; guardado: Guardado; dias: string[]; puedeEditar: boolean; nombres: Record<string, string>; molde: SeccionHoja[] | null; maestro: Sku[]; eq: Record<string, string> }) {
   const router = useRouter();
   const dlg = useRef<HTMLDialogElement>(null);
+  const dlgBorrar = useRef<HTMLDialogElement>(null);
+  const [motivoBorrar, setMotivoBorrar] = useState("");
+  const [anularAj, setAnularAj] = useState(true);
   const [pend, start] = useTransition();
   const [leyendo, setLeyendo] = useState(false);
   const [progreso, setProgreso] = useState("");
@@ -121,6 +124,18 @@ export function Inventario({ fecha, hoy, guardado, dias, puedeEditar, nombres, m
     });
   }
 
+  const ajustesHechos = guardado ? guardado.validacion.filter((x) => x.decision === "ajustado").length : 0;
+  function borrar() {
+    if (!guardado) return;
+    start(async () => {
+      const r = await eliminarInventario(guardado.fecha, motivoBorrar, anularAj && ajustesHechos > 0);
+      if (r.error) { setAviso({ t: r.error, mal: true }); dlgBorrar.current?.close(); return }
+      dlgBorrar.current?.close(); setMotivoBorrar("");
+      setAviso({ t: `Inventario del ${guardado.fecha} eliminado${r.anulados ? ` y ${r.anulados} ajuste(s) de pallets anulado(s)` : ""}.` });
+      router.refresh();
+    });
+  }
+
   async function excel() {
     if (!guardado) return;
     const XLSX = await import("xlsx");
@@ -148,6 +163,7 @@ export function Inventario({ fecha, hoy, guardado, dias, puedeEditar, nombres, m
           </span>
         )}
         <span className="grow" />
+        {guardado && puedeEditar && <button type="button" className="cs-bt alt" onClick={() => { setMotivoBorrar(""); setAnularAj(true); dlgBorrar.current?.showModal() }}>Eliminar inventario</button>}
         {guardado && <button type="button" className="cs-bt alt" onClick={excel}>Descargar Excel</button>}
       </div>
 
@@ -194,6 +210,33 @@ export function Inventario({ fecha, hoy, guardado, dias, puedeEditar, nombres, m
           )}
         </>
       )}
+
+      {/* ELIMINAR UN DÍA: ventana propia, con motivo; los ajustes de pallets que hizo se anulan (no se borran) */}
+      <dialog ref={dlgBorrar} className="cv-dlg chico" aria-label="Eliminar inventario">
+        <div className="cv-dlg-caja">
+          <div className="cv-dlg-cab">
+            <div><p>Carnaval · inventario diario</p><h2>Eliminar el inventario del {guardado?.fecha}</h2></div>
+            <button type="button" className="cv-dlg-x" aria-label="Cerrar" onClick={() => dlgBorrar.current?.close()}>×</button>
+          </div>
+          <div className="cv-dlg-cuerpo">
+            <p style={{ margin: 0, fontSize: 13.5 }}>Se quita la hoja de ese día. Los pallets y los demás días no cambian.</p>
+            {ajustesHechos > 0 && (
+              <label className="cv-marca"><input type="checkbox" checked={anularAj} onChange={(e) => setAnularAj(e.target.checked)} />
+                <span>Esa hoja hizo {ajustesHechos} ajuste(s) de pallets. Anularlos también (quedan anulados con el motivo, no se borran).</span></label>
+            )}
+            <label className="cv-form" style={{ display: "flex", flexDirection: "column", alignItems: "stretch", gap: 4 }}>Motivo
+              <input type="text" className="cv-cel" style={{ width: "100%", textAlign: "left" }} value={motivoBorrar} onChange={(e) => setMotivoBorrar(e.target.value)} placeholder="Por qué se elimina (obligatorio)" />
+            </label>
+          </div>
+          <div className="cv-dlg-pie">
+            <span />
+            <span className="cv-form">
+              <button type="button" className="cs-bt alt" onClick={() => dlgBorrar.current?.close()}>Cancelar</button>
+              <button type="button" className="cs-bt cv-bt-borrar" disabled={pend || !motivoBorrar.trim()} onClick={borrar}>{pend ? "Eliminando…" : "Eliminar inventario"}</button>
+            </span>
+          </div>
+        </div>
+      </dialog>
 
       {/* LA VENTANA DE REVISIÓN: primero lo que importa (¿PALLET cuadra con la app?), luego lo que se leyó de la foto, para corregirlo */}
       <dialog ref={dlg} className="cv-dlg" aria-label="Revisión del inventario">
