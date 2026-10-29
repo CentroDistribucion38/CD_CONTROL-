@@ -112,8 +112,8 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
         </div>
       )}
       <p className="cv-nota">
-        Conteo = pallets de Control sin los que no tienen entrada de mercancía, por las unidades de cada pallet. La diferencia es lo de SAP menos el conteo: en el 3500005 se mide en el AG71 libre
-        después de pasarle lo que tenga el AG07 en control-cal (ese SKU no se toca en control-cal y es el único que va al AG71). Una diferencia que coincide con los pallets «sin EM» se arregla sola
+        Conteo = pallets de Control sin los que no tienen entrada de mercancía, por las unidades de cada pallet. La diferencia es lo de SAP menos el conteo: el 3500005 se mide solo en el AG71 libre
+        (lo que tenga el AG07 en control-cal no se mira ni se mueve: se ve en rojo y permanece). Una diferencia que coincide con los pallets «sin EM» se arregla sola
         cuando Peldar registre su entrada de mercancía.
       </p>
 
