@@ -317,7 +317,7 @@ export function cuadrePallets07(productos: { codigo: string; descripcion: string
      Se toma TODA la hoja (menos PALLET y casco) y se compara contra la LIBRE UTILIZACIÓN de AG07 (el control de calidad ya quedó en el paso 1).
    La diferencia (SAP − hoja) es de inventario: no se arregla moviendo entre estados.
    ===================================================================== */
-export type FactorSku = { upc: number; cpe: number };
+export type FactorSku = { upc: number; cpe: number; /** código de la caja plástica en la que va este envase (maestro) */ caja?: string | null };
 export type FilaInv07 = {
   codigo: string; descripcion: string; tipo: "ENVASE" | "CAJA";
   estibas: number; cajas: number; unidades: number; sinFactor: boolean;
@@ -344,6 +344,17 @@ export function cuadreInventario07(secciones: SeccionHoja[], zexi: ZexiAlm[], fa
     }
   }
   /* LA ESTIBA DE MADERA (3500163): además de las que se cuentan solas, cada ESTIBA de producto (envase, cajas…) va montada sobre una estiba de madera, y también cuenta. */
+  /* LAS CAJAS QUE VAN EN EL ENVASE: cada caja (suelta o en estibas) de un envase es una caja plástica de su código de caja: se suma al conteo de esa caja. */
+  const enEnvase = new Map<string, number>();
+  for (const [c, x] of [...acc]) {
+    if (x.tipo !== "ENVASE" || SKU_UNIDADES_DIRECTAS.has(c)) continue;
+    const fa = factores.get(c); if (!fa?.caja) continue;
+    const n = x.estibas * fa.cpe + x.cajas; if (n > 0) enEnvase.set(fa.caja, (enEnvase.get(fa.caja) ?? 0) + n);
+  }
+  for (const [caja, n] of enEnvase) {
+    const x = acc.get(caja) ?? { tipo: "CAJA" as const, estibas: 0, cajas: 0, unidades: 0, concepto: nombres.get(caja) ?? caja };
+    x.unidades += n; acc.set(caja, x);
+  }
   /* Partidas rápidas del paso 2: se suman a lo contado (unidades) aunque el código no esté en la hoja. */
   for (const x of partidas) if (x.paso === 2 && !acc.has(x.codigo)) acc.set(x.codigo, { tipo: /caja/i.test(nombres.get(x.codigo) ?? "") ? "CAJA" : "ENVASE", estibas: 0, cajas: 0, unidades: 0, concepto: nombres.get(x.codigo) ?? x.codigo });
   for (const [c, x] of acc) x.unidades += sumaPartidas(partidas, 2, c).conteo;
@@ -366,7 +377,7 @@ export function cuadreInventario07(secciones: SeccionHoja[], zexi: ZexiAlm[], fa
     const pt = sumaPartidas(partidas, 2, codigo);
     const sap = libre + bloqueado + pt.sap;
     out.push({ codigo, descripcion: nombres.get(codigo) ?? a?.descripcion ?? x.concepto, tipo: x.tipo, estibas: x.estibas, cajas: x.cajas, unidades: Math.round(x.unidades), sinFactor: x.estibas > 0 && !fa.cpe && !SKU_UNIDADES_DIRECTAS.has(codigo),
-      nota: [pt.conteo || pt.sap ? `partidas: ${pt.conteo ? `${pt.conteo > 0 ? "+" : ""}${Math.round(pt.conteo)} al conteo` : ""}${pt.conteo && pt.sap ? " · " : ""}${pt.sap ? `${pt.sap > 0 ? "+" : ""}${Math.round(pt.sap)} a la ZEXI` : ""}` : "", SKU_UNIDADES_DIRECTAS.has(codigo) ? `${Math.round(x.unidades - sobre)} contadas solas + ${Math.round(sobre)} estibas que van debajo del producto (cada renglón con cajas sueltas cuenta una estiba más)` : ""].filter(Boolean).join(" · ") || undefined,
+      nota: [enEnvase.get(codigo) ? `incluye ${Math.round(enEnvase.get(codigo)!)} cajas que van en envases` : "", pt.conteo || pt.sap ? `partidas: ${pt.conteo ? `${pt.conteo > 0 ? "+" : ""}${Math.round(pt.conteo)} al conteo` : ""}${pt.conteo && pt.sap ? " · " : ""}${pt.sap ? `${pt.sap > 0 ? "+" : ""}${Math.round(pt.sap)} a la ZEXI` : ""}` : "", SKU_UNIDADES_DIRECTAS.has(codigo) ? `${Math.round(x.unidades - sobre)} contadas solas + ${Math.round(sobre)} estibas que van debajo del producto (cada renglón con cajas sueltas cuenta una estiba más)` : ""].filter(Boolean).join(" · ") || undefined,
       libre, calidad, bloqueado, sap, dif: Math.round(sap - x.unidades) });
   }
   return out.sort((a, b) => (a.tipo === b.tipo ? a.codigo.localeCompare(b.codigo) : a.tipo === "ENVASE" ? -1 : 1));
