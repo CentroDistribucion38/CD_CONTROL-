@@ -31,6 +31,11 @@ export function Inventario({ fecha, hoy, guardado, base, dias, puedeEditar, maes
   const [sucio, setSucio] = useState(false);
   const [motivoBorrar, setMotivoBorrar] = useState("");
   const [anularAj, setAnularAj] = useState(true);
+  /* «Lo que esté en cero no se ve, a menos que le dé el ojito» (como en Casco de vidrio). Por sección. Lo que se tocó o se agregó en esta sesión
+     no se esconde aunque quede en cero (si no, la fila se iría mientras se escribe). */
+  const [verCeros, setVerCeros] = useState<Record<number, boolean>>({});
+  const [tocados, setTocados] = useState<Set<string>>(new Set());
+  const tocar = (si: number, ref: number) => setTocados((t) => new Set(t).add(`${si}|${ref}`));
 
   const mapa = useMemo(() => new Map(maestro.map((m) => [m.codigo, m.descripcion])), [maestro]);
   const opciones = useMemo<Sku[]>(() => [{ codigo: SIN_SKU, descripcion: "No lleva código (no es un SKU)" }, ...maestro], [maestro]);
@@ -41,21 +46,24 @@ export function Inventario({ fecha, hoy, guardado, base, dias, puedeEditar, maes
   function poner(si: number, ref: number, campo: "a" | "b", v: string) {
     const n = v.trim() === "" ? null : Number(v.replace(/\./g, "").replace(",", "."));
     if (n !== null && !Number.isFinite(n)) return;
+    tocar(si, ref);
     cambiar((all) => all.map((s, i) => i !== si ? s : { ...s, filas: s.filas.map((f, j) => j !== ref ? f : { ...f, [campo]: n }) }));
   }
   function ponerCodigo(si: number, ref: number, cod: string) {
     cambiar((all) => all.map((s, i) => i !== si ? s : { ...s, filas: s.filas.map((f, j) => j !== ref ? f : { ...f, codigo: cod || null, concepto: cod && cod !== SIN_SKU ? (mapa.get(cod) ?? f.concepto) : f.concepto }) }));
   }
   function quitar(si: number, ref: number) {
+    setTocados((t) => new Set([...t].flatMap((k) => { const [a, b] = k.split("|").map(Number); return a !== si ? [k] : b === ref ? [] : [`${a}|${b > ref ? b - 1 : b}`] })));
     cambiar((all) => all.map((s, i) => i !== si ? s : { ...s, filas: s.filas.filter((_, j) => j !== ref) }));
   }
   function agregar(si: number, cod: string) {
     if (!cod || cod === SIN_SKU) return;
     if (vista[si].filas.some((f) => f.codigo === cod)) { setAviso({ t: `El ${cod} ya está en ${vista[si].titulo}.`, mal: true }); return }
     setAviso(null);
+    tocar(si, secs[si]?.filas.length ?? 0);
     cambiar((all) => all.map((s, i) => i !== si ? s : { ...s, filas: [...s.filas, { concepto: mapa.get(cod) ?? cod, codigo: cod, a: 0, b: s.colB ? 0 : null }] }));
   }
-  function descartar() { setSecs(guardado?.secciones ?? base?.secciones ?? []); setSucio(false); setAviso(null) }
+  function descartar() { setSecs(guardado?.secciones ?? base?.secciones ?? []); setSucio(false); setAviso(null); setTocados(new Set()) }
 
   function guardar() {
     start(async () => {
@@ -134,11 +142,20 @@ export function Inventario({ fecha, hoy, guardado, base, dias, puedeEditar, maes
               const veces = new Map<string, number>();
               for (const f of s.filas) if (f.codigo) veces.set(f.codigo, (veces.get(f.codigo) ?? 0) + 1);
               const dosCols = !!s.colB;
+              const enCero = (f: (typeof s.filas)[number]) => !(f.a ?? 0) && !(f.b ?? 0) && !(f.ref >= 0 && tocados.has(`${si}|${f.ref}`));
+              const ceros = s.filas.filter(enCero).length;
+              const oculta = !verCeros[si];
+              const filasVis = oculta ? s.filas.filter((f) => !enCero(f)) : s.filas;
               return (
                 <div key={si} className="cv-sec">
                   <table className="cv-tabla">
-                    <thead><tr><th className="cod">SKU</th><th>{s.titulo}</th><th className="r">{s.colA}</th>{dosCols && <th className="r">{s.colB}</th>}{puedeEditar && s.fuente !== "casco" && <th className="x" aria-label="Quitar" />}</tr></thead>
-                    <tbody>{s.filas.map((f, j) => {
+                    <thead><tr><th className="cod">SKU</th><th>{s.titulo}</th><th className="r">{s.colA}</th>{dosCols && <th className="r">{s.colB}</th>}<th className="x cv-ojo-th">{ceros > 0 && (
+                      <button type="button" className={"cv-ojo" + (oculta ? "" : " on")} aria-pressed={!oculta}
+                              title={oculta ? `Ver los ${ceros} en cero` : "Ocultar los que están en cero"} onClick={() => setVerCeros((v) => ({ ...v, [si]: !v[si] }))}>
+                        <svg viewBox="0 0 24 24" aria-hidden><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" />{oculta && <path d="M4 4l16 16" />}</svg>
+                        {oculta && <em>{ceros}</em>}
+                      </button>)}</th></tr></thead>
+                    <tbody>{filasVis.map((f, j) => {
                       const editable = puedeEditar && !f.auto && f.ref >= 0;
                       const desc = (f.codigo && mapa.get(f.codigo)) || f.concepto;
                       const repetido = !!f.codigo && (veces.get(f.codigo) ?? 0) > 1;
@@ -151,7 +168,7 @@ export function Inventario({ fecha, hoy, guardado, base, dias, puedeEditar, maes
                           <td><span className="cv-sku">{desc}</span>{repetido && <span className="cv-sku-hoja">{f.concepto}</span>}{f.auto && <span className="cv-tag">{s.fuente === "pallet" ? "App" : "Casco"}</span>}</td>
                           <td className="r">{editable ? <input className="cv-cel" inputMode="decimal" value={f.a ?? ""} onChange={(e) => poner(si, f.ref, "a", e.target.value)} aria-label={`${desc} ${s.colA}`} /> : <span className="cv-num">{lleno(f.a)}</span>}</td>
                           {dosCols && <td className="r">{editable ? <input className="cv-cel" inputMode="decimal" value={f.b ?? ""} onChange={(e) => poner(si, f.ref, "b", e.target.value)} aria-label={`${desc} ${s.colB}`} /> : <span className="cv-num">{lleno(f.b)}</span>}</td>}
-                          {puedeEditar && s.fuente !== "casco" && <td className="x">{editable && <button type="button" className="cv-quitar" aria-label={`Quitar ${desc}`} title="Quitar este renglón" onClick={() => quitar(si, f.ref)}>×</button>}</td>}
+                          <td className="x">{puedeEditar && s.fuente !== "casco" && editable && <button type="button" className="cv-quitar" aria-label={`Quitar ${desc}`} title="Quitar este renglón" onClick={() => quitar(si, f.ref)}>×</button>}</td>
                         </tr>
                       );
                     })}</tbody>
