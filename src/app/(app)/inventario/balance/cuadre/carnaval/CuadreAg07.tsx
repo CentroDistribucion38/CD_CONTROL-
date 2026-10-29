@@ -244,7 +244,7 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
         )}
 
       {/* CAJA DE HERRAMIENTAS · partidas rápidas */}
-      <dialog ref={dlg} className="cv-dlg chico" aria-label="Partidas rápidas">
+      <dialog ref={dlg} className="cv-dlg" style={{ width: "min(860px, calc(100vw - 24px))" }} aria-label="Partidas rápidas">
         <div className="cv-dlg-caja">
           <div className="cv-dlg-cab">
             <div><p>Cuadre SAP AG07 · paso {paso}</p><h2>Partidas rápidas</h2></div>
@@ -253,7 +253,7 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
           <div className="cv-dlg-cuerpo">
             <p style={{ margin: 0, fontSize: 13 }}>Código y cantidad en unidades (negativa si resta). Se suma al conteo o a la ZEXI de ese día, solo en el paso {paso === 1 ? "1 (pallets)" : "2 (inventario)"}.</p>
             {faltaSqlPartidas && <p className="cv-msg mal">Falta correr supabase/migraciones/2026-10-carnaval-partidas.sql en Supabase.</p>}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 10 }}>
               <label className="cv-form" style={{ display: "flex", flexDirection: "column", gap: 4 }}>Código
                 <input type="text" list="cv-codigos-partida" className="cv-cel" style={{ width: "100%", textAlign: "left" }} value={pCod} onChange={(e) => setPCod(e.target.value)} placeholder="3500005" autoComplete="off" />
                 <datalist id="cv-codigos-partida">{(paso === 1 ? filas.map((f) => ({ codigo: f.codigo, descripcion: f.descripcion })) : codigos).map((c) => <option key={c.codigo} value={c.codigo}>{c.descripcion}</option>)}</datalist>
@@ -271,12 +271,12 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
             </label>
             {pMsg && <p className="cv-msg mal" role="alert">{pMsg}</p>}
             {partidas.some((x) => x.paso === paso) && (
-              <table className="cs-t"><thead><tr><th>Código</th><th>Material</th><th className="n">Cantidad</th><th>Suma a</th><th></th></tr></thead>
+              <div style={{ overflowX: "visible" }}><table className="cs-t" style={{ width: "100%", minWidth: 0 }}><thead><tr><th>Código</th><th>Material</th><th className="n">Cantidad</th><th>Suma a</th><th></th></tr></thead>
                 <tbody>{partidas.filter((x) => x.paso === paso).map((x) => (
                   <tr key={x.id}><td className="mono">{x.codigo}</td><td>{nombreDe.get(x.codigo) ?? ""}{x.nota && <small className="cs-ext">{x.nota}</small>}</td>
                     <td className="n"><b>{conSigno(x.cantidad)}</b></td><td>{x.lado === "CONTEO" ? "Conteo" : "ZEXI"}</td>
                     <td><button type="button" className="cs-bt alt" style={{ padding: "2px 8px" }} aria-label="Quitar" disabled={pend} onClick={() => quitarP(x.id)}>×</button></td></tr>
-                ))}</tbody></table>
+                ))}</tbody></table></div>
             )}
           </div>
           <div className="cv-dlg-pie">
