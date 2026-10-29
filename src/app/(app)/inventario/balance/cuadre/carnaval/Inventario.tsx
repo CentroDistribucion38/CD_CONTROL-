@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { aHojaGuardada, conAuto, SIN_SKU, type ContextoAuto, type SeccionHoja } from "@/modulos/carnaval/logica";
+import { aHojaGuardada, CENTRO_DE_CASCO, conAuto, limpio, SIN_SKU, type ContextoAuto, type SeccionHoja } from "@/modulos/carnaval/logica";
 import type { Sku } from "@/modulos/carnaval/datos";
 import { eliminarInventario, guardarHoja } from "./actions";
 import { SelectorCodigo } from "./SelectorCodigo";
@@ -142,6 +142,8 @@ export function Inventario({ fecha, hoy, guardado, base, dias, puedeEditar, maes
               const veces = new Map<string, number>();
               for (const f of s.filas) if (f.codigo) veces.set(f.codigo, (veces.get(f.codigo) ?? 0) + 1);
               const dosCols = !!s.colB;
+              /* Un segundo bloque de CASCO que la hoja traía vacío: ya lo trae Casco de vidrio arriba, no se muestra. */
+              if (CENTRO_DE_CASCO[limpio(s.titulo)] && s.fuente !== "casco" && s.filas.every((f) => !(f.a ?? 0) && !(f.b ?? 0))) return null;
               const enCero = (f: (typeof s.filas)[number]) => !(f.a ?? 0) && !(f.b ?? 0) && !(f.ref >= 0 && tocados.has(`${si}|${f.ref}`));
               const ceros = s.filas.filter(enCero).length;
               const oculta = !verCeros[si];
@@ -173,10 +175,10 @@ export function Inventario({ fecha, hoy, guardado, base, dias, puedeEditar, maes
                       );
                     })}</tbody>
                     {(s.nota || (puedeEditar && s.fuente !== "casco")) && (
-                      <tfoot><tr><td colSpan={5 + (dosCols ? 0 : -1)} className="cv-pie-sec">
-                        {s.nota && <span>{s.nota}</span>}
+                      <tfoot><tr><td colSpan={5 + (dosCols ? 0 : -1)} className="cv-pie-sec"><div className="cv-pie-in">
+                        {s.nota && <span className="cv-pie-nota">{s.nota}</span>}
                         {puedeEditar && s.fuente !== "casco" && <span className="cv-add"><SelectorCodigo compacto productos={maestro} value="" placeholder="+ Agregar SKU" onChange={(c) => agregar(si, c)} /></span>}
-                      </td></tr></tfoot>
+                      </div></td></tr></tfoot>
                     )}
                   </table>
                 </div>

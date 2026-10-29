@@ -175,13 +175,16 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura, delInventa
   /* ---------- LA GRÁFICA ---------- */
   const n = serie.length;
   const ML = 52, MT = 24, MB = 36, H = 360, MR = 16;
-  const W = Math.max(ancho || 760, ML + MR + n * 14);
+  const W = Math.max(ancho || 760, ML + MR + n * 34); /* con 34 px por día los números caben dentro de la barra */
   const PASO = (W - ML - MR) / Math.max(1, n);
-  const BW = Math.max(8, Math.min(56, PASO * 0.64));
+  const BW = Math.max(8, Math.min(64, PASO * 0.82));
   const eje = ejeNice(Math.max(1, ...serie.map((d) => d.total)));
   const y = (v: number) => MT + (H - MT - MB) * (1 - v / eje.tope);
   const cadaK = Math.max(1, Math.ceil(54 / PASO));
-  const verTotales = PASO >= 46;
+  /* Los números van HORIZONTALES dentro de la barra: el tamaño de la letra se ajusta al ancho para que quepan sin cortarse. */
+  const emDe = (t: string) => [...t].reduce((a, c) => a + (c === "." || c === "," ? 0.3 : 0.62), 0);
+  const letraSeg = (t: string) => Math.min(11.5, (BW - 3) / emDe(t));
+  const letraTot = (t: string) => Math.min(12, (PASO - 2) / emDe(t));
 
   if (errorLectura) {
     return <p className="cvt-vacio">No se pudo leer el casco: {errorLectura}</p>;
@@ -296,11 +299,11 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura, delInventa
                           <g key={k}>
                             <rect x={x} y={y1} width={BW} height={Math.max(0, alto - 1.5)} fill={colorDe(k).fondo} />
                             {viene && <rect x={x} y={y1} width={BW} height={Math.max(0, alto - 1.5)} fill="url(#cvt-raya)"><title>{`${nombreSitio(k)}: sin registro el ${corta(d.fecha)}, sigue el inventario del ${corta(viene)}`}</title></rect>}
-                            {alto >= 15 && BW >= 36 && <text x={x + BW / 2} y={y1 + alto / 2 + 4} textAnchor="middle" className="cvt-seg-txt" fill={colorDe(k).tinta}>{nf0.format(v)}</text>}
+                            {(() => { const t = nf0.format(v), fs = letraSeg(t); return fs >= 8 && alto >= fs + 4 && <text x={x + BW / 2} y={y1 + alto / 2 + fs * 0.35} textAnchor="middle" className="cvt-seg-txt" style={{ fontSize: fs }} fill={colorDe(k).tinta}>{t}</text> })()}
                           </g>
                         );
                       })}
-                      {verTotales && <text x={x + BW / 2} y={y(d.total) - 5} textAnchor="middle" className="cvt-total-txt">{nf0.format(d.total)}</text>}
+                      {(() => { const t = nf0.format(d.total), fs = letraTot(t); return fs >= 8 && <text x={x + BW / 2} y={y(d.total) - 5} textAnchor="middle" className="cvt-total-txt" style={{ fontSize: fs }}>{t}</text> })()}
                       {i % cadaK === 0 && <text x={x + BW / 2} y={H - MB + 18} textAnchor="middle" className="cvt-eje">{corta(d.fecha)}</text>}
                     </g>
                   );
