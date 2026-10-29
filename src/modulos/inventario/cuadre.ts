@@ -378,9 +378,7 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
       almacen, otrosCajas: grupo === "ENVASE" ? a.otrosCajas : 0,
       conteoEstado: grupo === "ENVASE" ? { baja: redondo(a.est.baja), lavado: redondo(a.est.lavado), otros: redondo(a.est.otros) } : undefined, upc: grupo === "ENVASE" ? upc(a.codigo) : 1, total, sap: sapV,
       libre: z?.libre ?? null, bloqueado: z?.bloqueado ?? null, calidad: z?.calidad ?? null,
-      /* Solo cuenta lo que quedó libre POR EL MOVIMIENTO DE HOY (libre de la ZEXI nueva − libre de la ZEXI de antes): el libre que ya había
-         antes del 311 no es de este cuadre; lo que llegó del 22 y no se bloqueó, sí. */
-      enLibre: grupo === "ENVASE" && m?.libre != null ? redondo(Math.max(0, m.libre - (z?.libre ?? 0))) : null,
+      enLibre: grupo === "ENVASE" && m?.libre != null ? redondo(m.libre) : null,
       ...(grupo === "CAJA" ? (() => {
         /* Lo que se sume a la caja fuera del conteo (pend. baja, Andina, lavado) va con lo bloqueado. */
         const libre = redondo(a.sueltas - a.sueltasBaja), calidad = redondo(a.conEnvase);
