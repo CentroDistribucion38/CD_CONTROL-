@@ -58,6 +58,43 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
     setCopiado(clave); window.setTimeout(() => setCopiado((c) => (c === clave ? null : c)), 2000);
   }
 
+
+  /* Los grupos de movimientos de SAP: documentos de 9 posiciones, con Códigos / Cantidades / Hecho en SAP. */
+  function renderGrupos(gs: [string, { codigo: string; descripcion: string; cantidad: number }[]][], pref: string) {
+    return (
+      <div className="cv-movs">
+        {gs.map(([titulo, xs]) => Array.from({ length: Math.ceil(xs.length / POS) }, (_, d) => xs.slice(d * POS, (d + 1) * POS)).map((doc, d) => {
+          const clave = `${pref}|${titulo}|${d}`;
+          return (
+            <div key={clave} className={"cv-mov" + (hechos[clave] ? " hecho" : "")}>
+              <div className="cv-mov-cab">
+                <b>{titulo}</b><span>Documento {d + 1} · {doc.length} posición{doc.length === 1 ? "" : "es"}</span>
+                <span className="grow" />
+                <button type="button" className="cs-bt alt" onClick={() => void copiar(doc, "c", `${clave}c`)}>{copiado === `${clave}c` ? "✓ Copiado" : "Códigos"}</button>
+                <button type="button" className="cs-bt alt" onClick={() => void copiar(doc, "q", `${clave}q`)}>{copiado === `${clave}q` ? "✓ Copiado" : "Cantidades"}</button>
+                <label className="cv-marca"><input type="checkbox" checked={!!hechos[clave]} onChange={(e) => setHechos((h) => ({ ...h, [clave]: e.target.checked }))} /> Hecho en SAP</label>
+              </div>
+              <table className="cv-tabla"><tbody>
+                {doc.map((x) => <tr key={x.codigo}><td><code>{x.codigo}</code></td><td>{x.descripcion}</td><td className="r"><b>{ent.format(x.cantidad)}</b></td></tr>)}
+              </tbody></table>
+            </div>
+          );
+        }))}
+      </div>
+    );
+  }
+
+  /* Paso 2: solo lo que NO da cero. SAP menos que la hoja → hay que sumar; SAP más que la hoja → hay que restar. */
+  const difs2 = inventario.filter((f) => Math.abs(f.dif) >= 0.5);
+  const grupos2 = useMemo(() => {
+    const m = new Map<string, { codigo: string; descripcion: string; cantidad: number }[]>();
+    for (const f of difs2) {
+      const t = `${f.tipo === "ENVASE" ? "Envase" : "Caja plástica"} AG07 · ${f.dif < 0 ? "SAP tiene menos que la hoja: sumar a libre" : "SAP tiene más que la hoja: restar"}`;
+      m.set(t, [...(m.get(t) ?? []), { codigo: f.codigo, descripcion: f.descripcion, cantidad: Math.abs(f.dif) }]);
+    }
+    return [...m];
+  }, [difs2]);
+
   const sinFilas = filas.length === 0;
   const balanceado = !sinFilas && filas.every((f) => Math.abs(f.dif) < 0.5 && f.movs.length === 0 && !f.sinAlcanzar);
   return (
@@ -124,28 +161,9 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
       {zexi && grupos.length > 0 && (
         <>
           <h3 className="cv-sub-h">Qué hacer en SAP</h3>
-          <div className="cv-movs">
-            {grupos.map(([titulo, xs]) => Array.from({ length: Math.ceil(xs.length / POS) }, (_, d) => xs.slice(d * POS, (d + 1) * POS)).map((doc, d) => {
-              const clave = `${titulo}|${d}`;
-              return (
-                <div key={clave} className={"cv-mov" + (hechos[clave] ? " hecho" : "")}>
-                  <div className="cv-mov-cab">
-                    <b>{titulo}</b><span>Documento {d + 1} · {doc.length} posición{doc.length === 1 ? "" : "es"}</span>
-                    <span className="grow" />
-                    <button type="button" className="cs-bt alt" onClick={() => void copiar(doc, "c", `${clave}c`)}>{copiado === `${clave}c` ? "✓ Copiado" : "Códigos"}</button>
-                    <button type="button" className="cs-bt alt" onClick={() => void copiar(doc, "q", `${clave}q`)}>{copiado === `${clave}q` ? "✓ Copiado" : "Cantidades"}</button>
-                    <label className="cv-marca"><input type="checkbox" checked={!!hechos[clave]} onChange={(e) => setHechos((h) => ({ ...h, [clave]: e.target.checked }))} /> Hecho en SAP</label>
-                  </div>
-                  <table className="cv-tabla"><tbody>
-                    {doc.map((x) => <tr key={x.codigo}><td><code>{x.codigo}</code></td><td>{x.descripcion}</td><td className="r"><b>{ent.format(x.cantidad)}</b></td></tr>)}
-                  </tbody></table>
-                </div>
-              );
-            }))}
-          </div>
+          {renderGrupos(grupos, "p1")}
         </>
       )}
-      
 
       <h2 className="cs-h" style={{ marginTop: 22 }}><i>2</i> Inventario contra la ZEXI de AG07 <small className="cs-h-s">cajas, estibas y lo demás de la hoja</small></h2>
       {!zexi ? <p className="cv-nota">Sube la ZEXI de AG07 para compararla con la hoja de Inventario.</p>
@@ -156,28 +174,40 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
               {hojaGuardada ? `Hoja de Inventario del ${fecha}.` : `El ${fecha} no tiene hoja guardada: se usa la del ${hojaDe}.`} Estibas y cajas pasan a unidades con los factores del maestro (unidades por caja, cajas por estiba).
               En el envase se compara contra libre + bloqueado (el control de calidad son los pallets del paso 1); en las cajas plásticas, contra los tres estados.
             </p>
-            <div className="cv-tabla-cont">
-              <table className="cv-tabla">
-                <thead><tr><th>Código</th><th>Material</th><th className="r">Estibas</th><th className="r">Cajas</th><th className="r">Hoja (unid.)</th><th className="r">Libre</th><th className="r">Control-cal</th><th className="r">Bloqueado</th><th className="r">SAP</th><th className="r">Diferencia</th></tr></thead>
-                <tbody>
-                  {inventario.map((f, i) => (
-                    <tr key={f.codigo} className={i > 0 && inventario[i - 1].tipo !== f.tipo ? "cv-corte" : ""}>
-                      <td><code>{f.codigo}</code></td>
-                      <td>{f.descripcion}{f.tipo === "CAJA" && <span className="cv-tag" style={{ marginLeft: 6 }}>Caja</span>}{f.sinFactor && <span className="cv-neg"> · sin cajas por estiba en el maestro</span>}</td>
-                      <td className="r">{f.estibas ? nf.format(f.estibas) : ""}</td>
-                      <td className="r">{f.cajas ? nf.format(f.cajas) : ""}</td>
-                      <td className="r"><b>{ent.format(f.unidades)}</b></td>
-                      <td className="r">{ent.format(f.libre)}</td>
-                      <td className="r">{f.calidad ? ent.format(f.calidad) : ""}</td>
-                      <td className="r">{f.bloqueado ? ent.format(f.bloqueado) : ""}</td>
-                      <td className="r">{ent.format(f.sap)}</td>
-                      <td className="r">{Math.abs(f.dif) < 0.5 ? <span className="cv-ok">0</span> : <b className="cv-neg">{conSigno(f.dif)}</b>}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <p className="cv-nota">Diferencia = SAP − hoja. Positiva: SAP tiene más de lo contado; negativa: SAP tiene menos. Es una diferencia de inventario (no se arregla moviendo de estado). Las estibas de madera, el pendiente de baja y el lavado no entran en esta comparación.</p>
+            {!balanceado ? <p className="cv-msg mal">Primero balancea los pallets (paso 1): sube la ZEXI nueva y, cuando salgan en cero, aquí aparece lo que falta del inventario.</p> : (
+              <>
+                {difs2.length === 0
+                  ? <p className="cv-msg" style={{ borderLeftColor: "#1E6B37", background: "#E7F4EC" }}><b>Inventario balanceado.</b> Todo lo de la hoja (envase y cajas) coincide con la ZEXI.</p>
+                  : (
+                    <>
+                      <div className="cv-tabla-cont">
+                        <table className="cv-tabla">
+                          <thead><tr><th>Código</th><th>Material</th><th className="r">Estibas</th><th className="r">Cajas</th><th className="r">Hoja (unid.)</th><th className="r">Libre</th><th className="r">Bloqueado</th><th className="r">SAP</th><th className="r">Diferencia</th></tr></thead>
+                          <tbody>
+                            {difs2.map((f, i) => (
+                              <tr key={f.codigo} className={i > 0 && difs2[i - 1].tipo !== f.tipo ? "cv-corte" : ""}>
+                                <td><code>{f.codigo}</code></td>
+                                <td>{f.descripcion}{f.tipo === "CAJA" && <span className="cv-tag" style={{ marginLeft: 6 }}>Caja</span>}{f.sinFactor && <span className="cv-neg"> · sin cajas por estiba en el maestro</span>}</td>
+                                <td className="r">{f.estibas ? nf.format(f.estibas) : ""}</td>
+                                <td className="r">{f.cajas ? nf.format(f.cajas) : ""}</td>
+                                <td className="r"><b>{ent.format(f.unidades)}</b></td>
+                                <td className="r">{ent.format(f.libre)}</td>
+                                <td className="r">{f.bloqueado ? ent.format(f.bloqueado) : ""}</td>
+                                <td className="r">{ent.format(f.sap)}</td>
+                                <td className="r"><b className="cv-neg">{conSigno(f.dif)}</b></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <h3 className="cv-sub-h">Qué hacer en SAP</h3>
+                      {renderGrupos(grupos2, "p2")}
+                    </>
+                  )}
+                {inventario.length > difs2.length && <p className="cv-nota">{inventario.length - difs2.length} renglón(es) ya cuadran con la ZEXI y no se muestran.</p>}
+              </>
+            )}
+            <p className="cv-nota">Diferencia = SAP − hoja. Positiva: SAP tiene más de lo contado; negativa: SAP tiene menos. Los movimientos son de ajuste de inventario (el número de movimiento lo eliges en SAP). Las estibas de madera, el pendiente de baja y el lavado no entran en esta comparación.</p>
           </>
         )}
     </>
