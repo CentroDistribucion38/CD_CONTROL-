@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { FilaCuadre07 } from "@/modulos/carnaval/logica";
+import type { FilaCuadre07, FilaInv07 } from "@/modulos/carnaval/logica";
 import { leerZexiAg07 } from "@/modulos/carnaval/leerZexi";
 import { guardarZexiAg07, quitarZexiAg07 } from "./actions";
 
@@ -16,10 +16,10 @@ const IR = (f?: string) => `/inventario/balance/cuadre?alm=AG07&sub=cuadre${f ? 
  * AG07 · CUADRE SAP, en dos pasos.
  *   PASO 1 · PALLETS: el conteo es el inventario de pallets de Control (sin los que no tienen entrada de mercancía) contra la ZEXI de AG07
  *            en control de calidad. El 3500005 no se toca en control-cal: lo que haya ahí se pasa al AG71 en libre utilización.
- *   PASO 2 · INVENTARIO contra la ZEXI de AG07 (cajas, estibas…): pendiente de definir cómo se convierten a unidades de SAP.
+ *   PASO 2 · INVENTARIO: la hoja (estibas y cajas, pasadas a unidades con los factores del maestro) contra la ZEXI de AG07.
  */
-export function CuadreAg07({ fecha, hoy, filas, zexi, puedeEditar, faltaSql }: {
-  fecha: string; hoy: string; filas: FilaCuadre07[]; zexi: { archivo: string | null; actualizado_en: string } | null; puedeEditar: boolean; faltaSql: boolean;
+export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada, zexi, puedeEditar, faltaSql }: {
+  fecha: string; hoy: string; filas: FilaCuadre07[]; inventario: FilaInv07[]; hojaDe: string | null; hojaGuardada: boolean; zexi: { archivo: string | null; actualizado_en: string } | null; puedeEditar: boolean; faltaSql: boolean;
 }) {
   const router = useRouter();
   const [pend, start] = useTransition();
@@ -143,7 +143,38 @@ export function CuadreAg07({ fecha, hoy, filas, zexi, puedeEditar, faltaSql }: {
       {zexi && !sinFilas && grupos.length === 0 && <p className="cv-msg" style={{ borderLeftColor: "#1E6B37", background: "#E7F4EC" }}>Los pallets cuadran con la ZEXI: no hay nada que mover en SAP.</p>}
 
       <h2 className="cs-h" style={{ marginTop: 22 }}><i>2</i> Inventario contra la ZEXI de AG07 <small className="cs-h-s">cajas, estibas y lo demás de la hoja</small></h2>
-      <p className="cv-nota">Este paso se arma después del de pallets. Falta definir cómo se convierte lo de la hoja de Inventario (estibas y cajas) a las unidades de SAP.</p>
+      {!zexi ? <p className="cv-nota">Sube la ZEXI de AG07 para compararla con la hoja de Inventario.</p>
+        : !hojaDe ? <p className="cv-msg mal">No hay una hoja de Inventario guardada para comparar. Guárdala en la pestaña Inventario.</p>
+        : (
+          <>
+            <p className="cv-nota" style={{ margin: "0 0 10px" }}>
+              {hojaGuardada ? `Hoja de Inventario del ${fecha}.` : `El ${fecha} no tiene hoja guardada: se usa la del ${hojaDe}.`} Estibas y cajas pasan a unidades con los factores del maestro (unidades por caja, cajas por estiba).
+              En el envase se compara contra libre + bloqueado (el control de calidad son los pallets del paso 1); en las cajas plásticas, contra los tres estados.
+            </p>
+            <div className="cv-tabla-cont">
+              <table className="cv-tabla">
+                <thead><tr><th>Código</th><th>Material</th><th className="r">Estibas</th><th className="r">Cajas</th><th className="r">Hoja (unid.)</th><th className="r">Libre</th><th className="r">Control-cal</th><th className="r">Bloqueado</th><th className="r">SAP</th><th className="r">Diferencia</th></tr></thead>
+                <tbody>
+                  {inventario.map((f, i) => (
+                    <tr key={f.codigo} className={i > 0 && inventario[i - 1].tipo !== f.tipo ? "cv-corte" : ""}>
+                      <td><code>{f.codigo}</code></td>
+                      <td>{f.descripcion}{f.tipo === "CAJA" && <span className="cv-tag" style={{ marginLeft: 6 }}>Caja</span>}{f.sinFactor && <span className="cv-neg"> · sin cajas por estiba en el maestro</span>}</td>
+                      <td className="r">{f.estibas ? nf.format(f.estibas) : ""}</td>
+                      <td className="r">{f.cajas ? nf.format(f.cajas) : ""}</td>
+                      <td className="r"><b>{ent.format(f.unidades)}</b></td>
+                      <td className="r">{ent.format(f.libre)}</td>
+                      <td className="r">{f.calidad ? ent.format(f.calidad) : ""}</td>
+                      <td className="r">{f.bloqueado ? ent.format(f.bloqueado) : ""}</td>
+                      <td className="r">{ent.format(f.sap)}</td>
+                      <td className="r">{Math.abs(f.dif) < 0.5 ? <span className="cv-ok">0</span> : <b className="cv-neg">{conSigno(f.dif)}</b>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="cv-nota">Diferencia = SAP − hoja. Positiva: SAP tiene más de lo contado; negativa: SAP tiene menos. Es una diferencia de inventario (no se arregla moviendo de estado). Las estibas de madera, el pendiente de baja y el lavado no entran en esta comparación.</p>
+          </>
+        )}
     </>
   );
 }

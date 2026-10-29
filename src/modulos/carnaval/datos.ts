@@ -157,3 +157,16 @@ export async function zexiAg07(fecha: string) {
   const { data, error } = await supabase.from("carnaval_zexi").select("filas, archivo, actualizado_en").eq("fecha", fecha).maybeSingle();
   return { error: error?.message ?? null, zexi: data as { filas: import("./logica").ZexiAlm[]; archivo: string | null; actualizado_en: string } | null };
 }
+
+/** Unidades por caja y cajas por estiba de cada SKU: el maestro de Pasivos manda y, si no está, el de Inventario (como el Cuadre de AG18). */
+export async function factoresSku() {
+  const supabase = await createClient();
+  const [pas, prod] = await Promise.all([
+    todas<{ codigo: string; unidades_por_caja: number | null; cajas_por_estiba: number | null }>((d, h) => supabase.from("pasivos_maestro").select("codigo, unidades_por_caja, cajas_por_estiba").order("codigo").range(d, h)),
+    todas<{ sku: string; unidades_por_caja: number | null; cajas_por_estiba: number | null }>((d, h) => supabase.from("productos").select("sku, unidades_por_caja, cajas_por_estiba").order("sku").range(d, h)),
+  ]);
+  const m = new Map<string, import("./logica").FactorSku>();
+  for (const x of prod.data) m.set(String(x.sku), { upc: Number(x.unidades_por_caja) || 1, cpe: Number(x.cajas_por_estiba) || 0 });
+  for (const x of pas.data) { const a = m.get(String(x.codigo)); m.set(String(x.codigo), { upc: Number(x.unidades_por_caja) || a?.upc || 1, cpe: Number(x.cajas_por_estiba) || a?.cpe || 0 }) }
+  return { error: pas.error ? String(pas.error) : prod.error ? String(prod.error) : null, factores: m };
+}
