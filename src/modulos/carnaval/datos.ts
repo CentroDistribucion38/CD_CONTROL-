@@ -62,3 +62,10 @@ export async function diasConInventario() {
   const { data } = await supabase.from("carnaval_existencias").select("fecha").order("fecha", { ascending: false }).limit(60);
   return ((data ?? []) as { fecha: string }[]).map((x) => String(x.fecha));
 }
+
+/** El último inventario guardado (de cualquier día): sirve de molde para leer la foto del siguiente. */
+export async function ultimoInventario() {
+  const supabase = await createClient();
+  const { data } = await supabase.from("carnaval_existencias").select("secciones").order("fecha", { ascending: false }).limit(1).maybeSingle();
+  return (data?.secciones ?? null) as import("./logica").SeccionHoja[] | null;
+}

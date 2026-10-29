@@ -89,7 +89,8 @@ export const hoyCO = () => new Date().toLocaleDateString("en-CA", { timeZone: "A
    Se lee de la foto, se revisa en pantalla y se guarda un renglón por día. La sección PALLET se compara
    con el saldo de pallets que lleva la app: si no coincide, una persona decide (dejar o ajustar la app).
    ===================================================================== */
-export type FilaHoja = { concepto: string; a: number | null; b: number | null };
+/** `dudosa`: el lector de la foto no estuvo seguro de los números de este renglón; una persona debe revisarlo. */
+export type FilaHoja = { concepto: string; a: number | null; b: number | null; dudosa?: boolean };
 export type SeccionHoja = { titulo: string; colA: string; colB: string; filas: FilaHoja[] };
 export type Hoja = { fecha: string; secciones: SeccionHoja[] };
 

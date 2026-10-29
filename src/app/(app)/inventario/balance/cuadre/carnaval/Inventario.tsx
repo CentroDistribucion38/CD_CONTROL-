@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { validarPallet, type FilaValidacion, type Hoja, type SeccionHoja } from "@/modulos/carnaval/logica";
+import { codigoDePallet, esSeccionPallet, validarPallet, type FilaValidacion, type Hoja, type SeccionHoja } from "@/modulos/carnaval/logica";
+import { PLANTILLA_INICIAL } from "@/modulos/carnaval/plantilla";
+import { leerFotoLocal } from "@/modulos/carnaval/leerFoto";
 import { leerInventario } from "@/modulos/carnaval/leerInventario";
 import { guardarInventario, saldosAl } from "./actions";
 
@@ -13,22 +15,13 @@ const corto = (iso: string) => { const [, m, d] = iso.split("-"); return `${d}/$
 
 type Guardado = { fecha: string; secciones: SeccionHoja[]; validacion: (FilaValidacion & { decision?: string })[]; foto_nombre: string | null; actualizado_en: string } | null;
 
-/** La foto se baja de tamaño solo si es muy pesada; si no, va tal cual (la letra pequeña se lee mejor sin tocarla). */
-async function aBase64(f: File): Promise<{ imagen: string; tipo: string }> {
-  const url = await new Promise<string>((ok, mal) => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.onerror = () => mal(new Error("No se pudo abrir la foto.")); r.readAsDataURL(f) });
-  if (f.size <= 3_500_000 && /^image\/(jpeg|png|webp)$/.test(f.type)) return { imagen: url.split(",")[1], tipo: f.type };
-  const img = await new Promise<HTMLImageElement>((ok, mal) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => mal(new Error("No se pudo abrir la foto.")); i.src = url });
-  const k = Math.min(1, 3000 / Math.max(img.width, img.height));
-  const c = document.createElement("canvas"); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
-  c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
-  return { imagen: c.toDataURL("image/jpeg", 0.92).split(",")[1], tipo: "image/jpeg" };
-}
-
-export function Inventario({ fecha, hoy, guardado, dias, puedeEditar, nombres }: { fecha: string; hoy: string; guardado: Guardado; dias: string[]; puedeEditar: boolean; nombres: Record<string, string> }) {
+export function Inventario({ fecha, hoy, guardado, dias, puedeEditar, nombres, molde }: { fecha: string; hoy: string; guardado: Guardado; dias: string[]; puedeEditar: boolean; nombres: Record<string, string>; molde: SeccionHoja[] | null }) {
   const router = useRouter();
   const dlg = useRef<HTMLDialogElement>(null);
   const [pend, start] = useTransition();
   const [leyendo, setLeyendo] = useState(false);
+  const [progreso, setProgreso] = useState("");
+  const [sobrantes, setSobrantes] = useState(0);
   const [aviso, setAviso] = useState<{ t: string; mal?: boolean } | null>(null);
   const [hoja, setHoja] = useState<Hoja | null>(null);
   const [foto, setFoto] = useState("");
@@ -46,12 +39,11 @@ export function Inventario({ fecha, hoy, guardado, dias, puedeEditar, nombres }:
         if (r.error || !r.hoja) { setAviso({ t: r.error ?? "No se pudo leer el Excel.", mal: true }); return }
         dia = r.hoja.fecha || fecha; secciones = r.hoja.secciones;
       } else {
-        /* LA FOTO: la lee el modelo (necesita la llave en Vercel). */
-        const { imagen, tipo } = await aBase64(f);
-        const r = await fetch("/api/carnaval/inventario-foto", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ imagen, tipo }) });
-        const j = await r.json();
-        if (!r.ok) { setAviso({ t: j.error ?? "No se pudo leer la foto.", mal: true }); return }
-        dia = j.fecha ?? fecha; secciones = j.secciones;
+        /* LA FOTO: se lee aquí mismo, sin llave. Los nombres salen del último inventario guardado (o del molde inicial) y de la foto
+           solo se sacan los números; lo que no quedó claro sale marcado en amarillo. */
+        const base = molde && molde.length ? molde : PLANTILLA_INICIAL;
+        const r = await leerFotoLocal(f, base, setProgreso);
+        dia = r.fecha ?? fecha; secciones = r.secciones; setSobrantes(r.sobrantes.length);
       }
       const s = await saldosAl(dia);
       if (s.error) { setAviso({ t: s.error, mal: true }); return }
@@ -59,7 +51,7 @@ export function Inventario({ fecha, hoy, guardado, dias, puedeEditar, nombres }:
       dlg.current?.showModal();
     } catch (e) {
       setAviso({ t: e instanceof Error ? e.message : "No se pudo leer el archivo.", mal: true });
-    } finally { setLeyendo(false) }
+    } finally { setLeyendo(false); setProgreso("") }
   }
 
   /* Si se corrige el día en la ventana, se traen los pallets de la app de ESE día. */
@@ -75,11 +67,19 @@ export function Inventario({ fecha, hoy, guardado, dias, puedeEditar, nombres }:
       if (!h) return h;
       const n = v.trim() === "" ? null : Number(v.replace(/\./g, "").replace(",", "."));
       if (n !== null && !Number.isFinite(n)) return h;
-      return { ...h, secciones: h.secciones.map((s, i) => i !== si ? s : { ...s, filas: s.filas.map((f, j) => j !== fi ? f : { ...f, [campo]: n }) }) };
+      return { ...h, secciones: h.secciones.map((s, i) => i !== si ? s : { ...s, filas: s.filas.map((f, j) => j !== fi ? f : { ...f, [campo]: n, dudosa: false }) }) };
     });
   }
 
+  function limpiar(soloPallet: boolean) {
+    setHoja((h) => h && ({ ...h, secciones: h.secciones.map((x) => (soloPallet && !esSeccionPallet(x.titulo) ? x : { ...x, filas: x.filas.map((f) => ({ ...f, dudosa: false })) })) }));
+  }
+  function marcarBien(si: number, fi: number) {
+    setHoja((h) => h && ({ ...h, secciones: h.secciones.map((x, i) => i !== si ? x : { ...x, filas: x.filas.map((f, j) => j !== fi ? f : { ...f, dudosa: false }) }) }));
+  }
   const v = useMemo(() => (hoja ? validarPallet(hoja, saldos, nombres) : null), [hoja, saldos, nombres]);
+  const dudosas = hoja ? hoja.secciones.reduce((t, x) => t + x.filas.filter((f) => f.dudosa).length, 0) : 0;
+  const palletDudoso = hoja ? hoja.secciones.some((x) => esSeccionPallet(x.titulo) && x.filas.some((f) => f.dudosa)) : false;
   const aAjustar = v ? v.filas.filter((f) => ajustar[f.codigo]).map((f) => f.codigo) : [];
   useEffect(() => { const d = dlg.current; const x = () => setAjustar({}); d?.addEventListener("close", x); return () => d?.removeEventListener("close", x) }, []);
 
@@ -123,7 +123,7 @@ export function Inventario({ fecha, hoy, guardado, dias, puedeEditar, nombres }:
 
       {puedeEditar && (
         <label className={`cv-drop ${leyendo || pend ? "off" : ""}`} style={{ marginBottom: 14 }}>
-          <span><strong>{leyendo ? "Leyendo el archivo…" : "Subir el inventario del día"}</strong><small>El Excel de «Existencias diarias» (se lee exacto, sin llave). También acepta la foto si el modelo está conectado. Antes de guardar, la revisas y se valida PALLET contra la app.</small></span>
+          <span><strong>{leyendo ? (progreso || "Leyendo…") : "Subir el inventario del día (foto o Excel)"}</strong><small>La foto de «Existencias diarias» tal cual, o su Excel. Se lee sola; lo que no quede claro sale en amarillo para que lo revises, y PALLET se valida contra la app antes de guardar.</small></span>
           <span className="cv-btn">{leyendo ? "Un momento…" : "Seleccionar archivo"}</span>
           <input type="file" accept=".xlsx,.xlsm,.xls,image/*" disabled={leyendo || pend} onChange={(e) => { void alElegir(e.target.files?.[0]); e.target.value = "" }} />
         </label>
@@ -202,15 +202,39 @@ export function Inventario({ fecha, hoy, guardado, dias, puedeEditar, nombres }:
                 {v.sinEmparejar.length > 0 && <p className="cv-nota">Líneas de PALLET con cantidad que no conozco (no se comparan): {v.sinEmparejar.join(", ")}.</p>}
               </div>
 
+              {palletDudoso && (() => {
+                const si = hoja.secciones.findIndex((x) => esSeccionPallet(x.titulo));
+                const sec = hoja.secciones[si];
+                return (
+                  <div>
+                    <h3>Confirma los números de PALLET con tu foto</h3>
+                    <p className="cv-msg mal" style={{ margin: "0 0 8px" }}>No quedé seguro de algún número de PALLET. Compáralos con la foto, corrige los que estén mal y confirma.</p>
+                    <div className="cv-tabla-cont"><table className="cv-tabla">
+                      <thead><tr><th>Línea de PALLET</th><th className="r">En la foto</th><th className="r">La app tiene</th></tr></thead>
+                      <tbody>{sec.filas.map((f, fi) => {
+                        const cod = codigoDePallet(f.concepto);
+                        return (
+                          <tr key={fi} className={f.dudosa ? "cv-dudosa" : ""}><td>{f.concepto}</td>
+                            <td className="r"><input className="cv-cel" inputMode="decimal" value={f.a ?? ""} onChange={(e) => poner(si, fi, "a", e.target.value)} aria-label={`${f.concepto} cantidad`} /></td>
+                            <td className="r">{cod ? nf.format(saldos[cod] ?? 0) : "—"}</td></tr>
+                        );
+                      })}</tbody>
+                    </table></div>
+                    <div className="cv-form" style={{ marginTop: 8 }}><button type="button" className="cs-bt" onClick={() => limpiar(true)}>Confirmo los números de PALLET</button></div>
+                  </div>
+                );
+              })()}
+
               <details open>
                 <summary style={{ cursor: "pointer", font: "700 13px var(--fe-texto)", marginBottom: 8 }}>Lo que leí ({hoja.secciones.reduce((t, s) => t + s.filas.length, 0)} renglones) — corrige lo que esté mal</summary>
+                {dudosas > 0 && <p className="cv-msg mal" style={{ margin: "0 0 10px" }}>{dudosas} renglón(es) en amarillo: no estoy seguro de cómo leí sus números. Compáralos con tu foto, corrige o toca «Está bien».{sobrantes > 0 ? ` Además ${sobrantes} línea(s) de la foto no pude ubicarlas.` : ""} <button type="button" className="cv-ok" onClick={() => limpiar(false)}>Está todo bien</button></p>}
                 <div className="cv-secs">
                   {hoja.secciones.map((s, si) => (
                     <div key={si} className="cv-sec">
                       <table className="cv-tabla">
                         <thead><tr><th>{s.titulo}</th><th className="r">{s.colA}</th><th className="r">{s.colB}</th></tr></thead>
                         <tbody>{s.filas.map((f, fi) => (
-                          <tr key={fi}><td>{f.concepto}</td>
+                          <tr key={fi} className={f.dudosa ? "cv-dudosa" : ""}><td>{f.concepto}{f.dudosa && <button type="button" className="cv-ok" onClick={() => marcarBien(si, fi)}>Está bien</button>}</td>
                             <td className="r"><input className="cv-cel" inputMode="decimal" value={f.a ?? ""} onChange={(e) => poner(si, fi, "a", e.target.value)} aria-label={`${f.concepto} ${s.colA}`} /></td>
                             <td className="r"><input className="cv-cel" inputMode="decimal" value={f.b ?? ""} onChange={(e) => poner(si, fi, "b", e.target.value)} aria-label={`${f.concepto} ${s.colB}`} /></td></tr>
                         ))}</tbody>
@@ -222,10 +246,10 @@ export function Inventario({ fecha, hoy, guardado, dias, puedeEditar, nombres }:
             </div>
           )}
           <div className="cv-dlg-pie">
-            <span className="cv-nota" style={{ margin: 0 }}>{hoja ? `Se guardará el inventario del ${hoja.fecha}${aAjustar.length ? ` y ${aAjustar.length} ajuste(s) de pallets` : ""}.` : ""}</span>
+            <span className="cv-nota" style={{ margin: 0 }}>{palletDudoso ? "Antes de guardar, revisa los números de PALLET marcados en amarillo." : hoja ? `Se guardará el inventario del ${hoja.fecha}${aAjustar.length ? ` y ${aAjustar.length} ajuste(s) de pallets` : ""}.` : ""}</span>
             <span className="cv-form">
               <button type="button" className="cs-bt alt" onClick={() => dlg.current?.close()}>Cancelar</button>
-              <button type="button" className="cs-bt" disabled={pend || !hoja} onClick={guardar}>{pend ? "Guardando…" : "Guardar inventario"}</button>
+              <button type="button" className="cs-bt" disabled={pend || !hoja || palletDudoso} title={palletDudoso ? "Revisa primero los números de PALLET marcados en amarillo" : undefined} onClick={guardar}>{pend ? "Guardando…" : "Guardar inventario"}</button>
             </span>
           </div>
         </div>

@@ -22,6 +22,7 @@
     "qrcode-generator": "^1.4.4",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "tesseract.js": "^5.1.1",
     "three": "^0.186.1",
     "xlsx": "^0.18.5"
   },
