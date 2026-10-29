@@ -18,6 +18,9 @@ export type FilaPeldar = {
   placa: string;
   pallets: number;
   und: number;
+  /** Columnas «INGRESO» y «Entrada de Mercancía» del archivo. Sin definir = el archivo no las trae; null = vacías (todavía no está en SAP). */
+  ingreso?: string | null;
+  em?: string | null;
 };
 export type FilaConClave = FilaPeldar & { clave: string };
 
@@ -40,6 +43,8 @@ export type Comparacion = {
   sinProducto: { codigo: string; n: number }[];
   /** cargadas antes (después del corte) que el archivo de hoy ya no trae */
   ausentes: Existente[];
+  /** filas del archivo que traen la entrada de mercancía (se actualiza sola, no es un cambio de cantidades) y cuántas no la tienen todavía */
+  conEM: number; sinEM: number;
 };
 
 export const redondear = (n: number, d = 2) => Math.round(n * 10 ** d) / 10 ** d;
@@ -63,13 +68,14 @@ export function conClaves(filas: FilaPeldar[]): FilaConClave[] {
 
 export function compararPeldar(filas: FilaPeldar[], existentes: Existente[], productos: Set<string>, corte: string): Comparacion {
   const porClave = new Map(existentes.map((e) => [e.clave, e]));
-  const out: Comparacion = { nuevas: [], cambiadas: [], iguales: 0, anteriores: 0, sinProducto: [], ausentes: [] };
+  const out: Comparacion = { nuevas: [], cambiadas: [], iguales: 0, anteriores: 0, sinProducto: [], ausentes: [], conEM: 0, sinEM: 0 };
   const faltan = new Map<string, number>();
   const enArchivo = new Set<string>();
   for (const f of conClaves(filas)) {
     if (f.fecha <= corte) { out.anteriores++; continue }
     if (!productos.has(f.codigo)) { faltan.set(f.codigo, (faltan.get(f.codigo) ?? 0) + 1); continue }
     enArchivo.add(f.clave);
+    if (f.em !== undefined) { out.conEM++; if (!f.em || !f.ingreso) out.sinEM++ }
     const e = porClave.get(f.clave);
     if (!e) { out.nuevas.push(f); continue }
     const igual = e.fecha === f.fecha && redondear(e.pallets) === redondear(f.pallets) && (e.und == null || Number(e.und) === f.und);
@@ -206,4 +212,49 @@ export function conAuto(secs: SeccionHoja[], ctx: ContextoAuto): SeccionVista[] 
 /** La hoja que se guarda: lo traído solo + lo escrito a mano, con los números ya puestos. */
 export function aHojaGuardada(v: SeccionVista[]): SeccionHoja[] {
   return v.map((s) => ({ titulo: s.titulo, colA: s.colA, colB: s.colB, filas: s.filas.map((f) => ({ concepto: f.concepto, a: f.a, b: f.b, codigo: f.codigo ?? null })) }));
+}
+
+/* =====================================================================
+   CUADRE SAP DE AG07 · PASO 1: LOS PALLETS CONTRA LA ZEXI
+   El conteo es el inventario de pallets de CONTROL, SIN los pallets que todavía no tienen entrada de mercancía (no están en SAP y no se
+   pueden meter a control de calidad). En SAP, el envase de AG07 vive en CONTROL DE CALIDAD — con una excepción: el 3500005 (Costeñita 175R)
+   no se toca en control-cal: lo que haya ahí se pasa al AG71 en libre utilización. Solo ese SKU va a ese almacén.
+   ===================================================================== */
+export type ZexiAlm = { almacen: string; codigo: string; descripcion: string; libre: number; calidad: number; bloqueado: number; total: number };
+export const SKU_A_AG71 = new Set(["3500005"]);
+export type Mov07 = { titulo: string; cantidad: number };
+export type FilaCuadre07 = {
+  codigo: string; descripcion: string; undPorPallet: number;
+  pallets: number; pendientes: number; palletsSap: number; conteo: number;
+  libre: number; calidad: number; bloqueado: number; libre71: number | null; enZexi: boolean;
+  /** SAP − conteo en el lugar donde debe quedar el envase (control-cal de AG07; para el 3500005, libre de AG71 DESPUÉS del traslado) */
+  dif: number; destino: "AG07 control-cal" | "AG71 libre";
+  movs: Mov07[]; sinAlcanzar: number;
+};
+export function cuadrePallets07(productos: { codigo: string; descripcion: string; und_por_pallet: number }[], saldos: Map<string, number>, pend: Map<string, number>, zexi: ZexiAlm[]): FilaCuadre07[] {
+  const z = (alm: string, c: string) => zexi.find((x) => x.almacen === alm && x.codigo === c);
+  const out: FilaCuadre07[] = [];
+  for (const p of productos) {
+    const pallets = redondear(saldos.get(p.codigo) ?? 0), pendientes = redondear(pend.get(p.codigo) ?? 0);
+    const a7 = z("AG07", p.codigo), a71 = z("AG71", p.codigo);
+    if (!pallets && !pendientes && !(a7?.calidad) && !(a71?.libre && SKU_A_AG71.has(p.codigo))) continue;
+    const palletsSap = redondear(pallets - pendientes), conteo = palletsSap * p.und_por_pallet;
+    const libre = a7?.libre ?? 0, calidad = a7?.calidad ?? 0, bloqueado = a7?.bloqueado ?? 0;
+    const movs: Mov07[] = []; let sinAlcanzar = 0, dif: number, destino: FilaCuadre07["destino"], libre71: number | null = null;
+    if (SKU_A_AG71.has(p.codigo)) {
+      destino = "AG71 libre"; libre71 = a71?.libre ?? 0;
+      if (calidad > 0.5) movs.push({ titulo: "AG07 control de calidad → AG71 libre utilización", cantidad: Math.round(calidad) });
+      dif = redondear(libre71 + Math.max(0, calidad) - conteo);
+    } else {
+      destino = "AG07 control-cal"; dif = redondear(calidad - conteo);
+      if (dif < -0.5) {
+        let falta = -dif;
+        const dl = Math.min(falta, Math.max(0, libre)); if (dl > 0.5) { movs.push({ titulo: "Mov 322 en AG07 (Libre → Control-cal)", cantidad: Math.round(dl) }); falta -= dl }
+        const db = Math.min(falta, Math.max(0, bloqueado)); if (db > 0.5) { movs.push({ titulo: "Mov 349 en AG07 (Bloqueado → Control-cal)", cantidad: Math.round(db) }); falta -= db }
+        sinAlcanzar = falta > 0.5 ? Math.round(falta) : 0;
+      } else if (dif > 0.5) movs.push({ titulo: "AG07: Control-cal → Libre", cantidad: Math.round(dif) });
+    }
+    out.push({ codigo: p.codigo, descripcion: p.descripcion, undPorPallet: p.und_por_pallet, pallets, pendientes, palletsSap, conteo, libre, calidad, bloqueado, libre71, enZexi: !!a7 || !!a71, dif, destino, movs, sinAlcanzar });
+  }
+  return out;
 }

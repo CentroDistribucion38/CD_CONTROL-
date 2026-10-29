@@ -145,3 +145,13 @@
 .cs .cv-sec .cv-tabla th { background: var(--fe-papel, #fff); color: var(--fe-tinta); border-bottom: 3px solid var(--fe-acento, #FFC400) }
 .cs .cv-sec .cv-ojo { border-color: var(--fe-linea, #cfcfcf); color: var(--fe-tinta) }
 .cs .cv-sec .cv-ojo.on { background: var(--fe-acento, #FFC400); border-color: var(--fe-acento, #FFC400); color: var(--fe-tinta) }
+
+/* Control · pallets sin entrada de mercancía; Cuadre SAP AG07 · lista de movimientos */
+.cs .cv-sinem { color: var(--fe-gris); font-variant-numeric: tabular-nums }
+.cs .cv-sub-h { margin: 18px 0 8px; font: 800 13px var(--fe-texto); letter-spacing: .06em; text-transform: uppercase }
+.cs .cv-movs { display: flex; flex-direction: column; gap: 10px }
+.cs .cv-mov { background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea) }
+.cs .cv-mov.hecho { opacity: .55 }
+.cs .cv-mov-cab { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 12px; border-bottom: 3px solid var(--fe-acento, #FFC400); font-size: 12.5px }
+.cs .cv-mov-cab span:not(.grow) { color: var(--fe-gris); font-size: 11.5px }
+.cs .cv-ok { color: #1E6B37; font-weight: 700 }

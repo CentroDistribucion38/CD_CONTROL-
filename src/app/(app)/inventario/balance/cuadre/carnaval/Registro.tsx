@@ -52,7 +52,7 @@ export function Registro({ productos, corte, hoy, puedeEditar, movimientos, sald
     for (const f of c?.nuevas ?? []) { const x = m.get(f.codigo) ?? { filas: 0, pallets: 0 }; x.filas++; x.pallets += f.pallets; m.set(f.codigo, x) }
     return [...m];
   }, [c]);
-  const hayAlgo = !!c && (c.nuevas.length > 0 || aprobadas.length > 0);
+  const hayAlgo = !!c && (c.nuevas.length > 0 || aprobadas.length > 0 || c.conEM > 0);
 
   function guardarArchivo() {
     if (!comp) return;
@@ -60,7 +60,7 @@ export function Registro({ productos, corte, hoy, puedeEditar, movimientos, sald
       const r = await aplicarPeldar(comp.enviadas, aprobadas);
       if (r.error) { setAviso({ t: r.error, mal: true }); return }
       dlg.current?.close();
-      setAviso({ t: `Listo: ${r.nuevas} ingresos nuevos${r.actualizadas ? ` y ${r.actualizadas} cambios aprobados` : ""}.` });
+      setAviso({ t: `Listo: ${r.nuevas} ingresos nuevos${r.actualizadas ? ` y ${r.actualizadas} cambios aprobados` : ""}.${r.avisoEM ? ` ${r.avisoEM}` : r.conEM ? ` Entrada de mercancía leída en ${r.conEM} ingresos: ${r.sinEM ? `${r.sinEM} todavía no la tienen (no están en SAP)` : "todos están en SAP"}.` : ""}`, mal: !!r.avisoEM });
       setComp(null); setLect(null);
       router.refresh();
     });

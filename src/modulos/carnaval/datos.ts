@@ -137,3 +137,23 @@ export async function hojaBase(fecha: string) {
   const despues = await supabase.from("carnaval_existencias").select("fecha, secciones").gt("fecha", fecha).order("fecha", { ascending: true }).limit(1).maybeSingle();
   return despues.data ? { fecha: String(despues.data.fecha), secciones: despues.data.secciones as import("./logica").SeccionHoja[] } : null;
 }
+
+/** Los pallets que todavía NO tienen entrada de mercancía en SAP (el archivo de Peldar los trae sin «INGRESO» o sin «Entrada de Mercancía»), por código, hasta un día. */
+export async function pendientesEM(fecha: string) {
+  const supabase = await createClient();
+  const r = await todas<{ codigo: string; pallets: number }>((d, h) =>
+    supabase.from("carnaval_movimientos").select("codigo, pallets").eq("tipo", "INGRESO").eq("anulado", false).eq("em_leida", true).lte("fecha", fecha)
+      .or("entrada_mercancia.is.null,ingreso.is.null").order("id").range(d, h));
+  const m = new Map<string, number>();
+  for (const x of r.data) m.set(x.codigo, (m.get(x.codigo) ?? 0) + Number(x.pallets));
+  /* Si todavía no se corrió el SQL de las columnas nuevas, no es un error: no hay pendientes que restar. */
+  const falta = !!r.error && /em_leida|entrada_mercancia|ingreso|schema cache|does not exist/i.test(String(r.error));
+  return { error: falta ? null : (r.error ? String(r.error) : null), faltaSql: falta, pendientes: m };
+}
+
+/** La ZEXI de AG07 (con AG71) que se subió al Cuadre SAP ese día. */
+export async function zexiAg07(fecha: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("carnaval_zexi").select("filas, archivo, actualizado_en").eq("fecha", fecha).maybeSingle();
+  return { error: error?.message ?? null, zexi: data as { filas: import("./logica").ZexiAlm[]; archivo: string | null; actualizado_en: string } | null };
+}

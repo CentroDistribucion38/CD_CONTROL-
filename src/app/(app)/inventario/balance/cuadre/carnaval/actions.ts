@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { usuarioActual } from "@/lib/sesion";
 import { misPermisos } from "@/lib/permisos";
-import { aHojaGuardada, CENTRO_DE_CASCO, claveEq, compararPeldar, conAuto, limpio, redondear, SIN_SKU, type Comparacion, type FilaPeldar, type Hoja } from "@/modulos/carnaval/logica";
+import { aHojaGuardada, CENTRO_DE_CASCO, claveEq, compararPeldar, conClaves, conAuto, limpio, redondear, SIN_SKU, type Comparacion, type FilaPeldar, type Hoja } from "@/modulos/carnaval/logica";
 import { contextoAuto, equivalencias, faltaTabla, ingresosCargados, maestroSku, productosYCorte, RUTA_CUADRE, saldosA, SQL_FALTA } from "@/modulos/carnaval/datos";
 
 /**
@@ -28,7 +28,8 @@ function leerFilas(json: string): FilaPeldar[] | null {
     const a = JSON.parse(json);
     if (!Array.isArray(a)) return null;
     return a.filter((f) => f && typeof f.codigo === "string" && esDia(String(f.fecha)) && Number(f.pallets) > 0 && String(f.remision ?? "").trim())
-      .map((f) => ({ fecha: String(f.fecha), codigo: String(f.codigo).trim(), descripcion: String(f.descripcion ?? ""), remision: String(f.remision).trim(), placa: String(f.placa ?? "").trim().toUpperCase(), pallets: Number(f.pallets), und: Number(f.und) || 0 }));
+      .map((f) => ({ fecha: String(f.fecha), codigo: String(f.codigo).trim(), descripcion: String(f.descripcion ?? ""), remision: String(f.remision).trim(), placa: String(f.placa ?? "").trim().toUpperCase(), pallets: Number(f.pallets), und: Number(f.und) || 0,
+        ...(f.em !== undefined || f.ingreso !== undefined ? { ingreso: esDia(String(f.ingreso ?? "")) ? String(f.ingreso) : null, em: String(f.em ?? "").trim() || null } : {}) }));
   } catch { return null }
 }
 
@@ -47,7 +48,7 @@ export async function previsualizarPeldar(filasJson: string): Promise<{ error: s
   return "error" in r ? r : { ...r, totalArchivo: filas.length };
 }
 
-export async function aplicarPeldar(filasJson: string, aprobadas: string[]): Promise<{ error?: string; nuevas?: number; actualizadas?: number }> {
+export async function aplicarPeldar(filasJson: string, aprobadas: string[]): Promise<{ error?: string; nuevas?: number; actualizadas?: number; conEM?: number; sinEM?: number; avisoEM?: string }> {
   const sin = await permiso(); if (sin) return { error: sin };
   const filas = leerFilas(filasJson);
   if (!filas?.length) return { error: "El archivo no se pudo leer." };
@@ -78,8 +79,24 @@ export async function aplicarPeldar(filasJson: string, aprobadas: string[]): Pro
     if (error) return { error: `Cambio de ${c.clave}: ${error.message}`, nuevas, actualizadas };
     actualizadas++;
   }
+  /* LA ENTRADA DE MERCANCÍA no es un cambio de cantidades: se pone sola en todas las filas del archivo que la traen (ya cargadas o recién cargadas). */
+  let conEM = 0, sinEM = 0, avisoEM: string | undefined;
+  const conDato = conClaves(filas).filter((f) => f.em !== undefined && f.fecha > r.corte);
+  if (conDato.length) {
+    const ex = await ingresosCargados();
+    const porClave = new Map(ex.filas.map((e) => [e.clave, e]));
+    const lote = conDato.flatMap((f) => {
+      const e = porClave.get(f.clave); if (!e) return [];
+      return [{ id: e.id, fecha: e.fecha, tipo: "INGRESO", codigo: f.codigo, pallets: e.pallets, ingreso: f.ingreso ?? null, entrada_mercancia: f.em ?? null, em_leida: true }];
+    });
+    for (let i = 0; i < lote.length; i += 200) {
+      const { error } = await supabase.from("carnaval_movimientos").upsert(lote.slice(i, i + 200), { onConflict: "id" });
+      if (error) { avisoEM = /ingreso|entrada_mercancia|em_leida|schema cache/i.test(error.message) ? "Falta correr supabase/migraciones/2026-10-carnaval-cuadre-sap.sql para guardar la entrada de mercancía." : `Entrada de mercancía: ${error.message}`; break }
+    }
+    if (!avisoEM) { conEM = lote.length; sinEM = lote.filter((x) => !x.entrada_mercancia || !x.ingreso).length }
+  }
   refrescar();
-  return { nuevas, actualizadas };
+  return { nuevas, actualizadas, conEM, sinEM, avisoEM };
 }
 
 export async function registrarMovimiento(f: { fecha: string; tipo: "TRASIEGO" | "AJUSTE"; codigo: string; pallets: number; nota: string }): Promise<{ error?: string; ok?: true }> {
@@ -230,4 +247,27 @@ export async function eliminarInventario(fecha: string, motivo: string, anularAj
   }
   refrescar();
   return { ok: true, anulados };
+}
+
+/** CUADRE SAP DE AG07: guarda la ZEXI del día (la última subida reemplaza a la anterior) o la quita. */
+export async function guardarZexiAg07(fecha: string, filasJson: string, archivo: string): Promise<{ error?: string; ok?: true }> {
+  const sin = await permiso(); if (sin) return { error: sin };
+  if (!esDia(fecha)) return { error: "Día inválido." };
+  let filas: unknown;
+  try { filas = JSON.parse(filasJson) } catch { return { error: "La ZEXI no se pudo leer." } }
+  if (!Array.isArray(filas) || !filas.length) return { error: "La ZEXI no trae filas." };
+  const supabase = await createClient();
+  const { error } = await supabase.from("carnaval_zexi").upsert({ fecha, filas, archivo: archivo.slice(0, 200), actualizado_en: new Date().toISOString() }, { onConflict: "fecha" });
+  if (error) return { error: faltaTabla(error.message) || /carnaval_zexi/.test(error.message) ? "Falta correr supabase/migraciones/2026-10-carnaval-cuadre-sap.sql en Supabase." : error.message };
+  refrescar();
+  return { ok: true };
+}
+export async function quitarZexiAg07(fecha: string): Promise<{ error?: string; ok?: true }> {
+  const sin = await permiso(); if (sin) return { error: sin };
+  if (!esDia(fecha)) return { error: "Día inválido." };
+  const supabase = await createClient();
+  const { error } = await supabase.from("carnaval_zexi").delete().eq("fecha", fecha);
+  if (error) return { error: error.message };
+  refrescar();
+  return { ok: true };
 }

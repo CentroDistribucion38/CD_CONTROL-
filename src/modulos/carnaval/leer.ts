@@ -57,6 +57,9 @@ export async function leerPeldar(archivo: File): Promise<Lectura> {
   const cFec = col(h.t, /fecha.*recibo/), cCod = col(h.t, /^codigo$/), cDes = col(h.t, /^descrip/);
   const cRem = col(h.t, /^remision$/), cPla = col(h.t, /^placa$/), cPal = col(h.t, /^#\s*pal/), cUnd = col(h.t, /^und$/);
   const cBod = col(h.t, /^bodega$/);
+  /* «INGRESO» (fecha en que entró a SAP) y «Entrada de Mercancia» (el documento de SAP). Sin las dos no se puede saber qué está en SAP. */
+  const cIng = col(h.t, /^ingreso$/), cEM = col(h.t, /^entrada.*mercanc/);
+  const conEM = cIng >= 0 && cEM >= 0;
   if (cFec < 0) return { ...vacio, hoja: h.nombre, error: "Falta la columna «Fecha de recibo»." };
   if (cUnd < 0) return { ...vacio, hoja: h.nombre, error: "Falta la columna «Und»." };
   const filas: FilaPeldar[] = [];
@@ -67,7 +70,8 @@ export async function leerPeldar(archivo: File): Promise<Lectura> {
     if (cBod >= 0 && txt(f[cBod]) && !/carnaval/i.test(txt(f[cBod]))) { omitidas.otraBodega++; continue }
     const fecha = aDia(f[cFec]), pallets = num(f[cPal]), und = num(f[cUnd]), remision = entero(f[cRem]);
     if (!fecha || !Number.isFinite(pallets) || pallets <= 0 || !remision) { omitidas.invalidas++; continue }
-    filas.push({ fecha, codigo: cod, descripcion: cDes >= 0 ? txt(f[cDes]) : "", remision, placa: cPla >= 0 ? txt(f[cPla]).toUpperCase() : "", pallets, und: Number.isFinite(und) ? und : 0 });
+    filas.push({ fecha, codigo: cod, descripcion: cDes >= 0 ? txt(f[cDes]) : "", remision, placa: cPla >= 0 ? txt(f[cPla]).toUpperCase() : "", pallets, und: Number.isFinite(und) ? und : 0,
+      ...(conEM ? { ingreso: aDia(f[cIng]), em: txt(f[cEM]) || null } : {}) });
   }
   if (!filas.length) return { filas, hoja: h.nombre, omitidas, error: "El archivo no trae filas con fecha de recibo, código, remisión y # PAL." };
   return { filas, hoja: h.nombre, omitidas };
