@@ -52,7 +52,7 @@ export function Registro({ productos, corte, hoy, puedeEditar, movimientos, sald
     for (const f of c?.nuevas ?? []) { const x = m.get(f.codigo) ?? { filas: 0, pallets: 0 }; x.filas++; x.pallets += f.pallets; m.set(f.codigo, x) }
     return [...m];
   }, [c]);
-  const hayAlgo = !!c && (c.nuevas.length > 0 || aprobadas.length > 0 || c.conEM > 0);
+  const hayAlgo = !!c && (c.nuevas.length > 0 || c.reactivar.length > 0 || aprobadas.length > 0 || c.conEM > 0);
 
   function guardarArchivo() {
     if (!comp) return;
@@ -60,7 +60,7 @@ export function Registro({ productos, corte, hoy, puedeEditar, movimientos, sald
       const r = await aplicarPeldar(comp.enviadas, aprobadas);
       if (r.error) { setAviso({ t: r.error, mal: true }); return }
       dlg.current?.close();
-      setAviso({ t: `Listo: ${r.nuevas} ingresos nuevos${r.actualizadas ? ` y ${r.actualizadas} cambios aprobados` : ""}.${r.avisoEM ? ` ${r.avisoEM}` : r.conEM ? ` Entrada de mercancía leída en ${r.conEM} ingresos: ${r.sinEM ? `${r.sinEM} todavía no la tienen (no están en SAP)` : "todos están en SAP"}.` : ""}`, mal: !!r.avisoEM });
+      setAviso({ t: `Listo: ${r.nuevas} ingresos nuevos${r.reactivadas ? `, ${r.reactivadas} reactivados (estaban anulados)` : ""}${r.actualizadas ? ` y ${r.actualizadas} cambios aprobados` : ""}.${r.avisoEM ? ` ${r.avisoEM}` : r.conEM ? ` Entrada de mercancía leída en ${r.conEM} ingresos: ${r.sinEM ? `${r.sinEM} todavía no la tienen (no están en SAP)` : "todos están en SAP"}.` : ""}`, mal: !!r.avisoEM });
       setComp(null); setLect(null);
       router.refresh();
     });
@@ -179,6 +179,7 @@ export function Registro({ productos, corte, hoy, puedeEditar, movimientos, sald
             <div className="cv-dlg-cuerpo">
               <div className="cv-resumen">
                 <span><b>{c.nuevas.length}</b> nuevas</span>
+                {c.reactivar.length > 0 && <span title="Estaban cargadas y anuladas; el archivo las vuelve a traer"><b>{c.reactivar.length}</b> reactivadas</span>}
                 <span className={c.cambiadas.length ? "alerta" : ""}><b>{c.cambiadas.length}</b> con cambios</span>
                 <span><b>{c.iguales}</b> iguales</span>
                 <span><b>{comp.anterioresLocal + c.anteriores}</b> hasta el corte ({corte}), no se suman</span>
@@ -230,11 +231,11 @@ export function Registro({ productos, corte, hoy, puedeEditar, movimientos, sald
                 <div><h3>Ya cargadas que el archivo de hoy no trae (no se tocan; si fue un error de Peldar, anúlalas en Últimos movimientos)</h3>
                   <p className="cv-nota">{c.ausentes.slice(0, 12).map((x) => `${x.clave.split("|").join(" · ")} (${nf.format(x.pallets)})`).join(" — ")}{c.ausentes.length > 12 ? ` … y ${c.ausentes.length - 12} más` : ""}</p></div>
               )}
-              {!c.nuevas.length && !c.cambiadas.length && <p className="cv-nota">No hay nada nuevo ni distinto: todo lo del archivo ya estaba cargado.</p>}
+              {!c.nuevas.length && !c.reactivar.length && !c.cambiadas.length && <p className="cv-nota">No hay nada nuevo ni distinto: todo lo del archivo ya estaba cargado.</p>}
             </div>
           )}
           <div className="cv-dlg-pie">
-            <span className="cv-nota" style={{ margin: 0 }}>{c ? `Se guardará: ${c.nuevas.length} nuevas y ${aprobadas.length} cambios aprobados.` : ""}</span>
+            <span className="cv-nota" style={{ margin: 0 }}>{c ? `Se guardará: ${c.nuevas.length} nuevas${c.reactivar.length ? `, ${c.reactivar.length} reactivadas` : ""} y ${aprobadas.length} cambios aprobados.` : ""}</span>
             <span className="cv-form">
               <button type="button" className="cs-bt alt" onClick={() => dlg.current?.close()}>Cancelar</button>
               <button type="button" className="cs-bt" disabled={pend || !hayAlgo} onClick={guardarArchivo}>{pend ? "Guardando…" : "Guardar"}</button>

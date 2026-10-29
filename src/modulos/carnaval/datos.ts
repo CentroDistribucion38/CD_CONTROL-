@@ -37,6 +37,15 @@ export async function ingresosCargados() {
   return { error: r.error, filas };
 }
 
+/** Los ingresos de Peldar que alguien ANULÓ: la llave sigue ocupada, así que si el archivo los trae de nuevo se reactivan. */
+export async function ingresosAnulados() {
+  const supabase = await createClient();
+  const r = await todas<{ id: string; clave: string; fecha: string; pallets: number; und: number | null }>((d, h) =>
+    supabase.from("carnaval_movimientos").select("id, clave, fecha, pallets, und").eq("tipo", "INGRESO").eq("anulado", true).not("clave", "is", null).order("id").range(d, h));
+  const filas: Existente[] = r.data.map((x) => ({ id: x.id, clave: x.clave, fecha: String(x.fecha), pallets: Number(x.pallets), und: x.und == null ? null : Number(x.und) }));
+  return { error: r.error, filas };
+}
+
 export async function saldosA(fecha: string) {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("carnaval_saldos", { p_fecha: fecha });

@@ -35,6 +35,8 @@ export type Cambio = {
 
 export type Comparacion = {
   nuevas: FilaConClave[];
+  /** filas del archivo que ya existían pero estaban ANULADAS: se reactivan (no se crean de nuevo: la llave es única) */
+  reactivar: { id: string; clave: string; fila: FilaConClave }[];
   cambiadas: Cambio[];
   iguales: number;
   /** filas con fecha de recibo hasta el corte: ya están dentro del saldo inicial */
@@ -81,18 +83,28 @@ export function emparejarClaves(filas: FilaConClave[], existentes: Existente[]):
   });
 }
 
-export function compararPeldar(filas: FilaPeldar[], existentes: Existente[], productos: Set<string>, corte: string): Comparacion {
+export function compararPeldar(filas: FilaPeldar[], existentes: Existente[], productos: Set<string>, corte: string, anulados: Existente[] = []): Comparacion {
   const porClave = new Map(existentes.map((e) => [e.clave, e]));
-  const out: Comparacion = { nuevas: [], cambiadas: [], iguales: 0, anteriores: 0, sinProducto: [], ausentes: [], conEM: 0, sinEM: 0 };
+  const out: Comparacion = { nuevas: [], reactivar: [], cambiadas: [], iguales: 0, anteriores: 0, sinProducto: [], ausentes: [], conEM: 0, sinEM: 0 };
   const faltan = new Map<string, number>();
   const enArchivo = new Set<string>();
+  const anPorClave = new Map(anulados.map((a) => [a.clave, a]));
+  const anUsadas = new Set<string>();
+  const anPorRC = new Map<string, Existente[]>();
+  for (const a of anulados) { const p = a.clave.split("|"); const k = `${p[0]}|${p[2]}`; anPorRC.set(k, [...(anPorRC.get(k) ?? []), a]) }
   for (const f of emparejarClaves(conClaves(filas), existentes)) {
     if (f.fecha <= corte) { out.anteriores++; continue }
     if (!productos.has(f.codigo)) { faltan.set(f.codigo, (faltan.get(f.codigo) ?? 0) + 1); continue }
     enArchivo.add(f.clave);
     if (f.em !== undefined) { out.conEM++; if (!f.em || !f.ingreso) out.sinEM++ }
     const e = porClave.get(f.clave);
-    if (!e) { out.nuevas.push(f); continue }
+    if (!e) {
+      /* ¿estaba cargada y anulada? entonces se reactiva en vez de crearla (la llave no se puede repetir) */
+      let a = anPorClave.get(f.clave);
+      if (!a || anUsadas.has(a.clave)) { const c = (anPorRC.get(`${f.remision}|${f.codigo}`) ?? []).filter((x) => !anUsadas.has(x.clave)); a = c.length === 1 ? c[0] : undefined }
+      if (a && !anUsadas.has(a.clave)) { anUsadas.add(a.clave); out.reactivar.push({ id: a.id, clave: a.clave, fila: { ...f, clave: a.clave } }); continue }
+      out.nuevas.push(f); continue;
+    }
     const igual = e.fecha === f.fecha && redondear(e.pallets) === redondear(f.pallets) && (e.und == null || Number(e.und) === f.und);
     if (igual) out.iguales++;
     else out.cambiadas.push({ clave: f.clave, id: e.id, fila: f, antes: { fecha: e.fecha, pallets: e.pallets, und: e.und } });

@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { usuarioActual } from "@/lib/sesion";
 import { misPermisos } from "@/lib/permisos";
 import { aHojaGuardada, CENTRO_DE_CASCO, claveEq, compararPeldar, conClaves, emparejarClaves, conAuto, limpio, redondear, SIN_SKU, type Comparacion, type FilaPeldar, type Hoja } from "@/modulos/carnaval/logica";
-import { contextoAuto, equivalencias, faltaTabla, ingresosCargados, maestroSku, productosYCorte, RUTA_CUADRE, saldosA, SQL_FALTA } from "@/modulos/carnaval/datos";
+import { contextoAuto, equivalencias, faltaTabla, ingresosAnulados, ingresosCargados, maestroSku, productosYCorte, RUTA_CUADRE, saldosA, SQL_FALTA } from "@/modulos/carnaval/datos";
 
 /**
  * AG07 CARNAVAL · LO QUE SE GUARDA.
@@ -38,7 +38,9 @@ async function comparar(filas: FilaPeldar[]): Promise<{ error: string } | { c: C
   if (pc.error) return { error: faltaTabla(pc.error) ? SQL_FALTA : pc.error };
   const ex = await ingresosCargados();
   if (ex.error) return { error: faltaTabla(ex.error) ? SQL_FALTA : ex.error };
-  return { c: compararPeldar(filas, ex.filas, new Set(pc.productos.map((p) => p.codigo)), pc.corte), corte: pc.corte };
+  const an = await ingresosAnulados();
+  if (an.error) return { error: faltaTabla(an.error) ? SQL_FALTA : an.error };
+  return { c: compararPeldar(filas, ex.filas, new Set(pc.productos.map((p) => p.codigo)), pc.corte, an.filas), corte: pc.corte };
 }
 
 export async function previsualizarPeldar(filasJson: string): Promise<{ error: string } | { c: Comparacion; corte: string; totalArchivo: number }> {
@@ -48,7 +50,7 @@ export async function previsualizarPeldar(filasJson: string): Promise<{ error: s
   return "error" in r ? r : { ...r, totalArchivo: filas.length };
 }
 
-export async function aplicarPeldar(filasJson: string, aprobadas: string[]): Promise<{ error?: string; nuevas?: number; actualizadas?: number; conEM?: number; sinEM?: number; avisoEM?: string }> {
+export async function aplicarPeldar(filasJson: string, aprobadas: string[]): Promise<{ error?: string; nuevas?: number; reactivadas?: number; actualizadas?: number; conEM?: number; sinEM?: number; avisoEM?: string }> {
   const sin = await permiso(); if (sin) return { error: sin };
   const filas = leerFilas(filasJson);
   if (!filas?.length) return { error: "El archivo no se pudo leer." };
@@ -58,13 +60,25 @@ export async function aplicarPeldar(filasJson: string, aprobadas: string[]): Pro
   const user = await usuarioActual();
   const quien = user?.email ?? user?.id ?? "";
 
+  /* Las que estaban anuladas y el archivo vuelve a traer se REACTIVAN (la llave es única: no se pueden insertar otra vez). */
+  let reactivadas = 0;
+  for (const x of r.c.reactivar) {
+    const { data: act } = await supabase.from("carnaval_movimientos").select("historial, fecha, pallets, und").eq("id", x.id).single();
+    const historial = [...((act?.historial as unknown[]) ?? []), {
+      antes: { anulado: true, fecha: act?.fecha, pallets: act?.pallets, und: act?.und }, despues: { anulado: false, fecha: x.fila.fecha, pallets: x.fila.pallets, und: x.fila.und }, reactivado: true, por: quien, en: new Date().toISOString(),
+    }];
+    const { error } = await supabase.from("carnaval_movimientos").update({ anulado: false, anulado_motivo: null, anulado_por: null, anulado_en: null, fecha: x.fila.fecha, pallets: x.fila.pallets, und: x.fila.und, historial }).eq("id", x.id);
+    if (error) return { error: `Reactivar ${x.clave}: ${error.message}`, reactivadas };
+    reactivadas++;
+  }
+
   let nuevas = 0;
   for (let i = 0; i < r.c.nuevas.length; i += 400) {
     const lote = r.c.nuevas.slice(i, i + 400).map((f) => ({
       fecha: f.fecha, tipo: "INGRESO", codigo: f.codigo, pallets: f.pallets, und: f.und, clave: f.clave, remision: f.remision, placa: f.placa || null, nota: "Archivo Peldar",
     }));
     const { error } = await supabase.from("carnaval_movimientos").insert(lote);
-    if (error) return { error: faltaTabla(error.message) ? SQL_FALTA : `Se guardaron ${nuevas} y falló el resto: ${error.message}`, nuevas };
+    if (error) return { error: faltaTabla(error.message) ? SQL_FALTA : `Se guardaron ${nuevas} y falló el resto: ${error.message}`, nuevas, reactivadas };
     nuevas += lote.length;
   }
 
@@ -97,7 +111,7 @@ export async function aplicarPeldar(filasJson: string, aprobadas: string[]): Pro
     if (!avisoEM) { conEM = lote.length; sinEM = lote.filter((x) => !x.entrada_mercancia || !x.ingreso).length }
   }
   refrescar();
-  return { nuevas, actualizadas, conEM, sinEM, avisoEM };
+  return { nuevas, reactivadas, actualizadas, conEM, sinEM, avisoEM };
 }
 
 export async function registrarMovimiento(f: { fecha: string; tipo: "TRASIEGO" | "AJUSTE"; codigo: string; pallets: number; nota: string }): Promise<{ error?: string; ok?: true }> {
