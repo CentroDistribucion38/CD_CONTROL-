@@ -140,3 +140,8 @@
 .cs .cv-ojo em { font: 700 11px var(--fe-texto); font-style: normal; letter-spacing: 0 }
 .cs .cv-ojo.on { background: var(--fe-acento, #FFC400); border-color: var(--fe-acento, #FFC400); color: var(--fe-tinta) }
 .cs .cv-ojo:focus-visible { outline: 2px solid var(--fe-acento, #FFC400); outline-offset: 2px }
+
+/* Inventario del día: encabezados en blanco con la línea amarilla (en vez de negro). */
+.cs .cv-sec .cv-tabla th { background: var(--fe-papel, #fff); color: var(--fe-tinta); border-bottom: 3px solid var(--fe-acento, #FFC400) }
+.cs .cv-sec .cv-ojo { border-color: var(--fe-linea, #cfcfcf); color: var(--fe-tinta) }
+.cs .cv-sec .cv-ojo.on { background: var(--fe-acento, #FFC400); border-color: var(--fe-acento, #FFC400); color: var(--fe-tinta) }
