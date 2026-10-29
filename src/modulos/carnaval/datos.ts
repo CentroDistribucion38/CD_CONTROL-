@@ -71,9 +71,9 @@ export async function ultimoInventario() {
 }
 
 /**
- * EL MAESTRO DE SKU contra el que se amarra la hoja de inventario: el Maestro de Inventario (productos), el de Pasivos y los
- * productos de Carnaval. Si un código está en varios, manda el primero de esa lista. El del Maestro de Inventario se ofrece
- * al final de la lista para que, al buscar, salgan primero los envases y cajas.
+ * EL MAESTRO DE SKU contra el que se amarra la hoja de inventario: el Maestro de Inventario (productos, el oficial), el de Pasivos
+ * y, solo si un código no está en ninguno, los productos de Carnaval. Si un código está en varios, manda el primero de esa lista:
+ * la descripción es la de CONTROL, no la de la hoja ni la de Carnaval.
  */
 export type Sku = { codigo: string; descripcion: string };
 export async function maestroSku(): Promise<Sku[]> {
@@ -87,7 +87,7 @@ export async function maestroSku(): Promise<Sku[]> {
   const pasivos = pa.error ? [] : pa.data.map((x) => ({ codigo: String(x.codigo ?? "").trim(), descripcion: String(x.descripcion ?? "").trim() }));
   const productos = pr.error ? [] : pr.data.map((x) => ({ codigo: String(x.sku ?? "").trim(), descripcion: String(x.nombre ?? "").trim() }));
   const visto = new Map<string, Sku>();
-  for (const x of [...carnaval, ...pasivos, ...productos]) if (x.codigo && !visto.has(x.codigo)) visto.set(x.codigo, { codigo: x.codigo, descripcion: x.descripcion || x.codigo });
+  for (const x of [...productos, ...pasivos, ...carnaval]) if (x.codigo && !visto.has(x.codigo)) visto.set(x.codigo, { codigo: x.codigo, descripcion: x.descripcion || x.codigo });
   return [...visto.values()];
 }
 
