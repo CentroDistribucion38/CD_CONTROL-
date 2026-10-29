@@ -177,14 +177,14 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
           <>
             <p className="cv-nota" style={{ margin: "0 0 10px" }}>
               {hojaGuardada ? `Hoja de Inventario del ${fecha}.` : `El ${fecha} no tiene hoja guardada: se usa la del ${hojaDe}.`} Estibas y cajas pasan a unidades con los factores del maestro (unidades por caja, cajas por estiba).
-              En el envase se compara contra libre + bloqueado (el control de calidad son los pallets del paso 1); en las cajas plásticas, contra los tres estados.
+              Entra toda la hoja menos PALLET (ya se cuadró en el paso 1) y el casco de vidrio, y se compara contra la libre utilización de AG07 en la ZEXI (el control de calidad ya quedó en el paso 1).
             </p>
             {difs2.length === 0
               ? <p className="cv-msg" style={{ borderLeftColor: "#1E6B37", background: "#E7F4EC" }}><b>Inventario balanceado.</b> Todo lo de la hoja (envase y cajas) coincide con la ZEXI.</p>
               : <p className="cv-msg mal">Hay <b>{difs2.length}</b> renglón(es) del inventario que no cuadran con la ZEXI. Haz en SAP lo que sale abajo y sube la ZEXI nueva para confirmar.</p>}
             <div className="cs-scroll">
               <table className="cs-t">
-                <thead><tr><th>Código</th><th>Material</th><th className="n">Estibas</th><th className="n">Cajas</th><th className="n">Hoja (unid.)</th><th className="n">Libre</th><th className="n">Bloqueado</th><th className="n">SAP</th><th className="n">Diferencia</th><th>Estado</th></tr></thead>
+                <thead><tr><th>Código</th><th>Material</th><th className="n">Estibas</th><th className="n">Cajas</th><th className="n">Hoja (unid.)</th><th className="n">Libre utilización (SAP)</th><th className="n">Diferencia</th><th>Estado</th></tr></thead>
                 <tbody>
                   {inventario.map((f, i) => {
                     const cero = Math.abs(f.dif) < 0.5;
@@ -195,8 +195,6 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
                         <td className="n">{f.estibas ? nf.format(f.estibas) : ""}</td>
                         <td className="n">{f.cajas ? nf.format(f.cajas) : ""}</td>
                         <td className="n"><b>{ent.format(f.unidades)}</b></td>
-                        <td className="n">{ent.format(f.libre)}</td>
-                        <td className="n">{f.bloqueado ? ent.format(f.bloqueado) : ""}</td>
                         <td className="n">{ent.format(f.sap)}</td>
                         <td className="n">{cero ? "0" : <b>{conSigno(f.dif)}</b>}</td>
                         <td>{cero ? <span className="cs-chip ok">Balanceado</span> : <span className="cs-chip in">{f.dif < 0 ? `Faltan ${ent.format(-f.dif)} en SAP` : `Sobran ${ent.format(f.dif)} en SAP`}</span>}</td>
@@ -207,7 +205,7 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
               </table>
             </div>
             {difs2.length > 0 && (<><h3 className="cv-sub-h">Qué hacer en SAP</h3>{renderGrupos(grupos2, "p2")}</>)}
-            <p className="cv-nota">Diferencia = SAP − hoja. Positiva: SAP tiene más de lo contado; negativa: SAP tiene menos. Lo que falta en SAP entra a AG07 desde AG22 y lo que sobra sale hacia AG22, ambos con el 311. Las estibas de madera, el pendiente de baja y el lavado no entran en esta comparación.</p>
+            <p className="cv-nota">Diferencia = SAP − hoja. Positiva: SAP tiene más de lo contado; negativa: SAP tiene menos. Lo que falta en SAP entra a AG07 desde AG22 y lo que sobra sale hacia AG22, ambos con el 311. El casco de vidrio no entra: sale del módulo de Casco.</p>
           </>
         )}
     </>

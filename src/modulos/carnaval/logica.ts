@@ -298,8 +298,8 @@ export function cuadrePallets07(productos: { codigo: string; descripcion: string
    CUADRE SAP DE AG07 · PASO 2: LA HOJA DE INVENTARIO CONTRA LA ZEXI DE AG07
    Cada renglón de la hoja trae ESTIBAS y CAJAS. Se pasan a unidades con los factores del maestro (unidades por caja y cajas por estiba):
      · ENVASE:        unidades = estibas × cajas por estiba × unidades por caja + cajas × unidades por caja
-                      y se comparan contra LIBRE + BLOQUEADO de la ZEXI (el control de calidad son los pallets: paso 1).
-     · CAJA PLÁSTICA: unidades = estibas × cajas por estiba + cajas, contra el TOTAL de la ZEXI (libre + control-cal + bloqueado).
+     · CAJA PLÁSTICA: unidades = estibas × cajas por estiba + cajas
+     Se toma TODA la hoja (menos PALLET y casco) y se compara contra la LIBRE UTILIZACIÓN de AG07 (el control de calidad ya quedó en el paso 1).
    La diferencia (SAP − hoja) es de inventario: no se arregla moviendo entre estados.
    ===================================================================== */
 export type FactorSku = { upc: number; cpe: number };
@@ -308,28 +308,35 @@ export type FilaInv07 = {
   estibas: number; cajas: number; unidades: number; sinFactor: boolean;
   libre: number; calidad: number; bloqueado: number; sap: number; dif: number;
 };
+/** Estiba de madera: la cantidad de la hoja ya son unidades. */
+const SKU_UNIDADES_DIRECTAS = new Set(["3500163"]);
 export function cuadreInventario07(secciones: SeccionHoja[], zexi: ZexiAlm[], factores: Map<string, FactorSku>, nombres: Map<string, string>): FilaInv07[] {
-  const SECC = (t: string): "ENVASE" | "CAJA" | null => { const l = limpio(t); return l === "envase" ? "ENVASE" : l.startsWith("caja plastica") ? "CAJA" : null };
-  const acc = new Map<string, { tipo: "ENVASE" | "CAJA"; estibas: number; cajas: number; concepto: string }>();
+  /* TODA la hoja menos lo que ya se cuadró aparte: la sección PALLET (paso 1) y los casco de vidrio (salen del módulo de Casco). */
+  const acc = new Map<string, { tipo: "ENVASE" | "CAJA"; estibas: number; cajas: number; unidades: number; concepto: string }>();
   for (const s of secciones) {
-    const tipo = SECC(s.titulo); if (!tipo) continue;
+    const t = limpio(s.titulo);
+    if (t === "pallet" || t in CENTRO_DE_CASCO || t.startsWith("casco")) continue;
+    const tipo: "ENVASE" | "CAJA" = t.includes("caja") ? "CAJA" : "ENVASE";
     for (const f of s.filas) {
       const c = f.codigo && f.codigo !== SIN_SKU ? f.codigo : null; if (!c) continue;
-      const x = acc.get(c) ?? { tipo, estibas: 0, cajas: 0, concepto: f.concepto };
-      x.estibas += f.a ?? 0; x.cajas += f.b ?? 0; acc.set(c, x);
+      const fa = factores.get(c) ?? { upc: 1, cpe: 0 };
+      const est = f.a ?? 0, caj = f.b ?? 0;
+      const u = SKU_UNIDADES_DIRECTAS.has(c) ? est + caj : tipo === "ENVASE" ? est * fa.cpe * fa.upc + caj * fa.upc : est * fa.cpe + caj;
+      const x = acc.get(c) ?? { tipo, estibas: 0, cajas: 0, unidades: 0, concepto: f.concepto };
+      x.estibas += est; x.cajas += caj; x.unidades += u; acc.set(c, x);
     }
   }
   const z = (c: string) => zexi.find((x) => x.almacen === "AG07" && x.codigo === c);
-  /* Materiales de AG07 que la hoja no trae (y no son pallets-estiba): también se muestran, contra una hoja en cero. */
-  for (const x of zexi) if (x.almacen === "AG07" && x.codigo !== "3500163" && !acc.has(x.codigo) && (x.libre || x.bloqueado || x.calidad)) acc.set(x.codigo, { tipo: /caja/i.test(x.descripcion) ? "CAJA" : "ENVASE", estibas: 0, cajas: 0, concepto: x.descripcion });
+  /* Materiales de AG07 con libre utilización que la hoja no trae: también se muestran, contra una hoja en cero. */
+  for (const x of zexi) if (x.almacen === "AG07" && !acc.has(x.codigo) && x.libre) acc.set(x.codigo, { tipo: /caja/i.test(x.descripcion) ? "CAJA" : "ENVASE", estibas: 0, cajas: 0, unidades: 0, concepto: x.descripcion });
   const out: FilaInv07[] = [];
   for (const [codigo, x] of acc) {
     const fa = factores.get(codigo) ?? { upc: 1, cpe: 0 };
-    const unidades = x.tipo === "ENVASE" ? x.estibas * fa.cpe * fa.upc + x.cajas * fa.upc : x.estibas * fa.cpe + x.cajas;
     const a = z(codigo), libre = a?.libre ?? 0, calidad = a?.calidad ?? 0, bloqueado = a?.bloqueado ?? 0;
-    const sap = x.tipo === "ENVASE" ? libre + bloqueado : libre + calidad + bloqueado;
-    out.push({ codigo, descripcion: nombres.get(codigo) ?? a?.descripcion ?? x.concepto, tipo: x.tipo, estibas: x.estibas, cajas: x.cajas, unidades: Math.round(unidades), sinFactor: x.estibas > 0 && !fa.cpe,
-      libre, calidad, bloqueado, sap, dif: Math.round(sap - unidades) });
+    /* Contra libre utilización: el control de calidad ya quedó cuadrado en el paso 1. */
+    const sap = libre;
+    out.push({ codigo, descripcion: nombres.get(codigo) ?? a?.descripcion ?? x.concepto, tipo: x.tipo, estibas: x.estibas, cajas: x.cajas, unidades: Math.round(x.unidades), sinFactor: x.estibas > 0 && !fa.cpe && !SKU_UNIDADES_DIRECTAS.has(codigo),
+      libre, calidad, bloqueado, sap, dif: Math.round(sap - x.unidades) });
   }
   return out.sort((a, b) => (a.tipo === b.tipo ? a.codigo.localeCompare(b.codigo) : a.tipo === "ENVASE" ? -1 : 1));
 }
