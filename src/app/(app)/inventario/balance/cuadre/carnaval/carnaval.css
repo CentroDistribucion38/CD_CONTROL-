@@ -7,7 +7,7 @@
 
 .cs .cv-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-bottom: 12px }
 .cs .cv-barra label { display: flex; align-items: center; gap: 8px; font: 600 13px var(--fe-texto); color: var(--fe-tinta) }
-.cs .cv-barra .cv-fecha, .cs .cv-form input, .cs .cv-form select { height: 38px; padding: 0 10px; border: 2px solid var(--fe-tinta); background: #fff; color: var(--fe-tinta); font: 600 14px var(--fe-texto) }
+.cs .cv-barra .cv-fecha, .cs .cv-form input, .cs .cv-form select { height: 38px; padding: 0 10px; border: 1px solid #9AA2A9; background: #fff; color: var(--fe-tinta); font: 500 14px var(--fe-texto) }
 .cs .cv-barra .grow { flex: 1 }
 
 .cs .cv-cifras { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px }
@@ -26,11 +26,21 @@
 .cs .cv-neg { color: #A50D25; font-weight: 700 }
 .cs .cv-nota { margin: 10px 0 0; font-size: 12.5px; color: var(--fe-gris); line-height: 1.45 }
 
-.cs .cv-bloque { background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea); margin-bottom: 14px }
-.cs .cv-bloque > h2 { margin: 0; padding: 8px 14px; background: var(--fe-tinta); color: var(--fe-papel, #fff); font: 700 12px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase }
-.cs .cv-bloque > div { padding: 12px 14px }
+.cs .cv-bloque { background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea); border-top: 4px solid var(--fe-acento, #FFC400); margin-bottom: 16px }
+.cs .cv-bloque > h2 { margin: 0; padding: 12px 18px 0; display: flex; align-items: baseline; gap: 10px; font: 700 15px var(--fe-texto); color: var(--fe-tinta) }
+.cs .cv-bloque > h2 b { font: 700 11px var(--fe-texto); letter-spacing: .1em; color: var(--fe-gris) }
+.cs .cv-bloque > h2 small { font: 400 13px var(--fe-texto); color: var(--fe-gris) }
+.cs .cv-bloque > div { padding: 12px 18px 18px }
+.cs .cv-drop { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 18px; border: 1.5px dashed #9AA2A9; background: #FAFAFA }
+.cs .cv-drop strong { display: block; font: 700 14px var(--fe-texto); color: var(--fe-tinta) }
+.cs .cv-drop small { font-size: 12.5px; color: var(--fe-gris) }
+.cs .cv-drop input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none }
+.cs .cv-drop .cv-btn { flex: none; display: inline-block; padding: 9px 20px; background: var(--fe-tinta); color: var(--fe-papel, #fff); font: 700 13.5px var(--fe-texto); box-shadow: inset 0 -3px 0 var(--fe-acento, #FFC400); cursor: pointer }
+.cs .cv-drop.off { opacity: .55 }
+.cs .cv-drop.off .cv-btn { cursor: not-allowed }
+.cs .cv-drop:has(input:focus-visible) .cv-btn { outline: 3px solid var(--fe-acento, #FFC400); outline-offset: 2px }
 .cs .cv-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 12px }
-.cs .cv-form label { display: flex; flex-direction: column; gap: 3px; font: 600 11.5px var(--fe-texto); color: var(--fe-gris) }
+.cs .cv-form label { display: flex; flex-direction: column; gap: 4px; font: 600 11.5px var(--fe-texto); color: var(--fe-gris) }
 .cs .cv-form .ancho { flex: 1; min-width: 200px }
 .cs .cv-form .ancho input { width: 100% }
 .cs .cv-msg { margin: 10px 0 0; padding: 8px 12px; font-size: 13px; border-left: 4px solid #1E8E3E; background: #EAF6EE }

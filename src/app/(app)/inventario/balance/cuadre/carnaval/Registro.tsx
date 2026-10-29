@@ -100,39 +100,39 @@ export function Registro({ productos, corte, hoy, puedeEditar, movimientos }: { 
       {!puedeEditar && <p className="cv-msg mal">Tu rol solo puede ver. Para registrar necesitas permiso de «editar» en Cuadre SAP (Admin → Roles).</p>}
 
       <section className="cv-bloque">
-        <h2>1 · Archivo de Peldar (suma)</h2>
+        <h2><b>1</b>Archivo de Peldar <small>· suma al inventario</small></h2>
         <div>
-          <div className="cv-form">
-            <label className="ancho">Archivo del día (Excel con Fecha de recibo, Codigo, remision, Placa, # PAL, Und)
-              <input type="file" accept=".xlsx,.xlsm,.xls" disabled={pend || !puedeEditar} onChange={(e) => { void alElegir(e.target.files?.[0]); e.target.value = "" }} />
-            </label>
-            {comp && <button type="button" className="cs-bt alt" onClick={() => dlg.current?.showModal()}>Ver la revisión de {archivo}</button>}
-          </div>
-          <p className="cv-nota">Se agrega lo que todavía no está cargado y se revisa lo que ya estaba: si algo cambió (por ejemplo 50 pallets ayer y 45 hoy), no se cambia solo: sale en una ventana para que una persona lo apruebe o lo deje como estaba. Cada fila se identifica por remisión + placa + código. Lo recibido hasta el {corte} ya está dentro del saldo inicial y no se vuelve a sumar.</p>
+          <label className={`cv-drop ${pend || !puedeEditar ? "off" : ""}`}>
+            <span><strong>{archivo || "Elige el archivo del día"}</strong><small>Excel con Fecha de recibo, Código, remisión, placa, # PAL y Und</small></span>
+            <span className="cv-btn">{pend ? "Revisando…" : "Seleccionar archivo"}</span>
+            <input type="file" accept=".xlsx,.xlsm,.xls" disabled={pend || !puedeEditar} onChange={(e) => { void alElegir(e.target.files?.[0]); e.target.value = "" }} />
+          </label>
+          {comp && <p style={{ margin: "10px 0 0" }}><button type="button" className="cs-bt alt" onClick={() => dlg.current?.showModal()}>Ver la revisión de {archivo}</button></p>}
+          <p className="cv-nota">Solo se agrega lo que falta. Si algo ya cargado cambió (por ejemplo 50 pallets ayer y 45 hoy), no se cambia solo: sale una ventana para que una persona lo apruebe o lo deje como estaba. Cada fila se identifica por remisión + placa + código. Lo recibido hasta el {corte} ya está dentro del saldo inicial.</p>
         </div>
       </section>
 
       <section className="cv-bloque">
-        <h2>2 · Trasiego (resta) o ajuste (suma o resta)</h2>
+        <h2><b>2</b>Trasiego o ajuste <small>· resta o corrige</small></h2>
         <div>
           <div className="cv-form">
-            <label>Movimiento
+            <label style={{ width: 170 }}>Movimiento
               <select value={tipo} onChange={(e) => setTipo(e.target.value as "TRASIEGO" | "AJUSTE")} disabled={!puedeEditar}>
                 <option value="TRASIEGO">Trasiego (resta)</option>
                 <option value="AJUSTE">Ajuste (+ o −)</option>
               </select>
             </label>
-            <label>Día
+            <label style={{ width: 150 }}>Día
               <input type="date" value={fecha} max={hoy} onChange={(e) => setFecha(e.target.value)} disabled={!puedeEditar} />
             </label>
-            <label>Código
-              <select value={codigo} onChange={(e) => setCodigo(e.target.value)} disabled={!puedeEditar}>
+            <label className="ancho">Código
+              <select value={codigo} onChange={(e) => setCodigo(e.target.value)} disabled={!puedeEditar} style={{ width: "100%" }}>
                 <option value="">Elige…</option>
                 {productos.map((p) => <option key={p.codigo} value={p.codigo}>{p.codigo} · {p.descripcion}</option>)}
               </select>
             </label>
-            <label>Pallets {tipo === "TRASIEGO" ? "(los que salen)" : "(con − si resta)"}
-              <input inputMode="decimal" value={pallets} onChange={(e) => setPallets(e.target.value)} placeholder={tipo === "TRASIEGO" ? "20" : "-3"} style={{ width: 120 }} disabled={!puedeEditar} />
+            <label style={{ width: 110 }}>Pallets{tipo === "AJUSTE" ? " (− si resta)" : ""}
+              <input inputMode="decimal" value={pallets} onChange={(e) => setPallets(e.target.value)} placeholder={tipo === "TRASIEGO" ? "20" : "-3"} style={{ width: "100%" }} disabled={!puedeEditar} />
             </label>
             <label className="ancho">Nota {tipo === "AJUSTE" ? "(obligatoria)" : "(opcional)"}
               <input value={nota} onChange={(e) => setNota(e.target.value)} placeholder={tipo === "AJUSTE" ? "Por qué se ajusta" : "A dónde fue"} disabled={!puedeEditar} />
