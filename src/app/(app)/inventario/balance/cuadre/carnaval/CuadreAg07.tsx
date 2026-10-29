@@ -89,7 +89,7 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
   const grupos2 = useMemo(() => {
     const m = new Map<string, { codigo: string; descripcion: string; cantidad: number }[]>();
     for (const f of difs2) {
-      const t = `${f.tipo === "ENVASE" ? "Envase" : "Caja plástica"} AG07 · ${f.dif < 0 ? "Mov 701 (SAP tiene menos que la hoja: entra a libre)" : "Mov 702 (SAP tiene más que la hoja: sale de libre)"}`;
+      const t = `${f.tipo === "ENVASE" ? "Envase" : "Caja plástica"} AG07 · ${f.dif < 0 ? "Mov 311 (AG22 → AG07 libre: SAP tiene menos que la hoja)" : "Mov 311 (AG07 libre → AG22: SAP tiene más que la hoja)"}`;
       m.set(t, [...(m.get(t) ?? []), { codigo: f.codigo, descripcion: f.descripcion, cantidad: Math.abs(f.dif) }]);
     }
     return [...m];
@@ -207,7 +207,7 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
               </table>
             </div>
             {difs2.length > 0 && (<><h3 className="cv-sub-h">Qué hacer en SAP</h3>{renderGrupos(grupos2, "p2")}</>)}
-            <p className="cv-nota">Diferencia = SAP − hoja. Positiva: SAP tiene más de lo contado; negativa: SAP tiene menos. Los movimientos son de ajuste de inventario (701 entra, 702 sale). Las estibas de madera, el pendiente de baja y el lavado no entran en esta comparación.</p>
+            <p className="cv-nota">Diferencia = SAP − hoja. Positiva: SAP tiene más de lo contado; negativa: SAP tiene menos. Lo que falta en SAP entra a AG07 desde AG22 y lo que sobra sale hacia AG22, ambos con el 311. Las estibas de madera, el pendiente de baja y el lavado no entran en esta comparación.</p>
           </>
         )}
     </>
