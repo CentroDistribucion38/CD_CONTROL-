@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { validarPallet, type FilaValidacion, type Hoja, type SeccionHoja } from "@/modulos/carnaval/logica";
+import { leerInventario } from "@/modulos/carnaval/leerInventario";
 import { guardarInventario, saldosAl } from "./actions";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 });
@@ -38,17 +39,26 @@ export function Inventario({ fecha, hoy, guardado, dias, puedeEditar, nombres }:
     if (!f) return;
     setAviso(null); setLeyendo(true);
     try {
-      const { imagen, tipo } = await aBase64(f);
-      const r = await fetch("/api/carnaval/inventario-foto", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ imagen, tipo }) });
-      const j = await r.json();
-      if (!r.ok) { setAviso({ t: j.error ?? "No se pudo leer la foto.", mal: true }); return }
-      const dia = j.fecha ?? fecha;
+      let dia: string, secciones: SeccionHoja[];
+      if (/\.(xlsx|xlsm|xls)$/i.test(f.name)) {
+        /* EL EXCEL: se lee aquí mismo, exacto y sin llave. */
+        const r = await leerInventario(f);
+        if (r.error || !r.hoja) { setAviso({ t: r.error ?? "No se pudo leer el Excel.", mal: true }); return }
+        dia = r.hoja.fecha || fecha; secciones = r.hoja.secciones;
+      } else {
+        /* LA FOTO: la lee el modelo (necesita la llave en Vercel). */
+        const { imagen, tipo } = await aBase64(f);
+        const r = await fetch("/api/carnaval/inventario-foto", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ imagen, tipo }) });
+        const j = await r.json();
+        if (!r.ok) { setAviso({ t: j.error ?? "No se pudo leer la foto.", mal: true }); return }
+        dia = j.fecha ?? fecha; secciones = j.secciones;
+      }
       const s = await saldosAl(dia);
       if (s.error) { setAviso({ t: s.error, mal: true }); return }
-      setSaldos(s.saldos ?? {}); setHoja({ fecha: dia, secciones: j.secciones }); setFoto(f.name); setAjustar({});
+      setSaldos(s.saldos ?? {}); setHoja({ fecha: dia, secciones }); setFoto(f.name); setAjustar({});
       dlg.current?.showModal();
     } catch (e) {
-      setAviso({ t: e instanceof Error ? e.message : "No se pudo leer la foto.", mal: true });
+      setAviso({ t: e instanceof Error ? e.message : "No se pudo leer el archivo.", mal: true });
     } finally { setLeyendo(false) }
   }
 
@@ -113,14 +123,14 @@ export function Inventario({ fecha, hoy, guardado, dias, puedeEditar, nombres }:
 
       {puedeEditar && (
         <label className={`cv-drop ${leyendo || pend ? "off" : ""}`} style={{ marginBottom: 14 }}>
-          <span><strong>{leyendo ? "Leyendo la foto…" : "Subir la foto del inventario del día"}</strong><small>La hoja «Existencias diarias» tal cual. Se lee, la revisas y se valida PALLET contra la app antes de guardar.</small></span>
-          <span className="cv-btn">{leyendo ? "Un momento…" : "Seleccionar foto"}</span>
-          <input type="file" accept="image/*" disabled={leyendo || pend} onChange={(e) => { void alElegir(e.target.files?.[0]); e.target.value = "" }} />
+          <span><strong>{leyendo ? "Leyendo el archivo…" : "Subir el inventario del día"}</strong><small>El Excel de «Existencias diarias» (se lee exacto, sin llave). También acepta la foto si el modelo está conectado. Antes de guardar, la revisas y se valida PALLET contra la app.</small></span>
+          <span className="cv-btn">{leyendo ? "Un momento…" : "Seleccionar archivo"}</span>
+          <input type="file" accept=".xlsx,.xlsm,.xls,image/*" disabled={leyendo || pend} onChange={(e) => { void alElegir(e.target.files?.[0]); e.target.value = "" }} />
         </label>
       )}
 
       {!guardado ? (
-        <p className="cv-msg" style={{ borderLeftColor: "var(--fe-linea)", background: "#fff" }}>No hay inventario cargado para el {fecha}.{puedeEditar ? " Sube la foto de ese día para guardarlo." : ""}</p>
+        <p className="cv-msg" style={{ borderLeftColor: "var(--fe-linea)", background: "#fff" }}>No hay inventario cargado para el {fecha}.{puedeEditar ? " Sube el archivo de ese día para guardarlo." : ""}</p>
       ) : (
         <>
           <p className="cv-nota" style={{ margin: "0 0 10px" }}>Inventario del {guardado.fecha} · guardado {new Date(guardado.actualizado_en).toLocaleString("es-CO", { timeZone: "America/Bogota", dateStyle: "short", timeStyle: "short" })}{v0.length === 0 ? " · PALLET cuadró con la app" : ` · ${v0.length} diferencia(s) en PALLET (abajo)`}</p>
@@ -154,7 +164,7 @@ export function Inventario({ fecha, hoy, guardado, dias, puedeEditar, nombres }:
       <dialog ref={dlg} className="cv-dlg" aria-label="Revisión del inventario">
         <div className="cv-dlg-caja">
           <div className="cv-dlg-cab">
-            <div><p>Carnaval · inventario diario</p><h2>Revisar lo que leí de la foto</h2></div>
+            <div><p>Carnaval · inventario diario</p><h2>Revisar lo que leí</h2></div>
             <button type="button" className="cv-dlg-x" aria-label="Cerrar" onClick={() => dlg.current?.close()}>×</button>
           </div>
           {hoja && v && (
@@ -163,7 +173,7 @@ export function Inventario({ fecha, hoy, guardado, dias, puedeEditar, nombres }:
                 <label>Día de la hoja
                   <input type="date" value={hoja.fecha} max={hoy} onChange={(e) => void cambiarDia(e.target.value)} />
                 </label>
-                <span className="cv-nota" style={{ margin: 0 }}>Si la foto no traía la fecha o la leí mal, corrígela aquí.{dias.includes(hoja.fecha) ? " Ya hay un inventario de ese día: se reemplaza." : ""}</span>
+                <span className="cv-nota" style={{ margin: 0 }}>Si el archivo no traía la fecha o la leí mal, corrígela aquí.{dias.includes(hoja.fecha) ? " Ya hay un inventario de ese día: se reemplaza." : ""}</span>
               </div>
 
               <div>
@@ -193,7 +203,7 @@ export function Inventario({ fecha, hoy, guardado, dias, puedeEditar, nombres }:
               </div>
 
               <details open>
-                <summary style={{ cursor: "pointer", font: "700 13px var(--fe-texto)", marginBottom: 8 }}>Lo que leí de la foto ({hoja.secciones.reduce((t, s) => t + s.filas.length, 0)} renglones) — corrige lo que esté mal</summary>
+                <summary style={{ cursor: "pointer", font: "700 13px var(--fe-texto)", marginBottom: 8 }}>Lo que leí ({hoja.secciones.reduce((t, s) => t + s.filas.length, 0)} renglones) — corrige lo que esté mal</summary>
                 <div className="cv-secs">
                   {hoja.secciones.map((s, si) => (
                     <div key={si} className="cv-sec">
