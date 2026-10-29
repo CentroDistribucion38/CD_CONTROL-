@@ -286,3 +286,35 @@ export async function quitarZexiAg07(fecha: string): Promise<{ error?: string; o
   refrescar();
   return { ok: true };
 }
+
+/** PARTIDA RÁPIDA: código + cantidad (unidades) que se suma al conteo o a la ZEXI de ese día, en el paso 1 o el 2. */
+export async function agregarPartida(fecha: string, paso: number, codigo: string, cantidad: number, lado: string, nota: string): Promise<{ error?: string; ok?: true }> {
+  const sin = await permiso(); if (sin) return { error: sin };
+  if (!esDia(fecha)) return { error: "Día inválido." };
+  if (paso !== 1 && paso !== 2) return { error: "Paso inválido." };
+  if (lado !== "CONTEO" && lado !== "SAP") return { error: "Elige si suma al conteo o a la ZEXI." };
+  const cod = (codigo ?? "").trim();
+  const cant = Number(cantidad);
+  if (!cod) return { error: "Escribe el código." };
+  if (!Number.isFinite(cant) || cant === 0) return { error: "Escribe la cantidad (distinta de cero)." };
+  if (paso === 1) {
+    const pc = await productosYCorte();
+    if (!pc.productos.some((p) => p.codigo === cod)) return { error: "En el paso 1 el código debe ser de un envase de Carnaval (con pallets)." };
+  } else {
+    const m = await maestroSku();
+    if (!m.some((x) => x.codigo === cod)) return { error: `El código ${cod} no está en el maestro de SKU.` };
+  }
+  const supabase = await createClient();
+  const { error } = await supabase.from("carnaval_partidas").insert({ fecha, paso, codigo: cod, cantidad: cant, lado, nota: (nota ?? "").trim() || null });
+  if (error) return { error: /carnaval_partidas|schema cache|does not exist/i.test(error.message) ? "Falta correr supabase/migraciones/2026-10-carnaval-partidas.sql en Supabase." : error.message };
+  refrescar();
+  return { ok: true };
+}
+export async function quitarPartida(id: string): Promise<{ error?: string; ok?: true }> {
+  const sin = await permiso(); if (sin) return { error: sin };
+  const supabase = await createClient();
+  const { error } = await supabase.from("carnaval_partidas").delete().eq("id", id);
+  if (error) return { error: error.message };
+  refrescar();
+  return { ok: true };
+}

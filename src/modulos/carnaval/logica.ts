@@ -250,6 +250,13 @@ export function aHojaGuardada(v: SeccionVista[]): SeccionHoja[] {
 export type ZexiAlm = { almacen: string; codigo: string; descripcion: string; libre: number; calidad: number; bloqueado: number; total: number };
 export const SKU_A_AG71 = new Set(["3500005"]);
 export type Mov07 = { titulo: string; cantidad: number };
+/** Partida rápida: código + cantidad (unidades) que se suma al CONTEO o a la ZEXI (SAP) de un día, en el paso 1 o el 2. */
+export type Partida = { id: string; paso: 1 | 2; codigo: string; cantidad: number; lado: "CONTEO" | "SAP"; nota?: string | null };
+const sumaPartidas = (ps: Partida[], paso: 1 | 2, codigo: string) => {
+  let conteo = 0, sap = 0;
+  for (const x of ps) if (x.paso === paso && x.codigo === codigo) { if (x.lado === "CONTEO") conteo += x.cantidad; else sap += x.cantidad }
+  return { conteo, sap };
+};
 export type FilaCuadre07 = {
   codigo: string; descripcion: string; undPorPallet: number;
   pallets: number; pendientes: number; palletsSap: number; conteo: number;
@@ -259,19 +266,22 @@ export type FilaCuadre07 = {
   movs: Mov07[]; sinAlcanzar: number;
   /** Bloqueado de AG07 que quedaría sin pasar a libre: en AG07 nada debe quedar en bloqueado (343) */
   bloqRestante: number;
+  /** lo que sumaron las partidas rápidas (unidades) */
+  partidas: { conteo: number; sap: number };
 };
-export function cuadrePallets07(productos: { codigo: string; descripcion: string; und_por_pallet: number }[], saldos: Map<string, number>, pend: Map<string, number>, zexi: ZexiAlm[]): FilaCuadre07[] {
+export function cuadrePallets07(productos: { codigo: string; descripcion: string; und_por_pallet: number }[], saldos: Map<string, number>, pend: Map<string, number>, zexi: ZexiAlm[], partidas: Partida[] = []): FilaCuadre07[] {
   const z = (alm: string, c: string) => zexi.find((x) => x.almacen === alm && x.codigo === c);
   const out: FilaCuadre07[] = [];
   for (const p of productos) {
     const pallets = redondear(saldos.get(p.codigo) ?? 0), pendientes = redondear(pend.get(p.codigo) ?? 0);
     const a7 = z("AG07", p.codigo), a71 = z("AG71", p.codigo);
-    if (!pallets && !pendientes && !(a7?.calidad) && !(a71?.libre && SKU_A_AG71.has(p.codigo))) continue;
-    const palletsSap = redondear(pallets - pendientes), conteo = palletsSap * p.und_por_pallet;
-    const libre = a7?.libre ?? 0, calidad = a7?.calidad ?? 0, bloqueado = a7?.bloqueado ?? 0;
+    const pt = sumaPartidas(partidas, 1, p.codigo);
+    if (!pallets && !pendientes && !(a7?.calidad) && !(a71?.libre && SKU_A_AG71.has(p.codigo)) && !pt.conteo && !pt.sap) continue;
+    const palletsSap = redondear(pallets - pendientes), conteo = palletsSap * p.und_por_pallet + pt.conteo;
+    const libre = a7?.libre ?? 0, calidad = (a7?.calidad ?? 0) + (SKU_A_AG71.has(p.codigo) ? 0 : pt.sap), bloqueado = a7?.bloqueado ?? 0;
     const movs: Mov07[] = []; let sinAlcanzar = 0, bloqUsado = 0, dif: number, destino: FilaCuadre07["destino"], libre71: number | null = null;
     if (SKU_A_AG71.has(p.codigo)) {
-      destino = "AG71 libre"; libre71 = a71?.libre ?? 0;
+      destino = "AG71 libre"; libre71 = (a71?.libre ?? 0) + pt.sap;
       /* Lo que haya en control-cal de AG07 NO se mira ni se mueve (no se puede): no cuenta y permanece. Solo se compara AG71 libre contra el conteo. */
       dif = redondear(libre71 - conteo);
       if (dif < -0.5) {
@@ -294,7 +304,7 @@ export function cuadrePallets07(productos: { codigo: string; descripcion: string
     /* NADA debe quedar en bloqueado: lo que no se usó para cuadrar pasa a libre con el 343 (3500005: todo el bloqueado pasa antes del 311). */
     const bloqRestante = SKU_A_AG71.has(p.codigo) ? Math.max(0, bloqueado) : Math.max(0, bloqueado - bloqUsado);
     if (bloqRestante > 0.5) movs.unshift({ titulo: "Mov 343 en AG07 (Bloqueado → Libre)", cantidad: Math.round(bloqRestante) });
-    out.push({ codigo: p.codigo, descripcion: p.descripcion, undPorPallet: p.und_por_pallet, pallets, pendientes, palletsSap, conteo, libre, calidad, bloqueado, libre71, enZexi: !!a7 || !!a71, dif, destino, movs, sinAlcanzar, bloqRestante: bloqRestante > 0.5 ? Math.round(bloqRestante) : 0 });
+    out.push({ codigo: p.codigo, descripcion: p.descripcion, undPorPallet: p.und_por_pallet, pallets, pendientes, palletsSap, conteo, libre, calidad, bloqueado, libre71, enZexi: !!a7 || !!a71, dif, destino, movs, sinAlcanzar, bloqRestante: bloqRestante > 0.5 ? Math.round(bloqRestante) : 0, partidas: pt });
   }
   return out;
 }
@@ -317,7 +327,7 @@ export type FilaInv07 = {
 };
 /** Estiba de madera: la cantidad de la hoja ya son unidades. */
 const SKU_UNIDADES_DIRECTAS = new Set(["3500163"]);
-export function cuadreInventario07(secciones: SeccionHoja[], zexi: ZexiAlm[], factores: Map<string, FactorSku>, nombres: Map<string, string>): FilaInv07[] {
+export function cuadreInventario07(secciones: SeccionHoja[], zexi: ZexiAlm[], factores: Map<string, FactorSku>, nombres: Map<string, string>, partidas: Partida[] = []): FilaInv07[] {
   /* TODA la hoja menos lo que ya se cuadró aparte: la sección PALLET (paso 1) y los casco de vidrio (salen del módulo de Casco). */
   const acc = new Map<string, { tipo: "ENVASE" | "CAJA"; estibas: number; cajas: number; unidades: number; concepto: string }>();
   for (const s of secciones) {
@@ -334,6 +344,9 @@ export function cuadreInventario07(secciones: SeccionHoja[], zexi: ZexiAlm[], fa
     }
   }
   /* LA ESTIBA DE MADERA (3500163): además de las que se cuentan solas, cada ESTIBA de producto (envase, cajas…) va montada sobre una estiba de madera, y también cuenta. */
+  /* Partidas rápidas del paso 2: se suman a lo contado (unidades) aunque el código no esté en la hoja. */
+  for (const x of partidas) if (x.paso === 2 && !acc.has(x.codigo)) acc.set(x.codigo, { tipo: /caja/i.test(nombres.get(x.codigo) ?? "") ? "CAJA" : "ENVASE", estibas: 0, cajas: 0, unidades: 0, concepto: nombres.get(x.codigo) ?? x.codigo });
+  for (const [c, x] of acc) x.unidades += sumaPartidas(partidas, 2, c).conteo;
   let sobre = 0;
   /* Las cajas sueltas de un renglón (ej. 17 cajas del 3500005) también vienen sobre UNA estiba: cuenta una más. */
   for (const [c, x] of acc) if (!SKU_UNIDADES_DIRECTAS.has(c)) sobre += x.estibas + (x.cajas > 0 ? 1 : 0);
@@ -350,9 +363,10 @@ export function cuadreInventario07(secciones: SeccionHoja[], zexi: ZexiAlm[], fa
     const fa = factores.get(codigo) ?? { upc: 1, cpe: 0 };
     const a = z(codigo), libre = a?.libre ?? 0, calidad = a?.calidad ?? 0, bloqueado = a?.bloqueado ?? 0;
     /* Contra libre utilización: el control de calidad ya quedó cuadrado en el paso 1. El bloqueado primero pasa a libre (343): en AG07 nada queda bloqueado. */
-    const sap = libre + bloqueado;
+    const pt = sumaPartidas(partidas, 2, codigo);
+    const sap = libre + bloqueado + pt.sap;
     out.push({ codigo, descripcion: nombres.get(codigo) ?? a?.descripcion ?? x.concepto, tipo: x.tipo, estibas: x.estibas, cajas: x.cajas, unidades: Math.round(x.unidades), sinFactor: x.estibas > 0 && !fa.cpe && !SKU_UNIDADES_DIRECTAS.has(codigo),
-      nota: SKU_UNIDADES_DIRECTAS.has(codigo) ? `${Math.round(x.unidades - sobre)} contadas solas + ${Math.round(sobre)} estibas que van debajo del producto (cada renglón con cajas sueltas cuenta una estiba más)` : undefined,
+      nota: [pt.conteo || pt.sap ? `partidas: ${pt.conteo ? `${pt.conteo > 0 ? "+" : ""}${Math.round(pt.conteo)} al conteo` : ""}${pt.conteo && pt.sap ? " · " : ""}${pt.sap ? `${pt.sap > 0 ? "+" : ""}${Math.round(pt.sap)} a la ZEXI` : ""}` : "", SKU_UNIDADES_DIRECTAS.has(codigo) ? `${Math.round(x.unidades - sobre)} contadas solas + ${Math.round(sobre)} estibas que van debajo del producto (cada renglón con cajas sueltas cuenta una estiba más)` : ""].filter(Boolean).join(" · ") || undefined,
       libre, calidad, bloqueado, sap, dif: Math.round(sap - x.unidades) });
   }
   return out.sort((a, b) => (a.tipo === b.tipo ? a.codigo.localeCompare(b.codigo) : a.tipo === "ENVASE" ? -1 : 1));

@@ -182,3 +182,15 @@ export async function factoresSku() {
   for (const x of pas.data) { const a = m.get(String(x.codigo)); m.set(String(x.codigo), { upc: Number(x.unidades_por_caja) || a?.upc || 1, cpe: Number(x.cajas_por_estiba) || a?.cpe || 0 }) }
   return { error: pas.error ? String(pas.error) : prod.error ? String(prod.error) : null, factores: m };
 }
+
+/** Las partidas rápidas (código + cantidad) de un día. Si todavía no se corrió el SQL, no hay partidas (no es un error). */
+export async function partidasCarnaval(fecha: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("carnaval_partidas").select("id, paso, codigo, cantidad, lado, nota").eq("fecha", fecha).order("creado_en");
+  const falta = !!error && /carnaval_partidas|schema cache|does not exist/i.test(error.message);
+  return {
+    error: falta ? null : (error?.message ?? null), faltaSql: falta,
+    partidas: ((data ?? []) as { id: string; paso: number; codigo: string; cantidad: number; lado: string; nota: string | null }[])
+      .map((x) => ({ id: x.id, paso: (x.paso === 2 ? 2 : 1) as 1 | 2, codigo: x.codigo, cantidad: Number(x.cantidad), lado: (x.lado === "SAP" ? "SAP" : "CONTEO") as "CONTEO" | "SAP", nota: x.nota })),
+  };
+}

@@ -2,9 +2,9 @@
 
 import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { FilaCuadre07, FilaInv07 } from "@/modulos/carnaval/logica";
+import type { FilaCuadre07, FilaInv07, Partida } from "@/modulos/carnaval/logica";
 import { leerZexiAg07 } from "@/modulos/carnaval/leerZexi";
-import { guardarZexiAg07, quitarZexiAg07 } from "./actions";
+import { agregarPartida, guardarZexiAg07, quitarPartida, quitarZexiAg07 } from "./actions";
 
 const ent = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 });
@@ -18,8 +18,9 @@ const IR = (f?: string) => `/inventario/balance/cuadre?alm=AG07&sub=cuadre${f ? 
  *            en control de calidad. El 3500005 se mide solo en AG71 libre; su control-cal de AG07 no se mueve ni cuenta.
  *   PASO 2 · INVENTARIO: la hoja (estibas y cajas, pasadas a unidades con los factores del maestro) contra la ZEXI de AG07.
  */
-export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada, zexi, puedeEditar, faltaSql }: {
+export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada, zexi, puedeEditar, faltaSql, partidas, faltaSqlPartidas, codigos }: {
   fecha: string; hoy: string; filas: FilaCuadre07[]; inventario: FilaInv07[]; hojaDe: string | null; hojaGuardada: boolean; zexi: { archivo: string | null; actualizado_en: string } | null; puedeEditar: boolean; faltaSql: boolean;
+  partidas: Partida[]; faltaSqlPartidas: boolean; codigos: { codigo: string; descripcion: string }[];
 }) {
   const router = useRouter();
   const [pend, start] = useTransition();
@@ -27,6 +28,23 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
   const [hechos, setHechos] = useState<Record<string, boolean>>({});
   const [copiado, setCopiado] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
+  /* PARTIDAS RÁPIDAS: la caja de herramientas */
+  const dlg = useRef<HTMLDialogElement>(null);
+  const [paso, setPaso] = useState<1 | 2>(1);
+  const [pCod, setPCod] = useState(""); const [pCant, setPCant] = useState(""); const [pLado, setPLado] = useState<"CONTEO" | "SAP">("CONTEO"); const [pNota, setPNota] = useState("");
+  const [pMsg, setPMsg] = useState<string | null>(null);
+  const abrirPartidas = (n: 1 | 2) => { setPaso(n); setPMsg(null); dlg.current?.showModal() };
+  const nombreDe = useMemo(() => new Map(codigos.map((c) => [c.codigo, c.descripcion])), [codigos]);
+  function agregar() {
+    setPMsg(null);
+    const cant = Number(pCant.replace(/\./g, "").replace(",", "."));
+    start(async () => {
+      const r = await agregarPartida(fecha, paso, pCod, cant, pLado, pNota);
+      if (r.error) { setPMsg(r.error); return }
+      setPCod(""); setPCant(""); setPNota(""); router.refresh();
+    });
+  }
+  function quitarP(id: string) { start(async () => { const r = await quitarPartida(id); if (r.error) setPMsg(r.error); else router.refresh() }) }
 
   async function alElegir(f: File | undefined) {
     if (!f) return;
@@ -125,7 +143,7 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
           : <p className="cv-msg mal"><b>Falta balancear:</b> {p1} material(es) en pallets{hojaDe ? ` y ${p2} renglón(es) en inventario` : ""}. Haz los movimientos en SAP y sube la ZEXI nueva: aquí te dice si ya quedó todo en cero.</p>;
       })()}
 
-      <h2 className="cs-h"><i>1</i> Cuadre de pallets <small className="cs-h-s">el conteo de Control contra la ZEXI de AG07 en control de calidad</small></h2>
+      <h2 className="cs-h"><i>1</i> Cuadre de pallets <small className="cs-h-s">el conteo de Control contra la ZEXI de AG07 en control de calidad</small>{puedeEditar && <button type="button" className="cs-bt alt" style={{ marginLeft: 10, padding: "4px 8px" }} title="Partidas rápidas: sumar código y cantidad al conteo o a la ZEXI" aria-label="Partidas rápidas" onClick={() => abrirPartidas(1)}><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" aria-hidden="true"><path d="M3 8h18v12H3zM9 8V5h6v3M3 13h18" /></svg>{partidas.some((x) => x.paso === 1) && <b style={{ marginLeft: 4 }}>{partidas.filter((x) => x.paso === 1).length}</b>}</button>}</h2>
       <p className="cv-nota" style={{ margin: "0 0 10px" }}>
         {zexi ? `ZEXI: ${zexi.archivo ?? "sin nombre"} · subida ${new Date(zexi.actualizado_en).toLocaleString("es-CO", { timeZone: "America/Bogota", dateStyle: "short", timeStyle: "short" })}`
           : "Sube la ZEXI de AG07 (la que también trae AG71) para cuadrar los pallets."}
@@ -151,7 +169,7 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
                   <tr key={f.codigo} className={!zexi || cuadra ? "" : "pend"}>
                     <td className="mono">{f.codigo}</td>
                     <td>{f.descripcion}</td>
-                    <td className="n">{ent.format(f.conteo)}{f.pendientes > 0 && <small className="cs-ext" title="Pallets sin entrada de mercancía: no están en SAP y no cuentan">{nf.format(f.palletsSap)} pallets · sin EM −{nf.format(f.pendientes)}</small>}</td>
+                    <td className="n">{ent.format(f.conteo)}{(f.partidas.conteo !== 0 || f.partidas.sap !== 0) && <small className="cs-ext">partidas: {f.partidas.conteo !== 0 && `${conSigno(f.partidas.conteo)} al conteo`}{f.partidas.conteo !== 0 && f.partidas.sap !== 0 && " · "}{f.partidas.sap !== 0 && `${conSigno(f.partidas.sap)} a la ZEXI`}</small>}{f.pendientes > 0 && <small className="cs-ext" title="Pallets sin entrada de mercancía: no están en SAP y no cuentan">{nf.format(f.palletsSap)} pallets · sin EM −{nf.format(f.pendientes)}</small>}</td>
                     <td className="n">{zexi ? ent.format(sapAntes) : "—"}<small className="cs-ext">{f.libre71 != null ? "AG71 libre" : "AG07 control-cal"}</small></td>
                     <td className="n">{!zexi ? "—" : cuadra ? "0" : conSigno(f.dif)}</td>
                     <td className="n">{!zexi || !f.movs.length ? "—" : f.movs.map((m) => <div key={m.titulo + m.cantidad}>{ent.format(m.cantidad)} <em>{m.titulo.replace(/^Mov /, "")}</em></div>)}</td>
@@ -184,7 +202,7 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
         </>
       )}
 
-      <h2 className="cs-h" style={{ marginTop: 22 }}><i>2</i> Inventario contra la ZEXI de AG07 <small className="cs-h-s">cajas, estibas y lo demás de la hoja</small></h2>
+      <h2 className="cs-h" style={{ marginTop: 22 }}><i>2</i> Inventario contra la ZEXI de AG07 <small className="cs-h-s">cajas, estibas y lo demás de la hoja</small>{puedeEditar && <button type="button" className="cs-bt alt" style={{ marginLeft: 10, padding: "4px 8px" }} title="Partidas rápidas: sumar código y cantidad al conteo o a la ZEXI" aria-label="Partidas rápidas" onClick={() => abrirPartidas(2)}><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" aria-hidden="true"><path d="M3 8h18v12H3zM9 8V5h6v3M3 13h18" /></svg>{partidas.some((x) => x.paso === 2) && <b style={{ marginLeft: 4 }}>{partidas.filter((x) => x.paso === 2).length}</b>}</button>}</h2>
       {!zexi ? <p className="cv-nota">Sube la ZEXI de AG07 para compararla con la hoja de Inventario.</p>
         : !hojaDe ? <p className="cv-msg mal">No hay una hoja de Inventario guardada para comparar. Guárdala en la pestaña Inventario.</p>
         : (
@@ -224,6 +242,52 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
             <p className="cv-nota">Diferencia = SAP − hoja. Positiva: SAP tiene más de lo contado; negativa: SAP tiene menos. Lo que falta en SAP entra a AG07 desde AG22 y lo que sobra sale hacia AG22, ambos con el 311. El casco de vidrio no entra: sale del módulo de Casco.</p>
           </>
         )}
+
+      {/* CAJA DE HERRAMIENTAS · partidas rápidas */}
+      <dialog ref={dlg} className="cv-dlg chico" aria-label="Partidas rápidas">
+        <div className="cv-dlg-caja">
+          <div className="cv-dlg-cab">
+            <div><p>Cuadre SAP AG07 · paso {paso}</p><h2>Partidas rápidas</h2></div>
+            <button type="button" className="cv-dlg-x" aria-label="Cerrar" onClick={() => dlg.current?.close()}>×</button>
+          </div>
+          <div className="cv-dlg-cuerpo">
+            <p style={{ margin: 0, fontSize: 13 }}>Código y cantidad en unidades (negativa si resta). Se suma al conteo o a la ZEXI de ese día, solo en el paso {paso === 1 ? "1 (pallets)" : "2 (inventario)"}.</p>
+            {faltaSqlPartidas && <p className="cv-msg mal">Falta correr supabase/migraciones/2026-10-carnaval-partidas.sql en Supabase.</p>}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <label className="cv-form" style={{ display: "flex", flexDirection: "column", gap: 4 }}>Código
+                <input type="text" list="cv-codigos-partida" className="cv-cel" style={{ width: "100%", textAlign: "left" }} value={pCod} onChange={(e) => setPCod(e.target.value)} placeholder="3500005" autoComplete="off" />
+                <datalist id="cv-codigos-partida">{(paso === 1 ? filas.map((f) => ({ codigo: f.codigo, descripcion: f.descripcion })) : codigos).map((c) => <option key={c.codigo} value={c.codigo}>{c.descripcion}</option>)}</datalist>
+              </label>
+              <label className="cv-form" style={{ display: "flex", flexDirection: "column", gap: 4 }}>Cantidad (unid.)
+                <input type="text" inputMode="decimal" className="cv-cel" style={{ width: "100%", textAlign: "right" }} value={pCant} onChange={(e) => setPCant(e.target.value)} placeholder="0" />
+              </label>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button type="button" className={"cs-bt" + (pLado === "CONTEO" ? "" : " alt")} onClick={() => setPLado("CONTEO")}>Suma al conteo</button>
+              <button type="button" className={"cs-bt" + (pLado === "SAP" ? "" : " alt")} onClick={() => setPLado("SAP")}>Suma a la ZEXI (SAP)</button>
+            </div>
+            <label className="cv-form" style={{ display: "flex", flexDirection: "column", gap: 4 }}>Nota (opcional)
+              <input type="text" className="cv-cel" style={{ width: "100%", textAlign: "left" }} value={pNota} onChange={(e) => setPNota(e.target.value)} placeholder="Por ejemplo: en tránsito" />
+            </label>
+            {pMsg && <p className="cv-msg mal" role="alert">{pMsg}</p>}
+            {partidas.some((x) => x.paso === paso) && (
+              <table className="cs-t"><thead><tr><th>Código</th><th>Material</th><th className="n">Cantidad</th><th>Suma a</th><th></th></tr></thead>
+                <tbody>{partidas.filter((x) => x.paso === paso).map((x) => (
+                  <tr key={x.id}><td className="mono">{x.codigo}</td><td>{nombreDe.get(x.codigo) ?? ""}{x.nota && <small className="cs-ext">{x.nota}</small>}</td>
+                    <td className="n"><b>{conSigno(x.cantidad)}</b></td><td>{x.lado === "CONTEO" ? "Conteo" : "ZEXI"}</td>
+                    <td><button type="button" className="cs-bt alt" style={{ padding: "2px 8px" }} aria-label="Quitar" disabled={pend} onClick={() => quitarP(x.id)}>×</button></td></tr>
+                ))}</tbody></table>
+            )}
+          </div>
+          <div className="cv-dlg-pie">
+            <span className="cv-nota" style={{ margin: 0 }}>Las partidas son de este día ({fecha}).</span>
+            <span style={{ display: "flex", gap: 8 }}>
+              <button type="button" className="cs-bt alt" onClick={() => dlg.current?.close()}>Cerrar</button>
+              <button type="button" className="cs-bt" disabled={pend || !pCod.trim() || !pCant.trim()} onClick={agregar}>{pend ? "Guardando…" : "Agregar partida"}</button>
+            </span>
+          </div>
+        </div>
+      </dialog>
     </>
   );
 }
