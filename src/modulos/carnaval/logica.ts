@@ -90,11 +90,11 @@ export const hoyCO = () => new Date().toLocaleDateString("en-CA", { timeZone: "A
    con el saldo de pallets que lleva la app: si no coincide, una persona decide (dejar o ajustar la app).
    ===================================================================== */
 /** `dudosa`: el lector de la foto no estuvo seguro de los números de este renglón; una persona debe revisarlo. */
-export type FilaHoja = { concepto: string; a: number | null; b: number | null; dudosa?: boolean };
+export type FilaHoja = { concepto: string; a: number | null; b: number | null; dudosa?: boolean; codigo?: string | null };
 export type SeccionHoja = { titulo: string; colA: string; colB: string; filas: FilaHoja[] };
 export type Hoja = { fecha: string; secciones: SeccionHoja[] };
 
-const limpio = (v: string) => v.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+export const limpio = (v: string) => v.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
 
 /** Cómo se llama cada línea de PALLET en la hoja → el código de Carnaval. */
 export const MAPA_PALLET: Record<string, string> = {
@@ -109,6 +109,24 @@ export const MAPA_PALLET: Record<string, string> = {
   "trophy": "3500446",
 };
 export const codigoDePallet = (concepto: string) => MAPA_PALLET[limpio(concepto)] ?? null;
+
+/* =====================================================================
+   AMARRE A LOS SKU: cada renglón de la hoja lleva el CÓDIGO del maestro, y la descripción sale del maestro (no de lo que diga
+   la hoja o la foto). La equivalencia «sección + nombre en la hoja → código» se guarda y se aprende: lo que se asigna una vez
+   queda para todos los días. El código «-» quiere decir «este renglón no es un SKU» (estibas de madera, por ejemplo).
+   ===================================================================== */
+export const SIN_SKU = "-";
+export const claveEq = (seccion: string, concepto: string) => `${limpio(seccion)}|${limpio(concepto)}`;
+/** Código de un renglón: lo que ya traiga → la equivalencia guardada → (en PALLET) el mapa de pallets → nada. */
+export function codigoDeFila(seccion: string, f: FilaHoja, eq: Record<string, string>): string | null {
+  return eq[claveEq(seccion, f.concepto)] ?? f.codigo ?? (esSeccionPallet(seccion) ? codigoDePallet(f.concepto) : null) ?? null;
+}
+/** Pone el código a cada renglón de la hoja (sin tocar los números). */
+export function aplicarCodigos(secciones: SeccionHoja[], eq: Record<string, string>): SeccionHoja[] {
+  return secciones.map((s) => ({ ...s, filas: s.filas.map((f) => ({ ...f, codigo: codigoDeFila(s.titulo, f, eq) })) }));
+}
+/** Renglones que todavía no tienen código (ni «no es un SKU»). */
+export const sinCodigo = (secciones: SeccionHoja[]) => secciones.reduce((t, s) => t + s.filas.filter((f) => !f.codigo).length, 0);
 export const esSeccionPallet = (titulo: string) => limpio(titulo) === "pallet";
 
 export type FilaValidacion = { codigo: string; nombreHoja: string; hoja: number; app: number; dif: number; faltaEnHoja?: boolean };
@@ -122,7 +140,7 @@ export function validarPallet(hoja: Hoja, saldos: Record<string, number>, nombre
   const sinEmparejar: string[] = [];
   const vistos = new Set<string>();
   for (const f of sec.filas) {
-    const cod = codigoDePallet(f.concepto);
+    const cod = f.codigo && f.codigo !== SIN_SKU ? f.codigo : codigoDePallet(f.concepto);
     if (!cod) { if ((f.a ?? 0) !== 0) sinEmparejar.push(f.concepto); continue }
     vistos.add(cod);
     const hojaQ = f.a ?? 0, app = redondear(saldos[cod] ?? 0);

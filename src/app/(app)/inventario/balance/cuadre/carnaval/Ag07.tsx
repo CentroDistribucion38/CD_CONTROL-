@@ -1,7 +1,7 @@
 import "./carnaval.css";
 import { misPermisos } from "@/lib/permisos";
 import { hoyCO } from "@/modulos/carnaval/logica";
-import { diasConInventario, faltaTabla, inventarioDe, productosYCorte, ultimoInventario, RUTA_CUADRE, saldosA, SQL_FALTA, ultimosMovimientos } from "@/modulos/carnaval/datos";
+import { diasConInventario, equivalencias, faltaTabla, maestroSku, inventarioDe, productosYCorte, ultimoInventario, RUTA_CUADRE, saldosA, SQL_FALTA, ultimosMovimientos } from "@/modulos/carnaval/datos";
 import { Hojas } from "./Hojas";
 import { Control } from "./Control";
 import { Registro } from "./Registro";
@@ -23,6 +23,8 @@ export async function Ag07({ sub, fecha: f }: { sub: "registro" | "control" | "i
   const inv = pc.error || sub !== "inventario" ? null : await inventarioDe(fecha);
   const dias = pc.error || sub !== "inventario" ? [] : await diasConInventario();
   const molde = pc.error || sub !== "inventario" ? null : await ultimoInventario();
+  const maestro = pc.error || sub !== "inventario" ? [] : await maestroSku();
+  const eq = pc.error || sub !== "inventario" ? {} : await equivalencias();
   const err = pc.error ?? s?.error ?? mv?.error ?? inv?.error ?? null;
   const error = err ? (faltaTabla(err) ? SQL_FALTA : err) : null;
   const filas = pc.productos.map((p) => ({ codigo: p.codigo, descripcion: p.descripcion, undPorPallet: p.und_por_pallet, cc: p.cc, pallets: s?.saldos.get(p.codigo) ?? 0 }));
@@ -35,7 +37,7 @@ export async function Ag07({ sub, fecha: f }: { sub: "registro" | "control" | "i
       </div></section>
       <Hojas activa={sub} />
       {error ? <p className="cv-msg mal">{error}</p>
-        : sub === "inventario" ? <Inventario fecha={fecha} hoy={hoy} guardado={inv?.fila ?? null} dias={dias} puedeEditar={perm.puedeEditar(RUTA_CUADRE)} molde={molde} nombres={Object.fromEntries(pc.productos.map((p) => [p.codigo, p.descripcion]))} />
+        : sub === "inventario" ? <Inventario fecha={fecha} hoy={hoy} guardado={inv?.fila ?? null} dias={dias} puedeEditar={perm.puedeEditar(RUTA_CUADRE)} molde={molde} maestro={maestro} eq={eq} nombres={Object.fromEntries(pc.productos.map((p) => [p.codigo, p.descripcion]))} />
         : sub === "control" ? <Control fecha={fecha} hoy={hoy} filas={filas} />
         : <Registro productos={pc.productos} corte={pc.corte} hoy={hoy} puedeEditar={perm.puedeEditar(RUTA_CUADRE)} movimientos={mv?.filas ?? []} saldos={Object.fromEntries(s?.saldos ?? [])} />}
     </div>

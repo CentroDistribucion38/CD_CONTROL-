@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { usuarioActual } from "@/lib/sesion";
 import { misPermisos } from "@/lib/permisos";
-import { compararPeldar, redondear, validarPallet, type Comparacion, type FilaPeldar, type Hoja } from "@/modulos/carnaval/logica";
-import { faltaTabla, ingresosCargados, productosYCorte, RUTA_CUADRE, saldosA, SQL_FALTA } from "@/modulos/carnaval/datos";
+import { claveEq, codigoDeFila, compararPeldar, limpio, redondear, SIN_SKU, validarPallet, type Comparacion, type FilaPeldar, type Hoja } from "@/modulos/carnaval/logica";
+import { equivalencias, faltaTabla, ingresosCargados, maestroSku, productosYCorte, RUTA_CUADRE, saldosA, SQL_FALTA } from "@/modulos/carnaval/datos";
 
 /**
  * AG07 CARNAVAL · LO QUE SE GUARDA.
@@ -129,6 +129,9 @@ export async function saldosAl(fecha: string): Promise<{ error?: string; saldos?
   return { saldos: Object.fromEntries(r.saldos) };
 }
 
+/** Un código de SKU: letras, números y guion (el guion solo = «no es un SKU»). */
+const codigoLimpio = (v: unknown): string | null => { const c = typeof v === "string" ? v.trim() : ""; return /^[A-Za-z0-9][A-Za-z0-9._-]{0,29}$|^-$/.test(c) ? c : null };
+
 function leerHoja(json: string): Hoja | null {
   try {
     const h = JSON.parse(json);
@@ -136,9 +139,9 @@ function leerHoja(json: string): Hoja | null {
     const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
     return {
       fecha: String(h.fecha),
-      secciones: h.secciones.map((s: { titulo?: string; colA?: string; colB?: string; filas?: { concepto?: string; a?: unknown; b?: unknown }[] }) => ({
+      secciones: h.secciones.map((s: { titulo?: string; colA?: string; colB?: string; filas?: { concepto?: string; a?: unknown; b?: unknown; codigo?: unknown }[] }) => ({
         titulo: String(s.titulo ?? "").trim(), colA: String(s.colA ?? ""), colB: String(s.colB ?? ""),
-        filas: (s.filas ?? []).map((f) => ({ concepto: String(f.concepto ?? "").trim(), a: num(f.a), b: num(f.b) })).filter((f) => f.concepto),
+        filas: (s.filas ?? []).map((f) => ({ concepto: String(f.concepto ?? "").trim(), a: num(f.a), b: num(f.b), codigo: codigoLimpio(f.codigo) })).filter((f) => f.concepto),
       })).filter((s: { titulo: string }) => s.titulo),
     };
   } catch { return null }
@@ -151,8 +154,11 @@ function leerHoja(json: string): Hoja | null {
  */
 export async function guardarInventario(hojaJson: string, ajustar: string[], fotoNombre: string): Promise<{ error?: string; ok?: true; ajustes?: number }> {
   const sin = await permiso(); if (sin) return { error: sin };
-  const hoja = leerHoja(hojaJson);
-  if (!hoja) return { error: "La hoja no se pudo leer: revisa la fecha y que tenga secciones." };
+  const leida = leerHoja(hojaJson);
+  if (!leida) return { error: "La hoja no se pudo leer: revisa la fecha y que tenga secciones." };
+  /* los renglones que lleguen sin código lo toman de lo aprendido (la hoja guardada siempre queda amarrada a los SKU) */
+  const eq = await equivalencias();
+  const hoja: Hoja = { ...leida, secciones: leida.secciones.map((s) => ({ ...s, filas: s.filas.map((f) => ({ ...f, codigo: f.codigo ?? codigoDeFila(s.titulo, f, eq) })) })) };
   const pc = await productosYCorte();
   if (pc.error) return { error: faltaTabla(pc.error) ? SQL_FALTA : pc.error };
   const sal = await saldosA(hoja.fecha);
@@ -173,9 +179,43 @@ export async function guardarInventario(hojaJson: string, ajustar: string[], fot
     }
     decididas.push({ ...f, decision: ajusta ? "ajustado" : "dejado" });
   }
+  /* lo que la persona amarró queda aprendido para todos los días */
+  const nuevas = hoja.secciones.flatMap((s) => s.filas.filter((f) => f.codigo && eq[claveEq(s.titulo, f.concepto)] !== f.codigo).map((f) => ({ seccion: limpio(s.titulo), concepto: limpio(f.concepto), codigo: f.codigo as string })));
+  const unicas = [...new Map(nuevas.map((n) => [`${n.seccion}|${n.concepto}`, n])).values()];
+  if (unicas.length) {
+    const user = await usuarioActual();
+    const { error: e2 } = await supabase.from("carnaval_equivalencias").upsert(unicas.map((n) => ({ ...n, actualizado_por: user?.id ?? null, actualizado_en: new Date().toISOString() })), { onConflict: "seccion,concepto" });
+    if (e2) return { error: /carnaval_equivalencias|does not exist|schema cache/i.test(e2.message) ? "Falta correr supabase/migraciones/2026-10-carnaval-codigos.sql en Supabase." : e2.message, ajustes };
+  }
   const { error } = await supabase.from("carnaval_existencias").upsert(
     { fecha: hoja.fecha, secciones: hoja.secciones, validacion: decididas, foto_nombre: fotoNombre || null, actualizado_en: new Date().toISOString() }, { onConflict: "fecha" });
   if (error) return { error: /carnaval_existencias|does not exist|schema cache/i.test(error.message) ? "Falta correr supabase/migraciones/2026-10-carnaval-inventario.sql en Supabase." : error.message, ajustes };
   refrescar();
   return { ok: true, ajustes };
+}
+
+
+/**
+ * AMARRAR UN RENGLÓN DE LA HOJA A UN SKU: «en la sección X, lo que la hoja llama Y es el código Z». Queda para todos los días
+ * (la descripción de ese renglón sale desde ahora del maestro). Código «-» = no es un SKU. Código vacío = soltar el amarre.
+ */
+export async function asignarCodigo(seccion: string, concepto: string, codigo: string): Promise<{ error?: string; ok?: true }> {
+  const sin = await permiso(); if (sin) return { error: sin };
+  const s = limpio(seccion ?? ""), c = limpio(concepto ?? "");
+  if (!s || !c) return { error: "No se entendió el renglón." };
+  const supabase = await createClient();
+  const cod = (codigo ?? "").trim();
+  if (!cod) {
+    /* no se borra nada: se vuelve a dejar el renglón sin código ("" no existe en la tabla, así que se marca con el guion y se avisa) */
+    return { error: "Elige un código (o «No lleva código»)." };
+  }
+  if (cod !== SIN_SKU) {
+    const m = await maestroSku();
+    if (!m.some((x) => x.codigo === cod)) return { error: `El código ${cod} no está en el maestro de SKU.` };
+  }
+  const user = await usuarioActual();
+  const { error } = await supabase.from("carnaval_equivalencias").upsert({ seccion: s, concepto: c, codigo: cod, actualizado_por: user?.id ?? null, actualizado_en: new Date().toISOString() }, { onConflict: "seccion,concepto" });
+  if (error) return { error: /carnaval_equivalencias|does not exist|schema cache/i.test(error.message) ? "Falta correr supabase/migraciones/2026-10-carnaval-codigos.sql en Supabase." : error.message };
+  refrescar();
+  return { ok: true };
 }

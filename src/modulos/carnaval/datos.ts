@@ -69,3 +69,33 @@ export async function ultimoInventario() {
   const { data } = await supabase.from("carnaval_existencias").select("secciones").order("fecha", { ascending: false }).limit(1).maybeSingle();
   return (data?.secciones ?? null) as import("./logica").SeccionHoja[] | null;
 }
+
+/**
+ * EL MAESTRO DE SKU contra el que se amarra la hoja de inventario: el Maestro de Inventario (productos), el de Pasivos y los
+ * productos de Carnaval. Si un código está en varios, manda el primero de esa lista. El del Maestro de Inventario se ofrece
+ * al final de la lista para que, al buscar, salgan primero los envases y cajas.
+ */
+export type Sku = { codigo: string; descripcion: string };
+export async function maestroSku(): Promise<Sku[]> {
+  const supabase = await createClient();
+  const [c, pa, pr] = await Promise.all([
+    todas<{ codigo: string; descripcion: string }>((d, h) => supabase.from("carnaval_productos").select("codigo, descripcion").order("codigo").range(d, h)),
+    todas<{ codigo: string; descripcion: string | null }>((d, h) => supabase.from("pasivos_maestro").select("codigo, descripcion").neq("activo", false).order("codigo").range(d, h)),
+    todas<{ sku: string; nombre: string | null }>((d, h) => supabase.from("productos").select("sku, nombre").neq("activo", false).order("sku").range(d, h)),
+  ]);
+  const carnaval = c.error ? [] : c.data.map((x) => ({ codigo: String(x.codigo ?? "").trim(), descripcion: String(x.descripcion ?? "").trim() }));
+  const pasivos = pa.error ? [] : pa.data.map((x) => ({ codigo: String(x.codigo ?? "").trim(), descripcion: String(x.descripcion ?? "").trim() }));
+  const productos = pr.error ? [] : pr.data.map((x) => ({ codigo: String(x.sku ?? "").trim(), descripcion: String(x.nombre ?? "").trim() }));
+  const visto = new Map<string, Sku>();
+  for (const x of [...carnaval, ...pasivos, ...productos]) if (x.codigo && !visto.has(x.codigo)) visto.set(x.codigo, { codigo: x.codigo, descripcion: x.descripcion || x.codigo });
+  return [...visto.values()];
+}
+
+/** Lo aprendido: «sección|nombre en la hoja» → código. Si la tabla aún no existe, vacío (se avisa al guardar). */
+export async function equivalencias(): Promise<Record<string, string>> {
+  const supabase = await createClient();
+  const r = await todas<{ seccion: string; concepto: string; codigo: string }>((d, h) =>
+    supabase.from("carnaval_equivalencias").select("seccion, concepto, codigo").order("seccion").order("concepto").range(d, h));
+  if (r.error) return {};
+  return Object.fromEntries(r.data.map((x) => [`${x.seccion}|${x.concepto}`, x.codigo]));
+}
