@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { usuarioActual } from "@/lib/sesion";
 import { misPermisos } from "@/lib/permisos";
-import { aHojaGuardada, CENTRO_DE_CASCO, claveEq, compararPeldar, conClaves, conAuto, limpio, redondear, SIN_SKU, type Comparacion, type FilaPeldar, type Hoja } from "@/modulos/carnaval/logica";
+import { aHojaGuardada, CENTRO_DE_CASCO, claveEq, compararPeldar, conClaves, emparejarClaves, conAuto, limpio, redondear, SIN_SKU, type Comparacion, type FilaPeldar, type Hoja } from "@/modulos/carnaval/logica";
 import { contextoAuto, equivalencias, faltaTabla, ingresosCargados, maestroSku, productosYCorte, RUTA_CUADRE, saldosA, SQL_FALTA } from "@/modulos/carnaval/datos";
 
 /**
@@ -81,9 +81,10 @@ export async function aplicarPeldar(filasJson: string, aprobadas: string[]): Pro
   }
   /* LA ENTRADA DE MERCANCÍA no es un cambio de cantidades: se pone sola en todas las filas del archivo que la traen (ya cargadas o recién cargadas). */
   let conEM = 0, sinEM = 0, avisoEM: string | undefined;
-  const conDato = conClaves(filas).filter((f) => f.em !== undefined && f.fecha > r.corte);
+  const ex0 = await ingresosCargados();
+  const conDato = emparejarClaves(conClaves(filas), ex0.filas).filter((f) => f.em !== undefined && f.fecha > r.corte);
   if (conDato.length) {
-    const ex = await ingresosCargados();
+    const ex = ex0;
     const porClave = new Map(ex.filas.map((e) => [e.clave, e]));
     const lote = conDato.flatMap((f) => {
       const e = porClave.get(f.clave); if (!e) return [];

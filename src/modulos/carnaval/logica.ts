@@ -66,12 +66,27 @@ export function conClaves(filas: FilaPeldar[]): FilaConClave[] {
   });
 }
 
+/** Si una fila del archivo no tiene la misma llave que una ya cargada pero coincide en remisión + código (por ejemplo la placa se escribió distinto), es la MISMA:
+ *  se le pone la llave de la cargada, para no duplicar el ingreso. Solo cuando hay una sola candidata libre. */
+export function emparejarClaves(filas: FilaConClave[], existentes: Existente[]): FilaConClave[] {
+  const exactas = new Set(existentes.map((e) => e.clave));
+  const porRC = new Map<string, Existente[]>();
+  for (const e of existentes) { const p = e.clave.split("|"); const k = `${p[0]}|${p[2]}`; porRC.set(k, [...(porRC.get(k) ?? []), e]) }
+  const usadas = new Set(filas.filter((f) => exactas.has(f.clave)).map((f) => f.clave));
+  return filas.map((f) => {
+    if (exactas.has(f.clave)) return f;
+    const c = (porRC.get(`${f.remision}|${f.codigo}`) ?? []).filter((e) => !usadas.has(e.clave));
+    if (c.length === 1) { usadas.add(c[0].clave); return { ...f, clave: c[0].clave } }
+    return f;
+  });
+}
+
 export function compararPeldar(filas: FilaPeldar[], existentes: Existente[], productos: Set<string>, corte: string): Comparacion {
   const porClave = new Map(existentes.map((e) => [e.clave, e]));
   const out: Comparacion = { nuevas: [], cambiadas: [], iguales: 0, anteriores: 0, sinProducto: [], ausentes: [], conEM: 0, sinEM: 0 };
   const faltan = new Map<string, number>();
   const enArchivo = new Set<string>();
-  for (const f of conClaves(filas)) {
+  for (const f of emparejarClaves(conClaves(filas), existentes)) {
     if (f.fecha <= corte) { out.anteriores++; continue }
     if (!productos.has(f.codigo)) { faltan.set(f.codigo, (faltan.get(f.codigo) ?? 0) + 1); continue }
     enArchivo.add(f.clave);
