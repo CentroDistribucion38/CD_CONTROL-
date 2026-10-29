@@ -122,8 +122,16 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
   const conMov = !!guardado?.movimientos?.length;
   const sumarPend = false; /* el pend. baja ya no entra al cuadre de AG18 */
   const conDif = filas.filter((f) => f.dif != null);
-  const entran = conDif.filter((f) => !cero(f.dif) && f.dif! < 0);
-  const salen = conDif.filter((f) => !cero(f.dif) && f.dif! > 0);
+  /* AG18 · EL ENVASE SOLO PUEDE QUEDAR BLOQUEADO Y LO QUE ESTÉ LIBRE SALE AL 22: lo que hoy está libre en AG18 (ZEXI de antes) se manda a AG22 con el 311
+     y, para que AG18 siga igual al conteo, vuelve a entrar lo mismo por el 311 de AG22 y se bloquea con el 344 (los mismos documentos de lo que entra).
+     Sale = lo mayor entre lo libre y lo que sobra frente al conteo; entra = lo que sale − la diferencia (SAP − conteo). Sin reparto en la ZEXI, queda como estaba. */
+  const conLibreFuera = !esAG22 && !esSimple;
+  const salidaEnvase = (f: FilaCuadre) => conLibreFuera && f.grupo === "ENVASE" && f.dif != null && f.libre != null && f.sap != null
+    ? Math.round(Math.max(Math.min(f.libre, f.sap), f.dif > 0 ? f.dif : 0)) : null;
+  const sale18 = (f: FilaCuadre) => { const o = salidaEnvase(f); return o == null ? (f.dif ?? 0) : o };
+  const entra18 = (f: FilaCuadre) => { const o = salidaEnvase(f); return o == null ? -(f.dif ?? 0) : o - Math.round(f.dif ?? 0) };
+  const entran = conDif.flatMap((f) => { const q = entra18(f); return q > 0.5 ? [{ ...f, dif: -q }] : [] });
+  const salen = conDif.flatMap((f) => { const q = sale18(f); return q > 0.5 ? [{ ...f, dif: q }] : [] });
   /* «Me dice que del 18 al 22 debo pasar 312 del 3500888, pero lo tengo en BLOQUEADO: que me diga que
      primero haga el 343 por esa cantidad y luego lo mueva al 22.» Lo que sale de AG18 y no alcanza con
      lo libre: primero 343 (Bloqueado → Libre) por lo que falta (hasta lo bloqueado). `dif` = esa cantidad. */
