@@ -89,7 +89,7 @@ export type BalanceoGuardado = {
   resumen: ResumenBalanceo; filas: FilaGuardada[]; aplicados: Aplicado[];
   zexi_archivo: string | null; mov_archivo: string | null; estibas_almacen: number | null; sumar_pend_baja: boolean;
 };
-export type DiaHistorial = { fecha: string; almacen: Almacen; cerrado_en: string | null; cerrado_nombre: string | null; cierre: BalanceoGuardado };
+export type DiaHistorial = { fecha: string; almacen: Almacen | "AG07"; cerrado_en: string | null; cerrado_nombre: string | null; cierre: BalanceoGuardado };
 /** Una línea del conteo de fábrica en estado OTROS (Andina…), con el envase al que se suma. */
 export type LineaOtros = {
   id: string; ubicacion: string; codigo: string; material: string; nota: string | null;

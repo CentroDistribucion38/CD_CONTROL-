@@ -194,3 +194,11 @@ export async function partidasCarnaval(fecha: string) {
       .map((x) => ({ id: x.id, paso: (x.paso === 2 ? 2 : 1) as 1 | 2, codigo: x.codigo, cantidad: Number(x.cantidad), lado: (x.lado === "SAP" ? "SAP" : "CONTEO") as "CONTEO" | "SAP", nota: x.nota })),
   };
 }
+
+/** ¿Ya se guardó el balanceo de AG07 de ese día en el Histórico del Cuadre SAP? */
+export async function balanceoGuardadoAg07(fecha: string) {
+  const supabase = await createClient();
+  const { data } = await supabase.from("cuadre_sap").select("cerrado_en, cerrado_nombre").eq("fecha", fecha).eq("almacen", "AG07").not("cierre", "is", null).maybeSingle();
+  const d = data as { cerrado_en: string | null; cerrado_nombre: string | null } | null;
+  return d?.cerrado_en ? { en: d.cerrado_en, nombre: d.cerrado_nombre } : null;
+}

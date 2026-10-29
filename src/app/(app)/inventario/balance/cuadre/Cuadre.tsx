@@ -63,8 +63,8 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
   const SALE = esAG22 ? "Bloqueado → Libre" : `${ALM} → ${OTRO}`;
   const MOV = esAG22 ? "el traslado libre ↔ bloqueado" : "el 311";
   const campoZexi = esAG22 ? "bloqueado" as const : "total" as const;
-  const urlDe = (alm: Almacen, dia?: string | null) => `/inventario/balance/cuadre?${dia ? `fecha=${dia}&` : ""}alm=${alm}`;
-  const [histAlm, setHistAlm] = useState<"" | Almacen>("");
+  const urlDe = (alm: Almacen | "AG07", dia?: string | null) => `/inventario/balance/cuadre?${dia ? `fecha=${dia}&` : ""}alm=${alm}${alm === "AG07" ? "&sub=cuadre" : ""}`;
+  const [histAlm, setHistAlm] = useState<"" | Almacen | "AG07">("");
   const [pend, start] = useTransition();
   const [msg, setMsg] = useState<{ mal: boolean; t: string } | null>(null);
   const [estibas, setEstibas] = useState(guardado?.estibas_almacen != null ? String(guardado.estibas_almacen) : "");
@@ -867,7 +867,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
         </p>
       )}
       <div className="bal-chips cs-histalm" role="group" aria-label="Almacén">
-        {(["", "AG18", "AG17", "AG16", "AG22"] as const).map((a) => (
+        {(["", "AG18", "AG17", "AG16", "AG22", "AG07"] as const).map((a) => (
           <button key={a || "todos"} type="button" className={histAlm === a ? "on" : ""} aria-pressed={histAlm === a} onClick={() => setHistAlm(a)}>
             {a || "Todos"}{a ? ` · ${historial.filter((h) => h.almacen === a).length}` : ` · ${historial.length}`}
           </button>
@@ -902,11 +902,11 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                   </tr>,
                   ver && (
                     <tr key={`${k}-v`} className="cs-hver"><td colSpan={9}>
-                      <p className="cs-hnota">Lo guardado: ZEXI {h.cierre.zexi_archivo ?? "—"}{h.cierre.mov_archivo ? ` · ZEXI nueva / 311 ${h.cierre.mov_archivo}` : ""} {h.almacen === "AG18" ? ` · estibas del almacén ${h.cierre.estibas_almacen ?? 0} · pend. baja ${h.cierre.sumar_pend_baja ? "se sumaba" : "no se sumaba"}` : h.almacen === "AG17" || h.almacen === "AG16" ? ` · contra el conteo de la calle ${h.almacen === "AG17" ? "EXPORTACION" : "BTS"}` : " · contra la base de Pasivos AG22 (bloqueado)"}</p>
+                      <p className="cs-hnota">Lo guardado: ZEXI {h.cierre.zexi_archivo ?? "—"}{h.cierre.mov_archivo ? ` · ZEXI nueva / 311 ${h.cierre.mov_archivo}` : ""} {h.almacen === "AG18" ? ` · estibas del almacén ${h.cierre.estibas_almacen ?? 0} · pend. baja ${h.cierre.sumar_pend_baja ? "se sumaba" : "no se sumaba"}` : h.almacen === "AG07" ? " · Carnaval: pallets (paso 1) e inventario (paso 2) contra la ZEXI de AG07" : h.almacen === "AG17" || h.almacen === "AG16" ? ` · contra el conteo de la calle ${h.almacen === "AG17" ? "EXPORTACION" : "BTS"}` : " · contra la base de Pasivos AG22 (bloqueado)"}</p>
                       <table className="cs-t chica">
-                        <thead><tr><th>Código</th><th>Material</th><th className="n">{h.almacen === "AG22" ? "Base" : "Conteo"}</th><th className="n">SAP antes</th><th className="n">{h.almacen === "AG22" || h.almacen === "AG17" || h.almacen === "AG16" ? "Diferencia" : "311"}</th><th className="n">SAP después</th><th className="n">Queda</th><th>Estado</th></tr></thead>
-                        <tbody>{h.cierre.filas.filter((f) => f.sap != null).map((f) => (
-                          <tr key={f.codigo} className={ok(f) ? "" : "pend"}>
+                        <thead><tr><th>Código</th><th>Material</th><th className="n">{h.almacen === "AG22" ? "Base" : "Conteo"}</th><th className="n">SAP antes</th><th className="n">{h.almacen === "AG22" || h.almacen === "AG17" || h.almacen === "AG16" || h.almacen === "AG07" ? "Diferencia" : "311"}</th><th className="n">SAP después</th><th className="n">Queda</th><th>Estado</th></tr></thead>
+                        <tbody>{h.cierre.filas.filter((f) => f.sap != null).map((f, i) => (
+                          <tr key={`${f.codigo}-${i}`} className={ok(f) ? "" : "pend"}>
                             <td className="mono">{f.codigo}</td><td>{f.material}</td>
                             <td className="n">{n(f.total)}</td><td className="n">{n(f.sap!)}</td>
                             <td className="n">{cero(f.dif) ? "0" : conSigno(f.dif!)}</td>

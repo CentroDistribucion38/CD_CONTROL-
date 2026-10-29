@@ -4,7 +4,7 @@ import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { FilaCuadre07, FilaInv07, Partida } from "@/modulos/carnaval/logica";
 import { leerZexiAg07 } from "@/modulos/carnaval/leerZexi";
-import { agregarPartida, guardarZexiAg07, quitarPartida, quitarZexiAg07 } from "./actions";
+import { agregarPartida, guardarBalanceoAg07, guardarZexiAg07, quitarPartida, quitarZexiAg07 } from "./actions";
 
 const ent = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 });
@@ -18,9 +18,9 @@ const IR = (f?: string) => `/inventario/balance/cuadre?alm=AG07&sub=cuadre${f ? 
  *            en control de calidad. El 3500005 se mide solo en AG71 libre; su control-cal de AG07 no se mueve ni cuenta.
  *   PASO 2 · INVENTARIO: la hoja (estibas y cajas, pasadas a unidades con los factores del maestro) contra la ZEXI de AG07.
  */
-export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada, zexi, puedeEditar, faltaSql, partidas, faltaSqlPartidas, codigos }: {
+export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada, zexi, puedeEditar, faltaSql, partidas, faltaSqlPartidas, codigos, guardado }: {
   fecha: string; hoy: string; filas: FilaCuadre07[]; inventario: FilaInv07[]; hojaDe: string | null; hojaGuardada: boolean; zexi: { archivo: string | null; actualizado_en: string } | null; puedeEditar: boolean; faltaSql: boolean;
-  partidas: Partida[]; faltaSqlPartidas: boolean; codigos: { codigo: string; descripcion: string }[];
+  guardado: { en: string; nombre: string | null } | null; partidas: Partida[]; faltaSqlPartidas: boolean; codigos: { codigo: string; descripcion: string }[];
 }) {
   const router = useRouter();
   const [pend, start] = useTransition();
@@ -56,6 +56,14 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
       if (r.error) { setAviso({ t: r.error, mal: true }); return }
       setHechos({}); setAviso({ t: `ZEXI cargada: ${l.filas.filter((x) => x.almacen === "AG07").length} materiales de AG07 y ${l.filas.filter((x) => x.almacen === "AG71").length} de AG71.` });
       router.refresh();
+    });
+  }
+  function guardarBalanceo() {
+    setAviso(null);
+    start(async () => {
+      const r = await guardarBalanceoAg07(fecha);
+      if (r.error) { setAviso({ t: r.error, mal: true }); return }
+      setAviso({ t: `Balanceo del ${fecha} guardado en el Histórico (almacén AG07).` }); router.refresh();
     });
   }
   function quitar() { start(async () => { const r = await quitarZexiAg07(fecha); if (r.error) setAviso({ t: r.error, mal: true }); else { setHechos({}); router.refresh() } }) }
@@ -131,10 +139,12 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
         </label>
         <span className="grow" />
         {zexi && puedeEditar && <button type="button" className="cs-bt alt" disabled={pend} onClick={quitar}>Quitar la ZEXI</button>}
+        {zexi && puedeEditar && <button type="button" className="cs-bt alt" disabled={pend} onClick={guardarBalanceo} title="Guarda cómo quedó el cuadre de este día en el Histórico">{guardado ? "Volver a guardar el balanceo" : "Guardar balanceo del día"}</button>}
         {puedeEditar && <button type="button" className="cs-bt" disabled={pend} onClick={() => input.current?.click()}>{pend ? "Guardando…" : zexi ? "Subir la ZEXI nueva (confirmar)" : "Subir la ZEXI de AG07"}</button>}
         <input ref={input} type="file" accept=".xlsx,.xlsm,.xls" hidden onChange={(e) => { void alElegir(e.target.files?.[0]); e.target.value = "" }} />
       </div>
 
+      {guardado && <p className="cv-nota" style={{ margin: "0 0 8px" }}>Balanceo guardado en el Histórico el {new Date(guardado.en).toLocaleString("es-CO", { timeZone: "America/Bogota", dateStyle: "short", timeStyle: "short" })}{guardado.nombre ? ` por ${guardado.nombre}` : ""}. Si cambias algo, vuelve a guardarlo.</p>}
       {zexi && !sinFilas && (() => {
         const p1 = filas.filter((f) => Math.abs(f.dif) >= 0.5 || f.bloqRestante > 0).length;
         const p2 = hojaDe ? difs2.length : 0;

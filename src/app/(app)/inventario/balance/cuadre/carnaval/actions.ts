@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { usuarioActual } from "@/lib/sesion";
 import { misPermisos } from "@/lib/permisos";
-import { aHojaGuardada, CENTRO_DE_CASCO, claveEq, compararPeldar, conClaves, emparejarClaves, conAuto, limpio, redondear, SIN_SKU, type Comparacion, type FilaPeldar, type Hoja } from "@/modulos/carnaval/logica";
-import { contextoAuto, equivalencias, faltaTabla, ingresosAnulados, ingresosCargados, maestroSku, productosYCorte, RUTA_CUADRE, saldosA, SQL_FALTA } from "@/modulos/carnaval/datos";
+import { cuadreInventario07, cuadrePallets07, aHojaGuardada, CENTRO_DE_CASCO, claveEq, compararPeldar, conClaves, emparejarClaves, conAuto, limpio, redondear, SIN_SKU, type Comparacion, type FilaPeldar, type Hoja } from "@/modulos/carnaval/logica";
+import { factoresSku, hojaBase, inventarioDe, partidasCarnaval, pendientesEM, zexiAg07, contextoAuto, equivalencias, faltaTabla, ingresosAnulados, ingresosCargados, maestroSku, productosYCorte, RUTA_CUADRE, saldosA, SQL_FALTA } from "@/modulos/carnaval/datos";
 
 /**
  * AG07 CARNAVAL · LO QUE SE GUARDA.
@@ -312,6 +312,49 @@ export async function quitarPartida(id: string): Promise<{ error?: string; ok?: 
   const supabase = await createClient();
   const { error } = await supabase.from("carnaval_partidas").delete().eq("id", id);
   if (error) return { error: error.message };
+  refrescar();
+  return { ok: true };
+}
+
+/**
+ * GUARDAR EL BALANCEO DEL DÍA (AG07 · Carnaval): congela cómo quedó el cuadre de ese día (paso 1 pallets y paso 2 inventario) en el Histórico
+ * del Cuadre SAP, junto a los demás almacenes. Se arma otra vez aquí, en el servidor. Volver a guardar reemplaza lo guardado.
+ */
+export async function guardarBalanceoAg07(fecha: string): Promise<{ error?: string; ok?: true }> {
+  const sin = await permiso(); if (sin) return { error: sin };
+  if (!esDia(fecha)) return { error: "Día inválido." };
+  const pc = await productosYCorte();
+  if (pc.error) return { error: faltaTabla(pc.error) ? SQL_FALTA : pc.error };
+  const [s, em, zx, pt, inv, fac, maestro] = await Promise.all([saldosA(fecha), pendientesEM(fecha), zexiAg07(fecha), partidasCarnaval(fecha), inventarioDe(fecha), factoresSku(), maestroSku()]);
+  if (s.error) return { error: s.error };
+  if (!zx.zexi) return { error: "Sube primero la ZEXI de AG07 de ese día: sin ella no hay balanceo que guardar." };
+  const hoja = inv.fila?.secciones ?? (await hojaBase(fecha))?.secciones ?? null;
+  const f1 = cuadrePallets07(pc.productos, s.saldos, em.pendientes, zx.zexi.filas, pt.partidas);
+  const f2 = hoja ? cuadreInventario07(hoja, zx.zexi.filas, fac.factores, new Map(maestro.map((m) => [m.codigo, m.descripcion])), pt.partidas) : [];
+  const cero = (v: number) => Math.abs(v) < 0.5;
+  const filas = [
+    ...f1.map((f) => {
+      const queda = f.dif < -0.5 ? -f.sinAlcanzar : 0;
+      const sapAntes = f.libre71 != null ? f.libre71 : f.calidad;
+      return { grupo: "ENVASE" as const, codigo: f.codigo, material: `Paso 1 · pallets · ${f.descripcion}`, total: f.conteo, sap: sapAntes, dif: f.dif, movido: f.movs.reduce((t, m) => t + m.cantidad, 0) || null,
+        sapDespues: f.conteo + queda, queda, enLibre: null, estadoOk: f.bloqRestante > 0 ? false : null };
+    }),
+    ...f2.map((f) => ({ grupo: (f.tipo === "CAJA" ? "CAJA" : "ENVASE") as "CAJA" | "ENVASE", codigo: f.codigo, material: `Paso 2 · inventario · ${f.descripcion}`, total: f.unidades, sap: f.sap, dif: f.dif, movido: null,
+      sapDespues: f.sap, queda: f.dif, enLibre: null, estadoOk: f.bloqueado > 0.5 ? false : null })),
+  ];
+  const pend = filas.filter((f) => !cero(f.queda ?? 0) || f.estadoOk === false || (f.dif != null && !cero(f.dif)));
+  const cierre = {
+    resumen: { materiales: filas.length, conSap: filas.length, conMov: true, cuadran: filas.filter((f) => cero(f.dif ?? 0)).length, balanceados: filas.length - pend.length, pendientes: pend.length,
+      entran: filas.filter((f) => !cero(f.dif ?? 0) && (f.dif ?? 0) < 0).length, salen: filas.filter((f) => !cero(f.dif ?? 0) && (f.dif ?? 0) > 0).length },
+    filas, aplicados: [], zexi_archivo: zx.zexi.archivo, mov_archivo: null, estibas_almacen: null, sumar_pend_baja: false,
+  };
+  const supabase = await createClient();
+  const user = await usuarioActual();
+  const { data: yo } = user ? await supabase.from("perfiles").select("nombre, usuario").eq("id", user.id).maybeSingle() : { data: null };
+  const { error } = await supabase.from("cuadre_sap").upsert(
+    { fecha, almacen: "AG07", cierre, cerrado_en: new Date().toISOString(), cerrado_por: user?.id ?? null, cerrado_nombre: yo?.nombre || yo?.usuario || null, actualizado_en: new Date().toISOString() },
+    { onConflict: "fecha,almacen" });
+  if (error) return { error: /cierre|cerrado/.test(error.message) ? "Falta correr supabase/migraciones/2026-10-cuadre-sap-historial.sql en Supabase." : error.message };
   refrescar();
   return { ok: true };
 }
