@@ -7,7 +7,8 @@ import { sitiosCasco } from "@/modulos/casco/datos";
 /** AG07 vive DENTRO del Cuadre SAP: mismos permisos que el Cuadre (ver / editar). */
 export const RUTA_CUADRE = "/inventario/balance/cuadre";
 export const SQL_FALTA = "Falta correr supabase/migraciones/2026-10-carnaval-ag07.sql en Supabase.";
-export const faltaTabla = (m: string) => /carnaval_|does not exist|schema cache/i.test(m);
+/* Solo cuando de verdad falta una tabla o columna (antes también contaba cualquier error que nombrara «carnaval_…», como un duplicado, y mostraba este aviso por error). */
+export const faltaTabla = (m: string) => /does not exist|schema cache|could not find the/i.test(m);
 
 export type Producto = { codigo: string; descripcion: string; und_por_pallet: number; cc: number; orden: number };
 export type Movimiento = {
