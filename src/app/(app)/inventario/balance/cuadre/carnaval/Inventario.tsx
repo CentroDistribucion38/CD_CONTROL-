@@ -1,126 +1,68 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { aplicarCodigos, esSeccionPallet, limpio, SIN_SKU, sinCodigo, validarPallet, type FilaHoja, type FilaValidacion, type Hoja, type SeccionHoja } from "@/modulos/carnaval/logica";
+import { aHojaGuardada, conAuto, SIN_SKU, type ContextoAuto, type SeccionHoja } from "@/modulos/carnaval/logica";
 import type { Sku } from "@/modulos/carnaval/datos";
-import { PLANTILLA_INICIAL } from "@/modulos/carnaval/plantilla";
-import { leerFotoLocal } from "@/modulos/carnaval/leerFoto";
-import { leerInventario } from "@/modulos/carnaval/leerInventario";
-import { asignarCodigo, eliminarInventario, guardarInventario, saldosAl } from "./actions";
+import { eliminarInventario, guardarHoja } from "./actions";
 import { SelectorCodigo } from "./SelectorCodigo";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 });
 const IR = (f?: string) => `/inventario/balance/cuadre?alm=AG07&sub=inventario${f ? `&fecha=${f}` : ""}`;
-const val = (v: number | null) => (v == null ? "" : nf.format(v));
 const corto = (iso: string) => { const [, m, d] = iso.split("-"); return `${d}/${m}` };
 
-type Guardado = { fecha: string; secciones: SeccionHoja[]; validacion: (FilaValidacion & { decision?: string })[]; foto_nombre: string | null; actualizado_en: string } | null;
+type Guardado = { fecha: string; secciones: SeccionHoja[]; validacion: { decision?: string }[]; actualizado_en: string } | null;
 
-export function Inventario({ fecha, hoy, guardado, dias, puedeEditar, nombres, molde, maestro, eq }: { fecha: string; hoy: string; guardado: Guardado; dias: string[]; puedeEditar: boolean; nombres: Record<string, string>; molde: SeccionHoja[] | null; maestro: Sku[]; eq: Record<string, string> }) {
+/**
+ * LA HOJA DE EXISTENCIAS DEL DÍA, VIVA. No se sube nada: se abre el día, se actualiza lo que cambió y se guarda.
+ *   · PALLET sale de la app (Control) · los dos CASCO salen de Casco de vidrio (AG07 y CA22): solo se leen.
+ *   · Todo lo demás se escribe a mano. Un día nuevo arranca con la hoja del último día guardado.
+ * Cada renglón lleva su código SKU y la descripción sale del maestro.
+ */
+export function Inventario({ fecha, hoy, guardado, base, dias, puedeEditar, maestro, ctx }: {
+  fecha: string; hoy: string; guardado: Guardado; base: { fecha: string; secciones: SeccionHoja[] } | null; dias: string[];
+  puedeEditar: boolean; maestro: Sku[]; ctx: ContextoAuto;
+}) {
   const router = useRouter();
-  const dlg = useRef<HTMLDialogElement>(null);
   const dlgBorrar = useRef<HTMLDialogElement>(null);
+  const [pend, start] = useTransition();
+  const [aviso, setAviso] = useState<{ t: string; mal?: boolean } | null>(null);
+  const [secs, setSecs] = useState<SeccionHoja[]>(guardado?.secciones ?? base?.secciones ?? []);
+  const [sucio, setSucio] = useState(false);
   const [motivoBorrar, setMotivoBorrar] = useState("");
   const [anularAj, setAnularAj] = useState(true);
-  const [pend, start] = useTransition();
-  const [leyendo, setLeyendo] = useState(false);
-  const [progreso, setProgreso] = useState("");
-  const [sobrantes, setSobrantes] = useState(0);
-  const [aviso, setAviso] = useState<{ t: string; mal?: boolean } | null>(null);
-  const [hoja, setHoja] = useState<Hoja | null>(null);
-  const [foto, setFoto] = useState("");
-  const [saldos, setSaldos] = useState<Record<string, number>>({});
-  const [ajustar, setAjustar] = useState<Record<string, boolean>>({});
-  /* el maestro de SKU: de aquí sale la descripción oficial de cada renglón */
+
   const mapa = useMemo(() => new Map(maestro.map((m) => [m.codigo, m.descripcion])), [maestro]);
   const opciones = useMemo<Sku[]>(() => [{ codigo: SIN_SKU, descripcion: "No lleva código (no es un SKU)" }, ...maestro], [maestro]);
-  const guardadaConCodigos = useMemo(() => (guardado ? aplicarCodigos(guardado.secciones, eq) : []), [guardado, eq]);
+  const vista = useMemo(() => conAuto(secs, ctx), [secs, ctx]);
+  const porGuardar = puedeEditar && (sucio || (!guardado && secs.length > 0));
 
-  async function alElegir(f: File | undefined) {
-    if (!f) return;
-    setAviso(null); setLeyendo(true);
-    try {
-      let dia: string, secciones: SeccionHoja[];
-      if (/\.(xlsx|xlsm|xls)$/i.test(f.name)) {
-        /* EL EXCEL: se lee aquí mismo, exacto y sin llave. */
-        const r = await leerInventario(f);
-        if (r.error || !r.hoja) { setAviso({ t: r.error ?? "No se pudo leer el Excel.", mal: true }); return }
-        dia = r.hoja.fecha || fecha; secciones = r.hoja.secciones;
-      } else {
-        /* LA FOTO: se lee aquí mismo, sin llave. Los nombres salen del último inventario guardado (o del molde inicial) y de la foto
-           solo se sacan los números; lo que no quedó claro sale marcado en amarillo. */
-        const base = molde && molde.length ? molde : PLANTILLA_INICIAL;
-        const r = await leerFotoLocal(f, base, setProgreso);
-        dia = r.fecha ?? fecha; secciones = r.secciones; setSobrantes(r.sobrantes.length);
-      }
-      const s = await saldosAl(dia);
-      if (s.error) { setAviso({ t: s.error, mal: true }); return }
-      setSaldos(s.saldos ?? {}); setHoja({ fecha: dia, secciones: aplicarCodigos(secciones, eq) }); setFoto(f.name); setAjustar({});
-      dlg.current?.showModal();
-    } catch (e) {
-      setAviso({ t: e instanceof Error ? e.message : "No se pudo leer el archivo.", mal: true });
-    } finally { setLeyendo(false); setProgreso("") }
+  function cambiar(fn: (s: SeccionHoja[]) => SeccionHoja[]) { setSecs((s) => fn(s)); setSucio(true) }
+  function poner(si: number, ref: number, campo: "a" | "b", v: string) {
+    const n = v.trim() === "" ? null : Number(v.replace(/\./g, "").replace(",", "."));
+    if (n !== null && !Number.isFinite(n)) return;
+    cambiar((all) => all.map((s, i) => i !== si ? s : { ...s, filas: s.filas.map((f, j) => j !== ref ? f : { ...f, [campo]: n }) }));
   }
-
-  /* Si se corrige el día en la ventana, se traen los pallets de la app de ESE día. */
-  async function cambiarDia(d: string) {
-    if (!hoja || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
-    setHoja({ ...hoja, fecha: d });
-    const s = await saldosAl(d);
-    if (s.saldos) setSaldos(s.saldos);
-    setAjustar({});
+  function ponerCodigo(si: number, ref: number, cod: string) {
+    cambiar((all) => all.map((s, i) => i !== si ? s : { ...s, filas: s.filas.map((f, j) => j !== ref ? f : { ...f, codigo: cod || null, concepto: cod && cod !== SIN_SKU ? (mapa.get(cod) ?? f.concepto) : f.concepto }) }));
   }
-  function poner(si: number, fi: number, campo: "a" | "b", v: string) {
-    setHoja((h) => {
-      if (!h) return h;
-      const n = v.trim() === "" ? null : Number(v.replace(/\./g, "").replace(",", "."));
-      if (n !== null && !Number.isFinite(n)) return h;
-      return { ...h, secciones: h.secciones.map((s, i) => i !== si ? s : { ...s, filas: s.filas.map((f, j) => j !== fi ? f : { ...f, [campo]: n, dudosa: false }) }) };
-    });
+  function quitar(si: number, ref: number) {
+    cambiar((all) => all.map((s, i) => i !== si ? s : { ...s, filas: s.filas.filter((_, j) => j !== ref) }));
   }
-
-  function limpiar(soloPallet: boolean) {
-    setHoja((h) => h && ({ ...h, secciones: h.secciones.map((x) => (soloPallet && !esSeccionPallet(x.titulo) ? x : { ...x, filas: x.filas.map((f) => ({ ...f, dudosa: false })) })) }));
+  function agregar(si: number, cod: string) {
+    if (!cod || cod === SIN_SKU) return;
+    if (vista[si].filas.some((f) => f.codigo === cod)) { setAviso({ t: `El ${cod} ya está en ${vista[si].titulo}.`, mal: true }); return }
+    setAviso(null);
+    cambiar((all) => all.map((s, i) => i !== si ? s : { ...s, filas: [...s.filas, { concepto: mapa.get(cod) ?? cod, codigo: cod, a: 0, b: s.colB ? 0 : null }] }));
   }
-  function marcarBien(si: number, fi: number) {
-    setHoja((h) => h && ({ ...h, secciones: h.secciones.map((x, i) => i !== si ? x : { ...x, filas: x.filas.map((f, j) => j !== fi ? f : { ...f, dudosa: false }) }) }));
-  }
-  function ponerCodigo(si: number, fi: number, cod: string) {
-    setHoja((h) => h && ({ ...h, secciones: h.secciones.map((x, i) => i !== si ? x : { ...x, filas: x.filas.map((f, j) => j !== fi ? f : { ...f, codigo: cod || null }) }) }));
-  }
-  function amarrarGuardada(titulo: string, concepto: string, cod: string) {
-    if (!cod) return;
-    start(async () => {
-      const r = await asignarCodigo(titulo, concepto, cod);
-      if (r.error) { setAviso({ t: r.error, mal: true }); return }
-      router.refresh();
-    });
-  }
-  /** El renglón: la descripción OFICIAL del SKU (del maestro) y, abajo en gris, cómo lo llama la hoja si es distinto. */
-  function Concepto({ f }: { f: FilaHoja }) {
-    const cod = f.codigo;
-    if (!cod || cod === SIN_SKU) return <>{f.concepto}</>;
-    const desc = mapa.get(cod);
-    if (!desc) return <><span className="cv-sku">{f.concepto}</span><span className="cv-sku-mal">El código {cod} no está en el maestro de SKU</span></>;
-    return <><span className="cv-sku">{desc}</span>{limpio(desc) !== limpio(f.concepto) && <span className="cv-sku-hoja">En la hoja: {f.concepto}</span>}</>;
-  }
-  const v = useMemo(() => (hoja ? validarPallet(hoja, saldos, nombres) : null), [hoja, saldos, nombres]);
-  const faltanCodigos = hoja ? sinCodigo(hoja.secciones) : 0;
-  const dudosas = hoja ? hoja.secciones.reduce((t, x) => t + x.filas.filter((f) => f.dudosa).length, 0) : 0;
-  const palletDudoso = hoja ? hoja.secciones.some((x) => esSeccionPallet(x.titulo) && x.filas.some((f) => f.dudosa)) : false;
-  const aAjustar = v ? v.filas.filter((f) => ajustar[f.codigo]).map((f) => f.codigo) : [];
-  useEffect(() => { const d = dlg.current; const x = () => setAjustar({}); d?.addEventListener("close", x); return () => d?.removeEventListener("close", x) }, []);
+  function descartar() { setSecs(guardado?.secciones ?? base?.secciones ?? []); setSucio(false); setAviso(null) }
 
   function guardar() {
-    if (!hoja) return;
     start(async () => {
-      const r = await guardarInventario(JSON.stringify(hoja), aAjustar, foto);
+      const r = await guardarHoja(fecha, JSON.stringify({ secciones: secs }));
       if (r.error) { setAviso({ t: r.error, mal: true }); return }
-      dlg.current?.close();
-      const dia = hoja.fecha; setHoja(null);
-      setAviso({ t: `Inventario del ${dia} guardado${r.ajustes ? ` y ${r.ajustes} ajuste(s) de pallets registrados` : ""}.` });
-      router.push(IR(dia)); router.refresh();
+      setSucio(false); setAviso({ t: `Inventario del ${fecha} guardado.` });
+      router.refresh();
     });
   }
 
@@ -129,27 +71,28 @@ export function Inventario({ fecha, hoy, guardado, dias, puedeEditar, nombres, m
     if (!guardado) return;
     start(async () => {
       const r = await eliminarInventario(guardado.fecha, motivoBorrar, anularAj && ajustesHechos > 0);
-      if (r.error) { setAviso({ t: r.error, mal: true }); dlgBorrar.current?.close(); return }
-      dlgBorrar.current?.close(); setMotivoBorrar("");
-      setAviso({ t: `Inventario del ${guardado.fecha} eliminado${r.anulados ? ` y ${r.anulados} ajuste(s) de pallets anulado(s)` : ""}.` });
+      dlgBorrar.current?.close();
+      if (r.error) { setAviso({ t: r.error, mal: true }); return }
+      setMotivoBorrar(""); setAviso({ t: `Inventario del ${guardado.fecha} eliminado${r.anulados ? ` y ${r.anulados} ajuste(s) de pallets anulado(s)` : ""}.` });
       router.refresh();
     });
   }
 
   async function excel() {
-    if (!guardado) return;
     const XLSX = await import("xlsx");
-    const datos: (string | number | null)[][] = [["EXISTENCIAS DIARIAS"], ["FECHA", guardado.fecha], []];
-    for (const s of guardadaConCodigos) {
-      datos.push([s.titulo, s.colA, s.colB, "CÓDIGO SKU", "DESCRIPCIÓN SKU"]);
-      for (const f of s.filas) datos.push([f.concepto, f.a, f.b, f.codigo && f.codigo !== SIN_SKU ? f.codigo : null, f.codigo && f.codigo !== SIN_SKU ? (mapa.get(f.codigo) ?? null) : null]);
+    const datos: (string | number | null)[][] = [["EXISTENCIAS DIARIAS"], ["FECHA", fecha], []];
+    for (const s of vista) {
+      datos.push(["SKU", s.titulo, s.colA, ...(s.colB ? [s.colB] : [])]);
+      for (const f of s.filas) datos.push([f.codigo && f.codigo !== SIN_SKU ? f.codigo : null, (f.codigo && mapa.get(f.codigo)) || f.concepto, f.a, ...(s.colB ? [f.b] : [])]);
       datos.push([]);
     }
     const libro = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(libro, XLSX.utils.aoa_to_sheet(datos), "Existencias");
-    XLSX.writeFile(libro, `Existencias_AG07_${guardado.fecha}.xlsx`);
+    XLSX.writeFile(libro, `Existencias_AG07_${fecha}.xlsx`);
   }
 
-  const v0 = guardado?.validacion ?? [];
+  const sinCod = vista.reduce((t, s) => t + s.filas.filter((f) => !f.codigo).length, 0);
+  const lleno = (v: number | null) => (v == null ? "" : nf.format(v));
+
   return (
     <>
       {aviso && <p className={`cv-msg ${aviso.mal ? "mal" : ""}`} role="status">{aviso.t}</p>}
@@ -158,60 +101,82 @@ export function Inventario({ fecha, hoy, guardado, dias, puedeEditar, nombres, m
           <input type="date" className="cv-fecha" value={fecha} max={hoy} onChange={(e) => e.target.value && router.push(IR(e.target.value))} />
         </label>
         {dias.length > 0 && (
-          <span className="cv-dias" aria-label="Días con inventario">
+          <span className="cv-dias" aria-label="Días guardados">
             {dias.slice(0, 7).map((d) => <button key={d} type="button" className={d === fecha ? "on" : ""} onClick={() => router.push(IR(d))}>{corto(d)}</button>)}
           </span>
         )}
         <span className="grow" />
-        {guardado && puedeEditar && <button type="button" className="cs-bt alt" onClick={() => { setMotivoBorrar(""); setAnularAj(true); dlgBorrar.current?.showModal() }}>Eliminar inventario</button>}
-        {guardado && <button type="button" className="cs-bt alt" onClick={excel}>Descargar Excel</button>}
+        {porGuardar ? (
+          <>
+            {sucio && <button type="button" className="cs-bt alt" disabled={pend} onClick={descartar}>Descartar cambios</button>}
+            <button type="button" className="cs-bt" disabled={pend} onClick={guardar}>{pend ? "Guardando…" : `Guardar inventario del ${corto(fecha)}`}</button>
+          </>
+        ) : (
+          <>
+            {guardado && puedeEditar && <button type="button" className="cs-bt alt" onClick={() => { setMotivoBorrar(""); setAnularAj(true); dlgBorrar.current?.showModal() }}>Eliminar inventario</button>}
+            {secs.length > 0 && <button type="button" className="cs-bt alt" onClick={excel}>Descargar Excel</button>}
+          </>
+        )}
       </div>
 
-      {puedeEditar && (
-        <label className={`cv-drop ${leyendo || pend ? "off" : ""}`} style={{ marginBottom: 14 }}>
-          <span><strong>{leyendo ? (progreso || "Leyendo…") : "Subir el inventario del día (foto o Excel)"}</strong><small>La foto de «Existencias diarias» tal cual, o su Excel. Se lee sola; lo que no quede claro sale en amarillo para que lo revises, y PALLET se valida contra la app antes de guardar.</small></span>
-          <span className="cv-btn">{leyendo ? "Un momento…" : "Seleccionar archivo"}</span>
-          <input type="file" accept=".xlsx,.xlsm,.xls,image/*" disabled={leyendo || pend} onChange={(e) => { void alElegir(e.target.files?.[0]); e.target.value = "" }} />
-        </label>
-      )}
-
-      {!guardado ? (
-        <p className="cv-msg" style={{ borderLeftColor: "var(--fe-linea)", background: "#fff" }}>No hay inventario cargado para el {fecha}.{puedeEditar ? " Sube el archivo de ese día para guardarlo." : ""}</p>
+      {secs.length === 0 ? (
+        <p className="cv-msg" style={{ borderLeftColor: "var(--fe-linea)", background: "#fff" }}>Todavía no hay una hoja de existencias cargada. Pídela al administrador (se carga una sola vez).</p>
       ) : (
         <>
-          <p className="cv-nota" style={{ margin: "0 0 10px" }}>Inventario del {guardado.fecha} · guardado {new Date(guardado.actualizado_en).toLocaleString("es-CO", { timeZone: "America/Bogota", dateStyle: "short", timeStyle: "short" })}{v0.length === 0 ? " · PALLET cuadró con la app" : ` · ${v0.length} diferencia(s) en PALLET (abajo)`}{sinCodigo(guardadaConCodigos) > 0 ? ` · ${sinCodigo(guardadaConCodigos)} renglón(es) sin código SKU (amarillo: elige su código y queda para todos los días)` : " · todos los renglones amarrados a un SKU"}</p>
+          <p className="cv-nota" style={{ margin: "0 0 10px" }}>
+            {guardado
+              ? `Inventario del ${fecha} · guardado ${new Date(guardado.actualizado_en).toLocaleString("es-CO", { timeZone: "America/Bogota", dateStyle: "short", timeStyle: "short" })}${sucio ? " · tienes cambios sin guardar" : ""}`
+              : `El ${fecha} todavía no está guardado: arrancó con la hoja del ${base ? base.fecha : "último día"}. Actualiza lo que cambió y guarda.`}
+            {sinCod > 0 ? ` · ${sinCod} renglón(es) sin código SKU (amarillo)` : ""}
+          </p>
           <div className="cv-secs">
-            {guardadaConCodigos.map((s, i) => (
-              <div key={i} className="cv-sec">
-                <table className="cv-tabla">
-                  <thead><tr><th className="cod">Código</th><th>{s.titulo}</th><th className="r">{s.colA}</th><th className="r">{s.colB}</th></tr></thead>
-                  <tbody>{s.filas.map((f, j) => (
-                    <tr key={j} className={!f.a && !f.b ? "cero" : ""}>
-                      <td className="cod">{puedeEditar
-                        ? <SelectorCodigo compacto productos={opciones} value={f.codigo ?? ""} disabled={pend} onChange={(c) => amarrarGuardada(s.titulo, f.concepto, c)} />
-                        : <span className={`cv-cod ${f.codigo && f.codigo !== SIN_SKU ? "" : "nada"}`}>{f.codigo && f.codigo !== SIN_SKU ? f.codigo : "—"}</span>}</td>
-                      <td><Concepto f={f} /></td><td className="r">{val(f.a)}</td><td className="r">{val(f.b)}</td>
-                    </tr>
-                  ))}</tbody>
-                </table>
-              </div>
-            ))}
+            {vista.map((s, si) => {
+              const veces = new Map<string, number>();
+              for (const f of s.filas) if (f.codigo) veces.set(f.codigo, (veces.get(f.codigo) ?? 0) + 1);
+              const dosCols = !!s.colB;
+              return (
+                <div key={si} className="cv-sec">
+                  <table className="cv-tabla">
+                    <thead><tr><th className="cod">SKU</th><th>{s.titulo}</th><th className="r">{s.colA}</th>{dosCols && <th className="r">{s.colB}</th>}{puedeEditar && s.fuente !== "casco" && <th className="x" aria-label="Quitar" />}</tr></thead>
+                    <tbody>{s.filas.map((f, j) => {
+                      const editable = puedeEditar && !f.auto && f.ref >= 0;
+                      const desc = (f.codigo && mapa.get(f.codigo)) || f.concepto;
+                      const repetido = !!f.codigo && (veces.get(f.codigo) ?? 0) > 1;
+                      return (
+                        <tr key={`${f.ref}-${j}-${f.codigo ?? ""}`} className={`${!f.a && !f.b ? "cero" : ""} ${!f.codigo ? "cv-dudosa" : ""}`}>
+                          <td className="cod">{f.codigo && f.codigo !== SIN_SKU
+                            ? <span className="cv-cod">{f.codigo}</span>
+                            : editable && !f.codigo ? <SelectorCodigo compacto productos={opciones} value="" onChange={(c) => ponerCodigo(si, f.ref, c)} />
+                            : <span className="cv-cod nada">—</span>}</td>
+                          <td><span className="cv-sku">{desc}</span>{repetido && <span className="cv-sku-hoja">{f.concepto}</span>}{f.auto && <span className="cv-tag">{s.fuente === "pallet" ? "App" : "Casco"}</span>}</td>
+                          <td className="r">{editable ? <input className="cv-cel" inputMode="decimal" value={f.a ?? ""} onChange={(e) => poner(si, f.ref, "a", e.target.value)} aria-label={`${desc} ${s.colA}`} /> : <span className="cv-num">{lleno(f.a)}</span>}</td>
+                          {dosCols && <td className="r">{editable ? <input className="cv-cel" inputMode="decimal" value={f.b ?? ""} onChange={(e) => poner(si, f.ref, "b", e.target.value)} aria-label={`${desc} ${s.colB}`} /> : <span className="cv-num">{lleno(f.b)}</span>}</td>}
+                          {puedeEditar && s.fuente !== "casco" && <td className="x">{editable && <button type="button" className="cv-quitar" aria-label={`Quitar ${desc}`} title="Quitar este renglón" onClick={() => quitar(si, f.ref)}>×</button>}</td>}
+                        </tr>
+                      );
+                    })}</tbody>
+                    {(s.nota || (puedeEditar && s.fuente !== "casco")) && (
+                      <tfoot><tr><td colSpan={5 + (dosCols ? 0 : -1)} className="cv-pie-sec">
+                        {s.nota && <span>{s.nota}</span>}
+                        {puedeEditar && s.fuente !== "casco" && <span className="cv-add"><SelectorCodigo compacto productos={maestro} value="" placeholder="+ Agregar SKU" onChange={(c) => agregar(si, c)} /></span>}
+                      </td></tr></tfoot>
+                    )}
+                  </table>
+                </div>
+              );
+            })}
           </div>
-          {v0.length > 0 && (
-            <details className="cv-hist" style={{ marginTop: 14 }}>
-              <summary>Diferencias de PALLET contra la app ({v0.length})</summary>
-              <div className="cv-tabla-cont"><table className="cv-tabla">
-                <thead><tr><th>Código</th><th>Hoja</th><th className="r">Hoja</th><th className="r">App</th><th className="r">Dif</th><th>Qué se hizo</th></tr></thead>
-                <tbody>{v0.map((f) => (
-                  <tr key={f.codigo}><td><code>{f.codigo}</code></td><td>{f.nombreHoja}</td><td className="r">{nf.format(f.hoja)}</td><td className="r">{nf.format(f.app)}</td><td className="r cv-neg">{f.dif > 0 ? "+" : ""}{nf.format(f.dif)}</td><td>{f.decision === "ajustado" ? "Se ajustó la app a la hoja" : "Se dejó como estaba"}</td></tr>
-                ))}</tbody>
-              </table></div>
-            </details>
-          )}
+          <details className="cv-hist" style={{ marginTop: 14 }}>
+            <summary>De dónde sale cada dato</summary>
+            <p className="cv-nota" style={{ margin: "8px 0 0" }}>
+              PALLET: los pallets que lleva la app (pestaña Control) al cierre del día. CASCO DE VIDRIO B38: el saldo de AG07 Alm. Bodega Carnaval en Casco de vidrio. CASCO VIDRIO CERVECERIA ATLANTICO: el saldo de CA22 ERR Atlántico en Casco de vidrio.
+              Esos tres no se escriben aquí: se actualizan solos cuando cambian en su módulo. Lo demás (envase, cajas, estibas de madera, pendiente de baja, lavado, caja mala) se escribe a mano. El nombre de cada SKU sale del maestro.
+            </p>
+          </details>
         </>
       )}
 
-      {/* ELIMINAR UN DÍA: ventana propia, con motivo; los ajustes de pallets que hizo se anulan (no se borran) */}
+      {/* ELIMINAR UN DÍA: ventana propia, con motivo; los ajustes de pallets que hizo (hojas anteriores) se anulan, no se borran */}
       <dialog ref={dlgBorrar} className="cv-dlg chico" aria-label="Eliminar inventario">
         <div className="cv-dlg-caja">
           <div className="cv-dlg-cab">
@@ -233,107 +198,6 @@ export function Inventario({ fecha, hoy, guardado, dias, puedeEditar, nombres, m
             <span className="cv-form">
               <button type="button" className="cs-bt alt" onClick={() => dlgBorrar.current?.close()}>Cancelar</button>
               <button type="button" className="cs-bt cv-bt-borrar" disabled={pend || !motivoBorrar.trim()} onClick={borrar}>{pend ? "Eliminando…" : "Eliminar inventario"}</button>
-            </span>
-          </div>
-        </div>
-      </dialog>
-
-      {/* LA VENTANA DE REVISIÓN: primero lo que importa (¿PALLET cuadra con la app?), luego lo que se leyó de la foto, para corregirlo */}
-      <dialog ref={dlg} className="cv-dlg" aria-label="Revisión del inventario">
-        <div className="cv-dlg-caja">
-          <div className="cv-dlg-cab">
-            <div><p>Carnaval · inventario diario</p><h2>Revisar lo que leí</h2></div>
-            <button type="button" className="cv-dlg-x" aria-label="Cerrar" onClick={() => dlg.current?.close()}>×</button>
-          </div>
-          {hoja && v && (
-            <div className="cv-dlg-cuerpo">
-              <div className="cv-form">
-                <label>Día de la hoja
-                  <input type="date" value={hoja.fecha} max={hoy} onChange={(e) => void cambiarDia(e.target.value)} />
-                </label>
-                <span className="cv-nota" style={{ margin: 0 }}>Si el archivo no traía la fecha o la leí mal, corrígela aquí.{dias.includes(hoja.fecha) ? " Ya hay un inventario de ese día: se reemplaza." : ""}</span>
-              </div>
-
-              <div>
-                <h3>PALLET contra la app</h3>
-                {v.sinSeccion ? <p className="cv-msg mal" style={{ margin: 0 }}>No encontré la sección PALLET en lo que leí. Revisa que la foto la traiga.</p>
-                  : v.filas.length === 0 ? <p className="cv-msg" style={{ margin: 0 }}>Cuadra: lo que dice la hoja es lo que lleva la app.</p>
-                  : (<>
-                    <p className="cv-msg mal" style={{ margin: "0 0 8px" }}>{v.filas.length} línea(s) no coinciden. Escoge qué hacer con cada una.</p>
-                    <div className="cv-tabla-cont"><table className="cv-tabla">
-                      <thead><tr><th>Código</th><th>En la hoja</th><th className="r">Hoja</th><th className="r">App</th><th className="r">Dif</th><th>Qué hago</th></tr></thead>
-                      <tbody>{v.filas.map((f) => (
-                        <tr key={f.codigo} className="cv-cambio">
-                          <td><code>{f.codigo}</code></td><td>{f.nombreHoja}{f.faltaEnHoja ? " (no viene en la hoja)" : ""}</td>
-                          <td className="r">{nf.format(f.hoja)}</td><td className="r">{nf.format(f.app)}</td><td className="r cv-neg">{f.dif > 0 ? "+" : ""}{nf.format(f.dif)}</td>
-                          <td>
-                            <span className="cv-seg">
-                              <button type="button" className={!ajustar[f.codigo] ? "on" : ""} onClick={() => setAjustar((a) => ({ ...a, [f.codigo]: false }))}>Dejar como está</button>
-                              <button type="button" className={ajustar[f.codigo] ? "on" : ""} onClick={() => setAjustar((a) => ({ ...a, [f.codigo]: true }))}>Ajustar la app a la hoja</button>
-                            </span>
-                          </td>
-                        </tr>
-                      ))}</tbody>
-                    </table></div>
-                    <p className="cv-nota">«Ajustar» registra un AJUSTE por la diferencia (con nota) el {hoja.fecha}. «Dejar como está» solo guarda la alerta junto al inventario.</p>
-                  </>)}
-                {v.sinEmparejar.length > 0 && <p className="cv-nota">Líneas de PALLET con cantidad que no conozco (no se comparan): {v.sinEmparejar.join(", ")}.</p>}
-              </div>
-
-              {palletDudoso && (() => {
-                const si = hoja.secciones.findIndex((x) => esSeccionPallet(x.titulo));
-                const sec = hoja.secciones[si];
-                return (
-                  <div>
-                    <h3>Confirma los números de PALLET con tu foto</h3>
-                    <p className="cv-msg mal" style={{ margin: "0 0 8px" }}>No quedé seguro de algún número de PALLET. Compáralos con la foto, corrige los que estén mal y confirma.</p>
-                    <div className="cv-tabla-cont"><table className="cv-tabla">
-                      <thead><tr><th>Línea de PALLET</th><th className="r">En la foto</th><th className="r">La app tiene</th></tr></thead>
-                      <tbody>{sec.filas.map((f, fi) => {
-                        const cod = f.codigo && f.codigo !== SIN_SKU ? f.codigo : null;
-                        return (
-                          <tr key={fi} className={f.dudosa ? "cv-dudosa" : ""}><td><Concepto f={f} /></td>
-                            <td className="r"><input className="cv-cel" inputMode="decimal" value={f.a ?? ""} onChange={(e) => poner(si, fi, "a", e.target.value)} aria-label={`${f.concepto} cantidad`} /></td>
-                            <td className="r">{cod ? nf.format(saldos[cod] ?? 0) : "—"}</td></tr>
-                        );
-                      })}</tbody>
-                    </table></div>
-                    <div className="cv-form" style={{ marginTop: 8 }}><button type="button" className="cs-bt" onClick={() => limpiar(true)}>Confirmo los números de PALLET</button></div>
-                  </div>
-                );
-              })()}
-
-              <p className={`cv-msg ${faltanCodigos ? "mal" : ""}`} style={{ margin: 0 }}>{faltanCodigos
-                ? `${faltanCodigos} renglón(es) sin código SKU (en amarillo en la columna Código). Elige el SKU de cada uno: la descripción sale del maestro y queda aprendido para los próximos días. Los que no son un SKU (estibas de madera, por ejemplo) se marcan «No lleva código».`
-                : "Todos los renglones están amarrados a un SKU del maestro."}</p>
-
-              <details open>
-                <summary style={{ cursor: "pointer", font: "700 13px var(--fe-texto)", marginBottom: 8 }}>Lo que leí ({hoja.secciones.reduce((t, s) => t + s.filas.length, 0)} renglones) — corrige lo que esté mal</summary>
-                {dudosas > 0 && <p className="cv-msg mal" style={{ margin: "0 0 10px" }}>{dudosas} renglón(es) en amarillo: no estoy seguro de cómo leí sus números. Compáralos con tu foto, corrige o toca «Está bien».{sobrantes > 0 ? ` Además ${sobrantes} línea(s) de la foto no pude ubicarlas.` : ""} <button type="button" className="cv-ok" onClick={() => limpiar(false)}>Está todo bien</button></p>}
-                <div className="cv-secs">
-                  {hoja.secciones.map((s, si) => (
-                    <div key={si} className="cv-sec">
-                      <table className="cv-tabla">
-                        <thead><tr><th className="cod">Código</th><th>{s.titulo}</th><th className="r">{s.colA}</th><th className="r">{s.colB}</th></tr></thead>
-                        <tbody>{s.filas.map((f, fi) => (
-                          <tr key={fi} className={f.dudosa ? "cv-dudosa" : ""}>
-                            <td className="cod"><SelectorCodigo compacto productos={opciones} value={f.codigo ?? ""} onChange={(c) => ponerCodigo(si, fi, c)} /></td>
-                            <td><Concepto f={f} />{f.dudosa && <button type="button" className="cv-ok" onClick={() => marcarBien(si, fi)}>Está bien</button>}</td>
-                            <td className="r"><input className="cv-cel" inputMode="decimal" value={f.a ?? ""} onChange={(e) => poner(si, fi, "a", e.target.value)} aria-label={`${f.concepto} ${s.colA}`} /></td>
-                            <td className="r"><input className="cv-cel" inputMode="decimal" value={f.b ?? ""} onChange={(e) => poner(si, fi, "b", e.target.value)} aria-label={`${f.concepto} ${s.colB}`} /></td></tr>
-                        ))}</tbody>
-                      </table>
-                    </div>
-                  ))}
-                </div>
-              </details>
-            </div>
-          )}
-          <div className="cv-dlg-pie">
-            <span className="cv-nota" style={{ margin: 0 }}>{palletDudoso ? "Antes de guardar, revisa los números de PALLET marcados en amarillo." : hoja ? `Se guardará el inventario del ${hoja.fecha}${aAjustar.length ? ` y ${aAjustar.length} ajuste(s) de pallets` : ""}.` : ""}</span>
-            <span className="cv-form">
-              <button type="button" className="cs-bt alt" onClick={() => dlg.current?.close()}>Cancelar</button>
-              <button type="button" className="cs-bt" disabled={pend || !hoja || palletDudoso} title={palletDudoso ? "Revisa primero los números de PALLET marcados en amarillo" : undefined} onClick={guardar}>{pend ? "Guardando…" : "Guardar inventario"}</button>
             </span>
           </div>
         </div>

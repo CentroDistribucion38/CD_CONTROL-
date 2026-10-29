@@ -151,3 +151,59 @@ export function validarPallet(hoja: Hoja, saldos: Record<string, number>, nombre
   }
   return { filas, sinEmparejar, sinSeccion: false };
 }
+
+
+/* =====================================================================
+   LA HOJA VIVA: lo que se trae solo y lo que se escribe a mano.
+     · PALLET → los pallets que lleva la app (Control) al cierre del día.
+     · CASCO DE VIDRIO B38 → el saldo de AG07 Alm. Bodega Carnaval en Casco de vidrio.
+     · CASCO VIDRIO CERVECERIA ATLANTICO (la primera) → el saldo de CA22 ERR Atlántico en Casco de vidrio.
+     · Todo lo demás lo actualiza una persona a mano.
+   Lo que viene de otro módulo no se teclea aquí: se muestra y se guarda tal como estaba ese día.
+   ===================================================================== */
+export type FilaVista = FilaHoja & { auto?: boolean; ref: number };
+export type SeccionVista = { titulo: string; colA: string; colB: string; filas: FilaVista[]; fuente: "pallet" | "casco" | null; nota?: string };
+export type CascoSitio = { fecha: string; nombre: string; filas: { sku: string; descripcion: string; estibas: number }[] };
+export type ContextoAuto = {
+  fecha: string;
+  /** pallets por código al cierre del día (los de la app) */
+  pallets: Record<string, number>;
+  /** códigos que Carnaval lleva por pallets (carnaval_productos) */
+  carnaval: string[];
+  /** por centro SAP (AG07, CA22): el último saldo de Casco de vidrio. `undefined` = no se pudo leer; `null` = sin registros. */
+  casco: Record<string, CascoSitio | null | undefined>;
+};
+export const CENTRO_DE_CASCO: Record<string, string> = { "casco de vidrio b38": "AG07", "casco vidrio cerveceria atlantico": "CA22" };
+
+export function conAuto(secs: SeccionHoja[], ctx: ContextoAuto): SeccionVista[] {
+  const vistas: Record<string, number> = {};
+  const car = new Set(ctx.carnaval);
+  return secs.map((s) => {
+    const k = limpio(s.titulo);
+    const ord = vistas[k] ?? 0; vistas[k] = ord + 1;
+    const propias: FilaVista[] = s.filas.map((f, i) => ({ ...f, ref: i }));
+    if (esSeccionPallet(s.titulo)) {
+      const usados = new Set<string>();
+      const filas = propias.map((f) => {
+        const cod = f.codigo && f.codigo !== SIN_SKU ? f.codigo : codigoDePallet(f.concepto);
+        if (!cod || !car.has(cod) || usados.has(cod)) return f;
+        usados.add(cod);
+        return { ...f, codigo: cod, a: redondear(ctx.pallets[cod] ?? 0), b: null, auto: true };
+      });
+      for (const [cod, q] of Object.entries(ctx.pallets)) if (car.has(cod) && !usados.has(cod) && redondear(q) !== 0) filas.push({ concepto: cod, codigo: cod, a: redondear(q), b: null, auto: true, ref: -1 });
+      return { titulo: s.titulo, colA: s.colA || "CANTIDAD", colB: "", filas, fuente: "pallet" as const, nota: `Pallets que lleva la app (Control) al cierre del ${ctx.fecha}` };
+    }
+    const centro = ord === 0 ? CENTRO_DE_CASCO[k] : undefined;
+    if (centro && ctx.casco[centro] !== undefined) {
+      const c = ctx.casco[centro];
+      const filas: FilaVista[] = (c?.filas ?? []).map((r) => ({ concepto: r.descripcion, codigo: r.sku, a: r.estibas, b: null, auto: true, ref: -1 }));
+      return { titulo: s.titulo, colA: "ESTIBA", colB: "", filas, fuente: "casco" as const, nota: c ? `Casco de vidrio · ${c.nombre} · saldo del ${c.fecha}` : `Casco de vidrio no tiene saldo de ${centro} hasta el ${ctx.fecha}` };
+    }
+    return { titulo: s.titulo, colA: s.colA, colB: s.colB && !/^columna\d*$/i.test(s.colB) ? s.colB : "", filas: propias, fuente: null };
+  });
+}
+
+/** La hoja que se guarda: lo traído solo + lo escrito a mano, con los números ya puestos. */
+export function aHojaGuardada(v: SeccionVista[]): SeccionHoja[] {
+  return v.map((s) => ({ titulo: s.titulo, colA: s.colA, colB: s.colB, filas: s.filas.map((f) => ({ concepto: f.concepto, a: f.a, b: f.b, codigo: f.codigo ?? null })) }));
+}

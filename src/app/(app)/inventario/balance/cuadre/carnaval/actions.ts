@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { usuarioActual } from "@/lib/sesion";
 import { misPermisos } from "@/lib/permisos";
-import { claveEq, codigoDeFila, compararPeldar, limpio, redondear, SIN_SKU, validarPallet, type Comparacion, type FilaPeldar, type Hoja } from "@/modulos/carnaval/logica";
-import { equivalencias, faltaTabla, ingresosCargados, maestroSku, productosYCorte, RUTA_CUADRE, saldosA, SQL_FALTA } from "@/modulos/carnaval/datos";
+import { aHojaGuardada, CENTRO_DE_CASCO, claveEq, compararPeldar, conAuto, limpio, redondear, SIN_SKU, type Comparacion, type FilaPeldar, type Hoja } from "@/modulos/carnaval/logica";
+import { contextoAuto, equivalencias, faltaTabla, ingresosCargados, maestroSku, productosYCorte, RUTA_CUADRE, saldosA, SQL_FALTA } from "@/modulos/carnaval/datos";
 
 /**
  * AG07 CARNAVAL · LO QUE SE GUARDA.
@@ -14,6 +14,7 @@ import { equivalencias, faltaTabla, ingresosCargados, maestroSku, productosYCort
  *  · registrarMovimiento: trasiego (resta) o ajuste (suma o resta, con nota).
  *  · anularMovimiento: nada se borra; lo equivocado se anula y queda la huella.
  */
+const esSeccionCasco = (titulo: string) => limpio(titulo) in CENTRO_DE_CASCO;
 const esDia = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v);
 const refrescar = () => revalidatePath(RUTA_CUADRE);
 
@@ -148,52 +149,36 @@ function leerHoja(json: string): Hoja | null {
 }
 
 /**
- * GUARDAR EL INVENTARIO DEL DÍA. La sección PALLET se valida otra vez AQUÍ contra el saldo de la app: las líneas
- * que la persona aprobó ajustar (`ajustar`: códigos) crean un AJUSTE por la diferencia; las demás quedan como alerta
- * registrada. Volver a guardar un día reemplaza la hoja de ese día.
+ * GUARDAR LA HOJA DE UN DÍA. Lo que se trae solo (pallets de la app, casco de AG07 y CA22) se vuelve a leer AQUÍ y se pone encima:
+ * no se confía en lo que mande la pantalla. Lo escrito a mano se guarda tal cual. Volver a guardar un día reemplaza la hoja de ese día.
  */
-export async function guardarInventario(hojaJson: string, ajustar: string[], fotoNombre: string): Promise<{ error?: string; ok?: true; ajustes?: number }> {
+export async function guardarHoja(fecha: string, hojaJson: string): Promise<{ error?: string; ok?: true }> {
   const sin = await permiso(); if (sin) return { error: sin };
-  const leida = leerHoja(hojaJson);
-  if (!leida) return { error: "La hoja no se pudo leer: revisa la fecha y que tenga secciones." };
-  /* los renglones que lleguen sin código lo toman de lo aprendido (la hoja guardada siempre queda amarrada a los SKU) */
+  if (!esDia(fecha)) return { error: "Día inválido." };
+  let bruta: Record<string, unknown> = {};
+  try { bruta = JSON.parse(hojaJson) } catch { /* se avisa abajo */ }
+  const leida = leerHoja(JSON.stringify({ ...bruta, fecha }));
+  if (!leida) return { error: "La hoja no se pudo leer: revisa que tenga secciones." };
   const eq = await equivalencias();
-  const hoja: Hoja = { ...leida, secciones: leida.secciones.map((s) => ({ ...s, filas: s.filas.map((f) => ({ ...f, codigo: f.codigo ?? codigoDeFila(s.titulo, f, eq) })) })) };
-  const pc = await productosYCorte();
-  if (pc.error) return { error: faltaTabla(pc.error) ? SQL_FALTA : pc.error };
-  const sal = await saldosA(hoja.fecha);
-  if (sal.error) return { error: faltaTabla(sal.error) ? SQL_FALTA : sal.error };
-  const nombres = Object.fromEntries(pc.productos.map((p) => [p.codigo, p.descripcion]));
-  const v = validarPallet(hoja, Object.fromEntries(sal.saldos), nombres);
-  const aprobar = new Set(ajustar);
+  const secs = leida.secciones.map((s) => ({ ...s, filas: s.filas.map((f) => ({ ...f, codigo: f.codigo ?? eq[claveEq(s.titulo, f.concepto)] ?? null })) }));
+  const { error: eAuto, ctx } = await contextoAuto(fecha);
+  if (eAuto) return { error: faltaTabla(eAuto) ? SQL_FALTA : eAuto };
+  const finales = aHojaGuardada(conAuto(secs, ctx));
   const supabase = await createClient();
-
-  let ajustes = 0;
-  const decididas = [];
-  for (const f of v.filas) {
-    const ajusta = aprobar.has(f.codigo);
-    if (ajusta) {
-      const { error } = await supabase.from("carnaval_movimientos").insert({ fecha: hoja.fecha, tipo: "AJUSTE", codigo: f.codigo, pallets: f.dif, nota: `Ajuste por inventario del ${hoja.fecha}: la hoja dice ${redondear(f.hoja)} y la app tenía ${redondear(f.app)}` });
-      if (error) return { error: faltaTabla(error.message) ? SQL_FALTA : `Ajuste de ${f.codigo}: ${error.message}`, ajustes };
-      ajustes++;
-    }
-    decididas.push({ ...f, decision: ajusta ? "ajustado" : "dejado" });
-  }
-  /* lo que la persona amarró queda aprendido para todos los días */
-  const nuevas = hoja.secciones.flatMap((s) => s.filas.filter((f) => f.codigo && eq[claveEq(s.titulo, f.concepto)] !== f.codigo).map((f) => ({ seccion: limpio(s.titulo), concepto: limpio(f.concepto), codigo: f.codigo as string })));
+  /* lo que la persona amarró a un SKU queda aprendido para los renglones nuevos */
+  const nuevas = finales.flatMap((s) => s.filas.filter((f) => f.codigo && eq[claveEq(s.titulo, f.concepto)] !== f.codigo && !esSeccionCasco(s.titulo)).map((f) => ({ seccion: limpio(s.titulo), concepto: limpio(f.concepto), codigo: f.codigo as string })));
   const unicas = [...new Map(nuevas.map((n) => [`${n.seccion}|${n.concepto}`, n])).values()];
   if (unicas.length) {
     const user = await usuarioActual();
     const { error: e2 } = await supabase.from("carnaval_equivalencias").upsert(unicas.map((n) => ({ ...n, actualizado_por: user?.id ?? null, actualizado_en: new Date().toISOString() })), { onConflict: "seccion,concepto" });
-    if (e2) return { error: /carnaval_equivalencias|does not exist|schema cache/i.test(e2.message) ? "Falta correr supabase/migraciones/2026-10-carnaval-codigos.sql en Supabase." : e2.message, ajustes };
+    if (e2) return { error: /carnaval_equivalencias|does not exist|schema cache/i.test(e2.message) ? "Falta correr supabase/migraciones/2026-10-carnaval-codigos.sql en Supabase." : e2.message };
   }
   const { error } = await supabase.from("carnaval_existencias").upsert(
-    { fecha: hoja.fecha, secciones: hoja.secciones, validacion: decididas, foto_nombre: fotoNombre || null, actualizado_en: new Date().toISOString() }, { onConflict: "fecha" });
-  if (error) return { error: /carnaval_existencias|does not exist|schema cache/i.test(error.message) ? "Falta correr supabase/migraciones/2026-10-carnaval-inventario.sql en Supabase." : error.message, ajustes };
+    { fecha, secciones: finales, validacion: [], foto_nombre: null, actualizado_en: new Date().toISOString() }, { onConflict: "fecha" });
+  if (error) return { error: /carnaval_existencias|does not exist|schema cache/i.test(error.message) ? "Falta correr supabase/migraciones/2026-10-carnaval-inventario.sql en Supabase." : error.message };
   refrescar();
-  return { ok: true, ajustes };
+  return { ok: true };
 }
-
 
 /**
  * AMARRAR UN RENGLÓN DE LA HOJA A UN SKU: «en la sección X, lo que la hoja llama Y es el código Z». Queda para todos los días

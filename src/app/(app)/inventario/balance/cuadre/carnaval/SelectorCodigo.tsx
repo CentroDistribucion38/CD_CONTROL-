@@ -11,10 +11,10 @@ type Opcion = { codigo: string; descripcion: string };
 const norm = (v: string) => v.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 });
 
-export function SelectorCodigo({ productos, saldos, value, onChange, soloConSaldo, disabled, compacto, ayuda }: {
+export function SelectorCodigo({ productos, saldos, value, onChange, soloConSaldo, disabled, compacto, ayuda, placeholder }: {
   productos: Opcion[]; saldos?: Record<string, number>; value: string; onChange: (codigo: string) => void; soloConSaldo?: boolean; disabled?: boolean;
   /** dentro de una tabla: solo se ve el código, el panel flota sobre la pantalla y se cierra al mover la hoja; `saldos` no se muestra */
-  compacto?: boolean; ayuda?: string;
+  compacto?: boolean; ayuda?: string; placeholder?: string;
 }) {
   saldos = saldos ?? {};
   const raiz = useRef<HTMLDivElement>(null);
@@ -66,7 +66,7 @@ export function SelectorCodigo({ productos, saldos, value, onChange, soloConSald
     <div className={`cv-sel ${compacto ? "cmp" : ""}`} ref={raiz}>
       <input ref={caja} className={`cv-sel-in ${compacto && !value ? "sin" : ""}`} role="combobox" aria-expanded={abierto} aria-controls="cv-sel-lista" autoComplete="off" disabled={disabled}
              title={ayuda ?? (elegido ? elegido.descripcion : undefined)}
-             placeholder={compacto ? (value || "Elegir código") : elegido ? `${elegido.codigo} · ${elegido.descripcion}` : "Escribe el código o el nombre…"}
+             placeholder={compacto ? (placeholder ?? (value || "Elegir código")) : elegido ? `${elegido.codigo} · ${elegido.descripcion}` : "Escribe el código o el nombre…"}
              value={abierto ? q : compacto ? (value === "-" ? "—" : value) : elegido ? `${elegido.codigo} · ${elegido.descripcion}` : ""}
              onFocus={() => setAbierto(true)} onChange={(e) => { setQ(e.target.value); setAbierto(true) }} onKeyDown={tecla} />
       {value && !compacto && !abierto && !disabled && <button type="button" className="cv-sel-x" aria-label="Quitar el código" onClick={() => { onChange(""); caja.current?.focus() }}>×</button>}

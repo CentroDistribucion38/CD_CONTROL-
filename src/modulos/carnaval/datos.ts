@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { todas } from "@/modulos/inventario/paginas";
-import type { Existente } from "./logica";
+import type { CascoSitio, ContextoAuto, Existente } from "./logica";
+import { sitiosCasco } from "@/modulos/casco/datos";
 
 /** AG07 CARNAVAL · lo que se lee de Supabase (el maestro de productos, el corte, los saldos y los movimientos). */
 /** AG07 vive DENTRO del Cuadre SAP: mismos permisos que el Cuadre (ver / editar). */
@@ -98,4 +99,41 @@ export async function equivalencias(): Promise<Record<string, string>> {
     supabase.from("carnaval_equivalencias").select("seccion, concepto, codigo").order("seccion").order("concepto").range(d, h));
   if (r.error) return {};
   return Object.fromEntries(r.data.map((x) => [`${x.seccion}|${x.concepto}`, x.codigo]));
+}
+
+
+/** El último saldo de Casco de vidrio (hasta ese día) de AG07 Alm. Bodega Carnaval y de CA22 ERR Atlántico. */
+export async function cascoAl(fecha: string): Promise<Record<string, CascoSitio | null | undefined>> {
+  const out: Record<string, CascoSitio | null | undefined> = {};
+  const { lista, sinTabla } = await sitiosCasco();
+  if (sinTabla || !lista.length) return out;                 // sin permiso o sin la tabla: no se toca lo que había
+  const supabase = await createClient();
+  for (const centro of ["AG07", "CA22"]) {
+    const s = lista.find((x) => (x.centro ?? "").toUpperCase() === centro);
+    if (!s) continue;
+    const { data: u, error } = await supabase.from("v_casco").select("fecha").eq("ubicacion", s.clave).lte("fecha", fecha).order("fecha", { ascending: false }).limit(1);
+    if (error) continue;
+    const dia = u?.[0]?.fecha as string | undefined;
+    if (!dia) { out[centro] = null; continue }
+    const { data, error: e2 } = await supabase.from("v_casco").select("sku, descripcion, inventario").eq("ubicacion", s.clave).eq("fecha", dia).order("sku");
+    if (e2) continue;
+    out[centro] = { fecha: String(dia), nombre: s.nombre, filas: (data ?? []).map((r) => ({ sku: String(r.sku), descripcion: String(r.descripcion ?? r.sku), estibas: Number(r.inventario ?? 0) })).filter((r) => r.estibas !== 0) };
+  }
+  return out;
+}
+
+/** Lo que se trae solo para la hoja de un día: los pallets de la app y el casco de AG07 y CA22. */
+export async function contextoAuto(fecha: string): Promise<{ error: string | null; ctx: ContextoAuto }> {
+  const [pc, s, casco] = await Promise.all([productosYCorte(), saldosA(fecha), cascoAl(fecha)]);
+  const error = pc.error ?? s.error;
+  return { error, ctx: { fecha, pallets: Object.fromEntries(s.saldos), carnaval: pc.productos.map((p) => p.codigo), casco } };
+}
+
+/** La hoja de la que arranca un día sin guardar: la guardada más reciente antes de ese día (o, si no hay, la más cercana después). */
+export async function hojaBase(fecha: string) {
+  const supabase = await createClient();
+  const antes = await supabase.from("carnaval_existencias").select("fecha, secciones").lt("fecha", fecha).order("fecha", { ascending: false }).limit(1).maybeSingle();
+  if (antes.data) return { fecha: String(antes.data.fecha), secciones: antes.data.secciones as import("./logica").SeccionHoja[] };
+  const despues = await supabase.from("carnaval_existencias").select("fecha, secciones").gt("fecha", fecha).order("fecha", { ascending: true }).limit(1).maybeSingle();
+  return despues.data ? { fecha: String(despues.data.fecha), secciones: despues.data.secciones as import("./logica").SeccionHoja[] } : null;
 }

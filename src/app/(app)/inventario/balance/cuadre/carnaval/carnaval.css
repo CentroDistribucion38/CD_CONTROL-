@@ -122,3 +122,12 @@
 .cs .cv-dlg.chico { width: min(520px, calc(100vw - 24px)) }
 .cs .cv-bt-borrar { background: #A50D25; color: #fff; border-color: #A50D25 }
 .cs .cv-marca { display: flex; gap: 8px; align-items: flex-start; font-size: 13px }
+.cs .cv-tag { display: inline-block; margin-left: 8px; padding: 0 6px; border: 1px solid var(--fe-tinta); font: 700 9.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase; vertical-align: 1px }
+.cs .cv-num { font-variant-numeric: tabular-nums }
+.cs .cv-sec .cv-tabla td.x, .cs .cv-sec .cv-tabla th.x { width: 1%; padding-left: 0; padding-right: 8px }
+.cs .cv-quitar { border: 0; background: none; color: var(--fe-gris); font-size: 18px; line-height: 1; cursor: pointer }
+.cs .cv-quitar:hover { color: #A50D25 }
+.cs .cv-pie-sec { padding: 8px 12px; border-top: 1px solid var(--fe-linea); color: var(--fe-gris); font-size: 11.5px }
+.cs .cv-pie-sec { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px }
+.cs .cv-add { display: inline-block; width: 150px }
+.cs .cv-add .cv-sel.cmp { width: 100% }
