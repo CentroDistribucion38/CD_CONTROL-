@@ -49,6 +49,8 @@ import { useConfirmar } from "@/components/Confirmar";
 import { useAvisos } from "@/components/Aviso";
 import type { Material, Ubicacion, Renglon } from "@/modulos/inventario/fefo";
 import { cifraDeTarjeta, soloElUltimo, type Cifra } from "@/modulos/inventario/ultimo-conteo";
+
+const TRAER_ULTIMO_CONTEO = false;
 import { hoyCo } from "@/modulos/inventario/tiempos";
 import {
   AVISO_REPETIDO, esDuplicado, esFalloDeRed, guardarCola, leerCola, vaciarCola, yaEstaEnLaBase, type BorradorCola, type ItemCola, type Resultado,
@@ -816,7 +818,10 @@ export function Contar({
   useEffect(() => {
     let vivo = true;
     (async () => {
-      if (!ubicacion) { setPrevio([]); return }
+      /* DECISIÓN DE CRISTIAN (oct 2026): el conteo normal NO trae lo contado la última vez en la
+         ubicación; se cuenta lo que hay, en limpio. Para volver a la pre-anotación basta poner
+         TRAER_ULTIMO_CONTEO en true. */
+      if (!ubicacion || !TRAER_ULTIMO_CONTEO) { setPrevio([]); return }
       const { data } = await supabase.from("v_conteo_ultimo_por_ubicacion")
         .select("*").eq("ubicacion_id", ubicacion.id);
       if (vivo) { setPrevio(soloElUltimo((data ?? []) as Previo[])); setVerPrevio(true) }
