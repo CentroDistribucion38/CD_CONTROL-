@@ -4,7 +4,7 @@ import type { Material } from "./fefo";
    CONTAR LA HOJA DEL INVENTARIO FISCAL — lo que se teclea y cómo se revisa
 
    Es el mismo renglón del conteo diario (dónde, qué, estado del envase, vence, cuánto):
-   deben ser gemelos. Por ahora no pregunta rotación, avería ni PNC. Y UN CERO CUENTA: «0 cajas» es contar que ahí no hay nada, y en un
+   deben ser gemelos (menos el vencimiento, que aquí es opcional). Por ahora no pregunta rotación, avería ni PNC. Y UN CERO CUENTA: «0 cajas» es contar que ahí no hay nada, y en un
    inventario fiscal eso es un dato, no un renglón vacío (en el diario
    no se puede anotar cero porque no se cuenta lo que no está).
    =================================================================== */
@@ -123,7 +123,7 @@ export function revisarFiscal(b: BorradorFiscal, mat: Material | null, claveEsco
   }
   if (b.pnc && (b.pncRotulo == null || b.pncBloqueo == null)) return "El PNC pide dos respuestas: ¿tiene rótulo? y ¿tiene bloqueo mecánico?";
   if (pideEstadoFiscal(mat) && b.estado.trim() === "") return esCilindroFiscal(mat) ? "Escoge si el cilindro está lleno o vacío." : "Escoge el estado del envase.";
-  if (!env && !(b.dia.trim() !== "" && b.mes.trim() !== "" && b.anio.trim() !== "")) return "Falta la fecha de vencimiento.";
+  /* El inventario fiscal compara SKU y cantidades: la fecha de vencimiento NO es obligatoria (si se pone, va completa y válida). */
   if (hayFecha(b)) {
     const d = cantidad(b.dia), m = cantidad(b.mes), a = cantidad(b.anio);
     if (d == null || m == null || a == null) return "La fecha de vencimiento va completa: día, mes y año.";

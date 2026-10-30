@@ -445,7 +445,7 @@ export function ContarFiscal({
     if (!c) return;
     const activos = materiales.filter((m) => m.activo);
     if (!activos.find((m) => m.sku === c) || activos.some((m) => m.sku !== c && m.sku.startsWith(c))) return;
-    setTimeout(() => campoDia.current?.focus(), 0);
+    setTimeout(() => (campoCantidad.current ?? campoDia.current)?.focus(), 0);
   }
 
   /* ---------- ANOTAR ---------- */
@@ -839,7 +839,7 @@ export function ContarFiscal({
               <label><span>Código</span>
                 <input ref={campoCodigo} inputMode="numeric" value={b.codigo} placeholder="Teclea el código"
                   onChange={(e) => { pon("codigo", e.target.value); saltarSiCompleto(e.target.value) }}
-                  onKeyDown={(e) => saltaCon(e, campoDia)} /></label>
+                  onKeyDown={(e) => saltaCon(e, campoCantidad)} /></label>
               <label className="fe-que-desc"><span>Descripción</span>
                 <output className={"fe-desc-campo" + (b.codigo && !material ? " mal" : material ? " leido" : "")}>
                   {!b.codigo ? <i>Teclea el código y te digo qué es.</i>
@@ -847,10 +847,10 @@ export function ContarFiscal({
                         {material.cajas_por_estiba != null && <em> · {material.cajas_por_estiba} cajas/estiba</em>}</span>
                     : <i>Ese código no está en el maestro.</i>}
                 </output></label>
-              <div className={"fe-fecha fe-que-vence" + (esEnvase ? " opcional" : "")}>
+              <div className="fe-fecha fe-que-vence opcional">
                 <div className="fe-que-fecha">
                   <span className="fe-etiq-fecha">Vence</span>
-                  {esEnvase && <em className="fe-opcional">sin fecha</em>}
+                  <em className="fe-opcional">opcional</em>
                 </div>
                 <div className="fe-dma">
                   <input ref={campoDia} inputMode="numeric" maxLength={2} placeholder="DD" aria-label="Día del vencimiento" value={b.dia}
