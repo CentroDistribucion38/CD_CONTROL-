@@ -55,7 +55,25 @@ function armarFilas(lineas: Linea[]): Fila[] {
       diferencia: (ol ?? 0) - (bv ?? 0), estado: ol == null ? "SOLO_BAVARIA" : bv == null ? "SOLO_OL" : ol === bv ? "COINCIDE" : "DIFIERE" };
   });
   const r = compensarCruce(cruce);
-  return filas.map((f, i) => ({ ...f, compensada: !!r.filas[i]?.compensada }));
+  /* Lo que se compensaba NO se muestra como compensado: el mismo material contado en varios sitios de la hoja se junta en UN renglón,
+     en el primer sitio donde aparece, con el conteo de los dos: ahí la diferencia sale en cero. */
+  const sale = new Set<number>();
+  const primero = new Map<string, number>();
+  const unidas = filas.map((f) => ({ ...f, ol: f.ol ? { ...f.ol } : null, bav: f.bav ? { ...f.bav } : null }));
+  filas.forEach((f, i) => {
+    if (!r.filas[i]?.compensada) return;
+    const j = primero.get(f.sku);
+    if (j === undefined) { primero.set(f.sku, i); return }
+    const base = unidas[j];
+    for (const eq of ["ol", "bav"] as const) {
+      const o = f[eq];
+      if (!o) continue;
+      const b = (base[eq] ??= vacio());
+      b.estibas += o.estibas; b.saldo += o.saldo; b.cajas += o.cajas; b.total += o.total;
+    }
+    sale.add(i);
+  });
+  return unidas.filter((_, i) => !sale.has(i)).map((f) => ({ ...f, compensada: false }));
 }
 
 /** Los renglones de módulo de una calle, en el orden en que se recorre, para la planilla en blanco de una hoja sin conteo. */
