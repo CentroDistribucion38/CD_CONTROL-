@@ -27,6 +27,10 @@ const largo = (f: string) => {
   const d = new Date(f + "T12:00:00");
   return `${SEMANA[d.getDay()]} ${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}`;
 };
+/** Solo el número del día, para el eje de las gráficas. */
+const diaNum = (f: string) => String(Number(f.slice(8, 10)));
+/** Tamaño de letra para que `txt` quepa en `ancho` px (unidades del viewBox), entre `min` y `max`. */
+const letra = (txt: string, ancho: number, max: number, min = 5.5) => Math.max(min, Math.min(max, ancho / (Math.max(1, txt.length) * 0.62)));
 const corto = (f: string) => `${Number(f.slice(8, 10))} ${MESES[Number(f.slice(5, 7)) - 1].slice(0, 3)}`;
 
 /* EL COLOR VA CON EL ESTADO, SIEMPRE EL MISMO (la gama ámbar del informe de casco). */
@@ -272,10 +276,10 @@ type DiaE = { fecha: string; e: Record<string, number>; total: number };
 
 /** Columnas apiladas por estado, un día por columna; el total encima y el día escogido resaltado. */
 function Columnas({ dias, estados, marcado }: { dias: DiaE[]; estados: string[]; marcado: string }) {
-  const W = 760, H = 260, arriba = 26, abajo = 30, izq = 8, der = 8;
+  const W = 760, H = 270, arriba = 30, abajo = 26, izq = 8, der = 8;
   const max = Math.max(1, ...dias.map((d) => d.total));
   const paso = (W - izq - der) / Math.max(1, dias.length);
-  const ancho = Math.min(64, paso * 0.62);
+  const ancho = Math.min(64, paso * 0.8);
   const alto = (v: number) => (v / max) * (H - arriba - abajo);
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="ip-svg" role="img" aria-label="HL bloqueados por día y estado">
@@ -289,15 +293,18 @@ function Columnas({ dias, estados, marcado }: { dias: DiaE[]; estados: string[];
           return (
             <g key={e}>
               <rect x={x} y={y} width={ancho} height={Math.max(0, h - 1)} fill={colorDe(e)}><title>{`${corto(d.fecha)} · ${e}: ${n0(d.e[e] ?? 0)} HL`}</title></rect>
-              {h >= 16 && <text x={x + ancho / 2} y={y + h / 2 + 4} textAnchor="middle" className="ip-seg" fill={tintaSobre(e)}>{n0(d.e[e] ?? 0)}</text>}
+              {(() => {
+                const t = n0(d.e[e] ?? 0), fs = letra(t, ancho - 2, 11);
+                return h >= fs + 3 ? <text x={x + ancho / 2} y={y + h / 2 + fs * 0.36} textAnchor="middle" className="ip-seg" style={{ fontSize: fs }} fill={tintaSobre(e)}>{t}</text> : null;
+              })()}
             </g>
           );
         });
         return (
           <g key={d.fecha} className={d.fecha === marcado ? "ip-marcado" : undefined}>
             {capas}
-            <text x={x + ancho / 2} y={y - 7} textAnchor="middle" className="ip-val">{n0(d.total)}</text>
-            <text x={x + ancho / 2} y={H - 10} textAnchor="middle" className="ip-dia">{corto(d.fecha)}</text>
+            <text x={x + ancho / 2} y={y - 6} textAnchor="middle" className="ip-val" style={{ fontSize: letra(n0(d.total), paso - 1, 12) }}>{n0(d.total)}</text>
+            <text x={x + ancho / 2} y={H - 8} textAnchor="middle" className="ip-dia" style={{ fontSize: letra(diaNum(d.fecha), paso - 1, 11, 7) }}>{diaNum(d.fecha)}</text>
           </g>
         );
       })}
@@ -307,13 +314,18 @@ function Columnas({ dias, estados, marcado }: { dias: DiaE[]; estados: string[];
 
 /** La línea de HL diarios: puntos con su cifra, el área suave debajo y el día escogido más grande. */
 function Linea({ puntos, marcado }: { puntos: { fecha: string; v: number }[]; marcado: string }) {
-  const W = 760, H = 220, arriba = 28, abajo = 30, izq = 28, der = 28;
+  const W = 760, H = 230, arriba = 40, abajo = 26, izq = 28, der = 28;
   if (!puntos.length) return <p className="ip-nada">Sin días en este mes.</p>;
   const vals = puntos.map((p) => p.v);
   const min = Math.min(...vals), max = Math.max(...vals);
   const lo = Math.max(0, min - (max - min) * 0.25 - 1), hi = max + (max - min) * 0.1 + 1;
   const x = (i: number) => puntos.length === 1 ? W / 2 : izq + (i * (W - izq - der)) / (puntos.length - 1);
   const y = (v: number) => arriba + (1 - (v - lo) / (hi - lo)) * (H - arriba - abajo);
+  const paso = puntos.length > 1 ? (W - izq - der) / (puntos.length - 1) : W;
+  const largo = Math.max(...puntos.map((p) => n0(p.v).length));
+  // si las cifras no caben una al lado de otra, se alternan en dos alturas y se achica la letra
+  const alterna = paso < largo * 8;
+  const fsVal = alterna ? Math.max(7.5, Math.min(11, (paso * 2 - 2) / (largo * 0.62))) : 12;
   const camino = puntos.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join(" ");
   const area = `${camino} L${x(puntos.length - 1).toFixed(1)},${H - abajo} L${x(0).toFixed(1)},${H - abajo} Z`;
   return (
@@ -325,8 +337,8 @@ function Linea({ puntos, marcado }: { puntos: { fecha: string; v: number }[]; ma
       {puntos.map((p, i) => (
         <g key={p.fecha}>
           <circle cx={x(i)} cy={y(p.v)} r={p.fecha === marcado ? 6 : 4} className={p.fecha === marcado ? "ip-punto on" : "ip-punto"}><title>{`${corto(p.fecha)}: ${n0(p.v)} HL`}</title></circle>
-          <text x={x(i)} y={y(p.v) - 11} textAnchor="middle" className="ip-val">{n0(p.v)}</text>
-          <text x={x(i)} y={H - 10} textAnchor="middle" className="ip-dia">{corto(p.fecha)}</text>
+          <text x={x(i)} y={y(p.v) - (alterna && i % 2 ? 11 + fsVal + 2 : 10)} textAnchor="middle" className="ip-val" style={{ fontSize: fsVal }}>{n0(p.v)}</text>
+          <text x={x(i)} y={H - 8} textAnchor="middle" className="ip-dia" style={{ fontSize: letra(diaNum(p.fecha), Math.max(8, paso - 1), 11, 7) }}>{diaNum(p.fecha)}</text>
         </g>
       ))}
     </svg>
