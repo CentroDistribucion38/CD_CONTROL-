@@ -4,7 +4,7 @@ import { MODULOS_DE_LA_HOJA } from "@/modulos/inventario/modulos-hoja";
 import { fechaConDia } from "@/modulos/inventario/fiscal";
 import { compensarCruce, moduloDeUbicacion, type FilaCruce } from "@/modulos/inventario/fiscal-cruce";
 import { cargarFiscales } from "../datos";
-import { BarraPlanillas } from "./BarraPlanillas";
+import { Planillas, type HojaP } from "./Planillas";
 import "./planillas.css";
 
 export const dynamic = "force-dynamic";
@@ -107,7 +107,7 @@ export default async function PlanillasPage({ searchParams }: { searchParams: Pr
   const hojas = f.hojas.filter((h) => !soloHoja || h.numero === soloHoja);
   const supabase = await createClient();
   let sinConteo = false;
-  const paginasDe = await Promise.all(hojas.map(async (h) => {
+  const datos: HojaP[] = await Promise.all(hojas.map(async (h) => {
     const id = f.hojaIds?.[h.numero];
     let filas: Fila[] = [];
     if (id) {
@@ -117,110 +117,18 @@ export default async function PlanillasPage({ searchParams }: { searchParams: Pr
     const conConteo = filas.length > 0;
     const blancos = conConteo || !h.calle ? [] : modulosDe(h.calle);
     const total = conConteo ? filas.length : blancos.length;
-    const n = Math.max(1, Math.ceil(total / FILAS));
-    return { h, filas, blancos, conConteo, n };
+    const numerados = h.calle ? (MODULOS_DE_LA_HOJA[h.calle] ?? []).filter((m) => /^\d/.test(m)) : [];
+    const lim = numerados.length > 1 ? [numerados[0], numerados[numerados.length - 1]] : null;
+    return {
+      numero: h.numero, calle: h.calle ?? "",
+      olNombre: h.ol ? (nombre.get(h.ol) ?? "—") : "", bavNombre: h.bavaria ? (nombre.get(h.bavaria) ?? "—") : "",
+      sentidoOl: lim ? `${lim[0]} → ${lim[1]}` : "", sentidoBav: lim ? `${lim[1]} → ${lim[0]}` : "",
+      filas: filas.map((x) => ({ modulo: x.modulo, sku: x.sku, material: x.material, udsCaja: x.udsCaja, detalle: x.detalle,
+        ol: x.ol ? { estibas: x.ol.estibas, saldo: x.ol.saldo, cajas: x.ol.cajas } : null, bav: x.bav ? { estibas: x.bav.estibas, saldo: x.bav.saldo, cajas: x.bav.cajas } : null })),
+      blancos, conConteo, np: Math.max(1, Math.ceil(total / FILAS)),
+    };
   }));
-  const total = paginasDe.reduce((t, p) => t + p.n, 0);
   const hoy = new Date().toLocaleDateString("es-CO", { timeZone: "America/Bogota", day: "2-digit", month: "2-digit", year: "numeric" });
-
-  return (
-    <div className="pl">
-      <BarraPlanillas>
-        <b>{f.nombre}</b>
-        <span>{fechaConDia(f.fecha)} · {hojas.length} {hojas.length === 1 ? "planilla" : "planillas"} · {total} {total === 1 ? "página" : "páginas"} carta horizontal</span>
-        <span className="pl-filtro">
-          <Link href={`/inventario/fiscal/planillas?fiscal=${f.id}`} className={!soloHoja ? "on" : ""}>Todas</Link>
-          {f.hojas.map((h) => <Link key={h.numero} href={`/inventario/fiscal/planillas?fiscal=${f.id}&hoja=${h.numero}`} className={soloHoja === h.numero ? "on" : ""}>Hoja {h.numero}</Link>)}
-        </span>
-      </BarraPlanillas>
-      {sinConteo && <p className="pl-vacio">No pude traer el conteo de alguna hoja (falta correr <code>2026-10-fiscal-cruce.sql</code> / <code>2026-10-fiscal-TODO.sql</code> en Supabase, o no hay permiso de «Inventario fiscal»). Esas hojas salen en blanco.</p>}
-      {hojas.length === 0 && <p className="pl-vacio">Este inventario todavía no tiene hojas. Arma las parejas en el Plan fiscal.</p>}
-      {paginasDe.flatMap(({ h, filas, blancos, conConteo, n: np }) => Array.from({ length: np }, (_, i) => {
-        const ultima = i === np - 1;
-        const trozo = conConteo ? filas.slice(i * FILAS, (i + 1) * FILAS) : [];
-        const mods = !conConteo ? blancos.slice(i * FILAS, (i + 1) * FILAS) : [];
-        const relleno = Math.max(0, FILAS - (conConteo ? trozo.length : mods.length));
-        const numerados = h.calle ? (MODULOS_DE_LA_HOJA[h.calle] ?? []).filter((m) => /^\d/.test(m)) : [];
-        const ol = h.ol ? (nombre.get(h.ol) ?? "—") : "";
-        const bav = h.bavaria ? (nombre.get(h.bavaria) ?? "—") : "";
-        const tOl = filas.reduce((t, x) => t + (x.ol?.total ?? 0), 0);
-        const tBav = filas.reduce((t, x) => t + (x.bav?.total ?? 0), 0);
-        return (
-          <section key={`${h.numero}-${i}`} className="pl-pg" aria-label={`Planilla hoja ${h.numero}, página ${i + 1} de ${np}`}>
-            <div className="pl-hd">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/marca/logo-bavaria.png" alt="Bavaria" />
-              <div className="pl-tit"><b>PLANILLA DE CONTEO</b><span>Inventario fiscal</span></div>
-              <div className="pl-hoja"><small>HOJA</small><b>{h.numero}</b></div>
-            </div>
-            <div className="pl-regla" />
-            <div className="pl-meta">
-              <div><small>Inventario</small><b>{f.nombre}</b></div>
-              <div><small>Fecha</small><b>{fechaConDia(f.fecha)}</b></div>
-              <div><small>Inicio</small><b className="blanco" /></div>
-              <div><small>Final</small><b className="blanco" /></div>
-              <div><small>Calle</small><b>{h.calle ? `Calle ${h.calle}` : ""}</b></div>
-              <div><small>Página</small><b>{i + 1} de {np}</b></div>
-            </div>
-            <div className="pl-par">
-              <div><span><small>Contador · Operador logístico{numerados.length > 1 ? ` · ${numerados[0]} → ${numerados[numerados.length - 1]}` : ""}</small><b>{ol}</b></span><i /></div>
-              <div><span><small>Contador · Bavaria{numerados.length > 1 ? ` · ${numerados[numerados.length - 1]} → ${numerados[0]}` : ""}</small><b>{bav}</b></span><i /></div>
-            </div>
-            <div className="pl-tw">
-              <table className="pl-t">
-                <colgroup>
-                  <col style={{ width: 72 }} /><col style={{ width: 84 }} /><col />
-                  <col style={{ width: 46 }} />
-                  <col style={{ width: 46 }} /><col style={{ width: 46 }} /><col style={{ width: 46 }} /><col style={{ width: 54 }} />
-                  <col style={{ width: 46 }} /><col style={{ width: 46 }} /><col style={{ width: 46 }} /><col style={{ width: 54 }} />
-                  <col style={{ width: 56 }} />
-                </colgroup>
-                <thead>
-                  <tr><th rowSpan={2}>Módulo</th><th rowSpan={2}>Código</th><th rowSpan={2}>Descripción</th><th rowSpan={2}>Uds caja</th>
-                    <th colSpan={4} className="ol">Operador logístico</th><th colSpan={4} className="bv">Bavaria</th><th rowSpan={2}>Dif.</th></tr>
-                  <tr><th className="ol">Est.</th><th className="ol">Saldo</th><th className="ol">Cajas</th><th className="ol">Total</th>
-                    <th className="bv">Est.</th><th className="bv">Saldo</th><th className="bv">Cajas</th><th className="bv">Total</th></tr>
-                </thead>
-                <tbody>
-                  {trozo.map((x, k) => {
-                    const d = dif(x);
-                    return (
-                      <tr key={k}>
-                        <td className="m">{x.modulo}</td><td className="c">{x.sku}</td>
-                        <td className="d">{x.material}{x.detalle && <em>{x.detalle}</em>}</td>
-                        <td className="r">{n(x.udsCaja)}</td>
-                        <td className="r">{n(x.ol?.estibas)}</td><td className="r">{n(x.ol?.saldo)}</td><td className="r">{n(x.ol?.cajas)}</td><td className="r t">{x.ol ? nf.format(x.ol.total) : ""}</td>
-                        <td className="r">{n(x.bav?.estibas)}</td><td className="r">{n(x.bav?.saldo)}</td><td className="r">{n(x.bav?.cajas)}</td><td className="r t">{x.bav ? nf.format(x.bav.total) : ""}</td>
-                        <td className={"r t" + (d !== 0 ? (x.compensada ? " comp" : " mal") : "")}>{d === 0 ? (x.ol && x.bav ? "0" : "") : <>{signo(d)}{x.compensada && <em>compensa</em>}</>}</td>
-                      </tr>
-                    );
-                  })}
-                  {mods.map((m, k) => <tr key={`b${k}`}><td className="m">{m}</td>{Array.from({ length: 12 }, (_, c) => <td key={c} />)}</tr>)}
-                  {Array.from({ length: relleno }, (_, k) => <tr key={`r${k}`}><td className="m" />{Array.from({ length: 12 }, (_, c) => <td key={c} />)}</tr>)}
-                </tbody>
-              </table>
-            </div>
-            {conConteo && ultima && (
-              <div className="pl-tot">
-                <span>Total de la hoja · cajas</span>
-                <b>Operador logístico {nf.format(tOl)}</b><b>Bavaria {nf.format(tBav)}</b>
-                <b className={tOl - tBav !== 0 ? "mal" : ""}>Diferencia {tOl - tBav === 0 ? "0" : signo(tOl - tBav)}</b>
-              </div>
-            )}
-            <div className="pl-pie">
-              <div className="pl-lado">
-                <div className="pl-firma"><b>Responsable OL</b><small>nombre completo y firma</small></div>
-                <div className="pl-campo"><b>Grupo</b></div>
-              </div>
-              <div className="pl-lado">
-                <div className="pl-campo"><b>Área asign.</b></div>
-                <div className="pl-firma"><b>Responsable Bavaria</b><small>nombre completo y firma</small></div>
-              </div>
-            </div>
-            <div className="pl-mini">{f.nombre} · Hoja {h.numero} · generada por CONTROL CD38 · {hoy}</div>
-          </section>
-        );
-      }))}
-    </div>
-  );
+  const aviso = sinConteo ? "No pude traer el conteo de alguna hoja (falta correr 2026-10-fiscal-cruce.sql / 2026-10-fiscal-TODO.sql en Supabase, o no hay permiso de «Inventario fiscal»). Esas hojas salen en blanco." : null;
+  return <Planillas fiscalId={f.id} nombre={f.nombre} fechaTexto={fechaConDia(f.fecha)} hoy={hoy} hojas={datos} todas={f.hojas.map((h) => h.numero)} soloHoja={soloHoja} aviso={aviso} />;
 }
