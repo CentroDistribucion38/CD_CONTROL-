@@ -56,6 +56,13 @@ export function dibujarFotoPasivo(
     return { x: b.x + 16, y: b.y + 48, w: b.w - 32, h: b.h - 62 };
   };
   const leyendaEstados = d.estados.map((e) => ({ t: e, col: colorEstado(e) }));
+  const diaNum = (f: string) => String(Number(f.slice(8, 10)));
+  /** Texto girado hacia arriba, centrado en (cx, cy): cabe en columnas angostas sin pisar a las vecinas. */
+  const vertical = (t: string, cx: number, cy: number, halo?: string) => {
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(-Math.PI / 2); ctx.textAlign = "center";
+    if (halo) { ctx.lineWidth = 4; ctx.lineJoin = "round"; ctx.strokeStyle = halo; ctx.strokeText(t, 0, 0) }
+    ctx.fillText(t, 0, 0); ctx.restore();
+  };
   const vacio = (a: Caja) => { letra(ctx, 500, 14); ctx.fillStyle = GRIS; ctx.textAlign = "center"; ctx.fillText("Sin datos con estos filtros", a.x + a.w / 2, a.y + a.h / 2) };
 
   /** Barras horizontales apiladas por estado, con la cifra de cada tramo adentro y el total al final. */
@@ -96,23 +103,36 @@ export function dibujarFotoPasivo(
     const p = d.porDia;
     if (!p.length) vacio(a);
     else {
-      const top = a.y + 24, base = a.y + a.h - 26, max = Math.max(1, ...p.map((x) => x.total));
+      const top = a.y + 70, base = a.y + a.h - 26, max = Math.max(1, ...p.map((x) => x.total));
+      /* El día del informe: sus tres cifras siempre a la vista, aunque el tramo sea diminuto. */
+      const dh = p.find((x) => x.fecha === d.dia);
+      if (dh) {
+        let lx = a.x; letra(ctx, 800, 13.5); ctx.fillStyle = TINTA; ctx.textAlign = "left";
+        const pre = `Día ${diaNum(d.dia)}:`; ctx.fillText(pre, lx, a.y + 8); lx += ctx.measureText(pre).width + 14;
+        for (const e of d.estados) {
+          ctx.fillStyle = colorEstado(e); ctx.fillRect(lx, a.y + 2, 11, 11); lx += 17;
+          const t = `${e} ${f0(dh.e[e] ?? 0)}`; letra(ctx, 700, 13); ctx.fillStyle = TINTA; ctx.textAlign = "left"; ctx.fillText(t, lx, a.y + 8);
+          lx += ctx.measureText(t).width + 18;
+        }
+      }
       ctx.strokeStyle = "#E6EAF0"; ctx.lineWidth = 1; ctx.setLineDash([4, 5]);
       for (const t of [0.25, 0.5, 0.75]) { const yy = Math.round(base - t * (base - top)) + .5; ctx.beginPath(); ctx.moveTo(a.x, yy); ctx.lineTo(a.x + a.w, yy); ctx.stroke() }
       ctx.setLineDash([]);
       ctx.strokeStyle = "#9AA5B1"; ctx.beginPath(); ctx.moveTo(a.x, base + .5); ctx.lineTo(a.x + a.w, base + .5); ctx.stroke();
-      const paso = a.w / p.length, bw = Math.min(64, paso * 0.66);
+      const paso = a.w / p.length, bw = Math.min(64, paso * 0.8);
       p.forEach((dia, i) => {
         const x = a.x + i * paso + (paso - bw) / 2; let y = base;
+        const hoy = dia.fecha === d.dia;
+        if (hoy) { ctx.fillStyle = "rgba(255,195,0,.16)"; ctx.fillRect(a.x + i * paso, top - 52, paso, base - top + 52) }
         for (const e of d.estados) {
           const v = dia.e[e] ?? 0; if (v <= 0) continue;
-          const h = (v / max) * (base - top), col = colorEstado(e);
-          y -= h; ctx.fillStyle = col; ctx.fillRect(x, y, bw, Math.max(1, h - 2));
-          if (h >= 17) { letra(ctx, 700, 12.5); ctx.fillStyle = tintaSobre(col); ctx.textAlign = "center"; ctx.fillText(f0(v), x + bw / 2, y + h / 2 - 1) }
+          const h = (v / max) * (base - top), col = colorEstado(e), hd = Math.max(3, h);
+          y -= hd; ctx.fillStyle = col; ctx.fillRect(x, y, bw, Math.max(1, hd - 2));
+          letra(ctx, 700, 12); const t = f0(v), tw = ctx.measureText(t).width;
+          if (hd >= tw + 8) { ctx.fillStyle = tintaSobre(col); vertical(t, x + bw / 2, y + hd / 2 - 1) }
         }
-        const hoy = dia.fecha === d.dia;
-        letra(ctx, 800, 14); ctx.fillStyle = TINTA; ctx.textAlign = "center"; ctx.fillText(f0(dia.total), x + bw / 2, y - 12);
-        letra(ctx, hoy ? 800 : 500, 13); ctx.fillStyle = hoy ? TINTA : GRIS; ctx.fillText(corta(dia.fecha), x + bw / 2, base + 15);
+        letra(ctx, 800, 13); ctx.fillStyle = TINTA; vertical(f0(dia.total), x + bw / 2, y - 6 - ctx.measureText(f0(dia.total)).width / 2);
+        letra(ctx, hoy ? 800 : 500, hoy ? 14 : 13); ctx.fillStyle = hoy ? TINTA : GRIS; ctx.textAlign = "center"; ctx.fillText(diaNum(dia.fecha), x + bw / 2, base + 15);
       });
     }
   }
@@ -234,7 +254,7 @@ export function dibujarFotoPasivo(
     const p = d.porDia;
     if (!p.length) vacio(a);
     else {
-      const top = a.y + 30, base = a.y + a.h - 28, L = a.x + 30, R = a.x + a.w - 30;
+      const top = a.y + 62, base = a.y + a.h - 28, L = a.x + 22, R = a.x + a.w - 22;
       const vals = p.map((x) => x.total), mn = Math.min(...vals), mx = Math.max(...vals);
       const lo = Math.max(0, mn - (mx - mn) * 0.6 - 1), hi = mx + (mx - mn) * 0.05 + 1;
       const X = (i: number) => (p.length === 1 ? (L + R) / 2 : L + (i * (R - L)) / (p.length - 1));
@@ -253,8 +273,9 @@ export function dibujarFotoPasivo(
         const hoy = x.fecha === d.dia;
         ctx.beginPath(); ctx.arc(X(i), Y(x.total), hoy ? 7 : 5, 0, Math.PI * 2);
         ctx.fillStyle = hoy ? "#B58200" : "#FFFFFF"; ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = "#B58200"; ctx.stroke();
-        letra(ctx, 800, 14); ctx.fillStyle = TINTA; ctx.textAlign = "center"; ctx.fillText(f1(x.total), X(i), Y(x.total) - 18);
-        letra(ctx, hoy ? 800 : 500, 13); ctx.fillStyle = hoy ? TINTA : GRIS; ctx.fillText(corta(x.fecha), X(i), base + 15);
+        const t = f0(x.total); letra(ctx, 800, hoy ? 14 : 13); ctx.fillStyle = TINTA;
+        vertical(t, X(i), Y(x.total) - 14 - ctx.measureText(t).width / 2, "rgba(255,255,255,.9)");
+        letra(ctx, hoy ? 800 : 500, hoy ? 14 : 13); ctx.fillStyle = hoy ? TINTA : GRIS; ctx.textAlign = "center"; ctx.fillText(diaNum(x.fecha), X(i), base + 15);
       });
     }
   }
