@@ -189,3 +189,7 @@
 .cs .cv-reglas summary { cursor: pointer; padding: 11px 16px; font-weight: 700; font-size: 12.5px; display: flex; gap: 12px; justify-content: space-between }
 .cs .cv-reglas summary span { font-weight: 400; color: #777 }
 .cs .cv-reglas p { padding: 0 16px 12px; margin: 0 }
+
+/* Botones del panel lateral: icono a la izquierda del texto, no encima */
+.cs .cv-botones .cs-bt { display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-align: center; line-height: 1.2 }
+.cs .cv-botones .cs-bt svg { flex: none; display: block }
