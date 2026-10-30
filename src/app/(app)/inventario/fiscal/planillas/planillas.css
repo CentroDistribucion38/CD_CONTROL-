@@ -59,12 +59,12 @@
 
 @media print {
   @page { size: letter landscape; margin: 0 }
-  html, body { background: #fff !important }
+  html, body { background: #fff !important; height: auto !important; margin: 0 !important }
   .sh-barra, .sh-lado, .sh-riel, .pl-barra { display: none !important }
   .sh-marco, .sh-marco.anclado { display: block !important; min-height: 0 !important; grid-template-columns: 1fr !important }
   .sh-main { padding: 0 !important; display: block !important; min-height: 0 !important }
   .pl { padding: 0; background: #fff; min-height: 0 }
-  .pl-pg { margin: 0; box-shadow: none }
+  .pl-pg { margin: 0; box-shadow: none; width: 100%; height: min(8.3in, 99vh); break-inside: avoid; page-break-inside: avoid }
   .pl-pg:last-of-type { break-after: auto; page-break-after: auto }
 }
 .pl-pg > * { flex-shrink: 0 }
@@ -85,7 +85,7 @@
 .pl-t td.ig button { width: 17px; height: 20px; border: 1px solid #bbb; background: #fff; cursor: pointer; font-weight: 700; line-height: 1; padding: 0; margin: 0 1px }
 .pl-t td.ig button:hover { background: #FFC400 }
 @media print {
-  .pl-nop, .pl-ayuda, .pl-restablecer { display: none !important }
+  .pl-nop, .pl-ayuda, .pl-restablecer, .pl-vacio { display: none !important }
   .pl-t td.e input { padding: 0 5px }
 }
 
