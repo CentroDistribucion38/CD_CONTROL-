@@ -13,7 +13,7 @@
 .ci-caja button:disabled { opacity: .6 }
 .ci-mal { color: var(--rojo); font-weight: 700 }
 /* página */
-.ci-pag { max-width: 1180px; margin: 0 auto; padding: 0 16px 40px }
+.ci-pag { max-width: 1320px; margin: 0 auto; padding: 0 16px 40px }
 .ci-top { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: flex-end; background: var(--tinta); color: #fff; margin: 0 -16px; padding: 22px 16px 16px; border-bottom: 4px solid var(--mostaza) }
 .ci-top .ci-ojo { color: #b9b9b9 }
 .ci-top h1 { font-size: 28px; line-height: 1.1; margin-top: 2px }
@@ -53,3 +53,46 @@
 .ci-q { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; overflow-wrap: anywhere; min-width: 260px }
 .ci-pie { margin-top: 28px; font-size: 12px; color: var(--gris) }
 @media (max-width: 600px) { .ci-top h1 { font-size: 22px } .ci-rej { grid-template-columns: 1fr } }
+
+/* ===== Tablero (vista Dashboard) ===== */
+.ci-btn.osc.on { background: #fff; color: var(--tinta); border-color: #fff }
+.ci-toast { margin: 10px 0 0; padding: 8px 12px; background: var(--tinta); color: #fff; font-weight: 700; font-size: 13px }
+.ci-chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 16px 0 14px; font-size: 13px; font-weight: 700 }
+.ci-lbl { color: var(--gris); letter-spacing: .12em; font-size: 11px; text-transform: uppercase; margin: 0 2px 0 12px } .ci-lbl:first-child { margin-left: 0 }
+.ci-chip { font: inherit; font-weight: 700; font-size: 13px; padding: 7px 13px; background: #fff; border: 1px solid #d0d0d0; border-radius: 0; color: var(--tinta) }
+button.ci-chip { cursor: pointer } .ci-chip.on { background: var(--tinta); color: #fff; border-color: var(--tinta) }
+.ci-vista.oculta { display: none }
+.ci-dash { padding: 4px 0 0 }
+.ci-kpis { display: grid; grid-template-columns: 1.5fr repeat(3, 1fr); gap: 16px } .ci-kpis > * { min-width: 0 }
+.ci-k { background: #fff; padding: 18px 22px; display: grid; align-content: start; gap: 0 }
+.ci-k.hero { background: var(--tinta); color: #fff }
+.ci-t { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; font-weight: 700; color: var(--gris) } .hero .ci-t { color: var(--mostaza) }
+.ci-n { font-size: 54px; font-weight: 900; letter-spacing: -.03em; line-height: 1; margin-top: 8px; font-variant-numeric: tabular-nums } .ci-n small { font-size: 21px; font-weight: 800; margin-left: 6px } .ci-n.sin { font-size: 30px; color: var(--gris) }
+.ci-m { font-size: 14px; margin-top: 8px; color: var(--gris); overflow-wrap: anywhere } .hero .ci-m { color: #cfcfcf } .ci-m b { color: var(--tinta) } .hero .ci-m b { color: #fff }
+.ci-pill { display: inline-block; padding: 3px 9px; font-weight: 800; font-size: 12px; margin-right: 8px; color: #fff; background: var(--verde) }
+.ci-pill.atencion { background: var(--ambar) } .ci-pill.alto { background: var(--rojo) } .ci-pill.sin { background: #8c8c8c }
+.ci-spk { margin-top: 10px; min-height: 6px }
+.ci-insight { margin: 16px 0; background: #fff4c2; border-left: 6px solid var(--mostaza); padding: 14px 20px; font-size: 15.5px; display: flex; gap: 28px; flex-wrap: wrap } .ci-insight > div { flex: 1 1 260px }
+.ci-insight span { display: block; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; font-weight: 800; color: #8a6a00; margin-bottom: 3px }
+.ci-row { display: grid; gap: 16px; margin-bottom: 16px } .ci-row > * { min-width: 0 }
+.ci-row.r2 { grid-template-columns: 2.1fr 1fr } .ci-row.r3 { grid-template-columns: repeat(3, 1fr) } .ci-row.r4 { grid-template-columns: 1fr 1fr }
+.ci-card { background: #fff; padding: 18px 22px }
+.ci-card h3 { margin: 0; font-size: 13px; letter-spacing: .14em; text-transform: uppercase; font-weight: 800 }
+.ci-card h3 i { display: inline-block; width: 10px; height: 10px; background: var(--mostaza); margin-right: 8px }
+.ci-leg { display: flex; gap: 16px; font-size: 12px; font-weight: 600; margin: 8px 0 2px } .ci-leg i { display: inline-block; width: 11px; height: 11px; margin-right: 5px; vertical-align: -1px }
+.ci-vacio { font-size: 13.5px; color: var(--gris); margin: 14px 0 }
+.ci-lista { list-style: none; margin: 12px 0 0; padding: 0; font-size: 13px; display: grid; gap: 4px } .ci-lista li { display: flex; align-items: center; gap: 6px } .ci-lista i { width: 11px; height: 11px; display: inline-block }
+.ci-res-top { display: flex; justify-content: space-between; align-items: baseline; margin: 10px 0 6px } .ci-res-top b { font-size: 32px; font-weight: 900; letter-spacing: -.02em }
+.ci-pc { font-weight: 800; font-size: 14px; color: var(--verde) } .ci-pc.atencion { color: var(--ambar) } .ci-pc.alto { color: var(--rojo) }
+.ci-lg { display: flex; justify-content: space-between; font-size: 11px; color: #777; margin: 2px 0 8px }
+.ci-tres { display: flex; flex-wrap: wrap; gap: 8px 34px; margin-top: 10px } .ci-tres b { display: block; font-size: 30px; font-weight: 900; letter-spacing: -.02em } .ci-tres em { font-style: normal; font-size: 14px; font-weight: 700 } .ci-tres small { color: var(--gris); font-size: 12px }
+p.ci-q { background: #f3f3f3; padding: 8px 10px; margin-top: 12px; min-width: 0; color: #333 }
+@media (max-width: 980px) { .ci-kpis, .ci-row.r2, .ci-row.r3, .ci-row.r4 { grid-template-columns: 1fr 1fr } }
+@media (max-width: 640px) { .ci-kpis, .ci-row.r2, .ci-row.r3, .ci-row.r4 { grid-template-columns: 1fr } .ci-n { font-size: 44px } }
+@media print {
+  .ci { background: #fff } .ci-acc, .ci-chips, .ci-toast { display: none !important }
+  .ci-vista.oculta { display: block }
+  .ci-det { break-before: page }
+  .ci-top, .ci-k.hero { -webkit-print-color-adjust: exact; print-color-adjust: exact }
+  .ci-card, .ci-k, .ci-insight { break-inside: avoid }
+}

@@ -26,7 +26,7 @@ export async function leerVercel(): Promise<DatosVercel> {
   if (!token) return { ok: false, error: "Falta la variable VERCEL_API_TOKEN en Vercel." };
   const { desde, hasta } = rangoMes();
   const team = process.env.VERCEL_TEAM_ID;
-  const url = `https://api.vercel.com/v1/billing/charges?from=${encodeURIComponent(desde)}&to=${encodeURIComponent(hasta)}${team ? `&teamId=${encodeURIComponent(team)}` : ""}`;
+  const url = `https://api.vercel.com/v1/billing/charges?from=${encodeURIComponent(desde)}&to=${encodeURIComponent(hasta)}${team ? (team.startsWith("team_") ? `&teamId=${encodeURIComponent(team)}` : `&slug=${encodeURIComponent(team)}`) : ""}`;
   try {
     const r = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(30_000), headers: { Authorization: `Bearer ${token}` } });
     if (!r.ok) throw new Error(`${r.status} ${(await r.text()).slice(0, 160)}`);

@@ -1,6 +1,8 @@
 import "server-only";
 import { leerSupabase, refProyecto, type DatosSupabase } from "./supabase";
 import { leerVercel, aUnidadDelTope, type DatosVercel } from "./vercel";
+import { fBytes, nf } from "./formato";
+import { fotosRecientes, type Foto } from "./historial";
 import { SUPABASE, VERCEL_HOBBY, CREDITO_PRO_USD, type PlanSupabase, type PlanVercel } from "./limites";
 
 export type Nivel = "ok" | "atencion" | "alto" | "sin";
@@ -18,10 +20,10 @@ export type Panel = {
   medidas: Medida[];
   lecturas: string[];
   diaDelMes: number; diasDelMes: number;
+  fotos: Foto[]; fotosError?: string;
 };
 
-const nf = (d = 0) => new Intl.NumberFormat("es-CO", { maximumFractionDigits: d });
-export const fBytes = (b: number) => b >= 1024 ** 3 ? `${nf(2).format(b / 1024 ** 3)} GB` : b >= 1024 ** 2 ? `${nf(1).format(b / 1024 ** 2)} MB` : `${nf(0).format(b / 1024)} KB`;
+export { fBytes };
 const nivelDe = (p: number | null): Nivel => p == null ? "sin" : p >= 90 ? "alto" : p >= 70 ? "atencion" : "ok";
 const planS = (): PlanSupabase => { const v = (process.env.CONSUMO_PLAN_SUPABASE ?? "free").toLowerCase(); return v === "pro" || v === "team" ? v : "free" };
 const planV = (): PlanVercel => ((process.env.CONSUMO_PLAN_VERCEL ?? "hobby").toLowerCase() === "pro" ? "pro" : "hobby");
@@ -72,5 +74,8 @@ export async function armarPanel(): Promise<Panel> {
   }
 
   medidas.sort((a, b) => (b.pct ?? -1) - (a.pct ?? -1));
-  return { generado: ahora.toISOString(), planSupabase: ps, planVercel: pv, ref: refProyecto(), supabase, vercel, medidas, lecturas, diaDelMes: dia, diasDelMes: dias };
+  const hist = await fotosRecientes(supabase.ok
+    ? { db: supabase.dbBytes!, alm: supabase.storageBytes!, activos: supabase.activosMes!, llamadas: supabase.llamadasTotal ?? null, vercel: vercel.ok ? vercel.costoMes ?? null : null }
+    : null);
+  return { generado: ahora.toISOString(), planSupabase: ps, planVercel: pv, ref: refProyecto(), supabase, vercel, medidas, lecturas, diaDelMes: dia, diasDelMes: dias, fotos: hist.fotos, fotosError: hist.error };
 }

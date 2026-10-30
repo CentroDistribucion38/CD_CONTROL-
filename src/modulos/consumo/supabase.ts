@@ -12,6 +12,8 @@ export type DatosSupabase = {
   usuarios?: number; activosMes?: number;
   tablas?: TablaPesada[]; buckets?: BucketPesado[];
   consultas?: ConsultaPesada[] | null;
+  /** Consultas acumuladas de Postgres (todas): la curva diaria sale de restar un día con el anterior. */
+  llamadasTotal?: number | null;
   peticiones?: { total: number; rest: number; auth: number; storage: number; realtime: number } | null;
 };
 
@@ -60,15 +62,18 @@ select left(regexp_replace(query, '\\s+', ' ', 'g'), 170) as q, calls,
  order by total_exec_time desc limit 8
 `;
 
+const SQL_LLAMADAS = `select coalesce(sum(calls), 0) as llamadas from pg_stat_statements`;
+
 export async function leerSupabase(): Promise<DatosSupabase> {
   const ref = refProyecto();
   if (!process.env.SUPABASE_ACCESS_TOKEN) return { ok: false, error: "Falta la variable SUPABASE_ACCESS_TOKEN en Vercel." };
   if (!ref) return { ok: false, error: "No pude sacar el proyecto de NEXT_PUBLIC_SUPABASE_URL." };
   try {
-    const [pr, co, pe] = await Promise.allSettled([
+    const [pr, co, pe, ll] = await Promise.allSettled([
       consulta(ref, SQL_PRINCIPAL),
       consulta(ref, SQL_CONSULTAS),
       api(`/projects/${ref}/analytics/endpoints/usage.api-counts?interval=30day`).catch(() => api(`/projects/${ref}/analytics/endpoints/usage.api-counts`)),
+      consulta(ref, SQL_LLAMADAS),
     ]);
     if (pr.status !== "fulfilled") throw pr.reason;
     const f = pr.value[0] ?? {};
@@ -88,6 +93,7 @@ export async function leerSupabase(): Promise<DatosSupabase> {
       buckets: json<Record<string, unknown>[]>(f.buckets, []).map((b) => ({ bucket: String(b.bucket), objetos: num(b.objetos), bytes: num(b.bytes) })),
       consultas: co.status === "fulfilled" ? co.value.map((c) => ({ q: String(c.q), llamadas: num(c.calls), segTotal: num(c.seg_total), msMedio: num(c.ms_medio), filas: num(c.rows) })) : null,
       peticiones,
+      llamadasTotal: ll.status === "fulfilled" ? num(ll.value[0]?.llamadas) : null,
     };
   } catch (e) {
     return { ok: false, error: `Supabase respondió: ${(e as Error).message}` };
