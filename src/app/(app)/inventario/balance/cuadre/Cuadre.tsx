@@ -899,7 +899,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                       <button type="button" className="cs-bt alt" aria-expanded={ver} onClick={() => setAbierto(ver ? null : k)}>{ver ? "Ocultar" : "Ver"}</button>
                       {h.almacen === "AG07"
                         ? <>
-                            <button type="button" className="cs-bt alt" disabled={pend} onClick={() => h.cierre.ag07 ? start(() => router.push(urlDe("AG07", h.fecha, true))) : setAbierto(k)}>Abrir</button>
+                            <button type="button" className="cs-bt alt" disabled={pend} onClick={() => h.cierre.ag07 ? start(() => router.push(urlDe("AG07", h.fecha, true))) : setAbierto(k)}>{h.cierre.ag07 ? "Abrir" : "Abrir resumen"}</button>
                             <button type="button" className="cs-bt alt" disabled={pend} onClick={() => start(() => router.push(urlDe("AG07", h.fecha)))}>Editar este día</button>
                           </>
                         : <button type="button" className="cs-bt alt" disabled={pend} onClick={() => h.fecha === fecha && h.almacen === ALM ? irA("cuadre") : start(() => router.push(urlDe(h.almacen, h.fecha)))}>{r.conMov ? "Abrir y editar" : "Abrir y validar"}</button>}
@@ -907,6 +907,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                   </tr>,
                   ver && (
                     <tr key={`${k}-v`} className="cs-hver"><td colSpan={9}>
+                      {h.almacen === "AG07" && !h.cierre.ag07 && <p className="cs-msg">Este guardado es anterior a la versión que congela la pantalla completa: solo trae el resumen de abajo, tal como quedó. Si lo vuelves a guardar desde el cuadre, queda congelado completo.</p>}
                       <p className="cs-hnota">Lo guardado: ZEXI {h.cierre.zexi_archivo ?? "—"}{h.cierre.mov_archivo ? ` · ZEXI nueva / 311 ${h.cierre.mov_archivo}` : ""} {h.almacen === "AG18" ? ` · estibas del almacén ${h.cierre.estibas_almacen ?? 0} · pend. baja ${h.cierre.sumar_pend_baja ? "se sumaba" : "no se sumaba"}` : h.almacen === "AG07" ? " · Carnaval: pallets (paso 1) e inventario (paso 2) contra la ZEXI de AG07" : h.almacen === "AG17" || h.almacen === "AG16" ? ` · contra el conteo de la calle ${h.almacen === "AG17" ? "EXPORTACION" : "BTS"}` : " · contra la base de Pasivos AG22 (bloqueado)"}</p>
                       <table className="cs-t chica">
                         <thead><tr><th>Código</th><th>Material</th><th className="n">{h.almacen === "AG22" ? "Base" : "Conteo"}</th><th className="n">SAP antes</th><th className="n">{h.almacen === "AG22" || h.almacen === "AG17" || h.almacen === "AG16" || h.almacen === "AG07" ? "Diferencia" : "311"}</th><th className="n">SAP después</th><th className="n">Queda</th><th>Estado</th></tr></thead>
