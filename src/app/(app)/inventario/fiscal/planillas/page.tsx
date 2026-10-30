@@ -137,5 +137,5 @@ export default async function PlanillasPage({ searchParams }: { searchParams: Pr
   }));
   const hoy = new Date().toLocaleDateString("es-CO", { timeZone: "America/Bogota", day: "2-digit", month: "2-digit", year: "numeric" });
   const aviso = sinConteo ? "No pude traer el conteo de alguna hoja (falta correr 2026-10-fiscal-cruce.sql / 2026-10-fiscal-TODO.sql en Supabase, o no hay permiso de «Inventario fiscal»). Esas hojas salen en blanco." : null;
-  return <Planillas fiscalId={f.id} nombre={f.nombre} fechaTexto={fechaConDia(f.fecha)} hoy={hoy} hojas={datos} todas={f.hojas.map((h) => h.numero)} soloHoja={soloHoja} aviso={aviso} />;
+  return <Planillas fiscalId={f.id} nombre={f.nombre} fecha={f.fecha} fechaTexto={fechaConDia(f.fecha)} hoy={hoy} hojas={datos} todas={f.hojas.map((h) => h.numero)} soloHoja={soloHoja} aviso={aviso} />;
 }

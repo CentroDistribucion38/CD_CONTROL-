@@ -26,8 +26,8 @@ const signo = (v: number) => (v > 0 ? "+" : v < 0 ? "−" : "") + nf.format(Math
 const cantDe = (l: Lado | null): Cant | null => (l ? { e: txt(l.estibas), s: txt(l.saldo), c: txt(l.cajas) } : null);
 const hay = (c: Cant | null | undefined) => !!c && (c.e !== "" || c.s !== "" || c.c !== "");
 
-export function Planillas({ fiscalId, nombre, fechaTexto, hoy, hojas, todas, soloHoja, aviso }: {
-  fiscalId: string; nombre: string; fechaTexto: string; hoy: string;
+export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, todas, soloHoja, aviso }: {
+  fiscalId: string; nombre: string; fecha: string; fechaTexto: string; hoy: string;
   hojas: HojaP[]; todas: number[]; soloHoja: number; aviso: string | null;
 }) {
   const clave = `planilla-ajustes-${fiscalId}`;
@@ -42,6 +42,18 @@ export function Planillas({ fiscalId, nombre, fechaTexto, hoy, hojas, todas, sol
     if (!listo) return;
     try { if (Object.keys(aj).length) localStorage.setItem(clave, JSON.stringify(aj)); else localStorage.removeItem(clave) } catch { /* igual */ }
   }, [aj, clave, listo]);
+
+  /* El nombre con que se guarda el PDF: «Inventario fiscal <mes> <año> - Hoja N - <pareja>» (el navegador usa el título de la página). */
+  useEffect(() => {
+    const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+    const [a, m] = fecha.split("-");
+    const mes = `${MESES[Number(m) - 1] ?? ""} ${a}`.trim();
+    const h = hojas.length === 1 ? hojas[0] : null;
+    const pareja = h ? [h.olNombre, h.bavNombre].filter(Boolean).join(" y ") : "";
+    const antes = document.title;
+    document.title = h ? `Inventario fiscal ${mes} - Hoja ${h.numero}${pareja ? ` - ${pareja}` : ""}` : `Inventario fiscal ${mes} - Planillas por pareja`;
+    return () => { document.title = antes };
+  }, [fecha, hojas]);
 
   const k = (h: number, i: number) => `${h}:${i}`;
   const ocup = (h: HojaP, f: FilaP, i: number) => {
