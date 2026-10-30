@@ -178,6 +178,11 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
             <Ico n="ojo" tam={16} /> Mostrar en Contar
           </button>
         ))}
+        {f.hojas.length > 0 && (
+          <Link className="btn plano" href={`/inventario/fiscal/planillas?fiscal=${f.id}`} title="Genera las planillas de conteo, una por pareja, para imprimir" aria-label="Planillas de conteo para imprimir">
+            <Ico n="impresora" tam={16} /> Planillas
+          </Link>
+        )}
         {puedeEditar && (f.estado === "abierto" || manda) && (
           <button type="button" className="btn plano" onClick={() => editar(f)}><Ico n="lapiz" tam={16} /> Editar</button>
         )}

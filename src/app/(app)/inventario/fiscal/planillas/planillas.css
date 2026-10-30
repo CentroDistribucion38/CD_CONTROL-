@@ -1,0 +1,52 @@
+/* PLANILLAS DE CONTEO DEL INVENTARIO FISCAL: carta horizontal, una por pareja. En pantalla se ven como hojas; en papel salen limpias. */
+.pl { background: #E6E3DC; padding: 14px 0 40px; min-height: 100vh; font-family: "IBM Plex Sans", "Segoe UI", Arial, sans-serif; color: #161616; -webkit-print-color-adjust: exact; print-color-adjust: exact }
+.pl-vacio { margin: 24px auto; max-width: 640px; padding: 14px 18px; background: #fff; border-left: 6px solid #FFC400 }
+.pl-barra { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; width: min(1056px, calc(100vw - 24px)); margin: 0 auto 14px; padding: 10px 16px; background: #161616; color: #fff }
+.pl-barra-t { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; font-size: 13px }
+.pl-barra-t b { font-size: 15px }
+.pl-barra-t > span { color: #cfcfcf }
+.pl-filtro { display: flex; gap: 4px; flex-wrap: wrap }
+.pl-filtro a { padding: 3px 9px; border: 1px solid #555; color: #fff; font-size: 12px; text-decoration: none }
+.pl-filtro a.on { background: #FFC400; border-color: #FFC400; color: #161616; font-weight: 700 }
+.pl-imprimir { flex: none; padding: 9px 18px; border: 0; background: #FFC400; color: #161616; font: 700 13.5px "IBM Plex Sans", Arial, sans-serif; cursor: pointer }
+.pl-imprimir:focus-visible, .pl-filtro a:focus-visible { outline: 3px solid #fff; outline-offset: 2px }
+
+.pl-pg, .pl-pg * { box-sizing: border-box }
+.pl-pg { width: 11in; height: 8.5in; margin: 0 auto 16px; padding: 26px 30px 22px; position: relative; background: #fff; overflow: hidden; box-shadow: 0 2px 14px rgba(0, 0, 0, .18); break-after: page; page-break-after: always }
+.pl-hd { display: flex; justify-content: space-between; align-items: center }
+.pl-hd img { height: 46px; width: auto }
+.pl-tit { text-align: center }
+.pl-tit b { display: block; font-size: 17px; letter-spacing: .14em }
+.pl-tit span { font-size: 10px; letter-spacing: .2em; color: #777; text-transform: uppercase }
+.pl-hoja { background: #D7141A; color: #fff; padding: 7px 18px; text-align: center }
+.pl-hoja small { display: block; font-size: 8px; letter-spacing: .2em }
+.pl-hoja b { font-size: 30px; line-height: 1 }
+.pl-regla { height: 3px; background: linear-gradient(90deg, #c9a227, #f0d36b 40%, #c9a227); margin: 8px 0 10px }
+.pl-meta { display: grid; grid-template-columns: repeat(6, 1fr); border: 1px solid #161616; margin-bottom: 8px }
+.pl-meta > div { padding: 5px 9px; border-right: 1px solid #161616; min-height: 36px }
+.pl-meta > div:last-child { border-right: 0 }
+.pl-meta small, .pl-par small { display: block; font-size: 7.5px; letter-spacing: .14em; color: #777; text-transform: uppercase }
+.pl-meta b { font-size: 12px }
+.pl-par { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 9px }
+.pl-par > div { border: 1px solid #161616; padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; min-height: 36px }
+.pl-par i { display: inline-block; width: 150px; border-bottom: 1px solid #161616; height: 14px }
+.pl-t { border-collapse: collapse; width: 100% }
+.pl-t th { background: #161616; color: #fff; font-size: 8.5px; letter-spacing: .09em; text-transform: uppercase; padding: 6px; text-align: center; border: 1px solid #161616 }
+.pl-t td { border: 1px solid #9a9a9a; height: 24.4px; font-size: 10.5px; padding: 0 6px }
+.pl-t td.m { font-weight: 800; font-size: 11.5px; text-align: center; background: #f3f3f3; width: 78px; letter-spacing: .02em; white-space: nowrap }
+.pl-pie { position: absolute; left: 30px; right: 30px; bottom: 16px; display: flex; justify-content: space-between; align-items: flex-end; color: #444 }
+.pl-firma { width: 330px; height: 62px; border: 1.2px solid #161616; padding: 5px 9px; position: relative }
+.pl-firma b { font-size: 8.5px; text-transform: uppercase; letter-spacing: .1em }
+.pl-firma small { position: absolute; left: 9px; right: 9px; bottom: 5px; font-size: 8px; color: #999; border-top: 1px dotted #999; padding-top: 2px }
+.pl-mini { font-size: 9.5px; color: #444; padding-bottom: 2px }
+
+@media print {
+  @page { size: letter landscape; margin: 0 }
+  html, body { background: #fff !important }
+  .sh-barra, .sh-lado, .sh-riel, .pl-barra { display: none !important }
+  .sh-marco, .sh-marco.anclado { display: block !important; min-height: 0 !important; grid-template-columns: 1fr !important }
+  .sh-main { padding: 0 !important; display: block !important; min-height: 0 !important }
+  .pl { padding: 0; background: #fff; min-height: 0 }
+  .pl-pg { margin: 0; box-shadow: none }
+  .pl-pg:last-of-type { break-after: auto; page-break-after: auto }
+}
