@@ -328,7 +328,8 @@ export async function guardarBalanceoAg07(fecha: string): Promise<{ error?: stri
   const [s, em, zx, pt, inv, fac, maestro] = await Promise.all([saldosA(fecha), pendientesEM(fecha), zexiAg07(fecha), partidasCarnaval(fecha), inventarioDe(fecha), factoresSku(), maestroSku()]);
   if (s.error) return { error: s.error };
   if (!zx.zexi) return { error: "Sube primero la ZEXI de AG07 de ese día: sin ella no hay balanceo que guardar." };
-  const hoja = inv.fila?.secciones ?? (await hojaBase(fecha))?.secciones ?? null;
+  const hb = inv.fila ? null : await hojaBase(fecha);
+  const hoja = inv.fila?.secciones ?? hb?.secciones ?? null;
   const f1 = cuadrePallets07(pc.productos, s.saldos, em.pendientes, zx.zexi.filas, pt.partidas);
   const f2 = hoja ? cuadreInventario07(hoja, zx.zexi.filas, fac.factores, new Map(maestro.map((m) => [m.codigo, m.descripcion])), pt.partidas) : [];
   const cero = (v: number) => Math.abs(v) < 0.5;
@@ -347,6 +348,7 @@ export async function guardarBalanceoAg07(fecha: string): Promise<{ error?: stri
     resumen: { materiales: filas.length, conSap: filas.length, conMov: true, cuadran: filas.filter((f) => cero(f.dif ?? 0)).length, balanceados: filas.length - pend.length, pendientes: pend.length,
       entran: filas.filter((f) => !cero(f.dif ?? 0) && (f.dif ?? 0) < 0).length, salen: filas.filter((f) => !cero(f.dif ?? 0) && (f.dif ?? 0) > 0).length },
     filas, aplicados: [], zexi_archivo: zx.zexi.archivo, mov_archivo: null, estibas_almacen: null, sumar_pend_baja: false,
+    ag07: { filas1: f1, filas2: f2, partidas: pt.partidas, zexi: { archivo: zx.zexi.archivo, actualizado_en: zx.zexi.actualizado_en }, hojaDe: inv.fila ? inv.fila.fecha : (hb?.fecha ?? null), hojaGuardada: !!inv.fila },
   };
   const supabase = await createClient();
   const user = await usuarioActual();

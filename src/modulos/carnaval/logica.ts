@@ -396,3 +396,9 @@ export function cuadreInventario07(secciones: SeccionHoja[], zexi: ZexiAlm[], fa
   }
   return out.sort((a, b) => (a.tipo === b.tipo ? a.codigo.localeCompare(b.codigo) : a.tipo === "ENVASE" ? -1 : 1));
 }
+
+/** AG07: la pantalla del Cuadre SAP tal como quedó al guardar el balanceo (el Histórico la muestra igual, sin lo que se haga después). */
+export type InstantaneaAg07 = {
+  filas1: FilaCuadre07[]; filas2: FilaInv07[]; partidas: Partida[];
+  zexi: { archivo: string | null; actualizado_en: string }; hojaDe: string | null; hojaGuardada: boolean;
+};

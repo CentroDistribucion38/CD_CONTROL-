@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { todas } from "@/modulos/inventario/paginas";
-import type { CascoSitio, ContextoAuto, Existente } from "./logica";
+import type { CascoSitio, ContextoAuto, Existente, InstantaneaAg07 } from "./logica";
 import { sitiosCasco } from "@/modulos/casco/datos";
 
 /** AG07 CARNAVAL · lo que se lee de Supabase (el maestro de productos, el corte, los saldos y los movimientos). */
@@ -198,7 +198,7 @@ export async function partidasCarnaval(fecha: string) {
 /** ¿Ya se guardó el balanceo de AG07 de ese día en el Histórico del Cuadre SAP? */
 export async function balanceoGuardadoAg07(fecha: string) {
   const supabase = await createClient();
-  const { data } = await supabase.from("cuadre_sap").select("cerrado_en, cerrado_nombre").eq("fecha", fecha).eq("almacen", "AG07").not("cierre", "is", null).maybeSingle();
-  const d = data as { cerrado_en: string | null; cerrado_nombre: string | null } | null;
-  return d?.cerrado_en ? { en: d.cerrado_en, nombre: d.cerrado_nombre } : null;
+  const { data } = await supabase.from("cuadre_sap").select("cerrado_en, cerrado_nombre, cierre").eq("fecha", fecha).eq("almacen", "AG07").not("cierre", "is", null).maybeSingle();
+  const d = data as { cerrado_en: string | null; cerrado_nombre: string | null; cierre: { ag07?: InstantaneaAg07 | null } | null } | null;
+  return d?.cerrado_en ? { en: d.cerrado_en, nombre: d.cerrado_nombre, snap: d.cierre?.ag07 ?? null } : null;
 }

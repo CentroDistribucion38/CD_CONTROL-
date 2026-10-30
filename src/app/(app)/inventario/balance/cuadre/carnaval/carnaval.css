@@ -193,3 +193,7 @@
 /* Botones del panel lateral: icono a la izquierda del texto, no encima */
 .cs .cv-botones .cs-bt { display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-align: center; line-height: 1.2 }
 .cs .cv-botones .cs-bt svg { flex: none; display: block }
+
+/* Histórico: el día se ve congelado, tal como se guardó */
+.cs .cv-congelado { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 0 14px; padding: 10px 14px; background: #FFF6D6; border-left: 5px solid var(--fe-acento, #FFC400); font: 500 13.5px var(--fe-texto) }
+.cs .cv-congelado .cs-bt { flex: none }

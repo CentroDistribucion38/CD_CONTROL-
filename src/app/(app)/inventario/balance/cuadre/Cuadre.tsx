@@ -63,7 +63,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
   const SALE = esAG22 ? "Bloqueado → Libre" : `${ALM} → ${OTRO}`;
   const MOV = esAG22 ? "el traslado libre ↔ bloqueado" : "el 311";
   const campoZexi = esAG22 ? "bloqueado" as const : "total" as const;
-  const urlDe = (alm: Almacen | "AG07", dia?: string | null) => `/inventario/balance/cuadre?${dia ? `fecha=${dia}&` : ""}alm=${alm}${alm === "AG07" ? "&sub=cuadre" : ""}`;
+  const urlDe = (alm: Almacen | "AG07", dia?: string | null, congelado = false) => `/inventario/balance/cuadre?${dia ? `fecha=${dia}&` : ""}alm=${alm}${alm === "AG07" ? `&sub=cuadre${congelado ? "&ver=guardado" : ""}` : ""}`;
   const [histAlm, setHistAlm] = useState<"" | Almacen | "AG07">("");
   const [pend, start] = useTransition();
   const [msg, setMsg] = useState<{ mal: boolean; t: string } | null>(null);
@@ -873,7 +873,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
           </button>
         ))}
       </div>
-      <p className="cs-nota cs-hintro">Un renglón por cada día y almacén guardado con «Guardar balanceo del día» o «Guardar hasta el paso 2». <b>Ver</b> muestra lo que se guardó; <b>Abrir y editar</b> lleva al cuadre de ese día para cambiarlo y volverlo a guardar.</p>
+      <p className="cs-nota cs-hintro">Un renglón por cada día y almacén guardado con «Guardar balanceo del día» o «Guardar hasta el paso 2». <b>Ver</b> muestra lo que se guardó; <b>Abrir y editar</b> lleva al cuadre de ese día para cambiarlo y volverlo a guardar. En AG07, <b>Abrir</b> muestra el día exactamente como se guardó y <b>Editar este día</b> lleva al cuadre de ahora.</p>
       {faltaHist ? <p className="cs-msg mal">Falta correr supabase/migraciones/2026-10-cuadre-sap-historial.sql en Supabase para guardar el histórico.</p>
         : historial.length === 0 ? <p className="cs-msg">Todavía no hay balanceos guardados. Con el botón «Guardar balanceo del día» (arriba) cada día queda aquí.</p> : (
         <div className="cs-scroll">
@@ -897,7 +897,12 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                       : <span className="cs-chip in">{r.pendientes} pendientes</span>}</td>
                     <td className="cs-hacc">
                       <button type="button" className="cs-bt alt" aria-expanded={ver} onClick={() => setAbierto(ver ? null : k)}>{ver ? "Ocultar" : "Ver"}</button>
-                      <button type="button" className="cs-bt alt" disabled={pend} onClick={() => h.fecha === fecha && h.almacen === ALM ? irA("cuadre") : start(() => router.push(urlDe(h.almacen, h.fecha)))}>{r.conMov ? "Abrir y editar" : "Abrir y validar"}</button>
+                      {h.almacen === "AG07"
+                        ? <>
+                            <button type="button" className="cs-bt alt" disabled={pend} onClick={() => h.cierre.ag07 ? start(() => router.push(urlDe("AG07", h.fecha, true))) : setAbierto(k)}>Abrir</button>
+                            <button type="button" className="cs-bt alt" disabled={pend} onClick={() => start(() => router.push(urlDe("AG07", h.fecha)))}>Editar este día</button>
+                          </>
+                        : <button type="button" className="cs-bt alt" disabled={pend} onClick={() => h.fecha === fecha && h.almacen === ALM ? irA("cuadre") : start(() => router.push(urlDe(h.almacen, h.fecha)))}>{r.conMov ? "Abrir y editar" : "Abrir y validar"}</button>}
                     </td>
                   </tr>,
                   ver && (

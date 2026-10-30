@@ -15,7 +15,7 @@ import { CuadreAg07 } from "./CuadreAg07";
  *   Inventario: la hoja de existencias del día, viva (pallets y casco se traen solos; lo demás se actualiza a mano).
  * Mismos permisos que el Cuadre SAP.
  */
-export async function Ag07({ sub, fecha: f }: { sub: "registro" | "control" | "inventario" | "cuadre"; fecha?: string }) {
+export async function Ag07({ sub, fecha: f, guardado: verGuardado = false }: { sub: "registro" | "control" | "inventario" | "cuadre"; fecha?: string; guardado?: boolean }) {
   const hoy = hoyCO();
   const fecha = /^\d{4}-\d{2}-\d{2}$/.test(f ?? "") ? f! : hoy;
   const perm = await misPermisos();
@@ -45,6 +45,9 @@ export async function Ag07({ sub, fecha: f }: { sub: "registro" | "control" | "i
       <Hojas activa={sub} />
       {error ? <p className="cv-msg mal">{error}</p>
         : sub === "inventario" && auto ? <Inventario key={`${fecha}-${inv?.fila?.actualizado_en ?? "nuevo"}`} fecha={fecha} hoy={hoy} guardado={inv?.fila ?? null} base={base} dias={dias} puedeEditar={perm.puedeEditar(RUTA_CUADRE)} maestro={maestro} ctx={auto.ctx} />
+        : sub === "cuadre" && verGuardado && gb?.snap ? <CuadreAg07 key="congelado" fecha={fecha} hoy={hoy} puedeEditar={false} congelado={{ en: gb.en, nombre: gb.nombre }} zexi={gb.snap.zexi} faltaSql={false}
+            filas={gb.snap.filas1} hojaDe={gb.snap.hojaDe} hojaGuardada={gb.snap.hojaGuardada} inventario={gb.snap.filas2}
+            guardado={{ en: gb.en, nombre: gb.nombre }} partidas={gb.snap.partidas} faltaSqlPartidas={false} codigos={[]} />
         : sub === "cuadre" ? <CuadreAg07 fecha={fecha} hoy={hoy} puedeEditar={perm.puedeEditar(RUTA_CUADRE)} zexi={zx?.zexi ? { archivo: zx.zexi.archivo, actualizado_en: zx.zexi.actualizado_en } : null} faltaSql={!!em?.faltaSql}
             filas={cuadrePallets07(pc.productos, s?.saldos ?? new Map(), em?.pendientes ?? new Map(), zx?.zexi?.filas ?? [], pt?.partidas ?? [])}
             hojaDe={inv?.fila ? inv.fila.fecha : base ? base.fecha : null} hojaGuardada={!!inv?.fila}

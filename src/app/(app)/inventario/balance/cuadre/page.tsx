@@ -13,9 +13,9 @@ export const dynamic = "force-dynamic";
  * Paso 1: el cuadre y la diferencia. Paso 2: qué mover en SAP (311). Paso 3: con la transacción
  * del 311 ya bajada de SAP, cómo quedó y si todo quedó balanceado. La cuenta: modulos/inventario/cuadre.ts.
  */
-export default async function CuadrePage({ searchParams }: { searchParams: Promise<{ fecha?: string; vista?: string; alm?: string; sub?: string }> }) {
+export default async function CuadrePage({ searchParams }: { searchParams: Promise<{ fecha?: string; vista?: string; alm?: string; sub?: string; ver?: string }> }) {
   const q = await searchParams;
-  if (q.alm === "AG07") return <Ag07 sub={q.sub === "registro" ? "registro" : q.sub === "inventario" ? "inventario" : q.sub === "cuadre" ? "cuadre" : q.sub === "control" ? "control" : "registro"} fecha={q.fecha} />;
+  if (q.alm === "AG07") return <Ag07 sub={q.sub === "registro" ? "registro" : q.sub === "inventario" ? "inventario" : q.sub === "cuadre" ? "cuadre" : q.sub === "control" ? "control" : "registro"} fecha={q.fecha} guardado={q.ver === "guardado"} />;
   const dia = /^\d{4}-\d{2}-\d{2}$/.test(q.fecha ?? "") ? q.fecha! : null;
   const almacen = q.alm === "AG22" || q.alm === "AG17" || q.alm === "AG16" ? q.alm : "AG18";
   const c = await armarCuadre(dia, almacen);

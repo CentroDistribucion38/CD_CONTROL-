@@ -88,6 +88,8 @@ export const estaBalanceada = (f: { queda: number | null; enLibre?: number | nul
 export type BalanceoGuardado = {
   resumen: ResumenBalanceo; filas: FilaGuardada[]; aplicados: Aplicado[];
   zexi_archivo: string | null; mov_archivo: string | null; estibas_almacen: number | null; sumar_pend_baja: boolean;
+  /** Solo AG07: la pantalla completa congelada al guardar. */
+  ag07?: import("@/modulos/carnaval/logica").InstantaneaAg07 | null;
 };
 export type DiaHistorial = { fecha: string; almacen: Almacen | "AG07"; cerrado_en: string | null; cerrado_nombre: string | null; cierre: BalanceoGuardado };
 /** Una línea del conteo de fábrica en estado OTROS (Andina…), con el envase al que se suma. */

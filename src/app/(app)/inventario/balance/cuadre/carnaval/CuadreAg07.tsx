@@ -18,9 +18,9 @@ const IR = (f?: string) => `/inventario/balance/cuadre?alm=AG07&sub=cuadre${f ? 
  *            en control de calidad. El 3500005 se mide solo en AG71 libre; su control-cal de AG07 no se mueve ni cuenta.
  *   PASO 2 · INVENTARIO: la hoja (estibas y cajas, pasadas a unidades con los factores del maestro) contra la ZEXI de AG07.
  */
-export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada, zexi, puedeEditar, faltaSql, partidas, faltaSqlPartidas, codigos, guardado }: {
+export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada, zexi, puedeEditar, faltaSql, partidas, faltaSqlPartidas, codigos, guardado, congelado }: {
   fecha: string; hoy: string; filas: FilaCuadre07[]; inventario: FilaInv07[]; hojaDe: string | null; hojaGuardada: boolean; zexi: { archivo: string | null; actualizado_en: string } | null; puedeEditar: boolean; faltaSql: boolean;
-  guardado: { en: string; nombre: string | null } | null; partidas: Partida[]; faltaSqlPartidas: boolean; codigos: { codigo: string; descripcion: string }[];
+  guardado: { en: string; nombre: string | null } | null; congelado?: { en: string; nombre: string | null }; partidas: Partida[]; faltaSqlPartidas: boolean; codigos: { codigo: string; descripcion: string }[];
 }) {
   const router = useRouter();
   const [pend, start] = useTransition();
@@ -147,6 +147,12 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
   const Marca = ({ ok }: { ok: boolean }) => <i className={"cv-marca-e " + (ok ? "ok" : "mal")}>{ok ? "✓" : "!"}</i>;
   return (
     <>
+      {congelado && (
+        <div className="cv-congelado" role="status">
+          <span><b>Así quedó guardado</b> el {new Date(congelado.en).toLocaleString("es-CO", { timeZone: "America/Bogota", dateStyle: "short", timeStyle: "short" })}{congelado.nombre ? ` por ${congelado.nombre}` : ""}. No incluye lo que se haya hecho después.</span>
+          <button type="button" className="cs-bt alt" onClick={() => router.push(IR(fecha))}>Editar este día (ver lo de ahora)</button>
+        </div>
+      )}
       {aviso && <p className={`cv-msg ${aviso.mal ? "mal" : ""}`} role="status">{aviso.t}</p>}
       {faltaSql && <p className="cv-msg mal">Falta correr supabase/migraciones/2026-10-carnaval-cuadre-sap.sql en Supabase: sin ella no se sabe qué pallets no tienen entrada de mercancía.</p>}
       <input ref={input} type="file" accept=".xlsx,.xlsm,.xls" hidden onChange={(e) => { void alElegir(e.target.files?.[0]); e.target.value = "" }} />
