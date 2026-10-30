@@ -34,6 +34,20 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
   const [aj, setAj] = useState<Record<string, Aj>>({});
   const [listo, setListo] = useState(false);
   const dlg = useRef<HTMLDialogElement>(null);
+  /* El nombre de la familia de cada hoja (lo escribe el fiscal en el recuadro rojo); solo vive en esta planilla. */
+  const claveNom = `planilla-familias-${fiscalId}`;
+  const [fam, setFam] = useState<Record<number, string>>({});
+  useEffect(() => {
+    try { const t = localStorage.getItem(claveNom); if (t) setFam(JSON.parse(t) as Record<number, string>) } catch { /* igual */ }
+  }, [claveNom]);
+  function nombrar(n: number, v: string) {
+    setFam((x) => {
+      const y = { ...x, [n]: v };
+      if (!v.trim()) delete y[n];
+      try { if (Object.keys(y).length) localStorage.setItem(claveNom, JSON.stringify(y)); else localStorage.removeItem(claveNom) } catch { /* igual */ }
+      return y;
+    });
+  }
   useEffect(() => {
     try { const t = localStorage.getItem(clave); if (t) setAj(JSON.parse(t) as Record<string, Aj>) } catch { /* sin almacenamiento: sigue sin guardar */ }
     setListo(true);
@@ -51,9 +65,10 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
     const h = hojas.length === 1 ? hojas[0] : null;
     const pareja = h ? [h.olNombre, h.bavNombre].filter(Boolean).join(" y ") : "";
     const antes = document.title;
-    document.title = h ? `Inventario fiscal ${mes} - Hoja ${h.numero}${pareja ? ` - ${pareja}` : ""}` : `Inventario fiscal ${mes} - Planillas por pareja`;
+    const f = h ? (fam[h.numero] ?? "").trim() : "";
+    document.title = h ? `Inventario fiscal ${mes} - ${f || `Hoja ${h.numero}`}${pareja ? ` - ${pareja}` : ""}` : `Inventario fiscal ${mes} - Planillas por pareja`;
     return () => { document.title = antes };
-  }, [fecha, hojas]);
+  }, [fecha, hojas, fam]);
 
   const k = (h: number, i: number) => `${h}:${i}`;
   const ocup = (h: HojaP, f: FilaP, i: number) => {
@@ -116,7 +131,7 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
           </div>
         </div>
       </dialog>
-      <p className="pl-ayuda">Puedes escribir sobre el módulo y sobre estibas, saldo y cajas de cada uno: la planilla rehace sola el total y la diferencia. Con <b>‹</b> o <b>›</b> pasas el conteo de un lado al otro. Los ajustes son solo de esta planilla: el conteo y el inventario real no cambian.</p>
+      <p className="pl-ayuda">Puedes escribir sobre el módulo y sobre estibas, saldo y cajas de cada uno: la planilla rehace sola el total y la diferencia. Con <b>‹</b> o <b>›</b> pasas el conteo de un lado al otro. En el recuadro rojo puedes escribir el nombre de la familia en vez del número de hoja. Los ajustes son solo de esta planilla: el conteo y el inventario real no cambian.</p>
       {aviso && <p className="pl-vacio">{aviso}</p>}
       {hojas.length === 0 && <p className="pl-vacio">Este inventario todavía no tiene hojas. Arma las parejas en el Plan fiscal.</p>}
       {hojas.flatMap((h) => Array.from({ length: h.np }, (_, p) => {
@@ -135,7 +150,12 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/marca/logo-bavaria.png" alt="Bavaria" />
               <div className="pl-tit"><b>PLANILLA DE CONTEO</b><span>Inventario fiscal</span></div>
-              <div className="pl-hoja"><small>HOJA</small><b>{h.numero}</b></div>
+              <label className={"pl-hoja" + (fam[h.numero] ? " con-nombre" : "")} title="Escribe aquí el nombre de la familia">
+                <small>{fam[h.numero] ? "FAMILIA" : "HOJA"}</small>
+                <input className="pl-fam" value={fam[h.numero] ?? ""} placeholder={String(h.numero)} maxLength={28}
+                  size={Math.max(2, Math.min(18, (fam[h.numero] ?? "").length))} aria-label={`Nombre de la familia de la hoja ${h.numero}`}
+                  onChange={(e) => nombrar(h.numero, e.target.value)} />
+              </label>
             </div>
             <div className="pl-regla" />
             <div className="pl-meta">
@@ -199,7 +219,7 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
               <div className="pl-firma"><span>Responsable OL</span></div>
               <div className="pl-firma"><span>Responsable Bavaria</span></div>
             </div>
-            <div className="pl-mini">{nombre} · Hoja {h.numero} · generada por CONTROL CD38 · {hoy}</div>
+            <div className="pl-mini">{nombre} · {fam[h.numero]?.trim() || `Hoja ${h.numero}`} · generada por CONTROL CD38 · {hoy}</div>
           </section>
         );
       }))}

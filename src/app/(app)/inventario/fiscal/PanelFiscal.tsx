@@ -413,7 +413,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
       <div className="vf-hero">
         <Anillo ok={cuenta.ok} dif={cuenta.dif} proceso={cuenta.proceso} total={total} />
         <div className="vf-hero-txt">
-          <p className="vf-hero-ojo"><Ico n="escudo" tam={15} /> Torre de control</p>
+          <p className="vf-hero-ojo"><Ico n="escudo" tam={15} /> Mesa de control</p>
           <h3>{titulo}</h3>
           <p className="vf-hero-sub">{subtitulo}</p>
           <div className="vf-kpis">
@@ -453,7 +453,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
       {error && <p className="cl-mal" role="alert">{error}</p>}
 
       <div className="vf-tabs" role="tablist" aria-label="Secciones del inventario fiscal">
-        <button type="button" role="tab" aria-selected={pestana === "torre"} className="vf-tab" onClick={() => setPestana("torre")}><Ico n="panel" tam={17} /> Torre de control</button>
+        <button type="button" role="tab" aria-selected={pestana === "torre"} className="vf-tab" onClick={() => setPestana("torre")}><Ico n="panel" tam={17} /> Mesa de control</button>
         {parejas && <button type="button" role="tab" aria-selected={pestana === "parejas"} className="vf-tab" onClick={() => setPestana("parejas")}><Ico n="parejas" tam={17} /> Parejas y hojas <span className="vf-cont">{total}</span></button>}
         <button type="button" role="tab" aria-selected={pestana === "revision"} className="vf-tab" onClick={() => setPestana("revision")}>
           <Ico n="alerta" tam={17} /> Revisión de diferencias {cuenta.dif > 0 && <span className="vf-cont rojo">{cuenta.dif}</span>}
