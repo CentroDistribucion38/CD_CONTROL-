@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /* LAS PLANILLAS, EDITABLES SOLO EN LA PLANILLA.
    El fiscal puede cambiar el módulo y las estibas, el saldo y las cajas de cada uno de la pareja; la planilla rehace sola el total de cada
@@ -33,6 +33,7 @@ export function Planillas({ fiscalId, nombre, fechaTexto, hoy, hojas, todas, sol
   const clave = `planilla-ajustes-${fiscalId}`;
   const [aj, setAj] = useState<Record<string, Aj>>({});
   const [listo, setListo] = useState(false);
+  const dlg = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     try { const t = localStorage.getItem(clave); if (t) setAj(JSON.parse(t) as Record<string, Aj>) } catch { /* sin almacenamiento: sigue sin guardar */ }
     setListo(true);
@@ -89,10 +90,20 @@ export function Planillas({ fiscalId, nombre, fechaTexto, hoy, hojas, todas, sol
           </span>
         </div>
         <div className="pl-barra-b">
-          {cambios > 0 && <button type="button" className="pl-restablecer" onClick={() => { if (window.confirm("¿Volver todo a lo que contaron? Se borran los ajustes de la planilla.")) setAj({}) }}>Quitar mis ajustes ({cambios})</button>}
+          {cambios > 0 && <button type="button" className="pl-restablecer" onClick={() => dlg.current?.showModal()}>Quitar mis ajustes ({cambios})</button>}
           <button type="button" className="pl-imprimir" onClick={() => window.print()}>Imprimir o guardar en PDF</button>
         </div>
       </div>
+      <dialog ref={dlg} className="pl-dlg" aria-label="Quitar los ajustes de la planilla">
+        <div className="pl-dlg-cab"><p>Planillas · ajustes</p><h2>Quitar mis ajustes</h2></div>
+        <div className="pl-dlg-cuerpo">
+          <p>Todo vuelve a lo que contaron los dos. Se borran los {cambios} {cambios === 1 ? "renglón ajustado" : "renglones ajustados"} de la planilla; el conteo y el inventario real no cambian.</p>
+          <div className="pl-dlg-acc">
+            <button type="button" className="pl-dlg-no" onClick={() => dlg.current?.close()}>No, dejarlos</button>
+            <button type="button" className="pl-dlg-si" onClick={() => { setAj({}); dlg.current?.close() }}>Sí, quitar mis ajustes</button>
+          </div>
+        </div>
+      </dialog>
       <p className="pl-ayuda">Puedes escribir sobre el módulo y sobre estibas, saldo y cajas de cada uno: la planilla rehace sola el total y la diferencia. Con <b>‹</b> o <b>›</b> pasas el conteo de un lado al otro. Los ajustes son solo de esta planilla: el conteo y el inventario real no cambian.</p>
       {aviso && <p className="pl-vacio">{aviso}</p>}
       {hojas.length === 0 && <p className="pl-vacio">Este inventario todavía no tiene hojas. Arma las parejas en el Plan fiscal.</p>}
