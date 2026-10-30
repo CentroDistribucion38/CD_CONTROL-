@@ -34,11 +34,14 @@
 .pl-t th { background: #161616; color: #fff; font-size: 8.5px; letter-spacing: .09em; text-transform: uppercase; padding: 6px; text-align: center; border: 1px solid #161616 }
 .pl-t td { border: 1px solid #9a9a9a; height: 24.4px; font-size: 10.5px; padding: 0 6px }
 .pl-t td.m { font-weight: 800; font-size: 11.5px; text-align: center; background: #f3f3f3; width: 78px; letter-spacing: .02em; white-space: nowrap }
-.pl-pie { position: absolute; left: 30px; right: 30px; bottom: 16px; display: flex; justify-content: space-between; align-items: flex-end; color: #444 }
-.pl-firma { width: 330px; height: 62px; border: 1.2px solid #161616; padding: 5px 9px; position: relative }
+.pl-pie { position: absolute; left: 30px; right: 30px; bottom: 24px; display: flex; justify-content: space-between; align-items: flex-end; color: #444 }
+.pl-lado { display: flex; gap: 10px; align-items: flex-end }
+.pl-campo { width: 140px; height: 62px; border: 1.2px solid #161616; padding: 5px 9px; position: relative }
+.pl-campo b { font-size: 8.5px; text-transform: uppercase; letter-spacing: .1em }
+.pl-firma { width: 300px; height: 62px; border: 1.2px solid #161616; padding: 5px 9px; position: relative }
 .pl-firma b { font-size: 8.5px; text-transform: uppercase; letter-spacing: .1em }
 .pl-firma small { position: absolute; left: 9px; right: 9px; bottom: 5px; font-size: 8px; color: #999; border-top: 1px dotted #999; padding-top: 2px }
-.pl-mini { font-size: 9.5px; color: #444; padding-bottom: 2px }
+.pl-mini { position: absolute; left: 30px; right: 30px; bottom: 8px; text-align: center; font-size: 8.5px; color: #666 }
 
 @media print {
   @page { size: letter landscape; margin: 0 }

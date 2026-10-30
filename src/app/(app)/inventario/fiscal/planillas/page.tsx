@@ -11,7 +11,8 @@ export const dynamic = "force-dynamic";
  * INVENTARIO · PLAN FISCAL · PLANILLAS DE CONTEO.
  * Una planilla por pareja (por hoja), lista para imprimir en carta horizontal: el logo de Bavaria, el inventario, la hoja,
  * la calle con sus módulos, los dos contadores y, abajo, dos cuadros LIBRES para que firmen los responsables
- * (del operador logístico y de Bavaria). Se imprime o se guarda en PDF desde el navegador.
+ * (del operador logístico y de Bavaria), con GRUPO y ÁREA ASIGN. también libres: si la hoja es de PT o de EER sale del conteo, no se escribe de antemano.
+ * Se imprime o se guarda en PDF desde el navegador.
  */
 const FILAS = 20; /* renglones por página */
 const ancho = (n: number) => String(n).padStart(2, "0");
@@ -72,7 +73,7 @@ export default async function PlanillasPage({ searchParams }: { searchParams: Pr
             <div className="pl-hd">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/marca/logo-bavaria.png" alt="Bavaria" />
-              <div className="pl-tit"><b>PLANILLA DE CONTEO</b><span>Inventario fiscal · producto terminado y envase</span></div>
+              <div className="pl-tit"><b>PLANILLA DE CONTEO</b><span>Inventario fiscal</span></div>
               <div className="pl-hoja"><small>HOJA</small><b>{h.numero}</b></div>
             </div>
             <div className="pl-regla" />
@@ -98,10 +99,16 @@ export default async function PlanillasPage({ searchParams }: { searchParams: Pr
               ))}</tbody>
             </table>
             <div className="pl-pie">
-              <div className="pl-firma"><b>Responsable OL</b><small>nombre completo y firma</small></div>
-              <div className="pl-mini">{f.nombre} · Hoja {h.numero} · generada por CONTROL CD38 · {hoy}</div>
-              <div className="pl-firma"><b>Responsable Bavaria</b><small>nombre completo y firma</small></div>
+              <div className="pl-lado">
+                <div className="pl-firma"><b>Responsable OL</b><small>nombre completo y firma</small></div>
+                <div className="pl-campo"><b>Grupo</b></div>
+              </div>
+              <div className="pl-lado">
+                <div className="pl-campo"><b>Área asign.</b></div>
+                <div className="pl-firma"><b>Responsable Bavaria</b><small>nombre completo y firma</small></div>
+              </div>
             </div>
+            <div className="pl-mini">{f.nombre} · Hoja {h.numero} · generada por CONTROL CD38 · {hoy}</div>
           </section>
         );
       }))}
