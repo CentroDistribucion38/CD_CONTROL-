@@ -157,3 +157,35 @@
 .cs .cv-ok { color: #1E6B37; font-weight: 700 }
 
 .cs .cv-tabla tr.cv-corte td { border-top: 2px solid var(--fe-tinta) }
+
+/* ===== AG07 · CUADRE SAP: panel lateral + los dos pasos (formato de los demás almacenes) ===== */
+.cs .cv-b { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: start }
+@media (max-width: 1000px) { .cs .cv-b { grid-template-columns: 1fr } }
+.cs .cv-b-lado { display: flex; flex-direction: column; gap: 14px }
+.cs .cv-card { background: var(--fe-papel, #fff) }
+.cs .cv-card h4 { margin: 0; padding: 8px 12px; background: var(--fe-tinta, #111); color: #fff; font: 700 10px var(--fe-texto); letter-spacing: .12em; text-transform: uppercase; display: flex; justify-content: space-between }
+.cs .cv-card h4 em { font-style: normal; color: #7de29b }
+.cs .cv-card-b { padding: 12px }
+.cs .cv-arch { display: block; font-size: 12.5px; word-break: break-all; margin-bottom: 10px }
+.cs .cv-botones { display: flex; flex-wrap: wrap; gap: 8px }
+.cs .cv-botones.v { flex-direction: column; align-items: stretch }
+.cs .cv-estado { padding: 11px 14px; background: #fff; border-left: 5px solid #8a8a8a; display: flex; justify-content: space-between; align-items: center; gap: 8px }
+.cs .cv-estado b { font-size: 15px }
+.cs .cv-estado span { font-size: 11px; color: #666 }
+.cs .cv-estado.ok { background: #E3F2E8; border-left-color: #1E6B37 } .cs .cv-estado.ok b { color: #1E6B37 }
+.cs .cv-estado.mal { background: #FBE9EB; border-left-color: #B3141E } .cs .cv-estado.mal b { color: #B3141E }
+.cs .cv-res > div { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #ececec; font-size: 12.5px }
+.cs .cv-res > div:last-child { border-bottom: 0 }
+.cs .cv-marca-e { font-style: normal; display: inline-block; width: 18px; height: 18px; line-height: 18px; text-align: center; font-size: 11px; font-weight: 800; color: #fff; margin-left: 6px }
+.cs .cv-marca-e.ok { background: #1E6B37 } .cs .cv-marca-e.mal { background: #B3141E }
+.cs .cv-b-tabs { display: flex; align-items: center; margin-bottom: 12px }
+.cs .cv-b-tabs button[role="tab"] { border: 1px solid var(--fe-tinta, #111); background: #fff; color: var(--fe-tinta, #111); font: 700 13px var(--fe-texto); padding: 11px 20px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px }
+.cs .cv-b-tabs button[role="tab"].on { background: var(--fe-tinta, #111); color: #fff; border-bottom: 3px solid var(--fe-acento, #FFC400) }
+.cs .cv-chip-t { font-style: normal; font-size: 11px; padding: 1px 7px; font-weight: 700 }
+.cs .cv-chip-t.ok { background: #E3F2E8; color: #1E6B37 } .cs .cv-chip-t.mal { background: #FBE9EB; color: #B3141E }
+.cs .cv-ver0 { border: 0; background: transparent; color: #555; font: 600 12px var(--fe-texto); cursor: pointer; text-decoration: underline }
+.cs .cs-t tr.cv-grp td { background: #f3f3f3; font: 700 10px var(--fe-texto); letter-spacing: .14em; text-transform: uppercase; color: #555; padding: 7px 12px }
+.cs .cv-reglas { margin-top: 16px; background: #fff; border-left: 4px solid #8a8a8a }
+.cs .cv-reglas summary { cursor: pointer; padding: 11px 16px; font-weight: 700; font-size: 12.5px; display: flex; gap: 12px; justify-content: space-between }
+.cs .cv-reglas summary span { font-weight: 400; color: #777 }
+.cs .cv-reglas p { padding: 0 16px 12px; margin: 0 }

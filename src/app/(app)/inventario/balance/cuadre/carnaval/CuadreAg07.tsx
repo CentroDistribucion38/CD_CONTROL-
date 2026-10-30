@@ -127,131 +127,195 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
   }, [difs2]);
 
   const sinFilas = filas.length === 0;
-  const balanceado = !sinFilas && filas.every((f) => Math.abs(f.dif) < 0.5 && f.movs.length === 0 && !f.sinAlcanzar && !f.bloqRestante);
+  const [tab, setTab] = useState<1 | 2>(1);
+  const [verCeros, setVerCeros] = useState(false);
+  const cuadra1 = (f: FilaCuadre07) => !!zexi && Math.abs(f.dif) < 0.5 && !f.bloqRestante && f.movs.length === 0 && !f.sinAlcanzar;
+  const pend1 = filas.filter((f) => !cuadra1(f)).length;
+  const hayHoja = !!zexi && !!hojaDe;
+  const pend2 = hayHoja ? difs2.length : 0;
+  const balanceado = !sinFilas && pend1 === 0;
+  const todoOk = !!zexi && !sinFilas && pend1 + pend2 === 0;
+  const hora = zexi ? new Date(zexi.actualizado_en).toLocaleString("es-CO", { timeZone: "America/Bogota", dateStyle: "short", timeStyle: "short" }) : "";
+  const bloqTotal = inventario.reduce((t, f) => t + f.bloqueado, 0) + filas.reduce((t, f) => t + f.bloqRestante, 0);
+  const movsPorHacer = grupos.reduce((t, [, xs]) => t + xs.length, 0) + (hayHoja ? grupos2.reduce((t, [, xs]) => t + xs.length, 0) : 0);
+  const grupoDe = (f: FilaInv07) => (f.codigo === "3500163" ? "Estiba de madera" : f.tipo === "CAJA" ? "Cajas plásticas" : "Envase");
+  const ORDEN = ["Envase", "Estiba de madera", "Cajas plásticas"];
+  const esCero2 = (f: FilaInv07) => f.unidades === 0 && f.sap === 0 && !f.bloqueado;
+  const ocultos2 = inventario.filter(esCero2).length;
+  const visibles2 = inventario.filter((f) => verCeros || !esCero2(f));
+  const IconoCaja = () => <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" aria-hidden="true"><path d="M3 8h18v12H3zM9 8V5h6v3M3 13h18" /></svg>;
+  const Marca = ({ ok }: { ok: boolean }) => <i className={"cv-marca-e " + (ok ? "ok" : "mal")}>{ok ? "✓" : "!"}</i>;
   return (
     <>
       {aviso && <p className={`cv-msg ${aviso.mal ? "mal" : ""}`} role="status">{aviso.t}</p>}
       {faltaSql && <p className="cv-msg mal">Falta correr supabase/migraciones/2026-10-carnaval-cuadre-sap.sql en Supabase: sin ella no se sabe qué pallets no tienen entrada de mercancía.</p>}
+      <input ref={input} type="file" accept=".xlsx,.xlsm,.xls" hidden onChange={(e) => { void alElegir(e.target.files?.[0]); e.target.value = "" }} />
 
-      <div className="cv-barra">
-        <label>Cuadre al día
-          <input type="date" className="cv-fecha" value={fecha} max={hoy} disabled={pend} onChange={(e) => e.target.value && router.push(IR(e.target.value))} />
-        </label>
-        <span className="grow" />
-        {zexi && puedeEditar && <button type="button" className="cs-bt alt" disabled={pend} onClick={quitar}>Quitar la ZEXI</button>}
-        {zexi && puedeEditar && <button type="button" className="cs-bt alt" disabled={pend} onClick={guardarBalanceo} title="Guarda cómo quedó el cuadre de este día en el Histórico">{guardado ? "Volver a guardar el balanceo" : "Guardar balanceo del día"}</button>}
-        {puedeEditar && <button type="button" className="cs-bt" disabled={pend} onClick={() => input.current?.click()}>{pend ? "Guardando…" : zexi ? "Subir la ZEXI nueva (confirmar)" : "Subir la ZEXI de AG07"}</button>}
-        <input ref={input} type="file" accept=".xlsx,.xlsm,.xls" hidden onChange={(e) => { void alElegir(e.target.files?.[0]); e.target.value = "" }} />
+      <div className="cv-b">
+        {/* ---------- COLUMNA IZQUIERDA: estado, ZEXI, resumen y acciones ---------- */}
+        <aside className="cv-b-lado">
+          <div className="cv-card">
+            <h4>Día del cuadre</h4>
+            <div className="cv-card-b"><input type="date" className="cv-fecha" value={fecha} max={hoy} disabled={pend} onChange={(e) => e.target.value && router.push(IR(e.target.value))} /></div>
+          </div>
+
+          <div className={"cv-estado " + (!zexi || sinFilas ? "" : todoOk ? "ok" : "mal")}>
+            <b>{!zexi ? "Sube la ZEXI de AG07" : sinFilas ? "Sin pallets en esta fecha" : todoOk ? "Todo balanceado" : `${pend1 + pend2} por balancear`}</b>
+            <span>{zexi ? `ZEXI ${hora}` : "trae AG07 y AG71"}</span>
+          </div>
+
+          <div className="cv-card">
+            <h4>ZEXI de AG07 {zexi && <em>✓ cargado</em>}</h4>
+            <div className="cv-card-b">
+              <b className="cv-arch">{zexi ? (zexi.archivo ?? "sin nombre") : "Todavía no hay ZEXI de este día"}</b>
+              <div className="cv-botones">
+                {puedeEditar && <button type="button" className="cs-bt alt" disabled={pend} onClick={() => input.current?.click()}>{pend ? "Guardando…" : zexi ? "Subir ZEXI nueva (confirmar)" : "Subir la ZEXI de AG07"}</button>}
+                {zexi && puedeEditar && <button type="button" className="cs-bt alt" disabled={pend} onClick={quitar}>Quitar</button>}
+              </div>
+            </div>
+          </div>
+
+          {zexi && (
+            <div className="cv-card">
+              <h4>Resumen</h4>
+              <div className="cv-card-b cv-res">
+                <div><span>Pallets · materiales</span><b>{filas.length - pend1} / {filas.length} <Marca ok={pend1 === 0} /></b></div>
+                <div><span>Inventario · renglones</span><b>{hayHoja ? `${inventario.length - pend2} / ${inventario.length}` : "—"} {hayHoja && <Marca ok={pend2 === 0} />}</b></div>
+                <div><span>Bloqueado en AG07</span><b>{ent.format(bloqTotal)} <Marca ok={bloqTotal < 0.5} /></b></div>
+                <div><span>Movimientos por hacer</span><b>{movsPorHacer} <Marca ok={movsPorHacer === 0} /></b></div>
+                <div><span>Partidas rápidas</span><b>{partidas.length}</b></div>
+              </div>
+            </div>
+          )}
+
+          {zexi && puedeEditar && (
+            <div className="cv-card">
+              <h4>Acciones</h4>
+              <div className="cv-card-b cv-botones v">
+                <button type="button" className="cs-bt" disabled={pend} onClick={guardarBalanceo} title="Guarda cómo quedó el cuadre de este día en el Histórico">{guardado ? "Volver a guardar el balanceo" : "Guardar balanceo del día"}</button>
+                <button type="button" className="cs-bt alt" onClick={() => abrirPartidas(tab)} title="Partidas rápidas: sumar código y cantidad al conteo o a la ZEXI"><IconoCaja /> Partidas rápidas{partidas.some((x) => x.paso === tab) ? ` · ${partidas.filter((x) => x.paso === tab).length}` : ""}</button>
+                {guardado && <small className="cv-nota" style={{ margin: 0 }}>Guardado en el Histórico el {new Date(guardado.en).toLocaleString("es-CO", { timeZone: "America/Bogota", dateStyle: "short", timeStyle: "short" })}{guardado.nombre ? ` por ${guardado.nombre}` : ""}.</small>}
+              </div>
+            </div>
+          )}
+        </aside>
+
+        {/* ---------- COLUMNA DERECHA: los dos pasos ---------- */}
+        <div className="cv-b-main">
+          <div className="cv-b-tabs" role="tablist">
+            <button type="button" role="tab" aria-selected={tab === 1} className={tab === 1 ? "on" : ""} onClick={() => setTab(1)}>Paso 1 · Pallets{zexi && !sinFilas && <i className={"cv-chip-t " + (pend1 === 0 ? "ok" : "mal")}>{pend1 === 0 ? `${filas.length} ✓` : `${pend1} !`}</i>}</button>
+            <button type="button" role="tab" aria-selected={tab === 2} className={tab === 2 ? "on" : ""} onClick={() => setTab(2)}>Paso 2 · Inventario{hayHoja && <i className={"cv-chip-t " + (pend2 === 0 ? "ok" : "mal")}>{pend2 === 0 ? `${inventario.length} ✓` : `${pend2} !`}</i>}</button>
+            <span className="grow" />
+            {tab === 2 && hayHoja && ocultos2 > 0 && (
+              <button type="button" className="cv-ver0" aria-pressed={verCeros} onClick={() => setVerCeros((v) => !v)} title="Mostrar u ocultar los renglones que están en cero">
+                {verCeros ? "Ocultar" : "Ver"} renglones en cero ({ocultos2})
+              </button>
+            )}
+          </div>
+
+          {tab === 1 && (
+            <>
+              {!zexi && <p className="cv-nota" style={{ margin: "0 0 10px" }}>Sube la ZEXI de AG07 (la que también trae AG71) para cuadrar los pallets.</p>}
+              {sinFilas ? <p className="cv-msg" style={{ borderLeftColor: "var(--fe-linea)", background: "#fff" }}>No hay pallets en Carnaval a esta fecha.</p> : (
+                <div className="cs-scroll">
+                  <table className="cs-t">
+                    <thead><tr>
+                      <th>Código</th><th>Material</th><th className="n">Conteo</th><th className="n">SAP antes</th><th className="n">Diferencia</th>
+                      <th className="n">Cambio en SAP</th><th className="n">SAP después</th><th className="n">Queda</th><th>Estado</th>
+                    </tr></thead>
+                    <tbody>
+                      {filas.map((f) => {
+                        const sapAntes = f.libre71 != null ? f.libre71 : f.calidad;
+                        const queda = f.dif < -0.5 ? -f.sinAlcanzar : 0;
+                        const cuadra = !!zexi && Math.abs(f.dif) < 0.5 && !f.bloqRestante;
+                        const rojo = !!zexi && f.libre71 != null && f.calidad > 0.5;
+                        return (
+                          <tr key={f.codigo} className={!zexi || cuadra ? "" : "pend"}>
+                            <td className="mono">{f.codigo}</td>
+                            <td>{f.descripcion}</td>
+                            <td className="n">{ent.format(f.conteo)}{(f.partidas.conteo !== 0 || f.partidas.sap !== 0) && <small className="cs-ext">partidas: {f.partidas.conteo !== 0 && `${conSigno(f.partidas.conteo)} al conteo`}{f.partidas.conteo !== 0 && f.partidas.sap !== 0 && " · "}{f.partidas.sap !== 0 && `${conSigno(f.partidas.sap)} a la ZEXI`}</small>}{f.pendientes > 0 && <small className="cs-ext" title="Pallets sin entrada de mercancía: no están en SAP y no cuentan">{nf.format(f.palletsSap)} pallets · sin EM −{nf.format(f.pendientes)}</small>}</td>
+                            <td className="n">{zexi ? ent.format(sapAntes) : "—"}<small className="cs-ext">{f.libre71 != null ? "AG71 libre" : "AG07 control-cal"}</small></td>
+                            <td className="n">{!zexi ? "—" : cuadra ? "0" : conSigno(f.dif)}</td>
+                            <td className="n">{!zexi || !f.movs.length ? "—" : f.movs.map((m) => <div key={m.titulo + m.cantidad}>{ent.format(m.cantidad)} <em>{m.titulo.replace(/^Mov /, "")}</em></div>)}</td>
+                            <td className="n">{zexi ? ent.format(f.conteo + queda) : "—"}</td>
+                            <td className="n"><b>{!zexi ? "—" : queda ? conSigno(queda) : "0"}</b></td>
+                            <td>
+                              {!zexi ? "—" : cuadra ? <span className="cs-chip ok">Balanceado</span>
+                                : f.bloqRestante > 0 && Math.abs(f.dif) < 0.5 ? <span className="cs-chip in">Quedan {ent.format(f.bloqRestante)} en bloqueado: pasarlos a libre (343)</span>
+                                : f.sinAlcanzar > 0 ? <span className="cs-chip in">Faltan {ent.format(f.sinAlcanzar)} que no hay en libre ni bloqueado</span>
+                                : <span className="cs-chip in">Falta hacer {f.movs.length > 1 ? "los movimientos" : "el movimiento"} en SAP</span>}
+                              {rojo && <div className="cv-neg" style={{ marginTop: 4 }}>AG07 control de calidad: {ent.format(f.calidad)} no se puede mover y no cuenta; esa cantidad permanece ahí.</div>}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {zexi && grupos.length > 0 && (<><h3 className="cv-sub-h">Qué hacer en SAP</h3>{renderGrupos(grupos, "p1")}</>)}
+            </>
+          )}
+
+          {tab === 2 && (
+            <>
+              {!zexi ? <p className="cv-nota">Sube la ZEXI de AG07 para compararla con la hoja de Inventario.</p>
+                : !hojaDe ? <p className="cv-msg mal">No hay una hoja de Inventario guardada para comparar. Guárdala en la pestaña Inventario.</p>
+                : (
+                  <>
+                    <p className="cv-nota" style={{ margin: "0 0 8px" }}>{hojaGuardada ? `Hoja de Inventario del ${fecha}.` : `El ${fecha} no tiene hoja guardada: se usa la del ${hojaDe}.`}</p>
+                    <div className="cs-scroll">
+                      <table className="cs-t">
+                        <thead><tr><th>Código</th><th>Material</th><th className="n">Estibas</th><th className="n">Cajas</th><th className="n">Hoja (unid.)</th><th className="n">Libre</th><th className="n">Bloqueado</th><th className="n">SAP</th><th className="n">Diferencia</th><th>Estado</th></tr></thead>
+                        <tbody>
+                          {ORDEN.flatMap((g) => {
+                            const rs = visibles2.filter((f) => grupoDe(f) === g);
+                            if (!rs.length) return [];
+                            return [
+                              <tr key={"g-" + g} className="cv-grp"><td colSpan={10}>{g}</td></tr>,
+                              ...rs.map((f) => {
+                                const cero = Math.abs(f.dif) < 0.5;
+                                return (
+                                  <tr key={f.codigo} className={cero && !f.bloqueado ? "" : "pend"}>
+                                    <td className="mono">{f.codigo}</td>
+                                    <td>{f.descripcion}{f.sinFactor && <span className="cv-neg"> · sin cajas por estiba en el maestro</span>}{f.nota && <small className="cs-ext">{f.nota}</small>}</td>
+                                    <td className="n">{f.estibas ? nf.format(f.estibas) : ""}</td>
+                                    <td className="n">{f.cajas ? nf.format(f.cajas) : ""}</td>
+                                    <td className="n"><b>{ent.format(f.unidades)}</b></td>
+                                    <td className="n">{ent.format(f.libre)}</td>
+                                    <td className="n">{f.bloqueado ? <b className="cv-neg">{ent.format(f.bloqueado)}</b> : ""}</td>
+                                    <td className="n">{ent.format(f.sap)}</td>
+                                    <td className="n">{cero ? "0" : <b>{conSigno(f.dif)}</b>}</td>
+                                    <td>{cero && !f.bloqueado ? <span className="cs-chip ok">Balanceado</span> : cero ? <span className="cs-chip in">Pasar {ent.format(f.bloqueado)} de bloqueado a libre (343)</span> : <span className="cs-chip in">{f.dif < 0 ? `Faltan ${ent.format(-f.dif)} en SAP` : `Sobran ${ent.format(f.dif)} en SAP`}</span>}</td>
+                                  </tr>
+                                );
+                              }),
+                            ];
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    {difs2.length > 0 && (<><h3 className="cv-sub-h">Qué hacer en SAP</h3>{renderGrupos(grupos2, "p2")}</>)}
+                  </>
+                )}
+            </>
+          )}
+        </div>
       </div>
 
-      {guardado && <p className="cv-nota" style={{ margin: "0 0 8px" }}>Balanceo guardado en el Histórico el {new Date(guardado.en).toLocaleString("es-CO", { timeZone: "America/Bogota", dateStyle: "short", timeStyle: "short" })}{guardado.nombre ? ` por ${guardado.nombre}` : ""}. Si cambias algo, vuelve a guardarlo.</p>}
-      {zexi && !sinFilas && (() => {
-        const p1 = filas.filter((f) => Math.abs(f.dif) >= 0.5 || f.bloqRestante > 0).length;
-        const p2 = hojaDe ? difs2.length : 0;
-        return p1 + p2 === 0
-          ? <p className="cv-msg" style={{ borderLeftColor: "#1E6B37", background: "#E7F4EC" }}><b>Todo quedó balanceado</b> con esta ZEXI: pallets e inventario.</p>
-          : <p className="cv-msg mal"><b>Falta balancear:</b> {p1} material(es) en pallets{hojaDe ? ` y ${p2} renglón(es) en inventario` : ""}. Haz los movimientos en SAP y sube la ZEXI nueva: aquí te dice si ya quedó todo en cero.</p>;
-      })()}
-
-      <h2 className="cs-h"><i>1</i> Cuadre de pallets <small className="cs-h-s">el conteo de Control contra la ZEXI de AG07 en control de calidad</small>{puedeEditar && <button type="button" className="cs-bt alt" style={{ marginLeft: 10, padding: "4px 8px" }} title="Partidas rápidas: sumar código y cantidad al conteo o a la ZEXI" aria-label="Partidas rápidas" onClick={() => abrirPartidas(1)}><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" aria-hidden="true"><path d="M3 8h18v12H3zM9 8V5h6v3M3 13h18" /></svg>{partidas.some((x) => x.paso === 1) && <b style={{ marginLeft: 4 }}>{partidas.filter((x) => x.paso === 1).length}</b>}</button>}</h2>
-      <p className="cv-nota" style={{ margin: "0 0 10px" }}>
-        {zexi ? `ZEXI: ${zexi.archivo ?? "sin nombre"} · subida ${new Date(zexi.actualizado_en).toLocaleString("es-CO", { timeZone: "America/Bogota", dateStyle: "short", timeStyle: "short" })}`
-          : "Sube la ZEXI de AG07 (la que también trae AG71) para cuadrar los pallets."}
-      </p>
-      {zexi && !sinFilas && (balanceado
-        ? <p className="cv-msg" style={{ borderLeftColor: "#1E6B37", background: "#E7F4EC" }}><b>Pallets balanceados.</b> Lo que dice SAP en esta ZEXI coincide con el conteo de Control.</p>
-        : <p className="cv-msg mal">Los pallets <b>no están balanceados</b> con esta ZEXI. Haz en SAP lo que sale abajo y luego sube la ZEXI nueva (botón «Subir la ZEXI nueva») para confirmar que quedó en cero.</p>)}
-
-      {sinFilas ? <p className="cv-msg" style={{ borderLeftColor: "var(--fe-linea)", background: "#fff" }}>No hay pallets en Carnaval a esta fecha.</p> : (
-        <div className="cs-scroll">
-          <table className="cs-t">
-            <thead><tr>
-              <th>Código</th><th>Material</th><th className="n">Conteo</th><th className="n">SAP antes</th><th className="n">Diferencia</th>
-              <th className="n">Cambio en SAP</th><th className="n">SAP después</th><th className="n">Queda</th><th>Estado</th>
-            </tr></thead>
-            <tbody>
-              {filas.map((f) => {
-                const sapAntes = f.libre71 != null ? f.libre71 : f.calidad;
-                const queda = f.dif < -0.5 ? -f.sinAlcanzar : 0;
-                const cuadra = !!zexi && Math.abs(f.dif) < 0.5 && !f.bloqRestante;
-                const rojo = !!zexi && f.libre71 != null && f.calidad > 0.5;
-                return (
-                  <tr key={f.codigo} className={!zexi || cuadra ? "" : "pend"}>
-                    <td className="mono">{f.codigo}</td>
-                    <td>{f.descripcion}</td>
-                    <td className="n">{ent.format(f.conteo)}{(f.partidas.conteo !== 0 || f.partidas.sap !== 0) && <small className="cs-ext">partidas: {f.partidas.conteo !== 0 && `${conSigno(f.partidas.conteo)} al conteo`}{f.partidas.conteo !== 0 && f.partidas.sap !== 0 && " · "}{f.partidas.sap !== 0 && `${conSigno(f.partidas.sap)} a la ZEXI`}</small>}{f.pendientes > 0 && <small className="cs-ext" title="Pallets sin entrada de mercancía: no están en SAP y no cuentan">{nf.format(f.palletsSap)} pallets · sin EM −{nf.format(f.pendientes)}</small>}</td>
-                    <td className="n">{zexi ? ent.format(sapAntes) : "—"}<small className="cs-ext">{f.libre71 != null ? "AG71 libre" : "AG07 control-cal"}</small></td>
-                    <td className="n">{!zexi ? "—" : cuadra ? "0" : conSigno(f.dif)}</td>
-                    <td className="n">{!zexi || !f.movs.length ? "—" : f.movs.map((m) => <div key={m.titulo + m.cantidad}>{ent.format(m.cantidad)} <em>{m.titulo.replace(/^Mov /, "")}</em></div>)}</td>
-                    <td className="n">{zexi ? ent.format(f.conteo + queda) : "—"}</td>
-                    <td className="n"><b>{!zexi ? "—" : queda ? conSigno(queda) : "0"}</b></td>
-                    <td>
-                      {!zexi ? "—" : cuadra ? <span className="cs-chip ok">Balanceado</span>
-                        : f.bloqRestante > 0 && Math.abs(f.dif) < 0.5 ? <span className="cs-chip in">Quedan {ent.format(f.bloqRestante)} en bloqueado: pasarlos a libre (343)</span>
-                        : f.sinAlcanzar > 0 ? <span className="cs-chip in">Faltan {ent.format(f.sinAlcanzar)} que no hay en libre ni bloqueado</span>
-                        : <span className="cs-chip in">Falta hacer {f.movs.length > 1 ? "los movimientos" : "el movimiento"} en SAP</span>}
-                      {rojo && <div className="cv-neg" style={{ marginTop: 4 }}>AG07 control de calidad: {ent.format(f.calidad)} no se puede mover y no cuenta; esa cantidad permanece ahí.</div>}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-      <p className="cv-nota">
-        Conteo = pallets de Control sin los que no tienen entrada de mercancía, por las unidades de cada pallet. La diferencia es lo de SAP menos el conteo: el 3500005 se mide solo en el AG71 libre
-        (lo que tenga el AG07 en control-cal no se mira ni se mueve: se ve en rojo y permanece). Una diferencia que coincide con los pallets «sin EM» se arregla sola
-        cuando Peldar registre su entrada de mercancía.
-      </p>
-
-      {zexi && grupos.length > 0 && (
-        <>
-          <h3 className="cv-sub-h">Qué hacer en SAP</h3>
-          {renderGrupos(grupos, "p1")}
-        </>
-      )}
-
-      <h2 className="cs-h" style={{ marginTop: 22 }}><i>2</i> Inventario contra la ZEXI de AG07 <small className="cs-h-s">cajas, estibas y lo demás de la hoja</small>{puedeEditar && <button type="button" className="cs-bt alt" style={{ marginLeft: 10, padding: "4px 8px" }} title="Partidas rápidas: sumar código y cantidad al conteo o a la ZEXI" aria-label="Partidas rápidas" onClick={() => abrirPartidas(2)}><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" aria-hidden="true"><path d="M3 8h18v12H3zM9 8V5h6v3M3 13h18" /></svg>{partidas.some((x) => x.paso === 2) && <b style={{ marginLeft: 4 }}>{partidas.filter((x) => x.paso === 2).length}</b>}</button>}</h2>
-      {!zexi ? <p className="cv-nota">Sube la ZEXI de AG07 para compararla con la hoja de Inventario.</p>
-        : !hojaDe ? <p className="cv-msg mal">No hay una hoja de Inventario guardada para comparar. Guárdala en la pestaña Inventario.</p>
-        : (
-          <>
-            <p className="cv-nota" style={{ margin: "0 0 10px" }}>
-              {hojaGuardada ? `Hoja de Inventario del ${fecha}.` : `El ${fecha} no tiene hoja guardada: se usa la del ${hojaDe}.`} Estibas y cajas pasan a unidades con los factores del maestro (unidades por caja, cajas por estiba).
-              Entra toda la hoja menos PALLET (ya se cuadró en el paso 1), y los dos casco de vidrio solo suman sus cajas y sus estibas (no el envase), y se compara contra la libre utilización de AG07 en la ZEXI (el control de calidad ya quedó en el paso 1). En AG07 nada debe quedar en bloqueado: todo el bloqueado pasa a libre con el 343.
-            </p>
-            {difs2.length === 0
-              ? <p className="cv-msg" style={{ borderLeftColor: "#1E6B37", background: "#E7F4EC" }}><b>Inventario balanceado.</b> Todo lo de la hoja (envase y cajas) coincide con la ZEXI.</p>
-              : <p className="cv-msg mal">Hay <b>{difs2.length}</b> renglón(es) del inventario que no cuadran con la ZEXI. Haz en SAP lo que sale abajo y sube la ZEXI nueva para confirmar.</p>}
-            <div className="cs-scroll">
-              <table className="cs-t">
-                <thead><tr><th>Código</th><th>Material</th><th className="n">Estibas</th><th className="n">Cajas</th><th className="n">Hoja (unid.)</th><th className="n">Libre</th><th className="n">Bloqueado</th><th className="n">SAP</th><th className="n">Diferencia</th><th>Estado</th></tr></thead>
-                <tbody>
-                  {inventario.map((f, i) => {
-                    const cero = Math.abs(f.dif) < 0.5;
-                    return (
-                      <tr key={f.codigo} className={(cero && !f.bloqueado ? "" : "pend ") + (i > 0 && inventario[i - 1].tipo !== f.tipo ? "cv-corte" : "")}>
-                        <td className="mono">{f.codigo}</td>
-                        <td>{f.descripcion}{f.tipo === "CAJA" && <span className="cv-tag" style={{ marginLeft: 6 }}>Caja</span>}{f.sinFactor && <span className="cv-neg"> · sin cajas por estiba en el maestro</span>}{f.nota && <small className="cs-ext">{f.nota}</small>}</td>
-                        <td className="n">{f.estibas ? nf.format(f.estibas) : ""}</td>
-                        <td className="n">{f.cajas ? nf.format(f.cajas) : ""}</td>
-                        <td className="n"><b>{ent.format(f.unidades)}</b></td>
-                        <td className="n">{ent.format(f.libre)}</td>
-                        <td className="n">{f.bloqueado ? <b className="cv-neg">{ent.format(f.bloqueado)}</b> : ""}</td>
-                        <td className="n">{ent.format(f.sap)}</td>
-                        <td className="n">{cero ? "0" : <b>{conSigno(f.dif)}</b>}</td>
-                        <td>{cero && !f.bloqueado ? <span className="cs-chip ok">Balanceado</span> : cero ? <span className="cs-chip in">Pasar {ent.format(f.bloqueado)} de bloqueado a libre (343)</span> : <span className="cs-chip in">{f.dif < 0 ? `Faltan ${ent.format(-f.dif)} en SAP` : `Sobran ${ent.format(f.dif)} en SAP`}</span>}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            {difs2.length > 0 && (<><h3 className="cv-sub-h">Qué hacer en SAP</h3>{renderGrupos(grupos2, "p2")}</>)}
-            <p className="cv-nota">Diferencia = SAP − hoja. Positiva: SAP tiene más de lo contado; negativa: SAP tiene menos. Lo que falta en SAP entra a AG07 desde AG22 y lo que sobra sale hacia AG22, ambos con el 311. Solo la sección PALLET queda fuera (paso 1).</p>
-          </>
-        )}
+      {/* LAS REGLAS: cerradas, al final */}
+      <details className="cv-reglas">
+        <summary>Reglas y avisos <span>cómo se arma el conteo · qué entra y qué no · el bloqueado pasa a libre con el 343</span></summary>
+        <p className="cv-nota">
+          <b>Paso 1.</b> Conteo = pallets de Control sin los que no tienen entrada de mercancía, por las unidades de cada pallet. La diferencia es lo de SAP menos el conteo: el 3500005 se mide solo en el AG71 libre
+          (lo que tenga el AG07 en control-cal no se mira ni se mueve: se ve en rojo y permanece). Una diferencia que coincide con los pallets «sin EM» se arregla sola cuando Peldar registre su entrada de mercancía.
+        </p>
+        <p className="cv-nota">
+          <b>Paso 2.</b> Estibas y cajas pasan a unidades con los factores del maestro (unidades por caja, cajas por estiba). Entra toda la hoja menos PALLET (ya se cuadró en el paso 1); los dos casco de vidrio solo suman sus cajas y sus estibas (no el envase).
+          Se compara contra la libre utilización de AG07 en la ZEXI (el control de calidad ya quedó en el paso 1). En AG07 nada debe quedar en bloqueado: todo el bloqueado pasa a libre con el 343.
+          Diferencia = SAP − hoja: lo que falta en SAP entra a AG07 desde AG22 y lo que sobra sale hacia AG22, ambos con el 311.
+        </p>
+      </details>
 
       {/* CAJA DE HERRAMIENTAS · partidas rápidas */}
       <dialog ref={dlg} className="cv-dlg" style={{ width: "min(860px, calc(100vw - 24px))" }} aria-label="Partidas rápidas">
