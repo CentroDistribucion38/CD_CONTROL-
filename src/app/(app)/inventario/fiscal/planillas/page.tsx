@@ -115,12 +115,19 @@ export default async function PlanillasPage({ searchParams }: { searchParams: Pr
       if (bd.error) sinConteo = true; else filas = armarFilas((bd.data ?? []) as Linea[]);
     } else sinConteo = true;
     const conConteo = filas.length > 0;
+    /* PT o EER sale de lo contado: si todo es producto es PT, si todo es envase es EER, si hay de los dos, los dos. Sin conteo, queda libre. */
+    let grupo = "";
+    if (conConteo) {
+      const tp = await supabase.from("productos").select("sku,tipo_material").in("sku", [...new Set(filas.map((x) => x.sku))]);
+      const tipos = new Set((tp.data ?? []).map((x) => (x.tipo_material === "ENVASE" ? "EER" : "PT")));
+      grupo = tp.error || tipos.size === 0 ? "" : [...tipos].sort().reverse().join(" + ");
+    }
     const blancos = conConteo || !h.calle ? [] : modulosDe(h.calle);
     const total = conConteo ? filas.length : blancos.length;
     const numerados = h.calle ? (MODULOS_DE_LA_HOJA[h.calle] ?? []).filter((m) => /^\d/.test(m)) : [];
     const lim = numerados.length > 1 ? [numerados[0], numerados[numerados.length - 1]] : null;
     return {
-      numero: h.numero, calle: h.calle ?? "",
+      numero: h.numero, calle: h.calle ?? "", grupo,
       olNombre: h.ol ? (nombre.get(h.ol) ?? "—") : "", bavNombre: h.bavaria ? (nombre.get(h.bavaria) ?? "—") : "",
       sentidoOl: lim ? `${lim[0]} → ${lim[1]}` : "", sentidoBav: lim ? `${lim[1]} → ${lim[0]}` : "",
       filas: filas.map((x) => ({ modulo: x.modulo, sku: x.sku, material: x.material, udsCaja: x.udsCaja, detalle: x.detalle,

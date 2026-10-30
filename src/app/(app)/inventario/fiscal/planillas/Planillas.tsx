@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from "react";
 export type Lado = { estibas: number; saldo: number; cajas: number };
 export type FilaP = { modulo: string; sku: string; material: string; udsCaja: number | null; detalle: string; ol: Lado | null; bav: Lado | null };
 export type HojaP = {
-  numero: number; calle: string; olNombre: string; bavNombre: string; sentidoOl: string; sentidoBav: string;
+  numero: number; calle: string; grupo: string; olNombre: string; bavNombre: string; sentidoOl: string; sentidoBav: string;
   filas: FilaP[]; blancos: string[]; conConteo: boolean; np: number;
 };
 type Campo = "e" | "s" | "c";
@@ -129,8 +129,7 @@ export function Planillas({ fiscalId, nombre, fechaTexto, hoy, hojas, todas, sol
             <div className="pl-meta">
               <div><small>Inventario</small><b>{nombre}</b></div>
               <div><small>Fecha</small><b>{fechaTexto}</b></div>
-              <div><small>Inicio</small><b className="blanco" /></div>
-              <div><small>Final</small><b className="blanco" /></div>
+              <div><small>Grupo</small><b>{h.grupo}</b></div>
               <div><small>Calle</small><b>{h.calle ? `Calle ${h.calle}` : ""}</b></div>
               <div><small>Página</small><b>{p + 1} de {h.np}</b></div>
             </div>
@@ -185,14 +184,8 @@ export function Planillas({ fiscalId, nombre, fechaTexto, hoy, hojas, todas, sol
               </div>
             )}
             <div className="pl-pie">
-              <div className="pl-lado">
-                <div className="pl-firma"><b>Responsable OL</b><small>nombre completo y firma</small></div>
-                <div className="pl-campo"><b>Grupo</b></div>
-              </div>
-              <div className="pl-lado">
-                <div className="pl-campo"><b>Área asign.</b></div>
-                <div className="pl-firma"><b>Responsable Bavaria</b><small>nombre completo y firma</small></div>
-              </div>
+              <div className="pl-firma"><span>Responsable OL</span></div>
+              <div className="pl-firma"><span>Responsable Bavaria</span></div>
             </div>
             <div className="pl-mini">{nombre} · Hoja {h.numero} · generada por CONTROL CD38 · {hoy}</div>
           </section>
