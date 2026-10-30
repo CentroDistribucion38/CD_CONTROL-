@@ -29,10 +29,12 @@ begin
     select distinct c0.ubicacion_id as uid from public.inv_fiscal_conteos c0 where c0.hoja_id = p_hoja
   ), base as materialized (
     select ub.uid,
-           (exists (select 1 from public.inv_fiscal_hojas h
-                      join public.conteo_lineas cl on cl.conteo_id = h.conteo_id and cl.ubicacion_id = ub.uid
-                     where h.id = p_hoja)
-            or public.inv_fiscal_modulo_resuelto(p_hoja, ub.uid)) as ok
+           /* CASE y no «or»: si el módulo ya bajó a La base NO se calcula si «difiere» (la cuenta pesada). */
+           (case when exists (select 1 from public.inv_fiscal_hojas h
+                                join public.conteo_lineas cl on cl.conteo_id = h.conteo_id and cl.ubicacion_id = ub.uid
+                               where h.id = p_hoja)
+                 then true
+                 else public.inv_fiscal_modulo_resuelto(p_hoja, ub.uid) end) as ok
       from ubi ub
   ), foto as materialized (
     select distinct on (f.conteo_id) f.conteo_id as cid, f.ruta as ruta_f

@@ -35,6 +35,18 @@ const FILTROS: [FiltroBd, string][] = [
 const signo = (v: number) => (v === 0 ? "0" : (v > 0 ? "+" : "") + NF.format(v));
 
 const cacheBd = new Map<string, RenglonBd[]>();
+const cuandoBd = new Map<string, number>();
+const FRESCO_MS = 45_000;
+
+/** Lee la BD de una hoja en segundo plano y la deja guardada: al abrir la pestaña ya está lista. */
+export async function precargarBd(hojaId: string): Promise<void> {
+  const t = cuandoBd.get(hojaId);
+  if (t && Date.now() - t < FRESCO_MS) return;
+  const { data, error } = await createClient().rpc("inv_fiscal_bd_hoja", { p_hoja: hojaId });
+  if (error) return;
+  cacheBd.set(hojaId, ((data ?? []) as RenglonBdBD[]).map(renglonDesdeBD));
+  cuandoBd.set(hojaId, Date.now());
+}
 
 export function BdFiscal({ fiscalId, cerradas, nombre, fecha, hojas, revs, puedeEditar, compensar, onCompensar, onCambio, actualizado, quien }: {
   /** Fiscal al que pertenecen las hojas, y qué hojas ya están cerradas (número → cuándo). */
@@ -50,6 +62,7 @@ export function BdFiscal({ fiscalId, cerradas, nombre, fecha, hojas, revs, puede
   /* Lo último que se leyó de cada hoja se guarda: al volver a la BD se ve AL INSTANTE y se actualiza detrás. */
   const [raw, setRaw] = useState<RenglonBd[]>(() => (hoja?.id ? cacheBd.get(hoja.id) ?? [] : []));
   const [cargando, setCargando] = useState(false);
+  const [ms, setMs] = useState<number | null>(null);
   const [mal, setMal] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
@@ -72,7 +85,14 @@ export function BdFiscal({ fiscalId, cerradas, nombre, fecha, hojas, revs, puede
     const guardado = hoja.id ? cacheBd.get(hoja.id) : undefined;
     if (guardado) setRaw(guardado);
     setCargando(!guardado);
-    void leer(hoja).then((r) => { if (vivo) { if (r) { setRaw(r); setMal(null); if (hoja.id) cacheBd.set(hoja.id, r) } setCargando(false) } });
+    /* Lo leído hace menos de 45 s no se vuelve a pedir: el panel refresca cada 15 s y releer la hoja cada vez era lo que pesaba. */
+    if (guardado && hoja.id && Date.now() - (cuandoBd.get(hoja.id) ?? 0) < FRESCO_MS) { setCargando(false); return () => { vivo = false } }
+    const t0 = performance.now();
+    void leer(hoja).then((r) => {
+      if (!vivo) return;
+      if (r) { setRaw(r); setMal(null); setMs(Math.round(performance.now() - t0)); if (hoja.id) { cacheBd.set(hoja.id, r); cuandoBd.set(hoja.id, Date.now()) } }
+      setCargando(false);
+    });
     return () => { vivo = false };
   }, [hoja?.id, actualizado, leer]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -118,7 +138,7 @@ export function BdFiscal({ fiscalId, cerradas, nombre, fecha, hojas, revs, puede
     if (error) { setMal(traducirError(error.message)); return }
     setOk(listo);
     await onCambio();
-    const r = await leer(hoja); if (r) { setRaw(r); if (hoja.id) cacheBd.set(hoja.id, r) }
+    const r = await leer(hoja); if (r) { setRaw(r); if (hoja.id) { cacheBd.set(hoja.id, r); cuandoBd.set(hoja.id, Date.now()) } }
   }
   const validar = (m: Modulo) => accion("inv_fiscal_validar", [m.ubicacionId], { p_nota: null }, `${m.clave} enviado a validar. Las dos personas lo ven en Contar.`);
   const aprobar = (m: Modulo, con: "OL" | "BAVARIA" | null) => accion("inv_fiscal_aprobar", [m.ubicacionId],
@@ -243,6 +263,7 @@ export function BdFiscal({ fiscalId, cerradas, nombre, fecha, hojas, revs, puede
           )}
           <button type="button" className="btn plano" disabled={armando !== null || cargando} onClick={() => excel("hoja")}>{armando === "hoja" ? "Armando…" : "Excel de esta hoja"}</button>
           <button type="button" className="btn plano" disabled={armando !== null || cargando} onClick={() => excel("todas")}>{armando === "todas" ? "Armando…" : "Excel de todas las hojas"}</button>
+          {ms != null && <small style={{ color: "#6b6b6b", alignSelf: "center" }} title="Lo que tardó la base en entregar esta hoja">Leída en {(ms / 1000).toLocaleString("es-CO", { maximumFractionDigits: 1 })} s</small>}
         </span>
       </div>
 

@@ -405,6 +405,7 @@ self.addEventListener("fetch", (evento) => {
   const p = url.pathname;
   if (p === "/__sw/estado") { evento.respondWith(estado(url)); return }
   if (p.startsWith("/api/") || p.startsWith("/auth") || p === "/sw.js" || p === "/manifest.webmanifest") return;
+  if (p.startsWith("/interno")) return;   // pantalla privada del dueño: nunca se guarda copia en el equipo
 
   if (p.startsWith("/_next/image")) { evento.respondWith(guardadoYRefresca(evento)); return }
   if (p.startsWith("/_next/static/") || p.startsWith("/icons/") || p.startsWith("/marca/") || /\.(?:png|jpe?g|svg|gif|webp|ico|woff2?)$/i.test(p)) {

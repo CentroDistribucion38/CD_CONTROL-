@@ -10,7 +10,7 @@ import {
 } from "@/modulos/inventario/fiscal-cruce";
 import type { HojaForm } from "@/modulos/inventario/fiscal";
 import { ValidarHoja, moduloDe, type ConsolidadoBD, type RevisionBD } from "./ValidarHoja";
-import { BdFiscal, type HojaBd } from "./BdFiscal";
+import { BdFiscal, precargarBd, type HojaBd } from "./BdFiscal";
 
 /* ===================================================================
    EL INVENTARIO FISCAL, TODO EN UN SOLO LUGAR · TORRE DE CONTROL
@@ -131,29 +131,42 @@ function useTorre(fiscalId: string, avanceInicial: Record<number, AvanceHoja>, a
     for (const a of mias) av[a.numero] = avanceDesdeBD(a);
     setAvance(av);
     setHojaIds(Object.fromEntries(mias.map((a) => [a.numero, a.hoja_id])));
-    const rv = await sb.rpc("inv_fiscal_revisiones", { p_fiscal: fiscalId });
+    /* TODO EN PARALELO: antes cada consulta esperaba a la anterior (ocho viajes seguidos cada 15 s). */
+    const listas = mias.filter((a) => puedeCruzar(av[a.numero]) || unaSolaTermino(av[a.numero]));
+    const [rv, cs, res, fs, rp, ce] = await Promise.all([
+      sb.rpc("inv_fiscal_revisiones", { p_fiscal: fiscalId }),
+      sb.rpc("inv_fiscal_consolidados", { p_fiscal: fiscalId }),
+      Promise.all(listas.map(async (a): Promise<[number, Resultado]> => {
+        const r = await sb.rpc("inv_fiscal_cruce", { p_hoja: a.hoja_id });
+        if (r.error) return [a.numero, { error: traducirError(r.error.message) }];
+        return [a.numero, { filas: ordenarCruce(cruceModulo(((r.data ?? []) as FilaCruceBD[]).map(filaDesdeBD))) }];
+      })),
+      Promise.all(listas.map(async (a): Promise<[number, FotoCruce[]]> => {
+        const r = await sb.rpc("inv_fiscal_fotos_hoja", { p_hoja: a.hoja_id });
+        return [a.numero, r.error ? [] : ((r.data ?? []) as FotoCruce[])];
+      })),
+      sb.rpc("inv_fiscal_reaperturas", { p_fiscal: fiscalId }),
+      sb.rpc("inv_fiscal_hojas_cerradas", { p_fiscal: fiscalId }),
+    ]);
     if (rv.error) { setConValidar(false); setRevs([]) }
     else { setConValidar(true); setRevs((rv.data ?? []) as RevisionBD[]) }
-    const cs = await sb.rpc("inv_fiscal_consolidados", { p_fiscal: fiscalId });
     setConsolidados(cs.error ? {} : Object.fromEntries(((cs.data ?? []) as ConsolidadoBD[]).map((c) => [c.numero, c])));
-    const listas = mias.filter((a) => puedeCruzar(av[a.numero]) || unaSolaTermino(av[a.numero]));
-    const res = await Promise.all(listas.map(async (a): Promise<[number, Resultado]> => {
-      const r = await sb.rpc("inv_fiscal_cruce", { p_hoja: a.hoja_id });
-      if (r.error) return [a.numero, { error: traducirError(r.error.message) }];
-      return [a.numero, { filas: ordenarCruce(cruceModulo(((r.data ?? []) as FilaCruceBD[]).map(filaDesdeBD))) }];
-    }));
     setCruces(Object.fromEntries(res));
-    const fs = await Promise.all(listas.map(async (a): Promise<[number, FotoCruce[]]> => {
-      const r = await sb.rpc("inv_fiscal_fotos_hoja", { p_hoja: a.hoja_id });
-      return [a.numero, r.error ? [] : ((r.data ?? []) as FotoCruce[])];
-    }));
     setFotos(Object.fromEntries(fs));
-    const rp = await sb.rpc("inv_fiscal_reaperturas", { p_fiscal: fiscalId });
     setReaps(rp.error ? [] : ((rp.data ?? []) as ReaperturaBD[]));
-    const ce = await sb.rpc("inv_fiscal_hojas_cerradas", { p_fiscal: fiscalId });
     setCerradas(ce.error ? {} : Object.fromEntries(((ce.data ?? []) as { numero: number; cerrada_en: string }[]).map((c) => [c.numero, c.cerrada_en])));
     setHora(new Date());
   }, [fiscalId]);
+
+  /* La BD de cada hoja se lee en segundo plano apenas se conocen las hojas: al abrir la pestaña BD ya está lista. */
+  useEffect(() => {
+    if (!activo) return;
+    const ids = Object.values(hojaIds);
+    if (!ids.length) return;
+    let vivo = true;
+    void (async () => { for (const id of ids) { if (!vivo) return; try { await precargarBd(id) } catch { /* mudo */ } } })();
+    return () => { vivo = false };
+  }, [activo, hojaIds]);
 
   useEffect(() => {
     if (!activo) return;
