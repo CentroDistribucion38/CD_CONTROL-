@@ -34,6 +34,8 @@ const FILTROS: [FiltroBd, string][] = [
 ];
 const signo = (v: number) => (v === 0 ? "0" : (v > 0 ? "+" : "") + NF.format(v));
 
+const cacheBd = new Map<string, RenglonBd[]>();
+
 export function BdFiscal({ fiscalId, cerradas, nombre, fecha, hojas, revs, puedeEditar, compensar, onCompensar, onCambio, actualizado, quien }: {
   /** Fiscal al que pertenecen las hojas, y qué hojas ya están cerradas (número → cuándo). */
   fiscalId: string; cerradas: Record<number, string>;
@@ -45,7 +47,8 @@ export function BdFiscal({ fiscalId, cerradas, nombre, fecha, hojas, revs, puede
   const conId = hojas.filter((h) => !!h.id);
   const [num, setNum] = useState<number | null>(null);
   const hoja = conId.find((h) => h.numero === num) ?? conId[0] ?? null;
-  const [raw, setRaw] = useState<RenglonBd[]>([]);
+  /* Lo último que se leyó de cada hoja se guarda: al volver a la BD se ve AL INSTANTE y se actualiza detrás. */
+  const [raw, setRaw] = useState<RenglonBd[]>(() => (hoja?.id ? cacheBd.get(hoja.id) ?? [] : []));
   const [cargando, setCargando] = useState(false);
   const [mal, setMal] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
@@ -66,8 +69,10 @@ export function BdFiscal({ fiscalId, cerradas, nombre, fecha, hojas, revs, puede
   useEffect(() => {
     if (!hoja) return;
     let vivo = true;
-    setCargando(true);
-    void leer(hoja).then((r) => { if (vivo) { if (r) { setRaw(r); setMal(null) } setCargando(false) } });
+    const guardado = hoja.id ? cacheBd.get(hoja.id) : undefined;
+    if (guardado) setRaw(guardado);
+    setCargando(!guardado);
+    void leer(hoja).then((r) => { if (vivo) { if (r) { setRaw(r); setMal(null); if (hoja.id) cacheBd.set(hoja.id, r) } setCargando(false) } });
     return () => { vivo = false };
   }, [hoja?.id, actualizado, leer]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -113,7 +118,7 @@ export function BdFiscal({ fiscalId, cerradas, nombre, fecha, hojas, revs, puede
     if (error) { setMal(traducirError(error.message)); return }
     setOk(listo);
     await onCambio();
-    const r = await leer(hoja); if (r) setRaw(r);
+    const r = await leer(hoja); if (r) { setRaw(r); if (hoja.id) cacheBd.set(hoja.id, r) }
   }
   const validar = (m: Modulo) => accion("inv_fiscal_validar", [m.ubicacionId], { p_nota: null }, `${m.clave} enviado a validar. Las dos personas lo ven en Contar.`);
   const aprobar = (m: Modulo, con: "OL" | "BAVARIA" | null) => accion("inv_fiscal_aprobar", [m.ubicacionId],
