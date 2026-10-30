@@ -2,7 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { MODULOS_DE_LA_HOJA } from "@/modulos/inventario/modulos-hoja";
 import { fechaConDia } from "@/modulos/inventario/fiscal";
-import { textoVenc } from "@/modulos/inventario/fiscal-cruce";
+import { compensarCruce, moduloDeUbicacion, type FilaCruce } from "@/modulos/inventario/fiscal-cruce";
 import { cargarFiscales } from "../datos";
 import { BarraPlanillas } from "./BarraPlanillas";
 import "./planillas.css";
@@ -25,29 +25,37 @@ type Linea = {
   venc_dia: number | null; venc_mes: number | null; venc_anio: number | null; estado_envase?: string | null; averia?: boolean | null; pnc?: boolean | null;
 };
 type Lado = { estibas: number; saldo: number; cajas: number; total: number };
-type Fila = { modulo: string; sku: string; material: string; udsCaja: number | null; detalle: string; ol: Lado | null; bav: Lado | null };
+type Fila = { modulo: string; sku: string; material: string; udsCaja: number | null; detalle: string; ol: Lado | null; bav: Lado | null; compensada?: boolean };
 
 const vacio = (): Lado => ({ estibas: 0, saldo: 0, cajas: 0, total: 0 });
 
-/** Junta lo que contó cada equipo: mismo sitio, material, vencimiento y estado = un renglón de la planilla. */
+/** Junta lo que contó cada equipo igual que el cruce del Control fiscal: por MÓDULO (sin lado), material y estado; el vencimiento NO cuenta
+ *  (importan el SKU y la cantidad). Después marca lo que se compensa (mismas cajas de más y de menos) para que se lea igual que allá. */
 function armarFilas(lineas: Linea[]): Fila[] {
   const m = new Map<string, Fila>();
   for (const l of lineas) {
-    const k = [l.ubicacion, l.sku, l.venc_dia ?? 0, l.venc_mes ?? 0, l.venc_anio ?? 0, l.estado_envase ?? "", l.averia ? 1 : 0, l.pnc ? 1 : 0].join("|");
+    const mod = moduloDeUbicacion(l.ubicacion);
+    const k = [mod, l.sku, l.estado_envase ?? "", l.averia ? 1 : 0, l.pnc ? 1 : 0].join("|");
     let f = m.get(k);
     if (!f) {
       const partes: string[] = [];
-      if (l.venc_anio != null || l.venc_mes != null || l.venc_dia != null) partes.push("vence " + textoVenc(l.venc_dia, l.venc_mes, l.venc_anio));
       if (l.estado_envase) partes.push(l.estado_envase);
       if (l.averia) partes.push("AVERÍA");
       if (l.pnc) partes.push("PNC");
-      f = { modulo: l.ubicacion.replace(/_/g, " "), sku: l.sku, material: l.material, udsCaja: l.cajas_por_estiba || null, detalle: partes.join(" · "), ol: null, bav: null };
+      f = { modulo: mod.replace(/_/g, " "), sku: l.sku, material: l.material, udsCaja: l.cajas_por_estiba || null, detalle: partes.join(" · "), ol: null, bav: null };
       m.set(k, f);
     }
     const lado = l.equipo === "BAVARIA" ? (f.bav ??= vacio()) : (f.ol ??= vacio());
     lado.estibas += Number(l.estibas ?? 0); lado.saldo += Number(l.saldo ?? 0); lado.cajas += Number(l.cajas ?? 0); lado.total += Number(l.total_cajas ?? 0);
   }
-  return [...m.values()].sort((a, b) => a.modulo.localeCompare(b.modulo, "es", { numeric: true }) || a.sku.localeCompare(b.sku));
+  const filas = [...m.values()].sort((a, b) => a.modulo.localeCompare(b.modulo, "es", { numeric: true }) || a.sku.localeCompare(b.sku));
+  const cruce: FilaCruce[] = filas.map((f) => {
+    const ol = f.ol ? f.ol.total : null, bv = f.bav ? f.bav.total : null;
+    return { ubicacion: f.modulo, sku: f.sku, material: f.material, vencDia: null, vencMes: null, vencAnio: null, cajasOl: ol, cajasBavaria: bv,
+      diferencia: (ol ?? 0) - (bv ?? 0), estado: ol == null ? "SOLO_BAVARIA" : bv == null ? "SOLO_OL" : ol === bv ? "COINCIDE" : "DIFIERE" };
+  });
+  const r = compensarCruce(cruce);
+  return filas.map((f, i) => ({ ...f, compensada: !!r.filas[i]?.compensada }));
 }
 
 /** Los renglones de módulo de una calle, en el orden en que se recorre, para la planilla en blanco de una hoja sin conteo. */
@@ -165,7 +173,7 @@ export default async function PlanillasPage({ searchParams }: { searchParams: Pr
                         <td className="r">{n(x.udsCaja)}</td>
                         <td className="r">{n(x.ol?.estibas)}</td><td className="r">{n(x.ol?.saldo)}</td><td className="r">{n(x.ol?.cajas)}</td><td className="r t">{x.ol ? nf.format(x.ol.total) : ""}</td>
                         <td className="r">{n(x.bav?.estibas)}</td><td className="r">{n(x.bav?.saldo)}</td><td className="r">{n(x.bav?.cajas)}</td><td className="r t">{x.bav ? nf.format(x.bav.total) : ""}</td>
-                        <td className={"r t" + (d !== 0 ? " mal" : "")}>{d === 0 ? (x.ol && x.bav ? "0" : "") : signo(d)}</td>
+                        <td className={"r t" + (d !== 0 ? (x.compensada ? " comp" : " mal") : "")}>{d === 0 ? (x.ol && x.bav ? "0" : "") : <>{signo(d)}{x.compensada && <em>compensa</em>}</>}</td>
                       </tr>
                     );
                   })}

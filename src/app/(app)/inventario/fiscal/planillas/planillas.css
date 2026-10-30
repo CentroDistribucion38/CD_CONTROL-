@@ -43,6 +43,8 @@
 .pl-t td.d em { display: block; font-style: normal; font-size: 7.5px; color: #666; margin-top: -1px }
 .pl-t td.r { text-align: right; font-variant-numeric: tabular-nums }
 .pl-t td.t { font-weight: 700; background: #fafafa }
+.pl-t td.comp { color: #0b7a3e; font-weight: 700 }
+.pl-t td.comp em { display: block; font-style: normal; font-size: 6.5px; letter-spacing: .06em; text-transform: uppercase; font-weight: 600; margin-top: -1px }
 .pl-t td.mal, .pl-tot b.mal { color: #D7141A; font-weight: 800 }
 .pl-tot { flex: none; display: flex; justify-content: flex-end; align-items: baseline; gap: 22px; padding: 5px 4px 0; font-size: 11px }
 .pl-tot span { margin-right: auto; font-size: 8px; letter-spacing: .12em; text-transform: uppercase; color: #777 }
