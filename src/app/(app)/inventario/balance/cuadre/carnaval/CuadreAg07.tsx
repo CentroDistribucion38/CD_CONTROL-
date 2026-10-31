@@ -243,13 +243,14 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
                             <td className="n">{zexi ? ent.format(sapAntes) : "—"}<small className="cs-ext">{f.libre71 != null ? "AG71 libre" : "AG07 control-cal"}</small></td>
                             <td className="n">{!zexi ? "—" : cuadra ? "0" : conSigno(f.dif)}</td>
                             <td className="n">{!zexi || !f.movs.length ? "—" : f.movs.map((m) => <div key={m.titulo + m.cantidad}>{ent.format(m.cantidad)} <em>{m.titulo.replace(/^Mov /, "")}</em></div>)}</td>
-                            <td className="n">{zexi ? ent.format(f.conteo + queda) : "—"}</td>
+                            <td className="n">{zexi ? ent.format((f.conteoEf ?? f.conteo) + queda) : "—"}</td>
                             <td className="n"><b>{!zexi ? "—" : queda ? conSigno(queda) : "0"}</b></td>
                             <td>
                               {!zexi ? "—" : cuadra ? <span className="cs-chip ok">Balanceado</span>
                                 : f.bloqRestante > 0 && Math.abs(f.dif) < 0.5 ? <span className="cs-chip in">Quedan {ent.format(f.bloqRestante)} en bloqueado: pasarlos a libre (343)</span>
                                 : f.sinAlcanzar > 0 ? <span className="cs-chip in">Faltan {ent.format(f.sinAlcanzar)} que no hay en libre ni bloqueado</span>
                                 : <span className="cs-chip in">Falta hacer {f.movs.length > 1 ? "los movimientos" : "el movimiento"} en SAP</span>}
+                              {f.conteo < -0.5 && <div className="cv-neg" style={{ marginTop: 4 }}>Conteo negativo ({ent.format(f.conteo)}): en el registro salieron más pallets de los que entraron. Se cuadra contra 0; corrige el registro de pallets.</div>}
                               {rojo && <div className="cv-neg" style={{ marginTop: 4 }}>AG07 control de calidad: {ent.format(f.calidad)} no se puede mover y no cuenta; esa cantidad permanece ahí.</div>}
                             </td>
                           </tr>

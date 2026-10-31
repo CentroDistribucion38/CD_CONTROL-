@@ -127,11 +127,11 @@ export function Consumo({ panel: p }: { panel: Panel }) {
           )}
         </div>
 
-        <div className="ci-insight">
+        {verS && <div className="ci-insight">
           <div><span>Cómo va el mes</span>{peor ? <>Estás usando <b>{nf(peor.pct! < 10 ? 1 : 0).format(peor.pct!)} %</b> de lo más ajustado de tu plan de Supabase ({peor.titulo.toLowerCase()}). {peor.nivel === "ok" ? "Nada se va a pasar de aquí al fin de mes." : "Conviene mirarlo."}</> : "Sin datos de Supabase."}</div>
           <div><span>Lo que más pesa</span>{pctAlm != null && b0 ? <><b>Las fotos y archivos</b>: el balde «{b0.bucket}» es el {nf(0).format(pctAlm)} % del almacenamiento. </> : null}{c0 ? <>La consulta más lenta en total tiene <b>{nf().format(c0.llamadas)}</b> llamadas y <b>{nf(0).format(c0.segTotal)} s</b>.</> : null}</div>
           <div><span>Para vigilar</span>{t0 && pctTab != null ? <>La tabla <b>{t0.tabla}</b> es la más grande de la base ({fBytes(t0.bytes)}, {nf(0).format(pctTab)} %). Si crece rápido, se limpia o se archiva.</> : "Sin datos."}</div>
-        </div>
+        </div>}
 
         <div className="ci-row r2">
           {verS && (

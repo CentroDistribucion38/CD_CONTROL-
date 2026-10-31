@@ -260,6 +260,8 @@ const sumaPartidas = (ps: Partida[], paso: 1 | 2, codigo: string) => {
 export type FilaCuadre07 = {
   codigo: string; descripcion: string; undPorPallet: number;
   pallets: number; pendientes: number; palletsSap: number; conteo: number;
+  /** Conteo con el que se cuadra: nunca menos de 0 (no se puede mover a SAP lo que no existe). Si el conteo es negativo, el registro de pallets tiene salidas de más. */
+  conteoEf?: number;
   libre: number; calidad: number; bloqueado: number; libre71: number | null; enZexi: boolean;
   /** SAP − conteo en el lugar donde debe quedar el envase (control-cal de AG07; para el 3500005, libre de AG71 DESPUÉS del traslado) */
   dif: number; destino: "AG07 control-cal" | "AG71 libre";
@@ -278,12 +280,14 @@ export function cuadrePallets07(productos: { codigo: string; descripcion: string
     const pt = sumaPartidas(partidas, 1, p.codigo);
     if (!pallets && !pendientes && !(a7?.calidad) && !(a71?.libre && SKU_A_AG71.has(p.codigo)) && !pt.conteo && !pt.sap) continue;
     const palletsSap = redondear(pallets - pendientes), conteo = palletsSap * p.und_por_pallet + pt.conteo;
+    /* Un conteo negativo no se puede llevar a SAP: se cuadra contra 0 y la fila avisa que el registro de pallets tiene salidas de más. */
+    const conteoEf = Math.max(0, conteo);
     const libre = a7?.libre ?? 0, calidad = (a7?.calidad ?? 0) + (SKU_A_AG71.has(p.codigo) ? 0 : pt.sap), bloqueado = a7?.bloqueado ?? 0;
     const movs: Mov07[] = []; let sinAlcanzar = 0, bloqUsado = 0, dif: number, destino: FilaCuadre07["destino"], libre71: number | null = null;
     if (SKU_A_AG71.has(p.codigo)) {
       destino = "AG71 libre"; libre71 = (a71?.libre ?? 0) + pt.sap;
       /* Lo que haya en control-cal de AG07 NO se mira ni se mueve (no se puede): no cuenta y permanece. Solo se compara AG71 libre contra el conteo. */
-      dif = redondear(libre71 - conteo);
+      dif = redondear(libre71 - conteoEf);
       if (dif < -0.5) {
         /* AG71 tiene menos que el conteo: se trae de AG07 con 311 (de libre; lo bloqueado primero pasa a libre con 343) */
         let falta = -dif, a311 = 0;
@@ -291,20 +295,20 @@ export function cuadrePallets07(productos: { codigo: string; descripcion: string
         const db = Math.min(falta, Math.max(0, bloqueado)); if (db > 0.5) { a311 += db; bloqUsado += db; falta -= db }
         if (a311 > 0.5) movs.push({ titulo: "Mov 311 (AG07 Libre → AG71 Libre)", cantidad: Math.round(a311) });
         sinAlcanzar = falta > 0.5 ? Math.round(falta) : 0;
-      } else if (dif > 0.5) movs.push({ titulo: "Mov 311 (AG71 Libre → AG07 Libre)", cantidad: Math.round(dif) });
+      } else if (dif > 0.5) movs.push({ titulo: "Mov 311 (AG71 Libre → AG07 Libre)", cantidad: Math.round(Math.min(dif, Math.max(0, libre71 ?? 0))) });
     } else {
-      destino = "AG07 control-cal"; dif = redondear(calidad - conteo);
+      destino = "AG07 control-cal"; dif = redondear(calidad - conteoEf);
       if (dif < -0.5) {
         let falta = -dif;
         const dl = Math.min(falta, Math.max(0, libre)); if (dl > 0.5) { movs.push({ titulo: "Mov 322 en AG07 (Libre → Control de calidad)", cantidad: Math.round(dl) }); falta -= dl }
         const db = Math.min(falta, Math.max(0, bloqueado)); if (db > 0.5) { movs.push({ titulo: "Mov 349 en AG07 (Bloqueado → Control de calidad)", cantidad: Math.round(db) }); bloqUsado += db; falta -= db }
         sinAlcanzar = falta > 0.5 ? Math.round(falta) : 0;
-      } else if (dif > 0.5) movs.push({ titulo: "Mov 321 en AG07 (Control de calidad → Libre)", cantidad: Math.round(dif) });
+      } else if (dif > 0.5) movs.push({ titulo: "Mov 321 en AG07 (Control de calidad → Libre)", cantidad: Math.round(Math.min(dif, Math.max(0, calidad))) });  /* nunca más de lo que hay en control de calidad */
     }
     /* NADA debe quedar en bloqueado: lo que no se usó para cuadrar pasa a libre con el 343 (3500005: todo el bloqueado pasa antes del 311). */
     const bloqRestante = SKU_A_AG71.has(p.codigo) ? Math.max(0, bloqueado) : Math.max(0, bloqueado - bloqUsado);
     if (bloqRestante > 0.5) movs.unshift({ titulo: "Mov 343 en AG07 (Bloqueado → Libre)", cantidad: Math.round(bloqRestante) });
-    out.push({ codigo: p.codigo, descripcion: p.descripcion, undPorPallet: p.und_por_pallet, pallets, pendientes, palletsSap, conteo, libre, calidad, bloqueado, libre71, enZexi: !!a7 || !!a71, dif, destino, movs, sinAlcanzar, bloqRestante: bloqRestante > 0.5 ? Math.round(bloqRestante) : 0, partidas: pt });
+    out.push({ codigo: p.codigo, descripcion: p.descripcion, undPorPallet: p.und_por_pallet, pallets, pendientes, palletsSap, conteo, conteoEf, libre, calidad, bloqueado, libre71, enZexi: !!a7 || !!a71, dif, destino, movs, sinAlcanzar, bloqRestante: bloqRestante > 0.5 ? Math.round(bloqRestante) : 0, partidas: pt });
   }
   return out;
 }
