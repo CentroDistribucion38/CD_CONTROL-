@@ -82,6 +82,8 @@ export type LineaConsolidado = {
   ids: string[]; reasignado: boolean;
   /** Cada renglón del conteo va aparte (no se suman los iguales): sus estibas, sueltas, saldo, recorrido y nota. */
   estibas?: number; sueltas?: number; saldo?: number; recorrido?: string | null; nota?: string | null;
+  /** Cajas por estiba del material: para pasar una parte contada en estibas. */
+  cpe?: number | null;
 };
 
 /** Una línea de la hoja «Reasignaciones»: un cambio de estado de lo contado ese día, con su porqué.
@@ -230,7 +232,8 @@ export async function balanceDelDia(pedida?: string | null, pedidaCasco?: string
     lineas.set(r.id, { clave: r.id, codigo, material: prod.get(codigo)?.nombre ?? r.material ?? null, estado, contado,
       zona: zonaR, ubicacion: ubic, cajas: Number(r.total_cajas) || 0, unidades: null, ids: [r.id], reasignado: !!rc,
       estibas: Number(r.estibas) || 0, sueltas: Number(r.cajas) || 0, saldo: Number(r.saldo) || 0,
-      recorrido: r.conteo ?? null, nota: r.nota ?? null });
+      recorrido: r.conteo ?? null, nota: r.nota ?? null,
+      cpe: Number(prod.get(codigo)?.cajas_por_estiba ?? r.factor_estibado) || null });
   }
   /* LA HOJA «REASIGNACIONES»: el registro de cada cambio de estado de ese día, agrupado por material ·
      ubicación · de → a · motivo (las del Balance y las de la regla de fábrica). */

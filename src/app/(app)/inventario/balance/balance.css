@@ -264,6 +264,14 @@
 .bal .bal-conso tbody tr:hover td { background: color-mix(in srgb, var(--fe-acento, #f5b800) 8%, transparent) }
 .bal .bal-conso tbody tr.marcada td { background: color-mix(in srgb, var(--fe-acento, #f5b800) 20%, transparent) }
 .bal .bal-conso-antes { display: block; font-size: 11px; color: var(--fe-gris) }
+/* Cuánto pasar de cada línea marcada (cajas o estibas). */
+.bal .bal-conso-partes { flex: 1 1 100%; display: flex; flex-direction: column; gap: 6px; max-height: 240px; overflow-y: auto; padding-top: 8px; border-top: 1px solid var(--fe-linea) }
+.bal .bal-conso-partes-t { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0; font-size: 13px }
+.bal .bal-conso-parte { display: grid; grid-template-columns: 90px minmax(120px, 1fr) minmax(150px, 1fr) 140px minmax(120px, 1fr); align-items: center; gap: 8px 12px; font-size: 13px; font-weight: 500 }
+.bal .bal-conso-parte .tiene, .bal .bal-conso-parte .unid { color: var(--fe-gris); font-size: 12px }
+.bal .bal-conso-barra .bal-conso-parte input { min-width: 0; width: 100%; text-align: right }
+.bal .bal-conso-parte input:disabled { opacity: .45 }
+@media (max-width: 760px) { .bal .bal-conso-parte { grid-template-columns: 1fr 1fr } }
 @media (max-width: 640px) { .bal .bal-conso-q input, .bal .bal-conso-barra input { min-width: 0; width: 100% } }
 
 /* Sin factor en el maestro no hay cajas ni unidades: se dice en rojo. */
