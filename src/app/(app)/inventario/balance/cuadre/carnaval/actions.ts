@@ -338,7 +338,7 @@ export async function guardarBalanceoAg07(fecha: string): Promise<{ error?: stri
       const queda = f.dif < -0.5 ? -f.sinAlcanzar : 0;
       const sapAntes = f.libre71 != null ? f.libre71 : f.calidad;
       return { grupo: "ENVASE" as const, codigo: f.codigo, material: `Paso 1 · pallets · ${f.descripcion}`, total: f.conteo, sap: sapAntes, dif: f.dif, movido: f.movs.reduce((t, m) => t + m.cantidad, 0) || null,
-        sapDespues: f.conteo + queda, queda, enLibre: null, estadoOk: f.bloqRestante > 0 ? false : null };
+        sapDespues: (f.conteoEf ?? f.conteo) + queda, queda, enLibre: null, estadoOk: f.bloqRestante > 0 ? false : null };
     }),
     ...f2.map((f) => ({ grupo: (f.tipo === "CAJA" ? "CAJA" : "ENVASE") as "CAJA" | "ENVASE", codigo: f.codigo, material: `Paso 2 · inventario · ${f.descripcion}`, total: f.unidades, sap: f.sap, dif: f.dif, movido: null,
       sapDespues: f.sap, queda: f.dif, enLibre: null, estadoOk: f.bloqueado > 0.5 ? false : null })),
