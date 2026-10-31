@@ -383,8 +383,8 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
       enLibre: (grupo === "ENVASE" || grupo === "ESTIBA") && m?.libre != null ? redondo(m.libre) : null,
       ...(grupo === "CAJA" ? (() => {
         /* Lo que se sume a la caja fuera del conteo (pend. baja, Andina, lavado) va con lo bloqueado. */
-        /* AG18: nada queda en libre ni en control-cal; todo lo contado va BLOQUEADO y el resto sale por el 311 (como en AG17 / AG16). */
-        const meta: Estados = { libre: 0, calidad: 0, bloqueado: total };
+        const libre = redondo(a.sueltas - a.sueltasBaja), calidad = redondo(a.conEnvase);
+        const meta: Estados = { libre, calidad, bloqueado: redondo(total - libre - calidad) };
         const estadoFinal: Estados | null = m?.libre != null
           ? { libre: redondo(m.libre ?? 0), calidad: redondo(m.calidad ?? 0), bloqueado: redondo(m.bloqueado ?? 0) } : null;
         const igual = (x: number, y: number) => Math.abs(x - y) < 0.005;
