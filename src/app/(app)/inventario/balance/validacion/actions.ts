@@ -45,7 +45,7 @@ export async function enviarPendienteBaja(fecha: string) {
   if (filas.length) {
     const { error: eI } = await supabase.from("pasivos_base").insert(conDescartes(filas.map((f) => ({ ...f, fecha, almacen: ALMACEN_PENDIENTE_BAJA })), descartes, "manual").map((f) => ({
       fecha, estado: f.estado, causal: f.causal, codigo: f.codigo, unidades: f.unidades,
-      almacen: ALMACEN_PENDIENTE_BAJA, origen: "manual", nota: NOTA_PENDIENTE_BAJA, ...(f.descartada ? { descartada: true } : {}),
+      almacen: ALMACEN_PENDIENTE_BAJA, origen: "manual", nota: NOTA_PENDIENTE_BAJA, ...("descartada" in f ? { descartada: !!f.descartada } : {}),
     })));
     if (eI) return { error: /row-level security|policy/i.test(eI.message) ? "No tienes permiso de editar la Base de pasivos." : eI.message };
   }
@@ -92,7 +92,7 @@ export async function enviarPendienteAG22(fecha: string) {
   if (filas.length) {
     const { error: eI } = await supabase.from("pasivos_base").insert(conDescartes(filas.map((f) => ({ ...f, fecha, almacen: ALMACEN_PENDIENTE_AG22 })), descartes, "manual").map((f) => ({
       fecha, estado: f.estado, causal: f.causal, codigo: f.codigo, unidades: f.unidades,
-      almacen: ALMACEN_PENDIENTE_AG22, origen: "manual", nota: NOTA_PENDIENTE_BAJA, ...(f.descartada ? { descartada: true } : {}),
+      almacen: ALMACEN_PENDIENTE_AG22, origen: "manual", nota: NOTA_PENDIENTE_BAJA, ...("descartada" in f ? { descartada: !!f.descartada } : {}),
     })));
     if (eI) return { error: /row-level security|policy/i.test(eI.message) ? "No tienes permiso de editar la Base de pasivos." : eI.message };
   }

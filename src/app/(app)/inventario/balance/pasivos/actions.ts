@@ -82,7 +82,7 @@ export async function subirArchivo(filasJson: string, archivo: string) {
   for (let i = 0; i < filas.length; i += 500) {
     const { error } = await supabase.from("pasivos_base").insert(conDescartes(filas.slice(i, i + 500).map((f) => ({ ...f, codigo: String(f.codigo) })), descartes, "archivo").map((f) => ({
       fecha: f.fecha, estado: f.estado, causal: f.causal, codigo: f.codigo, unidades: Number(f.unidades),
-      almacen: f.almacen, nota: f.nota || null, origen: "archivo", archivo, ...(f.descartada ? { descartada: true } : {}),
+      almacen: f.almacen, nota: f.nota || null, origen: "archivo", archivo, ...("descartada" in f ? { descartada: !!f.descartada } : {}),
     })));
     if (error) return { error: error.message };
   }

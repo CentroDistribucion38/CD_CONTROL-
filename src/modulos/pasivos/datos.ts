@@ -115,9 +115,11 @@ export async function leerDescartes(fechas: string[]): Promise<Set<string>> {
   } catch { /* nada */ }
   return out;
 }
-export function conDescartes<T extends ClaveFila>(filas: T[], descartes: Set<string>, origen: string): (T & { descartada?: true })[] {
+/* OJO: si hay descartes TODAS las filas llevan `descartada` explícito (true/false). Si solo unas la llevaran, el
+   insert en bloque manda NULL en las demás y la columna (not null) lo rechaza: «null value in column descartada». */
+export function conDescartes<T extends ClaveFila>(filas: T[], descartes: Set<string>, origen: string): (T & { descartada?: boolean })[] {
   if (!descartes.size) return filas;
-  return filas.map((f) => (descartes.has(claveDescarte(f, origen)) ? { ...f, descartada: true as const } : f));
+  return filas.map((f) => ({ ...f, descartada: descartes.has(claveDescarte(f, origen)) }));
 }
 
 /** Los días que tienen algo cargado (para el calendario). */
