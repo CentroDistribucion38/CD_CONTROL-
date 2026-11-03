@@ -67,12 +67,26 @@ export function useTablaUbicacion(conteos: ConteoDia[], diaA: string, diaB: stri
       p = (async () => {
         const sb = createClient();
         const ids = conteos.filter((c) => c.fecha === f).map((c) => c.id);
-        const r = await porTandas<RenglonConteo & { id?: number }>(ids, (t, d, h) =>
-          sb.from("v_conteo_fefo").select("conteo_id, codigo, material, ubicacion, estado_envase, total_estibas").in("conteo_id", t).order("id").range(d, h));
+        const r = await porTandas<RenglonConteo & { id: string }>(ids, (t, d, h) =>
+          sb.from("v_conteo_fefo").select("id, conteo_id, codigo, material, ubicacion, estado_envase, total_estibas").in("conteo_id", t).order("id").range(d, h));
         if (r.error) throw new Error(r.error);
-        cache.current[f] = r.data;
-        setDatos((x) => ({ ...x, [f]: r.data }));
-        return r.data;
+        /* LO QUE SE REASIGNÓ EN EL BALANCE (p. ej. 84 estibas de LAVADO → NUEVO) también vale aquí: el Balance no toca el
+           conteo, guarda el estado nuevo por renglón en balance_reclasificaciones y la última de cada renglón manda
+           (igual que la Base, el consolidado y el cuadre). Si no se puede leer, se queda como se contó. */
+        let filas: RenglonConteo[] = r.data;
+        try {
+          const rc = await porTandas<{ conteo_envase_id: string; estado_nuevo: string }>(r.data.map((x) => String(x.id)), (t, d, h) =>
+            sb.from("balance_reclasificaciones").select("conteo_envase_id, estado_nuevo, creado_en")
+              .in("conteo_envase_id", t).order("creado_en").order("id").range(d, h), 100);
+          if (!rc.error && rc.data.length) {
+            const nuevo = new Map<string, string>();
+            for (const x of rc.data) nuevo.set(String(x.conteo_envase_id), x.estado_nuevo);
+            filas = r.data.map((x) => (nuevo.has(String(x.id)) ? { ...x, estado_envase: nuevo.get(String(x.id))! } : x));
+          }
+        } catch { /* sin reasignaciones: como se contó */ }
+        cache.current[f] = filas;
+        setDatos((x) => ({ ...x, [f]: filas }));
+        return filas;
       })().finally(() => { delete enVuelo.current[f] });
       enVuelo.current[f] = p;
     }
