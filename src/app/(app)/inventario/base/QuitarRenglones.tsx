@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { traducirError } from "@/lib/errores";
 import type { ConteoFefo, Renglon } from "@/modulos/inventario/fefo";
+import { alinearPasivosDeDias } from "../balance/actions";
 
 /* ===================================================================
    ELIMINAR RENGLONES SUELTOS DE LO ENVIADO — solo quien administra.
@@ -77,9 +78,17 @@ export function QuitarRenglones({ elegidos, conteos, alQuitar }: {
       }
       hechos.push(`se eliminó el FEFO ${c.codigo} completo (era su único renglón${porConteo.get(c.id)! > 1 ? "es" : ""})`);
     }
+    /* LA BASE DE PASIVOS SE ALINEA SOLA con el balance de los días tocados (como al reasignar). */
+    let pas = "";
+    try {
+      const dias = conteos.filter((c) => porConteo.has(c.id)).map((c) => String(c.fecha_analisis));
+      const a = await alinearPasivosDeDias(dias);
+      const hechos2 = Object.values(a.pasivos).filter((n) => n != null).length;
+      pas = hechos2 ? " Pasivos quedó al día." : " Pasivos no se tocó (ese día no se ha traído del balance, o ya está cerrado).";
+    } catch { pas = " No se pudo alinear Pasivos: vuelve a traer del balance." }
     setOcupado(false); setPide(false);
     const t = hechos.join("; ");
-    setAviso(t.charAt(0).toUpperCase() + t.slice(1) + ".");
+    setAviso(t.charAt(0).toUpperCase() + t.slice(1) + "." + pas);
     alQuitar();
     router.refresh();
   }

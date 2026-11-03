@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { alinearPasivosDeDias } from "../balance/actions";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { traducirError } from "@/lib/errores";
@@ -66,7 +67,15 @@ export function EliminarFefos({ conteos, abrir }: { conteos: ConteoFefo[]; abrir
     const codigos = elegidos.filter((c) => idos.includes(c.id)).map((c) => c.codigo);
     setMarcados((m) => new Set([...m].filter((id) => !idos.includes(id))));
     setPide(false);
-    if (codigos.length) { setAviso(codigos.length === 1 ? `Se eliminó el FEFO ${codigos[0]}.` : `Se eliminaron ${codigos.length} FEFO: ${codigos.join(", ")}.`); router.refresh() }
+    if (codigos.length) {
+      /* LA BASE DE PASIVOS SE ALINEA SOLA con el balance de los días tocados (como al reasignar). */
+      let pas = "";
+      try {
+        const a = await alinearPasivosDeDias(elegidos.filter((c) => idos.includes(c.id)).map((c) => String(c.fecha_analisis)));
+        pas = Object.values(a.pasivos).some((n) => n != null) ? " Pasivos quedó al día." : " Pasivos no se tocó (ese día no se ha traído del balance, o ya está cerrado).";
+      } catch { pas = " No se pudo alinear Pasivos: vuelve a traer del balance." }
+      setAviso((codigos.length === 1 ? `Se eliminó el FEFO ${codigos[0]}.` : `Se eliminaron ${codigos.length} FEFO: ${codigos.join(", ")}.`) + pas); router.refresh();
+    }
     if (falla) setMal(`No se pudo eliminar ${falla.codigo}: ${falla.texto}`);
   }
 

@@ -40,6 +40,20 @@ async function alinearPasivos(fecha: string): Promise<number | null> {
   } catch { return null }
 }
 
+/**
+ * DESPUÉS DE QUE EL ADMINISTRADOR CAMBIA LO CONTADO (corrige una cantidad, quita renglones o un FEFO), la base de Pasivos
+ * se alinea con el balance de ese día — el mismo paso que ya hace «Reasignar». Sigue la misma regla de alinearPasivos:
+ * solo si ese día ya se había traído del balance, no es histórico y no está cerrado. Devuelve, por día, cuántas filas
+ * quedaron o null si no se tocó.
+ */
+export async function alinearPasivosDeDias(fechas: string[]) {
+  const dias = [...new Set((fechas ?? []).map((f) => String(f).slice(0, 10)).filter((f) => /^\d{4}-\d{2}-\d{2}$/.test(f)))].slice(0, 10);
+  const pasivos: Record<string, number | null> = {};
+  for (const f of dias) pasivos[f] = await alinearPasivos(f);
+  revalidatePath("/inventario/balance");
+  return { ok: true as const, pasivos };
+}
+
 /** Los renglones del consolidado de ese día de ese material (con sus ids). */
 async function renglones(codigo: string, fecha: string) {
   const { conteos } = await diasConConteo();

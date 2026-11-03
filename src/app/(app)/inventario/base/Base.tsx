@@ -656,7 +656,7 @@ export function Base({
       {manda && admin && (
         <section className="ba-admin" aria-label="Administrador">
           <EliminarFefos conteos={conteos} />
-          {pestania === "base" && <CorregirRenglon elegidos={elegidos} alGuardar={() => setMarcados(new Set())} />}
+          {pestania === "base" && <CorregirRenglon elegidos={elegidos} conteos={conteos} alGuardar={() => setMarcados(new Set())} />}
           {pestania === "base" && <QuitarRenglones elegidos={elegidos} conteos={conteos} alQuitar={() => setMarcados(new Set())} />}
         </section>
       )}

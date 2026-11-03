@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { traducirError } from "@/lib/errores";
-import type { Renglon } from "@/modulos/inventario/fefo";
+import type { ConteoFefo, Renglon } from "@/modulos/inventario/fefo";
+import { alinearPasivosDeDias } from "../balance/actions";
 
 /* ===================================================================
    CORREGIR LA CANTIDAD DE UN RENGLÓN — solo quien administra.
@@ -25,8 +26,10 @@ const aNum = (s: string): number | null => {
   return Number.isInteger(n) && n >= 0 ? n : NaN;
 };
 
-export function CorregirRenglon({ elegidos, alGuardar }: {
+export function CorregirRenglon({ elegidos, conteos, alGuardar }: {
   elegidos: Renglon[];
+  /** Los recorridos, para saber de qué día es el renglón (y alinear Pasivos con ese día). */
+  conteos: ConteoFefo[];
   alGuardar: () => void;
 }) {
   const router = useRouter();
@@ -73,7 +76,17 @@ export function CorregirRenglon({ elegidos, alGuardar }: {
     if (error) { setMal(traducirError(error.message)); return }
     const x = ((data ?? []) as { codigo: string; antes: number; despues: number }[])[0];
     setAbierto(false);
-    setAviso(x ? `FEFO ${x.codigo}: el renglón pasó de ${x.antes} a ${x.despues} cajas.` : "Renglón corregido.");
+    /* LA BASE DE PASIVOS SE ALINEA SOLA con el balance de ese día (como al reasignar). */
+    const dia = conteos.find((c) => c.id === r.conteo_id)?.fecha_analisis ?? null;
+    let pas = "";
+    if (dia) {
+      try {
+        const a = await alinearPasivosDeDias([dia]);
+        const n = a.pasivos[String(dia).slice(0, 10)];
+        pas = n == null ? " Pasivos no se tocó (ese día no se ha traído del balance, o ya está cerrado)." : ` Pasivos quedó al día (${n} filas).`;
+      } catch { pas = " No se pudo alinear Pasivos: vuelve a traer del balance." }
+    }
+    setAviso((x ? `FEFO ${x.codigo}: el renglón pasó de ${x.antes} a ${x.despues} cajas.` : "Renglón corregido.") + pas);
     alGuardar();
     router.refresh();
   }
