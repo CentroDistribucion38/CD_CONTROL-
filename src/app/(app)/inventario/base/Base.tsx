@@ -46,6 +46,7 @@ import type { Renglon, ConteoFefo } from "@/modulos/inventario/fefo";
 import { cruzar, sufijoRecorrido, type Vigente } from "@/modulos/inventario/base-cruce";
 import { EliminarFefos } from "./EliminarFefos";
 import { QuitarRenglones } from "./QuitarRenglones";
+import { CorregirRenglon } from "./CorregirRenglon";
 import { MarcarPasados } from "./MarcarPasados";
 import { Calendario, type Atajo } from "@/components/CalendarioRango";
 import { sumarDias } from "@/modulos/inventario/fiscal";
@@ -655,6 +656,7 @@ export function Base({
       {manda && admin && (
         <section className="ba-admin" aria-label="Administrador">
           <EliminarFefos conteos={conteos} />
+          {pestania === "base" && <CorregirRenglon elegidos={elegidos} alGuardar={() => setMarcados(new Set())} />}
           {pestania === "base" && <QuitarRenglones elegidos={elegidos} conteos={conteos} alQuitar={() => setMarcados(new Set())} />}
         </section>
       )}

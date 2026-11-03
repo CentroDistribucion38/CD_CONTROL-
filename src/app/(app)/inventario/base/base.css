@@ -355,3 +355,10 @@
 .fe .ba .ba-fc-b .ba-sec, .fe .ba .ba-fc-b .ba-prim { min-height: 36px; padding: 0 12px; flex: none }
 .fe .ba .ba-fc-limpia { width: auto; border: 0; background: none; padding: 0; cursor: pointer; font: 600 12px var(--fe-texto); color: var(--fe-mal); text-decoration: underline }
 .fe .ba .ba-fc-limpia:disabled { color: var(--fe-gris); opacity: .5; cursor: default; text-decoration: none }
+
+.fe .ba-corr-form { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 10px 14px; flex: 1 1 100%; font-weight: 700 }
+.fe .ba-corr-forma { display: flex; gap: 14px; flex: 1 1 100% }
+.fe .ba-corr-campo { display: flex; flex-direction: column; gap: 4px; font-size: 12px }
+.fe .ba-corr-campo input { min-height: 44px; width: 110px; padding: 0 10px; border: 1px solid var(--fe-linea); border-radius: 0; font-size: 16px }
+.fe .ba-corr-total { flex: 1 1 200px; font-size: 13px }
+.fe .ba-admin .ba-quitar + .ba-quitar { margin-top: 8px }

@@ -30,10 +30,11 @@
 .fe .fc-mios { margin-top: 14px }
 .fe .fc-vacio { margin: 8px 0 0; font-size: 13.5px; color: var(--fe-gris) }
 .fe .fc-lista { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column }
-.fe .fc-lista li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-top: 1px solid var(--fe-linea); min-width: 0 }
-.fe .fc-ren { flex: 1 1 0; font-size: 13.5px; line-height: 1.4; min-width: 0; overflow-wrap: anywhere }
+.fe .fc-lista li { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-start; gap: 8px; padding: 10px 0; border-top: 1px solid var(--fe-linea); min-width: 0 }
+.fe .fc-ren { flex: 1 1 100%; font-size: 13.5px; line-height: 1.4; min-width: 0; overflow-wrap: anywhere }
 .fe .fc-ren span { color: var(--fe-gris) }
-.fe .fc-lista .fe-mini { flex: none; width: auto; margin: 0; min-height: 44px; min-width: 72px }
+/* Los botones van chicos y DEBAJO del texto: antes se comían el ancho y el material quedaba en una columnita. */
+.fe .fc-lista .fe-mini { flex: none; width: auto; margin: 0; min-height: 34px; min-width: 0; padding: 0 11px; font-size: 12px }
 
 /* EL AVISO DE «TIENES UN FISCAL ASIGNADO» (usa la caja de los avisos de la app: cf-velo / cf-caja) */
 .fc-aviso { max-width: 460px }
