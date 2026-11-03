@@ -40,11 +40,13 @@ export function CorregirRenglon({ elegidos, conteos, alGuardar }: {
   const [ocupado, setOcupado] = useState(false);
   const [mal, setMal] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
+  /* Si el renglón tiene cajas ya reasignadas en el Balance y la cantidad nueva no las alcanza, se avisa y se pide confirmar. */
+  const [choque, setChoque] = useState<string | null>(null);
 
   /* Cambiar de renglón marcado cierra el formulario y lo vuelve a llenar con ese renglón. */
   const id = r?.id ?? "";
   useEffect(() => {
-    setAbierto(false);
+    setAbierto(false); setChoque(null);
     if (id !== "") { setMal(null); setAviso(null) }
   }, [id]);
 
@@ -54,7 +56,7 @@ export function CorregirRenglon({ elegidos, conteos, alGuardar }: {
     setEst(r.estibas == null ? "" : String(r.estibas));
     setSal(r.saldo == null ? "" : String(r.saldo));
     setCaj(r.cajas == null ? "" : String(r.cajas));
-    setMal(null); setAviso(null); setAbierto(true);
+    setMal(null); setAviso(null); setChoque(null); setAbierto(true);
   }
 
   const e = forma === "estibas" ? aNum(est) : null;
@@ -69,10 +71,23 @@ export function CorregirRenglon({ elegidos, conteos, alGuardar }: {
     if (!r || invalido || vacio) return;
     setOcupado(true); setMal(null);
     const supabase = createClient();
+    /* REASIGNACIONES PARCIALES: «de las 4.320 pasé 2.000 a RETORNO». Si lo nuevo ya no alcanza para esa parte, el Balance la
+       descarta y TODO el renglón vuelve al estado en que se contó (puede subir LAVADO y Pasivos). Se avisa antes de guardar. */
+    if (!choque) {
+      try {
+        const { data: dv } = await supabase.from("balance_divisiones").select("cajas").eq("conteo_envase_id", r.id);
+        const sep = ((dv ?? []) as { cajas: number | string }[]).reduce((t, x) => t + (Number(x.cajas) || 0), 0);
+        if (sep > 0 && sep >= nuevo) {
+          setChoque(`Este renglón tiene ${sep.toLocaleString("es-CO")} cajas ya reasignadas en el Balance y con ${nuevo.toLocaleString("es-CO")} no caben: esa reasignación se pierde y todo el renglón vuelve a «${r.estado_envase ?? "su estado contado"}». Deja el renglón en más de ${sep.toLocaleString("es-CO")} cajas, o vuelve a reasignar después de guardar.`);
+          setOcupado(false);
+          return;
+        }
+      } catch { /* sin permiso o sin tabla: se sigue como siempre */ }
+    }
     const { data, error } = await supabase.rpc("conteo_fefo_linea_corregir", {
       p_linea: r.id, p_estibas: e, p_saldo: s, p_cajas: c,
     });
-    setOcupado(false);
+    setOcupado(false); setChoque(null);
     if (error) { setMal(traducirError(error.message)); return }
     const x = ((data ?? []) as { codigo: string; antes: number; despues: number }[])[0];
     setAbierto(false);
@@ -125,12 +140,13 @@ export function CorregirRenglon({ elegidos, conteos, alGuardar }: {
             Antes: <b>{r.total_cajas}</b> cajas → ahora: <b>{invalido || vacio ? "—" : nuevo}</b> cajas
           </span>
           <button type="button" className="btn" disabled={ocupado || invalido || vacio} onClick={guardar}>
-            {ocupado ? "Guardando…" : "Guardar"}
+            {ocupado ? "Guardando…" : choque ? "Guardar de todos modos" : "Guardar"}
           </button>
           <button type="button" className="btn plano" disabled={ocupado} onClick={() => setAbierto(false)}>Cancelar</button>
         </div>
       )}
       {invalido && abierto && <span className="ba-conso-mal" role="alert">Solo números enteros, sin negativos.</span>}
+      {choque && abierto && <span className="ba-conso-mal" role="alert">{choque}</span>}
       {aviso && <span className="ba-elim-ok" role="status">{aviso}</span>}
       {mal && <span className="ba-conso-mal" role="alert">{mal}</span>}
     </div>
