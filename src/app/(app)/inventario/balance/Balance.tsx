@@ -69,7 +69,7 @@ const HOJAS_FIJAS: { estado: string; alcance: string | null; label: string; alm?
 const ESTADOS_FIJOS = new Set(["BAJA", "LAVADO", "EXTRASUCIO"]);
 
 /* BAJA, LAVADO, EXTRASUCIO y RETORNO (envase sano), más a quién pertenece el envase (ANDINA, HEINEKEN): ahí se va con el casco de ese dueño. */
-const ESTADOS_DESTINO = ["BAJA", "LAVADO", "EXTRASUCIO", "RETORNO", ...DUENOS_ENVASE] as const;
+const ESTADOS_DESTINO = ["BAJA", "LAVADO", "EXTRASUCIO", "RETORNO", "NUEVO", ...DUENOS_ENVASE] as const;
 
 /** Lo que de «otros estados» DEBERÍA ir a pasivo: OTROS y MAL ESTADO (lo sano —RETORNO, NUEVO, VACÍO…— no es pasivo). */
 const PARA_PASIVO = /OTRO|MAL ?ESTADO/i;
