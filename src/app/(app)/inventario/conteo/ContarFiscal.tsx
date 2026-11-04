@@ -791,51 +791,13 @@ export function ContarFiscal({
             </div>
           </div>
 
-          {/* ===== ESTADO DEL MÓDULO · MEZCLADO · ACCESO (igual que en el conteo normal) ===== */}
-          {claveEscogida && (
-            <div className="fe-bloque fe-estmod">
-              <p className="fe-bloque-cab">Estado del módulo</p>
-              <div className="fe-estmod-fila">
-                <div className="fe-acceso">
-                  <span id="fc-rot-acceso">¿Tienes acceso al módulo?</span>
-                  <div className="fe-si-no" role="group" aria-labelledby="fc-rot-acceso">
-                    <button type="button" className={!mod.sinAcceso ? "on" : ""} aria-pressed={!mod.sinAcceso}
-                            onClick={() => setMod((x) => ({ ...x, sinAcceso: false }))}>Sí</button>
-                    <button type="button" className={mod.sinAcceso ? "on" : ""} aria-pressed={mod.sinAcceso}
-                            onClick={() => setMod((x) => ({ ...x, sinAcceso: true }))}>No</button>
-                  </div>
-                </div>
-                <label className={"fe-mezclado" + (mod.mezclado ? " on" : "")}>
-                  <input type="checkbox" checked={mod.mezclado} onChange={(e) => setMod((x) => ({ ...x, mezclado: e.target.checked }))} />
-                  <span><b>Módulo mezclado</b></span>
-                </label>
-              </div>
-              {(mod.mezclado || mod.sinAcceso) && (
-                <div className="fe-foto fe-foto-mod">
-                  <span id="fc-rot-fotomod">Foto de evidencia · obligatoria</span>
-                  <input ref={camaraMod} type="file" accept="image/jpeg,image/png,image/webp,image/heic" capture="environment" hidden onChange={tomarMod} />
-                  <div className="fe-foto-fila" role="group" aria-labelledby="fc-rot-fotomod">
-                    <button type="button" className={"fe-foto-btn" + (fotoMod ? " con" : "")} disabled={sellando}
-                            onClick={() => { pedirUbi(); camaraMod.current?.click() }}>
-                      {fotoMod
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        ? <img src={fotoMod.url} alt="La foto del módulo" />
-                        : <svg viewBox="0 0 24 24" aria-hidden><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></svg>}
-                      <b>{sellando ? "Procesando…" : fotoMod ? "Tomar otra" : "Tomar foto"}</b>
-                    </button>
-                    <p>{fotoMod ? "La foto sube al anotar."
-                      : marcaGuardada?.ruta ? "Este módulo ya tiene foto. Tomar otra la reemplaza."
-                      : mod.sinAcceso ? "Sin acceso: foto de por qué no se pudo contar." : "Mezclado: foto de cómo está el módulo."}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+          {/* EN EL FISCAL NO HAY «ESTADO DEL MÓDULO» (acceso / mezclado) NI «VENCE»: se pidió que la hoja fuera lo más sencilla
+              posible —dónde, qué, cuánto—. Eso queda solo en el conteo diario (FEFO). */}
 
           {/* ===== QUÉ ===== */}
           <div className="fe-bloque">
             <p className="fe-bloque-cab">Qué</p>
-            <div className="fe-cod-dos fe-que3">
+            <div className="fe-cod-dos fe-que-fiscal">
               <label><span>Código</span>
                 <input ref={campoCodigo} inputMode="numeric" value={b.codigo} placeholder="Teclea el código"
                   onChange={(e) => { pon("codigo", e.target.value); saltarSiCompleto(e.target.value) }}
@@ -847,20 +809,6 @@ export function ContarFiscal({
                         {material.cajas_por_estiba != null && <em> · {material.cajas_por_estiba} cajas/estiba</em>}</span>
                     : <i>Ese código no está en el maestro.</i>}
                 </output></label>
-              <div className="fe-fecha fe-que-vence opcional">
-                <div className="fe-que-fecha">
-                  <span className="fe-etiq-fecha">Vence</span>
-                  <em className="fe-opcional">opcional</em>
-                </div>
-                <div className="fe-dma">
-                  <input ref={campoDia} inputMode="numeric" maxLength={2} placeholder="DD" aria-label="Día del vencimiento" value={b.dia}
-                    onChange={(e) => tecleaFecha("dia", e.target.value, campoMes)} />
-                  <input ref={campoMes} inputMode="numeric" maxLength={2} placeholder="MM" aria-label="Mes del vencimiento" value={b.mes}
-                    onChange={(e) => tecleaFecha("mes", e.target.value, campoAnio)} onKeyDown={(e) => atrasFecha(e, b.mes, campoDia)} />
-                  <input ref={campoAnio} inputMode="numeric" maxLength={2} placeholder="AA" aria-label="Año del vencimiento" value={b.anio}
-                    onChange={(e) => tecleaFecha("anio", e.target.value, campoCantidad)} onKeyDown={(e) => atrasFecha(e, b.anio, campoMes)} />
-                </div>
-              </div>
             </div>
             {material && material.cajas_por_estiba == null && (
               <p className="fe-eco"><b className="ojo">sin factor estibado</b> — las estibas darían cero: cuéntalo por cajas</p>
