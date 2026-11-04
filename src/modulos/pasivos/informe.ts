@@ -82,6 +82,8 @@ export function estadoInforme(estado: string, causal: string, codigo: string): s
   return estado;
 }
 export const esAndina = (e: string) => e.startsWith("ANDINA");
+/** El nombre del estado en las leyendas, donde el espacio es poco: «A. VERDE», «A. ÁMBAR». El estado completo se sigue llamando igual en tablas y filtros. */
+export const etiquetaEstado = (e: string) => (e === "ANDINA VERDE" ? "A. VERDE" : e === "ANDINA ÁMBAR" ? "A. ÁMBAR" : e);
 export const colorEstado = (e: string) => COLOR_ESTADO[e] ?? "#8C8C8C";
 export const tintaSobre = (hex: string) => (hex === "#FFC300" ? "#1B1B1B" : "#FFFFFF");
 export const COLOR_ALMACEN = ["#B58200", "#FFC300", "#3B3B3B", "#8C8C8C"];
@@ -265,7 +267,7 @@ export function dibujarInformePasivo(
   const leyenda = (yTit: number) => {
     let lx = W - M; fuente("normal", 7.5);
     for (const e of [...d.estados].reverse()) {
-      const w = doc.getTextWidth(e); lx -= w; gris(); doc.text(e, lx, yTit + 4);
+      const et = etiquetaEstado(e); const w = doc.getTextWidth(et); lx -= w; gris(); doc.text(et, lx, yTit + 4);
       lx -= 4; doc.setFillColor(...hexRGB(colorEstado(e))); doc.rect(lx, yTit + 1.6, 2.8, 2.8, "F"); lx -= 4;
     }
   };
