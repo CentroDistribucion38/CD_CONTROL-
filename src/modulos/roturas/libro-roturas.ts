@@ -23,6 +23,8 @@
 import ExcelJS from "exceljs";
 import type { Rotura } from "./datos";
 import { etiquetaRotura, faseRotura, turnoYDia, ORIGEN_TXT, type OrigenR } from "./cierre";
+import { medidasDe, nombreDim, type MaestroHL } from "./medidas";
+import { armarTablero, inyectarGraficas, formulasFila, enFiltro, valorEn, DET, type FilaTab, type DimT, type Seleccion } from "./libro-tablero";
 
 type BufferDeExcel = Parameters<ExcelJS.Workbook["addImage"]>[0]["buffer"];
 
@@ -42,6 +44,8 @@ export type InsumosRoturas = {
   filtros: string;
   quien: string;
   logo: Buffer | Uint8Array | null;
+  /** Unid. por caja y HL por unidad (Maestro de Pasivos). Sin él, las unidades y los HL salen vacíos —no cero—. */
+  maestro?: MaestroHL | null;
 };
 
 /* ---- La paleta de CONTROL: tinta negra, banda amarilla. ---- */
@@ -116,6 +120,36 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
   /* Dónde queda la tarjeta de cada rotura en Evidencias: para el vínculo del Detalle. */
   const filaEvid = new Map(conFoto.map((r, i) => [r.id, 9 + i]));
 
+  /* LAS TRES MEDIDAS de cada rotura (cajas, unidades, HL) y los cuatro nombres de los Paretos: UNA sola cuenta
+     (medidas.ts) para el Resumen, el Detalle y la hoja Tablero. Las filas van en el MISMO orden que el Detalle. */
+  const canon: Record<DimT, Map<string, string>> = { causa: new Map(), area: new Map(), registro: new Map(), opm: new Map() };
+  const nombreT = (r: Rotura, dim: DimT) => {
+    const t = (nombreDim(r, dim, d.nombres) ?? "").trim() || "Sin dato";
+    const k = t.toLowerCase();               // Excel compara sin mayúsculas: se junta igual aquí
+    const c = canon[dim].get(k) ?? t;
+    canon[dim].set(k, c);
+    return c;
+  };
+  const filasTab: FilaTab[] = todas.map((r) => {
+    const m = medidasDe(r, d.maestro);
+    return {
+      diaISO: turnoYDia(r.reportada_en).dia, cajas: m.cajas, unidades: m.unidades, hl: m.hl,
+      cuenta: r.estado === "anulada" ? "Anulada" : r.cuenta ? "Sí" : "No",
+      causa: nombreT(r, "causa"), area: nombreT(r, "area"), registro: nombreT(r, "registro"), opm: nombreT(r, "opm"),
+    };
+  });
+  const categorias = Object.fromEntries((["causa", "area", "registro", "opm"] as DimT[]).map((x) =>
+    [x, [...canon[x].values()].sort((a, b) => a.localeCompare(b, "es"))])) as Record<DimT, string[]>;
+  const hoyISO = turnoYDia(new Date().toISOString()).dia;
+  const dias = filasTab.map((f) => f.diaISO).sort();
+  const hayHL = filasTab.some((f) => f.hl != null);
+  const sel: Seleccion = { medida: hayHL ? "HL" : "Cajas", desde: dias[0] ?? hoyISO, hasta: dias[dias.length - 1] ?? hoyISO, incluir: "Solo las que cuentan" };
+  const vivasT = filasTab.filter((f) => f.cuenta !== "Anulada");
+  const tCajas = vivasT.reduce((t, f) => t + f.cajas, 0);
+  const tUnid = vivasT.reduce((t, f) => t + (f.unidades ?? 0), 0);
+  const tHL = vivasT.reduce((t, f) => t + (f.hl ?? 0), 0);
+  const sinHL = vivasT.filter((f) => f.hl == null).length;
+
   /* ======================= 1 · RESUMEN ======================= */
   {
     const h = wb.addWorksheet("Resumen", { properties: { tabColor: { argb: BANDA } } });
@@ -155,6 +189,15 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
       h.getCell(10, c1).value = f.pie; h.getCell(10, c1).font = letra(8.5, f.amarilla ? TINTA : GRIS);
       h.getCell(8, c1).border = { top: { style: "medium", color: { argb: f.roja ? ROJO : TINTA } }, left: { style: "thick", color: { argb: BLANCO } } };
     });
+
+    /* ---- LAS TRES MEDIDAS, en una línea. ---- */
+    {
+      h.mergeCells(11, 2, 11, 11);
+      const c = h.getCell(11, 2);
+      const f0 = (v: number, dec = 0) => v.toLocaleString("es-CO", { minimumFractionDigits: dec, maximumFractionDigits: dec });
+      c.value = `Lo registrado (sin anuladas), en las tres medidas:  ${f0(tCajas)} cajas  ·  ${hayHL || tUnid ? f0(tUnid) : "—"} unidades  ·  ${hayHL ? f0(tHL, 2) : "—"} HL${sinHL ? `   (${sinHL} sin dato en el Maestro de Pasivos: no suman)` : ""}.  Los Paretos que se recalculan están en la hoja Tablero.`;
+      c.font = letra(9, GRIS, false, true); c.alignment = { vertical: "middle", wrapText: true }; h.getRow(11).height = 26;
+    }
 
     /* ---- LAS BARRAS: dos columnas de paneles. ---- */
     const panel = (fila: number, c: number, titulo: string, cab: string, datos: Conteo[], valor: (x: Conteo) => number, colorBarra: string, tope = 8, fijo = false) => {
@@ -254,6 +297,9 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
     h.pageSetup = { orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, margins: { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0, footer: 0 } };
   }
 
+  /* ======================= TABLERO · Paretos que se recalculan ======================= */
+  const { graficas } = armarTablero(wb, { banda, relleno, letra, raya, TINTA, BANDA, BLANCO, GRIS, FONDO, RAYA }, { filas: filasTab, sel, categorias, sub });
+
   /* ======================= 2 · DETALLE ======================= */
   {
     const h = wb.addWorksheet("Detalle", { properties: { tabColor: { argb: TINTA } } });
@@ -262,11 +308,13 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
       ["Tipo", 13], ["Rotas (cajas)", 10], ["Contaminadas", 11], ["Unid. por caja", 9], ["Cobro rotas", 13], ["Cobro contam.", 13],
       ["Cobro total", 14], ["Causa", 26], ["Asumida", 11], ["Proceso", 16], ["Área", 16], ["Origen", 12], ["Reportó", 14],
       ["OPM", 16], ["Estado", 22], ["Fotos", 8], ["Qué pasó", 40], ["Dice el OL", 30], ["Decisión", 30], ["Anulada porque", 30],
+      ["Cajas", 9], ["Unidades", 10], ["HL", 9], ["Cuenta", 9],
+      ["Tablero · causa", 16], ["Tablero · área", 16], ["Tablero · registró", 16], ["Tablero · OPM", 16], ["Tablero · en el filtro", 10], ["Tablero · valor", 10],
     ];
     const N = C.length;
     h.columns = C.map(([, w]) => ({ width: w }));
     banda(h, N, `Detalle · ${todas.length} rotura${todas.length === 1 ? "" : "s"}`, sub, null);
-    const nums = [8, 9, 10, 11, 12, 13, 22];
+    const nums = [8, 9, 10, 11, 12, 13, 22, DET.CAJAS, DET.UNID, DET.HL];
     const cab = h.getRow(8); cab.height = 30;
     C.forEach(([t], i) => {
       const c = cab.getCell(i + 1); c.value = t; c.font = letra(9, BLANCO, true); c.fill = relleno(TINTA);
@@ -286,7 +334,15 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
         r.causa_nombre, r.grupo === "no_asumida" ? "No asumida" : "Asumida", r.proceso_nombre, r.area_nombre ?? "",
         ORIGEN_TXT[(r.origen ?? "sin") as OrigenR], quien(r), r.opm_nombre ?? "", e.txt,
         nFotos, r.descripcion ?? "", r.ol_nota ?? "", r.nota_decision ?? "", r.motivo_anulacion ?? "",
+        filasTab[i].cajas, filasTab[i].unidades, filasTab[i].hl, filasTab[i].cuenta,
+        filasTab[i].causa, filasTab[i].area, filasTab[i].registro, filasTab[i].opm,
       ];
+      {
+        /* «en el filtro» y «valor»: fórmulas que leen las casillas amarillas de Tablero. */
+        const fx = formulasFila(fila);
+        row.getCell(DET.FILTRO).value = { formula: fx.filtro, result: enFiltro(filasTab[i], sel) ? 1 : 0 };
+        row.getCell(DET.VALOR).value = { formula: fx.valor, result: valorEn(filasTab[i], sel) };
+      }
       row.height = 18;
       for (let c = 1; c <= N; c++) {
         const cel = row.getCell(c);
@@ -297,7 +353,8 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
       }
       row.getCell(1).font = letra(9.5, TINTA, true);
       row.getCell(2).numFmt = "dd/mm/yy hh:mm"; row.getCell(4).numFmt = "dd/mm/yy";
-      for (const c of [8, 9, 10]) row.getCell(c).numFmt = NUM;
+      for (const c of [8, 9, 10, DET.CAJAS, DET.UNID]) row.getCell(c).numFmt = NUM;
+      row.getCell(DET.HL).numFmt = "#,##0.00";
       for (const c of [11, 12, 13]) row.getCell(c).numFmt = PESOS;
       row.getCell(3).alignment = { horizontal: "center", vertical: "middle" };
       row.getCell(3).font = letra(9.5, TINTA, true);
@@ -315,11 +372,18 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
     const tot = h.getRow(ult + 1); tot.height = 22;
     for (let c = 1; c <= N; c++) { const cel = tot.getCell(c); cel.fill = relleno(BANDA); cel.font = letra(9.5, TINTA, true); cel.border = { top: { style: "medium", color: { argb: TINTA } } } }
     tot.getCell(1).value = "TOTAL (lo filtrado)";
-    for (const c of [8, 9, 11, 12, 13]) {
-      let s = 0; for (const r of todas) { const v = c === 8 ? r.unidades : c === 9 ? r.contaminadas : c === 11 ? r.cobro_rotas : c === 12 ? r.cobro_contaminadas : r.cobro_total; s += Number(v) || 0 }
+    for (const c of [8, 9, 11, 12, 13, DET.CAJAS, DET.UNID, DET.HL]) {
+      let s = 0;
+      todas.forEach((r, i) => {
+        const v = c === 8 ? r.unidades : c === 9 ? r.contaminadas : c === 11 ? r.cobro_rotas : c === 12 ? r.cobro_contaminadas : c === 13 ? r.cobro_total
+          : c === DET.CAJAS ? filasTab[i].cajas : c === DET.UNID ? filasTab[i].unidades : filasTab[i].hl;
+        s += Number(v) || 0;
+      });
       const cel = tot.getCell(c); cel.value = { formula: `SUBTOTAL(109,${col(c)}9:${col(c)}${Math.max(9, ult)})`, result: s };
-      cel.numFmt = c >= 11 ? PESOS : NUM; cel.alignment = { horizontal: "right", vertical: "middle" };
+      cel.numFmt = c >= 11 && c <= 13 ? PESOS : c === DET.HL ? "#,##0.00" : NUM; cel.alignment = { horizontal: "right", vertical: "middle" };
     }
+    /* Las columnas de ayuda del Tablero van ocultas (se pueden mostrar). */
+    for (let c = DET.CAUSA; c <= DET.VALOR; c++) h.getColumn(c).hidden = true;
     h.autoFilter = `A8:${col(N)}${Math.max(9, ult)}`;
     h.views = [{ state: "frozen", xSplit: 1, ySplit: 8, showGridLines: false }];
     h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, printTitlesRow: "8:8" };
@@ -389,5 +453,6 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
     h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9 };
   }
 
-  return (await wb.xlsx.writeBuffer()) as ArrayBuffer;
+  const buf = (await wb.xlsx.writeBuffer()) as ArrayBuffer;
+  return inyectarGraficas(buf, graficas, sel.medida);
 }

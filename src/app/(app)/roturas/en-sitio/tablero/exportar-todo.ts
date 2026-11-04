@@ -147,10 +147,12 @@ export async function exportarTodo(o: {
   const yo = yoR?.data as { usuario: string | null; nombre: string | null } | null;
   const logo = await fetch("/marca/logo-b.png").then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null);
   const { armarLibroRoturas } = await import("@/modulos/roturas/libro-roturas");
+  const { leerMaestroHL } = await import("@/modulos/roturas/maestro-hl");
+  const maestro = await leerMaestroHL(supabase);
   const libro = await armarLibroRoturas({
     roturas: o.roturas, nombres: o.nombres, fotos: fotosExcel, fotosFuera: Math.max(0, enZip - fotosExcel.length),
     periodo: o.periodo, filtros: o.filtros, quien: yo?.nombre || yo?.usuario || "—",
-    logo: logo ? new Uint8Array(logo) : null,
+    logo: logo ? new Uint8Array(logo) : null, maestro,
   });
   const nombreExcel = `roturas-en-sitio-${sel}.xlsx`;
   if (nZips) await espera(700);
