@@ -109,21 +109,25 @@ export function dibujarFotoPasivo(
 
   // A · bloqueados por día
   {
-    const a = panel({ x: xA, y: Y1, w: wA, h: H1 }, "EER bloqueados por día (HL)", leyendaEstados);
     const p = d.porDia;
+    const dh = p.find((x) => x.fecha === d.dia);
+    /* UNA SOLA LEYENDA: si hay día del informe, la línea de abajo ya nombra cada estado con su cifra y hace de leyenda; repetirla arriba era ruido. */
+    const a = panel({ x: xA, y: Y1, w: wA, h: H1 }, "EER bloqueados por día (HL)", dh ? undefined : leyendaEstados);
     if (!p.length) vacio(a);
     else {
       const top = a.y + 70, base = a.y + a.h - 26, max = Math.max(1, ...p.map((x) => x.total));
       /* El día del informe: sus tres cifras siempre a la vista, aunque el tramo sea diminuto. */
-      const dh = p.find((x) => x.fecha === d.dia);
       if (dh) {
-        let lx = a.x; letra(ctx, 800, 13.5); ctx.fillStyle = TINTA; ctx.textAlign = "left";
-        const pre = `Día ${diaNum(d.dia)}:`; ctx.fillText(pre, lx, a.y + 8); lx += ctx.measureText(pre).width + 14;
-        for (const e of d.estados) {
-          const v = dh.e[e] ?? 0;
-          if (!v && e.startsWith("ANDINA")) continue; // un estado en cero no dice nada y roba lugar
-          ctx.fillStyle = colorEstado(e); ctx.fillRect(lx, a.y + 2, 11, 11); lx += 16;
-          const t = `${etiquetaEstado(e)} ${f0(v)}`; letra(ctx, 700, 12.5); ctx.fillStyle = TINTA; ctx.textAlign = "left"; ctx.fillText(t, lx, a.y + 8);
+        /* La línea de cifras del día resaltado: estado + HL. Sin rótulo «Día n»: la columna resaltada de abajo ya dice cuál es.
+           Si no cabe, baja el tamaño de la letra hasta que quepa. */
+        const items = d.estados.map((e) => ({ e, v: dh.e[e] ?? 0 })).filter((x) => x.v || !x.e.startsWith("ANDINA"));
+        let fs = 13;
+        const medir = (f: number) => { letra(ctx, 700, f); return items.reduce((s, x) => s + 16 + ctx.measureText(`${etiquetaEstado(x.e)} ${f0(x.v)}`).width + 14, -14) };
+        while (fs > 10.5 && medir(fs) > a.w) fs -= 0.5;
+        letra(ctx, 700, fs); let lx = a.x; ctx.textAlign = "left";
+        for (const x of items) {
+          ctx.fillStyle = colorEstado(x.e); ctx.fillRect(lx, a.y + 2, 11, 11); lx += 16;
+          const t = `${etiquetaEstado(x.e)} ${f0(x.v)}`; ctx.fillStyle = TINTA; ctx.fillText(t, lx, a.y + 8);
           lx += ctx.measureText(t).width + 14;
         }
       }
