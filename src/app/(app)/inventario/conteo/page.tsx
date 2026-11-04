@@ -8,6 +8,7 @@ import "./asignado.css";
 import "./revisiones.css";
 import { Contar } from "./Contar";
 import { ContarConFiscal } from "./ContarConFiscal";
+import { ContarFiscal } from "./ContarFiscal";
 import { FiscalAsignado } from "./FiscalAsignado";
 
 export const dynamic = "force-dynamic";
@@ -76,6 +77,38 @@ export default async function ConteoFefoPage() {
   const fiscal = await (await createClient()).rpc("inv_fiscal_mis_hojas");
   const misHojas = fiscal.error ? [] : ((fiscal.data ?? []) as MiHojaBD[]);
   const hojasContar = hojasParaContar(misHojas);
+
+  /* MODO FISCAL: esta persona solo ve el inventario fiscal que le habilitaron. Sin FEFO, sin selector,
+     sin recorrido diario: si todavía no le asignaron hoja, queda «en espera». */
+  if (permisos.fiscal) {
+    return (
+      <div className="fe contando">
+        <section className="cabeza">
+          <div>
+            <p className="ojo">INVENTARIO · FISCAL</p>
+            <h1>Contar</h1>
+            <p className="sub">
+              Aquí solo está el inventario fiscal que te habilitaron. Cuenta tu hoja módulo por módulo;
+              cada renglón queda guardado al momento con tu nombre.
+            </p>
+          </div>
+        </section>
+        <FiscalAsignado filas={misHojas} hoy={hoy} />
+        {hojasContar.length > 0 ? (
+          <ContarFiscal hojas={hojasContar} bodegaId={bodega.id} materiales={m.materiales} ubicaciones={ubis} />
+        ) : (
+          <section className="fe-espera" role="status">
+            <p className="fe-espera-ojo">EN ESPERA</p>
+            <h2>Aún no te han habilitado el inventario fiscal</h2>
+            <p>
+              Cuando quien arma el plan lo muestre en Contar y te asigne una hoja, aparece aquí solo.
+              No tienes que hacer nada: recarga la pantalla cuando te avisen.
+            </p>
+          </section>
+        )}
+      </div>
+    );
+  }
 
   return (
     /* «contando» pliega la cabecera en el celular: ver arriba en

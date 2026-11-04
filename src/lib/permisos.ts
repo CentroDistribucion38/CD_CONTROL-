@@ -44,13 +44,22 @@ export type Permisos = {
    * nadie sabría por qué.
    */
   falta: boolean;
+  /**
+   * MODO FISCAL: a esta persona la plataforma le muestra solo Inventario → Conteos → Contar, y dentro
+   * de Contar solo el inventario fiscal que le habilitaron (o «en espera»). Lo activa quien administra
+   * desde Admin → Modo FISCAL, por rol o por persona. Quien MANDA nunca queda en modo fiscal.
+   */
+  fiscal: boolean;
 };
+
+/** La única pantalla que ve quien está en modo fiscal. */
+export const RUTA_FISCAL = "/inventario/conteo";
 
 /** Todo cerrado: lo que se devuelve cuando no hay sesión. */
 const NADA: Permisos = {
   rol: "", nombreRol: "", manda: false,
   nivel: () => "ninguno", puedeVer: () => false, puedeEditar: () => false,
-  modulos: [], falta: false,
+  modulos: [], falta: false, fiscal: false,
 };
 
 /**
@@ -71,10 +80,12 @@ export const misPermisos = cache(async function misPermisos(): Promise<Permisos>
   const user = await usuarioActual();
   if (!user) return NADA;
 
-  const [perfilR, rolesR, permisosR] = await Promise.all([
+  const [perfilR, rolesR, permisosR, fiscalR] = await Promise.all([
     supabase.from("perfiles").select("rol, activo, permisos_extra").eq("id", user.id).single(),
     supabase.from("roles").select("clave, nombre, manda"),
     supabase.from("rol_permisos").select("rol, seccion, nivel"),
+    /* Si a la base le falta 2026-11-modo-fiscal.sql la llamada falla y simplemente no hay modo fiscal. */
+    supabase.rpc("modo_fiscal_activo"),
   ]);
 
   const rol = (perfilR.data?.rol as string) ?? "operador";
@@ -106,7 +117,7 @@ export const misPermisos = cache(async function misPermisos(): Promise<Permisos>
       rol, nombreRol: rol, manda: rol === "admin",
       nivel, puedeVer: () => true, puedeEditar: () => viejo,
       modulos: MODULOS.filter((m) => m.activo && !m.oculto),
-      falta: true,
+      falta: true, fiscal: false,
     };
   }
 
@@ -128,12 +139,24 @@ export const misPermisos = cache(async function misPermisos(): Promise<Permisos>
      podría encerrarse afuera y ya nadie podría devolvérselo. Quien manda
      entra siempre; para que alguien deje de mandar se le cambia el rol,
      que es una decisión visible. */
-  const nivel = (ruta: string): Nivel => {
+  const nivelBase = (ruta: string): Nivel => {
     if (manda) return "editar";
     const suyo = extra[ruta];
     if (suyo) return suyo;
     return mapa.get(ruta) ?? "ninguno";
   };
+
+  /* MODO FISCAL: de todo el árbol queda UNA pantalla, Contar. Se le da al menos «ver» aunque su rol no
+     la tenga —el modo existe justamente para que esa persona cuente el fiscal—, y se conserva «editar»
+     si ya lo tenía. Quien manda no entra aquí jamás: la base ya lo responde false para él, y se
+     vuelve a asegurar acá. */
+  const fiscal = !manda && !fiscalR.error && fiscalR.data === true;
+  const nivel = fiscal
+    ? (ruta: string): Nivel =>
+        ruta === RUTA_FISCAL ? (nivelBase(ruta) === "editar" ? "editar" : "ver")
+        : ruta === "/inventario" ? "ver"
+        : "ninguno"
+    : nivelBase;
   const puedeVer = (ruta: string) => nivel(ruta) !== "ninguno";
   const puedeEditar = (ruta: string) => nivel(ruta) === "editar";
 
@@ -142,12 +165,13 @@ export const misPermisos = cache(async function misPermisos(): Promise<Permisos>
      que no abre. */
   const modulos = MODULOS.filter((m) => {
     if (!m.activo || m.oculto) return false;
+    if (fiscal) return m.ruta === "/inventario";
     return m.secciones.some((s) => puedeVer(s.ruta)) || puedeVer(m.ruta);
   });
 
   return {
     rol, nombreRol: suRol?.nombre ?? rol, manda,
-    nivel, puedeVer, puedeEditar, modulos, falta: false,
+    nivel, puedeVer, puedeEditar, modulos, falta: false, fiscal,
   };
 });
 

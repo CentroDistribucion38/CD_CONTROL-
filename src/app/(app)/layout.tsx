@@ -94,7 +94,7 @@ export default async function AppLayout({
       <PrepararSola rutas={rutasParaCopia(permisos)} dueno={user.id} />
       <MedirUso />
       <CerrarSiQuieto />
-      <Marco permitidas={permitidas}>{children}</Marco>
+      <Marco permitidas={permitidas} soloFiscal={permisos.fiscal}>{children}</Marco>
     </div>
   );
 }

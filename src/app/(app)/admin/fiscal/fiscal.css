@@ -1,0 +1,23 @@
+/* ADMINISTRACIÓN · MODO FISCAL. Cuelga de .rl.fis; usa las fichas de roles.css. Todo rectangular. */
+.rl.fis .fis-pin { max-width: 520px }
+.rl.fis .fis-pin-forma { display: flex; gap: 10px; padding: 0 20px 18px }
+.rl.fis .fis-pin-forma input { max-width: 180px; letter-spacing: .4em; text-align: center; font-weight: 700; font-size: 18px }
+.rl.fis .fis-lista { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rl-linea); max-height: 420px; overflow: auto }
+.rl.fis .fis-lista li + li { border-top: 1px solid var(--rl-linea) }
+.rl.fis .fis-fila { display: flex; align-items: center; gap: 12px; padding: 11px 20px; cursor: pointer; min-height: 46px }
+.rl.fis .fis-fila:hover { background: var(--c-f7f9fc) }
+.rl.fis .fis-fila input { width: 18px; height: 18px; flex: none; accent-color: var(--rl-tinta); box-shadow: none }
+.rl.fis .fis-nombre { font: 700 14px var(--rl-texto) }
+.rl.fis .fis-nota { margin-left: auto; font-size: 12.5px; color: var(--rl-gris); text-align: right }
+.rl.fis .fis-fila.off { cursor: default; opacity: .6 }
+.rl.fis .fis-fila.baja .fis-nombre { text-decoration: line-through }
+.rl.fis .fis-buscar { padding: 0 20px 12px }
+.rl.fis .fis-vacio { padding: 14px 20px; color: var(--rl-gris); font-size: 13px }
+.rl.fis .fis-pie { position: sticky; bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+  background: #0B0B0C; color: #fff; padding: 12px 20px; border-left: 6px solid #E9A81F }
+.rl.fis .fis-pie p { margin: 0; font-size: 14px }
+.rl.fis .fis-pie .btn { background: #E9A81F; color: #0B0B0C }
+.rl.fis .fis-pie .btn:hover:not(:disabled) { background: #F4BC48 }
+.rl.fis .fis-pie .btn:disabled { background: #5A5340; color: #B9B3A0 }
+@media (max-width: 640px) { .rl.fis .fis-fila { flex-wrap: wrap } .rl.fis .fis-nota { margin-left: 30px; text-align: left } }
+.rl.fis .fis-pin-forma input::placeholder { letter-spacing: .04em; font-weight: 600; font-size: 14px }

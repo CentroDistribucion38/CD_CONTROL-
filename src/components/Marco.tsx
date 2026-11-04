@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { moduloPorRuta, seccionExacta } from "@/modulos/registro";
 import { Navegacion } from "./Navegacion";
@@ -17,12 +17,21 @@ import { Actualizar } from "./Actualizar";
  * equipo — el monitor grande de la oficina y la tablet de piso no piden lo
  * mismo aunque entre la misma persona.
  */
-export function Marco({ permitidas, children }: {
+export function Marco({ permitidas, soloFiscal = false, children }: {
   /** Las rutas que esta persona puede ver, resueltas en el layout. */
   permitidas: string[];
+  /** MODO FISCAL: solo se ve Contar (y el perfil). Cualquier otra dirección lleva de vuelta a Contar. */
+  soloFiscal?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const fueraDelFiscal = soloFiscal
+    && !(pathname === "/inventario/conteo" || pathname.startsWith("/inventario/conteo/")
+      || pathname === "/perfil" || pathname.startsWith("/perfil/"));
+  useEffect(() => {
+    if (fueraDelFiscal) router.replace("/inventario/conteo");
+  }, [fueraDelFiscal, router]);
   const hayModulo = !!moduloPorRuta(pathname);
   /* UNA PANTALLA CERRADA NO SE ABRE ESCRIBIENDO LA DIRECCIÓN. El menú
      esconde lo que no toca, pero la dirección se puede teclear o venir de
@@ -69,7 +78,7 @@ export function Marco({ permitidas, children }: {
               <Link href="/inicio" className="btn-secundario">Volver al inicio</Link>
             </div>
           </section>
-        ) : children}
+        ) : fueraDelFiscal ? null : children}
       </main>
       {!cerrada && <Actualizar />}
     </div>
