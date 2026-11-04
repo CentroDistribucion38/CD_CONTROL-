@@ -128,8 +128,8 @@ export function dibujarSeguridadDashboard(d: DatosSeguridadFoto, x: ExtraSegurid
     const mx = xr + paso5 * i;
     letra(ctx, 700, 10); ctx.fillStyle = tinta; ctx.globalAlpha = .8; ctx.textAlign = "left"; espaciado(ctx, k, mx, y0 + 20, 1.2); ctx.globalAlpha = 1;
     letra(ctx, 900, 30);
-    if (alerta) { const wv = ctx.measureText(String(v)).width + 16; ctx.fillStyle = "#FFFFFF"; ctx.fillRect(mx, y0 + 28, wv, 32); ctx.fillStyle = MAL; ctx.fillText(String(v), mx + 8, y0 + 45) }
-    else { ctx.fillStyle = tinta; ctx.fillText(String(v), mx, y0 + 45) }
+    /* LO QUE ALERTA SE PINTA EN ROJO OSCURO, sin recuadro: sobre el mostaza se lee bien y queda alineado con las demás cifras. */
+    ctx.fillStyle = alerta ? "#A8001C" : tinta; ctx.fillText(String(v), mx, y0 + 45)
     letra(ctx, 500, 11.5); ctx.fillStyle = tinta; ctx.globalAlpha = .8; ctx.fillText(n, mx, y0 + 76); ctx.globalAlpha = 1;
   });
   void anchoEspaciado;
