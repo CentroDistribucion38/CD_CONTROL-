@@ -298,97 +298,143 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
     h.pageSetup = { orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, margins: { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0, footer: 0 } };
   }
 
+  /* ======================= LAS COLUMNAS DEL DETALLE =======================
+     Agrupadas como se lee una rotura: CUÁNDO fue, QUÉ era, CUÁNTO (cajas, unidades y HL), CUÁNTO SE COBRA,
+     A QUÉ CORRESPONDE (causa, proceso, área, quién) y su ESTADO. Al final van, ocultas, las ayudas del Tablero. */
+  type CtxD = { r: Rotura; i: number; td: ReturnType<typeof turnoYDia>; e: ReturnType<typeof etiquetaRotura>; eer: boolean; nFotos: number; f: FilaTab };
+  type ColD = { k: string; t: string; w: number; g: string; num?: boolean; oculta?: boolean; v: (x: CtxD) => ExcelJS.CellValue };
+  const G1 = "CUÁNDO", G2 = "QUÉ", G3 = "CUÁNTO · CAJAS, UNIDADES Y HL", G4 = "CUÁNTO SE COBRA", G5 = "A QUÉ CORRESPONDE", G6 = "ESTADO Y NOTAS", G7 = "PARA EL TABLERO";
+  const COLS: ColD[] = [
+    { k: "cod", t: "Código", w: 11, g: G1, v: (x) => x.r.codigo },
+    { k: "fecha", t: "Fecha y hora", w: 15, g: G1, v: (x) => aFecha(x.r.reportada_en) },
+    { k: "turno", t: "Turno", w: 7, g: G1, v: (x) => x.td.turno },
+    { k: "dia", t: "Día de turno", w: 11, g: G1, v: (x) => aDia(x.td.dia) },
+    { k: "mat", t: "Cód. material", w: 11, g: G2, v: (x) => x.r.material },
+    { k: "matN", t: "Material", w: 30, g: G2, v: (x) => x.r.material_nombre },
+    { k: "tipo", t: "Tipo", w: 17, g: G2, v: (x) => (x.eer ? "Envase (EER)" : "Producto terminado") },
+    { k: "rotas", t: "Rotas (cajas)", w: 11, g: G3, num: true, v: (x) => Number(x.r.unidades) || 0 },
+    { k: "contam", t: "Contaminadas (cajas)", w: 14, g: G3, num: true, v: (x) => (x.eer ? null : Number(x.r.contaminadas) || 0) },
+    { k: "cajas", t: "CAJAS (rotas + contam.)", w: 13, g: G3, num: true, v: (x) => x.f.cajas },
+    { k: "upc", t: "Unid. por caja", w: 10, g: G3, num: true, v: (x) => (x.f.unidades != null && x.f.cajas ? x.f.unidades / x.f.cajas : x.r.factor_caja ?? null) },
+    { k: "unid", t: "UNIDADES (botellas)", w: 13, g: G3, num: true, v: (x) => x.f.unidades ?? "sin dato" },
+    { k: "hl", t: "HL", w: 11, g: G3, num: true, v: (x) => x.f.hl ?? "sin HL" },
+    { k: "cobR", t: "Cobro rotas", w: 13, g: G4, num: true, v: (x) => x.r.cobro_rotas ?? null },
+    { k: "cobC", t: "Cobro contam.", w: 13, g: G4, num: true, v: (x) => x.r.cobro_contaminadas ?? null },
+    { k: "cobT", t: "COBRO TOTAL", w: 15, g: G4, num: true, v: (x) => x.r.cobro_total ?? null },
+    { k: "causa", t: "Causa", w: 26, g: G5, v: (x) => x.r.causa_nombre },
+    { k: "asum", t: "Asumida", w: 11, g: G5, v: (x) => (x.r.grupo === "no_asumida" ? "No asumida" : "Asumida") },
+    { k: "proc", t: "Proceso", w: 16, g: G5, v: (x) => x.r.proceso_nombre },
+    { k: "area", t: "Área", w: 16, g: G5, v: (x) => x.r.area_nombre ?? "" },
+    { k: "orig", t: "Origen", w: 12, g: G5, v: (x) => ORIGEN_TXT[(x.r.origen ?? "sin") as OrigenR] },
+    { k: "rep", t: "Reportó (usuario)", w: 15, g: G5, v: (x) => quien(x.r) },
+    { k: "opm", t: "OPM", w: 16, g: G5, v: (x) => x.r.opm_nombre ?? "" },
+    { k: "estado", t: "Estado", w: 22, g: G6, v: (x) => x.e.txt },
+    { k: "cuenta", t: "Cuenta", w: 9, g: G6, v: (x) => x.f.cuenta },
+    { k: "fotos", t: "Fotos", w: 8, g: G6, num: true, v: (x) => x.nFotos },
+    { k: "desc", t: "Qué pasó", w: 40, g: G6, v: (x) => x.r.descripcion ?? "" },
+    { k: "ol", t: "Dice el OL", w: 30, g: G6, v: (x) => x.r.ol_nota ?? "" },
+    { k: "dec", t: "Decisión", w: 30, g: G6, v: (x) => x.r.nota_decision ?? "" },
+    { k: "anul", t: "Anulada porque", w: 30, g: G6, v: (x) => x.r.motivo_anulacion ?? "" },
+    { k: "tCausa", t: "Tablero · causa", w: 16, g: G7, oculta: true, v: (x) => x.f.causa },
+    { k: "tArea", t: "Tablero · área", w: 16, g: G7, oculta: true, v: (x) => x.f.area },
+    { k: "tReg", t: "Tablero · registró", w: 16, g: G7, oculta: true, v: (x) => x.f.registro },
+    { k: "tOpm", t: "Tablero · OPM", w: 16, g: G7, oculta: true, v: (x) => x.f.opm },
+    { k: "tFiltro", t: "Tablero · en el filtro", w: 10, g: G7, oculta: true, v: (x) => ({ formula: formulasFila(9 + x.i).filtro, result: enFiltro(x.f, sel) ? 1 : 0 }) },
+    { k: "tValor", t: "Tablero · valor", w: 10, g: G7, oculta: true, v: (x) => ({ formula: formulasFila(9 + x.i).valor, result: valorEn(x.f, sel) }) },
+    { k: "tCobro", t: "Tablero · cobro", w: 12, g: G7, oculta: true, v: (x) => x.f.cobro ?? 0 },
+  ];
+  const pos = (k: string) => COLS.findIndex((c) => c.k === k) + 1;
+  Object.assign(DET, {
+    DIA: pos("dia"), CAJAS: pos("cajas"), UNID: pos("unid"), HL: pos("hl"), CUENTA: pos("cuenta"),
+    CAUSA: pos("tCausa"), AREA: pos("tArea"), REG: pos("tReg"), OPM: pos("tOpm"), FILTRO: pos("tFiltro"), VALOR: pos("tValor"), COBRO: pos("tCobro"),
+  });
+
   /* ======================= TABLERO · Paretos que se recalculan ======================= */
   const { graficas } = armarTablero(wb, { banda, relleno, letra, raya, TINTA, BANDA, BLANCO, GRIS, FONDO, RAYA }, { filas: filasTab, sel, categorias, sub });
 
   /* ======================= 2 · DETALLE ======================= */
   {
     const h = wb.addWorksheet("Detalle", { properties: { tabColor: { argb: TINTA } } });
-    const C: [string, number][] = [
-      ["Código", 11], ["Fecha y hora", 15], ["Turno", 7], ["Día de turno", 11], ["Cód. material", 11], ["Material", 30],
-      ["Tipo", 13], ["Rotas (cajas)", 10], ["Contaminadas", 11], ["Unid. por caja", 9], ["Cobro rotas", 13], ["Cobro contam.", 13],
-      ["Cobro total", 14], ["Causa", 26], ["Asumida", 11], ["Proceso", 16], ["Área", 16], ["Origen", 12], ["Reportó", 14],
-      ["OPM", 16], ["Estado", 22], ["Fotos", 8], ["Qué pasó", 40], ["Dice el OL", 30], ["Decisión", 30], ["Anulada porque", 30],
-      ["Cajas", 9], ["Unidades", 10], ["HL", 9], ["Cuenta", 9],
-      ["Tablero · causa", 16], ["Tablero · área", 16], ["Tablero · registró", 16], ["Tablero · OPM", 16], ["Tablero · en el filtro", 10], ["Tablero · valor", 10], ["Tablero · cobro", 12],
-    ];
-    const N = C.length;
-    h.columns = C.map(([, w]) => ({ width: w }));
+    const N = COLS.length;
+    h.columns = COLS.map((c) => ({ width: c.w }));
     banda(h, N, `Detalle · ${todas.length} rotura${todas.length === 1 ? "" : "s"}`, sub, null);
-    const nums = [8, 9, 10, 11, 12, 13, 22, DET.CAJAS, DET.UNID, DET.HL];
-    const cab = h.getRow(8); cab.height = 30;
-    C.forEach(([t], i) => {
-      const c = cab.getCell(i + 1); c.value = t; c.font = letra(9, BLANCO, true); c.fill = relleno(TINTA);
-      c.alignment = { vertical: "middle", horizontal: nums.includes(i + 1) ? "right" : "left", wrapText: true, indent: 1 };
+
+    /* La fila de arriba dice a qué grupo pertenece cada columna. */
+    const inicioGrupo = new Set<number>();
+    {
+      let c = 1;
+      while (c <= N) {
+        const g = COLS[c - 1].g;
+        if (COLS[c - 1].oculta) { c++; continue }
+        let f = c; while (f + 1 <= N && COLS[f].g === g && !COLS[f].oculta) f++;
+        inicioGrupo.add(c);
+        const dest = g === G3;
+        if (f > c) h.mergeCells(7, c, 7, f);
+        const cel = h.getCell(7, c);
+        cel.value = g; cel.font = letra(8.5, TINTA, true); cel.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
+        for (let z = c; z <= f; z++) { const q = h.getCell(7, z); q.fill = relleno(dest ? BANDA : FONDO); q.border = { top: { style: "medium", color: { argb: TINTA } }, left: z === c ? { style: "thin", color: { argb: TINTA } } : undefined } }
+        c = f + 1;
+      }
+    }
+    h.getRow(7).height = 20;
+    const cab = h.getRow(8); cab.height = 36;
+    COLS.forEach((c, i) => {
+      const q = cab.getCell(i + 1); q.value = c.t; q.font = letra(9, BLANCO, true);
+      q.fill = relleno(c.g === G3 ? "FF3A3200" : TINTA);          // las tres medidas, un tono distinto en la cabecera
+      q.alignment = { vertical: "middle", horizontal: c.num ? "right" : "left", wrapText: true, indent: 1 };
+      if (inicioGrupo.has(i + 1)) q.border = { left: { style: "thin", color: { argb: BANDA } } };
     });
+
+    const sumas: Record<string, number> = {};
     todas.forEach((r, i) => {
       const fila = 9 + i;
       const row = h.getRow(fila);
-      const td = turnoYDia(r.reportada_en);
-      const e = etiquetaRotura(r);
-      const eer = r.tipo === "eer";
-      const nFotos = Number(r.fotos) || 0;
-      row.values = [
-        r.codigo, aFecha(r.reportada_en), td.turno, aDia(td.dia), r.material, r.material_nombre,
-        eer ? "Envase (EER)" : "Producto terminado", Number(r.unidades) || 0, eer ? null : Number(r.contaminadas) || 0,
-        r.factor_caja ?? null, r.cobro_rotas ?? null, r.cobro_contaminadas ?? null, r.cobro_total ?? null,
-        r.causa_nombre, r.grupo === "no_asumida" ? "No asumida" : "Asumida", r.proceso_nombre, r.area_nombre ?? "",
-        ORIGEN_TXT[(r.origen ?? "sin") as OrigenR], quien(r), r.opm_nombre ?? "", e.txt,
-        nFotos, r.descripcion ?? "", r.ol_nota ?? "", r.nota_decision ?? "", r.motivo_anulacion ?? "",
-        filasTab[i].cajas, filasTab[i].unidades, filasTab[i].hl, filasTab[i].cuenta,
-        filasTab[i].causa, filasTab[i].area, filasTab[i].registro, filasTab[i].opm,
-      ];
-      row.getCell(DET.COBRO).value = filasTab[i].cobro;
-      {
-        /* «en el filtro» y «valor»: fórmulas que leen las casillas amarillas de Tablero. */
-        const fx = formulasFila(fila);
-        row.getCell(DET.FILTRO).value = { formula: fx.filtro, result: enFiltro(filasTab[i], sel) ? 1 : 0 };
-        row.getCell(DET.VALOR).value = { formula: fx.valor, result: valorEn(filasTab[i], sel) };
-      }
+      const x: CtxD = { r, i, td: turnoYDia(r.reportada_en), e: etiquetaRotura(r), eer: r.tipo === "eer", nFotos: Number(r.fotos) || 0, f: filasTab[i] };
       row.height = 18;
-      for (let c = 1; c <= N; c++) {
-        const cel = row.getCell(c);
+      COLS.forEach((c, ci) => {
+        const cel = row.getCell(ci + 1);
+        const v = c.v(x);
+        cel.value = v;
+        if (typeof v === "number") sumas[c.k] = (sumas[c.k] ?? 0) + v;
         cel.font = letra(9.5, r.estado === "anulada" ? GRIS : TINTA);
-        cel.border = { bottom: raya() };
-        cel.alignment = { vertical: "middle", horizontal: nums.includes(c) ? "right" : "left", indent: 1 };
+        cel.border = { bottom: raya(), ...(inicioGrupo.has(ci + 1) ? { left: { style: "thin", color: { argb: "FFB9B9B9" } } } : {}) };
+        cel.alignment = { vertical: "middle", horizontal: c.num ? "right" : "left", indent: 1 };
         if (i % 2 === 1) cel.fill = relleno(FONDO);
-      }
-      row.getCell(1).font = letra(9.5, TINTA, true);
-      row.getCell(2).numFmt = "dd/mm/yy hh:mm"; row.getCell(4).numFmt = "dd/mm/yy";
-      for (const c of [8, 9, 10, DET.CAJAS, DET.UNID]) row.getCell(c).numFmt = NUM;
-      row.getCell(DET.HL).numFmt = "#,##0.00";
-      for (const c of [11, 12, 13]) row.getCell(c).numFmt = PESOS;
-      row.getCell(3).alignment = { horizontal: "center", vertical: "middle" };
-      row.getCell(3).font = letra(9.5, TINTA, true);
-      if (r.grupo === "no_asumida") row.getCell(15).font = letra(9.5, ROJO, true);
-      const est = ESTADO[e.clase] ?? ESTADO["tb-gris"];
-      const ce = row.getCell(21); ce.fill = relleno(est.fondo); ce.font = letra(8.5, est.tinta, true);
+        if (c.num && typeof v === "number") cel.numFmt = c.k === "hl" ? "#,##0.00" : c.k.startsWith("cob") ? PESOS : c.k === "upc" ? "#,##0.##" : NUM;
+        /* Lo que falta se dice, en gris y cursiva: un hueco vacío parece un cero. */
+        if (typeof v === "string" && (c.k === "hl" || c.k === "unid")) cel.font = letra(8.5, "FF9A9A9A", false, true);
+      });
+      const cel = (k: string) => row.getCell(pos(k));
+      cel("cod").font = letra(9.5, TINTA, true);
+      cel("fecha").numFmt = "dd/mm/yy hh:mm"; cel("dia").numFmt = "dd/mm/yy";
+      cel("turno").alignment = { horizontal: "center", vertical: "middle" }; cel("turno").font = letra(9.5, TINTA, true);
+      if (r.grupo === "no_asumida") cel("asum").font = letra(9.5, ROJO, true);
+      /* Las tres medidas, en negrita: son las que se preguntan. */
+      for (const k of ["cajas", "unid", "hl", "cobT"]) if (typeof cel(k).value === "number") cel(k).font = letra(9.5, r.estado === "anulada" ? GRIS : TINTA, true);
+      const est = ESTADO[x.e.clase] ?? ESTADO["tb-gris"];
+      cel("estado").fill = relleno(est.fondo); cel("estado").font = letra(8.5, est.tinta, true);
       /* Las fotos saltan a su tarjeta en Evidencias. */
       const fe = filaEvid.get(r.id);
-      if (fe && nFotos > 0) { row.getCell(22).value = vinculo("Evidencias", `A${fe}`, `${nFotos} ↗`); row.getCell(22).font = letra(9.5, ENLACE, true) }
-      else if (r.le_falta_foto) { row.getCell(22).value = "Falta"; row.getCell(22).font = letra(9.5, ROJO, true) }
-      if (r.cobro_total == null && faseRotura(r) === "cobro" && r.estado !== "anulada") { row.getCell(13).value = "sin precio"; row.getCell(13).font = letra(9, ROJO, true, true) }
+      if (fe && x.nFotos > 0) { cel("fotos").value = vinculo("Evidencias", `A${fe}`, `${x.nFotos} ↗`); cel("fotos").font = letra(9.5, ENLACE, true) }
+      else if (r.le_falta_foto) { cel("fotos").value = "Falta"; cel("fotos").font = letra(9.5, ROJO, true) }
+      if (r.cobro_total == null && faseRotura(r) === "cobro" && r.estado !== "anulada") { cel("cobT").value = "sin precio"; cel("cobT").font = letra(9, ROJO, true, true) }
     });
     const ult = 8 + todas.length;
     /* Totales que siguen al filtro (SUBTOTAL 109): filtras y la cifra cambia. */
     const tot = h.getRow(ult + 1); tot.height = 22;
     for (let c = 1; c <= N; c++) { const cel = tot.getCell(c); cel.fill = relleno(BANDA); cel.font = letra(9.5, TINTA, true); cel.border = { top: { style: "medium", color: { argb: TINTA } } } }
     tot.getCell(1).value = "TOTAL (lo filtrado)";
-    for (const c of [8, 9, 11, 12, 13, DET.CAJAS, DET.UNID, DET.HL]) {
-      let s = 0;
-      todas.forEach((r, i) => {
-        const v = c === 8 ? r.unidades : c === 9 ? r.contaminadas : c === 11 ? r.cobro_rotas : c === 12 ? r.cobro_contaminadas : c === 13 ? r.cobro_total
-          : c === DET.CAJAS ? filasTab[i].cajas : c === DET.UNID ? filasTab[i].unidades : filasTab[i].hl;
-        s += Number(v) || 0;
-      });
-      const cel = tot.getCell(c); cel.value = { formula: `SUBTOTAL(109,${col(c)}9:${col(c)}${Math.max(9, ult)})`, result: s };
-      cel.numFmt = c >= 11 && c <= 13 ? PESOS : c === DET.HL ? "#,##0.00" : NUM; cel.alignment = { horizontal: "right", vertical: "middle" };
+    for (const k of ["rotas", "contam", "cajas", "unid", "hl", "cobR", "cobC", "cobT"]) {
+      const c = pos(k);
+      const cel = tot.getCell(c);
+      cel.value = { formula: `SUBTOTAL(109,${col(c)}9:${col(c)}${Math.max(9, ult)})`, result: k === "hl" ? Math.round((sumas[k] ?? 0) * 1000) / 1000 : sumas[k] ?? 0 };
+      cel.numFmt = k === "hl" ? "#,##0.00" : k.startsWith("cob") ? PESOS : NUM; cel.alignment = { horizontal: "right", vertical: "middle", indent: 1 };
     }
     /* Las columnas de ayuda del Tablero van ocultas (se pueden mostrar). */
-    for (let c = DET.CAUSA; c <= DET.COBRO; c++) h.getColumn(c).hidden = true;
+    COLS.forEach((c, i) => { if (c.oculta) h.getColumn(i + 1).hidden = true });
     h.autoFilter = `A8:${col(N)}${Math.max(9, ult)}`;
     h.views = [{ state: "frozen", xSplit: 1, ySplit: 8, showGridLines: false }];
-    h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, printTitlesRow: "8:8" };
+    h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, printTitlesRow: "7:8" };
   }
 
   /* ======================= 3 · EVIDENCIAS ======================= */

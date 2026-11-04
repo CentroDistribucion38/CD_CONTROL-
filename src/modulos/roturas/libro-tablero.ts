@@ -39,7 +39,10 @@ export type FilaTab = {
 };
 
 /** Columnas nuevas del Detalle (1-based). Las ocultas van al final. */
-export const DET = { CAJAS: 27, UNID: 28, HL: 29, CUENTA: 30, CAUSA: 31, AREA: 32, REG: 33, OPM: 34, FILTRO: 35, VALOR: 36, COBRO: 37 } as const;
+/** En qué columna del Detalle vive cada cosa. Quien arma el Detalle (libro-roturas) lo llena ANTES de armar el Tablero:
+ *  así el Detalle se puede reordenar sin tocar una sola fórmula. */
+export const DET: Record<"DIA" | "CAJAS" | "UNID" | "HL" | "CUENTA" | "CAUSA" | "AREA" | "REG" | "OPM" | "FILTRO" | "VALOR" | "COBRO", number> =
+  { DIA: 4, CAJAS: 27, UNID: 28, HL: 29, CUENTA: 30, CAUSA: 31, AREA: 32, REG: 33, OPM: 34, FILTRO: 35, VALOR: 36, COBRO: 37 };
 export const DET_PRIMERA = 9;
 
 const L = (n: number) => { let s = ""; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26) } return s };
@@ -50,7 +53,7 @@ const CEL = { MED: "Tablero!$C$10", DESDE: "Tablero!$D$10", HASTA: "Tablero!$E$1
 
 /** La fórmula de «en el filtro» y la de «valor» de una fila del Detalle. */
 export function formulasFila(fila: number) {
-  const dia = `INT($D${fila})`;
+  const dia = `INT($${L(DET.DIA)}${fila})`;
   const cu = `$${L(DET.CUENTA)}${fila}`;
   const filtro = `IF(AND(${dia}>=${CEL.DESDE},${dia}<=${CEL.HASTA},OR(${CEL.INCL}="Todas",AND(${CEL.INCL}="Todas menos anuladas",${cu}<>"Anulada"),${cu}="Sí")),1,0)`;
   const valor = `$${L(DET.FILTRO)}${fila}*IF(${CEL.MED}="HL",N($${L(DET.HL)}${fila}),IF(${CEL.MED}="Unidades",N($${L(DET.UNID)}${fila}),N($${L(DET.CAJAS)}${fila})))`;
@@ -92,7 +95,7 @@ export const TITULOS: Record<DimT, string> = {
   opm: "POR OPM · QUIÉN LA REPORTÓ EN PISO",
 };
 const DIMS: DimT[] = ["causa", "area", "registro", "opm"];
-const DET_DIM: Record<DimT, number> = { causa: DET.CAUSA, area: DET.AREA, registro: DET.REG, opm: DET.OPM };
+const detDim = (d: DimT): number => ({ causa: DET.CAUSA, area: DET.AREA, registro: DET.REG, opm: DET.OPM })[d];
 
 export type Estilos = {
   banda: (h: ExcelJS.Worksheet, ancho: number, titulo: string, sub: string, logoId: number | null) => void;
@@ -142,7 +145,7 @@ export function armarTablero(wb: ExcelJS.Workbook, E: Estilos, d: {
     cats.forEach((c, i) => {
       const f = i + 2;
       calc.getCell(f, c0).value = c;
-      calc.getCell(f, c0 + 1).value = { formula: `ROUND(SUMPRODUCT(--(${rango(DET_DIM[dim])}=${a(0, f)}),${rango(DET.VALOR)}),3)`, result: calcP.valores[i] };
+      calc.getCell(f, c0 + 1).value = { formula: `ROUND(SUMPRODUCT(--(${rango(detDim(dim))}=${a(0, f)}),${rango(DET.VALOR)}),3)`, result: calcP.valores[i] };
       calc.getCell(f, c0 + 2).value = { formula: `IF(${a(1, f)}>0,${a(1, f)}+(1000-ROW())/100000000,0)`, result: calcP.claves[i] };
     });
     const tot = `$${L(c0 + 5)}$13`;
