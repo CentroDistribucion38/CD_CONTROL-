@@ -7,12 +7,12 @@
    --------------------------------------------------------------------- */
 .plr { display: flex; flex-direction: column; gap: 16px; min-width: 0; font-family: var(--rt-texto); color: var(--rt-tinta) }
 .plr *, .plr-velo * { box-sizing: border-box }
-.plr-velo { --plr-claro: color-mix(in srgb, var(--c-marca) 28%, #fff); --plr-fondo: color-mix(in srgb, var(--rt-linea) 38%, #fff) }
-.plr { --plr-claro: color-mix(in srgb, var(--c-marca) 28%, #fff); --plr-fondo: color-mix(in srgb, var(--rt-linea) 38%, #fff) }
+.plr-velo { --plr-negro: #0B0B0C; --plr-claro: color-mix(in srgb, var(--c-marca) 28%, #fff); --plr-fondo: color-mix(in srgb, var(--rt-linea) 38%, #fff) }
+.plr { --plr-negro: #0B0B0C; --plr-claro: color-mix(in srgb, var(--c-marca) 28%, #fff); --plr-fondo: color-mix(in srgb, var(--rt-linea) 38%, #fff) }
 .plr em { font-style: normal }
 
 /* ===== LA BANDA NEGRA ===== */
-.plr-cab { display: flex; align-items: center; gap: 18px; padding: 18px 24px; background: var(--rt-negro); color: #fff; border-bottom: 3px solid var(--rt-oro) }
+.plr-cab { display: flex; align-items: center; gap: 18px; padding: 18px 24px; background: var(--plr-negro); color: #fff; border-bottom: 3px solid var(--rt-oro) }
 .plr-logo { width: 44px; height: 44px; flex: none; display: block }
 .plr-sep { width: 1px; align-self: stretch; margin: 2px 2px; background: #3A3F46; flex: none }
 .plr-tit { min-width: 0 }
@@ -58,7 +58,7 @@
 .plr-kpi b { font: 900 32px/1.05 var(--rt-titulo); font-variant-numeric: tabular-nums; letter-spacing: -.02em }
 .plr-kpi b.rojo { color: var(--rt-mal) }
 .plr-kpi i { font-style: normal; font-size: 11.5px; color: var(--rt-gris); line-height: 1.35 }
-.plr-kpi.neg { background: var(--rt-negro); color: #fff; border-top: 3px solid var(--rt-oro) }
+.plr-kpi.neg { background: var(--plr-negro); color: #fff; border-top: 3px solid var(--rt-oro) }
 .plr-kpi.neg span, .plr-kpi.neg i { color: #C9CFD8 }
 .plr-kpi.neg b { font-size: 44px }
 
@@ -166,7 +166,7 @@
 /* ===== EL DIAGRAMA ===== */
 .plr-dg { padding: 22px 24px 26px; display: flex; flex-direction: column; background: var(--plr-fondo) }
 .plr-dg-cima { display: flex; align-items: center }
-.plr-raiz { flex: none; width: 230px; background: var(--rt-negro); color: #fff; font: 900 15px/1.15 var(--rt-titulo); letter-spacing: .03em; padding: 20px 24px; display: grid; place-items: center; text-align: center; border-top: 3px solid var(--rt-oro) }
+.plr-raiz { flex: none; width: 230px; background: var(--plr-negro); color: #fff; font: 900 15px/1.15 var(--rt-titulo); letter-spacing: .03em; padding: 20px 24px; display: grid; place-items: center; text-align: center; border-top: 3px solid var(--rt-oro) }
 .plr-reglas { flex: 1; min-width: 0; list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); background: #fff; border: 1px solid var(--rt-linea) }
 .plr-reglas li { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 12px 16px; border-right: 1px solid var(--rt-linea); font-size: 12.5px; line-height: 1.45 }
 .plr-reglas li:last-child { border-right: 0 }
@@ -175,14 +175,14 @@
 .plr-reglas b.mal { color: var(--rt-mal) }
 .plr-reglas b i { font: 700 10px var(--rt-titulo); font-style: normal; letter-spacing: .14em; text-transform: uppercase; color: var(--rt-gris) }
 .plr-tronco { position: relative; height: 36px }
-.plr-tronco i { position: absolute; left: 115px; top: 0; height: 18px; border-left: 2px solid var(--rt-negro) }
-.plr-tronco u { position: absolute; left: 115px; right: calc((100% - 404px) / 2); top: 18px; border-top: 2px solid var(--rt-negro); text-decoration: none }
-.plr-tronco u::before, .plr-tronco u::after { content: ""; position: absolute; top: 0; height: 18px; border-left: 2px solid var(--rt-negro) }
+.plr-tronco i { position: absolute; left: 115px; top: 0; height: 18px; border-left: 2px solid var(--plr-negro) }
+.plr-tronco u { position: absolute; left: 115px; right: calc((100% - 404px) / 2); top: 18px; border-top: 2px solid var(--plr-negro); text-decoration: none }
+.plr-tronco u::before, .plr-tronco u::after { content: ""; position: absolute; top: 0; height: 18px; border-left: 2px solid var(--plr-negro) }
 .plr-tronco u::before { left: 75px }
 .plr-tronco u::after { right: 0 }
 .plr-dg-ramas { display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 24px; align-items: start }
 .plr-rama { display: flex; flex-direction: column; min-width: 0 }
-.plr-rama-t { margin: 0; padding: 12px 16px; background: var(--rt-negro); color: #fff; font: 900 15px var(--rt-titulo); letter-spacing: .1em; text-align: center; border-top: 3px solid var(--rt-oro) }
+.plr-rama-t { margin: 0; padding: 12px 16px; background: var(--plr-negro); color: #fff; font: 900 15px var(--rt-titulo); letter-spacing: .1em; text-align: center; border-top: 3px solid var(--rt-oro) }
 .plr-rama-n { margin: 8px 0 12px; font-size: 12px; color: var(--rt-gris); line-height: 1.45 }
 .plr-rama-n.sinrama { margin-top: 12px }
 .plr-cond { display: flex; align-items: stretch }
@@ -203,23 +203,23 @@
 .plr-nodo.grave { width: 170px; flex: none; background: #fff; border-left: 4px solid var(--rt-mal) }
 .plr-nodo.grave b { color: var(--rt-mal) }
 .plr-nodo.leve.cero, .plr-nodo.grave.cero { opacity: .55 }
-.plr-nodo.p4 { width: 170px; flex: none; background: #fff; border-left: 4px solid var(--rt-negro) }
+.plr-nodo.p4 { width: 170px; flex: none; background: #fff; border-left: 4px solid var(--plr-negro) }
 .plr-sinresp { margin-bottom: 12px }
 .plr-acc-nodo { flex: 1; min-width: 0; padding: 9px 12px; background: #fff; border: 1px solid var(--rt-linea); font-size: 12.5px; line-height: 1.4; min-height: 52px; display: flex; align-items: center }
-.plr-acc-nodo.comite { background: var(--rt-negro); border-color: var(--rt-negro); color: #fff; font-weight: 800; justify-content: center; text-align: center }
+.plr-acc-nodo.comite { background: var(--plr-negro); border-color: var(--plr-negro); color: #fff; font-weight: 800; justify-content: center; text-align: center }
 .plr-peldano { display: flex; align-items: stretch }
-.plr-pel-n { flex: none; width: 110px; display: grid; place-items: center; padding: 8px; font: 800 11px/1.25 var(--rt-titulo); letter-spacing: .08em; text-align: center; color: #fff; background: var(--rt-negro); border-top: 3px solid var(--rt-oro) }
+.plr-pel-n { flex: none; width: 110px; display: grid; place-items: center; padding: 8px; font: 800 11px/1.25 var(--rt-titulo); letter-spacing: .08em; text-align: center; color: #fff; background: var(--plr-negro); border-top: 3px solid var(--rt-oro) }
 .plr-peldano.s4 .plr-pel-n { background: var(--rt-mal) }
-.plr-fk { flex: none; width: 22px; background: linear-gradient(var(--rt-negro), var(--rt-negro)) 0 25% / 22px 2px no-repeat, linear-gradient(var(--rt-negro), var(--rt-negro)) 0 75% / 22px 2px no-repeat; position: relative }
-.plr-fk::before { content: ""; position: absolute; left: 0; top: 25%; bottom: 25%; border-left: 2px solid var(--rt-negro) }
+.plr-fk { flex: none; width: 22px; background: linear-gradient(var(--plr-negro), var(--plr-negro)) 0 25% / 22px 2px no-repeat, linear-gradient(var(--plr-negro), var(--plr-negro)) 0 75% / 22px 2px no-repeat; position: relative }
+.plr-fk::before { content: ""; position: absolute; left: 0; top: 25%; bottom: 25%; border-left: 2px solid var(--plr-negro) }
 .plr-pel-c { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0 }
 .plr-via { display: flex; align-items: stretch }
 .plr-peldano.s4 > .plr-flecha { align-self: center }
-.plr-flecha { flex: none; width: 26px; position: relative; align-self: center; height: 2px; background: var(--rt-negro) }
-.plr-flecha::after { content: ""; position: absolute; right: -1px; top: -4px; border-left: 7px solid var(--rt-negro); border-top: 5px solid transparent; border-bottom: 5px solid transparent }
-.plr-vf { position: relative; height: 20px; margin-left: 55px; border-left: 2px solid var(--rt-negro) }
+.plr-flecha { flex: none; width: 26px; position: relative; align-self: center; height: 2px; background: var(--plr-negro) }
+.plr-flecha::after { content: ""; position: absolute; right: -1px; top: -4px; border-left: 7px solid var(--plr-negro); border-top: 5px solid transparent; border-bottom: 5px solid transparent }
+.plr-vf { position: relative; height: 20px; margin-left: 55px; border-left: 2px solid var(--plr-negro) }
 .plr-vf.c { height: 16px; margin-left: 75px }
-.plr-vf::after { content: ""; position: absolute; left: -5px; bottom: -1px; border-top: 7px solid var(--rt-negro); border-left: 5px solid transparent; border-right: 5px solid transparent }
+.plr-vf::after { content: ""; position: absolute; left: -5px; bottom: -1px; border-top: 7px solid var(--plr-negro); border-left: 5px solid transparent; border-right: 5px solid transparent }
 .plr-dg-det { margin-top: 20px; background: #fff; border: 1px solid var(--rt-linea); border-top: 3px solid var(--rt-oro); padding: 14px 18px }
 .plr-dg-det h3 { margin: 0 0 8px; font: 800 11px var(--rt-titulo); letter-spacing: .14em; text-transform: uppercase }
 .plr-dg-det ul { list-style: none; margin: 0; padding: 0 }
