@@ -549,8 +549,7 @@ export function dibujarSeguridadCierre(c: Cierre, plan: PlanDatos | null, x: Ext
     letra(ctx, 700, 10); ctx.fillStyle = tinta; ctx.globalAlpha = .8; ctx.textAlign = "left"; espaciado(ctx, k, mx, y0 + 20, 1.6); ctx.globalAlpha = 1;
     const wk = anchoEspaciado(ctx, k, 1.6);
     letra(ctx, 900, 30);
-    if (rojo) { const wv = ctx.measureText(String(v)).width + 16; ctx.fillStyle = "#FFFFFF"; ctx.fillRect(mx, y0 + 28, wv, 30); ctx.fillStyle = MAL; ctx.fillText(String(v), mx + 8, y0 + 44) }
-    else { ctx.fillStyle = tinta; ctx.fillText(String(v), mx, y0 + 44) }
+    ctx.fillStyle = rojo ? "#A8001C" : tinta; ctx.fillText(String(v), mx, y0 + 44)
     letra(ctx, 500, 11.5); ctx.fillStyle = tinta; ctx.globalAlpha = .8; ctx.fillText(n, mx, y0 + 70); ctx.globalAlpha = 1;
     mx += Math.max(wk, ctx.measureText(n).width, 40) + 30;
   }

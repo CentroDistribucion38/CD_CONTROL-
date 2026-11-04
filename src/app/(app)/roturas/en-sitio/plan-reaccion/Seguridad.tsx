@@ -87,8 +87,21 @@ export function Seguridad({ eventos, acciones, personas, regla, colaboradores, e
     };
     const paretos = DIMS.map((d) => { const p = pareto(evs, d.id, "eventos"); return { dim: d.id, titulo: titulos[d.id][0], nota: `${titulos[d.id][1]} · ${p.total} eventos`, barras: p.barras, total: p.total } });
     const periodo = `${mesNombre(mes)} ${mes.slice(0, 4)} · ${turno ? "turno " + turno : "los tres turnos"}`;
+    /* LOS EVENTOS, uno por uno, del más viejo al más nuevo: lo mismo que el cierre del Tablero. */
+    const hora = (iso: string) => new Date(iso).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit", hour12: false });
+    const eventos = [...evs].sort((p, q) => p.reportada_en.localeCompare(q.reportada_en)).map((e) => ({
+      dia: dm(e.reportada_en), turno: turnoDe(e), hora: hora(e.reportada_en), codigo: e.codigo, cajas: e.cajas,
+      tipo: e.tipo, causa: e.subtipo ?? e.causa_nombre ?? e.causa ?? "—", severidad: e.severidad,
+      responsable: e.responsable, reportante: e.reportante, autorreporte: e.autorreporte,
+      nMes: e.cuenta_persona ? e.n_mes : null, recurrente: e.recurrente_mes_a_mes,
+      acciones: acciones.filter((a) => a.rotura_id === e.rotura_id && a.estado !== "no_aplica").map((a) => ({
+        nombre: a.accion_nombre,
+        estado: (a.estado === "hecha" ? (a.hecha_tarde ? "hecha_tarde" : "hecha") : a.vencida ? "vencida" : "pendiente") as "hecha" | "hecha_tarde" | "vencida" | "pendiente",
+      })),
+      sinAccion: e.cuenta_persona || e.tipo === "condicion" || e.severidad !== "leve" ? "Sin acción generada" : "Sin acción exigida",
+    }));
     const lienzo = fs.dibujarSeguridadDashboard(
-      { mes: mesNombre(mes), turno, periodo, total: k.total, comp: k.comp, cond: k.cond, graves: k.graves, reinc: k.reinc, comite: k.comite, sinResp: k.sinResp, vencidas: venc, abiertas: acciones.filter((a) => a.estado === "pendiente").length, paretos },
+      { mes: mesNombre(mes), turno, periodo, total: k.total, comp: k.comp, cond: k.cond, graves: k.graves, reinc: k.reinc, comite: k.comite, sinResp: k.sinResp, vencidas: venc, abiertas: acciones.filter((a) => a.estado === "pendiente").length, paretos, eventos },
       { paleta: leerPaleta(raiz.current) ?? { ...PALETA_MARCA, acento: [255, 192, 0] as [number, number, number] }, logo },
     );
     return { lienzo, nombre: fs.nombreFotoSeguridad(mes, turno) };

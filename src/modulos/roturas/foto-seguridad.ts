@@ -15,10 +15,22 @@ const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const rgb = (c: readonly number[]) => `rgb(${c.join(",")})`;
 
 export type ParetoFoto = { dim: Dim; titulo: string; nota: string; barras: Barra[]; total: number };
+/** UN RENGLÓN DE «LOS EVENTOS»: lo que ya sabe la pantalla de cada rotura del mes (no se calcula aquí). */
+export type FilaEventoFoto = {
+  dia: string; turno: string; hora: string; codigo: string; cajas: number;
+  tipo: TipoEv; causa: string; severidad: "leve" | "intermedia" | "grave";
+  responsable: string | null; reportante: string | null; autorreporte: boolean;
+  nMes: number | null; recurrente: boolean;
+  /** Las acciones que exige el plan, con su estado; vacío = ninguna generada. */
+  acciones: { nombre: string; estado: "pendiente" | "hecha" | "vencida" | "hecha_tarde" }[];
+  /** Lo que se dice cuando no hay acciones: «Sin acción generada» o «Sin acción exigida». */
+  sinAccion: string;
+};
 export type DatosSeguridadFoto = {
   mes: string; turno: string; periodo: string;
   total: number; comp: number; cond: number; graves: number; reinc: number; comite: number; sinResp: number; vencidas: number; abiertas: number;
   paretos: ParetoFoto[];
+  eventos: FilaEventoFoto[];
 };
 export type ExtraSeguridad = { paleta?: Paleta; logo?: CanvasImageSource | null; generado?: Date };
 
@@ -88,11 +100,111 @@ function seccion(ctx: Ctx, y: number, t: string, nota: string) {
 
 const ALTO_BANDA = 100, ALTO_HERO = 112, ALTO_GRANDE = 296, ALTO_CHICO = 268;
 
+/* LA TABLA «LOS EVENTOS», igual que en el cierre del Tablero: una fila por rotura. */
+const OJO = "#6B5518", VERDE = "#1E7A3C", VERDE_S = "#E8F5EC", MAL_S = "#FDECEC", FINA = "#EEF1F5";
+const TIPO_T: Record<TipoEv, string> = { comportamiento: "COMPORTAMIENTO", condicion: "CONDICIÓN", externa: "EXTERNA", sin_clasificar: "SIN CLASIFICAR" };
+const SEV_T = { leve: "LEVE", intermedia: "INTERMEDIA", grave: "GRAVE" };
+const LH = 17, PADV = 9, PADH = 8, ALTO_CAB_T = 31;
+const COLS = [
+  { t: "DÍA", w: 46 }, { t: "TURNO", w: 52 }, { t: "HORA", w: 50 }, { t: "ROTURA", w: 70 }, { t: "CAJAS", w: 54, n: true },
+  { t: "TIPO", w: 160 }, { t: "SEVERIDAD", w: 94 }, { t: "RESPONSABLE", w: 150 }, { t: "EVENTO N.º", w: 108 }, { t: "REACCIÓN EXIGIDA", w: 0 },
+];
+const colsTabla = () => { const c = COLS.map((q) => ({ ...q })); c[c.length - 1].w = AN - c.slice(0, -1).reduce((a, q) => a + q.w, 0); return c };
+
+type Renglon = { f: FilaEventoFoto; resp: { t: string; mal?: boolean; sub?: boolean }[]; reac: { t: string; a: FilaEventoFoto["acciones"][number] | null }[]; h: number };
+function medirRenglones(ctx: Ctx, filas: FilaEventoFoto[]): Renglon[] {
+  const cols = colsTabla(), wR = cols[7].w - 2 * PADH, wA = cols[9].w - 2 * PADH - 84;
+  return filas.map((f) => {
+    letra(ctx, 700, 13);
+    const resp: Renglon["resp"] = [];
+    if (f.responsable) {
+      envolver(ctx, f.responsable, wR).forEach((t) => resp.push({ t }));
+      if (f.autorreporte) resp.push({ t: "se reportó solo", sub: true });
+      else if (f.reportante) resp.push({ t: "reportó: " + f.reportante, sub: true });
+    } else if (f.tipo === "comportamiento") resp.push({ t: "Sin responsable", mal: true }, { t: "hay que asignarlo", sub: true });
+    else resp.push({ t: "—" }, { t: "no suma a la persona", sub: true });
+    letra(ctx, 500, 12);
+    const reac: Renglon["reac"] = f.acciones.length
+      ? f.acciones.flatMap((a) => envolver(ctx, a.nombre, wA).map((t, i) => ({ t, a: i === 0 ? a : null })))
+      : [{ t: f.sinAccion, a: null }];
+    return { f, resp, reac, h: Math.max(48, 2 * PADV + Math.max(resp.length, reac.length) * LH) };
+  });
+}
+
+function etiqueta(ctx: Ctx, t: string, x: number, y: number, bg: string, fg: string, borde?: string) {
+  letra(ctx, 700, 9.5); const w = anchoEspaciado(ctx, t, .7) + 14;
+  ctx.fillStyle = bg; ctx.fillRect(x, y, w, 20);
+  if (borde) { ctx.strokeStyle = borde; ctx.lineWidth = 1; ctx.strokeRect(x + .5, y + .5, w - 1, 19) }
+  ctx.fillStyle = fg; ctx.textAlign = "left"; espaciado(ctx, t, x + 7, y + 10.5, .7);
+  return w;
+}
+
+function dibujarTablaEventos(ctx: Ctx, y: number, rs: Renglon[], P: Paleta): number {
+  const cols = colsTabla(), y1 = y;
+  ctx.fillStyle = NEGRO; ctx.fillRect(PX, y, AN, ALTO_CAB_T);
+  let cx = PX;
+  for (const q of cols) {
+    letra(ctx, 700, 10); ctx.fillStyle = "#FFFFFF";
+    if (q.n) { ctx.textAlign = "right"; let rx = cx + q.w - PADH; for (const ch of [...q.t].reverse()) { ctx.fillText(ch, rx, y + 16); rx -= ctx.measureText(ch).width + 1.2 } }
+    else { ctx.textAlign = "left"; espaciado(ctx, q.t, cx + PADH, y + 16, 1.2) }
+    cx += q.w;
+  }
+  y += ALTO_CAB_T;
+  rs.forEach(({ f, resp, reac, h }, ri) => {
+    if (ri % 2 === 1) { ctx.fillStyle = "#FAFBFC"; ctx.fillRect(PX, y, AN, h) }
+    ctx.fillStyle = FINA; ctx.fillRect(PX, y + h - 1, AN, 1);
+    let c2 = PX;
+    for (const q of cols) {
+      const x0 = c2 + PADH, ty = y + PADV + 8;
+      ctx.textAlign = "left";
+      if (q.t === "DÍA") { letra(ctx, 500, 13); ctx.fillStyle = NEGRO; ctx.fillText(f.dia, x0, ty) }
+      else if (q.t === "TURNO") { ctx.fillStyle = NEGRO; ctx.fillRect(x0, y + PADV - 1, 24, 24); letra(ctx, 900, 12); ctx.fillStyle = "#FFFFFF"; ctx.textAlign = "center"; ctx.fillText(f.turno, x0 + 12, y + PADV + 11) }
+      else if (q.t === "HORA") { letra(ctx, 500, 13); ctx.fillStyle = NEGRO; ctx.fillText(f.hora, x0, ty) }
+      else if (q.t === "ROTURA") { letra(ctx, 700, 13); ctx.fillStyle = "#444C57"; ctx.fillText(f.codigo, x0, ty) }
+      else if (q.t === "CAJAS") { letra(ctx, 700, 13); ctx.fillStyle = NEGRO; ctx.textAlign = "right"; ctx.fillText(nf.format(f.cajas), c2 + q.w - PADH, ty) }
+      else if (q.t === "TIPO") {
+        const tp = f.tipo;
+        etiqueta(ctx, TIPO_T[tp], x0, y + PADV - 1, tp === "comportamiento" ? NEGRO : tp === "condicion" ? rgb(P.acento) : tp === "externa" ? FINA : MAL_S,
+          tp === "comportamiento" ? "#FFFFFF" : tp === "sin_clasificar" ? MAL : NEGRO, tp === "sin_clasificar" ? MAL : undefined);
+        letra(ctx, 500, 11); ctx.fillStyle = GRIS; ctx.textAlign = "left"; ctx.fillText(recortar(ctx, f.causa, q.w - 2 * PADH), x0, y + PADV + 31);
+      } else if (q.t === "SEVERIDAD") {
+        const sv = f.severidad;
+        etiqueta(ctx, SEV_T[sv], x0, y + PADV - 1, sv === "grave" ? MAL : sv === "intermedia" ? "#FFF3D6" : VERDE_S, sv === "grave" ? "#FFFFFF" : sv === "intermedia" ? OJO : VERDE);
+      } else if (q.t === "RESPONSABLE") {
+        resp.forEach((ln, k) => { letra(ctx, ln.sub ? 500 : 700, ln.sub ? 11 : 13); ctx.textAlign = "left"; ctx.fillStyle = ln.mal ? MAL : ln.sub ? GRIS : NEGRO; ctx.fillText(ln.t, x0, ty + k * LH) });
+      } else if (q.t === "EVENTO N.º") {
+        if (f.nMes) {
+          letra(ctx, 800, 13); ctx.fillStyle = f.nMes >= 3 ? MAL : NEGRO; ctx.fillText(`${f.nMes}.º del mes`, x0, ty);
+          if (f.recurrente) etiqueta(ctx, "RECURRENTE", x0, y + PADV + 17, MAL_S, MAL, MAL);
+        } else { letra(ctx, 500, 13); ctx.fillStyle = GRIS; ctx.fillText("—", x0, ty) }
+      } else {
+        reac.forEach((ln, k) => {
+          const a = ln.a, yy = ty + k * LH;
+          letra(ctx, 500, 12); ctx.textAlign = "left"; ctx.fillStyle = a ? NEGRO : GRIS; ctx.fillText(ln.t, x0, yy);
+          if (a) {
+            const txt = a.estado === "hecha" ? "hecha" : a.estado === "hecha_tarde" ? "hecha tarde" : a.estado === "vencida" ? "vencida" : "pendiente";
+            const fg = a.estado === "hecha" ? VERDE : a.estado === "vencida" ? MAL : OJO;
+            letra(ctx, 700, 10.5); ctx.fillStyle = fg; ctx.textAlign = "right"; ctx.fillText(txt.toUpperCase(), c2 + q.w - PADH, yy);
+          }
+        });
+      }
+      c2 += q.w;
+    }
+    y += h;
+  });
+  ctx.strokeStyle = BORDE; ctx.lineWidth = 1; ctx.strokeRect(PX + .5, y1 + .5, AN - 1, y - y1 - 1);
+  return y;
+}
+
 export function dibujarSeguridadDashboard(d: DatosSeguridadFoto, x: ExtraSeguridad = {}): HTMLCanvasElement {
   const P = x.paleta ?? PALETA_MARCA;
   const [causa, ...otros] = d.paretos;
   const filas = Math.ceil(otros.length / 2);
-  const H = ALTO_BANDA + ALTO_HERO + 62 + ALTO_GRANDE + 14 + 62 + filas * ALTO_CHICO + (filas - 1) * 14 + 54 + 52;
+  /* Se mide la tabla ANTES de crear el lienzo: su alto depende de cuántas líneas ocupa cada renglón. */
+  const cvM = document.createElement("canvas").getContext("2d")!;
+  const rs = medirRenglones(cvM, d.eventos);
+  const altoTabla = rs.length ? ALTO_CAB_T + rs.reduce((a, r) => a + r.h, 0) : 40;
+  const H = ALTO_BANDA + ALTO_HERO + 62 + ALTO_GRANDE + 14 + 62 + filas * ALTO_CHICO + (filas - 1) * 14 + 54 + 18 + 62 + altoTabla + 52;
 
   const cv = document.createElement("canvas"); cv.width = W * S; cv.height = Math.round(H * S);
   const ctx = cv.getContext("2d")!; ctx.scale(S, S); ctx.textBaseline = "middle";
@@ -153,13 +265,21 @@ export function dibujarSeguridadDashboard(d: DatosSeguridadFoto, x: ExtraSegurid
   });
   y += filas * ALTO_CHICO + (filas - 1) * 14 + 14;
 
-  // ---- la leyenda y el pie
+  // ---- la leyenda de los Paretos
   const colores = COLOR(P);
   const ley: [string, string][] = [["Comportamiento", colores.comportamiento], ["Condición", colores.condicion], ["Externa u otros", colores.externa]];
   let lx = PX; letra(ctx, 500, 11.5); ctx.textAlign = "left";
   for (const [t, c] of ley) { ctx.fillStyle = c; ctx.fillRect(lx, y + 12, 10, 10); ctx.fillStyle = NEGRO; ctx.fillText(t, lx + 16, y + 17); lx += 16 + ctx.measureText(t).width + 22 }
   ctx.strokeStyle = MAL; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(lx, y + 17); ctx.lineTo(lx + 22, y + 17); ctx.stroke();
   ctx.fillStyle = NEGRO; ctx.fillText("Acumulado", lx + 28, y + 17);
+  y += 18 + 36;
+
+  // ---- LOS EVENTOS, uno por uno (igual que el cierre del Tablero)
+  y = seccion(ctx, y, "Los eventos", `${d.total} evento${d.total === 1 ? "" : "s"} · ${d.comp} de comportamiento · ${d.cond} de condición`);
+  if (!rs.length) { letra(ctx, 500, 13.5); ctx.fillStyle = GRIS; ctx.textAlign = "left"; ctx.fillText("Nada que listar.", PX, y + 12); y += 40 }
+  else y = dibujarTablaEventos(ctx, y, rs, P);
+
+  // ---- el pie
   pie(ctx, W, H, g, `Eventos de roturas en sitio · ${d.periodo}`);
   void SUBE;
   return cv;
