@@ -277,6 +277,10 @@ export const MODULOS: Modulo[] = [
       { nombre: "Visto bueno", ruta: "/roturas/en-sitio/visto-bueno", rama: "en-sitio" },
       { nombre: "Desacuerdos", ruta: "/roturas/en-sitio/desacuerdos", rama: "en-sitio" },
       { nombre: "Tablero", ruta: "/roturas/en-sitio/tablero", rama: "en-sitio" },
+      /* SEGURIDAD va pegada al Tablero: se llega desde su botón y vuelve a él. Es el plan de reacción
+         de las roturas (eventos, reincidencia y qué le toca a cada caso). Su permiso —Ver / Editar— es el
+         que lee la base en `plan_puede_ver()`: la ruta y el SQL tienen que llamarse igual. */
+      { nombre: "Seguridad", ruta: "/roturas/en-sitio/plan-reaccion", rama: "en-sitio" },
       { nombre: "Análisis", ruta: "/roturas/en-sitio/analisis", rama: "en-sitio" },
       /* OPERARIOS VA ANTES DEL MAESTRO: quién reporta es parte del
          recorrido, y el Maestro cierra porque no es un paso sino la

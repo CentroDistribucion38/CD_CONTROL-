@@ -52,6 +52,17 @@ export default async function TableroEnSitioPage() {
     }
   }
 
+  /* EL BOTÓN DE SEGURIDAD: solo para quien tiene la pantalla. La cifra del botón son las acciones
+     del plan que ya pasaron su plazo; si la base todavía no tiene el plan (falta correr el SQL), el
+     botón sale sin cifra en vez de inventar un cero. */
+  let seguridad: { vencidas: number | null } | null = null;
+  if (permisos.manda || permisos.puedeVer("/roturas/en-sitio/plan-reaccion")) {
+    const supabase = await createClient();
+    const { count, error } = await supabase.from("v_plan_acciones")
+      .select("id", { count: "exact", head: true }).eq("estado", "pendiente").eq("vencida", true);
+    seguridad = { vencidas: error ? null : (count ?? 0) };
+  }
+
   const vivas = datos.roturas.filter((r) => r.estado !== "anulada");
   /* LAS DOS CIFRAS, NO UNA. El pie decía «341 unidades» contando solo
      las rotas, así que las contaminadas —que están guardadas en el mismo
@@ -93,7 +104,7 @@ export default async function TableroEnSitioPage() {
         </div>
       )}
 
-      <Tablero roturas={datos.roturas} nombres={nombres} manda={permisos.manda} correcciones={correcciones} revisadas={revisadas} />
+      <Tablero roturas={datos.roturas} nombres={nombres} manda={permisos.manda} correcciones={correcciones} revisadas={revisadas} seguridad={seguridad} />
 
       {!permisos.manda && (
         <div className="aviso">

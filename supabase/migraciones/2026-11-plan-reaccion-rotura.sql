@@ -108,6 +108,15 @@ select c.clave, x.tipo, x.subtipo
   ) as x(clave, tipo, subtipo) on x.clave = c.clave
 on conflict (causa) do nothing;
 
+-- LA RAMA DE CONDICIÓN del diagrama (equipo FLT / vehículo en atención / locativo / estiba):
+-- cada una pide una acción distinta.
+alter table public.plan_causa_tipo add column if not exists clave_condicion text;
+update public.plan_causa_tipo set clave_condicion = 'equipo_flt'        where causa = 'falla_montacarga';
+update public.plan_causa_tipo set clave_condicion = 'locativo'          where causa = 'condiciones';
+update public.plan_causa_tipo set clave_condicion = 'estiba_transporte' where causa = 'estibas_malas';
+update public.plan_causa_tipo set clave_condicion = 'estiba_zona_cd'    where causa = 'mal_arrumado';
+-- «Vehículo en atención» ('vehiculo') todavía no tiene una causa en el sistema: cuando exista, se le pone esa clave aquí.
+
 -- ---------------------------------------------------------------------
 -- 4. LA ESCALERA: qué acción pide cada disparador, y en cuántas horas
 -- ---------------------------------------------------------------------
@@ -128,6 +137,15 @@ insert into public.plan_acciones_tipo (clave, nombre, orden) values
   ('comite',              'Comité Safety Compliance',           9),
   ('verificacion_eficacia','Verificación de eficacia',         10)
 on conflict (clave) do nothing;
+insert into public.plan_acciones_tipo (clave, nombre, orden) values
+  ('suspension_5',        'Gestión de consecuencias · suspensión 5 días', 11),
+  ('suspension_3',        'Gestión de consecuencias · suspensión 3 días', 12),
+  ('cond_equipo_flt',     'Verificar condiciones en el preoperacional y llevar a taller', 13),
+  ('cond_vehiculo',       'Verificar BPM y mínimos vitales del vehículo',  14),
+  ('cond_locativo',       'Validar condición, reportar al dueño de territorio y llevar a la matriz de condiciones', 15),
+  ('cond_estiba_transporte','Revisar el origen de las estibas y notificar a transporte', 16),
+  ('cond_estiba_zona_cd', 'Zona de almacenamiento CD: validar el tiempo de permanencia de los lotes', 17)
+on conflict (clave) do nothing;
 
 create table if not exists public.plan_acciones_regla (
   id         uuid primary key default gen_random_uuid(),
@@ -140,19 +158,38 @@ create table if not exists public.plan_acciones_regla (
   unique (disparador, valor, accion)
 );
 comment on table public.plan_acciones_regla is
-  'Escalera del plan. Se edita aquí (no en el código). Ajustar contra el diagrama oficial: el evento 3 y el 4 llevan la acción que se decida (llamado, suspensión, comité).';
+  'Escalera del plan. Se edita aquí (no en el código). Es el diagrama oficial «Plan de reacción rotura»: evento N.º × leve/grave, recurrencia mes a mes y las cuatro ramas de condición.';
+
+-- LA ESCALERA DEL DIAGRAMA «PLAN DE REACCIÓN ROTURA» (comportamiento):
+--   evento_n 'N:leve' / 'N:grave' = el N.º evento de la persona en el mes, según la gravedad de ESE evento.
+--   Leve = hasta leve_max cajas · grave = desde grave_min · lo intermedio (6 a 29) sigue la columna leve
+--   y además pide guardián + 5 porqués + ISL (regla de severidad).
+-- Si ya se había corrido la primera versión, se quitan sus reglas viejas (escalera por número sin gravedad).
+delete from public.plan_acciones_regla
+ where (disparador = 'evento_n' and valor in ('1', '2', '3', '4'))
+    or (disparador = 'condicion' and valor = 'condicion');
 
 insert into public.plan_acciones_regla (disparador, valor, accion, plazo_h, nota) values
-  ('evento_n',    '1',            'abordaje',             8,   '1.er evento de la persona en el mes'),
-  ('evento_n',    '2',            'reentrenamiento',      48,  '2.º evento en el mes'),
-  ('evento_n',    '3',            'llamado_atencion',     72,  '3.er evento en el mes'),
-  ('evento_n',    '4',            'comite',               120, '4.º evento o más en el mes'),
-  ('recurrencia', 'mes_a_mes',    'comite',               120, 'La persona tuvo eventos en dos meses seguidos'),
-  ('severidad',   'intermedia',   'guardian',             8,   '6 a 29 cajas'),
-  ('severidad',   'intermedia',   'analisis_5_porques',   48,  null),
-  ('severidad',   'intermedia',   'isl',                  72,  null),
-  ('severidad',   'grave',        'isl',                  24,  'ISL SIF precursor (30 cajas o más)'),
-  ('condicion',   'condicion',    'correctiva_condicion', 72,  'Se corrige el sitio o el equipo; no se le carga a la persona')
+  ('evento_n',    '1:leve',       'abordaje',             8,   '1.er evento · leve: abordaje al colaborador (trazabilidad)'),
+  ('evento_n',    '1:grave',      'reentrenamiento',      48,  '1.er evento · grave: reentrenamiento en escuela FLT + evaluación teórica y práctica'),
+  ('evento_n',    '2:leve',       'llamado_atencion',     72,  '2.º evento · leve: llamado de atención…'),
+  ('evento_n',    '2:leve',       'reentrenamiento',      72,  '…e ingresa a reentrenamiento FLT'),
+  ('evento_n',    '2:grave',      'suspension_5',         72,  '2.º evento · grave: gestión de consecuencias, suspensión 5 días'),
+  ('evento_n',    '3:leve',       'suspension_3',         72,  '3.er evento · leve: gestión de consecuencias, suspensión 3 días'),
+  ('evento_n',    '3:grave',      'comite',               120, '3.er evento · grave: Comité Safety Compliance'),
+  ('evento_n',    '4:leve',       'comite',               120, '4.ª falta leve o más: Comité Safety Compliance'),
+  ('evento_n',    '4:grave',      'comite',               120, '4.º evento grave o más: Comité Safety Compliance'),
+  ('recurrencia', 'mes_a_mes',    'comite',               120, 'Recurrente mes a mes: Comité Safety Compliance'),
+  ('severidad',   'intermedia',   'guardian',             8,   '6 a 29 cajas: se reporta en guardián'),
+  ('severidad',   'intermedia',   'analisis_5_porques',   48,  '6 a 29 cajas: 5 porqués'),
+  ('severidad',   'intermedia',   'isl',                  72,  '6 a 29 cajas: se clasifica como ISL'),
+  ('severidad',   'grave',        'isl',                  24,  '30 cajas o más: ISL SIF precursor'),
+  ('severidad',   'grave',        'analisis_5_porques',   48,  '30 cajas o más: análisis del evento'),
+  ('condicion',   'equipo_flt',        'cond_equipo_flt',        72, 'Condición · Equipo FLT'),
+  ('condicion',   'vehiculo',          'cond_vehiculo',          72, 'Condición · Vehículo en atención'),
+  ('condicion',   'locativo',          'cond_locativo',          72, 'Condición · Locativo'),
+  ('condicion',   'estiba_transporte', 'cond_estiba_transporte', 72, 'Condición · Estiba en mal estado (transporte)'),
+  ('condicion',   'estiba_zona_cd',    'cond_estiba_zona_cd',    72, 'Condición · Estiba en mal estado (zona de almacenamiento CD)')
 on conflict (disparador, valor, accion) do nothing;
 
 -- ---------------------------------------------------------------------
@@ -240,6 +277,7 @@ with b as (
          r.causa, c.nombre as causa_nombre,
          coalesce(t.tipo, 'sin_clasificar') as tipo, t.subtipo,
          r.area, r.responsable_id, o.nombre as responsable, o.empresa, o.turno,
+         t.clave_condicion,
          r.opm_id, op.nombre as reportante,
          coalesce(r.responsable_id = r.opm_id, false) as autorreporte,
          g.leve_max, g.grave_min, g.verificacion_dias
@@ -283,7 +321,8 @@ select cl.rotura_id, cl.codigo, cl.reportada_en, cl.mes, cl.estado, cl.cajas, cl
              and p.reportada_en <= cl.reportada_en + make_interval(days => cl.verificacion_dias)
              and ((cl.cuenta_persona and p.cuenta_persona and p.responsable_id = cl.responsable_id)
                or (cl.tipo = 'condicion' and p.causa = cl.causa and p.area is not distinct from cl.area))
-       ) as reincidio_en_ventana
+       ) as reincidio_en_ventana,
+       cl.clave_condicion
   from cl left join num on num.rotura_id = cl.rotura_id;
 
 create or replace view public.v_plan_eventos as
@@ -340,6 +379,11 @@ select o.id, o.nombre, o.empresa, o.turno, o.activo,
  where public.plan_puede_ver();
 grant select on public.v_plan_personas to authenticated;
 
+-- Si ya se había corrido la primera versión: lo pendiente con la numeración vieja se cierra (se regenera con la escalera nueva).
+update public.plan_acciones set estado = 'no_aplica', nota = 'Regla reemplazada por la escalera del diagrama', hecha_en = now()
+ where estado = 'pendiente'
+   and (origen_regla in ('evento_n:1', 'evento_n:2', 'evento_n:3', 'evento_n:4', 'condicion:condicion'));
+
 -- ---------------------------------------------------------------------
 -- 9. GENERAR LAS ACCIONES (idempotente: no repite las que ya existen)
 -- ---------------------------------------------------------------------
@@ -361,8 +405,9 @@ begin
     from public.plan_acciones_regla a
    where a.activo and (
         (a.disparador = 'severidad'   and a.valor = e.severidad)
-     or (a.disparador = 'condicion'   and a.valor = 'condicion' and e.tipo = 'condicion')
-     or (a.disparador = 'evento_n'    and e.cuenta_persona and a.valor = least(e.n_mes, 4)::text)
+     or (a.disparador = 'condicion'   and e.tipo = 'condicion' and a.valor = e.clave_condicion)
+     or (a.disparador = 'evento_n'    and e.cuenta_persona
+                                      and a.valor = least(e.n_mes, 4)::text || ':' || (case when e.severidad = 'grave' then 'grave' else 'leve' end))
      or (a.disparador = 'recurrencia' and e.cuenta_persona and e.recurrente_mes_a_mes and a.valor = 'mes_a_mes'))
   on conflict (rotura_id, accion) where estado <> 'no_aplica' do nothing;
   get diagnostics n = row_count;
@@ -394,10 +439,12 @@ begin
    where e.rotura_id = a.rotura_id and a.rotura_id = any(v_ids) and a.estado = 'pendiente'
      and ((a.origen_regla like 'evento_n:%'
             and (not e.cuenta_persona or a.responsable_id is distinct from e.responsable_id
-                 or split_part(a.origen_regla, ':', 2) <> least(e.n_mes, 4)::text))
+                 or substr(a.origen_regla, 10) <> least(e.n_mes, 4)::text || ':' || (case when e.severidad = 'grave' then 'grave' else 'leve' end)))
        or (a.origen_regla like 'recurrencia:%'
             and (not e.cuenta_persona or a.responsable_id is distinct from e.responsable_id
-                 or not e.recurrente_mes_a_mes)));
+                 or not e.recurrente_mes_a_mes))
+       or (a.origen_regla like 'condicion:%'
+            and (e.tipo <> 'condicion' or substr(a.origen_regla, 11) is distinct from e.clave_condicion)));
 
   foreach x in array v_ids loop
     perform public.plan_generar_acciones(x);
@@ -439,6 +486,17 @@ begin
             date_trunc('month', r.reportada_en at time zone 'America/Bogota')::date, p_id);
 end $$;
 grant execute on function public.rotura_responsable_poner(uuid, uuid, text) to authenticated;
+
+-- 10b. LOS COLABORADORES QUE SE PUEDEN ASIGNAR (sin el PIN: eso es solo del administrador)
+create or replace function public.plan_colaboradores()
+returns table (id uuid, nombre text, empresa text, turno text)
+language sql stable security definer set search_path = public as $$
+  select o.id, o.nombre, o.empresa, o.turno
+    from public.roturas_operarios o
+   where o.activo and (public.manda() or public.plan_puede_editar())
+   order by o.nombre
+$$;
+grant execute on function public.plan_colaboradores() to authenticated;
 
 -- ---------------------------------------------------------------------
 -- 11. MARCAR UNA ACCIÓN (hecha / no aplica / volver a pendiente)

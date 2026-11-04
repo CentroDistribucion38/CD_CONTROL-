@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
@@ -56,7 +57,7 @@ const pelado = (t: string) =>
  *  se puede llamar distinto a lo mismo. */
 const etiquetaDe = (r: Rotura): Etiqueta => etiquetaRotura(r);
 
-export function Tablero({ roturas, nombres, manda, correcciones, revisadas }: {
+export function Tablero({ roturas, nombres, manda, correcciones, revisadas, seguridad }: {
   roturas: Rotura[];
   nombres: Record<string, string>;
   manda: boolean;
@@ -64,6 +65,8 @@ export function Tablero({ roturas, nombres, manda, correcciones, revisadas }: {
   correcciones: Record<string, Corr[]>;
   /** Los id de las roturas que el administrador ya revisó (foto y cifras). */
   revisadas: string[];
+  /** Solo quien tiene la pantalla de Seguridad: lleva a ella, con las acciones vencidas en el botón. */
+  seguridad?: { vencidas: number | null } | null;
 }) {
   const router = useRouter();
   const supabase = createClient();
@@ -381,6 +384,14 @@ export function Tablero({ roturas, nombres, manda, correcciones, revisadas }: {
           <svg viewBox="0 0 24 24" aria-hidden><path d="M4 4h16v16H4z" /><path d="M4 9h16M9 9v11M8 13l3 3M11 13l-3 3" /></svg>
           {bajando ? (progreso || "Armando el Excel…") : "Exportar Excel"}
         </button>
+        {seguridad && (
+          <Link href="/roturas/en-sitio/plan-reaccion" className="btn tb-seguridad"
+                title={seguridad.vencidas ? `${seguridad.vencidas} ${seguridad.vencidas === 1 ? "acción vencida" : "acciones vencidas"} del plan de reacción` : "Eventos, reincidencia y plan de reacción de las roturas"}>
+            <svg viewBox="0 0 24 24" aria-hidden><path d="M12 3 4 6v6c0 4.5 3.2 7.8 8 9 4.8-1.2 8-4.5 8-9V6z" /><path d="m9 12 2 2 4-4" /></svg>
+            Seguridad
+            {!!seguridad.vencidas && <span className="tb-seg-n" aria-label={`${seguridad.vencidas} vencidas`}>{seguridad.vencidas}</span>}
+          </Link>
+        )}
         <button type="button" className="btn si tb-cierre" onClick={() => setCierre(true)}>
           <svg viewBox="0 0 24 24" aria-hidden><path d="M7 3h8l4 4v14H7z" /><path d="M14 3v5h5M10 13h6M10 17h6" /></svg>
           Cierre de turno
