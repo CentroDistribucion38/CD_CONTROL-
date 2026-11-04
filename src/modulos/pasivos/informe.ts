@@ -68,22 +68,7 @@ export const mesDe = (iso: string) => MESES_L[Number(iso.slice(5, 7)) - 1];
 export const nombreInformePasivo = (dia: string, ext: "pdf" | "docx") => `informe-pasivo-${dia}.${ext}`;
 
 /* EL COLOR VA CON EL ESTADO, igual que en la pantalla. */
-export const COLOR_ESTADO: Record<string, string> = {
-  BAJA: "#B58200", LAVADO: "#FFC300", EXTRASUCIO: "#3B3B3B",
-  "ANDINA VERDE": "#2E7D32", "ANDINA ÁMBAR": "#E8590C", ANDINA: "#5B7C99",
-};
-/** ANDINA: el color del envase por SKU (verde / ámbar). Se visualiza aparte; sigue sumando en el total. Un SKU nuevo se agrega aquí. */
-export const ANDINA_COLOR_SKU: Record<string, "VERDE" | "ÁMBAR"> = { "3500005": "VERDE", "3500162": "ÁMBAR" };
-/** El estado con que sale un renglón de Pasivos en el informe: EXTRASUCIO y ANDINA (verde / ámbar) son estados propios del informe. */
-export function estadoInforme(estado: string, causal: string, codigo: string): string {
-  const c = (causal ?? "").trim().toUpperCase();
-  if (c === "EXTRASUCIO" || c === "PENDIENTE EXTRASUCIO") return "EXTRASUCIO";
-  if (c === "ANDINA") { const col = ANDINA_COLOR_SKU[(codigo ?? "").trim()]; return col ? `ANDINA ${col}` : "ANDINA" }
-  return estado;
-}
-export const esAndina = (e: string) => e.startsWith("ANDINA");
-/** El nombre del estado en las leyendas, donde el espacio es poco: «A. VERDE», «A. ÁMBAR». El estado completo se sigue llamando igual en tablas y filtros. */
-export const etiquetaEstado = (e: string) => (e === "ANDINA VERDE" ? "A. VERDE" : e === "ANDINA ÁMBAR" ? "A. ÁMBAR" : e);
+export const COLOR_ESTADO: Record<string, string> = { BAJA: "#B58200", LAVADO: "#FFC300", EXTRASUCIO: "#3B3B3B" };
 export const colorEstado = (e: string) => COLOR_ESTADO[e] ?? "#8C8C8C";
 export const tintaSobre = (hex: string) => (hex === "#FFC300" ? "#1B1B1B" : "#FFFFFF");
 export const COLOR_ALMACEN = ["#B58200", "#FFC300", "#3B3B3B", "#8C8C8C"];
@@ -267,7 +252,7 @@ export function dibujarInformePasivo(
   const leyenda = (yTit: number) => {
     let lx = W - M; fuente("normal", 7.5);
     for (const e of [...d.estados].reverse()) {
-      const et = etiquetaEstado(e); const w = doc.getTextWidth(et); lx -= w; gris(); doc.text(et, lx, yTit + 4);
+      const w = doc.getTextWidth(e); lx -= w; gris(); doc.text(e, lx, yTit + 4);
       lx -= 4; doc.setFillColor(...hexRGB(colorEstado(e))); doc.rect(lx, yTit + 1.6, 2.8, 2.8, "F"); lx -= 4;
     }
   };

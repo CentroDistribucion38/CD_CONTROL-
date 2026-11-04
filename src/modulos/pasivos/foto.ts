@@ -14,7 +14,7 @@
  */
 import { PALETA_MARCA, type Paleta } from "@/modulos/rotlinea/hoja";
 import { gruposDeUbicacion } from "@/modulos/casco/informe";
-import { COLOR_ALMACEN, colorEstado, corta, etiquetaEstado, f0, f1, larga, millones, plata, tintaSobre, type DatosInformePasivo, type FilaConsolidado } from "./informe";
+import { COLOR_ALMACEN, colorEstado, corta, f0, f1, larga, millones, plata, tintaSobre, type DatosInformePasivo, type FilaConsolidado } from "./informe";
 
 import {
   BAJA_OK, BORDE, FONDO, FOTO, GRIS, HUECO, MARGEN, SUAVE, SUBE,
@@ -45,25 +45,15 @@ export function dibujarFotoPasivo(
     ctx.fillStyle = ACENTO; ctx.fillRect(b.x + 16, b.y + 19, 8, 8);
     letra(ctx, 800, 15); ctx.fillStyle = TINTA; ctx.textAlign = "left";
     espaciado(ctx, titulo.toUpperCase(), b.x + 32, b.y + 24);
-    /* LA LEYENDA va a la derecha del título; si no cabe (son seis estados), baja a su propia línea
-       y la gráfica se corre lo justo. Nombres cortos: «A. VERDE», «A. ÁMBAR». */
-    let baja = 0;
     if (leyenda?.length) {
-      letra(ctx, 600, 12);
-      const ancho = leyenda.reduce((s, l) => s + 10 + 5 + ctx.measureText(etiquetaEstado(l.t)).width + 14, -14);
-      letra(ctx, 800, 15);
-      const finTitulo = b.x + 32 + anchoEspaciado(ctx, titulo.toUpperCase());
-      const junto = b.x + b.w - 16 - ancho >= finTitulo + 20;
-      baja = junto ? 0 : 20;
-      const ly = b.y + 24 + baja;
-      letra(ctx, 600, 12); let lx = b.x + b.w - 16;
+      letra(ctx, 600, 12.5); let lx = b.x + b.w - 16;
       for (const l of [...leyenda].reverse()) {
-        const t = etiquetaEstado(l.t), tw = ctx.measureText(t).width; lx -= tw;
-        ctx.fillStyle = GRIS; ctx.textAlign = "left"; ctx.fillText(t, lx, ly);
-        lx -= 15; ctx.fillStyle = l.col; ctx.fillRect(lx, ly - 5, 10, 10); lx -= 14;
+        const tw = ctx.measureText(l.t).width; lx -= tw;
+        ctx.fillStyle = GRIS; ctx.textAlign = "left"; ctx.fillText(l.t, lx, b.y + 24);
+        lx -= 16; ctx.fillStyle = l.col; ctx.fillRect(lx, b.y + 19, 10, 10); lx -= 14;
       }
     }
-    return { x: b.x + 16, y: b.y + 48 + baja, w: b.w - 32, h: b.h - 62 - baja };
+    return { x: b.x + 16, y: b.y + 48, w: b.w - 32, h: b.h - 62 };
   };
   const leyendaEstados = d.estados.map((e) => ({ t: e, col: colorEstado(e) }));
   const diaNum = (f: string) => String(Number(f.slice(8, 10)));
@@ -109,26 +99,20 @@ export function dibujarFotoPasivo(
 
   // A · bloqueados por día
   {
+    const a = panel({ x: xA, y: Y1, w: wA, h: H1 }, "EER bloqueados por día (HL)", leyendaEstados);
     const p = d.porDia;
-    const dh = p.find((x) => x.fecha === d.dia);
-    /* UNA SOLA LEYENDA: si hay día del informe, la línea de abajo ya nombra cada estado con su cifra y hace de leyenda; repetirla arriba era ruido. */
-    const a = panel({ x: xA, y: Y1, w: wA, h: H1 }, "EER bloqueados por día (HL)", dh ? undefined : leyendaEstados);
     if (!p.length) vacio(a);
     else {
       const top = a.y + 70, base = a.y + a.h - 26, max = Math.max(1, ...p.map((x) => x.total));
       /* El día del informe: sus tres cifras siempre a la vista, aunque el tramo sea diminuto. */
+      const dh = p.find((x) => x.fecha === d.dia);
       if (dh) {
-        /* La línea de cifras del día resaltado: estado + HL. Sin rótulo «Día n»: la columna resaltada de abajo ya dice cuál es.
-           Si no cabe, baja el tamaño de la letra hasta que quepa. */
-        const items = d.estados.map((e) => ({ e, v: dh.e[e] ?? 0 })).filter((x) => x.v || !x.e.startsWith("ANDINA"));
-        let fs = 13;
-        const medir = (f: number) => { letra(ctx, 700, f); return items.reduce((s, x) => s + 16 + ctx.measureText(`${etiquetaEstado(x.e)} ${f0(x.v)}`).width + 14, -14) };
-        while (fs > 10.5 && medir(fs) > a.w) fs -= 0.5;
-        letra(ctx, 700, fs); let lx = a.x; ctx.textAlign = "left";
-        for (const x of items) {
-          ctx.fillStyle = colorEstado(x.e); ctx.fillRect(lx, a.y + 2, 11, 11); lx += 16;
-          const t = `${etiquetaEstado(x.e)} ${f0(x.v)}`; ctx.fillStyle = TINTA; ctx.fillText(t, lx, a.y + 8);
-          lx += ctx.measureText(t).width + 14;
+        let lx = a.x; letra(ctx, 800, 13.5); ctx.fillStyle = TINTA; ctx.textAlign = "left";
+        const pre = `Día ${diaNum(d.dia)}:`; ctx.fillText(pre, lx, a.y + 8); lx += ctx.measureText(pre).width + 14;
+        for (const e of d.estados) {
+          ctx.fillStyle = colorEstado(e); ctx.fillRect(lx, a.y + 2, 11, 11); lx += 17;
+          const t = `${e} ${f0(dh.e[e] ?? 0)}`; letra(ctx, 700, 13); ctx.fillStyle = TINTA; ctx.textAlign = "left"; ctx.fillText(t, lx, a.y + 8);
+          lx += ctx.measureText(t).width + 18;
         }
       }
       ctx.strokeStyle = "#E6EAF0"; ctx.lineWidth = 1; ctx.setLineDash([4, 5]);
@@ -188,16 +172,9 @@ export function dibujarFotoPasivo(
         const pct = d.total ? Math.round((x.total / d.total) * 100) : 0;
         ctx.fillText(`${pct}% del total · ${plata(x.costo)}`, a.x, by + bh + 16);
       });
-      // la leyenda abajo: si no cabe en un renglón, sigue en otro (el panel es angosto)
-      letra(ctx, 600, 12); let lx = a.x; let ly = a.y + a.h - 4;
-      const anchos = d.estados.map((e) => ctx.measureText(etiquetaEstado(e)).width + 14 + 12);
-      if (anchos.reduce((s, v) => s + v, 0) > a.w) ly -= 16; // dos renglones: el primero sube
-      const alto1 = ly;
-      d.estados.forEach((e, k) => {
-        if (lx + anchos[k] > a.x + a.w + 6 && lx > a.x) { lx = a.x; ly = alto1 + 16 }
-        ctx.fillStyle = colorEstado(e); ctx.fillRect(lx, ly - 5, 10, 10); ctx.fillStyle = GRIS; ctx.textAlign = "left";
-        ctx.fillText(etiquetaEstado(e), lx + 14, ly); lx += anchos[k];
-      });
+      // la leyenda abajo
+      letra(ctx, 600, 12.5); let lx = a.x; const ly = a.y + a.h - 4;
+      for (const e of d.estados) { ctx.fillStyle = colorEstado(e); ctx.fillRect(lx, ly - 5, 10, 10); lx += 14; ctx.fillStyle = GRIS; ctx.textAlign = "left"; ctx.fillText(e, lx, ly); lx += ctx.measureText(e).width + 14 }
     }
   }
 

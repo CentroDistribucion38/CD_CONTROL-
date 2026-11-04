@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { FilaPasivo } from "@/modulos/pasivos/datos";
 import { Rango } from "../../../../sider/seguimiento/Rango";
-import { COLOR_ESTADO, esAndina, estadoDelConteo, type DatosInformePasivo } from "@/modulos/pasivos/informe";
+import { estadoDelConteo, type DatosInformePasivo } from "@/modulos/pasivos/informe";
 import { juntarLineas } from "@/modulos/casco/ubicaciones-armar";
 import { gruposDeUbicacion } from "@/modulos/casco/informe";
 import type { UbicPasivos } from "@/modulos/pasivos/ubicaciones";
@@ -34,10 +34,11 @@ const letra = (txt: string, ancho: number, max: number, min = 5.5) => Math.max(m
 const corto = (f: string) => `${Number(f.slice(8, 10))} ${MESES[Number(f.slice(5, 7)) - 1].slice(0, 3)}`;
 
 /* EL COLOR VA CON EL ESTADO, SIEMPRE EL MISMO (la gama ámbar del informe de casco). */
-const colorDe = (e: string) => COLOR_ESTADO[e] ?? "#8C8C8C";
+const COLOR: Record<string, string> = { BAJA: "#B58200", LAVADO: "#FFC300", EXTRASUCIO: "#3B3B3B" };
+const colorDe = (e: string) => COLOR[e] ?? "#8C8C8C";
 /** La letra que se lee encima de cada color (blanco sobre el ámbar oscuro y el gris, negro sobre el amarillo). */
 const tintaSobre = (e: string) => (e === "LAVADO" ? "#1B1B1B" : "#FFFFFF");
-const ORDEN = ["BAJA", "LAVADO", "EXTRASUCIO", "ANDINA VERDE", "ANDINA ÁMBAR", "ANDINA"];
+const ORDEN = ["BAJA", "LAVADO", "EXTRASUCIO"];
 const enOrden = (a: string, b: string) => {
   const i = (x: string) => { const k = ORDEN.indexOf(x); return k < 0 ? 9 : k };
   return i(a) - i(b) || a.localeCompare(b);
@@ -63,8 +64,6 @@ export function InformePasivo({ dia, dias, filas, error, nombresCaja, ubic = { f
   /* ---------- LAS CUENTAS ---------- */
   const suma = (rs: FilaPasivo[], k: "hl" | "costo" | "unidades" | "cajas") => rs.reduce((t, f) => t + (Number(f[k]) || 0), 0);
   const totHl = suma(hoy, "hl"), totCosto = suma(hoy, "costo");
-  /* ANDINA no es de nosotros: sigue sumando en el total, pero se ve aparte (verde / ámbar por el SKU). */
-  const hlAndina = suma(hoy.filter((f) => esAndina(f.estado)), "hl");
   const porDia = useMemo(() => {
     const m = new Map<string, Record<string, number>>();
     for (const f of mes) { const x = m.get(f.fecha) ?? {}; x[f.estado] = (x[f.estado] ?? 0) + (Number(f.hl) || 0); m.set(f.fecha, x) }
@@ -181,7 +180,6 @@ export function InformePasivo({ dia, dias, filas, error, nombresCaja, ubic = { f
         <div className="ip-k oscura">
           <span>Total pasivos (HL)</span><b>{n0(totHl)}</b>
           <i>{anterior ? `${totHl - anterior.total >= 0 ? "+" : "−"}${n0(Math.abs(totHl - anterior.total))} HL vs ${corto(anterior.fecha)}` : "primer día del mes"}</i>
-          {hlAndina > 0 && <i className="ip-andina">incluye ANDINA {n0(hlAndina)} HL · sin ANDINA {n0(totHl - hlAndina)} HL</i>}
         </div>
         <div className="ip-k"><span>Costo pasivos</span><b>$ {millones(totCosto)} M</b><i>{plata(totCosto)}</i></div>
         {porAlmacen.slice(0, 2).map((x) => (

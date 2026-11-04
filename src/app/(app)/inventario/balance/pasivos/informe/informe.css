@@ -95,7 +95,3 @@
 /* LA UBICACIÓN del consolidado: una zona por renglón, sin cortarse. */
 .ipas .ip-t td.ip-ubi { min-width: 150px; font-size: 12px; color: var(--fe-gris); line-height: 1.35 }
 .ipas .ip-t td.ip-ubi span { display: block }
-
-/* ANDINA dentro del total: se ve, pero aparte */
-.ipas .ip-k i.ip-andina { margin-top: 2px; font-weight: 600 }
-.ipas .ip-k.oscura i.ip-andina { color: #FFC300 }

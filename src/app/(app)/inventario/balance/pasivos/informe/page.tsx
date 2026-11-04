@@ -1,5 +1,4 @@
 import { diasConPasivos, leerMaestroPasivos, leerPasivos } from "@/modulos/pasivos/datos";
-import { estadoInforme } from "@/modulos/pasivos/informe";
 import { ubicacionesParaPasivos } from "@/modulos/pasivos/ubicaciones";
 import "../../../../sider/sider.css";
 import "../../../fefo.css";
@@ -29,9 +28,8 @@ export default async function InformePasivoPage({ searchParams }: { searchParams
     dia ? ubicacionesParaPasivos(dia) : Promise.resolve({ fecha: null, mapa: {} }),
   ]);
   const cajas = Object.fromEntries(maestro.data.map((m) => [m.codigo, m.descripcion]));
-  /* EL EXTRASUCIO se guarda en la Base como estado LAVADO con causal EXTRASUCIO; y lo de ANDINA como BAJA con causal ANDINA.
-     En el informe cada uno cuenta como su propio estado (ANDINA, por el color del envase del SKU: verde / ámbar). */
-  const filasInforme = filas.data.map((f) => ({ ...f, estado: estadoInforme(f.estado, f.causal ?? "", f.codigo) }));
+  /* EL EXTRASUCIO se guarda en la Base como estado LAVADO con causal EXTRASUCIO; en el informe cuenta como su propio estado. */
+  const filasInforme = filas.data.map((f) => (["EXTRASUCIO", "PENDIENTE EXTRASUCIO"].includes((f.causal ?? "").trim().toUpperCase()) ? { ...f, estado: "EXTRASUCIO" } : f));
 
   return (
     <div className="fe bal pas ipas">

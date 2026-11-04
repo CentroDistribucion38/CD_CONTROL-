@@ -9,7 +9,7 @@ import { zipSync, strToU8 } from "fflate";
 import { gruposDeUbicacion } from "@/modulos/casco/informe";
 import { PALETA_MARCA, type Paleta } from "@/modulos/rotlinea/hoja";
 import {
-  COLOR_ALMACEN, colorEstado, corta, etiquetaEstado, f0, f1, larga, mesDe, plata, rgbHex, MEDIDA,
+  COLOR_ALMACEN, colorEstado, corta, f0, f1, larga, mesDe, plata, rgbHex, MEDIDA,
   type DatosInformePasivo, type Graficas,
 } from "./informe";
 
@@ -71,7 +71,7 @@ export function armarWordPasivo(d: DatosInformePasivo, extra: { generado: Date; 
   const titulo = (t: string, nota?: string) => cuerpo.push(
     `<w:p><w:pPr><w:keepNext/><w:tabs><w:tab w:val="right" w:pos="${tw(ANCHO_MM)}"/></w:tabs><w:spacing w:before="200" w:after="100"/></w:pPr>` +
     run({ t: "■ ", color: A, tam: 11 }) + run({ t, b: true, tam: 12, color: T }) + (nota ? `<w:r><w:tab/></w:r>` + run({ t: nota, tam: 8.5, color: G }) : "") + `</w:p>`);
-  const leyenda = () => cuerpo.push(par(d.estados.map((e) => run({ t: "■ ", color: colorEstado(e).slice(1), tam: 10 }) + run({ t: `${etiquetaEstado(e)}     `, tam: 8, color: G })).join(""), { despues: 60, keep: true }));
+  const leyenda = () => cuerpo.push(par(d.estados.map((e) => run({ t: "■ ", color: colorEstado(e).slice(1), tam: 10 }) + run({ t: `${e}     `, tam: 8, color: G })).join(""), { despues: 60, keep: true }));
   const cab = (cols: { t: string; num?: boolean }[]) => ({ cabecera: true, celdas: cols.map((c) => ({ fondo: T, al: c.num ? "right" as const : "left" as const, runs: [{ t: c.t, b: true, tam: 7.8, color: "FFFFFF" }] })) });
   const fila = (vals: string[], nums: boolean[], i: number) => ({ celdas: vals.map((v, j) => ({ fondo: i % 2 ? RAYA : undefined, al: nums[j] ? "right" as const : "left" as const,
     runs: [{ t: v, b: nums[j] && !nums[j + 1] && j > 0, tam: j === 0 ? 8 : 8.5, color: nums[j] && v.startsWith("-") ? "C8102E" : j === 0 ? G : T }] })) });
