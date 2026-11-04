@@ -42,6 +42,7 @@
  * se dicen aparte para que quien las anuló vea que no desaparecieron.
  */
 import type { Etapa, Rotura } from "./datos";
+import { medidasDe, type MaestroHL } from "./medidas";
 
 export const TURNOS = ["C", "A", "B"] as const;
 export type TurnoR = (typeof TURNOS)[number];
@@ -119,6 +120,11 @@ export const ORIGEN_TXT: Record<OrigenR, string> = {
   sin: "Sin origen",
 };
 
+/** A cuántos HL equivale (null = el material no está en el Maestro de Pasivos: se dice, no se inventa). */
+export const fmtHL = (v: number | null) => v == null ? "—"
+  : v.toLocaleString("es-CO", v > 0 && v < 0.01 ? { minimumFractionDigits: 3, maximumFractionDigits: 3 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+export const fmtPesos = (v: number) => "$ " + Math.round(v).toLocaleString("es-CO");
+
 export type FilaCierre = {
   id: string;
   codigo: string;
@@ -130,6 +136,10 @@ export type FilaCierre = {
   tipo: "producto_terminado" | "eer";
   rotas: number;
   contaminadas: number;
+  /** HL que equivalen las cajas (rotas + contaminadas), por el HL de cada botella del Maestro. */
+  hl: number | null;
+  /** Lo que vale la rotura (cajas × unid. por caja × precio). Nulo si falta el precio o las unid. por caja. */
+  cobro: number | null;
   causa: string;
   proceso: string;
   area: string;
@@ -144,6 +154,10 @@ export type FilaCierre = {
   anulada: boolean;
 };
 
+/** Lo que dice el renglón en la columna «Cobro». */
+export const cobroTxt = (f: { cobro: number | null; fase: Fase }) =>
+  f.cobro != null ? fmtPesos(f.cobro) : f.fase === "cobro" ? "sin precio" : "—";
+
 export type Cuenta = { nombre: string; n: number; rotas: number; contaminadas: number };
 
 export type TurnoCierre = {
@@ -155,6 +169,11 @@ export type TurnoCierre = {
   sinOrigen: number;
   rotas: number;
   contaminadas: number;
+  hl: number;
+  cobro: number;
+  /** Cuántas no suman HL / cobro porque les falta el dato (no entran en la cifra). */
+  sinHL: number;
+  sinPrecio: number;
   anuladas: number;
   /* En qué parte de la cadena quedaron las vivas. */
   esperanOL: number;
@@ -207,6 +226,10 @@ function resumir(dia: string, turno: TurnoR, todas: FilaCierre[]): TurnoCierre {
     sinOrigen: por("sin"),
     rotas: vivas.reduce((s, f) => s + f.rotas, 0),
     contaminadas: vivas.reduce((s, f) => s + f.contaminadas, 0),
+    hl: Math.round(vivas.reduce((s, f) => s + (f.hl ?? 0), 0) * 1000) / 1000,
+    cobro: vivas.reduce((s, f) => s + (f.cobro ?? 0), 0),
+    sinHL: vivas.filter((f) => f.hl == null).length,
+    sinPrecio: vivas.filter((f) => f.cobro == null && f.fase === "cobro").length,
     anuladas: todas.length - vivas.length,
     esperanOL: fase("espera"),
     desacuerdo: fase("desacuerdo"),
@@ -223,15 +246,16 @@ function resumir(dia: string, turno: TurnoR, todas: FilaCierre[]): TurnoCierre {
 export function armarCierre(
   roturas: Rotura[],
   nombres: Record<string, string>,
-  opc: { desde?: string; hasta?: string; turnos?: string[] } = {},
+  opc: { desde?: string; hasta?: string; turnos?: string[]; maestro?: MaestroHL | null } = {},
 ): Cierre {
   const turnosOk = (opc.turnos?.length ? opc.turnos : [...TURNOS]) as TurnoR[];
 
   const filas: FilaCierre[] = roturas.map((r) => {
     const { turno, dia, hhmm } = turnoYDia(r.reportada_en);
     const e = etiquetaRotura(r);
+    const med = medidasDe(r, opc.maestro);
     return {
-      id: r.id, codigo: r.codigo, dia, turno, hora: hhmm,
+      id: r.id, codigo: r.codigo, dia, turno, hora: hhmm, hl: med.hl, cobro: r.cobro_total ?? null,
       material: r.material, material_nombre: r.material_nombre, tipo: r.tipo,
       rotas: r.unidades, contaminadas: r.tipo === "eer" ? 0 : (r.contaminadas ?? 0),
       causa: r.causa_nombre, proceso: r.proceso_nombre, area: r.area_nombre ?? "",
@@ -293,6 +317,7 @@ export function textoCierre(c: Cierre, o: { rotulo: string; filtros: string; gen
   l.push(`Registros ${t.registros} · reportadas ${t.reportadas} · encontradas ${t.encontradas}`
        + (t.sinOrigen ? ` · sin origen ${t.sinOrigen}` : "")
        + ` · ${t.rotas} rotas${t.contaminadas ? ` y ${t.contaminadas} contaminadas` : ""}`
+       + ` · ${fmtHL(t.hl)} HL · ${fmtPesos(t.cobro)} a cobro`
        + (t.anuladas ? ` · ${t.anuladas} anuladas` : ""));
   for (const x of c.turnos) {
     l.push("");
@@ -305,6 +330,7 @@ export function textoCierre(c: Cierre, o: { rotulo: string; filtros: string; gen
     for (const f of x.filas.filter((y) => !y.anulada)) {
       l.push(`  · ${f.hora} ${f.codigo} ${f.material_nombre} — ${f.rotas} rotas`
            + (f.contaminadas ? ` + ${f.contaminadas} contam.` : "")
+           + ` = ${fmtHL(f.hl)} HL · ${cobroTxt(f)}`
            + ` — ${f.causa || SIN} (${f.proceso || SIN}${f.area ? " · " + f.area : ""}) — ${ORIGEN_TXT[f.origen]}`);
     }
   }

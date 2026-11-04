@@ -25,7 +25,7 @@
 import type { jsPDF as JsPDF } from "jspdf";
 import { PALETA_MARCA, type Marca, type Paleta } from "@/modulos/rotlinea/hoja";
 import {
-  ddmm, diaLargo, HORARIO_TURNO, ORIGEN_TXT, type Cierre, type Cuenta,
+  cobroTxt, ddmm, diaLargo, fmtHL, fmtPesos, HORARIO_TURNO, ORIGEN_TXT, type Cierre, type Cuenta,
 } from "@/modulos/roturas/cierre";
 
 type RGB = [number, number, number];
@@ -169,6 +169,7 @@ export function dibujarCierre(JsPDFCtor: typeof JsPDF, c: Cierre, x: ExtraCierre
   });
   fuente("normal", 8); doc.setTextColor(...TENUE);
   doc.text(`${nf.format(t.rotas)} rotas${t.contaminadas ? ` y ${nf.format(t.contaminadas)} contaminadas` : ""}` +
+           ` · ${fmtHL(t.hl)} HL · ${fmtPesos(t.cobro)}` +
            `${t.anuladas ? ` · ${t.anuladas} anulada${t.anuladas === 1 ? "" : "s"} aparte` : ""}`, M + 9, y + 21.8);
   fuente("normal", 7.5);
   doc.text(`Foto de las ${x.generado.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })} del ` +
@@ -267,8 +268,8 @@ export function dibujarCierre(JsPDFCtor: typeof JsPDF, c: Cierre, x: ExtraCierre
   }
 
   /* ---------------- LAS ROTURAS, TURNO POR TURNO ---------------- */
-  const COL = [13, 21, 46, 12, 12, ANCHO - 104];
-  const CAB = ["HORA", "ROTURA", "MATERIAL", "ROTAS", "CONTAM.", "CAUSA · PROCESO"];
+  const COL = [12, 19, 40, 11, 11, 13, 21, ANCHO - 127];
+  const CAB = ["HORA", "ROTURA", "MATERIAL", "ROTAS", "CONTAM.", "HL", "COBRO", "CAUSA · PROCESO"];
   const FILA = 9.4;
   const conFilas = c.turnos.filter((q) => q.filas.length > 0);
   conFilas.forEach((tt, k) => {
@@ -285,7 +286,7 @@ export function dibujarCierre(JsPDFCtor: typeof JsPDF, c: Cierre, x: ExtraCierre
       doc.setFillColor(238, 241, 245); doc.rect(M, y, ANCHO, 5.4, "F");
       doc.setTextColor(95, 107, 121); fuente("bold", 6.6);
       let xx = M;
-      CAB.forEach((h, i) => { if (i === 3 || i === 4) doc.text(h, xx + COL[i] - 1.5, y + 3.8, { align: "right" }); else doc.text(h, xx + 1.5, y + 3.8); xx += COL[i] });
+      CAB.forEach((h, i) => { if (i >= 3 && i <= 6) doc.text(h, xx + COL[i] - 1.5, y + 3.8, { align: "right" }); else doc.text(h, xx + 1.5, y + 3.8); xx += COL[i] });
       y += 5.4;
     };
     cabe(8 + 5.4 + FILA * 2 + (k > 0 ? 6 : 0));
@@ -297,12 +298,14 @@ export function dibujarCierre(JsPDFCtor: typeof JsPDF, c: Cierre, x: ExtraCierre
       let xx = M;
       const v = f.anulada;
       const celdas = [f.hora, f.codigo, f.material_nombre, nf.format(f.rotas), f.tipo === "eer" ? "—" : f.contaminadas ? nf.format(f.contaminadas) : "—",
+        fmtHL(f.hl), cobroTxt(f),
         `${f.causa || "Sin dato"} · ${f.proceso || "Sin dato"}`];
       celdas.forEach((s, j) => {
         fuente(j === 1 ? "bold" : "normal", 8);
         if (v) doc.setTextColor(140, 150, 162); else tinta();
-        if (j === 5 && !f.causa) doc.setTextColor(...MAL);
-        if (j === 3 || j === 4) doc.text(s, xx + COL[j] - 1.5, y + 4.2, { align: "right" });
+        if (j === 7 && !f.causa) doc.setTextColor(...MAL);
+        if (j === 6 && f.cobro == null && f.fase === "cobro" && !v) doc.setTextColor(...MAL);
+        if (j >= 3 && j <= 6) doc.text(s, xx + COL[j] - 1.5, y + 4.2, { align: "right" });
         else doc.text(cabeEn(s, COL[j] - 2.5), xx + 1.5, y + 4.2);
         xx += COL[j];
       });

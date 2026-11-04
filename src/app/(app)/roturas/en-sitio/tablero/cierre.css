@@ -458,3 +458,7 @@
 /* Mismo alto que los turnos, y el campo no se encoge con el texto. */
 .rt .tb-campo.sg-mes .mes-campo { height: 44px; min-width: 230px; border-radius: 0 }
 .rt .sg-mes .mes-campo.abierta { border-color: var(--rt-tinta) }
+
+/* El total de la tabla «Las roturas»: cajas, HL y lo que se cobra. */
+.rtc-tabla tfoot td { border-top: 2px solid #111; padding-top: 8px; padding-bottom: 8px; background: #FAFBFC; }
+.rtc-tabla tfoot small { font-weight: 500; opacity: .7; }

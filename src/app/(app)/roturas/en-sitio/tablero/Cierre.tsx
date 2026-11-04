@@ -28,8 +28,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Rotura } from "@/modulos/roturas/datos";
+import { createClient } from "@/lib/supabase/client";
+import { leerMaestroHL } from "@/modulos/roturas/maestro-hl";
+import type { MaestroHL } from "@/modulos/roturas/medidas";
 import {
-  armarCierre, diaLargo, ddmm, HORARIO_TURNO, ORIGEN_TXT, periodoCierre, textoCierre,
+  armarCierre, cobroTxt, diaLargo, ddmm, fmtHL, fmtPesos, HORARIO_TURNO, ORIGEN_TXT, periodoCierre, textoCierre,
   type Cuenta, type TurnoCierre,
 } from "@/modulos/roturas/cierre";
 import { leerPaleta } from "@/app/(app)/quiebra/rotura/HojaFirma";
@@ -77,9 +80,17 @@ export function Cierre({ roturas, nombres, desde, hasta, turnos, filtros, cerrar
   const [aviso, setAviso] = useState<null | { txt: string; mal?: boolean }>(null);
   const [armando, setArmando] = useState(false);
 
+  /* Los HL salen del Maestro de Pasivos; si no se puede leer, la columna dice «—» y no se inventa. */
+  const [maestro, setMaestro] = useState<MaestroHL | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    leerMaestroHL(createClient()).then((m) => { if (vivo) setMaestro(m) }).catch(() => {});
+    return () => { vivo = false };
+  }, []);
+
   const c = useMemo(
-    () => armarCierre(roturas, nombres, { desde, hasta, turnos }),
-    [roturas, nombres, desde, hasta, turnos]);
+    () => armarCierre(roturas, nombres, { desde, hasta, turnos, maestro }),
+    [roturas, nombres, desde, hasta, turnos, maestro]);
   const t = c.total;
 
   const periodo = periodoCierre(c, turnos);
@@ -102,7 +113,7 @@ export function Cierre({ roturas, nombres, desde, hasta, turnos, filtros, cerrar
     const bajadas = await fo.traerFotosRotura(filas.slice(0, fo.TOPE_FOTOS).map((f) => f.id));
     const lista = filas.map((f) => ({
       codigo: f.codigo, turno: f.turno, dia: f.dia, hora: f.hora, material: f.material_nombre, rotas: f.rotas,
-      contaminadas: f.contaminadas, eer: f.tipo === "eer", causa: f.causa, proceso: f.proceso, area: f.area, estado: f.estado,
+      contaminadas: f.contaminadas, hl: f.hl, cobro: cobroTxt(f), eer: f.tipo === "eer", causa: f.causa, proceso: f.proceso, area: f.area, estado: f.estado,
       imagen: bajadas.get(f.id) ?? null, tieneFoto: true,
     }));
     return { lienzo: fo.dibujarFotosCierre(c, lista, extra), nombre: fo.nombreFotoCierre(c, "fotos") };
@@ -235,6 +246,7 @@ export function Cierre({ roturas, nombres, desde, hasta, turnos, filtros, cerrar
               </i>
               <p className="rtc-linea">
                 <b>{nf.format(x.rotas)}</b> rotas{x.contaminadas > 0 && <> · <b>{nf.format(x.contaminadas)}</b> contaminadas</>}
+                {x.registros > 0 && <> · <b>{fmtHL(x.hl)}</b> HL · <b>{fmtPesos(x.cobro)}</b></>}
                 {x.anuladas > 0 && <> · {x.anuladas} anulada{x.anuladas === 1 ? "" : "s"}</>}
               </p>
               <p className="rtc-linea rtc-fase">
@@ -307,6 +319,7 @@ export function Cierre({ roturas, nombres, desde, hasta, turnos, filtros, cerrar
             <div className="rtc-v">{t.registros}</div>
             <div className="rtc-s">
               {nf.format(t.rotas)} rotas{t.contaminadas > 0 && <> y {nf.format(t.contaminadas)} contaminadas</>}
+              {t.registros > 0 && <> · {fmtHL(t.hl)} HL · {fmtPesos(t.cobro)}</>}
             </div>
           </div>
           <div className="rtc-lado">
@@ -382,6 +395,7 @@ export function Cierre({ roturas, nombres, desde, hasta, turnos, filtros, cerrar
                       {varios && <th>Día</th>}
                       <th>Turno</th><th>Hora</th><th>Rotura</th><th>Material</th>
                       <th className="n">Rotas</th><th className="n">Contam.</th>
+                      <th className="n">HL</th><th className="n">Cobro</th>
                       <th>Causa</th><th>Proceso</th><th>Área</th><th>Origen</th><th>Quién</th><th>Estado</th>
                     </tr>
                   </thead>
@@ -395,6 +409,8 @@ export function Cierre({ roturas, nombres, desde, hasta, turnos, filtros, cerrar
                         <td>{f.material_nombre}</td>
                         <td className="n">{nf.format(f.rotas)}</td>
                         <td className="n">{f.tipo === "eer" ? <span className="na">—</span> : (f.contaminadas || "—")}</td>
+                        <td className="n">{fmtHL(f.hl)}</td>
+                        <td className="n">{f.cobro == null && f.fase === "cobro" && !f.anulada ? <span className="rtc-sd">sin precio</span> : cobroTxt(f)}</td>
                         <td>{f.causa || <span className="rtc-sd">Sin dato</span>}</td>
                         <td>{f.proceso || <span className="rtc-sd">Sin dato</span>}</td>
                         <td>{f.area || <span className="rtc-sd">Sin dato</span>}</td>
@@ -405,6 +421,16 @@ export function Cierre({ roturas, nombres, desde, hasta, turnos, filtros, cerrar
                       </tr>
                     ))}
                   </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colSpan={varios ? 5 : 4}><b>Total</b>{t.sinHL > 0 && <small> · {t.sinHL} sin HL en el Maestro</small>}{t.sinPrecio > 0 && <small> · {t.sinPrecio} sin precio</small>}</td>
+                      <td className="n"><b>{nf.format(t.rotas)}</b></td>
+                      <td className="n"><b>{t.contaminadas ? nf.format(t.contaminadas) : "—"}</b></td>
+                      <td className="n"><b>{fmtHL(t.hl)}</b></td>
+                      <td className="n"><b>{fmtPesos(t.cobro)}</b></td>
+                      <td colSpan={6} />
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
             )}

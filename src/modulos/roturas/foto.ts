@@ -10,7 +10,7 @@
  */
 import { PALETA_MARCA, type Paleta } from "@/modulos/rotlinea/hoja";
 import { BORDE, GRIS, SUAVE, anchoEspaciado, envolver, espaciado, letra, medidor, pie, recortar, type Ctx } from "@/modulos/foto";
-import { HORARIO_TURNO, ORIGEN_TXT, diaLargo, ddmm, type Cierre, type Cuenta, type FilaCierre, type TurnoCierre } from "./cierre";
+import { HORARIO_TURNO, ORIGEN_TXT, diaLargo, ddmm, fmtHL, fmtPesos, cobroTxt, type Cierre, type Cuenta, type FilaCierre, type TurnoCierre } from "./cierre";
 
 const W = 1120, S = 2, PX = 24, AN = W - 2 * PX; // ancho de la ficha, escala y margen lateral
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
@@ -193,7 +193,7 @@ export function dibujarDashboardCierre(c: Cierre, x: Extra): HTMLCanvasElement {
   // ---- la franja del acento: registros, reportadas, encontradas, la cinta y las fases
   const y0 = ALTO_BANDA, tinta = rgb(P.tinta);
   ctx.fillStyle = rgb(P.acento); ctx.fillRect(0, y0, W, ALTO_HERO);
-  letra(ctx, 500, 12); const sub = `${nf.format(t.rotas)} rotas${t.contaminadas > 0 ? " y " + nf.format(t.contaminadas) + " contaminadas" : ""}`;
+  letra(ctx, 500, 12); const sub = `${nf.format(t.rotas)} rotas${t.contaminadas > 0 ? " y " + nf.format(t.contaminadas) + " contaminadas" : ""} · ${fmtHL(t.hl)} HL · ${fmtPesos(t.cobro)}`;
   const wTot = Math.max(150, ctx.measureText(sub).width);
   letra(ctx, 700, 10); ctx.fillStyle = tinta; ctx.globalAlpha = .8; ctx.textAlign = "left"; espaciado(ctx, "REGISTROS", PX, y0 + 20, 1.6); ctx.globalAlpha = 1;
   letra(ctx, 900, 48); ctx.fillStyle = tinta; ctx.fillText(String(t.registros), PX, y0 + 54);
@@ -267,7 +267,7 @@ export function dibujarDashboardCierre(c: Cierre, x: Extra): HTMLCanvasElement {
 /* ===================================================================== FOTOS DEL REPORTE */
 export type FotoRotura = {
   codigo: string; turno: string; dia: string; hora: string; material: string;
-  rotas: number; contaminadas: number; eer: boolean; causa: string; proceso: string; area: string; estado: string;
+  rotas: number; contaminadas: number; hl: number | null; cobro: string; eer: boolean; causa: string; proceso: string; area: string; estado: string;
   /** La primera foto de la rotura ya descargada (null si no hay o no se pudo traer). */
   imagen: ImageBitmap | null; tieneFoto: boolean;
 };
@@ -288,13 +288,13 @@ export function dibujarFotosCierre(c: Cierre, fotos: FotoRotura[], x: Extra): HT
   const cols: ColT[] = [
     ...(varios ? [{ t: "DÍA", w: 56 }] : []),
     { t: "TURNO", w: 54 }, { t: "HORA", w: 58 }, { t: "ROTURA", w: 70 }, { t: "MATERIAL", w: varios ? 140 : 170 },
-    { t: "ROTAS", w: 56, n: true }, { t: "CONTAM.", w: 62, n: true }, { t: "CAUSA", w: varios ? 114 : 132 }, { t: "PROCESO", w: 76 }, { t: "ÁREA", w: 76 },
+    { t: "ROTAS", w: 56, n: true }, { t: "CONTAM.", w: 62, n: true }, { t: "HL", w: 62, n: true }, { t: "COBRO", w: 92, n: true }, { t: "CAUSA", w: varios ? 114 : 132 }, { t: "PROCESO", w: 76 }, { t: "ÁREA", w: 76 },
     { t: "ORIGEN", w: 96 }, { t: "QUIÉN", w: varios ? 66 : 66 }, { t: "ESTADO", w: 156 },
   ];
   const suma = cols.reduce((s, q) => s + q.w, 0); cols[cols.findIndex((q) => q.t === "MATERIAL")].w += AN - suma; // lo que sobre o falte lo absorbe el material
   const LH = 17, PADV = 9, PADH = 10;
   const textos = (f: FilaCierre): string[] => [
-    ...(varios ? [ddmm(f.dia)] : []), f.turno, f.hora, f.codigo, f.material_nombre, nf.format(f.rotas), f.tipo === "eer" ? "—" : String(f.contaminadas || "—"),
+    ...(varios ? [ddmm(f.dia)] : []), f.turno, f.hora, f.codigo, f.material_nombre, nf.format(f.rotas), f.tipo === "eer" ? "—" : String(f.contaminadas || "—"), fmtHL(f.hl), cobroTxt(f),
     f.causa || "Sin dato", f.proceso || "Sin dato", f.area || "Sin dato", ORIGEN_TXT[f.origen], f.registro || "—", f.estado,
   ];
   const lineasDe = (f: FilaCierre) => {
@@ -313,7 +313,7 @@ export function dibujarFotosCierre(c: Cierre, fotos: FotoRotura[], x: Extra): HT
   const fin = "Las anuladas no cuentan como registros. La foto es de las " + hhmm(x.generado ?? new Date()) + "; si alguien registra algo después, el cierre cambia. El turno sale de la hora de registro (hora de Colombia): C 22:00–06:00 abre el día, A 06:00–14:00, B 14:00–22:00.";
   letra(m, 500, 12); const finL = envolver(m, fin, AN);
 
-  const colsF = 3, cw = (AN - (colsF - 1) * 14) / colsF, foto = 270, pieAlto = 90, ch = foto + pieAlto;
+  const colsF = 3, cw = (AN - (colsF - 1) * 14) / colsF, foto = 270, pieAlto = 112, ch = foto + pieAlto;
   const filasF = Math.ceil(lista.length / colsF);
   const altoFotos = lista.length ? filasF * ch + (filasF - 1) * 14 : 36;
 
@@ -322,7 +322,7 @@ export function dibujarFotosCierre(c: Cierre, fotos: FotoRotura[], x: Extra): HT
   banda(ctx, x, subtitulo(x), P);
 
   // ---- LAS ROTURAS, una por una
-  let y = seccion(ctx, ALTO_BANDA + 8, "Las roturas", `${c.total.registros} registrada${c.total.registros === 1 ? "" : "s"}${c.total.anuladas > 0 ? ` · ${c.total.anuladas} anulada${c.total.anuladas === 1 ? "" : "s"} aparte` : ""}`, P);
+  let y = seccion(ctx, ALTO_BANDA + 8, "Las roturas", `${c.total.registros} registrada${c.total.registros === 1 ? "" : "s"} · ${fmtHL(c.total.hl)} HL · ${fmtPesos(c.total.cobro)}${c.total.anuladas > 0 ? ` · ${c.total.anuladas} anulada${c.total.anuladas === 1 ? "" : "s"} aparte` : ""}`, P);
   if (!filas.length) { letra(ctx, 500, 13.5); ctx.fillStyle = GRIS; ctx.textAlign = "left"; ctx.fillText("Nada que listar.", PX, y + 12); y += 40 }
   else {
     const y1 = y;
@@ -405,9 +405,12 @@ export function dibujarFotosCierre(c: Cierre, fotos: FotoRotura[], x: Extra): HT
     ctx.fillText(recortar(ctx, `${varios ? ddmm(f.dia) + " · " : ""}${f.hora} · ${f.material}`, ancho), tx, py + foto + 18);
     letra(ctx, 700, 12.5);
     ctx.fillText(`${nf.format(f.rotas)} rotas${!f.eer && f.contaminadas ? " · " + nf.format(f.contaminadas) + " contaminadas" : ""}`, tx, py + foto + 40);
+    /* A QUÉ EQUIVALE: los HL y lo que se cobra por esa rotura. */
+    letra(ctx, 800, 12.5); ctx.fillStyle = tinta;
+    ctx.fillText(recortar(ctx, `${fmtHL(f.hl)} HL · ${f.cobro}`, ancho), tx, py + foto + 60);
     letra(ctx, 500, 12); ctx.fillStyle = GRIS;
     const causa = [f.causa, f.proceso, f.area].filter(Boolean).join(" · ") || "Sin dato";
-    envolver(ctx, causa, ancho).slice(0, 2).forEach((l, k) => ctx.fillText(l, tx, py + foto + 60 + k * 16));
+    envolver(ctx, causa, ancho).slice(0, 2).forEach((l, k) => ctx.fillText(l, tx, py + foto + 80 + k * 16));
   });
   if (resto > 0) {
     letra(ctx, 600, 13); ctx.fillStyle = GRIS; ctx.textAlign = "left";
