@@ -286,14 +286,14 @@ export function dibujarFotosCierre(c: Cierre, fotos: FotoRotura[], x: Extra): HT
 
   // ---- las columnas de «Las roturas», con el ancho que tienen en la ficha
   const cols: ColT[] = [
-    ...(varios ? [{ t: "DÍA", w: 48 }] : []),
-    { t: "TURNO", w: 48 }, { t: "HORA", w: 50 }, { t: "ROTURA", w: 70 }, { t: "MATERIAL", w: 110 },
-    { t: "ROTAS", w: 50, n: true }, { t: "CONTAM.", w: 60, n: true }, { t: "HL", w: 46, n: true }, { t: "COBRO", w: 84, n: true },
-    { t: "CAUSA", w: 110 }, { t: "PROC. / ÁREA", w: 112 },
-    { t: "ORIGEN", w: 96 }, { t: "QUIÉN", w: 58 }, { t: "ESTADO", w: 130 },
+    ...(varios ? [{ t: "DÍA", w: 44 }] : []),
+    { t: "TURNO", w: 46 }, { t: "HORA", w: 46 }, { t: "ROTURA", w: 66 }, { t: "MATERIAL", w: 110 },
+    { t: "ROTAS", w: 46, n: true }, { t: "CONTAM.", w: 58, n: true }, { t: "HL", w: 44, n: true }, { t: "COBRO", w: 74, n: true },
+    { t: "CAUSA", w: 104 }, { t: "PROC. / ÁREA", w: 100 },
+    { t: "ORIGEN", w: 104 }, { t: "QUIÉN", w: 58 }, { t: "ESTADO", w: 104 },
   ];
   const suma = cols.reduce((s, q) => s + q.w, 0); cols[cols.findIndex((q) => q.t === "MATERIAL")].w += AN - suma; // lo que sobre o falte lo absorbe el material
-  const LH = 17, PADV = 9, PADH = 10;
+  const LH = 17, PADV = 9, PADH = 8;
   const textos = (f: FilaCierre): string[] => [
     ...(varios ? [ddmm(f.dia)] : []), f.turno, f.hora, f.codigo, f.material_nombre, nf.format(f.rotas), f.tipo === "eer" ? "—" : String(f.contaminadas || "—"), fmtHL(f.hl), cobroTxt(f),
     f.causa || "Sin dato", `${f.proceso || "Sin dato"}\n${f.area || "Sin dato"}`, ORIGEN_TXT[f.origen], f.registro || "—", f.estado,
@@ -310,7 +310,8 @@ export function dibujarFotosCierre(c: Cierre, fotos: FotoRotura[], x: Extra): HT
   const altos = filas.map((f) => {
     const l = lineasDe(f);
     const origenAlto = f.origen === "opm" && f.opm ? 26 + envolver(m, f.opm.toUpperCase(), cols.find((q) => q.t === "ORIGEN")!.w - 2 * PADH).length * 14 : 0;
-    return Math.max(PADV * 2 + Math.max(...l.map((q) => q.length)) * LH, 2 * PADV + Math.max(26, origenAlto) , 36);
+    const estadoAlto = f.estado.includes(" · ") ? 30 : 22;
+    return Math.max(PADV * 2 + Math.max(...l.map((q) => q.length)) * LH, 2 * PADV + Math.max(estadoAlto + 4, origenAlto), 36);
   });
   const altoTabla = filas.length ? 31 + altos.reduce((s, h) => s + h, 0) : 40;
   const fin = "Las anuladas no cuentan como registros. La foto es de las " + hhmm(x.generado ?? new Date()) + "; si alguien registra algo después, el cierre cambia. El turno sale de la hora de registro (hora de Colombia): C 22:00–06:00 abre el día, A 06:00–14:00, B 14:00–22:00.";
@@ -347,20 +348,21 @@ export function dibujarFotosCierre(c: Cierre, fotos: FotoRotura[], x: Extra): HT
         const gris = f.anulada ? GRIS : tinta;
         if (q.t === "TURNO") { ctx.fillStyle = tinta; ctx.fillRect(cx2 + PADH, y + PADV - 1, 24, 24); letra(ctx, 900, 12); ctx.fillStyle = "#FFFFFF"; ctx.textAlign = "center"; ctx.fillText(f.turno, cx2 + PADH + 12, y + PADV + 11) }
         else if (q.t === "ORIGEN") {
-          letra(ctx, 700, 10.5); const txt = tx[i].toUpperCase(), wc = Math.min(q.w - 2 * PADH, ctx.measureText(txt).width + 16 + txt.length * .6);
+          letra(ctx, 700, 10.5); const txt = tx[i].toUpperCase(), wc = Math.min(q.w - 2 * PADH, ctx.measureText(txt).width + 14 + txt.length * .6);
           const cyy = y + PADV - 1;
           if (f.origen === "opm") { ctx.fillStyle = tinta; ctx.fillRect(cx2 + PADH, cyy, wc, 22) }
           else if (f.origen === "encontrada") { ctx.fillStyle = rgb(P.acento); ctx.fillRect(cx2 + PADH, cyy, wc, 22) }
           else { ctx.fillStyle = MAL_S; ctx.fillRect(cx2 + PADH, cyy, wc, 22); ctx.setLineDash([3, 2]); ctx.strokeStyle = MAL; ctx.strokeRect(cx2 + PADH + .5, cyy + .5, wc - 1, 21); ctx.setLineDash([]) }
-          ctx.fillStyle = f.origen === "opm" ? "#FFFFFF" : f.origen === "encontrada" ? tinta : MAL; ctx.textAlign = "left"; espaciado(ctx, txt, cx2 + PADH + 8, cyy + 11, .6);
+          ctx.fillStyle = f.origen === "opm" ? "#FFFFFF" : f.origen === "encontrada" ? tinta : MAL; ctx.textAlign = "left"; espaciado(ctx, txt, cx2 + PADH + 7, cyy + 11, .6);
           if (f.origen === "opm" && f.opm) { letra(ctx, 500, 11); ctx.fillStyle = GRIS; envolver(ctx, f.opm.toUpperCase(), q.w - 2 * PADH).forEach((ln, k) => ctx.fillText(ln, cx2 + PADH, cyy + 34 + k * 14)) }
         } else if (q.t === "ESTADO") {
           const cl = f.clase; const bg = cl === "tb-ok" ? VERDE_S : cl === "tb-mal" ? MAL_S : cl === "tb-esp" ? "#FFF3D6" : FINA;
           const fg = cl === "tb-ok" ? VERDE : cl === "tb-mal" ? MAL : cl === "tb-esp" ? OJO : GRIS;
-          let px = 10; letra(ctx, 700, px); let wt = anchoEspaciado(ctx, tx[i], 1);
-          while (wt + 18 > q.w - 2 * PADH + 4 && px > 7.5) { px -= .5; letra(ctx, 700, px); wt = anchoEspaciado(ctx, tx[i], 1) }
-          ctx.fillStyle = bg; ctx.fillRect(cx2 + PADH - 2, y + PADV - 1, wt + 18, 22);
-          ctx.fillStyle = fg; ctx.textAlign = "left"; espaciado(ctx, tx[i], cx2 + PADH + 7, y + PADV + 10, 1);
+          const partes = tx[i].split(" · "), pxE = 9, hP = partes.length > 1 ? 30 : 22;
+          letra(ctx, 700, pxE); const wt = Math.min(q.w - 2 * PADH, Math.max(...partes.map((t2) => anchoEspaciado(ctx, t2, .8))) + 14);
+          ctx.fillStyle = bg; ctx.fillRect(cx2 + PADH, y + PADV - 1, wt, hP);
+          ctx.fillStyle = fg; ctx.textAlign = "left";
+          partes.forEach((t2, k) => espaciado(ctx, t2, cx2 + PADH + 7, y + PADV + (partes.length > 1 ? 9 + k * 12 : 10), .8));
         } else {
           const bold = q.t === "ROTURA";
           letra(ctx, bold ? 700 : 500, 13);
