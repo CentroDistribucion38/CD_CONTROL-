@@ -121,9 +121,12 @@ const CAL = (
   </svg>
 );
 
-export function Filtros({ hoy, campos, cuenta }: {
+export function Filtros({ hoy, campos, cuenta, porDefecto }: {
   hoy: string;
   campos: Campo[];
+  /** La fecha que se ve cuando la dirección no trae ninguna (p. ej. el mes actual). «Todo» se
+   *  guarda en la dirección como desde=todo para que no vuelva a caer en este valor. */
+  porDefecto?: { desde: string; hasta: string };
   /** «1 salida en el filtro». Lo arma la pantalla porque solo ella sabe
    *  si cuenta salidas, roturas o kilos. */
   cuenta?: string;
@@ -137,20 +140,30 @@ export function Filtros({ hoy, campos, cuenta }: {
      chip se queda pintando lo viejo hasta que el servidor conteste, y
      quien acaba de escoger cree que no le registró el toque. */
   const [local, setLocal] = useState<Record<string, string> | null>(null);
-  const leer = (k: string) => local?.[k] ?? q.get(k) ?? "";
+  const sinFecha = !q.has("desde") && !q.has("hasta");
+  const leer = (k: string) => {
+    const v = local?.[k] ?? q.get(k)
+      ?? ((k === "desde" || k === "hasta") && sinFecha && porDefecto ? porDefecto[k] : "");
+    return v === "todo" ? "" : v;
+  };
   const desde = leer("desde"), hasta = leer("hasta");
 
   function empujar(cambios: Record<string, string>) {
     setLocal((x) => ({ ...(x ?? {}), ...cambios }));
     const p = new URLSearchParams(q.toString());
+    /* Si la fecha era la de por defecto, se escribe en la dirección: así cambiar otro filtro no la pierde. */
+    if (porDefecto && sinFecha) { p.set("desde", porDefecto.desde); p.set("hasta", porDefecto.hasta) }
     for (const [k, v] of Object.entries(cambios)) {
       if (v) p.set(k, v); else p.delete(k);
+    }
+    if (porDefecto && ("desde" in cambios || "hasta" in cambios) && !p.get("desde") && !p.get("hasta")) {
+      p.set("desde", "todo"); p.set("hasta", "todo");
     }
     const s = p.toString();
     empezar(() => router.push(s ? `${pathname}?${s}` : pathname));
   }
 
-  const hay = !!desde || !!hasta || campos.some((c) => leer(c.clave));
+  const hay = (porDefecto ? !sinFecha : !!desde || !!hasta) || campos.some((c) => leer(c.clave));
   const dias = cuantos(desde, hasta);
 
   return (
@@ -174,7 +187,7 @@ export function Filtros({ hoy, campos, cuenta }: {
         {hay && (
           <button type="button" className="limpiar" onClick={() => {
             setLocal(Object.fromEntries(
-              ["desde", "hasta", ...campos.map((c) => c.clave)].map((k) => [k, ""])));
+              ["desde", "hasta", ...campos.map((c) => c.clave)].map((k) => [k, k === "desde" || k === "hasta" ? (porDefecto?.[k] ?? "") : ""])));
             empezar(() => router.push(pathname));
           }}>
             Limpiar

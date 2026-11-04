@@ -51,7 +51,13 @@ export default async function AnalisisEnSitioPage(
 
   const q = await searchParams;
   const uno = (k: string) => { const v = q[k]; return (Array.isArray(v) ? v[0] : v) ?? "" };
-  const desde = uno("desde"), hasta = uno("hasta");
+  /* SIN FECHA EN LA DIRECCIÓN = EL MES ACTUAL (del 1 a hoy), no todo el histórico. «Todo» llega como
+     desde=todo; el chip de fecha lo dice y lo deja escoger otra cosa. */
+  const hoyL = hoyLocal();
+  const sinFecha = q.desde === undefined && q.hasta === undefined;
+  const fechaQ = (k: string, porDef: string) => (sinFecha ? porDef : uno(k) === "todo" ? "" : uno(k));
+  const mesDesde = `${hoyL.slice(0, 7)}-01`;
+  const desde = fechaQ("desde", mesDesde), hasta = fechaQ("hasta", hoyL);
   const fCausa = uno("causa"), fProceso = uno("proceso"), fArea = uno("area"), fGrupo = uno("grupo");
 
   const todas = datos.roturas.filter((r) => r.estado !== "anulada");
@@ -304,7 +310,7 @@ export default async function AnalisisEnSitioPage(
         </div>
       </section>
 
-      <Filtros hoy={hoyLocal()}
+      <Filtros hoy={hoyLocal()} porDefecto={{ desde: mesDesde, hasta: hoyL }}
         cuenta={`${vivas.length} rotura${vivas.length === 1 ? "" : "s"} en el filtro`}
         campos={[
         { clave: "causa",   rotulo: "Causa",   todas: "todas",

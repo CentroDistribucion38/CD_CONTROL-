@@ -14,6 +14,7 @@ import { Cierre } from "./Cierre";
 import { exportarTodo } from "./exportar-todo";
 import "./corregir.css";
 import { Rango, type Dia } from "../../../sider/seguimiento/Rango";
+import { mesCompleto } from "@/modulos/sider/comun";
 
 /**
  * EL TABLERO — todos los registros, con su estado.
@@ -81,8 +82,10 @@ export function Tablero({ roturas, nombres, manda, correcciones, revisadas }: {
   /* EL DÍA Y EL TURNO. El turno no se guarda en la rotura: sale de la hora
      en que se registró (ver `modulos/roturas/cierre.ts`), con el mismo
      horario de Traspasos. Vacíos = sin filtrar. */
-  const [desde, setDesde] = useState("");
-  const [hasta, setHasta] = useState("");
+  /* AL ABRIR, EL MES ACTUAL (no todo el histórico). «Todas las fechas» sigue en el calendario. */
+  const [mes] = useState(() => mesCompleto(new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota", year: "numeric", month: "2-digit" }).format(new Date()).slice(0, 7)));
+  const [desde, setDesde] = useState(mes.desde);
+  const [hasta, setHasta] = useState(mes.hasta);
   const [turnos, setTurnos] = useState<string[]>([]);
   const [cierre, setCierre] = useState(false);
   const [bajando, setBajando] = useState(false);
