@@ -1,11 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
 import { usePedirTexto } from "@/components/PedirTexto";
+import { useFotoCompartir, type TipoFoto } from "@/components/FotoCompartir";
+import { leerPaleta } from "@/app/(app)/quiebra/rotura/HojaFirma";
+import { PALETA_MARCA } from "@/modulos/rotlinea/hoja";
 import {
   DIMS, ESCALERA, PIDE_GRAVEDAD, SEV_TXT, TIPO_TXT, claveDim, dm, dmh, estadoPersonas, mesClave, mesCorto, mesNombre,
   pareto, reaccionEvento, turnoDe,
@@ -30,6 +33,7 @@ export function Seguridad({ eventos, acciones, personas, regla, colaboradores, e
   const router = useRouter();
   const [avisar, avisos] = useAvisos();
   const [pedirTexto, dialogoTexto] = usePedirTexto();
+  const raiz = useRef<HTMLDivElement>(null);
 
   const meses = useMemo(() => {
     const s = new Set(eventos.map(mesClave));
@@ -72,6 +76,25 @@ export function Seguridad({ eventos, acciones, personas, regla, colaboradores, e
     sinResp: evs.filter((e) => e.tipo === "comportamiento" && !e.responsable_id).length,
   };
 
+  /* EL DASHBOARD PARA COPIAR Y COMPARTIR: las cifras del mes y los cinco Paretos por evento (causa, persona, área, turno, tipo),
+     pintados del mismo `pareto()` que ve la pantalla. Respeta el mes y el turno que están escogidos. */
+  const foto = useFotoCompartir(async (_t: TipoFoto) => {
+    const fs = await import("@/modulos/roturas/foto-seguridad");
+    const logo = await fs.traerLogo();
+    const titulos: Record<Dim, [string, string]> = {
+      causa: ["Pareto por causa", "qué los rompió"], persona: ["Por persona", "a quién se le carga"], area: ["Por área", "en qué zona"],
+      turno: ["Por turno", "cuándo pasó"], tipo: ["Por tipo", "comportamiento, condición o externa"],
+    };
+    const paretos = DIMS.map((d) => { const p = pareto(evs, d.id, "eventos"); return { dim: d.id, titulo: titulos[d.id][0], nota: `${titulos[d.id][1]} · ${p.total} eventos`, barras: p.barras, total: p.total } });
+    const periodo = `${mesNombre(mes)} ${mes.slice(0, 4)} · ${turno ? "turno " + turno : "los tres turnos"}`;
+    const lienzo = fs.dibujarSeguridadDashboard(
+      { mes: mesNombre(mes), turno, periodo, total: k.total, comp: k.comp, cond: k.cond, graves: k.graves, reinc: k.reinc, comite: k.comite, sinResp: k.sinResp, vencidas: venc, abiertas: acciones.filter((a) => a.estado === "pendiente").length, paretos },
+      { paleta: leerPaleta(raiz.current) ?? { ...PALETA_MARCA, acento: [255, 192, 0] as [number, number, number] }, logo },
+    );
+    return { lienzo, nombre: fs.nombreFotoSeguridad(mes, turno) };
+  }, "Seguridad · plan de reacción", { dashboard: "Dashboard de Seguridad" }, undefined, ["dashboard"]);
+  useEffect(() => { if (foto.mal) avisar.mal("No se pudo armar la imagen del dashboard. Intenta de nuevo.") }, [foto.mal]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const marcar = async (a: AccionV, estado: "hecha" | "no_aplica") => {
     const nota = await pedirTexto({
       titulo: estado === "hecha" ? "¿Qué se hizo?" : "¿Por qué no aplica?",
@@ -101,6 +124,9 @@ export function Seguridad({ eventos, acciones, personas, regla, colaboradores, e
         <div className="plr-sub">Qué se rompió, por quién o por qué, y qué le toca a cada caso según el diagrama.</div>
       </div>
       <div className="plr-der">
+        <button type="button" className="plr-bt" onClick={() => foto.abrir("dashboard")} disabled={!!falla || foto.armando != null} title="Una imagen con las cifras y los cinco Paretos para copiar, compartir o descargar">
+          {Ico.panel}<span>{foto.armando ? "Armando…" : "Dashboard"}</span>
+        </button>
         <button type="button" className="plr-bt plr-oro" onClick={() => setDiagrama(true)} disabled={!!falla} title="Ver el diagrama del flujo con los casos del mes">
           {Ico.ojo}<span>Ver diagrama del flujo</span>
         </button>
@@ -126,7 +152,7 @@ export function Seguridad({ eventos, acciones, personas, regla, colaboradores, e
   const accVista = masAcc ? lista : lista.slice(0, 6);
 
   return (
-    <div className="plr">
+    <div className="plr" ref={raiz}>
       {cabecera}
 
       <div className="plr-fil">
@@ -280,7 +306,7 @@ export function Seguridad({ eventos, acciones, personas, regla, colaboradores, e
         <Asignar evento={asignando} colaboradores={colaboradores} cerrar={() => setAsignando(null)}
                  listo={(m) => { setAsignando(null); avisar.bien(m); router.refresh() }} falla={(m) => avisar.mal(m)} />
       )}
-      {avisos}{dialogoTexto}
+      {avisos}{dialogoTexto}{foto.vista}
     </div>
   );
 }

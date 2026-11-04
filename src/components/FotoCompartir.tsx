@@ -34,7 +34,7 @@ function bajar(blob: Blob, nombre: string) {
 export type OpcionesFoto = { titulo: string; valores: { k: string; t: string }[]; actual: string | string[]; cambiar: (k: string) => void };
 
 /** `opciones` puede depender de la imagen abierta (p. ej. una sola unidad en el Dashboard y varias en la Tabla). */
-export function useFotoCompartir(hacer: Hacer, titulo: string, nombres?: Partial<Record<TipoFoto, string>>, opcionesDe?: OpcionesFoto | ((t: TipoFoto) => OpcionesFoto)) {
+export function useFotoCompartir(hacer: Hacer, titulo: string, nombres?: Partial<Record<TipoFoto, string>>, opcionesDe?: OpcionesFoto | ((t: TipoFoto) => OpcionesFoto), soloTabs?: TipoFoto[]) {
   const nombreDe = (t: TipoFoto) => nombres?.[t] ?? NOMBRE_FOTO[t];
   const [foto, setFoto] = useState<Foto | null>(null);
   const [armando, setArmando] = useState<TipoFoto | null>(null);
@@ -95,14 +95,20 @@ export function useFotoCompartir(hacer: Hacer, titulo: string, nombres?: Partial
     <div className="fc" role="dialog" aria-modal="true" aria-label={`${titulo}: imagen para compartir`} onClick={(e) => { if (e.target === e.currentTarget) cerrar() }}>
       <div className="fc-caja">
         <div className="fc-barra">
-          <div className="fc-tabs" role="tablist" aria-label="Qué imagen">
-            {((nombres?.seguridad ? ["dashboard", "detalle", "seguridad"] : ["dashboard", "detalle"]) as TipoFoto[]).map((t) => (
-              <button key={t} type="button" role="tab" aria-selected={foto.tipo === t} className={foto.tipo === t ? "on" : ""}
-                disabled={armando != null} onClick={() => foto.tipo !== t && abrir(t)}>
-                {armando === t ? "Armando…" : nombreDe(t)}
-              </button>
-            ))}
-          </div>
+          {(() => {
+            const tabs = (soloTabs ?? (nombres?.seguridad ? ["dashboard", "detalle", "seguridad"] : ["dashboard", "detalle"])) as TipoFoto[];
+            if (tabs.length < 2) return <div className="fc-tabs" aria-label="Imagen"><b className="fc-solo">{nombreDe(tabs[0] ?? foto.tipo)}</b></div>;
+            return (
+              <div className="fc-tabs" role="tablist" aria-label="Qué imagen">
+                {tabs.map((t) => (
+                  <button key={t} type="button" role="tab" aria-selected={foto.tipo === t} className={foto.tipo === t ? "on" : ""}
+                    disabled={armando != null} onClick={() => foto.tipo !== t && abrir(t)}>
+                    {armando === t ? "Armando…" : nombreDe(t)}
+                  </button>
+                ))}
+              </div>
+            );
+          })()}
           {opciones && (
             <div className="fc-opc">
               <span className="fc-opc-t">{opciones.titulo}</span>

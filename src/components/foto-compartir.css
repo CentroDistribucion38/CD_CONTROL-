@@ -26,3 +26,5 @@
 /* El selector extra de la ventana (la unidad): etiqueta arriba, botones abajo, como el resto de la barra. */
 .fc-opc { display: inline-flex; align-items: center; gap: 8px }
 .fc-opc-t { font: 800 11px var(--fe-texto, inherit); letter-spacing: .08em; text-transform: uppercase; color: var(--fe-gris, #5B6573) }
+
+.fc-solo { display: inline-flex; align-items: center; min-height: 38px; padding: 0 16px; background: var(--c-grupo, #0B0B0C); color: #fff; font: 800 14px var(--fuente-ui, inherit); letter-spacing: .02em }
