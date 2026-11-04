@@ -286,21 +286,24 @@ export function dibujarFotosCierre(c: Cierre, fotos: FotoRotura[], x: Extra): HT
 
   // ---- las columnas de «Las roturas», con el ancho que tienen en la ficha
   const cols: ColT[] = [
-    ...(varios ? [{ t: "DÍA", w: 56 }] : []),
-    { t: "TURNO", w: 54 }, { t: "HORA", w: 58 }, { t: "ROTURA", w: 70 }, { t: "MATERIAL", w: varios ? 140 : 170 },
-    { t: "ROTAS", w: 56, n: true }, { t: "CONTAM.", w: 62, n: true }, { t: "HL", w: 62, n: true }, { t: "COBRO", w: 92, n: true }, { t: "CAUSA", w: varios ? 114 : 132 }, { t: "PROCESO", w: 76 }, { t: "ÁREA", w: 76 },
-    { t: "ORIGEN", w: 96 }, { t: "QUIÉN", w: varios ? 66 : 66 }, { t: "ESTADO", w: 156 },
+    ...(varios ? [{ t: "DÍA", w: 48 }] : []),
+    { t: "TURNO", w: 48 }, { t: "HORA", w: 50 }, { t: "ROTURA", w: 70 }, { t: "MATERIAL", w: 110 },
+    { t: "ROTAS", w: 50, n: true }, { t: "CONTAM.", w: 60, n: true }, { t: "HL", w: 46, n: true }, { t: "COBRO", w: 84, n: true },
+    { t: "CAUSA", w: 110 }, { t: "PROC. / ÁREA", w: 112 },
+    { t: "ORIGEN", w: 96 }, { t: "QUIÉN", w: 58 }, { t: "ESTADO", w: 130 },
   ];
   const suma = cols.reduce((s, q) => s + q.w, 0); cols[cols.findIndex((q) => q.t === "MATERIAL")].w += AN - suma; // lo que sobre o falte lo absorbe el material
   const LH = 17, PADV = 9, PADH = 10;
   const textos = (f: FilaCierre): string[] => [
     ...(varios ? [ddmm(f.dia)] : []), f.turno, f.hora, f.codigo, f.material_nombre, nf.format(f.rotas), f.tipo === "eer" ? "—" : String(f.contaminadas || "—"), fmtHL(f.hl), cobroTxt(f),
-    f.causa || "Sin dato", f.proceso || "Sin dato", f.area || "Sin dato", ORIGEN_TXT[f.origen], f.registro || "—", f.estado,
+    f.causa || "Sin dato", `${f.proceso || "Sin dato"}\n${f.area || "Sin dato"}`, ORIGEN_TXT[f.origen], f.registro || "—", f.estado,
   ];
   const lineasDe = (f: FilaCierre) => {
     const tx = textos(f); letra(m, 500, 13);
     return cols.map((q, i) => {
       if (q.t === "TURNO" || q.t === "ORIGEN" || q.t === "ESTADO" || q.t === "ROTURA") return [tx[i]];
+      /* Proceso y área comparten columna: el proceso arriba, el área abajo. */
+      if (q.t === "PROC. / ÁREA") return tx[i].split("\n").flatMap((parte) => envolver(m, parte, q.w - 2 * PADH));
       return envolver(m, tx[i], q.w - 2 * PADH);
     });
   };
@@ -360,10 +363,12 @@ export function dibujarFotosCierre(c: Cierre, fotos: FotoRotura[], x: Extra): HT
           ctx.fillStyle = fg; ctx.textAlign = "left"; espaciado(ctx, tx[i], cx2 + PADH + 7, y + PADV + 10, 1);
         } else {
           const bold = q.t === "ROTURA";
-          letra(ctx, bold ? 700 : 500, 13); ctx.fillStyle = (q.t === "CAUSA" || q.t === "PROCESO" || q.t === "ÁREA") && tx[i] === "Sin dato" ? MAL : (bold ? (f.anulada ? GRIS : "#444C57") : gris);
+          letra(ctx, bold ? 700 : 500, 13);
+          const base = bold ? (f.anulada ? GRIS : "#444C57") : gris;
           ctx.textAlign = q.n ? "right" : "left";
           l[i].forEach((ln, k) => {
             const tx0 = q.n ? cx2 + q.w - PADH : cx2 + PADH, ty = y + PADV + 8 + k * LH;
+            ctx.fillStyle = (q.t === "CAUSA" || q.t === "PROC. / ÁREA") && ln === "Sin dato" ? MAL : base;
             ctx.fillText(ln, tx0, ty);
             if (f.anulada) { const wl = ctx.measureText(ln).width; ctx.fillStyle = "#9AA4B2"; ctx.fillRect(q.n ? tx0 - wl : tx0, ty, wl, 1); ctx.fillStyle = gris }
           });
