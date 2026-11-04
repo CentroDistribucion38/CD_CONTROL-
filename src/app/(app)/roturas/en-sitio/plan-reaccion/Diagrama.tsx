@@ -39,9 +39,10 @@ export function Diagrama({ delMes, personas, mes, regla, cerrar, abrirPersona }:
 
   const n = (k: string) => d.celdas.get(k)?.length ?? 0;
   const nodo = (k: string, cls: string, children: React.ReactNode, cuenta: number, unidad = "casos") => (
-    <button type="button" className={`plr-nodo ${cls}` + (sel === k ? " on" : "")} aria-pressed={sel === k}
+    <button type="button" className={`plr-nodo ${cls}` + (sel === k ? " on" : "") + (cuenta ? "" : " cero")} aria-pressed={sel === k}
+            aria-label={`${cuenta} ${cuenta === 1 ? unidad.replace(/s$/, "") : unidad}`}
             onClick={() => setSel(sel === k ? null : k)} disabled={!cuenta}>
-      <span>{children}</span><b>{cuenta}<i>{cuenta === 1 ? unidad.replace(/s$/, "") : unidad}</i></b>
+      <span>{children}</span><b>{cuenta}{unidad === "personas" && <i>{cuenta === 1 ? "persona" : "personas"}</i>}</b>
     </button>
   );
   const accion = (t: string, comite = false) => <div className={"plr-acc-nodo" + (comite ? " comite" : "")}>{t}</div>;
@@ -58,49 +59,60 @@ export function Diagrama({ delMes, personas, mes, regla, cerrar, abrirPersona }:
       <div className="plr-dg">
         <div className="plr-dg-cima">
           <div className="plr-raiz">PLAN DE REACCIÓN<br />ROTURA</div>
+          <span className="plr-flecha" aria-hidden />
           <ul className="plr-reglas">
-            <li><b>≤ {leve} cajas</b> por comportamiento: se lleva la reincidencia en la base de roturas. <Pill tipo="leve">{d.sev.leve} este mes</Pill></li>
-            <li><b>De {leve + 1} a {grave - 1} cajas</b> por comportamiento: se reporta en guardián, se hacen los 5 porqués y se clasifica como ISL. <Pill tipo="int">{d.sev.intermedia} este mes</Pill></li>
-            <li><b>{grave} cajas o más</b>: se reporta como ISL SIF precursor y se analiza el evento. <Pill tipo="grave">{d.sev.grave} este mes</Pill></li>
+            <li><Pill tipo="leve">Leve · ≤ {leve} cajas</Pill><p>Por comportamiento: se lleva la reincidencia en la base de roturas.</p><b>{d.sev.leve}<i>este mes</i></b></li>
+            <li><Pill tipo="int">Intermedia · {leve + 1} a {grave - 1}</Pill><p>Se reporta en guardián, 5 porqués y se clasifica como ISL.</p><b>{d.sev.intermedia}<i>este mes</i></b></li>
+            <li><Pill tipo="grave">Grave · ≥ {grave} cajas</Pill><p>ISL SIF precursor y análisis del evento.</p><b className="mal">{d.sev.grave}<i>este mes</i></b></li>
           </ul>
-          <div className="plr-afectan">Eventos como ISL e ISL SIF precursor afectan</div>
         </div>
+        <div className="plr-tronco" aria-hidden><i /><u /></div>
 
         <div className="plr-dg-ramas">
           <section className="plr-rama" aria-label="Condición">
             <h3 className="plr-rama-t">CONDICIÓN</h3>
             <p className="plr-rama-n">No se le carga a la persona: se corrige el sitio o el equipo.</p>
-            {CONDICIONES.map((c) => (
-              <div key={c.id} className="plr-cond">
-                {nodo("c:" + c.id, "cond", c.nom, n("c:" + c.id), "eventos")}
-                {accion(c.texto)}
+            {CONDICIONES.map((c, i) => (
+              <div key={c.id}>
+                {i > 0 && <div className="plr-vf c" aria-hidden />}
+                <div className="plr-cond">
+                  {nodo("c:" + c.id, "cond", c.nom, n("c:" + c.id), "eventos")}
+                  <span className="plr-flecha" aria-hidden />
+                  {accion(c.texto)}
+                </div>
               </div>
             ))}
-            {d.sinRama > 0 && <p className="plr-rama-n">{d.sinRama} {d.sinRama === 1 ? "evento de condición" : "eventos de condición"} sin rama: falta decir cuál es en la configuración de causas.</p>}
+            {d.sinRama > 0 && <p className="plr-rama-n sinrama">{d.sinRama} {d.sinRama === 1 ? "evento de condición" : "eventos de condición"} sin rama: falta decir cuál es en la configuración de causas.</p>}
           </section>
 
           <section className="plr-rama" aria-label="Comportamiento">
             <h3 className="plr-rama-t">COMPORTAMIENTO</h3>
-            {d.sinResp > 0 && <div className="plr-cond">{nodo("sin", "sin", "Sin responsable: aún no entran a la escalera", d.sinResp, "eventos")}</div>}
+            {d.sinResp > 0 && <div className="plr-sinresp">{nodo("sin", "sin", "Sin responsable: aún no entran a la escalera", d.sinResp, "eventos")}</div>}
             {([1, 2, 3] as const).map((i) => (
-              <div key={i} className={"plr-peldano s" + i}>
-                <div className="plr-pel-n">{ESCALERA[i].nom.toUpperCase()}</div>
-                <div className="plr-pel-c">
-                  <div className="plr-via">
-                    {nodo(`${i}:leve`, "leve l" + i, <>Falta leve<small>Rotura ≤ {leve} cajas</small></>, n(`${i}:leve`), "eventos")}
-                    <span className="plr-flecha" aria-hidden />
-                    {accion(ESCALERA[i].leve)}
-                  </div>
-                  <div className="plr-via">
-                    {nodo(`${i}:grave`, "grave", <>Falta grave<small>Rotura ≥ {grave} cajas</small></>, n(`${i}:grave`), "eventos")}
-                    <span className="plr-flecha" aria-hidden />
-                    {accion(ESCALERA[i].grave, i === 3)}
+              <div key={i}>
+                {i > 1 && <div className="plr-vf" aria-hidden />}
+                <div className={"plr-peldano s" + i}>
+                  <div className="plr-pel-n">{ESCALERA[i].nom.toUpperCase()}</div>
+                  <span className="plr-fk" aria-hidden />
+                  <div className="plr-pel-c">
+                    <div className="plr-via">
+                      {nodo(`${i}:leve`, "leve", <>Falta leve<small>Rotura ≤ {leve} cajas</small></>, n(`${i}:leve`), "eventos")}
+                      <span className="plr-flecha" aria-hidden />
+                      {accion(ESCALERA[i].leve)}
+                    </div>
+                    <div className="plr-via">
+                      {nodo(`${i}:grave`, "grave", <>Falta grave<small>Rotura ≥ {grave} cajas</small></>, n(`${i}:grave`), "eventos")}
+                      <span className="plr-flecha" aria-hidden />
+                      {accion(ESCALERA[i].grave, i === 3)}
+                    </div>
                   </div>
                 </div>
               </div>
             ))}
+            <div className="plr-vf" aria-hidden />
             <div className="plr-peldano s4">
               <div className="plr-pel-n">RECURRENTES POR EVENTO ROTURA</div>
+              <span className="plr-flecha" aria-hidden />
               <div className="plr-pel-c">
                 <div className="plr-via">
                   {nodo("p4", "p4", <>{ESCALERA[4].criterio}</>, personas4.length, "personas")}
