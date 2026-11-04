@@ -1,9 +1,14 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { moduloPorRuta, ramaDeRuta, entradaDeRama } from "@/modulos/registro";
+
+/* El cuadro del Modo FISCAL se baja solo cuando se abre: no pesa en ninguna otra pantalla. */
+const ModoFiscal = dynamic(() => import("@/app/(app)/admin/fiscal/ModoFiscal").then((m) => m.ModoFiscal), { ssr: false });
 
 /**
  * Riel lateral de módulos. Colapsado en 64px, se abre al pasar el mouse o
@@ -521,6 +526,16 @@ export function Navegacion({ permitidas, anclado, alternar }: {
     router.prefetch(ruta);
   };
 
+  /* MODO FISCAL ESCONDIDO: en Administración, cinco toques seguidos (en menos de 3 s) en «ESTÁS EN» abren el cuadro que pide el PIN.
+     No hay botón ni entrada de menú a propósito. La base y el servidor vuelven a comprobar quién es y el PIN. */
+  const [fiscal, setFiscal] = useState(false);
+  const toques = useRef<number[]>([]);
+  const toqueFiscal = () => {
+    const ahora = Date.now();
+    toques.current = [...toques.current.filter((t) => ahora - t < 3000), ahora];
+    if (toques.current.length >= 5) { toques.current = []; setFiscal(true) }
+  };
+
   if (!actual) return null;
 
   /* Solo lo que el rol puede ver. Un enlace a una pantalla cerrada no es
@@ -556,7 +571,7 @@ export function Navegacion({ permitidas, anclado, alternar }: {
           <span className="globo">Todos los módulos</span>
         </Link>
 
-        <div className="grupo texto">ESTÁS EN</div>
+        <div className="grupo texto" onClick={actual.id === "admin" ? toqueFiscal : undefined}>ESTÁS EN</div>
 
         <Link href={actual.ruta} className={"modulo" + (rama ? "" : " on")}>
           <IconoActual />
@@ -660,6 +675,7 @@ export function Navegacion({ permitidas, anclado, alternar }: {
           <span className="texto">{anclado ? "Soltar menú" : "Anclar menú"}</span>
         </button>
       </div>
+      {fiscal && createPortal(<ModoFiscal cerrar={() => setFiscal(false)} />, document.body)}
     </nav>
   );
 }

@@ -612,8 +612,6 @@ export const MODULOS: Modulo[] = [
       { nombre: "Usuarios", ruta: "/admin/usuarios" },
       /* QUIÉN USA LA APP: después de la gente, antes de lo destructivo. */
       { nombre: "Uso", ruta: "/admin/uso" },
-      /* EL «SOLO FISCAL» DEL DÍA DEL INVENTARIO: a quién se le esconde todo menos Contar. Pide PIN. */
-      { nombre: "Modo FISCAL", ruta: "/admin/fiscal" },
       /* AL FINAL: borrar es lo último que se hace, y lo más raro. */
       { nombre: "Borrar datos", ruta: "/admin/datos" },
     ],

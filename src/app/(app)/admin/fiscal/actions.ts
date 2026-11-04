@@ -33,3 +33,34 @@ export async function guardarModoFiscal(
   const r = String(data);
   return { resultado: r === "ok" ? "guardado" : (TRADUCE[r] as Exclude<RespuestaPin, "ok"> | undefined) ?? "error" };
 }
+
+export type DatosModoFiscal = {
+  roles: { clave: string; nombre: string; manda: boolean }[];
+  perfiles: { id: string; usuario: string | null; nombre: string | null; rol: string | null; activo: boolean | null }[];
+  inicial: { roles: string[]; usuarios: string[] };
+};
+
+/**
+ * Abre el cuadro del Modo FISCAL: comprueba el PIN y, solo si es el bueno, entrega los roles, las personas y a quién
+ * está activado hoy. Sin el PIN no sale ningún dato.
+ */
+export async function traerModoFiscal(pin: string): Promise<{ resultado: RespuestaPin; datos?: DatosModoFiscal }> {
+  const resultado = await abrirModoFiscal(pin);
+  if (resultado !== "ok") return { resultado };
+  const supabase = await createClient();
+  const [r, p, d] = await Promise.all([
+    supabase.from("roles").select("clave, nombre, manda").order("orden", { nullsFirst: false }).order("nombre"),
+    supabase.from("perfiles").select("id, usuario, nombre, rol, activo").order("nombre"),
+    supabase.from("modo_fiscal_destinos").select("tipo, clave"),
+  ]);
+  if (d.error) return { resultado: "falta" };
+  const dest = (d.data ?? []) as { tipo: string; clave: string }[];
+  return {
+    resultado: "ok",
+    datos: {
+      roles: (r.data ?? []) as DatosModoFiscal["roles"],
+      perfiles: (p.data ?? []) as DatosModoFiscal["perfiles"],
+      inicial: { roles: dest.filter((x) => x.tipo === "rol").map((x) => x.clave), usuarios: dest.filter((x) => x.tipo === "usuario").map((x) => x.clave) },
+    },
+  };
+}

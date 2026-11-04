@@ -78,7 +78,8 @@ export function Seguridad({ eventos, acciones, personas, regla, colaboradores, e
 
   /* EL DASHBOARD PARA COPIAR Y COMPARTIR: las cifras del mes y los cinco Paretos por evento (causa, persona, área, turno, tipo),
      pintados del mismo `pareto()` que ve la pantalla. Respeta el mes y el turno que están escogidos. */
-  const foto = useFotoCompartir(async (_t: TipoFoto) => {
+  const foto = useFotoCompartir(async (tipoImg: TipoFoto) => {
+    const parte = tipoImg === "detalle" ? "detalle" as const : "graficas" as const;
     const fs = await import("@/modulos/roturas/foto-seguridad");
     const logo = await fs.traerLogo();
     const titulos: Record<Dim, [string, string]> = {
@@ -102,10 +103,10 @@ export function Seguridad({ eventos, acciones, personas, regla, colaboradores, e
     }));
     const lienzo = fs.dibujarSeguridadDashboard(
       { mes: mesNombre(mes), turno, periodo, total: k.total, comp: k.comp, cond: k.cond, graves: k.graves, reinc: k.reinc, comite: k.comite, sinResp: k.sinResp, vencidas: venc, abiertas: acciones.filter((a) => a.estado === "pendiente").length, paretos, eventos },
-      { paleta: leerPaleta(raiz.current) ?? { ...PALETA_MARCA, acento: [255, 192, 0] as [number, number, number] }, logo },
+      { paleta: leerPaleta(raiz.current) ?? { ...PALETA_MARCA, acento: [255, 192, 0] as [number, number, number] }, logo, parte },
     );
-    return { lienzo, nombre: fs.nombreFotoSeguridad(mes, turno) };
-  }, "Seguridad · plan de reacción", { dashboard: "Dashboard de Seguridad" }, undefined, ["dashboard"]);
+    return { lienzo, nombre: fs.nombreFotoSeguridad(mes, turno, parte) };
+  }, "Seguridad · plan de reacción", { dashboard: "Dashboard", detalle: "Detalle" }, undefined, ["dashboard", "detalle"]);
   useEffect(() => { if (foto.mal) avisar.mal("No se pudo armar la imagen del dashboard. Intenta de nuevo.") }, [foto.mal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const marcar = async (a: AccionV, estado: "hecha" | "no_aplica") => {

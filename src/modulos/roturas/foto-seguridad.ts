@@ -32,9 +32,12 @@ export type DatosSeguridadFoto = {
   paretos: ParetoFoto[];
   eventos: FilaEventoFoto[];
 };
-export type ExtraSeguridad = { paleta?: Paleta; logo?: CanvasImageSource | null; generado?: Date };
+/** `graficas` = el Dashboard (cifras + los cinco Paretos) · `detalle` = cifras + la tabla «Los eventos». Son dos imágenes para que ninguna sea tan larga. */
+export type ParteSeguridad = "graficas" | "detalle";
+export type ExtraSeguridad = { paleta?: Paleta; logo?: CanvasImageSource | null; generado?: Date; parte?: ParteSeguridad };
 
-export const nombreFotoSeguridad = (mes: string, turno: string) => `seguridad-plan-reaccion-${mes}${turno ? "-turno-" + turno : ""}.png`;
+export const nombreFotoSeguridad = (mes: string, turno: string, parte: ParteSeguridad = "graficas") =>
+  `seguridad-plan-reaccion-${parte === "detalle" ? "detalle-" : ""}${mes}${turno ? "-turno-" + turno : ""}.png`;
 
 /** El sello de la marca (el mismo de la banda de la pantalla). null si no carga: la foto sale sin él. */
 export async function traerLogo(): Promise<HTMLImageElement | null> {
@@ -198,13 +201,16 @@ function dibujarTablaEventos(ctx: Ctx, y: number, rs: Renglon[], P: Paleta): num
 
 export function dibujarSeguridadDashboard(d: DatosSeguridadFoto, x: ExtraSeguridad = {}): HTMLCanvasElement {
   const P = x.paleta ?? PALETA_MARCA;
+  const detalle = x.parte === "detalle";
   const [causa, ...otros] = d.paretos;
   const filas = Math.ceil(otros.length / 2);
   /* Se mide la tabla ANTES de crear el lienzo: su alto depende de cuántas líneas ocupa cada renglón. */
   const cvM = document.createElement("canvas").getContext("2d")!;
   const rs = medirRenglones(cvM, d.eventos);
   const altoTabla = rs.length ? ALTO_CAB_T + rs.reduce((a, r) => a + r.h, 0) : 40;
-  const H = ALTO_BANDA + ALTO_HERO + 62 + ALTO_GRANDE + 14 + 62 + filas * ALTO_CHICO + (filas - 1) * 14 + 54 + 18 + 62 + altoTabla + 52;
+  const altoGraficas = 4 + 62 + ALTO_GRANDE + 14 + 62 + filas * ALTO_CHICO + (filas - 1) * 14 + 14 + 18 + 36;
+  const altoDetalle = 4 + 62 + altoTabla + 24;
+  const H = ALTO_BANDA + ALTO_HERO + (detalle ? altoDetalle : altoGraficas) + 52;
 
   const cv = document.createElement("canvas"); cv.width = W * S; cv.height = Math.round(H * S);
   const ctx = cv.getContext("2d")!; ctx.scale(S, S); ctx.textBaseline = "middle";
@@ -215,7 +221,7 @@ export function dibujarSeguridadDashboard(d: DatosSeguridadFoto, x: ExtraSegurid
   let tx = PX;
   if (x.logo) { try { ctx.drawImage(x.logo, PX, (ALTO_BANDA - 46) / 2, 46, 46); tx = PX + 46 + 18 } catch { /* sin sello */ } }
   letra(ctx, 700, 10); ctx.fillStyle = "#FFE08A"; ctx.textAlign = "left"; espaciado(ctx, "ROTURAS · EN SITIO · SEGURIDAD", tx, 27, 1.6);
-  letra(ctx, 900, 27); ctx.fillStyle = "#FFFFFF"; ctx.fillText("Plan de reacción · Paretos del mes", tx, 56);
+  letra(ctx, 900, 27); ctx.fillStyle = "#FFFFFF"; ctx.fillText(detalle ? "Plan de reacción · Detalle de eventos" : "Plan de reacción · Paretos del mes", tx, 56);
   const g = x.generado ?? new Date();
   letra(ctx, 500, 12.5); ctx.fillStyle = "rgba(255,255,255,.9)";
   ctx.fillText(`${d.periodo} · foto de las ${g.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}`, tx, 82);
@@ -246,38 +252,43 @@ export function dibujarSeguridadDashboard(d: DatosSeguridadFoto, x: ExtraSegurid
   });
   void anchoEspaciado;
 
-  // ---- el Pareto grande: por causa
-  let y = seccion(ctx, y0 + ALTO_HERO + 4, causa.titulo, causa.nota);
-  dibujarPareto(ctx, PX, y, AN, ALTO_GRANDE, causa, P, true);
-  y += ALTO_GRANDE + 14;
+  let y = 0;
+  if (!detalle) {
+    // ---- el Pareto grande: por causa
+    y = seccion(ctx, y0 + ALTO_HERO + 4, causa.titulo, causa.nota);
+    dibujarPareto(ctx, PX, y, AN, ALTO_GRANDE, causa, P, true);
+    y += ALTO_GRANDE + 14;
 
-  // ---- los otros cuatro, de dos en dos
-  y = seccion(ctx, y, "Otras miradas", "los mismos eventos, vistos de otro lado");
-  const wc = (AN - 24) / 2;
-  otros.forEach((p, i) => {
-    const cx = PX + (i % 2) * (wc + 24), cy = y + Math.floor(i / 2) * (ALTO_CHICO + 14);
-    ctx.fillStyle = "#F7F8FA"; ctx.fillRect(cx, cy, wc, ALTO_CHICO);
-    ctx.strokeStyle = BORDE; ctx.lineWidth = 1; ctx.strokeRect(cx + .5, cy + .5, wc - 1, ALTO_CHICO - 1);
-    ctx.fillStyle = NEGRO; ctx.fillRect(cx, cy, wc, 3);
-    letra(ctx, 800, 13); ctx.fillStyle = NEGRO; ctx.textAlign = "left"; ctx.fillText(p.titulo, cx + 14, cy + 22);
-    letra(ctx, 500, 11.5); ctx.fillStyle = GRIS; ctx.textAlign = "right"; ctx.fillText(p.nota, cx + wc - 14, cy + 22);
-    dibujarPareto(ctx, cx + 4, cy + 30, wc - 8, ALTO_CHICO - 36, p, P, false);
-  });
-  y += filas * ALTO_CHICO + (filas - 1) * 14 + 14;
+    // ---- los otros cuatro, de dos en dos
+    y = seccion(ctx, y, "Otras miradas", "los mismos eventos, vistos de otro lado");
+    const wc = (AN - 24) / 2;
+    otros.forEach((p, i) => {
+      const cx = PX + (i % 2) * (wc + 24), cy = y + Math.floor(i / 2) * (ALTO_CHICO + 14);
+      ctx.fillStyle = "#F7F8FA"; ctx.fillRect(cx, cy, wc, ALTO_CHICO);
+      ctx.strokeStyle = BORDE; ctx.lineWidth = 1; ctx.strokeRect(cx + .5, cy + .5, wc - 1, ALTO_CHICO - 1);
+      ctx.fillStyle = NEGRO; ctx.fillRect(cx, cy, wc, 3);
+      letra(ctx, 800, 13); ctx.fillStyle = NEGRO; ctx.textAlign = "left"; ctx.fillText(p.titulo, cx + 14, cy + 22);
+      letra(ctx, 500, 11.5); ctx.fillStyle = GRIS; ctx.textAlign = "right"; ctx.fillText(p.nota, cx + wc - 14, cy + 22);
+      dibujarPareto(ctx, cx + 4, cy + 30, wc - 8, ALTO_CHICO - 36, p, P, false);
+    });
+    y += filas * ALTO_CHICO + (filas - 1) * 14 + 14;
 
-  // ---- la leyenda de los Paretos
-  const colores = COLOR(P);
-  const ley: [string, string][] = [["Comportamiento", colores.comportamiento], ["Condición", colores.condicion], ["Externa u otros", colores.externa]];
-  let lx = PX; letra(ctx, 500, 11.5); ctx.textAlign = "left";
-  for (const [t, c] of ley) { ctx.fillStyle = c; ctx.fillRect(lx, y + 12, 10, 10); ctx.fillStyle = NEGRO; ctx.fillText(t, lx + 16, y + 17); lx += 16 + ctx.measureText(t).width + 22 }
-  ctx.strokeStyle = MAL; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(lx, y + 17); ctx.lineTo(lx + 22, y + 17); ctx.stroke();
-  ctx.fillStyle = NEGRO; ctx.fillText("Acumulado", lx + 28, y + 17);
-  y += 18 + 36;
+    // ---- la leyenda de los Paretos
+    const colores = COLOR(P);
+    const ley: [string, string][] = [["Comportamiento", colores.comportamiento], ["Condición", colores.condicion], ["Externa u otros", colores.externa]];
+    let lx = PX; letra(ctx, 500, 11.5); ctx.textAlign = "left";
+    for (const [t, c] of ley) { ctx.fillStyle = c; ctx.fillRect(lx, y + 12, 10, 10); ctx.fillStyle = NEGRO; ctx.fillText(t, lx + 16, y + 17); lx += 16 + ctx.measureText(t).width + 22 }
+    ctx.strokeStyle = MAL; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(lx, y + 17); ctx.lineTo(lx + 22, y + 17); ctx.stroke();
+    ctx.fillStyle = NEGRO; ctx.fillText("Acumulado", lx + 28, y + 17);
+    y += 18 + 36;
+  }
 
-  // ---- LOS EVENTOS, uno por uno (igual que el cierre del Tablero)
-  y = seccion(ctx, y, "Los eventos", `${d.total} evento${d.total === 1 ? "" : "s"} · ${d.comp} de comportamiento · ${d.cond} de condición`);
-  if (!rs.length) { letra(ctx, 500, 13.5); ctx.fillStyle = GRIS; ctx.textAlign = "left"; ctx.fillText("Nada que listar.", PX, y + 12); y += 40 }
-  else y = dibujarTablaEventos(ctx, y, rs, P);
+  if (detalle) {
+    // ---- LOS EVENTOS, uno por uno (igual que el cierre del Tablero)
+    y = seccion(ctx, y0 + ALTO_HERO + 4, "Los eventos", `${d.total} evento${d.total === 1 ? "" : "s"} · ${d.comp} de comportamiento · ${d.cond} de condición`);
+    if (!rs.length) { letra(ctx, 500, 13.5); ctx.fillStyle = GRIS; ctx.textAlign = "left"; ctx.fillText("Nada que listar.", PX, y + 12); y += 40 }
+    else y = dibujarTablaEventos(ctx, y, rs, P);
+  }
 
   // ---- el pie
   pie(ctx, W, H, g, `Eventos de roturas en sitio · ${d.periodo}`);
