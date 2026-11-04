@@ -135,6 +135,7 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
     return {
       diaISO: turnoYDia(r.reportada_en).dia, cajas: m.cajas, unidades: m.unidades, hl: m.hl,
       cuenta: r.estado === "anulada" ? "Anulada" : r.cuenta ? "Sí" : "No",
+      cobro: r.estado !== "anulada" && faseRotura(r) === "cobro" ? Number(r.cobro_total) || 0 : 0,
       causa: nombreT(r, "causa"), area: nombreT(r, "area"), registro: nombreT(r, "registro"), opm: nombreT(r, "opm"),
     };
   });
@@ -309,7 +310,7 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
       ["Cobro total", 14], ["Causa", 26], ["Asumida", 11], ["Proceso", 16], ["Área", 16], ["Origen", 12], ["Reportó", 14],
       ["OPM", 16], ["Estado", 22], ["Fotos", 8], ["Qué pasó", 40], ["Dice el OL", 30], ["Decisión", 30], ["Anulada porque", 30],
       ["Cajas", 9], ["Unidades", 10], ["HL", 9], ["Cuenta", 9],
-      ["Tablero · causa", 16], ["Tablero · área", 16], ["Tablero · registró", 16], ["Tablero · OPM", 16], ["Tablero · en el filtro", 10], ["Tablero · valor", 10],
+      ["Tablero · causa", 16], ["Tablero · área", 16], ["Tablero · registró", 16], ["Tablero · OPM", 16], ["Tablero · en el filtro", 10], ["Tablero · valor", 10], ["Tablero · cobro", 12],
     ];
     const N = C.length;
     h.columns = C.map(([, w]) => ({ width: w }));
@@ -337,6 +338,7 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
         filasTab[i].cajas, filasTab[i].unidades, filasTab[i].hl, filasTab[i].cuenta,
         filasTab[i].causa, filasTab[i].area, filasTab[i].registro, filasTab[i].opm,
       ];
+      row.getCell(DET.COBRO).value = filasTab[i].cobro;
       {
         /* «en el filtro» y «valor»: fórmulas que leen las casillas amarillas de Tablero. */
         const fx = formulasFila(fila);
@@ -383,7 +385,7 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
       cel.numFmt = c >= 11 && c <= 13 ? PESOS : c === DET.HL ? "#,##0.00" : NUM; cel.alignment = { horizontal: "right", vertical: "middle" };
     }
     /* Las columnas de ayuda del Tablero van ocultas (se pueden mostrar). */
-    for (let c = DET.CAUSA; c <= DET.VALOR; c++) h.getColumn(c).hidden = true;
+    for (let c = DET.CAUSA; c <= DET.COBRO; c++) h.getColumn(c).hidden = true;
     h.autoFilter = `A8:${col(N)}${Math.max(9, ult)}`;
     h.views = [{ state: "frozen", xSplit: 1, ySplit: 8, showGridLines: false }];
     h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, printTitlesRow: "8:8" };

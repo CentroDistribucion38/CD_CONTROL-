@@ -34,19 +34,19 @@ export type DimT = "causa" | "area" | "registro" | "opm";
 /** Una fila del Detalle, tal como la necesitan las fórmulas (y su equivalente en JS para los valores guardados). */
 export type FilaTab = {
   diaISO: string; cajas: number; unidades: number | null; hl: number | null;
-  cuenta: "Sí" | "No" | "Anulada";
+  cuenta: "Sí" | "No" | "Anulada"; cobro: number;
   causa: string; area: string; registro: string; opm: string;
 };
 
 /** Columnas nuevas del Detalle (1-based). Las ocultas van al final. */
-export const DET = { CAJAS: 27, UNID: 28, HL: 29, CUENTA: 30, CAUSA: 31, AREA: 32, REG: 33, OPM: 34, FILTRO: 35, VALOR: 36 } as const;
+export const DET = { CAJAS: 27, UNID: 28, HL: 29, CUENTA: 30, CAUSA: 31, AREA: 32, REG: 33, OPM: 34, FILTRO: 35, VALOR: 36, COBRO: 37 } as const;
 export const DET_PRIMERA = 9;
 
 const L = (n: number) => { let s = ""; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26) } return s };
 const r3 = (v: number) => Math.round(v * 1000) / 1000;
 
 /* ----- Dónde viven las casillas de Tablero ----- */
-const CEL = { MED: "Tablero!$C$10", DESDE: "Tablero!$D$10", HASTA: "Tablero!$E$10", INCL: "Tablero!$H$10" };
+const CEL = { MED: "Tablero!$B$10", DESDE: "Tablero!$C$10", HASTA: "Tablero!$D$10", INCL: "Tablero!$G$10" };
 
 /** La fórmula de «en el filtro» y la de «valor» de una fila del Detalle. */
 export function formulasFila(fila: number) {
@@ -63,26 +63,29 @@ export const enFiltro = (f: FilaTab, s: Seleccion) =>
 export const valorEn = (f: FilaTab, s: Seleccion) =>
   !enFiltro(f, s) ? 0 : s.medida === "HL" ? f.hl ?? 0 : s.medida === "Unidades" ? f.unidades ?? 0 : f.cajas;
 
-export type BarraT = { nombre: string; valor: number; pct: number; acum: number | null };
-export type ParetoT = { cats: string[]; valores: number[]; claves: number[]; barras: BarraT[]; total: number };
+export type BarraT = { nombre: string; valor: number; pct: number; acum: number | null; cobro: number };
+export type ParetoT = { cats: string[]; valores: number[]; claves: number[]; cobros: number[]; barras: BarraT[]; total: number; cobroTotal: number };
 
 export function calcPareto(filas: FilaTab[], dim: DimT, s: Seleccion, cats: string[]): ParetoT {
   const valores = cats.map((c) => r3(filas.reduce((t, f) => t + (f[dim] === c ? valorEn(f, s) : 0), 0)));
+  const cobros = cats.map((c) => filas.reduce((t, f) => t + (f[dim] === c && enFiltro(f, s) ? f.cobro : 0), 0));
   const claves = valores.map((v, i) => (v > 0 ? v + (1000 - (i + 2)) / 1e8 : 0));
   const total = valores.reduce((t, v) => t + v, 0);
+  const cobroTotal = cobros.reduce((t, v) => t + v, 0);
   const orden = claves.map((k, i) => [k, i] as const).filter(([k]) => k > 0).sort((a, b) => b[0] - a[0]).slice(0, 9);
-  const top = orden.map(([, i]) => ({ nombre: cats[i], valor: valores[i] }));
+  const top = orden.map(([, i]) => ({ nombre: cats[i], valor: valores[i], cobro: cobros[i] }));
   const otros = r3(Math.max(0, total - top.reduce((t, x) => t + x.valor, 0)));
+  const otrosCobro = Math.max(0, cobroTotal - top.reduce((t, x) => t + x.cobro, 0));
   const nPos = valores.filter((v) => v > 0).length;
   const lista = [...top];
-  while (lista.length < 9) lista.push({ nombre: "", valor: 0 });
-  lista.push({ nombre: otros > 0 ? `Otros (${nPos - 9} más)` : "", valor: otros > 0 ? otros : 0 });
+  while (lista.length < 9) lista.push({ nombre: "", valor: 0, cobro: 0 });
+  lista.push({ nombre: otros > 0 ? `Otros (${nPos - 9} más)` : "", valor: otros > 0 ? otros : 0, cobro: otros > 0 ? otrosCobro : 0 });
   let acc = 0;
   const barras = lista.map((x) => {
     acc += x.valor;
-    return { nombre: x.nombre, valor: x.valor, pct: total ? x.valor / total : 0, acum: x.nombre === "" || !total ? null : acc / total };
+    return { nombre: x.nombre, valor: x.valor, pct: total ? x.valor / total : 0, acum: x.nombre === "" || !total ? null : acc / total, cobro: x.cobro };
   });
-  return { cats, valores, claves, barras, total };
+  return { cats, valores, claves, cobros, barras, total, cobroTotal };
 }
 
 export const TITULOS: Record<DimT, string> = {
@@ -123,6 +126,8 @@ export function armarTablero(wb: ExcelJS.Workbook, E: Estilos, d: {
   const ultima = DET_PRIMERA + n - 1;
   const rango = (c: number) => `Detalle!$${L(c)}$${DET_PRIMERA}:$${L(c)}$${ultima}`;
   const sel = d.sel;
+  const PESOS = '"$" #,##0';
+  const ST = 10; // columnas de _calc por Pareto
 
   const h = wb.addWorksheet("Tablero", { properties: { tabColor: { argb: BANDA } } });
   const calc = wb.addWorksheet("_calc", { state: "hidden" });
@@ -131,22 +136,24 @@ export function armarTablero(wb: ExcelJS.Workbook, E: Estilos, d: {
   const calcs: ParetoT[] = [];
   const graficas: GraficaSpec[] = [];
   DIMS.forEach((dim, p) => {
-    const c0 = p * 8 + 1;
+    const c0 = p * ST + 1;
     const cats = d.categorias[dim].length ? d.categorias[dim] : ["Sin dato"];
     const K = cats.length, K1 = K + 1;
     const calcP = calcPareto(d.filas, dim, sel, cats);
     calcs.push(calcP);
     const a = (k: number, f: number) => `${L(c0 + k)}${f}`;
-    const rN = `$${L(c0)}$2:$${L(c0)}$${K1}`, rV = `$${L(c0 + 1)}$2:$${L(c0 + 1)}$${K1}`, rK = `$${L(c0 + 2)}$2:$${L(c0 + 2)}$${K1}`;
-    ["Nombre", "Valor", "Clave", "80 %", "Barra", "Valor barra", "%", "Acum."].forEach((t, i) => { calc.getCell(1, c0 + i).value = `${dim}·${t}` });
+    const rN = `$${L(c0)}$2:$${L(c0)}$${K1}`, rV = `$${L(c0 + 1)}$2:$${L(c0 + 1)}$${K1}`, rK = `$${L(c0 + 2)}$2:$${L(c0 + 2)}$${K1}`, rC = `$${L(c0 + 8)}$2:$${L(c0 + 8)}$${K1}`;
+    ["Nombre", "Valor", "Clave", "80 %", "Barra", "Valor barra", "%", "Acum.", "Cobro cat.", "Cobro barra"].forEach((t, i) => { calc.getCell(1, c0 + i).value = `${dim}·${t}` });
     cats.forEach((c, i) => {
       const f = i + 2;
       calc.getCell(f, c0).value = c;
       calc.getCell(f, c0 + 1).value = { formula: `ROUND(SUMPRODUCT(--(${rango(DET_DIM[dim])}=${a(0, f)}),${rango(DET.VALOR)}),3)`, result: calcP.valores[i] };
       calc.getCell(f, c0 + 2).value = { formula: `IF(${a(1, f)}>0,${a(1, f)}+(1000-ROW())/100000000,0)`, result: calcP.claves[i] };
+      /* lo que se cobra de esa barra: solo las que están a cobro, y solo las del filtro (comma-form: el texto «sin precio» cuenta cero) */
+      calc.getCell(f, c0 + 8).value = { formula: `SUMPRODUCT(--(${rango(DET_DIM[dim])}=${a(0, f)}),${rango(DET.FILTRO)},${rango(DET.COBRO)})`, result: calcP.cobros[i] };
     });
-    const tot = `$${L(c0 + 5)}$13`;
-    const top9 = `${L(c0 + 5)}2:${L(c0 + 5)}10`;
+    const tot = `$${L(c0 + 5)}$13`, totC = `$${L(c0 + 9)}$13`;
+    const top9 = `${L(c0 + 5)}2:${L(c0 + 5)}10`, top9C = `${L(c0 + 9)}2:${L(c0 + 9)}10`;
     for (let k = 1; k <= 10; k++) {
       const f = k + 1, b = calcP.barras[k - 1];
       calc.getCell(f, c0 + 3).value = 0.8;
@@ -154,10 +161,12 @@ export function armarTablero(wb: ExcelJS.Workbook, E: Estilos, d: {
         const lg = `LARGE(${rK},${k})`;
         calc.getCell(f, c0 + 4).value = { formula: `IF(IFERROR(${lg},0)>0,INDEX(${rN},MATCH(${lg},${rK},0)),"")`, result: b.nombre };
         calc.getCell(f, c0 + 5).value = { formula: `IF(${a(4, f)}="",0,INDEX(${rV},MATCH(${lg},${rK},0)))`, result: b.valor };
+        calc.getCell(f, c0 + 9).value = { formula: `IF(${a(4, f)}="",0,INDEX(${rC},MATCH(${lg},${rK},0)))`, result: b.cobro };
       } else {
         const otros = `ROUND(MAX(0,${tot}-SUM(${top9})),3)`;
         calc.getCell(f, c0 + 4).value = { formula: `IF(${otros}>0,"Otros ("&(COUNTIF(${rV},">0")-9)&" más)","")`, result: b.nombre };
         calc.getCell(f, c0 + 5).value = { formula: `IF(${a(4, f)}="",0,${otros})`, result: b.valor };
+        calc.getCell(f, c0 + 9).value = { formula: `IF(${a(4, f)}="",0,MAX(0,${totC}-SUM(${top9C})))`, result: b.cobro };
       }
       calc.getCell(f, c0 + 6).value = { formula: `IF(${tot}=0,0,${a(5, f)}/${tot})`, result: b.pct };
       calc.getCell(f, c0 + 7).value = {
@@ -167,17 +176,20 @@ export function armarTablero(wb: ExcelJS.Workbook, E: Estilos, d: {
     }
     calc.getCell(13, c0 + 4).value = "Total";
     calc.getCell(13, c0 + 5).value = { formula: `SUM(${rV})`, result: calcP.total };
+    calc.getCell(13, c0 + 9).value = { formula: `SUM(${rC})`, result: calcP.cobroTotal };
   });
 
-  /* ---------- Tablero ---------- */
-  h.columns = [2, 5, 38, 14, 11, 11, 3, ...Array(10).fill(11), 2].map((w) => ({ width: w }));
-  const ANCHO = 18;
+  /* ---------- Tablero ----------
+     Dos Paretos por fila, como en la pantalla de Análisis: arriba la gráfica (barras grises, línea del
+     acumulado y línea del 80 %), debajo la tabla QUÉ · medida · SE COBRA · ACUM. */
+  h.columns = [2, 34, 12, 15, 10, 3, 34, 12, 15, 10, 2].map((w) => ({ width: w }));
+  const ANCHO = 11;
   E.banda(h, ANCHO, "Tablero · Paretos", d.sub, null);
 
-  h.getCell("C8").value = "Cambia lo amarillo y todo se recalcula —totales, Paretos y gráficas—. Las gráficas son de Excel, no fotos.";
-  h.getCell("C8").font = letra(9.5, GRIS, false, true);
+  h.getCell("B8").value = "Cambia lo amarillo y todo se recalcula —totales, Paretos y gráficas—. Las gráficas son de Excel, no fotos.";
+  h.getCell("B8").font = letra(9.5, GRIS, false, true);
   const etiq = (celda: string, t: string) => { const c = h.getCell(celda); c.value = t; c.font = letra(8.5, GRIS, true) };
-  etiq("C9", "MEDIR EN"); etiq("D9", "DESDE"); etiq("E9", "HASTA"); etiq("H9", "INCLUIR");
+  etiq("B9", "MEDIR EN"); etiq("C9", "DESDE"); etiq("D9", "HASTA"); etiq("G9", "INCLUIR");
   const entrada = (celda: string) => {
     const c = h.getCell(celda);
     c.fill = relleno("FFFFF1C2"); c.font = letra(11, TINTA, true);
@@ -185,42 +197,41 @@ export function armarTablero(wb: ExcelJS.Workbook, E: Estilos, d: {
     c.alignment = { vertical: "middle", horizontal: "center" };
   };
   h.getRow(10).height = 24;
-  h.getCell("C10").value = sel.medida; entrada("C10");
-  h.getCell("C10").dataValidation = { type: "list", allowBlank: false, formulae: ['"HL,Unidades,Cajas"'], showErrorMessage: true, errorTitle: "Medir en", error: "Escoge HL, Unidades o Cajas." };
+  h.getCell("B10").value = sel.medida; entrada("B10");
+  h.getCell("B10").dataValidation = { type: "list", allowBlank: false, formulae: ['"HL,Unidades,Cajas"'], showErrorMessage: true, errorTitle: "Medir en", error: "Escoge HL, Unidades o Cajas." };
   const aF = (iso: string) => new Date(`${iso}T00:00:00Z`);
-  h.getCell("D10").value = aF(sel.desde); h.getCell("E10").value = aF(sel.hasta);
-  for (const c of ["D10", "E10"]) {
+  h.getCell("C10").value = aF(sel.desde); h.getCell("D10").value = aF(sel.hasta);
+  for (const c of ["C10", "D10"]) {
     entrada(c); h.getCell(c).numFmt = "dd/mm/yyyy";
     h.getCell(c).dataValidation = { type: "date", operator: "greaterThan", allowBlank: false, formulae: [aF("2020-01-01")], showErrorMessage: true, errorTitle: "Fecha", error: "Escribe una fecha (dd/mm/aaaa)." };
   }
-  h.mergeCells("H10:K10");
-  h.getCell("H10").value = sel.incluir; entrada("H10");
-  for (const c of ["I10", "J10", "K10"]) entrada(c);
-  h.getCell("H10").dataValidation = { type: "list", allowBlank: false, formulae: ['"Solo las que cuentan,Todas menos anuladas,Todas"'], showErrorMessage: true, errorTitle: "Incluir", error: "Escoge una de las tres." };
+  h.mergeCells("G10:J10");
+  h.getCell("G10").value = sel.incluir; entrada("G10");
+  for (const c of ["H10", "I10", "J10"]) entrada(c);
+  h.getCell("G10").dataValidation = { type: "list", allowBlank: false, formulae: ['"Solo las que cuentan,Todas menos anuladas,Todas"'], showErrorMessage: true, errorTitle: "Incluir", error: "Escoge una de las tres." };
 
   /* Los totales del filtro, siempre en las TRES medidas. */
   const fil = rango(DET.FILTRO);
   const enF = filas(d.filas, sel);
   const kpi = (celda: string, tit: string, f: string, res: number, fmt: string) => {
     const t = h.getCell(celda.replace(/\d+/, "12")); t.value = tit; t.font = letra(8.5, GRIS, true);
-    const v = h.getCell(celda); v.value = { formula: f, result: res }; v.font = letra(16, TINTA, true); v.numFmt = fmt;
+    const v = h.getCell(celda); v.value = { formula: f, result: res }; v.font = letra(15, TINTA, true); v.numFmt = fmt;
     v.alignment = { horizontal: "left", vertical: "middle" };
   };
   h.getRow(13).height = 26;
-  kpi("C13", "ROTURAS EN EL FILTRO", `SUM(${fil})`, enF.length, FMT_NUM);
-  kpi("D13", "CAJAS", `SUMPRODUCT(${fil},${rango(DET.CAJAS)})`, enF.reduce((t, f) => t + f.cajas, 0), FMT_NUM);
-  kpi("E13", "UNIDADES", `SUMPRODUCT(${fil},${rango(DET.UNID)})`, enF.reduce((t, f) => t + (f.unidades ?? 0), 0), FMT_NUM);
-  kpi("F13", "HL", `SUMPRODUCT(${fil},${rango(DET.HL)})`, r3(enF.reduce((t, f) => t + (f.hl ?? 0), 0)), FMT_DEC);
-  h.getCell("D13").alignment = h.getCell("E13").alignment = h.getCell("F13").alignment = { horizontal: "right", vertical: "middle" };
-  for (const c of ["D12", "E12", "F12"]) h.getCell(c).alignment = { horizontal: "right" };
+  kpi("B13", "ROTURAS EN EL FILTRO", `SUM(${fil})`, enF.length, FMT_NUM);
+  kpi("C13", "CAJAS", `SUMPRODUCT(${fil},${rango(DET.CAJAS)})`, enF.reduce((t, f) => t + f.cajas, 0), FMT_NUM);
+  kpi("D13", "UNIDADES", `SUMPRODUCT(${fil},${rango(DET.UNID)})`, enF.reduce((t, f) => t + (f.unidades ?? 0), 0), FMT_NUM);
+  kpi("E13", "HL", `SUMPRODUCT(${fil},${rango(DET.HL)})`, r3(enF.reduce((t, f) => t + (f.hl ?? 0), 0)), FMT_DEC);
+  for (const c of ["C", "D", "E"]) { h.getCell(`${c}13`).alignment = { horizontal: "right", vertical: "middle" }; h.getCell(`${c}12`).alignment = { horizontal: "right" } }
 
   /* LA FRASE DE QUIÉN REPORTA, con números. */
   const reg = calcs[2];
   const conOpm = enF.filter((f) => f.opm !== SIN_OPM && f.opm !== "Sin dato").length;
   const pctOpm = enF.length ? conOpm / enF.length : 0;
-  const cReg = 2 * 8 + 1;
-  h.mergeCells("C14:Q14");
-  const fr = h.getCell("C14");
+  const cReg = 2 * ST + 1;
+  h.mergeCells("B14:J14");
+  const fr = h.getCell("B14");
   const top = reg.barras[0];
   const textoQuien = (nom: string, pctReg: number, po: number) => `Quién más registra: ${nom} (${Math.round(pctReg * 100)}% de lo medido) · roturas que reportó un OPM con su PIN: ${Math.round(po * 100)}%`;
   const totReg = `_calc!$${L(cReg + 5)}$13`;
@@ -232,67 +243,76 @@ export function armarTablero(wb: ExcelJS.Workbook, E: Estilos, d: {
   fr.font = letra(10.5, TINTA, true); fr.fill = relleno("FFFFF8E1");
   fr.alignment = { vertical: "middle", indent: 1 };
   h.getRow(14).height = 22;
-  
-  /* Los cuatro Paretos: tabla a la izquierda, gráfica a la derecha. */
+
+  /* Los cuatro Paretos: 2 × 2. */
+  const ALTO = 33;
   DIMS.forEach((dim, p) => {
-    const c0 = p * 8 + 1, r0 = 16 + p * 19;
+    const c0 = p * ST + 1, r0 = 16 + Math.floor(p / 2) * ALTO, bc = p % 2 === 0 ? 2 : 7;
     const cp = calcs[p];
     const cr = (k: number, f: number) => `_calc!$${L(c0 + k)}$${f}`;
     /* título */
-    h.mergeCells(r0, 2, r0, 6);
-    const t = h.getCell(r0, 2); t.value = `${p + 1} · ${TITULOS[dim]}`; t.font = letra(10, TINTA, true);
-    for (let c = 2; c <= 6; c++) h.getCell(r0, c).border = { bottom: { style: "medium", color: { argb: TINTA } } };
-    h.getRow(r0).height = 22; t.alignment = { vertical: "middle" };
+    h.mergeCells(r0, bc, r0, bc + 3);
+    const t = h.getCell(r0, bc); t.value = TITULOS[dim]; t.font = letra(9, TINTA, true); t.alignment = { vertical: "middle" };
+    for (let c = bc; c <= bc + 3; c++) h.getCell(r0, c).border = { bottom: { style: "medium", color: { argb: TINTA } } };
+    h.getRow(r0).height = 22;
     /* la respuesta, en palabras */
-    h.mergeCells(r0 + 1, 2, r0 + 1, 6);
+    h.mergeCells(r0 + 1, bc, r0 + 1, bc + 3);
     const nBar = cp.barras.filter((b) => b.acum != null).length;
     const hasta = Math.min(nBar, cp.barras.filter((b) => b.acum != null && (b.acum as number) < 0.8).length + 1);
-    const medTxt = sel.medida.toLowerCase();
-    const resp = h.getCell(r0 + 1, 2);
+    const resp = h.getCell(r0 + 1, bc);
     const acR = `${cr(7, 2)}:$${L(c0 + 7)}$11`;
     const totP = cr(5, 13);
     resp.value = {
       formula: `IF(COUNT(${acR})=0,"Sin datos en este filtro.",MIN(COUNT(${acR}),COUNTIF(${acR},"<0.8")+1)&" de "&COUNT(${acR})&" explican el 80 % de "&FIXED(${totP},IF(${CEL.MED}="HL",1,0))&" "&LOWER(${CEL.MED})&".")`,
-      result: nBar === 0 ? "Sin datos en este filtro." : `${hasta} de ${nBar} explican el 80 % de ${cp.total.toLocaleString("en-US", { minimumFractionDigits: sel.medida === "HL" ? 1 : 0, maximumFractionDigits: sel.medida === "HL" ? 1 : 0 })} ${medTxt}.`,
+      result: nBar === 0 ? "Sin datos en este filtro." : `${hasta} de ${nBar} explican el 80 % de ${cp.total.toLocaleString("en-US", { minimumFractionDigits: sel.medida === "HL" ? 1 : 0, maximumFractionDigits: sel.medida === "HL" ? 1 : 0 })} ${sel.medida.toLowerCase()}.`,
     };
-    resp.font = letra(9.5, GRIS); resp.alignment = { vertical: "middle", wrapText: true };
-    /* encabezados */
-    const hd = r0 + 2;
-    ["#", "QUÉ", "", "%", "ACUM."].forEach((tx, i) => {
-      const c = h.getCell(hd, 2 + i); c.value = tx; c.font = letra(8.5, BLANCO, true); c.fill = relleno(TINTA);
-      c.alignment = { vertical: "middle", horizontal: i >= 2 ? "right" : "left", indent: 1 };
+    resp.font = letra(10, GRIS); resp.alignment = { vertical: "middle" };
+    h.getRow(r0 + 1).height = 20;
+    /* aquí va la gráfica: 16 filas (r0+2 … r0+17) */
+    for (let f = r0 + 2; f <= r0 + 17; f++) h.getRow(f).height = 18;
+    /* encabezados de la tabla */
+    const hd = r0 + 18;
+    const enc = ["QUÉ", "", "SE COBRA", "ACUM."];
+    enc.forEach((tx, i) => {
+      const c = h.getCell(hd, bc + i); c.value = tx; c.font = letra(8.5, GRIS, true);
+      c.border = { bottom: { style: "thin", color: { argb: TINTA } } };
+      c.alignment = { vertical: "middle", horizontal: i >= 1 ? "right" : "left" };
     });
-    h.getCell(hd, 4).value = { formula: `UPPER(${CEL.MED})`, result: sel.medida.toUpperCase() };
+    h.getCell(hd, bc + 1).value = { formula: `IF(${CEL.MED}="Unidades","UNID.",UPPER(${CEL.MED}))`, result: sel.medida === "Unidades" ? "UNID." : sel.medida.toUpperCase() };
     h.getRow(hd).height = 20;
     /* las 10 barras */
     for (let k = 1; k <= 10; k++) {
       const f = hd + k, b = cp.barras[k - 1], cf = k + 1;
       const nom = cr(4, cf);
       const set = (c: number, val: ExcelJS.CellFormulaValue) => { h.getCell(f, c).value = val };
-      set(2, { formula: `IF(${nom}="","",${k})`, result: b.nombre ? k : "" });
-      set(3, { formula: `${nom}&""`, result: b.nombre });
-      set(4, { formula: `IF(${nom}="","",FIXED(${cr(5, cf)},IF(${CEL.MED}="HL",2,0)))`, result: b.nombre ? fijo(b.valor, sel.medida) : "" });
-      set(5, { formula: `IF(${nom}="","",${cr(6, cf)})`, result: b.nombre ? b.pct : "" });
-      set(6, { formula: `IF(OR(${nom}="",${cr(5, 13)}=0),"",${cr(7, cf)})`, result: b.nombre && b.acum != null ? b.acum : "" });
+      set(bc, { formula: `${nom}&""`, result: b.nombre });
+      set(bc + 1, { formula: `IF(${nom}="","",FIXED(${cr(5, cf)},IF(${CEL.MED}="HL",2,0)))`, result: b.nombre ? fijo(b.valor, sel.medida) : "" });
+      set(bc + 2, { formula: `IF(${nom}="","",IF(${cr(9, cf)}=0,"—",${cr(9, cf)}))`, result: b.nombre ? (b.cobro === 0 ? "—" : b.cobro) : "" });
+      set(bc + 3, { formula: `IF(OR(${nom}="",${cr(5, 13)}=0),"",${cr(7, cf)})`, result: b.nombre && b.acum != null ? b.acum : "" });
       h.getRow(f).height = 18;
-      for (let c = 2; c <= 6; c++) {
+      for (let c = bc; c <= bc + 3; c++) {
         const cel = h.getCell(f, c);
-        cel.font = letra(10, TINTA, c === 3 && k === 1); cel.border = { bottom: raya(RAYA) };
-        cel.alignment = { vertical: "middle", horizontal: c >= 4 ? "right" : "left", indent: 1 };
-        if (k % 2 === 0) cel.fill = relleno(FONDO);
+        cel.font = letra(10, c === bc ? TINTA : GRIS, c === bc); cel.border = { bottom: raya(RAYA) };
+        cel.alignment = { vertical: "middle", horizontal: c > bc ? "right" : "left" };
       }
-      h.getCell(f, 5).numFmt = "0%"; h.getCell(f, 6).numFmt = "0%";
+      h.getCell(f, bc + 2).numFmt = PESOS; h.getCell(f, bc + 3).numFmt = "0 %";
+      h.getCell(f, bc + 1).font = letra(10, TINTA);
     }
     /* total */
     const ft = hd + 11;
-    h.getCell(ft, 3).value = "TOTAL";
-    h.getCell(ft, 4).value = { formula: `FIXED(${cr(5, 13)},IF(${CEL.MED}="HL",2,0))`, result: fijo(cp.total, sel.medida) };
-    for (let c = 2; c <= 6; c++) { const cel = h.getCell(ft, c); cel.fill = relleno(BANDA); cel.font = letra(10, TINTA, true); cel.border = { top: { style: "medium", color: { argb: TINTA } } }; cel.alignment = { vertical: "middle", horizontal: c >= 4 ? "right" : "left", indent: 1 } }
+    h.getCell(ft, bc).value = "TOTAL";
+    h.getCell(ft, bc + 1).value = { formula: `FIXED(${cr(5, 13)},IF(${CEL.MED}="HL",2,0))`, result: fijo(cp.total, sel.medida) };
+    h.getCell(ft, bc + 2).value = { formula: cr(9, 13), result: cp.cobroTotal };
+    h.getCell(ft, bc + 2).numFmt = PESOS;
+    for (let c = bc; c <= bc + 3; c++) {
+      const cel = h.getCell(ft, c); cel.fill = relleno(FONDO); cel.font = letra(9.5, TINTA, true);
+      cel.border = { top: { style: "thin", color: { argb: TINTA } } }; cel.alignment = { vertical: "middle", horizontal: c > bc ? "right" : "left" };
+    }
     h.getRow(ft).height = 20;
     graficas.push({
-      titulo: TITULOS[dim], hojaCalc: "_calc", c0, filaTab: hd, hdrCelda: `Tablero!$D$${hd}`,
+      titulo: TITULOS[dim], hojaCalc: "_calc", c0, filaTab: hd, hdrCelda: `Tablero!$${L(bc + 1)}$${hd}`,
       nombres: cp.barras.map((b) => b.nombre), valores: cp.barras.map((b) => b.valor), acums: cp.barras.map((b) => b.acum),
-      anclaje: { c0: 7, f0: r0, c1: 17, f1: r0 + 16 },
+      anclaje: { c0: bc - 1, f0: r0 + 1, c1: bc + 3, f1: r0 + 17 },
     });
   });
 
@@ -329,25 +349,25 @@ export function xmlGrafica(g: GraficaSpec, medida: Medida) {
   const cat = `<c:cat>${cadena(rng(4), g.nombres)}</c:cat>`;
   const fmtVal = "General"; void medida;
   const ejes = { cat: 50010, val: 50020, cat2: 50030, val2: 50040 };
+  const etiqueta80 = `<c:dLbls><c:dLbl><c:idx val="9"/><c:spPr><a:noFill/><a:ln><a:noFill/></a:ln></c:spPr>${texto(800, false, "C0392B")}<c:dLblPos val="t"/><c:showLegendKey val="0"/><c:showVal val="0"/><c:showCatName val="0"/><c:showSerName val="1"/><c:showPercent val="0"/><c:showBubbleSize val="0"/></c:dLbl><c:spPr><a:noFill/><a:ln><a:noFill/></a:ln></c:spPr><c:showLegendKey val="0"/><c:showVal val="0"/><c:showCatName val="0"/><c:showSerName val="0"/><c:showPercent val="0"/><c:showBubbleSize val="0"/></c:dLbls>`;
   const linea = (idx: number, nombreTx: string, rango: string, vals: (number | null)[], color: string, dash: boolean, marcador: boolean) => `
       <c:ser><c:idx val="${idx}"/><c:order val="${idx}"/><c:tx><c:v>${esc(nombreTx)}</c:v></c:tx>
         <c:spPr><a:ln w="${dash ? 19050 : 28575}" cap="rnd"><a:solidFill><a:srgbClr val="${color}"/></a:solidFill>${dash ? '<a:prstDash val="dash"/>' : ""}<a:round/></a:ln></c:spPr>
         ${marcador
           ? `<c:marker><c:symbol val="circle"/><c:size val="6"/><c:spPr><a:solidFill><a:srgbClr val="${color}"/></a:solidFill><a:ln w="9525"><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill></a:ln></c:spPr></c:marker>`
           : `<c:marker><c:symbol val="none"/></c:marker>`}
-        ${cat}<c:val>${numeros(rango, vals, "0%")}</c:val><c:smooth val="0"/></c:ser>`;
+        ${dash ? etiqueta80 : ""}${cat}<c:val>${numeros(rango, vals, "0%")}</c:val><c:smooth val="0"/></c:ser>`;
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <c:chartSpace xmlns:c="${NS_C}" xmlns:a="${NS_A}" xmlns:r="${NS_R}">
   <c:roundedCorners val="0"/>
   <c:chart>
-    <c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="1100" b="1"/></a:pPr><a:r><a:rPr lang="es-CO" sz="1100" b="1"><a:solidFill><a:srgbClr val="111111"/></a:solidFill></a:rPr><a:t>${esc(g.titulo)}</a:t></a:r></a:p></c:rich></c:tx><c:overlay val="0"/></c:title>
-    <c:autoTitleDeleted val="0"/>
+    <c:autoTitleDeleted val="1"/>
     <c:plotArea><c:layout/>
       <c:barChart><c:barDir val="col"/><c:grouping val="clustered"/><c:varyColors val="0"/>
         <c:ser><c:idx val="0"/><c:order val="0"/><c:tx>${cadena(g.hdrCelda, [medida.toUpperCase()])}</c:tx>
-          <c:spPr><a:solidFill><a:srgbClr val="FFC20E"/></a:solidFill><a:ln w="9525"><a:solidFill><a:srgbClr val="111111"/></a:solidFill></a:ln></c:spPr>
+          <c:spPr><a:solidFill><a:srgbClr val="6F6F6F"/></a:solidFill><a:ln><a:noFill/></a:ln></c:spPr>
           <c:invertIfNegative val="0"/>
-          <c:dPt><c:idx val="9"/><c:invertIfNegative val="0"/><c:bubble3D val="0"/><c:spPr><a:solidFill><a:srgbClr val="B9B9B9"/></a:solidFill><a:ln w="9525"><a:solidFill><a:srgbClr val="111111"/></a:solidFill></a:ln></c:spPr></c:dPt>
+          <c:dPt><c:idx val="9"/><c:invertIfNegative val="0"/><c:bubble3D val="0"/><c:spPr><a:solidFill><a:srgbClr val="B9B9B9"/></a:solidFill><a:ln><a:noFill/></a:ln></c:spPr></c:dPt>
           <c:dLbls><c:numFmt formatCode="General;;;" sourceLinked="0"/><c:spPr><a:noFill/><a:ln><a:noFill/></a:ln></c:spPr>${texto(900, true, "111111")}<c:dLblPos val="outEnd"/><c:showLegendKey val="0"/><c:showVal val="1"/><c:showCatName val="0"/><c:showSerName val="0"/><c:showPercent val="0"/><c:showBubbleSize val="0"/></c:dLbls>
           ${cat}<c:val>${numeros(rng(5), g.valores, fmtVal)}</c:val></c:ser>
         <c:gapWidth val="45"/><c:axId val="${ejes.cat}"/><c:axId val="${ejes.val}"/>
@@ -362,7 +382,7 @@ export function xmlGrafica(g: GraficaSpec, medida: Medida) {
         <c:txPr><a:bodyPr rot="-2400000" vert="horz"/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="800"><a:solidFill><a:srgbClr val="333333"/></a:solidFill></a:defRPr></a:pPr><a:endParaRPr lang="es-CO"/></a:p></c:txPr>
         <c:crossAx val="${ejes.val}"/><c:crosses val="autoZero"/><c:auto val="1"/><c:lblAlgn val="ctr"/><c:lblOffset val="100"/><c:noMultiLvlLbl val="0"/></c:catAx>
       <c:valAx><c:axId val="${ejes.val}"/><c:scaling><c:orientation val="minMax"/><c:min val="0"/></c:scaling><c:delete val="0"/><c:axPos val="l"/>
-        <c:majorGridlines><c:spPr><a:ln w="6350"><a:solidFill><a:srgbClr val="E3E3E0"/></a:solidFill></a:ln></c:spPr></c:majorGridlines>
+
         <c:numFmt formatCode="${fmtVal}" sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:spPr><a:ln><a:noFill/></a:ln></c:spPr>${texto(800)}
         <c:crossAx val="${ejes.cat}"/><c:crosses val="autoZero"/><c:crossBetween val="between"/></c:valAx>
       <c:valAx><c:axId val="${ejes.val2}"/><c:scaling><c:orientation val="minMax"/><c:max val="1"/><c:min val="0"/></c:scaling><c:delete val="0"/><c:axPos val="r"/>
@@ -371,10 +391,10 @@ export function xmlGrafica(g: GraficaSpec, medida: Medida) {
       <c:catAx><c:axId val="${ejes.cat2}"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="1"/><c:axPos val="b"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="${ejes.val2}"/><c:crosses val="autoZero"/><c:auto val="1"/><c:lblAlgn val="ctr"/><c:lblOffset val="100"/><c:noMultiLvlLbl val="0"/></c:catAx>
       <c:spPr><a:noFill/></c:spPr>
     </c:plotArea>
-    <c:legend><c:legendPos val="b"/><c:overlay val="0"/>${texto(900)}</c:legend>
+
     <c:plotVisOnly val="1"/><c:dispBlanksAs val="gap"/>
   </c:chart>
-  <c:spPr><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill><a:ln w="9525"><a:solidFill><a:srgbClr val="E3E3E0"/></a:solidFill></a:ln></c:spPr>
+  <c:spPr><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill><a:ln><a:noFill/></a:ln></c:spPr>
 </c:chartSpace>`;
 }
 
