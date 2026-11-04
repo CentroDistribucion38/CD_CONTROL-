@@ -195,7 +195,7 @@
 .plr-nodo:not(:disabled):hover { border-color: var(--rt-tinta) }
 .plr-nodo.on { outline: 2px solid var(--rt-tinta); outline-offset: 1px }
 .plr-nodo.cond { width: 150px; flex: none; background: var(--rt-oro); border-color: var(--rt-oro); color: var(--rt-sobre-oro) }
-.plr-nodo.cond.cero { background: color-mix(in srgb, var(--rt-oro) 62%, #fff); border-color: transparent }
+.plr-nodo.cond.cero { opacity: .6 }
 .plr-nodo.sin { background: #fff; border-left: 4px solid var(--rt-mal); color: var(--rt-mal) }
 .plr-nodo.sin.cero { opacity: .55 }
 .plr-nodo.leve { width: 170px; flex: none; background: #fff; border-left: 4px solid var(--rt-verde) }
@@ -210,8 +210,13 @@
 .plr-peldano { display: flex; align-items: stretch }
 .plr-pel-n { flex: none; width: 110px; display: grid; place-items: center; padding: 8px; font: 800 11px/1.25 var(--rt-titulo); letter-spacing: .08em; text-align: center; color: #fff; background: var(--plr-negro); border-top: 3px solid var(--rt-oro) }
 .plr-peldano.s4 .plr-pel-n { background: var(--rt-mal) }
-.plr-fk { flex: none; width: 22px; background: linear-gradient(var(--plr-negro), var(--plr-negro)) 0 25% / 22px 2px no-repeat, linear-gradient(var(--plr-negro), var(--plr-negro)) 0 75% / 22px 2px no-repeat; position: relative }
-.plr-fk::before { content: ""; position: absolute; left: 0; top: 25%; bottom: 25%; border-left: 2px solid var(--plr-negro) }
+.plr-ram { flex: none; width: 22px; display: flex; flex-direction: column }
+.plr-ram i { display: block; flex: 1 }
+.plr-ram.a { margin-bottom: -8px }
+.plr-ram.b { margin-top: -8px }
+.plr-ram.a i:nth-child(2) { border-top: 2px solid var(--plr-negro); border-left: 2px solid var(--plr-negro) }
+.plr-ram.a i:nth-child(3), .plr-ram.b i:nth-child(1) { flex: none; height: 8px; border-left: 2px solid var(--plr-negro) }
+.plr-ram.b i:nth-child(2) { border-bottom: 2px solid var(--plr-negro); border-left: 2px solid var(--plr-negro) }
 .plr-pel-c { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0 }
 .plr-via { display: flex; align-items: stretch }
 .plr-peldano.s4 > .plr-flecha { align-self: center }
@@ -273,7 +278,7 @@
   .plr-per-r { grid-column: 1 / -1 }
   .plr-peldano, .plr-cond, .plr-via { flex-direction: column }
   .plr-pel-n { width: auto }
-  .plr-fk, .plr-flecha, .plr-vf { display: none }
+  .plr-ram, .plr-flecha, .plr-vf { display: none }
   .plr-peldano { gap: 8px }
   .plr-nodo.cond, .plr-nodo.leve, .plr-nodo.grave, .plr-nodo.p4 { width: 100% }
   .plr-pel-c, .plr-cond { gap: 6px }

@@ -271,7 +271,7 @@ export function Seguridad({ eventos, acciones, personas, regla, colaboradores, e
         Las reglas viven en la base (tablas <code>plan_reglas</code> y <code>plan_acciones_regla</code>), no en el código.
       </p>
 
-      {diagrama && <Diagrama delMes={delMes} personas={pers} mes={mes} regla={regla} cerrar={() => setDiagrama(false)} abrirPersona={(id) => { setDiagrama(false); setPersona(id) }} />}
+      {diagrama && <Diagrama delMes={delMes} personas={pers} mes={mes} regla={regla} cerrar={() => setDiagrama(false)} avisar={avisar} abrirPersona={(id) => { setDiagrama(false); setPersona(id) }} />}
       {personaSel && (
         <Expediente p={personaSel} v={personaV} acciones={acciones} editar={editar}
                     cerrar={() => setPersona(null)} marcar={marcar} />

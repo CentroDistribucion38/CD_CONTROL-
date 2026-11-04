@@ -1,22 +1,53 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   CONDICIONES, ESCALERA, SEV_TXT, colSev, dmh, mesNombre, nivelDe,
   type EstadoPersona, type EventoV, type ReglaV,
 } from "@/modulos/roturas/seguridad";
-import { Pill, Ventana } from "./piezas";
+import { copiarPng, descargarPng, fotografiar } from "@/modulos/roturas/captura";
+import { Ico, Pill, Ventana } from "./piezas";
 
 /**
  * EL DIAGRAMA «PLAN DE REACCIÓN ROTURA», vivo: cada recuadro dice cuántos casos del mes caen ahí y,
  * al tocarlo, los enseña. Es el mismo diagrama oficial —condición a la izquierda, comportamiento
  * con su escalera a la derecha— pero con los números de este mes encima.
  */
-export function Diagrama({ delMes, personas, mes, regla, cerrar, abrirPersona }: {
+export function Diagrama({ delMes, personas, mes, regla, cerrar, abrirPersona, avisar }: {
   delMes: EventoV[]; personas: EstadoPersona[]; mes: string; regla: ReglaV | null;
   cerrar: () => void; abrirPersona: (id: string) => void;
+  avisar: { bien: (t: string) => void; mal: (t: string) => void; info: (t: string) => void };
 }) {
   const [sel, setSel] = useState<string | null>(null);
+  const [haciendo, setHaciendo] = useState<"copiar" | "bajar" | null>(null);
+  const raiz = useRef<HTMLDivElement>(null);
+  const nombreArchivo = `plan-reaccion-${mes.slice(0, 7)}.png`;
+
+  /** La foto es de toda la ventana (banda con el sello + flujograma), sin los botones ni el detalle abierto. */
+  const foto = () => {
+    const ven = raiz.current?.closest<HTMLElement>(".plr-ven");
+    if (!ven) return Promise.reject(new Error("No encontré el flujograma en pantalla"));
+    return fotografiar(ven, [".plr-der", ".plr-dg-det"]);
+  };
+  const copiar = async () => {
+    if (haciendo) return;
+    setHaciendo("copiar");
+    try {
+      const promesa = foto();
+      if (await copiarPng(promesa)) avisar.bien("Flujograma copiado. Pégalo en WhatsApp, Word o el correo con Ctrl+V.");
+      else { descargarPng(await promesa, nombreArchivo); avisar.info("Este navegador no deja copiar imágenes: se descargó el flujograma como PNG.") }
+    } catch {
+      try { descargarPng(await foto(), nombreArchivo); avisar.info("No se pudo copiar; se descargó el flujograma como PNG.") }
+      catch (e) { avisar.mal(e instanceof Error ? e.message : "No se pudo sacar la imagen del flujograma") }
+    } finally { setHaciendo(null) }
+  };
+  const bajar = async () => {
+    if (haciendo) return;
+    setHaciendo("bajar");
+    try { descargarPng(await foto(), nombreArchivo); avisar.bien("Flujograma descargado como PNG.") }
+    catch (e) { avisar.mal(e instanceof Error ? e.message : "No se pudo sacar la imagen del flujograma") }
+    finally { setHaciendo(null) }
+  };
   const leve = regla?.leve_max ?? 5, grave = regla?.grave_min ?? 30;
 
   const d = useMemo(() => {
@@ -55,8 +86,12 @@ export function Diagrama({ delMes, personas, mes, regla, cerrar, abrirPersona }:
     : sel ? `${ESCALERA[Number(sel[0]) as 1 | 2 | 3].nom} · ${sel.endsWith("grave") ? "falta grave" : "falta leve"}` : "";
 
   return (
-    <Ventana ojo={`ROTURAS · EN SITIO · SEGURIDAD`} titulo="Diagrama del plan de reacción" sub={`Los casos de ${mesNombre(mes)} puestos donde caen. Toca un recuadro para verlos.`} cerrar={cerrar} ancho={1180}>
-      <div className="plr-dg">
+    <Ventana ojo={`ROTURAS · EN SITIO · SEGURIDAD`} titulo="Diagrama del plan de reacción" sub={`Los casos de ${mesNombre(mes)} puestos donde caen. Toca un recuadro para verlos.`} cerrar={cerrar} ancho={1180}
+             acciones={<>
+               <button type="button" className="plr-bt plr-oro" onClick={copiar} disabled={!!haciendo} title="Copia la imagen para pegarla en WhatsApp, Word o el correo">{Ico.copiar}{haciendo === "copiar" ? "Copiando…" : "Copiar imagen"}</button>
+               <button type="button" className="plr-bt" onClick={bajar} disabled={!!haciendo} title="Descargar como PNG">{Ico.bajar}{haciendo === "bajar" ? "Preparando…" : "Descargar PNG"}</button>
+             </>}>
+      <div className="plr-dg" ref={raiz}>
         <div className="plr-dg-cima">
           <div className="plr-raiz">PLAN DE REACCIÓN<br />ROTURA</div>
           <span className="plr-flecha" aria-hidden />
@@ -93,14 +128,15 @@ export function Diagrama({ delMes, personas, mes, regla, cerrar, abrirPersona }:
                 {i > 1 && <div className="plr-vf" aria-hidden />}
                 <div className={"plr-peldano s" + i}>
                   <div className="plr-pel-n">{ESCALERA[i].nom.toUpperCase()}</div>
-                  <span className="plr-fk" aria-hidden />
                   <div className="plr-pel-c">
                     <div className="plr-via">
+                      <span className="plr-ram a" aria-hidden><i /><i /><i /></span>
                       {nodo(`${i}:leve`, "leve", <>Falta leve<small>Rotura ≤ {leve} cajas</small></>, n(`${i}:leve`), "eventos")}
                       <span className="plr-flecha" aria-hidden />
                       {accion(ESCALERA[i].leve)}
                     </div>
                     <div className="plr-via">
+                      <span className="plr-ram b" aria-hidden><i /><i /><i /></span>
                       {nodo(`${i}:grave`, "grave", <>Falta grave<small>Rotura ≥ {grave} cajas</small></>, n(`${i}:grave`), "eventos")}
                       <span className="plr-flecha" aria-hidden />
                       {accion(ESCALERA[i].grave, i === 3)}
