@@ -10,12 +10,12 @@ import "./foto-compartir.css";
  * Cada pantalla dice CÓMO se dibuja cada imagen (`hacer`); aquí está todo lo demás: el lienzo a
  * PNG, la vista previa, las dos pestañas para pasar de una a la otra y el portapapeles.
  */
-export type TipoFoto = "dashboard" | "detalle";
+export type TipoFoto = "dashboard" | "detalle" | "seguridad";
 type Foto = { tipo: TipoFoto; url: string; blob: Blob; envio: Blob | null; nombre: string };
 /** `lienzoEnvio` (opcional): otra versión de la imagen que es la que sale al copiar, compartir o descargar; la vista en pantalla sigue siendo `lienzo`. */
 export type Hacer = (tipo: TipoFoto) => Promise<{ lienzo: HTMLCanvasElement; nombre: string; lienzoEnvio?: HTMLCanvasElement }>;
 
-export const NOMBRE_FOTO: Record<TipoFoto, string> = { dashboard: "Dashboard", detalle: "Detalle por almacén" };
+export const NOMBRE_FOTO: Record<TipoFoto, string> = { dashboard: "Dashboard", detalle: "Detalle por almacén", seguridad: "Seguridad" };
 
 /** El logo de la marca como imagen para el lienzo (null si no carga: la foto sale sin él). */
 export async function logoMarca() {
@@ -96,7 +96,7 @@ export function useFotoCompartir(hacer: Hacer, titulo: string, nombres?: Partial
       <div className="fc-caja">
         <div className="fc-barra">
           <div className="fc-tabs" role="tablist" aria-label="Qué imagen">
-            {(["dashboard", "detalle"] as const).map((t) => (
+            {((nombres?.seguridad ? ["dashboard", "detalle", "seguridad"] : ["dashboard", "detalle"]) as TipoFoto[]).map((t) => (
               <button key={t} type="button" role="tab" aria-selected={foto.tipo === t} className={foto.tipo === t ? "on" : ""}
                 disabled={armando != null} onClick={() => foto.tipo !== t && abrir(t)}>
                 {armando === t ? "Armando…" : nombreDe(t)}

@@ -9,6 +9,7 @@
  * (`cierre.css`, 1120 px de ancho) para que la imagen se vea igual que la pantalla.
  */
 import { PALETA_MARCA, type Paleta } from "@/modulos/rotlinea/hoja";
+import { resumenSeguridad, type AccionPlan, type PlanDatos } from "./seguridad-cierre";
 import { BORDE, GRIS, SUAVE, anchoEspaciado, envolver, espaciado, letra, medidor, pie, recortar, type Ctx } from "@/modulos/foto";
 import { HORARIO_TURNO, ORIGEN_TXT, diaLargo, ddmm, fmtHL, fmtPesos, cobroTxt, type Cierre, type Cuenta, type FilaCierre, type TurnoCierre } from "./cierre";
 
@@ -35,8 +36,8 @@ function lienzo(alto: number) {
 }
 
 /** El nombre del archivo, con el día. */
-export const nombreFotoCierre = (c: Cierre, parte: "dashboard" | "fotos") =>
-  `cierre-roturas-${c.desde || "sin-datos"}${c.hasta && c.hasta !== c.desde ? "-a-" + c.hasta : ""}-${parte === "dashboard" ? "dashboard" : "fotos"}.png`;
+export const nombreFotoCierre = (c: Cierre, parte: "dashboard" | "fotos" | "seguridad") =>
+  `cierre-roturas-${c.desde || "sin-datos"}${c.hasta && c.hasta !== c.desde ? "-a-" + c.hasta : ""}-${parte === "dashboard" ? "dashboard" : parte === "seguridad" ? "seguridad" : "fotos"}.png`;
 
 /* ------------------------------------------------------------------ piezas comunes */
 
@@ -450,4 +451,212 @@ export async function traerFotosRotura(ids: string[], cuantas = 6): Promise<Map<
     while (i < ids.length) await una(ids[i++]);
   }));
   return salida;
+}
+
+/* ===================================================================== SEGURIDAD (Plan de reacción) */
+const TIPO_TXT: Record<string, string> = { comportamiento: "COMPORTAMIENTO", condicion: "CONDICIÓN", externa: "EXTERNA", sin_clasificar: "SIN CLASIFICAR" };
+const SEV_TXT: Record<string, string> = { leve: "LEVE", intermedia: "INTERMEDIA", grave: "GRAVE" };
+
+/** Una etiqueta pequeña con fondo; devuelve su ancho. */
+function etiqueta(ctx: Ctx, t: string, x: number, y: number, bg: string, fg: string, borde?: string) {
+  letra(ctx, 700, 9.5); const w = anchoEspaciado(ctx, t, .7) + 14;
+  ctx.fillStyle = bg; ctx.fillRect(x, y, w, 20);
+  if (borde) { ctx.strokeStyle = borde; ctx.lineWidth = 1; ctx.strokeRect(x + .5, y + .5, w - 1, 19) }
+  ctx.fillStyle = fg; ctx.textAlign = "left"; espaciado(ctx, t, x + 7, y + 10.5, .7);
+  return w;
+}
+
+/**
+ * LA IMAGEN DE SEGURIDAD DEL CIERRE. Pinta lo que el Plan de reacción sabe de las roturas del cierre (no calcula nada):
+ * cuántas son comportamiento / condición, su severidad, quién las causó, el número de evento de esa persona en el mes,
+ * si es recurrente y qué acción se exige. `plan` en null = no hay datos del plan (falta el SQL o el permiso): lo dice.
+ */
+export function dibujarSeguridadCierre(c: Cierre, plan: PlanDatos | null, x: Extra): HTMLCanvasElement {
+  const P = x.paleta ?? PALETA_MARCA, tinta = rgb(P.tinta);
+  const xs: Extra = { ...x, ojo: "SEGURIDAD · PLAN DE REACCIÓN" };
+  const varios = c.dias > 1 || c.desde !== c.hasta;
+  const filas: FilaCierre[] = c.turnos.flatMap((q) => q.filas).filter((f) => !f.anulada);
+  const m = medidor();
+
+  if (!plan) {
+    const { c: cv, ctx } = lienzo(ALTO_BANDA + 190);
+    banda(ctx, xs, subtitulo(x), P);
+    letra(ctx, 900, 16); ctx.fillStyle = tinta; ctx.textAlign = "left"; ctx.fillText("Todavía no hay datos del Plan de reacción para este cierre", PX, ALTO_BANDA + 44);
+    letra(ctx, 500, 13); ctx.fillStyle = GRIS;
+    envolver(m, "Falta correr el archivo 2026-11-plan-reaccion-rotura.sql en Supabase, o tu usuario no tiene la pantalla «Plan de reacción». Cuando esté, aquí salen el tipo (comportamiento o condición), la severidad, el responsable, el número de evento y las acciones.", AN)
+      .forEach((ln, k) => ctx.fillText(ln, PX, ALTO_BANDA + 78 + k * 20));
+    return cv;
+  }
+
+  const R = resumenSeguridad(filas.map((f) => f.id), plan);
+  const cols: ColT[] = [
+    ...(varios ? [{ t: "DÍA", w: 44 }] : []),
+    { t: "TURNO", w: 52 }, { t: "HORA", w: 48 }, { t: "ROTURA", w: 66 }, { t: "CAJAS", w: 54, n: true },
+    { t: "TIPO", w: 176 }, { t: "SEVERIDAD", w: 92 }, { t: "RESPONSABLE", w: 140 }, { t: "EVENTO N.º", w: 106 }, { t: "REACCIÓN EXIGIDA", w: 100 },
+  ];
+  const suma = cols.reduce((s, q) => s + q.w, 0); cols[cols.length - 1].w += AN - suma;
+  const LH = 17, PADV = 9, PADH = 8;
+  const col = (t: string) => cols.find((q) => q.t === t)!;
+
+  /* lo que lleva cada renglón, calculado una vez para medir y para pintar */
+  const datos = filas.map((f) => {
+    const e = plan.eventos.get(f.id) ?? null;
+    const acc = plan.acciones.get(f.id) ?? [];
+    letra(m, 700, 13);
+    const resp: { t: string; mal?: boolean; sub?: boolean }[] = [];
+    if (e?.responsable) {
+      envolver(m, e.responsable, col("RESPONSABLE").w - 2 * PADH).forEach((t) => resp.push({ t }));
+      if (e.autorreporte) resp.push({ t: "se reportó solo", sub: true });
+      else if (e.reportante) resp.push({ t: "reportó: " + e.reportante, sub: true });
+    } else if (e?.tipo === "comportamiento") { resp.push({ t: "Sin responsable", mal: true }, { t: "hay que asignarlo", sub: true }) }
+    else if (e) resp.push({ t: "—" }, { t: "no suma a la persona", sub: true });
+    else resp.push({ t: "Sin dato del plan", mal: true });
+    letra(m, 500, 12);
+    const reac = acc.length ? acc.flatMap((a) => envolver(m, a.accion_nombre, col("REACCIÓN EXIGIDA").w - 2 * PADH - 84).map((t, i) => ({ t, a: i === 0 ? a : null })))
+      : [{ t: e?.cuenta_persona || e?.tipo === "condicion" || (e && e.severidad !== "leve") ? "Sin acción generada" : "Sin acción exigida", a: null as AccionPlan | null }];
+    return { f, e, acc, resp, reac, h: Math.max(48, 2 * PADV + Math.max(resp.length, reac.length) * LH) };
+  });
+  const altoTabla = datos.length ? 31 + datos.reduce((s, d) => s + d.h, 0) : 40;
+
+  const reinc = R.reincidentes;
+  const altoPers = Math.max(1, reinc.length) * 34 + (reinc.length ? 31 : 0) + 8;
+  const rg = plan.regla;
+  const nota = (rg ? `Regla vigente: leve hasta ${rg.leve_max} cajas, intermedia de ${rg.leve_max + 1} a ${rg.grave_min - 1}, grave desde ${rg.grave_min} (cajas rotas + contaminadas). ` : "")
+    + "Solo el Comportamiento suma a la persona; la Condición y lo Externo se corrigen en el sitio o el equipo. El evento n.º cuenta por persona dentro del mes calendario; recurrente = eventos en dos meses seguidos. Reportar con el PIN no suma como evento."
+    + (rg ? ` Una acción cerrada se verifica a los ${rg.verificacion_dias} días: si vuelve a pasar, no fue eficaz.` : "");
+  letra(m, 500, 12); const notaL = envolver(m, nota, AN);
+
+  const H = ALTO_BANDA + 112 + 8 + ALTO_SEC + altoTabla + 18 + ALTO_SEC + altoPers + 14 + notaL.length * 18 + 60;
+  const { c: cv, ctx } = lienzo(H);
+  banda(ctx, xs, subtitulo(x), P);
+
+  // ---- la franja: eventos, tipo y severidad
+  const y0 = ALTO_BANDA;
+  ctx.fillStyle = rgb(P.acento); ctx.fillRect(0, y0, W, 112);
+  letra(ctx, 700, 10); ctx.fillStyle = tinta; ctx.globalAlpha = .8; ctx.textAlign = "left"; espaciado(ctx, "EVENTOS", PX, y0 + 20, 1.6); ctx.globalAlpha = 1;
+  letra(ctx, 900, 48); ctx.fillStyle = tinta; ctx.fillText(String(R.eventos), PX, y0 + 54);
+  const sub = `${R.leves} leves · ${R.intermedias} intermedias · ${R.graves} graves`;
+  letra(ctx, 500, 12); ctx.globalAlpha = .85; ctx.fillText(sub, PX, y0 + 92); ctx.globalAlpha = 1;
+  const wTot = Math.max(150, ctx.measureText(sub).width), xr = PX + wTot + 22, wr = W - PX - xr;
+  const mini: [string, number, string, boolean][] = [
+    ["COMPORTAMIENTO", R.comportamiento, "suman a la persona", false],
+    ["CONDICIÓN", R.condicion, "se corrige el sitio", false],
+    ...(R.externa > 0 ? [["EXTERNA", R.externa, "falla ajena", false]] as [string, number, string, boolean][] : []),
+    ["SIN RESPONSABLE", R.sinResponsable, "hay que asignarlas", R.sinResponsable > 0],
+  ];
+  let mx = xr;
+  for (const [k, v, n, rojo] of mini) {
+    letra(ctx, 700, 10); ctx.fillStyle = tinta; ctx.globalAlpha = .8; ctx.textAlign = "left"; espaciado(ctx, k, mx, y0 + 20, 1.6); ctx.globalAlpha = 1;
+    const wk = anchoEspaciado(ctx, k, 1.6);
+    letra(ctx, 900, 30);
+    if (rojo) { const wv = ctx.measureText(String(v)).width + 16; ctx.fillStyle = "#FFFFFF"; ctx.fillRect(mx, y0 + 28, wv, 30); ctx.fillStyle = MAL; ctx.fillText(String(v), mx + 8, y0 + 44) }
+    else { ctx.fillStyle = tinta; ctx.fillText(String(v), mx, y0 + 44) }
+    letra(ctx, 500, 11.5); ctx.fillStyle = tinta; ctx.globalAlpha = .8; ctx.fillText(n, mx, y0 + 70); ctx.globalAlpha = 1;
+    mx += Math.max(wk, ctx.measureText(n).width, 40) + 30;
+  }
+  // la cinta por tipo y las acciones
+  const cy = y0 + 78, T = Math.max(1, R.eventos);
+  ctx.fillStyle = "rgba(255,255,255,.35)"; ctx.fillRect(xr, cy, wr, 12);
+  let cx0 = xr;
+  for (const [v, fill] of [[R.comportamiento, tinta], [R.condicion, "#FFFFFF"], [R.externa, "#8A93A0"], [R.sinClasificar, MAL]] as [number, string][]) {
+    if (v <= 0) continue; const ww = (v / T) * wr; ctx.fillStyle = fill; ctx.fillRect(cx0, cy, ww, 12); cx0 += ww;
+  }
+  ctx.strokeStyle = "rgba(0,0,0,.25)"; ctx.lineWidth = 1; ctx.strokeRect(xr + .5, cy + .5, wr - 1, 11);
+  let lx = xr; const ly = y0 + 100;
+  for (const [txt, fill] of [["comportamiento", tinta], ["condición", "#FFFFFF"], ...(R.externa > 0 ? [["externa", "#8A93A0"]] : [])] as [string, string][]) {
+    ctx.fillStyle = fill; ctx.fillRect(lx, ly - 6, 12, 12); ctx.strokeStyle = "rgba(0,0,0,.35)"; ctx.strokeRect(lx + .5, ly - 5.5, 11, 11);
+    letra(ctx, 500, 12.5); ctx.fillStyle = tinta; ctx.textAlign = "left"; ctx.fillText(txt, lx + 19, ly); lx += 19 + ctx.measureText(txt).width + 18;
+  }
+  mixta(ctx, [["acciones pendientes ", false], [String(R.accionesPendientes), true], [" · vencidas ", false], [String(R.accionesVencidas), true]], W - PX, ly, 12.5, tinta, tinta, true);
+
+  // ---- LOS EVENTOS, uno por uno
+  let y = seccion(ctx, y0 + 112 + 8, "Los eventos", `${R.eventos} evento${R.eventos === 1 ? "" : "s"} · ${R.comportamiento} de comportamiento · ${R.condicion} de condición`, P);
+  if (!datos.length) { letra(ctx, 500, 13.5); ctx.fillStyle = GRIS; ctx.textAlign = "left"; ctx.fillText("Nada que listar.", PX, y + 12); y += 40 }
+  else {
+    const y1 = y;
+    ctx.fillStyle = tinta; ctx.fillRect(PX, y, AN, 31);
+    let cx = PX;
+    for (const q of cols) {
+      letra(ctx, 700, 10); ctx.fillStyle = "#FFFFFF";
+      if (q.n) { ctx.textAlign = "right"; let rx = cx + q.w - PADH; for (const ch2 of [...q.t].reverse()) { ctx.fillText(ch2, rx, y + 16); rx -= ctx.measureText(ch2).width + 1.2 } }
+      else { ctx.textAlign = "left"; espaciado(ctx, q.t, cx + PADH, y + 16, 1.2) }
+      cx += q.w;
+    }
+    y += 31;
+    datos.forEach((d, ri) => {
+      const { f, e, resp, reac, h } = d;
+      if (ri % 2 === 1) { ctx.fillStyle = "#FAFBFC"; ctx.fillRect(PX, y, AN, h) }
+      ctx.fillStyle = FINA; ctx.fillRect(PX, y + h - 1, AN, 1);
+      let cx2 = PX;
+      for (const q of cols) {
+        const x0 = cx2 + PADH, ty = y + PADV + 8;
+        if (q.t === "DÍA") { letra(ctx, 500, 13); ctx.fillStyle = tinta; ctx.textAlign = "left"; ctx.fillText(ddmm(f.dia), x0, ty) }
+        else if (q.t === "TURNO") { ctx.fillStyle = tinta; ctx.fillRect(x0, y + PADV - 1, 24, 24); letra(ctx, 900, 12); ctx.fillStyle = "#FFFFFF"; ctx.textAlign = "center"; ctx.fillText(f.turno, x0 + 12, y + PADV + 11) }
+        else if (q.t === "HORA") { letra(ctx, 500, 13); ctx.fillStyle = tinta; ctx.textAlign = "left"; ctx.fillText(f.hora, x0, ty) }
+        else if (q.t === "ROTURA") { letra(ctx, 700, 13); ctx.fillStyle = "#444C57"; ctx.textAlign = "left"; ctx.fillText(f.codigo, x0, ty) }
+        else if (q.t === "CAJAS") { letra(ctx, 700, 13); ctx.fillStyle = tinta; ctx.textAlign = "right"; ctx.fillText(nf.format(e?.cajas ?? f.rotas + f.contaminadas), cx2 + q.w - PADH, ty) }
+        else if (q.t === "TIPO") {
+          const tp = e?.tipo ?? "sin_clasificar";
+          const w = etiqueta(ctx, TIPO_TXT[tp], x0, y + PADV - 1, tp === "comportamiento" ? tinta : tp === "condicion" ? rgb(P.acento) : tp === "externa" ? FINA : MAL_S,
+            tp === "comportamiento" ? "#FFFFFF" : tp === "sin_clasificar" ? MAL : tinta, tp === "sin_clasificar" ? MAL : undefined);
+          void w;
+          letra(ctx, 500, 11); ctx.fillStyle = GRIS; ctx.textAlign = "left";
+          ctx.fillText(recortar(ctx, e?.subtipo ?? e?.causa_nombre ?? f.causa, q.w - 2 * PADH), x0, y + PADV + 31);
+        } else if (q.t === "SEVERIDAD") {
+          const sv = e?.severidad ?? "leve";
+          if (e) etiqueta(ctx, SEV_TXT[sv], x0, y + PADV - 1, sv === "grave" ? MAL : sv === "intermedia" ? "#FFF3D6" : VERDE_S, sv === "grave" ? "#FFFFFF" : sv === "intermedia" ? OJO : VERDE);
+          else { letra(ctx, 500, 13); ctx.fillStyle = GRIS; ctx.textAlign = "left"; ctx.fillText("—", x0, ty) }
+        } else if (q.t === "RESPONSABLE") {
+          resp.forEach((ln, k) => {
+            letra(ctx, ln.sub ? 500 : 700, ln.sub ? 11 : 13); ctx.textAlign = "left";
+            ctx.fillStyle = ln.mal ? MAL : ln.sub ? GRIS : tinta; ctx.fillText(ln.t, x0, ty + k * LH);
+          });
+        } else if (q.t === "EVENTO N.º") {
+          if (e?.cuenta_persona && e.n_mes) {
+            letra(ctx, 800, 13); ctx.fillStyle = e.n_mes >= 3 ? MAL : tinta; ctx.textAlign = "left"; ctx.fillText(`${e.n_mes}.º del mes`, x0, ty);
+            if (e.recurrente_mes_a_mes) etiqueta(ctx, "RECURRENTE", x0, y + PADV + 17, MAL_S, MAL, MAL);
+          } else { letra(ctx, 500, 13); ctx.fillStyle = GRIS; ctx.textAlign = "left"; ctx.fillText("—", x0, ty) }
+        } else {
+          reac.forEach((ln, k) => {
+            const a = ln.a, yy = ty + k * LH;
+            letra(ctx, 500, 12); ctx.textAlign = "left";
+            ctx.fillStyle = a ? tinta : GRIS; ctx.fillText(ln.t, x0, yy);
+            if (a) {
+              const est = a.estado === "hecha" ? (a.hecha_tarde ? "hecha tarde" : "hecha") : a.vencida ? "vencida" : "pendiente";
+              const fg = a.estado === "hecha" ? (a.hecha_tarde ? OJO : VERDE) : a.vencida ? MAL : OJO;
+              letra(ctx, 700, 10.5); ctx.fillStyle = fg; ctx.textAlign = "right"; ctx.fillText(est.toUpperCase(), cx2 + q.w - PADH, yy);
+            }
+          });
+        }
+        cx2 += q.w;
+      }
+      y += h;
+    });
+    ctx.strokeStyle = BORDE; ctx.lineWidth = 1; ctx.strokeRect(PX + .5, y1 + .5, AN - 1, y - y1 - 1);
+  }
+
+  // ---- LAS PERSONAS CON REINCIDENCIA
+  y = seccion(ctx, y + 18, "Personas con reincidencia", reinc.length ? `${reinc.length} persona${reinc.length === 1 ? "" : "s"} con 2 o más eventos en el mes, o recurrentes` : "nadie en este cierre", P);
+  if (!reinc.length) {
+    letra(ctx, 500, 13.5); ctx.fillStyle = GRIS; ctx.textAlign = "left";
+    ctx.fillText(R.sinResponsable > 0 ? `Todavía no se puede medir: hay ${R.sinResponsable} evento${R.sinResponsable === 1 ? "" : "s"} de comportamiento sin responsable.` : "Ninguna persona tiene 2 o más eventos de comportamiento en el mes.", PX, y + 14);
+  } else {
+    letra(ctx, 700, 9.5); ctx.fillStyle = "#6B7686"; ctx.textAlign = "left"; espaciado(ctx, "PERSONA", PX, y + 8, 1.1);
+    espaciado(ctx, "EVENTOS EN EL CIERRE", PX + 420, y + 8, 1.1); espaciado(ctx, "NIVEL EN EL MES", PX + 640, y + 8, 1.1);
+    ctx.fillStyle = BORDE; ctx.fillRect(PX, y + 20, AN, 1);
+    reinc.forEach((p, i) => {
+      const ry = y + 21 + i * 34 + 17;
+      letra(ctx, 700, 13.5); ctx.fillStyle = tinta; ctx.textAlign = "left"; ctx.fillText(recortar(ctx, p.nombre, 380), PX, ry);
+      letra(ctx, 800, 13.5); ctx.fillText(String(p.eventos), PX + 420, ry);
+      letra(ctx, 700, 13); ctx.fillStyle = p.maxN >= 3 ? MAL : tinta; ctx.fillText(`${p.maxN}.º evento`, PX + 640, ry);
+      if (p.recurrente) etiqueta(ctx, "RECURRENTE MES A MES", PX + 780, ry - 10, MAL_S, MAL, MAL);
+      ctx.fillStyle = FINA; ctx.fillRect(PX, y + 21 + (i + 1) * 34 - 1, AN, 1);
+    });
+    y += 31;
+  }
+  y += Math.max(1, reinc.length) * 34 + 14;
+
+  letra(ctx, 500, 12); ctx.fillStyle = GRIS; ctx.textAlign = "left";
+  notaL.forEach((ln, k) => ctx.fillText(ln, PX, y + 8 + k * 18));
+  return cv;
 }

@@ -30,6 +30,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Rotura } from "@/modulos/roturas/datos";
 import { createClient } from "@/lib/supabase/client";
 import { leerMaestroHL } from "@/modulos/roturas/maestro-hl";
+import { leerPlan } from "@/modulos/roturas/seguridad-cierre";
 import type { MaestroHL } from "@/modulos/roturas/medidas";
 import {
   armarCierre, cobroTxt, diaLargo, ddmm, fmtHL, fmtPesos, HORARIO_TURNO, ORIGEN_TXT, periodoCierre, textoCierre,
@@ -108,6 +109,11 @@ export function Cierre({ roturas, nombres, desde, hasta, turnos, filtros, cerrar
     const sello = await fo.traerSello();
     const extra = { paleta, logo, sello, generado: armado, titulo, ojo, periodo, filtros };
     if (tipo === "dashboard") return { lienzo: fo.dibujarDashboardCierre(c, extra), nombre: fo.nombreFotoCierre(c, "dashboard") };
+    if (tipo === "seguridad") {
+      const vivos = c.turnos.flatMap((x) => x.filas).filter((f) => !f.anulada).map((f) => f.id);
+      const plan = await leerPlan(createClient(), vivos);
+      return { lienzo: fo.dibujarSeguridadCierre(c, plan, extra), nombre: fo.nombreFotoCierre(c, "seguridad") };
+    }
     const porId = new Map(roturas.map((r) => [r.id, r]));
     const filas = c.turnos.flatMap((x) => x.filas).filter((f) => !f.anulada && (porId.get(f.id)?.fotos ?? 0) > 0);
     const bajadas = await fo.traerFotosRotura(filas.slice(0, fo.TOPE_FOTOS).map((f) => f.id));
@@ -117,7 +123,7 @@ export function Cierre({ roturas, nombres, desde, hasta, turnos, filtros, cerrar
       imagen: bajadas.get(f.id) ?? null, tieneFoto: true,
     }));
     return { lienzo: fo.dibujarFotosCierre(c, lista, extra), nombre: fo.nombreFotoCierre(c, "fotos") };
-  }, "Cierre de roturas en sitio", { dashboard: "Dashboard", detalle: "Fotos del reporte" });
+  }, "Cierre de roturas en sitio", { dashboard: "Dashboard", detalle: "Fotos del reporte", seguridad: "Seguridad" });
 
   /* Escape cierra, y el foco entra a la ficha: sin eso, el teclado sigue
      detrás, en un botón que ya no se ve. */
@@ -292,7 +298,7 @@ export function Cierre({ roturas, nombres, desde, hasta, turnos, filtros, cerrar
               <span>{armando ? "Armando…" : "PDF"}</span>
             </button>
             <button type="button" className="rtc-bt" onClick={() => imagen.abrir("dashboard")} disabled={imagen.armando != null}
-                    title="Copiar el cierre como imagen: Dashboard y Fotos del reporte">
+                    title="Copiar el cierre como imagen: Dashboard, Fotos del reporte y Seguridad">
               <svg viewBox="0 0 24 24" aria-hidden><rect x="3" y="4" width="18" height="16" rx="1.5" /><circle cx="9" cy="10" r="1.6" /><path d="m4 18 5-5 4 4 3-3 4 4" /></svg>
               <span>{imagen.armando != null ? "Armando…" : "Copiar imagen"}</span>
             </button>
