@@ -514,7 +514,7 @@ export function dibujarInformeSitio(
     fuente("bold", 13); tinta();
     doc.text("Qué poco explica lo mucho", M, y + 4);
     fuente("normal", 8); gris();
-    doc.text("unidades movidas: rotas más contaminadas", W - M, y + 4, { align: "right" });
+    doc.text("cajas movidas: rotas más contaminadas", W - M, y + 4, { align: "right" });
     y += 7;
     /* QUÉ ES LA ÚLTIMA COLUMNA, UNA VEZ Y PARA LOS TRES. Es la que hace
        que esto sea un Pareto y no un ranking, así que va escrito — pero
@@ -557,7 +557,7 @@ export function dibujarInformeSitio(
       fuente("normal", 8.5); tinta();
       doc.text(`${p.hasta80} de ${p.barras.length} ` +
                `${p.barras.length === 1 ? "explica" : "explican"} el 80 % de ` +
-               `${nf.format(p.total)} unidades.`, M + 2, y + 3.5);
+               `${nf.format(p.total)} cajas.`, M + 2, y + 3.5);
       y += 7;
 
       const max = Math.max(...p.barras.map((b) => b.valor));

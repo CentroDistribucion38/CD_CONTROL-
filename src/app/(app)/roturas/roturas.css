@@ -2931,3 +2931,17 @@
 .rt-rep .rp3-foto1 .rp3-ev { display: block }
 .rt-rep .rp3-foto1 .rp3-up { width: 100%; min-height: 150px }
 .rt-rep .rp3-sinfoto { margin-top: 10px; padding: 6px 0; background: none; border: 0; font: inherit; font-size: 13px; color: var(--rt-gris); text-decoration: underline; cursor: pointer }
+
+/* Análisis de En sitio · medir en HL / unidades / cajas y «quién» (registró · OPM). Rectos, como el resto de CONTROL. */
+.rt .rq-med { display: flex; align-items: center; gap: 0; margin: 12px 0 4px; flex-wrap: wrap }
+.rt .rq-med-t { margin-right: 10px; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--rt-gris) }
+.rt .rq-med-b { padding: 7px 16px; border: 1px solid var(--rt-linea, #d7d7d2); background: #fff; font: 700 13px var(--rt-cuerpo, inherit); color: var(--rt-tinta); cursor: pointer; margin-left: -1px }
+.rt .rq-med-b.on { background: var(--rt-tinta); color: #fff; border-color: var(--rt-tinta) }
+.rt .rq-med-b:disabled { opacity: .45; cursor: not-allowed }
+.rt .rq-paretos-quien { margin: 4px 0 12px; padding: 9px 12px; background: #fff8e1; border-left: 3px solid #ffc20e; font-size: 13px; color: var(--rt-tinta) }
+.rt .rq-paretos-quien.aviso-hl { background: #f3f3f1; border-left-color: #8c8c8c; color: var(--rt-gris) }
+.rt .rq-quien-t { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px }
+.rt .rq-quien-t .rot { flex: 1 }
+.rt .rq-quien-sw { display: flex; margin-bottom: 6px }
+.rt .rq-quien-sw button { padding: 3px 10px; border: 1px solid var(--rt-linea, #d7d7d2); background: #fff; font: 700 11.5px var(--rt-cuerpo, inherit); color: var(--rt-tinta); cursor: pointer; margin-left: -1px }
+.rt .rq-quien-sw button.on { background: var(--rt-tinta); color: #fff; border-color: var(--rt-tinta) }

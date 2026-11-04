@@ -45,7 +45,7 @@ import { pesos } from "@/modulos/roturas/formato";
  * cifra exacta a una reunión. En el celular, además, nueve barras
  * verticales quedan estrechas, y entonces la tabla es la que se lee.
  */
-export function Pareto({ d, medida }: { d: Datos; medida: string }) {
+export function Pareto({ d, medida, col = "Unid." }: { d: Datos; medida: string; col?: string }) {
   if (d.barras.length === 0) {
     return (
       <div className="vacio">
@@ -77,7 +77,7 @@ export function Pareto({ d, medida }: { d: Datos; medida: string }) {
   const corto = (t: string) => (t.length > 16 ? t.slice(0, 15) + "…" : t);
   /* EL TOPE DE LA ESCALA, ESCRITO. Sin él las barras son proporciones
      sin tamaño: se ve cuál es el doble de cuál, no de cuánto se habla. */
-  const nf = (v: number) => v.toLocaleString("es-CO");
+  const nf = (v: number) => v.toLocaleString("es-CO", { maximumFractionDigits: 2 });
 
   return (
     <div className="rq-pareto">
@@ -157,7 +157,7 @@ export function Pareto({ d, medida }: { d: Datos; medida: string }) {
         <thead>
           <tr>
             <th scope="col">Qué</th>
-            <th scope="col">Unid.</th>
+            <th scope="col">{col}</th>
             {/* Lleva la MISMA clase que sus celdas para que se oculten
                 juntos en el celular: un encabezado sin columna deja los
                 porcentajes debajo de «Se cobra», y ahí un 41 % se lee

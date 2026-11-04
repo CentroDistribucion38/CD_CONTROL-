@@ -5,7 +5,11 @@ import { medirCobro } from "@/modulos/roturas/cobro";
 import { hallazgosSitio } from "@/modulos/roturas/hallazgos-sitio";
 import { pareto } from "@/modulos/roturas/pareto";
 import { pesos } from "@/modulos/roturas/formato";
-import { Pareto } from "./Pareto";
+import { ParetosSitio, type PaYs } from "./ParetosSitio";
+import { createClient } from "@/lib/supabase/server";
+import { nombresTodos } from "@/modulos/sider/datos";
+import { leerMaestroHL } from "@/modulos/roturas/maestro-hl";
+import { MEDIDAS, medidasDe, nombreDim, lecturaReporte, type Dim, type Medida } from "@/modulos/roturas/medidas";
 import { DeDondeSale } from "./Cobro";
 import { BotonInformeSitio } from "./BotonInformeSitio";
 import type { DatosSitio } from "./informe";
@@ -41,6 +45,8 @@ export default async function AnalisisEnSitioPage(
   { searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }
 ) {
   const datos = await leerRoturas(2000);
+  /* Los HL salen del Maestro de Pasivos y los nombres de quién registró, del perfil. Si no se pueden leer, no es un error. */
+  const [maestro, nombres] = await Promise.all([leerMaestroHL(await createClient()), nombresTodos().catch(() => ({} as Record<string, string>))]);
   if (datos.falta) return <div className="rt"><SinTablas /></div>;
 
   const q = await searchParams;
@@ -171,20 +177,25 @@ export default async function AnalisisEnSitioPage(
      entonces su causa valdría cero y saldría la última siendo la
      primera. Ver la nota larga de `modulos/roturas/pareto`.
      ===================================================================== */
-  const filasPareto = (nombre: (r: typeof cuentan[number]) => string | null | undefined) =>
+  /* TRES MEDIDAS × CUATRO LECTURAS, todo de la misma cuenta (`modulos/roturas/medidas`). La pantalla deja escoger la
+     medida sin volver al servidor; el PDF usa cajas, que es lo que se registró. */
+  const DIMS: Dim[] = ["causa", "area", "registro", "opm"];
+  const medidasPorRotura = new Map(cuentan.map((r) => [r.id, medidasDe(r, maestro)]));
+  const filasPareto = (dim: Dim, medida: Medida) =>
     cuentan.map((r) => ({
-      nombre: nombre(r),
-      valor: Math.max(0, r.unidades_vidrio) + (r.contaminadas ?? 0),
+      nombre: nombreDim(r, dim, nombres),
+      valor: medidasPorRotura.get(r.id)![medida] ?? 0,
       plata: r.cobro_total == null ? null : Number(r.cobro_total),
     }));
-
-  const paretoCausa = pareto(filasPareto((r) => r.causa_nombre));
-  const paretoArea = pareto(filasPareto((r) => r.area_nombre));
-  /* EL OPM SOLO CUANDO LA ROTURA LA REPORTÓ UNO. Las que alguien se
-     encontró sin dueño no tienen operario, y meterlas como «sin dato»
-     las contaría como un registro mal hecho cuando es lo normal. */
-  const paretoOpm = pareto(filasPareto((r) =>
-    r.origen === "encontrada" ? "Encontrada sin dueño" : r.opm_nombre));
+  const paretosTodos = Object.fromEntries(MEDIDAS.map((m) => [m.id,
+    Object.fromEntries(DIMS.map((d) => [d, pareto(filasPareto(d, m.id))]))])) as PaYs;
+  const hayHL = cuentan.some((r) => medidasPorRotura.get(r.id)!.hl != null);
+  const sinHL = cuentan.filter((r) => medidasPorRotura.get(r.id)!.hl == null).length;
+  const lectura = lecturaReporte(cuentan, nombres);
+  const paretoCausa = paretosTodos.cajas.causa;
+  const paretoArea = paretosTodos.cajas.area;
+  const paretoRegistro = paretosTodos.cajas.registro;
+  const paretoOpm = paretosTodos.cajas.opm;
 
   /* =====================================================================
      LO QUE LLEVA EL PDF
@@ -232,7 +243,8 @@ export default async function AnalisisEnSitioPage(
     paretos: [
       { titulo: "Por causa · qué pasó", d: paretoCausa },
       { titulo: "Por área · dónde pasó", d: paretoArea },
-      { titulo: "Por OPM · quién la reportó", d: paretoOpm },
+      { titulo: "Por quién registró · usuario de la plataforma", d: paretoRegistro },
+      { titulo: "Por OPM · quién la reportó en piso", d: paretoOpm },
     ],
     /* LO MÁS NUEVO ARRIBA: quien abre el informe el lunes busca lo del
        fin de semana, no lo del primero de mes. */
@@ -395,33 +407,7 @@ export default async function AnalisisEnSitioPage(
           memoria, y nadie lo hace.
           ============================================================= */}
       <section className="caja rq-paretos">
-        <div className="rq-h">
-          <b>Qué poco explica lo mucho</b>
-          <span>unidades movidas: rotas más contaminadas</span>
-        </div>
-        {/* QUÉ ES LA ÚLTIMA COLUMNA, UNA VEZ Y PARA LOS TRES. Es la que
-            convierte esto en un Pareto y no en un ranking, así que tiene
-            que estar escrito — pero repetido debajo de cada uno deja de
-            leerse, y arrastra consigo lo que sí es particular de cada
-            Pareto. */}
-        <p className="rq-paretos-lee">
-          La última columna de cada lista es el <b>acumulado</b>: dónde pasa del 80 % es hasta
-          dónde hay que atacar para tapar la mayor parte.
-        </p>
-        <div className="rq-paretos-tres">
-          <div>
-            <p className="rot">POR CAUSA · QUÉ PASÓ</p>
-            <Pareto d={paretoCausa} medida="unidades" />
-          </div>
-          <div>
-            <p className="rot">POR ÁREA · DÓNDE PASÓ</p>
-            <Pareto d={paretoArea} medida="unidades" />
-          </div>
-          <div>
-            <p className="rot">POR OPM · QUIÉN LA REPORTÓ</p>
-            <Pareto d={paretoOpm} medida="unidades" />
-          </div>
-        </div>
+        <ParetosSitio paretos={paretosTodos} lectura={lectura} hayHL={hayHL} sinHL={sinHL} />
       </section>
 
       <div className="aviso">
