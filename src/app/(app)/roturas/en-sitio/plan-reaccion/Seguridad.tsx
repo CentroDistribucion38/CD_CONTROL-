@@ -94,6 +94,7 @@ export function Seguridad({ eventos, acciones, personas, regla, colaboradores, e
   const cabecera = (
     <header className="plr-cab">
       <Link href={TABLERO} className="plr-bt plr-atras" aria-label="Volver al Tablero" title="Volver al Tablero">{Ico.atras}</Link>
+      <img className="plr-logo" src="/marca/logo-b.png" alt="Bavaria" /><span className="plr-sep" aria-hidden />
       <div className="plr-tit">
         <div className="plr-ojo">ROTURAS · EN SITIO · SEGURIDAD</div>
         <h1>Plan de reacción</h1>

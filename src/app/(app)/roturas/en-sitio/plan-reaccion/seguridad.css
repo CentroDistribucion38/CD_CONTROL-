@@ -12,10 +12,9 @@
 .plr em { font-style: normal }
 
 /* ===== LA BANDA NEGRA ===== */
-.plr-cab { position: relative; display: flex; align-items: center; gap: 18px; padding: 18px 24px; background: var(--rt-tinta); color: #fff; overflow: hidden }
-.plr-cab::before { content: ""; position: absolute; inset: 0; opacity: .4; pointer-events: none; background-image: repeating-linear-gradient(116deg, rgba(255,255,255,.07) 0 2px, transparent 2px 20px) }
-.plr-cab > * { position: relative }
-.plr-sello { width: 38px; height: 38px; border: 3px solid var(--rt-oro); border-radius: 50%; display: grid; place-items: center; font: 900 17px var(--rt-titulo); color: var(--rt-oro); flex: none }
+.plr-cab { display: flex; align-items: center; gap: 18px; padding: 18px 24px; background: var(--rt-negro); color: #fff; border-bottom: 3px solid var(--rt-oro) }
+.plr-logo { width: 44px; height: 44px; flex: none; display: block }
+.plr-sep { width: 1px; align-self: stretch; margin: 2px 2px; background: #3A3F46; flex: none }
 .plr-tit { min-width: 0 }
 .plr-ojo { font: 700 10px var(--rt-titulo); letter-spacing: .16em; color: var(--plr-claro) }
 .plr-cab h1, .plr-cab h2 { font: 900 clamp(24px, 2.6vw, 30px) var(--rt-titulo); letter-spacing: -.03em; margin: 4px 0 0; color: #fff; line-height: 1.05 }
@@ -28,7 +27,10 @@
 .plr-bt svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none }
 .plr-bt.plr-oro { background: var(--rt-oro); border-color: var(--rt-oro); color: var(--rt-sobre-oro) }
 .plr-bt.plr-oro:hover:not(:disabled) { background: var(--rt-oro-hondo); border-color: var(--rt-oro-hondo) }
-.plr-bt.plr-ico, .plr-bt.plr-atras { width: 44px; padding: 0 }
+.plr-bt.plr-ico { width: 44px; padding: 0; background: transparent; border-color: #444A52 }
+.plr-bt.plr-atras { width: 44px; padding: 0; background: transparent; border: 1.5px solid var(--rt-oro); color: var(--rt-oro) }
+.plr-bt.plr-atras:hover { background: var(--rt-oro); color: var(--rt-sobre-oro); border-color: var(--rt-oro) }
+.plr-bt.plr-atras svg { width: 24px; height: 24px; stroke-width: 2.6 }
 .plr-bt.plr-claro { background: #fff; color: var(--rt-tinta); border-color: var(--rt-linea) }
 .plr-bt.plr-claro:hover { border-color: var(--rt-gris) }
 
@@ -56,7 +58,7 @@
 .plr-kpi b { font: 900 32px/1.05 var(--rt-titulo); font-variant-numeric: tabular-nums; letter-spacing: -.02em }
 .plr-kpi b.rojo { color: var(--rt-mal) }
 .plr-kpi i { font-style: normal; font-size: 11.5px; color: var(--rt-gris); line-height: 1.35 }
-.plr-kpi.neg { background: var(--rt-tinta); color: #fff; border-top: 3px solid var(--rt-oro) }
+.plr-kpi.neg { background: var(--rt-negro); color: #fff; border-top: 3px solid var(--rt-oro) }
 .plr-kpi.neg span, .plr-kpi.neg i { color: #C9CFD8 }
 .plr-kpi.neg b { font-size: 44px }
 
@@ -164,13 +166,13 @@
 /* ===== EL DIAGRAMA ===== */
 .plr-dg { padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 20px; background: var(--plr-fondo) }
 .plr-dg-cima { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 18px; align-items: stretch }
-.plr-raiz { background: var(--rt-tinta); color: #fff; font: 900 17px/1.15 var(--rt-titulo); letter-spacing: .02em; padding: 22px 26px; display: grid; place-items: center; text-align: center; border-top: 3px solid var(--rt-oro) }
+.plr-raiz { background: var(--rt-negro); color: #fff; font: 900 17px/1.15 var(--rt-titulo); letter-spacing: .02em; padding: 22px 26px; display: grid; place-items: center; text-align: center; border-top: 3px solid var(--rt-oro) }
 .plr-reglas { list-style: none; margin: 0; padding: 12px 16px; background: #fff; border: 1px solid var(--rt-linea); display: flex; flex-direction: column; gap: 8px; font-size: 13px; line-height: 1.45 }
 .plr-reglas li { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline }
 .plr-afectan { align-self: center; max-width: 150px; padding: 12px 14px; background: #fff; border: 1px solid var(--rt-linea); font: 800 12px/1.3 var(--rt-titulo); text-align: center }
 .plr-dg-ramas { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.4fr); gap: 24px; align-items: start }
 .plr-rama { display: flex; flex-direction: column; gap: 12px; min-width: 0 }
-.plr-rama-t { margin: 0; padding: 12px 16px; background: var(--rt-tinta); color: #fff; font: 900 15px var(--rt-titulo); letter-spacing: .1em; text-align: center; border-top: 3px solid var(--rt-oro) }
+.plr-rama-t { margin: 0; padding: 12px 16px; background: var(--rt-negro); color: #fff; font: 900 15px var(--rt-titulo); letter-spacing: .1em; text-align: center; border-top: 3px solid var(--rt-oro) }
 .plr-rama-n { margin: 0; font-size: 12px; color: var(--rt-gris); line-height: 1.45 }
 .plr-cond { display: flex; flex-direction: column; gap: 6px }
 .plr-nodo { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 52px; padding: 8px 12px; border: 1px solid var(--rt-linea); background: #fff; color: var(--rt-tinta); text-align: left; font: 700 13px/1.25 var(--rt-texto); cursor: pointer; border-radius: 0 }

@@ -29,7 +29,7 @@ export function Ventana({ ojo, titulo, sub, cerrar, ancho = 1120, children }: {
     <div className="rt-modal plr-velo" onMouseDown={(e) => { if (e.target === e.currentTarget) cerrar() }}>
       <div className="plr-ven" role="dialog" aria-modal="true" aria-label={titulo} style={{ width: `min(${ancho}px, 100%)` }}>
         <header className="plr-cab plr-cab-v">
-          <div className="plr-sello" aria-hidden>B</div>
+          <img className="plr-logo" src="/marca/logo-b.png" alt="Bavaria" /><span className="plr-sep" aria-hidden />
           <div className="plr-tit"><div className="plr-ojo">{ojo}</div><h2>{titulo}</h2>{sub && <div className="plr-sub">{sub}</div>}</div>
           <div className="plr-der">
             <button ref={cierra} type="button" className="plr-bt plr-ico" onClick={cerrar} aria-label="Cerrar" title="Cerrar (Esc)">{Ico.x}</button>
