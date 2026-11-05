@@ -41,6 +41,10 @@
 .pl-t th.ol { background: #D7141A; border-color: #D7141A }
 .pl-t th.bv { background: #3a3a3a; border-color: #3a3a3a }
 .pl-t thead tr { height: 1px }
+/* TODOS LOS RENGLONES MIDEN LO MISMO. Con la tabla a la altura de la hoja y un solo renglón con datos, el navegador le daba
+   TODO el alto que sobraba a ese renglón (porque los vacíos no tienen contenido) y salía enorme. Cada renglón (son FILAS = 18)
+   toma una parte igual del alto; lo que sobre se reparte parejo. */
+.pl-t tbody tr { height: 5.1% }
 .pl-t td { border: 1px solid #9a9a9a; font-size: 10px; padding: 0 5px; overflow: hidden }
 .pl-t td.m { font-weight: 800; font-size: 10.5px; text-align: center; background: #f3f3f3; letter-spacing: .02em; white-space: nowrap }
 .pl-t td.c { font-weight: 600; text-align: center; font-size: 10px; white-space: nowrap }
