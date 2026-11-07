@@ -163,7 +163,6 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
                             </tr>
                             {ab && (
                               <tr className="ad-det"><td colSpan={5}>
-                                <div className="ad-det-bar"><UbicacionesDif fila={f} fecha={datos.fecha} /></div>
                                 <div className="ad-det-dos">
                                   <div><b>SAP · {n(f.sap)}</b><ul>{f.deSap.map((p) => <li key={p.nombre}><span>{p.nombre}</span><em>{n(p.cantidad)}</em></li>)}{!f.deSap.length && !f.pendSap?.length && <li><span>— (no está en la ZEXI ni en el balance)</span></li>}</ul>
                                     {f.pendSap && f.pendSap.length > 0 && (
@@ -171,7 +170,7 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
                                       <ul>{f.pendSap.map((p) => <li key={p.nombre}><span>{p.nombre}</span><em>{n(p.cantidad)}</em></li>)}</ul></>
                                     )}
                                   </div>
-                                  <div><b>CONTEO · {n(f.conteo)}</b><ul>{f.deConteo.map((p) => p.detalle?.length ? (
+                                  <div><span className="ad-ub-pos"><UbicacionesDif fila={f} fecha={datos.fecha} /></span><b>CONTEO · {n(f.conteo)}</b><ul>{f.deConteo.map((p) => p.detalle?.length ? (
                                     <li key={p.nombre} className="ad-grp"><details><summary><span>{p.nombre} <small>({p.detalle.length} {p.detalle.length === 1 ? "producto" : "productos"} · ver cuáles)</small></span><em>{n(p.cantidad)}</em></summary>
                                       <ul>{p.detalle.map((d) => <li key={d.nombre}><span>{d.nombre}</span><em>{n(d.cantidad)}</em></li>)}</ul></details></li>
                                   ) : <li key={p.nombre}><span>{p.nombre}</span><em>{n(p.cantidad)}</em></li>)}{!f.deConteo.length && <li><span>—</span></li>}</ul>

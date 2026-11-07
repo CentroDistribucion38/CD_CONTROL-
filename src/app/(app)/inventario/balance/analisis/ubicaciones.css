@@ -1,15 +1,18 @@
 /* ---- ANÁLISIS DE DIFERENCIA · «UBICACIONES»: el ícono y su toolbox ----
    Rectas, como el resto de CONTROL. Sin color-mix ni funciones nuevas dentro de la tarjeta (.ub-foto):
    html2canvas la pinta a imagen y no las entiende. */
+.ad .ad-det-dos > div { position: relative }
+.ad .ad-ub-pos { position: absolute; top: 8px; right: 10px }
 .ad .ub-ico {
-  display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 10px 0 8px; cursor: pointer;
-  font: 700 12px var(--fe-texto, "IBM Plex Sans", system-ui, sans-serif); color: var(--fe-tinta, #111); background: #fff;
-  border: 1.5px solid var(--fe-tinta, #111); border-radius: 0;
+  position: relative; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; cursor: pointer;
+  color: var(--fe-tinta, #111); background: #fff; border: 1px solid #aab2bd; border-radius: 0;
 }
-.ad .ub-ico em { min-width: 18px; height: 18px; padding: 0 4px; display: inline-flex; align-items: center; justify-content: center; font: 800 11px var(--fe-texto, system-ui); font-style: normal; color: #111; background: var(--fe-acento, #FFC400) }
-.ad .ub-ico:hover { background: #FFF3CC }
+.ad .ub-ico em {
+  position: absolute; top: -7px; right: -7px; min-width: 17px; height: 17px; padding: 0 4px; display: flex; align-items: center; justify-content: center;
+  font: 800 10px var(--fe-texto, system-ui); font-style: normal; color: #111; background: var(--fe-acento, #FFC400);
+}
+.ad .ub-ico:hover { background: #FFF3CC; border-color: var(--fe-tinta, #111) }
 .ad .ub-ico:focus-visible { outline: 3px solid var(--fe-tinta, #111); outline-offset: 2px }
-.ad .ad-det-bar { display: flex; justify-content: flex-end; margin: 0 0 8px }
 
 .ub-caja {
   width: 100%; max-width: 560px; max-height: 92vh; display: flex; flex-direction: column;
