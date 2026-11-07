@@ -29,6 +29,8 @@ export type FilaAnalisis = {
   familia: string; orden: number; codigo: string; descripcion: string;
   sap: number; conteo: number; diferencia: number;
   deSap: Partida[]; deConteo: Partida[];
+  /** Dónde se contó este código en Bodega 38 (ubicación → cantidad, en la misma unidad del conteo de la fila). Lo que no tiene ubicación (casco con baja, novedades) no está aquí. */
+  ubicaciones?: { ubicacion: string; cantidad: number }[];
   /** Lo que QUEDÓ sin cuadrar en AG18, AG17 o AG16 después de los 311 (SAP después − conteo; + SAP de más, − SAP de menos). Se ve aunque la diferencia total salga en cero. */
   descuadres?: { alm: string; queda: number }[];
   /** El BALANCE y el DESCUADRE del lado SAP que todavía NO están sumados porque la plantilla no trae la ZEXI de las 6: se ven, pero no suman. */
@@ -161,8 +163,15 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
 
   /* Acumulador: código → lado → partida → cantidad. */
   const acc = new Map<string, { sap: Map<string, number>; conteo: Map<string, number> }>();
+  /* DÓNDE se contó cada código en Bodega 38: mientras se recorre un renglón del conteo, `ubicActual` es su ubicación. */
+  const ubicMap = new Map<string, Map<string, number>>();
+  let ubicActual: string | null = null;
   const suma = (lado: "sap" | "conteo", codigo: string, partida: string, cant: number) => {
     if (!codigo || !cant) return;
+    if (lado === "conteo" && ubicActual) {
+      const u = ubicMap.get(codigo) ?? new Map<string, number>();
+      u.set(ubicActual, (u.get(ubicActual) ?? 0) + cant); ubicMap.set(codigo, u);
+    }
     const a = acc.get(codigo) ?? { sap: new Map(), conteo: new Map() };
     a[lado].set(partida, (a[lado].get(partida) ?? 0) + cant);
     acc.set(codigo, a);
@@ -207,6 +216,7 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   for (const lote of lotes) for (const r of await conReclasificaciones(lote.rs)) {
     const esFab = esUbicacionFabrica(r.calle) || esUbicacionFabrica(r.ubicacion) || esUbicacionFabrica(r.ubicacion_combinada);
     const donde: Donde = lote.fijo ?? (esFab ? "FÁBRICA" : "BODEGA");
+    ubicActual = donde === "BODEGA" ? (String(r.ubicacion_combinada || r.ubicacion || r.calle || "").trim() || "Sin ubicación") : null;
     /* El nombre de la partida lleva el origen cuando no es Bodega 38. */
     const pre = (base: string) => donde === "BODEGA" ? base : base === "CONTEO" ? `${donde} · conteo` : base.replace("CONTEO", donde);
     /* LOS TOTALES SIN SEGREGAR (como el tablero del libro): cajas, estibas físicas (completas + 1 si hay saldo) y cajas plásticas
@@ -284,6 +294,7 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     if (excluye(regla, c, nombre(c))) continue;
     const caja = CAJA_FUERA_DEL_CUADRE.has(c) ? null : M.get(c)?.caja; if (caja) suma("conteo", String(caja), pre(`CONTEO · en ${c} ${nombre(c)}`), cajas);
   }
+  ubicActual = null;
   fuentes.push({ nombre: "Conteo", ok: renglones > 0, detalle: renglones ? `${renglones} renglones de Bodega 38 (el tablero cuenta además Fábrica ${totD["FÁBRICA"].renglones} · AG17 ${totD.AG17.renglones} · AG16 ${totD.AG16.renglones})` : "No hay conteo enviado ese día" });
   /* 1b. EL CASCO QUE YA TIENE BAJA SE RESTA DEL CONTEO. Lo que está contado en Bodega 38 como BAJA o EXTRASUCIO y que el casco de vidrio ya
         registra (Inventario casco · Extrasucio con baja) ya salió de SAP con su baja, pero sigue contado físicamente: sale del CONTEO como partida
@@ -515,7 +526,9 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     };
     const sap = Math.round([...a.sap.values()].reduce((t, v) => t + v, 0));
     const conteo = Math.round([...a.conteo.values()].reduce((t, v) => t + v, 0));
-    filas.push({ familia: familia as string, orden: orden as number, codigo, descripcion: nombre(codigo), sap, conteo, diferencia: conteo - sap, deSap: lista(a.sap), deConteo: lista(a.conteo), ...(soloConteo ? { soloConteo: true } : {}),
+    filas.push({ familia: familia as string, orden: orden as number, codigo, descripcion: nombre(codigo), sap, conteo, diferencia: conteo - sap, deSap: lista(a.sap), deConteo: lista(a.conteo),
+      ...(ubicMap.get(codigo)?.size ? { ubicaciones: [...ubicMap.get(codigo)!].map(([ubicacion, cantidad]) => ({ ubicacion, cantidad: Math.round(cantidad) })).filter((x) => x.cantidad !== 0).sort((x, y) => Math.abs(y.cantidad) - Math.abs(x.cantidad) || x.ubicacion.localeCompare(y.ubicacion, "es", { numeric: true })) } : {}),
+      ...(soloConteo ? { soloConteo: true } : {}),
       ...(codigo === ESTIBA && estFuera.size ? { fuera: [...estFuera].map(([nombre, cantidad]) => ({ nombre, cantidad: Math.round(cantidad) })).sort((x, y) => y.cantidad - x.cantidad) } : {}), ...(pendSap.get(codigo) ? { pendSap: pendSap.get(codigo) } : {}), ...(descuadresAlm.get(codigo) ? { descuadres: descuadresAlm.get(codigo) } : {}) });
   }
   filas.sort((x, y) => x.orden - y.orden || x.codigo.localeCompare(y.codigo, "es", { numeric: true }));

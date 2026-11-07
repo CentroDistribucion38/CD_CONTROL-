@@ -15,6 +15,7 @@ import "../../../sider/sider.css";
 import "../../fefo.css";
 import "../balance.css";
 import "./analisis.css";
+import "./ubicaciones.css";
 
 export const dynamic = "force-dynamic";
 

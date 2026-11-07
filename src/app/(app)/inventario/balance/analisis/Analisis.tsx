@@ -8,6 +8,7 @@ import { guardarAnalisis, guardarNovedades, quitarNovedades } from "./actions";
 import { leerPlantilla } from "./leer-plantilla";
 import { Avisos } from "./Avisos";
 import { Empaque } from "./Empaque";
+import { UbicacionesDif } from "./UbicacionesDif";
 
 /**
  * LA HOJA DE ANÁLISIS: «¿dónde lo subo para que me pase a la hoja de análisis?».
@@ -162,6 +163,7 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
                             </tr>
                             {ab && (
                               <tr className="ad-det"><td colSpan={5}>
+                                <div className="ad-det-bar"><UbicacionesDif fila={f} fecha={datos.fecha} /></div>
                                 <div className="ad-det-dos">
                                   <div><b>SAP · {n(f.sap)}</b><ul>{f.deSap.map((p) => <li key={p.nombre}><span>{p.nombre}</span><em>{n(p.cantidad)}</em></li>)}{!f.deSap.length && !f.pendSap?.length && <li><span>— (no está en la ZEXI ni en el balance)</span></li>}</ul>
                                     {f.pendSap && f.pendSap.length > 0 && (
