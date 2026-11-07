@@ -6,6 +6,7 @@ import { hojasParaContar, type MiHojaBD } from "@/modulos/inventario/fiscal";
 import "../fefo.css";
 import "./asignado.css";
 import "./revisiones.css";
+import "./familias.css";
 import { Contar } from "./Contar";
 import { ContarConFiscal } from "./ContarConFiscal";
 import { ContarFiscal } from "./ContarFiscal";

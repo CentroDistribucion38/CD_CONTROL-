@@ -140,3 +140,21 @@
 .fe .fi-pista i { height: 16px; background: var(--fe-fondo) }
 .fe .fi-pista i.cruce { background: var(--fe-tinta) }
 .fe .fi-mapa-pie { margin: 6px 0 0; font-size: 12px; color: var(--fe-gris) }
+
+/* ---- FAMILIAS DE CADA HOJA: dos de las cinco (Lata, Tw, Ret, Pet, Barril) ---- */
+.fe .fi-fams { display: flex; flex-direction: column; gap: 6px; margin-top: 10px }
+.fe .fi-fams-t { font: 600 10.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase; color: var(--fe-gris) }
+.fe .fi-fams-t small { font: 500 11px var(--fe-texto); letter-spacing: 0; text-transform: none; margin-left: 6px }
+.fe .fi-fams-chips { display: flex; flex-wrap: wrap; gap: 6px }
+.fe .fi-fam {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; cursor: pointer;
+  font: 700 14px var(--fe-texto); color: var(--fe-tinta); background: #fff; border: 1.5px solid var(--fe-tinta); border-radius: 0;
+}
+.fe .fi-fam i { font-style: normal; font-weight: 500; font-size: 12px; color: var(--fe-gris) }
+.fe .fi-fam.on { background: var(--fe-acento); color: var(--fe-sobre) }
+.fe .fi-fam.on i { color: inherit }
+.fe .fi-fam:disabled { cursor: not-allowed; opacity: .45; border-color: var(--fe-linea) }
+.fe .fi-fam:focus-visible { outline: 3px solid var(--fe-tinta); outline-offset: 2px }
+.fe .fi-fams-nota { font-size: 12px; color: var(--fe-gris) }
+.fe .fi-fams-ver { display: block; margin-top: 4px }
+.fe .fi-calle.fi-fams-ver { background: var(--fe-tinta); color: #fff }

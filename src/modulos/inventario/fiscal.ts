@@ -10,7 +10,14 @@
  * esté en dos sitios, resumir cómo va el armado y armar lo que se manda a la
  * base (que vuelve a revisar lo mismo: esto es para avisar antes de enviar).
  */
-export type HojaForm = { numero: number; ol: string; bavaria: string; calle?: string };   // "" = sin persona / sin calle
+export type HojaForm = { numero: number; ol: string; bavaria: string; calle?: string; familias?: string[] };   // "" = sin persona / sin calle
+/** Cuántas familias de producto puede llevar una hoja (a cada pareja le tocan dos, por ejemplo Lata y Barril). */
+export const MAX_FAMILIAS = 2;
+/** Las familias del maestro en el orden en que se ofrecen; las que no estén aquí salen después. */
+export const FAMILIAS_FISCAL = ["Lata", "Tw", "Ret", "Pet", "Barril"];
+/** «lata», «LATA» y «Lata» son la misma familia. */
+export const mismaFamilia = (a: string | null | undefined, b: string | null | undefined) =>
+  (a ?? "").trim().toLowerCase() === (b ?? "").trim().toLowerCase() && (a ?? "").trim() !== "";
 export type Equipo = "ol" | "bavaria";
 
 export const hojasVacias = (n: number): HojaForm[] =>
@@ -36,6 +43,15 @@ export const quitarHoja = (hojas: HojaForm[], numero: number): HojaForm[] =>
 /** La calle donde se cuenta la hoja ("" = todavía sin calle). */
 export const ponerCalle = (hojas: HojaForm[], numero: number, calle: string): HojaForm[] =>
   hojas.map((h) => (h.numero === numero ? { ...h, calle } : h));
+
+/** Marca o desmarca una familia en una hoja. Con las dos puestas no entra una tercera: primero se quita una. */
+export const alternarFamilia = (hojas: HojaForm[], numero: number, familia: string): HojaForm[] =>
+  hojas.map((h) => {
+    if (h.numero !== numero) return h;
+    const act = h.familias ?? [];
+    if (act.some((x) => mismaFamilia(x, familia))) return { ...h, familias: act.filter((x) => !mismaFamilia(x, familia)) };
+    return act.length >= MAX_FAMILIAS ? h : { ...h, familias: [...act, familia] };
+  });
 
 export const ponerPersona = (hojas: HojaForm[], numero: number, equipo: Equipo, id: string): HojaForm[] =>
   hojas.map((h) => (h.numero === numero ? { ...h, [equipo]: id } : h));
@@ -73,7 +89,7 @@ export function revisar(hojas: HojaForm[]): Revision {
 /** Lo que va a la base: «» pasa a null y las hojas van en orden de número. */
 export const aPayload = (hojas: HojaForm[]) =>
   [...hojas].sort((a, b) => a.numero - b.numero)
-    .map((h) => ({ numero: h.numero, ol: h.ol || null, bavaria: h.bavaria || null, calle: h.calle || null }));
+    .map((h) => ({ numero: h.numero, ol: h.ol || null, bavaria: h.bavaria || null, calle: h.calle || null, familias: h.familias ?? [] }));
 
 /** «5 hojas · 4 parejas completas · 1 a medias»: lo que se dice de un inventario en la lista. */
 export function textoResumen(r: Pick<Revision, "total" | "completas" | "aMedias" | "vacias">): string {

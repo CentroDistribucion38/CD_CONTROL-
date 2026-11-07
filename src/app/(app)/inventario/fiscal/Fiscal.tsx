@@ -10,9 +10,9 @@ import Link from "next/link";
 import { Ico } from "./PanelFiscal";
 import { SelectorInventario } from "./SelectorInventario";
 import {
-  agregarHojas, agrupar, aPayload, completarRoles, conteoPorRol, fechaConDia, hojasVacias, opcionesPersonas,
+  agregarHojas, agrupar, alternarFamilia, aPayload, MAX_FAMILIAS, completarRoles, conteoPorRol, fechaConDia, hojasVacias, opcionesPersonas,
   nombreAuto, ponerCalle, ponerPersona, proximoDia, quitarHoja, revisar, rolPorDefecto, sumarDias, textoCuando, textoResumen,
-  type Equipo, type HojaForm, type PersonaF, type RolF,
+  mismaFamilia, type Equipo, type HojaForm, type PersonaF, type RolF,
 } from "@/modulos/inventario/fiscal";
 import { MODULOS_DE_LA_HOJA } from "@/modulos/inventario/modulos-hoja";
 import {
@@ -93,7 +93,7 @@ export type FiscalBD = {
 /** `manual`: el nombre lo escribió alguien. Mientras no, sigue a la fecha («FISCAL OCTUBRE 2026 · viernes 02/10»). */
 type FormF = { id: string | null; nombre: string; fecha: string; hojas: HojaForm[]; manual: boolean };
 
-export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puedePublicar = true, conCruce = true, conCalle = true, manda, ahora }: {
+export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puedePublicar = true, conCruce = true, conCalle = true, conFamilias = true, familias = [], manda, ahora }: {
   bodegaId: string; personas: Persona[]; roles: RolF[]; fiscales: FiscalBD[];
   puedeEditar: boolean; manda: boolean; ahora: string;
   /** false = a la base le falta 2026-10-fiscal-publicar.sql: no se ofrece el botón de Contar. */
@@ -102,6 +102,10 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
   conCruce?: boolean;
   /** false = a la base le falta 2026-10-fiscal-calle.sql: no se ofrece escoger la calle. */
   conCalle?: boolean;
+  /** false = a la base le falta 2026-11-fiscal-familias.sql: no se ofrece asignar familias. */
+  conFamilias?: boolean;
+  /** Las familias que se pueden asignar a una hoja, con su número de códigos. */
+  familias?: { nombre: string; n: number }[];
 }) {
   const router = useRouter();
   const hoy = diaColombia(ahora);
@@ -249,7 +253,7 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
             const est = av ? estadoHoja(av) : "sin-empezar";
             return (
               <li key={h.numero} className={"fi-fila " + est}>
-                <div className="fi-num"><small>Hoja</small><b>{h.numero}</b>{h.calle && <span className="fi-calle">Calle {h.calle}</span>}</div>
+                <div className="fi-num"><small>Hoja</small><b>{h.numero}</b>{h.calle && <span className="fi-calle">Calle {h.calle}</span>}{conFamilias && (h.familias?.length ?? 0) > 0 && <span className="fi-calle fi-fams-ver" title="Familias que cuenta esta hoja">{h.familias!.join(" + ")}</span>}</div>
                 {equipo(h.ol, "Operador logístico", av?.olRenglones, av?.olTermino, sentidoDe(h.calle, "ol"))}
                 {equipo(h.bavaria, "Bavaria", av?.bavariaRenglones, av?.bavariaTermino, sentidoDe(h.calle, "bavaria"))}
                 {conAvance && av && <i className={"fi-av " + est}>{TEXTO_ESTADO[est]}</i>}
@@ -269,6 +273,7 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
     if (!conCruce && puedeEditar) avisos.push(<>Para ver el avance de cada hoja y <b>cruzar a las dos personas</b> falta correr <code>supabase/migraciones/2026-10-fiscal-cruce.sql</code> en Supabase.</>);
     if (!puedePublicar && puedeEditar) avisos.push(<>Para poder <b>mostrar un plan en Contar</b> falta correr <code>supabase/migraciones/2026-10-fiscal-publicar.sql</code> en Supabase.</>);
     if (!conCalle && puedeEditar) avisos.push(<>Para poder <b>poner una calle a cada hoja</b> falta correr <code>supabase/migraciones/2026-10-fiscal-calle.sql</code> en Supabase.</>);
+    if (!conFamilias && puedeEditar) avisos.push(<>Para poder <b>asignar familias a cada hoja</b> falta correr <code>supabase/migraciones/2026-11-fiscal-familias.sql</code> en Supabase.</>);
     if (f.publicado) avisos.push(<>Ya se ve en Contar. Para seguir el avance en vivo y revisar las diferencias: <Link href="/inventario/control-fiscal">abrir el Control fiscal</Link>.</>);
     return (
       <section key={f.id} className="vf fi-plan" aria-label={`Plan fiscal ${f.nombre}`}>
@@ -318,7 +323,7 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
       {mal && !form && <p className="cl-mal" role="alert">{mal}</p>}
 
       {form ? (
-        <FormFiscal form={form} setForm={setForm} personas={personas} roles={roles} hoy={hoy} ocupado={ocupado} mal={mal} conCalle={conCalle}
+        <FormFiscal form={form} setForm={setForm} personas={personas} roles={roles} hoy={hoy} ocupado={ocupado} mal={mal} conCalle={conCalle} conFamilias={conFamilias} familias={familias}
                     onGuardar={guardar} onCancelar={() => { setForm(null); setMal(null) }} />
       ) : (
         <>
@@ -350,8 +355,9 @@ function rolInicial(equipo: Equipo, roles: RolF[]): string {
   return rolPorDefecto(roles, equipo);
 }
 
-function FormFiscal({ form, setForm, personas, roles: rolesIn, hoy, ocupado, mal, conCalle, onGuardar, onCancelar }: {
+function FormFiscal({ form, setForm, personas, roles: rolesIn, hoy, ocupado, mal, conCalle, conFamilias, familias, onGuardar, onCancelar }: {
   form: FormF; setForm: (f: FormF) => void; personas: Persona[]; roles: RolF[]; hoy: string; ocupado: boolean; mal: string | null; conCalle: boolean;
+  conFamilias: boolean; familias: { nombre: string; n: number }[];
   onGuardar: () => void; onCancelar: () => void;
 }) {
   const roles = useMemo(() => completarRoles(personas, rolesIn), [personas, rolesIn]);
@@ -475,6 +481,32 @@ function FormFiscal({ form, setForm, personas, roles: rolesIn, hoy, ocupado, mal
               {casilla(h, "ol", "Operador logístico")}
               {casilla(h, "bavaria", "Bavaria")}
             </div>
+            {conFamilias && familias.length > 0 && (() => {
+              const act = h.familias ?? [];
+              const codigos = familias.filter((f) => act.some((x) => mismaFamilia(x, f.nombre))).reduce((n, f) => n + f.n, 0);
+              return (
+                <div className="fi-fams" role="group" aria-label={`Familias de la hoja ${h.numero}`}>
+                  <span className="fi-fams-t">Familias que cuentan <small>hasta {MAX_FAMILIAS}</small></span>
+                  <div className="fi-fams-chips">
+                    {familias.map((f) => {
+                      const on = act.some((x) => mismaFamilia(x, f.nombre));
+                      const lleno = !on && act.length >= MAX_FAMILIAS;
+                      return (
+                        <button key={f.nombre} type="button" className={"fi-fam" + (on ? " on" : "")} aria-pressed={on} disabled={lleno}
+                                title={lleno ? `Ya lleva ${MAX_FAMILIAS} familias: quita una para poner ${f.nombre}` : undefined}
+                                onClick={() => cambia(alternarFamilia(form.hojas, h.numero, f.nombre))}>
+                          {f.nombre}<i>{f.n}</i>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <small className="fi-fams-nota">
+                    {act.length === 0 ? "Sin familias todavía: es solo una guía para quien cuenta, no limita lo que puede anotar."
+                      : `${codigos} código${codigos === 1 ? "" : "s"} · ${act.length} de ${MAX_FAMILIAS} familias`}
+                  </small>
+                </div>
+              );
+            })()}
           </div>
         ))}
       </div>

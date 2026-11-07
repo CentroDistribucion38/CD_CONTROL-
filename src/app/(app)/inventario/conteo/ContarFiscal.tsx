@@ -28,6 +28,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Buscador } from "@/components/Buscador";
 import { usePosicion, sellar, type Foto } from "@/lib/evidencia";
+import { FamiliasHoja } from "./FamiliasHoja";
 import { RevisionesFiscal, type ModuloRevision } from "./RevisionesFiscal";
 import { useConfirmar } from "@/components/Confirmar";
 import { useAvisos } from "@/components/Aviso";
@@ -737,6 +738,7 @@ export function ContarFiscal({
         <section className="fe-anotar fc-anotar" hidden={pestania !== "anotar" || (enValidacion ? !editandoValidacion : cerrada)}>
           <div className="fe-anotar-cab">
             <p className="fe-paso">Hoja {hoja.numero} · anotar lo que hay</p>
+            <FamiliasHoja hojaId={hoja.hojaId} numero={hoja.numero} materiales={materiales} />
           </div>
           <p className="fc-ciego">Cuentas a ciegas: solo ves lo que anotas tú. El cruce con tu pareja se hace después.</p>
           {corrigiendo && (

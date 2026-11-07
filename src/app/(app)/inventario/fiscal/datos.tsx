@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { maestroInventario } from "@/modulos/inventario/fefo";
-import type { HojaForm } from "@/modulos/inventario/fiscal";
+import { FAMILIAS_FISCAL, mismaFamilia, type HojaForm } from "@/modulos/inventario/fiscal";
 import { avanceDesdeBD, type AvanceBD, type AvanceHoja } from "@/modulos/inventario/fiscal-cruce";
 import type { FiscalBD, Persona } from "./Fiscal";
 
@@ -19,6 +19,10 @@ export type DatosFiscal = {
   conCruce: boolean;
   /** false = a la base le falta 2026-10-fiscal-calle.sql. */
   conCalle: boolean;
+  /** false = a la base le falta 2026-11-fiscal-familias.sql: no se ofrece asignar familias. */
+  conFamilias: boolean;
+  /** Las familias de producto que se pueden asignar a una hoja, con cuántos códigos tiene cada una. */
+  familias: { nombre: string; n: number }[];
 };
 
 export async function cargarFiscales(): Promise<{ fallo: ReactNode } | { datos: DatosFiscal }> {
@@ -64,10 +68,13 @@ export async function cargarFiscales(): Promise<{ fallo: ReactNode } | { datos: 
   if (fisP.error) fisP = await leerFiscales("id,nombre,fecha,estado,creado_en");
   /* `calle` llega con 2026-10-fiscal-calle.sql: sin él se leen las hojas como antes. */
   const leerHojas = async () => {
+    /* `familias` llega con 2026-11-fiscal-familias.sql. */
+    const f = await supabase.from("inv_fiscal_hojas").select("id,fiscal_id,numero,calle,familias").limit(5000);
+    if (!f.error) return { ...f, conCalle: true, conFamilias: true };
     const c = await supabase.from("inv_fiscal_hojas").select("id,fiscal_id,numero,calle").limit(5000);
-    if (!c.error) return { ...c, conCalle: true };
+    if (!c.error) return { ...c, conCalle: true, conFamilias: false };
     const v = await supabase.from("inv_fiscal_hojas").select("id,fiscal_id,numero").limit(5000);
-    return { ...v, conCalle: false };
+    return { ...v, conCalle: false, conFamilias: false };
   };
   const [fis, hoj, mie, per, rol, ava] = await Promise.all([
     Promise.resolve(fisP as unknown as { data: Record<string, unknown>[] | null; error: unknown }),
@@ -96,7 +103,8 @@ export async function cargarFiscales(): Promise<{ fallo: ReactNode } | { datos: 
   const hojasDe = new Map<string, HojaForm[]>();
   for (const h of hoj.data ?? []) {
     const mm = miembros.get(h.id) ?? {};
-    hojasDe.set(h.fiscal_id, [...(hojasDe.get(h.fiscal_id) ?? []), { numero: h.numero, ol: mm.OL ?? "", bavaria: mm.BAVARIA ?? "", calle: ((h as { calle?: string | null }).calle ?? "") }]);
+    hojasDe.set(h.fiscal_id, [...(hojasDe.get(h.fiscal_id) ?? []), { numero: h.numero, ol: mm.OL ?? "", bavaria: mm.BAVARIA ?? "", calle: ((h as { calle?: string | null }).calle ?? ""),
+      familias: ((h as { familias?: string[] | null }).familias ?? []) }]);
   }
   const fiscales: FiscalBD[] = (fis.data ?? []).map((f) => ({
     id: f.id as string, nombre: f.nombre as string, fecha: String(f.fecha).slice(0, 10), estado: f.estado as "abierto" | "cerrado",
@@ -111,5 +119,15 @@ export async function cargarFiscales(): Promise<{ fallo: ReactNode } | { datos: 
     .map((p) => ({ id: p.id, nombre: p.nombre as string, activo: Boolean(p.activo), rol: (p.rol ?? "") as string }));
   const roles = (rol.data ?? []).map((r) => ({ clave: r.clave as string, nombre: r.nombre as string }));
 
-  return { datos: { bodegaId: bodega.id, personas, roles, fiscales, conPublicar, conCruce, conCalle: hoj.conCalle } };
+  /* LAS FAMILIAS QUE SE OFRECEN: las de los productos del maestro (no los envases), con cuántos códigos tiene cada una. */
+  const cuenta = new Map<string, { nombre: string; n: number }>();
+  for (const x of m.materiales) {
+    if (!x.activo || x.tipo_material !== "PRODUCTO" || !(x.familia ?? "").trim()) continue;
+    const nombre = FAMILIAS_FISCAL.find((f) => mismaFamilia(f, x.familia)) ?? (x.familia as string).trim();
+    cuenta.set(nombre.toLowerCase(), { nombre, n: (cuenta.get(nombre.toLowerCase())?.n ?? 0) + 1 });
+  }
+  const orden = (n: string) => { const i = FAMILIAS_FISCAL.findIndex((f) => mismaFamilia(f, n)); return i < 0 ? 99 : i };
+  const familias = [...cuenta.values()].sort((a, b) => orden(a.nombre) - orden(b.nombre) || a.nombre.localeCompare(b.nombre, "es"));
+
+  return { datos: { bodegaId: bodega.id, personas, roles, fiscales, conPublicar, conCruce, conCalle: hoj.conCalle, conFamilias: hoj.conFamilias, familias } };
 }
