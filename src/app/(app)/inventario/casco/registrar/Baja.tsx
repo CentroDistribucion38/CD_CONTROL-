@@ -8,6 +8,7 @@ import { useConfirmar } from "@/components/Confirmar";
 import { traducirError } from "@/lib/errores";
 import { hojaBaja, leerBaja, type FilaBaja, type LecturaBaja } from "@/modulos/casco/baja";
 import type { MaterialCasco, SitioCasco } from "@/modulos/casco/datos";
+import { Cuadre } from "./Cuadre";
 
 /**
  * CASCO DE VIDRIO · REGISTRAR · BAJA.
@@ -77,7 +78,7 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
   const [fa, setFa] = useState({ desde: "", hasta: "", texto: "" });  // filtros de los archivos subidos
   const [falla, setFalla] = useState<string | null>(null);
   /* UNA HOJA A LA VEZ: subir el archivo, los archivos subidos o las bajas registradas. */
-  const [hoja, setHoja] = useState<"subir" | "archivos" | "bajas">("subir");
+  const [hoja, setHoja] = useState<"subir" | "archivos" | "bajas" | "exportar">("subir");
 
   const dato = useMemo(() => Object.fromEntries(materiales.map((m) => [m.sku, m])), [materiales]);
   const sinCentros = sitios.length > 0 && sitios.every((s) => !s.centro);
@@ -323,7 +324,7 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
       )}
 
       <div className="reg-hojas reg-sub" role="tablist" aria-label="Baja">
-        {([["subir", "Subir archivo", null], ["archivos", "Archivos subidos", archivos?.length ?? null], ["bajas", "Bajas registradas", hechas?.length ?? null]] as const).map(([k, rot, n]) => (
+        {([["subir", "Subir archivo", null], ["archivos", "Archivos subidos", archivos?.length ?? null], ["bajas", "Bajas registradas", hechas?.length ?? null], ["exportar", "Exportar", null]] as const).map(([k, rot, n]) => (
           <button key={k} type="button" role="tab" aria-selected={hoja === k} className={hoja === k ? "on" : ""} onClick={() => setHoja(k)}>
             {rot}{n !== null && <em>{n}</em>}
           </button>
@@ -618,6 +619,9 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
         </div>
       </section>
       )}
+
+      {/* LA VALIDACIÓN «AYER + BAJAS = HOY», en pantalla y para bajar a Excel. */}
+      {hoja === "exportar" && <Cuadre sitios={sitios} materiales={materiales} hoy={hoy} />}
     </>
   );
 }
