@@ -79,6 +79,7 @@
 .fe .ba-kp b { display: block; margin-top: 6px; font: 900 24px/1.1 var(--fe-titulo); letter-spacing: -.02em; color: var(--fe-tinta); font-variant-numeric: tabular-nums }
 .fe .ba-kp small { font-size: 11.5px; color: var(--fe-gris) }
 .fe .ba-kp .az b { color: var(--ba-azul) }
+.fe .ba-kp .fil { box-shadow: inset 0 3px 0 var(--fe-acento, #FFC400); background: #FFFBEA }
 
 /* ---------- Pestañas, búsqueda y filtros ---------- */
 .fe .ba-barra { display: flex; align-items: center; gap: 8px; flex-wrap: wrap }

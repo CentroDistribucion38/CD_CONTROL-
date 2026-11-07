@@ -536,6 +536,17 @@ export function Base({
     compartidas: cruce.compartidas,
   }), [cruce]);
 
+  /* LAS CIFRAS SIGUEN AL FILTRO: lo que se filtra en la tabla (búsqueda, campos, calle, módulo, fechas, quitados) cambia
+     Renglones, Cajas y Ubicaciones de arriba; si no, no servirían para nada. Repetidas y Contadas por 2+ son de la base
+     cruzada completa y no se tocan. Sin filtro sale lo mismo de antes. */
+  const vf = filas.length !== kp.renglones;
+  const kpVista = useMemo(() => !vf ? kp : {
+    ...kp,
+    renglones: filas.length,
+    cajas,
+    ubicaciones: new Set(filas.map((r) => r.ubicacion_id ?? r.ubicacion ?? "—")).size,
+  }, [vf, kp, filas, cajas]);
+
   /* ============== SELECCIÓN ============== */
   const hayCasillas = pestania === "base" && (puedeMarcar || manda);
   /* Solo cuentan los marcados que SE VEN: si un filtro esconde uno, no se manda a cambiar a ciegas. */
@@ -711,9 +722,9 @@ export function Base({
       {/* ================= LAS CUATRO CIFRAS ================= */}
       {pestania === "base" && hayEnviados && (
         <section className="ba-kp" aria-label="Resumen de la base cruzada">
-          <div><span className="ba-eti">Renglones</span><b>{nf.format(kp.renglones)}</b><small>después de cruzar</small></div>
-          <div><span className="ba-eti">Cajas</span><b>{nf.format(kp.cajas)}</b><small>en la base</small></div>
-          <div><span className="ba-eti">Ubicaciones</span><b>{nf.format(kp.ubicaciones)}</b><small>distintas</small></div>
+          <div className={vf ? "fil" : ""}><span className="ba-eti">Renglones</span><b>{nf.format(kpVista.renglones)}</b><small>{vf ? `filtrados · de ${nf.format(kp.renglones)} en la base` : "después de cruzar"}</small></div>
+          <div className={vf ? "fil" : ""}><span className="ba-eti">Cajas</span><b>{nf.format(kpVista.cajas)}</b><small>{vf ? `filtradas · de ${nf.format(kp.cajas)} en la base` : "en la base"}</small></div>
+          <div className={vf ? "fil" : ""}><span className="ba-eti">Ubicaciones</span><b>{nf.format(kpVista.ubicaciones)}</b><small>{vf ? `distintas en lo filtrado · de ${nf.format(kp.ubicaciones)}` : "distintas"}</small></div>
           <div className="az"><span className="ba-eti">Repetidas</span><b>{nf.format(kp.repetidas)}</b><small>misma persona: vale su último conteo</small></div>
           <div><span className="ba-eti">Contadas por 2+</span><b>{nf.format(kp.compartidas)}</b><small>personas distintas: cada una en su renglón</small></div>
         </section>
