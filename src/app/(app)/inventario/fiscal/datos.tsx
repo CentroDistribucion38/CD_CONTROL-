@@ -22,7 +22,7 @@ export type DatosFiscal = {
   /** false = a la base le falta 2026-11-fiscal-familias.sql: no se ofrece asignar familias. */
   conFamilias: boolean;
   /** Las familias de producto que se pueden asignar a una hoja, con cuántos códigos tiene cada una. */
-  familias: { nombre: string; n: number }[];
+  familias: { nombre: string; n: number; tipo: "PT" | "EER" }[];
 };
 
 export async function cargarFiscales(): Promise<{ fallo: ReactNode } | { datos: DatosFiscal }> {
@@ -120,14 +120,24 @@ export async function cargarFiscales(): Promise<{ fallo: ReactNode } | { datos: 
   const roles = (rol.data ?? []).map((r) => ({ clave: r.clave as string, nombre: r.nombre as string }));
 
   /* LAS FAMILIAS QUE SE OFRECEN: las de los productos del maestro (no los envases), con cuántos códigos tiene cada una. */
-  const cuenta = new Map<string, { nombre: string; n: number }>();
-  for (const x of m.materiales) {
-    if (!x.activo || x.tipo_material !== "PRODUCTO" || !(x.familia ?? "").trim()) continue;
-    const nombre = FAMILIAS_FISCAL.find((f) => mismaFamilia(f, x.familia)) ?? (x.familia as string).trim();
-    cuenta.set(nombre.toLowerCase(), { nombre, n: (cuenta.get(nombre.toLowerCase())?.n ?? 0) + 1 });
+  const cuenta = new Map<string, { nombre: string; n: number; tipo: "PT" | "EER" }>();
+  /* Con 2026-11-fiscal-familias-envase.sql vienen también los ENVASES (EER) del maestro de pasivos: Envase, Caja, Estiba… */
+  const cat = await supabase.rpc("inv_fiscal_familias_catalogo");
+  if (!cat.error && Array.isArray(cat.data)) {
+    for (const x of cat.data as { nombre: string; tipo: "PT" | "EER"; n: number }[]) {
+      const nombre = FAMILIAS_FISCAL.find((f) => mismaFamilia(f, x.nombre)) ?? x.nombre.trim();
+      cuenta.set(`${x.tipo}|${nombre.toLowerCase()}`, { nombre, n: Number(x.n) || 0, tipo: x.tipo });
+    }
+  } else {
+    for (const x of m.materiales) {
+      if (!x.activo || x.tipo_material !== "PRODUCTO" || !(x.familia ?? "").trim()) continue;
+      const nombre = FAMILIAS_FISCAL.find((f) => mismaFamilia(f, x.familia)) ?? (x.familia as string).trim();
+      const k = `PT|${nombre.toLowerCase()}`;
+      cuenta.set(k, { nombre, n: (cuenta.get(k)?.n ?? 0) + 1, tipo: "PT" });
+    }
   }
   const orden = (n: string) => { const i = FAMILIAS_FISCAL.findIndex((f) => mismaFamilia(f, n)); return i < 0 ? 99 : i };
-  const familias = [...cuenta.values()].sort((a, b) => orden(a.nombre) - orden(b.nombre) || a.nombre.localeCompare(b.nombre, "es"));
+  const familias = [...cuenta.values()].sort((a, b) => (a.tipo === b.tipo ? 0 : a.tipo === "PT" ? -1 : 1) || orden(a.nombre) - orden(b.nombre) || a.nombre.localeCompare(b.nombre, "es"));
 
   return { datos: { bodegaId: bodega.id, personas, roles, fiscales, conPublicar, conCruce, conCalle: hoj.conCalle, conFamilias: hoj.conFamilias, familias } };
 }

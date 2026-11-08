@@ -11,8 +11,6 @@
  * base (que vuelve a revisar lo mismo: esto es para avisar antes de enviar).
  */
 export type HojaForm = { numero: number; ol: string; bavaria: string; calle?: string; familias?: string[] };   // "" = sin persona / sin calle
-/** Cuántas familias de producto puede llevar una hoja (a cada pareja le tocan dos, por ejemplo Lata y Barril). */
-export const MAX_FAMILIAS = 2;
 /** Las familias del maestro en el orden en que se ofrecen; las que no estén aquí salen después. */
 export const FAMILIAS_FISCAL = ["Lata", "Tw", "Ret", "Pet", "Barril"];
 /** «lata», «LATA» y «Lata» son la misma familia. */
@@ -44,13 +42,13 @@ export const quitarHoja = (hojas: HojaForm[], numero: number): HojaForm[] =>
 export const ponerCalle = (hojas: HojaForm[], numero: number, calle: string): HojaForm[] =>
   hojas.map((h) => (h.numero === numero ? { ...h, calle } : h));
 
-/** Marca o desmarca una familia en una hoja. Con las dos puestas no entra una tercera: primero se quita una. */
+/** Marca o desmarca una familia en una hoja. Una hoja puede llevar todas las que se quiera (producto y envase). */
 export const alternarFamilia = (hojas: HojaForm[], numero: number, familia: string): HojaForm[] =>
   hojas.map((h) => {
     if (h.numero !== numero) return h;
     const act = h.familias ?? [];
     if (act.some((x) => mismaFamilia(x, familia))) return { ...h, familias: act.filter((x) => !mismaFamilia(x, familia)) };
-    return act.length >= MAX_FAMILIAS ? h : { ...h, familias: [...act, familia] };
+    return { ...h, familias: [...act, familia] };
   });
 
 export const ponerPersona = (hojas: HojaForm[], numero: number, equipo: Equipo, id: string): HojaForm[] =>

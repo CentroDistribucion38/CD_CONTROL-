@@ -10,7 +10,7 @@ import Link from "next/link";
 import { Ico } from "./PanelFiscal";
 import { SelectorInventario } from "./SelectorInventario";
 import {
-  agregarHojas, agrupar, alternarFamilia, aPayload, MAX_FAMILIAS, completarRoles, conteoPorRol, fechaConDia, hojasVacias, opcionesPersonas,
+  agregarHojas, agrupar, alternarFamilia, aPayload, completarRoles, conteoPorRol, fechaConDia, hojasVacias, opcionesPersonas,
   nombreAuto, ponerCalle, ponerPersona, proximoDia, quitarHoja, revisar, rolPorDefecto, sumarDias, textoCuando, textoResumen,
   mismaFamilia, type Equipo, type HojaForm, type PersonaF, type RolF,
 } from "@/modulos/inventario/fiscal";
@@ -105,7 +105,7 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
   /** false = a la base le falta 2026-11-fiscal-familias.sql: no se ofrece asignar familias. */
   conFamilias?: boolean;
   /** Las familias que se pueden asignar a una hoja, con su número de códigos. */
-  familias?: { nombre: string; n: number }[];
+  familias?: { nombre: string; n: number; tipo?: "PT" | "EER" }[];
 }) {
   const router = useRouter();
   const hoy = diaColombia(ahora);
@@ -357,7 +357,7 @@ function rolInicial(equipo: Equipo, roles: RolF[]): string {
 
 function FormFiscal({ form, setForm, personas, roles: rolesIn, hoy, ocupado, mal, conCalle, conFamilias, familias, onGuardar, onCancelar }: {
   form: FormF; setForm: (f: FormF) => void; personas: Persona[]; roles: RolF[]; hoy: string; ocupado: boolean; mal: string | null; conCalle: boolean;
-  conFamilias: boolean; familias: { nombre: string; n: number }[];
+  conFamilias: boolean; familias: { nombre: string; n: number; tipo?: "PT" | "EER" }[];
   onGuardar: () => void; onCancelar: () => void;
 }) {
   const roles = useMemo(() => completarRoles(personas, rolesIn), [personas, rolesIn]);
@@ -484,25 +484,33 @@ function FormFiscal({ form, setForm, personas, roles: rolesIn, hoy, ocupado, mal
             {conFamilias && familias.length > 0 && (() => {
               const act = h.familias ?? [];
               const codigos = familias.filter((f) => act.some((x) => mismaFamilia(x, f.nombre))).reduce((n, f) => n + f.n, 0);
+              const grupos = [["PT", "Producto"], ["EER", "Envase · EER"]] as const;
               return (
                 <div className="fi-fams" role="group" aria-label={`Familias de la hoja ${h.numero}`}>
-                  <span className="fi-fams-t">Familias que cuentan <small>hasta {MAX_FAMILIAS}</small></span>
-                  <div className="fi-fams-chips">
-                    {familias.map((f) => {
-                      const on = act.some((x) => mismaFamilia(x, f.nombre));
-                      const lleno = !on && act.length >= MAX_FAMILIAS;
-                      return (
-                        <button key={f.nombre} type="button" className={"fi-fam" + (on ? " on" : "")} aria-pressed={on} disabled={lleno}
-                                title={lleno ? `Ya lleva ${MAX_FAMILIAS} familias: quita una para poner ${f.nombre}` : undefined}
-                                onClick={() => cambia(alternarFamilia(form.hojas, h.numero, f.nombre))}>
-                          {f.nombre}<i>{f.n}</i>
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <span className="fi-fams-t">Familias que cuentan <small>las que quieras</small></span>
+                  {grupos.map(([tp, tit]) => {
+                    const lista = familias.filter((f) => (f.tipo ?? "PT") === tp);
+                    if (!lista.length) return null;
+                    return (
+                      <div key={tp} className="fi-fams-grupo">
+                        <span className="fi-fams-g">{tit}</span>
+                        <div className="fi-fams-chips">
+                          {lista.map((f) => {
+                            const on = act.some((x) => mismaFamilia(x, f.nombre));
+                            return (
+                              <button key={f.nombre} type="button" className={"fi-fam" + (on ? " on" : "")} aria-pressed={on}
+                                      onClick={() => cambia(alternarFamilia(form.hojas, h.numero, f.nombre))}>
+                                {f.nombre}<i>{f.n}</i>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
                   <small className="fi-fams-nota">
                     {act.length === 0 ? "Sin familias todavía: es solo una guía para quien cuenta, no limita lo que puede anotar."
-                      : `${codigos} código${codigos === 1 ? "" : "s"} · ${act.length} de ${MAX_FAMILIAS} familias`}
+                      : `${codigos} código${codigos === 1 ? "" : "s"} · ${act.length} ${act.length === 1 ? "familia" : "familias"}`}
                   </small>
                 </div>
               );

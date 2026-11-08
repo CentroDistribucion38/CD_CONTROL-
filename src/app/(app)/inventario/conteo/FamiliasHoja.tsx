@@ -23,9 +23,13 @@ import { mismaFamilia } from "@/modulos/inventario/fiscal";
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const sinTilde = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
+type Codigo = { sku: string; descripcion: string; familia: string; tipo: "PT" | "EER"; cajas_por_estiba: number | null };
+
 export function FamiliasHoja({ hojaId, numero, materiales }: { hojaId: string; numero: number; materiales: Material[] }) {
   const supabase = useMemo(() => createClient(), []);
   const [familias, setFamilias] = useState<string[]>([]);
+  /* Los códigos de las familias de la hoja, de los dos maestros (producto y envase EER). Llegan con 2026-11-fiscal-familias-envase.sql. */
+  const [codigos, setCodigos] = useState<Codigo[] | null>(null);
   const [abierto, setAbierto] = useState(false);
   const [tab, setTab] = useState(0);
   const [q, setQ] = useState("");
@@ -35,20 +39,25 @@ export function FamiliasHoja({ hojaId, numero, materiales }: { hojaId: string; n
   /* Las familias de ESTA hoja. Cambia la hoja → se vuelve a preguntar. */
   useEffect(() => {
     let vivo = true;
-    setFamilias([]); setAbierto(false); setTab(0); setQ("");
+    setFamilias([]); setCodigos(null); setAbierto(false); setTab(0); setQ("");
     void (async () => {
       const { data, error } = await supabase.rpc("inv_fiscal_hoja_familias", { p_hoja: hojaId });
       if (vivo) setFamilias(!error && Array.isArray(data) ? (data as string[]) : []);
+      const c = await supabase.rpc("inv_fiscal_hoja_codigos", { p_hoja: hojaId });
+      if (vivo) setCodigos(!c.error && Array.isArray(c.data) ? (c.data as Codigo[]) : null);
     })();
     return () => { vivo = false };
   }, [hojaId, supabase]);
 
+  /* Cada familia con sus códigos. Si la base todavía no trae los envases, se arma con los productos del maestro como antes. */
   const lista = useMemo(() => familias.map((f) => ({
     nombre: f,
-    filas: materiales
-      .filter((m) => m.activo && m.tipo_material === "PRODUCTO" && mismaFamilia(m.familia, f))
-      .sort((a, b) => a.sku.localeCompare(b.sku, "es", { numeric: true })),
-  })), [familias, materiales]);
+    filas: (codigos
+      ? codigos.filter((c) => mismaFamilia(c.familia, f)).map((c) => ({ id: `${c.tipo}-${c.sku}`, sku: c.sku, nombre: c.descripcion, cajas_por_estiba: c.cajas_por_estiba, eer: c.tipo === "EER" }))
+      : materiales.filter((m) => m.activo && m.tipo_material === "PRODUCTO" && mismaFamilia(m.familia, f))
+          .map((m) => ({ id: m.id, sku: m.sku, nombre: m.nombre, cajas_por_estiba: m.cajas_por_estiba, eer: false }))
+    ).sort((a, b) => a.sku.localeCompare(b.sku, "es", { numeric: true })),
+  })), [familias, materiales, codigos]);
 
   /* Escape cierra; el fondo no se desplaza mientras está abierto; el foco vuelve al ícono. */
   useEffect(() => {

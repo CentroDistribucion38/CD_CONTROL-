@@ -158,3 +158,5 @@
 .fe .fi-fams-nota { font-size: 12px; color: var(--fe-gris) }
 .fe .fi-fams-ver { display: block; margin-top: 4px }
 .fe .fi-calle.fi-fams-ver { background: var(--fe-tinta); color: #fff }
+.fe .fi-fams-grupo { display: flex; align-items: center; gap: 10px; flex-wrap: wrap }
+.fe .fi-fams-g { flex: none; min-width: 92px; font: 700 11px var(--fe-texto); letter-spacing: .06em; text-transform: uppercase; color: var(--fe-tinta) }
