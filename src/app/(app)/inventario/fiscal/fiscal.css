@@ -160,3 +160,36 @@
 .fe .fi-calle.fi-fams-ver { background: var(--fe-tinta); color: #fff }
 .fe .fi-fams-grupo { display: flex; align-items: center; gap: 10px; flex-wrap: wrap }
 .fe .fi-fams-g { flex: none; min-width: 92px; font: 700 11px var(--fe-texto); letter-spacing: .06em; text-transform: uppercase; color: var(--fe-tinta) }
+
+/* ---- PLAN FISCAL · COLORES PARA RECONOCER CADA COSA A LA PRIMERA ----
+   Operador logístico = azul · Bavaria = rojo · Calle = amarillo · Producto = amarillo/negro · Envase (EER) = verde azulado.
+   El borde izquierdo de cada hoja dice su estado: verde = pareja completa, ámbar = a medias, gris = sin nadie. */
+.fe .fi-form { --fi-ol: #1B4F8F; --fi-ba: #C8102E; --fi-eer: #0B7A75; --fi-ok: #0F7A4A; --fi-med: #E09A00 }
+.fe .fi-t { padding-left: 10px; border-left: 5px solid var(--fe-acento, #FFC400); line-height: 1.2 }
+
+.fe .fi-hoja { border-left-width: 6px; border-left-color: #9aa6b4 }
+.fe .fi-hoja.st-ok { border-left-color: var(--fi-ok) }
+.fe .fi-hoja.st-med { border-left-color: var(--fi-med) }
+.fe .fi-hoja.mal { border-left-color: var(--fe-mal) }
+.fe .fi-hoja-cab { justify-content: flex-start }
+.fe .fi-hoja-cab .cl-quitar { margin-left: auto }
+.fe .fi-est { font: 800 11px var(--fe-texto); letter-spacing: .04em; padding: 3px 9px; background: #eceef1; color: #4a5568 }
+.fe .fi-hoja.st-ok .fi-est { background: #E3F4EA; color: var(--fi-ok) }
+.fe .fi-hoja.st-med .fi-est { background: #FFF1CC; color: #7A5200 }
+
+.fe .fi-rol.ol > span, .fe .fi-casilla.ol .fi-et { color: var(--fi-ol) }
+.fe .fi-rol.ba > span, .fe .fi-casilla.ba .fi-et { color: var(--fi-ba) }
+.fe .fi-rol > span::before, .fe .fi-casilla .fi-et::before { content: ""; display: inline-block; width: 9px; height: 9px; margin-right: 7px; background: currentColor }
+.fe .fi-rol.ol select, .fe .fi-casilla.ol .bs-campo { border-left: 5px solid var(--fi-ol) }
+.fe .fi-rol.ba select, .fe .fi-casilla.ba .bs-campo { border-left: 5px solid var(--fi-ba) }
+
+.fe .fi-calle-sel select { border-left: 5px solid var(--fe-acento, #FFC400) }
+
+.fe .fi-fams-g { flex: none; min-width: 104px; font: 800 11px var(--fe-texto); letter-spacing: .06em; text-transform: uppercase }
+.fe .fi-fams-g.pt { color: var(--fe-tinta) }
+.fe .fi-fams-g.eer { color: var(--fi-eer) }
+.fe .fi-fam { border-color: #9aa6b4 }
+.fe .fi-fam.on { background: var(--fe-acento, #FFC400); border-color: var(--fe-tinta); color: var(--fe-tinta) }
+.fe .fi-fam.eer { border-color: #7fb9b5; color: var(--fi-eer) }
+.fe .fi-fam.eer.on { background: var(--fi-eer); border-color: var(--fi-eer); color: #fff }
+.fe .fi-fam.eer i { color: inherit; opacity: .75 }

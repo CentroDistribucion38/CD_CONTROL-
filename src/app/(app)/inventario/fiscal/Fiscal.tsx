@@ -389,7 +389,7 @@ function FormFiscal({ form, setForm, personas, roles: rolesIn, hoy, ocupado, mal
     const del = personas.filter((p) => p.activo && (rol === "" || p.rol === rol));
     const libres = del.filter((p) => !ocupadas.has(p.id)).length;
     return (
-      <label className="fi-rol" key={eq}>
+      <label className={"fi-rol " + (eq === "ol" ? "ol" : "ba")} key={eq}>
         <span>{et}: buscar entre</span>
         <select value={rol} onChange={(e) => escogeRol(eq, e.target.value)}>
           <option value="">Todos los usuarios</option>
@@ -408,7 +408,7 @@ function FormFiscal({ form, setForm, personas, roles: rolesIn, hoy, ocupado, mal
       .map((o) => (o.valor === "" ? { ...o, valor: NADIE } : o));
 
   const casilla = (h: HojaForm, eq: Equipo, et: string) => (
-    <div className="fi-casilla" key={eq}>
+    <div className={"fi-casilla " + (eq === "ol" ? "ol" : "ba")} key={eq}>
       <span className="fi-et">{et}</span>
       <Buscador
         valor={h[eq]}
@@ -457,9 +457,10 @@ function FormFiscal({ form, setForm, personas, roles: rolesIn, hoy, ocupado, mal
       <h3 className="fi-t">Hojas y parejas <small>{textoResumen(r)}</small></h3>
       <div className="fi-hojas-form">
         {form.hojas.map((h) => (
-          <div key={h.numero} className={"fi-hoja" + (r.repetidas.size && [h.ol, h.bavaria].some((id) => id && r.repetidas.has(id)) ? " mal" : "")}>
+          <div key={h.numero} className={"fi-hoja " + (h.ol && h.bavaria ? "st-ok" : h.ol || h.bavaria ? "st-med" : "st-vac") + (r.repetidas.size && [h.ol, h.bavaria].some((id) => id && r.repetidas.has(id)) ? " mal" : "")}>
             <div className="fi-hoja-cab">
               <b>Hoja {h.numero}</b>
+              <span className="fi-est">{h.ol && h.bavaria ? "Pareja completa" : h.ol ? "Falta Bavaria" : h.bavaria ? "Falta operador logístico" : "Sin nadie"}</span>
               <button type="button" className="cl-quitar" onClick={() => cambia(quitarHoja(form.hojas, h.numero))}
                       aria-label={`Quitar la hoja ${h.numero}`}>Quitar</button>
             </div>
@@ -493,12 +494,12 @@ function FormFiscal({ form, setForm, personas, roles: rolesIn, hoy, ocupado, mal
                     if (!lista.length) return null;
                     return (
                       <div key={tp} className="fi-fams-grupo">
-                        <span className="fi-fams-g">{tit}</span>
+                        <span className={"fi-fams-g " + (tp === "EER" ? "eer" : "pt")}>{tit}</span>
                         <div className="fi-fams-chips">
                           {lista.map((f) => {
                             const on = act.some((x) => mismaFamilia(x, f.nombre));
                             return (
-                              <button key={f.nombre} type="button" className={"fi-fam" + (on ? " on" : "")} aria-pressed={on}
+                              <button key={f.nombre} type="button" className={"fi-fam" + (tp === "EER" ? " eer" : "") + (on ? " on" : "")} aria-pressed={on}
                                       onClick={() => cambia(alternarFamilia(form.hojas, h.numero, f.nombre))}>
                                 {f.nombre}<i>{f.n}</i>
                               </button>
