@@ -363,3 +363,6 @@
 .fe .ba-corr-campo input { min-height: 44px; width: 110px; padding: 0 10px; border: 1px solid var(--fe-linea); border-radius: 0; font-size: 16px }
 .fe .ba-corr-total { flex: 1 1 200px; font-size: 13px }
 .fe .ba-admin .ba-quitar + .ba-quitar { margin-top: 8px }
+
+/* El subtotal de lo filtrado, pegado abajo de la tabla */
+.fe .ba-t tfoot td { position: sticky; bottom: 0; padding: 9px 12px; background: var(--fe-tinta, #111); color: #fff; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; border-top: 3px solid var(--fe-acento, #FFC400) }

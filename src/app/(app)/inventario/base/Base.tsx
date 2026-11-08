@@ -212,6 +212,8 @@ const COLUMNAS: Col<Renglon>[] = [
    nadie crea que bajó todo cuando bajó tres.
    --------------------------------------------------------------------- */
 /* Las columnas de la tabla CORTA. Las veintiséis están en COLUMNAS. */
+/* Las columnas que se suman en el subtotal (un factor o una capacidad no). */
+const SUMABLES = new Set(["estibas", "saldo", "cajas", "total_cajas", "unidades"]);
 const ubi = (r: Renglon) => r.ubicacion_combinada ?? r.ubicacion ?? "";
 const CORTAS: Col<Fila>[] = [
   { k: "ub", t: "Ubicación", texto: ubi, pinta: (r) => <span className="ba-ub">{ubi(r) || "—"}</span> },
@@ -923,6 +925,19 @@ export function Base({
                   </tr>
                 ))}
               </tbody>
+              {/* EL SUBTOTAL DE LO QUE SE VE: suma TODOS los renglones que pasan el filtro (no solo la página). */}
+              <tfoot>
+                <tr>
+                  {hayCasillas && <td className="ba-chk" />}
+                  {columnas.map((c, i) => (
+                    <td key={c.k} className={c.num ? "num" : undefined}>
+                      {SUMABLES.has(c.k)
+                        ? nf.format(filas.reduce((t, r) => t + (Number(c.texto(r)) || 0), 0))
+                        : i === 0 ? `${vf ? "Subtotal de lo filtrado" : "Total"} · ${nf.format(filas.length)} ${filas.length === 1 ? "renglón" : "renglones"} · ${nf.format(kpVista.ubicaciones)} ${kpVista.ubicaciones === 1 ? "ubicación" : "ubicaciones"}` : ""}
+                    </td>
+                  ))}
+                </tr>
+              </tfoot>
             </table>
           </div>
         )}
