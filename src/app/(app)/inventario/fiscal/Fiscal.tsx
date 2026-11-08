@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { traducirError } from "@/lib/errores";
@@ -355,6 +355,79 @@ function rolInicial(equipo: Equipo, roles: RolF[]): string {
   return rolPorDefecto(roles, equipo);
 }
 
+/** Las familias de una hoja: un solo campo; lo marcado queda como etiquetas con × y la lista se abre debajo.
+    Producto y envase (EER) van en grupos aparte. Una hoja puede llevar todas las que se quiera. */
+function SelectorFamilias({ familias, marcadas, alAlternar, alLimpiar, hoja }: {
+  familias: { nombre: string; n: number; tipo?: "PT" | "EER" }[]; marcadas: string[];
+  alAlternar: (nombre: string) => void; alLimpiar: () => void; hoja: number;
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const caja = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!abierto) return;
+    const fuera = (e: MouseEvent) => { if (caja.current && !caja.current.contains(e.target as Node)) setAbierto(false) };
+    const tecla = (e: KeyboardEvent) => { if (e.key === "Escape") setAbierto(false) };
+    document.addEventListener("mousedown", fuera); document.addEventListener("keydown", tecla);
+    return () => { document.removeEventListener("mousedown", fuera); document.removeEventListener("keydown", tecla) };
+  }, [abierto]);
+  const esta = (n: string) => marcadas.some((x) => mismaFamilia(x, n));
+  const lista = familias.filter((f) => esta(f.nombre));
+  const sueltas = marcadas.filter((x) => !familias.some((f) => mismaFamilia(f.nombre, x)));
+  const codigos = lista.reduce((t, f) => t + f.n, 0);
+  const grupos = [["PT", "Producto"], ["EER", "Envase · EER"]] as const;
+  return (
+    <div className="fi-fams" ref={caja}>
+      <div className="fi-fams-cab">
+        <span className="fi-fams-t">Familias que cuentan</span>
+        <span className="fi-fams-res">
+          <b className="fi-pill">{marcadas.length} {marcadas.length === 1 ? "marcada" : "marcadas"}</b>
+          <span className="fi-pill l">{codigos} {codigos === 1 ? "código" : "códigos"}</span>
+        </span>
+      </div>
+      <div className={"fi-multi" + (abierto ? " abierto" : "")}>
+        {lista.map((f) => (
+          <span key={f.nombre} className={"fi-tag" + (f.tipo === "EER" ? " eer" : "")}>
+            {f.nombre} <i>{f.n}</i>
+            <button type="button" aria-label={`Quitar ${f.nombre} de la hoja ${hoja}`} onClick={() => alAlternar(f.nombre)}>×</button>
+          </span>
+        ))}
+        {sueltas.map((n) => (
+          <span key={n} className="fi-tag">{n}<button type="button" aria-label={`Quitar ${n}`} onClick={() => alAlternar(n)}>×</button></span>
+        ))}
+        <button type="button" className="fi-multi-b" aria-expanded={abierto} aria-haspopup="listbox" onClick={() => setAbierto((a) => !a)}>
+          <span>{marcadas.length ? "Agregar familia…" : "Sin familias todavía: toca para elegir"}</span><i aria-hidden="true" />
+        </button>
+      </div>
+      {abierto && (
+        <div className="fi-menu" role="listbox" aria-multiselectable="true" aria-label={`Familias de la hoja ${hoja}`}>
+          {grupos.map(([tp, tit]) => {
+            const fs = familias.filter((f) => (f.tipo ?? "PT") === tp);
+            if (!fs.length) return null;
+            return (
+              <div key={tp}>
+                <div className={"fi-mg " + (tp === "EER" ? "eer" : "")}>{tit}</div>
+                {fs.map((f) => {
+                  const on = esta(f.nombre);
+                  return (
+                    <button key={f.nombre} type="button" role="option" aria-selected={on} className={"fi-mr" + (on ? " on" : "") + (tp === "EER" ? " eer" : "")} onClick={() => alAlternar(f.nombre)}>
+                      <span className="fi-k" aria-hidden="true">{on ? "✓" : ""}</span>{f.nombre}<i>{f.n} {f.n === 1 ? "código" : "códigos"}</i>
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
+          <div className="fi-mpie">
+            <button type="button" className="fi-link" disabled={marcadas.length === 0} onClick={alLimpiar}>Quitar todas</button>
+            <button type="button" className="fi-link" onClick={() => setAbierto(false)}>Listo</button>
+          </div>
+        </div>
+      )}
+      <small className="fi-fams-nota">Es solo una guía para quien cuenta: no limita lo que puede anotar.</small>
+    </div>
+  );
+}
+
 function FormFiscal({ form, setForm, personas, roles: rolesIn, hoy, ocupado, mal, conCalle, conFamilias, familias, onGuardar, onCancelar }: {
   form: FormF; setForm: (f: FormF) => void; personas: Persona[]; roles: RolF[]; hoy: string; ocupado: boolean; mal: string | null; conCalle: boolean;
   conFamilias: boolean; familias: { nombre: string; n: number; tipo?: "PT" | "EER" }[];
@@ -363,6 +436,8 @@ function FormFiscal({ form, setForm, personas, roles: rolesIn, hoy, ocupado, mal
   const roles = useMemo(() => completarRoles(personas, rolesIn), [personas, rolesIn]);
   const conteo = useMemo(() => conteoPorRol(personas, roles), [personas, roles]);
   const [cuantas, setCuantas] = useState("1");
+  const [activa, setActiva] = useState(1);
+  const [pidiendo, setPidiendo] = useState(false);
   const [rolOl, setRolOl] = useState("");
   const [rolBa, setRolBa] = useState("");
   /* El localStorage solo existe en el navegador: se lee después de montar. */
@@ -390,7 +465,7 @@ function FormFiscal({ form, setForm, personas, roles: rolesIn, hoy, ocupado, mal
     const libres = del.filter((p) => !ocupadas.has(p.id)).length;
     return (
       <label className={"fi-rol " + (eq === "ol" ? "ol" : "ba")} key={eq}>
-        <span>{et}: buscar entre</span>
+        <span><em className={"fi-bd " + (eq === "ol" ? "ol" : "ba")}>{eq === "ol" ? "OL" : "BA"}</em>{et}: buscar entre</span>
         <select value={rol} onChange={(e) => escogeRol(eq, e.target.value)}>
           <option value="">Todos los usuarios</option>
           {conteo.map((c) => <option key={c.clave} value={c.clave}>{c.nombre} ({c.n})</option>)}
@@ -409,7 +484,7 @@ function FormFiscal({ form, setForm, personas, roles: rolesIn, hoy, ocupado, mal
 
   const casilla = (h: HojaForm, eq: Equipo, et: string) => (
     <div className={"fi-casilla " + (eq === "ol" ? "ol" : "ba")} key={eq}>
-      <span className="fi-et">{et}</span>
+      <span className="fi-et"><em className={"fi-bd " + (eq === "ol" ? "ol" : "ba")}>{eq === "ol" ? "OL" : "BA"}</em>{et}</span>
       <Buscador
         valor={h[eq]}
         marcador="Teclea el nombre"
@@ -422,8 +497,16 @@ function FormFiscal({ form, setForm, personas, roles: rolesIn, hoy, ocupado, mal
 
   return (
     <section className="fe-editor nuevo fi-form" aria-label={form.id ? "Editar inventario fiscal" : "Nuevo inventario fiscal"}>
-      <h2>{form.id ? "Editar inventario fiscal" : "Nuevo inventario fiscal"}</h2>
-      <div className="fe-campos">
+      <div className="fi-top">
+        <h2>{form.id ? "Editar inventario fiscal" : "Nuevo inventario fiscal"}</h2>
+        <div className="fi-prog" aria-label={`${r.completas} de ${r.total} parejas completas`}>
+          <span><b>{r.completas}</b> de {r.total} {r.total === 1 ? "pareja completa" : "parejas completas"}</span>
+          <div className="fi-bar" aria-hidden="true">
+            <i className="ok" style={{ flexGrow: r.completas }} /><i className="me" style={{ flexGrow: r.aMedias }} /><i className="va" style={{ flexGrow: r.vacias }} />
+          </div>
+        </div>
+      </div>
+      <div className="fe-campos fi-g3">
         <label className="ancho">
           <span>Nombre</span>
           <input value={form.nombre} maxLength={80} placeholder="Ej. Fiscal octubre"
@@ -438,14 +521,14 @@ function FormFiscal({ form, setForm, personas, roles: rolesIn, hoy, ocupado, mal
           <span>Fecha del inventario</span>
           <input type="date" value={form.fecha} onChange={(e) => ponFecha(e.target.value)} />
         </label>
-      </div>
-      <div className="fi-fecha">
-        {form.fecha && <b>{fechaConDia(form.fecha)} · {textoCuando(hoy, form.fecha)}</b>}
-        <span className="fi-atajos" role="group" aria-label="Atajos de fecha">
-          <button type="button" className="btn plano" aria-pressed={form.fecha === hoy} onClick={() => ponFecha(hoy)}>Hoy</button>
-          <button type="button" className="btn plano" aria-pressed={form.fecha === sumarDias(hoy, 1)} onClick={() => ponFecha(sumarDias(hoy, 1))}>Mañana</button>
-          <button type="button" className="btn plano" aria-pressed={form.fecha === viernes} onClick={() => ponFecha(viernes)}>Viernes</button>
-        </span>
+        <div className="fi-fecha">
+          <span className="fi-fecha-t">{form.fecha ? `${fechaConDia(form.fecha)} · ${textoCuando(hoy, form.fecha)}` : "Atajos"}</span>
+          <span className="fi-atajos" role="group" aria-label="Atajos de fecha">
+            <button type="button" className="btn plano" aria-pressed={form.fecha === hoy} onClick={() => ponFecha(hoy)}>Hoy</button>
+            <button type="button" className="btn plano" aria-pressed={form.fecha === sumarDias(hoy, 1)} onClick={() => ponFecha(sumarDias(hoy, 1))}>Mañana</button>
+            <button type="button" className="btn plano" aria-pressed={form.fecha === viernes} onClick={() => ponFecha(viernes)}>Viernes</button>
+          </span>
+        </div>
       </div>
 
       <h3 className="fi-t">Quién cuenta <small>filtra por rol y teclea el nombre</small></h3>
@@ -455,82 +538,78 @@ function FormFiscal({ form, setForm, personas, roles: rolesIn, hoy, ocupado, mal
       </div>
 
       <h3 className="fi-t">Hojas y parejas <small>{textoResumen(r)}</small></h3>
-      <div className="fi-hojas-form">
-        {form.hojas.map((h) => (
-          <div key={h.numero} className={"fi-hoja " + (h.ol && h.bavaria ? "st-ok" : h.ol || h.bavaria ? "st-med" : "st-vac") + (r.repetidas.size && [h.ol, h.bavaria].some((id) => id && r.repetidas.has(id)) ? " mal" : "")}>
-            <div className="fi-hoja-cab">
-              <b>Hoja {h.numero}</b>
-              <span className="fi-est">{h.ol && h.bavaria ? "Pareja completa" : h.ol ? "Falta Bavaria" : h.bavaria ? "Falta operador logístico" : "Sin nadie"}</span>
-              <button type="button" className="cl-quitar" onClick={() => cambia(quitarHoja(form.hojas, h.numero))}
-                      aria-label={`Quitar la hoja ${h.numero}`}>Quitar</button>
+      {(() => {
+        const estadoDe = (h: HojaForm) => (h.ol && h.bavaria ? "ok" : h.ol || h.bavaria ? "me" : "va");
+        const textoEstado = (h: HojaForm) => (h.ol && h.bavaria ? "Pareja completa" : h.ol ? "Falta Bavaria" : h.bavaria ? "Falta operador logístico" : "Sin nadie");
+        const hAct = form.hojas.find((x) => x.numero === activa) ?? form.hojas[0];
+        const agrega = (n: number) => {
+          const nuevas = agregarHojas(form.hojas, n);
+          cambia(nuevas);
+          setActiva(nuevas.reduce((m, x) => Math.max(m, x.numero), 0));
+        };
+        const quita = (numero: number) => {
+          const resto = quitarHoja(form.hojas, numero);
+          cambia(resto);
+          if (numero === (hAct?.numero ?? -1)) setActiva(resto.filter((x) => x.numero < numero).at(-1)?.numero ?? resto[0]?.numero ?? 1);
+        };
+        return (
+          <>
+            <div className="fi-tabs" role="tablist" aria-label="Hojas del inventario">
+              {form.hojas.map((h) => {
+                const rep = r.repetidas.size > 0 && [h.ol, h.bavaria].some((id) => id && r.repetidas.has(id));
+                const on = hAct?.numero === h.numero;
+                return (
+                  <div key={h.numero} className={"fi-tab" + (on ? " on" : "") + (rep ? " mal" : "")}>
+                    <button type="button" role="tab" aria-selected={on} id={`fi-tab-${h.numero}`} aria-controls="fi-cuerpo" className="fi-tab-b" onClick={() => setActiva(h.numero)}>
+                      <span className={"fi-st " + estadoDe(h)} aria-hidden="true" />Hoja {h.numero}
+                      <small>{h.calle ? `Calle ${h.calle}` : "Sin calle"}</small>
+                      <span className="fi-sr">{textoEstado(h)}</span>
+                    </button>
+                    <button type="button" className="fi-tab-x" aria-label={`Quitar la hoja ${h.numero}`} onClick={() => quita(h.numero)}>×</button>
+                  </div>
+                );
+              })}
+              <button type="button" className="fi-mas" onClick={() => agrega(1)}>＋ Hoja</button>
+              {pidiendo ? (
+                <span className="fi-varias">
+                  <input type="number" min={1} max={100} inputMode="numeric" value={cuantas} autoFocus
+                         onChange={(e) => setCuantas(e.target.value)} aria-label="Cuántas hojas agregar"
+                         onKeyDown={(e) => { if (e.key === "Enter") { agrega(Math.min(100, Math.max(1, Math.floor(Number(cuantas) || 1)))); setPidiendo(false) } if (e.key === "Escape") setPidiendo(false) }} />
+                  <button type="button" className="fi-mas pleno" onClick={() => { agrega(Math.min(100, Math.max(1, Math.floor(Number(cuantas) || 1)))); setPidiendo(false) }}>Agregar</button>
+                  <button type="button" className="fi-tab-x" aria-label="Cancelar" onClick={() => setPidiendo(false)}>×</button>
+                </span>
+              ) : <button type="button" className="fi-mas" onClick={() => setPidiendo(true)}>＋ Varias…</button>}
+              <span className="fi-leyenda" aria-hidden="true"><i className="fi-st ok" />completa<i className="fi-st me" />a medias<i className="fi-st va" />sin nadie</span>
             </div>
-            {conCalle && (
-              <label className="fi-calle-sel">
-                <span>Calle donde se cuenta</span>
-                <select value={h.calle ?? ""} onChange={(e) => cambia(ponerCalle(form.hojas, h.numero, e.target.value))}>
-                  <option value="">Sin calle todavía</option>
-                  {CALLES.map((c) => <option key={c} value={c}>Calle {c}</option>)}
-                </select>
-                {numeradosDe(h.calle).length >= 2 && (
-                  <small>
-                    El operador logístico cuenta de {numeradosDe(h.calle)[0]} a {numeradosDe(h.calle).at(-1)} y Bavaria de {numeradosDe(h.calle).at(-1)} a {numeradosDe(h.calle)[0]}: se cruzan a mitad de camino.
+            {hAct ? (
+              <div className={"fi-cuerpo" + (r.repetidas.size > 0 && [hAct.ol, hAct.bavaria].some((id) => id && r.repetidas.has(id)) ? " mal" : "")} id="fi-cuerpo" role="tabpanel" aria-labelledby={`fi-tab-${hAct.numero}`}>
+                <span className={"fi-est " + estadoDe(hAct)}>{textoEstado(hAct)}</span>
+                {conCalle && (
+                  <label className="fi-calle-sel">
+                    <span>Calle donde se cuenta</span>
+                    <select value={hAct.calle ?? ""} onChange={(e) => cambia(ponerCalle(form.hojas, hAct.numero, e.target.value))}>
+                      <option value="">Sin calle todavía</option>
+                      {CALLES.map((c) => <option key={c} value={c}>Calle {c}</option>)}
+                    </select>
+                  </label>
+                )}
+                {casilla(hAct, "ol", "Operador logístico")}
+                {casilla(hAct, "bavaria", "Bavaria")}
+                {conCalle && numeradosDe(hAct.calle).length >= 2 && (
+                  <small className="fi-calle-nota">
+                    El operador logístico cuenta de {numeradosDe(hAct.calle)[0]} a {numeradosDe(hAct.calle).at(-1)} y Bavaria de {numeradosDe(hAct.calle).at(-1)} a {numeradosDe(hAct.calle)[0]}: se cruzan a mitad de camino.
                   </small>
                 )}
-              </label>
-            )}
-            <div className="fi-pareja">
-              {casilla(h, "ol", "Operador logístico")}
-              {casilla(h, "bavaria", "Bavaria")}
-            </div>
-            {conFamilias && familias.length > 0 && (() => {
-              const act = h.familias ?? [];
-              const codigos = familias.filter((f) => act.some((x) => mismaFamilia(x, f.nombre))).reduce((n, f) => n + f.n, 0);
-              const grupos = [["PT", "Producto"], ["EER", "Envase · EER"]] as const;
-              return (
-                <div className="fi-fams" role="group" aria-label={`Familias de la hoja ${h.numero}`}>
-                  <span className="fi-fams-t">Familias que cuentan <small>las que quieras</small></span>
-                  {grupos.map(([tp, tit]) => {
-                    const lista = familias.filter((f) => (f.tipo ?? "PT") === tp);
-                    if (!lista.length) return null;
-                    return (
-                      <div key={tp} className="fi-fams-grupo">
-                        <span className={"fi-fams-g " + (tp === "EER" ? "eer" : "pt")}>{tit}</span>
-                        <div className="fi-fams-chips">
-                          {lista.map((f) => {
-                            const on = act.some((x) => mismaFamilia(x, f.nombre));
-                            return (
-                              <button key={f.nombre} type="button" className={"fi-fam" + (tp === "EER" ? " eer" : "") + (on ? " on" : "")} aria-pressed={on}
-                                      onClick={() => cambia(alternarFamilia(form.hojas, h.numero, f.nombre))}>
-                                {f.nombre}<i>{f.n}</i>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                  <small className="fi-fams-nota">
-                    {act.length === 0 ? "Sin familias todavía: es solo una guía para quien cuenta, no limita lo que puede anotar."
-                      : `${codigos} código${codigos === 1 ? "" : "s"} · ${act.length} ${act.length === 1 ? "familia" : "familias"}`}
-                  </small>
-                </div>
-              );
-            })()}
-          </div>
-        ))}
-      </div>
-
-      <div className="fi-agregar">
-        <label>
-          <span>Agregar</span>
-          <input type="number" min={1} max={100} inputMode="numeric" value={cuantas}
-                 onChange={(e) => setCuantas(e.target.value)} aria-label="Cuántas hojas agregar" />
-        </label>
-        <button type="button" className="btn plano" onClick={() => {
-          const n = Math.min(100, Math.max(1, Math.floor(Number(cuantas) || 1)));
-          cambia(agregarHojas(form.hojas, n));
-        }}>hojas más</button>
-      </div>
+                {conFamilias && familias.length > 0 && (
+                  <SelectorFamilias hoja={hAct.numero} familias={familias} marcadas={hAct.familias ?? []}
+                    alAlternar={(n) => cambia(alternarFamilia(form.hojas, hAct.numero, n))}
+                    alLimpiar={() => cambia(form.hojas.map((x) => (x.numero === hAct.numero ? { ...x, familias: [] } : x)))} />
+                )}
+              </div>
+            ) : <p className="fi-vacio">No hay hojas. Toca «＋ Hoja» para agregar la primera.</p>}
+          </>
+        );
+      })()}
 
       {(r.errores.length > 0 || mal) && (
         <div className="cl-mal" role="alert">
@@ -538,19 +617,18 @@ function FormFiscal({ form, setForm, personas, roles: rolesIn, hoy, ocupado, mal
           {!mal && <ul>{r.errores.map((x) => <li key={x}>{x}</li>)}</ul>}
         </div>
       )}
-      {r.errores.length === 0 && (r.aMedias > 0 || r.vacias > 0) && (
-        <p className="cl-nota">
-          {r.aMedias > 0 && <>{r.aMedias} {r.aMedias === 1 ? "hoja tiene" : "hojas tienen"} una sola persona. </>}
-          {r.vacias > 0 && <>{r.vacias} {r.vacias === 1 ? "hoja no tiene" : "hojas no tienen"} a nadie todavía. </>}
-          Se puede guardar así y completar después.
-        </p>
-      )}
-
-      <div className="cl-botones">
+      <div className="fi-pie">
+        <button type="button" className="btn plano" disabled={ocupado} onClick={onCancelar}>Cancelar</button>
+        <span className="fi-pie-nota">
+          {r.errores.length === 0 && (r.aMedias > 0 || r.vacias > 0) && (<>
+            {r.aMedias > 0 && <>{r.aMedias} {r.aMedias === 1 ? "hoja tiene" : "hojas tienen"} una sola persona. </>}
+            {r.vacias > 0 && <>{r.vacias} {r.vacias === 1 ? "hoja no tiene" : "hojas no tienen"} a nadie todavía. </>}
+            Se puede guardar así y completar después.
+          </>)}
+        </span>
         <button type="button" className="btn grande" disabled={!puede} onClick={onGuardar}>
           {ocupado ? "Guardando…" : form.id ? "Guardar los cambios" : "Guardar el inventario fiscal"}
         </button>
-        <button type="button" className="btn plano" disabled={ocupado} onClick={onCancelar}>Cancelar</button>
       </div>
     </section>
   );

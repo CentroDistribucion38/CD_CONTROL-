@@ -142,54 +142,124 @@
 .fe .fi-mapa-pie { margin: 6px 0 0; font-size: 12px; color: var(--fe-gris) }
 
 /* ---- FAMILIAS DE CADA HOJA: dos de las cinco (Lata, Tw, Ret, Pet, Barril) ---- */
-.fe .fi-fams { display: flex; flex-direction: column; gap: 6px; margin-top: 10px }
-.fe .fi-fams-t { font: 600 10.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase; color: var(--fe-gris) }
-.fe .fi-fams-t small { font: 500 11px var(--fe-texto); letter-spacing: 0; text-transform: none; margin-left: 6px }
-.fe .fi-fams-chips { display: flex; flex-wrap: wrap; gap: 6px }
-.fe .fi-fam {
-  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; cursor: pointer;
-  font: 700 14px var(--fe-texto); color: var(--fe-tinta); background: #fff; border: 1.5px solid var(--fe-tinta); border-radius: 0;
-}
-.fe .fi-fam i { font-style: normal; font-weight: 500; font-size: 12px; color: var(--fe-gris) }
-.fe .fi-fam.on { background: var(--fe-acento); color: var(--fe-sobre) }
-.fe .fi-fam.on i { color: inherit }
-.fe .fi-fam:disabled { cursor: not-allowed; opacity: .45; border-color: var(--fe-linea) }
-.fe .fi-fam:focus-visible { outline: 3px solid var(--fe-tinta); outline-offset: 2px }
-.fe .fi-fams-nota { font-size: 12px; color: var(--fe-gris) }
 .fe .fi-fams-ver { display: block; margin-top: 4px }
 .fe .fi-calle.fi-fams-ver { background: var(--fe-tinta); color: #fff }
-.fe .fi-fams-grupo { display: flex; align-items: center; gap: 10px; flex-wrap: wrap }
-.fe .fi-fams-g { flex: none; min-width: 92px; font: 700 11px var(--fe-texto); letter-spacing: .06em; text-transform: uppercase; color: var(--fe-tinta) }
 
-/* ---- PLAN FISCAL · COLORES PARA RECONOCER CADA COSA A LA PRIMERA ----
-   Operador logístico = azul · Bavaria = rojo · Calle = amarillo · Producto = amarillo/negro · Envase (EER) = verde azulado.
-   El borde izquierdo de cada hoja dice su estado: verde = pareja completa, ámbar = a medias, gris = sin nadie. */
-.fe .fi-form { --fi-ol: #1B4F8F; --fi-ba: #C8102E; --fi-eer: #0B7A75; --fi-ok: #0F7A4A; --fi-med: #E09A00 }
-.fe .fi-t { padding-left: 10px; border-left: 5px solid var(--fe-acento, #FFC400); line-height: 1.2 }
 
-.fe .fi-hoja { border-left-width: 6px; border-left-color: #9aa6b4 }
-.fe .fi-hoja.st-ok { border-left-color: var(--fi-ok) }
-.fe .fi-hoja.st-med { border-left-color: var(--fi-med) }
-.fe .fi-hoja.mal { border-left-color: var(--fe-mal) }
-.fe .fi-hoja-cab { justify-content: flex-start }
-.fe .fi-hoja-cab .cl-quitar { margin-left: auto }
-.fe .fi-est { font: 800 11px var(--fe-texto); letter-spacing: .04em; padding: 3px 9px; background: #eceef1; color: #4a5568 }
-.fe .fi-hoja.st-ok .fi-est { background: #E3F4EA; color: var(--fi-ok) }
-.fe .fi-hoja.st-med .fi-est { background: #FFF1CC; color: #7A5200 }
+/* =====================================================================
+   PLAN FISCAL · FORMULARIO CON UNA PESTAÑA POR HOJA
+   Mostaza de la marca (#F2B705) en lugar de grises y negros; el texto va en un casi-negro cálido
+   para que se lea sobre el mostaza. Todo recto, como el resto de CONTROL.
+   ===================================================================== */
+.fe .fi-form {
+  --fi-m: #F2B705; --fi-md: #D19F07; --fi-ml: #FFF3CE; --fi-mb: #FFF9E0; --fi-tx: #1c1a12; --fi-mut: #6f6a58; --fi-ok: #2F8F5B; --fi-bd: #d6cfae;
+  border-top: 4px solid var(--fi-m); color: var(--fi-tx);
+}
+.fe .fi-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 10px }
+.fe .fi-top h2 { margin: 0 }
+.fe .fi-prog { min-width: 240px; font-size: 12.5px; color: var(--fi-mut); text-align: right }
+.fe .fi-prog b { font: 900 15px var(--fe-titulo); color: var(--fi-tx) }
+.fe .fi-bar { display: flex; gap: 2px; height: 6px; margin-top: 6px; background: var(--fi-ml) }
+.fe .fi-bar i { display: block; min-width: 0 }
+.fe .fi-bar .ok { background: var(--fi-ok) } .fe .fi-bar .me { background: var(--fi-m) } .fe .fi-bar .va { background: #fff; box-shadow: inset 0 0 0 1px var(--fi-md) }
 
-.fe .fi-rol.ol > span, .fe .fi-casilla.ol .fi-et { color: var(--fi-ol) }
-.fe .fi-rol.ba > span, .fe .fi-casilla.ba .fi-et { color: var(--fi-ba) }
-.fe .fi-rol > span::before, .fe .fi-casilla .fi-et::before { content: ""; display: inline-block; width: 9px; height: 9px; margin-right: 7px; background: currentColor }
-.fe .fi-rol.ol select, .fe .fi-casilla.ol .bs-campo { border-left: 5px solid var(--fi-ol) }
-.fe .fi-rol.ba select, .fe .fi-casilla.ba .bs-campo { border-left: 5px solid var(--fi-ba) }
+.fe .fi-g3 { display: grid; grid-template-columns: minmax(0, 1fr) 200px auto; gap: 16px; align-items: start }
+.fe .fe-campos.fi-g3 label.ancho { grid-column: auto }
+.fe .fi-fecha { display: flex; flex-direction: column; gap: 6px; margin: 0 }
+.fe .fi-fecha-t { font: 600 10.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase; color: var(--fi-mut) }
+.fe .fi-atajos { display: flex; flex-wrap: nowrap }
+.fe .fi-atajos .btn { min-height: 44px; margin-left: -1px; border-radius: 0; border: 1px solid var(--fi-bd) }
+.fe .fi-atajos .btn[aria-pressed="true"] { background: var(--fi-m); border-color: var(--fi-m); color: var(--fi-tx); font-weight: 800; position: relative }
+@media (max-width: 860px) { .fe .fi-g3 { grid-template-columns: 1fr } }
 
-.fe .fi-calle-sel select { border-left: 5px solid var(--fe-acento, #FFC400) }
+.fe .fi-t { padding-left: 10px; border-left: 5px solid var(--fi-m); line-height: 1.2 }
+.fe .fi-bd, .fe .fi-bd.ol, .fe .fi-bd.ba {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 20px; padding: 0 6px; margin-right: 8px;
+  font: 800 10px var(--fe-texto); font-style: normal; letter-spacing: .06em; color: var(--fi-tx); vertical-align: middle;
+}
+.fe .fi-bd.ol { background: var(--fi-m) }
+.fe .fi-bd.ba { background: var(--fi-ml); box-shadow: inset 0 0 0 1.5px var(--fi-md) }
 
-.fe .fi-fams-g { flex: none; min-width: 104px; font: 800 11px var(--fe-texto); letter-spacing: .06em; text-transform: uppercase }
-.fe .fi-fams-g.pt { color: var(--fe-tinta) }
-.fe .fi-fams-g.eer { color: var(--fi-eer) }
-.fe .fi-fam { border-color: #9aa6b4 }
-.fe .fi-fam.on { background: var(--fe-acento, #FFC400); border-color: var(--fe-tinta); color: var(--fe-tinta) }
-.fe .fi-fam.eer { border-color: #7fb9b5; color: var(--fi-eer) }
-.fe .fi-fam.eer.on { background: var(--fi-eer); border-color: var(--fi-eer); color: #fff }
-.fe .fi-fam.eer i { color: inherit; opacity: .75 }
+/* LAS PESTAÑAS: una por hoja */
+.fe .fi-tabs { display: flex; align-items: flex-end; gap: 2px; flex-wrap: wrap; border-bottom: 1px solid var(--fi-bd); margin-top: 6px }
+.fe .fi-tab { display: flex; align-items: center; background: transparent; border-bottom: 3px solid transparent; margin-bottom: -1px }
+.fe .fi-tab-b { display: flex; align-items: center; gap: 0; min-height: 46px; padding: 0 4px 0 14px; cursor: pointer; background: transparent; border: 0; border-radius: 0; font: 700 13.5px var(--fe-texto); color: var(--fi-mut); white-space: nowrap }
+.fe .fi-tab-b small { margin-left: 8px; font: 500 12px var(--fe-texto); color: var(--fi-mut) }
+.fe .fi-tab-x { width: 30px; height: 30px; margin-right: 4px; cursor: pointer; background: transparent; border: 0; border-radius: 0; font-size: 17px; line-height: 1; color: var(--fi-mut) }
+.fe .fi-tab-x:hover { background: var(--fi-ml); color: var(--fi-tx) }
+.fe .fi-tab.on { border-bottom-color: var(--fi-m); background: linear-gradient(#fff, var(--fi-mb)) }
+.fe .fi-tab.on .fi-tab-b { color: var(--fi-tx) }
+.fe .fi-tab.mal { box-shadow: inset 0 3px 0 var(--fe-mal) }
+.fe .fi-tab-b:focus-visible, .fe .fi-tab-x:focus-visible, .fe .fi-mas:focus-visible { outline: 3px solid var(--fi-tx); outline-offset: -3px }
+.fe .fi-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0) }
+.fe .fi-st { display: inline-block; width: 9px; height: 9px; margin-right: 8px; flex: none }
+.fe .fi-st.ok { background: var(--fi-ok) } .fe .fi-st.me { background: var(--fi-m) } .fe .fi-st.va { background: #fff; box-shadow: inset 0 0 0 2px var(--fi-md) }
+.fe .fi-mas { min-height: 40px; margin-left: 6px; padding: 0 14px; cursor: pointer; background: transparent; border: 0; border-radius: 0; font: 800 13px var(--fe-texto); color: var(--fi-mut) }
+.fe .fi-mas:hover { color: var(--fi-tx); background: var(--fi-ml) }
+.fe .fi-mas.pleno { background: var(--fi-m); color: var(--fi-tx); margin-left: 0 }
+.fe .fi-varias { display: inline-flex; align-items: center; gap: 6px; margin-left: 6px; padding-bottom: 3px }
+.fe .fi-varias input { width: 76px; min-height: 40px; padding: 0 10px; font: 600 15px var(--fe-texto); border: 1.5px solid var(--fi-md); border-radius: 0; background: #fff }
+.fe .fi-leyenda { margin-left: auto; align-self: center; padding-bottom: 4px; font-size: 12px; color: var(--fi-mut); display: inline-flex; align-items: center }
+.fe .fi-leyenda .fi-st { margin-left: 12px }
+
+.fe .fi-cuerpo { padding: 16px; background: var(--fi-mb); border: 1px solid #e6dba8; border-top: 0; display: grid; grid-template-columns: 260px minmax(0, 1fr) minmax(0, 1fr); gap: 16px }
+.fe .fi-cuerpo.mal { border-color: var(--fe-mal) }
+.fe .fi-cuerpo > .fi-est { grid-column: 1 / -1; justify-self: start }
+.fe .fi-cuerpo .fi-calle-sel { margin: 0; max-width: none }
+.fe .fi-cuerpo .fi-calle-sel select { border-color: var(--fi-bd); background: #fff }
+.fe .fi-calle-nota { grid-column: 1 / -1; margin: -6px 0 0; font-size: 12px; color: var(--fi-mut) }
+.fe .fi-cuerpo .bs-campo { border-color: var(--fi-bd); background: #fff }
+.fe .fi-cuerpo .fi-casilla { min-width: 0 }
+.fe .fi-cuerpo .fi-calle-sel > span, .fe .fi-cuerpo .fi-et { color: var(--fi-mut) }
+.fe .fi-rol > span { color: var(--fi-mut) }
+.fe .fi-rol select { border-color: var(--fi-bd) }
+@media (max-width: 860px) { .fe .fi-cuerpo { grid-template-columns: 1fr } }
+.fe .fi-vacio { margin: 12px 0; color: var(--fi-mut) }
+
+.fe .fi-est { display: inline-flex; align-items: center; padding: 3px 9px; font: 800 10.5px var(--fe-texto); letter-spacing: .05em; text-transform: uppercase; background: #fff; color: var(--fi-mut); box-shadow: inset 0 0 0 1px var(--fi-bd) }
+.fe .fi-est.ok { background: #E3F4EA; color: var(--fi-ok); box-shadow: none }
+.fe .fi-est.me { background: var(--fi-ml); color: #7a5800; box-shadow: inset 0 0 0 1px #e6c36b }
+
+/* FAMILIAS: un campo con etiquetas y una lista que se abre debajo */
+.fe .fi-fams { grid-column: 1 / -1; position: relative }
+.fe .fi-fams-cab { display: flex; align-items: center; gap: 10px; margin-bottom: 6px }
+.fe .fi-fams-t { font: 600 10.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase; color: var(--fi-mut) }
+.fe .fi-fams-res { margin-left: auto; display: inline-flex; gap: 6px }
+.fe .fi-pill { font: 800 11.5px var(--fe-texto); padding: 4px 10px; background: var(--fi-m); color: var(--fi-tx) }
+.fe .fi-pill.l { background: var(--fi-ml) }
+.fe .fi-multi { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-height: 48px; padding: 7px 10px; background: #fff; border: 1px solid var(--fi-md) }
+.fe .fi-multi.abierto { box-shadow: 0 0 0 3px var(--fi-m) }
+.fe .fi-tag { display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 4px 0 11px; font: 700 13px var(--fe-texto); background: var(--fi-m); color: var(--fi-tx) }
+.fe .fi-tag i { font: 500 11.5px var(--fe-texto); font-style: normal; opacity: .65 }
+.fe .fi-tag button { width: 22px; height: 22px; padding: 0; cursor: pointer; font-size: 14px; line-height: 1; color: var(--fi-tx); background: rgba(28, 26, 18, .14); border: 0; border-radius: 0 }
+.fe .fi-tag button:hover { background: rgba(28, 26, 18, .28) }
+.fe .fi-tag.eer { background: #fff; box-shadow: inset 0 0 0 2px var(--fi-m) }
+.fe .fi-tag.eer button { background: var(--fi-ml) }
+.fe .fi-multi-b { flex: 1; min-width: 160px; min-height: 32px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 2px; cursor: pointer; background: transparent; border: 0; border-radius: 0; font: 400 14px var(--fe-texto); color: #8b8670; text-align: left }
+.fe .fi-multi-b i { width: 8px; height: 8px; flex: none; border-right: 2px solid var(--fi-tx); border-bottom: 2px solid var(--fi-tx); transform: rotate(45deg) translateY(-2px) }
+.fe .fi-multi.abierto .fi-multi-b i { transform: rotate(225deg) }
+.fe .fi-multi-b:focus-visible { outline: 3px solid var(--fi-tx); outline-offset: 2px }
+.fe .fi-menu { position: absolute; left: 0; right: 0; z-index: 30; margin-top: 4px; background: #fff; border: 1.5px solid var(--fi-tx); box-shadow: 0 14px 34px rgba(0, 0, 0, .22); max-height: 340px; overflow: auto }
+.fe .fi-mg { padding: 7px 12px; background: var(--fi-mb); border-bottom: 1px solid var(--fi-bd); font: 800 11px var(--fe-texto); letter-spacing: .06em; text-transform: uppercase }
+.fe .fi-mg.eer { border-top: 1px solid var(--fi-bd) }
+.fe .fi-mr { width: 100%; display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 0 12px; cursor: pointer; background: #fff; border: 0; border-bottom: 1px solid #f1eddc; border-radius: 0; font: 700 14px var(--fe-texto); color: var(--fi-tx); text-align: left }
+.fe .fi-mr i { margin-left: auto; font: 500 12px var(--fe-texto); font-style: normal; color: var(--fi-mut) }
+.fe .fi-mr:hover { background: var(--fi-mb) }
+.fe .fi-mr.on { background: var(--fi-ml) }
+.fe .fi-k { width: 18px; height: 18px; flex: none; display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--fi-tx); border: 1.5px solid #b9b08a; background: #fff }
+.fe .fi-mr.on .fi-k { background: var(--fi-m); border-color: var(--fi-md) }
+.fe .fi-mr:focus-visible { outline: 3px solid var(--fi-tx); outline-offset: -3px }
+.fe .fi-mpie { position: sticky; bottom: 0; display: flex; justify-content: space-between; padding: 8px 12px; background: #fff; border-top: 1px solid var(--fi-bd) }
+.fe .fi-link { padding: 4px 2px; cursor: pointer; background: transparent; border: 0; font: 700 13px var(--fe-texto); color: var(--fi-tx); text-decoration: underline }
+.fe .fi-link:disabled { opacity: .4; cursor: default }
+.fe .fi-fams-nota { display: block; margin-top: 6px; font-size: 12px; color: var(--fi-mut) }
+
+/* EL PIE: Cancelar · nota · Guardar */
+.fe .fi-pie { display: flex; align-items: center; gap: 16px; margin-top: 18px; flex-wrap: wrap }
+.fe .fi-pie-nota { flex: 1; min-width: 200px; font-size: 12.5px; color: var(--fi-mut) }
+.fe .fi-pie .btn { margin: 0; min-height: 48px }
+.fe .fi-pie .btn.plano { border: 1px solid var(--fi-md); background: #fff; color: var(--fi-tx); padding: 0 22px }
+.fe .fi-pie .btn.grande { width: auto; flex: 1.2; min-width: 240px; background: var(--fi-m); border-color: var(--fi-m); color: var(--fi-tx); box-shadow: inset 0 -3px 0 #c99a00; font-weight: 800 }
+.fe .fi-pie .btn.grande:disabled { opacity: .5 }
+
+.fe .fi-pill { white-space: nowrap }
