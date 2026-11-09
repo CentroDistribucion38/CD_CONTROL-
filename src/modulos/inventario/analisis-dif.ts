@@ -456,7 +456,7 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   /* 5. LA PLANTILLA: novedades (y la ZEXI de las 6). */
   const novedades = ((novR.data ?? []) as Novedad[]);
   let hayZexi = false;
-  let zexiProdCajas = 0, zexiProdN = 0; const zexiProdSin: string[] = [];
+  let zexiProdCajas = 0, zexiProdN = 0, zexiProdNo = 0; const zexiProdSin: string[] = [];
   /* Si la novedad (tipo + documento) ya trae sus cajas plásticas como filas propias, no se deduce caja
      de los envases: se contaría dos veces (así lo hace el Excel: la caja va escrita). */
   const grupoNv = (nv: Novedad) => `${norm(nv.tipo)}|${nv.documento ?? ""}`;
@@ -473,9 +473,26 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     /* ZEXI PRODUCTO: la ZEXI de los productos (en unidades) SOLO sirve para la caja plástica que lleva adentro cada uno: esa caja suma a SAP
        (en el conteo ya entra como «CONTEO · en producto»). El producto en sí NO se toma ni se compara. */
     if (norm(nv.tipo) === "ZEXI PRODUCTO") {
-      const cj = Number(nv.cajas) || 0;
-      if (nv.caja_codigo && cj > 0) { suma("sap", String(nv.caja_codigo), "ZEXI · cajas en producto", cj); zexiProdCajas += cj; zexiProdN++ }
-      else if ((Number(nv.unidades) || 0) > 0) zexiProdSin.push(`${nv.codigo} ${nombre(String(nv.codigo))}`);
+      /* LA MISMA REGLA DEL CONTEO («CONTEO · en producto»), para que las dos puntas hablen de la misma caja: lo que el usuario definió (cartón / caja escogida),
+         un envase que no entra al cuadre no lleva caja, y si no, la del Maestro Sku vs Caja. Las cajas = unidades ÷ unidades por caja del producto. */
+      const c = String(nv.codigo), un = Number(nv.unidades) || 0, conMaestro = !!P.get(c)?.unidades_por_caja;
+      const def = EMP.get(c);
+      const env = P.get(c)?.envase_sku ? String(P.get(c)!.envase_sku) : null;
+      const envFuera = !!env && (CAJA_FUERA_DEL_CUADRE.has(env) || excluye(regla, env, nombre(env)));
+      const cajaP: string | null = def?.empaque === "CARTON" ? null
+        : def?.empaque === "PLASTICA" && def.caja ? def.caja
+        : envFuera ? null : cajaMaestro.get(c) ?? (!conMaestro ? nv.caja_codigo : null);
+      const cj = conMaestro ? (upc(c) > 1 ? Math.floor(un / upc(c)) : 0) : (Number(nv.cajas) || 0);
+      if (cajaP && cj > 0) { suma("sap", String(cajaP), "ZEXI · cajas en producto", cj); zexiProdCajas += cj; zexiProdN++ }
+      else if (cj > 0 && def?.empaque !== "CARTON" && !envFuera) {
+        /* Sin caja en el maestro: solo se avisa si por su formato PARECE de caja plástica (retornable o con caja sugerida); lata, PET y no retornable no llevan. */
+        const sug = cajaPorPresentacion(P.get(c));
+        if (sug || /\b(RN|RB|BR|RJ|R)\b/i.test(nombre(c)) && !/\b(NR|NRB|BNR|TW|LTA|LATA|PET)\b/i.test(nombre(c))) {
+          const a = sinCajaMap.get(c) ?? { codigo: c, nombre: nombre(c), cajas: 0, motivo: "en la ZEXI: no está en el Maestro Sku vs Caja", sugerida: sug };
+          a.cajas += cj; sinCajaMap.set(c, a);
+          zexiProdSin.push(`${c} ${nombre(c)}${sug ? ` (por su formato iría en ${sug} ${nombre(sug)})` : ""}`);
+        } else zexiProdNo++;
+      } else zexiProdNo++;
       continue;
     }
     const lado = nv.lado === "SAP" ? "sap" : "conteo";
@@ -486,8 +503,8 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   }
   if (zexiProdN || zexiProdSin.length) {
     fuentes.push({ nombre: "ZEXI de productos (caja plástica)", ok: zexiProdN > 0,
-      detalle: `${zexiProdN} productos con caja · ${Math.round(zexiProdCajas).toLocaleString("es-CO")} cajas plásticas suman a SAP${zexiProdSin.length ? ` · ${zexiProdSin.length} sin caja en el Maestro Sku vs Caja (no suman)` : ""}` });
-    if (zexiProdSin.length) avisos.push(`ZEXI de productos: ${zexiProdSin.length} sin caja plástica en el Maestro Sku vs Caja, no suman nada a SAP: ${zexiProdSin.slice(0, 40).join(" · ")}${zexiProdSin.length > 40 ? " …" : ""}.`);
+      detalle: `${zexiProdN} productos con caja · ${Math.round(zexiProdCajas).toLocaleString("es-CO")} cajas plásticas suman a SAP${zexiProdSin.length ? ` · ${zexiProdSin.length} que parecen de caja plástica y no la tienen en el Maestro Sku vs Caja (no suman)` : ""}${zexiProdNo ? ` · ${zexiProdNo} sin caja plástica (lata, PET, no retornable, cartón)` : ""}` });
+    if (zexiProdSin.length) avisos.push(`ZEXI de productos: ${zexiProdSin.length} parecen de caja plástica y no la tienen en el Maestro Sku vs Caja, no suman a SAP (defínela en «Sin caja» del análisis y suma igual en conteo y SAP): ${zexiProdSin.slice(0, 40).join(" · ")}${zexiProdSin.length > 40 ? " …" : ""}.`);
   }
   if (depaIgnorada.size) avisos.push(`La plantilla trae DEPA de ${[...depaIgnorada].sort().join(", ")}, pero esas líneas ya salen del corte inicial: se usó el corte, no la plantilla.`);
   if (depaPlantilla.size) {
