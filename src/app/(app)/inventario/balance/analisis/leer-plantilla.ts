@@ -10,6 +10,7 @@ const txt = (v: Celda) => String(v ?? "").trim();
 const num = (v: Celda) => { const n = typeof v === "number" ? v : Number(txt(v).replace(/\./g, "").replace(",", ".")); return Number.isFinite(n) ? n : 0 };
 const codigo = (v: Celda) => txt(v).replace(/\.0+$/, "");
 
+const ZEXI_PRODUCTO = "ZEXI PRODUCTO";
 export type FilaPlantilla = { tipo: string; lado: "CONTEO" | "SAP" | "NO SUMA"; documento: string | null; codigo: string; unidades: number; caja_codigo: string | null; cajas: number | null };
 export type Lectura = { fecha: string | null; filas: FilaPlantilla[]; errores: string[] };
 
@@ -28,6 +29,8 @@ export async function leerPlantilla(archivo: File, sistema: MaestroSistema = {})
     const n = txt(f[0]).toUpperCase(); if (!n) continue;
     tipos.set(n, { lado: txt(f[1]).toUpperCase(), pide: /^s/i.test(txt(f[2])), caja: /^s/i.test(txt(f[4])) });
   }
+  /* ZEXI PRODUCTO: la ZEXI de los productos (unidades). No suma el producto: solo su caja plástica, a SAP. Ya viene de fábrica aunque la hoja TIPOS no la traiga. */
+  if (!tipos.has(ZEXI_PRODUCTO)) tipos.set(ZEXI_PRODUCTO, { lado: "SAP", pide: false, caja: true });
   const maestro = new Map<string, { upc: number; cpe: number; caja: string | null }>();
   for (const f of filas("MAESTRO").slice(1)) {
     const c = codigo(f[0]); if (!/^\d+$/.test(c)) continue;
@@ -50,9 +53,11 @@ export async function leerPlantilla(archivo: File, sistema: MaestroSistema = {})
     const t = tipos.get(tipo), sis = sistema[cod];
     /* La hoja MAESTRO de la plantilla manda; si no trae el código, o lo trae sin caja, se completa con el maestro del sistema. */
     const propio = maestro.get(cod);
-    const m = propio
+    const m0 = propio
       ? (!propio.caja && sis?.caja ? { upc: propio.upc > 1 ? propio.upc : sis.upc, cpe: propio.cpe || sis.cpe, caja: sis.caja } : propio)
       : sis ? { upc: sis.upc || 1, cpe: sis.cpe, caja: sis.caja } : undefined;
+    /* Un producto de la ZEXI que el sistema no conoce no frena la plantilla: simplemente no trae caja y no suma. */
+    const m = m0 ?? (tipo === ZEXI_PRODUCTO ? { upc: 1, cpe: 0, caja: null } : undefined);
     if (!tipo) { errores.push(`Fila ${fila}: falta el tipo.`); return }
     if (!t || !["CONTEO", "SAP", "NO SUMA"].includes(t.lado)) { errores.push(`Fila ${fila}: el tipo «${tipo}» no tiene «SUMA EN» en la hoja TIPOS.`); return }
     if (!cod) { errores.push(`Fila ${fila}: falta el código.`); return }

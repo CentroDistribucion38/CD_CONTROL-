@@ -456,6 +456,7 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
   /* 5. LA PLANTILLA: novedades (y la ZEXI de las 6). */
   const novedades = ((novR.data ?? []) as Novedad[]);
   let hayZexi = false;
+  let zexiProdCajas = 0, zexiProdN = 0; const zexiProdSin: string[] = [];
   /* Si la novedad (tipo + documento) ya trae sus cajas plásticas como filas propias, no se deduce caja
      de los envases: se contaría dos veces (así lo hace el Excel: la caja va escrita). */
   const grupoNv = (nv: Novedad) => `${norm(nv.tipo)}|${nv.documento ?? ""}`;
@@ -469,11 +470,24 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
       if (depaDelCorte.has(lineaDepa)) { depaIgnorada.add(lineaDepa); continue }
       depaPlantilla.add(lineaDepa);
     }
+    /* ZEXI PRODUCTO: la ZEXI de los productos (en unidades) SOLO sirve para la caja plástica que lleva adentro cada uno: esa caja suma a SAP
+       (en el conteo ya entra como «CONTEO · en producto»). El producto en sí NO se toma ni se compara. */
+    if (norm(nv.tipo) === "ZEXI PRODUCTO") {
+      const cj = Number(nv.cajas) || 0;
+      if (nv.caja_codigo && cj > 0) { suma("sap", String(nv.caja_codigo), `SAP · en producto ${nv.codigo} ${nombre(String(nv.codigo))}`, cj); zexiProdCajas += cj; zexiProdN++ }
+      else if ((Number(nv.unidades) || 0) > 0) zexiProdSin.push(`${nv.codigo} ${nombre(String(nv.codigo))}`);
+      continue;
+    }
     const lado = nv.lado === "SAP" ? "sap" : "conteo";
     const etq = norm(nv.tipo) + (nv.documento ? ` · ${nv.documento}` : "");
     suma(lado, String(nv.codigo), norm(nv.tipo) === "ZEXI 6 AM" ? "ZEXI 6 AM" : etq, Number(nv.unidades) || 0);
     if (nv.caja_codigo && nv.cajas && !conCajaPropia.has(grupoNv(nv))) suma(lado, String(nv.caja_codigo), etq, Number(nv.cajas) || 0);
     if (norm(nv.tipo) === "ZEXI 6 AM") hayZexi = true;
+  }
+  if (zexiProdN || zexiProdSin.length) {
+    fuentes.push({ nombre: "ZEXI de productos (caja plástica)", ok: zexiProdN > 0,
+      detalle: `${zexiProdN} productos con caja · ${Math.round(zexiProdCajas).toLocaleString("es-CO")} cajas plásticas suman a SAP${zexiProdSin.length ? ` · ${zexiProdSin.length} sin caja en el Maestro Sku vs Caja (no suman)` : ""}` });
+    if (zexiProdSin.length) avisos.push(`ZEXI de productos: ${zexiProdSin.length} sin caja plástica en el Maestro Sku vs Caja, no suman nada a SAP: ${zexiProdSin.slice(0, 40).join(" · ")}${zexiProdSin.length > 40 ? " …" : ""}.`);
   }
   if (depaIgnorada.size) avisos.push(`La plantilla trae DEPA de ${[...depaIgnorada].sort().join(", ")}, pero esas líneas ya salen del corte inicial: se usó el corte, no la plantilla.`);
   if (depaPlantilla.size) {
@@ -535,11 +549,11 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     };
     /* LAS CAJAS QUE VAN EN PRODUCTO SE TOTALIZAN EN UN SOLO RENGLÓN («CONTEO · en producto»); cada producto queda adentro, para discriminarlo al abrirlo. */
     const EN_PRODUCTO = "CONTEO · en producto";
-    const lista = (m: Map<string, number>): Partida[] => {
-      const grupo: Partida = { nombre: EN_PRODUCTO, cantidad: 0, detalle: [] };
+    const lista = (m: Map<string, number>, enProducto = EN_PRODUCTO): Partida[] => {
+      const grupo: Partida = { nombre: enProducto, cantidad: 0, detalle: [] };
       const resto: Partida[] = [];
       for (const [nombre, cantidad] of m) {
-        if (nombre.startsWith(EN_PRODUCTO + " ")) { grupo.cantidad += cantidad; grupo.detalle!.push({ nombre: nombre.slice(EN_PRODUCTO.length + 1), cantidad: Math.round(cantidad) }) }
+        if (nombre.startsWith(enProducto + " ")) { grupo.cantidad += cantidad; grupo.detalle!.push({ nombre: nombre.slice(enProducto.length + 1), cantidad: Math.round(cantidad) }) }
         else resto.push({ nombre, cantidad: Math.round(cantidad) });
       }
       if (grupo.detalle!.length) { grupo.cantidad = Math.round(grupo.cantidad); grupo.detalle!.sort((x, y) => y.cantidad - x.cantidad); resto.push(grupo) }
@@ -547,7 +561,7 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     };
     const sap = Math.round([...a.sap.values()].reduce((t, v) => t + v, 0));
     const conteo = Math.round([...a.conteo.values()].reduce((t, v) => t + v, 0));
-    filas.push({ familia: familia as string, orden: orden as number, codigo, descripcion: nombre(codigo), sap, conteo, diferencia: conteo - sap, deSap: lista(a.sap), deConteo: lista(a.conteo),
+    filas.push({ familia: familia as string, orden: orden as number, codigo, descripcion: nombre(codigo), sap, conteo, diferencia: conteo - sap, deSap: lista(a.sap, "SAP · en producto"), deConteo: lista(a.conteo),
       ...(ubicMap.get(codigo)?.size ? { ubicaciones: [...ubicMap.get(codigo)!].map(([ubicacion, cantidad]) => ({ ubicacion, cantidad: Math.round(cantidad) })).filter((x) => x.cantidad !== 0).sort((x, y) => Math.abs(y.cantidad) - Math.abs(x.cantidad) || x.ubicacion.localeCompare(y.ubicacion, "es", { numeric: true })) } : {}),
       ...(soloConteo ? { soloConteo: true } : {}),
       ...(codigo === ESTIBA && estFuera.size ? { fuera: [...estFuera].map(([nombre, cantidad]) => ({ nombre, cantidad: Math.round(cantidad) })).sort((x, y) => y.cantidad - x.cantidad) } : {}), ...(pendSap.get(codigo) ? { pendSap: pendSap.get(codigo) } : {}), ...(descuadresAlm.get(codigo) ? { descuadres: descuadresAlm.get(codigo) } : {}) });
