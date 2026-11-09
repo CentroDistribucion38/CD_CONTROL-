@@ -465,59 +465,149 @@ export async function armarCruceFiscal(o0: InsumosCruce): Promise<ArrayBuffer> {
   df.views = [{ showGridLines: false, state: "frozen", ySplit: FF0 }];
 
   /* =================== CONCILIADO =================== */
-  /* El cruce DESPUÉS de lo que decidió el fiscal: lo compensado o aprobado queda en 0 y se ve el conteo definitivo. Lo que no se resolvió sigue en rojo. */
+  /* El cruce DESPUÉS de lo que decidió el fiscal: lo compensado o aprobado queda en 0 y se ve el conteo definitivo. Lo que no se resolvió sigue en rojo.
+     Las columnas siguen la estructura del Excel de la BD (Cruce OL vs Bavaria): a la izquierda el operador, a la derecha Bavaria, cada lado con
+     Cajas · Estibas · Saldo · Sueltas · Unidades · Vence · Envase · Hora, y al final el cruce, lo que decidió el fiscal y el conteo definitivo. */
   {
-    const CC = ["Hoja", "Pareja (operador · Bavaria)", "Sitio", "Código", "Material", "Cajas operador", "Cajas Bavaria", "Diferencia cruda", "Resolución del fiscal", "Diferencia final", "Conteo definitivo", "Cajas definitivas"];
-    const CA = [2, 7, 34, 18, 11, 38, 13, 13, 13, 28, 13, 16, 14, 2];
+    const LADO = ["Cajas", "Estibas", "Saldo", "Sueltas", "Unidades", "Vence", "Envase", "Hora"];
+    const CC = ["Hoja", "Pareja (operador · Bavaria)", "Sitio", "Código", "Material", ...LADO, ...LADO,
+      "Diferencia cruda", "Resolución del fiscal", "Diferencia final", "Conteo definitivo", "Estibas definitivas", "Cajas definitivas"];
+    const CA = [2, 7, 34, 18, 11, 38, 11, 8, 8, 8, 9, 13, 11, 8, 11, 8, 8, 8, 9, 13, 11, 8, 13, 28, 13, 13, 11, 14, 2];
     cn.columns = CA.map((w) => ({ width: w }));
-    const filasC = todas.slice().sort((a, b) => a.h.numero - b.h.numero || a.f.ubicacion.localeCompare(b.f.ubicacion, "es", { numeric: true }) || a.f.sku.localeCompare(b.f.sku, "es", { numeric: true }));
+    /* Columnas de la hoja (la A es margen). */
+    const cOl = 7, cBa = 15, cCruda = 23, cRes = 24, cFinal = 25, cDef = 26, cEstDef = 27, cCajDef = 28;
+    const L = (c: number) => cn.getColumn(c).letter;
+    const clave = (u: string, s: string, d: number | null, m: number | null, a: number | null) => `${u}|${s}|${d ?? ""}|${m ?? ""}|${a ?? ""}`;
+    /* SIN EXCLUIR NADA: una hoja que todavía no se puede cruzar (falta que alguien termine) también entra, con lo que cada persona anotó hasta ahora. */
+    const filasDeConteos = (h: HojaCruzada): FilaCruce[] => {
+      const g = new Map<string, { ol: ConteoPersona[]; ba: ConteoPersona[] }>();
+      for (const c of h.conteos ?? []) {
+        const k = clave(c.ubicacion, c.sku, c.vencDia, c.vencMes, c.vencAnio);
+        const x = g.get(k) ?? g.set(k, { ol: [], ba: [] }).get(k)!;
+        (c.equipo === "OL" ? x.ol : x.ba).push(c);
+      }
+      return [...g.values()].map(({ ol, ba }) => {
+        const c0 = (ol[0] ?? ba[0])!;
+        const tot = (cs: ConteoPersona[]) => (cs.length ? r6(cs.reduce((t, c) => t + c.totalCajas, 0)) : null);
+        const cO = tot(ol), cB = tot(ba), dif = r6((cO ?? 0) - (cB ?? 0));
+        const estado: EstadoFila = cO == null ? "SOLO_BAVARIA" : cB == null ? "SOLO_OL" : dif === 0 ? "COINCIDE" : "DIFIERE";
+        return { ubicacion: c0.ubicacion, sku: c0.sku, material: c0.material, vencDia: c0.vencDia, vencMes: c0.vencMes, vencAnio: c0.vencAnio,
+          cajasOl: cO, cajasBavaria: cB, sueltasOl: 0, sueltasBavaria: 0, upc: 1, diferencia: dif, estado } as FilaCruce;
+      });
+    };
+    const hojasC: HojaCruzada[] = o.hojas.flatMap((h) => (h.filas ? [h] : (h.conteos?.length ?? 0) > 0 ? [{ ...h, filas: filasDeConteos(h) }] : []));
+    const nSinCruzar = hojasC.length - cruzadas.length;
+    const todasC = hojasC.flatMap((h) => h.filas!.map((f) => ({ h, f })));
+    const filasC = todasC.slice().sort((a, b) => a.h.numero - b.h.numero || a.f.ubicacion.localeCompare(b.f.ubicacion, "es", { numeric: true }) || a.f.sku.localeCompare(b.f.sku, "es", { numeric: true }));
     const sinRes = filasC.filter(({ h, f }) => !estaResuelta(h, f)).length;
     cabecera(cn, P, sello, "Conciliado · como quedó después del fiscal",
-      `${sub}  ·  ${filasC.length} renglones  ·  ${filasC.length - sinRes} resueltos  ·  ${sinRes} sin resolver`, CA.length);
-    cn.mergeCells(6, 3, 6, 13);
-    const nt = cn.getCell(6, 3);
-    nt.value = "Diferencia final = 0 en lo que el fiscal compensó o aprobó (y en lo que coincide); lo que sigue sin resolver conserva su diferencia en rojo. Conteo definitivo = el que el fiscal dejó (si no escogió, el del operador).";
-    nt.font = letra(8.5, P.GRIS); nt.alignment = { vertical: "middle", indent: 0 }; cn.getRow(6).height = 18;
+      `${sub}  ·  ${filasC.length} renglones  ·  ${filasC.length - sinRes} resueltos  ·  ${sinRes} sin resolver${nSinCruzar ? `  ·  incluye ${nSinCruzar} ${nSinCruzar === 1 ? "hoja" : "hojas"} sin cruzar (lo contado hasta ahora)` : ""}`, CA.length);
+
+    /* Rótulos de grupo sobre el encabezado, como en la BD: código · operador · Bavaria · cruce · fiscal · definitivo. */
+    cn.getRow(6).height = 18;
+    const grupo = (d: number, a: number, txt: string, color: string) => {
+      if (a > d) cn.mergeCells(6, d, 6, a);
+      const x = cn.getCell(6, d); x.value = txt; x.font = letra(10, BLANCO, true); x.alignment = { vertical: "middle", horizontal: "center" };
+      for (let c = d; c <= a; c++) cn.getCell(6, c).fill = relleno(color);
+    };
+    grupo(2, 6, "CÓDIGO", P.TINTA); grupo(cOl, cOl + 7, "OPERADOR LOGÍSTICO", P.TINTA); grupo(cBa, cBa + 7, "BAVARIA", ROJO);
+    grupo(cCruda, cCruda, "CRUCE", P.TINTA); grupo(cRes, cFinal, "CONCILIADO", VERDE); grupo(cDef, cCajDef, "DEFINITIVO", P.TINTA);
     encabezado(cn, 7, P, CC);
+    for (let c = cBa; c <= cBa + 7; c++) cn.getCell(7, c).fill = relleno(ROJO);
+    for (let c = cRes; c <= cFinal; c++) cn.getCell(7, c).fill = relleno(VERDE);
+
+    /* Lo que anotó cada persona (estibas, saldo, sueltas, unidades, hora) de cada renglón del cruce. */
+    type Lado = { estibas: number; saldo: number; cajas: number; unidades: number; hora: Date | null };
+    const claveF = (f: FilaCruce) => clave(f.ubicacion, f.sku, f.vencDia, f.vencMes, f.vencAnio);
+    const porClave = new Map<HojaCruzada, { cs: Map<string, ConteoPersona[]>; fs: Map<string, number> }>();
+    for (const h of hojasC) {
+      const cs = new Map<string, ConteoPersona[]>(), fs = new Map<string, number>();
+      for (const c of h.conteos ?? []) { const k = `${c.equipo}|${clave(c.ubicacion, c.sku, c.vencDia, c.vencMes, c.vencAnio)}`; (cs.get(k) ?? cs.set(k, []).get(k)!).push(c) }
+      for (const f of h.filas ?? []) fs.set(claveF(f), (fs.get(claveF(f)) ?? 0) + 1);
+      porClave.set(h, { cs, fs });
+    }
+    const horaCo = (iso: string | null): Date | null => (iso ? new Date(new Date(iso).getTime() - 5 * 3600_000) : null);
+    const ladoDe = (h: HojaCruzada, f: FilaCruce, eq: "OL" | "BAVARIA"): Lado | null => {
+      if (!h.conteos) return null;
+      const pk = porClave.get(h)!, k = claveF(f);
+      let cs = pk.cs.get(`${eq}|${k}`) ?? [];
+      /* Si dos renglones del cruce comparten sitio, material y vencimiento (p. ej. NUEVO y RETORNO), se reparte por cantidad. */
+      if ((pk.fs.get(k) ?? 0) > 1) { const caj = eq === "OL" ? f.cajasOl : f.cajasBavaria; cs = cs.filter((c) => caj != null && Math.abs(c.totalCajas - caj) < 1e-6) }
+      if (cs.length === 0) return null;
+      const t = (g: (c: ConteoPersona) => number | null) => cs.reduce((s, c) => s + (g(c) ?? 0), 0);
+      const hs = cs.map((c) => c.contadoEn).filter((x): x is string => !!x).sort();
+      return { estibas: t((c) => c.estibas), saldo: t((c) => c.saldo), cajas: t((c) => c.cajas), unidades: t((c) => c.unidades), hora: horaCo(hs.length ? hs[hs.length - 1] : null) };
+    };
+    const ladoVals = (f: FilaCruce, cajas: number | null, a: Lado | null): ExcelJS.CellValue[] =>
+      cajas == null ? ["no anotó", null, null, null, null, "", "", null]
+        : [cajas, a?.estibas ?? null, a?.saldo ?? null, a?.cajas ?? null, a?.unidades ?? null, textoVenc(f.vencDia, f.vencMes, f.vencAnio), f.estadoEnvase ?? "", a?.hora ?? null];
+
     const equipoDe = (h: HojaCruzada, ubic: string): "OL" | "BAVARIA" => {
       const m = modDe(ubic);
       const ad = h.definitivo?.[m];
       if (ad) return ad;
       return (h.filas ?? []).some((x) => modDe(x.ubicacion) === m && x.cajasOl != null) ? "OL" : "BAVARIA";
     };
+    const NUMK = new Set([5, 6, 7, 8, 9, 13, 14, 15, 16, 17, 21, 23, 25, 26]);
+    const CENTROK = new Set([0, 10, 11, 12, 18, 19, 20, 24]);
+    const sumas = { estOl: 0, saldoOl: 0, sueltasOl: 0, unidOl: 0, estBa: 0, saldoBa: 0, sueltasBa: 0, unidBa: 0, estDef: 0 };
     filasC.forEach(({ h, f }, i) => {
       const r = 8 + i, row = cn.getRow(r);
       const ok = estaResuelta(h, f), res = f.estado === "COINCIDE" ? "Coincide" : resDe(h, f.ubicacion);
       const eq = equipoDe(h, f.ubicacion);
+      const aOl = f.cajasOl == null ? null : ladoDe(h, f, "OL"), aBa = f.cajasBavaria == null ? null : ladoDe(h, f, "BAVARIA");
       const def = ok ? (eq === "OL" ? f.cajasOl ?? 0 : f.cajasBavaria ?? 0) : null;
+      const aDef = ok ? (eq === "OL" ? aOl : aBa) : null;
+      if (aOl) { sumas.estOl += aOl.estibas; sumas.saldoOl += aOl.saldo; sumas.sueltasOl += aOl.cajas; sumas.unidOl += aOl.unidades }
+      if (aBa) { sumas.estBa += aBa.estibas; sumas.saldoBa += aBa.saldo; sumas.sueltasBa += aBa.cajas; sumas.unidBa += aBa.unidades }
+      if (aDef) sumas.estDef += aDef.estibas;
       row.height = 20;
-      [h.numero, pareja(h), f.ubicacion, f.sku, f.material, f.cajasOl, f.cajasBavaria, f.diferencia, res,
-        { formula: `IF(OR(J${r}="Sin resolver",J${r}="En validación"),I${r},0)`, result: ok ? 0 : f.diferencia }, ok ? (eq === "OL" ? "Operador" : "Bavaria") : "—", def ?? "—"]
-        .forEach((v, k) => {
-          const x = row.getCell(2 + k); x.value = v as ExcelJS.CellValue;
-          celda(x, P, i % 2 === 1, { num: k === 5 || k === 6 || k === 7 || k === 9 || k === 11, centro: k === 0 || k === 10, fmt: k === 7 || k === 9 ? DIF : k === 5 || k === 6 || k === 11 ? NF : undefined, negrita: k === 3 || k === 9 });
-        });
-      row.getCell(10).font = letra(10, ok ? VERDE : ROJO, true);
-      row.getCell(11).font = letra(10, ok ? VERDE : ROJO, true);
+      const vals: ExcelJS.CellValue[] = [h.numero, pareja(h), f.ubicacion, f.sku, f.material,
+        ...ladoVals(f, f.cajasOl, aOl), ...ladoVals(f, f.cajasBavaria, aBa),
+        f.diferencia, res,
+        { formula: `IF(OR(${L(cRes)}${r}="Sin resolver",${L(cRes)}${r}="En validación"),${L(cCruda)}${r},0)`, result: ok ? 0 : f.diferencia },
+        ok ? (eq === "OL" ? "Operador" : "Bavaria") : "—", ok ? aDef?.estibas ?? "—" : "—", def ?? "—"];
+      vals.forEach((v, k) => {
+        const x = row.getCell(2 + k); x.value = v;
+        celda(x, P, i % 2 === 1, { num: NUMK.has(k), centro: CENTROK.has(k), fmt: k === 21 || k === 23 ? DIF : NUMK.has(k) ? NF : undefined, negrita: k === 3 || k === 5 || k === 13 || k === 23 });
+      });
+      for (const c of [cOl + 5, cBa + 5]) row.getCell(c).font = letra(9, P.TINTA);           // Vence
+      for (const c of [cOl + 6, cBa + 6]) row.getCell(c).font = letra(9, "FFB7791F", true);   // Envase
+      for (const c of [cOl + 7, cBa + 7]) { const x = row.getCell(c); x.font = letra(9, P.GRIS); x.numFmt = "hh:mm" }
+      for (const c of [cOl, cBa]) if (row.getCell(c).value === "no anotó") row.getCell(c).font = letra(9.5, P.GRIS, false, { italic: true });
+      row.getCell(cRes).alignment = { vertical: "middle", horizontal: "left", indent: 1 };
+      row.getCell(cRes).font = letra(10, ok ? VERDE : ROJO, true);
+      row.getCell(cFinal).font = letra(10, ok ? VERDE : ROJO, true);
+      /* Una línea fina separa los grupos, como en la BD. */
+      for (const c of [cOl, cBa, cCruda, cRes, cDef]) row.getCell(c).border = { ...row.getCell(c).border, left: { style: "thin", color: { argb: P.GRIS } } };
     });
     const ult = 7 + filasC.length, tr = ult + 1;
     if (filasC.length > 0) {
       cn.getRow(tr).height = 24;
+      for (let c = 2; c <= 1 + CC.length; c++) { const x = cn.getCell(tr, c); x.fill = relleno(P.TINTA) }
       cn.mergeCells(tr, 2, tr, 6);
-      const tt = cn.getCell(tr, 2); tt.value = "Total"; tt.font = letra(10.5, BLANCO, true); tt.fill = relleno(P.TINTA); tt.alignment = { vertical: "middle", indent: 1 };
-      const suma = (col: string, col0: number, val: number) => {
-        const x = cn.getCell(tr, col0); x.value = { formula: `SUM(${col}8:${col}${ult})`, result: val }; x.font = letra(10.5, BLANCO, true); x.fill = relleno(P.TINTA);
-        x.alignment = { vertical: "middle", horizontal: "right" }; x.numFmt = col === "I" || col === "K" ? DIF : NF;
+      const tt = cn.getCell(tr, 2); tt.value = "Total"; tt.font = letra(10.5, BLANCO, true); tt.alignment = { vertical: "middle", indent: 1 };
+      const suma = (col: number, val: number, fmt = NF) => {
+        const x = cn.getCell(tr, col); x.value = { formula: `SUM(${L(col)}8:${L(col)}${ult})`, result: val }; x.font = letra(10.5, BLANCO, true);
+        x.alignment = { vertical: "middle", horizontal: "right" }; x.numFmt = conDecimales(fmt, val);
       };
-      suma("G", 7, filasC.reduce((t, x) => t + (x.f.cajasOl ?? 0), 0));
-      suma("H", 8, filasC.reduce((t, x) => t + (x.f.cajasBavaria ?? 0), 0));
-      suma("I", 9, filasC.reduce((t, x) => t + x.f.diferencia, 0));
-      suma("K", 11, filasC.reduce((t, x) => t + (estaResuelta(x.h, x.f) ? 0 : x.f.diferencia), 0));
-      suma("M", 13, filasC.reduce((t, x) => t + (estaResuelta(x.h, x.f) ? (equipoDe(x.h, x.f.ubicacion) === "OL" ? x.f.cajasOl ?? 0 : x.f.cajasBavaria ?? 0) : 0), 0));
-      [10, 12].forEach((c0) => { const x = cn.getCell(tr, c0); x.fill = relleno(P.TINTA) });
+      const cajOl = filasC.reduce((t, x) => t + (x.f.cajasOl ?? 0), 0), cajBa = filasC.reduce((t, x) => t + (x.f.cajasBavaria ?? 0), 0);
+      suma(cOl, cajOl); suma(cOl + 1, sumas.estOl); suma(cOl + 2, sumas.saldoOl); suma(cOl + 3, sumas.sueltasOl); suma(cOl + 4, sumas.unidOl);
+      suma(cBa, cajBa); suma(cBa + 1, sumas.estBa); suma(cBa + 2, sumas.saldoBa); suma(cBa + 3, sumas.sueltasBa); suma(cBa + 4, sumas.unidBa);
+      suma(cCruda, filasC.reduce((t, x) => t + x.f.diferencia, 0), DIF);
+      suma(cFinal, filasC.reduce((t, x) => t + (estaResuelta(x.h, x.f) ? 0 : x.f.diferencia), 0), DIF);
+      suma(cEstDef, sumas.estDef);
+      suma(cCajDef, filasC.reduce((t, x) => t + (estaResuelta(x.h, x.f) ? (equipoDe(x.h, x.f.ubicacion) === "OL" ? x.f.cajasOl ?? 0 : x.f.cajasBavaria ?? 0) : 0), 0));
       cn.autoFilter = { from: { row: 7, column: 2 }, to: { row: ult, column: 1 + CC.length } };
     }
-    cn.views = [{ showGridLines: false, state: "frozen", ySplit: 7 }];
+    const nt = cn.getCell(tr + 2, 2);
+    cn.mergeCells(tr + 2, 2, tr + 2, 1 + CC.length);
+    nt.value = "Misma estructura del Excel de la BD: a la izquierda lo del operador, a la derecha lo de Bavaria (cada lado con cajas, estibas, saldo, cajas sueltas, unidades sueltas, vencimiento, envase y hora), luego el cruce. " +
+      "Diferencia final = 0 en lo que el fiscal compensó o aprobó (y en lo que coincide); lo que sigue sin resolver conserva su diferencia en rojo. " +
+      "Conteo definitivo = el que el fiscal dejó (si no escogió, el del operador); «Estibas definitivas» y «Cajas definitivas» son las de ese conteo. " +
+      "Cajas = estibas × cajas por estiba + saldo + cajas sueltas + unidades sueltas (como fracción de caja). La hora es la de Colombia.";
+    nt.font = letra(8.5, P.GRIS); nt.alignment = { vertical: "top", wrapText: true, indent: 1 }; cn.getRow(tr + 2).height = 44;
+    cn.views = [{ showGridLines: false, state: "frozen", ySplit: 7, xSplit: 5 }];
   }
 
   /* =================== POR MATERIAL =================== */
