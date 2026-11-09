@@ -286,7 +286,7 @@ const valorFiltro = (c: Col<Fila>, r: Fila) => c.texto(r).trim() || VACIAS;
 const selloDescarga = () => new Date().toLocaleString("sv", { timeZone: "America/Bogota" }).replace(/[-:]/g, "").replace(" ", "-").slice(0, 13);
 
 export function Base({
-  enviadas, abiertas, conteos, tope, manda = false, bodega = null, uxc = {},
+  enviadas: enviadasT, abiertas: abiertasT, conteos: conteosT, tope, manda = false, bodega = null, uxc = {},
   pasados = [], pasadosOk = true, puedeMarcar = false,
 }: {
   enviadas: Renglon[]; abiertas: Renglon[]; conteos: ConteoFefo[]; tope: boolean;
@@ -304,6 +304,13 @@ export function Base({
   puedeMarcar?: boolean;
 }) {
   const [pestania, setPestania] = useState<"base" | "borradores">("base");
+  /* SOLO EL INVENTARIO FISCAL: la BD arranca mostrando únicamente lo que salió del fiscal (recorridos FISCAL-…, y los renglones que el fiscal
+     tiene todavía por pasar en Borradores). «Todo» vuelve a mostrar también los demás conteos del sistema. */
+  const [soloFiscal, setSoloFiscal] = useState(true);
+  const conteos = useMemo(() => (soloFiscal ? conteosT.filter(esFiscal) : conteosT), [conteosT, soloFiscal]);
+  const idsVistos = useMemo(() => new Set(conteos.map((c) => c.id)), [conteos]);
+  const enviadas = useMemo(() => (soloFiscal ? enviadasT.filter((r) => idsVistos.has(r.conteo_id)) : enviadasT), [enviadasT, idsVistos, soloFiscal]);
+  const abiertas = useMemo(() => (soloFiscal ? abiertasT.filter((r) => idsVistos.has(r.conteo_id)) : abiertasT), [abiertasT, idsVistos, soloFiscal]);
   const [fTexto, setFTexto] = useState("");
   const [fRec, setFRec] = useState("");
   const [fCalle, setFCalle] = useState("");
@@ -771,6 +778,12 @@ export function Base({
           <input value={fTexto} onChange={(e) => setFTexto(e.target.value)}
                  placeholder="Código, material, familia u observación…" />
         </label>
+        <div className="ba-seg" role="group" aria-label="Qué conteos se ven">
+          {([[true, "Solo fiscal"], [false, "Todo el sistema"]] as const).map(([v, t]) => (
+            <button key={t} type="button" aria-pressed={soloFiscal === v} className={soloFiscal === v ? "on" : ""}
+                    onClick={() => { setSoloFiscal(v); setFRec(""); setMarcados(new Set()) }}>{t}</button>
+          ))}
+        </div>
         <div className="ba-seg" role="group" aria-label="Producto o envase">
           {([["", "Todo"], ["PRODUCTO", "Producto"], ["ENVASE", "Envase"]] as const).map(([v, t]) => (
             <button key={v || "todo"} type="button" aria-pressed={fTipo === v} className={fTipo === v ? "on" : ""}
