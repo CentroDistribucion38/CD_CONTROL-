@@ -162,9 +162,17 @@ export function FormularioAi({
   async function subirFoto(revId: string): Promise<string | null> {
     if (!foto) return null;
     const cli = createClient();
-    const ruta = `ai/${revId}/${Date.now()}.jpg`;
-    const { error } = await cli.storage.from("sider").upload(ruta, foto.blob, { contentType: "image/jpeg" });
-    if (error) return `la foto no subió: ${error.message}`;
+    /* Hasta 3 intentos: un 520/5xx o un corte de señal es del servidor o de la red y casi siempre pasa al reintentar.
+       Un rechazo de permisos o de tamaño no se repite (no va a cambiar). */
+    let ruta = "";
+    let error: { message: string } | null = null;
+    for (let i = 0; i < 3; i++) {
+      ruta = `ai/${revId}/${Date.now()}.jpg`;
+      ({ error } = await cli.storage.from("sider").upload(ruta, foto.blob, { contentType: "image/jpeg" }));
+      if (!error || /security|policy|permission|payload|exceed|too large|not found/i.test(error.message)) break;
+      await new Promise((r) => setTimeout(r, 1200 * (i + 1)));
+    }
+    if (error) return `la foto no subió: ${/^HTTP 5\d\d|fetch|network|load failed/i.test(error.message) ? "el servidor no respondió (" + error.message + "). Reintenta en un momento" : error.message}`;
     const { error: e2 } = await cli.rpc("sider_ai_foto", { p_revision: revId, p_ruta: ruta });
     if (e2) return `la foto subió pero no quedó registrada: ${traducirError(e2.message)}`;
     return null;
