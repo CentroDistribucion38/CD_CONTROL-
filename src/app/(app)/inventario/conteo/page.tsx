@@ -81,7 +81,9 @@ export default async function ConteoFefoPage() {
 
   /* MODO FISCAL: esta persona solo ve el inventario fiscal que le habilitaron. Sin FEFO, sin selector,
      sin recorrido diario: si todavía no le asignaron hoja, queda «en espera». */
-  if (permisos.fiscal) {
+  /* MIENTRAS HAYA UN FISCAL PARA HOY SIN FINALIZAR, esta persona solo ve el fiscal (sin FEFO diario). Al finalizarlo vuelve lo normal. */
+  const fiscalHoy = hojasContar.some((h) => h.puedeContar && !h.finalizada);
+  if (permisos.fiscal || fiscalHoy) {
     return (
       <div className="fe contando">
         <section className="cabeza">
@@ -89,14 +91,16 @@ export default async function ConteoFefoPage() {
             <p className="ojo">INVENTARIO · FISCAL</p>
             <h1>Contar</h1>
             <p className="sub">
-              Aquí solo está el inventario fiscal que te habilitaron. Cuenta tu hoja módulo por módulo;
-              cada renglón queda guardado al momento con tu nombre.
+              {permisos.fiscal
+                ? "Aquí solo está el inventario fiscal que te habilitaron. "
+                : "Hoy te toca el inventario fiscal: el conteo diario vuelve cuando el fiscal lo finalice. "}
+              Cuenta tu hoja módulo por módulo; cada renglón queda guardado al momento con tu nombre.
             </p>
           </div>
         </section>
         <FiscalAsignado filas={misHojas} hoy={hoy} />
         {hojasContar.length > 0 ? (
-          <ContarFiscal hojas={hojasContar} bodegaId={bodega.id} materiales={m.materiales} ubicaciones={ubis} />
+          <ContarFiscal hojas={permisos.fiscal ? hojasContar : hojasContar.filter((h) => h.puedeContar && !h.finalizada)} bodegaId={bodega.id} materiales={m.materiales} ubicaciones={ubis} />
         ) : (
           <section className="fe-espera" role="status">
             <p className="fe-espera-ojo">EN ESPERA</p>

@@ -230,6 +230,8 @@ export type MiHojaBD = {
   termine?: boolean | null; pareja_termino?: boolean | null;
   /* La calle que el fiscal le puso a la hoja (2026-10-fiscal-modulo.sql). */
   calle?: string | null;
+  /* Desde 2026-11-fiscal-culminar.sql: el fiscal ya culminó esta hoja (no hay nada más que contar). */
+  finalizada?: boolean | null;
 };
 export const nombreEquipo = (e: string | null | undefined): string =>
   e === "OL" ? "Operador logístico" : e === "BAVARIA" ? "Bavaria" : "";
@@ -266,6 +268,8 @@ export type HojaParaContar = {
   parejaTermino: boolean;
   /** La calle que puso el fiscal: las dos personas cuentan esa y solo esa ("" o sin dato = sin calle fija). */
   calle?: string;
+  /** El fiscal ya la culminó: la pantalla dice «Finalizado» y no deja contar. */
+  finalizada: boolean;
 };
 /** Las hojas con id (las que ya traen lo de contar), en el mismo orden que la tarjeta: por día y por número. */
 export function hojasParaContar(filas: MiHojaBD[]): HojaParaContar[] {
@@ -280,6 +284,7 @@ export function hojasParaContar(filas: MiHojaBD[]): HojaParaContar[] {
       pareja: f.pareja, parejaEquipo: nombreEquipo(f.pareja_equipo),
       puedeTerminar: f.termine != null, termine: f.termine === true, parejaTermino: f.pareja_termino === true,
       calle: String(f.calle ?? "").trim().toUpperCase(),
+      finalizada: f.finalizada === true,
     });
   }
   return salida.sort((a, b) => a.fecha.localeCompare(b.fecha) || a.numero - b.numero);

@@ -71,3 +71,9 @@
 /* FISCAL · «QUÉ» SIN VENCIMIENTO: el código y la descripción, nada más. */
 .fe .fe-anotar .fe-cod-dos.fe-que-fiscal { grid-template-columns: minmax(0, 1fr) minmax(0, 1.7fr); margin-bottom: 0 }
 @media (max-width: 760px) { .fe .fe-anotar .fe-cod-dos.fe-que-fiscal { grid-template-columns: minmax(0, 1fr) } }
+
+/* LA HOJA YA LA CULMINÓ EL FISCAL */
+.fe .fc-final { margin: 12px 0; padding: 18px 18px 20px; background: #fff; border: 1.5px solid var(--fe-linea); border-top: 4px solid #0b7a3e }
+.fe .fc-final-ojo { margin: 0 0 4px; font: 800 10.5px var(--fe-texto, inherit); letter-spacing: .12em; opacity: .7 }
+.fe .fc-final h2 { margin: 0 0 6px; font: 800 22px var(--fe-titulo, inherit); color: #0b7a3e }
+.fe .fc-final p { margin: 0; font-size: 14px; line-height: 1.5 }

@@ -11,6 +11,7 @@ import {
 import type { HojaForm } from "@/modulos/inventario/fiscal";
 import { ValidarHoja, moduloDe, type ConsolidadoBD, type RevisionBD } from "./ValidarHoja";
 import { BdFiscal, precargarBd, type HojaBd } from "./BdFiscal";
+import { CulminarFiscal } from "./CulminarFiscal";
 
 /* ===================================================================
    EL INVENTARIO FISCAL, TODO EN UN SOLO LUGAR · TORRE DE CONTROL
@@ -270,7 +271,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
 
   const texto = (t: Tarjeta): string => {
     if (!cerradas[t.h.numero] && t.estado === "una-termino" && t.resumen) return t.av?.olTermino ? "Solo terminó el operador · sin cruce" : "Solo terminó Bavaria · sin cruce";
-    if (cerradas[t.h.numero]) return "Hoja cerrada";
+    if (cerradas[t.h.numero]) return "Hoja finalizada";
     if (t.tipo === "ok") return t.aprobadoTodo ? "Completada · aprobada" : "Completada · todo coincide";
     if (t.tipo === "dif") return "Con diferencias";
     if (t.estado === "lista") return "Cruzando…";
@@ -330,19 +331,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
     await cargar();
   }
   const pidieronHoja = (n: number) => reaps.filter((x) => x.numero === n && x.pedido_en && !x.autorizado_en).length;
-  /** Terminar el corte fiscal: cierra de una vez todas las hojas que ya tienen todo aprobado. */
-  const [cierre, setCierre] = useState<"" | "conf" | "ocupado">("");
   const [cierreMsg, setCierreMsg] = useState<string | null>(null);
-  async function cerrarTodas() {
-    setCierreMsg(null); setCierre("ocupado");
-    const { data, error } = await createClient().rpc("inv_fiscal_cerrar_todo", { p_fiscal: fiscalId });
-    setCierre("");
-    if (error) { setCierreMsg(/inv_fiscal_cerrar_todo|schema cache|does not exist|no existe la funci/i.test(error.message) ? "Falta correr 2026-10-fiscal-TODO.sql en Supabase." : traducirError(error.message)); return }
-    const r = (Array.isArray(data) ? data[0] : data) as { cerradas: number; modulos_forzados: number } | null;
-    const c = r?.cerradas ?? 0, fz = r?.modulos_forzados ?? 0;
-    setCierreMsg(`${c === 1 ? "Se cerró 1 hoja" : `Se cerraron ${c} hojas`} y todo lo contado bajó a La base. Corte fiscal finalizado.${fz > 0 ? ` ${fz} ${fz === 1 ? "módulo no estaba aprobado" : "módulos no estaban aprobados"} y se aprobaron al cerrar (si no cuadraban, quedó lo del operador).` : ""}`);
-    await cargar();
-  }
   const abrirRevision = (n: number) => { setFoco(n); setHojaRev(n); setPestana("revision") };
   const abrirCaja = (n: number) => { abrirRevision(n); setCaja(n) };
 
@@ -353,7 +342,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
         <span className="vf-rol"><Ico n="persona" tam={13} /> {et}</span>
         <b>{id ? quien(id) : <em>sin asignar</em>}</b>
         {hay && id && rengl !== undefined && (
-          <small className={fin ? "fin" : ""}><Ico n={fin ? "ok" : "reloj"} tam={13} /> {cerrada ? `${nf.format(rengl)} ${rengl === 1 ? "renglón" : "renglones"} · cerrada` : textoEquipo(rengl, termino ?? null)}</small>
+          <small className={fin ? "fin" : ""}><Ico n={fin ? "ok" : "reloj"} tam={13} /> {cerrada ? `${nf.format(rengl)} ${rengl === 1 ? "renglón" : "renglones"} · finalizada` : textoEquipo(rengl, termino ?? null)}</small>
         )}
       </li>
     );
@@ -445,18 +434,9 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
             {puedeEditar && conValidar && (
               <span className="vf-cerrar">
                 {total > 0 && Object.keys(cerradas).length >= total ? (
-                  <b className="vf-fin">Corte fiscal finalizado ✓</b>
-                ) : cierre === "conf" ? (
-                  <>
-                    <span className="vf-cerrar-q">¿Cerrar TODO el corte? Lo que siga contando o sin aprobar baja a La base (si no cuadra, queda lo del operador) y nadie más cuenta.</span>
-                    <button type="button" className="vf-mostaza" onClick={cerrarTodas}>Sí, cerrar todas</button>
-                    <button type="button" className="vf-btn-claro" onClick={() => setCierre("")}>No</button>
-                  </>
+                  <b className="vf-fin">Fiscal finalizado ✓</b>
                 ) : (
-                  <button type="button" className="vf-mostaza" disabled={cierre === "ocupado"} onClick={() => setCierre("conf")}
-                          title="Cierra todas las hojas de una vez, aunque algo siga contando: todo lo contado baja a La base y termina el corte fiscal">
-                    {cierre === "ocupado" ? "Cerrando…" : "Cerrar todas las hojas"}
-                  </button>
+                  <CulminarFiscal fiscalId={fiscalId} clase="vf-mostaza" alHacer={cargar} />
                 )}
               </span>
             )}
@@ -509,7 +489,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                         {persona(t.h.bavaria, "Bavaria", t.av?.bavariaRenglones, t.av?.bavariaTermino, !!t.av, !!cerradas[t.h.numero])}
                       </ul>
                       {t.tipo === "ok" && t.resumen && (
-                        <p className="vf-ok"><Ico n="ok" tam={15} /> {cerradas[t.h.numero] ? "Hoja cerrada: lo contado bajó a La base" : t.aprobadoTodo ? "Las diferencias fueron aprobadas por el fiscal" : `${nf.format(t.resumen.total)} ${t.resumen.total === 1 ? "renglón igual" : "renglones iguales"}`}</p>
+                        <p className="vf-ok"><Ico n="ok" tam={15} /> {cerradas[t.h.numero] ? "Hoja finalizada: lo contado bajó a La base" : t.aprobadoTodo ? "Las diferencias fueron aprobadas por el fiscal" : `${nf.format(t.resumen.total)} ${t.resumen.total === 1 ? "renglón igual" : "renglones iguales"}`}</p>
                       )}
                       {t.tipo === "dif" && t.resumen && (
                         <div className="vf-dif">
@@ -528,6 +508,9 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                         <button type="button" className="btn plano vf-ver" onClick={() => void reabrirCerrada(t.h.numero)}>
                           <Ico n="campana" tam={16} /> Reabrir hoja
                         </button>
+                      )}
+                      {puedeEditar && !cerradas[t.h.numero] && hojaIds[t.h.numero] && (
+                        <CulminarFiscal fiscalId={fiscalId} hoja={{ id: hojaIds[t.h.numero], numero: t.h.numero }} clase="btn vf-ver" alHacer={cargar} />
                       )}
                       {puedeEditar && !cerradas[t.h.numero] && (t.estado === "contando" || t.estado === "una-termino") && (
                         <button type="button" className="btn vf-ver" onClick={() => void pasarAValidar(t.h.numero)}

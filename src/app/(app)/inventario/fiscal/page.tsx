@@ -3,6 +3,7 @@ import "../fefo.css";
 import "../corte/corte.css";
 import "./fiscal.css";
 import "./torre.css";
+import "./culminar.css";
 import { Fiscal } from "./Fiscal";
 import { cargarFiscales } from "./datos";
 

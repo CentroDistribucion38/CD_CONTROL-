@@ -654,6 +654,20 @@ export function ContarFiscal({
   }
 
   if (!hoja) return null;
+  /* EL FISCAL YA CULMINÓ ESTA HOJA: no hay nada más que contar ni cambiar. */
+  if (hoja.finalizada) {
+    return (
+      <>
+        {dialogo}
+        {avisos}
+        <section className="fc-final" role="status">
+          <p className="fc-final-ojo">INVENTARIO FISCAL · {hoja.nombre}</p>
+          <h2>Finalizado</h2>
+          <p>El fiscal aprobó y culminó tu hoja {hoja.numero}. Todo lo que contaste ya está en La base y no hay nada más que hacer aquí.</p>
+        </section>
+      </>
+    );
+  }
   const estadoT = terminos[hoja.hojaId] ?? { termine: hoja.termine, parejaTermino: hoja.parejaTermino };
   /* Terminada: solo si la base ya sabe terminar hojas y la persona la terminó. */
   const cerrada = hoja.puedeContar && hoja.puedeTerminar && estadoT.termine;

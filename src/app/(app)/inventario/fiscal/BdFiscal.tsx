@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { CulminarFiscal } from "./CulminarFiscal";
 import { traducirError } from "@/lib/errores";
 import { textoVenc, compensarCruce, type FilaCruce } from "@/modulos/inventario/fiscal-cruce";
 import {
@@ -155,7 +156,7 @@ export function BdFiscal({ fiscalId, cerradas, nombre, fecha, hojas, revs, puede
     const { error } = await createClient().rpc(abrir ? "inv_fiscal_reabrir_hoja" : "inv_fiscal_cerrar_hoja", { p_hoja: hoja.id });
     setOcupado(false);
     if (error) { setMal(msgSql(error.message)); return }
-    setOk(abrir ? `Hoja ${hoja.numero} reabierta: las dos personas pueden volver a contar.` : `Hoja ${hoja.numero} cerrada: nadie más cuenta en ella.`);
+    setOk(abrir ? `Hoja ${hoja.numero} reabierta: las dos personas pueden volver a contar.` : `Hoja ${hoja.numero} finalizada: nadie más cuenta en ella.`);
     await onCambio();
   }
   async function cerrarTodas() {
@@ -165,7 +166,7 @@ export function BdFiscal({ fiscalId, cerradas, nombre, fecha, hojas, revs, puede
     if (error) { setMal(msgSql(error.message)); return }
     const r = (Array.isArray(data) ? data[0] : data) as { cerradas: number; pendientes: number } | null;
     const c = r?.cerradas ?? 0, p = r?.pendientes ?? 0;
-    setOk(`${c === 1 ? "Se cerró 1 hoja" : `Se cerraron ${c} hojas`}${p > 0 ? `; ${p === 1 ? "1 sigue" : `${p} siguen`} con pendientes por validar o aprobar.` : "."}`);
+    setOk(`${c === 1 ? "Se culminó 1 hoja" : `Se culminaron ${c} hojas`}${p > 0 ? `; ${p === 1 ? "1 sigue" : `${p} siguen`} con pendientes por validar o aprobar.` : "."}`);
     await onCambio();
   }
 
@@ -252,14 +253,13 @@ export function BdFiscal({ fiscalId, cerradas, nombre, fecha, hojas, revs, puede
         ))}
         <span className="bd-der">
           {puedeEditar && (hojaCerrada ? (
-            <button type="button" className="btn plano" disabled={ocupado} onClick={() => cerrarEsta(true)} title="Hoja cerrada: vuelve a dejar contar a las dos personas">Hoja {hoja.numero} cerrada ✓ · Reabrir</button>
-          ) : (
-            <button type="button" className="btn" disabled={ocupado} onClick={() => cerrarEsta(false)} style={{ background: VERDE, color: "#fff" }}
-                    title="Cierra el conteo de esta hoja si todo está aprobado: nadie más cuenta en ella">Cerrar esta hoja</button>
-          ))}
+            <button type="button" className="btn plano" disabled={ocupado} onClick={() => cerrarEsta(true)} title="Hoja finalizada: vuelve a dejar contar a las dos personas">Hoja {hoja.numero} finalizada ✓ · Reabrir</button>
+          ) : hoja.id ? (
+            <CulminarFiscal fiscalId={fiscalId} hoja={{ id: hoja.id, numero: hoja.numero }} clase="btn" alHacer={onCambio} deshabilitado={ocupado} />
+          ) : null)}
           {puedeEditar && (
             <button type="button" className="btn" disabled={ocupado} onClick={cerrarTodas} style={{ background: VERDE, color: "#fff" }}
-                    title="Cierra de una vez todas las hojas que ya tienen todo aprobado; las que tienen pendientes se dejan abiertas">Cerrar todas las hojas aprobadas</button>
+                    title="Culmina de una vez las hojas que ya tienen todo aprobado; las que tienen pendientes se dejan abiertas">Culminar las hojas ya aprobadas</button>
           )}
           <button type="button" className="btn plano" disabled={armando !== null || cargando} onClick={() => excel("hoja")}>{armando === "hoja" ? "Armando…" : "Excel de esta hoja"}</button>
           <button type="button" className="btn plano" disabled={armando !== null || cargando} onClick={() => excel("todas")}>{armando === "todas" ? "Armando…" : "Excel de todas las hojas"}</button>

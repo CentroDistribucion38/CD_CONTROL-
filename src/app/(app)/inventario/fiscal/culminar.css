@@ -1,0 +1,18 @@
+/* CULMINAR EL FISCAL · la ventana con lo pendiente. Rectas, como el resto de CONTROL. */
+.cu-caja { max-width: 560px; width: 100%; text-align: left }
+.cu-ojo { margin: 0 0 4px; font: 800 10.5px var(--fe-texto, system-ui, sans-serif); letter-spacing: .12em; opacity: .7 }
+.cu-nota { margin: 10px 0; font-size: 14px; line-height: 1.5 }
+.cu-ok { margin: 10px 0; padding: 12px 14px; font-size: 14px; line-height: 1.5; background: #d6f0e0; border-left: 4px solid #0b7a3e; color: #0f3d24 }
+.cu-mal { margin: 10px 0 0; padding: 10px 12px; font-size: 13px; background: #fde6e6; border-left: 4px solid #C8102E; color: #6b0a1a }
+.cu-tabla { margin: 10px 0; border: 1px solid #d5dce5; max-height: 40vh; overflow: auto }
+.cu-fila { display: grid; grid-template-columns: 78px 78px 118px minmax(0, 1fr); gap: 8px; padding: 8px 10px; border-top: 1px solid #e6e9ee; font-size: 13px; align-items: baseline }
+.cu-fila:first-child { border-top: 0 }
+.cu-fila small { color: #5b6b7f; font-size: 11.5px }
+.cu-cab { position: sticky; top: 0; background: #f0f2f5; font: 700 10.5px var(--fe-texto, system-ui, sans-serif); letter-spacing: .08em; text-transform: uppercase; color: #5b6b7f }
+.cu-mod { font: 700 13px ui-monospace, "IBM Plex Mono", monospace }
+.cu-est { font-weight: 800 }
+.cu-est.sin { color: #C8102E }
+.cu-est.val { color: #8a6500 }
+.cu-quien { color: #3a4452; overflow-wrap: anywhere }
+.cu-aviso { margin: 10px 0 0; padding: 10px 12px; font-size: 13px; line-height: 1.45; background: #fff6d6; border-left: 4px solid #FFC400; display: flex; flex-direction: column; gap: 2px }
+@media (max-width: 520px) { .cu-fila { grid-template-columns: 1fr 1fr; } .cu-cab { display: none } .cu-quien { grid-column: 1 / -1 } }
