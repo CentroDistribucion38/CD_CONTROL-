@@ -448,9 +448,9 @@ function FormFiscal({ form, setForm, personas, roles: rolesIn, hoy, ocupado, mal
   };
 
   const r = revisar(form.hojas);
-  /* Dónde está ya cada persona: no se ofrece en las demás casillas. */
-  const ocupadas = new Set<string>();
-  for (const h of form.hojas) for (const id of [h.ol, h.bavaria]) if (id) ocupadas.add(id);
+  /* Dónde cuenta ya cada persona. Una persona PUEDE contar en varias hojas (doble conteo): solo se avisa en la lista. */
+  const donde = new Map<string, number[]>();
+  for (const h of form.hojas) for (const id of [h.ol, h.bavaria]) if (id) donde.set(id, [...(donde.get(id) ?? []), h.numero]);
   const sinNombre = form.nombre.trim().length === 0;
   const puede = !ocupado && !sinNombre && r.errores.length === 0 && form.fecha !== "";
   const cambia = (hojas: HojaForm[]) => setForm({ ...form, hojas });
@@ -462,7 +462,7 @@ function FormFiscal({ form, setForm, personas, roles: rolesIn, hoy, ocupado, mal
   const filtroRol = (eq: Equipo, et: string) => {
     const rol = rolDe(eq);
     const del = personas.filter((p) => p.activo && (rol === "" || p.rol === rol));
-    const libres = del.filter((p) => !ocupadas.has(p.id)).length;
+    const yaEn = del.filter((p) => donde.has(p.id)).length;
     return (
       <label className={"fi-rol " + (eq === "ol" ? "ol" : "ba")} key={eq}>
         <span><em className={"fi-bd " + (eq === "ol" ? "ol" : "ba")}>{eq === "ol" ? "OL" : "BA"}</em>{et}: buscar entre</span>
@@ -470,16 +470,16 @@ function FormFiscal({ form, setForm, personas, roles: rolesIn, hoy, ocupado, mal
           <option value="">Todos los usuarios</option>
           {conteo.map((c) => <option key={c.clave} value={c.clave}>{c.nombre} ({c.n})</option>)}
         </select>
-        <small>{libres} {libres === 1 ? "disponible" : "disponibles"} · {del.length - libres} ya en una hoja</small>
+        <small>{del.length} {del.length === 1 ? "persona" : "personas"} · {yaEn} ya {yaEn === 1 ? "cuenta" : "cuentan"} en una hoja (puede repetirse: doble conteo)</small>
       </label>
     );
   };
 
   /* «Sin asignar» solo se ofrece si hay alguien que quitar; y lleva su propia clave para que la casilla
      vacía muestre «Teclea el nombre» y no «sin asignar». */
-  const opcionesCasilla = (actual: string, eq: Equipo) =>
-    opcionesPersonas({ personas, roles, rol: rolDe(eq), ocupadas, actual })
-      .filter((o) => o.valor !== "" || actual !== "")
+  const opcionesCasilla = (h: HojaForm, eq: Equipo) =>
+    opcionesPersonas({ personas, roles, rol: rolDe(eq), ocupadas: new Set(eq === "ol" ? (h.bavaria ? [h.bavaria] : []) : (h.ol ? [h.ol] : [])), actual: h[eq], donde })
+      .filter((o) => o.valor !== "" || h[eq] !== "")
       .map((o) => (o.valor === "" ? { ...o, valor: NADIE } : o));
 
   const casilla = (h: HojaForm, eq: Equipo, et: string) => (
@@ -489,7 +489,7 @@ function FormFiscal({ form, setForm, personas, roles: rolesIn, hoy, ocupado, mal
         valor={h[eq]}
         marcador="Teclea el nombre"
         sinOpciones="Nadie con ese rol. Cambia el rol de arriba."
-        opciones={opcionesCasilla(h[eq], eq)}
+        opciones={opcionesCasilla(h, eq)}
         onEscoge={(v) => cambia(ponerPersona(form.hojas, h.numero, eq, v === NADIE ? "" : v))}
       />
     </div>

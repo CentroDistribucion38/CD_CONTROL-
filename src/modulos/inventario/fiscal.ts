@@ -55,8 +55,10 @@ export const ponerPersona = (hojas: HojaForm[], numero: number, equipo: Equipo, 
   hojas.map((h) => (h.numero === numero ? { ...h, [equipo]: id } : h));
 
 export type Revision = {
-  /** Persona → números de las hojas donde aparece, solo las que aparecen en más de un sitio. */
+  /** Persona → hoja, solo las que están en el OL y en Bavaria de LA MISMA hoja (eso sí es un error). */
   repetidas: Map<string, number[]>;
+  /** DOBLE CONTEO: persona → números de las hojas donde cuenta, cuando son más de una. No es un error: una persona puede contar en varias hojas. */
+  dobles: Map<string, number[]>;
   /** Lo que impide guardar, en palabras. */
   errores: string[];
   total: number; completas: number; aMedias: number; vacias: number;
@@ -68,20 +70,18 @@ export function revisar(hojas: HojaForm[]): Revision {
     if (!id) continue;
     donde.set(id, [...(donde.get(id) ?? []), h.numero]);
   }
-  const repetidas = new Map([...donde].filter(([, v]) => v.length > 1));
+  const repetidas = new Map<string, number[]>();
+  for (const h of hojas) if (h.ol && h.ol === h.bavaria) repetidas.set(h.ol, [h.numero, h.numero]);
+  const dobles = new Map([...donde].map(([id, v]) => [id, [...new Set(v)]] as [string, number[]]).filter(([, v]) => v.length > 1));
   const errores: string[] = [];
   if (hojas.length === 0) errores.push("Falta al menos una hoja.");
-  for (const [, hs] of repetidas) {
-    errores.push(hs[0] === hs[1] && hs.length === 2
-      ? `La hoja ${hs[0]} tiene a la misma persona en el OL y en Bavaria.`
-      : `Una persona está en las hojas ${[...new Set(hs)].join(", ")}: solo puede estar en una.`);
-  }
+  for (const [, hs] of repetidas) errores.push(`La hoja ${hs[0]} tiene a la misma persona en el OL y en Bavaria.`);
   let completas = 0, aMedias = 0, vacias = 0;
   for (const h of hojas) {
     const n = (h.ol ? 1 : 0) + (h.bavaria ? 1 : 0);
     if (n === 2) completas++; else if (n === 1) aMedias++; else vacias++;
   }
-  return { repetidas, errores, total: hojas.length, completas, aMedias, vacias };
+  return { repetidas, dobles, errores, total: hojas.length, completas, aMedias, vacias };
 }
 
 /** Lo que va a la base: «» pasa a null y las hojas van en orden de número. */
@@ -130,10 +130,13 @@ export function conteoPorRol(personas: PersonaF[], roles: RolF[]): (RolF & { n: 
     .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
 }
 
-/** Las opciones de UNA casilla: «sin asignar» y las personas del rol que no están ya en otra hoja
+/** Las opciones de UNA casilla: «sin asignar» y las personas del rol, menos las de `ocupadas` (la otra casilla de la MISMA hoja:
+ *  una persona puede contar en varias hojas, pero no ser las dos de una pareja)
  *  (la que ya está puesta en esta casilla siempre se queda, aunque no sea del rol o esté desactivada). */
 export function opcionesPersonas(o: {
   personas: PersonaF[]; roles: RolF[]; rol: string; ocupadas: Set<string>; actual: string;
+  /** Persona → hojas donde ya cuenta (solo para avisarlo en la lista: puede repetirse). */
+  donde?: Map<string, number[]>;
 }): OpcionPersona[] {
   const nombreRol = new Map(o.roles.map((r) => [r.clave, r.nombre]));
   const lista = o.personas
@@ -141,7 +144,8 @@ export function opcionesPersonas(o: {
     .sort((a, b) => a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" }))
     .map((p) => ({
       valor: p.id, texto: p.nombre,
-      pista: [nombreRol.get(p.rol) ?? p.rol, p.activo ? null : "desactivado"].filter(Boolean).join(" · ") || null,
+      pista: [nombreRol.get(p.rol) ?? p.rol, p.activo ? null : "desactivado",
+        (o.donde?.get(p.id)?.length ?? 0) > 0 ? `ya en hoja ${[...new Set(o.donde!.get(p.id))].join(", ")}` : null].filter(Boolean).join(" · ") || null,
     }));
   return [{ valor: "", texto: "— sin asignar —", pista: null }, ...lista];
 }

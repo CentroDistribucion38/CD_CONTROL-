@@ -97,7 +97,7 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
       const o = ocup(h, f, i);
       const a: Aj = { ...(x[k(h.numero, i)] ?? {}) };
       if (que === "modulo") a.modulo = valor;
-      else { const base = o[que] ?? { e: "", s: "", c: "", u: "" }; a[que] = { ...base, [campo!]: valor.replace(/[^\d]/g, "") } }
+      else { const base = o[que] ?? { e: "", s: "", c: "", u: "" }; const v = valor.replace(/[^\d]/g, ""); a[que] = campo === "c" ? { ...base, c: v, s: "" } : { ...base, [campo!]: v } }
       return { ...x, [k(h.numero, i)]: a };
     });
   }
@@ -111,9 +111,15 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
   }
   const cambios = Object.keys(aj).length;
   const totalPaginas = hojas.reduce((t, h) => t + h.np, 0);
+  /* «Cajas» es UNA sola columna: las cajas sueltas de la estiba incompleta (saldo) y las cajas a secas se suman y se ven juntas. */
+  const valorDe = (x: Cant | null | undefined, c: Campo) => {
+    if (!x) return "";
+    if (c !== "c") return x[c] ?? "";
+    return x.s === "" && x.c === "" ? "" : String(num(x.s) + num(x.c));
+  };
   const campo = (h: HojaP, f: FilaP, i: number, que: "ol" | "bav", c: Campo, etiqueta: string) => (
     <td className="r e"><input inputMode="numeric" aria-label={`${etiqueta} · ${que === "ol" ? "operador logístico" : "Bavaria"} · ${f.sku}`}
-      disabled={c === "u" && !f.upc} value={ocup(h, f, i)[que]?.[c] ?? ""} onChange={(e) => poner(h, i, f, que, c, e.target.value)} /></td>
+      disabled={c === "u" && !f.upc} value={valorDe(ocup(h, f, i)[que], c)} onChange={(e) => poner(h, i, f, que, c, e.target.value)} /></td>
   );
 
   return (
@@ -142,7 +148,7 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
           </div>
         </div>
       </dialog>
-      <p className="pl-ayuda">Puedes escribir sobre el módulo y sobre estibas, saldo y cajas de cada uno: la planilla rehace sola el total y la diferencia. Con <b>‹</b> o <b>›</b> pasas el conteo de un lado al otro. En el recuadro rojo puedes escribir el nombre de la familia en vez del número de hoja. Los ajustes son solo de esta planilla: el conteo y el inventario real no cambian.</p>
+      <p className="pl-ayuda">Puedes escribir sobre el módulo y sobre estiba, caja y unidades de cada uno: la planilla rehace sola la diferencia y los totales de la hoja. Con <b>‹</b> o <b>›</b> pasas el conteo de un lado al otro. En el recuadro rojo puedes escribir el nombre de la familia en vez del número de hoja. Los ajustes son solo de esta planilla: el conteo y el inventario real no cambian.</p>
       {aviso && <p className="pl-vacio">{aviso}</p>}
       {hojas.length === 0 && <p className="pl-vacio">Este inventario todavía no tiene hojas. Arma las parejas en el Plan fiscal.</p>}
       {hojas.flatMap((h) => Array.from({ length: h.np }, (_, p) => {
@@ -187,15 +193,15 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
                 <colgroup>
                   <col style={{ width: 72 }} /><col style={{ width: 84 }} /><col />
                   <col style={{ width: 46 }} />
-                  <col style={{ width: 44 }} /><col style={{ width: 44 }} /><col style={{ width: 44 }} /><col style={{ width: 38 }} /><col style={{ width: 52 }} />
-                  <col style={{ width: 44 }} /><col style={{ width: 44 }} /><col style={{ width: 44 }} /><col style={{ width: 38 }} /><col style={{ width: 52 }} />
+                  <col style={{ width: 54 }} /><col style={{ width: 54 }} /><col style={{ width: 58 }} />
+                  <col style={{ width: 54 }} /><col style={{ width: 54 }} /><col style={{ width: 58 }} />
                   <col style={{ width: 62 }} /><col className="pl-nop" style={{ width: 40 }} />
                 </colgroup>
                 <thead>
                   <tr><th rowSpan={2}>Módulo</th><th rowSpan={2}>Código</th><th rowSpan={2}>Descripción</th><th rowSpan={2}>Uds caja</th>
-                    <th colSpan={5} className="ol">Operador logístico</th><th colSpan={5} className="bv">Bavaria</th><th rowSpan={2}>Dif.</th><th rowSpan={2} className="pl-nop">Igualar</th></tr>
-                  <tr><th className="ol">Est.</th><th className="ol">Saldo</th><th className="ol">Cajas</th><th className="ol" title="Unidades sueltas: las que no completan una caja">Unid.</th><th className="ol">Total</th>
-                    <th className="bv">Est.</th><th className="bv">Saldo</th><th className="bv">Cajas</th><th className="bv" title="Unidades sueltas: las que no completan una caja">Unid.</th><th className="bv">Total</th></tr>
+                    <th colSpan={3} className="ol">Operador logístico</th><th colSpan={3} className="bv">Bavaria</th><th rowSpan={2}>Dif.</th><th rowSpan={2} className="pl-nop">Igualar</th></tr>
+                  <tr><th className="ol" title="Estibas completas">Estiba</th><th className="ol" title="Cajas sueltas (incluye el saldo de la estiba incompleta)">Caja</th><th className="ol" title="Unidades sueltas: las que no completan una caja">Unidades</th>
+                    <th className="bv" title="Estibas completas">Estiba</th><th className="bv" title="Cajas sueltas (incluye el saldo de la estiba incompleta)">Caja</th><th className="bv" title="Unidades sueltas: las que no completan una caja">Unidades</th></tr>
                 </thead>
                 <tbody>
                   {trozo.map((f, j) => {
@@ -209,8 +215,8 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
                         <td className="c">{f.sku}</td>
                         <td className="d">{f.material}{f.detalle && <em>{f.detalle}</em>}</td>
                         <td className="r">{f.udsCaja ?? ""}</td>
-                        {campo(h, f, i, "ol", "e", "Estibas")}{campo(h, f, i, "ol", "s", "Saldo")}{campo(h, f, i, "ol", "c", "Cajas")}{campo(h, f, i, "ol", "u", "Unidades sueltas")}<td className="r t">{cO == null ? "" : nf.format(cO.cajas)}</td>
-                        {campo(h, f, i, "bav", "e", "Estibas")}{campo(h, f, i, "bav", "s", "Saldo")}{campo(h, f, i, "bav", "c", "Cajas")}{campo(h, f, i, "bav", "u", "Unidades sueltas")}<td className="r t">{cB == null ? "" : nf.format(cB.cajas)}</td>
+                        {campo(h, f, i, "ol", "e", "Estibas")}{campo(h, f, i, "ol", "c", "Cajas")}{campo(h, f, i, "ol", "u", "Unidades sueltas")}
+                        {campo(h, f, i, "bav", "e", "Estibas")}{campo(h, f, i, "bav", "c", "Cajas")}{campo(h, f, i, "bav", "u", "Unidades sueltas")}
                         <td className={"r t" + (dd.cajas !== 0 || dd.unidades !== 0 ? " mal" : "")}>
                           {dd.cajas !== 0 || dd.unidades !== 0
                             ? <>{dd.cajas !== 0 ? signo(dd.cajas) : ""}{dd.unidades !== 0 && <small className="un">{signo(dd.unidades)} un.</small>}</>
@@ -220,8 +226,8 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
                       </tr>
                     );
                   })}
-                  {mods.map((m, j) => <tr key={`b${j}`}><td className="m">{m}</td>{Array.from({ length: 14 }, (_, c) => <td key={c} />)}<td className="pl-nop" /></tr>)}
-                  {Array.from({ length: relleno }, (_, j) => <tr key={`r${j}`}><td className="m" />{Array.from({ length: 14 }, (_, c) => <td key={c} />)}<td className="pl-nop" /></tr>)}
+                  {mods.map((m, j) => <tr key={`b${j}`}><td className="m">{m}</td>{Array.from({ length: 10 }, (_, c) => <td key={c} />)}<td className="pl-nop" /></tr>)}
+                  {Array.from({ length: relleno }, (_, j) => <tr key={`r${j}`}><td className="m" />{Array.from({ length: 10 }, (_, c) => <td key={c} />)}<td className="pl-nop" /></tr>)}
                 </tbody>
               </table>
             </div>
