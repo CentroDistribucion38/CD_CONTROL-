@@ -402,6 +402,8 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     if (todoSap) { if (t > 0) suma("sap", codigo, partida, -t); else zexiOtros.push({ codigo, partida, cant: -t }); return }
     if (t > 0) suma("conteo", codigo, partida, t); else zexiOtros.push({ codigo, partida, cant: -t });
   };
+  /* Los 311 de cada Cuadre SAP se juntan primero y se aplican después de mirar el Cuadre de AG22 (su archivo de movimientos de SAP manda). */
+  const balances: { cod: string; alm: string; t: number }[] = [];
   for (const alm of ["AG18", "AG17", "AG16"] as const) {
     const c = alm === "AG18" ? cu : await armarCuadre(fecha, alm);
     if (c.fecha !== fecha || !c.guardado?.zexi?.length) { sinZexiAlm.push(alm); continue }
@@ -416,7 +418,7 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
          ya estaba en SAP. Ese sobrante va UNA sola vez, en el lado CONTEO (como BALANCE de ese almacén): no se repite como DESCUADRE en SAP. */
       const yaEstabaEnSap = f.sap === 0 && f.movido > 0.005 && (f.dif ?? 0) >= -0.5;
       if (yaEstabaEnSap) avisos.push(`${cod} ${nombre(cod)}: la ZEXI de antes de ${alm} no lo traía (SAP 0) y la nueva trae ${Math.round(f.movido).toLocaleString("es-CO")} u sin que el cuadre pidiera moverlas: ya estaba en SAP. Va una sola vez, en el CONTEO (BALANCE · ${alm}); no se repite como DESCUADRE.`);
-      if (f.grupo !== "CAJA" && Math.abs(f.movido) >= 0.005) { aplicar(cod, `BALANCE · ${alm}`, f.movido, true); nb++ }
+      if (f.grupo !== "CAJA" && Math.abs(f.movido) >= 0.005) { balances.push({ cod, alm, t: f.movido }); nb++ }
       /* CASCO DE MÁS: el casco registrado superó lo contado y el Cuadre dejó la meta en 0. Ese sobrante es del Balance de casco: se avisa, no es DESCUADRE. */
       if (f.cascoDeMas) avisos.push(`${cod} ${nombre(cod)}: en el Cuadre ${alm} el casco registrado supera lo contado en ${Math.round(f.cascoDeMas).toLocaleString("es-CO")} u. Esa diferencia va en el Balance de casco; no se pone como DESCUADRE en SAP.`);
       if (yaEstabaEnSap) continue;
@@ -429,6 +431,25 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     movimientos311.push(...movs311DeCuadre(c, alm, nombre));
     detBal.push(`${alm}: ${nb} movidos · ${nd} sin cuadrar`);
   }
+  /* EL CUADRE DE AG22: si ahí se subió el archivo de movimientos de SAP (311 neto en AG22: + entró, − salió), ese valor MANDA sobre los 311
+     sumados de AG18, AG17 y AG16 de ese código (es el mismo movimiento visto desde AG22; no se cuenta dos veces). Todo se aplica a la ZEXI de las 6. */
+  const ag22 = await armarCuadre(fecha, "AG22");
+  const arch = ag22.fecha === fecha ? ag22.guardado?.movs_sap ?? null : null;
+  const delArch = new Map<string, number>();
+  for (const f of arch?.filas ?? []) { const v = Number(f.cantidad); if (Number.isFinite(v) && Math.abs(v) >= 0.005) delArch.set(String(f.codigo), v) }
+  const codsBal = new Set(balances.map((x) => x.cod));
+  const reemplazados: string[] = [];
+  for (const b of balances) {
+    if (delArch.has(b.cod)) continue;
+    aplicar(b.cod, `BALANCE · ${b.alm}`, b.t, true);
+  }
+  for (const [cod, v] of delArch) {
+    if (!codsBal.has(cod)) continue;
+    const suma311 = -balances.filter((x) => x.cod === cod).reduce((t, x) => t + x.t, 0);
+    aplicar(cod, "BALANCE · AG22 (archivo de movimientos de SAP)", -v, true);
+    if (Math.abs(suma311 - v) >= 0.5) reemplazados.push(`${cod} ${nombre(cod)}: archivo AG22 ${Math.round(v).toLocaleString("es-CO")} u (los Cuadres de AG18/AG17/AG16 sumaban ${Math.round(suma311).toLocaleString("es-CO")} u)`);
+  }
+  if (arch) avisos.push(`El Cuadre SAP de AG22 trae el archivo de movimientos de SAP (${arch.archivo}): sus cantidades por material mandan sobre los 311 de AG18, AG17 y AG16, y se aplican a la ZEXI de las 6.${reemplazados.length ? ` Difieren en: ${reemplazados.join(" · ")}.` : ""}`);
   fuentes.push({ nombre: "Balance y descuadre (Cuadre SAP)", ok: detBal.length > 0,
     detalle: detBal.length ? `${detBal.join(" · ")}${sinZexiAlm.length ? ` · sin ZEXI ese día: ${sinZexiAlm.join(", ")}` : ""}` : "Ningún Cuadre SAP (AG18, AG17, AG16) de ese día tiene ZEXI" });
 
