@@ -412,13 +412,14 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
       /* El producto no se toma (AG17 y AG16 lo traen en cajas): solo envase, cajas plásticas y estibas. */
       if (f.grupo === "PRODUCTO" || f.dif == null) continue;
       const cod = String(f.codigo);
-      /* La caja plástica ya quedó cuadrada en el Cuadre SAP de ese almacén: su BALANCE no entra al conteo de AG22 (solo lo de Bodega 38).
-         Lo que quedara sin cuadrar sí se muestra, como DESCUADRE. */
+      /* El BALANCE de la caja plástica va del lado SAP, como el del envase (resta o suma a la ZEXI de las 6); no pasa al conteo de AG22.
+         Lo que quedara sin cuadrar se muestra como DESCUADRE. */
       /* Un material que la ZEXI de antes no traía (SAP en 0), que nadie pidió mover (diferencia ≥ 0) y que la ZEXI nueva sí trae, NO es un movimiento:
          ya estaba en SAP. Ese sobrante va UNA sola vez, en el lado CONTEO (como BALANCE de ese almacén): no se repite como DESCUADRE en SAP. */
       const yaEstabaEnSap = f.sap === 0 && f.movido > 0.005 && (f.dif ?? 0) >= -0.5;
       if (yaEstabaEnSap) avisos.push(`${cod} ${nombre(cod)}: la ZEXI de antes de ${alm} no lo traía (SAP 0) y la nueva trae ${Math.round(f.movido).toLocaleString("es-CO")} u sin que el cuadre pidiera moverlas: ya estaba en SAP. Va una sola vez, en el CONTEO (BALANCE · ${alm}); no se repite como DESCUADRE.`);
-      if (f.grupo !== "CAJA" && Math.abs(f.movido) >= 0.005) { balances.push({ cod, alm, t: f.movido }); nb++ }
+      /* TAMBIÉN las cajas plásticas: lo que se movió por 311 contra AG22 le suma o le resta a la ZEXI de las 6 igual que el envase. Antes no entraban y SAP quedaba de más. */
+      if (Math.abs(f.movido) >= 0.005) { balances.push({ cod, alm, t: f.movido }); nb++ }
       /* CASCO DE MÁS: el casco registrado superó lo contado y el Cuadre dejó la meta en 0. Ese sobrante es del Balance de casco: se avisa, no es DESCUADRE. */
       if (f.cascoDeMas) avisos.push(`${cod} ${nombre(cod)}: en el Cuadre ${alm} el casco registrado supera lo contado en ${Math.round(f.cascoDeMas).toLocaleString("es-CO")} u. Esa diferencia va en el Balance de casco; no se pone como DESCUADRE en SAP.`);
       if (yaEstabaEnSap) continue;
