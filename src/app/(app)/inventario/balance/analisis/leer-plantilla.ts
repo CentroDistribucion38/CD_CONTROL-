@@ -31,6 +31,8 @@ export async function leerPlantilla(archivo: File, sistema: MaestroSistema = {})
   }
   /* ZEXI PRODUCTO: la ZEXI de los productos (unidades). No suma el producto: solo su caja plástica, a SAP. Ya viene de fábrica aunque la hoja TIPOS no la traiga. */
   if (!tipos.has(ZEXI_PRODUCTO)) tipos.set(ZEXI_PRODUCTO, { lado: "SAP", pide: false, caja: true });
+  /* AJUSTE CAJAS: cajas plásticas que existen y no estaban contadas (código de la CAJA y cuántas). Suma al conteo. */
+  if (!tipos.has("AJUSTE CAJAS")) tipos.set("AJUSTE CAJAS", { lado: "CONTEO", pide: false, caja: false });
   const maestro = new Map<string, { upc: number; cpe: number; caja: string | null }>();
   for (const f of filas("MAESTRO").slice(1)) {
     const c = codigo(f[0]); if (!/^\d+$/.test(c)) continue;
