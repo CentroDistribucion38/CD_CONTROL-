@@ -11,6 +11,7 @@ import type { DatosFifo, LineaFifo, UbicFifo, Zona } from "@/modulos/inventario/
  * primero), cuánto envase hubo cada día del rango y, ubicación por ubicación, si se mantiene, cambia,
  * llega o se vacía. Los colores son los de los informes de Quiebra: verde, ámbar, mostaza, azul, rojo y gris.
  */
+import { textoCajas as NC } from "@/modulos/inventario/unidades";
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const n = (v: number) => nf.format(v);
 const corto = (f: string) => `${f.slice(8, 10)}/${f.slice(5, 7)}`;
@@ -138,10 +139,10 @@ export function FifoEnvase({ datos }: { datos: DatosFifo }) {
 
       {/* ---- indicadores ---- */}
       <div className="ff-k">
-        <div><span>Envase en bodega</span><b>{n(total)}</b><small>cajas · conteo del {corto(datos.rango[datos.rango.length - 1])}</small></div>
+        <div><span>Envase en bodega</span><b>{NC(total)}</b><small>cajas · conteo del {corto(datos.rango[datos.rango.length - 1])}</small></div>
         <div><span>Antigüedad promedio</span><b>{promedio == null ? "—" : `${n(Math.round(promedio))} días`}</b><small>en la misma ubicación, ponderada por cajas</small></div>
         <div className={cajasQuietas ? "mal" : ""}><span>Quieto más de 30 días</span><b>{total ? `${(cajasQuietas * 100 / total).toLocaleString("es-CO", { maximumFractionDigits: 1 })} %` : "—"}</b>
-          <small>{n(cajasQuietas)} cajas · {new Set(quietas.map((l) => l.ubicacion)).size} ubicaciones</small></div>
+          <small>{NC(cajasQuietas)} cajas · {new Set(quietas.map((l) => l.ubicacion)).size} ubicaciones</small></div>
         <div><span>Ubicaciones que cambiaron</span><b>{n(cambiaron)} de {n(ubic.length)}</b><small>en el rango</small></div>
       </div>
 
@@ -156,7 +157,7 @@ export function FifoEnvase({ datos }: { datos: DatosFifo }) {
                 <tr key={m.codigo}>
                   <td className="mono"><i className="ff-pt" style={{ background: color.get(m.codigo) ?? OTROS }} />{m.codigo}</td>
                   <td>{m.material}</td>
-                  <td className="n">{n(m.cajas)}</td>
+                  <td className="n">{NC(m.cajas)}</td>
                   <td className="n">{m.prom == null ? "—" : n(Math.round(m.prom))}</td>
                   <td className="n"><span className={"ff-d" + tono(m.max)}>{etiquetaDias(m.max)}</span></td>
                   <td className="ff-ubis">{m.viejas.map((l, i) => <span key={i}><b>{l.ubicacion}</b> {n(l.dias!)}</span>)}</td>
@@ -228,7 +229,7 @@ export function FifoEnvase({ datos }: { datos: DatosFifo }) {
               <div key={`${u.ubicacion}-u`} className="ff-hm-u" title={u.zona}>{u.ubicacion}</div>,
               ...u.celdas.map((c, i) => (
                 <div key={`${u.ubicacion}-${i}`} className={"ff-hm-c" + (c ? "" : " sin")} style={c ? { background: color.get(c.codigo) ?? OTROS } : undefined}
-                     title={c ? `${corto(datos.rango[i])} · ${c.codigo} ${nombre.get(c.codigo) ?? ""} · ${n(c.cajas)} cajas` : `${corto(datos.rango[i])} · sin registro`} />
+                     title={c ? `${corto(datos.rango[i])} · ${c.codigo} ${nombre.get(c.codigo) ?? ""} · ${NC(c.cajas)} cajas` : `${corto(datos.rango[i])} · sin registro`} />
               )),
               <div key={`${u.ubicacion}-d`} className={"ff-hm-d" + tono(u.diasEnSitio)}>{etiquetaDias(u.diasEnSitio)}</div>,
               <div key={`${u.ubicacion}-e`} className="ff-hm-e"><i className="ff-pt" style={{ background: ESTADOS[estado!].c }} />{ESTADOS[estado!].t}</div>,

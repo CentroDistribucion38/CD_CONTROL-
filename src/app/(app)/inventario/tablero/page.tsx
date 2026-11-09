@@ -526,7 +526,7 @@ export default async function InventarioTableroPage({ searchParams }: { searchPa
                       <td>{c.responsable ?? "—"}</td>
                       <td className="n">{c.renglones}</td>
                       <td className="n">{c.ubicaciones}</td>
-                      <td className="n">{nf.format(Number(c.total_cajas))}</td>
+                      <td className="n">{nf.format(Number(c.total_cajas))}{Number(c.unidades) > 0 && <small> + {nf.format(Number(c.unidades))} un.</small>}</td>
                       <td>
                         {dia(c.enviado_en)}
                         {c.envio_nombre && c.envio_nombre !== c.responsable && (

@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { conReclasificaciones } from "@/modulos/inventario/reclasificaciones";
 import { elegirConteos } from "./fecha-tablero";
 import { todas, porTandas } from "./paginas";
+import { conSueltasTodas } from "./unidades";
 
 /**
  * INVENTARIO · lo que leen el maestro y la plantilla de conteo.
@@ -362,7 +363,9 @@ export async function tableroFefo(bodegaId: string | null, desde?: string, hasta
 
   return {
     falta: false,
-    lineas: (l ?? []) as Renglon[],
+    /* Las unidades sueltas CUENTAN: aquí `total_cajas` ya trae las cajas + las sueltas como fracción de caja (ver `cajasEq`),
+       y todo lo que se calcula con estos renglones (riesgo, franjas, semanas, unidades, HL) las incluye. */
+    lineas: conSueltasTodas((l ?? []) as Renglon[]) as Renglon[],
     conteos: enviados as ConteoFefo[],
     ultimo: ultimo as ConteoFefo | null,
     sinContar: (sc.data ?? []) as SinContar[],
@@ -391,6 +394,8 @@ export type ConteoFefo = {
   responsable: string | null; fecha_analisis: string;
   enviado_en: string | null; envio_nombre: string | null;
   renglones: number; ubicaciones: number; total_cajas: number;
+  /** Unidades sueltas (no completan caja) de todo el recorrido; `total_cajas` son solo las cajas enteras. */
+  unidades?: number | string | null;
 };
 
 /* =====================================================================

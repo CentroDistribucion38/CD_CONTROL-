@@ -137,7 +137,7 @@ export function CorregirRenglon({ elegidos, conteos, alGuardar }: {
             </label>
           )}
           <span className="ba-corr-total">
-            Antes: <b>{r.total_cajas}</b> cajas → ahora: <b>{invalido || vacio ? "—" : nuevo}</b> cajas
+            Antes: <b>{r.total_cajas}</b> cajas → ahora: <b>{invalido || vacio ? "—" : nuevo}</b> cajas{Number(r.unidades) > 0 && <> (las <b>{Number(r.unidades)}</b> unidades sueltas se conservan)</>}
           </span>
           <button type="button" className="btn" disabled={ocupado || invalido || vacio} onClick={guardar}>
             {ocupado ? "Guardando…" : choque ? "Guardar de todos modos" : "Guardar"}

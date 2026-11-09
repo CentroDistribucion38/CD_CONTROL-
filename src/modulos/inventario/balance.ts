@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { porTandas, todas } from "@/modulos/inventario/paginas";
+import { conSueltasTodas } from "@/modulos/inventario/unidades";
 import { cruzar } from "@/modulos/inventario/base-cruce";
 import { esDueno } from "@/modulos/inventario/duenos";
 import { conDivisiones } from "@/modulos/inventario/divisiones";
@@ -133,7 +134,9 @@ export async function consolidadoDelDia(fecha: string, conteos: ConteoFefo[], al
   const { data, error } = await porTandas<Renglon>(delDia.map((c) => c.id), (t, d, h) =>
     supabase.from("v_conteo_fefo").select("*").in("conteo_id", t).order("id").range(d, h));
   if (error) return { vigentes: [], error };
-  const vig = await conDivisiones(cruzar(data, delDia).vigentes);
+  /* Las unidades sueltas CUENTAN: `total_cajas` pasa a incluirlas como fracción de caja (ver `cajasEq`). Balance, Cuadre SAP y
+     Análisis de diferencia salen de aquí, así que las tres las incluyen. */
+  const vig = await conDivisiones(cruzar(conSueltasTodas(data), delDia).vigentes);
   return { vigentes: almacen ? vig.filter((r) => almacenDeRenglon(r) === almacen) : vig.filter((r) => !esDeAG17oAG16(r)), error: null };
 }
 

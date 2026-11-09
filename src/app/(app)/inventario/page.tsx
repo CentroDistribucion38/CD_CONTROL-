@@ -52,14 +52,14 @@ export default async function InventarioPortada() {
       const supabase = await createClient();
       const { data, error } = await supabase
         .from("v_conteos_fefo")
-        .select("codigo, fecha_analisis, enviado_en, total_cajas, ubicaciones")
+        .select("*")
         .eq("estado", "cerrado")
         .order("enviado_en", { ascending: false })
         .limit(1);
       if (error) return null;
       return (data?.[0] ?? null) as {
         codigo: string; fecha_analisis: string; enviado_en: string | null;
-        total_cajas: number; ubicaciones: number;
+        total_cajas: number; ubicaciones: number; unidades?: number | null;
       } | null;
     })(),
 
@@ -137,7 +137,8 @@ export default async function InventarioPortada() {
   const CIFRA: Record<string, { n: string; u: string; pie: string; mal: boolean } | null> = {
     conteos: conteo == null ? null : {
       n: nf.format(Number(conteo.total_cajas)),
-      u: Number(conteo.total_cajas) === 1 ? "caja" : "cajas",
+      /* Las unidades sueltas (las que no completan una caja) también cuentan: «cajas + 7 un.». */
+      u: (Number(conteo.total_cajas) === 1 ? "caja" : "cajas") + (Number(conteo.unidades) > 0 ? ` + ${nf.format(Number(conteo.unidades))} un.` : ""),
       /* LA FECHA VA EN EL PIE Y NO ES ADORNO: una foto de hace tres
          semanas se lee igual de firme que la de ayer, y sobre ella
          alguien despacha. */

@@ -28,6 +28,7 @@
 import ExcelJS from "exceljs";
 import { unzipSync, zipSync } from "fflate";
 import type { Renglon, ConteoFefo, Material, Ubicacion } from "./fefo";
+import { conSueltasTodas, textoCajas } from "./unidades";
 import { armarTablero, inyectarDonas } from "./libro-tablero";
 import { medirRiesgo, franja, FRANJAS, type Franja } from "./riesgo";
 
@@ -201,7 +202,16 @@ export function porSitio<T extends { calle?: string | null; modulo?: string | nu
 
 const siNo = (b: boolean | null | undefined) => (b ? "Sí" : "");
 
-export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
+export async function armarLibroDia(entrada: InsumosDia): Promise<Buffer> {
+  /* LAS UNIDADES SUELTAS ENTRAN EN TODO EL LIBRO: `total_cajas` pasa a ser las cajas equivalentes
+     (cajas + sueltas / unidades por caja) y `cajas_enteras` guarda las cajas completas. Se hace UNA
+     sola vez, aquí; la ruta entrega los renglones tal como salen de la base. */
+  const d: InsumosDia = { ...entrada, lineas: conSueltasTodas(entrada.lineas) as Renglon[] };
+  const hayS = d.lineas.some((l) => Number(l.unidades) > 0);
+  const FC = hayS ? "#,##0.00" : "#,##0";   // las cajas llevan decimales solo si hubo sueltas
+  const eqRec = new Map<string, number>();
+  for (const l of d.lineas) if (Number(l.unidades) > 0) eqRec.set(l.conteo, 0);
+  for (const l of d.lineas) if (eqRec.has(l.conteo)) eqRec.set(l.conteo, (eqRec.get(l.conteo) ?? 0) + Number(l.total_cajas));
   usarColores(d.colores ?? COLORES_MARCA);
   const wb = new ExcelJS.Workbook();
   wb.creator = "CONTROL · Inventario"; wb.created = new Date();
@@ -257,15 +267,16 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
   for (const l of base) {
     if (factorDe.get(l.codigo)) continue;
     const est = Number(l.estibas ?? 0), resto = Number(l.cajas ?? 0) + Number(l.saldo ?? 0);
-    const f = Number(l.factor_estibado) || Number(matPorSku.get(l.codigo)?.cajas_por_estiba) || (est > 0 ? (Number(l.total_cajas) - resto) / est : 0);
+    const f = Number(l.factor_estibado) || Number(matPorSku.get(l.codigo)?.cajas_por_estiba) || (est > 0 ? (Number((l as { cajas_enteras?: number }).cajas_enteras ?? l.total_cajas) - resto) / est : 0);
     factorDe.set(l.codigo, f > 0 ? f : 0);
   }
-  type Fila = { l: Renglon; clase: Clase; estibas: number; saldo: number; factor: number; cajas: number; fisicas: number; plast: number; uxc: number; unid: number; hl: number };
+  type Fila = { l: Renglon; clase: Clase; estibas: number; saldo: number; factor: number; cajasEnt: number; sueltas: number; cajas: number; fisicas: number; plast: number; uxc: number; unid: number; hl: number };
   const filas: Fila[] = base.map((l) => {
     const estibas = Number(l.estibas ?? 0), saldo = Number(l.cajas ?? 0) + Number(l.saldo ?? 0), factor = factorDe.get(l.codigo) ?? 0;
-    const cajas = estibas * factor + saldo, clase = claseDe(l), u = Number(uxc[l.codigo] ?? 0);
-    return { l, clase, estibas, saldo, factor, cajas, fisicas: estibas + (saldo > 0 ? 1 : 0), plast: clase === "Otro envase" ? 0 : cajas,
-      uxc: u, unid: cajas * u, hl: cajas * u * Number(hlu[l.codigo] ?? 0) };
+    const cajasEnt = estibas * factor + saldo, clase = claseDe(l), u = Number(uxc[l.codigo] ?? 0), sueltas = Number(l.unidades ?? 0) || 0;
+    const cajas = cajasEnt + (u > 0 ? sueltas / u : 0), unid = Math.round(cajas * u);
+    return { l, clase, estibas, saldo, factor, cajasEnt, sueltas, cajas, fisicas: estibas + (saldo > 0 ? 1 : 0), plast: clase === "Otro envase" ? 0 : cajas,
+      uxc: u, unid, hl: unid * Number(hlu[l.codigo] ?? 0) };
   });
   const codigosBase = [...new Set(base.map((l) => l.codigo))].sort((a, b) => a.localeCompare(b, "es", { numeric: true }));
   const finM = 6 + Math.max(codigosBase.length, 1);
@@ -279,8 +290,8 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     { k: "cod", t: "Código", w: 10 }, { k: "mat", t: "Material", w: 34 }, { k: "tipo", t: "Tipo", w: 11 }, { k: "fam", t: "Familia", w: 13 },
     { k: "clase", t: "Clase", w: 13 },
     { k: "estibas", t: "Estibas completas", w: 11, fmt: "#,##0", num: true }, { k: "saldo", t: "Saldo (cajas)", w: 10, fmt: "#,##0", num: true },
-    { k: "factor", t: "Cajas por estiba", w: 10, fmt: "#,##0", num: true }, { k: "cajas", t: "Total cajas", w: 11, fmt: "#,##0", num: true },
-    { k: "fisicas", t: "Estibas físicas", w: 10, fmt: "#,##0", num: true }, { k: "plast", t: "Cajas plásticas", w: 11, fmt: "#,##0", num: true },
+    { k: "factor", t: "Cajas por estiba", w: 10, fmt: "#,##0", num: true }, { k: "cajas", t: "Total cajas", w: 11, fmt: FC, num: true },
+    { k: "fisicas", t: "Estibas físicas", w: 10, fmt: "#,##0", num: true }, { k: "plast", t: "Cajas plásticas", w: 11, fmt: FC, num: true },
     { k: "uxc", t: "Unidades por caja", w: 10, fmt: "#,##0", num: true }, { k: "unid", t: "Unidades", w: 12, fmt: "#,##0", num: true },
     { k: "fab", t: "Fabricación", w: 12, fmt: "dd/mm/yyyy" }, { k: "venc", t: "Vencimiento", w: 12, fmt: "dd/mm/yyyy" },
     { k: "dvenc", t: "Días p/vencer", w: 10, fmt: "0", num: true }, { k: "dsal", t: "Días p/salir", w: 10, fmt: "0", num: true },
@@ -290,6 +301,10 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
        (los pone la base; nadie los escribe). Aquí, al final para no mover las columnas que usan
        las fórmulas, cuántos días lleva desde que se recibió en esa posición. */
     { k: "dfifo", t: "Días desde recepción", w: 10, fmt: "0", num: true },
+    /* Las unidades sueltas (menos de una caja) que se contaron en ese renglón. Ya están dentro de
+       «Total cajas» (como fracción de caja) y de «Unidades»; aquí se ven por separado. Va al final para
+       no mover las columnas que usan las fórmulas. */
+    { k: "sueltas", t: "Unidades sueltas", w: 10, fmt: "#,##0", num: true },
   ];
   const K = Object.fromEntries(CB.map((c, i) => [c.k, i + 1])) as Record<string, number>;
   const LB = (k: string) => col(K[k]);
@@ -301,7 +316,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
       cod: l.codigo, mat: l.material, tipo: l.tipo_material, fam: l.familia ?? "Sin familia", clase: x.clase, estibas: x.estibas, saldo: x.saldo, factor: x.factor, cajas: x.cajas,
       fisicas: x.fisicas, plast: x.plast, uxc: x.uxc, unid: x.unid, fab: aDia(l.fabricacion), venc: aDia(l.vencimiento), dvenc: l.dias_para_vencer, dsal: l.dias_para_salir,
       franja: rotFr(franja(l)), rota: siNo(l.rotacion), averia: siNo(l.averia), pnc: siNo(l.pnc), estenv: l.estado_envase ?? "", nota: l.nota ?? "", hl: x.hl,
-      dfifo: l.dias_en_posicion ?? null,
+      dfifo: l.dias_en_posicion ?? null, sueltas: x.sueltas,
     };
   };
   const planos = filas.map(filaVal);
@@ -321,8 +336,8 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     vistos.set(k, l);
     const f = franja(l);
     if (l.tipo_material !== "ENVASE" && !l.vencimiento) ojos.push({ tipo: "Sin fecha", grave: true, ubicacion: ub(l), codigo: l.codigo, material: l.material, detalle: "Producto sin fecha de vencimiento: no se puede saber cuándo sale.", recorrido: l.conteo });
-    if (f === "vencido") ojos.push({ tipo: "Vencido", grave: true, ubicacion: ub(l), codigo: l.codigo, material: l.material, detalle: `Vencido hace ${-(l.dias_para_vencer ?? 0)} día(s). ${Number(l.total_cajas)} cajas.`, recorrido: l.conteo });
-    else if (f === "pasado") ojos.push({ tipo: "Fuera de despacho", grave: true, ubicacion: ub(l), codigo: l.codigo, material: l.material, detalle: `Superó la fecha límite de despacho hace ${-(l.dias_para_salir ?? 0)} día(s). ${Number(l.total_cajas)} cajas.`, recorrido: l.conteo });
+    if (f === "vencido") ojos.push({ tipo: "Vencido", grave: true, ubicacion: ub(l), codigo: l.codigo, material: l.material, detalle: `Vencido hace ${-(l.dias_para_vencer ?? 0)} día(s). ${textoCajas(Number(l.total_cajas))} cajas.`, recorrido: l.conteo });
+    else if (f === "pasado") ojos.push({ tipo: "Fuera de despacho", grave: true, ubicacion: ub(l), codigo: l.codigo, material: l.material, detalle: `Superó la fecha límite de despacho hace ${-(l.dias_para_salir ?? 0)} día(s). ${textoCajas(Number(l.total_cajas))} cajas.`, recorrido: l.conteo });
     if (!matPorSku.has(l.codigo)) ojos.push({ tipo: "Código fuera del maestro", grave: true, ubicacion: ub(l), codigo: l.codigo, material: l.material, detalle: "El código no está en el maestro de materiales.", recorrido: l.conteo });
     else if (l.tipo_material !== "ENVASE" && !uxc[l.codigo]) ojos.push({ tipo: "Sin unidades por caja", grave: false, ubicacion: ub(l), codigo: l.codigo, material: l.material, detalle: "El maestro no trae unidades por caja: no suma en unidades.", recorrido: l.conteo });
     if (l.averia || l.pnc) ojos.push({ tipo: l.averia ? "Avería" : "PNC", grave: false, ubicacion: ub(l), codigo: l.codigo, material: l.material, detalle: l.nota ?? "Marcado en el conteo.", recorrido: l.conteo });
@@ -340,11 +355,11 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
   /* Lo que la aplicación guardó contra lo que sale de la fórmula. Si no coinciden, el factor de estibado del maestro está mal. */
   for (const x of filas) if (Math.abs(x.cajas - Number(x.l.total_cajas)) > 0.5)
     ojos.push({ tipo: "No cuadra con la aplicación", grave: true, ubicacion: ub(x.l), codigo: x.l.codigo, material: x.l.material,
-      detalle: `La fórmula da ${x.cajas.toLocaleString("es-CO")} cajas (${x.estibas} estibas × ${x.factor} + ${x.saldo}) y la aplicación guardó ${Number(x.l.total_cajas).toLocaleString("es-CO")}. Revisa el factor de estibado.`, recorrido: x.l.conteo });
+      detalle: `La fórmula da ${textoCajas(x.cajas)} cajas (${x.estibas} estibas × ${x.factor} + ${x.saldo}${x.sueltas > 0 ? ` + ${x.sueltas} un. sueltas` : ""}) y la aplicación guardó ${textoCajas(Number(x.l.total_cajas))}. Revisa el factor de estibado.`, recorrido: x.l.conteo });
   for (const x of porUbi.values()) if (x.capacidad && x.estibas > x.capacidad)
     ojos.push({ tipo: "Sobre capacidad", grave: false, ubicacion: x.ubicacion, codigo: "", material: "", detalle: `Hay ${x.estibas} estibas y caben ${x.capacidad}.`, recorrido: "" });
   for (const l of reemplazados)
-    ojos.push({ tipo: "Reemplazado", grave: false, ubicacion: ub(l), codigo: l.codigo, material: l.material, detalle: `Esa ubicación (y zona) se volvió a contar: vale el recorrido más reciente. Aquí decía ${Number(l.total_cajas)} cajas.`, recorrido: l.conteo });
+    ojos.push({ tipo: "Reemplazado", grave: false, ubicacion: ub(l), codigo: l.codigo, material: l.material, detalle: `Esa ubicación (y zona) se volvió a contar: vale el recorrido más reciente. Aquí decía ${textoCajas(Number(l.total_cajas))} cajas.`, recorrido: l.conteo });
   const graves = ojos.filter((o) => o.grave).length;
 
   /* Lo que nadie caminó ese día. */
@@ -367,11 +382,11 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
      consolidada» y «Por ubicación»). Las donas se meten al final, en el zip. */
   const finV = 6 + Math.max(ojos.length, 1);
   const donas = armarTablero({
-    wb, logoId, titulo: `INVENTARIO CONSOLIDADO · ${d.bodega.toUpperCase()}`, sub, bodega: d.bodega.toUpperCase(), activas, contadas: nUbi,
+    wb, logoId, titulo: `INVENTARIO CONSOLIDADO · ${d.bodega.toUpperCase()}`, sub, bodega: d.bodega.toUpperCase(), decimales: hayS, activas, contadas: nUbi,
     filas: filas.map((x, i) => ({ clase: x.clase, tipo: x.l.tipo_material, franja: String(planos[i].franja), tieneVenc: !!x.l.vencimiento,
       fisicas: x.fisicas, cajas: x.cajas, plast: x.plast, unid: x.unid, hl: x.hl })),
     us: us.map((x) => ({ calle: x.calle, capacidad: x.capacidad, estibas: x.estibas, envase: x.envase, producto: x.producto, libre: x.libre })),
-    recorridos: d.conteos.map((c) => ({ codigo: c.codigo, cajas: Number(c.total_cajas), renglones: c.renglones, ubicaciones: c.ubicaciones,
+    recorridos: d.conteos.map((c) => ({ codigo: c.codigo, cajas: eqRec.get(c.codigo) ?? Number(c.total_cajas), renglones: c.renglones, ubicaciones: c.ubicaciones,
       enviado: aFecha(c.enviado_en) })),
     graves, rb, ru, rv: `Validar!$B$7:$B$${finV}`, vinculo, clases: CLASES, natural: (a, b) => natural(a, b),
   });
@@ -389,16 +404,16 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
     switch (k) {
       case "clase": return `IF(${c("tipo")}="PRODUCTO","Producto",IF(ISNUMBER(SEARCH("CAJA PL",${c("mat")})),"Libre",IF(OR(ISNUMBER(SEARCH("BARRIL",${c("mat")})),ISNUMBER(SEARCH("ESTIBA",${c("mat")}))),"Otro envase","Envase")))`;
       case "factor": return buscar("D", n);
-      case "cajas": return `${c("estibas")}*${c("factor")}+${c("saldo")}`;
+      case "cajas": return `${c("estibas")}*${c("factor")}+${c("saldo")}+IF(${c("uxc")}>0,${c("sueltas")}/${c("uxc")},0)`;
       case "fisicas": return `${c("estibas")}+IF(${c("saldo")}>0,1,0)`;
       case "plast": return `IF(${c("clase")}="Otro envase",0,${c("cajas")})`;
       case "uxc": return buscar("E", n);
-      case "unid": return `${c("cajas")}*${c("uxc")}`;
+      case "unid": return `ROUND(${c("cajas")}*${c("uxc")},0)`;
       case "hl": return `${c("unid")}*${buscar("F", n)}`;
       default: return null;
     }
   };
-  const SUMAS_B = ["estibas", "saldo", "cajas", "fisicas", "plast", "unid", "hl"];
+  const SUMAS_B = ["estibas", "saldo", "cajas", "fisicas", "plast", "unid", "hl", "sueltas"];
   {
     const h = wb.addWorksheet("Conteo consolidado", { properties: { tabColor: { argb: "FFFF9100" } } });
     h.columns = CB.map((c) => ({ width: c.w }));
@@ -418,7 +433,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
       if (l.tipo_material !== "ENVASE") pintarFranja(r.getCell(K.franja), franja(l));
       if ((l.dias_para_salir ?? 0) < 0) r.getCell(K.dsal).font = letra(9.5, ROJO, true);
     });
-    totales(h, fin + 1, 7, fin, SUMAS_B.map((k) => K[k]), CB.length, "TOTAL (lo filtrado)", { [K.hl]: "#,##0.00" });
+    totales(h, fin + 1, 7, fin, SUMAS_B.map((k) => K[k]), CB.length, "TOTAL (lo filtrado)", { [K.hl]: "#,##0.00", [K.cajas]: FC, [K.plast]: FC });
     h.autoFilter = `A6:${col(CB.length)}${fin}`;
     h.views = [{ state: "frozen", xSplit: 9, ySplit: 6, showGridLines: false }];
     h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: "6:6" };
@@ -455,17 +470,18 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
       if (di >= 0 && (filas[bi].l.dias_para_salir ?? 0) < 0) r.getCell(di + 1).font = letra(9.5, ROJO, true);
     });
     const fn = 6 + Math.max(idx.length, 1);
-    totales(h, fn + 1, 7, fn, SUMAS_B.filter((k) => keys.includes(k)).map((k) => keys.indexOf(k) + 1), cs.length, "TOTAL (lo filtrado)", { [keys.indexOf("hl") + 1]: "#,##0.00" });
+    totales(h, fn + 1, 7, fn, SUMAS_B.filter((k) => keys.includes(k)).map((k) => keys.indexOf(k) + 1), cs.length, "TOTAL (lo filtrado)", { [keys.indexOf("hl") + 1]: "#,##0.00", [keys.indexOf("cajas") + 1]: FC, [keys.indexOf("plast") + 1]: FC });
     h.autoFilter = `A6:${col(cs.length)}${fn}`;
     h.views = [{ state: "frozen", xSplit: 9, ySplit: 6, showGridLines: false }];
     h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: "6:6" };
     wb.definedNames.add(`'${nombre}'!$A$6:$${col(cs.length)}$${fn}`, nombreRango);
   };
   const comunes = ["rec", "conto", "cuando", "calle", "modulo", "lado", "ubic", "cod", "mat", "tipo", "fam", "clase", "estibas", "saldo", "factor", "cajas", "fisicas"];
+  const sueltasCol = hayS ? ["sueltas"] : [];
   derivada("Conteo envase", "Conteo de envase", "FFFFB000", (x) => x.clase !== "Producto",
-    [...comunes, "plast", "uxc", "unid", "estenv", "averia", "pnc", "nota", "fab", "venc", "dvenc", "dfifo", "hl"], "ConteoEnvase");
+    [...comunes, "plast", "uxc", "unid", "estenv", "averia", "pnc", "nota", "fab", "venc", "dvenc", "dfifo", "hl", ...sueltasCol], "ConteoEnvase");
   derivada("Conteo producto", "Conteo de producto", "FFFFD000", (x) => x.clase === "Producto",
-    [...comunes, "uxc", "unid", "fab", "venc", "dvenc", "dsal", "franja", "rota", "averia", "pnc", "nota", "hl"], "ConteoProducto");
+    [...comunes, "uxc", "unid", "fab", "venc", "dvenc", "dsal", "franja", "rota", "averia", "pnc", "nota", "hl", ...sueltasCol], "ConteoProducto");
 
   /* ================= 2c · ANÁLISIS: LAS TABLAS DINÁMICAS CON FÓRMULAS =================
      «Quiero que esa base me sirva para muchísimos análisis.» Una tabla
@@ -793,7 +809,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
       const iSel = Math.max(0, claves.indexOf(`${t.estado}|${t.zona}`));
       const A = col(t.c0), D = col(t.c0 + 3), E = col(t.c0 + 4);
       const r9 = h.getCell(9, t.c0 + 1);
-      r9.value = { formula: `COUNTIF(${A}${F0}:${A}${F1},"?*")&" material(es) · "&TEXT(SUM(${D}${F0}:${D}${F1}),"#,##0")&" estibas · "&TEXT(SUM(${E}${F0}:${E}${F1}),"#,##0")&" cajas"`,
+      r9.value = { formula: `COUNTIF(${A}${F0}:${A}${F1},"?*")&" material(es) · "&TEXT(SUM(${D}${F0}:${D}${F1}),"#,##0")&" estibas · "&TEXT(SUM(${E}${F0}:${E}${F1}),"${FC}")&" cajas"`,
                    result: `${listas[iSel]?.length ?? 0} material(es) · ${(listas[iSel] ?? []).reduce((x, m) => x + m.est, 0)} estibas · ${(listas[iSel] ?? []).reduce((x, m) => x + m.cajas, 0)} cajas` };
       r9.font = letra(9.5, GRIS, true); r9.alignment = { horizontal: "center" };
       CAB.forEach((tt, i) => { const c = h.getCell(F0 - 1, t.c0 + i); c.value = tt; c.font = letra(11, "FF000000", true); c.fill = relleno(i === 5 ? "FFF8D7DA" : "FFD9D9D9"); c.border = borde; c.alignment = { vertical: "middle", horizontal: "center", wrapText: true } });
@@ -812,7 +828,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
           x.value = { formula: `IFERROR(IF(${idx}="","",${idx}),"")`, result: res };
           x.border = borde; x.font = letra(11, "FF000000", c === 0);
           x.alignment = { vertical: "middle", horizontal: c === 2 ? "left" : "center", wrapText: c === 1 || c === 2, indent: c === 2 ? 1 : 0 };
-          if (c >= 3) x.numFmt = "#,##0;\\-#,##0;";
+          if (c >= 3) x.numFmt = c === 4 ? FC + ";\\-" + FC + ";" : "#,##0;\\-#,##0;";
         }
         /* VALIDACIÓN CASCO: lo que no cuadra entre el Casco de vidrio y este conteo para ese material. */
         {
@@ -856,7 +872,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
         fx(`COUNTIFS(${crit})`, delCodigo.length), donde.join(" - "),
         fx(`SUMIFS(${rb("fisicas")},${crit})`, sm("fisicas")), fx(`SUMIFS(${rb("cajas")},${crit})`, sm("cajas")),
         fx(`SUMIFS(${rb("unid")},${crit})`, sm("unid")), aDia(m.vence), m.diasSalir, rotFr(m.franja), m.enRiesgoCajas, fx(`SUMIFS(${rb("hl")},${crit})`, sm("hl"))];
-      filaDatos(r, C.length, i % 2 === 1, { 6: "#,##0", 8: "#,##0", 9: "#,##0", 10: "#,##0", 11: "dd/mm/yyyy", 12: "0", 14: "#,##0", 15: "#,##0.00" }, [6, 8, 9, 10, 12, 14, 15]);
+      filaDatos(r, C.length, i % 2 === 1, { 6: "#,##0", 8: "#,##0", 9: FC, 10: "#,##0", 11: "dd/mm/yyyy", 12: "0", 14: FC, 15: "#,##0.00" }, [6, 8, 9, 10, 12, 14, 15]);
       r.getCell(1).font = letra(9.5, TINTA, true);
       /* La lista larga se parte en renglones dentro de la celda y la fila crece (≈ 46 caracteres por línea). */
       r.getCell(7).alignment = { vertical: "middle", horizontal: "left", indent: 1, wrapText: true };
@@ -865,7 +881,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
       pintarFranja(r.getCell(13), m.franja);
     });
     const fm = 6 + Math.max(mats.length, 1);
-    totales(h, fm + 1, 7, fm, [6, 8, 9, 10, 14, 15], C.length, "TOTAL (lo filtrado)", { 15: "#,##0.00" });
+    totales(h, fm + 1, 7, fm, [6, 8, 9, 10, 14, 15], C.length, "TOTAL (lo filtrado)", { 9: FC, 14: FC, 15: "#,##0.00" });
     h.autoFilter = `A6:${col(C.length)}${fm}`;
     h.views = [{ state: "frozen", xSplit: 2, ySplit: 6, showGridLines: false }];
     h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: "6:6" };
@@ -889,11 +905,11 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
         fx(`${sf("Envase")}+${sf("Otro envase")}`, x.envase), fx(sf("Producto"), x.producto), fx(sf("Libre"), x.libre),
         fx(`SUM(F${n}:H${n})`, x.estibas), fx(`IF(N(E${n})=0,"",MAX(0,E${n}-I${n}))`, sinUsarDe(x) ?? ""), fx(`IF(N(E${n})=0,"",I${n}/E${n})`, occ),
         fx(`SUMIFS(${rb("cajas")},${rb("ubic")},$A${n})`, x.cajas), x.materiales.size, fx(`COUNTIFS(${rb("ubic")},$A${n})`, x.renglones)];
-      filaDatos(r, C.length, i % 2 === 1, { 5: "#,##0", 6: "#,##0", 7: "#,##0", 8: "#,##0", 9: "#,##0", 10: "#,##0", 11: "0%", 12: "#,##0", 13: "0", 14: "0" }, [5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
+      filaDatos(r, C.length, i % 2 === 1, { 5: "#,##0", 6: "#,##0", 7: "#,##0", 8: "#,##0", 9: "#,##0", 10: "#,##0", 11: "0%", 12: FC, 13: "0", 14: "0" }, [5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
       r.getCell(1).font = letra(9.5, TINTA, true);
       if (typeof occ === "number" && occ > 1) { r.getCell(11).fill = relleno(FR.pasado.fondo); r.getCell(11).font = letra(9.5, FR.pasado.tinta, true) }
     });
-    totales(h, finU + 1, 7, finU, [5, 6, 7, 8, 9, 10, 12, 14], C.length);
+    totales(h, finU + 1, 7, finU, [5, 6, 7, 8, 9, 10, 12, 14], C.length, "TOTAL (lo filtrado)", { 12: FC });
     h.autoFilter = `A6:${col(C.length)}${finU}`;
     h.views = [{ state: "frozen", ySplit: 6, showGridLines: false }];
   }
@@ -1000,7 +1016,7 @@ export async function armarLibroDia(d: InsumosDia): Promise<Buffer> {
       const r = h.getRow(7 + i);
       r.values = [l?.conteo ?? "", l ? ub(l) : "(renglón que ya no está)", l?.codigo ?? "", l?.material ?? "", l ? Number(l.total_cajas) : null,
         l?.estado_envase ?? "", l ? (l.averia ? "Avería" : l.pnc ? "PNC" : "") : "", l?.nota ?? "", aFecha(e.tomada_en), ""];
-      filaDatos(r, C.length, i % 2 === 1, { 5: "#,##0", 9: "dd/mm/yy hh:mm" }, [5]);
+      filaDatos(r, C.length, i % 2 === 1, { 5: FC, 9: "dd/mm/yy hh:mm" }, [5]);
       r.height = 170;                       // alto de la foto
       for (let c = 1; c <= C.length; c++) r.getCell(c).alignment = { vertical: "top", horizontal: c === 5 ? "right" : "left", indent: 1, wrapText: true };
       r.getCell(3).font = letra(9.5, TINTA, true);

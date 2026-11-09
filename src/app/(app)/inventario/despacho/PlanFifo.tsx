@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { DatosPlan, MaterialPlan, RenglonPlan, Zona } from "@/modulos/inventario/plan-fifo";
+import { textoCajas as NC } from "@/modulos/inventario/unidades";
 
 const nf0 = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const nf1 = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 1 });
@@ -160,7 +161,7 @@ export function PlanFifo({ datos, inicial }: { datos: DatosPlan; inicial: string
         <>
           <div className="pf-k">
             <div><span>Posiciones a recorrer</span><b>{n0(tModulos)}</b><small>{elegidos.length} material{elegidos.length === 1 ? "" : "es"}</small></div>
-            <div><span>Cajas en esas posiciones</span><b>{n0(tCajas)}</b><small>{n1(tEstibas)} estibas</small></div>
+            <div><span>Cajas en esas posiciones</span><b>{NC(tCajas)}</b><small>{n1(tEstibas)} estibas</small></div>
             <div className={masViejo && (masViejo.dias ?? 0) > 30 ? "mal" : ""}><span>Más viejo</span><b>{masViejo ? `${n0(masViejo.dias!)} d` : "—"}</b>
               <small>{masViejo ? `${masViejo.ubicacion} · desde ${corta(masViejo.fechaFifo)}` : "sin fecha FIFO"}</small></div>
             <div><span>Primero se sale por</span><b className="pf-mono">{bloques.find((b) => b.filas.length)?.filas[0].r.ubicacion ?? "—"}</b>
@@ -176,7 +177,7 @@ export function PlanFifo({ datos, inicial }: { datos: DatosPlan; inicial: string
                 </div>
                 <dl>
                   <div><dt>Posiciones</dt><dd>{n0(b.filas.length)}<small> de {n0(b.totalModulos)}</small></dd></div>
-                  <div><dt>Cajas</dt><dd>{n0(b.cajas)}</dd></div>
+                  <div><dt>Cajas</dt><dd>{NC(b.cajas)}</dd></div>
                   <div><dt>Estibas</dt><dd>{n1(b.estibas)}</dd></div>
                 </dl>
               </header>
@@ -203,7 +204,7 @@ export function PlanFifo({ datos, inicial }: { datos: DatosPlan; inicial: string
                             <td>{r.zona}</td>
                             <td>{r.estado ? <span className="pf-est">{r.estado}</span> : <span className="pf-tenue">—</span>}</td>
                             <td className="n">{n1(r.estibas)}</td>
-                            <td className="n"><b>{n0(r.cajas)}</b></td>
+                            <td className="n"><b>{NC(r.cajas)}</b></td>
                             <td>{corta(r.fechaFifo)}</td>
                             <td>
                               <span className={"pf-dias " + tono(r.dias)}>
@@ -213,7 +214,7 @@ export function PlanFifo({ datos, inicial }: { datos: DatosPlan; inicial: string
                             </td>
                             <td>
                               <span className="pf-acum">
-                                <b>{n0(ac)}</b>
+                                <b>{NC(ac)}</b>
                                 <i><u style={{ width: `${(ac * 100) / b.cajas}%`, background: color.get(b.cod) }} /></i>
                               </span>
                             </td>
@@ -227,9 +228,9 @@ export function PlanFifo({ datos, inicial }: { datos: DatosPlan; inicial: string
                       })}
                     </tbody>
                     <tfoot>
-                      <tr><td colSpan={4}>TOTAL · {b.cod} · {n0(b.filas.length)} posiciones</td><td className="n">{n1(b.estibas)}</td><td className="n">{n0(b.cajas)}</td><td colSpan={4} /></tr>
+                      <tr><td colSpan={4}>TOTAL · {b.cod} · {n0(b.filas.length)} posiciones</td><td className="n">{n1(b.estibas)}</td><td className="n">{NC(b.cajas)}</td><td colSpan={4} /></tr>
                       {b.restoModulos > 0 && <tr className="pf-resto"><td colSpan={4}>Quedan {n0(b.restoModulos)} posiciones más recientes</td><td />
-                        <td className="n">{n0(b.restoCajas)}</td><td colSpan={4}>cajas que no se tocan en este plan</td></tr>}
+                        <td className="n">{NC(b.restoCajas)}</td><td colSpan={4}>cajas que no se tocan en este plan</td></tr>}
                     </tfoot>
                   </table>
                 </div>
@@ -253,7 +254,7 @@ function Tarjeta({ m, color, on, onClick }: { m: MaterialPlan; color: string; on
     <button type="button" className={"pf-tile" + (on ? " on" : "")} aria-pressed={on} onClick={onClick} style={{ borderTopColor: color }}>
       <span className="pf-cod"><i style={{ background: color }} />{m.codigo}</span>
       <strong>{m.material}</strong>
-      <small>{n0(m.cajas)} cajas · {n0(m.modulos)} módulos</small>
+      <small>{NC(m.cajas)} cajas · {n0(m.modulos)} módulos</small>
       <em className={tono(m.maxDias)}>{m.maxDias == null ? "sin fecha FIFO" : `más viejo ${n0(m.maxDias)} d`}</em>
     </button>
   );
@@ -296,7 +297,7 @@ function FiltroMaterial({ materiales, elegidos, color, aplicar, cerrar }: {
               <input type="checkbox" checked={on} disabled={!on && llena} onChange={() => alterna(m.codigo)} />
               <i style={{ background: color.get(m.codigo) }} />
               <span><b>{m.codigo}</b> · {m.material}</span>
-              <em>{n0(m.cajas)}</em>
+              <em>{NC(m.cajas)}</em>
             </label>
           );
         })}

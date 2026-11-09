@@ -3,6 +3,7 @@ import { porTandas } from "@/modulos/inventario/paginas";
 import { cruzar } from "@/modulos/inventario/base-cruce";
 import { diasConConteo } from "@/modulos/inventario/balance";
 import type { Renglon } from "@/modulos/inventario/fefo";
+import { conSueltasTodas } from "@/modulos/inventario/unidades";
 import { esUbicacionFabrica, esDeAG17oAG16 } from "@/modulos/casco/ubicacion-sitio";
 
 /**
@@ -53,6 +54,8 @@ export async function fifoEnvase(pDesde?: string | null, pHasta?: string | null)
   const { data, error: e1 } = await porTandas<Renglon>(delRango.map((c) => c.id), (t, d, h) =>
     supabase.from("v_conteo_fefo").select("*").in("conteo_id", t).eq("tipo_material", "ENVASE").order("id").range(d, h));
   if (e1) return { ...vacio, desde, hasta, rango, error: e1 };
+  /* Las unidades sueltas cuentan: `total_cajas` pasa a incluirlas como fracción de caja. */
+  const filas = conSueltasTodas(data);
 
   const diaDe = new Map(delRango.map((c) => [c.id, String(c.fecha_analisis).slice(0, 10)]));
   const nombres = new Map<string, string>();
@@ -64,7 +67,7 @@ export async function fifoEnvase(pDesde?: string | null, pHasta?: string | null)
   for (const fecha of rango) {
     const cs = delRango.filter((c) => diaDe.get(c.id) === fecha);
     const ids = new Set(cs.map((c) => c.id));
-    const { vigentes } = cruzar(data.filter((r) => ids.has(r.conteo_id)), cs);
+    const { vigentes } = cruzar(filas.filter((r) => ids.has(r.conteo_id)), cs);
     for (const r of vigentes) {
       const codigo = String(r.codigo);
       if (codigo === ESTIBA || esCajaPlastica(r.material)) continue;

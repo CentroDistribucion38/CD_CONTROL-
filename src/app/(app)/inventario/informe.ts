@@ -10,6 +10,7 @@
 import { FRANJAS, enRiesgo, type Franja, type MaterialRiesgo } from "@/modulos/inventario/riesgo";
 import type { DatosRiesgo } from "./Riesgo";
 import { PALETA_MARCA, paletaDeTema, aRGB, type Paleta } from "@/modulos/rotlinea/hoja";
+import { textoCajas } from "@/modulos/inventario/unidades";
 
 /** Los colores del tema de quien lo genera, como la hoja de rotura: el
  *  oficial sale con la marca; ámbar, gris… cambian la cinta, las rayas y
@@ -53,11 +54,11 @@ export async function informeRiesgo(r: DatosRiesgo, o: { bodega: string; unidad:
   /* SIEMPRE LAS TRES MEDIDAS: lo que se escogió arriba manda en las gráficas, pero cada cifra del informe trae sus
      cajas, sus unidades y sus hectolitros, para que el papel sea la información completa y no haya que pedirlo otra vez. */
   const nu = (n: number | null) => n == null ? "—" : nf.format(n);
-  const tri = (c: number, u: number | null, h: number | null) => `${nf.format(c)} cajas · ${nu(u)} unid. · ${h == null ? "—" : fh(h)} hl`;
+  const tri = (c: number, u: number | null, h: number | null) => `${textoCajas(c)} cajas · ${nu(u)} unid. · ${h == null ? "—" : fh(h)} hl`;
   const ajusta = (t: string, ancho: number, tam: number) => { let z = tam; pdf.setFontSize(z); while (z > 5.5 && pdf.getTextWidth(t) > ancho) { z -= 0.3; pdf.setFontSize(z) } };
   const hoy = new Date();
   const hoyTx = hoy.toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" });
-  const cant = (c: number, u: number | null, h: number | null = null) => HL ? fmt(h) : U ? fmt(u) : nf.format(c);
+  const cant = (c: number, u: number | null, h: number | null = null) => HL ? fmt(h) : U ? fmt(u) : textoCajas(c);
   const P = leerPaleta(o.dentro ?? null);
   const TINTA = P.tinta;
   const [palabra, sello] = await Promise.all([
@@ -132,7 +133,7 @@ export async function informeRiesgo(r: DatosRiesgo, o: { bodega: string; unidad:
       cabe(6); if (y === 26) cabSitios();
       pdf.setFont("helvetica", "normal"); pdf.setFontSize(7.6); pdf.setTextColor(...TINTA);
       const vals = [s.ubicacion, rot(s.franja).corto, f(s.vencimiento), d(s.dias_para_vencer), d(s.dias_para_salir),
-        nf.format(s.estibas), nf.format(s.cajas), nf.format(s.saldo), nf.format(s.total_cajas), nu(s.unidades), s.hl == null ? "—" : fh(s.hl), (s.conto ?? "—").split(" ")[0]];
+        nf.format(s.estibas), nf.format(s.cajas), nf.format(s.saldo), textoCajas(s.total_cajas), nu(s.unidades), s.hl == null ? "—" : fh(s.hl), (s.conto ?? "—").split(" ")[0]];
       let x = M + 1.5;
       vals.forEach((v, i) => {
         if (i === 1) { pdf.setFillColor(...COLOR[s.franja]); pdf.circle(x + 0.9, y - 1.1, 0.9, "F"); ajusta(String(v), COLS[1][1] - 4, 7.6); pdf.text(String(v), x + 3, y); pdf.setFontSize(7.6) }
@@ -185,7 +186,7 @@ export async function informeRiesgo(r: DatosRiesgo, o: { bodega: string; unidad:
       pdf.setFillColor(...COLOR[k]); pdf.rect(x, y, cw, 1.6, "F");
       pdf.setFont("helvetica", "bold"); pdf.setFontSize(6.6); pdf.setTextColor(...GRIS);
       pdf.text(pdf.splitTextToSize(rot(k).rot.toUpperCase(), cw - 4), x + 2.5, y + 6);
-      const filas: [string, string, boolean][] = [["CAJAS", nf.format(a.cajas), !HL && !U], ["UNIDADES", nu(a.unidades), U], ["HECTOLITROS", a.hl == null ? "—" : fh(a.hl), HL]];
+      const filas: [string, string, boolean][] = [["CAJAS", textoCajas(a.cajas), !HL && !U], ["UNIDADES", nu(a.unidades), U], ["HECTOLITROS", a.hl == null ? "—" : fh(a.hl), HL]];
       filas.forEach(([et, v, sel], n) => {
         const yy = y + 13 + n * 6.4;
         pdf.setFont("helvetica", "normal"); pdf.setFontSize(5.8); pdf.setTextColor(...GRIS); pdf.text(et, x + 2.5, yy);
@@ -217,7 +218,7 @@ export async function informeRiesgo(r: DatosRiesgo, o: { bodega: string; unidad:
       pdf.setFont("helvetica", "normal"); pdf.setFontSize(7); pdf.setTextColor(...GRIS); pdf.text(s.rot, x + bw * 0.32, y + gh + 4, { align: "center" });
     });
     /* debajo de cada barra, las tres medidas de esa semana */
-    [["Cajas", (s: typeof r.semanas[number]) => nf.format(s.cajas), !HL && !U], ["Unidades", (s: typeof r.semanas[number]) => nu(s.unidades), U], ["Hl", (s: typeof r.semanas[number]) => s.hl == null ? "—" : fh(s.hl), HL]]
+    [["Cajas", (s: typeof r.semanas[number]) => textoCajas(s.cajas), !HL && !U], ["Unidades", (s: typeof r.semanas[number]) => nu(s.unidades), U], ["Hl", (s: typeof r.semanas[number]) => s.hl == null ? "—" : fh(s.hl), HL]]
       .forEach(([et, g, sel], n) => {
         const yy = y + gh + 9 + n * 4.4;
         pdf.setFillColor(...(n % 2 ? [255, 255, 255] as RGB : FONDO)); pdf.rect(M, yy - 3.2, AN, 4.4, "F");
@@ -252,9 +253,9 @@ export async function informeRiesgo(r: DatosRiesgo, o: { bodega: string; unidad:
     };
     FRANJAS.forEach((k) => {
       const a = r.franjas[k.clave], pv = pick(a.cajas, a.unidades, a.hl);
-      fila(k.corto, [nf.format(a.cajas), nu(a.unidades), a.hl == null ? "—" : fh(a.hl), `${(pv / tot * 100).toLocaleString("es-CO", { maximumFractionDigits: 1 })} %`, String(a.materiales), String(a.renglones)], COLOR[k.clave], false);
+      fila(k.corto, [textoCajas(a.cajas), nu(a.unidades), a.hl == null ? "—" : fh(a.hl), `${(pv / tot * 100).toLocaleString("es-CO", { maximumFractionDigits: 1 })} %`, String(a.materiales), String(a.renglones)], COLOR[k.clave], false);
     });
-    fila("Total bodega", [nf.format(r.totalCajas), nu(r.totalUnidades), r.totalHl == null ? "—" : fh(r.totalHl), "100 %", "", String(r.ubicaciones)], null, true);
+    fila("Total bodega", [textoCajas(r.totalCajas), nu(r.totalUnidades), r.totalHl == null ? "—" : fh(r.totalHl), "100 %", "", String(r.ubicaciones)], null, true);
     y += 8;
 
     /* ---------- CADA MATERIAL CON SUS UBICACIONES ---------- */

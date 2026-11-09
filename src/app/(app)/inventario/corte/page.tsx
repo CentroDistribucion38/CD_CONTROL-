@@ -1,4 +1,5 @@
 import { misPermisos } from "@/lib/permisos";
+import { conSueltasTodas } from "@/modulos/inventario/unidades";
 import { createClient } from "@/lib/supabase/server";
 import { maestroInventario } from "@/modulos/inventario/fefo";
 import { renglonesPorCorte, type ConteoRef, type Corte as CorteT, type FilaRenglonBD, type FilaSitioBD, type LineaConteo } from "@/modulos/inventario/corte";
@@ -98,14 +99,20 @@ export default async function CortePage() {
     /* DE MIL EN MIL: la base entrega como máximo mil filas por pedida y un recorrido
        trae cientos; sin paginar, los módulos del FEFO quedarían incompletos sin avisar. */
     const lineas: LineaConteo[] = [];
+    /* Las unidades sueltas (las que no completan una caja) CUENTAN en el corte: se piden con las columnas nuevas de la base y,
+       si todavía no se corrió 2026-11-fiscal-unidades.sql, se vuelve a pedir sin ellas (no hay sueltas que sumar). */
+    const BASE = "conteo_id,producto_id,ubicacion_id,total_cajas,averia,pnc";
+    let cols = BASE + ",unidades,unidades_por_caja";
     for (let pag = 0; pag < 40; pag++) {
-      const l = await supabase.from("v_conteo_fefo")
-        .select("conteo_id,producto_id,ubicacion_id,total_cajas,averia,pnc")
+      const pedir = (c: string) => supabase.from("v_conteo_fefo")
+        .select(c)
         .in("conteo_id", refs.map((x) => x.id))
         .order("conteo_id").order("ubicacion_id").order("producto_id")
         .range(pag * 1000, pag * 1000 + 999);
+      let l = await pedir(cols);
+      if (l.error && cols !== BASE) { cols = BASE; l = await pedir(cols) }
       if (l.error) break;
-      lineas.push(...((l.data ?? []) as LineaConteo[]));
+      lineas.push(...conSueltasTodas((l.data ?? []) as unknown as (LineaConteo & { unidades?: number | null; unidades_por_caja?: number | null })[]));
       if ((l.data ?? []).length < 1000) break;
     }
     return [refs, lineas] as [ConteoRef[], LineaConteo[]];

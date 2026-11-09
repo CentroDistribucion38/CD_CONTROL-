@@ -31,6 +31,8 @@ export type InsumosTablero = {
   titulo: string;          // ya en mayúsculas
   sub: string;
   bodega: string;
+  /** Hubo unidades sueltas: las cajas se ven con dos decimales (fracción de caja). */
+  decimales?: boolean;
   activas: number;         // ubicaciones activas del almacén
   contadas: number;        // ubicaciones que se caminaron
   filas: FilaTablero[];
@@ -79,6 +81,7 @@ function aplicarPlantilla(h: ExcelJS.Worksheet, col: (n: number) => string) {
 
 export function armarTablero(d: InsumosTablero): DonaDatos[] {
   const { wb, filas, us, rb, ru, vinculo, clases } = d;
+  const NUMC = d.decimales ? "#,##0.00;\\-#,##0.00;\\–" : NUM;   // formato de las cajas
   const col = (n: number) => { let s = ""; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26) } return s };
   const h = wb.addWorksheet("Tablero", { properties: { tabColor: { argb: "FFFFC400" } }, views: [{ showGridLines: false, showRowColHeaders: false, state: "normal", zoomScale: 100 }] });
   aplicarPlantilla(h, col);
@@ -132,7 +135,7 @@ export function armarTablero(d: InsumosTablero): DonaDatos[] {
   V("I10", fx('TEXT($BA$4,"#,##0")&" ubicaciones contadas"', fm(d.contadas) + " ubicaciones contadas"));
   V("I12", fx("$BA$5", pendientes));
   V("M12", fx(`COUNTA(${rb("cod")})`, filas.length));
-  V("R9", fx(`SUM(${rb("cajas")})`, totCajas));
+  V("R9", fx(`SUM(${rb("cajas")})`, totCajas), NUMC);
   V("W9", fx(`SUM(${rb("unid")})`, totUnid));
   const pEnv = totUnid ? suma("unid", (x) => x.tipo === "ENVASE") / totUnid : 0;
   V("W10", fx(`TEXT(IF(SUM(${rb("unid")})=0,0,SUMIFS(${rb("unid")},${rb("tipo")},"ENVASE")/SUM(${rb("unid")})),"0%")&" es envase"`, pc0(pEnv) + " es envase"));
@@ -156,7 +159,7 @@ export function armarTablero(d: InsumosTablero): DonaDatos[] {
   /* ---------- LA TABLA POR CLASE (fila 24 = encabezado; 25..28 clases; 29 total) ---------- */
   const cl = (c: string, k: keyof FilaTablero) => suma(k, (x) => x.clase === c);
   const colsT: { L: string; k: keyof FilaTablero | "pct" | "reng"; t: string; fmt: string }[] = [
-    { L: "F", k: "fisicas", t: "ESTIBAS", fmt: NUM }, { L: "I", k: "cajas", t: "CAJAS", fmt: NUM }, { L: "L", k: "plast", t: "PLÁSTICAS", fmt: NUM },
+    { L: "F", k: "fisicas", t: "ESTIBAS", fmt: NUM }, { L: "I", k: "cajas", t: "CAJAS", fmt: NUMC }, { L: "L", k: "plast", t: "PLÁSTICAS", fmt: NUMC },
     { L: "O", k: "unid", t: "UNIDADES", fmt: NUM }, { L: "R", k: "hl", t: "HL", fmt: HL1 }, { L: "U", k: "pct", t: "% CAJAS", fmt: "0.0%" }, { L: "X", k: "reng", t: "RENGL.", fmt: NUM },
   ];
   V("B24", "CLASE"); colsT.forEach((c) => V(`${c.L}24`, c.t));
@@ -183,7 +186,7 @@ export function armarTablero(d: InsumosTablero): DonaDatos[] {
     const r = 17 + i, rt = 25 + clases.indexOf(c);
     V(`J${r}`, c);
     V(`M${r}`, fx(`IF($I$29=0,0,I${rt}/$I$29)`, totCajas ? cl(c, "cajas") / totCajas : 0));
-    V(`P${r}`, fx(`I${rt}`, cl(c, "cajas")), NUM);
+    V(`P${r}`, fx(`I${rt}`, cl(c, "cajas")), NUMC);
     apoyo(`AZ${8 + i}`, c); apoyo(`BA${8 + i}`, fx(`I${rt}`, cl(c, "cajas")), "#,##0");
   });
   apoyo("AZ7", "Composición por cajas");
@@ -240,7 +243,7 @@ export function armarTablero(d: InsumosTablero): DonaDatos[] {
   const riesgoCajas = franjas6.map((f) => suma("cajas", (x) => x.tipo === "PRODUCTO" && x.franja === f.rot));
   franjas6.forEach((f, i) => {
     V(`D${37 + i}`, f.rot);
-    V(`N${37 + i}`, fx(`SUMIFS(${rb("cajas")},${rb("franja")},"${f.rot}",${rb("tipo")},"PRODUCTO")`, riesgoCajas[i]), NUM);
+    V(`N${37 + i}`, fx(`SUMIFS(${rb("cajas")},${rb("franja")},"${f.rot}",${rb("tipo")},"PRODUCTO")`, riesgoCajas[i]), NUMC);
   });
   /* La 7.ª franja —producto SIN fecha— va en la fila 43, con el estilo de la 42:
      sin ella, esas cajas no aparecerían en ningún lado de la tabla. */
@@ -251,7 +254,7 @@ export function armarTablero(d: InsumosTablero): DonaDatos[] {
   }
   h.mergeCells("D43:M43"); h.mergeCells("N43:O43");
   V("D43", sf.rot);
-  V("N43", fx(`SUMIFS(${rb("cajas")},${rb("franja")},"${sf.rot}",${rb("tipo")},"PRODUCTO")`, cajasSinFecha), NUM);
+  V("N43", fx(`SUMIFS(${rb("cajas")},${rb("franja")},"${sf.rot}",${rb("tipo")},"PRODUCTO")`, cajasSinFecha), NUMC);
   const riesgoT = riesgoCajas.reduce((a, b) => a + b, 0);
   const sinFecha = filas.filter((x) => x.tipo === "PRODUCTO" && !x.tieneVenc).length;
   const nProducto = filas.filter((x) => x.tipo === "PRODUCTO").length;

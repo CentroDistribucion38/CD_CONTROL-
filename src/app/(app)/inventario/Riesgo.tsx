@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FRANJAS, enRiesgo, type Franja, type MaterialRiesgo, type Riesgo as R } from "@/modulos/inventario/riesgo";
+import { textoCajas } from "@/modulos/inventario/unidades";
 
 /**
  * RIESGO DE VENCIMIENTO — lo primero que se ve en el tablero de inventario.
@@ -51,7 +52,7 @@ export function Riesgo({ r, bodega, sinContar, ultimo, activas, barra }: {
   /* HECTOLITROS: con una decimal (con dos si son pocos): 5,9 HL se lee; 6 HL no dice nada. */
   const fh = (n: number) => n.toLocaleString("es-CO", { maximumFractionDigits: n < 10 ? 2 : 1 });
   const fmt = (n: number | null) => n == null ? "—" : H ? fh(n) : nf.format(n);
-  const cant = (c: number, u: number | null, h: number | null = null) => H ? fmt(h) : U ? fmt(u) : nf.format(c);
+  const cant = (c: number, u: number | null, h: number | null = null) => H ? fmt(h) : U ? fmt(u) : textoCajas(c);
   const pick = (c: number, u: number | null, h: number | null) => H ? (h ?? 0) : U ? (u ?? 0) : c;
   const palabra = H ? "hectolitros" : U ? "unidades" : "cajas";
   const Palabra = H ? "Hectolitros" : U ? "Unidades" : "Cajas";
@@ -323,8 +324,8 @@ export function Riesgo({ r, bodega, sinContar, ultimo, activas, barra }: {
                     <div className="ir-det" role="region" aria-label={`Dónde está ${m.nombre}`}>
                       {m.uxc ? <p className="ir-dsub">{m.uxc} unidades por caja</p> : null}
         <div className="ir-pk">
-          <div><small>Total</small><b>{nf.format(m.cajas)}</b><span>cajas{m.unidades != null && ` · ${nf.format(m.unidades)} und`}{m.hl != null && ` · ${fh(m.hl)} HL`}</span></div>
-          <div className={m.enRiesgoCajas ? "mal" : ""}><small>En riesgo</small><b>{nf.format(m.enRiesgoCajas)}</b><span>cajas{m.enRiesgoUnidades != null && ` · ${nf.format(m.enRiesgoUnidades)} und`}{m.enRiesgoHl != null && ` · ${fh(m.enRiesgoHl)} HL`}</span></div>
+          <div><small>Total</small><b>{textoCajas(m.cajas)}</b><span>cajas{m.unidades != null && ` · ${nf.format(m.unidades)} und`}{m.hl != null && ` · ${fh(m.hl)} HL`}</span></div>
+          <div className={m.enRiesgoCajas ? "mal" : ""}><small>En riesgo</small><b>{textoCajas(m.enRiesgoCajas)}</b><span>cajas{m.enRiesgoUnidades != null && ` · ${nf.format(m.enRiesgoUnidades)} und`}{m.enRiesgoHl != null && ` · ${fh(m.enRiesgoHl)} HL`}</span></div>
           <div><small>Ubicaciones</small><b>{m.sitios.length}</b><span>la primera en salir, arriba</span></div>
         </div>
         <div className="ir-sitios">
@@ -341,7 +342,7 @@ export function Riesgo({ r, bodega, sinContar, ultimo, activas, barra }: {
                       <div><dt>Para salir</dt><dd className={s.dias_para_salir != null && s.dias_para_salir < 0 ? "mal" : ""}>{dias(s.dias_para_salir)}</dd></div>
                       <div><dt>Fabricado</dt><dd>{fecha(s.fabricacion)}</dd></div>
                       <div><dt>Estibas · cajas · saldo</dt><dd>{nf.format(s.estibas)} · {nf.format(s.cajas)} · {nf.format(s.saldo)}</dd></div>
-                      <div><dt>Total</dt><dd><b>{nf.format(s.total_cajas)} cajas</b>{s.unidades != null && <> · {nf.format(s.unidades)} und</>}{s.hl != null && <> · {fh(s.hl)} HL</>}</dd></div>
+                      <div><dt>Total</dt><dd><b>{textoCajas(s.total_cajas)} cajas</b>{s.unidades != null && <> · {nf.format(s.unidades)} und</>}{s.hl != null && <> · {fh(s.hl)} HL</>}</dd></div>
                     </dl>
                     {(s.averia || s.pnc || s.nota) && (
                       <p className="tags">{s.averia && <span className="t">Avería</span>}{s.pnc && <span className="t">PNC</span>}{s.nota && <em>{s.nota}</em>}</p>

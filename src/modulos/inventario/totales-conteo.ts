@@ -19,6 +19,8 @@ export type RenglonTotal = {
   codigo: string;
   tipo_material: "PRODUCTO" | "ENVASE";
   total_cajas: number | string;
+  /** Unidades sueltas (menos de una caja), si el renglón las trae. */
+  unidades?: number | string | null;
   factor_estibado: number | string | null;
 };
 export type MaterialTotal = { sku: string; unidades_por_caja: number | null; cajas_por_estiba: number | null };
@@ -41,14 +43,17 @@ export function totalesDelConteo(renglones: RenglonTotal[], materiales: Material
   const f: FichaTotales = { general: vacio(), producto: vacio(), envase: vacio() };
   for (const r of renglones) {
     const mat = porSku.get(r.codigo);
-    const cajas = num(r.total_cajas) ?? 0;
+    const cajas0 = num(r.total_cajas) ?? 0;
     const factor = num(r.factor_estibado) ?? mat?.cajas_por_estiba ?? null;
     const porCaja = mat?.unidades_por_caja ?? null;
+    const sueltas = num(r.unidades) ?? 0;
+    /* Las sueltas cuentan como fracción de caja (si se sabe cuántas unidades lleva una). */
+    const cajas = cajas0 + (porCaja != null && porCaja > 1 && sueltas > 0 ? sueltas / porCaja : 0);
     for (const t of [f.general, r.tipo_material === "ENVASE" ? f.envase : f.producto]) {
       t.renglones += 1;
       t.cajas += cajas;
       if (factor != null && factor > 0) t.estibas += cajas / factor; else t.sinFactor += 1;
-      if (porCaja != null && porCaja > 0) t.unidades += cajas * porCaja; else t.sinUnidades += 1;
+      if (porCaja != null && porCaja > 0) t.unidades += Math.round(cajas * porCaja); else t.sinUnidades += 1;
     }
   }
   return f;

@@ -3,6 +3,7 @@ import { porTandas } from "@/modulos/inventario/paginas";
 import { cruzar } from "@/modulos/inventario/base-cruce";
 import { diasConConteo } from "@/modulos/inventario/balance";
 import type { Renglon } from "@/modulos/inventario/fefo";
+import { conSueltasTodas } from "@/modulos/inventario/unidades";
 import { esUbicacionFabrica, esDeAG17oAG16 } from "@/modulos/casco/ubicacion-sitio";
 
 /**
@@ -44,8 +45,10 @@ export async function planFifo(pDia?: string | null): Promise<DatosPlan> {
   const { data, error: e1 } = await porTandas<Renglon>(delDia.map((c) => c.id), (t, d, h) =>
     supabase.from("v_conteo_fefo").select("*").in("conteo_id", t).eq("tipo_material", "ENVASE").order("id").range(d, h));
   if (e1) return { ...vacio, dia, error: e1 };
+  /* Las unidades sueltas cuentan: `total_cajas` pasa a incluirlas como fracción de caja. */
+  const filas = conSueltasTodas(data);
 
-  const { vigentes } = cruzar(data, delDia);
+  const { vigentes } = cruzar(filas, delDia);
   const renglones: RenglonPlan[] = [];
   for (const r of vigentes) {
     const codigo = String(r.codigo);
