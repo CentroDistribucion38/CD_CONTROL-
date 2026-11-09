@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { CulminarFiscal } from "./CulminarFiscal";
 import { traducirError } from "@/lib/errores";
 import { textoVenc, compensarCruce, type FilaCruce } from "@/modulos/inventario/fiscal-cruce";
+import { textoCantidad, textoDeUnidades, textoDif, textoDifPartes } from "@/modulos/inventario/unidades";
 import {
   armarModulos, horaCorta, renglonDesdeBD, TEXTO_MOD,
   type EstadoMod, type Modulo, type RenglonBd, type RenglonBdBD, type RevMin,
@@ -33,7 +34,6 @@ const FILTROS: [FiltroBd, string][] = [
   ["todo", "Todo"], ["difiere", "Difiere"], ["solo-ol", "Solo operador"], ["solo-bav", "Solo Bavaria"],
   ["compensado", "Compensado"], ["coincide", "Coincide"], ["aprobado", "Aprobado"],
 ];
-const signo = (v: number) => (v === 0 ? "0" : (v > 0 ? "+" : "") + NF.format(v));
 
 const cacheBd = new Map<string, RenglonBd[]>();
 const cuandoBd = new Map<string, number>();
@@ -103,6 +103,8 @@ export function BdFiscal({ fiscalId, cerradas, nombre, fecha, hojas, revs, puede
 
   const cuenta = (e: EstadoMod) => modulos.filter((m) => m.estado === e).length;
   const tOl = modulos.reduce((t, m) => t + m.sumOl, 0), tBav = modulos.reduce((t, m) => t + m.sumBav, 0);
+  const tUOl = modulos.reduce((t, m) => t + m.sueltasOl, 0), tUBav = modulos.reduce((t, m) => t + m.sueltasBav, 0);
+  const tDif = modulos.reduce((t, m) => t + m.dif, 0), tDifU = modulos.reduce((t, m) => t + m.difSueltas, 0);
   const abiertos = modulos.filter((m) => ["difiere", "validando", "respondida"].includes(m.estado)).length;
   const verdes = modulos.filter((m) => m.estado === "coincide" || m.estado === "compensado");
 
@@ -201,6 +203,7 @@ export function BdFiscal({ fiscalId, cerradas, nombre, fecha, hojas, revs, puede
   const linea = (r: RenglonBd) => (
     <li key={r.id} className="bd-reng">
       <b>{NF.format(r.total)}</b> <span>cajas</span>
+      {r.unidades > 0 && <> <b className="bd-un">+ {NF.format(r.unidades)}</b> <span>un.</span></>}
       <small>
         {r.estibas > 0 || r.saldo > 0 ? ` · ${r.estibas} est + ${r.saldo} saldo + ${r.cajas} sueltas` : ""}
         {" · "}{textoVenc(r.vencDia, r.vencMes, r.vencAnio)}
@@ -273,9 +276,9 @@ export function BdFiscal({ fiscalId, cerradas, nombre, fecha, hojas, revs, puede
         <div className="bd-tile" style={{ color: ROJO }}><b>{abiertos}</b><small>por resolver</small></div>
         <div className="bd-tile" style={{ color: VERDE }}><b>{cuenta("compensado")}</b><small>compensados</small></div>
         <div className="bd-tile" style={{ color: VERDE }}><b>{cuenta("aprobado")}</b><small>aprobados</small></div>
-        <div className="bd-tile"><b>{NF.format(tOl)}</b><small>cajas · {hoja.ol || "operador"}</small></div>
-        <div className="bd-tile"><b>{NF.format(tBav)}</b><small>cajas · {hoja.bavaria || "Bavaria"}</small></div>
-        <div className="bd-tile" style={{ color: tOl - tBav === 0 ? VERDE : ROJO }}><b>{signo(tOl - tBav)}</b><small>diferencia neta</small></div>
+        <div className="bd-tile"><b>{NF.format(tOl)}</b><small>cajas{tUOl > 0 ? ` + ${NF.format(tUOl)} un.` : ""} · {hoja.ol || "operador"}</small></div>
+        <div className="bd-tile"><b>{NF.format(tBav)}</b><small>cajas{tUBav > 0 ? ` + ${NF.format(tUBav)} un.` : ""} · {hoja.bavaria || "Bavaria"}</small></div>
+        <div className="bd-tile" style={{ color: tDif === 0 && tDifU === 0 ? VERDE : ROJO }}><b>{textoDifPartes(tDif, tDifU)}</b><small>diferencia neta</small></div>
       </div>
 
       <div className="bd-filtros" role="group" aria-label="Filtrar">
@@ -311,7 +314,7 @@ export function BdFiscal({ fiscalId, cerradas, nombre, fecha, hojas, revs, puede
             {m.estado === "aprobado" && (m.aprobadoCon || m.compensadoAlAprobar) && (
               <small>{m.aprobadoCon ? `con lo de ${m.aprobadoCon === "OL" ? (hoja.ol || "el operador") : (hoja.bavaria || "Bavaria")}` : "compensado"}</small>
             )}
-            <span className="bd-tot">Operador {NF.format(m.sumOl)} · Bavaria {NF.format(m.sumBav)} · <b style={{ color: m.dif === 0 ? VERDE : (m.estado === "compensado" ? VERDE : ROJO) }}>{signo(m.dif)}</b></span>
+            <span className="bd-tot">Operador {textoCantidad(m.sumOl, m.sueltasOl)} · Bavaria {textoCantidad(m.sumBav, m.sueltasBav)} · <b style={{ color: m.dif === 0 && m.difSueltas === 0 ? VERDE : (m.estado === "compensado" ? VERDE : ROJO) }}>{textoDifPartes(m.dif, m.difSueltas)}</b></span>
             {puedeEditar && (
               <span className="bd-acc">
                 {(m.estado === "difiere" || m.estado === "respondida") && <button type="button" className="btn plano" disabled={ocupado} onClick={() => validar(m)}>Mandar a validar</button>}
@@ -339,7 +342,7 @@ export function BdFiscal({ fiscalId, cerradas, nombre, fecha, hojas, revs, puede
                     {s.ol.length === 0 ? <span className="bd-vacio">no anotó</span> : (
                       <>
                         <ul className="bd-lista">{s.ol.map(linea)}</ul>
-                        {s.ol.length > 1 && <span className="bd-sub">Suma: {NF.format(s.sumOl)}</span>}
+                        {s.ol.length > 1 && <span className="bd-sub">Suma: {textoDeUnidades(s.sumOl, s.upc)}</span>}
                       </>
                     )}
                   </td>
@@ -347,12 +350,12 @@ export function BdFiscal({ fiscalId, cerradas, nombre, fecha, hojas, revs, puede
                     {s.bav.length === 0 ? <span className="bd-vacio">no anotó</span> : (
                       <>
                         <ul className="bd-lista">{s.bav.map(linea)}</ul>
-                        {s.bav.length > 1 && <span className="bd-sub">Suma: {NF.format(s.sumBav)}</span>}
+                        {s.bav.length > 1 && <span className="bd-sub">Suma: {textoDeUnidades(s.sumBav, s.upc)}</span>}
                       </>
                     )}
                   </td>
                   <td className="bd-dif" style={{ color: s.dif === 0 || s.compensado || m.estado === "aprobado" ? VERDE : ROJO }}>
-                    {s.dif === 0 ? "✓ 0" : s.compensado ? `✓ ${signo(s.dif)} compensado` : m.estado === "aprobado" ? `✓ ${signo(s.dif)} aprobado` : signo(s.dif)}
+                    {s.dif === 0 ? "✓ 0" : s.compensado ? `✓ ${textoDif(s.dif, s.upc)} compensado` : m.estado === "aprobado" ? `✓ ${textoDif(s.dif, s.upc)} aprobado` : textoDif(s.dif, s.upc)}
                   </td>
                 </tr>
               ))}

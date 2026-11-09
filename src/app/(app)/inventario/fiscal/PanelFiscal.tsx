@@ -6,9 +6,11 @@ import { traducirError } from "@/lib/errores";
 import { useConfirmar } from "@/components/Confirmar";
 import {
   avanceDesdeBD, estadoHoja, cruceModulo, compensarCruce, marcasDeFila, filaDesdeBD, ordenarCruce, puedeCruzar, unaSolaTermino, resumenCruce, textoEquipo, textoVenc, titularCruce, TEXTO_FILA,
+  unidOl, unidBavaria, difUnid, upcFila,
   type AvanceBD, type AvanceHoja, type FilaCruce, type FilaCruceBD, type ResumenCruce,
 } from "@/modulos/inventario/fiscal-cruce";
 import type { HojaForm } from "@/modulos/inventario/fiscal";
+import { textoCantidad, textoDeUnidades, textoDif } from "@/modulos/inventario/unidades";
 import { ValidarHoja, moduloDe, type ConsolidadoBD, type RevisionBD } from "./ValidarHoja";
 import { BdFiscal, precargarBd, type HojaBd } from "./BdFiscal";
 import { CulminarFiscal } from "./CulminarFiscal";
@@ -68,12 +70,13 @@ type FotoCruce = { conteo_id: string; ubicacion: string; equipo: "OL" | "BAVARIA
 type ReaperturaBD = { hoja_id: string; numero: number; equipo: "OL" | "BAVARIA"; pedido_en: string | null; autorizado_en: string | null };
 /** Agrupa las filas por CÓDIGO de material (sin importar sitio ni avería) para ver dónde está la diferencia de cada material:
  *  una cabecera por código con lo que contó cada equipo y el neto, y debajo sus sitios. Orden: código, y dentro, sitio. */
-function agruparPorCodigo(filas: FilaCruce[]): { sku: string; material: string; ol: number; bav: number; neto: number; filas: FilaCruce[] }[] {
-  const m = new Map<string, { sku: string; material: string; ol: number; bav: number; neto: number; filas: FilaCruce[] }>();
+function agruparPorCodigo(filas: FilaCruce[]): { sku: string; material: string; upc: number; ol: number; bav: number; neto: number; filas: FilaCruce[] }[] {
+  const m = new Map<string, { sku: string; material: string; upc: number; ol: number; bav: number; neto: number; filas: FilaCruce[] }>();
   for (const f of filas) {
     let g = m.get(f.sku);
-    if (!g) { g = { sku: f.sku, material: f.material, ol: 0, bav: 0, neto: 0, filas: [] }; m.set(f.sku, g); }
-    g.ol += f.cajasOl ?? 0; g.bav += f.cajasBavaria ?? 0; g.neto += f.diferencia; g.filas.push(f);
+    if (!g) { g = { sku: f.sku, material: f.material, upc: upcFila(f), ol: 0, bav: 0, neto: 0, filas: [] }; m.set(f.sku, g); }
+    /* En UNIDADES exactas (un mismo código tiene las mismas unidades por caja en todos sus sitios); se muestran como cajas + sueltas. */
+    g.ol += unidOl(f) ?? 0; g.bav += unidBavaria(f) ?? 0; g.neto += difUnid(f); g.filas.push(f);
   }
   const arr = [...m.values()].sort((a, b) => a.sku.localeCompare(b.sku, "es", { numeric: true }));
   for (const g of arr) g.filas.sort((a, b) => a.ubicacion.localeCompare(b.ubicacion, "es", { numeric: true }));
@@ -666,7 +669,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                           <tr className="vf-grupo">
                             <td colSpan={7} style={{ background: "rgba(127,127,127,.12)", borderTop: "2px solid currentColor", padding: "8px 10px" }}>
                               <b>{g.sku}</b> {g.material}
-                              <span className="vf-grupo-sum"> · Operador {nf.format(g.ol)} · Bavaria {nf.format(g.bav)} · {g.neto === 0 ? "cuadra en total (0)" : "neto " + (g.neto > 0 ? "+" : "") + nf.format(g.neto)}{g.filas.length > 1 ? ` · ${g.filas.length} renglones` : ""}</span>
+                              <span className="vf-grupo-sum"> · Operador {textoDeUnidades(g.ol, g.upc)} · Bavaria {textoDeUnidades(g.bav, g.upc)} · {g.neto === 0 ? "cuadra en total (0)" : "neto " + textoDif(g.neto, g.upc)}{g.filas.length > 1 ? ` · ${g.filas.length} renglones` : ""}</span>
                             </td>
                           </tr>
                           {g.filas.map((f, i) => (
@@ -678,9 +681,9 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                                 <span key={x.conteo_id}> · <button type="button" className="fe-mini" onClick={() => abrirFoto(x.ruta)} title="Foto del renglón">Foto {x.equipo === "OL" ? (t.h.ol ? quien(t.h.ol) : "operador") : (t.h.bavaria ? quien(t.h.bavaria) : "Bavaria")}{x.averia ? " (avería)" : ""}</button></span>
                               ))}</td>
                             <td data-et="Vence">{textoVenc(f.vencDia, f.vencMes, f.vencAnio)}</td>
-                            <td data-et="Operador" className="num">{f.cajasOl === null ? "—" : nf.format(f.cajasOl)}</td>
-                            <td data-et="Bavaria" className="num">{f.cajasBavaria === null ? "—" : nf.format(f.cajasBavaria)}</td>
-                            <td data-et="Diferencia" className="num">{f.diferencia === 0 ? "0" : (f.diferencia > 0 ? "+" : "") + nf.format(f.diferencia)}</td>
+                            <td data-et="Operador" className="num">{f.cajasOl === null ? "—" : textoCantidad(f.cajasOl, f.sueltasOl ?? 0)}</td>
+                            <td data-et="Bavaria" className="num">{f.cajasBavaria === null ? "—" : textoCantidad(f.cajasBavaria, f.sueltasBavaria ?? 0)}</td>
+                            <td data-et="Diferencia" className="num">{textoDif(difUnid(f), upcFila(f))}</td>
                           </tr>
                           ))}
                           </Fragment>
@@ -693,7 +696,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
             );
           })}
           {cruzadas.length > 0 && (
-            <p className="vf-pie">Cajas contadas (estibas × cajas por estiba + saldo + cajas sueltas). Lo que contó solo uno de los dos cuenta como diferencia.</p>
+            <p className="vf-pie">Cajas contadas (estibas × cajas por estiba + saldo + cajas sueltas), más las unidades sueltas que no completan una caja. Lo que contó solo uno de los dos cuenta como diferencia.</p>
           )}
         </div>
       )}

@@ -21,6 +21,7 @@ type BdLinea = {
   cajas_por_estiba: number | null; estibas: number | null; saldo: number | null; cajas: number | null; total_cajas: number | string | null;
   venc_dia: number | null; venc_mes: number | null; venc_anio: number | null; nota: string | null; contado_en: string | null;
   ubicacion_id?: string | null; estado_envase?: string | null; averia?: boolean | null; pnc?: boolean | null;
+  unidades?: number | string | null; unidades_por_caja?: number | string | null;
 };
 
 /** El cruce de una hoja que todavía no se cierra, armado con lo contado HASTA AHORA (mismo criterio que `inv_fiscal_cruce`). */
@@ -31,11 +32,14 @@ function cruceParcial(l: BdLinea[]): FilaCruce[] {
     let f = m.get(k);
     if (!f) {
       f = { ubicacion_id: r.ubicacion_id ?? null, ubicacion: r.ubicacion, sku: r.sku, material: r.material, venc_dia: r.venc_dia, venc_mes: r.venc_mes, venc_anio: r.venc_anio,
-            cajas_ol: null, cajas_bavaria: null, diferencia: 0, estado: "DIFIERE", estado_envase: r.estado_envase ?? null, averia: !!r.averia, pnc: !!r.pnc };
+            cajas_ol: null, cajas_bavaria: null, diferencia: 0, estado: "DIFIERE", estado_envase: r.estado_envase ?? null, averia: !!r.averia, pnc: !!r.pnc,
+            unidades_ol: 0, unidades_bavaria: 0, unidades_por_caja: r.unidades_por_caja ?? null };
       m.set(k, f);
     }
     const t = Number(r.total_cajas) || 0;
-    if (r.equipo === "BAVARIA") f.cajas_bavaria = (Number(f.cajas_bavaria) || 0) + t; else f.cajas_ol = (Number(f.cajas_ol) || 0) + t;
+    const u = Number(r.unidades) || 0;
+    if (r.equipo === "BAVARIA") { f.cajas_bavaria = (Number(f.cajas_bavaria) || 0) + t; f.unidades_bavaria = (Number(f.unidades_bavaria) || 0) + u }
+    else { f.cajas_ol = (Number(f.cajas_ol) || 0) + t; f.unidades_ol = (Number(f.unidades_ol) || 0) + u }
   }
   return ordenarCruce(cruceModulo([...m.values()].map((f) => filaDesdeBD({ ...f, diferencia: (Number(f.cajas_ol) || 0) - (Number(f.cajas_bavaria) || 0) }))));
 }
@@ -118,6 +122,7 @@ export function Control({ personas, fiscales, conCruce, ahora, puedeEditar, modo
               equipo: l.equipo, persona: l.persona, ubicacion: l.ubicacion, sku: l.sku, material: l.material,
               cajas_por_estiba: l.cajas_por_estiba, estibas: l.estibas, saldo: l.saldo, cajas: l.cajas, total_cajas: l.total_cajas,
               venc_dia: l.venc_dia, venc_mes: l.venc_mes, venc_anio: l.venc_anio, nota: l.nota, contado_en: l.contado_en,
+              unidades: l.unidades, unidades_por_caja: l.unidades_por_caja,
             }));
           } else if (av && puedeCruzar(av)) {
             const co = await sb.rpc("inv_fiscal_conteos", { p_hoja: id });

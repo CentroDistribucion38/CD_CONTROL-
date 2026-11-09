@@ -33,7 +33,7 @@
  */
 import ExcelJS from "exceljs";
 import { causasDeHoja, SIGNIFICA_CAUSA, ETIQUETA_CAUSA, type Causa, type CausaCodigo } from "./causas-cruce";
-import { textoVenc, marcasDeFila, TEXTO_FILA, TEXTO_ESTADO, type ConteoPersona, type EstadoFila, type EstadoHoja, type FilaCruce } from "./fiscal-cruce";
+import { textoVenc, marcasDeFila, TEXTO_FILA, TEXTO_ESTADO, unidOl, unidBavaria, difUnid, upcFila, type ConteoPersona, type EstadoFila, type EstadoHoja, type FilaCruce } from "./fiscal-cruce";
 
 export type ColoresLibro = { tinta: string; banda: string };   // RRGGBB
 const MARCA: ColoresLibro = { tinta: "12263A", banda: "FFC000" };
@@ -152,8 +152,21 @@ const celda = (c: ExcelJS.Cell, P: Paleta, par: boolean, o: { num?: boolean; cen
   c.alignment = { vertical: "middle", indent: o.num ? 0 : 1, horizontal: o.num ? "right" : o.centro ? "center" : "left" };
   c.border = { bottom: { style: "thin", color: { argb: P.LINEA } } };
   if (par) c.fill = relleno(P.FONDO);
-  if (o.fmt) c.numFmt = o.fmt;
+  if (o.fmt) c.numFmt = conDecimales(o.fmt, c.value);
 };
+/** Si una cantidad trae unidades sueltas (cajas con decimales), el formato muestra 2 decimales; las enteras se ven como siempre. */
+function conDecimales(fmt: string, v: ExcelJS.CellValue): string {
+  const n = typeof v === "number" ? v : v && typeof v === "object" && "result" in v && typeof v.result === "number" ? v.result : null;
+  return n !== null && Number.isFinite(n) && Math.abs(n - Math.round(n)) > 1e-9 ? fmt.replace(/#,##0/g, "#,##0.00") : fmt;
+}
+/** Las unidades sueltas se llevan al libro como CAJAS EQUIVALENTES (unidades ÷ unidades por caja), para que las fórmulas y los totales sigan sumando exacto. */
+const r6 = (v: number) => Math.round(v * 1e6) / 1e6;
+function enCajasEquivalentes(f: FilaCruce): FilaCruce {
+  const u = upcFila(f), uo = unidOl(f), ub = unidBavaria(f);
+  if (u === 1 && !f.sueltasOl && !f.sueltasBavaria) return f;
+  return { ...f, upc: 1, difU: undefined, cajasOl: uo == null ? null : r6(uo / u), cajasBavaria: ub == null ? null : r6(ub / u), sueltasOl: 0, sueltasBavaria: 0, diferencia: r6(difUnid(f) / u) };
+}
+const totalCajasEq = (c: ConteoPersona): number => r6(c.totalCajas + (c.unidades > 0 ? c.unidades / c.unidadesPorCaja : 0));
 const pareja = (h: HojaCruzada) => `${h.ol ?? "—"}  ·  ${h.bavaria ?? "—"}`;
 const COLOR_ESTADO: Record<string, string> = { COINCIDE: VERDE, DIFIERE: NARANJA, SOLO_OL: ROJO, SOLO_BAVARIA: ROJO };
 /** Qué quiere decir cada estado del cruce: va en el Resumen, con un ejemplo, para que nadie tenga que adivinarlo. */
@@ -169,7 +182,11 @@ const GLOSARIO_ESTADOS: { est: EstadoFila; dice: string; ejemplo: string }[] = [
 ];
 const colorPct = (p: number) => (p >= 0.95 ? VERDE : p >= 0.8 ? NARANJA : ROJO);
 
-export async function armarCruceFiscal(o: InsumosCruce): Promise<ArrayBuffer> {
+export async function armarCruceFiscal(o0: InsumosCruce): Promise<ArrayBuffer> {
+  const o: InsumosCruce = {
+    ...o0,
+    hojas: o0.hojas.map((h) => ({ ...h, filas: h.filas ? h.filas.map(enCajasEquivalentes) : h.filas, conteos: h.conteos ? h.conteos.map((c) => ({ ...c, totalCajas: totalCajasEq(c) })) : h.conteos })),
+  };
   const P = paleta(o.colores);
   const wb = new ExcelJS.Workbook();
   wb.creator = "CONTROL · Inventario fiscal"; wb.created = new Date();
@@ -397,6 +414,7 @@ export async function armarCruceFiscal(o: InsumosCruce): Promise<ArrayBuffer> {
     "Cada hoja la cuentan dos personas, a ciegas: una del operador logístico y una de Bavaria. Se cruzan cuando las dos terminan.",
     "Un renglón es «lo mismo» si coincide el sitio, el material y el vencimiento. Coincide si además las cajas son las mismas; Difiere si los dos lo anotaron pero con distinta cantidad; Solo… si lo anotó una sola persona (ver la tabla «Estado del cruce»).",
     "Cajas = estibas × cajas por estiba + saldo + cajas sueltas. Lo que contó solo uno de los dos cuenta como diferencia.",
+    "Las unidades sueltas (las que no completan una caja) también cuentan: aparecen como cajas con decimales (unidades ÷ unidades por caja), por ejemplo 20,21 = 20 cajas + 5 unidades de 24.",
     "Diferencia neta = cajas del operador − cajas de Bavaria (positivo: el operador contó más). Cajas distintas suma las diferencias sin signo.",
     "Exactitud en cajas = 1 − cajas distintas ÷ el mayor de los dos totales. 100 % es que las dos cuentas son idénticas.",
     "Pestañas: «Diferencias» (lo que hay que revisar) · «Por material» · «Por persona» (cuánto anotó cada quien) · «Conteos por persona» (lo anotado, renglón por renglón) · «Conteos cruzados» (los dos lados juntos).",
@@ -568,7 +586,7 @@ export async function armarCruceFiscal(o: InsumosCruce): Promise<ArrayBuffer> {
       const colTot = eq === "OL" ? "I" : "J";
       const rengl = propios ? propios.length : (eq === "OL" ? h.olRenglones : h.bavariaRenglones);
       const total = sum((c) => c.totalCajas);
-      const cuadra = propios && cruceCajas !== null ? (total === cruceCajas ? "✓ cuadra" : "revisar") : null;
+      const cuadra = propios && cruceCajas !== null ? (Math.abs((total ?? 0) - cruceCajas) < 1e-6 ? "✓ cuadra" : "revisar") : null;
       const vals: ExcelJS.CellValue[] = [
         h.numero, eq === "OL" ? "Operador logístico" : "Bavaria", quien ?? "falta", pareja2 ?? "falta",
         propios ? { formula: `COUNTIFS(${cr("B")},B${rp},${cr("D")},C${rp})`, result: propios.length } : rengl,
@@ -577,7 +595,7 @@ export async function armarCruceFiscal(o: InsumosCruce): Promise<ArrayBuffer> {
         propios ? { formula: `SUMIFS(${cr("M")},${cr("B")},B${rp},${cr("D")},C${rp})`, result: sum((c) => c.cajas ?? 0) ?? 0 } : null,
         propios ? { formula: `SUMIFS(${cr("N")},${cr("B")},B${rp},${cr("D")},C${rp})`, result: total ?? 0 } : null,
         cruceCajas === null ? null : { formula: `SUMIFS('${S_DET}'!$${colTot}$${DF0 + 1}:$${colTot}$${Math.max(dUlt, DF0 + 1)},'${S_DET}'!$B$${DF0 + 1}:$B$${Math.max(dUlt, DF0 + 1)},B${rp})`, result: cruceCajas },
-        cuadra === null ? null : { formula: `IF(J${rp}=K${rp},"✓ cuadra","revisar")`, result: cuadra },
+        cuadra === null ? null : { formula: `IF(ROUND(J${rp}-K${rp},6)=0,"✓ cuadra","revisar")`, result: cuadra },
         hs.length ? hora(hs[0]) : null, hs.length ? hora(hs[hs.length - 1]) : null,
         term ? hora(term) : (rengl > 0 ? "contando…" : "sin empezar"),
       ];
@@ -604,7 +622,8 @@ export async function armarCruceFiscal(o: InsumosCruce): Promise<ArrayBuffer> {
     const r = CONF0 + 1 + i, row = cp.getRow(r); row.height = 20;
     const vals: ExcelJS.CellValue[] = [h.numero, pareja(h), c.equipo === "OL" ? "Operador logístico" : "Bavaria", c.persona, c.ubicacion, c.sku, c.material,
       textoVenc(c.vencDia, c.vencMes, c.vencAnio), c.estibas, c.cajasPorEstiba, c.saldo, c.cajas,
-      { formula: `N(J${r})*N(K${r})+N(L${r})+N(M${r})`, result: c.totalCajas }, c.nota, hora(c.contadoEn)];
+      { formula: `N(J${r})*N(K${r})+N(L${r})+N(M${r})` + (c.unidades > 0 ? `+${c.unidades}/${c.unidadesPorCaja}` : ""), result: c.totalCajas },
+      c.unidades > 0 ? [c.nota, `${c.unidades} unidades sueltas (no completan caja)`].filter(Boolean).join(" · ") : c.nota, hora(c.contadoEn)];
     vals.forEach((v, k) => {
       const x = row.getCell(2 + k); x.value = v;
       celda(x, P, i % 2 === 1, { num: k >= 8 && k <= 12, centro: k === 0 || k === 2 || k === 7 || k === 14, negrita: k === 5 || k === 12, fmt: k >= 8 && k <= 12 ? NF : k === 14 ? FH : undefined });

@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { MODULOS_DE_LA_HOJA } from "@/modulos/inventario/modulos-hoja";
 import { createClient } from "@/lib/supabase/client";
 import { traducirError } from "@/lib/errores";
-import type { FilaCruce } from "@/modulos/inventario/fiscal-cruce";
+import { difUnid, upcFila, type FilaCruce } from "@/modulos/inventario/fiscal-cruce";
+import { textoCantidad, textoDif } from "@/modulos/inventario/unidades";
 import { useConfirmar } from "@/components/Confirmar";
 import { SelectorMulti } from "@/components/SelectorMulti";
 
@@ -263,7 +264,7 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
   const pendientes = ubs.filter((u) => estado(u) !== "aprobada" && u.id);
   const verdesP = pendientes.filter((u) => ["coincide", "compensada"].includes(estado(u)));
   const dudasP = pendientes.filter((u) => ["difiere", "validando", "respondida"].includes(estado(u)));
-  const conOl = (u: Ub) => filas.some((f) => moduloDe(f.ubicacion) === u.clave && Number(f.cajasOl) > 0);
+  const conOl = (u: Ub) => filas.some((f) => moduloDe(f.ubicacion) === u.clave && (Number(f.cajasOl) > 0 || (f.sueltasOl ?? 0) > 0));
   const dudasOl = dudasP.filter(conOl), dudasBav = dudasP.filter((u) => !conOl(u));
   async function aprobarTodoComoQuedo() {
     const si = await pedir({
@@ -700,9 +701,9 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
                         <td><b>{f.sku}</b></td>
                         <td>{f.material}{[f.estadoEnvase, f.averia && "AVERÍA", f.pnc && "PNC"].filter(Boolean).length > 0 ? ` · ${[f.estadoEnvase, f.averia && "AVERÍA", f.pnc && "PNC"].filter(Boolean).join(" · ")}` : ""}</td>
                         <td>{f.ubicacion.replace(/_/g, " ")}</td>
-                        <td className="n">{f.cajasOl ?? "—"}</td>
-                        <td className="n">{f.cajasBavaria ?? "—"}</td>
-                        <td className="n d">{f.compensada ? "✓ " : ""}{f.diferencia > 0 ? "+" : f.diferencia < 0 ? "−" : ""}{Math.abs(f.diferencia)}</td>
+                        <td className="n">{f.cajasOl == null ? "—" : textoCantidad(f.cajasOl, f.sueltasOl ?? 0)}</td>
+                        <td className="n">{f.cajasBavaria == null ? "—" : textoCantidad(f.cajasBavaria, f.sueltasBavaria ?? 0)}</td>
+                        <td className="n d">{f.compensada ? "✓ " : ""}{textoDif(difUnid(f), upcFila(f))}</td>
                       </tr>
                     ))}
                   </tbody>

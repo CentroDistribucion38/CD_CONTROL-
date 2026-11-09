@@ -11,6 +11,8 @@
      las cajas son las mismas. Lo que solo contó uno de los dos cuenta como diferencia.
    =================================================================== */
 
+import { aUnidades, partir, upcDe } from "./unidades";
+
 export type AvanceHoja = {
   olRenglones: number; olTermino: string | null;
   bavariaRenglones: number; bavariaTermino: string | null;
@@ -78,7 +80,17 @@ export type FilaCruce = {
   estadoEnvase?: string | null;
   averia?: boolean; pnc?: boolean;
   vencDia: number | null; vencMes: number | null; vencAnio: number | null;
-  cajasOl: number | null; cajasBavaria: number | null; diferencia: number; estado: EstadoFila;
+  /** Cajas ENTERAS de cada equipo (null = no contó). Las unidades que no completan una caja van aparte en `sueltas*`. */
+  cajasOl: number | null; cajasBavaria: number | null;
+  /** Unidades sueltas (menos de una caja) de cada equipo. */
+  sueltasOl?: number | null; sueltasBavaria?: number | null;
+  /** Unidades por caja del material (1 = no se sabe, no hay sueltas). */
+  upc?: number;
+  /** Diferencia (operador − Bavaria) en cajas enteras; ojo: 2 unidades de diferencia son 0 aquí. La exacta es `difU`. */
+  diferencia: number;
+  /** Diferencia EXACTA en unidades. Si la base aún no la manda, la diferencia en cajas. */
+  difU?: number;
+  estado: EstadoFila;
   /** true = esta diferencia se compensa con otra igual y de signo contrario en el mismo módulo (ver `compensarCruce`). */
   compensada?: boolean;
 };
@@ -91,6 +103,7 @@ export type FilaCruceBD = {
   cajas_ol: number | string | null; cajas_bavaria: number | string | null; diferencia: number | string | null; estado: string;
   estado_envase?: string | null;
   averia?: boolean | null; pnc?: boolean | null;
+  unidades_ol?: number | string | null; unidades_bavaria?: number | string | null; dif_unidades?: number | string | null; unidades_por_caja?: number | string | null;
 };
 
 const ESTADOS: EstadoFila[] = ["COINCIDE", "DIFIERE", "SOLO_OL", "SOLO_BAVARIA"];
@@ -103,13 +116,30 @@ export function filaDesdeBD(f: FilaCruceBD): FilaCruce {
     ubicacion: f.ubicacion, sku: f.sku, material: f.material, estadoEnvase: f.estado_envase ?? null, averia: !!f.averia, pnc: !!f.pnc,
     vencDia: nul(f.venc_dia), vencMes: nul(f.venc_mes), vencAnio: nul(f.venc_anio),
     cajasOl: nul(f.cajas_ol), cajasBavaria: nul(f.cajas_bavaria), diferencia: num(f.diferencia), estado,
+    sueltasOl: f.cajas_ol == null ? null : num(f.unidades_ol), sueltasBavaria: f.cajas_bavaria == null ? null : num(f.unidades_bavaria),
+    upc: upcDe(f.unidades_por_caja),
+    ...(f.dif_unidades != null ? { difU: num(f.dif_unidades) } : {}),
   };
 }
+
+/* ------------------------------------------- la cuenta exacta (cajas + unidades sueltas) */
+/** Unidades por caja de la fila (1 si no se sabe). */
+export const upcFila = (f: Pick<FilaCruce, "upc">): number => upcDe(f.upc);
+/** Lo que contó el operador, en unidades exactas (null = no contó). */
+export const unidOl = (f: FilaCruce): number | null => (f.cajasOl == null ? null : aUnidades(f.cajasOl, f.sueltasOl ?? 0, upcFila(f)));
+/** Lo que contó Bavaria, en unidades exactas (null = no contó). */
+export const unidBavaria = (f: FilaCruce): number | null => (f.cajasBavaria == null ? null : aUnidades(f.cajasBavaria, f.sueltasBavaria ?? 0, upcFila(f)));
+/** La diferencia exacta (operador − Bavaria) en unidades. */
+export const difUnid = (f: FilaCruce): number => f.difU ?? f.diferencia;
+/** La diferencia en cajas con decimales, como entero comparable: sirve para emparejar materiales distintos (cada uno trae otras unidades por caja). */
+const difEnCajas = (f: FilaCruce): number => Math.round((difUnid(f) / upcFila(f)) * 1e9);
 
 /* ------------------------------------- lo que contó cada persona (para el Excel) */
 export type ConteoPersona = {
   equipo: "OL" | "BAVARIA"; persona: string; ubicacion: string; sku: string; material: string;
   cajasPorEstiba: number | null; estibas: number | null; saldo: number | null; cajas: number | null; totalCajas: number;
+  /** Unidades sueltas (no completan una caja) y las unidades por caja del material. */
+  unidades: number; unidadesPorCaja: number;
   vencDia: number | null; vencMes: number | null; vencAnio: number | null; nota: string | null; contadoEn: string | null;
 };
 /** Lo que devuelve `inv_fiscal_conteos`. */
@@ -118,11 +148,13 @@ export type ConteoPersonaBD = {
   cajas_por_estiba: number | string | null; estibas: number | string | null; saldo: number | string | null; cajas: number | string | null;
   total_cajas: number | string | null; venc_dia: number | null; venc_mes: number | null; venc_anio: number | null;
   nota: string | null; contado_en: string | null;
+  unidades?: number | string | null; unidades_por_caja?: number | string | null;
 };
 export function conteoDesdeBD(c: ConteoPersonaBD): ConteoPersona {
   return {
     equipo: c.equipo === "BAVARIA" ? "BAVARIA" : "OL", persona: c.persona || "—", ubicacion: c.ubicacion, sku: c.sku, material: c.material,
     cajasPorEstiba: nul(c.cajas_por_estiba), estibas: nul(c.estibas), saldo: nul(c.saldo), cajas: nul(c.cajas), totalCajas: num(c.total_cajas),
+    unidades: num(c.unidades), unidadesPorCaja: upcDe(c.unidades_por_caja),
     vencDia: nul(c.venc_dia), vencMes: nul(c.venc_mes), vencAnio: nul(c.venc_anio), nota: c.nota?.trim() ? c.nota.trim() : null, contadoEn: c.contado_en,
   };
 }
@@ -143,10 +175,12 @@ export type ResumenCruce = {
   /** Renglones que no coinciden (los tres tipos de diferencia juntos). */
   conDiferencia: number;
   cajasOl: number; cajasBavaria: number;
+  /** Unidades sueltas (no completan caja) sumadas de cada equipo. */
+  sueltasOl: number; sueltasBavaria: number;
 };
 
 export function resumenCruce(filas: FilaCruce[]): ResumenCruce {
-  const r: ResumenCruce = { total: filas.length, coinciden: 0, difieren: 0, soloOl: 0, soloBavaria: 0, conDiferencia: 0, cajasOl: 0, cajasBavaria: 0 };
+  const r: ResumenCruce = { total: filas.length, coinciden: 0, difieren: 0, soloOl: 0, soloBavaria: 0, conDiferencia: 0, cajasOl: 0, cajasBavaria: 0, sueltasOl: 0, sueltasBavaria: 0 };
   for (const f of filas) {
     if (f.estado === "COINCIDE") r.coinciden++;
     else if (f.estado === "DIFIERE") r.difieren++;
@@ -154,6 +188,8 @@ export function resumenCruce(filas: FilaCruce[]): ResumenCruce {
     else r.soloBavaria++;
     r.cajasOl += f.cajasOl ?? 0;
     r.cajasBavaria += f.cajasBavaria ?? 0;
+    r.sueltasOl += f.sueltasOl ?? 0;
+    r.sueltasBavaria += f.sueltasBavaria ?? 0;
   }
   r.conDiferencia = r.difieren + r.soloOl + r.soloBavaria;
   return r;
@@ -203,11 +239,21 @@ export function cruceModulo(filas: FilaCruce[]): FilaCruce[] {
     }
     x.cajasOl = f.cajasOl == null ? x.cajasOl : (x.cajasOl ?? 0) + f.cajasOl;
     x.cajasBavaria = f.cajasBavaria == null ? x.cajasBavaria : (x.cajasBavaria ?? 0) + f.cajasBavaria;
+    x.sueltasOl = f.cajasOl == null ? x.sueltasOl : (x.sueltasOl ?? 0) + (f.sueltasOl ?? 0);
+    x.sueltasBavaria = f.cajasBavaria == null ? x.sueltasBavaria : (x.sueltasBavaria ?? 0) + (f.sueltasBavaria ?? 0);
     if (!x.ubicacionId && f.ubicacionId) x.ubicacionId = f.ubicacionId;
   }
   return [...m.values()].map((f) => {
-    const estado: EstadoFila = f.cajasOl == null ? "SOLO_BAVARIA" : f.cajasBavaria == null ? "SOLO_OL" : f.cajasOl === f.cajasBavaria ? "COINCIDE" : "DIFIERE";
-    return { ...f, diferencia: (f.cajasOl ?? 0) - (f.cajasBavaria ?? 0), estado };
+    /* Se compara en UNIDADES exactas: 20 cajas + 5 un. contra 20 cajas SÍ difiere. Luego se vuelve a partir en cajas + sueltas. */
+    const upc = upcFila(f), uo = unidOl(f), ub = unidBavaria(f);
+    const estado: EstadoFila = uo == null ? "SOLO_BAVARIA" : ub == null ? "SOLO_OL" : uo === ub ? "COINCIDE" : "DIFIERE";
+    const du = (uo ?? 0) - (ub ?? 0);
+    const po = uo == null ? null : partir(uo, upc), pb = ub == null ? null : partir(ub, upc);
+    return {
+      ...f, upc, difU: du, diferencia: Math.trunc(du / upc), estado,
+      cajasOl: po ? po.cajas : null, sueltasOl: po ? po.unidades : null,
+      cajasBavaria: pb ? pb.cajas : null, sueltasBavaria: pb ? pb.unidades : null,
+    };
   });
 }
 
@@ -221,7 +267,7 @@ export function cruceModulo(filas: FilaCruce[]): FilaCruce[] {
 export function compensarCruce(filas: FilaCruce[]): { filas: FilaCruce[]; pares: number } {
   const porModulo = new Map<string, FilaCruce[]>();
   for (const f of filas) {
-    if (f.estado === "COINCIDE" || f.diferencia === 0) continue;
+    if (f.estado === "COINCIDE" || difUnid(f) === 0) continue;
     const l = porModulo.get(f.ubicacion) ?? [];
     l.push(f); porModulo.set(f.ubicacion, l);
   }
@@ -231,36 +277,37 @@ export function compensarCruce(filas: FilaCruce[]): { filas: FilaCruce[]; pares:
      compensa entero, renglón por renglón, aunque las cantidades no sean iguales una a una. */
   const totales = new Map<string, FilaCruce[]>();
   for (const f of filas) {
-    if (f.estado === "COINCIDE" || f.diferencia === 0) continue;
+    if (f.estado === "COINCIDE" || difUnid(f) === 0) continue;
     const l = totales.get(f.sku) ?? [];
     l.push(f); totales.set(f.sku, l);
   }
   for (const l of totales.values()) {
-    if (l.length < 2 || l.reduce((t, f) => t + f.diferencia, 0) !== 0) continue;
+    if (l.length < 2 || l.reduce((t, f) => t + difUnid(f), 0) !== 0) continue;
     for (const f of l) marcadas.add(f);
-    pares += Math.max(1, Math.min(l.filter((f) => f.diferencia > 0).length, l.filter((f) => f.diferencia < 0).length));
+    pares += Math.max(1, Math.min(l.filter((f) => difUnid(f) > 0).length, l.filter((f) => difUnid(f) < 0).length));
   }
   /* Paso 0 (el primero): el MISMO código y la MISMA cantidad, una positiva y otra negativa, en cualquier sitio de la hoja
      (también dentro del mismo módulo). Va primero para que ese par no se lo «robe» otro material de +45/−45 en el módulo. */
   const porSku = new Map<string, FilaCruce[]>();
   for (const f of filas) {
-    if (f.estado === "COINCIDE" || f.diferencia === 0 || marcadas.has(f)) continue;
+    if (f.estado === "COINCIDE" || difUnid(f) === 0 || marcadas.has(f)) continue;
     const l = porSku.get(f.sku) ?? [];
     l.push(f); porSku.set(f.sku, l);
   }
   for (const l of porSku.values()) {
     const usadas = new Set<FilaCruce>();
-    for (const p of l.filter((f) => f.diferencia > 0)) {
-      const q = l.find((n) => n.diferencia < 0 && !usadas.has(n) && -n.diferencia === p.diferencia);
+    for (const p of l.filter((f) => difUnid(f) > 0)) {
+      const q = l.find((n) => difUnid(n) < 0 && !usadas.has(n) && -difUnid(n) === difUnid(p));
       if (!q) continue;
       usadas.add(q); marcadas.add(p); marcadas.add(q); pares++;
     }
   }
+  /* Entre materiales distintos (+45 de uno, −45 de otro) se empareja por CAJAS equivalentes, porque cada material trae sus unidades por caja. */
   for (const l of porModulo.values()) {
-    const neg = l.filter((f) => f.diferencia < 0 && !marcadas.has(f));
+    const neg = l.filter((f) => difUnid(f) < 0 && !marcadas.has(f));
     const usadas = new Set<FilaCruce>();
-    for (const p of l.filter((f) => f.diferencia > 0 && !marcadas.has(f))) {
-      const q = neg.find((n) => !usadas.has(n) && -n.diferencia === p.diferencia);
+    for (const p of l.filter((f) => difUnid(f) > 0 && !marcadas.has(f))) {
+      const q = neg.find((n) => !usadas.has(n) && -difEnCajas(n) === difEnCajas(p));
       if (!q) continue;
       usadas.add(q); marcadas.add(p); marcadas.add(q); pares++;
     }
@@ -268,15 +315,15 @@ export function compensarCruce(filas: FilaCruce[]): { filas: FilaCruce[]; pares:
   /* Paso 2: el mismo material, módulos distintos. */
   const porMaterial = new Map<string, FilaCruce[]>();
   for (const f of filas) {
-    if (f.estado === "COINCIDE" || f.diferencia === 0 || marcadas.has(f)) continue;
+    if (f.estado === "COINCIDE" || difUnid(f) === 0 || marcadas.has(f)) continue;
     const k = f.sku; /* mismo código; la avería, el estado y el PNC no impiden compensar */
     const l = porMaterial.get(k) ?? [];
     l.push(f); porMaterial.set(k, l);
   }
   for (const l of porMaterial.values()) {
     const usadas = new Set<FilaCruce>();
-    for (const p of l.filter((f) => f.diferencia > 0)) {
-      const q = l.find((n) => n.diferencia < 0 && !usadas.has(n) && -n.diferencia === p.diferencia && n.ubicacion !== p.ubicacion);
+    for (const p of l.filter((f) => difUnid(f) > 0)) {
+      const q = l.find((n) => difUnid(n) < 0 && !usadas.has(n) && -difUnid(n) === difUnid(p) && n.ubicacion !== p.ubicacion);
       if (!q) continue;
       usadas.add(q); marcadas.add(p); marcadas.add(q); pares++;
     }

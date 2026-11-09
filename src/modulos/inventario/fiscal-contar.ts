@@ -114,18 +114,12 @@ export function totalCajas(b: BorradorFiscal, mat: Material | null): { formula: 
 }
 
 /** Contar en unidades: se pasan a cajas con las «unidades por caja» del maestro; lo que no completa una caja queda como
- *  unidades sueltas (se muestran y viajan en la observación del renglón). Solo impide contar así un material sin ese dato. */
+ *  unidades sueltas (van aparte, en `unidades`, y cuentan en todo). Solo impide contar así un material sin ese dato. */
 export function avisoUnidades(b: BorradorFiscal, mat: Material | null): string | null {
   if (b.modo !== "unidades" || !mat || cantidad(b.unidades) == null) return null;
   const upc = mat.unidades_por_caja ?? null;
   return !upc || upc <= 0 ? "Este material no tiene «unidades por caja» en el maestro: cuéntalo por cajas." : null;
 }
-/** Las unidades sueltas que un renglón dejó dichas en su observación («… + 5 unidades sueltas»), o 0. */
-export const sueltasEnNota = (nota: string | null | undefined): number => {
-  const m = /\+ (\d+) unidades? sueltas?/.exec(nota ?? "");
-  return m ? Number(m[1]) : 0;
-};
-
 /** Lo que falta o está mal en el renglón, dicho como lo diría una persona; null si se puede anotar. */
 export function revisarFiscal(b: BorradorFiscal, mat: Material | null, claveEscogida: string | null): string | null {
   const env = pideEstadoFiscal(mat);
@@ -163,24 +157,22 @@ export function revisarFiscal(b: BorradorFiscal, mat: Material | null, claveEsco
 /** Los argumentos de `inv_fiscal_contar_agregar`. Solo se llama con un renglón que pasó `revisarFiscal`. */
 export function argumentosFiscal(hojaId: string, ubicacionId: string, mat: Material, b: BorradorFiscal) {
   const fecha = hayFecha(b);
-  /* Unidades: viajan como cajas y la nota deja escrito de dónde salió la cuenta. */
+  /* Unidades: las cajas completas van en `cajas` y lo que no completa una caja va en `unidades` (sueltas): las dos cuentan. */
   const porUnidades = b.modo === "unidades";
-  const cajasDeUnidades = porUnidades ? totalCajas(b, mat)?.total ?? null : null;
-  const notaLimpia = b.nota.trim();
-  const nota = porUnidades
-    ? [`Contado en unidades: ${cantidad(b.unidades)} ÷ ${mat.unidades_por_caja} = ${cajasDeUnidades} cajas${(totalCajas(b, mat)?.sueltas ?? 0) > 0 ? ` + ${totalCajas(b, mat)?.sueltas} unidades sueltas` : ""}`, notaLimpia].filter(Boolean).join(" · ")
-    : notaLimpia;
+  const cuenta = porUnidades ? totalCajas(b, mat) : null;
+  const nota = b.nota.trim();
   return {
     p_hoja: hojaId,
     p_ubicacion: ubicacionId,
     p_producto: mat.id,
     p_estibas: b.modo === "estibas" ? cantidad(b.estibas) : null,
     p_saldo: b.modo === "estibas" ? cantidad(b.saldo) : null,
-    p_cajas: b.modo === "cajas" ? cantidad(b.cajas) : porUnidades ? cajasDeUnidades : null,
+    p_cajas: b.modo === "cajas" ? cantidad(b.cajas) : porUnidades ? cuenta?.total ?? null : null,
     p_dia: fecha ? cantidad(b.dia) : null,
     p_mes: fecha ? cantidad(b.mes) : null,
     p_anio: fecha ? cantidad(b.anio) : null,
     p_nota: nota === "" ? null : nota,
+    ...(porUnidades && (cuenta?.sueltas ?? 0) > 0 ? { p_unidades: cuenta?.sueltas } : {}),
     /* Estado, avería y PNC solo viajan cuando el renglón los trae: así un renglón común sigue funcionando
        aunque a la base aún le falte 2026-10-fiscal-estado.sql. */
     ...(pideEstadoFiscal(mat) && b.estado.trim() !== "" ? { p_estado: b.estado.trim() } : {}),
@@ -195,6 +187,8 @@ export type RenglonFiscal = {
   estibas: number | null; saldo: number | null; cajas: number | null; total_cajas: number | string;
   venc_dia: number | null; venc_mes: number | null; venc_anio: number | null; nota: string | null; contado_en: string; estado_envase?: string | null;
   averia?: boolean; pnc?: boolean; pnc_rotulo?: boolean | null; pnc_bloqueo_mecanico?: boolean | null;
+  /** Unidades sueltas (menos de una caja) y las unidades por caja del material. */
+  unidades?: number | null; unidades_por_caja?: number | null;
   /** Ya aprobado por el fiscal y pasado a La base. */
   en_base?: boolean;
 };

@@ -22,6 +22,7 @@
        la pareja terminan, quien arma el plan puede cruzar (pantalla «Inventario
        fiscal»). Aquí solo se sabe SI la pareja terminó, nunca lo que contó.
    =================================================================== */
+import { aUnidades } from "@/modulos/inventario/unidades";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent, RefObject } from "react";
 import { useRouter } from "next/navigation";
@@ -36,7 +37,7 @@ import type { Material, Ubicacion } from "@/modulos/inventario/fefo";
 import { MODULOS_DE_LA_HOJA, moduloConLados, modulosQueFaltan } from "@/modulos/inventario/modulos-hoja";
 import { fechaConDia, type HojaParaContar } from "@/modulos/inventario/fiscal";
 import {
-  VACIO_FISCAL, argumentosFiscal, revisarFiscal, totalCajas, sueltasEnNota, esCuenta, cantidad, pideEstadoFiscal, esCilindroFiscal, opcionesEstadoFiscal,
+  VACIO_FISCAL, argumentosFiscal, revisarFiscal, totalCajas, esCuenta, cantidad, pideEstadoFiscal, esCilindroFiscal, opcionesEstadoFiscal,
   type BorradorFiscal, type RenglonFiscal,
 } from "@/modulos/inventario/fiscal-contar";
 
@@ -52,8 +53,8 @@ const dosDigitos = (v: string) => v.replace(/\D/g, "").slice(0, 2);
 const dd = (n: number | null) => n == null ? "··" : String(n).padStart(2, "0");
 
 /** «3 estibas + 10 cajas» / «12 cajas». */
-export function textoCantidad(r: Pick<RenglonFiscal, "estibas" | "saldo" | "cajas"> & { nota?: string | null }): string {
-  const su = sueltasEnNota(r.nota);
+export function textoCantidad(r: Pick<RenglonFiscal, "estibas" | "saldo" | "cajas"> & { unidades?: number | null }): string {
+  const su = Number(r.unidades ?? 0);
   const sueltas = su > 0 ? ` + ${nf.format(su)} unidad${su === 1 ? "" : "es"} suelta${su === 1 ? "" : "s"}` : "";
   if (r.cajas != null) return `${nf.format(r.cajas)} caja${r.cajas === 1 ? "" : "s"}${sueltas}`;
   const e = r.estibas, s = r.saldo ?? 0;
@@ -534,7 +535,8 @@ export function ContarFiscal({
     setB({
       calle: u.calle, base: claveBase(u), lado: u.lado ?? "", codigo: r.sku,
       dia: r.venc_dia == null ? "" : dd(r.venc_dia), mes: r.venc_mes == null ? "" : dd(r.venc_mes), anio: r.venc_anio == null ? "" : dd(r.venc_anio),
-      modo: r.cajas != null ? "cajas" : "estibas", estibas: t(r.estibas), saldo: t(r.saldo), cajas: t(r.cajas), unidades: "",
+      modo: Number(r.unidades ?? 0) > 0 ? "unidades" : r.cajas != null ? "cajas" : "estibas", estibas: t(r.estibas), saldo: t(r.saldo), cajas: t(r.cajas),
+      unidades: Number(r.unidades ?? 0) > 0 ? String(aUnidades(r.cajas, r.unidades, r.unidades_por_caja)) : "",
       nota: r.nota ?? "", estado: r.estado_envase ?? "",
       averia: !!r.averia, pnc: !!r.pnc, pncRotulo: r.pnc ? r.pnc_rotulo ?? null : null, pncBloqueo: r.pnc ? r.pnc_bloqueo_mecanico ?? null : null,
     });
@@ -690,6 +692,8 @@ export function ContarFiscal({
             );
           })() : null;
   const totalMio = (mios ?? []).reduce((s, r) => s + Number(r.total_cajas || 0), 0);
+  const sueltasMio = (mios ?? []).reduce((s, r) => s + Number(r.unidades || 0), 0);
+  const textoTotalMio = `${nf.format(totalMio)} cajas${sueltasMio > 0 ? ` + ${nf.format(sueltasMio)} un. sueltas` : ""}`;
 
   const reabrirUI = (clase: string) => reap.autorizado ? (
     <button type="button" className={clase} disabled={guardando} onClick={() => terminar(false)}>Reabrir mi hoja (el fiscal ya dio el OK)</button>
@@ -1021,7 +1025,7 @@ export function ContarFiscal({
             {estadoT.parejaTermino
               ? "Tu pareja también terminó: quien arma el plan ya puede cruzar las dos hojas."
               : `Falta que ${hoja.pareja ?? "tu pareja"} termine la suya.`}</p>
-          <p className="fc-term-cuenta">Llevas {mios?.length ?? 0} {(mios?.length ?? 0) === 1 ? "renglón" : "renglones"} · {nf.format(totalMio)} cajas.</p>
+          <p className="fc-term-cuenta">Llevas {mios?.length ?? 0} {(mios?.length ?? 0) === 1 ? "renglón" : "renglones"} · {textoTotalMio}.</p>
           <div className="cl-botones">
             {reabrirUI("btn plano fc-reabrir")}
           </div>
@@ -1036,7 +1040,7 @@ export function ContarFiscal({
             <p className="fe-rec-dice">Es solo lo tuyo. Si algo quedó mal, toca «Corregir» o quítalo.</p>
           </div>
           <span>
-            {mios == null ? "Cargando…" : `${mios.length} ${mios.length === 1 ? "renglón" : "renglones"} · ${nf.format(totalMio)} cajas`}
+            {mios == null ? "Cargando…" : `${mios.length} ${mios.length === 1 ? "renglón" : "renglones"} · ${textoTotalMio}`}
           </span>
         </div>
         <input ref={camaraFila} type="file" accept="image/jpeg,image/png,image/webp,image/heic" capture="environment" hidden onChange={tomarFila} />
@@ -1048,7 +1052,7 @@ export function ContarFiscal({
                 <div className="fc-ren">
                   <b>{r.ubicacion}</b> · {r.sku} · {r.material}
                   <br />
-                  <span>{[r.estado_envase, r.averia && "AVERÍA", r.pnc && "PNC"].filter(Boolean).join(" · ")}{r.estado_envase || r.averia || r.pnc ? " · " : ""}{textoCantidad(r)} = <b>{nf.format(Number(r.total_cajas))}</b> cajas
+                  <span>{[r.estado_envase, r.averia && "AVERÍA", r.pnc && "PNC"].filter(Boolean).join(" · ")}{r.estado_envase || r.averia || r.pnc ? " · " : ""}{textoCantidad(r)}{r.estibas != null && <> = <b>{nf.format(Number(r.total_cajas))}</b> cajas{Number(r.unidades ?? 0) > 0 && ` + ${nf.format(Number(r.unidades))} un.`}</>}
                     {r.venc_dia != null && <> · vence {dd(r.venc_dia)}/{dd(r.venc_mes)}/{dd(r.venc_anio)}</>}
                     {r.nota && <> · {r.nota}</>}</span>
                 </div>

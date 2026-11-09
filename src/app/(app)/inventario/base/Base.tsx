@@ -64,7 +64,10 @@ const TZ = "America/Bogota";
 /** Un renglón de la tabla: el que vale (o el borrador) con lo que hace falta para pintarlo, calculado una vez. */
 type Fila = Vigente & {
   pasado: boolean;
+  /** Unidades TOTALES (cajas × unidades por caja + las sueltas). */
   unidades: number | null;
+  /** Unidades sueltas: las que no completan una caja. */
+  sueltas: number;
   quien: string;
   /** Cuándo se ENVIÓ el recorrido (fecha y hora reales). Vacío si todavía no se envía: no se inventa una hora. */
   cuando: string;
@@ -170,6 +173,8 @@ const COLUMNAS: Col<Renglon>[] = [
     texto: (r) => (r.saldo == null ? "" : String(r.saldo)), valor: (r) => r.saldo ?? -1 },
   { k: "cajas", t: "Cajas sueltas", num: true,
     texto: (r) => (r.cajas == null ? "" : String(r.cajas)), valor: (r) => r.cajas ?? -1 },
+  { k: "sueltas", t: "Unid. sueltas", num: true,
+    texto: (r) => (Number(r.unidades) ? String(Number(r.unidades)) : ""), valor: (r) => Number(r.unidades) || 0 },
   { k: "total_cajas", t: "Total cajas", num: true,
     texto: (r) => String(r.total_cajas), valor: (r) => Number(r.total_cajas),
     pinta: (r) => <b>{nf.format(Number(r.total_cajas))}</b> },
@@ -213,7 +218,7 @@ const COLUMNAS: Col<Renglon>[] = [
    --------------------------------------------------------------------- */
 /* Las columnas de la tabla CORTA. Las veintiséis están en COLUMNAS. */
 /* Las columnas que se suman en el subtotal (un factor o una capacidad no). */
-const SUMABLES = new Set(["estibas", "saldo", "cajas", "total_cajas", "unidades"]);
+const SUMABLES = new Set(["estibas", "saldo", "cajas", "sueltas", "total_cajas", "unidades"]);
 const ubi = (r: Renglon) => r.ubicacion_combinada ?? r.ubicacion ?? "";
 const CORTAS: Col<Fila>[] = [
   { k: "ub", t: "Ubicación", texto: ubi, pinta: (r) => <span className="ba-ub">{ubi(r) || "—"}</span> },
@@ -379,7 +384,8 @@ export function Base({
     return {
       ...r,
       pasado: yaPasados.has(r.id),
-      unidades: u ? Number(r.total_cajas) * u : null,
+      sueltas: Number(r.unidades) || 0,
+      unidades: u ? Number(r.total_cajas) * u + (Number(r.unidades) || 0) : null,
       /* El recorrido del inventario fiscal es UNO por hoja pero lo contaron varias personas: ahí vale la persona de cada renglón,
          no quien aprobó. En los demás recorridos sigue siendo quien lo envió. */
       quien: (c && esFiscal(c) ? r.conto : null) ?? c?.envio_nombre ?? c?.responsable ?? "—",
@@ -527,12 +533,14 @@ export function Base({
 
   const filtrando = Object.keys(fCol).length > 0 || fTexto.trim() !== "" || fCalle !== "" || fModulo !== "" || fRec !== "" || fTipo !== "" || fQuien.size > 0;
   const cajas = filas.reduce((a, r) => a + Number(r.total_cajas), 0);
+  const sueltasVista = filas.reduce((a, r) => a + r.sueltas, 0);
 
   /* LAS CIFRAS DE ARRIBA son las de la base ya cruzada, sin los filtros de la tabla: «Renglones» dice
      cuántos hay después de cruzar, no cuántos pasaron por la búsqueda. */
   const kp = useMemo(() => ({
     renglones: cruce.vigentes.length,
     cajas: cruce.vigentes.reduce((a, r) => a + Number(r.total_cajas), 0),
+    sueltas: cruce.vigentes.reduce((a, r) => a + (Number(r.unidades) || 0), 0),
     ubicaciones: new Set(cruce.vigentes.map((r) => r.ubicacion_id ?? r.ubicacion ?? "—")).size,
     repetidas: cruce.repetidas,
     compartidas: cruce.compartidas,
@@ -546,8 +554,9 @@ export function Base({
     ...kp,
     renglones: filas.length,
     cajas,
+    sueltas: sueltasVista,
     ubicaciones: new Set(filas.map((r) => r.ubicacion_id ?? r.ubicacion ?? "—")).size,
-  }, [vf, kp, filas, cajas]);
+  }, [vf, kp, filas, cajas, sueltasVista]);
 
   /* ============== SELECCIÓN ============== */
   const hayCasillas = pestania === "base" && (puedeMarcar || manda);
@@ -617,7 +626,7 @@ export function Base({
       const blob = await armarVistaXlsx({
         titulo: pestania === "base" ? "BD del conteo" : "Borradores del conteo", sub, hoja: pestania === "base" ? "Base" : "Borradores",
         /* Se suman las cantidades (estibas, cajas, saldo, unidades); un factor o una capacidad no. */
-        columnas: cols.map((c) => ({ t: c.t, num: !!c.num, suma: ["estibas", "saldo", "cajas", "total_cajas", "unidades"].includes(c.k) })), filas: filas.map((r) => cols.map((c) => c.texto(r))),
+        columnas: cols.map((c) => ({ t: c.t, num: !!c.num, suma: ["estibas", "saldo", "cajas", "sueltas", "total_cajas", "unidades"].includes(c.k) })), filas: filas.map((r) => cols.map((c) => c.texto(r))),
         tinta: hx(P.tinta), banda: hx(P.cinta[1]?.[1] ?? P.acento),
       });
       /* EL NOMBRE DICE QUÉ TRAE: bajando tres vistas seguidas salían tres archivos con el mismo nombre. */
@@ -725,7 +734,7 @@ export function Base({
       {pestania === "base" && hayEnviados && (
         <section className="ba-kp" aria-label="Resumen de la base cruzada">
           <div className={vf ? "fil" : ""}><span className="ba-eti">Renglones</span><b>{nf.format(kpVista.renglones)}</b><small>{vf ? `filtrados · de ${nf.format(kp.renglones)} en la base` : "después de cruzar"}</small></div>
-          <div className={vf ? "fil" : ""}><span className="ba-eti">Cajas</span><b>{nf.format(kpVista.cajas)}</b><small>{vf ? `filtradas · de ${nf.format(kp.cajas)} en la base` : "en la base"}</small></div>
+          <div className={vf ? "fil" : ""}><span className="ba-eti">Cajas</span><b>{nf.format(kpVista.cajas)}</b><small>{vf ? `filtradas · de ${nf.format(kp.cajas)} en la base` : "en la base"}{kpVista.sueltas > 0 ? ` · + ${nf.format(kpVista.sueltas)} un. sueltas` : ""}</small></div>
           <div className={vf ? "fil" : ""}><span className="ba-eti">Ubicaciones</span><b>{nf.format(kpVista.ubicaciones)}</b><small>{vf ? `distintas en lo filtrado · de ${nf.format(kp.ubicaciones)}` : "distintas"}</small></div>
           <div className="az"><span className="ba-eti">Repetidas</span><b>{nf.format(kp.repetidas)}</b><small>misma persona: vale su último conteo</small></div>
           <div><span className="ba-eti">Contadas por 2+</span><b>{nf.format(kp.compartidas)}</b><small>personas distintas: cada una en su renglón</small></div>

@@ -124,7 +124,10 @@ export function RevisionesFiscal({ hojaId, mios, alCambiar, avisar, ocupado, alC
     return todosDe(m).filter((r) => f.dif === null || f.dif.has(r.id) || !f.todos.has(r.id));
   };
   const textoCant = (r: RenglonFiscal) => {
-    if (r.cajas != null) return `${nf.format(r.cajas)} caja${r.cajas === 1 ? "" : "s"}`;
+    if (r.cajas != null) {
+      const su = Number(r.unidades ?? 0);
+      return `${nf.format(r.cajas)} caja${r.cajas === 1 ? "" : "s"}${su > 0 ? ` + ${nf.format(su)} unidad${su === 1 ? "" : "es"} suelta${su === 1 ? "" : "s"}` : ""}`;
+    }
     const e = r.estibas ?? 0, s = r.saldo ?? 0;
     return [e > 0 || s === 0 ? `${nf.format(e)} estiba${e === 1 ? "" : "s"}` : "", s > 0 ? `${nf.format(s)} caja${s === 1 ? "" : "s"}` : ""].filter(Boolean).join(" + ");
   };
@@ -163,7 +166,7 @@ export function RevisionesFiscal({ hojaId, mios, alCambiar, avisar, ocupado, alC
                   {mias.map((x) => (
                     <li key={x.id}>
                       <b>{x.sku}</b> {x.material}{[x.estado_envase, x.averia && "AVERÍA", x.pnc && "PNC"].filter(Boolean).length > 0 ? <> · {[x.estado_envase, x.averia && "AVERÍA", x.pnc && "PNC"].filter(Boolean).join(" · ")}</> : null}<br />
-                      <span>{textoCant(x)} = <b>{nf.format(Number(x.total_cajas))}</b> cajas
+                      <span>{textoCant(x)}{x.estibas != null && <> = <b>{nf.format(Number(x.total_cajas))}</b> cajas{Number(x.unidades ?? 0) > 0 && ` + ${nf.format(Number(x.unidades))} un.`}</>}
                         {x.venc_dia != null && <> · vence {dd(x.venc_dia)}/{dd(x.venc_mes)}/{dd(x.venc_anio)}</>}
                         {x.nota && <> · {x.nota}</>}</span>
                       <div className="rv-acc">

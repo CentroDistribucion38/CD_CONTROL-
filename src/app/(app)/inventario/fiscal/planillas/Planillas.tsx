@@ -2,20 +2,22 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { aUnidades, partir } from "@/modulos/inventario/unidades";
 
 /* LAS PLANILLAS, EDITABLES SOLO EN LA PLANILLA.
    El fiscal puede cambiar el módulo y las estibas, el saldo y las cajas de cada uno de la pareja; la planilla rehace sola el total de cada
    uno, la diferencia y los totales de la hoja. Esos cambios son SOLO de lo que se imprime: no tocan el conteo ni el inventario real.
    Se guardan en este navegador (por inventario) para que no se pierdan al recargar. */
 
-export type Lado = { estibas: number; saldo: number; cajas: number };
-export type FilaP = { modulo: string; sku: string; material: string; udsCaja: number | null; detalle: string; ol: Lado | null; bav: Lado | null };
+export type Lado = { estibas: number; saldo: number; cajas: number; unidades: number };
+/** `upc` = unidades por caja del material (null = no se sabe: no hay unidades sueltas). */
+export type FilaP = { modulo: string; sku: string; material: string; udsCaja: number | null; upc: number | null; detalle: string; ol: Lado | null; bav: Lado | null };
 export type HojaP = {
   numero: number; calle: string; grupo: string; olNombre: string; bavNombre: string; sentidoOl: string; sentidoBav: string;
   filas: FilaP[]; blancos: string[]; conConteo: boolean; np: number;
 };
-type Campo = "e" | "s" | "c";
-type Cant = { e: string; s: string; c: string };
+type Campo = "e" | "s" | "c" | "u";
+type Cant = { e: string; s: string; c: string; u?: string };
 type Aj = { modulo?: string; ol?: Cant; bav?: Cant };
 
 const FILAS = 18;
@@ -23,8 +25,8 @@ const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const txt = (v: number) => (v ? String(v) : "");
 const num = (t: string | undefined) => { const n = Number((t ?? "").replace(/[^\d]/g, "")); return Number.isFinite(n) ? n : 0 };
 const signo = (v: number) => (v > 0 ? "+" : v < 0 ? "−" : "") + nf.format(Math.abs(v));
-const cantDe = (l: Lado | null): Cant | null => (l ? { e: txt(l.estibas), s: txt(l.saldo), c: txt(l.cajas) } : null);
-const hay = (c: Cant | null | undefined) => !!c && (c.e !== "" || c.s !== "" || c.c !== "");
+const cantDe = (l: Lado | null): Cant | null => (l ? { e: txt(l.estibas), s: txt(l.saldo), c: txt(l.cajas), u: txt(l.unidades) } : null);
+const hay = (c: Cant | null | undefined) => !!c && (c.e !== "" || c.s !== "" || c.c !== "" || (c.u ?? "") !== "");
 
 export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, todas, soloHoja, aviso }: {
   fiscalId: string; nombre: string; fecha: string; fechaTexto: string; hoy: string;
@@ -79,14 +81,23 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
       bav: a?.bav ?? cantDe(f.bav),
     };
   };
-  const total = (c: Cant | null, uds: number | null) => (hay(c) ? num(c!.e) * (uds ?? 0) + num(c!.s) + num(c!.c) : null);
+  /* Lo contado de un lado en UNIDADES exactas (cajas × unidades por caja + sueltas) y partido otra vez en cajas + sueltas.
+     Las unidades sueltas CUENTAN en el total, la diferencia y los totales de la hoja. */
+  const cuenta = (c: Cant | null, f: FilaP): { cajas: number; sueltas: number; u: number } | null => {
+    if (!hay(c)) return null;
+    const upc = f.upc ?? 1;
+    const cajas = num(c!.e) * (f.udsCaja ?? 0) + num(c!.s) + num(c!.c);
+    const u = f.upc ? aUnidades(cajas, num(c!.u), upc) : cajas;
+    const p = partir(u, upc);
+    return { cajas: p.cajas, sueltas: p.unidades, u };
+  };
 
   function poner(h: HojaP, i: number, f: FilaP, que: "modulo" | "ol" | "bav", campo: Campo | null, valor: string) {
     setAj((x) => {
       const o = ocup(h, f, i);
       const a: Aj = { ...(x[k(h.numero, i)] ?? {}) };
       if (que === "modulo") a.modulo = valor;
-      else { const base = o[que] ?? { e: "", s: "", c: "" }; a[que] = { ...base, [campo!]: valor.replace(/[^\d]/g, "") } }
+      else { const base = o[que] ?? { e: "", s: "", c: "", u: "" }; a[que] = { ...base, [campo!]: valor.replace(/[^\d]/g, "") } }
       return { ...x, [k(h.numero, i)]: a };
     });
   }
@@ -94,7 +105,7 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
     setAj((x) => {
       const o = ocup(h, f, i);
       const a: Aj = { ...(x[k(h.numero, i)] ?? {}) };
-      if (haciaBav) a.bav = o.ol ? { ...o.ol } : { e: "", s: "", c: "" }; else a.ol = o.bav ? { ...o.bav } : { e: "", s: "", c: "" };
+      if (haciaBav) a.bav = o.ol ? { ...o.ol } : { e: "", s: "", c: "", u: "" }; else a.ol = o.bav ? { ...o.bav } : { e: "", s: "", c: "", u: "" };
       return { ...x, [k(h.numero, i)]: a };
     });
   }
@@ -102,7 +113,7 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
   const totalPaginas = hojas.reduce((t, h) => t + h.np, 0);
   const campo = (h: HojaP, f: FilaP, i: number, que: "ol" | "bav", c: Campo, etiqueta: string) => (
     <td className="r e"><input inputMode="numeric" aria-label={`${etiqueta} · ${que === "ol" ? "operador logístico" : "Bavaria"} · ${f.sku}`}
-      value={ocup(h, f, i)[que]?.[c] ?? ""} onChange={(e) => poner(h, i, f, que, c, e.target.value)} /></td>
+      disabled={c === "u" && !f.upc} value={ocup(h, f, i)[que]?.[c] ?? ""} onChange={(e) => poner(h, i, f, que, c, e.target.value)} /></td>
   );
 
   return (
@@ -142,8 +153,10 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
         const relleno = Math.max(0, FILAS - (h.conConteo ? trozo.length : mods.length));
         const tot = h.filas.reduce((t, f, i) => {
           const o = ocup(h, f, i);
-          return { ol: t.ol + (total(o.ol, f.udsCaja) ?? 0), bav: t.bav + (total(o.bav, f.udsCaja) ?? 0) };
-        }, { ol: 0, bav: 0 });
+          const a = cuenta(o.ol, f), b = cuenta(o.bav, f);
+          return { ol: t.ol + (a?.cajas ?? 0), bav: t.bav + (b?.cajas ?? 0), uOl: t.uOl + (a?.sueltas ?? 0), uBav: t.uBav + (b?.sueltas ?? 0),
+                   dc: t.dc + partir((a?.u ?? 0) - (b?.u ?? 0), f.upc ?? 1).cajas, du: t.du + partir((a?.u ?? 0) - (b?.u ?? 0), f.upc ?? 1).unidades };
+        }, { ol: 0, bav: 0, uOl: 0, uBav: 0, dc: 0, du: 0 });
         return (
           <section key={`${h.numero}-${p}`} className="pl-pg" aria-label={`Planilla hoja ${h.numero}, página ${p + 1} de ${h.np}`}>
             <div className="pl-hd">
@@ -174,45 +187,49 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
                 <colgroup>
                   <col style={{ width: 72 }} /><col style={{ width: 84 }} /><col />
                   <col style={{ width: 46 }} />
-                  <col style={{ width: 46 }} /><col style={{ width: 46 }} /><col style={{ width: 46 }} /><col style={{ width: 54 }} />
-                  <col style={{ width: 46 }} /><col style={{ width: 46 }} /><col style={{ width: 46 }} /><col style={{ width: 54 }} />
-                  <col style={{ width: 56 }} /><col className="pl-nop" style={{ width: 40 }} />
+                  <col style={{ width: 44 }} /><col style={{ width: 44 }} /><col style={{ width: 44 }} /><col style={{ width: 38 }} /><col style={{ width: 52 }} />
+                  <col style={{ width: 44 }} /><col style={{ width: 44 }} /><col style={{ width: 44 }} /><col style={{ width: 38 }} /><col style={{ width: 52 }} />
+                  <col style={{ width: 62 }} /><col className="pl-nop" style={{ width: 40 }} />
                 </colgroup>
                 <thead>
                   <tr><th rowSpan={2}>Módulo</th><th rowSpan={2}>Código</th><th rowSpan={2}>Descripción</th><th rowSpan={2}>Uds caja</th>
-                    <th colSpan={4} className="ol">Operador logístico</th><th colSpan={4} className="bv">Bavaria</th><th rowSpan={2}>Dif.</th><th rowSpan={2} className="pl-nop">Igualar</th></tr>
-                  <tr><th className="ol">Est.</th><th className="ol">Saldo</th><th className="ol">Cajas</th><th className="ol">Total</th>
-                    <th className="bv">Est.</th><th className="bv">Saldo</th><th className="bv">Cajas</th><th className="bv">Total</th></tr>
+                    <th colSpan={5} className="ol">Operador logístico</th><th colSpan={5} className="bv">Bavaria</th><th rowSpan={2}>Dif.</th><th rowSpan={2} className="pl-nop">Igualar</th></tr>
+                  <tr><th className="ol">Est.</th><th className="ol">Saldo</th><th className="ol">Cajas</th><th className="ol" title="Unidades sueltas: las que no completan una caja">Unid.</th><th className="ol">Total</th>
+                    <th className="bv">Est.</th><th className="bv">Saldo</th><th className="bv">Cajas</th><th className="bv" title="Unidades sueltas: las que no completan una caja">Unid.</th><th className="bv">Total</th></tr>
                 </thead>
                 <tbody>
                   {trozo.map((f, j) => {
                     const i = desde + j;
                     const o = ocup(h, f, i);
-                    const tO = total(o.ol, f.udsCaja), tB = total(o.bav, f.udsCaja);
-                    const d = (tO ?? 0) - (tB ?? 0);
+                    const cO = cuenta(o.ol, f), cB = cuenta(o.bav, f);
+                    const dd = partir((cO?.u ?? 0) - (cB?.u ?? 0), f.upc ?? 1);
                     return (
                       <tr key={i}>
                         <td className="m e"><input value={o.modulo} onChange={(e) => poner(h, i, f, "modulo", null, e.target.value)} aria-label={`Módulo de ${f.sku}`} /></td>
                         <td className="c">{f.sku}</td>
                         <td className="d">{f.material}{f.detalle && <em>{f.detalle}</em>}</td>
                         <td className="r">{f.udsCaja ?? ""}</td>
-                        {campo(h, f, i, "ol", "e", "Estibas")}{campo(h, f, i, "ol", "s", "Saldo")}{campo(h, f, i, "ol", "c", "Cajas")}<td className="r t">{tO == null ? "" : nf.format(tO)}</td>
-                        {campo(h, f, i, "bav", "e", "Estibas")}{campo(h, f, i, "bav", "s", "Saldo")}{campo(h, f, i, "bav", "c", "Cajas")}<td className="r t">{tB == null ? "" : nf.format(tB)}</td>
-                        <td className={"r t" + (d !== 0 ? " mal" : "")}>{d !== 0 ? signo(d) : (tO != null && tB != null ? "0" : "")}</td>
+                        {campo(h, f, i, "ol", "e", "Estibas")}{campo(h, f, i, "ol", "s", "Saldo")}{campo(h, f, i, "ol", "c", "Cajas")}{campo(h, f, i, "ol", "u", "Unidades sueltas")}<td className="r t">{cO == null ? "" : nf.format(cO.cajas)}</td>
+                        {campo(h, f, i, "bav", "e", "Estibas")}{campo(h, f, i, "bav", "s", "Saldo")}{campo(h, f, i, "bav", "c", "Cajas")}{campo(h, f, i, "bav", "u", "Unidades sueltas")}<td className="r t">{cB == null ? "" : nf.format(cB.cajas)}</td>
+                        <td className={"r t" + (dd.cajas !== 0 || dd.unidades !== 0 ? " mal" : "")}>
+                          {dd.cajas !== 0 || dd.unidades !== 0
+                            ? <>{dd.cajas !== 0 ? signo(dd.cajas) : ""}{dd.unidades !== 0 && <small className="un">{signo(dd.unidades)} un.</small>}</>
+                            : (cO != null && cB != null ? "0" : "")}
+                        </td>
                         <td className="pl-nop ig"><button type="button" title="Pasar lo de Bavaria al operador logístico" onClick={() => igualar(h, i, f, false)}>‹</button><button type="button" title="Pasar lo del operador logístico a Bavaria" onClick={() => igualar(h, i, f, true)}>›</button></td>
                       </tr>
                     );
                   })}
-                  {mods.map((m, j) => <tr key={`b${j}`}><td className="m">{m}</td>{Array.from({ length: 12 }, (_, c) => <td key={c} />)}<td className="pl-nop" /></tr>)}
-                  {Array.from({ length: relleno }, (_, j) => <tr key={`r${j}`}><td className="m" />{Array.from({ length: 12 }, (_, c) => <td key={c} />)}<td className="pl-nop" /></tr>)}
+                  {mods.map((m, j) => <tr key={`b${j}`}><td className="m">{m}</td>{Array.from({ length: 14 }, (_, c) => <td key={c} />)}<td className="pl-nop" /></tr>)}
+                  {Array.from({ length: relleno }, (_, j) => <tr key={`r${j}`}><td className="m" />{Array.from({ length: 14 }, (_, c) => <td key={c} />)}<td className="pl-nop" /></tr>)}
                 </tbody>
               </table>
             </div>
             {h.conConteo && ultima && (
               <div className="pl-tot">
-                <span>Total de la hoja · cajas</span>
-                <b>Operador logístico {nf.format(tot.ol)}</b><b>Bavaria {nf.format(tot.bav)}</b>
-                <b className={tot.ol - tot.bav !== 0 ? "mal" : ""}>Diferencia {tot.ol - tot.bav === 0 ? "0" : signo(tot.ol - tot.bav)}</b>
+                <span>Total de la hoja · cajas y unidades sueltas</span>
+                <b>Operador logístico {nf.format(tot.ol)}{tot.uOl > 0 ? ` + ${nf.format(tot.uOl)} un.` : ""}</b><b>Bavaria {nf.format(tot.bav)}{tot.uBav > 0 ? ` + ${nf.format(tot.uBav)} un.` : ""}</b>
+                <b className={tot.dc !== 0 || tot.du !== 0 ? "mal" : ""}>Diferencia {tot.dc === 0 && tot.du === 0 ? "0" : [tot.dc !== 0 ? signo(tot.dc) : "", tot.du !== 0 ? `${signo(tot.du)} un.` : ""].filter(Boolean).join(" ")}</b>
               </div>
             )}
             <div className="pl-pie">

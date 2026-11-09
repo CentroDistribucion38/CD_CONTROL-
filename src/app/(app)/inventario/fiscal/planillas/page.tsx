@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { MODULOS_DE_LA_HOJA } from "@/modulos/inventario/modulos-hoja";
 import { fechaConDia } from "@/modulos/inventario/fiscal";
 import { compensarCruce, moduloDeUbicacion, type FilaCruce } from "@/modulos/inventario/fiscal-cruce";
+import { aUnidades, partir, upcDe } from "@/modulos/inventario/unidades";
 import { cargarFiscales } from "../datos";
 import { Planillas, type HojaP } from "./Planillas";
 import "./planillas.css";
@@ -23,11 +24,13 @@ type Linea = {
   equipo: string; ubicacion: string; sku: string; material: string;
   cajas_por_estiba: number | null; estibas: number | null; saldo: number | null; cajas: number | null; total_cajas: number | string | null;
   venc_dia: number | null; venc_mes: number | null; venc_anio: number | null; estado_envase?: string | null; averia?: boolean | null; pnc?: boolean | null;
+  /** Unidades sueltas (no completan una caja) y unidades por caja del material. */
+  unidades?: number | null; unidades_por_caja?: number | null;
 };
-type Lado = { estibas: number; saldo: number; cajas: number; total: number };
-type Fila = { modulo: string; sku: string; material: string; udsCaja: number | null; detalle: string; ol: Lado | null; bav: Lado | null; compensada?: boolean };
+type Lado = { estibas: number; saldo: number; cajas: number; unidades: number; total: number };
+type Fila = { modulo: string; sku: string; material: string; udsCaja: number | null; upc: number | null; detalle: string; ol: Lado | null; bav: Lado | null; compensada?: boolean };
 
-const vacio = (): Lado => ({ estibas: 0, saldo: 0, cajas: 0, total: 0 });
+const vacio = (): Lado => ({ estibas: 0, saldo: 0, cajas: 0, unidades: 0, total: 0 });
 
 /** Junta lo que contó cada equipo igual que el cruce del Control fiscal: por MÓDULO (sin lado), material y estado; el vencimiento NO cuenta
  *  (importan el SKU y la cantidad). Después marca lo que se compensa (mismas cajas de más y de menos) para que se lea igual que allá. */
@@ -42,17 +45,22 @@ function armarFilas(lineas: Linea[]): Fila[] {
       if (l.estado_envase) partes.push(l.estado_envase);
       if (l.averia) partes.push("AVERÍA");
       if (l.pnc) partes.push("PNC");
-      f = { modulo: mod.replace(/_/g, " "), sku: l.sku, material: l.material, udsCaja: l.cajas_por_estiba || null, detalle: partes.join(" · "), ol: null, bav: null };
+      f = { modulo: mod.replace(/_/g, " "), sku: l.sku, material: l.material, udsCaja: l.cajas_por_estiba || null, upc: upcDe(l.unidades_por_caja) > 1 ? upcDe(l.unidades_por_caja) : null, detalle: partes.join(" · "), ol: null, bav: null };
       m.set(k, f);
     }
     const lado = l.equipo === "BAVARIA" ? (f.bav ??= vacio()) : (f.ol ??= vacio());
-    lado.estibas += Number(l.estibas ?? 0); lado.saldo += Number(l.saldo ?? 0); lado.cajas += Number(l.cajas ?? 0); lado.total += Number(l.total_cajas ?? 0);
+    lado.estibas += Number(l.estibas ?? 0); lado.saldo += Number(l.saldo ?? 0); lado.cajas += Number(l.cajas ?? 0); lado.unidades += Number(l.unidades ?? 0); lado.total += Number(l.total_cajas ?? 0);
   }
   const filas = [...m.values()].sort((a, b) => a.modulo.localeCompare(b.modulo, "es", { numeric: true }) || a.sku.localeCompare(b.sku));
+  /* Las unidades sueltas CUENTAN: se compara en unidades exactas (cajas × unidades por caja + sueltas). */
   const cruce: FilaCruce[] = filas.map((f) => {
-    const ol = f.ol ? f.ol.total : null, bv = f.bav ? f.bav.total : null;
-    return { ubicacion: f.modulo, sku: f.sku, material: f.material, vencDia: null, vencMes: null, vencAnio: null, cajasOl: ol, cajasBavaria: bv,
-      diferencia: (ol ?? 0) - (bv ?? 0), estado: ol == null ? "SOLO_BAVARIA" : bv == null ? "SOLO_OL" : ol === bv ? "COINCIDE" : "DIFIERE" };
+    const upc = f.upc ?? 1;
+    const uo = f.ol ? aUnidades(f.ol.total, f.ol.unidades, upc) : null, ub = f.bav ? aUnidades(f.bav.total, f.bav.unidades, upc) : null;
+    const du = (uo ?? 0) - (ub ?? 0);
+    const po = uo == null ? null : partir(uo, upc), pb = ub == null ? null : partir(ub, upc);
+    return { ubicacion: f.modulo, sku: f.sku, material: f.material, vencDia: null, vencMes: null, vencAnio: null, upc,
+      cajasOl: po ? po.cajas : null, sueltasOl: po ? po.unidades : null, cajasBavaria: pb ? pb.cajas : null, sueltasBavaria: pb ? pb.unidades : null,
+      diferencia: Math.trunc(du / upc), difU: du, estado: uo == null ? "SOLO_BAVARIA" : ub == null ? "SOLO_OL" : uo === ub ? "COINCIDE" : "DIFIERE" };
   });
   const r = compensarCruce(cruce);
   /* Lo que se compensaba NO se muestra como compensado: el mismo material contado en varios sitios de la hoja se junta en UN renglón,
@@ -69,7 +77,7 @@ function armarFilas(lineas: Linea[]): Fila[] {
       const o = f[eq];
       if (!o) continue;
       const b = (base[eq] ??= vacio());
-      b.estibas += o.estibas; b.saldo += o.saldo; b.cajas += o.cajas; b.total += o.total;
+      b.estibas += o.estibas; b.saldo += o.saldo; b.cajas += o.cajas; b.unidades += o.unidades; b.total += o.total;
     }
     sale.add(i);
   });
@@ -130,8 +138,9 @@ export default async function PlanillasPage({ searchParams }: { searchParams: Pr
       numero: h.numero, calle: h.calle ?? "", grupo,
       olNombre: h.ol ? (nombre.get(h.ol) ?? "—") : "", bavNombre: h.bavaria ? (nombre.get(h.bavaria) ?? "—") : "",
       sentidoOl: lim ? `${lim[0]} → ${lim[1]}` : "", sentidoBav: lim ? `${lim[1]} → ${lim[0]}` : "",
-      filas: filas.map((x) => ({ modulo: x.modulo, sku: x.sku, material: x.material, udsCaja: x.udsCaja, detalle: x.detalle,
-        ol: x.ol ? { estibas: x.ol.estibas, saldo: x.ol.saldo, cajas: x.ol.cajas } : null, bav: x.bav ? { estibas: x.bav.estibas, saldo: x.bav.saldo, cajas: x.bav.cajas } : null })),
+      filas: filas.map((x) => ({ modulo: x.modulo, sku: x.sku, material: x.material, udsCaja: x.udsCaja, upc: x.upc, detalle: x.detalle,
+        ol: x.ol ? { estibas: x.ol.estibas, saldo: x.ol.saldo, cajas: x.ol.cajas, unidades: x.ol.unidades } : null,
+        bav: x.bav ? { estibas: x.bav.estibas, saldo: x.bav.saldo, cajas: x.bav.cajas, unidades: x.bav.unidades } : null })),
       blancos, conConteo, np: Math.max(1, Math.ceil(total / FILAS)),
     };
   }));

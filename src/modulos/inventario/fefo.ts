@@ -117,6 +117,9 @@ export type Renglon = {
      piso son dos cosas distintas y, una vez sumadas, no hay manera de
      volverlas a separar. Las tres caen en `total_cajas`. */
   saldo: number | null;
+  /* UNIDADES SUELTAS: las que no completan una caja (el fiscal las cuenta aparte; `total_cajas` son solo cajas enteras).
+     Cuentan en el inventario: unidades totales = total_cajas × unidades por caja + estas. */
+  unidades?: number | null;
   total_cajas: number;
   total_estibas: number;
   /* La capacidad del módulo, en estibas, como la trae el maestro. Viene
