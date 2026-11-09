@@ -14,6 +14,7 @@ import { textoCantidad, textoDeUnidades, textoDif } from "@/modulos/inventario/u
 import { ValidarHoja, moduloDe, type ConsolidadoBD, type RevisionBD } from "./ValidarHoja";
 import { BdFiscal, precargarBd, type HojaBd } from "./BdFiscal";
 import { CulminarFiscal } from "./CulminarFiscal";
+import { NombreHoja } from "./NombreHoja";
 
 /* ===================================================================
    EL INVENTARIO FISCAL, TODO EN UN SOLO LUGAR · TORRE DE CONTROL
@@ -117,6 +118,8 @@ function useTorre(fiscalId: string, avanceInicial: Record<number, AvanceHoja>, a
   const [revs, setRevs] = useState<RevisionBD[]>([]);
   const [consolidados, setConsolidados] = useState<Record<number, ConsolidadoBD>>({});
   const [hojaIds, setHojaIds] = useState<Record<number, string>>({});
+  /** Los nombres propios de las hojas (número → nombre). Sin el SQL o sin nombres: vacío y se ve «Hoja N». */
+  const [nombres, setNombres] = useState<Record<number, string>>({});
   /** Fotos de los renglones por hoja (para abrirlas desde el cruce). Sin el SQL o sin permiso: vacío. */
   const [fotos, setFotos] = useState<Record<number, FotoCruce[]>>({});
   const [reaps, setReaps] = useState<ReaperturaBD[]>([]);
@@ -137,7 +140,7 @@ function useTorre(fiscalId: string, avanceInicial: Record<number, AvanceHoja>, a
     setHojaIds(Object.fromEntries(mias.map((a) => [a.numero, a.hoja_id])));
     /* TODO EN PARALELO: antes cada consulta esperaba a la anterior (ocho viajes seguidos cada 15 s). */
     const listas = mias.filter((a) => puedeCruzar(av[a.numero]) || unaSolaTermino(av[a.numero]));
-    const [rv, cs, res, fs, rp, ce] = await Promise.all([
+    const [rv, cs, res, fs, rp, ce, nh] = await Promise.all([
       sb.rpc("inv_fiscal_revisiones", { p_fiscal: fiscalId }),
       sb.rpc("inv_fiscal_consolidados", { p_fiscal: fiscalId }),
       Promise.all(listas.map(async (a): Promise<[number, Resultado]> => {
@@ -151,6 +154,7 @@ function useTorre(fiscalId: string, avanceInicial: Record<number, AvanceHoja>, a
       })),
       sb.rpc("inv_fiscal_reaperturas", { p_fiscal: fiscalId }),
       sb.rpc("inv_fiscal_hojas_cerradas", { p_fiscal: fiscalId }),
+      sb.rpc("inv_fiscal_hojas_nombres", { p_fiscal: fiscalId }),
     ]);
     if (rv.error) { setConValidar(false); setRevs([]) }
     else { setConValidar(true); setRevs((rv.data ?? []) as RevisionBD[]) }
@@ -159,6 +163,7 @@ function useTorre(fiscalId: string, avanceInicial: Record<number, AvanceHoja>, a
     setFotos(Object.fromEntries(fs));
     setReaps(rp.error ? [] : ((rp.data ?? []) as ReaperturaBD[]));
     setCerradas(ce.error ? {} : Object.fromEntries(((ce.data ?? []) as { numero: number; cerrada_en: string }[]).map((c) => [c.numero, c.cerrada_en])));
+    setNombres(nh.error ? {} : Object.fromEntries(((nh.data ?? []) as { numero: number; nombre: string | null }[]).filter((x) => x.nombre && x.nombre.trim()).map((x) => [x.numero, x.nombre as string])));
     setHora(new Date());
   }, [fiscalId]);
 
@@ -179,7 +184,7 @@ function useTorre(fiscalId: string, avanceInicial: Record<number, AvanceHoja>, a
     return () => clearInterval(t);
   }, [activo, cargar]);
 
-  return { avance, cruces, hora, error, cargar, revs, hojaIds, conValidar, consolidados, fotos, reaps, cerradas };
+  return { avance, cruces, hora, error, cargar, revs, hojaIds, conValidar, consolidados, fotos, reaps, cerradas, nombres };
 }
 
 /** El anillo del avance: verde = completadas, rojo = con diferencias, ámbar = en conteo, el resto es el fondo. */
@@ -228,8 +233,10 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
   const [verTodo, setVerTodo] = useState<Record<number, boolean>>({});
   /** La compensación es automática al abrir cada hoja; aquí solo se guardan las hojas donde el fiscal la quitó (false). */
   const [compensar, setCompensar] = useState<Record<number, boolean>>({});
-  const { avance, cruces, hora, error, cargar, revs, hojaIds, conValidar, consolidados, fotos, reaps, cerradas } = useTorre(fiscalId, avanceInicial, conAvance);
+  const { avance, cruces, hora, error, cargar, revs, hojaIds, conValidar, consolidados, fotos, reaps, cerradas, nombres } = useTorre(fiscalId, avanceInicial, conAvance);
   const nf = useMemo(() => new Intl.NumberFormat("es-CO"), []);
+  /** Cómo se llama una hoja: su nombre propio, o «Hoja N». */
+  const nh = (n: number) => nombres[n]?.trim() || `Hoja ${n}`;
 
   const tarjetas = hojas.map((h) => {
     const av = avance[h.numero];
@@ -314,7 +321,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
     setCierreMsg(null);
     const { data, error } = await createClient().rpc("inv_fiscal_pasar_a_validar", { p_hoja: id });
     if (error) { setCierreMsg(/inv_fiscal_pasar_a_validar|schema cache|does not exist|no existe la funci/i.test(error.message) ? "Falta correr 2026-10-fiscal-pasar-a-validar.sql en Supabase." : traducirError(error.message)); return }
-    setCierreMsg(Number(data) > 0 ? `Hoja ${n} lista para validar.` : `Hoja ${n}: ya estaba lista para validar.`);
+    setCierreMsg(Number(data) > 0 ? `${nh(n)} lista para validar.` : `${nh(n)}: ya estaba lista para validar.`);
     await cargar();
   }
   /** Reabrir una hoja ya cerrada (la que se cerró de más): las dos personas pueden volver a contar y el fiscal, a revisar. */
@@ -330,7 +337,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
     setCierreMsg(null);
     const { error } = await createClient().rpc("inv_fiscal_reabrir_hoja", { p_hoja: id });
     if (error) { setCierreMsg(/inv_fiscal_reabrir_hoja|schema cache|does not exist|no existe la funci/i.test(error.message) ? "Falta correr 2026-10-fiscal-TODO.sql en Supabase." : traducirError(error.message)); return }
-    setCierreMsg(`Hoja ${n} reabierta: las dos personas pueden volver a contar.`);
+    setCierreMsg(`${nh(n)} reabierta: las dos personas pueden volver a contar.`);
     await cargar();
   }
   const pidieronHoja = (n: number) => reaps.filter((x) => x.numero === n && x.pedido_en && !x.autorizado_en).length;
@@ -477,9 +484,9 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                     <article key={t.h.numero} className={"vf-card " + t.tipo}>
                       <header className="vf-card-cab">
                         <span className={"vf-card-ico " + t.tipo}><Ico n={ICO_TIPO[t.tipo]} tam={18} /></span>
-                        <h3>Hoja {t.h.numero}</h3>
+                        <NombreHoja numero={t.h.numero} nombre={nombres[t.h.numero]} hojaId={hojaIds[t.h.numero]} puedeEditar={puedeEditar} alGuardar={cargar} />
                         {puedeEditar && (t.av?.olTermino || t.av?.bavariaTermino) && (
-                          <button type="button" className="btn plano" onClick={() => abrirCaja(t.h.numero)} aria-label={`Hoja ${t.h.numero}: reabrir`}
+                          <button type="button" className="btn plano" onClick={() => abrirCaja(t.h.numero)} aria-label={`${nh(t.h.numero)}: reabrir`}
                                   title={pidieronHoja(t.h.numero) > 0 ? "Pidieron reabrir su hoja: toca para darles el OK" : "Reabrir la hoja a las personas"}
                                   style={{ padding: "2px 7px", minHeight: 0, ...(pidieronHoja(t.h.numero) > 0 ? { background: "#b71c1c", color: "#fff", borderColor: "#b71c1c" } : { opacity: 0.6 }) }}>
                             <Ico n="campana" tam={15} />{pidieronHoja(t.h.numero) > 0 ? ` ${pidieronHoja(t.h.numero)}` : ""}
@@ -539,7 +546,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
       {pestana === "parejas" && parejas && <div role="tabpanel" className="vf-parejas">{parejas}</div>}
 
       {pestana === "bd" && (
-        <BdFiscal fiscalId={fiscalId} cerradas={cerradas} nombre={nombre} fecha={new Date().toLocaleDateString("en-CA")} quien="" puedeEditar={puedeEditar && conValidar} revs={revs}
+        <BdFiscal fiscalId={fiscalId} nombresHoja={nombres} cerradas={cerradas} nombre={nombre} fecha={new Date().toLocaleDateString("en-CA")} quien="" puedeEditar={puedeEditar && conValidar} revs={revs}
                   actualizado={hora ? hora.getTime() : 0} onCambio={cargar}
                   compensar={compensar} onCompensar={(n, v) => setCompensar({ ...compensar, [n]: v })}
                   hojas={tarjetas.map((t): HojaBd => ({ numero: t.h.numero, id: hojaIds[t.h.numero] ?? null, calle: t.h.calle, ol: t.h.ol ? quien(t.h.ol) : "", bavaria: t.h.bavaria ? quien(t.h.bavaria) : "",
@@ -562,11 +569,11 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                   <span key={t.h.numero} style={{ display: "inline-flex" }}>
                     <button type="button" role="tab" aria-selected={on} className={"btn " + (on ? "" : "plano")}
                             onClick={() => setHojaRev(t.h.numero)} title={`${t.h.ol ? quien(t.h.ol) : "—"} · ${t.h.bavaria ? quien(t.h.bavaria) : "—"}`}>
-                      Hoja {t.h.numero} · {t.tipo === "dif" ? `${t.pend.length} por revisar` : t.tipo === "ok" ? "lista" : "en proceso"}
+                      {nh(t.h.numero)} · {t.tipo === "dif" ? `${t.pend.length} por revisar` : t.tipo === "ok" ? "lista" : "en proceso"}
                     </button>
                     {puedeEditar && pidieronHoja(t.h.numero) > 0 && (
                       <button type="button" className="btn" onClick={() => abrirCaja(t.h.numero)} style={{ background: "#b71c1c", color: "#fff", padding: "0 10px" }}
-                              title="Pidieron reabrir su hoja: toca para darles el OK" aria-label={`Hoja ${t.h.numero}: pidieron reabrir`}>
+                              title="Pidieron reabrir su hoja: toca para darles el OK" aria-label={`${nh(t.h.numero)}: pidieron reabrir`}>
                         <Ico n="campana" tam={16} /> {pidieronHoja(t.h.numero)}
                       </button>
                     )}
@@ -595,7 +602,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
               <section key={t.h.numero} id={"vf-h" + t.h.numero} className={"vf-rev " + t.tipo}>
                 <header className="vf-rev-cab">
                   <span className={"vf-card-ico " + t.tipo}><Ico n={ICO_TIPO[t.tipo]} tam={18} /></span>
-                  <h3>Hoja {t.h.numero}</h3>
+                  <NombreHoja numero={t.h.numero} nombre={nombres[t.h.numero]} hojaId={hojaIds[t.h.numero]} puedeEditar={puedeEditar} alGuardar={cargar} />
                   <span className={"vf-estado " + (todoCompensado ? "ok" : t.tipo)}>{todoCompensado ? "Todo compensado" : texto(t)}</span>
                   <span id={"vf-acc-h" + t.h.numero} className="vf-rev-acc" style={{ marginLeft: "auto" }} />
                   <small className="vf-rev-quien">{t.h.ol ? quien(t.h.ol) : "—"} · {t.h.bavaria ? quien(t.h.bavaria) : "—"}</small>
@@ -648,7 +655,7 @@ export function VistaFiscal({ fiscalId, nombre, fechaTexto, cuando, abierto, vis
                   )}
                 </div>
                 {conValidar ? (
-                  <ValidarHoja selExt={marcadasHoja[t.h.numero] ?? new Set<string>()} onSelExt={(n) => setMarcadasHoja({ ...marcadasHoja, [t.h.numero]: n })} cajaAbierta={caja === t.h.numero} onCaja={(v) => setCaja(v ? t.h.numero : null)}
+                  <ValidarHoja nombreHoja={nombres[t.h.numero]} selExt={marcadasHoja[t.h.numero] ?? new Set<string>()} onSelExt={(n) => setMarcadasHoja({ ...marcadasHoja, [t.h.numero]: n })} cajaAbierta={caja === t.h.numero} onCaja={(v) => setCaja(v ? t.h.numero : null)}
                                reabrir={([["OL", t.av?.olTermino, t.h.ol], ["BAVARIA", t.av?.bavariaTermino, t.h.bavaria]] as const).filter(([, term]) => !!term).map(([eq, , uid]) => {
                                  const rr = reaps.find((x) => x.numero === t.h.numero && x.equipo === eq);
                                  return { equipo: eq, nombre: uid ? quien(uid) : eq === "OL" ? "Operador" : "Bavaria", pidio: !!rr?.pedido_en, ok: !!rr?.autorizado_en };

@@ -49,9 +49,11 @@ export async function precargarBd(hojaId: string): Promise<void> {
   cuandoBd.set(hojaId, Date.now());
 }
 
-export function BdFiscal({ fiscalId, cerradas, nombre, fecha, hojas, revs, puedeEditar, compensar, onCompensar, onCambio, actualizado, quien }: {
+export function BdFiscal({ fiscalId, nombresHoja, cerradas, nombre, fecha, hojas, revs, puedeEditar, compensar, onCompensar, onCambio, actualizado, quien }: {
   /** Fiscal al que pertenecen las hojas, y qué hojas ya están cerradas (número → cuándo). */
   fiscalId: string; cerradas: Record<number, string>;
+  /** Los nombres propios de las hojas (número → nombre); sin nombre se ve «Hoja N». */
+  nombresHoja?: Record<number, string>;
   nombre: string; fecha: string; hojas: HojaBd[]; revs: (RevMin & { ubicacion_id: string })[]; puedeEditar: boolean;
   compensar: Record<number, boolean>; onCompensar: (numero: number, v: boolean) => void; onCambio: () => Promise<void>;
   /** Cambia cada vez que el panel refresca (para volver a leer lo contado). */
@@ -251,12 +253,12 @@ export function BdFiscal({ fiscalId, cerradas, nombre, fecha, hojas, revs, puede
           <button key={h.numero} type="button" role="tab" aria-selected={h.numero === hoja.numero} className={"btn " + (h.numero === hoja.numero ? "" : "plano")}
                   onClick={() => { setNum(h.numero); setFiltro("todo"); setQ("") }}
                   title={`${h.ol || "—"} · ${h.bavaria || "—"}`}>
-            Hoja {h.numero}{h.calle ? ` · ${h.calle}` : ""}{!h.filas ? " · contando" : ""}
+            {nombresHoja?.[h.numero]?.trim() || `Hoja ${h.numero}`}{h.calle ? ` · ${h.calle}` : ""}{!h.filas ? " · contando" : ""}
           </button>
         ))}
         <span className="bd-der">
           {puedeEditar && (hojaCerrada ? (
-            <button type="button" className="btn plano" disabled={ocupado} onClick={() => cerrarEsta(true)} title="Hoja finalizada: vuelve a dejar contar a las dos personas">Hoja {hoja.numero} finalizada ✓ · Reabrir</button>
+            <button type="button" className="btn plano" disabled={ocupado} onClick={() => cerrarEsta(true)} title="Hoja finalizada: vuelve a dejar contar a las dos personas">{nombresHoja?.[hoja.numero]?.trim() || `Hoja ${hoja.numero}`} finalizada ✓ · Reabrir</button>
           ) : hoja.id ? (
             <CulminarFiscal fiscalId={fiscalId} hoja={{ id: hoja.id, numero: hoja.numero }} clase="btn" alHacer={onCambio} deshabilitado={ocupado} />
           ) : null)}

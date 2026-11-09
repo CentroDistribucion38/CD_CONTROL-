@@ -41,7 +41,9 @@ type Ub = { id: string | null; clave: string; dif: boolean; comp: number; renglo
 const orden = (a: string, b: string) => a.localeCompare(b, "es", { numeric: true });
 export const moduloDe = (clave: string) => clave.replace(/_(IZQ|DER)$/i, "");
 
-export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeEditar, ol, bavaria, onCambio, unaSola = null, compensando = false, cerrada = false, reabrir = [], onOkReabrir, cajaAbierta, onCaja, selExt, onSelExt }: {
+export function ValidarHoja({ nombreHoja, hojaId, numero, calle, filas, revs, consol, puedeEditar, ol, bavaria, onCambio, unaSola = null, compensando = false, cerrada = false, reabrir = [], onOkReabrir, cajaAbierta, onCaja, selExt, onSelExt }: {
+  /** El nombre propio de la hoja (si lo tiene); sin él se ve «Hoja N». */
+  nombreHoja?: string;
   /** El fiscal pulsó «Compensar»: las diferencias compensadas no cuentan y al aprobar se manda p_compensar. */
   compensando?: boolean;
   /** El fiscal ya cerró esta hoja: nadie más cuenta en ella hasta que la reabra o pase a otra calle. */
@@ -378,7 +380,7 @@ export function ValidarHoja({ hojaId, numero, calle, filas, revs, consol, puedeE
     <div className="vvc-velo" onClick={() => setCaja(false)}>
       <div className="vvc" role="dialog" aria-modal="true" aria-label={`Pasos de la hoja ${numero}`} onClick={(e) => e.stopPropagation()}>
         <header className="vvc-cab">
-          <b>Hoja {numero}{calle ? ` · calle ${calle}` : ""}</b>
+          <b>{nombreHoja?.trim() || `Hoja ${numero}`}{calle ? ` · calle ${calle}` : ""}</b>
           <button type="button" onClick={() => setCaja(false)} aria-label="Cerrar esta ventana">✕</button>
         </header>
         <div className="vvc-cuerpo">
