@@ -474,7 +474,7 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
        (en el conteo ya entra como «CONTEO · en producto»). El producto en sí NO se toma ni se compara. */
     if (norm(nv.tipo) === "ZEXI PRODUCTO") {
       const cj = Number(nv.cajas) || 0;
-      if (nv.caja_codigo && cj > 0) { suma("sap", String(nv.caja_codigo), `SAP · en producto ${nv.codigo} ${nombre(String(nv.codigo))}`, cj); zexiProdCajas += cj; zexiProdN++ }
+      if (nv.caja_codigo && cj > 0) { suma("sap", String(nv.caja_codigo), "ZEXI · cajas en producto", cj); zexiProdCajas += cj; zexiProdN++ }
       else if ((Number(nv.unidades) || 0) > 0) zexiProdSin.push(`${nv.codigo} ${nombre(String(nv.codigo))}`);
       continue;
     }
@@ -561,7 +561,7 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     };
     const sap = Math.round([...a.sap.values()].reduce((t, v) => t + v, 0));
     const conteo = Math.round([...a.conteo.values()].reduce((t, v) => t + v, 0));
-    filas.push({ familia: familia as string, orden: orden as number, codigo, descripcion: nombre(codigo), sap, conteo, diferencia: conteo - sap, deSap: lista(a.sap, "SAP · en producto"), deConteo: lista(a.conteo),
+    filas.push({ familia: familia as string, orden: orden as number, codigo, descripcion: nombre(codigo), sap, conteo, diferencia: conteo - sap, deSap: lista(a.sap), deConteo: lista(a.conteo),
       ...(ubicMap.get(codigo)?.size ? { ubicaciones: [...ubicMap.get(codigo)!].map(([ubicacion, cantidad]) => ({ ubicacion, cantidad: Math.round(cantidad) })).filter((x) => x.cantidad !== 0).sort((x, y) => Math.abs(y.cantidad) - Math.abs(x.cantidad) || x.ubicacion.localeCompare(y.ubicacion, "es", { numeric: true })) } : {}),
       ...(soloConteo ? { soloConteo: true } : {}),
       ...(codigo === ESTIBA && estFuera.size ? { fuera: [...estFuera].map(([nombre, cantidad]) => ({ nombre, cantidad: Math.round(cantidad) })).sort((x, y) => y.cantidad - x.cantidad) } : {}), ...(pendSap.get(codigo) ? { pendSap: pendSap.get(codigo) } : {}), ...(descuadresAlm.get(codigo) ? { descuadres: descuadresAlm.get(codigo) } : {}) });
