@@ -29,9 +29,9 @@ export const MODULOS_DE_LA_HOJA: Record<string, string[]> = {
   /* La calle H: módulos 01 a 04, con sus dos lados como las demás calles numeradas. */
   H: numerados(4),
   ALAR: ["A", "B", "C", "D", "E", "P", "BAHIA 6"],
-  /* FÁBRICA es una calle y sus módulos son las líneas de producción: L2, L4 y L6.
-     Sin lado: una línea se cuenta como una sola posición. */
-  FABRICA: ["L2", "L4", "L6"],
+  /* FÁBRICA es una calle y sus módulos son las líneas de producción (L2, L4 y L6) y los patios 1 y 2, cada uno con módulos
+     del 01 al 30 («PATIO 1-01»…). Sin lado: cada uno se cuenta como una sola posición. */
+  FABRICA: ["L2", "L4", "L6", ...numerados(30).map((n) => `PATIO 1-${n}`), ...numerados(30).map((n) => `PATIO 2-${n}`)],
   /* BTS y EXPORTACION: calles de módulos LIBRES. No traen lista: el módulo se escribe al contar y se agrega
      solo (ver CALLES_MODULO_LIBRE). Sin lado. */
   BTS: [],
