@@ -98,7 +98,7 @@ function movs311DeCuadre(c: { filas: { codigo: string | number; material?: strin
   return c.filas.filter((f) => Math.abs(f.movido) >= 0.005 || Math.abs(f.queda ?? 0) >= 0.5).map((f) => ({
     almacen: alm, codigo: String(f.codigo), descripcion: f.material ?? nombre(String(f.codigo)), grupo: String(f.grupo),
     movido: Math.round(f.movido * 100) / 100, documentos: f.documentos ?? [],
-    entraAlAnalisis: f.grupo !== "PRODUCTO" && f.grupo !== "CAJA" && f.dif != null,
+    entraAlAnalisis: f.grupo !== "PRODUCTO" && f.dif != null,
     conteoAlm: f.total ?? null, sapDespues: f.sapDespues ?? null, queda: f.queda ?? null,
   }));
 }
