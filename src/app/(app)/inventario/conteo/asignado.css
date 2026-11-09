@@ -108,3 +108,15 @@
   .fe .fc-anotar .fe-cuanto-modo .fe-segmento button { min-height: 44px; font-size: 14px; padding-inline: 4px }
   .fe .fc-anotar .fe-cuanto-campo input, .fe .fc-anotar .fe-total-caja { min-height: 48px }
 }
+
+/* EN EL CELULAR LA BARRA DE ABAJO («anotados · Terminé mi hoja · Anotar renglón») VA PEGADA AL FONDO DE LA PANTALLA, siempre.
+   Con `sticky` se quedaba a mitad de la hoja (pegada al final de su contenedor, no de la pantalla). Fija a la ventana y con aire
+   al final para que nada quede tapado. Con la calculadora abierta la barra se esconde (la calculadora trae su propio «Listo»). */
+@media (max-width: 760px) {
+  .fe .fe-barra-fija {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 55; margin: 0;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+    box-shadow: 0 -6px 18px rgba(0, 0, 0, .25);
+  }
+  .fe.contando:has(.fe-barra-fija):not(:has(.fe-calc-fija.en-hoja)) { padding-bottom: calc(96px + env(safe-area-inset-bottom)) }
+}
