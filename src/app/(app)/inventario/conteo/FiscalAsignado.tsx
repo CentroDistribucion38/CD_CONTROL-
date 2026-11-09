@@ -16,28 +16,26 @@ export function FiscalAsignado({ filas, hoy }: { filas: MiHojaBD[]; hoy: string 
       {grupos.map((g) => {
         const esHoy = g.fecha === hoy;
         return (
-          <article key={g.fiscalId} className={"fa-caja" + (esHoy ? " hoy" : "")}>
-            <p className="fa-ojo">INVENTARIO FISCAL · {g.hojas.length === 1 ? "TU HOJA" : "TUS HOJAS"}</p>
-            <h2 className="fa-nombre">{g.nombre}</h2>
-            <p className="fa-cuando">
-              <b>{fechaConDia(g.fecha)}</b> · {esHoy ? <strong className="fa-hoy">HOY</strong> : textoCuando(hoy, g.fecha)}
+          <article key={g.fiscalId} className={"fa-caja fa-mini" + (esHoy ? " hoy" : "")}>
+            <p className="fa-linea">
+              <b>{g.nombre}</b>
+              <span>{fechaConDia(g.fecha)}</span>
+              {esHoy ? <strong className="fa-hoy">HOY</strong> : <span>{textoCuando(hoy, g.fecha)}</span>}
             </p>
             <ul className="fa-hojas">
               {g.hojas.map((h) => (
                 <li key={h.numero}>
                   <span className="fa-num" aria-label={`Hoja ${h.numero}`}>{h.numero}</span>
                   <span className="fa-det">
-                    <b>Hoja {h.numero}</b>
-                    {h.equipo && <>{h.equipo === "Bavaria" ? " · cuentas por " : " · cuentas por el "}<b>{h.equipo}</b></>}
-                    <br />
+                    {h.equipo ? <b>{h.equipo}</b> : <b>Hoja {h.numero}</b>}
+                    {" · "}
                     {h.pareja
-                      ? <>Tu pareja: <b>{h.pareja}</b>{h.parejaEquipo && <> ({h.parejaEquipo})</>}</>
-                      : <em>Todavía sin pareja en esta hoja</em>}
+                      ? <>con <b>{h.pareja}</b>{h.parejaEquipo && <> ({h.parejaEquipo})</>}</>
+                      : <em>sin pareja aún</em>}
                   </span>
                 </li>
               ))}
             </ul>
-            <p className="fa-pie">Cada uno cuenta su hoja por su lado.</p>
           </article>
         );
       })}
