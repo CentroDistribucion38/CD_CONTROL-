@@ -548,25 +548,35 @@ export async function armarCruceFiscal(o0: InsumosCruce): Promise<ArrayBuffer> {
       if (ad) return ad;
       return (h.filas ?? []).some((x) => modDe(x.ubicacion) === m && x.cajasOl != null) ? "OL" : "BAVARIA";
     };
+    /* LO COMPENSADO SE CUENTA UNA SOLA VEZ: si 28 cajas se anotaron en un sitio por el operador y en otro por Bavaria y el fiscal las dio por
+       compensadas, en La base hay 28, no 56. El dato definitivo queda en la fila de BAVARIA y la otra fila queda en 0, para que el total no se duplique. */
+    const esComp = (h: HojaCruzada, f: FilaCruce) => f.estado !== "COINCIDE" && /compensad/i.test(resDe(h, f.ubicacion));
+    const definitivoDe = (h: HojaCruzada, f: FilaCruce, aOl: Lado | null, aBa: Lado | null): { texto: string; cajas: number | null; estibas: number | null } => {
+      if (!estaResuelta(h, f)) return { texto: "—", cajas: null, estibas: null };
+      if (esComp(h, f)) {
+        const bav = f.cajasBavaria ?? 0;
+        return { texto: bav > 0 ? "Bavaria" : "Compensado (va en la otra fila)", cajas: bav, estibas: bav > 0 ? aBa?.estibas ?? 0 : 0 };
+      }
+      const eq = equipoDe(h, f.ubicacion);
+      return { texto: eq === "OL" ? "Operador" : "Bavaria", cajas: eq === "OL" ? f.cajasOl ?? 0 : f.cajasBavaria ?? 0, estibas: (eq === "OL" ? aOl : aBa)?.estibas ?? 0 };
+    };
     const NUMK = new Set([5, 6, 7, 8, 9, 13, 14, 15, 16, 17, 21, 23, 25, 26]);
     const CENTROK = new Set([0, 10, 11, 12, 18, 19, 20, 24]);
     const sumas = { estOl: 0, saldoOl: 0, sueltasOl: 0, unidOl: 0, estBa: 0, saldoBa: 0, sueltasBa: 0, unidBa: 0, estDef: 0 };
     filasC.forEach(({ h, f }, i) => {
       const r = 8 + i, row = cn.getRow(r);
       const ok = estaResuelta(h, f), res = f.estado === "COINCIDE" ? "Coincide" : resDe(h, f.ubicacion);
-      const eq = equipoDe(h, f.ubicacion);
       const aOl = f.cajasOl == null ? null : ladoDe(h, f, "OL"), aBa = f.cajasBavaria == null ? null : ladoDe(h, f, "BAVARIA");
-      const def = ok ? (eq === "OL" ? f.cajasOl ?? 0 : f.cajasBavaria ?? 0) : null;
-      const aDef = ok ? (eq === "OL" ? aOl : aBa) : null;
+      const dfn = definitivoDe(h, f, aOl, aBa);
       if (aOl) { sumas.estOl += aOl.estibas; sumas.saldoOl += aOl.saldo; sumas.sueltasOl += aOl.cajas; sumas.unidOl += aOl.unidades }
       if (aBa) { sumas.estBa += aBa.estibas; sumas.saldoBa += aBa.saldo; sumas.sueltasBa += aBa.cajas; sumas.unidBa += aBa.unidades }
-      if (aDef) sumas.estDef += aDef.estibas;
+      sumas.estDef += dfn.estibas ?? 0;
       row.height = 20;
       const vals: ExcelJS.CellValue[] = [h.numero, pareja(h), f.ubicacion, f.sku, f.material,
         ...ladoVals(f, f.cajasOl, aOl), ...ladoVals(f, f.cajasBavaria, aBa),
         f.diferencia, res,
         { formula: `IF(OR(${L(cRes)}${r}="Sin resolver",${L(cRes)}${r}="En validación"),${L(cCruda)}${r},0)`, result: ok ? 0 : f.diferencia },
-        ok ? (eq === "OL" ? "Operador" : "Bavaria") : "—", ok ? aDef?.estibas ?? "—" : "—", def ?? "—"];
+        dfn.texto, dfn.estibas ?? "—", dfn.cajas ?? "—"];
       vals.forEach((v, k) => {
         const x = row.getCell(2 + k); x.value = v;
         celda(x, P, i % 2 === 1, { num: NUMK.has(k), centro: CENTROK.has(k), fmt: k === 21 || k === 23 ? DIF : NUMK.has(k) ? NF : undefined, negrita: k === 3 || k === 5 || k === 13 || k === 23 });
@@ -597,7 +607,7 @@ export async function armarCruceFiscal(o0: InsumosCruce): Promise<ArrayBuffer> {
       suma(cCruda, filasC.reduce((t, x) => t + x.f.diferencia, 0), DIF);
       suma(cFinal, filasC.reduce((t, x) => t + (estaResuelta(x.h, x.f) ? 0 : x.f.diferencia), 0), DIF);
       suma(cEstDef, sumas.estDef);
-      suma(cCajDef, filasC.reduce((t, x) => t + (estaResuelta(x.h, x.f) ? (equipoDe(x.h, x.f.ubicacion) === "OL" ? x.f.cajasOl ?? 0 : x.f.cajasBavaria ?? 0) : 0), 0));
+      suma(cCajDef, filasC.reduce((t, x) => t + (definitivoDe(x.h, x.f, null, null).cajas ?? 0), 0));
       cn.autoFilter = { from: { row: 7, column: 2 }, to: { row: ult, column: 1 + CC.length } };
     }
     const nt = cn.getCell(tr + 2, 2);
