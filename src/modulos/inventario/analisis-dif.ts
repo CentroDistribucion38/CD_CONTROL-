@@ -445,10 +445,11 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     aplicar(b.cod, `BALANCE · ${b.alm}`, b.t, true);
   }
   for (const [cod, v] of delArch) {
-    if (!codsBal.has(cod)) continue;
+    /* Entra todo material del archivo que sea del maestro (envase, caja, estiba), aunque ningún Cuadre lo tuviera: son 311 que faltaban (hechos antes de subir la ZEXI nueva) o de AG07. */
+    if (!codsBal.has(cod) && !M.has(cod)) continue;
     const suma311 = -balances.filter((x) => x.cod === cod).reduce((t, x) => t + x.t, 0);
     aplicar(cod, "BALANCE · AG22 (archivo de movimientos de SAP)", -v, true);
-    if (Math.abs(suma311 - v) >= 0.5) reemplazados.push(`${cod} ${nombre(cod)}: archivo AG22 ${Math.round(v).toLocaleString("es-CO")} u (los Cuadres de AG18/AG17/AG16 sumaban ${Math.round(suma311).toLocaleString("es-CO")} u)`);
+    if (Math.abs(suma311 - v) >= 0.5) reemplazados.push(`${cod} ${nombre(cod)}: archivo AG22 ${Math.round(v).toLocaleString("es-CO")} u (los Cuadres de AG18/AG17/AG16 sumaban ${Math.round(suma311).toLocaleString("es-CO")} u${Math.abs(suma311) < 0.5 ? ": no estaban registrados" : ""})`);
   }
   if (arch) avisos.push(`El Cuadre SAP de AG22 trae el archivo de movimientos de SAP (${arch.archivo}): sus cantidades por material mandan sobre los 311 de AG18, AG17 y AG16, y se aplican a la ZEXI de las 6.${reemplazados.length ? ` Difieren en: ${reemplazados.join(" · ")}.` : ""}`);
   fuentes.push({ nombre: "Balance y descuadre (Cuadre SAP)", ok: detBal.length > 0,
