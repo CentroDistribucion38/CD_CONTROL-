@@ -286,10 +286,12 @@ const valorFiltro = (c: Col<Fila>, r: Fila) => c.texto(r).trim() || VACIAS;
 const selloDescarga = () => new Date().toLocaleString("sv", { timeZone: "America/Bogota" }).replace(/[-:]/g, "").replace(" ", "-").slice(0, 13);
 
 export function Base({
-  enviadas: enviadasT, abiertas: abiertasT, conteos: conteosT, tope, manda = false, bodega = null, uxc = {}, hlu = {},
+  enviadas: enviadasBruto, abiertas: abiertasBruto, conteos: conteosBruto, fiscalesVisibles = null, tope, manda = false, bodega = null, uxc = {}, hlu = {},
   pasados = [], pasadosOk = true, puedeMarcar = false,
 }: {
   enviadas: Renglon[]; abiertas: Renglon[]; conteos: ConteoFefo[]; tope: boolean;
+  /** Fechas (AAAAMMDD) de los inventarios fiscales que están «Visibles en Contar» (Control fiscal). Los recorridos FISCAL-… de los demás no salen en la BD. null = no se pudo saber (se ve todo, como antes). */
+  fiscalesVisibles?: string[] | null;
   /** Quien administra la plataforma: es el único que puede eliminar FEFOs y renglones. */
   manda?: boolean;
   /** Código de la bodega, para el título. */
@@ -306,9 +308,19 @@ export function Base({
   puedeMarcar?: boolean;
 }) {
   const [pestania, setPestania] = useState<"base" | "borradores">("base");
-  /* SOLO EL INVENTARIO FISCAL: la BD arranca mostrando únicamente lo que salió del fiscal (recorridos FISCAL-…, y los renglones que el fiscal
-     tiene todavía por pasar en Borradores). «Todo» vuelve a mostrar también los demás conteos del sistema. */
-  const [soloFiscal, setSoloFiscal] = useState(true);
+  /* SOLO FISCAL (botón): deja únicamente lo que salió del fiscal (recorridos FISCAL-… visibles en Contar, y los renglones que el fiscal
+     tiene todavía por pasar en Borradores). Por defecto se ve TODO EL SISTEMA. */
+  const [soloFiscal, setSoloFiscal] = useState(false);
+  /* EL FISCAL NO SE MUESTRA AQUÍ MIENTRAS NO SE MUESTRE EN CONTAR: un recorrido FISCAL-AAAAMMDD-Hnn solo sale en la BD si el inventario fiscal de esa
+     fecha está «Visible en Contar» en el Control fiscal. Quitarlo de Contar lo vuelve a esconder. */
+  const conteosT = useMemo(() => {
+    if (!fiscalesVisibles) return conteosBruto;
+    const ok = new Set(fiscalesVisibles);
+    return conteosBruto.filter((c) => !esFiscal(c) || ok.has(/^FISCAL-(\d{8})-/.exec(c.codigo ?? "")?.[1] ?? ""));
+  }, [conteosBruto, fiscalesVisibles]);
+  const idsPermitidos = useMemo(() => new Set(conteosT.map((c) => c.id)), [conteosT]);
+  const enviadasT = useMemo(() => (fiscalesVisibles ? enviadasBruto.filter((r) => idsPermitidos.has(r.conteo_id)) : enviadasBruto), [enviadasBruto, idsPermitidos, fiscalesVisibles]);
+  const abiertasT = useMemo(() => (fiscalesVisibles ? abiertasBruto.filter((r) => idsPermitidos.has(r.conteo_id)) : abiertasBruto), [abiertasBruto, idsPermitidos, fiscalesVisibles]);
   const conteos = useMemo(() => (soloFiscal ? conteosT.filter(esFiscal) : conteosT), [conteosT, soloFiscal]);
   const idsVistos = useMemo(() => new Set(conteos.map((c) => c.id)), [conteos]);
   const enviadas = useMemo(() => (soloFiscal ? enviadasT.filter((r) => idsVistos.has(r.conteo_id)) : enviadasT), [enviadasT, idsVistos, soloFiscal]);

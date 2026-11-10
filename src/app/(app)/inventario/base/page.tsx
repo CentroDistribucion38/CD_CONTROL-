@@ -1,3 +1,4 @@
+import { createClient } from "@/lib/supabase/server";
 import { misPermisos } from "@/lib/permisos";
 import { maestroInventario, baseFefo, pasadosBase } from "@/modulos/inventario/fefo";
 import { Base } from "./Base";
@@ -65,6 +66,15 @@ export default async function InventarioBasePage() {
   const bodega = m.bodegas.find((b) => b.activo && conUbi.has(b.id)) ?? m.bodegas[0] ?? null;
   const [d, pas] = await Promise.all([baseFefo(bodega?.id ?? null), pasadosBase()]);
 
+  /* LOS INVENTARIOS FISCALES QUE SE MUESTRAN EN CONTAR: solo sus recorridos FISCAL-… salen en la BD. Si la base aún no tiene la columna
+     (2026-10-fiscal-publicar.sql), no se filtra nada. */
+  let fiscalesVisibles: string[] | null = null;
+  {
+    const sb = await createClient();
+    const f = await sb.from("inv_fiscales").select("fecha").not("publicado_en", "is", null).limit(500);
+    if (!f.error) fiscalesVisibles = [...new Set(((f.data ?? []) as { fecha: string }[]).map((x) => String(x.fecha).slice(0, 10).replace(/-/g, "")))];
+  }
+
   /* UNIDADES POR CAJA, por código: la tabla corta enseña «Unidades» y el
      renglón no las trae —viven en el maestro—. */
   const uxc: Record<string, number | null> = {};
@@ -79,6 +89,7 @@ export default async function InventarioBasePage() {
         enviadas={d.enviadas}
         abiertas={d.abiertas}
         conteos={d.conteos}
+        fiscalesVisibles={fiscalesVisibles}
         tope={d.tope}
         manda={permisos.manda}
         bodega={bodega?.codigo ?? null}
