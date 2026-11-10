@@ -547,15 +547,32 @@ export function Base({
 
   /* LAS CIFRAS DE ARRIBA son las de la base ya cruzada, sin los filtros de la tabla: «Renglones» dice
      cuántos hay después de cruzar, no cuántos pasaron por la búsqueda. */
+  /* Estibas, unidades y HL de un conjunto de renglones: las unidades salen de cajas × unidades por caja + sueltas (maestro), y el HL
+     de las unidades × HL por unidad. Un SKU sin dato en el maestro no suma unidades/HL (se cuenta en «sinFactor» para avisarlo). */
+  const sumar = (rs: { codigo: string; total_cajas: number | string; total_estibas?: number | string | null }[], sue: (r: never) => number) => {
+    let estibas = 0, unidades = 0, hl = 0, sinFactor = 0;
+    for (const r of rs) {
+      estibas += Number(r.total_estibas ?? 0);
+      const u = uxc[r.codigo];
+      if (!u) { sinFactor++; continue }
+      const un = Number(r.total_cajas) * u + sue(r as never);
+      unidades += un;
+      const h = hlu[r.codigo];
+      if (h != null) hl += un * h;
+    }
+    return { estibas, unidades, hl, sinFactor };
+  };
   const kp = useMemo(() => ({
     renglones: cruce.vigentes.length,
     cajas: cruce.vigentes.reduce((a, r) => a + Number(r.total_cajas), 0),
     sueltas: cruce.vigentes.reduce((a, r) => a + (Number(r.unidades) || 0), 0),
     ubicaciones: new Set(cruce.vigentes.map((r) => r.ubicacion_id ?? r.ubicacion ?? "—")).size,
-  }), [cruce]);
+    ...sumar(cruce.vigentes, (r: { unidades?: unknown }) => Number(r.unidades) || 0),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [cruce, uxc, hlu]);
 
   /* LAS CIFRAS SIGUEN AL FILTRO: lo que se filtra en la tabla (búsqueda, campos, calle, módulo, fechas, quitados) cambia
-     Renglones, Cajas y Ubicaciones de arriba; si no, no servirían para nada. Sin filtro sale lo mismo de antes. */
+     todas las cifras de arriba; si no, no servirían para nada. Sin filtro sale lo mismo de antes. */
   const vf = filas.length !== kp.renglones;
   const kpVista = useMemo(() => !vf ? kp : {
     ...kp,
@@ -563,7 +580,9 @@ export function Base({
     cajas,
     sueltas: sueltasVista,
     ubicaciones: new Set(filas.map((r) => r.ubicacion_id ?? r.ubicacion ?? "—")).size,
-  }, [vf, kp, filas, cajas, sueltasVista]);
+    ...sumar(filas, (r: { sueltas?: number }) => r.sueltas ?? 0),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vf, kp, filas, cajas, sueltasVista, uxc, hlu]);
 
   /* LA LISTA DE UBICACIONES QUE SE COPIA: lo que se está viendo (con los filtros puestos), una línea por ubicación y SKU,
      separada por tabuladores para que al pegar en Excel caiga cada dato en su columna. Estibas, cajas, unidades y HL salen
@@ -768,7 +787,10 @@ export function Base({
       {pestania === "base" && hayEnviados && (
         <section className="ba-kp" aria-label="Resumen de la base cruzada">
           <div className={vf ? "fil" : ""}><span className="ba-eti">Renglones</span><b>{nf.format(kpVista.renglones)}</b><small>{vf ? `filtrados · de ${nf.format(kp.renglones)} en la base` : "después de cruzar"}</small></div>
+          <div className={vf ? "fil" : ""}><span className="ba-eti">Estibas</span><b>{nf.format(Math.round(kpVista.estibas * 100) / 100)}</b><small>{vf ? `filtradas · de ${nf.format(Math.round(kp.estibas))} en la base` : "en la base"}</small></div>
           <div className={vf ? "fil" : ""}><span className="ba-eti">Cajas</span><b>{nf.format(kpVista.cajas)}</b><small>{vf ? `filtradas · de ${nf.format(kp.cajas)} en la base` : "en la base"}{kpVista.sueltas > 0 ? ` · + ${nf.format(kpVista.sueltas)} un. sueltas` : ""}</small></div>
+          <div className={vf ? "fil" : ""}><span className="ba-eti">Unidades</span><b>{nf.format(kpVista.unidades)}</b><small>{vf ? `filtradas · de ${nf.format(kp.unidades)} en la base` : "cajas × und. por caja"}{kpVista.sinFactor > 0 ? ` · ${kpVista.sinFactor} sin factor` : ""}</small></div>
+          <div className={vf ? "fil" : ""}><span className="ba-eti">HL</span><b>{nf.format(Math.round(kpVista.hl * 100) / 100)}</b><small>{vf ? `filtrados · de ${nf.format(Math.round(kp.hl))} en la base` : "hectolitros"}</small></div>
           <div className={vf ? "fil" : ""}><span className="ba-eti">Ubicaciones
             <button type="button" className={"ba-copiar" + (copiado ? " ok" : "")} onClick={copiarUbicaciones}
                     title="Copiar lo filtrado: ubicación, SKU, descripción, estibas, cajas, unidades y HL" aria-label="Copiar la lista de ubicaciones filtradas">

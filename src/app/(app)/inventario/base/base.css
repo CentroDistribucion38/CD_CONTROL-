@@ -73,9 +73,10 @@
 .fe .ba .ba-link:disabled { opacity: .45; cursor: default; text-decoration: none }
 
 /* ---------- Las cuatro cifras ---------- */
-.fe .ba-kp { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); background: #fff; border: 1px solid var(--fe-linea) }
+.fe .ba-kp { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); background: #fff; border: 1px solid var(--fe-linea) }
 .fe .ba-kp > div { padding: 10px 16px; min-width: 0 }
 .fe .ba-kp > div + div { border-left: 1px solid var(--fe-linea) }
+@media (max-width: 1100px) { .fe .ba-kp { grid-template-columns: repeat(3, minmax(0, 1fr)) } .fe .ba-kp > div:nth-child(4) { border-left: 0 } .fe .ba-kp > div:nth-child(n+4) { border-top: 1px solid var(--fe-linea) } }
 .fe .ba-kp b { display: block; margin-top: 6px; font: 900 24px/1.1 var(--fe-titulo); letter-spacing: -.02em; color: var(--fe-tinta); font-variant-numeric: tabular-nums }
 .fe .ba-kp small { font-size: 11.5px; color: var(--fe-gris) }
 .fe .ba-kp .az b { color: var(--ba-azul) }
