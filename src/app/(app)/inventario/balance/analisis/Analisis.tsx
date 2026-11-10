@@ -7,6 +7,7 @@ import type { Analisis as Datos, FilaAnalisis } from "@/modulos/inventario/anali
 import { guardarAnalisis, guardarNovedades, quitarNovedades } from "./actions";
 import { leerPlantilla } from "./leer-plantilla";
 import { Avisos } from "./Avisos";
+import { SelectorDia } from "./SelectorDia";
 import { Empaque } from "./Empaque";
 import { UbicacionesDif } from "./UbicacionesDif";
 
@@ -96,9 +97,9 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
     <>
       {/* ---------- EL DÍA Y LA PLANTILLA ---------- */}
       <div className="ad-barra">
-        <label className="ad-dia"><span>Día</span>
-          <input type="date" value={fecha} max={hoy} onChange={(e) => e.target.value && irA(e.target.value)} />
-        </label>
+        <div className="ad-dia"><span>Día</span>
+          <SelectorDia valor={fecha} hoy={hoy} alCambiar={irA} />
+        </div>
         <div className="ad-carga">
           <b>{datos.carga ? "Plantilla cargada" : "Falta la plantilla del día"}</b>
           <small>{datos.carga ? `${datos.carga.archivo ?? "—"} · ${datos.carga.filas} filas${datos.carga.subido_en ? " · " + new Date(datos.carga.subido_en).toLocaleString("es-CO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""}`

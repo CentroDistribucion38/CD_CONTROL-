@@ -73,7 +73,7 @@
 .fe .ba .ba-link:disabled { opacity: .45; cursor: default; text-decoration: none }
 
 /* ---------- Las cuatro cifras ---------- */
-.fe .ba-kp { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); background: #fff; border: 1px solid var(--fe-linea) }
+.fe .ba-kp { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); background: #fff; border: 1px solid var(--fe-linea) }
 .fe .ba-kp > div { padding: 10px 16px; min-width: 0 }
 .fe .ba-kp > div + div { border-left: 1px solid var(--fe-linea) }
 .fe .ba-kp b { display: block; margin-top: 6px; font: 900 24px/1.1 var(--fe-titulo); letter-spacing: -.02em; color: var(--fe-tinta); font-variant-numeric: tabular-nums }
@@ -366,3 +366,11 @@
 
 /* El subtotal de lo filtrado, pegado abajo de la tabla */
 .fe .ba-t tfoot td { position: sticky; bottom: 0; padding: 9px 12px; background: var(--fe-tinta, #111); color: #fff; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; border-top: 3px solid var(--fe-acento, #FFC400) }
+
+/* El ícono de copiar la lista filtrada, pegado al rótulo de «Ubicaciones». */
+.fe .ba-kp .ba-copiar { display: inline-grid; place-items: center; width: 24px; height: 24px; margin-left: 6px; padding: 0; vertical-align: middle; border: 1px solid var(--fe-linea); border-radius: 3px; background: #fff; cursor: pointer }
+.fe .ba-kp .ba-copiar svg { width: 14px; height: 14px; stroke: var(--fe-tinta); stroke-width: 2; fill: none }
+.fe .ba-kp .ba-copiar:hover { border-color: var(--fe-acento) }
+.fe .ba-kp .ba-copiar:focus-visible { outline: 3px solid var(--fe-acento); outline-offset: 1px }
+.fe .ba-kp .ba-copiar.ok { border-color: #0F7A4A }
+.fe .ba-kp .ba-copiar.ok svg { stroke: #0F7A4A }

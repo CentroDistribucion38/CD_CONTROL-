@@ -69,6 +69,9 @@ export default async function InventarioBasePage() {
      renglón no las trae —viven en el maestro—. */
   const uxc: Record<string, number | null> = {};
   for (const x of m.materiales) uxc[x.sku] = x.unidades_por_caja;
+  /* HL de UNA unidad, por código: para la lista que se copia desde «Ubicaciones». */
+  const hlu: Record<string, number | null> = {};
+  for (const x of m.materiales) hlu[x.sku] = x.hl ?? null;
 
   return (
     <div className="fe">
@@ -80,6 +83,7 @@ export default async function InventarioBasePage() {
         manda={permisos.manda}
         bodega={bodega?.codigo ?? null}
         uxc={uxc}
+        hlu={hlu}
         pasados={pas.ids}
         pasadosOk={pas.ok}
         puedeMarcar={permisos.manda || permisos.puedeEditar("/inventario/base")}

@@ -286,7 +286,7 @@ const valorFiltro = (c: Col<Fila>, r: Fila) => c.texto(r).trim() || VACIAS;
 const selloDescarga = () => new Date().toLocaleString("sv", { timeZone: "America/Bogota" }).replace(/[-:]/g, "").replace(" ", "-").slice(0, 13);
 
 export function Base({
-  enviadas: enviadasT, abiertas: abiertasT, conteos: conteosT, tope, manda = false, bodega = null, uxc = {},
+  enviadas: enviadasT, abiertas: abiertasT, conteos: conteosT, tope, manda = false, bodega = null, uxc = {}, hlu = {},
   pasados = [], pasadosOk = true, puedeMarcar = false,
 }: {
   enviadas: Renglon[]; abiertas: Renglon[]; conteos: ConteoFefo[]; tope: boolean;
@@ -296,6 +296,8 @@ export function Base({
   bodega?: string | null;
   /** Unidades por caja, por código de material (del maestro). */
   uxc?: Record<string, number | null>;
+  /** Hectolitros de UNA unidad, por código de material (del maestro). */
+  hlu?: Record<string, number | null>;
   /** Ids de los renglones que ya se pasaron al sistema oficial. */
   pasados?: string[];
   /** false = todavía no se corrió el SQL de «pasados»: se dice y no se deja marcar. */
@@ -550,13 +552,10 @@ export function Base({
     cajas: cruce.vigentes.reduce((a, r) => a + Number(r.total_cajas), 0),
     sueltas: cruce.vigentes.reduce((a, r) => a + (Number(r.unidades) || 0), 0),
     ubicaciones: new Set(cruce.vigentes.map((r) => r.ubicacion_id ?? r.ubicacion ?? "—")).size,
-    repetidas: cruce.repetidas,
-    compartidas: cruce.compartidas,
   }), [cruce]);
 
   /* LAS CIFRAS SIGUEN AL FILTRO: lo que se filtra en la tabla (búsqueda, campos, calle, módulo, fechas, quitados) cambia
-     Renglones, Cajas y Ubicaciones de arriba; si no, no servirían para nada. Repetidas y Contadas por 2+ son de la base
-     cruzada completa y no se tocan. Sin filtro sale lo mismo de antes. */
+     Renglones, Cajas y Ubicaciones de arriba; si no, no servirían para nada. Sin filtro sale lo mismo de antes. */
   const vf = filas.length !== kp.renglones;
   const kpVista = useMemo(() => !vf ? kp : {
     ...kp,
@@ -565,6 +564,32 @@ export function Base({
     sueltas: sueltasVista,
     ubicaciones: new Set(filas.map((r) => r.ubicacion_id ?? r.ubicacion ?? "—")).size,
   }, [vf, kp, filas, cajas, sueltasVista]);
+
+  /* LA LISTA DE UBICACIONES QUE SE COPIA: lo que se está viendo (con los filtros puestos), una línea por ubicación y SKU,
+     separada por tabuladores para que al pegar en Excel caiga cada dato en su columna. Estibas, cajas, unidades y HL salen
+     juntos para revisar sin cambiar de pantalla; el HL y las unidades salen del maestro (si no lo trae, queda vacío). */
+  const [copiado, setCopiado] = useState(false);
+  async function copiarUbicaciones() {
+    const g = new Map<string, { ub: string; sku: string; mat: string; est: number; caj: number; uni: number | null }>();
+    for (const r of filas) {
+      const ub = ubi(r) || "—";
+      const k = `${ub}|${r.codigo}`;
+      const u = uxc[r.codigo] ?? null;
+      const uni = r.unidades != null ? Number(r.unidades) : u != null ? Number(r.total_cajas) * u + (Number(r.unidades) || 0) : null;
+      const a = g.get(k) ?? { ub, sku: r.codigo, mat: r.material, est: 0, caj: 0, uni: 0 as number | null };
+      a.est += Number(r.total_estibas ?? 0); a.caj += Number(r.total_cajas) || 0;
+      a.uni = a.uni == null || uni == null ? null : a.uni + uni;
+      g.set(k, a);
+    }
+    const num = (v: number, d = 0) => v.toLocaleString("es-CO", { maximumFractionDigits: d });
+    const lineas = [["Ubicación", "SKU", "Descripción", "Estibas", "Cajas", "Unidades", "HL"].join("\t")];
+    for (const a of [...g.values()].sort((x, y) => x.ub.localeCompare(y.ub, "es", { numeric: true }) || x.sku.localeCompare(y.sku))) {
+      const h = hlu[a.sku];
+      lineas.push([a.ub, a.sku, a.mat.replace(/\s+/g, " "), num(a.est, 2), num(a.caj), a.uni == null ? "" : num(a.uni), h != null && a.uni != null ? num(a.uni * h, 2) : ""].join("\t"));
+    }
+    try { await navigator.clipboard.writeText(lineas.join("\n")); setCopiado(true); setTimeout(() => setCopiado(false), 2200); }
+    catch { setMal("No se pudo copiar. Revisa el permiso del portapapeles del navegador."); }
+  }
 
   /* ============== SELECCIÓN ============== */
   const hayCasillas = pestania === "base" && (puedeMarcar || manda);
@@ -744,9 +769,14 @@ export function Base({
         <section className="ba-kp" aria-label="Resumen de la base cruzada">
           <div className={vf ? "fil" : ""}><span className="ba-eti">Renglones</span><b>{nf.format(kpVista.renglones)}</b><small>{vf ? `filtrados · de ${nf.format(kp.renglones)} en la base` : "después de cruzar"}</small></div>
           <div className={vf ? "fil" : ""}><span className="ba-eti">Cajas</span><b>{nf.format(kpVista.cajas)}</b><small>{vf ? `filtradas · de ${nf.format(kp.cajas)} en la base` : "en la base"}{kpVista.sueltas > 0 ? ` · + ${nf.format(kpVista.sueltas)} un. sueltas` : ""}</small></div>
-          <div className={vf ? "fil" : ""}><span className="ba-eti">Ubicaciones</span><b>{nf.format(kpVista.ubicaciones)}</b><small>{vf ? `distintas en lo filtrado · de ${nf.format(kp.ubicaciones)}` : "distintas"}</small></div>
-          <div className="az"><span className="ba-eti">Repetidas</span><b>{nf.format(kp.repetidas)}</b><small>misma persona: vale su último conteo</small></div>
-          <div><span className="ba-eti">Contadas por 2+</span><b>{nf.format(kp.compartidas)}</b><small>personas distintas: cada una en su renglón</small></div>
+          <div className={vf ? "fil" : ""}><span className="ba-eti">Ubicaciones
+            <button type="button" className={"ba-copiar" + (copiado ? " ok" : "")} onClick={copiarUbicaciones}
+                    title="Copiar lo filtrado: ubicación, SKU, descripción, estibas, cajas, unidades y HL" aria-label="Copiar la lista de ubicaciones filtradas">
+              {copiado
+                ? <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+                : <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8.5" y="8.5" width="11" height="12" rx="1.5" /><path d="M15.5 8.5V5.5a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 5.5v10A1.5 1.5 0 0 0 6 17h2.5" /></svg>}
+            </button>
+          </span><b>{nf.format(kpVista.ubicaciones)}</b><small>{vf ? `distintas en lo filtrado · de ${nf.format(kp.ubicaciones)}` : "distintas"}</small></div>
         </section>
       )}
 

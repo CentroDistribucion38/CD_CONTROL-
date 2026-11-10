@@ -4,6 +4,7 @@
  * TODOS LOS ALMACENES — por SKU, lo contado y lo de SAP en AG22, AG18, AG17 y AG16 según sus Cuadres SAP.
  * Tocar un código abre el desglose por almacén. Balanceado o descuadre (con su observación).
  */
+import { SelectorDia } from "./SelectorDia";
 import { Fragment, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ALMACENES, type Todos as Datos, type FilaTodos } from "@/modulos/inventario/todos-tipos";
@@ -45,7 +46,7 @@ export function Todos({ datos, hoy, enLinea = {} }: { datos: Datos; hoy: string;
       <section className="ad-caja ad-hoja">
         <div className="ad-hoja-cab">
           <h2>Todos los almacenes · {new Date(datos.fecha + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</h2>
-          <label className="ad-chk"><input type="date" value={datos.fecha} max={hoy} onChange={(e) => e.target.value && router.push(`/inventario/balance/analisis?fecha=${e.target.value}&paso=todos`)} /></label>
+          <SelectorDia valor={datos.fecha} hoy={hoy} alCambiar={(f) => router.push(`/inventario/balance/analisis?fecha=${f}&paso=todos`)} />
         </div>
         <p className="ad-nota" style={{ marginTop: 0 }}>
           <b>{nDesc}</b> de {datos.filas.length} códigos con descuadre. Estibas contadas en los cuatro almacenes: <b>{n(estibasTot)}</b>

@@ -298,3 +298,79 @@
 .ad .ad-resto { margin: 12px 0 0; padding: 8px 12px; background: #fff; border: 1px solid var(--fe-linea); font-size: 12.5px }
 .ad .ad-resto > summary { cursor: pointer }
 .ad .ad-resto > .ad-fuentes, .ad .ad-resto > details, .ad .ad-resto > div { margin-top: 10px }
+
+/* EL CALENDARIO DEL DÍA (compartido con Base y el tablero diario) */
+.ad .ad-cal .calendario { position: relative }
+.ad .ad-cal .disparo {
+  display: flex; align-items: center; gap: 10px; min-height: 46px; min-width: 250px; padding: 0 12px; width: 100%;
+  font: 600 14px var(--fe-texto); color: var(--fe-tinta); background: #fff; border: 1.5px solid var(--fe-linea); border-radius: 3px; cursor: pointer; text-align: left;
+}
+.ad .ad-cal .disparo[aria-expanded="true"], .ad .ad-cal .disparo:focus-visible { outline: none; border-color: var(--fe-acento); box-shadow: 0 0 0 3px color-mix(in srgb, var(--fe-acento) 22%, transparent) }
+.ad .ad-cal .disparo .ico { width: 16px; height: 16px; stroke: var(--fe-gris); stroke-width: 1.8; fill: none; flex: none }
+.ad .ad-cal .disparo .flecha { margin-left: auto; width: 14px; height: 14px; stroke: var(--fe-gris); stroke-width: 2.2; fill: none; flex: none; transition: transform .14s }
+.ad .ad-cal .disparo[aria-expanded="true"] .flecha { transform: rotate(180deg) }
+.ad .ad-cal .disparo .txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.ad .ad-cal .calendario .panel {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; max-width: calc(100vw - 24px);
+  background: #fff; border: 1px solid var(--fe-linea); border-radius: 3px; overflow: hidden; box-shadow: 0 28px 56px -24px rgba(4,32,63,.5);
+}
+.ad .ad-cal .calendario .panel::before { content: ""; display: block; height: 3px; background: var(--fe-acento) }
+.ad .ad-cal .cal-cuerpo { display: flex }
+.ad .ad-cal .atajos { width: 170px; border-right: 1px solid var(--fe-linea); padding: 12px 0; flex: none }
+.ad .ad-cal .atajos button {
+  display: block; width: 100%; min-height: 44px; text-align: left; padding: 9px 18px; border: 0; background: none; border-radius: 0;
+  font: 600 13.5px var(--fe-texto); color: var(--fe-tinta); cursor: pointer; border-left: 3px solid transparent;
+}
+.ad .ad-cal .atajos button:hover { background: color-mix(in srgb, var(--fe-acento) 8%, #fff) }
+.ad .ad-cal .atajos button.on { border-left-color: var(--fe-acento); font-weight: 800 }
+.ad .ad-cal .meses { display: flex; gap: 26px; padding: 16px 20px }
+.ad .ad-cal .mes { width: 224px }
+.ad .ad-cal .mes-cab { display: flex; align-items: center; justify-content: space-between; height: 30px; margin-bottom: 8px }
+.ad .ad-cal .mes-cab .titulo-mes { font: 800 14.5px var(--fe-titulo); text-transform: capitalize; color: var(--fe-tinta) }
+.ad .ad-cal .mes-cab button { width: 44px; height: 44px; border: 1px solid var(--fe-linea); background: #fff; border-radius: 3px; cursor: pointer; display: grid; place-items: center; padding: 0 }
+.ad .ad-cal .mes-cab button svg { width: 13px; height: 13px; stroke: var(--fe-tinta); stroke-width: 2.3; fill: none }
+.ad .ad-cal .mes-cab .hueco { width: 44px }
+.ad .ad-cal .mes-cab .ant-movil { display: none }
+.ad .ad-cal .mes-cab .titulo-mes { white-space: nowrap }
+.ad .ad-cal .semana, .ad .ad-cal .dias { display: grid; grid-template-columns: repeat(7, 1fr) }
+.ad .ad-cal .semana span { text-align: center; font-size: 11px; font-weight: 700; color: var(--fe-gris); padding-bottom: 6px }
+.ad .ad-cal .dias button {
+  height: 40px; min-height: 0; border: 0; background: none; cursor: pointer; padding: 0; border-radius: 0;
+  font: 600 13.5px var(--fe-texto); color: var(--fe-tinta); position: relative;
+}
+.ad .ad-cal .dias button.fuera { color: color-mix(in srgb, var(--fe-gris) 40%, #fff); cursor: default }
+.ad .ad-cal .dias button:hover:not(.fuera):not(.punta) { background: color-mix(in srgb, var(--fe-acento) 10%, #fff) }
+.ad .ad-cal .dias button.dentro { background: color-mix(in srgb, var(--fe-acento) 18%, #fff) }
+.ad .ad-cal .dias button.punta { background: var(--fe-acento); color: var(--fe-sobre); font-weight: 800 }
+.ad .ad-cal .dias button.inicio { border-radius: 3px 0 0 3px }
+.ad .ad-cal .dias button.fin { border-radius: 0 3px 3px 0 }
+.ad .ad-cal .dias button.inicio.fin { border-radius: 3px }
+.ad .ad-cal .dias button.hoy { text-decoration: underline; text-underline-offset: 3px }
+/* El puntito: ese día hay FEFO enviados. */
+.ad .ad-cal .dias button.marcado::after { content: ""; position: absolute; left: 50%; bottom: 4px; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 2px; background: var(--fe-acento) }
+.ad .ad-cal .dias button.punta.marcado::after { background: var(--fe-sobre) }
+.ad .ad-cal .cal-pie { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-top: 1px solid var(--fe-linea); flex-wrap: wrap }
+.ad .ad-cal .cal-pie .resumen { font-size: 13.5px; color: var(--fe-gris); min-width: 0 }
+.ad .ad-cal .cal-pie .resumen b { color: var(--fe-tinta) }
+.ad .ad-cal .cal-pie .btns { margin-left: auto; display: flex; gap: 10px }
+.ad .ad-cal .cal-pie button { min-height: 44px; padding: 0 18px; border-radius: 3px; cursor: pointer; font: 800 13.5px var(--fe-titulo) }
+.ad .ad-cal .cal-pie .aplicar { border: 0; background: var(--fe-acento); color: var(--fe-sobre) }
+.ad .ad-cal .cal-pie .aplicar:disabled { opacity: .45; cursor: default }
+.ad .ad-cal .cal-pie .cancelar { border: 0; background: none; color: var(--fe-gris) }
+@media (max-width: 1000px) {
+  .ad .ad-cal .disparo { min-width: 0 }
+}
+.ad .ad-cal { display: block }
+.ad .ad-cal .disparo { min-height: 38px; min-width: 210px; width: auto }
+@media (max-width: 1000px) { .ad .ad-cal .disparo { min-width: 0 } }
+@media (max-width: 720px) {
+  .ad .ad-cal .calendario .panel { left: 0; right: 0; width: auto }
+  .ad .ad-cal .cal-cuerpo { flex-direction: column }
+  .ad .ad-cal .atajos { width: 100%; border-right: 0; border-bottom: 1px solid var(--fe-linea); display: flex; overflow-x: auto; padding: 8px }
+  .ad .ad-cal .atajos button { width: auto; white-space: nowrap; border-left: 0; border-bottom: 2px solid transparent; padding: 7px 12px; min-height: 44px }
+  .ad .ad-cal .atajos button.on { border-bottom-color: var(--fe-acento) }
+  .ad .ad-cal .meses { padding: 14px }
+  .ad .ad-cal .mes { width: 100% }
+  .ad .ad-cal .mes:not(.segundo) { display: none }
+  .ad .ad-cal .mes-cab .ant-movil { display: grid }
+}

@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectorRango } from "./SelectorDia";
 import { useMemo, useState } from "react";
 import type { DiaHistorico, FilaHistorico } from "@/modulos/inventario/analisis-ajustes";
 
@@ -53,8 +54,9 @@ export function Recurrencia({ dias, detalle }: { dias: DiaHistorico[]; detalle: 
   return (
     <>
       <div className="ad-barra">
-        <label className="ad-dia"><span>Desde</span><input type="date" value={desde} max={hasta} onChange={(e) => e.target.value && setDesde(e.target.value)} /></label>
-        <label className="ad-dia"><span>Hasta</span><input type="date" value={hasta} min={desde} onChange={(e) => e.target.value && setHasta(e.target.value)} /></label>
+        <div className="ad-dia"><span>Período</span>
+          <SelectorRango desde={desde} hasta={hasta} hoy={ultimo} alCambiar={(d, h) => { setDesde(d); setHasta(h); }} />
+        </div>
         <label className="ad-dia"><span>Aviso desde</span>
           <select className="ad-mes" value={minRacha} onChange={(e) => setMinRacha(Number(e.target.value))}>
             {[2, 3, 4, 5, 7, 10].map((x) => <option key={x} value={x}>{x} días seguidos</option>)}
