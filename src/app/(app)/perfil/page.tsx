@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { usuarioActual } from "@/lib/sesion";
+import { usuarioCompleto } from "@/lib/sesion";
 import { modulosVisibles } from "@/modulos/registro";
 import { misPermisos, entradaDe, rutasParaCopia } from "@/lib/permisos";
 import { Perfil } from "./Perfil";
@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function PerfilPage() {
   const supabase = await createClient();
-  const user = await usuarioActual();
+  const user = await usuarioCompleto();
   if (!user) redirect("/login");
 
   const { data } = await supabase

@@ -41,11 +41,11 @@ export default async function AppLayout({
 
   if (!user) redirect("/login");
 
-  const { data: perfil } = await supabase
-    .from("perfiles")
-    .select("*")
-    .eq("id", user.id)
-    .single();
+  /* El perfil y los permisos se piden JUNTOS: antes uno esperaba al otro y eran dos viajes seguidos a la base en cada pantalla. */
+  const [{ data: perfil }, permisos] = await Promise.all([
+    supabase.from("perfiles").select("*").eq("id", user.id).single(),
+    misPermisos(),
+  ]);
 
   const nombre = perfil?.nombre || perfil?.usuario || "Usuario";
 
@@ -68,7 +68,6 @@ export default async function AppLayout({
   /* Qué rutas puede ver esta persona. Se resuelve UNA vez aquí y baja al
      menú: si cada pantalla lo consultara por su cuenta serían quince
      consultas para dibujar una barra lateral. */
-  const permisos = await misPermisos();
   const permitidas = [
     ...permisos.modulos.map((m) => m.ruta),
     ...permisos.modulos.flatMap((m) => m.secciones.map((x) => x.ruta)),

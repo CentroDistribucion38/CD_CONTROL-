@@ -26,6 +26,19 @@ import { createClient } from "@/lib/supabase/server";
  */
 export const usuarioActual = cache(async () => {
   const supabase = await createClient();
+  /* getClaims() comprueba la FIRMA de la sesión aquí mismo (con las llaves públicas de Supabase, que se guardan) en vez de
+     mandarla a Supabase: es un viaje de red menos en cada pantalla. El middleware ya validó la sesión contra Supabase en esta misma
+     petición y refrescó la cookie si hacía falta; y cada consulta a la base vuelve a validarla (RLS). Si el proyecto firma con llave
+     simétrica, la propia librería cae a la pregunta de siempre. */
+  const { data, error } = await supabase.auth.getClaims();
+  const sub = data?.claims?.sub;
+  if (error || !sub) return null;
+  return { id: String(sub), email: (data?.claims?.email as string | undefined) ?? null };
+});
+
+/** El usuario completo, preguntado a Supabase (trae, por ejemplo, el último ingreso). Solo para la pantalla que lo muestra. */
+export const usuarioCompleto = cache(async () => {
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   return user;
 });
