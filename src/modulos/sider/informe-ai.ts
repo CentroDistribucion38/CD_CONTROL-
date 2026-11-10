@@ -25,6 +25,8 @@ export type FiltroAi = {
      funcionando aunque la migración de las dos clases no se haya corrido
      (la columna `tipo` puede no existir todavía). */
   tipo?: "ai" | "sorting";
+  /** Turnos como los guarda la base (T1 = A, T2 = B, T3 = C). Vacío = todos. Lo usa el cierre de turno. */
+  turnos?: string[];
 };
 
 export type PorDefecto = {
@@ -85,6 +87,7 @@ export async function informeAi(f: FiltroAi = {}) {
   if (f.envase) q = q.eq("envase", f.envase);
   if (f.canal)  q = q.eq("canal", f.canal);
   if (f.tipo)   q = q.eq("tipo", f.tipo);
+  if (f.turnos?.length) q = q.in("turno", f.turnos);
 
   const { data: rev, error } = await q;
   if (error) {

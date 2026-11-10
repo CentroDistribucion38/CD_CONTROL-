@@ -291,3 +291,7 @@
 .sd .ia-tabla tr.ia-total td {
   border-top: 1.5px solid var(--sd-linea); font-weight: 800; background: var(--c-edf1f6);
 }
+
+/* El botón que abre el cierre de turno, al final de la fila de filtros. */
+.sd .ia-filtros .ia-cierre { align-self: end; height: 38px; padding: 0 16px; border: 0; background: var(--c-grupo, #111); color: #fff; font: 700 13px var(--font-texto, system-ui); cursor: pointer; box-shadow: inset 0 -3px 0 var(--c-marca, #FFC400) }
+.sd .ia-filtros .ia-cierre:focus-visible { outline: 3px solid var(--c-marca, #FFC400); outline-offset: 2px }

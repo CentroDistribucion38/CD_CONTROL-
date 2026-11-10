@@ -373,7 +373,7 @@ export async function armarAnalisis(fecha: string, rDesde?: string, rHasta?: str
   }
   fuentes.push({ nombre: "Pasivos AG22", ok: nPas > 0, detalle: nPas ? `${nPas} filas (presorting, rotura de línea, extrasucio)` : "Sin base de Pasivos ese día" });
 
-  /* 3b. ROTURAS EN SITIO (Quiebra en sitio): el vidrio roto ya no está en la bodega y SAP todavía lo tiene. Cada rotura son CAJAS rotas; las unidades
+  /* 3b. ROTURAS EN SITIO (Quiebra en sitio): el vidrio roto ya no está en la bodega y SAP todavía lo tiene. Solo las EER (tipo eer). Cada rotura son CAJAS rotas; las unidades
         salen de las unidades por caja del material (en producto terminado, las del producto y el envase que sale roto es el que le asocia el maestro).
         Las contaminadas no cuentan: la botella sigue entera. Período: del 1 del mes al día del análisis, o el que se escoja. Si alguien corrigió la
         cantidad de un código (analisis_dif_roturas), vale lo corregido. */
@@ -391,18 +391,22 @@ export async function armarAnalisis(fecha: string, rDesde?: string, rHasta?: str
     if (rr.error) { roturasA.falta = "No se pudieron leer las roturas de Quiebra en sitio."; avisos.push(roturasA.falta) }
     const sobre = new Map(((ro.error ? [] : ro.data ?? []) as { codigo: string; unidades: number; nota: string | null }[]).map((x) => [String(x.codigo), x]));
     if (ro.error && /analisis_dif_roturas|does not exist|PGRST205/i.test(`${ro.error.code} ${ro.error.message}`)) avisos.push("Para poder corregir la cantidad de las roturas corre supabase/migraciones/2026-11-analisis-diferencia-roturas.sql en Supabase (sin eso las roturas suman lo calculado).");
+    /* SOLO LO QUE ES EER (el envase retornable): su material ES el envase y tiene que estar en el maestro de Pasivos. Las roturas de producto
+       terminado no entran aquí: el producto no es parte de este análisis y mandarlas al código del producto crea renglones «sin familia». */
     const por = new Map<string, { cajas: number; unidades: number; n: number }>();
+    let nPT = 0, nSinMaestro = 0;
     for (const r of ((rr.error ? [] : rr.data ?? []) as { material: string; tipo: string; unidades: number | null }[])) {
       const sku = String(r.material ?? "").trim(), cj = Number(r.unidades) || 0;
       if (!sku || !cj) continue;
-      const env = r.tipo === "producto_terminado" && P.get(sku)?.envase_sku ? String(P.get(sku)!.envase_sku) : sku;
-      const u = Number(P.get(sku)?.unidades_por_caja ?? M.get(sku)?.unidades_por_caja ?? 0) || 0;
+      if (r.tipo !== "eer") { nPT++; continue }
+      if (!M.has(sku)) { nSinMaestro++; continue }
+      const u = Number(M.get(sku)?.unidades_por_caja ?? P.get(sku)?.unidades_por_caja ?? 0) || 0;
       if (!u) continue;
-      const a = por.get(env) ?? { cajas: 0, unidades: 0, n: 0 };
-      a.cajas += cj; a.unidades += cj * u; a.n++; por.set(env, a);
+      const a = por.get(sku) ?? { cajas: 0, unidades: 0, n: 0 };
+      a.cajas += cj; a.unidades += cj * u; a.n++; por.set(sku, a);
     }
     for (const k of new Set([...por.keys(), ...sobre.keys()])) {
-      if (excluye(regla, k, nombre(k))) continue;
+      if (!M.has(k) || excluye(regla, k, nombre(k))) continue;
       const a = por.get(k), o = sobre.get(k);
       const calc = Math.round(a?.unidades ?? 0), val = o ? Number(o.unidades) || 0 : calc;
       roturasA.porCodigo[k] = { cajas: a?.cajas ?? 0, unidades: val, calculado: calc, editado: !!o, nota: o?.nota ?? null, n: a?.n ?? 0 };
@@ -410,7 +414,7 @@ export async function armarAnalisis(fecha: string, rDesde?: string, rHasta?: str
       suma("conteo", k, ROTURA_PARTIDA, val);
     }
     const nRo = Object.keys(roturasA.porCodigo).length;
-    fuentes.push({ nombre: "Roturas en sitio", ok: nRo > 0, detalle: nRo ? `${nRo} códigos · ${Math.round(roturasA.total)} unidades · del ${roDesde} al ${roHasta}` : `Sin roturas del ${roDesde} al ${roHasta}` });
+    fuentes.push({ nombre: "Roturas en sitio", ok: nRo > 0, detalle: (nRo ? `${nRo} códigos EER · ${Math.round(roturasA.total)} unidades · del ${roDesde} al ${roHasta}` : `Sin roturas EER del ${roDesde} al ${roHasta}`) + (nPT ? ` · ${nPT} de producto terminado no entran` : "") + (nSinMaestro ? ` · ${nSinMaestro} EER sin código en el maestro` : "") });
   }
 
   /* 4. LOS OTROS ALMACENES: el Cuadre SAP de AG18 (Fábrica), AG17 (EXPORTACION) y AG16 (BTS), cada uno balanceado contra su conteo.

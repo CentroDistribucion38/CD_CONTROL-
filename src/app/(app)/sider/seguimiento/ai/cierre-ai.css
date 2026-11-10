@@ -1,0 +1,16 @@
+/* EL CIERRE DE TURNO DE LA REVISIÓN AI: usa el diseño del cierre de Roturas en sitio (rtc-*); aquí solo lo que le falta. */
+.rtc .ca-barra { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 22px; padding: 12px 24px; border-bottom: 1px solid var(--rt-linea); background: var(--rt-papel) }
+.rtc .ca-barra label { display: flex; flex-direction: column; gap: 4px }
+.rtc .ca-barra label > span, .rtc .ca-grupo > span { font: 700 10px var(--rt-titulo); letter-spacing: .14em; text-transform: uppercase; color: var(--rt-gris, #5b6b7f) }
+.rtc .ca-barra input[type="date"] { height: 36px; padding: 0 10px; border: 1px solid var(--rt-linea); background: #fff; font: 600 13.5px var(--rt-texto); color: var(--rt-tinta) }
+.rtc .ca-grupo { display: flex; align-items: center; gap: 6px; flex-wrap: wrap }
+.rtc .ca-grupo > span { margin-right: 4px }
+.rtc .ca-grupo button { min-width: 38px; height: 36px; padding: 0 12px; border: 1px solid var(--rt-linea); background: #fff; color: var(--rt-tinta); font: 700 13px var(--rt-texto); cursor: pointer }
+.rtc .ca-grupo button.on { background: var(--rt-tinta); color: #fff; border-color: var(--rt-tinta) }
+.rtc .ca-grupo button:focus-visible, .rtc .ca-barra input:focus-visible { outline: 2px solid var(--rt-oro); outline-offset: 2px }
+.rtc .ca-carga { padding: 28px 24px }
+.rtc .ca-tabla { width: 100% }
+.rtc .ca-tabla td .rtc-barra { display: block; margin-top: 4px }
+.rtc .ca-tabla tr.ca-vital td:first-child, .rtc .ca-tabla tr.ca-vital td:nth-child(2) { font-weight: 800 }
+.rtc .ca-tabla tr.ca-vital { background: color-mix(in srgb, var(--rt-oro) 12%, #fff) }
+@media print { .rtc .ca-no-foto { display: none !important } }
