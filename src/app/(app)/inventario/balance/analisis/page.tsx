@@ -56,7 +56,7 @@ const FUENTES: Fuente[] = [
 ];
 const ETQ = { ok: "Ya está en la app", falta: "Falta: plantilla", parcial: "Falta importar" } as const;
 
-export default async function AnalisisPage({ searchParams }: { searchParams: Promise<{ fecha?: string; paso?: string }> }) {
+export default async function AnalisisPage({ searchParams }: { searchParams: Promise<{ fecha?: string; paso?: string; rd?: string; rh?: string }> }) {
   const q = await searchParams;
   const hoy = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Bogota" }).format(new Date());
   const fecha = /^\d{4}-\d{2}-\d{2}$/.test(q.fecha ?? "") ? q.fecha! : hoy;
@@ -165,7 +165,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
       </div>
     );
   }
-  const [datos, guardado] = await Promise.all([armarAnalisis(fecha), leerAjustes(fecha)]);
+  const [datos, guardado] = await Promise.all([armarAnalisis(fecha, q.rd, q.rh), leerAjustes(fecha)]);
   return (
     <div className="fe bal ad">
       <section className="cabeza"><div>

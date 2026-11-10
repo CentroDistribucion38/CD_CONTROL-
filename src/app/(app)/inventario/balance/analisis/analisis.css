@@ -374,3 +374,13 @@
   .ad .ad-cal .mes:not(.segundo) { display: none }
   .ad .ad-cal .mes-cab .ant-movil { display: grid }
 }
+
+/* LA ROTURA EN SITIO dentro del detalle del CONTEO: la cantidad se corrige tocándola, sin botones a la vista. */
+.ad .ad-rot small { color: var(--fe-gris) }
+.ad .ad-rot-v { all: unset; cursor: text; font: inherit; font-weight: inherit; color: inherit; border-bottom: 1px dotted transparent }
+.ad .ad-rot-v:hover, .ad .ad-rot-v:focus-visible { border-bottom-color: var(--fe-gris) }
+.ad .ad-rot-v:focus-visible { outline: 2px solid var(--fe-acento, #FFC400); outline-offset: 2px }
+.ad .ad-rot-in { width: 110px; padding: 1px 4px; border: 0; border-bottom: 1.5px solid var(--fe-tinta); background: transparent; font: inherit; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; color: var(--fe-tinta) }
+.ad .ad-rot-in:focus { outline: none; background: #FFFBEA }
+.ad .ad-rot-x { all: unset; cursor: pointer; color: var(--fe-gris); text-decoration: underline; font-size: 11.5px }
+.ad .ad-rot-err { color: #A50D25 }

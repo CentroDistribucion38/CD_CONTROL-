@@ -7,7 +7,7 @@ import { esUbicacionFabrica } from "@/modulos/casco/ubicacion-sitio";
 import { leerPasivos } from "@/modulos/pasivos/datos";
 import { excluye } from "@/modulos/pasivos/excluidos";
 import { leerExcluidos } from "@/modulos/pasivos/excluidos-leer";
-import { NUEVO_PARTIDA } from "./compensa";
+import { NUEVO_PARTIDA, ROTURA_PARTIDA } from "./compensa";
 import { CAJA_EN_DEPA, lineaDeDepa } from "./depa";
 
 /**
@@ -50,10 +50,15 @@ export type TotConteo = { renglones: number; cajas: number; estibas: number; pla
 export type Mov311 = { almacen: string; codigo: string; descripcion: string; grupo: string; movido: number; documentos: string[]; entraAlAnalisis: boolean;
   /** Del Cuadre SAP de ese almacén ese día: lo contado allá, el SAP después de los 311 y lo que QUEDÓ sin cuadrar (SAP después − conteo). */
   conteoAlm: number | null; sapDespues: number | null; queda: number | null };
+/** Las roturas de Quiebra en sitio que sumaron al CONTEO, por código de envase. */
+export type RoturaCod = { cajas: number; unidades: number; calculado: number; editado: boolean; nota: string | null; n: number };
+export type RoturasAnalisis = { desde: string; hasta: string; porCodigo: Record<string, RoturaCod>; total: number; falta: string | null };
 export type Fuente = { nombre: string; ok: boolean; detalle: string };
 export type Analisis = {
   fecha: string; filas: FilaAnalisis[]; fuentes: Fuente[]; avisos: string[];
   novedades: Novedad[]; noEntran: string[]; faltaSql: boolean;
+  /** Roturas en sitio del período escogido (por defecto del 1 del mes al día del análisis), ya sumadas al CONTEO. */
+  roturas?: RoturasAnalisis;
   /** Todos los 311 que se hicieron ese día entre AG22 y los otros almacenes, por SKU (para la hoja «311» del Excel). */
   movimientos311?: Mov311[];
   carga: { archivo: string | null; filas: number; subido_en: string | null } | null;
@@ -117,7 +122,7 @@ export async function leerMovimientos311(fecha: string): Promise<Mov311[]> {
   return salida;
 }
 
-export async function armarAnalisis(fecha: string): Promise<Analisis> {
+export async function armarAnalisis(fecha: string, rDesde?: string, rHasta?: string): Promise<Analisis> {
   const supabase = await createClient();
   const avisos: string[] = [];
   const [{ conteos }, maesR, prodR, pas, novR, cortesR, regla, planR, empR] = await Promise.all([
@@ -367,6 +372,46 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     suma("conteo", String(f.codigo), etq, Number(f.unidades) || 0); nPas++;
   }
   fuentes.push({ nombre: "Pasivos AG22", ok: nPas > 0, detalle: nPas ? `${nPas} filas (presorting, rotura de línea, extrasucio)` : "Sin base de Pasivos ese día" });
+
+  /* 3b. ROTURAS EN SITIO (Quiebra en sitio): el vidrio roto ya no está en la bodega y SAP todavía lo tiene. Cada rotura son CAJAS rotas; las unidades
+        salen de las unidades por caja del material (en producto terminado, las del producto y el envase que sale roto es el que le asocia el maestro).
+        Las contaminadas no cuentan: la botella sigue entera. Período: del 1 del mes al día del análisis, o el que se escoja. Si alguien corrigió la
+        cantidad de un código (analisis_dif_roturas), vale lo corregido. */
+  const roHasta = /^\d{4}-\d{2}-\d{2}$/.test(rHasta ?? "") ? rHasta! : fecha;
+  const roDesdeIn = /^\d{4}-\d{2}-\d{2}$/.test(rDesde ?? "") ? rDesde! : `${fecha.slice(0, 7)}-01`;
+  const roDesde = roDesdeIn <= roHasta ? roDesdeIn : roHasta;
+  const roturasA: RoturasAnalisis = { desde: roDesde, hasta: roHasta, porCodigo: {}, total: 0, falta: null };
+  {
+    const ini = new Date(`${roDesde}T00:00:00-05:00`).toISOString();
+    const fin = new Date(new Date(`${roHasta}T00:00:00-05:00`).getTime() + 86400000).toISOString();
+    const [rr, ro] = await Promise.all([
+      supabase.from("v_roturas").select("material, tipo, unidades, estado, reportada_en").gte("reportada_en", ini).lt("reportada_en", fin).neq("estado", "anulada").limit(5000),
+      supabase.from("analisis_dif_roturas").select("codigo, unidades, nota").eq("fecha", fecha),
+    ]);
+    if (rr.error) { roturasA.falta = "No se pudieron leer las roturas de Quiebra en sitio."; avisos.push(roturasA.falta) }
+    const sobre = new Map(((ro.error ? [] : ro.data ?? []) as { codigo: string; unidades: number; nota: string | null }[]).map((x) => [String(x.codigo), x]));
+    if (ro.error && /analisis_dif_roturas|does not exist|PGRST205/i.test(`${ro.error.code} ${ro.error.message}`)) avisos.push("Para poder corregir la cantidad de las roturas corre supabase/migraciones/2026-11-analisis-diferencia-roturas.sql en Supabase (sin eso las roturas suman lo calculado).");
+    const por = new Map<string, { cajas: number; unidades: number; n: number }>();
+    for (const r of ((rr.error ? [] : rr.data ?? []) as { material: string; tipo: string; unidades: number | null }[])) {
+      const sku = String(r.material ?? "").trim(), cj = Number(r.unidades) || 0;
+      if (!sku || !cj) continue;
+      const env = r.tipo === "producto_terminado" && P.get(sku)?.envase_sku ? String(P.get(sku)!.envase_sku) : sku;
+      const u = Number(P.get(sku)?.unidades_por_caja ?? M.get(sku)?.unidades_por_caja ?? 0) || 0;
+      if (!u) continue;
+      const a = por.get(env) ?? { cajas: 0, unidades: 0, n: 0 };
+      a.cajas += cj; a.unidades += cj * u; a.n++; por.set(env, a);
+    }
+    for (const k of new Set([...por.keys(), ...sobre.keys()])) {
+      if (excluye(regla, k, nombre(k))) continue;
+      const a = por.get(k), o = sobre.get(k);
+      const calc = Math.round(a?.unidades ?? 0), val = o ? Number(o.unidades) || 0 : calc;
+      roturasA.porCodigo[k] = { cajas: a?.cajas ?? 0, unidades: val, calculado: calc, editado: !!o, nota: o?.nota ?? null, n: a?.n ?? 0 };
+      roturasA.total += val;
+      suma("conteo", k, ROTURA_PARTIDA, val);
+    }
+    const nRo = Object.keys(roturasA.porCodigo).length;
+    fuentes.push({ nombre: "Roturas en sitio", ok: nRo > 0, detalle: nRo ? `${nRo} códigos · ${Math.round(roturasA.total)} unidades · del ${roDesde} al ${roHasta}` : `Sin roturas del ${roDesde} al ${roHasta}` });
+  }
 
   /* 4. LOS OTROS ALMACENES: el Cuadre SAP de AG18 (Fábrica), AG17 (EXPORTACION) y AG16 (BTS), cada uno balanceado contra su conteo.
         Lo que se movió por 311 contra AG22 entra como BALANCE, todo del lado SAP («de … a AG22» suma a SAP, «de AG22 a …» resta a SAP). Lo que QUEDÓ sin
@@ -623,7 +668,7 @@ export async function armarAnalisis(fecha: string): Promise<Analisis> {
     maestroSistema[c] = { upc: Number(m.unidades_por_caja) || 1, cpe: Number(m.cajas_por_estiba) || 0, caja: m.caja ? String(m.caja) : maestroSistema[c]?.caja ?? null };
   }
 
-  return { fecha, filas, fuentes, avisos, novedades, movimientos311, noEntran: noEntran.sort(), faltaSql, carga, contados, existencias, enLinea, maestroSistema, sinCaja: [...sinCajaMap.values()].map((x) => ({ ...x, cajas: Math.round(x.cajas) })).sort((x, y) => y.cajas - x.cajas),
+  return { fecha, filas, fuentes, avisos, roturas: roturasA, novedades, movimientos311, noEntran: noEntran.sort(), faltaSql, carga, contados, existencias, enLinea, maestroSistema, sinCaja: [...sinCajaMap.values()].map((x) => ({ ...x, cajas: Math.round(x.cajas) })).sort((x, y) => y.cajas - x.cajas),
     cartones: [...cartonMap.values()].map((x) => ({ ...x, cajas: Math.round(x.cajas) })).sort((x, y) => y.cajas - x.cajas),
     conCaja: [...conCajaMap.values()].map((x) => ({ ...x, cajas: Math.round(x.cajas) })).sort((x, y) => y.cajas - x.cajas),
     cajasLista: cajasPlasticas.map((m) => ({ codigo: String(m.codigo), nombre: String(m.descripcion ?? m.codigo) })).sort((x, y) => x.nombre.localeCompare(y.nombre)) };

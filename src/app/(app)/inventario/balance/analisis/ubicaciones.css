@@ -5,13 +5,13 @@
 .ad .ad-ub-pos { position: absolute; top: 8px; right: 10px }
 .ad .ub-ico {
   position: relative; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; cursor: pointer;
-  color: var(--fe-tinta, #111); background: #fff; border: 1px solid #aab2bd; border-radius: 0;
+  color: var(--fe-gris, #5b6b7f); background: none; border: 0; border-radius: 0;
 }
 .ad .ub-ico em {
   position: absolute; top: -7px; right: -7px; min-width: 17px; height: 17px; padding: 0 4px; display: flex; align-items: center; justify-content: center;
   font: 800 10px var(--fe-texto, system-ui); font-style: normal; color: #111; background: var(--fe-acento, #FFC400);
 }
-.ad .ub-ico:hover { background: #FFF3CC; border-color: var(--fe-tinta, #111) }
+.ad .ub-ico:hover { color: var(--fe-tinta, #111) }
 .ad .ub-ico:focus-visible { outline: 3px solid var(--fe-tinta, #111); outline-offset: 2px }
 
 .ub-caja {

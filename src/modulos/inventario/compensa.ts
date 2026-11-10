@@ -4,6 +4,8 @@ import type { FilaAnalisis } from "./analisis-dif";
  *  Va aparte (sin nada del servidor) porque lo usan el servidor (los ajustes) y el navegador (el Excel). */
 /** La partida del conteo con el envase retornable contado en estado NUEVO (botella nueva, o sea NR). */
 export const NUEVO_PARTIDA = "CONTEO · estado NUEVO";
+/** La partida del CONTEO que sale de las roturas de Quiebra en sitio (cajas rotas × unidades por caja, al código del envase). */
+export const ROTURA_PARTIDA = "ROTURA EN SITIO";
 
 export const COMPENSA: [string, string][] = [
   ["3500162", "412644"],   // Envase Marrón 330R       ↔ ENVASE MARRON 330NR NUEVO

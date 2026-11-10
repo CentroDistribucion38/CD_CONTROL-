@@ -144,3 +144,27 @@ export async function guardarEmpaque(sku: string, empaque: "carton" | "plastica"
   revalidatePath(RUTA);
   return { ok: true };
 }
+
+
+/* LAS ROTURAS EN SITIO que suman al conteo: la cantidad se puede corregir por día y código. `null` vuelve a lo calculado. */
+const falta5 = (m: string) => (/analisis_dif_roturas|does not exist|PGRST205/i.test(m) ? "Falta correr supabase/migraciones/2026-11-analisis-diferencia-roturas.sql en Supabase." : m);
+
+export async function guardarRotura(fecha: string, codigo: string, unidades: number | null, nota?: string | null) {
+  const cod = String(codigo ?? "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha) || !cod) return { error: "Falta el día o el código." };
+  const supabase = await createClient();
+  if (unidades == null) {
+    const { error } = await supabase.from("analisis_dif_roturas").delete().eq("fecha", fecha).eq("codigo", cod);
+    if (error) return { error: falta5(`${error.code} ${error.message}`) };
+  } else {
+    if (!Number.isFinite(unidades) || unidades < 0) return { error: "La cantidad tiene que ser un número de cero en adelante." };
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from("analisis_dif_roturas").upsert({
+      fecha, codigo: cod, unidades: Math.round(unidades), nota: nota?.trim() || null,
+      actualizado_por: user?.id ?? null, actualizado_en: new Date().toISOString(),
+    }, { onConflict: "fecha,codigo" });
+    if (error) return { error: falta5(`${error.code} ${error.message}`) };
+  }
+  revalidatePath(RUTA);
+  return { ok: true };
+}

@@ -4,10 +4,11 @@ import { Existencias } from "./Existencias";
 import { Fragment, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Analisis as Datos, FilaAnalisis } from "@/modulos/inventario/analisis-dif";
-import { guardarAnalisis, guardarNovedades, quitarNovedades } from "./actions";
+import { guardarAnalisis, guardarNovedades, quitarNovedades, guardarRotura } from "./actions";
+import { ROTURA_PARTIDA } from "@/modulos/inventario/compensa";
 import { leerPlantilla } from "./leer-plantilla";
 import { Avisos } from "./Avisos";
-import { SelectorDia } from "./SelectorDia";
+import { SelectorDia, SelectorRango } from "./SelectorDia";
 import { Empaque } from "./Empaque";
 import { UbicacionesDif } from "./UbicacionesDif";
 
@@ -21,6 +22,47 @@ const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const n = (v: number) => nf.format(v);
 const signo = (v: number) => (v > 0 ? "+" : v < 0 ? "−" : "") + nf.format(Math.abs(v));
 const largo = (iso: string) => new Date(iso + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+
+/* LA ROTURA EN SITIO dentro del CONTEO de un código: solo se ve con el renglón abierto (seleccionado) y, si puedes editar,
+   al tocar la cantidad se vuelve una casilla. Vacía o igual a lo calculado = vuelve a lo calculado. Discreta a propósito. */
+function RoturaLinea({ cod, fecha, valor, puedeEditar, r, alGuardar }: {
+  cod: string; fecha: string; valor: number; puedeEditar: boolean; alGuardar: () => void;
+  r: { desde: string; hasta: string; porCodigo: Record<string, { cajas: number; unidades: number; calculado: number; editado: boolean; nota: string | null; n: number }> };
+}) {
+  const x = r.porCodigo[cod];
+  const [edita, setEdita] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [, ir] = useTransition();
+  const corto = (f: string) => `${Number(f.slice(8, 10))}/${Number(f.slice(5, 7))}`;
+  function guardar(txt: string) {
+    setEdita(false);
+    const t = txt.trim().replace(/\./g, "").replace(",", ".");
+    const nuevo = t === "" ? null : Number(t);
+    if (nuevo != null && (!Number.isFinite(nuevo) || nuevo < 0)) { setErr("Número de cero en adelante"); return }
+    if ((nuevo == null || nuevo === x?.calculado) && !x?.editado) return;
+    ir(async () => {
+      const g = await guardarRotura(fecha, cod, nuevo == null || nuevo === x?.calculado ? null : nuevo);
+      if ("error" in g && g.error) { setErr(g.error); return }
+      setErr(null); alGuardar();
+    });
+  }
+  return (
+    <li className="ad-rot">
+      <span>{ROTURA_PARTIDA} <small>
+        {x?.cajas ? `${nf.format(x.cajas)} cajas rotas · ` : ""}{corto(r.desde)}–{corto(r.hasta)}
+        {x?.editado && <> · corregida (calculado {nf.format(x.calculado)}) {puedeEditar && <button type="button" className="ad-rot-x" onClick={() => guardar("")}>restablecer</button>}</>}
+        {err && <span className="ad-rot-err"> · {err}</span>}
+      </small></span>
+      {edita
+        ? <input className="ad-rot-in" autoFocus inputMode="numeric" defaultValue={String(valor)} aria-label={`Unidades de rotura de ${cod}`}
+                 onFocus={(e) => e.currentTarget.select()} onBlur={(e) => guardar(e.currentTarget.value)}
+                 onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); if (e.key === "Escape") setEdita(false) }} />
+        : puedeEditar
+          ? <em><button type="button" className="ad-rot-v" onClick={() => setEdita(true)} title="Corregir la cantidad de roturas de este código">{n(valor)}</button></em>
+          : <em>{n(valor)}</em>}
+    </li>
+  );
+}
 
 export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs }: { datos: Datos; hoy: string; puedeEditar: boolean; guardadoEn: string | null; guardadoPor: string | null; obs: Record<string, string> }) {
   const router = useRouter();
@@ -48,6 +90,7 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
   const detalleLinea = (c: string) => (enLinea[c] ?? []).map((x) => `${x.tren} · ${x.sku} (${x.sap}) · ${x.turnos.map((t) => T[t] ?? t).join(", ")}${x.por === "caja" ? " · su caja" : ""}`).join("\n");
 
   const irA = (d: string) => router.push(`/inventario/balance/analisis?fecha=${d}`);
+  const irRot = (d: string, h: string) => router.push(`/inventario/balance/analisis?fecha=${fecha}&rd=${d}&rh=${h}`);
 
   async function subir(a: File) {
     setMsg(null); setErrores([]);
@@ -100,6 +143,12 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
         <div className="ad-dia"><span>Día</span>
           <SelectorDia valor={fecha} hoy={hoy} alCambiar={irA} />
         </div>
+        {datos.roturas && (
+          <div className="ad-dia" title="Roturas de Quiebra en sitio que suman al CONTEO de cada envase: por defecto, del 1 del mes al día del análisis">
+            <span>Roturas</span>
+            <SelectorRango desde={datos.roturas.desde} hasta={datos.roturas.hasta} hoy={fecha} alCambiar={irRot} />
+          </div>
+        )}
         <div className="ad-carga">
           <b>{datos.carga ? "Plantilla cargada" : "Falta la plantilla del día"}</b>
           <small>{datos.carga ? `${datos.carga.archivo ?? "—"} · ${datos.carga.filas} filas${datos.carga.subido_en ? " · " + new Date(datos.carga.subido_en).toLocaleString("es-CO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""}`
@@ -174,6 +223,8 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
                                   <div><span className="ad-ub-pos"><UbicacionesDif fila={f} fecha={datos.fecha} /></span><b>CONTEO · {n(f.conteo)}</b><ul>{f.deConteo.map((p) => p.detalle?.length ? (
                                     <li key={p.nombre} className="ad-grp"><details><summary><span>{p.nombre} <small>({p.detalle.length} {p.detalle.length === 1 ? "producto" : "productos"} · ver cuáles)</small></span><em>{n(p.cantidad)}</em></summary>
                                       <ul>{p.detalle.map((d) => <li key={d.nombre}><span>{d.nombre}</span><em>{n(d.cantidad)}</em></li>)}</ul></details></li>
+                                  ) : p.nombre === ROTURA_PARTIDA && datos.roturas ? (
+                                    <RoturaLinea key={p.nombre} cod={f.codigo} fecha={fecha} valor={p.cantidad} puedeEditar={puedeEditar} r={datos.roturas} alGuardar={() => router.refresh()} />
                                   ) : <li key={p.nombre}><span>{p.nombre}</span><em>{n(p.cantidad)}</em></li>)}{!f.deConteo.length && <li><span>—</span></li>}</ul>
                                   
                                     {f.fuera && f.fuera.length > 0 && (() => { const tf = f.fuera!.reduce((t, p) => t + p.cantidad, 0); return (
