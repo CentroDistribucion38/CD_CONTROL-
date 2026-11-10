@@ -49,7 +49,11 @@ export type TotConteo = { renglones: number; cajas: number; estibas: number; pla
 /** Un movimiento 311 del Cuadre SAP de AG18, AG17 o AG16 contra AG22. `movido` es el neto en ese almacén: + entra a ese almacén (sale de AG22), − sale de ese almacén (entra a AG22). */
 export type Mov311 = { almacen: string; codigo: string; descripcion: string; grupo: string; movido: number; documentos: string[]; entraAlAnalisis: boolean;
   /** Del Cuadre SAP de ese almacén ese día: lo contado allá, el SAP después de los 311 y lo que QUEDÓ sin cuadrar (SAP después − conteo). */
-  conteoAlm: number | null; sapDespues: number | null; queda: number | null };
+  conteoAlm: number | null; sapDespues: number | null; queda: number | null;
+  /** Lo que dice la MB51 subida en la plantilla (hoja «311 MB51») para ese almacén y código, con el mismo signo que `movido`. Falta si no se subió. */
+  mb51?: number | null;
+  /** El cruce de la ZEXI contra la MB51: cuadra · difiere (mismo código, otra cantidad) · solo-mb51 (la MB51 lo trae y la ZEXI no) · sin-mb51 (la ZEXI lo mueve y la MB51 no lo trae) · otro-alm (almacén que el cuadre no sigue). */
+  cruce?: "cuadra" | "difiere" | "solo-mb51" | "sin-mb51" | "otro-alm" };
 /** Las roturas de Quiebra en sitio que sumaron al CONTEO, por código de envase. */
 export type RoturaCod = { cajas: number; unidades: number; calculado: number; editado: boolean; nota: string | null; n: number };
 export type RoturasAnalisis = { desde: string; hasta: string; porCodigo: Record<string, RoturaCod>; total: number; falta: string | null };
@@ -108,6 +112,43 @@ function movs311DeCuadre(c: { filas: { codigo: string | number; material?: strin
   }));
 }
 
+/** LA MB51 DE LA PLANTILLA contra los 311 de la ZEXI: por almacén y código, la cantidad neta de la MB51 se compara con lo movido que sacó el cuadre.
+ *  Los que solo trae la MB51 se agregan como renglones nuevos. Si ese día no se subió MB51, los movimientos quedan tal cual. */
+type FilaMb51Db = { almacen: string; codigo: string; cantidad: number | string; documento: string | null };
+function cruzarMb51(movs: Mov311[], mb: FilaMb51Db[], nombre: (c: string) => string): Mov311[] {
+  if (!mb.length) return movs;
+  const neto = new Map<string, { n: number; docs: Set<string> }>();
+  for (const f of mb) {
+    const k = `${f.almacen}|${f.codigo}`;
+    const a = neto.get(k) ?? { n: 0, docs: new Set<string>() };
+    a.n += Number(f.cantidad) || 0; if (f.documento) a.docs.add(f.documento);
+    neto.set(k, a);
+  }
+  const vistos = new Set<string>();
+  const cruzados: Mov311[] = movs.map((m): Mov311 => {
+    const k = `${m.almacen}|${m.codigo}`; vistos.add(k);
+    const e = neto.get(k);
+    if (!e) return { ...m, mb51: null, cruce: "sin-mb51" as const };
+    const n = Math.round(e.n * 100) / 100;
+    return { ...m, mb51: n, cruce: Math.abs(n - m.movido) < 0.5 ? "cuadra" as const : "difiere" as const };
+  });
+  const SEGUIDOS = new Set(["AG18", "AG17", "AG16"]);
+  for (const [k, e] of neto) {
+    if (vistos.has(k)) continue;
+    const [almacen, codigo] = k.split("|");
+    if (almacen === "AG22") continue; // AG22 es la contraparte de todos los demás: no tiene renglón propio
+    const n = Math.round(e.n * 100) / 100;
+    if (Math.abs(n) < 0.5) continue;
+    cruzados.push({ almacen, codigo, descripcion: nombre(codigo), grupo: "ENVASE", movido: 0, documentos: [...e.docs], entraAlAnalisis: false,
+      conteoAlm: null, sapDespues: null, queda: null, mb51: n, cruce: SEGUIDOS.has(almacen) ? "solo-mb51" as const : "otro-alm" as const });
+  }
+  return cruzados;
+}
+async function leerMb51(supabase: Awaited<ReturnType<typeof createClient>>, fecha: string): Promise<FilaMb51Db[]> {
+  const { data, error } = await supabase.from("analisis_dif_mb51").select("almacen, codigo, cantidad, documento").eq("fecha", fecha).limit(5000);
+  return error ? [] : ((data ?? []) as FilaMb51Db[]);
+}
+
 /** Solo los 311 del día (para los pasos Ajustes y Análisis final, que no recalculan todo el análisis). */
 export async function leerMovimientos311(fecha: string): Promise<Mov311[]> {
   const supabase = await createClient();
@@ -119,7 +160,7 @@ export async function leerMovimientos311(fecha: string): Promise<Mov311[]> {
     if (c.fecha !== fecha || !c.guardado?.zexi?.length) continue;
     salida.push(...movs311DeCuadre(c, alm, (k) => nom.get(k) ?? k));
   }
-  return salida;
+  return cruzarMb51(salida, await leerMb51(supabase, fecha), (k) => nom.get(k) ?? k);
 }
 
 export async function armarAnalisis(fecha: string, rDesde?: string, rHasta?: string): Promise<Analisis> {
@@ -672,7 +713,7 @@ export async function armarAnalisis(fecha: string, rDesde?: string, rHasta?: str
     maestroSistema[c] = { upc: Number(m.unidades_por_caja) || 1, cpe: Number(m.cajas_por_estiba) || 0, caja: m.caja ? String(m.caja) : maestroSistema[c]?.caja ?? null };
   }
 
-  return { fecha, filas, fuentes, avisos, roturas: roturasA, novedades, movimientos311, noEntran: noEntran.sort(), faltaSql, carga, contados, existencias, enLinea, maestroSistema, sinCaja: [...sinCajaMap.values()].map((x) => ({ ...x, cajas: Math.round(x.cajas) })).sort((x, y) => y.cajas - x.cajas),
+  return { fecha, filas, fuentes, avisos, roturas: roturasA, novedades, movimientos311: cruzarMb51(movimientos311, await leerMb51(supabase, fecha), nombre), noEntran: noEntran.sort(), faltaSql, carga, contados, existencias, enLinea, maestroSistema, sinCaja: [...sinCajaMap.values()].map((x) => ({ ...x, cajas: Math.round(x.cajas) })).sort((x, y) => y.cajas - x.cajas),
     cartones: [...cartonMap.values()].map((x) => ({ ...x, cajas: Math.round(x.cajas) })).sort((x, y) => y.cajas - x.cajas),
     conCaja: [...conCajaMap.values()].map((x) => ({ ...x, cajas: Math.round(x.cajas) })).sort((x, y) => y.cajas - x.cajas),
     cajasLista: cajasPlasticas.map((m) => ({ codigo: String(m.codigo), nombre: String(m.descripcion ?? m.codigo) })).sort((x, y) => x.nombre.localeCompare(y.nombre)) };

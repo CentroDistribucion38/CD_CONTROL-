@@ -30,12 +30,33 @@ export async function guardarNovedades(fecha: string, filasJson: string, archivo
   return { ok: true, filas: filas.length };
 }
 
+/** LOS 311 DE LA MB51 (hoja «311 MB51» de la plantilla): reemplaza lo que hubiera de ese día. Sirven para cruzarlos con la ZEXI en «Partidas de los 311». */
+export async function guardarMb51(fecha: string, filasJson: string, archivo: string) {
+  if (!esDia(fecha)) return { error: "La plantilla no trae una fecha válida." };
+  let filas: { almacen: string; codigo: string; cantidad: number; documento: string | null; hora: string | null }[] = [];
+  try { filas = JSON.parse(filasJson) } catch { return { error: "No se pudo leer la hoja 311 MB51." } }
+  filas = (Array.isArray(filas) ? filas : []).filter((f) => f && /^AG\d{2}$/.test(String(f.almacen)) && /^\d+$/.test(String(f.codigo)) && Number.isFinite(Number(f.cantidad)) && Number(f.cantidad) !== 0);
+  const supabase = await createClient();
+  const d = await supabase.from("analisis_dif_mb51").delete().eq("fecha", fecha);
+  if (d.error) return { error: /analisis_dif_mb51|does not exist|PGRST205/i.test(d.error.message) ? "Falta correr supabase/migraciones/2026-11-analisis-diferencia-mb51.sql en Supabase." : d.error.message };
+  if (filas.length) {
+    const i = await supabase.from("analisis_dif_mb51").insert(filas.map((f) => ({
+      fecha, almacen: f.almacen, codigo: String(f.codigo), cantidad: Math.round(Number(f.cantidad) * 100) / 100,
+      documento: f.documento ? String(f.documento).slice(0, 60) : null, hora: f.hora ? String(f.hora).slice(0, 20) : null, archivo: archivo.slice(0, 200),
+    })));
+    if (i.error) return { error: i.error.message };
+  }
+  revalidatePath(RUTA);
+  return { ok: true, filas: filas.length };
+}
+
 /** Quitar la plantilla de un día (para subirla de nuevo). */
 export async function quitarNovedades(fecha: string) {
   if (!esDia(fecha)) return { error: "Día inválido." };
   const supabase = await createClient();
   const { error } = await supabase.from("analisis_dif_novedades").delete().eq("fecha", fecha);
   if (error) return { error: falta(`${error.code} ${error.message}`) };
+  await supabase.from("analisis_dif_mb51").delete().eq("fecha", fecha); // si la tabla aún no existe, no pasa nada
   revalidatePath(RUTA);
   return { ok: true };
 }

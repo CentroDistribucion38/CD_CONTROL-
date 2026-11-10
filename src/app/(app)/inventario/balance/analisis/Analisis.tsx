@@ -4,7 +4,7 @@ import { Existencias } from "./Existencias";
 import { Fragment, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Analisis as Datos, FilaAnalisis } from "@/modulos/inventario/analisis-dif";
-import { guardarAnalisis, guardarNovedades, quitarNovedades, guardarRotura } from "./actions";
+import { guardarAnalisis, guardarNovedades, guardarMb51, quitarNovedades, guardarRotura } from "./actions";
 import { ROTURA_PARTIDA } from "@/modulos/inventario/compensa";
 import { leerPlantilla } from "./leer-plantilla";
 import { Avisos } from "./Avisos";
@@ -99,9 +99,16 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
     if (r.errores.length) { setErrores(r.errores); setMsg({ mal: true, t: `La plantilla tiene ${r.errores.length} ${r.errores.length === 1 ? "fila con problema" : "filas con problemas"}: corrígelas y vuelve a subirla. No se subió nada.` }); return }
     const dia = r.fecha ?? fecha;
     start(async () => {
-      const g = await guardarNovedades(dia, JSON.stringify(r.filas), a.name);
-      if ("error" in g && g.error) { setMsg({ mal: true, t: g.error }); return }
-      setMsg({ t: `Plantilla del ${largo(dia)} cargada: ${r.filas.length} filas. Abajo está el análisis.` });
+      if (r.filas.length) {
+        const g = await guardarNovedades(dia, JSON.stringify(r.filas), a.name);
+        if ("error" in g && g.error) { setMsg({ mal: true, t: g.error }); return }
+      }
+      /* Los 311 de la MB51 (hoja «311 MB51»): se guardan aparte y se cruzan con la ZEXI en «Partidas de los 311». */
+      if (r.mb51.length) {
+        const m = await guardarMb51(dia, JSON.stringify(r.mb51), a.name);
+        if ("error" in m && m.error) { setMsg({ mal: true, t: m.error }); return }
+      }
+      setMsg({ t: `Plantilla del ${largo(dia)} cargada: ${r.filas.length} filas${r.mb51.length ? ` y ${r.mb51.length} movimientos 311 de la MB51 (se cruzan con la ZEXI en «Partidas de los 311»)` : ""}. Abajo está el análisis.` });
       if (dia !== fecha) irA(dia); else router.refresh();
     });
   }

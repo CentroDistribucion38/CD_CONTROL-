@@ -12,7 +12,9 @@ const codigo = (v: Celda) => txt(v).replace(/\.0+$/, "");
 
 const ZEXI_PRODUCTO = "ZEXI PRODUCTO";
 export type FilaPlantilla = { tipo: string; lado: "CONTEO" | "SAP" | "NO SUMA"; documento: string | null; codigo: string; unidades: number; caja_codigo: string | null; cajas: number | null };
-export type Lectura = { fecha: string | null; filas: FilaPlantilla[]; errores: string[] };
+/** Una línea de la MB51 (movimiento 311): cantidad con signo, + entra al almacén, − sale de él. */
+export type FilaMb51 = { almacen: string; codigo: string; cantidad: number; documento: string | null; hora: string | null };
+export type Lectura = { fecha: string | null; filas: FilaPlantilla[]; errores: string[]; mb51: FilaMb51[] };
 
 /** El maestro del sistema: lo que se usa cuando la hoja MAESTRO de la plantilla no trae el código o no trae su caja. */
 export type MaestroSistema = Record<string, { upc: number; cpe: number; caja: string | null }>;
@@ -21,7 +23,7 @@ export async function leerPlantilla(archivo: File, sistema: MaestroSistema = {})
   const XLSX = await import("xlsx");
   const libro = XLSX.read(await archivo.arrayBuffer(), { type: "array" });
   const hoja = (n: string) => libro.Sheets[n];
-  if (!hoja("NOVEDADES") || !hoja("TIPOS") || !hoja("MAESTRO")) return { fecha: null, filas: [], errores: ["Ese archivo no es la plantilla de novedades (le faltan las hojas NOVEDADES, TIPOS o MAESTRO)."] };
+  if (!hoja("NOVEDADES") || !hoja("TIPOS") || !hoja("MAESTRO")) return { fecha: null, filas: [], errores: ["Ese archivo no es la plantilla de novedades (le faltan las hojas NOVEDADES, TIPOS o MAESTRO)."], mb51: [] };
   const filas = (n: string) => XLSX.utils.sheet_to_json<Celda[]>(hoja(n), { header: 1, raw: true, defval: null });
 
   const tipos = new Map<string, { lado: string; pide: boolean; caja: boolean }>();
@@ -76,6 +78,23 @@ export async function leerPlantilla(archivo: File, sistema: MaestroSistema = {})
     out.push({ tipo, lado: t.lado as FilaPlantilla["lado"], documento: doc, codigo: cod, unidades,
       caja_codigo: conCaja ? cajaDe : null, cajas: conCaja ? Math.floor(unidades / m.upc) : null });
   });
-  if (!out.length && !errores.length) errores.push("La plantilla está vacía: llena al menos una fila en NOVEDADES.");
-  return { fecha, filas: out, errores };
+
+  /* LA HOJA «311 MB51» (opcional): lo que salió de la MB51. Material, almacén, cantidad con signo, documento y hora. */
+  const mb51: FilaMb51[] = [];
+  if (hoja("311 MB51")) {
+    filas("311 MB51").slice(5).forEach((f, i) => {
+      const fila = i + 6;
+      const cod = codigo(f[0]), alm = txt(f[1]).toUpperCase().replace(/\s+/g, "");
+      if (!cod && !alm && !txt(f[2])) return;
+      if (!/^\d+$/.test(cod)) { errores.push(`311 MB51, fila ${fila}: falta el material (o no es un número).`); return }
+      if (!/^AG\d{2}$/.test(alm)) { errores.push(`311 MB51, fila ${fila}: el almacén debe ser como AG18 (dice «${alm || "vacío"}»).`); return }
+      const cant = num(f[2]);
+      if (!cant) { errores.push(`311 MB51, fila ${fila}: falta la cantidad.`); return }
+      const h = f[4];
+      const hora = typeof h === "number" && h >= 0 && h < 1 ? new Date(Math.round(h * 86400) * 1000).toISOString().slice(11, 19) : txt(h) || null;
+      mb51.push({ almacen: alm, codigo: cod, cantidad: cant, documento: txt(f[3]) || null, hora });
+    });
+  }
+  if (!out.length && !mb51.length && !errores.length) errores.push("La plantilla está vacía: llena al menos una fila en NOVEDADES o en 311 MB51.");
+  return { fecha, filas: out, errores, mb51 };
 }
