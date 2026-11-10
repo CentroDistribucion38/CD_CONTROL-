@@ -51,6 +51,8 @@ export function UbicacionesDif({ fila, fecha }: { fila: FilaAnalisis; fecha: str
   const unidad = unidadDe(fila);
   const pct = (v: number) => (fila.conteo ? `${Math.round((Math.abs(v) / Math.abs(fila.conteo)) * 100)}%` : "—");
   const dif = fila.diferencia;
+  const tope = Math.max(1, ...ubis.map((u) => Math.abs(u.cantidad)), Math.abs(sinUbi));
+  const fechaLarga = new Date(fecha + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).replace(/^./, (c) => c.toUpperCase());
 
   /* La tarjeta a PNG. El html2canvas se carga solo cuando se usa. */
   async function armar(): Promise<Blob> {
@@ -110,39 +112,44 @@ export function UbicacionesDif({ fila, fecha }: { fila: FilaAnalisis; fecha: str
 
             <div className="ub-scroll">
               <div id="ub-foto" ref={foto} className="ub-foto">
-                <header className="ub-cab">
-                  <p className="ub-ojo">UBICACIONES · BODEGA 38 · {fecha}</p>
-                  <h2 id="ub-titulo"><span className="ub-cod">{fila.codigo}</span> {fila.descripcion}</h2>
-                </header>
-
-                <div className="ub-kpis">
-                  <div><small>SAP</small><b>{n(fila.sap)}</b></div>
-                  <div><small>Conteo</small><b>{n(fila.conteo)}</b></div>
-                  <div className={dif < 0 ? "neg" : dif > 0 ? "pos" : ""}><small>Diferencia</small><b>{signo(dif)}</b></div>
+                <div className="ub-top">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/marca/logo-bavaria.png" alt="Bavaria" height={34} />
+                  <span>CD Barranquilla · Bodega 38<br />{fechaLarga}</span>
+                </div>
+                <div className="ub-tit">
+                  <p className="ub-ojo">DÓNDE SE CONTÓ</p>
+                  <h2 id="ub-titulo"><span className="ub-cod">{fila.codigo}</span><span className="ub-desc">{fila.descripcion}</span></h2>
                 </div>
 
-                <table className="ub-t">
-                  <thead><tr><th>Ubicación</th><th className="n">Contado ({unidad})</th><th className="n">% del conteo</th></tr></thead>
-                  <tbody>
-                    {ubis.length === 0 && <tr><td colSpan={3} className="ub-vacio">Este código no tiene ubicación en el conteo: lo que suma viene de casco con baja o de novedades.</td></tr>}
-                    {ubis.map((u) => (
-                      <tr key={u.ubicacion}>
-                        <td className="ub-u">{u.ubicacion}</td>
-                        <td className={"n" + (u.cantidad < 0 ? " neg" : "")}>{n(u.cantidad)}</td>
-                        <td className="n ub-p">{pct(u.cantidad)}</td>
-                      </tr>
-                    ))}
-                    {ubis.length > 0 && Math.abs(sinUbi) >= 1 && (
-                      <tr className="ub-sin">
-                        <td className="ub-u">Sin ubicación <small>(casco con baja, novedades)</small></td>
-                        <td className={"n" + (sinUbi < 0 ? " neg" : "")}>{signo(sinUbi)}</td>
-                        <td className="n ub-p">{pct(sinUbi)}</td>
-                      </tr>
-                    )}
-                  </tbody>
-                  <tfoot><tr><td>Total contado · {ubis.length} {ubis.length === 1 ? "ubicación" : "ubicaciones"}</td><td className="n">{n(fila.conteo)}</td><td /></tr></tfoot>
-                </table>
-                <p className="ub-pie">SAP no se lleva por ubicación: la diferencia ({signo(dif)}) se lee contra el total contado.</p>
+                <div className="ub-kpis">
+                  <div className="s"><small>SAP</small><b>{n(fila.sap)}</b></div>
+                  <div><small>Conteo</small><b>{n(fila.conteo)}</b></div>
+                  <div className={"d" + (dif < 0 ? " neg" : dif > 0 ? " pos" : "")}><small>Diferencia</small><b>{signo(dif)}</b></div>
+                </div>
+
+                <div className="ub-h"><span>Ubicación</span><span>Contado ({unidad})</span><span className="n">Un.</span><span className="n">%</span></div>
+                <div className="ub-l">
+                  {ubis.length === 0 && <p className="ub-vacio">Este código no tiene ubicación en el conteo: lo que suma viene de casco con baja o de novedades.</p>}
+                  {ubis.map((u, i) => (
+                    <div key={u.ubicacion} className={"ub-r" + (i === 0 ? " p1" : "")}>
+                      <span className="ub-u">{u.ubicacion}</span>
+                      <div className="ub-tr"><i style={{ width: `${Math.max(1, Math.round((Math.abs(u.cantidad) / tope) * 100))}%` }} /></div>
+                      <span className={"ub-v" + (u.cantidad < 0 ? " neg" : "")}>{n(u.cantidad)}</span>
+                      <span className="ub-p">{pct(u.cantidad)}</span>
+                    </div>
+                  ))}
+                  {ubis.length > 0 && Math.abs(sinUbi) >= 1 && (
+                    <div className="ub-r ub-sin">
+                      <span className="ub-u">Sin ubicación<small>casco con baja, novedades</small></span>
+                      <div className="ub-tr"><i style={{ width: `${Math.max(1, Math.round((Math.abs(sinUbi) / tope) * 100))}%` }} /></div>
+                      <span className={"ub-v" + (sinUbi < 0 ? " neg" : "")}>{signo(sinUbi)}</span>
+                      <span className="ub-p">{pct(sinUbi)}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="ub-tot"><span>Total contado · {ubis.length} {ubis.length === 1 ? "ubicación" : "ubicaciones"}</span><b>{n(fila.conteo)}</b></div>
+                <p className="ub-pie"><span>SAP no se lleva por ubicación: la diferencia ({signo(dif)}) se lee contra el total contado.</span><span>Control CD38 · Bavaria</span></p>
               </div>
             </div>
 

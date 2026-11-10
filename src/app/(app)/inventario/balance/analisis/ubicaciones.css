@@ -15,7 +15,7 @@
 .ad .ub-ico:focus-visible { outline: 3px solid var(--fe-tinta, #111); outline-offset: 2px }
 
 .ub-caja {
-  width: 100%; max-width: 560px; max-height: 92vh; display: flex; flex-direction: column;
+  width: 100%; max-width: 620px; max-height: 92vh; display: flex; flex-direction: column;
   background: #fff; box-shadow: 0 24px 60px rgba(4, 32, 63, .32); font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif; color: #111;
 }
 .ub-barra { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 8px 8px 16px; background: #f0f2f5; font-size: 12.5px; color: #4a5568 }
@@ -23,31 +23,44 @@
 .ub-x:focus-visible { outline: 3px solid #111; outline-offset: 2px }
 .ub-scroll { flex: 1; min-height: 0; overflow: auto }
 
-/* LA TARJETA: lo que sale en la imagen */
-.ub-foto { background: #fff; border-top: 4px solid #FFC400 }
-.ub-cab { padding: 14px 18px; background: #111; color: #fff }
-.ub-ojo { margin: 0 0 4px; font: 700 10.5px "IBM Plex Sans", system-ui, sans-serif; letter-spacing: .12em; color: #FFC400 }
-.ub-cab h2 { margin: 0; font: 800 17px/1.25 "Archivo", system-ui, sans-serif }
-.ub-cod { font-family: ui-monospace, "IBM Plex Mono", monospace; color: #FFC400 }
-.ub-kpis { display: grid; grid-template-columns: repeat(3, 1fr); border-bottom: 1px solid #d5dce5 }
-.ub-kpis div { padding: 10px 14px; border-left: 1px solid #d5dce5 }
-.ub-kpis div:first-child { border-left: 0 }
-.ub-kpis small { display: block; font: 700 10.5px "IBM Plex Sans", system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: #5b6b7f }
-.ub-kpis b { display: block; margin-top: 2px; font: 800 22px "Archivo", system-ui, sans-serif; font-variant-numeric: tabular-nums }
+/* LA TARJETA: lo que sale en la imagen — ficha clara con la marca, una barra por ubicación y su % del conteo */
+.ub-foto { background: #fff; border-top: 6px solid #E60012 }
+.ub-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 20px 10px }
+.ub-top img { height: 34px; width: auto }
+.ub-top span { font: 600 12px/1.35 "IBM Plex Sans", system-ui, sans-serif; color: #5b6b7f; text-align: right }
+.ub-tit { padding: 0 20px 12px; border-bottom: 1px solid #e6e9ee }
+.ub-ojo { margin: 0; font: 700 10.5px "IBM Plex Sans", system-ui, sans-serif; letter-spacing: .16em; color: #E60012 }
+.ub-tit h2 { margin: 2px 0 0; display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; font: 900 24px/1.2 "Archivo", system-ui, sans-serif; letter-spacing: -.02em }
+.ub-cod { font-family: inherit; color: #111 }
+.ub-desc { font: 500 14px "IBM Plex Sans", system-ui, sans-serif; letter-spacing: 0; color: #4a5568 }
+.ub-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 12px 20px }
+.ub-kpis div { padding: 9px 12px; border: 1px solid #d5dce5; border-top: 4px solid #111 }
+.ub-kpis .s { border-top-color: #9aa4b2 }
+.ub-kpis .d { border-top-color: #C8102E; background: #FFF5F6 }
+.ub-kpis .d.pos { border-top-color: #0F7A4A; background: #F1FAF5 }
+.ub-kpis small { display: block; font: 700 10.5px "IBM Plex Sans", system-ui, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: #5b6b7f }
+.ub-kpis b { display: block; margin-top: 1px; font: 900 22px "Archivo", system-ui, sans-serif; letter-spacing: -.03em; font-variant-numeric: tabular-nums }
 .ub-kpis .neg b { color: #C8102E }
 .ub-kpis .pos b { color: #0F7A4A }
-.ub-t { width: 100%; border-collapse: collapse; font-size: 14px }
-.ub-t th { text-align: left; padding: 8px 14px; background: #f0f2f5; font: 700 10.5px "IBM Plex Sans", system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: #5b6b7f; white-space: nowrap }
-.ub-t td { padding: 8px 14px; border-top: 1px solid #e6e9ee; vertical-align: top }
-.ub-t .n { text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap }
-.ub-t .neg { color: #C8102E }
-.ub-u { font: 700 13.5px ui-monospace, "IBM Plex Mono", monospace }
-.ub-u small { font: 500 11.5px "IBM Plex Sans", system-ui, sans-serif; color: #5b6b7f }
-.ub-p { font-weight: 500 !important; color: #5b6b7f }
-.ub-sin td { background: #fafafa }
-.ub-vacio { text-align: center; color: #5b6b7f; padding: 20px 14px !important }
-.ub-t tfoot td { padding: 10px 14px; font-weight: 800; background: #111; color: #fff; border-top: 0 }
-.ub-pie { margin: 0; padding: 9px 16px 12px; font-size: 12px; color: #5b6b7f }
+.ub-h, .ub-r { display: grid; grid-template-columns: 128px minmax(40px, 1fr) 76px 40px; align-items: center; gap: 10px }
+.ub-h { padding: 8px 20px; background: #111; color: #fff; font: 700 10.5px "IBM Plex Sans", system-ui, sans-serif; letter-spacing: .1em; text-transform: uppercase }
+.ub-h .n { text-align: right }
+.ub-l { padding: 0 20px 6px }
+.ub-r { padding: 6px 0; border-top: 1px solid #eef0f3; font-size: 13.5px }
+.ub-r:first-child { border-top: 0 }
+.ub-u { font: 600 12.5px ui-monospace, "IBM Plex Mono", monospace; overflow-wrap: anywhere }
+.ub-u small { display: block; font: 500 10.5px "IBM Plex Sans", system-ui, sans-serif; color: #5b6b7f }
+.ub-tr { height: 14px; background: #eef1f5 }
+.ub-tr i { display: block; height: 100%; background: #111 }
+.ub-r.p1 .ub-tr i { background: #E60012 }
+.ub-sin .ub-tr i { background: #9aa4b2 }
+.ub-v { text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap }
+.ub-v.neg { color: #C8102E }
+.ub-p { text-align: right; font: 600 12.5px "IBM Plex Sans", system-ui, sans-serif; color: #5b6b7f; font-variant-numeric: tabular-nums }
+.ub-vacio { margin: 0; padding: 20px 0; text-align: center; color: #5b6b7f; font-size: 13px }
+.ub-tot { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: #111; color: #fff; font-weight: 700; font-size: 13.5px }
+.ub-tot b { font: 900 16px "Archivo", system-ui, sans-serif; font-variant-numeric: tabular-nums }
+.ub-pie { display: flex; justify-content: space-between; gap: 12px; margin: 0; padding: 9px 20px 11px; background: #f0f2f5; font-size: 11.5px; color: #5b6b7f }
 
 .ub-acc { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-top: 1px solid #d5dce5 }
 .ub-bt { display: inline-flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 16px; cursor: pointer; font: 700 14px "IBM Plex Sans", system-ui, sans-serif; color: #fff; background: #111; border: 1.5px solid #111; border-radius: 0; box-shadow: inset 0 -3px 0 #FFC400 }
@@ -55,4 +68,4 @@
 .ub-bt:disabled { opacity: .55; cursor: default }
 .ub-bt:focus-visible { outline: 3px solid #FFC400; outline-offset: 2px }
 .ub-aviso { flex: 1; min-width: 160px; font-size: 13px; color: #0F5E3A }
-@media (max-width: 520px) { .ub-kpis b { font-size: 18px } }
+@media (max-width: 520px) { .ub-kpis b { font-size: 17px } .ub-h, .ub-r { grid-template-columns: 96px minmax(24px, 1fr) 64px 34px } }
