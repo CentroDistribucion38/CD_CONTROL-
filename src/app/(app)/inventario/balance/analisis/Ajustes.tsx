@@ -6,6 +6,7 @@ import { InformeCierre } from "./InformeCierre";
 import type { FilaAjuste, Guardado } from "@/modulos/inventario/analisis-ajustes";
 import type { Mov311 } from "@/modulos/inventario/analisis-dif";
 import { guardarHecho, guardarObservacion } from "./actions";
+import { Partidas311 } from "./Partidas311";
 import { EtiquetaEnLinea, LeyendaEnLinea, type MapaEnLinea } from "./EnLinea";
 
 /**
@@ -131,7 +132,7 @@ export function Ajustes({ fecha, guardado, filas: inicio, puedeEditar, faltaSql,
           <table className="ad-t ad-piv ad-aj">
             <thead><tr>
               <th>Familia</th><th>Código</th><th>Descripción</th><th className="n">Diferencia</th>
-              <th>Compensa con</th><th className="n">Compensación</th><th className="n">Ajuste</th><th>Sentido</th><th className="hecho">Hecho en SAP</th><th className="obs">Observación</th>
+              <th>Compensa con</th><th className="n">Compensación</th><th className="n">Ajuste</th><th>Sentido</th><th className="hecho">Ajustado en SAP</th><th className="obs">Observación del ajuste</th>
             </tr></thead>
             <tbody>
               {familias.map(([fam, xs]) => (
@@ -151,14 +152,15 @@ export function Ajustes({ fecha, guardado, filas: inicio, puedeEditar, faltaSql,
                           <div className="ad-hecho">
                             {f.compensa !== 0 && <span className="ad-auto" title="El NUEVO contado en el retornable ya se pasó a su NR: no hay que marcar nada">Compensación automática</span>}
                             {f.ajuste !== 0 && (
-                              <label><input type="checkbox" disabled={!puedeEditar} checked={f.ajusteHecho != null && f.ajusteHecho !== 0}
-                                            onChange={(e) => void marcar(f, f.compHecha, e.target.checked ? f.ajuste : null)} /> Ajuste
-                                {f.ajusteHecho != null && f.ajusteHecho !== 0 && (
-                                  <input type="number" className="ad-cant" disabled={!puedeEditar} defaultValue={f.ajusteHecho} key={`${f.codigo}-${f.ajusteHecho}`}
-                                         title="Cuánto se hizo (si fue solo una parte, cámbialo)"
-                                         onBlur={(e) => { const v = Number(e.currentTarget.value); if (Number.isFinite(v) && v !== f.ajusteHecho) void marcar(f, f.compHecha, v || null) }} />
-                                )}
-                              </label>
+                              <div className="ad-ajc">
+                                <input type="number" className="ad-cant ad-cant-aj" disabled={!puedeEditar} defaultValue={f.ajusteHecho ?? ""} key={`${f.codigo}-${f.ajusteHecho ?? "x"}`}
+                                       placeholder={signo(f.ajuste)} aria-label={`Ajuste hecho en SAP del ${f.codigo}`}
+                                       title="Lo que ajustaste en SAP, con su signo (−1.000 baja SAP en 1.000). Vacío = nada ajustado."
+                                       onBlur={(e) => { const t = e.currentTarget.value.trim(); const v = t === "" ? null : Number(t); if (v != null && !Number.isFinite(v)) return; if ((v || null) !== (f.ajusteHecho || null)) void marcar(f, f.compHecha, v || null) }}
+                                       onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur() }} />
+                                {puedeEditar && f.ajusteHecho !== f.ajuste && <button type="button" className="ad-todo" title={`Poner todo el ajuste (${signo(f.ajuste)})`} onClick={() => void marcar(f, f.compHecha, f.ajuste)}>todo</button>}
+                                {f.ajusteHecho != null && f.ajusteHecho !== f.ajuste && <small className="ad-queda">queda {signo(f.ajuste - f.ajusteHecho)}</small>}
+                              </div>
                             )}
                             <i className={hEstado[f.codigo] ?? ""}>{hEstado[f.codigo] === "guardando" ? "…" : hEstado[f.codigo] === "ok" ? "✓" : hEstado[f.codigo] === "mal" ? "!" : ""}</i>
                           </div>
@@ -167,7 +169,7 @@ export function Ajustes({ fecha, guardado, filas: inicio, puedeEditar, faltaSql,
                       <td className="obs">
                         {puedeEditar ? (
                           <div className="ad-obs">
-                            <textarea rows={1} value={f.observacion} placeholder="Escribe la observación…"
+                            <textarea rows={1} value={f.observacion} placeholder="Qué se ajustó en SAP y por qué…"
                                       onChange={(e) => escribir(f.codigo, e.target.value)}
                                       onFocus={(e) => (e.currentTarget.dataset.antes = e.currentTarget.value)}
                                       onBlur={(e) => void guardar(f.codigo, e.currentTarget.value, e.currentTarget.dataset.antes ?? "")} />
@@ -188,6 +190,7 @@ export function Ajustes({ fecha, guardado, filas: inicio, puedeEditar, faltaSql,
         </div>
         <p className="ad-nota">Ajuste = diferencia + compensación. Se compensan 3500162 ↔ 412644, 3500446 ↔ 412671 y 3500213 ↔ 412707: lo que se contó del retornable en <b>estado NUEVO</b> es botella nueva (el NR), y se pasa al NR hasta cubrir lo que le falta. La observación se guarda sola al salir del campo. Marca en <b>Hecho en SAP</b> lo que ya se movió (si el ajuste fue solo una parte, cambia la cantidad): con eso se arma el análisis final{pendientes ? <> — faltan <b>{pendientes}</b> por hacer</> : <> — <b>todo hecho</b></>}.</p>
       </section>
+      <Partidas311 movimientos={movimientos311} />
     </>
   );
 }

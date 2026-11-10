@@ -384,3 +384,11 @@
 .ad .ad-rot-in:focus { outline: none; background: #FFFBEA }
 .ad .ad-rot-x { all: unset; cursor: pointer; color: var(--fe-gris); text-decoration: underline; font-size: 11.5px }
 .ad .ad-rot-err { color: #A50D25 }
+
+/* AJUSTES: la casilla del ajuste hecho en SAP siempre a la vista (con su signo) y el botón «todo». */
+.ad .ad-ajc { display: flex; align-items: center; flex-wrap: wrap; gap: 6px }
+.ad .ad-cant-aj { width: 104px; font-variant-numeric: tabular-nums }
+.ad .ad-todo { all: unset; cursor: pointer; font: 700 11.5px var(--fe-texto); color: var(--fe-gris); text-decoration: underline }
+.ad .ad-todo:hover { color: var(--fe-tinta) }
+.ad .ad-queda { flex: 1 1 100%; font: 600 11.5px var(--fe-texto); color: #A50D25 }
+.ad .ad-obs-final { max-width: 280px; font-size: 12.5px; color: var(--fe-tinta); white-space: pre-wrap }

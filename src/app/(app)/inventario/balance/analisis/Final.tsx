@@ -8,6 +8,7 @@ import type { FilaAjuste, Guardado } from "@/modulos/inventario/analisis-ajustes
 import { analisisFinal } from "@/modulos/inventario/compensa";
 import type { Mov311 } from "@/modulos/inventario/analisis-dif";
 import { guardarFinal } from "./actions";
+import { Partidas311 } from "./Partidas311";
 import { EtiquetaEnLinea, LeyendaEnLinea, type MapaEnLinea } from "./EnLinea";
 
 /**
@@ -105,7 +106,7 @@ export function Final({ fecha, guardado, ajustes, final, puedeEditar, faltaSql, 
           <table className="ad-t ad-piv ad-aj">
             <thead><tr>
               <th>Familia</th><th>Código</th><th>Descripción</th><th className="n">SAP inicial</th><th className="n">Compensación hecha</th>
-              <th className="n">Ajuste hecho</th><th className="n">SAP final</th><th className="n">Conteo</th><th className="n">Diferencia final</th><th>Estado</th>
+              <th className="n">Ajuste hecho</th><th className="n">SAP final</th><th className="n">Conteo</th><th className="n">Diferencia final</th><th>Estado</th><th>Observación del ajuste</th>
             </tr></thead>
             <tbody>
               {familias.map(([fam, xs]) => (
@@ -122,24 +123,26 @@ export function Final({ fecha, guardado, ajustes, final, puedeEditar, faltaSql, 
                       <td className="n">{n(f.conteo)}</td>
                       <td className={"n b" + (f.difFinal < 0 ? " neg" : f.difFinal > 0 ? " pos" : "")}>{f.difFinal ? signo(f.difFinal) : "0"}</td>
                       <td><span className={"ad-sent" + (f.difFinal === 0 ? (f.diferencia === 0 ? " ok" : " sobra") : " falta")}>{f.difFinal === 0 ? (f.diferencia === 0 ? "Cuadraba" : "Cuadrado ✓") : "Pendiente"}</span></td>
+                      <td className="ad-obs-final">{f.observacion || <span className="ad-na">—</span>}</td>
                     </tr>
                   ))}
                   <tr className="sub">
                     <td colSpan={3}>Total {fam.split(" · ")[0]}</td>
                     <td className="n">{n(s((f) => f.sap, xs))}</td><td className="n">{signo(s((f) => f.movComp, xs))}</td><td className="n">{signo(s((f) => f.movAjuste, xs))}</td>
-                    <td className="n">{n(s((f) => f.sapFinal, xs))}</td><td className="n">{n(s((f) => f.conteo, xs))}</td><td className="n">{signo(s((f) => f.difFinal, xs))}</td><td />
+                    <td className="n">{n(s((f) => f.sapFinal, xs))}</td><td className="n">{n(s((f) => f.conteo, xs))}</td><td className="n">{signo(s((f) => f.difFinal, xs))}</td><td /><td />
                   </tr>
                 </Fragment>
               ))}
             </tbody>
             <tfoot><tr>
               <td colSpan={3}>Total general</td><td className="n">{n(s((f) => f.sap))}</td><td className="n">{signo(s((f) => f.movComp))}</td><td className="n">{signo(s((f) => f.movAjuste))}</td>
-              <td className="n">{n(s((f) => f.sapFinal))}</td><td className="n">{n(s((f) => f.conteo))}</td><td className="n">{signo(fin)}</td><td />
+              <td className="n">{n(s((f) => f.sapFinal))}</td><td className="n">{n(s((f) => f.conteo))}</td><td className="n">{signo(fin)}</td><td /><td />
             </tr></tfoot>
           </table>
         </div>
         <p className="ad-nota">La compensación hecha mueve SAP al revés de la compensación (el retornable recibe lo del NR nuevo); el ajuste hecho lo mueve en su signo. Si todo se hizo, la diferencia final es cero.</p>
       </section>
+      <Partidas311 movimientos={movimientos311} />
     </>
   );
 }
