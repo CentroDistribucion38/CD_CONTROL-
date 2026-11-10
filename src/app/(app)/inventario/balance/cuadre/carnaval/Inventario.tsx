@@ -58,7 +58,13 @@ export function Inventario({ fecha, hoy, guardado, base, dias, puedeEditar, maes
   }
   function agregar(si: number, cod: string) {
     if (!cod || cod === SIN_SKU) return;
-    if (vista[si].filas.some((f) => f.codigo === cod)) { setAviso({ t: `El ${cod} ya está en ${vista[si].titulo}.`, mal: true }); return }
+    // Si el SKU ya está en la sección (a menudo escondido porque está en cero), no se duplica: se muestra la línea que ya existe.
+    const existentes = vista[si].filas.filter((f) => f.codigo === cod && f.ref >= 0);
+    if (vista[si].filas.some((f) => f.codigo === cod)) {
+      existentes.forEach((f) => tocar(si, f.ref));
+      setAviso({ t: `El ${cod} ya estaba en ${vista[si].titulo}: ahí lo tienes para llenarlo.` });
+      return;
+    }
     setAviso(null);
     tocar(si, secs[si]?.filas.length ?? 0);
     cambiar((all) => all.map((s, i) => i !== si ? s : { ...s, filas: [...s.filas, { concepto: mapa.get(cod) ?? cod, codigo: cod, a: 0, b: s.colB ? 0 : null }] }));

@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seguridad en roturas — prototipo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800;900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+:root{
+  --tinta:#14171C; --tinta-2:#1E232A; --oro:#FFC300; --oro-hondo:#B58200; --oro-suave:#FFF4CC;
+  --rojo:#C8102E; --rojo-s:#FDECEC; --verde:#1E7A3C; --verde-s:#E8F5EC; --amb:#8A5A00; --amb-s:#FFF1CC;
+  --papel:#FFFFFF; --fondo:#F3F5F8; --linea:#DEE3EA; --linea-2:#EEF1F5; --gris:#5F6B79; --gris-2:#8A94A1;
+  --titulo:"Archivo","Arial Narrow",system-ui,sans-serif; --texto:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:#3a3f47}
+body{font-family:var(--texto);color:var(--tinta);-webkit-font-smoothing:antialiased}
+/* ---- el fondo: la app detrás, atenuada ---- */
+.app{position:fixed;inset:0;background:#d9dde3;overflow:hidden}
+.app::before{content:"";position:absolute;left:0;right:0;top:0;height:64px;background:#e6e9ee;border-bottom:3px solid #e8c34b}
+.app::after{content:"";position:absolute;inset:0;background:rgba(8,14,24,.58)}
+#stage{position:absolute;inset:0;overflow:auto;z-index:5;padding:18px 0 90px}
+/* ---- LA VENTANA (toolbox) ---- */
+.tb{width:min(1240px,calc(100% - 32px));margin:0 auto;background:var(--papel);border:1px solid var(--linea);box-shadow:0 24px 60px rgba(0,0,0,.35)}
+.tb-cab{position:relative;display:flex;align-items:center;gap:18px;padding:18px 24px;background:var(--tinta);color:#fff;overflow:hidden}
+.tb-cab::before{content:"";position:absolute;inset:0;opacity:.4;background-image:repeating-linear-gradient(116deg,rgba(255,255,255,.07) 0 2px,transparent 2px 20px);pointer-events:none}
+.tb-cab>*{position:relative}
+.tb-sello{width:38px;height:38px;border:3px solid var(--oro);border-radius:50%;display:grid;place-items:center;font:900 17px var(--titulo);color:var(--oro);flex:none}
+.tb-ojo{font:700 10px var(--titulo);letter-spacing:.16em;color:#FFE08A}
+.tb-cab h2{font:900 26px var(--titulo);letter-spacing:-.03em;margin:4px 0 0}
+.tb-sub{font-size:12.5px;color:#D6DAE0;margin-top:3px}
+.tb-der{margin-left:auto;display:flex;gap:8px}
+.bt{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 14px;border:1px solid #3A3F46;background:#1B1F24;color:#fff;font:700 12.5px var(--texto);cursor:pointer}
+.bt:hover{border-color:#6B7280}
+.bt.oro{background:var(--oro);border-color:var(--oro);color:var(--tinta)}
+.bt svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.bt.x{width:40px;padding:0;justify-content:center;font-size:20px}
+/* ---- filtros ---- */
+.fil{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-end;padding:14px 24px;border-bottom:1px solid var(--linea);background:var(--fondo)}
+.fil label{display:block;font:700 10px var(--titulo);letter-spacing:.14em;color:var(--gris);margin-bottom:6px}
+.chips{display:flex}
+.chips button{height:32px;padding:0 13px;border:1px solid var(--linea);border-right:0;background:#fff;font:600 12.5px var(--texto);color:var(--tinta);cursor:pointer}
+.chips button:last-child{border-right:1px solid var(--linea)}
+.chips button[aria-pressed=true]{background:var(--tinta);color:#fff;border-color:var(--tinta)}
+.chips button:hover:not([aria-pressed=true]){background:#F7F9FC}
+.chips button:focus-visible{outline:2px solid var(--oro-hondo);outline-offset:1px}
+.fil .nota{margin-left:auto;font-size:12px;color:var(--gris);max-width:330px;text-align:right;line-height:1.4}
+/* ---- piezas ---- */
+.cuerpo{padding:20px 24px 24px;display:grid;gap:18px}
+.pan{background:#fff;border:1px solid var(--linea)}
+.pan>header{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--linea)}
+.pan h3{margin:0;font:800 11px var(--titulo);letter-spacing:.14em;color:var(--tinta);text-transform:uppercase}
+.pan header .nota{margin-left:auto;font-size:12px;color:var(--gris)}
+.pan .in{padding:16px}
+.kpis{display:grid;grid-template-columns:1.25fr repeat(5,1fr);border:1px solid var(--linea);background:#fff}
+.kpi{padding:14px 16px;border-right:1px solid var(--linea);display:flex;flex-direction:column;gap:3px;min-width:0}
+.kpi:last-child{border-right:0}
+.kpi span{font:700 10px var(--titulo);letter-spacing:.14em;color:var(--gris);text-transform:uppercase}
+.kpi b{font:900 32px/1.05 var(--titulo);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.kpi i{font-style:normal;font-size:11.5px;color:var(--gris)}
+.kpi.neg{background:var(--tinta);color:#fff;border-top:3px solid var(--oro)}
+.kpi.neg span,.kpi.neg i{color:#C9CFD8}
+.kpi.neg b{font-size:44px}
+.kpi.rojo b{color:var(--rojo)}
+.pill{display:inline-flex;align-items:center;height:20px;padding:0 8px;font:700 9.5px var(--titulo);letter-spacing:.09em;text-transform:uppercase;white-space:nowrap}
+.p-leve{background:var(--verde-s);color:var(--verde)}
+.p-int{background:var(--amb-s);color:var(--amb)}
+.p-grave{background:var(--rojo);color:#fff}
+.p-comp{background:var(--tinta);color:#fff}
+.p-cond{background:var(--oro);color:var(--tinta)}
+.p-ext{background:var(--linea-2);color:var(--gris)}
+.p-hecha{background:var(--verde-s);color:var(--verde)}
+.p-pend{background:var(--amb-s);color:var(--amb)}
+.p-venc{background:var(--rojo-s);color:var(--rojo);box-shadow:inset 0 0 0 1px var(--rojo)}
+.tabs{display:inline-flex}
+.tabs button{height:28px;padding:0 11px;border:1px solid var(--linea);border-right:0;background:#fff;font:600 12px var(--texto);color:var(--gris);cursor:pointer}
+.tabs button:last-child{border-right:1px solid var(--linea)}
+.tabs button[aria-pressed=true]{background:var(--oro);border-color:var(--oro);color:var(--tinta);font-weight:700}
+.tabs button:focus-visible{outline:2px solid var(--oro-hondo);outline-offset:1px}
+.num{font-variant-numeric:tabular-nums}
+.leg{display:flex;gap:16px;font-size:12px;color:var(--gris);align-items:center}
+.leg i{display:inline-block;width:11px;height:11px;margin-right:6px;vertical-align:-1px}
+table.t{width:100%;border-collapse:collapse;font-size:13px}
+table.t th{text-align:left;font:700 10px var(--titulo);letter-spacing:.13em;color:var(--gris);padding:9px 12px;border-bottom:2px solid var(--tinta);text-transform:uppercase;white-space:nowrap}
+table.t td{padding:10px 12px;border-bottom:1px solid var(--linea-2);vertical-align:middle}
+table.t tr:hover td{background:#FAFBFC}
+table.t .r{text-align:right}
+.pie{font-size:11.5px;color:var(--gris);line-height:1.55;padding:2px 24px 20px}
+/* ---- pareto horizontal ---- */
+.ph{display:grid;grid-template-columns:minmax(150px,1.1fr) 3fr 52px 58px;align-items:center;gap:0 12px;font-size:13px}
+.ph>*{padding:6px 0;border-bottom:1px solid var(--linea-2)}
+.ph .h{font:700 10px var(--titulo);letter-spacing:.13em;color:var(--gris);border-bottom:2px solid var(--tinta);text-transform:uppercase;padding:0 0 8px}
+.ph .h.r,.ph .v,.ph .a{text-align:right}
+.ph .b{height:16px;position:relative;background:linear-gradient(90deg,var(--linea-2),var(--linea-2)) no-repeat;}
+.ph .b em{position:absolute;left:0;top:0;bottom:0;display:block}
+.ph .v{font-weight:700;font-variant-numeric:tabular-nums}
+.ph .a{color:var(--gris);font-variant-numeric:tabular-nums}
+.ph .corte{grid-column:1/-1;padding:0;border:0;border-top:2px dashed var(--rojo);position:relative;height:0;margin:3px 0}
+.ph .corte span{position:absolute;right:0;top:-9px;background:#fff;padding:0 6px;font:700 9.5px var(--titulo);letter-spacing:.1em;color:var(--rojo)}
+/* ---- picker (harness) ---- */
+body.sinpicker .proto-picker{display:none}
+.proto-picker{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:2147483647;display:flex;align-items:center;gap:2px;padding:4px;border-radius:999px;background:rgba(10,10,10,.82);-webkit-backdrop-filter:blur(12px) saturate(1.4);backdrop-filter:blur(12px) saturate(1.4);box-shadow:0 0 0 1px rgba(255,255,255,.08) inset,0 8px 24px rgba(0,0,0,.24),0 2px 6px rgba(0,0,0,.12);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13px;line-height:1;-webkit-font-smoothing:antialiased;user-select:none;-webkit-user-select:none}
+.proto-picker-highlight{position:absolute;top:4px;left:0;height:28px;border-radius:999px;background:rgba(255,255,255,.12);will-change:transform}
+.proto-picker[data-ready] .proto-picker-highlight{transition:transform 250ms cubic-bezier(.23,1,.32,1),width 250ms cubic-bezier(.23,1,.32,1)}
+@media (prefers-reduced-motion:reduce){.proto-picker[data-ready] .proto-picker-highlight{transition:none}}
+.proto-picker-item{position:relative;display:flex;align-items:center;height:28px;padding:0 12px;border:0;border-radius:999px;background:transparent;color:rgba(255,255,255,.55);font:inherit;cursor:pointer;transition:color 150ms ease-out}
+.proto-picker-item:hover{color:rgba(255,255,255,.85)}
+.proto-picker-item:active{transform:scale(.97)}
+.proto-picker-item:focus-visible{outline:2px solid rgba(255,255,255,.4);outline-offset:2px}
+.proto-picker-item[data-active]{color:#fff}
+.proto-picker-divider{width:1px;height:16px;margin:0 4px;background:rgba(255,255,255,.12)}
+.proto-picker-replay{padding:0 10px;font-size:14px}
+.proto-picker[data-position=top]{bottom:auto;top:24px}
+/* ---- entrada (una sola, corta, ease-out) ---- */
+@keyframes ent{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.tb{animation:ent 220ms cubic-bezier(.23,1,.32,1)}
+@media (prefers-reduced-motion:reduce){.tb{animation:none}}
+.bar-w{transition:width 280ms cubic-bezier(.23,1,.32,1)}
+</style>
+</head>
+<body>
+<div class="app" aria-hidden="true"></div>
+<div id="stage"></div>
+
+<nav class="proto-picker" aria-label="Prototype variants">
+  <span class="proto-picker-highlight" aria-hidden="true"></span>
+  <button class="proto-picker-item" data-active aria-current="true">Mando</button>
+  <button class="proto-picker-item">Escalera</button>
+  <button class="proto-picker-item">Expediente</button>
+  <span class="proto-picker-divider" aria-hidden="true"></span>
+  <button class="proto-picker-replay proto-picker-item" aria-label="Replay animation (R)">↻</button>
+</nav>
+
+<script>
+/* =====================================================================
+   DATOS DE EJEMPLO (inventados, deterministas). La app real los lee de v_plan_eventos.
+   ===================================================================== */
+let seed = 20261104;
+const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+const pick = (arr, w) => { const t = w.reduce((a, b) => a + b, 0); let r = rnd() * t; for (let i = 0; i < arr.length; i++) { if ((r -= w[i]) < 0) return arr[i] } return arr[0] };
+
+const PERSONAS = [
+  ["Carlos Pérez R.", "Easy", "A"], ["Ana Mejía", "Easy", "A"], ["Jhon Barrios", "Easy", "B"], ["Yeison Ortega", "Easy", "C"],
+  ["Marta Cantillo", "Easy", "A"], ["Edwin Polo", "Easy", "B"], ["Dairo Mendoza", "Easy", "C"], ["Kevin Salcedo", "Easy", "A"],
+  ["Wilmer Daza", "Easy", "B"], ["Yadira Orozco", "Easy", "C"], ["Rafael Mercado", "Easy", "A"], ["Luz Marina Pardo", "Easy", "B"],
+];
+const PESO_P = [4, 3, 3, 3, 2, 3, 2, 2, 2, 1, 2, 1, 4]; // el último (-1) = sin responsable
+const CAUSAS = [
+  { n: "Comportamiento del personal", tipo: "comp", sub: "Comportamiento" },
+  { n: "Estibas en mal estado", tipo: "cond", sub: "Estiba en mal estado" },
+  { n: "Módulo mal arrumado", tipo: "cond", sub: "Estiba en mal estado" },
+  { n: "Condiciones del sitio", tipo: "cond", sub: "Locativo" },
+  { n: "Falla mecánica del montacargas", tipo: "cond", sub: "Equipo FLT" },
+  { n: "Falla de las máquinas", tipo: "ext", sub: "Externa" },
+  { n: "Falla del pallet DEPA", tipo: "ext", sub: "Externa" },
+];
+const PESO_C = [30, 24, 16, 9, 7, 9, 5];
+const AREAS = ["Bahías T1", "Tándem Líneas", "Calle A", "Calle B", "Calle C", "Calle D", "Sorting", "Traspasos"];
+const PESO_A = [38, 16, 9, 8, 8, 7, 8, 6];
+const HLC = [0.099, 0.0665, 0.095];
+const SHORT = { "Comportamiento del personal": "Comportamiento", "Condiciones del sitio": "Condiciones sitio", "Estibas en mal estado": "Estibas malas", "Módulo mal arrumado": "Módulo mal arrumado", "Falla mecánica del montacargas": "Falla montacargas", "Falla de las máquinas": "Falla máquinas", "Falla del pallet DEPA": "Pallet DEPA" };
+
+const EV = [];
+function gen(mes, dias, cuantos) {
+  for (let k = 0; k < cuantos; k++) {
+    const c = pick(CAUSAS, PESO_C);
+    const sev = pick(["leve", "int", "grave"], [66, 26, 8]);
+    const cajas = sev === "leve" ? 1 + Math.floor(rnd() * 5) : sev === "int" ? 6 + Math.floor(rnd() * 24) : 30 + Math.floor(rnd() * 22);
+    const dia = 1 + Math.floor(rnd() * dias);
+    const pi = c.tipo === "comp" ? pick([...Array(PERSONAS.length).keys(), -1], PESO_P) : -1;
+    EV.push({
+      id: EV.length + 1, mes, dia, fecha: `${String(dia).padStart(2, "0")}/${mes}`, turno: pick(["A", "B", "C"], [45, 30, 25]),
+      causa: c.n, tipo: c.tipo, sub: c.sub, area: pick(AREAS, PESO_A), cajas, sev,
+      hl: +(cajas * HLC[Math.floor(rnd() * 3)]).toFixed(2), p: pi, rep: PERSONAS[Math.floor(rnd() * PERSONAS.length)][0],
+    });
+  }
+}
+gen("09", 30, 34); gen("10", 31, 62); gen("11", 4, 12);
+EV.forEach((e) => { e.cod = "RB-" + String(100 + e.id).padStart(4, "0") });
+EV.sort((a, b) => (a.mes + String(a.dia).padStart(2, "0")).localeCompare(b.mes + String(b.dia).padStart(2, "0")));
+const MESES = { "09": "Septiembre", "10": "Octubre", "11": "Noviembre" };
+
+/* ---- el plan, tal cual el diagrama ---- */
+const ESCALERA = {
+  1: { nom: "Primer evento", leve: "Abordaje al colaborador (trazabilidad)", grave: "Reentrenamiento en escuela FLT + evaluación teórica y práctica" },
+  2: { nom: "Segundo evento", leve: "Llamado de atención e ingreso a reentrenamiento FLT", grave: "Gestión de consecuencias · Suspensión 5 días" },
+  3: { nom: "Tercer evento", leve: "Gestión de consecuencias · Suspensión 3 días", grave: "Comité Safety Compliance" },
+  4: { nom: "Recurrente", leve: "Comité Safety Compliance", grave: "Comité Safety Compliance" },
+};
+const sevCol = (s) => (s === "grave" ? "grave" : "leve");
+const SEVN = { leve: "Leve", int: "Intermedia", grave: "Grave" };
+const SEVC = { leve: "p-leve", int: "p-int", grave: "p-grave" };
+const accionISL = (s) => (s === "grave" ? "ISL SIF precursor + análisis del evento" : s === "int" ? "Guardián · 5 porqués · ISL" : null);
+
+/* ---- el estado de cada persona en un mes ---- */
+function estadoPersonas(mes) {
+  const prev = String(+mes - 1).padStart(2, "0");
+  return PERSONAS.map((p, i) => {
+    const evs = EV.filter((e) => e.p === i && e.mes === mes);
+    const antes = EV.filter((e) => e.p === i && e.mes === prev).length;
+    if (!evs.length) return null;
+    const n = evs.length, recurrente = antes > 0;
+    const nivel = recurrente || n >= 4 ? 4 : n;
+    const ult = evs[evs.length - 1];
+    const col = sevCol(ult.sev);
+    const peor = evs.some((e) => e.sev === "grave") ? "grave" : "leve";
+    const accion = nivel === 4 ? ESCALERA[4].leve : ESCALERA[nivel][col];
+    return { i, nombre: p[0], empresa: p[1], turno: p[2], n, nivel, recurrente, antes, evs, ult, col, peor, accion, cajas: evs.reduce((a, e) => a + e.cajas, 0) };
+  }).filter(Boolean).sort((a, b) => b.nivel - a.nivel || b.n - a.n);
+}
+/* acciones con estado de ejemplo (la app real lee v_plan_acciones) */
+function acciones(mes) {
+  const out = [];
+  estadoPersonas(mes).forEach((p, k) => {
+    const est = ["hecha", "pend", "venc", "pend", "hecha", "venc"][k % 6];
+    out.push({ quien: p.nombre, ev: p.n, nivel: p.nivel, sev: p.ult.sev, accion: p.accion, cod: p.ult.cod, vence: `${String(Math.min(28, p.ult.dia + 2)).padStart(2, "0")}/${mes}`, est });
+  });
+  EV.filter((e) => e.mes === mes && e.sev !== "leve" && e.tipo !== "ext").slice(0, 6).forEach((e, k) => {
+    out.push({ quien: e.tipo === "comp" ? (e.p >= 0 ? PERSONAS[e.p][0] : "Sin responsable") : "Condición · " + e.sub, ev: null, nivel: 0, sev: e.sev, accion: accionISL(e.sev), cod: e.cod, vence: `${String(Math.min(28, e.dia + 2)).padStart(2, "0")}/${mes}`, est: ["pend", "venc", "hecha"][k % 3] });
+  });
+  return out;
+}
+
+/* ---- estado de la pantalla ---- */
+const S = { mes: "10", turno: "", dim: "causa", med: "eventos", paso: null, sel: 0 };
+const evFiltrados = () => EV.filter((e) => e.mes === S.mes && (!S.turno || e.turno === S.turno));
+const medida = (e) => (S.med === "eventos" ? 1 : S.med === "cajas" ? e.cajas : e.hl);
+const fmtM = (v) => (S.med === "hl" ? v.toFixed(1).replace(".", ",") : String(Math.round(v)));
+const clave = { causa: (e) => e.causa, persona: (e) => (e.p >= 0 ? PERSONAS[e.p][0] : "Sin responsable"), area: (e) => e.area, turno: (e) => "Turno " + e.turno, tipo: (e) => ({ comp: "Comportamiento", cond: "Condición", ext: "Externa" })[e.tipo] };
+const COLOR_TIPO = { comp: "#14171C", cond: "#FFC300", ext: "#9AA3AF" };
+
+function pareto(rows, dim) {
+  const m = new Map();
+  rows.forEach((e) => { const k = clave[dim](e); const x = m.get(k) || { k, v: 0, tipo: {} }; x.v += medida(e); x.tipo[e.tipo] = (x.tipo[e.tipo] || 0) + medida(e); m.set(k, x) });
+  let arr = [...m.values()].sort((a, b) => b.v - a.v);
+  const tot = arr.reduce((a, x) => a + x.v, 0) || 1;
+  let ac = 0; arr.forEach((x) => { ac += x.v; x.ac = ac / tot; x.dom = Object.entries(x.tipo).sort((a, b) => b[1] - a[1])[0][0] });
+  return { arr, tot };
+}
+const BTN = (grupo, val, txt, act) => `<button type="button" data-g="${grupo}" data-v="${val}" aria-pressed="${act}">${txt}</button>`;
+const filtrosHTML = (extra = "") => `
+<div class="fil">
+  <div><label>MES</label><div class="chips">${["11", "10", "09"].map((m) => BTN("mes", m, MESES[m], S.mes === m)).join("")}</div></div>
+  <div><label>TURNO</label><div class="chips">${BTN("turno", "", "Todos", !S.turno)}${["C", "A", "B"].map((t) => BTN("turno", t, t, S.turno === t)).join("")}</div></div>
+  ${extra}
+  <div class="nota">El evento n.º cuenta por persona dentro del mes. Solo el <b>Comportamiento</b> suma a la persona; la <b>Condición</b> se corrige en el sitio.</div>
+</div>`;
+const cab = (sub) => `
+<header class="tb-cab">
+  <div class="tb-sello">B</div>
+  <div><div class="tb-ojo">ROTURAS EN SITIO · SEGURIDAD</div><h2>Plan de reacción</h2><div class="tb-sub">${sub}</div></div>
+  <div class="tb-der">
+    <button class="bt" type="button"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16"/></svg>PDF</button>
+    <button class="bt oro" type="button"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1.5"/><circle cx="9" cy="10" r="1.6"/><path d="m4 18 5-5 4 4 3-3 4 4"/></svg>Copiar imagen</button>
+    <button class="bt x" type="button" aria-label="Cerrar">×</button>
+  </div>
+</header>`;
+
+const kpis = () => {
+  const ev = evFiltrados(), per = estadoPersonas(S.mes);
+  const comp = ev.filter((e) => e.tipo === "comp").length, cond = ev.filter((e) => e.tipo === "cond").length;
+  const graves = ev.filter((e) => e.sev === "grave").length;
+  const reinc = per.filter((p) => p.nivel >= 2).length, com = per.filter((p) => p.nivel === 4).length;
+  const ac = acciones(S.mes), venc = ac.filter((a) => a.est === "venc").length;
+  return `
+<div class="kpis">
+  <div class="kpi neg"><span>Eventos · ${MESES[S.mes]}</span><b class="num">${ev.length}</b><i>${comp} de comportamiento · ${cond} de condición</i></div>
+  <div class="kpi"><span>Graves · SIF</span><b class="num" style="color:var(--rojo)">${graves}</b><i>30 cajas o más</i></div>
+  <div class="kpi"><span>Con reincidencia</span><b class="num">${reinc}</b><i>personas con 2.º evento o más</i></div>
+  <div class="kpi"><span>Al comité</span><b class="num">${com}</b><i>4.º evento o recurrentes</i></div>
+  <div class="kpi"><span>Sin responsable</span><b class="num">${ev.filter((e) => e.tipo === "comp" && e.p < 0).length}</b><i>hay que asignarlas</i></div>
+  <div class="kpi ${venc ? "rojo" : ""}"><span>Acciones vencidas</span><b class="num">${venc}</b><i>de ${ac.length} exigidas</i></div>
+</div>`;
+};
+
+/* ---- Pareto vertical (barras + acumulado + línea del 80 %) ---- */
+function paretoVertical(w, h) {
+  const { arr, tot } = pareto(evFiltrados(), S.dim);
+  const top = arr.slice(0, 8), resto = arr.slice(8);
+  if (resto.length) { const v = resto.reduce((a, x) => a + x.v, 0); top.push({ k: `Otros (${resto.length})`, v, ac: 1, dom: "ext", otros: true }) }
+  const L = 44, R = 46, T = 26, B = 76, iw = w - L - R, ih = h - T - B;
+  const max = Math.max(...top.map((x) => x.v), 1), tick = (() => { const p = Math.pow(10, Math.floor(Math.log10(max))); const s = [1, 2, 2.5, 5, 10].find((m) => m * p >= max / 4) * p; return s })();
+  const yMax = Math.ceil(max / tick) * tick, bw = Math.min(54, iw / top.length * .56), paso = iw / top.length;
+  const y = (v) => T + ih - (v / yMax) * ih, y2 = (p) => T + ih - p * ih;
+  let g = "";
+  for (let t = 0; t <= yMax + 1e-9; t += tick) g += `<line x1="${L}" x2="${w - R}" y1="${y(t)}" y2="${y(t)}" stroke="#E7EBF0"/><text x="${L - 8}" y="${y(t) + 4}" text-anchor="end" font-size="10.5" fill="#8A94A1" class="num">${S.med === "hl" ? t.toFixed(0) : t}</text>`;
+  [0, .5, 1].forEach((p) => (g += `<text x="${w - R + 8}" y="${y2(p) + 4}" font-size="10.5" fill="#8A94A1">${p * 100}%</text>`));
+  g += `<line x1="${L}" x2="${w - R}" y1="${y2(.8)}" y2="${y2(.8)}" stroke="#C8102E" stroke-dasharray="5 4" stroke-width="1.3"/><text x="${w - R - 4}" y="${y2(.8) - 5}" text-anchor="end" font-size="10" font-weight="700" fill="#C8102E" letter-spacing=".08em">80 %</text>`;
+  let pts = "", barras = "", ejes = "", cortado = false;
+  top.forEach((x, i) => {
+    const cx = L + paso * i + paso / 2, bh = ih - (y(x.v) - T), fill = x.otros ? "#C9D0D9" : COLOR_TIPO[x.dom];
+    barras += `<rect x="${cx - bw / 2}" y="${y(x.v)}" width="${bw}" height="${Math.max(1, bh)}" fill="${fill}"/>`;
+    barras += `<text x="${cx}" y="${y(x.v) - 7}" text-anchor="middle" font-size="12" font-weight="800" fill="#14171C" class="num">${fmtM(x.v)}</text>`;
+    pts += `${i ? "L" : "M"}${cx},${y2(x.ac)} `;
+    const corto = (S.dim === "persona" && x.k.includes(" ")) ? x.k.split(" ")[0] + " " + x.k.split(" ")[1][0] + "." : (SHORT[x.k] || x.k);
+    const palabras = corto.split(" "), partes = []; let ln = "";
+    palabras.forEach((w) => { if ((ln + " " + w).trim().length > 13 && ln) { partes.push(ln); ln = w } else ln = (ln + " " + w).trim() }); partes.push(ln);
+    ejes += `<text text-anchor="middle" font-size="11" fill="#3b4450">${partes.map((p, k) => `<tspan x="${cx}" y="${T + ih + 18 + k * 13}">${p}</tspan>`).join("")}</text>`;
+  });
+  const dots = top.map((x, i) => { const cx = L + paso * i + paso / 2; const f = !cortado && x.ac >= .8; if (f) cortado = true; return `<circle cx="${cx}" cy="${y2(x.ac)}" r="${f ? 5.5 : 3.6}" fill="${f ? "#C8102E" : "#fff"}" stroke="${f ? "#C8102E" : "#14171C"}" stroke-width="2"/>` }).join("");
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" role="img" aria-label="Pareto por ${S.dim}">${g}${barras}<path d="${pts}" fill="none" stroke="#14171C" stroke-width="2" stroke-linejoin="round"/>${dots}${ejes}</svg>`;
+}
+const dimTabs = () => `<div class="tabs" role="group" aria-label="Agrupar por">${[["causa", "Causa"], ["persona", "Persona"], ["area", "Área"], ["turno", "Turno"], ["tipo", "Tipo"]].map(([k, t]) => BTN("dim", k, t, S.dim === k)).join("")}</div>`;
+const medTabs = () => `<div class="tabs" role="group" aria-label="Medir en">${[["eventos", "Eventos"], ["cajas", "Cajas"], ["hl", "HL"]].map(([k, t]) => BTN("med", k, t, S.med === k)).join("")}</div>`;
+const leyTipo = () => `<div class="leg"><span><i style="background:#14171C"></i>Comportamiento</span><span><i style="background:#FFC300"></i>Condición</span><span><i style="background:#9AA3AF"></i>Externa</span><span><i style="background:#fff;border:2px solid #14171C;border-radius:50%;width:9px;height:9px"></i>% acumulado</span></div>`;
+const estPill = (e) => `<span class="pill p-${e}">${{ hecha: "Hecha", pend: "Pendiente", venc: "Vencida" }[e]}</span>`;
+const sevPill = (s) => `<span class="pill ${SEVC[s]}">${SEVN[s]}</span>`;
+
+/* =====================================================================
+   VARIANTE 1 · MANDO — todo a la vista: cifras, Pareto dinámico, escalera y acciones
+   ===================================================================== */
+function v1() {
+  const per = estadoPersonas(S.mes), ac = acciones(S.mes);
+  const niv = [1, 2, 3, 4].map((n) => ({ n, g: per.filter((p) => p.nivel === n) }));
+  const maxN = Math.max(...niv.map((x) => x.g.length), 1);
+  return `<div class="tb">${cab(`${MESES[S.mes]} 2026 · Los tres turnos · foto de las 12:28 p. m.`)}${filtrosHTML()}
+<div class="cuerpo">${kpis()}
+  <div style="display:grid;grid-template-columns:1.55fr 1fr;gap:18px">
+    <section class="pan"><header><h3>Pareto</h3>${dimTabs()}${medTabs()}</header>
+      <div class="in">${paretoVertical(720, 430)}<div style="margin-top:6px">${leyTipo()}</div></div></section>
+    <section class="pan"><header><h3>Escalera del plan</h3><span class="nota">${per.length} personas</span></header>
+      <div class="in" style="display:grid;gap:14px">
+      ${niv.map(({ n, g }) => `<div>
+        <div style="display:flex;align-items:baseline;gap:10px"><b style="font:900 26px var(--titulo)" class="num">${g.length}</b>
+          <span style="font:800 11px var(--titulo);letter-spacing:.12em;text-transform:uppercase">${ESCALERA[n].nom}</span>
+          ${n === 4 ? '<span class="pill p-grave" style="margin-left:auto">Comité</span>' : ""}</div>
+        <div style="height:8px;background:var(--linea-2);margin:6px 0 6px"><div class="bar-w" style="height:100%;width:${(g.length / maxN) * 100}%;background:${["#FFE08A", "#FFC300", "#B58200", "#C8102E"][n - 1]}"></div></div>
+        <div style="font-size:12px;color:var(--gris);line-height:1.45"><b style="color:var(--tinta)">Leve:</b> ${ESCALERA[n].leve}<br><b style="color:var(--tinta)">Grave:</b> ${ESCALERA[n].grave}</div>
+        <div style="font-size:12px;margin-top:4px">${g.slice(0, 4).map((p) => p.nombre).join(" · ") || '<span style="color:var(--gris-2)">Nadie</span>'}${g.length > 4 ? ` · +${g.length - 4}` : ""}</div></div>`).join("")}
+      </div></section>
+  </div>
+  <section class="pan"><header><h3>Acciones que hay que cerrar</h3><span class="nota">por vencimiento · evidencia queda en la bitácora</span></header>
+    <table class="t"><thead><tr><th>Persona o condición</th><th>Evento</th><th>Severidad</th><th>Acción exigida</th><th>Rotura</th><th>Vence</th><th>Estado</th></tr></thead><tbody>
+    ${ac.sort((a, b) => ({ venc: 0, pend: 1, hecha: 2 })[a.est] - ({ venc: 0, pend: 1, hecha: 2 })[b.est]).slice(0, 8).map((a) => `<tr><td><b>${a.quien}</b></td><td class="num">${a.ev ? a.ev + ".º del mes" : "—"}</td><td>${sevPill(a.sev)}</td><td>${a.accion}</td><td class="num" style="color:var(--gris)">${a.cod}</td><td class="num">${a.vence}</td><td>${estPill(a.est)}</td></tr>`).join("")}
+    </tbody></table></section>
+</div>
+<p class="pie">Leve hasta 5 cajas · intermedia de 6 a 29 (guardián, 5 porqués, ISL) · grave desde 30 (ISL SIF precursor). Las cajas son rotas + contaminadas. Recurrente = eventos en dos meses seguidos. Reportar con el PIN no suma como evento.</p></div>`;
+}
+
+/* =====================================================================
+   VARIANTE 2 · ESCALERA — el plan como protagonista: tocar un paso filtra todo
+   ===================================================================== */
+function v2() {
+  const per = estadoPersonas(S.mes);
+  const enPaso = S.paso ? per.filter((p) => p.nivel === S.paso) : per;
+  const ids = new Set(enPaso.map((p) => p.i));
+  const base = evFiltrados();
+  const rows = S.paso ? base.filter((e) => e.tipo === "comp" && ids.has(e.p)) : base;
+  const par = (() => { const r = rows; return pareto(r, S.dim) })();
+  const colores = [["#FFF4CC", "#14171C"], ["#FFE08A", "#14171C"], ["#E0A800", "#14171C"], ["#C8102E", "#fff"]];
+  return `<div class="tb">${cab(`${MESES[S.mes]} 2026 · ${S.paso ? ESCALERA[S.paso].nom + " · " + enPaso.length + " personas" : "Todas las personas"} · foto de las 12:28 p. m.`)}${filtrosHTML()}
+<div class="cuerpo">
+  <section class="pan"><header><h3>El plan de reacción · comportamiento</h3><span class="nota">${S.paso ? '<button class="tabs" style="all:unset;cursor:pointer;color:var(--rojo);font-weight:700" data-g="paso" data-v="">Quitar filtro ×</button>' : "toca un paso para filtrar todo lo demás"}</span></header>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr)">
+    ${[1, 2, 3, 4].map((n) => { const g = per.filter((p) => p.nivel === n), on = S.paso === n; const [bg, fg] = colores[n - 1];
+      return `<div style="border-right:${n < 4 ? 1 : 0}px solid var(--linea);display:flex;flex-direction:column;${on ? "box-shadow:inset 0 0 0 3px var(--tinta)" : ""}">
+        <button type="button" data-g="paso" data-v="${on ? "" : n}" style="all:unset;cursor:pointer;display:block;background:${bg};color:${fg};padding:14px 16px 12px" aria-pressed="${on}">
+          <div style="font:800 10.5px var(--titulo);letter-spacing:.14em;text-transform:uppercase;opacity:.85">${n < 4 ? n + ".º" : "4.º o"}  ${n < 4 ? "evento" : "recurrente mes a mes"}</div>
+          <div style="display:flex;align-items:baseline;gap:8px;margin-top:4px"><b style="font:900 40px/1 var(--titulo)" class="num">${g.length}</b><span style="font-size:12px;opacity:.85">persona${g.length === 1 ? "" : "s"}</span></div>
+        </button>
+        <div style="padding:12px 16px;display:grid;gap:8px;font-size:12.5px;border-bottom:1px solid var(--linea-2)"><div><span class="pill p-leve">Leve ≤ 5</span><div style="margin-top:5px;line-height:1.4">${ESCALERA[n].leve}</div></div>
+          <div><span class="pill p-grave">Grave ≥ 30</span><div style="margin-top:5px;line-height:1.4">${ESCALERA[n].grave}</div></div></div>
+        <div style="padding:10px 16px 14px;display:grid;gap:6px;flex:1;align-content:start">${g.length ? g.slice(0, 5).map((p) => `<div style="display:flex;align-items:center;gap:8px;font-size:12.5px"><span style="width:6px;height:6px;background:${p.recurrente ? "var(--rojo)" : "var(--tinta)"}"></span><b style="font-weight:600">${p.nombre}</b><span class="num" style="margin-left:auto;color:var(--gris)">${p.n} ev.</span></div>`).join("") + (g.length > 5 ? `<div style="font-size:12px;color:var(--gris)">+${g.length - 5} más</div>` : "") : '<div style="font-size:12.5px;color:var(--gris-2)">Nadie en este paso</div>'}</div></div>`; }).join("")}
+    </div></section>
+  <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:18px">
+    <section class="pan"><header><h3>Pareto ${S.paso ? "· " + ESCALERA[S.paso].nom : ""}</h3>${dimTabs()}${medTabs()}</header>
+      <div class="in">${rows.length ? paretoVertical(700, 340) : '<p style="color:var(--gris)">Sin eventos.</p>'}<div style="margin-top:6px">${leyTipo()}</div></div></section>
+    <section class="pan"><header><h3>Condición · se corrige el sitio</h3></header>
+      <div class="in" style="display:grid;gap:12px">${[
+        ["Equipo FLT", "Verificar condiciones en el preoperacional y llevar a taller"],
+        ["Vehículo en atención", "Verificar BPM y mínimos vitales del vehículo"],
+        ["Locativo", "Validar condición, reportar al dueño del territorio y llevar a la matriz de condiciones"],
+        ["Estiba en mal estado", "Transporte: revisar origen de estibas y notificar · Zona CD: validar tiempo de permanencia de lotes"]].map(([s, a]) => {
+        const n = base.filter((e) => e.tipo === "cond" && e.sub === s).length;
+        return `<div style="display:grid;grid-template-columns:44px 1fr;gap:12px;align-items:start;padding-bottom:12px;border-bottom:1px solid var(--linea-2)"><b class="num" style="font:900 28px/1 var(--titulo)">${n}</b><div><div style="font:800 11px var(--titulo);letter-spacing:.12em;text-transform:uppercase">${s}</div><div style="font-size:12.5px;color:var(--gris);margin-top:3px;line-height:1.4">${a}</div></div></div>`; }).join("")}</div></section>
+  </div>
+</div><p class="pie">Una persona en 4.º evento o con eventos en dos meses seguidos pasa a Comité Safety Compliance. 6 a 29 cajas: columna leve + guardián, 5 porqués e ISL. Desde 30 cajas: ISL SIF precursor.</p></div>`;
+}
+
+/* =====================================================================
+   VARIANTE 3 · EXPEDIENTE — la persona primero: lista a la izquierda, su expediente a la derecha
+   ===================================================================== */
+function v3() {
+  const per = estadoPersonas(S.mes);
+  if (S.sel >= per.length) S.sel = 0;
+  const p = per[S.sel];
+  const lim = Math.max(...per.map((x) => x.n), 1);
+  const mesesP = ["09", "10", "11"];
+  const { arr, tot } = pareto(evFiltrados(), S.dim);
+  const hasta80 = arr.findIndex((x) => x.ac >= .8);
+  return `<div class="tb">${cab(`${MESES[S.mes]} 2026 · Expediente por persona · foto de las 12:28 p. m.`)}${filtrosHTML()}
+<div class="cuerpo">${kpis()}
+  <div style="display:grid;grid-template-columns:360px 1fr;gap:18px;align-items:start">
+    <section class="pan"><header><h3>Personas</h3><span class="nota">ordenadas por nivel</span></header>
+      <div style="max-height:560px;overflow:auto">${per.map((x, k) => `<button type="button" data-g="sel" data-v="${k}" aria-pressed="${k === S.sel}" style="all:unset;cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:4px 10px;padding:11px 16px;border-bottom:1px solid var(--linea-2);width:100%;box-sizing:border-box;${k === S.sel ? "background:var(--oro-suave);box-shadow:inset 4px 0 0 var(--tinta)" : ""}">
+        <b style="font-size:13.5px;font-weight:600">${x.nombre}</b><span class="pill ${x.nivel === 4 ? "p-grave" : x.nivel >= 2 ? "p-int" : "p-leve"}">${x.nivel === 4 ? "Comité" : x.nivel + ".º evento"}</span>
+        <div style="height:6px;background:var(--linea-2);align-self:center"><div style="height:100%;width:${(x.n / lim) * 100}%;background:${x.nivel === 4 ? "var(--rojo)" : "var(--tinta)"}"></div></div>
+        <span class="num" style="font-size:12px;color:var(--gris);text-align:right">${x.n} ev. · ${x.cajas} cajas</span></button>`).join("")}</div></section>
+    <div style="display:grid;gap:18px">
+      <section class="pan"><header><h3>Expediente · ${p.nombre}</h3><span class="nota">${p.empresa} · turno ${p.turno}</span></header>
+        <div class="in" style="display:grid;gap:16px">
+          <div style="background:var(--tinta);color:#fff;padding:16px 18px;border-top:3px solid var(--oro);display:grid;grid-template-columns:1fr auto;gap:6px 20px;align-items:center">
+            <div><div style="font:700 10px var(--titulo);letter-spacing:.16em;color:#FFE08A">ACCIÓN EXIGIDA AHORA · ${p.recurrente ? "RECURRENTE MES A MES" : p.n + ".º EVENTO DEL MES"} · ${p.col === "grave" ? "FALTA GRAVE" : "FALTA LEVE"}</div>
+              <div style="font:800 20px/1.25 var(--titulo);margin-top:6px;letter-spacing:-.01em">${p.accion}</div></div>
+            <div style="text-align:right"><div style="font:700 10px var(--titulo);letter-spacing:.14em;color:#C9CFD8">VENCE</div><div class="num" style="font:900 22px var(--titulo)">${String(Math.min(28, p.ult.dia + 2)).padStart(2, "0")}/${S.mes}</div></div></div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid var(--linea)">
+            ${[["Eventos del mes", p.n], ["Cajas afectadas", p.cajas], ["Mes anterior", p.antes + (p.antes === 1 ? " evento" : " eventos")], ["Reportes que avisó", Math.floor(p.n * 1.5)]].map(([k, v], i) => `<div style="padding:11px 14px;${i < 3 ? "border-right:1px solid var(--linea)" : ""}"><div style="font:700 10px var(--titulo);letter-spacing:.13em;color:var(--gris);text-transform:uppercase">${k}</div><div class="num" style="font:900 24px var(--titulo);margin-top:3px">${v}</div></div>`).join("")}</div>
+          <div><div style="font:800 11px var(--titulo);letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px">Línea de tiempo</div>
+            <table class="t"><thead><tr><th>Fecha</th><th>Rotura</th><th>Cajas</th><th>Severidad</th><th>Evento</th><th>Reacción</th><th>Estado</th></tr></thead><tbody>
+            ${p.evs.map((e, k) => `<tr><td class="num" style="white-space:nowrap">${e.fecha}</td><td class="num" style="color:var(--gris);white-space:nowrap">${e.cod}</td><td class="num"><b>${e.cajas}</b></td><td>${sevPill(e.sev)}</td><td class="num">${k + 1}.º</td><td>${ESCALERA[Math.min(k + 1, 4)][sevCol(e.sev)]}${accionISL(e.sev) ? `<div style="font-size:11.5px;color:var(--gris);margin-top:2px">+ ${accionISL(e.sev)}</div>` : ""}</td><td>${estPill(k < p.evs.length - 1 ? "hecha" : ["pend", "venc"][p.i % 2])}</td></tr>`).join("")}
+            </tbody></table></div>
+        </div></section>
+      <section class="pan"><header><h3>Pareto del mes</h3>${dimTabs()}${medTabs()}<span class="nota">${hasta80 + 1} de ${arr.length} explican el 80 %</span></header>
+        <div class="in"><div class="ph"><div class="h">${{ causa: "Causa", persona: "Persona", area: "Área", turno: "Turno", tipo: "Tipo" }[S.dim]}</div><div class="h"></div><div class="h r">${S.med === "eventos" ? "Ev." : S.med === "cajas" ? "Cajas" : "HL"}</div><div class="h r">Acum.</div>
+          ${arr.slice(0, 7).map((x, i) => `<div>${x.k}</div><div class="b"><em class="bar-w" style="width:${(x.v / arr[0].v) * 100}%;background:${COLOR_TIPO[x.dom]}"></em></div><div class="v">${fmtM(x.v)}</div><div class="a">${Math.round(x.ac * 100)}%</div>${i === hasta80 ? '<div class="corte"><span>80 %</span></div>' : ""}`).join("")}</div></div></section>
+    </div>
+  </div>
+</div><p class="pie">El expediente es lo que revisa un auditor: qué pasó, cuántas cajas, qué se exigió, quién lo hizo y cuándo. Cada cambio de responsable o de acción queda en la bitácora con usuario, hora y motivo.</p></div>`;
+}
+
+/* =====================================================================
+   HARNESS (picker verbatim, wiring del PICKER.md)
+   ===================================================================== */
+const variants = [v1, v2, v3];
+const stage = document.getElementById('stage');
+const picker = document.querySelector('.proto-picker');
+const highlight = picker.querySelector('.proto-picker-highlight');
+const items = [...picker.querySelectorAll('.proto-picker-item:not(.proto-picker-replay)')];
+const replay = picker.querySelector('.proto-picker-replay');
+let current = 0;
+function moveHighlight() { const el = items[current]; highlight.style.width = el.offsetWidth + 'px'; highlight.style.transform = `translateX(${el.offsetLeft}px)`; }
+function mount(i) { stage.innerHTML = ''; requestAnimationFrame(() => { stage.innerHTML = variants[i](); }); }
+function rerender() { const y = stage.scrollTop; stage.innerHTML = variants[current](); stage.scrollTop = y; }
+function setActive(i) {
+  if (i < 0 || i >= variants.length) return;
+  current = i;
+  items.forEach((el, j) => { el.toggleAttribute('data-active', j === i); if (j === i) el.setAttribute('aria-current', 'true'); else el.removeAttribute('aria-current'); });
+  moveHighlight();
+  const url = new URL(location); url.searchParams.set('v', i + 1); history.replaceState(null, '', url);
+  mount(i);
+}
+items.forEach((el, i) => el.addEventListener('click', () => setActive(i)));
+replay?.addEventListener('click', () => mount(current));
+window.addEventListener('resize', moveHighlight);
+document.addEventListener('keydown', (e) => {
+  if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable) return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const num = parseInt(e.key, 10);
+  if (num >= 1 && num <= variants.length) setActive(num - 1);
+  else if (e.key === 'ArrowRight') setActive((current + 1) % variants.length);
+  else if (e.key === 'ArrowLeft') setActive((current - 1 + variants.length) % variants.length);
+  else if (e.key === 'r' || e.key === 'R') mount(current);
+});
+/* los controles de la ventana (meses, turno, agrupar, medir, paso, persona) */
+stage.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-g]'); if (!b) return;
+  const g = b.dataset.g, v = b.dataset.v;
+  if (g === 'paso') S.paso = v ? +v : null; else if (g === 'sel') S.sel = +v; else S[g] = v;
+  if (g === 'mes') { S.sel = 0; S.paso = null }
+  rerender();
+});
+setActive((parseInt(new URLSearchParams(location.search).get('v'), 10) || 1) - 1);
+requestAnimationFrame(() => requestAnimationFrame(() => picker.setAttribute('data-ready', '')));
+</script>
+</body>
+</html>
