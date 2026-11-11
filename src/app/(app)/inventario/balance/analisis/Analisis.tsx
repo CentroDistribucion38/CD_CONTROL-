@@ -8,6 +8,7 @@ import { guardarAnalisis, guardarNovedades, guardarMb51, quitarNovedades, guarda
 import { ROTURA_PARTIDA } from "@/modulos/inventario/compensa";
 import { leerPlantilla } from "./leer-plantilla";
 import { Avisos } from "./Avisos";
+import { PorFuera } from "./PorFuera";
 import { SelectorDia, SelectorRango } from "./SelectorDia";
 import { Empaque } from "./Empaque";
 import { Partidas311 } from "./Partidas311";
@@ -81,6 +82,11 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
     for (const f of filas) if (!soloDif || f.diferencia !== 0 || f.descuadres?.length) (m.get(f.familia) ?? m.set(f.familia, []).get(f.familia)!).push(f);
     return [...m];
   }, [filas, soloDif]);
+  /* Los que SÍ están pero el filtro esconde porque cuadraron (diferencia 0): para que no parezca que faltan. Solo barriles, cilindros, estibas y cajas. */
+  const ocultos = soloDif
+    ? filas.filter((f) => f.diferencia === 0 && !f.descuadres?.length && /^E0[1235] /.test(f.familia))
+        .map((f) => ({ codigo: f.codigo, descripcion: f.descripcion, sap: f.sap, conteo: f.conteo }))
+    : [];
   const tot = filas.reduce((t, f) => ({ sap: t.sap + f.sap, conteo: t.conteo + f.conteo }), { sap: 0, conteo: 0 });
   const informativas = datos.novedades.filter((x) => x.lado === "NO SUMA");
   /* EN LÍNEA: el envase y la caja de lo que el plan de envase pone a correr ese día. */
@@ -184,6 +190,8 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
         </div>
         <div className={"dif" + (tot.conteo - tot.sap < 0 ? " neg" : "")}><span>DIFERENCIA (CONTEO − SAP)</span><b>{signo(tot.conteo - tot.sap)}</b><small>{filas.filter((f) => f.diferencia !== 0).length} de {filas.length} códigos con diferencia</small></div>
       </div>
+
+      <PorFuera fuera={datos.porFuera ?? []} ocultos={ocultos} />
 
       {/* ---------- LA TABLA ---------- */}
       <section className="ad-caja ad-hoja">

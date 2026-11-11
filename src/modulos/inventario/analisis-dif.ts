@@ -61,6 +61,8 @@ export type Fuente = { nombre: string; ok: boolean; detalle: string };
 export type Analisis = {
   fecha: string; filas: FilaAnalisis[]; fuentes: Fuente[]; avisos: string[];
   novedades: Novedad[]; noEntran: string[]; faltaSql: boolean;
+  /** LOS SKU QUE QUEDARON POR FUERA de la tabla, con el motivo: contados en otro lado (Fábrica, AG17, AG16), contados como algo que no es envase, o barril/cilindro sin SAP ni conteo ese día. */
+  porFuera?: PorFuera[];
   /** Roturas en sitio del período escogido (por defecto del 1 del mes al día del análisis), ya sumadas al CONTEO. */
   roturas?: RoturasAnalisis;
   /** Todos los 311 que se hicieron ese día entre AG22 y los otros almacenes, por SKU (para la hoja «311» del Excel). */
@@ -85,6 +87,7 @@ export type Analisis = {
       La plantilla de novedades lo usa cuando su hoja MAESTRO no trae el código o no trae su caja. */
   maestroSistema?: Record<string, { upc: number; cpe: number; caja: string | null }>;
 };
+export type PorFuera = { codigo: string; nombre: string; cantidad: number; motivos: string[] };
 export type SinCaja = { codigo: string; nombre: string; cajas: number; motivo: string; sugerida?: string | null };
 export type ConCaja = { codigo: string; nombre: string; cajas: number; caja: string; cajaNombre: string; definido: boolean };
 /** Un SKU del plan de envase que corre ese día y usa el envase (o la caja) de la fila. */
@@ -223,6 +226,12 @@ export async function armarAnalisis(fecha: string, rDesde?: string, rHasta?: str
     acc.set(codigo, a);
   };
   const fuentes: Fuente[] = [];
+  /* Los SKU que se vieron pero no llegan a la tabla: se anotan para avisar, no para ajustar. */
+  const porFueraMap = new Map<string, { cantidad: number; motivos: Set<string> }>();
+  const afuera = (cod: string, cant: number, motivo: string) => {
+    const x = porFueraMap.get(cod) ?? { cantidad: 0, motivos: new Set<string>() };
+    x.cantidad += cant; x.motivos.add(motivo); porFueraMap.set(cod, x);
+  };
 
   /* 1. EL CONTEO DEL DÍA EN BODEGA 38 (AG22): envase en unidades; su caja plástica y la estiba de debajo por unidad.
         Se leen también Fábrica, AG17 y AG16, pero solo para el total sin segregar (el del tablero): no suman al análisis. */
@@ -282,6 +291,7 @@ export async function armarAnalisis(fecha: string, rDesde?: string, rHasta?: str
         : r.tipo_material === "ENVASE" && grupo(cF) === "CAJA" ? "bajo cajas" : bajoQue(cF).replace("CONTEO · ", "");
       const k = `${donde} · ${que}`;
       estFuera.set(k, (estFuera.get(k) ?? 0) + (esEst ? cjF : estF));
+      if (!esEst && r.tipo_material !== "PRODUCTO") afuera(cF, cjF * upc(cF), `contado en ${donde}, no en Bodega 38`);
       continue;
     }
     /* La visual: cuántos SKUs distintos se contaron (producto, envase y lo demás). */
@@ -324,7 +334,7 @@ export async function armarAnalisis(fecha: string, rDesde?: string, rHasta?: str
         k.cajas += cajas; conCajaMap.set(c, k) }
       continue;
     }
-    if (r.tipo_material !== "ENVASE") { suma("conteo", ESTIBA, pre(bajoQue(c)), est); continue }
+    if (r.tipo_material !== "ENVASE") { suma("conteo", ESTIBA, pre(bajoQue(c)), est); afuera(c, cajas, `contado como ${String(r.tipo_material || "sin tipo").toLowerCase()}: solo suma estiba, el SKU no entra a la tabla`); continue }
     renglones++;
     if (g === "CAJA") {
       suma("conteo", c, pre("CONTEO · cajas vacías"), cajas);
@@ -675,6 +685,16 @@ export async function armarAnalisis(fecha: string, rDesde?: string, rHasta?: str
       ...(soloConteo ? { soloConteo: true } : {}),
       ...(codigo === ESTIBA && estFuera.size ? { fuera: [...estFuera].map(([nombre, cantidad]) => ({ nombre, cantidad: Math.round(cantidad) })).sort((x, y) => y.cantidad - x.cantidad) } : {}), ...(pendSap.get(codigo) ? { pendSap: pendSap.get(codigo) } : {}), ...(descuadresAlm.get(codigo) ? { descuadres: descuadresAlm.get(codigo) } : {}) });
   }
+  /* Barriles y cilindros del maestro sin una sola partida ese día: no están ni en SAP ni en el conteo, y no deben pasar callados. */
+  for (const m of M.values()) {
+    const c = String(m.codigo);
+    if (acc.has(c)) continue;
+    const nm = norm(m.descripcion);
+    if (nm.includes("BARRIL") || nm.includes("CILINDRO")) afuera(c, 0, "no trae SAP ni conteo ese día (ni en la plantilla ni en el conteo de Bodega 38)");
+  }
+  const porFuera: PorFuera[] = [...porFueraMap].filter(([c]) => !acc.has(c))
+    .map(([codigo, x]) => ({ codigo, nombre: nombre(codigo), cantidad: Math.round(x.cantidad), motivos: [...x.motivos] }))
+    .sort((a, b) => b.cantidad - a.cantidad || a.codigo.localeCompare(b.codigo, "es", { numeric: true }));
   filas.sort((x, y) => x.orden - y.orden || x.codigo.localeCompare(y.codigo, "es", { numeric: true }));
   const estibasAnalisis = Math.round([...(acc.get(ESTIBA)?.conteo.values() ?? [])].reduce((t, v) => t + v, 0));
   const plasticasAnalisis = Math.round([...acc].reduce((t, [c, a]) => t + (grupo(c) === "CAJA" ? [...a.conteo.values()].reduce((x, v) => x + v, 0) : 0), 0));
@@ -713,7 +733,7 @@ export async function armarAnalisis(fecha: string, rDesde?: string, rHasta?: str
     maestroSistema[c] = { upc: Number(m.unidades_por_caja) || 1, cpe: Number(m.cajas_por_estiba) || 0, caja: m.caja ? String(m.caja) : maestroSistema[c]?.caja ?? null };
   }
 
-  return { fecha, filas, fuentes, avisos, roturas: roturasA, novedades, movimientos311: cruzarMb51(movimientos311, await leerMb51(supabase, fecha), nombre), noEntran: noEntran.sort(), faltaSql, carga, contados, existencias, enLinea, maestroSistema, sinCaja: [...sinCajaMap.values()].map((x) => ({ ...x, cajas: Math.round(x.cajas) })).sort((x, y) => y.cajas - x.cajas),
+  return { fecha, filas, fuentes, avisos, roturas: roturasA, novedades, movimientos311: cruzarMb51(movimientos311, await leerMb51(supabase, fecha), nombre), noEntran: noEntran.sort(), porFuera, faltaSql, carga, contados, existencias, enLinea, maestroSistema, sinCaja: [...sinCajaMap.values()].map((x) => ({ ...x, cajas: Math.round(x.cajas) })).sort((x, y) => y.cajas - x.cajas),
     cartones: [...cartonMap.values()].map((x) => ({ ...x, cajas: Math.round(x.cajas) })).sort((x, y) => y.cajas - x.cajas),
     conCaja: [...conCajaMap.values()].map((x) => ({ ...x, cajas: Math.round(x.cajas) })).sort((x, y) => y.cajas - x.cajas),
     cajasLista: cajasPlasticas.map((m) => ({ codigo: String(m.codigo), nombre: String(m.descripcion ?? m.codigo) })).sort((x, y) => x.nombre.localeCompare(y.nombre)) };

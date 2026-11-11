@@ -392,3 +392,17 @@
 .ad .ad-todo:hover { color: var(--fe-tinta) }
 .ad .ad-queda { flex: 1 1 100%; font: 600 11.5px var(--fe-texto); color: #A50D25 }
 .ad .ad-obs-final { max-width: 280px; font-size: 12.5px; color: var(--fe-tinta); white-space: pre-wrap }
+
+/* LA ALERTA DE LOS SKU POR FUERA: una franja amarilla compacta sobre la tabla; la lista se abre al tocarla. Recta, como el resto de CONTROL. */
+.ad .ad-fuera { margin: 0 0 14px; border: 1px solid #E5B800; border-left: 5px solid #FFC400; background: #FFF8DC }
+.ad .ad-fuera summary { display: flex; align-items: center; gap: 10px; padding: 9px 14px; cursor: pointer; list-style: none; font-size: 13px; color: #111 }
+.ad .ad-fuera summary::-webkit-details-marker { display: none }
+.ad .ad-fuera summary svg { width: 18px; height: 18px; flex: none; fill: none; stroke: #8a6d00; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round }
+.ad .ad-fuera summary span { margin-left: auto; font-size: 12px; color: #6b5a00 }
+.ad .ad-fuera summary:focus-visible { outline: 3px solid var(--fe-acento, #FFC300); outline-offset: 1px }
+.ad .ad-fuera-bloque { padding: 4px 14px 12px; background: #fff; border-top: 1px solid #E5B800 }
+.ad .ad-fuera-bloque h3 { margin: 10px 0 6px; font: 800 11px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase; color: #5b6b7f }
+.ad .ad-fuera table { width: 100%; border-collapse: collapse; font-size: 12.5px }
+.ad .ad-fuera th { text-align: left; padding: 5px 8px; font: 700 10px var(--fe-texto); letter-spacing: .1em; color: #5b6b7f; border-bottom: 1px solid var(--fe-linea) }
+.ad .ad-fuera td { padding: 6px 8px; border-bottom: 1px solid var(--fe-linea); vertical-align: top }
+.ad .ad-fuera .n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap }
