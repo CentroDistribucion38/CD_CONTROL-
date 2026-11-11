@@ -10,7 +10,8 @@
  *                 revisados es UN vehículo.
  *   REVISADA      unidades revisadas (la muestra), y recibidas aparte.
  *   %AI           unidades en mal estado / unidades revisadas, SUMADAS (no el promedio de los %).
- *   CD            el socio de la revisión.
+ *   CD            el CD de ORIGEN del camión (la planta de la revisión: «CD Corozal», «CD La Arenosa»…), el mismo que sale en la Fuente principal
+ *                 y en «%AI por origen». No el socio: casi ninguna revisión lo trae y todo salía «Sin socio».
  *   PARETO        solo los defectos que cobran —los que forman el %AI—, del más encontrado al menos, con su % y el acumulado.
  *                 Lo que se cuenta y no cobra (mezclado, cuerpo extraño…) se dice aparte para que la suma no engañe.
  */
@@ -33,8 +34,8 @@ export function armarCierreAi(revs: Revision[], defectos: PorDefecto[]): CierreA
   const vhTodos = new Set(revs.map(vhDe));
   const porCd = new Map<string, CdCierre & { _vh: Set<string> }>();
   for (const r of revs) {
-    const k = r.socio ?? "—";
-    const x = porCd.get(k) ?? { clave: k, nombre: r.socio_nombre ?? "Sin socio", vh: 0, revisiones: 0, recibidas: 0, revisadas: 0, malas: 0, indice: 0, _vh: new Set<string>() };
+    const k = (r.planta ?? "").trim() || "Sin origen";
+    const x = porCd.get(k) ?? { clave: k, nombre: k, vh: 0, revisiones: 0, recibidas: 0, revisadas: 0, malas: 0, indice: 0, _vh: new Set<string>() };
     x._vh.add(vhDe(r)); x.revisiones++; x.recibidas += r.recibidas; x.revisadas += r.revisadas; x.malas += r.defectos;
     porCd.set(k, x);
   }
