@@ -160,7 +160,9 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
     const p = f.placa.trim().toUpperCase();
     return novedades.filter((x) => {
       if (f.tramo && x.tramo !== f.tramo) return false;
-      if (f.estado === "pendientes" ? x.estado === "cerrada" : f.estado && x.estado !== f.estado) return false;
+      if (f.estado === "pendientes") { if (x.estado === "cerrada") return false }
+      else if (f.estado === "vencidas") { if (!x.vencida) return false }
+      else if (f.estado && x.estado !== f.estado) return false;
       if (p && !x.placa.toUpperCase().includes(p)) return false;
       if (f.responsable && (x.cd_responsable ?? "") !== f.responsable) return false;
       return true;
@@ -171,6 +173,8 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
   const enProceso = novedades.filter((x) => x.estado === "en_proceso").length;
   const cerradas = novedades.filter((x) => x.estado === "cerrada").length;
   const vencidas = novedades.filter((x) => x.vencida).length;
+  const mesActual = HOY().slice(0, 7);
+  const cerradasMes = novedades.filter((x) => x.estado === "cerrada" && (x.cerrada_en ?? "").slice(0, 7) === mesActual).length;
 
   /* Los enlaces firmados de las fotos de lo que se está viendo. */
   const rutas = useMemo(
@@ -392,33 +396,26 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
     <>
       {dialogo}
 
+      {/* Cuatro cifras que son filtros: tocar una muestra solo esos casos, y tocarla otra vez vuelve a los pendientes. */}
+      <section className="nv-tiles" aria-label="Estado de las novedades">
+        {([
+          ["abierta", "Abiertas", abiertas, ""],
+          ["en_proceso", "En proceso", enProceso, ""],
+          ["vencidas", "Pasadas de fecha", vencidas, vencidas > 0 ? "al" : ""],
+          ["cerrada", "Cerradas", cerradas, ""],
+        ] as [string, string, number, string][]).map(([k, nombre, cuantas, tono]) => (
+          <button key={k} type="button" aria-pressed={f.estado === k}
+                  className={`nv-tile ${tono} ${f.estado === k ? "on" : ""}`}
+                  title={k === "cerrada" ? `${cerradasMes} cerradas este mes` : undefined}
+                  onClick={() => setF({ ...f, estado: f.estado === k ? "pendientes" : k })}>
+            <b>{cuantas}</b>
+            <span>{nombre}</span>
+          </button>
+        ))}
+      </section>
+
       <section className="nv-barra">
-        {/* El estado son pestañas con su conteo: se ve de un vistazo cuánto hay en cada una, y tocar una es filtrar. */}
-        <div className="nv-tabs" role="tablist" aria-label="Estado">
-          {([
-            ["pendientes", "Pendientes", abiertas + enProceso],
-            ["abierta", "Abiertas", abiertas],
-            ["en_proceso", "En proceso", enProceso],
-            ["cerrada", "Cerradas", cerradas],
-            ["", "Todas", novedades.length],
-          ] as [string, string, number][]).map(([k, nombre, cuantas]) => (
-            <button key={k || "todas"} type="button" role="tab" aria-selected={f.estado === k}
-                    className={f.estado === k ? "on" : ""}
-                    onClick={() => setF({ ...f, estado: k })}>
-              {nombre}<b>{cuantas}</b>
-            </button>
-          ))}
-        </div>
-
         <div className="nv-filtros">
-          {vencidas > 0 && (
-            <button type="button" className="nv-vencidas"
-                    title="Pasadas de la fecha que prometieron"
-                    onClick={() => setF({ ...f, estado: "pendientes", tramo: "", responsable: "" })}>
-              <b>{vencidas}</b> {vencidas === 1 ? "pasada de fecha" : "pasadas de fecha"}
-            </button>
-          )}
-
           <label className="nv-filtro">
             <span>Tramo</span>
             <select value={f.tramo} onChange={(e) => setF({ ...f, tramo: e.target.value })}>
@@ -441,9 +438,15 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
 
           <label className="nv-filtro">
             <span>Placa</span>
-            <input value={f.placa} placeholder="Buscar placa" 
+            <input value={f.placa} placeholder="Buscar placa"
                    onChange={(e) => setF({ ...f, placa: e.target.value })} />
           </label>
+
+          {f.estado !== "" && (
+            <button type="button" className="nv-todas" onClick={() => setF({ ...f, estado: "" })}>
+              Ver todo el historial
+            </button>
+          )}
 
           {puedeEditar && (
             <button type="button" className="btn nv-nueva"
