@@ -366,6 +366,8 @@ export async function evidenciaDeViaje(viajeId: string) {
    ==================================================== */
 export type Novedad = {
   id: string;
+  /** El # de caso, consecutivo: se muestra como NV-0142. */
+  caso: number;
   tramo: "t1" | "t2";
   tipo: "viaje" | "entrega";
   motivo: string;
@@ -391,7 +393,18 @@ export type Novedad = {
   cd_responsable: string | null;
   compromiso: string | null;
   fecha_compromiso: string | null;
-  estado: "abierta" | "cerrada";
+  /** Automático: A 06–14, B 14–22, C 22–06, de la hora de la novedad. */
+  turno: "A" | "B" | "C" | null;
+  /** El CD desde donde se reporta. */
+  cd_reporta: string | null;
+  foto_ruta2: string | null;
+  estado: "abierta" | "en_proceso" | "cerrada";
+  /** La nota de gestión de quien atiende el caso. */
+  observacion: string | null;
+  observacion_por: string | null;
+  observacion_en: string | null;
+  tomada_por: string | null;
+  tomada_en: string | null;
   que_se_hizo: string | null;
   cerrada_por: string | null;
   cerrada_en: string | null;
@@ -434,7 +447,7 @@ export async function novedadesSider(limite = 400) {
   const { data, error } = await supabase
     .from("v_sider_novedades")
     .select("*")
-    .order("estado", { ascending: true })   // 'abierta' antes que 'cerrada'
+    .order("estado", { ascending: true })   // abierta, en proceso, cerrada (el orden del tipo)
     .order("fecha", { ascending: false })
     .order("creada_en", { ascending: false })
     .limit(limite);

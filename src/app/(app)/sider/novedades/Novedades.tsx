@@ -23,11 +23,12 @@
  * abre esta pantalla.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Novedad, MotivoNovedad, RespuestaNovedad } from "@/modulos/sider/datos";
 import { useConfirmar } from "@/components/Confirmar";
+import { sellar, type Foto } from "@/lib/evidencia";
 
 const HOY = () => {
   const d = new Date();
@@ -43,6 +44,21 @@ const cuando = (s: string | null) =>
   s ? new Date(s).toLocaleString("es-CO", {
         day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
       }) : "—";
+
+/** «NV-0142»: el # de caso con ceros a la izquierda, para que se lea igual en el papel y en la pantalla. */
+const nv = (n: number) => `NV-${String(n).padStart(4, "0")}`;
+
+/** La hora de Colombia, «HH:MM». */
+const ahoraCo = () =>
+  new Intl.DateTimeFormat("en-GB", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date());
+
+/** EL TURNO SE DEDUCE DE LA HORA, nadie lo escribe: A 06–14, B 14–22, C 22–06. Es el mismo cálculo que hace la base al guardar. */
+const turnoDe = (hhmm: string) => {
+  const h = Number(hhmm.slice(0, 2));
+  return h >= 6 && h < 14 ? "A" : h >= 14 && h < 22 ? "B" : "C";
+};
+const HORARIO_TURNO: Record<string, string> = { A: "06:00 · 14:00", B: "14:00 · 22:00", C: "22:00 · 06:00" };
+const ESTADO_NOMBRE: Record<string, string> = { abierta: "Abierto", en_proceso: "En proceso", cerrada: "Cerrado" };
 
 type Viaje = {
   id: string; placa: string; cd_origen: string; descripcion: string;
@@ -64,6 +80,8 @@ const VACIO = {
      el camión. */
   factura: "",
   lote: "",
+  sku: "",
+  cdReporta: "",
   cantidad: "",
   unidad: "estibas",
   descripcion: "",
@@ -83,16 +101,26 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
   const router = useRouter();
   const [pedir, dialogo] = useConfirmar();
 
-  const [f, setF] = useState({ tramo: "", estado: "abierta", placa: "", responsable: "" });
+  const [f, setF] = useState({ tramo: "", estado: "pendientes", placa: "", responsable: "" });
   /* La novedad que se está respondiendo, y lo que se va a escribir. */
   const [respondiendo, setRespondiendo] = useState<string | null>(null);
   const [resp, setResp] = useState({ texto: "", desde: "", compromiso: "", fecha: "" });
   const [mandando, setMandando] = useState(false);
   const [abierto, setAbierto] = useState(false);
-  const [n, setN] = useState({ ...VACIO, fecha: HOY() });
+  const [n, setN] = useState({ ...VACIO, fecha: HOY(), cdReporta: miBodega });
   const [enviando, setEnviando] = useState(false);
   const [cerrando, setCerrando] = useState<string | null>(null);
   const [mal, setMal] = useState<string | null>(null);
+  /* Las dos fotos del reporte: selladas en el teléfono (placa, fecha y hora quemadas en la banda). */
+  const [fotos, setFotos] = useState<(Foto | null)[]>([null, null]);
+  const [sellando, setSellando] = useState<number | null>(null);
+  const entrada = useRef<HTMLInputElement>(null);
+  const hueco = useRef(0);
+  /* La nota de gestión que se está escribiendo, por caso. */
+  const [obs, setObs] = useState<Record<string, string>>({});
+  const [gestionando, setGestionando] = useState<string | null>(null);
+  /* Las fotos ya subidas se ven con un enlace firmado que dura poco. */
+  const [urls, setUrls] = useState<Record<string, string>>({});
 
   const quien = (id: string | null) => (id ? nombres[id] ?? "—" : "—");
 
@@ -104,7 +132,7 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
     const p = f.placa.trim().toUpperCase();
     return novedades.filter((x) => {
       if (f.tramo && x.tramo !== f.tramo) return false;
-      if (f.estado && x.estado !== f.estado) return false;
+      if (f.estado === "pendientes" ? x.estado === "cerrada" : f.estado && x.estado !== f.estado) return false;
       if (p && !x.placa.toUpperCase().includes(p)) return false;
       if (f.responsable && (x.cd_responsable ?? "") !== f.responsable) return false;
       return true;
@@ -112,7 +140,29 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
   }, [novedades, f]);
 
   const abiertas = novedades.filter((x) => x.estado === "abierta").length;
+  const enProceso = novedades.filter((x) => x.estado === "en_proceso").length;
   const vencidas = novedades.filter((x) => x.vencida).length;
+
+  /* Los enlaces firmados de las fotos de lo que se está viendo. */
+  const rutas = useMemo(
+    () => lista.flatMap((x) => [x.foto_ruta, x.foto_ruta2]).filter((r): r is string => !!r).slice(0, 60),
+    [lista]
+  );
+  useEffect(() => {
+    const faltan = rutas.filter((r) => !urls[r]);
+    if (!faltan.length) return;
+    let vivo = true;
+    supabase.storage.from("sider").createSignedUrls(faltan, 3000).then(({ data }) => {
+      if (!vivo || !data) return;
+      setUrls((u) => {
+        const n = { ...u };
+        for (const d of data) if (d.path && d.signedUrl) n[d.path] = d.signedUrl;
+        return n;
+      });
+    });
+    return () => { vivo = false };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rutas, supabase]);
   /* Los CD que de verdad tienen novedades. Ofrecer los dieciséis del
      maestro cuando cuatro tienen algo hace buscar en una lista donde la
      mayoría no devuelve nada. */
@@ -150,8 +200,46 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
   }
 
   function limpiar() {
-    setN({ ...VACIO, fecha: HOY() });
+    for (const f of fotos) if (f) URL.revokeObjectURL(f.url);
+    setFotos([null, null]);
+    setN({ ...VACIO, fecha: HOY(), cdReporta: miBodega });
     setMal(null);
+  }
+
+  /* Tomar o escoger la foto del hueco 1 o 2: se sella y se encoge en el teléfono. */
+  async function ponerFoto(archivo: File | undefined) {
+    const i = hueco.current;
+    if (!archivo) return;
+    setMal(null);
+    setSellando(i);
+    try {
+      const f = await sellar(archivo, {
+        titulo: n.viajeId ? (viajes.find((v) => v.id === n.viajeId)?.placa ?? "NOVEDAD") : (n.placa.trim().toUpperCase() || "NOVEDAD"),
+        ubi: null, direccion: "", etiqueta: `NOVEDAD · FOTO ${i + 1}`,
+      });
+      setFotos((fs) => { if (fs[i]) URL.revokeObjectURL(fs[i]!.url); const c = [...fs]; c[i] = f; return c });
+    } catch (e) {
+      setMal(e instanceof Error ? e.message : "No se pudo procesar esa foto. Vuelve a tomarla.");
+    } finally { setSellando(null) }
+  }
+  function quitarFoto(i: number) {
+    setFotos((fs) => { if (fs[i]) URL.revokeObjectURL(fs[i]!.url); const c = [...fs]; c[i] = null; return c });
+  }
+
+  /* Pasar un caso a Abierto o En proceso, y/o guardar su observación. Cerrar es otra cosa y exige decir qué se hizo. */
+  async function gestionar(x: Novedad, estado: "abierta" | "en_proceso" | null) {
+    const texto = (obs[x.id] ?? x.observacion ?? "").trim();
+    const cambioObs = texto !== (x.observacion ?? "").trim();
+    if (!estado && !cambioObs) { setMal("No hay nada que guardar: escribe la observación o cambia el estado."); return }
+    setMal(null);
+    setGestionando(x.id);
+    const { error } = await supabase.rpc("sider_novedad_gestionar", {
+      p_id: x.id, p_estado: estado, p_observacion: cambioObs ? texto : null,
+    });
+    setGestionando(null);
+    if (error) { setMal(error.message); return }
+    setObs((o) => { const c = { ...o }; delete c[x.id]; return c });
+    router.refresh();
   }
 
   async function reportar() {
@@ -167,6 +255,25 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
 
     const elMotivo = motivos.find((m) => m.clave === n.motivo);
     setEnviando(true);
+
+    /* Las fotos suben PRIMERO, a una carpeta propia de esta novedad; si el reporte falla, se quitan: que no queden fotos huérfanas. */
+    const carpeta = `novedades/${crypto.randomUUID()}`;
+    const subidas: (string | null)[] = [null, null];
+    for (let i = 0; i < 2; i++) {
+      const f = fotos[i];
+      if (!f) continue;
+      const ruta = `${carpeta}/${i + 1}-${Date.now()}.jpg`;
+      const { error: eF } = await supabase.storage.from("sider").upload(ruta, f.blob, { contentType: "image/jpeg" });
+      if (eF) {
+        const ya = subidas.filter((r): r is string => !!r);
+        if (ya.length) void supabase.storage.from("sider").remove(ya);
+        setEnviando(false);
+        setMal(`La foto ${i + 1} no subió: ${/security|policy|permission/i.test(eF.message) ? "falta correr la migración de Novedades en Supabase" : eF.message}`);
+        return;
+      }
+      subidas[i] = ruta;
+    }
+
     const { error } = await supabase.rpc("sider_novedad_reportar", {
       p_tramo: n.tramo,
       p_tipo: elMotivo?.tipo ?? "viaje",
@@ -176,12 +283,14 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
       p_hora: n.hora || null,
       p_factura: n.factura.trim().toUpperCase() || null,
       p_lote: n.lote.trim().toUpperCase() || null,
-      p_sku: null,
+      p_sku: n.sku.trim() || null,
       p_cantidad: n.cantidad.trim() ? Number(n.cantidad) : null,
       p_unidad: n.cantidad.trim() ? n.unidad : null,
       p_descripcion: n.descripcion.trim() || null,
       p_viaje_id: conViaje ? n.viajeId : null,
-      p_foto_ruta: null,
+      p_foto_ruta: subidas[0],
+      p_foto_ruta2: subidas[1],
+      p_cd_reporta: n.cdReporta.trim() || miBodega || null,
       /* Con viaje, el responsable lo pone la base a partir del CD de
          origen: dejar que lo mande el navegador permite echarle la culpa
          al CD equivocado. */
@@ -190,8 +299,10 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
     setEnviando(false);
 
     if (error) {
+      const ya = subidas.filter((r): r is string => !!r);
+      if (ya.length) void supabase.storage.from("sider").remove(ya);
       setMal(/does not exist|schema cache/i.test(error.message)
-        ? "Falta crear la tabla en Supabase: ejecuta supabase/migraciones/2026-09-novedades.sql."
+        ? "Falta correr la migración en Supabase: supabase/migraciones/2026-11-novedades-casos.sql."
         : error.message);
       return;
     }
@@ -207,6 +318,7 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
        enseña en una reunión se ve como si la app se hubiera roto. */
     const que = resp.texto.trim();
     if (!que) { setMal("Para cerrar hay que decir qué se hizo."); return }
+    if (que.length < 10) { setMal("Cuenta qué se hizo con un poco más de detalle (mínimo 10 letras)."); return }
 
     const ok = await pedir({
       titulo: `¿Cerrar la novedad de ${x.placa}?`,
@@ -243,12 +355,18 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
           <b>{abiertas}</b>
           <span>{abiertas === 1 ? "novedad abierta" : "novedades abiertas"}</span>
         </div>
+        {enProceso > 0 && (
+          <div className="nv-cuenta proceso">
+            <b>{enProceso}</b>
+            <span>en proceso</span>
+          </div>
+        )}
         {/* Las vencidas solo salen si las hay: un cero permanente en rojo
             deja de leerse a los dos días. */}
         {vencidas > 0 && (
           <button type="button" className="nv-cuenta mala"
                   title="Pasadas de la fecha que prometieron"
-                  onClick={() => setF({ ...f, estado: "abierta", tramo: "", responsable: "" })}>
+                  onClick={() => setF({ ...f, estado: "pendientes", tramo: "", responsable: "" })}>
             <b>{vencidas}</b>
             <span>{vencidas === 1 ? "pasada de fecha" : "pasadas de fecha"}</span>
           </button>
@@ -266,7 +384,9 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
         <label className="nv-filtro">
           <span>Estado</span>
           <select value={f.estado} onChange={(e) => setF({ ...f, estado: e.target.value })}>
+            <option value="pendientes">Pendientes (abiertas y en proceso)</option>
             <option value="abierta">Abiertas</option>
+            <option value="en_proceso">En proceso</option>
             <option value="cerrada">Cerradas</option>
             <option value="">Todas</option>
           </select>
@@ -335,7 +455,7 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
                           const v = viajes.find((x) => x.id === e.target.value);
                           setN({
                             ...n, viajeId: e.target.value, placa: "",
-                            factura: v?.factura ?? "", lote: v?.lote ?? "",
+                            factura: v?.factura ?? "", lote: v?.lote ?? "", sku: v?.sku ?? "",
                           });
                         }}>
                   <option value="">Ninguno — escribo la placa</option>
@@ -368,6 +488,12 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
             )}
 
             <label>
+              <span>CD que reporta</span>
+              <input value={n.cdReporta} placeholder="CD Barranquilla"
+                     onChange={(e) => setN({ ...n, cdReporta: e.target.value })} />
+            </label>
+
+            <label>
               <span>¿Cuándo pasó?</span>
               <input type="date" value={n.fecha} max={HOY()}
                      onChange={(e) => setN({ ...n, fecha: e.target.value })} />
@@ -379,6 +505,18 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
                      onChange={(e) => setN({ ...n, hora: e.target.value })} />
               <em>En un día entran varios camiones del mismo origen.</em>
             </label>
+
+            {/* EL TURNO NO SE ESCRIBE: sale de la hora (la que pusiste, o la de ahora). */}
+            {(() => {
+              const t = turnoDe(n.hora || ahoraCo());
+              return (
+                <div className="nv-turno-auto">
+                  <span>Turno · automático</span>
+                  <b>Turno {t}</b>
+                  <em>{HORARIO_TURNO[t]} · según la hora{n.hora ? "" : " de ahora"}</em>
+                </div>
+              );
+            })()}
 
             {/* LO QUE HACE FALTA PARA RECLAMAR. Si para armar el reclamo
                 hay que ir a buscar la factura a un lado y el lote a otro,
@@ -397,6 +535,13 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
             </label>
 
             <label>
+              <span>SKU afectado</span>
+              <input value={n.sku} placeholder="3500025"
+                     onChange={(e) => setN({ ...n, sku: e.target.value })} />
+              {n.viajeId !== "" && n.sku && <em>Viene del viaje. Si el papel dice otro, corrígelo.</em>}
+            </label>
+
+            <label>
               <span>¿Cuánto vino mal?</span>
               <div style={{ display: "flex", gap: 8 }}>
                 <input type="number" inputMode="decimal" step="0.01" min="0"
@@ -412,6 +557,31 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
               </div>
               <em>Sin esta cifra la novedad dice qué pasó, pero no cuánto hay que cobrar.</em>
             </label>
+
+            <div className="ancho nv-fotos">
+              <span>Fotos (hasta 2)</span>
+              <div className="nv-fotos-fila">
+                {[0, 1].map((i) => (
+                  <div key={i} className="nv-foto-hueco">
+                    {fotos[i] ? (
+                      <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={fotos[i]!.url} alt={`Foto ${i + 1} de la novedad`} />
+                        <button type="button" className="us-mini" onClick={() => quitarFoto(i)}>Quitar</button>
+                      </>
+                    ) : (
+                      <button type="button" className="nv-foto-tomar" disabled={sellando !== null}
+                              onClick={() => { hueco.current = i; entrada.current?.click() }}>
+                        <b>{sellando === i ? "Preparando…" : `Foto ${i + 1}`}</b>
+                        <em>{i === 0 ? "Tomar o escoger" : "Opcional"}</em>
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <input ref={entrada} type="file" accept="image/*" capture="environment" hidden
+                     onChange={(e) => { void ponerFoto(e.target.files?.[0]); e.target.value = "" }} />
+            </div>
 
             <label className="ancho">
               <span>Qué pasó</span>
@@ -452,18 +622,19 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
                    className={"nv" + (x.estado === "cerrada" ? " cerrada" : "")
                                    + (x.vencida ? " vencida" : "")}>
             <div className="nv-cab">
+              <span className="nv-caso" title="Número de caso">{nv(x.caso)}</span>
               <span className={"nv-tramo " + x.tramo}>{x.tramo.toUpperCase()}</span>
               <h3>{x.motivo_nombre}</h3>
               <span className="nv-placa">{x.placa}</span>
               <span className="nv-fecha">
-                {dia(x.fecha)}{x.hora ? ` · ${x.hora.slice(0, 5)}` : ""}
+                {dia(x.fecha)}{x.hora ? ` · ${x.hora.slice(0, 5)}` : ""}{x.turno ? ` · turno ${x.turno}` : ""}
               </span>
               {/* Los días son lo que convierte un renglón en un problema:
                   "lleva 12 días" se entiende sin leer nada más. */}
-              <span className={"nv-dias" + (x.estado === "abierta" && x.dias >= 7 ? " largo" : "")}>
+              <span className={"nv-dias" + (x.estado !== "cerrada" && x.dias >= 7 ? " largo" : "")}>
                 {x.dias === 0 ? "hoy" : x.dias === 1 ? "1 día" : `${x.dias} días`}
               </span>
-              <span className={"nv-estado " + x.estado}>{x.estado}</span>
+              <span className={"nv-estado " + x.estado}>{ESTADO_NOMBRE[x.estado] ?? x.estado}</span>
             </div>
 
             <div className="nv-quien">
@@ -471,6 +642,11 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
                 <span className="nv-resp">Le toca a <b>{x.cd_responsable}</b></span>
               ) : (
                 <span className="nv-resp sin">Sin responsable</span>
+              )}
+              {(x.cd_origen || x.cd_reporta) && (
+                <span className="nv-ruta">
+                  {x.cd_origen ?? "—"} → <b>{x.cd_reporta ?? "—"}</b>
+                </span>
               )}
               {x.pegada_a_viaje && (
                 <span className="nv-viaje">
@@ -485,7 +661,7 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
                 en la cabeza de alguien, el reclamo se deja para después
                 y después se olvida. Lo que no se sepa no se pinta: un
                 "Factura: —" en cada renglón es ruido. */}
-            {(x.factura || x.lote || x.cantidad != null) && (
+            {(x.factura || x.lote || x.sku || x.cantidad != null) && (
               <div className="nv-papel">
                 {x.cantidad != null && (
                   <span className="nv-cant"><b>{x.cantidad}</b> {x.unidad}</span>
@@ -498,9 +674,63 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
 
             {x.descripcion && <p className="nv-dice">{x.descripcion}</p>}
 
+            {(x.foto_ruta || x.foto_ruta2) && (
+              <div className="nv-fotos-ver">
+                {[x.foto_ruta, x.foto_ruta2].map((r, i) => r && (
+                  urls[r] ? (
+                    <a key={r} href={urls[r]} target="_blank" rel="noreferrer" title={`Abrir la foto ${i + 1}`}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={urls[r]} alt={`Foto ${i + 1} de ${nv(x.caso)}`} />
+                    </a>
+                  ) : <span key={r} className="nv-foto-carga">Foto {i + 1}…</span>
+                ))}
+              </div>
+            )}
+
+            {/* LA GESTIÓN DEL CASO: el estado y la nota de quien lo atiende. */}
+            {x.observacion && x.estado === "cerrada" && (
+              <p className="nv-obs"><b>Observación:</b> {x.observacion}
+                <em>{quien(x.observacion_por)} · {cuando(x.observacion_en)}</em></p>
+            )}
+            {x.estado !== "cerrada" && puedeEditar && (
+              <div className="nv-gestion">
+                <div className="nv-g-cab">
+                  <b>Gestión</b>
+                  <div className="nv-seg" role="group" aria-label="Estado del caso">
+                    <button type="button" className={x.estado === "abierta" ? "on" : ""}
+                            disabled={gestionando === x.id || x.estado === "abierta"}
+                            onClick={() => gestionar(x, "abierta")}>Abierto</button>
+                    <button type="button" className={x.estado === "en_proceso" ? "on proceso" : ""}
+                            disabled={gestionando === x.id || x.estado === "en_proceso"}
+                            onClick={() => gestionar(x, "en_proceso")}>En proceso</button>
+                  </div>
+                  {x.tomada_por && (
+                    <span className="nv-tomada">Lo tomó {quien(x.tomada_por)} · {cuando(x.tomada_en)}</span>
+                  )}
+                </div>
+                <label>
+                  <span>Observación{x.observacion_por ? ` · ${quien(x.observacion_por)} · ${cuando(x.observacion_en)}` : ""}</span>
+                  <textarea rows={2} maxLength={600} value={obs[x.id] ?? x.observacion ?? ""}
+                            placeholder="Qué se está haciendo con este caso…"
+                            onChange={(e) => setObs((o) => ({ ...o, [x.id]: e.target.value }))} />
+                </label>
+                <div className="nv-acciones">
+                  <button type="button" className="us-mini"
+                          disabled={gestionando === x.id || (obs[x.id] ?? x.observacion ?? "").trim() === (x.observacion ?? "").trim()}
+                          onClick={() => gestionar(x, null)}>
+                    {gestionando === x.id ? "Guardando…" : "Guardar observación"}
+                  </button>
+                  {x.estado === "abierta" && (
+                    <button type="button" className="us-mini" disabled={gestionando === x.id}
+                            onClick={() => gestionar(x, "en_proceso")}>Tomar el caso</button>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Lo que prometieron. Sin compromiso, la novedad está abierta
                 y nadie ha dicho nada — que es peor que ir tarde. */}
-            {x.estado === "abierta" && (
+            {x.estado !== "cerrada" && (
               x.compromiso ? (
                 <p className={"nv-compromiso" + (x.vencida ? " vencido" : "")}>
                   <b>Se comprometieron a:</b> {x.compromiso}
@@ -540,7 +770,7 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
                   <> · cerró {quien(x.cerrada_por)} {cuando(x.cerrada_en)}</>
                 )}
               </span>
-              {x.estado === "abierta" && puedeEditar && !contestando && (
+              {x.estado !== "cerrada" && puedeEditar && !contestando && (
                 <button type="button" className="us-mini"
                         onClick={() => {
                           setRespondiendo(x.id);
