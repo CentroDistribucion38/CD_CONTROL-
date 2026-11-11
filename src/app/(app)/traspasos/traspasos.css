@@ -2767,3 +2767,18 @@
   .tp .filtros .tp-placa-f, .tp .filtros .tp-placa-f input { width: 100% }
   .tp .filtros .tp-f1 .limpiar { margin-left: 0 }
 }
+
+/* ---------- El icono que copia el plan del día como imagen ----------
+   Chico a propósito (28 px) y recto: es una ayuda, no la acción de la
+   pantalla. Va pegado al título y no compite con Publicar. */
+.tp .plan-titulo { display: flex; align-items: center; gap: 10px; flex-wrap: wrap }
+.tp .btn-foto-plan {
+  width: 28px; height: 28px; padding: 0; display: inline-grid; place-items: center; cursor: pointer;
+  background: var(--tp-papel); color: var(--tp-tinta); border: 1px solid var(--tp-tinta); border-radius: 0;
+}
+.tp .btn-foto-plan svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: square }
+.tp .btn-foto-plan:hover:not(:disabled) { background: var(--tp-tinta); color: #fff }
+.tp .btn-foto-plan:focus-visible { outline: 2px solid var(--tp-acento); outline-offset: 2px }
+.tp .btn-foto-plan:disabled { opacity: .5; cursor: progress }
+.tp .btn-foto-plan.listo { background: var(--tp-bien); border-color: var(--tp-bien); color: #fff }
+@media print { .tp .btn-foto-plan { display: none } }

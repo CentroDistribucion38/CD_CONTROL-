@@ -7,6 +7,7 @@ import "../traspasos.css";
 import { AlDia, SinTablas } from "../comunes";
 import { Plan } from "./Plan";
 import { Fechas } from "./Fechas";
+import { CopiarPlan } from "./CopiarPlan";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +41,15 @@ export default async function PlanPage({ searchParams }: {
       <section className="cabeza-ctl">
         <div>
           <Fechas dia={dia} hoy={hoy} esHoy={dia === hoy} hayBorrador={hayBorrador} />
-          <h1>Plan del día</h1>
+          <div className="plan-titulo">
+            <h1>Plan del día</h1>
+            {/* El icono chico que copia el plan como imagen para WhatsApp o Teams. */}
+            <CopiarPlan
+              dia={dia} fechaLarga={fechaLarga(dia)} tipos={t.tipos.map((x) => ({ clave: x.clave, nombre: x.nombre }))}
+              publicadas={plan.publicadas} borrador={plan.borrador} vacios={plan.vacios}
+              hechos={dia === hoy ? ctl.filas.reduce((a, c) => a + c.cumplido, 0) : null}
+            />
+          </div>
           <p className="sub" style={{ textTransform: "none" }}>
             <span style={{ textTransform: "capitalize" }}>{fechaLarga(dia)}</span>. Los tres
             turnos y los nueve tipos en una sola rejilla. Cada tipo se planea por turno o, si no
