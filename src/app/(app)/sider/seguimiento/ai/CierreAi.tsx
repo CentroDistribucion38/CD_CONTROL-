@@ -14,6 +14,7 @@ import type { PorDefecto } from "@/modulos/sider/informe-ai";
 import { armarCierreAi, textoCierreAi } from "@/modulos/sider/cierre-ai";
 import { turnoAi } from "@/modulos/sider/comun";
 import { cierreAiDia } from "./actions";
+import { DiaCierre } from "./DiaCierre";
 import "../../../roturas/roturas.css";
 import "../../../roturas/en-sitio/tablero/cierre.css";
 import "./cierre-ai.css";
@@ -151,7 +152,7 @@ export function CierreAi({ ultima, tipoInicial, cerrar }: { ultima: string | nul
 
         {/* ─ QUÉ CIERRO: día, turnos y clase de revisión ─ */}
         <div className="ca-barra ca-no-foto">
-          <label><span>Día</span><input type="date" value={dia} max={hoyCo()} onChange={(e) => e.target.value && setDia(e.target.value)} /></label>
+          <div className="ca-dia"><span>Día</span><DiaCierre valor={dia} hoy={hoyCo()} alCambiar={setDia} /></div>
           <div className="ca-grupo" role="group" aria-label="Turnos">
             <span>Turno</span>
             {TURNOS.map(([k, l, h]) => <button key={k} type="button" aria-pressed={turnos.includes(k)} className={turnos.includes(k) ? "on" : ""} title={h} onClick={() => alternar(k)}>{l}</button>)}

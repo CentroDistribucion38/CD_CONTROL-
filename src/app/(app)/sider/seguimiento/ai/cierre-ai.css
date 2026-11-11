@@ -39,3 +39,31 @@
 .rt-modal.rtc-velo { padding: 8px }
 .rtc { max-height: calc(100dvh - 16px) }
 @media (max-width: 720px) { .rtc .ca-tabla { font-size: 11.5px } .rtc .ca-tabla th, .rtc .ca-tabla td { padding-left: 5px; padding-right: 5px } }
+
+/* EL CALENDARIO DEL DÍA (DiaCierre): recto, negro y amarillo. */
+.rtc .dc { position: relative }
+.rtc .dc-campo { display: flex; align-items: center; gap: 10px; height: 36px; min-width: 180px; padding: 0 10px; background: #fff; border: 1.5px solid var(--rt-tinta); color: var(--rt-tinta); cursor: pointer; font: 700 14px var(--rt-texto); font-variant-numeric: tabular-nums }
+.rtc .dc-campo svg { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round }
+.rtc .dc-campo .fl { margin-left: auto; width: 14px; height: 14px; transition: transform .12s }
+.rtc .dc-campo.abierto { border-color: var(--rt-oro); box-shadow: 0 0 0 3px color-mix(in srgb, var(--rt-oro) 30%, transparent) }
+.rtc .dc-campo.abierto .fl { transform: rotate(180deg) }
+.rtc .dc-campo:focus-visible { outline: 2px solid var(--rt-oro); outline-offset: 2px }
+.rtc .dc-panel { position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; width: 300px; background: #fff; border: 1.5px solid var(--rt-tinta); box-shadow: 0 16px 34px rgba(0, 0, 0, .25) }
+.rtc .dc-cab { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; background: var(--rt-tinta); color: #fff }
+.rtc .dc-cab b { font: 800 14px var(--rt-titulo); text-transform: capitalize; letter-spacing: -.01em }
+.rtc .dc-cab button { width: 30px; height: 30px; border: 0; background: transparent; color: #fff; font-size: 20px; line-height: 1; cursor: pointer }
+.rtc .dc-cab button:hover:not(:disabled) { background: rgba(255, 255, 255, .14) }
+.rtc .dc-cab button:disabled { opacity: .3; cursor: default }
+.rtc .dc-rej { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; padding: 10px 10px 8px }
+.rtc .dc-sem { text-align: center; font: 700 10px var(--rt-titulo); letter-spacing: .08em; color: var(--rt-gris, #5b6b7f); padding-bottom: 4px }
+.rtc .dc-rej button { height: 34px; border: 0; background: transparent; color: var(--rt-tinta); font: 600 13.5px var(--rt-texto); font-variant-numeric: tabular-nums; cursor: pointer }
+.rtc .dc-rej button:hover:not(:disabled):not(.on) { background: color-mix(in srgb, var(--rt-oro) 28%, #fff) }
+.rtc .dc-rej button.hoy { box-shadow: inset 0 0 0 2px var(--rt-oro) }
+.rtc .dc-rej button.on { background: var(--rt-tinta); color: #fff; font-weight: 800 }
+.rtc .dc-rej button:disabled { color: #c3ccd7; cursor: default }
+.rtc .dc-pie { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 8px 10px; border-top: 1px solid var(--rt-linea); background: #f7f9fc }
+.rtc .dc-pie button { border: 1px solid var(--rt-linea); background: #fff; padding: 4px 9px; font: 700 12px var(--rt-texto); color: var(--rt-tinta); cursor: pointer }
+.rtc .dc-pie button:hover { border-color: var(--rt-tinta) }
+.rtc .dc-pie span { margin-left: auto; font: 700 12px var(--rt-texto); color: var(--rt-gris, #5b6b7f); font-variant-numeric: tabular-nums }
+.rtc .ca-dia { display: flex; flex-direction: column; gap: 4px }
+.rtc .ca-dia > span { font: 700 10px var(--rt-titulo); letter-spacing: .14em; text-transform: uppercase; color: var(--rt-gris, #5b6b7f) }
