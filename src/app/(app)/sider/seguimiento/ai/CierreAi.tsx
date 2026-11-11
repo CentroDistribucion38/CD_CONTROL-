@@ -25,6 +25,28 @@ const diaLargo = (iso: string) => new Date(iso + "T12:00:00").toLocaleDateString
 const hhmm = (d: Date) => d.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
 const hoyCo = () => new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Bogota" }).format(new Date());
 
+/* html2canvas 1.4 no entiende los colores modernos (color-mix, color(srgb …), oklch, lab): el navegador los devuelve así ya resueltos
+   y el dibujo revienta con «unsupported color function». Antes de dibujar, en la COPIA se pasan a rgb(). */
+const COLOR_MODERNO = /color\([^)]*\)|oklch\([^)]*\)|oklab\([^)]*\)|lab\([^)]*\)|lch\([^)]*\)/g;
+const PROPS_COLOR = ["color", "backgroundColor", "backgroundImage", "borderTopColor", "borderRightColor", "borderBottomColor", "borderLeftColor", "outlineColor", "textDecorationColor", "boxShadow", "fill", "stroke"] as const;
+function colorModernoARgb(doc: Document, raiz: HTMLElement) {
+  const cv = doc.createElement("canvas"); cv.width = cv.height = 1;
+  const cx = cv.getContext("2d", { willReadFrequently: true }); if (!cx) return;
+  const aRgb = (v: string) => {
+    cx.clearRect(0, 0, 1, 1); cx.fillStyle = "#000"; cx.fillStyle = v; cx.fillRect(0, 0, 1, 1);
+    const [r, g, b, a] = cx.getImageData(0, 0, 1, 1).data;
+    return `rgba(${r}, ${g}, ${b}, ${Math.round((a / 255) * 1000) / 1000})`;
+  };
+  const vista = doc.defaultView; if (!vista) return;
+  for (const el of [raiz, ...Array.from(raiz.querySelectorAll<HTMLElement>("*"))]) {
+    const cs = vista.getComputedStyle(el);
+    for (const p of PROPS_COLOR) {
+      const v = cs[p] as string;
+      if (v && /color\(|oklch|oklab|lab\(|lch\(/.test(v)) el.style.setProperty(p.replace(/[A-Z]/g, (m) => "-" + m.toLowerCase()), v.replace(COLOR_MODERNO, aRgb), "important");
+    }
+  }
+}
+
 export function CierreAi({ ultima, tipoInicial, cerrar }: { ultima: string | null; tipoInicial: "ai" | "sorting" | ""; cerrar: () => void }) {
   const raiz = useRef<HTMLDivElement>(null);
   const botonX = useRef<HTMLButtonElement>(null);
@@ -77,7 +99,7 @@ export function CierreAi({ ultima, tipoInicial, cerrar }: { ultima: string | nul
       const html2canvas = (await import("html2canvas")).default;
       const lienzo = await html2canvas(nodo, {
         backgroundColor: "#ffffff", scale: 2, useCORS: true,
-        onclone: (doc: Document) => { doc.querySelectorAll<HTMLElement>(".ca-no-foto").forEach((e) => { e.style.display = "none" }); const r = doc.querySelector<HTMLElement>(".rtc"); if (r) { r.style.maxHeight = "none"; r.style.overflow = "visible" } },
+        onclone: (doc: Document) => { const rr = doc.querySelector<HTMLElement>(".rtc"); if (rr) colorModernoARgb(doc, rr); doc.querySelectorAll<HTMLElement>(".ca-no-foto").forEach((e) => { e.style.display = "none" }); const r = doc.querySelector<HTMLElement>(".rtc"); if (r) { r.style.maxHeight = "none"; r.style.overflow = "visible" } },
       });
       const blob: Blob | null = await new Promise((r) => lienzo.toBlob(r, "image/png"));
       if (!blob) throw new Error("sin imagen");
