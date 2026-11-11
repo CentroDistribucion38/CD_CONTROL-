@@ -406,3 +406,5 @@
 .ad .ad-fuera th { text-align: left; padding: 5px 8px; font: 700 10px var(--fe-texto); letter-spacing: .1em; color: #5b6b7f; border-bottom: 1px solid var(--fe-linea) }
 .ad .ad-fuera td { padding: 6px 8px; border-bottom: 1px solid var(--fe-linea); vertical-align: top }
 .ad .ad-fuera .n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap }
+
+.ad .ad-cuadra { flex: 1 1 100%; font: 600 11.5px var(--fe-texto); color: #0b7a3e }

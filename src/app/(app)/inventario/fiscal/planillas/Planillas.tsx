@@ -334,17 +334,15 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
             <Selector valor={cod} onCambiar={(v) => { setCod(v); setAjMsg(null); if (v) { setAjAbierto(true); setLineas((ls) => ls.map((l, n) => (n === 0 && !l.cod ? { ...l, cod: v } : l))) } }} vacio="Todos los códigos" ariaLabel="Filtrar por código"
                       opciones={[{ valor: "", etiqueta: "Todos los códigos" }, ...codigos]} />
           </div>
-          {(cambios > 0 || movs.length > 0) && (
-            <div className="pl-ver" role="group" aria-label="Qué conteo ver">
-              <button type="button" className={!verOrig ? "on" : ""} onClick={() => setVerOrig(false)}>Con mis movimientos</button>
-              <button type="button" className={verOrig ? "on" : ""} onClick={() => setVerOrig(true)}>Original</button>
-            </div>
-          )}
+          <div className="pl-ver" role="group" aria-label="Qué planilla ver">
+            <button type="button" className={!verOrig ? "on" : ""} onClick={() => setVerOrig(false)} title="La planilla con tus ajustes y movimientos: aquí escribes y editas">Mi planilla{cambios > 0 ? " (modificada)" : ""}</button>
+            <button type="button" className={verOrig ? "on" : ""} onClick={() => setVerOrig(true)} title="Lo que contaron los dos, sin ningún cambio tuyo (solo lectura)">Planilla original</button>
+          </div>
           {cambios > 0 && <button type="button" className="pl-restablecer" onClick={() => dlg.current?.showModal()}>Quitar mis ajustes ({cambios})</button>}
           <button type="button" className="pl-imprimir" onClick={() => window.print()}>Imprimir o guardar en PDF</button>
         </div>
       </div>
-      {verOrig && <p className="pl-orig-ban">Estás viendo el conteo <b>ORIGINAL</b> (solo lectura). Tus movimientos y ajustes siguen guardados: toca «Con mis movimientos» para volver a ellos.</p>}
+      {verOrig && <p className="pl-orig-ban">Estás viendo el conteo <b>ORIGINAL</b> (solo lectura). Tus movimientos y ajustes siguen guardados: toca «Mi planilla» para volver a ella y editarla.</p>}
       {cambios > 0 && !verOrig && <p className="pl-guard">Guardado en este navegador{guardadoEn ? ` · ${guardadoEn}` : ""}. Puedes cerrar y volver: lo encuentras igual. El conteo original no se toca.</p>}
       <dialog ref={dlg} className="pl-dlg" aria-label="Quitar los ajustes de la planilla">
         <div className="pl-dlg-cab"><p>Planillas · ajustes</p><h2>Quitar mis ajustes</h2></div>
@@ -406,7 +404,7 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
         <summary>Ajustar cantidades a ambos lados{movs.length > 0 && <em>{movs.length} {movs.length === 1 ? "movimiento" : "movimientos"}</em>}</summary>
         <form className="pl-aj" onSubmit={(e) => { e.preventDefault(); if (!verOrig) ajustar() }}>
           <p className="pl-aj-n">La misma cantidad al operador logístico y a Bavaria: la diferencia no cambia. Agrega todos los códigos que necesites y se aplican juntos.</p>
-          {verOrig && <p className="pl-aj-m mal">Estás viendo el original: vuelve a «Con mis movimientos» para ajustar.</p>}
+          {verOrig && <p className="pl-aj-m mal">Estás viendo el original: vuelve a «Mi planilla» para ajustar.</p>}
           {editando && <p className="pl-aj-ed">Editando un movimiento. Cambia lo que necesites y toca «Guardar cambios».</p>}
           {lineas.map((l, n) => {
             const inf = info.get(l.cod);

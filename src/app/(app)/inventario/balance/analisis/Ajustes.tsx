@@ -59,7 +59,7 @@ export function Ajustes({ fecha, guardado, filas: inicio, puedeEditar, faltaSql,
     if ("error" in r && r.error) { setHEstado((e) => ({ ...e, [f.codigo]: "mal" })); setMsg(r.error); return }
     setHEstado((e) => ({ ...e, [f.codigo]: "ok" }));
   }
-  const pendientes = filas.filter((f) => (f.compensa !== 0 && !f.compHecha) || (f.ajuste !== 0 && (f.ajusteHecho ?? 0) !== f.ajuste)).length;
+  const pendientes = filas.filter((f) => (f.compensa !== 0 && !f.compHecha) || f.ajuste - (f.ajusteHecho ?? 0) !== 0).length;
 
   async function guardar(codigo: string, texto: string, antes: string) {
     if (texto === antes) return;
@@ -148,23 +148,25 @@ export function Ajustes({ fecha, guardado, filas: inicio, puedeEditar, faltaSql,
                       <td className={"n b" + (f.ajuste < 0 ? " neg" : f.ajuste > 0 ? " pos" : "")}>{f.ajuste ? signo(f.ajuste) : "0"}</td>
                       <td><span className={"ad-sent" + (f.ajuste > 0 ? " sobra" : f.ajuste < 0 ? " falta" : " ok")}>{sentido(f.ajuste)}</span></td>
                       <td className="hecho">
-                        {(f.compensa !== 0 || f.ajuste !== 0) ? (
+                        {(
                           <div className="ad-hecho">
                             {f.compensa !== 0 && <span className="ad-auto" title="El NUEVO contado en el retornable ya se pasó a su NR: no hay que marcar nada">Compensación automática</span>}
-                            {f.ajuste !== 0 && (
+                            {(
                               <div className="ad-ajc">
                                 <input type="number" className="ad-cant ad-cant-aj" disabled={!puedeEditar} defaultValue={f.ajusteHecho ?? ""} key={`${f.codigo}-${f.ajusteHecho ?? "x"}`}
-                                       placeholder={signo(f.ajuste)} aria-label={`Ajuste hecho en SAP del ${f.codigo}`}
-                                       title="Lo que ajustaste en SAP, con su signo (−1.000 baja SAP en 1.000). Vacío = nada ajustado."
+                                       placeholder={f.ajuste ? signo(f.ajuste) : "± ajustar"} aria-label={`Ajuste hecho en SAP del ${f.codigo}`}
+                                       title="Lo que ajustas en SAP, con su signo (+500 sube SAP en 500, −500 lo baja). Sirve también si la fila ya cuadra por la compensación. Vacío = nada ajustado."
                                        onBlur={(e) => { const t = e.currentTarget.value.trim(); const v = t === "" ? null : Number(t); if (v != null && !Number.isFinite(v)) return; if ((v || null) !== (f.ajusteHecho || null)) void marcar(f, f.compHecha, v || null) }}
                                        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur() }} />
                                 {puedeEditar && f.ajusteHecho !== f.ajuste && <button type="button" className="ad-todo" title={`Poner todo el ajuste (${signo(f.ajuste)})`} onClick={() => void marcar(f, f.compHecha, f.ajuste)}>todo</button>}
-                                {f.ajusteHecho != null && f.ajusteHecho !== f.ajuste && <small className="ad-queda">queda {signo(f.ajuste - f.ajusteHecho)}</small>}
+                                {f.ajusteHecho != null && (f.ajusteHecho !== f.ajuste
+                                  ? <small className="ad-queda">diferencia final {signo(f.ajuste - f.ajusteHecho)}</small>
+                                  : <small className="ad-cuadra">diferencia final 0 · cuadra</small>)}
                               </div>
                             )}
                             <i className={hEstado[f.codigo] ?? ""}>{hEstado[f.codigo] === "guardando" ? "…" : hEstado[f.codigo] === "ok" ? "✓" : hEstado[f.codigo] === "mal" ? "!" : ""}</i>
                           </div>
-                        ) : <span className="ad-na">—</span>}
+                        )}
                       </td>
                       <td className="obs">
                         {puedeEditar ? (
