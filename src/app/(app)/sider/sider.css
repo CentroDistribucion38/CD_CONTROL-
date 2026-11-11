@@ -1423,6 +1423,9 @@
 /* La fecha del periodo NO es una etiqueta: la regla de arriba la dejaba en 10,5 px, gris y con letras separadas. Se lee grande y en tinta. */
 .sd .ex-mes .sg-mes .mes-campo { height: 40px; min-width: 250px; max-width: none; border-color: var(--sd-tinta) }
 .sd .ex-mes .sg-mes .mes-campo > span { font: 700 15px var(--sd-texto); letter-spacing: 0; text-transform: none; color: var(--sd-tinta) }
+.sd .ex-mes .ex-fechas { font: 700 14px var(--sd-texto); letter-spacing: 0; color: var(--sd-tinta); font-variant-numeric: tabular-nums }
+.sd .ex-rango.apagado .mes-campo { opacity: .45 }
+.sd .ex-todo.on { align-self: flex-end; min-height: 40px; background: var(--sd-tinta); color: #fff; border-color: var(--sd-tinta) }
 .sd .ex-mes select { height: 40px; min-width: 168px }
 .sd .ex-fotos { display: flex; align-items: center; gap: 6px; height: 40px; font-size: 12.5px; color: var(--c-2c4361) }
 .sd .ex-fotos input { width: 17px; height: 17px; accent-color: var(--sd-acento) }

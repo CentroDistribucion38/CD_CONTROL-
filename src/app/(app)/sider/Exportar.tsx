@@ -18,6 +18,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Rango, type Dia } from "./seguimiento/Rango";
 import { mesCompleto } from "@/modulos/sider/comun";
 
+/** 2026-11-10 → 10/11/2026: la fecha exacta, como se escribe aquí. */
+const dmy = (f: string) => f.split("-").reverse().join("/");
+
 export function BotonExportar({ mes: fijo, dias = [] }: {
   /** Un rango fijo, cuando quien llama ya sabe cuál (Seguimiento). */
   mes?: string;
@@ -65,25 +68,21 @@ export function BotonExportar({ mes: fijo, dias = [] }: {
     <div className="ex-caja">
       <div className="ex-mes">
         <span className="ex-rot">Exportar</span>
-        {todo ? (
-          <button type="button" className="ex-todo on" onClick={() => setTodo(false)}>
-            Todo el histórico
-            <em>cambiar</em>
-          </button>
-        ) : (
+        <div className={todo ? "ex-rango apagado" : "ex-rango"}>
           <Rango
             desde={desde}
             hasta={hasta}
             dias={dias}
-            alElegir={(d, h) => { setDesde(d); setHasta(h) }}
+            alElegir={(d, h) => { setDesde(d); setHasta(h); setTodo(false) }}
           />
-        )}
+        </div>
+        <span className="ex-fechas" aria-live="polite">
+          {todo ? "Desde el primer viaje hasta hoy" : desde === hasta ? dmy(desde) : `${dmy(desde)} → ${dmy(hasta)}`}
+        </span>
       </div>
-      {!todo && (
-        <button type="button" className="ex-todo" onClick={() => setTodo(true)}>
-          Todo el histórico
-        </button>
-      )}
+      <button type="button" className={"ex-todo" + (todo ? " on" : "")} aria-pressed={todo} onClick={() => setTodo((t) => !t)}>
+        Todo el histórico
+      </button>
       <label className="ex-fotos" title="Sin fotos el archivo pesa mucho menos">
         <input type="checkbox" checked={fotos} onChange={(e) => setFotos(e.target.checked)} />
         <span>con fotos</span>
