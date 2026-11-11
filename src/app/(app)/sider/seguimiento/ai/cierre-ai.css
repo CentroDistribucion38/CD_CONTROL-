@@ -14,3 +14,28 @@
 .rtc .ca-tabla tr.ca-vital td:first-child, .rtc .ca-tabla tr.ca-vital td:nth-child(2) { font-weight: 800 }
 .rtc .ca-tabla tr.ca-vital { background: color-mix(in srgb, var(--rt-oro) 12%, #fff) }
 @media print { .rtc .ca-no-foto { display: none !important } }
+
+/* COMPACTO, SIN SCROLL: el cierre cabe en una pantalla. Las tablas ya no fuerzan 1040 px (eso era el scroll horizontal) y se aprietan los espacios. */
+.rtc .rtc-rueda { overflow: visible }
+.rtc .ca-tabla { min-width: 0; font-size: 12.5px }
+.rtc .ca-tabla th { padding: 6px 8px; font-size: 9.5px; letter-spacing: .08em }
+.rtc .ca-tabla td { padding: 5px 8px }
+.rtc .ca-tabla td .rtc-barra { height: 3px; margin-top: 2px }
+.rtc .ca-tabla tfoot td { padding-top: 5px; padding-bottom: 5px }
+.rtc .rtc-cab { padding: 12px 20px }
+.rtc .rtc-cab h2 { font-size: 22px; margin-top: 2px }
+.rtc .rtc-f { margin-top: 2px }
+.rtc .rtc-bt { height: 36px }
+.rtc .rtc-bt.ico { width: 36px }
+.rtc .ca-barra { padding: 8px 20px; gap: 8px 18px }
+.rtc .ca-barra input[type="date"], .rtc .ca-grupo button { height: 30px }
+.rtc .rtc-hero { padding: 8px 20px; gap: 18px }
+.rtc .rtc-total .rtc-v { font-size: 36px }
+.rtc .rtc-v { font-size: 24px }
+.rtc .rtc-cuerpo { padding: 2px 20px 12px }
+.rtc .rtc-sec { margin: 12px 0 6px; padding-bottom: 5px }
+.rtc .rtc-sec b { font-size: 14px }
+.rtc .rtc-fin { margin: 10px 0 0; font-size: 11px; line-height: 1.4 }
+.rt-modal.rtc-velo { padding: 8px }
+.rtc { max-height: calc(100dvh - 16px) }
+@media (max-width: 720px) { .rtc .ca-tabla { font-size: 11.5px } .rtc .ca-tabla th, .rtc .ca-tabla td { padding-left: 5px; padding-right: 5px } }
