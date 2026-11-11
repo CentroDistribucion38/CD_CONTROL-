@@ -98,3 +98,38 @@ export function BotonExportar({ mes: fijo, dias = [] }: {
     </div>
   );
 }
+
+/**
+ * EL EXCEL DE LA TABLA: baja el mismo periodo que filtra la tabla de Los viajes (vacío = todo el histórico).
+ * No tiene calendario propio: dos periodos distintos en la misma pantalla era justo lo que confundía.
+ */
+export function ExcelDelPeriodo({ desde, hasta }: { desde: string; hasta: string }) {
+  const [fotos, setFotos] = useState(true);
+  const [bajando, setBajando] = useState(false);
+  useEffect(() => {
+    if (!bajando) return;
+    const t = setTimeout(() => setBajando(false), 6000);
+    return () => clearTimeout(t);
+  }, [bajando]);
+  const url = `/api/sider/exportar?${new URLSearchParams({
+    ...(desde && hasta ? { desde, hasta } : {}),
+    ...(fotos ? {} : { fotos: "no" }),
+  })}`;
+  return (
+    <div className="vj-excel">
+      <label className="ex-fotos" title="Sin fotos el archivo pesa mucho menos">
+        <input type="checkbox" checked={fotos} onChange={(e) => setFotos(e.target.checked)} />
+        <span>con fotos</span>
+      </label>
+      <a className="btn ex-btn" href={url} onClick={() => setBajando(true)}
+         title={desde && hasta ? `Baja ${dmy(desde)} → ${dmy(hasta)}` : "Baja todo el histórico"}>
+        <svg viewBox="0 0 24 24" aria-hidden="true" className="ic">
+          <path d="M12 3v11m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"
+                fill="none" stroke="currentColor" strokeWidth="1.8"
+                strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        {bajando ? "Armando el archivo…" : "Excel"}
+      </a>
+    </div>
+  );
+}

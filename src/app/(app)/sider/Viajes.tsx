@@ -39,8 +39,10 @@ import { traducirError } from "@/lib/errores";
 /* MESES_LARGO se toma de comun.ts y NO de datos.ts, que lo reexporta:
    datos.ts importa el cliente de Supabase de SERVIDOR, y arrastrarlo
    desde un componente "use client" revienta el build entero. */
-import { MESES_LARGO, type Viaje } from "@/modulos/sider/comun";
+import { type Viaje } from "@/modulos/sider/comun";
 import { OjoEvidencia } from "./Evidencia";
+import { Rango, type Dia } from "./seguimiento/Rango";
+import { ExcelDelPeriodo } from "./Exportar";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const nf2 = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 });
@@ -72,9 +74,11 @@ function sello(v: Viaje) {
   return { cl: "transito", txt: "en tránsito" };
 }
 
-const VACIO = { placa: "", origen: "", material: "", estado: "" };
+const VACIO = { placa: "", origen: "", material: "", estado: "", desde: "", hasta: "" };
+/** 2026-11-10 → 10/11/2026. */
+const dmy = (f: string) => f.split("-").reverse().join("/");
 
-export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor, estadoInicial, sorting, internos }: {
+export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor, estadoInicial, sorting, internos, dias }: {
   viajes: Viaje[];
   nombres: Record<string, string>;
   origenes: Origen[];
@@ -91,6 +95,8 @@ export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor, estad
   /** Los que creó control con el «+» de Revisión AI: no tienen salida ni
    *  fotos de salida, y decir «0/3 fotos» sería un reclamo falso. */
   internos?: string[];
+  /** Los días que tienen viajes, para apagar los vacíos del calendario del periodo. */
+  dias?: Dia[];
 }) {
   const router = useRouter();
   const setInternos = useMemo(() => new Set(internos ?? []), [internos]);
@@ -141,6 +147,7 @@ export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor, estad
     const p = f.placa.trim().toUpperCase();
     return viajes.filter((v) => {
       if (p && !v.placa.toUpperCase().includes(p)) return false;
+      if (f.desde && f.hasta) { const d = String(v.fecha).slice(0, 10); if (d < f.desde || d > f.hasta) return false }
       if (f.origen && v.cd_origen !== f.origen) return false;
       if (f.material && v.descripcion !== f.material) return false;
       if (f.estado) {
@@ -156,7 +163,7 @@ export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor, estad
     });
   }, [viajes, f]);
 
-  const hayFiltro = f.placa.trim() !== "" || !!f.origen || !!f.material || !!f.estado;
+  const hayFiltro = f.placa.trim() !== "" || !!f.origen || !!f.material || !!f.estado || !!f.desde;
 
   /* Los totales del pie son los de LO FILTRADO, y sin los anulados: un
      viaje anulado no movió envase. */
@@ -248,8 +255,18 @@ export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor, estad
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
       </button>
 
-      {/* ---------- Los filtros ---------- */}
+      {/* ---------- LA BARRA FLOTANTE: filtros + cuenta se quedan pegados arriba mientras rueda la página ---------- */}
+      <div className="vj-flota">
       <div className={"vj-filtros" + (verFiltros ? "" : " plegado")}>
+        <Rango
+          clase="sel sg-mes vj-rango"
+          rotulo="Periodo"
+          desde={f.desde}
+          hasta={f.hasta}
+          dias={dias ?? []}
+          alElegir={(d, h) => setF({ ...f, desde: d, hasta: h })}
+          alLimpiar={() => setF({ ...f, desde: "", hasta: "" })}
+        />
         <label className="vj-buscar">
           <span>Placa</span>
           <input
@@ -287,6 +304,7 @@ export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor, estad
                 onClick={() => setF(VACIO)}>
           Limpiar
         </button>
+        <ExcelDelPeriodo desde={f.desde} hasta={f.hasta} />
       </div>
 
       {/* Cuántos quedan. Va arriba de la tabla y no debajo: con la tabla
@@ -299,7 +317,9 @@ export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor, estad
           {" · "}{nf.format(cuenta.hl)} HL{" · "}{nf2.format(cuenta.sider)} sider
         </>}
         {cuenta.anulados > 0 && <> · <span className="vj-anul">{cuenta.anulados} anulado{cuenta.anulados === 1 ? "" : "s"}, no cuentan</span></>}
+        {f.desde && <> · <b className="vj-fechas">{f.desde === f.hasta ? dmy(f.desde) : `${dmy(f.desde)} → ${dmy(f.hasta)}`}</b></>}
       </p>
+      </div>
 
       {manda && cuenta.anulados > 0 && (
         <p className="vj-elim-todos">
@@ -346,7 +366,7 @@ export function Viajes({ viajes, nombres, origenes, skus, manda, esEditor, estad
                   <td className="placa">{v.placa}</td>
                   <td>
                     <div>{v.cd_origen}</div>
-                    <div className="cod">{MESES_LARGO[v.num_mes - 1]} {v.anio} · sem {v.semana}</div>
+                    <div className="cod"><b className="vj-dia">{dmy(String(v.fecha).slice(0, 10))}</b> · sem {v.semana}</div>
                   </td>
                   <td>
                     <div>{v.descripcion}</div>

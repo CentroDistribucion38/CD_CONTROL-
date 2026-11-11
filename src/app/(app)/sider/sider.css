@@ -2292,7 +2292,7 @@
    cifras, la cabecera de la tarjeta, los filtros y la cuenta. */
 .sd .vj-cuerpo { display: flex; flex-direction: column; min-width: 0 }
 .sd .marco {
-  max-height: max(200px, calc(100dvh - 300px));
+  max-height: max(200px, calc(100dvh - 170px));
   overflow-y: auto;
 }
 /* El botón de plegar solo existe en pantalla chica. */
@@ -3717,3 +3717,28 @@
 .sd .vj-ok { margin: 0 0 10px; padding: 9px 12px; border-left: 3px solid var(--sd-ok, #1C7C3A); background: rgba(28,124,58,.08); font-size: 13px }
 .sd .vj-cod-lista { margin: 0 0 8px; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; font-variant-numeric: tabular-nums }
 @media (max-width: 720px) { .sd .vj-elim-todos .vj-mini { min-height: 44px } }
+
+/* ====================== LA BARRA FLOTANTE DE LOS VIAJES ======================
+   Filtros + cuenta quedan pegados arriba mientras se baja por la tabla: no hay que
+   subir para cambiar el periodo o la placa. La tabla rueda dentro de su caja (.marco),
+   que mide lo que sobra de la pantalla. En celular la barra no flota: ahí rueda todo el cuerpo. */
+.sd .vj-flota {
+  position: sticky; top: 0; z-index: 8; background: var(--sd-papel);
+  border-bottom: 3px solid var(--sd-acento, #FFC400);
+  box-shadow: 0 10px 16px -12px rgba(0, 0, 0, .45);
+}
+.sd .vj-filtros .vj-rango { display: flex; flex-direction: column; gap: 6px; min-width: 0 }
+.sd .vj-filtros .vj-rango > span:first-child {
+  font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--c-5b6b7f);
+}
+.sd .vj-filtros .vj-rango .mes-campo { height: 38px; min-width: 250px; max-width: none; border-color: var(--sd-tinta); background: #fff }
+.sd .vj-filtros .vj-rango .mes-campo > span { font: 700 14px var(--sd-texto); color: var(--sd-tinta) }
+.sd .vj-excel { margin-left: auto; display: flex; align-items: center; gap: 12px }
+.sd .vj-excel .ex-btn { height: 38px }
+.sd .vj-fechas { font-variant-numeric: tabular-nums; letter-spacing: .01em }
+.sd .vj-dia { font-weight: 800; color: var(--sd-tinta) }
+@media (max-width: 900px) {
+  .sd .vj-flota { position: static; box-shadow: none; border-bottom: 0 }
+  .sd .vj-excel { margin-left: 0; width: 100% }
+  .sd .vj-filtros .vj-rango .mes-campo { min-width: 0; width: 100% }
+}

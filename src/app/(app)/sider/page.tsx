@@ -4,7 +4,6 @@ import { usuarioActual } from "@/lib/sesion";
 import { misPermisos } from "@/lib/permisos";
 import { viajesSider, maestroSider, nombresTodos, marcasSorting, idsInternos } from "@/modulos/sider/datos";
 import "./sider.css";
-import { BotonExportar } from "./Exportar";
 import { Viajes } from "./Viajes";
 
 export const dynamic = "force-dynamic";
@@ -146,7 +145,6 @@ export default async function FuentePrincipalPage(
               El ojo de cada fila abre sus fotos y lo que se llenó en el formulario.
             </p>
           </div>
-          <BotonExportar dias={diasConViajes} />
         </div>
         <Viajes
           viajes={viajes}
@@ -158,6 +156,7 @@ export default async function FuentePrincipalPage(
           estadoInicial={estadoUrl}
           sorting={sorting}
           internos={internos}
+          dias={diasConViajes}
         />
       </section>
 
