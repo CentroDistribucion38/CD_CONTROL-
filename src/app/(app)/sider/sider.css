@@ -1419,7 +1419,10 @@
 /* ====================== El botón de exportar ====================== */
 .sd .ex-caja { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap }
 .sd .ex-mes { display: flex; flex-direction: column; gap: 5px }
-.sd .ex-mes span { font-size: 10.5px; font-weight: 700; letter-spacing: .12em; color: var(--sd-gris) }
+.sd .ex-mes > span, .sd .ex-mes .sg-mes > span:first-child { font-size: 10.5px; font-weight: 700; letter-spacing: .12em; color: var(--sd-gris) }
+/* La fecha del periodo NO es una etiqueta: la regla de arriba la dejaba en 10,5 px, gris y con letras separadas. Se lee grande y en tinta. */
+.sd .ex-mes .sg-mes .mes-campo { height: 40px; min-width: 250px; max-width: none; border-color: var(--sd-tinta) }
+.sd .ex-mes .sg-mes .mes-campo > span { font: 700 15px var(--sd-texto); letter-spacing: 0; text-transform: none; color: var(--sd-tinta) }
 .sd .ex-mes select { height: 40px; min-width: 168px }
 .sd .ex-fotos { display: flex; align-items: center; gap: 6px; height: 40px; font-size: 12.5px; color: var(--c-2c4361) }
 .sd .ex-fotos input { width: 17px; height: 17px; accent-color: var(--sd-acento) }
@@ -2637,7 +2640,7 @@
   .sd .ev-forms dd em { font-size: 12px }
   .sd .ev-donde span { font-size: 12px }
   .sd .ev-fotos figcaption { font-size: 12px }
-  .sd .ex-mes span { font-size: 12px }
+  .sd .ex-mes > span, .sd .ex-mes .sg-mes > span:first-child { font-size: 12px }
   .sd .zl-mapa span { font-size: 12px }
   .sd .im-pes button span { font-size: 12px }
   .sd .sg-grupo th { font-size: 11px }
