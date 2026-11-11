@@ -157,3 +157,64 @@
 .pl-sub small.cj { display: block; font-size: 11px; color: #777; font-weight: 500; margin-top: 1px }
 .pl-sub tfoot small.cj { font-weight: 500 }
 .pl-tot b i { font-style: normal; font-weight: 500; font-size: 9.5px; color: #555 }
+
+/* Ajuste a ambos lados */
+.pl-aj { margin: 0; padding: 12px 14px; background: #F6F7F9; border-left: 4px solid #161616 }
+.pl-aj-t small { display: block; font-size: 10px; letter-spacing: .16em; font-weight: 800 }
+.pl-aj-t span { font-size: 12px; color: #666 }
+.pl-aj-c { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px }
+.pl-seg { display: inline-flex; border: 1.5px solid #161616 }
+.pl-seg button { padding: 8px 16px; background: #fff; color: #161616; border: 0; font: 700 13px "IBM Plex Sans", Arial, sans-serif; cursor: pointer }
+.pl-seg button + button { border-left: 1.5px solid #161616 }
+.pl-seg button.on { background: #161616; color: #fff }
+.pl-aj-c input { width: 130px; height: 36px; padding: 0 10px; border: 1.5px solid #bbb; border-radius: 0; font: 600 14px "IBM Plex Sans", Arial, sans-serif; font-variant-numeric: tabular-nums }
+.pl-aj-c input:focus { outline: 3px solid #FFC400; outline-offset: 1px; border-color: #161616 }
+.pl-aj-u { width: 130px }
+.pl-aj-u .selx-btn { height: 36px; font-size: 13.5px }
+.pl-aj-ok { height: 36px; padding: 0 18px; border: 0; background: #FFC400; color: #161616; font: 700 13.5px "IBM Plex Sans", Arial, sans-serif; cursor: pointer }
+.pl-aj-des { height: 36px; padding: 0 14px; border: 1.5px solid #161616; background: #fff; color: #161616; font: 700 13px "IBM Plex Sans", Arial, sans-serif; cursor: pointer }
+.pl-aj-n { margin: 8px 0 0 !important; font-size: 11.5px !important; color: #777 !important }
+.pl-aj-m { margin: 6px 0 0 !important; font-size: 13px !important; font-weight: 700; color: #0b7a3e !important }
+.pl-aj-m.mal { color: #D7141A !important }
+@media print { .pl-aj { display: none !important } }
+
+/* Ajustes de varios códigos, movimientos, original y guardado */
+.pl-ajs { width: min(1056px, calc(100vw - 24px)); margin: 0 auto 14px; background: #fff; border-top: 4px solid #161616 }
+.pl-ajs summary { cursor: pointer; padding: 12px 18px; font: 700 14px "IBM Plex Sans", Arial, sans-serif; list-style: none; display: flex; align-items: center; gap: 12px }
+.pl-ajs summary::-webkit-details-marker { display: none }
+.pl-ajs summary::before { content: "▸"; font-size: 12px }
+.pl-ajs[open] summary::before { content: "▾" }
+.pl-ajs summary em { font-style: normal; font-size: 11.5px; padding: 2px 8px; background: #FFC400; font-weight: 700 }
+.pl-ajs .pl-aj { margin: 0 18px }
+.pl-aj-cod { width: 300px }
+.pl-aj-cod .selx-btn { height: 36px; font-size: 13px }
+.pl-aj-i { font-size: 11.5px; color: #777; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.pl-aj-x { width: 30px; height: 36px; border: 1.5px solid #bbb; background: #fff; color: #555; font-size: 18px; line-height: 1; cursor: pointer }
+.pl-aj-x:hover { border-color: #D7141A; color: #D7141A }
+.pl-aj-pie { display: flex; gap: 8px; align-items: center; margin-top: 12px; flex-wrap: wrap }
+.pl-aj-mas { height: 36px; padding: 0 14px; border: 1.5px dashed #161616; background: #fff; color: #161616; font: 700 13px "IBM Plex Sans", Arial, sans-serif; cursor: pointer }
+.pl-aj-mas:hover { background: #FFF1B8 }
+.pl-aj-ok:disabled, .pl-mov button:disabled { opacity: .45; cursor: not-allowed }
+.pl-aj-ed { margin: 6px 0 0 !important; padding: 6px 10px; background: #FFF1B8; font-size: 12.5px !important; font-weight: 600 }
+.pl-movs { margin: 12px 18px 16px }
+.pl-movs small { display: block; font-size: 10px; letter-spacing: .16em; font-weight: 800; margin-bottom: 6px }
+.pl-movs > p { margin: 0; font-size: 12.5px; color: #777 }
+.pl-mov { display: flex; gap: 12px; align-items: flex-start; padding: 10px 12px; border: 1px solid #E5E5E5; border-left: 4px solid #FFC400; margin-bottom: 6px; background: #fff }
+.pl-mov.ed { background: #FFF8DC; border-left-color: #161616 }
+.pl-mov > b { width: 24px; height: 24px; flex: none; display: grid; place-items: center; background: #161616; color: #FFC400; font-size: 12px }
+.pl-mov > div { flex: 1; min-width: 0 }
+.pl-mov > div span { font-size: 11px; color: #777 }
+.pl-mov > div p { margin: 2px 0 0; font-size: 13px; font-weight: 700 }
+.pl-mov > div p em { font-style: normal; font-weight: 400; color: #777; font-size: 12px }
+.pl-mov button { height: 32px; padding: 0 12px; border: 1.5px solid #161616; background: #fff; color: #161616; font: 700 12.5px "IBM Plex Sans", Arial, sans-serif; cursor: pointer }
+.pl-mov button:hover:not(:disabled) { background: #FFC400 }
+.pl-ver { display: inline-flex; border: 1.5px solid #FFC400 }
+.pl-ver button { padding: 8px 12px; border: 0; background: transparent; color: #FFC400; font: 700 12.5px "IBM Plex Sans", Arial, sans-serif; cursor: pointer; white-space: nowrap }
+.pl-ver button + button { border-left: 1.5px solid #FFC400 }
+.pl-ver button.on { background: #FFC400; color: #161616 }
+.pl-orig-ban { width: min(1056px, calc(100vw - 24px)); margin: 0 auto 12px; padding: 10px 14px; background: #161616; color: #fff; border-left: 5px solid #FFC400; font-size: 13px }
+.pl-guard { width: min(1056px, calc(100vw - 24px)); margin: 0 auto 10px; font-size: 12px; color: #0b7a3e; font-weight: 600 }
+.pl-guard::before { content: "✓ " }
+.pl-orig { margin-top: 12px }
+.pl-orig tr.act td { font-weight: 800; background: #FAFAFA; border-top: 2px solid #161616 }
+@media print { .pl-ajs, .pl-ver, .pl-orig-ban, .pl-guard { display: none !important } }
