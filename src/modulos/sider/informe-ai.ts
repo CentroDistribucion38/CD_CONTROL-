@@ -27,6 +27,8 @@ export type FiltroAi = {
   tipo?: "ai" | "sorting";
   /** Turnos como los guarda la base (T1 = A, T2 = B, T3 = C). Vacío = todos. Lo usa el cierre de turno. */
   turnos?: string[];
+  /** Solo el cierre de turno: con «Todas» suma también la Normal (v_sider_sorting). El informe de siempre no lo pide. */
+  ambas?: boolean;
 };
 
 export type PorDefecto = {
@@ -80,16 +82,25 @@ function lunes(iso: string): string {
 export async function informeAi(f: FiltroAi = {}) {
   const supabase = await createClient();
 
-  let q = supabase.from("v_sider_ai").select("*").order("fecha", { ascending: false }).limit(5000);
-  if (f.desde)  q = q.gte("fecha", f.desde);
-  if (f.hasta)  q = q.lte("fecha", f.hasta);
-  if (f.socio)  q = q.eq("socio", f.socio);
-  if (f.envase) q = q.eq("envase", f.envase);
-  if (f.canal)  q = q.eq("canal", f.canal);
-  if (f.tipo)   q = q.eq("tipo", f.tipo);
-  if (f.turnos?.length) q = q.in("turno", f.turnos);
-
-  const { data: rev, error } = await q;
+  /* CADA CLASE TIENE SU VISTA: v_sider_ai trae SOLO la certificada y v_sider_sorting SOLO la normal (así se separó para que
+     el cobro de una no se mezcle con la otra). Por eso aquí no se filtra por `tipo`: la vista ya es del tipo. Pedir la
+     normal a v_sider_ai con un filtro de tipo siempre volvía vacío. */
+  const consulta = (vista: string) => {
+    let c = supabase.from(vista).select("*").order("fecha", { ascending: false }).limit(5000);
+    if (f.desde)  c = c.gte("fecha", f.desde);
+    if (f.hasta)  c = c.lte("fecha", f.hasta);
+    if (f.socio)  c = c.eq("socio", f.socio);
+    if (f.envase) c = c.eq("envase", f.envase);
+    if (f.canal)  c = c.eq("canal", f.canal);
+    if (f.turnos?.length) c = c.in("turno", f.turnos);
+    return c;
+  };
+  const sorting = f.tipo === "sorting";
+  const vistas = sorting ? ["sorting"] : f.ambas && !f.tipo ? ["ai", "sorting"] : ["ai"];
+  const respuestas = await Promise.all(vistas.map((v) => consulta(v === "ai" ? "v_sider_ai" : "v_sider_sorting")));
+  /* Un error en la vista que se pidió de más (la normal, en «Todas») no tumba la certificada. */
+  const error = respuestas[0].error;
+  const rev = respuestas.flatMap((r) => r.data ?? []);
   if (error) {
     return {
       falta: sinTablas(error.message),
@@ -113,8 +124,9 @@ export async function informeAi(f: FiltroAi = {}) {
      pedir todo y filtrar aquí sería traer el histórico entero para
      mostrar una semana. */
   const [{ data: det }, { data: defs }] = await Promise.all([
-    supabase.from("v_sider_ai_detalle").select("*")
-      .in("revision_id", revisiones.map((r) => r.id)).limit(20000),
+    Promise.all(vistas.map((v) => supabase.from(v === "ai" ? "v_sider_ai_detalle" : "v_sider_sorting_detalle").select("*")
+      .in("revision_id", revisiones.map((r) => r.id)).limit(20000)))
+      .then((rs) => ({ data: rs.flatMap((r) => r.data ?? []) })),
     supabase.from("sider_ai_defectos").select("*").order("orden"),
   ]);
 
