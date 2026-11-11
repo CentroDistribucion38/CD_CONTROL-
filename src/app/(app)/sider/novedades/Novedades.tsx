@@ -87,7 +87,31 @@ const VACIO = {
   descripcion: "",
 };
 
-export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEditar, miBodega }: {
+/** UN CD SE ESCOGE DE LA LISTA (el maestro de orígenes), no se teclea. «Otro…» queda para lo que no es un CD —una ruta, una transportadora— y entonces sí se escribe. */
+function CampoCd({ valor, cambiar, cds, ejemplo }: {
+  valor: string; cambiar: (v: string) => void; cds: string[]; ejemplo: string;
+}) {
+  const [otro, setOtro] = useState(valor !== "" && !cds.includes(valor));
+  return (
+    <>
+      <select value={otro ? "__otro" : valor}
+              onChange={(e) => {
+                if (e.target.value === "__otro") { setOtro(true); cambiar("") }
+                else { setOtro(false); cambiar(e.target.value) }
+              }}>
+        <option value="">Escoge…</option>
+        {cds.map((c) => <option key={c} value={c}>{c}</option>)}
+        <option value="__otro">Otro (escribir)…</option>
+      </select>
+      {otro && (
+        <input value={valor} placeholder={ejemplo} autoFocus
+               onChange={(e) => cambiar(e.target.value)} />
+      )}
+    </>
+  );
+}
+
+export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEditar, miBodega, cds }: {
   novedades: Novedad[];
   motivos: MotivoNovedad[];
   viajes: Viaje[];
@@ -96,6 +120,8 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
   puedeEditar: boolean;
   /** Desde dónde contesta quien está mirando. Se propone, se corrige. */
   miBodega: string;
+  /** Los CD del maestro de orígenes, para las listas desplegables. */
+  cds: string[];
 }) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
@@ -280,7 +306,7 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
       p_motivo: n.motivo,
       p_placa: n.placa.trim().toUpperCase(),
       p_fecha: n.fecha,
-      p_hora: n.hora || null,
+      p_hora: ahoraCo(),
       p_factura: n.factura.trim().toUpperCase() || null,
       p_lote: n.lote.trim().toUpperCase() || null,
       p_sku: n.sku.trim() || null,
@@ -422,7 +448,9 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
         <section className="tarjeta nv-forma">
           <div className="cab"><div><h2>Reportar una novedad</h2></div></div>
 
+          <div className="nv-cols">
           <div className="nv-campos">
+            <h4 className="nv-sub">1 · Qué pasó</h4>
             <label>
               <span>Tramo</span>
               <select value={n.tramo}
@@ -443,6 +471,13 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
               </select>
             </label>
 
+            <label>
+              <span>¿Cuándo pasó?</span>
+              <input type="date" value={n.fecha} max={HOY()}
+                     onChange={(e) => setN({ ...n, fecha: e.target.value })} />
+            </label>
+
+            <h4 className="nv-sub">2 · De dónde viene</h4>
             {/* En T1 se puede colgar de un viaje que ya existe; en T2
                 todavía no hay viajes, así que solo queda la placa. */}
             {n.tramo === "t1" && viajes.length > 0 && (
@@ -480,43 +515,18 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
             {n.viajeId === "" && (
               <label>
                 <span>¿A quién le toca?</span>
-                <input value={n.responsable}
-                       placeholder={n.tramo === "t1" ? "CD Galapa" : "Ruta 12 · transportadora"}
-                       onChange={(e) => setN({ ...n, responsable: e.target.value })} />
+                <CampoCd key={n.tramo} valor={n.responsable} cds={cds}
+                         ejemplo={n.tramo === "t1" ? "CD Galapa" : "Ruta 12 · transportadora"}
+                         cambiar={(v) => setN({ ...n, responsable: v })} />
                 <em>Quien tiene que responder. Sin esto la novedad no tiene dueño.</em>
               </label>
             )}
 
             <label>
               <span>CD que reporta</span>
-              <input value={n.cdReporta} placeholder="CD Barranquilla"
-                     onChange={(e) => setN({ ...n, cdReporta: e.target.value })} />
+              <CampoCd valor={n.cdReporta} cds={cds} ejemplo="CD Barranquilla"
+                       cambiar={(v) => setN({ ...n, cdReporta: v })} />
             </label>
-
-            <label>
-              <span>¿Cuándo pasó?</span>
-              <input type="date" value={n.fecha} max={HOY()}
-                     onChange={(e) => setN({ ...n, fecha: e.target.value })} />
-            </label>
-
-            <label>
-              <span>¿A qué hora? (opcional)</span>
-              <input type="time" value={n.hora}
-                     onChange={(e) => setN({ ...n, hora: e.target.value })} />
-              <em>En un día entran varios camiones del mismo origen.</em>
-            </label>
-
-            {/* EL TURNO NO SE ESCRIBE: sale de la hora (la que pusiste, o la de ahora). */}
-            {(() => {
-              const t = turnoDe(n.hora || ahoraCo());
-              return (
-                <div className="nv-turno-auto">
-                  <span>Turno · automático</span>
-                  <b>Turno {t}</b>
-                  <em>{HORARIO_TURNO[t]} · según la hora{n.hora ? "" : " de ahora"}</em>
-                </div>
-              );
-            })()}
 
             {/* LO QUE HACE FALTA PARA RECLAMAR. Si para armar el reclamo
                 hay que ir a buscar la factura a un lado y el lote a otro,
@@ -534,6 +544,7 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
                      onChange={(e) => setN({ ...n, lote: e.target.value.toUpperCase() })} />
             </label>
 
+            <h4 className="nv-sub">3 · Qué se afectó</h4>
             <label>
               <span>SKU afectado</span>
               <input value={n.sku} placeholder="3500025"
@@ -558,6 +569,7 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
               <em>Sin esta cifra la novedad dice qué pasó, pero no cuánto hay que cobrar.</em>
             </label>
 
+            <h4 className="nv-sub">4 · Evidencia</h4>
             <div className="ancho nv-fotos">
               <span>Fotos (hasta 2)</span>
               <div className="nv-fotos-fila">
@@ -591,15 +603,44 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
             </label>
           </div>
 
-          {mal && <div className="aviso mal">{mal}</div>}
+          {/* EL RESUMEN DEL CASO, al lado: lo que se va a mandar, tal como va, y los botones. La hora y el turno salen del reloj de Colombia. */}
+          <aside className="nv-resumen" aria-label="Resumen del caso">
+            {(() => {
+              const h = ahoraCo();
+              const t = turnoDe(h);
+              const viajeSel = viajes.find((v) => v.id === n.viajeId);
+              const origen = viajeSel?.cd_origen || n.responsable || "—";
+              const placa = viajeSel?.placa || n.placa.trim().toUpperCase() || "—";
+              const motivo = motivos.find((m) => m.clave === n.motivo)?.nombre;
+              return (
+                <>
+                  <small>RESUMEN DEL CASO</small>
+                  <div className="nv-res-motivo">{motivo ?? "Escoge el motivo"}</div>
+                  <span className="nv-res-ruta">{n.tramo.toUpperCase()} · {origen} → {n.cdReporta || "—"}</span>
+                  <dl>
+                    <dt>Caso</dt><dd>se asigna al guardar</dd>
+                    <dt>Fecha</dt><dd>{n.fecha ? dia(n.fecha) : "—"}</dd>
+                    <dt>Hora</dt><dd>{h} (auto)</dd>
+                    <dt>Turno</dt><dd>{t} · {HORARIO_TURNO[t]} (auto)</dd>
+                    <dt>Placa</dt><dd>{placa}</dd>
+                    <dt>Cantidad</dt><dd>{n.cantidad.trim() ? `${n.cantidad} ${n.unidad}` : "—"}</dd>
+                    <dt>Fotos</dt><dd>{fotos.filter(Boolean).length} de 2</dd>
+                  </dl>
+                </>
+              );
+            })()}
 
-          <div className="nv-acciones">
-            <button type="button" className="btn" onClick={reportar} disabled={enviando}>
-              {enviando ? "Reportando…" : "Reportar"}
-            </button>
-            <button type="button" className="btn plano" onClick={() => { setAbierto(false); limpiar() }}>
-              Cancelar
-            </button>
+            {mal && <div className="aviso mal">{mal}</div>}
+
+            <div className="nv-res-acciones">
+              <button type="button" className="btn" onClick={reportar} disabled={enviando}>
+                {enviando ? "Reportando…" : "Reportar novedad"}
+              </button>
+              <button type="button" className="btn plano" onClick={() => { setAbierto(false); limpiar() }}>
+                Cancelar
+              </button>
+            </div>
+          </aside>
           </div>
         </section>
       )}
