@@ -408,3 +408,12 @@
 .ad .ad-fuera .n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap }
 
 .ad .ad-cuadra { flex: 1 1 100%; font: 600 11.5px var(--fe-texto); color: #0b7a3e }
+
+/* «Ajustado en SAP»: todas las filas con el mismo ancho y todo pegado a la izquierda (antes cada bloque se centraba según su contenido y quedaba desalineado). */
+.ad .ad-aj th.hecho, .ad .ad-aj td.hecho { min-width: 214px; width: 214px; text-align: left }
+.ad .ad-hecho { width: 190px; margin: 0; align-items: stretch; text-align: left; padding-right: 20px }
+.ad .ad-hecho .ad-auto { display: block; text-align: left }
+.ad .ad-ajc { width: 100%; justify-content: flex-start }
+.ad .ad-hecho .ad-ajc { gap: 4px 8px }
+.ad .ad-cant-aj { width: 104px; flex: none }
+.ad .ad-queda, .ad .ad-cuadra { display: block; text-align: left }
