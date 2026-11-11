@@ -87,6 +87,87 @@ export function pintarGrafica(ctx: Ctx, x0: number, y0: number, w: number, h: nu
 
 export type ExtraPareto = { titulo: string; ojo: string; periodo: string; generado: Date; logo?: HTMLImageElement | null };
 
+
+/** El sello de la marca SOLO (la «B»), sin la palabra Bavaria: es el mismo `/marca/logo-b.png` de la cabecera del cierre. null si no carga. */
+export async function cargarLogoB(): Promise<HTMLImageElement | null> {
+  try { const i = new Image(); i.src = "/marca/logo-b.png"; await i.decode(); return i } catch { return null }
+}
+
+/** La banda negra con el sello, el título y el día; lleva el filo rojo debajo. */
+function banda(ctx: Ctx, W: number, titulo: string, x: ExtraPareto) {
+  ctx.fillStyle = TINTA; ctx.fillRect(0, 0, W, 96); ctx.fillStyle = ROJO; ctx.fillRect(0, 96, W, 4);
+  if (x.logo) ctx.drawImage(x.logo, 30, 24, 48, 48);
+  else { ctx.beginPath(); ctx.arc(54, 48, 24, 0, Math.PI * 2); ctx.fillStyle = ORO; ctx.fill(); ctx.lineWidth = 5; ctx.strokeStyle = ROJO; ctx.stroke(); ctx.fillStyle = TINTA; ctx.font = `900 22px ${TITULO}`; ctx.textAlign = "center"; ctx.fillText("B", 54, 56) }
+  ctx.textAlign = "left";
+  ctx.font = `700 11px ${FUENTE}`; ctx.fillStyle = "#FFE08A"; ctx.fillText(`SIDER · ${x.ojo}`.toUpperCase().split("").join("\u200A"), 98, 30);
+  ctx.font = `900 30px ${TITULO}`; ctx.fillStyle = "#fff"; ctx.fillText(titulo, 98, 62);
+  ctx.font = `500 13px ${FUENTE}`; ctx.fillStyle = "#d6dce4";
+  ctx.fillText(`${x.periodo.charAt(0).toUpperCase() + x.periodo.slice(1)} · foto de las ${x.generado.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}`, 98, 84);
+}
+
+/** Una cifra de la franja amarilla: rótulo, número grande y su línea de apoyo. */
+function cifra(ctx: Ctx, xx: number, k: string, val: string, sub: string, der = false) {
+  ctx.textAlign = der ? "right" : "left";
+  ctx.fillStyle = TINTA; ctx.globalAlpha = 0.8; ctx.font = `700 10.5px ${FUENTE}`; ctx.fillText(k.split("").join("\u200A"), xx, 122); ctx.globalAlpha = 1;
+  ctx.font = `900 38px ${TITULO}`; ctx.fillText(val, xx, 158);
+  ctx.globalAlpha = 0.85; ctx.font = `500 12px ${FUENTE}`; ctx.fillText(sub, xx, 176); ctx.globalAlpha = 1;
+}
+
+/** LA FOTO DEL DASHBOARD: las cifras del cierre y los CDs de mayor a menor %AI, sin el pareto (ese tiene su propia foto). */
+export function dibujarDashboardFoto(c: CierreAi, x: ExtraPareto): HTMLCanvasElement {
+  const W = 1280, escala = 2, FILA = 36;
+  const nota = `%AI = unidades en mal estado ÷ unidades revisadas, sumadas (no el promedio de cada revisión). VH = vehículos distintos revisados; un camión con dos materiales cuenta una vez. La foto es de las ${x.generado.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}; si alguien registra una revisión después, el cierre cambia. Turnos: C 22:00–06:00 abre el día, A 06:00–14:00, B 14:00–22:00.`;
+  const medir = document.createElement("canvas").getContext("2d")!; medir.font = `500 11.5px ${FUENTE}`;
+  const lineasNota = partir(medir, nota, W - 68, 5).length;
+  const alto = 100 + 84 + 62 + 34 + Math.max(c.cds.length, 1) * FILA + 46 + 22 + lineasNota * 16 + 26;
+  const cv = document.createElement("canvas"); cv.width = W * escala; cv.height = alto * escala;
+  const ctx = cv.getContext("2d")!; ctx.scale(escala, escala);
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, alto);
+  banda(ctx, W, x.titulo, x);
+
+  ctx.fillStyle = ORO; ctx.fillRect(0, 100, W, 84);
+  cifra(ctx, 34, "VH REVISADOS", nf.format(c.vh), `${c.revisiones} ${c.revisiones === 1 ? "revisión" : "revisiones"} · ${c.cds.length} CD${c.cds.length === 1 ? "" : "s"}`);
+  cifra(ctx, 340, "CANTIDAD REVISADA", nf.format(c.revisadas), `unidades · recibidas ${nf.format(c.recibidas)}`);
+  cifra(ctx, 640, "EN MAL ESTADO", nf.format(c.malas), "unidades");
+  cifra(ctx, 900, "%AI", pc(c.indice), "mal estado ÷ revisadas");
+
+  /* Los CDs. */
+  let y = 184 + 34;
+  ctx.textAlign = "left"; ctx.fillStyle = TINTA; ctx.font = `900 18px ${TITULO}`; ctx.fillText("CDs revisados · de mayor a menor %AI", 34, y);
+  ctx.textAlign = "right"; ctx.fillStyle = GRIS; ctx.font = `500 12.5px ${FUENTE}`; ctx.fillText(`${c.cds.length} CD${c.cds.length === 1 ? "" : "s"}`, W - 34, y);
+  ctx.fillStyle = TINTA; ctx.fillRect(34, y + 9, W - 68, 2);
+  y += 22;
+  const col = { n: 64, cd: 84, vh: 640, rev: 820, mal: 1000, ai: W - 50 };
+  ctx.fillStyle = "#F7F9FC"; ctx.fillRect(34, y, W - 68, 32);
+  ctx.strokeStyle = LINEA; ctx.lineWidth = 1; ctx.strokeRect(34.5, y + 0.5, W - 69, 31);
+  ctx.fillStyle = GRIS; ctx.font = `700 10.5px ${FUENTE}`;
+  const cab = (t: string, xx: number, der: boolean) => { ctx.textAlign = der ? "right" : "left"; ctx.fillText(t.split("").join("\u200A"), xx, y + 20) };
+  cab("#", col.n, true); cab("CD", col.cd, false); cab("VH", col.vh, true); cab("REVISADAS", col.rev, true); cab("MAL ESTADO", col.mal, true); cab("%AI", col.ai, true);
+  y += 32;
+  const tope = Math.max(0.0001, ...c.cds.map((d) => d.indice));
+  if (!c.cds.length) { ctx.textAlign = "left"; ctx.fillStyle = GRIS; ctx.font = `500 14px ${FUENTE}`; ctx.fillText("No hay revisiones en este turno.", 44, y + 24); y += FILA }
+  c.cds.forEach((d, i) => {
+    if (i % 2) { ctx.fillStyle = "#FAFBFC"; ctx.fillRect(35, y, W - 70, FILA) }
+    ctx.fillStyle = "#EEF1F5"; ctx.fillRect(35, y + FILA - 1, W - 70, 1);
+    ctx.textAlign = "right"; ctx.font = `500 13px ${FUENTE}`; ctx.fillStyle = GRIS; ctx.fillText(String(i + 1), col.n, y + 18);
+    ctx.fillStyle = TINTA; ctx.fillText(String(d.vh), col.vh, y + 22); ctx.fillText(nf.format(d.revisadas), col.rev, y + 22); ctx.fillText(nf.format(d.malas), col.mal, y + 22);
+    ctx.font = `800 13.5px ${FUENTE}`; ctx.fillText(pc(d.indice), col.ai, y + 22);
+    ctx.textAlign = "left"; ctx.font = `600 13.5px ${FUENTE}`; ctx.fillText(d.nombre, col.cd, y + 17);
+    /* La barra de debajo del nombre: qué tan alto es su %AI frente al CD más alto. */
+    ctx.fillStyle = "#EEF1F5"; ctx.fillRect(col.cd, y + 24, 300, 4);
+    ctx.fillStyle = i === 0 ? ROJO : TINTA; ctx.fillRect(col.cd, y + 24, Math.max(2, 300 * (d.indice / tope)), 4);
+    y += FILA;
+  });
+  /* El total. */
+  ctx.fillStyle = TINTA; ctx.fillRect(34, y, W - 68, 2); ctx.fillStyle = "#F7F9FC"; ctx.fillRect(34, y + 2, W - 68, 40);
+  ctx.font = `800 13.5px ${FUENTE}`; ctx.fillStyle = TINTA; ctx.textAlign = "left"; ctx.fillText("Total", col.cd, y + 27);
+  ctx.textAlign = "right"; ctx.fillText(String(c.vh), col.vh, y + 27); ctx.fillText(nf.format(c.revisadas), col.rev, y + 27); ctx.fillText(nf.format(c.malas), col.mal, y + 27); ctx.fillText(pc(c.indice), col.ai, y + 27);
+  y += 42 + 24;
+  ctx.textAlign = "left"; ctx.font = `500 11.5px ${FUENTE}`; ctx.fillStyle = GRIS;
+  partir(ctx, nota, W - 68, 5).forEach((l, i) => ctx.fillText(l, 34, y + i * 16));
+  return cv;
+}
+
 /** La foto completa del pareto: banda negra, franja amarilla con las cifras, la gráfica y el pie. */
 export function dibujarParetoFoto(c: CierreAi, x: ExtraPareto): HTMLCanvasElement {
   const W = 1280, escala = 2, G = 405;
@@ -96,29 +177,15 @@ export function dibujarParetoFoto(c: CierreAi, x: ExtraPareto): HTMLCanvasElemen
   const ctx = cv.getContext("2d")!; ctx.scale(escala, escala);
   ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, alto);
 
-  /* La banda negra con el sello. */
-  ctx.fillStyle = TINTA; ctx.fillRect(0, 0, W, 96); ctx.fillStyle = ROJO; ctx.fillRect(0, 96, W, 4);
-  if (x.logo) ctx.drawImage(x.logo, 30, 24, 48, 48);
-  else { ctx.beginPath(); ctx.arc(54, 48, 24, 0, Math.PI * 2); ctx.fillStyle = ORO; ctx.fill(); ctx.lineWidth = 5; ctx.strokeStyle = ROJO; ctx.stroke(); ctx.fillStyle = TINTA; ctx.font = `900 22px ${TITULO}`; ctx.textAlign = "center"; ctx.fillText("B", 54, 56) }
-  ctx.textAlign = "left";
-  ctx.font = `700 11px ${FUENTE}`; ctx.fillStyle = "#FFE08A"; ctx.fillText(`SIDER · ${x.ojo}`.toUpperCase().split("").join(" "), 98, 30);
-  ctx.font = `900 30px ${TITULO}`; ctx.fillStyle = "#fff"; ctx.fillText(`Pareto de defectos · ${x.titulo}`, 98, 62);
-  ctx.font = `500 13px ${FUENTE}`; ctx.fillStyle = "#d6dce4";
-  ctx.fillText(`${x.periodo.charAt(0).toUpperCase() + x.periodo.slice(1)} · foto de las ${x.generado.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}`, 98, 84);
+  banda(ctx, W, `Pareto de defectos · ${x.titulo}`, x);
 
   /* La franja del acento. */
   ctx.fillStyle = ORO; ctx.fillRect(0, 100, W, 84);
   const v = vitales(c.pareto), vPct = v.length ? v[v.length - 1].acumulado : 0;
-  const kpi = (xx: number, k: string, val: string, s: string, der = false) => {
-    ctx.textAlign = der ? "right" : "left";
-    ctx.fillStyle = TINTA; ctx.globalAlpha = 0.8; ctx.font = `700 10.5px ${FUENTE}`; ctx.fillText(k.split("").join(" "), xx, 122); ctx.globalAlpha = 1;
-    ctx.font = `900 38px ${TITULO}`; ctx.fillText(val, xx, 158);
-    ctx.globalAlpha = 0.85; ctx.font = `500 12px ${FUENTE}`; ctx.fillText(s, xx, 176); ctx.globalAlpha = 1;
-  };
-  kpi(34, "DEFECTOS ENCONTRADOS", nf.format(c.malas), "unidades en mal estado");
-  kpi(340, "CANTIDAD REVISADA", nf.format(c.revisadas), `${c.vh} VH · ${c.cds.length} CD${c.cds.length === 1 ? "" : "s"}`);
-  kpi(640, "%AI", pc(c.indice), "mal estado ÷ revisadas");
-  kpi(W - 34, "LOS POCOS VITALES", `${v.length} de ${c.pareto.length}`, `forman el ${pc0(vPct)} de los defectos`, true);
+  cifra(ctx, 34, "DEFECTOS ENCONTRADOS", nf.format(c.malas), "unidades en mal estado");
+  cifra(ctx, 340, "CANTIDAD REVISADA", nf.format(c.revisadas), `${c.vh} VH · ${c.cds.length} CD${c.cds.length === 1 ? "" : "s"}`);
+  cifra(ctx, 640, "%AI", pc(c.indice), "mal estado ÷ revisadas");
+  cifra(ctx, W - 34, "LOS POCOS VITALES", `${v.length} de ${c.pareto.length}`, `forman el ${pc0(vPct)} de los defectos`, true);
 
   /* El título de la sección y la gráfica. */
   let y = 184 + 34;

@@ -15,8 +15,7 @@ import { armarCierreAi, textoCierreAi } from "@/modulos/sider/cierre-ai";
 import { turnoAi } from "@/modulos/sider/comun";
 import { cierreAiDia } from "./actions";
 import { DiaCierre } from "./DiaCierre";
-import { ParetoLienzo } from "./ParetoLienzo";
-import { logoMarca, useFotoCompartir, type TipoFoto } from "@/components/FotoCompartir";
+import { useFotoCompartir, type TipoFoto } from "@/components/FotoCompartir";
 import "../../../roturas/roturas.css";
 import "../../../roturas/en-sitio/tablero/cierre.css";
 import "./cierre-ai.css";
@@ -27,28 +26,6 @@ const TURNOS = [["T3", "C", "22:00 · 06:00"], ["T1", "A", "06:00 · 14:00"], ["
 const diaLargo = (iso: string) => new Date(iso + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 const hhmm = (d: Date) => d.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
 const hoyCo = () => new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Bogota" }).format(new Date());
-
-/* html2canvas 1.4 no entiende los colores modernos (color-mix, color(srgb …), oklch, lab): el navegador los devuelve así ya resueltos
-   y el dibujo revienta con «unsupported color function». Antes de dibujar, en la COPIA se pasan a rgb(). */
-const COLOR_MODERNO = /color\([^)]*\)|oklch\([^)]*\)|oklab\([^)]*\)|lab\([^)]*\)|lch\([^)]*\)/g;
-const PROPS_COLOR = ["color", "backgroundColor", "backgroundImage", "borderTopColor", "borderRightColor", "borderBottomColor", "borderLeftColor", "outlineColor", "textDecorationColor", "boxShadow", "fill", "stroke"] as const;
-function colorModernoARgb(doc: Document, raiz: HTMLElement) {
-  const cv = doc.createElement("canvas"); cv.width = cv.height = 1;
-  const cx = cv.getContext("2d", { willReadFrequently: true }); if (!cx) return;
-  const aRgb = (v: string) => {
-    cx.clearRect(0, 0, 1, 1); cx.fillStyle = "#000"; cx.fillStyle = v; cx.fillRect(0, 0, 1, 1);
-    const [r, g, b, a] = cx.getImageData(0, 0, 1, 1).data;
-    return `rgba(${r}, ${g}, ${b}, ${Math.round((a / 255) * 1000) / 1000})`;
-  };
-  const vista = doc.defaultView; if (!vista) return;
-  for (const el of [raiz, ...Array.from(raiz.querySelectorAll<HTMLElement>("*"))]) {
-    const cs = vista.getComputedStyle(el);
-    for (const p of PROPS_COLOR) {
-      const v = cs[p] as string;
-      if (v && /color\(|oklch|oklab|lab\(|lch\(/.test(v)) el.style.setProperty(p.replace(/[A-Z]/g, (m) => "-" + m.toLowerCase()), v.replace(COLOR_MODERNO, aRgb), "important");
-    }
-  }
-}
 
 export function CierreAi({ ultima, tipoInicial, cerrar }: { ultima: string | null; tipoInicial: "ai" | "sorting" | ""; cerrar: () => void }) {
   const raiz = useRef<HTMLDivElement>(null);
@@ -95,27 +72,20 @@ export function CierreAi({ ultima, tipoInicial, cerrar }: { ultima: string | nul
   }
 
   /* LAS IMÁGENES, COMO EN ROTURAS EN SITIO: una ventana con dos pestañas —Dashboard (el cierre completo) y Pareto (la gráfica)—
-     y los botones Copiar imagen, Compartir y Descargar PNG. El Dashboard es la foto de esta misma ventana; el Pareto se dibuja aparte. */
+     y los botones Copiar imagen, Compartir y Descargar PNG. Las dos se dibujan aparte (lienzo), con solo el sello «B» de la marca. */
   const letrasTxt = letras.join("");
   const imagen = useFotoCompartir(async (tipo: TipoFoto) => {
     if (!c) throw new Error("sin cierre");
-    if (tipo === "detalle") {
-      const [fo, logo] = await Promise.all([import("@/modulos/sider/foto-pareto"), logoMarca()]);
-      return { lienzo: fo.dibujarParetoFoto(c, { titulo, ojo, periodo, generado: armado, logo }), nombre: `pareto-ai-${dia}-${letrasTxt}.png` };
-    }
-    const nodo = raiz.current; if (!nodo) throw new Error("sin ventana");
-    const html2canvas = (await import("html2canvas")).default;
-    const lienzo = await html2canvas(nodo, {
-      backgroundColor: "#ffffff", scale: 2, useCORS: true,
-      onclone: (doc: Document) => { const rr = doc.querySelector<HTMLElement>(".rtc"); if (rr) colorModernoARgb(doc, rr); doc.querySelectorAll<HTMLElement>(".ca-no-foto").forEach((e) => { e.style.display = "none" }); const r = doc.querySelector<HTMLElement>(".rtc"); if (r) { r.style.maxHeight = "none"; r.style.overflow = "visible" } },
-    });
-    return { lienzo, nombre: `cierre-ai-${dia}-${letrasTxt}.png` };
+    const fo = await import("@/modulos/sider/foto-pareto");
+    const logo = await fo.cargarLogoB();
+    const extra = { titulo, ojo, periodo, generado: armado, logo };
+    if (tipo === "detalle") return { lienzo: fo.dibujarParetoFoto(c, extra), nombre: `pareto-ai-${dia}-${letrasTxt}.png` };
+    return { lienzo: fo.dibujarDashboardFoto(c, extra), nombre: `cierre-ai-${dia}-${letrasTxt}.png` };
   }, titulo, { dashboard: "Dashboard", detalle: "Pareto" }, undefined, ["dashboard", "detalle"]);
 
   function imprimir() { window.print() }
   const alternar = (k: string) => setTurnos((t) => (t.includes(k) ? (t.length > 1 ? t.filter((x) => x !== k) : t) : [...t, k]));
   const topeCd = Math.max(0.0001, ...(c?.cds.map((x) => x.indice) ?? [0]));
-  const topePar = Math.max(1, ...(c?.pareto.map((x) => x.unidades) ?? [1]));
 
   return (
     <div className="rt-modal rtc-velo" onClick={(e) => { if (e.target === e.currentTarget) cerrar() }}>
@@ -210,35 +180,9 @@ export function CierreAi({ ultima, tipoInicial, cerrar }: { ultima: string | nul
                 </div>
               )}
 
-              {/* ─ EL PARETO DEL DEFECTO MÁS ENCONTRADO ─ */}
-              <div className="rtc-sec"><b>Defecto más encontrado · pareto</b><span>los que forman el %AI · % sobre lo revisado</span></div>
-              {c.pareto.length === 0 ? <p className="rtc-nada">No se encontraron defectos.</p> : (
-                <>
-                  <ParetoLienzo pareto={c.pareto} />
-                  <details className="ca-tabla-det ca-no-foto">
-                    <summary>Ver la tabla del pareto</summary>
-                    <div className="rtc-rueda">
-                      <table className="rtc-tabla ca-tabla">
-                        <thead><tr><th className="n">#</th><th>Defecto</th><th className="n">Unidades</th><th className="n">% de lo revisado</th><th className="n">% de los defectos</th><th className="n">Acumulado</th></tr></thead>
-                        <tbody>
-                          {c.pareto.map((d, i) => (
-                            <tr key={d.clave} className={d.acumulado - d.pctDefectos < 0.8 ? "ca-vital" : ""}>
-                              <td className="n">{i + 1}</td>
-                              <td>{d.nombre}<i className="rtc-barra" aria-hidden><b style={{ width: `${Math.round((d.unidades / topePar) * 100)}%` }} /></i></td>
-                              <td className="n"><b>{nf.format(d.unidades)}</b></td><td className="n">{pc(d.pct)}</td><td className="n">{Math.round(d.pctDefectos * 100)} %</td><td className="n">{Math.round(d.acumulado * 100)} %</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </details>
-                </>
-              )}
-              {c.otras.length > 0 && <p className="rtc-fin">Contadas que no cobran (no entran en el %AI): {c.otras.map((o) => `${o.nombre} ${nf.format(o.unidades)}`).join(" · ")}.</p>}
-
               <p className="rtc-fin">
                 %AI = unidades en mal estado ÷ unidades revisadas, sumadas (no el promedio de cada revisión). VH = vehículos distintos revisados; un camión con
-                dos materiales cuenta una vez. Las filas resaltadas del pareto son las que acumulan el 80 % de los defectos. La foto es de las {hhmm(armado)}; si
+                dos materiales cuenta una vez. El pareto de defectos está en el botón «Pareto». La foto es de las {hhmm(armado)}; si
                 alguien registra una revisión después, el cierre cambia. Turnos: C 22:00–06:00 abre el día, A 06:00–14:00, B 14:00–22:00.
               </p>
             </div>
