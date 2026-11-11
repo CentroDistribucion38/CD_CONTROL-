@@ -19,7 +19,7 @@
 }
 .selx-pop.arriba { top: auto; bottom: calc(100% + 2px) }
 .selx-bus { display: flex; align-items: center; gap: 8px; padding: 0 12px; height: 42px; background: #F6F7F9; border-bottom: 1px solid #E3E6EA; color: #888 }
-.sd .selx .selx-bus input {
+.selx .selx-bus .selx-in {
   flex: 1; width: auto; height: 40px; padding: 0; border: 0; outline: 0; background: none; border-radius: 0;
   font: 500 14px var(--sd-texto, inherit); color: #111;
 }

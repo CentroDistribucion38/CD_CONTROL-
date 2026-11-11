@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import { aUnidades, partir } from "@/modulos/inventario/unidades";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Selector } from "@/components/Selector";
+import { aUnidades, partir, textoCantidad } from "@/modulos/inventario/unidades";
 
 /* LAS PLANILLAS, EDITABLES SOLO EN LA PLANILLA.
    El fiscal puede cambiar el módulo y las estibas, el saldo y las cajas de cada uno de la pareja; la planilla rehace sola el total de cada
@@ -36,6 +37,8 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
   const [aj, setAj] = useState<Record<string, Aj>>({});
   const [listo, setListo] = useState(false);
   const dlg = useRef<HTMLDialogElement>(null);
+  /* El código por el que se filtra para ir comparando subtotales. Es solo de la pantalla: el papel sale completo. */
+  const [cod, setCod] = useState("");
   /* El nombre de la familia de cada hoja (lo escribe el fiscal en el recuadro rojo); solo vive en esta planilla. */
   const claveNom = `planilla-familias-${fiscalId}`;
   const [fam, setFam] = useState<Record<number, string>>({});
@@ -109,6 +112,35 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
       return { ...x, [k(h.numero, i)]: a };
     });
   }
+  /* Los códigos que hay en las hojas que se ven, para escoger de la lista. */
+  const codigos = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const h of hojas) for (const f of h.filas) if (!m.has(f.sku)) m.set(f.sku, f.material);
+    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([sku, material]) => ({ valor: sku, codigo: sku, etiqueta: material }));
+  }, [hojas]);
+
+  /* SUBTOTALES DEL CÓDIGO: por hoja y en total, de lo que contó cada uno (con los ajustes de la planilla), en unidades exactas. */
+  const sub = (() => {
+    if (!cod) return null;
+    let upc = 1, material = "", udsCaja: number | null = null;
+    const porHoja = hojas.flatMap((h) => {
+      let renglones = 0, uOl = 0, uBav = 0, hayOl = false, hayBav = false;
+      h.filas.forEach((f, i) => {
+        if (f.sku !== cod) return;
+        upc = f.upc ?? 1; material = f.material; udsCaja = f.udsCaja ?? udsCaja;
+        const o = ocup(h, f, i);
+        const a = cuenta(o.ol, f), b = cuenta(o.bav, f);
+        renglones++;
+        if (a) { uOl += a.u; hayOl = true }
+        if (b) { uBav += b.u; hayBav = true }
+      });
+      return renglones ? [{ h, renglones, uOl, uBav, hayOl, hayBav }] : [];
+    });
+    const t = porHoja.reduce((x, r) => ({ r: x.r + r.renglones, ol: x.ol + r.uOl, bav: x.bav + r.uBav }), { r: 0, ol: 0, bav: 0 });
+    return { porHoja, t, upc, material, udsCaja };
+  })();
+  const mostrar = (u: number, upc: number, hay: boolean) => { if (!hay) return "—"; const p = partir(u, upc); return textoCantidad(p.cajas, p.unidades) };
+  const mostrarDif = (u: number, upc: number) => { if (u === 0) return "0"; const p = partir(u, upc); return [p.cajas ? signo(p.cajas) : "", p.unidades ? `${signo(p.unidades)} un.` : ""].filter(Boolean).join(" ") };
   const cambios = Object.keys(aj).length;
   const totalPaginas = hojas.reduce((t, h) => t + h.np, 0);
   /* «Cajas» es UNA sola columna: las cajas sueltas de la estiba incompleta (saldo) y las cajas a secas se suman y se ven juntas. */
@@ -134,6 +166,11 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
           </span>
         </div>
         <div className="pl-barra-b">
+          <div className="pl-cod" title="Deja solo los renglones de un código y suma lo que contó cada uno">
+            <small>Filtrar por código</small>
+            <Selector valor={cod} onCambiar={setCod} vacio="Todos los códigos" ariaLabel="Filtrar por código"
+                      opciones={[{ valor: "", etiqueta: "Todos los códigos" }, ...codigos]} />
+          </div>
           {cambios > 0 && <button type="button" className="pl-restablecer" onClick={() => dlg.current?.showModal()}>Quitar mis ajustes ({cambios})</button>}
           <button type="button" className="pl-imprimir" onClick={() => window.print()}>Imprimir o guardar en PDF</button>
         </div>
@@ -148,6 +185,39 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
           </div>
         </div>
       </dialog>
+      {sub && (
+        <section className="pl-sub" aria-label={`Subtotales del código ${cod}`}>
+          <header>
+            <div><small>SUBTOTALES DEL CÓDIGO</small><b>{cod} · {sub.material}</b>{sub.udsCaja ? <span>{sub.udsCaja} cajas por estiba{sub.upc > 1 ? ` · ${sub.upc} un. por caja` : ""}</span> : null}</div>
+            <button type="button" onClick={() => setCod("")}>Quitar filtro</button>
+          </header>
+          <table>
+            <thead><tr><th>Hoja</th><th className="n">Renglones</th><th className="n ol">Operador logístico</th><th className="n bv">Bavaria</th><th className="n">Diferencia</th></tr></thead>
+            <tbody>
+              {sub.porHoja.map(({ h, renglones, uOl, uBav, hayOl, hayBav }) => {
+                const d = hayOl && hayBav ? uOl - uBav : 0;
+                return (
+                  <tr key={h.numero}>
+                    <td>{fam[h.numero]?.trim() || `Hoja ${h.numero}`}{h.calle ? <em> · Calle {h.calle}</em> : null}</td>
+                    <td className="n">{renglones}</td>
+                    <td className="n">{mostrar(uOl, sub.upc, hayOl)}</td>
+                    <td className="n">{mostrar(uBav, sub.upc, hayBav)}</td>
+                    <td className={"n" + (d !== 0 ? " mal" : "")}>{hayOl && hayBav ? mostrarDif(d, sub.upc) : "—"}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td>Total</td><td className="n">{sub.t.r}</td>
+                <td className="n">{mostrar(sub.t.ol, sub.upc, true)}</td><td className="n">{mostrar(sub.t.bav, sub.upc, true)}</td>
+                <td className={"n" + (sub.t.ol !== sub.t.bav ? " mal" : "")}>{mostrarDif(sub.t.ol - sub.t.bav, sub.upc)}</td>
+              </tr>
+            </tfoot>
+          </table>
+          <p>Salen solo los renglones de este código; los ajustes que escribas se suman al momento. Para imprimir, la planilla sale completa.{soloHoja ? " Estás viendo una sola hoja: para comparar entre hojas, escoge «Todas»." : ""}</p>
+        </section>
+      )}
       <p className="pl-ayuda">Puedes escribir sobre el módulo y sobre estiba, caja y unidades de cada uno: la planilla rehace sola la diferencia y los totales de la hoja. Con <b>‹</b> o <b>›</b> pasas el conteo de un lado al otro. En el recuadro rojo puedes escribir el nombre de la familia en vez del número de hoja. Los ajustes son solo de esta planilla: el conteo y el inventario real no cambian.</p>
       {aviso && <p className="pl-vacio">{aviso}</p>}
       {hojas.length === 0 && <p className="pl-vacio">Este inventario todavía no tiene hojas. Arma las parejas en el Plan fiscal.</p>}
@@ -163,8 +233,9 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
           return { ol: t.ol + (a?.cajas ?? 0), bav: t.bav + (b?.cajas ?? 0), uOl: t.uOl + (a?.sueltas ?? 0), uBav: t.uBav + (b?.sueltas ?? 0),
                    dc: t.dc + partir((a?.u ?? 0) - (b?.u ?? 0), f.upc ?? 1).cajas, du: t.du + partir((a?.u ?? 0) - (b?.u ?? 0), f.upc ?? 1).unidades };
         }, { ol: 0, bav: 0, uOl: 0, uBav: 0, dc: 0, du: 0 });
+        const sinCod = !!cod && !trozo.some((f) => f.sku === cod);
         return (
-          <section key={`${h.numero}-${p}`} className="pl-pg" aria-label={`Planilla hoja ${h.numero}, página ${p + 1} de ${h.np}`}>
+          <section key={`${h.numero}-${p}`} className={`pl-pg${cod ? " pl-fil" : ""}${sinCod ? " pl-sin" : ""}`} aria-label={`Planilla hoja ${h.numero}, página ${p + 1} de ${h.np}`}>
             <div className="pl-hd">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/marca/logo-bavaria.png" alt="Bavaria" />
@@ -210,9 +281,9 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
                     const cO = cuenta(o.ol, f), cB = cuenta(o.bav, f);
                     const dd = partir((cO?.u ?? 0) - (cB?.u ?? 0), f.upc ?? 1);
                     return (
-                      <tr key={i}>
+                      <tr key={i} className={cod && f.sku !== cod ? "pl-oc" : undefined}>
                         <td className="m e"><input value={o.modulo} onChange={(e) => poner(h, i, f, "modulo", null, e.target.value)} aria-label={`Módulo de ${f.sku}`} /></td>
-                        <td className="c">{f.sku}</td>
+                        <td className="c"><button type="button" className="pl-codb" title={cod === f.sku ? "Quitar el filtro" : "Filtrar por este código"} onClick={() => setCod(cod === f.sku ? "" : f.sku)}>{f.sku}</button></td>
                         <td className="d">{f.material}{f.detalle && <em>{f.detalle}</em>}</td>
                         <td className="r">{f.udsCaja ?? ""}</td>
                         {campo(h, f, i, "ol", "e", "Estibas")}{campo(h, f, i, "ol", "c", "Cajas")}{campo(h, f, i, "ol", "u", "Unidades sueltas")}
@@ -226,8 +297,8 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
                       </tr>
                     );
                   })}
-                  {mods.map((m, j) => <tr key={`b${j}`}><td className="m">{m}</td>{Array.from({ length: 10 }, (_, c) => <td key={c} />)}<td className="pl-nop" /></tr>)}
-                  {Array.from({ length: relleno }, (_, j) => <tr key={`r${j}`}><td className="m" />{Array.from({ length: 10 }, (_, c) => <td key={c} />)}<td className="pl-nop" /></tr>)}
+                  {mods.map((m, j) => <tr key={`b${j}`} className={cod ? "pl-oc" : undefined}><td className="m">{m}</td>{Array.from({ length: 10 }, (_, c) => <td key={c} />)}<td className="pl-nop" /></tr>)}
+                  {Array.from({ length: relleno }, (_, j) => <tr key={`r${j}`} className={cod ? "pl-oc" : undefined}><td className="m" />{Array.from({ length: 10 }, (_, c) => <td key={c} />)}<td className="pl-nop" /></tr>)}
                 </tbody>
               </table>
             </div>

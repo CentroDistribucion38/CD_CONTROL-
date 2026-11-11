@@ -119,3 +119,36 @@
 .pl-pg > .pl-pie { margin-bottom: 14px }
 .pl-t td.t small.un { display: block; font-size: 7px; font-weight: 700; line-height: 1; margin-top: -1px; white-space: nowrap }
 .pl-t td.e input:disabled { background: #efefef }
+
+
+/* FILTRO POR CÓDIGO (solo en pantalla): deja los renglones de un SKU y suma lo de cada uno. El papel no se toca. */
+.pl-cod { display: flex; flex-direction: column; gap: 3px; width: 260px }
+.pl-cod small { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #cfcfcf }
+.pl-cod .selx-btn { height: 36px; font-size: 13px }
+.pl-codb { all: unset; cursor: pointer; display: block; width: 100%; text-align: center; font: inherit; font-weight: 600 }
+.pl-codb:hover { background: #FFF1B8 }
+.pl-codb:focus-visible { outline: 2px solid #FFC400 }
+.pl-sub { width: min(1056px, calc(100vw - 24px)); margin: 0 auto 14px; background: #fff; border-top: 4px solid #FFC400; padding: 14px 18px 12px }
+.pl-sub header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 10px }
+.pl-sub header small { display: block; font-size: 10px; letter-spacing: .16em; color: #777 }
+.pl-sub header b { display: block; font-size: 17px; margin-top: 2px }
+.pl-sub header span { font-size: 12px; color: #666 }
+.pl-sub header button { padding: 7px 14px; border: 1.5px solid #161616; background: #fff; color: #161616; font: 700 12.5px "IBM Plex Sans", Arial, sans-serif; cursor: pointer }
+.pl-sub table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums }
+.pl-sub th { text-align: left; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; padding: 7px 10px; background: #161616; color: #fff }
+.pl-sub th.ol { background: #D7141A } .pl-sub th.bv { background: #3a3a3a }
+.pl-sub td { padding: 8px 10px; border-bottom: 1px solid #E5E5E5 }
+.pl-sub .n { text-align: right }
+.pl-sub td em { font-style: normal; color: #777 }
+.pl-sub tfoot td { font-weight: 800; border-top: 2px solid #161616; border-bottom: 0; background: #FAFAFA }
+.pl-sub .mal { color: #D7141A; font-weight: 800 }
+.pl-sub > p { margin: 10px 0 0; font-size: 12px; color: #666 }
+@media screen {
+  .pl-pg.pl-sin { display: none }
+  .pl-pg.pl-fil { height: auto }
+  .pl-fil .pl-tw { flex: none }
+  .pl-fil .pl-t { position: static; height: auto }
+  .pl-fil .pl-t tbody tr { height: 30px }
+  .pl-fil .pl-t tr.pl-oc { display: none }
+}
+@media print { .pl-sub, .pl-cod { display: none !important } }

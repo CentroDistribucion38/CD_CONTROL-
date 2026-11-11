@@ -108,7 +108,7 @@ export function Selector({
           {conBuscador && (
             <div className="selx-bus">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-4-4" /></svg>
-              <input ref={campo} value={q} placeholder="Buscar…" aria-controls={id} autoComplete="off"
+              <input ref={campo} className="selx-in" value={q} placeholder="Buscar…" aria-controls={id} autoComplete="off"
                      onChange={(e) => { setQ(e.target.value); setActiva(0) }} />
             </div>
           )}
