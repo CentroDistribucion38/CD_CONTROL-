@@ -139,8 +139,17 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
     const t = porHoja.reduce((x, r) => ({ r: x.r + r.renglones, ol: x.ol + r.uOl, bav: x.bav + r.uBav }), { r: 0, ol: 0, bav: 0 });
     return { porHoja, t, upc, material, udsCaja };
   })();
-  const mostrar = (u: number, upc: number, hay: boolean) => { if (!hay) return "—"; const p = partir(u, upc); return textoCantidad(p.cajas, p.unidades) };
-  const mostrarDif = (u: number, upc: number) => { if (u === 0) return "0"; const p = partir(u, upc); return [p.cajas ? signo(p.cajas) : "", p.unidades ? `${signo(p.unidades)} un.` : ""].filter(Boolean).join(" ") };
+  /* LO PRINCIPAL SON UNIDADES; debajo, lo mismo en cajas (+ sueltas) para leerlo como en la planilla. */
+  const cel = (u: number, upc: number, hay: boolean) => {
+    if (!hay) return "—";
+    const p = partir(u, upc);
+    return <><b>{nf.format(u)} un.</b><small className="cj">{textoCantidad(p.cajas, p.unidades)}</small></>;
+  };
+  const celDif = (u: number, upc: number) => {
+    if (u === 0) return <><b>0 un.</b></>;
+    const p = partir(u, upc);
+    return <><b>{signo(u)} un.</b><small className="cj">{[p.cajas ? `${signo(p.cajas)} cajas` : "", p.unidades ? `${signo(p.unidades)} un.` : ""].filter(Boolean).join(" ")}</small></>;
+  };
   const cambios = Object.keys(aj).length;
   const totalPaginas = hojas.reduce((t, h) => t + h.np, 0);
   /* «Cajas» es UNA sola columna: las cajas sueltas de la estiba incompleta (saldo) y las cajas a secas se suman y se ven juntas. */
@@ -200,9 +209,9 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
                   <tr key={h.numero}>
                     <td>{fam[h.numero]?.trim() || `Hoja ${h.numero}`}{h.calle ? <em> · Calle {h.calle}</em> : null}</td>
                     <td className="n">{renglones}</td>
-                    <td className="n">{mostrar(uOl, sub.upc, hayOl)}</td>
-                    <td className="n">{mostrar(uBav, sub.upc, hayBav)}</td>
-                    <td className={"n" + (d !== 0 ? " mal" : "")}>{hayOl && hayBav ? mostrarDif(d, sub.upc) : "—"}</td>
+                    <td className="n">{cel(uOl, sub.upc, hayOl)}</td>
+                    <td className="n">{cel(uBav, sub.upc, hayBav)}</td>
+                    <td className={"n" + (d !== 0 ? " mal" : "")}>{hayOl && hayBav ? celDif(d, sub.upc) : "—"}</td>
                   </tr>
                 );
               })}
@@ -210,8 +219,8 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
             <tfoot>
               <tr>
                 <td>Total</td><td className="n">{sub.t.r}</td>
-                <td className="n">{mostrar(sub.t.ol, sub.upc, true)}</td><td className="n">{mostrar(sub.t.bav, sub.upc, true)}</td>
-                <td className={"n" + (sub.t.ol !== sub.t.bav ? " mal" : "")}>{mostrarDif(sub.t.ol - sub.t.bav, sub.upc)}</td>
+                <td className="n">{cel(sub.t.ol, sub.upc, true)}</td><td className="n">{cel(sub.t.bav, sub.upc, true)}</td>
+                <td className={"n" + (sub.t.ol !== sub.t.bav ? " mal" : "")}>{celDif(sub.t.ol - sub.t.bav, sub.upc)}</td>
               </tr>
             </tfoot>
           </table>
@@ -230,9 +239,9 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
         const tot = h.filas.reduce((t, f, i) => {
           const o = ocup(h, f, i);
           const a = cuenta(o.ol, f), b = cuenta(o.bav, f);
-          return { ol: t.ol + (a?.cajas ?? 0), bav: t.bav + (b?.cajas ?? 0), uOl: t.uOl + (a?.sueltas ?? 0), uBav: t.uBav + (b?.sueltas ?? 0),
+          return { uT_ol: t.uT_ol + (a?.u ?? 0), uT_bav: t.uT_bav + (b?.u ?? 0), ol: t.ol + (a?.cajas ?? 0), bav: t.bav + (b?.cajas ?? 0), uOl: t.uOl + (a?.sueltas ?? 0), uBav: t.uBav + (b?.sueltas ?? 0),
                    dc: t.dc + partir((a?.u ?? 0) - (b?.u ?? 0), f.upc ?? 1).cajas, du: t.du + partir((a?.u ?? 0) - (b?.u ?? 0), f.upc ?? 1).unidades };
-        }, { ol: 0, bav: 0, uOl: 0, uBav: 0, dc: 0, du: 0 });
+        }, { uT_ol: 0, uT_bav: 0, ol: 0, bav: 0, uOl: 0, uBav: 0, dc: 0, du: 0 });
         const sinCod = !!cod && !trozo.some((f) => f.sku === cod);
         return (
           <section key={`${h.numero}-${p}`} className={`pl-pg${cod ? " pl-fil" : ""}${sinCod ? " pl-sin" : ""}`} aria-label={`Planilla hoja ${h.numero}, página ${p + 1} de ${h.np}`}>
@@ -304,9 +313,10 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
             </div>
             {h.conConteo && ultima && (
               <div className="pl-tot">
-                <span>Total de la hoja · cajas y unidades sueltas</span>
-                <b>Operador logístico {nf.format(tot.ol)} cajas{tot.uOl > 0 ? ` + ${nf.format(tot.uOl)} un.` : ""}</b><b>Bavaria {nf.format(tot.bav)} cajas{tot.uBav > 0 ? ` + ${nf.format(tot.uBav)} un.` : ""}</b>
-                <b className={tot.dc !== 0 || tot.du !== 0 ? "mal" : ""}>Diferencia {tot.dc === 0 && tot.du === 0 ? "0 cajas" : [tot.dc !== 0 ? `${signo(tot.dc)} cajas` : "", tot.du !== 0 ? `${signo(tot.du)} un.` : ""].filter(Boolean).join(" ")}</b>
+                <span>Total de la hoja · unidades (y cajas)</span>
+                <b>Operador logístico {nf.format(tot.uT_ol)} un.<i> · {nf.format(tot.ol)} cajas{tot.uOl > 0 ? ` + ${nf.format(tot.uOl)} un.` : ""}</i></b>
+                <b>Bavaria {nf.format(tot.uT_bav)} un.<i> · {nf.format(tot.bav)} cajas{tot.uBav > 0 ? ` + ${nf.format(tot.uBav)} un.` : ""}</i></b>
+                <b className={tot.uT_ol !== tot.uT_bav ? "mal" : ""}>Diferencia {tot.uT_ol === tot.uT_bav ? "0 un." : `${signo(tot.uT_ol - tot.uT_bav)} un.`}</b>
               </div>
             )}
             <div className="pl-pie">
