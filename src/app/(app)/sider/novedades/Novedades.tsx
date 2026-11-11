@@ -28,6 +28,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Novedad, MotivoNovedad, RespuestaNovedad } from "@/modulos/sider/datos";
 import { useConfirmar } from "@/components/Confirmar";
+import { Selector } from "@/components/Selector";
 import { sellar, type Foto } from "@/lib/evidencia";
 
 const HOY = () => {
@@ -94,15 +95,15 @@ function CampoCd({ valor, cambiar, cds, ejemplo }: {
   const [otro, setOtro] = useState(valor !== "" && !cds.includes(valor));
   return (
     <>
-      <select value={otro ? "__otro" : valor}
-              onChange={(e) => {
-                if (e.target.value === "__otro") { setOtro(true); cambiar("") }
-                else { setOtro(false); cambiar(e.target.value) }
-              }}>
-        <option value="">Escoge…</option>
-        {cds.map((c) => <option key={c} value={c}>{c}</option>)}
-        <option value="__otro">Otro (escribir)…</option>
-      </select>
+      <Selector valor={otro ? "__otro" : valor}
+                opciones={[
+                  ...cds.map((c) => ({ valor: c, etiqueta: c })),
+                  { valor: "__otro", etiqueta: "Otro (escribir)…" },
+                ]}
+                onCambiar={(v) => {
+                  if (v === "__otro") { setOtro(true); cambiar("") }
+                  else { setOtro(false); cambiar(v) }
+                }} />
       {otro && (
         <input value={valor} placeholder={ejemplo} autoFocus
                onChange={(e) => cambiar(e.target.value)} />
@@ -418,21 +419,20 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
         <div className="nv-filtros">
           <label className="nv-filtro">
             <span>Tramo</span>
-            <select value={f.tramo} onChange={(e) => setF({ ...f, tramo: e.target.value })}>
-              <option value="">T1 y T2</option>
-              <option value="t1">Solo T1</option>
-              <option value="t2">Solo T2</option>
-            </select>
+            <Selector valor={f.tramo} onCambiar={(v) => setF({ ...f, tramo: v })}
+                      opciones={[
+                        { valor: "", etiqueta: "T1 y T2" },
+                        { valor: "t1", etiqueta: "Solo T1" },
+                        { valor: "t2", etiqueta: "Solo T2" },
+                      ]} />
           </label>
 
           {responsables.length > 1 && (
             <label className="nv-filtro">
               <span>Le toca a</span>
-              <select value={f.responsable}
-                      onChange={(e) => setF({ ...f, responsable: e.target.value })}>
-                <option value="">Cualquiera</option>
-                {responsables.map((r) => <option key={r} value={r}>{r}</option>)}
-              </select>
+              <Selector valor={f.responsable} onCambiar={(v) => setF({ ...f, responsable: v })}
+                        opciones={[{ valor: "", etiqueta: "Cualquiera" },
+                                   ...responsables.map((r) => ({ valor: String(r), etiqueta: String(r) }))]} />
             </label>
           )}
 
@@ -467,22 +467,18 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
             <h4 className="nv-sub">1 · Qué pasó</h4>
             <label>
               <span>Tramo</span>
-              <select value={n.tramo}
-                      onChange={(e) => setN({ ...n, tramo: e.target.value as "t1" | "t2",
-                                              motivo: "", viajeId: "" })}>
-                <option value="t1">T1 · lo que llega de otro CD</option>
-                <option value="t2">T2 · el reparto al cliente</option>
-              </select>
+              <Selector valor={n.tramo}
+                        onCambiar={(v) => setN({ ...n, tramo: v as "t1" | "t2", motivo: "", viajeId: "" })}
+                        opciones={[
+                          { valor: "t1", etiqueta: "T1 · lo que llega de otro CD" },
+                          { valor: "t2", etiqueta: "T2 · el reparto al cliente" },
+                        ]} />
             </label>
 
             <label>
               <span>Motivo</span>
-              <select value={n.motivo} onChange={(e) => setN({ ...n, motivo: e.target.value })}>
-                <option value="">Escoge…</option>
-                {motivosDe(n.tramo).map((m) => (
-                  <option key={m.clave} value={m.clave}>{m.nombre}</option>
-                ))}
-              </select>
+              <Selector valor={n.motivo} onCambiar={(v) => setN({ ...n, motivo: v })}
+                        opciones={motivosDe(n.tramo).map((m) => ({ valor: m.clave, etiqueta: m.nombre }))} />
             </label>
 
             <label>
@@ -497,23 +493,19 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
             {n.tramo === "t1" && viajes.length > 0 && (
               <label className="ancho">
                 <span>¿De cuál viaje?</span>
-                <select value={n.viajeId}
-                        onChange={(e) => {
-                          /* Se copian AL ESCOGER, no al enviar: así se
-                             ven antes de mandar y se pueden corregir. */
-                          const v = viajes.find((x) => x.id === e.target.value);
-                          setN({
-                            ...n, viajeId: e.target.value, placa: "",
-                            factura: v?.factura ?? "", lote: v?.lote ?? "", sku: v?.sku ?? "",
-                          });
-                        }}>
-                  <option value="">Ninguno — escribo la placa</option>
-                  {viajes.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.placa} · {v.cd_origen} · {v.descripcion}
-                    </option>
-                  ))}
-                </select>
+                <Selector valor={n.viajeId}
+                          opciones={[
+                            { valor: "", etiqueta: "Ninguno — escribo la placa" },
+                            ...viajes.map((v) => ({ valor: v.id, codigo: v.placa, etiqueta: `${v.cd_origen} · ${v.descripcion}` })),
+                          ]}
+                          onCambiar={(id) => {
+                            /* Se copian AL ESCOGER, no al enviar: así se ven antes de mandar y se pueden corregir. */
+                            const v = viajes.find((x) => x.id === id);
+                            setN({
+                              ...n, viajeId: id, placa: "",
+                              factura: v?.factura ?? "", lote: v?.lote ?? "", sku: v?.sku ?? "",
+                            });
+                          }} />
                 <em>Si está en la lista, mejor: la novedad queda pegada a ese viaje.</em>
               </label>
             )}
@@ -561,11 +553,11 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
             <h4 className="nv-sub">3 · Qué se afectó</h4>
             <label>
               <span>SKU afectado</span>
-              <select value={n.sku} onChange={(e) => setN({ ...n, sku: e.target.value })}>
-                <option value="">Escoge…</option>
-                {n.sku && !skus.some((k) => k.sku === n.sku) && <option value={n.sku}>{n.sku}</option>}
-                {skus.map((k) => <option key={k.sku} value={k.sku}>{k.sku} · {k.descripcion}</option>)}
-              </select>
+              <Selector valor={n.sku} onCambiar={(v) => setN({ ...n, sku: v })}
+                        opciones={[
+                          ...(n.sku && !skus.some((k) => k.sku === n.sku) ? [{ valor: n.sku, etiqueta: n.sku }] : []),
+                          ...skus.map((k) => ({ valor: k.sku, codigo: k.sku, etiqueta: k.descripcion })),
+                        ]} />
               {n.viajeId !== "" && n.sku && <em>Viene del viaje. Si el papel dice otro, corrígelo.</em>}
             </label>
 
@@ -576,12 +568,13 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
                        style={{ flex: "1 1 90px", minWidth: 0 }}
                        value={n.cantidad} placeholder="3"
                        onChange={(e) => setN({ ...n, cantidad: e.target.value })} />
-                <select value={n.unidad} style={{ flex: "0 1 120px" }}
-                        onChange={(e) => setN({ ...n, unidad: e.target.value })}>
-                  <option value="estibas">estibas</option>
-                  <option value="cajas">cajas</option>
-                  <option value="unidades">unidades</option>
-                </select>
+                <Selector valor={n.unidad} style={{ flex: "0 1 130px" }}
+                          onCambiar={(v) => setN({ ...n, unidad: v })}
+                          opciones={[
+                            { valor: "estibas", etiqueta: "estibas" },
+                            { valor: "cajas", etiqueta: "cajas" },
+                            { valor: "unidades", etiqueta: "unidades" },
+                          ]} />
               </div>
               <em>Sin esta cifra la novedad dice qué pasó, pero no cuánto hay que cobrar.</em>
             </label>
