@@ -305,8 +305,8 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
             {h.conConteo && ultima && (
               <div className="pl-tot">
                 <span>Total de la hoja · cajas y unidades sueltas</span>
-                <b>Operador logístico {nf.format(tot.ol)}{tot.uOl > 0 ? ` + ${nf.format(tot.uOl)} un.` : ""}</b><b>Bavaria {nf.format(tot.bav)}{tot.uBav > 0 ? ` + ${nf.format(tot.uBav)} un.` : ""}</b>
-                <b className={tot.dc !== 0 || tot.du !== 0 ? "mal" : ""}>Diferencia {tot.dc === 0 && tot.du === 0 ? "0" : [tot.dc !== 0 ? signo(tot.dc) : "", tot.du !== 0 ? `${signo(tot.du)} un.` : ""].filter(Boolean).join(" ")}</b>
+                <b>Operador logístico {nf.format(tot.ol)} cajas{tot.uOl > 0 ? ` + ${nf.format(tot.uOl)} un.` : ""}</b><b>Bavaria {nf.format(tot.bav)} cajas{tot.uBav > 0 ? ` + ${nf.format(tot.uBav)} un.` : ""}</b>
+                <b className={tot.dc !== 0 || tot.du !== 0 ? "mal" : ""}>Diferencia {tot.dc === 0 && tot.du === 0 ? "0 cajas" : [tot.dc !== 0 ? `${signo(tot.dc)} cajas` : "", tot.du !== 0 ? `${signo(tot.du)} un.` : ""].filter(Boolean).join(" ")}</b>
               </div>
             )}
             <div className="pl-pie">
