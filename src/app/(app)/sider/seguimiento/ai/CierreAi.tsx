@@ -15,6 +15,8 @@ import { armarCierreAi, textoCierreAi } from "@/modulos/sider/cierre-ai";
 import { turnoAi } from "@/modulos/sider/comun";
 import { cierreAiDia } from "./actions";
 import { DiaCierre } from "./DiaCierre";
+import { ParetoLienzo } from "./ParetoLienzo";
+import { logoMarca, useFotoCompartir, type TipoFoto } from "@/components/FotoCompartir";
 import "../../../roturas/roturas.css";
 import "../../../roturas/en-sitio/tablero/cierre.css";
 import "./cierre-ai.css";
@@ -58,7 +60,6 @@ export function CierreAi({ ultima, tipoInicial, cerrar }: { ultima: string | nul
   const [datos, setDatos] = useState<{ revisiones: Revision[]; defectos: PorDefecto[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<{ txt: string; mal?: boolean } | null>(null);
-  const [armando, setArmando] = useState(false);
 
   useEffect(() => {
     let vivo = true;
@@ -93,25 +94,23 @@ export function CierreAi({ ultima, tipoInicial, cerrar }: { ultima: string | nul
     dicho("Texto copiado. Pégalo donde lo vayas a mandar.");
   }
 
-  async function copiarImagen() {
-    const nodo = raiz.current; if (!nodo || armando) return;
-    setArmando(true);
-    try {
-      const html2canvas = (await import("html2canvas")).default;
-      const lienzo = await html2canvas(nodo, {
-        backgroundColor: "#ffffff", scale: 2, useCORS: true,
-        onclone: (doc: Document) => { const rr = doc.querySelector<HTMLElement>(".rtc"); if (rr) colorModernoARgb(doc, rr); doc.querySelectorAll<HTMLElement>(".ca-no-foto").forEach((e) => { e.style.display = "none" }); const r = doc.querySelector<HTMLElement>(".rtc"); if (r) { r.style.maxHeight = "none"; r.style.overflow = "visible" } },
-      });
-      const blob: Blob | null = await new Promise((r) => lienzo.toBlob(r, "image/png"));
-      if (!blob) throw new Error("sin imagen");
-      try { await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]); dicho("Imagen copiada. Pégala donde quieras con Ctrl + V.") }
-      catch {
-        const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `cierre-ai-${dia}-${letras.join("")}.png`; document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(() => URL.revokeObjectURL(a.href), 5000); dicho("Este navegador no deja copiar: se descargó la imagen.");
-      }
-    } catch { dicho("No se pudo armar la imagen. Intenta otra vez.", true) }
-    finally { setArmando(false) }
-  }
+  /* LAS IMÁGENES, COMO EN ROTURAS EN SITIO: una ventana con dos pestañas —Dashboard (el cierre completo) y Pareto (la gráfica)—
+     y los botones Copiar imagen, Compartir y Descargar PNG. El Dashboard es la foto de esta misma ventana; el Pareto se dibuja aparte. */
+  const letrasTxt = letras.join("");
+  const imagen = useFotoCompartir(async (tipo: TipoFoto) => {
+    if (!c) throw new Error("sin cierre");
+    if (tipo === "detalle") {
+      const [fo, logo] = await Promise.all([import("@/modulos/sider/foto-pareto"), logoMarca()]);
+      return { lienzo: fo.dibujarParetoFoto(c, { titulo, ojo, periodo, generado: armado, logo }), nombre: `pareto-ai-${dia}-${letrasTxt}.png` };
+    }
+    const nodo = raiz.current; if (!nodo) throw new Error("sin ventana");
+    const html2canvas = (await import("html2canvas")).default;
+    const lienzo = await html2canvas(nodo, {
+      backgroundColor: "#ffffff", scale: 2, useCORS: true,
+      onclone: (doc: Document) => { const rr = doc.querySelector<HTMLElement>(".rtc"); if (rr) colorModernoARgb(doc, rr); doc.querySelectorAll<HTMLElement>(".ca-no-foto").forEach((e) => { e.style.display = "none" }); const r = doc.querySelector<HTMLElement>(".rtc"); if (r) { r.style.maxHeight = "none"; r.style.overflow = "visible" } },
+    });
+    return { lienzo, nombre: `cierre-ai-${dia}-${letrasTxt}.png` };
+  }, titulo, { dashboard: "Dashboard", detalle: "Pareto" }, undefined, ["dashboard", "detalle"]);
 
   function imprimir() { window.print() }
   const alternar = (k: string) => setTurnos((t) => (t.includes(k) ? (t.length > 1 ? t.filter((x) => x !== k) : t) : [...t, k]));
@@ -130,9 +129,13 @@ export function CierreAi({ ultima, tipoInicial, cerrar }: { ultima: string | nul
             <div className="rtc-f">{periodo.charAt(0).toUpperCase() + periodo.slice(1)} · foto de las {hhmm(armado)}</div>
           </div>
           <div className="rtc-der ca-no-foto">
-            <button type="button" className="rtc-bt pdf" onClick={copiarImagen} disabled={!c || armando} title="Copiar el cierre como imagen">
-              <svg viewBox="0 0 24 24" aria-hidden><rect x="3" y="4" width="18" height="16" rx="1.5" /><circle cx="9" cy="10" r="1.6" /><path d="m4 18 5-5 4 4 3-3 4 4" /></svg>
-              <span>{armando ? "Armando…" : "Copiar imagen"}</span>
+            <button type="button" className="rtc-bt pdf" onClick={() => void imagen.abrir("dashboard")} disabled={!c || imagen.armando != null} title="El cierre completo como imagen: copiar, compartir o descargar">
+              <svg viewBox="0 0 24 24" aria-hidden><rect x="3" y="3" width="8" height="8" /><rect x="13" y="3" width="8" height="5" /><rect x="13" y="10" width="8" height="11" /><rect x="3" y="13" width="8" height="8" /></svg>
+              <span>{imagen.armando === "dashboard" && !imagen.abierta ? "Armando…" : "Dashboard"}</span>
+            </button>
+            <button type="button" className="rtc-bt" onClick={() => void imagen.abrir("detalle")} disabled={!c || imagen.armando != null} title="Solo la gráfica del pareto como imagen">
+              <svg viewBox="0 0 24 24" aria-hidden><path d="M4 20V10M10 20V6M16 20v-5M22 20v-3" /><path d="M3 9l6-4 6 5 6-6" /></svg>
+              <span>{imagen.armando === "detalle" && !imagen.abierta ? "Armando…" : "Pareto"}</span>
             </button>
             <button type="button" className="rtc-bt" onClick={copiarTexto} disabled={!c} title="Copiar el cierre como texto">
               <svg viewBox="0 0 24 24" aria-hidden><rect x="9" y="9" width="11" height="11" rx="1.5" /><path d="M6 15H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v1" /></svg>
@@ -210,20 +213,26 @@ export function CierreAi({ ultima, tipoInicial, cerrar }: { ultima: string | nul
               {/* ─ EL PARETO DEL DEFECTO MÁS ENCONTRADO ─ */}
               <div className="rtc-sec"><b>Defecto más encontrado · pareto</b><span>los que forman el %AI · % sobre lo revisado</span></div>
               {c.pareto.length === 0 ? <p className="rtc-nada">No se encontraron defectos.</p> : (
-                <div className="rtc-rueda">
-                  <table className="rtc-tabla ca-tabla">
-                    <thead><tr><th className="n">#</th><th>Defecto</th><th className="n">Unidades</th><th className="n">% de lo revisado</th><th className="n">% de los defectos</th><th className="n">Acumulado</th></tr></thead>
-                    <tbody>
-                      {c.pareto.map((d, i) => (
-                        <tr key={d.clave} className={d.acumulado - d.pctDefectos < 0.8 ? "ca-vital" : ""}>
-                          <td className="n">{i + 1}</td>
-                          <td>{d.nombre}<i className="rtc-barra" aria-hidden><b style={{ width: `${Math.round((d.unidades / topePar) * 100)}%` }} /></i></td>
-                          <td className="n"><b>{nf.format(d.unidades)}</b></td><td className="n">{pc(d.pct)}</td><td className="n">{Math.round(d.pctDefectos * 100)} %</td><td className="n">{Math.round(d.acumulado * 100)} %</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <>
+                  <ParetoLienzo pareto={c.pareto} />
+                  <details className="ca-tabla-det ca-no-foto">
+                    <summary>Ver la tabla del pareto</summary>
+                    <div className="rtc-rueda">
+                      <table className="rtc-tabla ca-tabla">
+                        <thead><tr><th className="n">#</th><th>Defecto</th><th className="n">Unidades</th><th className="n">% de lo revisado</th><th className="n">% de los defectos</th><th className="n">Acumulado</th></tr></thead>
+                        <tbody>
+                          {c.pareto.map((d, i) => (
+                            <tr key={d.clave} className={d.acumulado - d.pctDefectos < 0.8 ? "ca-vital" : ""}>
+                              <td className="n">{i + 1}</td>
+                              <td>{d.nombre}<i className="rtc-barra" aria-hidden><b style={{ width: `${Math.round((d.unidades / topePar) * 100)}%` }} /></i></td>
+                              <td className="n"><b>{nf.format(d.unidades)}</b></td><td className="n">{pc(d.pct)}</td><td className="n">{Math.round(d.pctDefectos * 100)} %</td><td className="n">{Math.round(d.acumulado * 100)} %</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </details>
+                </>
               )}
               {c.otras.length > 0 && <p className="rtc-fin">Contadas que no cobran (no entran en el %AI): {c.otras.map((o) => `${o.nombre} ${nf.format(o.unidades)}`).join(" · ")}.</p>}
 
@@ -236,6 +245,7 @@ export function CierreAi({ ultima, tipoInicial, cerrar }: { ultima: string | nul
           </>
         )}
       </section>
+      {imagen.vista}
     </div>
   );
 }
