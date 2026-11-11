@@ -77,14 +77,16 @@ export function Analisis({ datos, hoy, puedeEditar, guardadoEn, guardadoPor, obs
   const [soloDif, setSoloDif] = useState(true);
   const { fecha, filas } = datos;
 
+  const SIEMPRE = /^E0[25] /;
   const familias = useMemo(() => {
     const m = new Map<string, FilaAnalisis[]>();
-    for (const f of filas) if (!soloDif || f.diferencia !== 0 || f.descuadres?.length) (m.get(f.familia) ?? m.set(f.familia, []).get(f.familia)!).push(f);
+    /* Barriles (E05) y cilindros (E02) SIEMPRE salen, aunque cuadren: se cuentan uno a uno y no deben desaparecer del análisis. */
+    for (const f of filas) if (!soloDif || f.diferencia !== 0 || f.descuadres?.length || SIEMPRE.test(f.familia)) (m.get(f.familia) ?? m.set(f.familia, []).get(f.familia)!).push(f);
     return [...m];
   }, [filas, soloDif]);
-  /* Los que SÍ están pero el filtro esconde porque cuadraron (diferencia 0): para que no parezca que faltan. Solo barriles, cilindros, estibas y cajas. */
+  /* Los que SÍ están pero el filtro esconde porque cuadraron (diferencia 0): para que no parezca que faltan. Solo cajas plásticas y estibas (los barriles y cilindros siempre salen). */
   const ocultos = soloDif
-    ? filas.filter((f) => f.diferencia === 0 && !f.descuadres?.length && /^E0[1235] /.test(f.familia))
+    ? filas.filter((f) => f.diferencia === 0 && !f.descuadres?.length && /^E0[13] /.test(f.familia))
         .map((f) => ({ codigo: f.codigo, descripcion: f.descripcion, sap: f.sap, conteo: f.conteo }))
     : [];
   const tot = filas.reduce((t, f) => ({ sap: t.sap + f.sap, conteo: t.conteo + f.conteo }), { sap: 0, conteo: 0 });
