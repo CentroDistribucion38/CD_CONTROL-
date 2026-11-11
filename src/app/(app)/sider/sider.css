@@ -3782,12 +3782,16 @@
 .sd .nv-forma .nv-cols .nv-campos { padding: 4px 0 0 }
 .sd .nv-sub { grid-column: 1 / -1; margin: 10px 0 0; padding-top: 14px; border-top: 1px solid var(--c-d5dce5, #E6EAF0); font: 800 11px var(--sd-texto, inherit); letter-spacing: .16em; text-transform: uppercase; color: var(--sd-gris) }
 .sd .nv-sub:first-child { margin-top: 0; padding-top: 0; border-top: 0 }
-.sd .nv-resumen { background: var(--c-oro, #FFC400); color: #111; padding: 18px 20px; position: sticky; top: 12px }
+.sd .nv-resumen { background: #EDEFF2; border: 2px solid #111; color: #111; padding: 18px 20px; position: sticky; top: 12px }
 .sd .nv-resumen small { font: 700 10.5px var(--sd-texto, inherit); letter-spacing: .2em }
 .sd .nv-res-motivo { font: 900 28px var(--sd-titulo, inherit); line-height: 1.15; margin: 3px 0 8px }
 .sd .nv-res-ruta { display: inline-block; background: #fff; padding: 5px 10px; font-size: 12.5px; font-weight: 700 }
 .sd .nv-resumen dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 13px; margin: 14px 0 0; border-top: 2px solid #111; padding-top: 12px }
-.sd .nv-resumen dt { font-weight: 500; color: #3a3000 }
+.sd .nv-resumen dt { font-weight: 500; color: #555 }
+.sd .nv-resumen.listo { background: #FFC400 }
+.sd .nv-resumen.listo dt { color: #3a3000 }
+.sd .nv-estado-res { margin: 0 0 6px; font-size: 12.5px; font-weight: 700 }
+.sd .nv-resumen.listo .nv-estado-res::before { content: "✓ " }
 .sd .nv-resumen dd { margin: 0; font-weight: 800; text-align: right; overflow-wrap: anywhere }
 .sd .nv-resumen .aviso { margin-top: 12px }
 .sd .nv-res-acciones { display: flex; flex-direction: column; gap: 6px; margin-top: 16px }
@@ -3796,3 +3800,35 @@
   .sd .nv-forma .nv-cols { grid-template-columns: 1fr; padding: 0 14px 18px }
   .sd .nv-resumen { position: static }
 }
+
+
+/* ---------- Novedades: barra con pestañas y estado vacío ---------- */
+.sd .nv-barra { flex-direction: column; align-items: stretch; gap: 0; padding: 0 }
+.sd .nv-tabs { display: flex; gap: 2px; padding: 0 12px; border-bottom: 1px solid var(--sd-linea); overflow-x: auto }
+.sd .nv-tabs button {
+  display: inline-flex; align-items: center; gap: 8px; padding: 14px 12px 12px; background: none;
+  border: 0; border-bottom: 3px solid transparent; font: 600 13.5px var(--sd-texto);
+  color: var(--sd-gris); cursor: pointer; white-space: nowrap; margin-bottom: -1px;
+}
+.sd .nv-tabs button b {
+  font: 700 11.5px var(--sd-texto); min-width: 22px; padding: 2px 7px; text-align: center;
+  border-radius: 999px; background: #E9ECF0; color: #444;
+}
+.sd .nv-tabs button:hover { color: var(--sd-tinta) }
+.sd .nv-tabs button.on { color: var(--sd-tinta); border-bottom-color: #111 }
+.sd .nv-tabs button.on b { background: #111; color: #fff }
+.sd .nv-filtros { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; padding: 14px 18px }
+.sd .nv-filtro select, .sd .nv-filtro input { height: 38px; min-width: 150px }
+.sd .nv-nueva { height: 38px }
+.sd .nv-vencidas {
+  align-self: flex-end; height: 38px; padding: 0 12px; background: none; cursor: pointer;
+  border: 1.5px solid var(--c-alarma); border-radius: 3px; color: var(--c-alarma); font: 600 13px var(--sd-texto);
+}
+.sd .nv-vencidas b { font-weight: 800 }
+.sd .nv-vacia {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 44px 26px;
+  text-align: center; color: var(--sd-gris);
+}
+.sd .nv-vacia svg { color: #9AA3AF; margin-bottom: 4px }
+.sd .nv-vacia h3 { margin: 0; font: 800 17px var(--sd-titulo); color: var(--sd-tinta) }
+.sd .nv-vacia p { margin: 0 0 10px; max-width: 420px; font-size: 13.5px; line-height: 1.5 }

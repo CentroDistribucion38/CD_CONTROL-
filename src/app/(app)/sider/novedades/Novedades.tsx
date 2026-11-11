@@ -111,13 +111,15 @@ function CampoCd({ valor, cambiar, cds, ejemplo }: {
   );
 }
 
-export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEditar, miBodega, cds }: {
+export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEditar, miBodega, cds, skus }: {
   novedades: Novedad[];
   motivos: MotivoNovedad[];
   viajes: Viaje[];
   hilo: RespuestaNovedad[];
   nombres: Record<string, string>;
   puedeEditar: boolean;
+  /** El maestro de SKU: se escoge de la lista. */
+  skus: { sku: string; descripcion: string }[];
   /** Desde dónde contesta quien está mirando. Se propone, se corrige. */
   miBodega: string;
   /** Los CD del maestro de orígenes, para las listas desplegables. */
@@ -167,6 +169,7 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
 
   const abiertas = novedades.filter((x) => x.estado === "abierta").length;
   const enProceso = novedades.filter((x) => x.estado === "en_proceso").length;
+  const cerradas = novedades.filter((x) => x.estado === "cerrada").length;
   const vencidas = novedades.filter((x) => x.vencida).length;
 
   /* Los enlaces firmados de las fotos de lo que se está viendo. */
@@ -267,6 +270,19 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
     setObs((o) => { const c = { ...o }; delete c[x.id]; return c });
     router.refresh();
   }
+
+  /* EL PANEL SE PONE AMARILLO SOLO CUANDO TODO ESTÁ LLENO. Factura y lote no cuentan: no todo caso los tiene. */
+  const viajeElegido = viajes.find((v) => v.id === n.viajeId);
+  const faltan = [
+    !n.motivo && "motivo",
+    !(viajeElegido?.placa || n.placa.trim()) && "placa",
+    !(viajeElegido?.cd_origen || n.responsable.trim()) && "a quién le toca",
+    !n.cdReporta.trim() && "CD que reporta",
+    !n.fecha && "fecha",
+    !n.sku.trim() && "SKU",
+    !(Number(n.cantidad) > 0) && "cantidad",
+    fotos.filter(Boolean).length === 0 && "foto",
+  ].filter((x): x is string => !!x);
 
   async function reportar() {
     setMal(null);
@@ -377,70 +393,65 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
       {dialogo}
 
       <section className="nv-barra">
-        <div className="nv-cuenta">
-          <b>{abiertas}</b>
-          <span>{abiertas === 1 ? "novedad abierta" : "novedades abiertas"}</span>
+        {/* El estado son pestañas con su conteo: se ve de un vistazo cuánto hay en cada una, y tocar una es filtrar. */}
+        <div className="nv-tabs" role="tablist" aria-label="Estado">
+          {([
+            ["pendientes", "Pendientes", abiertas + enProceso],
+            ["abierta", "Abiertas", abiertas],
+            ["en_proceso", "En proceso", enProceso],
+            ["cerrada", "Cerradas", cerradas],
+            ["", "Todas", novedades.length],
+          ] as [string, string, number][]).map(([k, nombre, cuantas]) => (
+            <button key={k || "todas"} type="button" role="tab" aria-selected={f.estado === k}
+                    className={f.estado === k ? "on" : ""}
+                    onClick={() => setF({ ...f, estado: k })}>
+              {nombre}<b>{cuantas}</b>
+            </button>
+          ))}
         </div>
-        {enProceso > 0 && (
-          <div className="nv-cuenta proceso">
-            <b>{enProceso}</b>
-            <span>en proceso</span>
-          </div>
-        )}
-        {/* Las vencidas solo salen si las hay: un cero permanente en rojo
-            deja de leerse a los dos días. */}
-        {vencidas > 0 && (
-          <button type="button" className="nv-cuenta mala"
-                  title="Pasadas de la fecha que prometieron"
-                  onClick={() => setF({ ...f, estado: "pendientes", tramo: "", responsable: "" })}>
-            <b>{vencidas}</b>
-            <span>{vencidas === 1 ? "pasada de fecha" : "pasadas de fecha"}</span>
-          </button>
-        )}
 
-        <label className="nv-filtro">
-          <span>Tramo</span>
-          <select value={f.tramo} onChange={(e) => setF({ ...f, tramo: e.target.value })}>
-            <option value="">T1 y T2</option>
-            <option value="t1">Solo T1</option>
-            <option value="t2">Solo T2</option>
-          </select>
-        </label>
+        <div className="nv-filtros">
+          {vencidas > 0 && (
+            <button type="button" className="nv-vencidas"
+                    title="Pasadas de la fecha que prometieron"
+                    onClick={() => setF({ ...f, estado: "pendientes", tramo: "", responsable: "" })}>
+              <b>{vencidas}</b> {vencidas === 1 ? "pasada de fecha" : "pasadas de fecha"}
+            </button>
+          )}
 
-        <label className="nv-filtro">
-          <span>Estado</span>
-          <select value={f.estado} onChange={(e) => setF({ ...f, estado: e.target.value })}>
-            <option value="pendientes">Pendientes (abiertas y en proceso)</option>
-            <option value="abierta">Abiertas</option>
-            <option value="en_proceso">En proceso</option>
-            <option value="cerrada">Cerradas</option>
-            <option value="">Todas</option>
-          </select>
-        </label>
-
-        {responsables.length > 1 && (
           <label className="nv-filtro">
-            <span>Le toca a</span>
-            <select value={f.responsable}
-                    onChange={(e) => setF({ ...f, responsable: e.target.value })}>
-              <option value="">Cualquiera</option>
-              {responsables.map((r) => <option key={r} value={r}>{r}</option>)}
+            <span>Tramo</span>
+            <select value={f.tramo} onChange={(e) => setF({ ...f, tramo: e.target.value })}>
+              <option value="">T1 y T2</option>
+              <option value="t1">Solo T1</option>
+              <option value="t2">Solo T2</option>
             </select>
           </label>
-        )}
 
-        <label className="nv-filtro">
-          <span>Placa</span>
-          <input value={f.placa} placeholder="JYN245"
-                 onChange={(e) => setF({ ...f, placa: e.target.value })} />
-        </label>
+          {responsables.length > 1 && (
+            <label className="nv-filtro">
+              <span>Le toca a</span>
+              <select value={f.responsable}
+                      onChange={(e) => setF({ ...f, responsable: e.target.value })}>
+                <option value="">Cualquiera</option>
+                {responsables.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </label>
+          )}
 
-        {puedeEditar && (
-          <button type="button" className="btn nv-nueva"
-                  onClick={() => { setAbierto((v) => !v); setMal(null) }}>
-            {abierto ? "Cancelar" : "Reportar novedad"}
-          </button>
-        )}
+          <label className="nv-filtro">
+            <span>Placa</span>
+            <input value={f.placa} placeholder="Buscar placa" 
+                   onChange={(e) => setF({ ...f, placa: e.target.value })} />
+          </label>
+
+          {puedeEditar && (
+            <button type="button" className="btn nv-nueva"
+                    onClick={() => { setAbierto((v) => !v); setMal(null) }}>
+              {abierto ? "Cancelar" : "+ Reportar novedad"}
+            </button>
+          )}
+        </div>
       </section>
 
       {/* ---------------- Reportar ---------------- */}
@@ -547,8 +558,11 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
             <h4 className="nv-sub">3 · Qué se afectó</h4>
             <label>
               <span>SKU afectado</span>
-              <input value={n.sku} placeholder="3500025"
-                     onChange={(e) => setN({ ...n, sku: e.target.value })} />
+              <select value={n.sku} onChange={(e) => setN({ ...n, sku: e.target.value })}>
+                <option value="">Escoge…</option>
+                {n.sku && !skus.some((k) => k.sku === n.sku) && <option value={n.sku}>{n.sku}</option>}
+                {skus.map((k) => <option key={k.sku} value={k.sku}>{k.sku} · {k.descripcion}</option>)}
+              </select>
               {n.viajeId !== "" && n.sku && <em>Viene del viaje. Si el papel dice otro, corrígelo.</em>}
             </label>
 
@@ -604,7 +618,7 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
           </div>
 
           {/* EL RESUMEN DEL CASO, al lado: lo que se va a mandar, tal como va, y los botones. La hora y el turno salen del reloj de Colombia. */}
-          <aside className="nv-resumen" aria-label="Resumen del caso">
+          <aside className={`nv-resumen${faltan.length === 0 ? " listo" : ""}`} aria-label="Resumen del caso">
             {(() => {
               const h = ahoraCo();
               const t = turnoDe(h);
@@ -615,6 +629,7 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
               return (
                 <>
                   <small>RESUMEN DEL CASO</small>
+                  <p className="nv-estado-res">{faltan.length === 0 ? "Listo para reportar" : `Falta: ${faltan.join(", ")}`}</p>
                   <div className="nv-res-motivo">{motivo ?? "Escoge el motivo"}</div>
                   <span className="nv-res-ruta">{n.tramo.toUpperCase()} · {origen} → {n.cdReporta || "—"}</span>
                   <dl>
@@ -650,11 +665,22 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
       {/* ---------------- La bandeja ---------------- */}
       <section className="nv-lista">
         {lista.length === 0 ? (
-          <p className="nv-vacia">
-            {novedades.length === 0
-              ? "Todavía no hay novedades reportadas."
-              : "Ninguna novedad con ese filtro."}
-          </p>
+          <div className="nv-vacia">
+            <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M9 12l2 2 4-4" /><circle cx="12" cy="12" r="9" />
+            </svg>
+            <h3>{novedades.length === 0 ? "Sin novedades reportadas" : "Nada con ese filtro"}</h3>
+            <p>
+              {novedades.length === 0
+                ? "Cuando algo salga mal en un viaje, se reporta aquí y queda como un caso con su número."
+                : "Cambia la pestaña o quita el filtro de tramo o placa para ver más."}
+            </p>
+            {novedades.length === 0 && puedeEditar && !abierto && (
+              <button type="button" className="btn" onClick={() => { setAbierto(true); setMal(null) }}>
+                + Reportar novedad
+              </button>
+            )}
+          </div>
         ) : lista.map((x) => {
           const respuestas = respuestasDe.get(x.id) ?? [];
           const contestando = respondiendo === x.id;

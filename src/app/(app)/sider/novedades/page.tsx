@@ -19,7 +19,7 @@ export default async function NovedadesPage() {
   const supabase = await createClient();
   const user = await usuarioActual();
 
-  const [permisos, novedades, motivos, viajes, nombres, { data: p }, { data: orig }] = await Promise.all([
+  const [permisos, novedades, motivos, viajes, nombres, { data: p }, { data: orig }, { data: skusDb }] = await Promise.all([
     misPermisos(),
     novedadesSider(),
     motivosNovedad(),
@@ -38,7 +38,12 @@ export default async function NovedadesPage() {
     supabase.from("perfiles").select("bodega").eq("id", user!.id).maybeSingle(),
     /* Los CD del maestro de orígenes, para escoger de una lista y no teclear el nombre: "CD Galapa" y "Galapa" son dos cosas para una consulta. */
     supabase.from("sider_origenes").select("cd_origen, activo").order("cd_origen"),
+    /* Los SKU del maestro, para escoger de una lista y no teclear el código. */
+    supabase.from("sider_skus").select("sku, descripcion, activo").order("descripcion"),
   ]);
+  const skus = (skusDb ?? [])
+    .filter((s) => s.activo !== false)
+    .map((s) => ({ sku: String(s.sku), descripcion: String(s.descripcion ?? "") }));
   const cds = [...new Set((orig ?? []).filter((o) => o.activo !== false).map((o) => String(o.cd_origen ?? "").trim()).filter(Boolean))]
     .sort((a, b) => a.localeCompare(b, "es"));
 
@@ -76,6 +81,7 @@ export default async function NovedadesPage() {
         puedeEditar={puedeEditar}
         miBodega={String(p?.bodega ?? "")}
         cds={cds}
+        skus={skus}
       />
     </div>
   );
