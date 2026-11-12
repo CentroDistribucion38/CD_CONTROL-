@@ -130,6 +130,22 @@ export function construirCierre(aj: FilaAjuste[], o: OpcionesCierre, x?: ExtrasC
   b.push({ t: "sub", texto: "Compensaciones retornable / NR nuevo (lo contado en estado NUEVO)" });
   b.push({ t: "tabla", cols: [{ h: "Par", w: 30 }, { h: "Retornable", w: 50 }, { h: "Contado NUEVO", w: 26, al: "r" }, { h: "Dif. NR", w: 26, al: "r" }, { h: "Compensa", w: 24, al: "r" }, { h: "Estado", w: 20, al: "c" }], filas: filasComp });
 
+  /* LOS AJUSTES, igual que las compensaciones: lo que se suma o se resta a SAP (lo sugerido y lo que se ajustó de verdad en la pantalla de Ajustes,
+     incluso en un código que ya cuadraba por compensación), con cuánto quedó de diferencia y en qué estado va. */
+  const conAjuste = F.filter((f) => f.ajuste !== 0 || (f.ajusteHecho ?? 0) !== 0)
+    .sort((a, c) => Math.max(Math.abs(c.ajuste), Math.abs(c.ajusteHecho ?? 0)) - Math.max(Math.abs(a.ajuste), Math.abs(a.ajusteHecho ?? 0)));
+  const estadoAj = (f: (typeof F)[number]): CeldaT => {
+    const h = f.ajusteHecho ?? 0;
+    if (h === 0) return { x: "PENDIENTE", bold: true, color: ROJO, fill: "#FDE7EA" };
+    if (f.ajuste === 0) return { x: "MANUAL", bold: true, color: AZUL, fill: "#E6EEF9" };
+    if (h === f.ajuste) return { x: "HECHO", bold: true, color: VERDE, fill: "#E3F4EA" };
+    return { x: "PARCIAL", bold: true, color: "#9A6700", fill: "#FFF4D6" };
+  };
+  b.push({ t: "sub", texto: conAjuste.length ? `Ajustes en SAP, sumar o restar (${conAjuste.length} códigos · ${sg(s(F, (f) => f.ajusteHecho ?? 0))} unidades ajustadas)` : "Ajustes en SAP, sumar o restar" });
+  b.push({ t: "tabla", cols: [{ h: "Código", w: 15 }, { h: "Descripción", w: 38 }, { h: "Diferencia", w: 16, al: "r" }, { h: "Compensación", w: 19, al: "r" }, { h: "Ajuste sugerido", w: 19, al: "r" }, { h: "Ajustado en SAP", w: 20, al: "r" }, { h: "Dif. final", w: 17, al: "r" }, { h: "Estado", w: 18, al: "c" }, { h: "Observación", w: 30 }],
+    filas: conAjuste.map((f) => [f.codigo, f.descripcion, color(f.diferencia), f.movComp ? sg(f.movComp) : "—", f.ajuste ? sg(f.ajuste) : "—", (f.ajusteHecho ?? 0) !== 0 ? { x: sg(f.ajusteHecho ?? 0), bold: true } : "—", color(f.difFinal), estadoAj(f), f.observacion || "—"]),
+    nota: conAjuste.length ? "MANUAL: se ajustó un código que no tenía ajuste sugerido (por ejemplo, uno que cuadraba por compensación)." : "Todavía no hay ajustes: lo que sumes o restes en Análisis → Ajustes aparece aquí.", compacta: true });
+
   /* 04 · AJUSTES HECHOS */
   b.push({ t: "modulo", n: "03", titulo: "Ajustes hechos y pendientes", sub: hechos.length ? `${hechos.length} códigos · ${sg(movido)} unidades movidas` : "Ninguno marcado como hecho" });
   b.push({ t: "tabla", cols: [{ h: "Código", w: 16 }, { h: "Descripción", w: 52 }, { h: "Compensación", w: 24, al: "r" }, { h: "Ajuste", w: 24, al: "r" }, { h: "SAP final", w: 26, al: "r" }, { h: "Observación", w: 44 }],

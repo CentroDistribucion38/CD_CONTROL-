@@ -86,7 +86,7 @@ export function InformeCierre({ fecha, fechaLarga, ajustes, guardadoEn, guardado
           <div className="ad-modal-caja" role="dialog" aria-modal="true" aria-labelledby="ad-inf-t">
             <p className="ad-modal-ojo">INFORME DEL CIERRE</p>
             <h3 id="ad-inf-t">{fechaLarga}</h3>
-            <p className="ad-modal-sub">Resumen, por familia, top diferencias, compensaciones, ajustes hechos y pendientes, valor en pesos, recurrencia y contra el día anterior. Listo para enviar.</p>
+            <p className="ad-modal-sub">Resumen, por familia, top diferencias, compensaciones, ajustes (sumar o restar), ajustes hechos y pendientes, valor en pesos, recurrencia y contra el día anterior. Listo para enviar.</p>
             <label className="ad-modal-campo">
               <span>Nombre del informe</span>
               <input ref={caja} value={nombre} maxLength={120} spellCheck={false}
