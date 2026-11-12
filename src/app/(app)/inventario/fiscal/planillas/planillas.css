@@ -218,3 +218,48 @@
 .pl-orig { margin-top: 12px }
 .pl-orig tr.act td { font-weight: 800; background: #FAFAFA; border-top: 2px solid #161616 }
 @media print { .pl-ajs, .pl-ver, .pl-orig-ban, .pl-guard { display: none !important } }
+
+/* LAS DOS COLUMNAS: la planilla a la izquierda y, a la derecha, las modificaciones en pestañas (Ajustar, Movimientos, Cambios).
+   La columna llena el alto de la pantalla y acompaña al bajar. En pantalla angosta no hay columnas: todo sigue apilado como antes. */
+.pl-cuerpo { display: block }
+.pl-der, .pl-izq { display: contents }
+.pl-tabs, .pl-pane.p-cb { display: none }
+.pl-ayuda-d { width: min(1056px, calc(100vw - 24px)); margin: 0 auto 12px }
+.pl-ayuda-d summary { cursor: pointer; padding: 4px 2px; font: 600 12.5px "IBM Plex Sans", Arial, sans-serif; color: #555 }
+.pl-ayuda-d .pl-ayuda { width: auto; margin: 6px 0 0 }
+.pl-cmb { width: 100%; border-collapse: collapse; font-size: 12.5px; font-variant-numeric: tabular-nums; margin-top: 6px }
+.pl-cmb th { text-align: left; font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; padding: 6px 7px; background: #161616; color: #fff; line-height: 1.2 }
+.pl-cmb td { padding: 8px 7px; border-bottom: 1px solid #E5E5E5; vertical-align: top }
+.pl-cmb td b { display: block }
+.pl-cmb td small { display: block; color: #777; font-size: 11px; margin-top: 1px }
+.pl-cmb td.mal { color: #D7141A; font-weight: 800; white-space: nowrap }
+@media screen { .pl-t tr.pl-mod td { background: #FFF1B8 } .pl-t tr.pl-mod td.m { background: #F6E7A3 } }
+@media screen and (min-width: 1580px) {
+  .pl-barra, .pl-orig-ban, .pl-guard, .pl-cuerpo { width: min(1632px, calc(100vw - 100px)) }
+  .pl-cuerpo { margin: 0 auto; display: grid; grid-template-columns: 11in minmax(0, 1fr); gap: 16px; align-items: start }
+  .pl-izq { display: block; min-width: 0 }
+  .pl-izq .pl-sub { width: auto; margin: 0 0 14px }
+  .pl-der { display: flex; flex-direction: column; position: sticky; top: 124px; height: calc(100vh - 140px); min-height: 420px; background: #fff; border-top: 4px solid #161616; box-shadow: 0 2px 14px rgba(0, 0, 0, .14) }
+  .pl-tabs { display: flex; flex: none; border-bottom: 2px solid #161616 }
+  .pl-tabs button { flex: 1; padding: 13px 10px; border: 0; background: #fff; color: #555; font: 700 13.5px "IBM Plex Sans", Arial, sans-serif; cursor: pointer }
+  .pl-tabs button.on { background: #161616; color: #fff }
+  .pl-tabs button:hover:not(.on) { background: #FFF1B8; color: #161616 }
+  .pl-tabs button:focus-visible { outline: 3px solid #FFC400; outline-offset: -3px }
+  .pl-tabs i { font-style: normal; margin-left: 6px; padding: 1px 7px; background: #FFC400; color: #161616; font-size: 11.5px }
+  .pl-der .pl-ajs { display: block; flex: 1; min-height: 0; overflow-y: auto; width: auto; margin: 0; border-top: 0 }
+  .pl-der .pl-ajs summary { display: none }
+  .pl-der .pl-pane { display: none }
+  .pl-der[data-tab="ajustar"] .pl-pane.p-aj, .pl-der[data-tab="movs"] .pl-pane.p-mv, .pl-der[data-tab="cambios"] .pl-pane.p-cb { display: block }
+  .pl-der .pl-aj { margin: 14px 16px }
+  .pl-der .pl-aj-cod { width: 100% }
+  .pl-der .pl-aj-c input { width: 120px }
+  .pl-der .pl-aj-u { width: 130px }
+  .pl-der .pl-aj-i { max-width: 100% }
+  .pl-der .pl-movs { margin: 14px 16px }
+  .pl-der .pl-mov { flex-wrap: wrap }
+  .pl-der .pl-mov > div { flex: 1 1 calc(100% - 40px) }
+  .pl-der .pl-mov button { margin-left: 36px }
+  .pl-der .pl-mov button + button { margin-left: 0 }
+  .pl-der .pl-ayuda-d { flex: none; width: auto; margin: 0; padding: 8px 16px; border-top: 1px solid #E5E5E5 }
+}
+@media print { .pl-der { display: none !important } }

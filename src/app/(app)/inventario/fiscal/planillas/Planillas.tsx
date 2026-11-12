@@ -52,6 +52,15 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
   const [editando, setEditando] = useState<string | null>(null);
   const [ajMsg, setAjMsg] = useState<{ ok: boolean; t: string } | null>(null);
   const [ajAbierto, setAjAbierto] = useState(false);
+  /* En pantalla ancha las modificaciones van en su columna a la derecha y siempre abiertas; en pantalla angosta siguen siendo el desplegable de arriba. */
+  const [ancho, setAncho] = useState(false);
+  const [pest, setPest] = useState<"ajustar" | "movs" | "cambios">("ajustar");
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1580px)");
+    const al = () => setAncho(mq.matches);
+    al(); mq.addEventListener("change", al);
+    return () => mq.removeEventListener("change", al);
+  }, []);
   /* Ver el conteo ORIGINAL (solo lectura) sin perder los movimientos: siguen guardados. */
   const [verOrig, setVerOrig] = useState(false);
   const [guardadoEn, setGuardadoEn] = useState("");
@@ -289,6 +298,7 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
     setAjMsg({ ok: true, t: `Deshecho: ${m.lineas.map(textoLinea).join("  ·  ")}. Vuelve a como estaba.` });
   }
   function editar(m: Mov) {
+    setPest("ajustar");
     setEditando(m.id);
     setLineas(m.lineas.map((l) => ({ cod: l.cod, op: l.op, n: String(l.n), uni: l.uni })));
     setAjAbierto(true); setAjMsg(null);
@@ -316,6 +326,16 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
     <td className="r e"><input inputMode="numeric" aria-label={`${etiqueta} · ${que === "ol" ? "operador logístico" : "Bavaria"} · ${f.sku}`}
       disabled={c === "u" && !f.upc} readOnly={verOrig} value={valorDe(ocup(h, f, i)[que], c)} onChange={(e) => poner(h, i, f, que, c, e.target.value)} /></td>
   );
+
+  /* LOS CAMBIOS: cada renglón que se tocó, con lo original y lo de ahora en unidades, para verlo sin recorrer la planilla. */
+  const cambiosLista = hojas.flatMap((h) => h.filas.flatMap((f, i) => {
+    if (!aj[k(h.numero, i)]) return [];
+    const a = ocupCon({}, h, f, i), b = ocupCon(aj, h, f, i);
+    const ou = (c: Cant | null) => cuenta(c, f)?.u ?? 0;
+    const o1 = ou(a.ol), o2 = ou(a.bav), n1 = ou(b.ol), n2 = ou(b.bav);
+    if (o1 === n1 && o2 === n2 && a.modulo === b.modulo) return [];
+    return [{ id: k(h.numero, i), hoja: h.numero, sku: f.sku, detalle: f.detalle, material: f.material, o1, o2, n1, n2 }];
+  }));
 
   return (
     <div className="pl">
@@ -354,206 +374,244 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
           </div>
         </div>
       </dialog>
-      {sub && (
-        <section className="pl-sub" aria-label={`Subtotales del código ${cod}`}>
-          <header>
-            <div><small>SUBTOTALES DEL CÓDIGO</small><b>{cod} · {sub.material}</b>{sub.udsCaja ? <span>{sub.udsCaja} cajas por estiba{sub.upc > 1 ? ` · ${sub.upc} un. por caja` : ""}</span> : null}</div>
-            <button type="button" onClick={() => setCod("")}>Quitar filtro</button>
-          </header>
-          <table>
-            <thead><tr><th>Hoja</th><th className="n">Renglones</th><th className="n ol">Operador logístico</th><th className="n bv">Bavaria</th><th className="n">Diferencia</th></tr></thead>
-            <tbody>
-              {sub.porHoja.map(({ h, renglones, uOl, uBav, hayOl, hayBav }) => {
-                const d = hayOl && hayBav ? uOl - uBav : 0;
-                return (
-                  <tr key={h.numero}>
-                    <td>{fam[h.numero]?.trim() || `Hoja ${h.numero}`}{h.calle ? <em> · Calle {h.calle}</em> : null}</td>
-                    <td className="n">{renglones}</td>
-                    <td className="n">{cel(uOl, sub.upc, hayOl)}</td>
-                    <td className="n">{cel(uBav, sub.upc, hayBav)}</td>
-                    <td className={"n" + (d !== 0 ? " mal" : "")}>{hayOl && hayBav ? celDif(d, sub.upc) : "—"}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-            <tfoot>
-              <tr>
-                <td>Total</td><td className="n">{sub.t.r}</td>
-                <td className="n">{cel(sub.t.ol, sub.upc, true)}</td><td className="n">{cel(sub.t.bav, sub.upc, true)}</td>
-                <td className={"n" + (sub.t.ol !== sub.t.bav ? " mal" : "")}>{celDif(sub.t.ol - sub.t.bav, sub.upc)}</td>
-              </tr>
-            </tfoot>
-          </table>
-          {(() => {
-            const o = sumaCod({}), c = sumaCod(aj);
-            return (
-              <table className="pl-orig">
-                <thead><tr><th>Este código, en total</th><th className="n ol">Operador logístico</th><th className="n bv">Bavaria</th></tr></thead>
-                <tbody>
-                  <tr><td>Original (lo que contaron)</td><td className="n">{cel(o.ol, sub.upc, true)}</td><td className="n">{cel(o.bav, sub.upc, true)}</td></tr>
-                  <tr><td>Cambios (movimientos y ediciones)</td><td className="n">{celDif(c.ol - o.ol, sub.upc)}</td><td className="n">{celDif(c.bav - o.bav, sub.upc)}</td></tr>
-                  <tr className="act"><td>Actual</td><td className="n">{cel(c.ol, sub.upc, true)}</td><td className="n">{cel(c.bav, sub.upc, true)}</td></tr>
-                </tbody>
-              </table>
-            );
-          })()}
-          <p>Salen solo los renglones de este código; los ajustes que escribas se suman al momento. Para imprimir, la planilla sale completa.{soloHoja ? " Estás viendo una sola hoja: para comparar entre hojas, escoge «Todas»." : ""}</p>
-        </section>
-      )}
-      <details className="pl-ajs" open={ajAbierto} onToggle={(e) => setAjAbierto((e.currentTarget as HTMLDetailsElement).open)}>
-        <summary>Ajustar cantidades a ambos lados{movs.length > 0 && <em>{movs.length} {movs.length === 1 ? "movimiento" : "movimientos"}</em>}</summary>
-        <form className="pl-aj" onSubmit={(e) => { e.preventDefault(); if (!verOrig) ajustar() }}>
-          <p className="pl-aj-n">La misma cantidad al operador logístico y a Bavaria: la diferencia no cambia. Agrega todos los códigos que necesites y se aplican juntos.</p>
-          {verOrig && <p className="pl-aj-m mal">Estás viendo el original: vuelve a «Mi planilla» para ajustar.</p>}
-          {editando && <p className="pl-aj-ed">Editando un movimiento. Cambia lo que necesites y toca «Guardar cambios».</p>}
-          {lineas.map((l, n) => {
-            const inf = info.get(l.cod);
-            const cambia = (c: Partial<LineaAj>) => setLineas((ls) => ls.map((x, j) => (j === n ? { ...x, ...c } : x)));
-            return (
-              <div className="pl-aj-c" key={n}>
-                <Selector valor={l.cod} vacio="Código…" className="pl-aj-cod" ariaLabel="Código a ajustar"
-                          onCambiar={(v) => cambia({ cod: v, uni: l.uni === "estibas" && !info.get(v)?.udsCaja ? "cajas" : l.uni })}
-                          opciones={codigos} />
-                <div className="pl-seg" role="group" aria-label="Quitar o sumar">
-                  <button type="button" className={l.op === "quitar" ? "on" : ""} onClick={() => cambia({ op: "quitar" })}>Quitar</button>
-                  <button type="button" className={l.op === "sumar" ? "on" : ""} onClick={() => cambia({ op: "sumar" })}>Sumar</button>
-                </div>
-                <input inputMode="numeric" value={l.n} placeholder="Cantidad" aria-label="Cantidad a ajustar"
-                       onChange={(e) => cambia({ n: e.target.value.replace(/[^\d]/g, "") })} />
-                <Selector valor={l.uni} onCambiar={(v) => cambia({ uni: v as UniAj })} className="pl-aj-u"
-                          opciones={[
-                            ...(!inf || inf.udsCaja ? [{ valor: "estibas", etiqueta: "estibas" }] : []),
-                            { valor: "cajas", etiqueta: "cajas" },
-                            ...(!inf || inf.upc > 1 ? [{ valor: "unidades", etiqueta: "unidades" }] : []),
-                          ]} />
-                {inf && <span className="pl-aj-i">{inf.material}</span>}
-                {lineas.length > 1 && <button type="button" className="pl-aj-x" aria-label="Quitar este renglón" onClick={() => setLineas((ls) => ls.filter((_, j) => j !== n))}>×</button>}
-              </div>
-            );
-          })}
-          <div className="pl-aj-pie">
-            <button type="button" className="pl-aj-mas" onClick={() => setLineas((ls) => [...ls, LINEA0()])}>+ Agregar código</button>
-            <button type="submit" className="pl-aj-ok" disabled={verOrig}>{editando ? "Guardar cambios" : `Aplicar a ambos lados${lineas.length > 1 ? ` (${lineas.length} códigos)` : ""}`}</button>
-            {editando && <button type="button" className="pl-aj-des" onClick={() => { setEditando(null); setLineas([LINEA0()]) }}>Cancelar edición</button>}
+      <div className="pl-cuerpo">
+        <aside className="pl-der" aria-label="Modificaciones de la planilla" data-tab={pest}>
+          <div className="pl-tabs" role="tablist" aria-label="Modificaciones">
+            <button type="button" role="tab" aria-selected={pest === "ajustar"} className={pest === "ajustar" ? "on" : ""} onClick={() => setPest("ajustar")}>Ajustar</button>
+            <button type="button" role="tab" aria-selected={pest === "movs"} className={pest === "movs" ? "on" : ""} onClick={() => setPest("movs")}>Movimientos{movs.length > 0 && <i>{movs.length}</i>}</button>
+            <button type="button" role="tab" aria-selected={pest === "cambios"} className={pest === "cambios" ? "on" : ""} onClick={() => setPest("cambios")}>Cambios{cambiosLista.length > 0 && <i>{cambiosLista.length}</i>}</button>
           </div>
-          {ajMsg && <p className={"pl-aj-m" + (ajMsg.ok ? "" : " mal")} role="status">{ajMsg.t}</p>}
-        </form>
-        <div className="pl-movs">
-          <small>MOVIMIENTOS</small>
-          {movs.length === 0 && <p>Todavía no hay movimientos. Lo que apliques queda aquí: puedes editarlo o deshacerlo cuando quieras, y el original siempre se puede ver.</p>}
-          {movs.map((m, n) => (
-            <div key={m.id} className={"pl-mov" + (editando === m.id ? " ed" : "")}>
-              <b>{n + 1}</b>
-              <div>
-                <span>{hora(m.ts)}</span>
-                {m.lineas.map((l, j) => <p key={j}>{textoLinea(l)} <em>({nf.format(l.delta)} un. a cada lado · {l.material})</em></p>)}
+        <details className="pl-ajs" open={ancho || ajAbierto} onToggle={(e) => setAjAbierto((e.currentTarget as HTMLDetailsElement).open)}>
+          <summary>Modificaciones · ajustar a ambos lados{movs.length > 0 && <em>{movs.length} {movs.length === 1 ? "movimiento" : "movimientos"}</em>}</summary>
+          <div className="pl-pane p-aj">
+          <form className="pl-aj" onSubmit={(e) => { e.preventDefault(); if (!verOrig) ajustar() }}>
+            <p className="pl-aj-n">La misma cantidad al operador logístico y a Bavaria: la diferencia no cambia. Agrega todos los códigos que necesites y se aplican juntos.</p>
+            {verOrig && <p className="pl-aj-m mal">Estás viendo el original: vuelve a «Mi planilla» para ajustar.</p>}
+            {editando && <p className="pl-aj-ed">Editando un movimiento. Cambia lo que necesites y toca «Guardar cambios».</p>}
+            {lineas.map((l, n) => {
+              const inf = info.get(l.cod);
+              const cambia = (c: Partial<LineaAj>) => setLineas((ls) => ls.map((x, j) => (j === n ? { ...x, ...c } : x)));
+              return (
+                <div className="pl-aj-c" key={n}>
+                  <Selector valor={l.cod} vacio="Código…" className="pl-aj-cod" ariaLabel="Código a ajustar"
+                            onCambiar={(v) => cambia({ cod: v, uni: l.uni === "estibas" && !info.get(v)?.udsCaja ? "cajas" : l.uni })}
+                            opciones={codigos} />
+                  <div className="pl-seg" role="group" aria-label="Quitar o sumar">
+                    <button type="button" className={l.op === "quitar" ? "on" : ""} onClick={() => cambia({ op: "quitar" })}>Quitar</button>
+                    <button type="button" className={l.op === "sumar" ? "on" : ""} onClick={() => cambia({ op: "sumar" })}>Sumar</button>
+                  </div>
+                  <input inputMode="numeric" value={l.n} placeholder="Cantidad" aria-label="Cantidad a ajustar"
+                         onChange={(e) => cambia({ n: e.target.value.replace(/[^\d]/g, "") })} />
+                  <Selector valor={l.uni} onCambiar={(v) => cambia({ uni: v as UniAj })} className="pl-aj-u"
+                            opciones={[
+                              ...(!inf || inf.udsCaja ? [{ valor: "estibas", etiqueta: "estibas" }] : []),
+                              { valor: "cajas", etiqueta: "cajas" },
+                              ...(!inf || inf.upc > 1 ? [{ valor: "unidades", etiqueta: "unidades" }] : []),
+                            ]} />
+                  {inf && <span className="pl-aj-i">{inf.material}</span>}
+                  {lineas.length > 1 && <button type="button" className="pl-aj-x" aria-label="Quitar este renglón" onClick={() => setLineas((ls) => ls.filter((_, j) => j !== n))}>×</button>}
+                </div>
+              );
+            })}
+            <div className="pl-aj-pie">
+              <button type="button" className="pl-aj-mas" onClick={() => setLineas((ls) => [...ls, LINEA0()])}>+ Agregar código</button>
+              <button type="submit" className="pl-aj-ok" disabled={verOrig}>{editando ? "Guardar cambios" : `Aplicar a ambos lados${lineas.length > 1 ? ` (${lineas.length} códigos)` : ""}`}</button>
+              {editando && <button type="button" className="pl-aj-des" onClick={() => { setEditando(null); setLineas([LINEA0()]) }}>Cancelar edición</button>}
+            </div>
+            {ajMsg && <p className={"pl-aj-m" + (ajMsg.ok ? "" : " mal")} role="status">{ajMsg.t}</p>}
+          </form>
+          </div>
+          <div className="pl-pane p-mv">
+          <div className="pl-movs">
+            <small>MOVIMIENTOS</small>
+            {movs.length === 0 && <p>Todavía no hay movimientos. Lo que apliques queda aquí: puedes editarlo o deshacerlo cuando quieras, y el original siempre se puede ver.</p>}
+            {movs.map((m, n) => (
+              <div key={m.id} className={"pl-mov" + (editando === m.id ? " ed" : "")}>
+                <b>{n + 1}</b>
+                <div>
+                  <span>{hora(m.ts)}</span>
+                  {m.lineas.map((l, j) => <p key={j}>{textoLinea(l)} <em>({nf.format(l.delta)} un. a cada lado · {l.material})</em></p>)}
+                </div>
+                <button type="button" disabled={verOrig} onClick={() => editar(m)}>Editar</button>
+                <button type="button" disabled={verOrig} onClick={() => deshacer(m)}>Deshacer</button>
               </div>
-              <button type="button" disabled={verOrig} onClick={() => editar(m)}>Editar</button>
-              <button type="button" disabled={verOrig} onClick={() => deshacer(m)}>Deshacer</button>
-            </div>
-          ))}
-        </div>
-      </details>
-      <p className="pl-ayuda">Puedes escribir sobre el módulo y sobre estiba, caja y unidades de cada uno: la planilla rehace sola la diferencia y los totales de la hoja. Con <b>‹</b> o <b>›</b> pasas el conteo de un lado al otro. En el recuadro rojo puedes escribir el nombre de la familia en vez del número de hoja. Los ajustes son solo de esta planilla: el conteo y el inventario real no cambian.</p>
-      {aviso && <p className="pl-vacio">{aviso}</p>}
-      {hojas.length === 0 && <p className="pl-vacio">Este inventario todavía no tiene hojas. Arma las parejas en el Plan fiscal.</p>}
-      {hojas.flatMap((h) => Array.from({ length: h.np }, (_, p) => {
-        const ultima = p === h.np - 1;
-        const desde = p * FILAS;
-        const trozo = h.conConteo ? h.filas.slice(desde, desde + FILAS) : [];
-        const mods = !h.conConteo ? h.blancos.slice(desde, desde + FILAS) : [];
-        const relleno = Math.max(0, FILAS - (h.conConteo ? trozo.length : mods.length));
-        const tot = h.filas.reduce((t, f, i) => {
-          const o = ocup(h, f, i);
-          const a = cuenta(o.ol, f), b = cuenta(o.bav, f);
-          return { uT_ol: t.uT_ol + (a?.u ?? 0), uT_bav: t.uT_bav + (b?.u ?? 0), ol: t.ol + (a?.cajas ?? 0), bav: t.bav + (b?.cajas ?? 0), uOl: t.uOl + (a?.sueltas ?? 0), uBav: t.uBav + (b?.sueltas ?? 0),
-                   dc: t.dc + partir((a?.u ?? 0) - (b?.u ?? 0), f.upc ?? 1).cajas, du: t.du + partir((a?.u ?? 0) - (b?.u ?? 0), f.upc ?? 1).unidades };
-        }, { uT_ol: 0, uT_bav: 0, ol: 0, bav: 0, uOl: 0, uBav: 0, dc: 0, du: 0 });
-        const sinCod = !!cod && !trozo.some((f) => f.sku === cod);
-        return (
-          <section key={`${h.numero}-${p}`} className={`pl-pg${cod ? " pl-fil" : ""}${sinCod ? " pl-sin" : ""}`} aria-label={`Planilla hoja ${h.numero}, página ${p + 1} de ${h.np}`}>
-            <div className="pl-hd">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/marca/logo-bavaria.png" alt="Bavaria" />
-              <div className="pl-tit"><b>PLANILLA DE CONTEO</b><span>Inventario fiscal</span></div>
-              <label className={"pl-hoja" + (fam[h.numero] ? " con-nombre" : "")} title="Escribe aquí el nombre de la familia">
-                <small>{fam[h.numero] ? "FAMILIA" : "HOJA"}</small>
-                <input className="pl-fam" value={fam[h.numero] ?? ""} placeholder={String(h.numero)} maxLength={28}
-                  size={Math.max(2, Math.min(18, (fam[h.numero] ?? "").length))} aria-label={`Nombre de la familia de la hoja ${h.numero}`}
-                  onChange={(e) => nombrar(h.numero, e.target.value)} />
-              </label>
-            </div>
-            <div className="pl-regla" />
-            <div className="pl-meta">
-              <div><small>Inventario</small><b>{nombre}</b></div>
-              <div><small>Fecha</small><b>{fechaTexto}</b></div>
-              <div><small>Grupo</small><b>{h.grupo}</b></div>
-              <div><small>Calle</small><b>{h.calle ? `Calle ${h.calle}` : ""}</b></div>
-              <div><small>Página</small><b>{p + 1} de {h.np}</b></div>
-            </div>
-            <div className="pl-par">
-              <div><span><small>Contador · Operador logístico{h.sentidoOl ? ` · ${h.sentidoOl}` : ""}</small><b>{h.olNombre}</b></span><i /></div>
-              <div><span><small>Contador · Bavaria{h.sentidoBav ? ` · ${h.sentidoBav}` : ""}</small><b>{h.bavNombre}</b></span><i /></div>
-            </div>
-            <div className="pl-tw">
-              <table className="pl-t">
-                <colgroup>
-                  <col style={{ width: 72 }} /><col style={{ width: 84 }} /><col />
-                  <col style={{ width: 46 }} />
-                  <col style={{ width: 54 }} /><col style={{ width: 54 }} /><col style={{ width: 58 }} />
-                  <col style={{ width: 54 }} /><col style={{ width: 54 }} /><col style={{ width: 58 }} />
-                  <col style={{ width: 62 }} /><col className="pl-nop" style={{ width: 40 }} />
-                </colgroup>
-                <thead>
-                  <tr><th rowSpan={2}>Módulo</th><th rowSpan={2}>Código</th><th rowSpan={2}>Descripción</th><th rowSpan={2}>Uds caja</th>
-                    <th colSpan={3} className="ol">Operador logístico</th><th colSpan={3} className="bv">Bavaria</th><th rowSpan={2}>Dif.</th><th rowSpan={2} className="pl-nop">Igualar</th></tr>
-                  <tr><th className="ol" title="Estibas completas">Estiba</th><th className="ol" title="Cajas sueltas (incluye el saldo de la estiba incompleta)">Caja</th><th className="ol" title="Unidades sueltas: las que no completan una caja">Unidades</th>
-                    <th className="bv" title="Estibas completas">Estiba</th><th className="bv" title="Cajas sueltas (incluye el saldo de la estiba incompleta)">Caja</th><th className="bv" title="Unidades sueltas: las que no completan una caja">Unidades</th></tr>
-                </thead>
-                <tbody>
-                  {trozo.map((f, j) => {
-                    const i = desde + j;
-                    const o = ocup(h, f, i);
-                    const cO = cuenta(o.ol, f), cB = cuenta(o.bav, f);
-                    const dd = partir((cO?.u ?? 0) - (cB?.u ?? 0), f.upc ?? 1);
-                    return (
-                      <tr key={i} className={cod && f.sku !== cod ? "pl-oc" : undefined}>
-                        <td className="m e"><input readOnly={verOrig} value={o.modulo} onChange={(e) => poner(h, i, f, "modulo", null, e.target.value)} aria-label={`Módulo de ${f.sku}`} /></td>
-                        <td className="c"><button type="button" className="pl-codb" title={cod === f.sku ? "Quitar el filtro" : "Filtrar por este código"} onClick={() => setCod(cod === f.sku ? "" : f.sku)}>{f.sku}</button></td>
-                        <td className="d">{f.material}{f.detalle && <em>{f.detalle}</em>}</td>
-                        <td className="r">{f.udsCaja ?? ""}</td>
-                        {campo(h, f, i, "ol", "e", "Estibas")}{campo(h, f, i, "ol", "c", "Cajas")}{campo(h, f, i, "ol", "u", "Unidades sueltas")}
-                        {campo(h, f, i, "bav", "e", "Estibas")}{campo(h, f, i, "bav", "c", "Cajas")}{campo(h, f, i, "bav", "u", "Unidades sueltas")}
-                        <td className={"r t" + (dd.cajas !== 0 || dd.unidades !== 0 ? " mal" : "")}>
-                          {dd.cajas !== 0 || dd.unidades !== 0
-                            ? <>{dd.cajas !== 0 ? signo(dd.cajas) : ""}{dd.unidades !== 0 && <small className="un">{signo(dd.unidades)} un.</small>}</>
-                            : (cO != null && cB != null ? "0" : "")}
-                        </td>
-                        <td className="pl-nop ig"><button type="button" disabled={verOrig} title="Pasar lo de Bavaria al operador logístico" onClick={() => igualar(h, i, f, false)}>‹</button><button type="button" disabled={verOrig} title="Pasar lo del operador logístico a Bavaria" onClick={() => igualar(h, i, f, true)}>›</button></td>
+            ))}
+          </div>
+          </div>
+          <div className="pl-pane p-cb">
+            <div className="pl-movs">
+              <small>CAMBIOS · ORIGINAL CONTRA MI PLANILLA (unidades)</small>
+              {cambiosLista.length === 0 && <p>Todavía no hay renglones cambiados. Lo que ajustes o escribas en la planilla aparece aquí, y en la planilla queda resaltado.</p>}
+              {cambiosLista.length > 0 && (
+                <table className="pl-cmb">
+                  <thead><tr><th>Código</th><th>Original<br />OL / Bav</th><th>Mi planilla<br />OL / Bav</th><th>Dif.</th></tr></thead>
+                  <tbody>
+                    {cambiosLista.map((c) => (
+                      <tr key={c.id}>
+                        <td><b>{c.sku}</b><small>Hoja {c.hoja} · {c.detalle || c.material}</small></td>
+                        <td>{nf.format(c.o1)} / {nf.format(c.o2)}</td>
+                        <td><b>{nf.format(c.n1)} / {nf.format(c.n2)}</b></td>
+                        <td className="mal">{c.n1 - c.o1 === c.n2 - c.o2 ? signo(c.n1 - c.o1) : `${signo(c.n1 - c.o1)} / ${signo(c.n2 - c.o2)}`}</td>
                       </tr>
-                    );
-                  })}
-                  {mods.map((m, j) => <tr key={`b${j}`} className={cod ? "pl-oc" : undefined}><td className="m">{m}</td>{Array.from({ length: 10 }, (_, c) => <td key={c} />)}<td className="pl-nop" /></tr>)}
-                  {Array.from({ length: relleno }, (_, j) => <tr key={`r${j}`} className={cod ? "pl-oc" : undefined}><td className="m" />{Array.from({ length: 10 }, (_, c) => <td key={c} />)}<td className="pl-nop" /></tr>)}
-                </tbody>
-              </table>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
-            {h.conConteo && ultima && (
-              <div className="pl-tot">
-                <span>Total de la hoja · unidades (y cajas)</span>
-                <b>Operador logístico {nf.format(tot.uT_ol)} un.<i> · {nf.format(tot.ol)} cajas{tot.uOl > 0 ? ` + ${nf.format(tot.uOl)} un.` : ""}</i></b>
-                <b>Bavaria {nf.format(tot.uT_bav)} un.<i> · {nf.format(tot.bav)} cajas{tot.uBav > 0 ? ` + ${nf.format(tot.uBav)} un.` : ""}</i></b>
-                <b className={tot.uT_ol !== tot.uT_bav ? "mal" : ""}>Diferencia {tot.uT_ol === tot.uT_bav ? "0 un." : `${signo(tot.uT_ol - tot.uT_bav)} un.`}</b>
-              </div>
-            )}
-            <div className="pl-pie">
-              <div className="pl-firma"><span>Responsable OL</span></div>
-              <div className="pl-firma"><span>Responsable Bavaria</span></div>
-            </div>
-            <div className="pl-mini">{nombre} · {fam[h.numero]?.trim() || `Hoja ${h.numero}`} · generada por CONTROL CD38 · {hoy}</div>
+          </div>
+        </details>
+          <details className="pl-ayuda-d"><summary>Cómo se usa</summary>
+            <p className="pl-ayuda">Puedes escribir sobre el módulo y sobre estiba, caja y unidades de cada uno: la planilla rehace sola la diferencia y los totales de la hoja. Con <b>‹</b> o <b>›</b> pasas el conteo de un lado al otro. En el recuadro rojo puedes escribir el nombre de la familia en vez del número de hoja. Los ajustes son solo de esta planilla: el conteo y el inventario real no cambian.</p>
+          </details>
+        </aside>
+        <div className="pl-izq">
+        {sub && (
+          <section className="pl-sub" aria-label={`Subtotales del código ${cod}`}>
+            <header>
+              <div><small>SUBTOTALES DEL CÓDIGO</small><b>{cod} · {sub.material}</b>{sub.udsCaja ? <span>{sub.udsCaja} cajas por estiba{sub.upc > 1 ? ` · ${sub.upc} un. por caja` : ""}</span> : null}</div>
+              <button type="button" onClick={() => setCod("")}>Quitar filtro</button>
+            </header>
+            <table>
+              <thead><tr><th>Hoja</th><th className="n">Renglones</th><th className="n ol">Operador logístico</th><th className="n bv">Bavaria</th><th className="n">Diferencia</th></tr></thead>
+              <tbody>
+                {sub.porHoja.map(({ h, renglones, uOl, uBav, hayOl, hayBav }) => {
+                  const d = hayOl && hayBav ? uOl - uBav : 0;
+                  return (
+                    <tr key={h.numero}>
+                      <td>{fam[h.numero]?.trim() || `Hoja ${h.numero}`}{h.calle ? <em> · Calle {h.calle}</em> : null}</td>
+                      <td className="n">{renglones}</td>
+                      <td className="n">{cel(uOl, sub.upc, hayOl)}</td>
+                      <td className="n">{cel(uBav, sub.upc, hayBav)}</td>
+                      <td className={"n" + (d !== 0 ? " mal" : "")}>{hayOl && hayBav ? celDif(d, sub.upc) : "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td>Total</td><td className="n">{sub.t.r}</td>
+                  <td className="n">{cel(sub.t.ol, sub.upc, true)}</td><td className="n">{cel(sub.t.bav, sub.upc, true)}</td>
+                  <td className={"n" + (sub.t.ol !== sub.t.bav ? " mal" : "")}>{celDif(sub.t.ol - sub.t.bav, sub.upc)}</td>
+                </tr>
+              </tfoot>
+            </table>
+            {(() => {
+              const o = sumaCod({}), c = sumaCod(aj);
+              return (
+                <table className="pl-orig">
+                  <thead><tr><th>Este código, en total</th><th className="n ol">Operador logístico</th><th className="n bv">Bavaria</th></tr></thead>
+                  <tbody>
+                    <tr><td>Original (lo que contaron)</td><td className="n">{cel(o.ol, sub.upc, true)}</td><td className="n">{cel(o.bav, sub.upc, true)}</td></tr>
+                    <tr><td>Cambios (movimientos y ediciones)</td><td className="n">{celDif(c.ol - o.ol, sub.upc)}</td><td className="n">{celDif(c.bav - o.bav, sub.upc)}</td></tr>
+                    <tr className="act"><td>Actual</td><td className="n">{cel(c.ol, sub.upc, true)}</td><td className="n">{cel(c.bav, sub.upc, true)}</td></tr>
+                  </tbody>
+                </table>
+              );
+            })()}
+            <p>Salen solo los renglones de este código; los ajustes que escribas se suman al momento. Para imprimir, la planilla sale completa.{soloHoja ? " Estás viendo una sola hoja: para comparar entre hojas, escoge «Todas»." : ""}</p>
           </section>
-        );
-      }))}
+        )}
+        {aviso && <p className="pl-vacio">{aviso}</p>}
+        {hojas.length === 0 && <p className="pl-vacio">Este inventario todavía no tiene hojas. Arma las parejas en el Plan fiscal.</p>}
+        {hojas.flatMap((h) => Array.from({ length: h.np }, (_, p) => {
+          const ultima = p === h.np - 1;
+          const desde = p * FILAS;
+          const trozo = h.conConteo ? h.filas.slice(desde, desde + FILAS) : [];
+          const mods = !h.conConteo ? h.blancos.slice(desde, desde + FILAS) : [];
+          const relleno = Math.max(0, FILAS - (h.conConteo ? trozo.length : mods.length));
+          const tot = h.filas.reduce((t, f, i) => {
+            const o = ocup(h, f, i);
+            const a = cuenta(o.ol, f), b = cuenta(o.bav, f);
+            return { uT_ol: t.uT_ol + (a?.u ?? 0), uT_bav: t.uT_bav + (b?.u ?? 0), ol: t.ol + (a?.cajas ?? 0), bav: t.bav + (b?.cajas ?? 0), uOl: t.uOl + (a?.sueltas ?? 0), uBav: t.uBav + (b?.sueltas ?? 0),
+                     dc: t.dc + partir((a?.u ?? 0) - (b?.u ?? 0), f.upc ?? 1).cajas, du: t.du + partir((a?.u ?? 0) - (b?.u ?? 0), f.upc ?? 1).unidades };
+          }, { uT_ol: 0, uT_bav: 0, ol: 0, bav: 0, uOl: 0, uBav: 0, dc: 0, du: 0 });
+          const sinCod = !!cod && !trozo.some((f) => f.sku === cod);
+          return (
+            <section key={`${h.numero}-${p}`} className={`pl-pg${cod ? " pl-fil" : ""}${sinCod ? " pl-sin" : ""}`} aria-label={`Planilla hoja ${h.numero}, página ${p + 1} de ${h.np}`}>
+              <div className="pl-hd">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/marca/logo-bavaria.png" alt="Bavaria" />
+                <div className="pl-tit"><b>PLANILLA DE CONTEO</b><span>Inventario fiscal</span></div>
+                <label className={"pl-hoja" + (fam[h.numero] ? " con-nombre" : "")} title="Escribe aquí el nombre de la familia">
+                  <small>{fam[h.numero] ? "FAMILIA" : "HOJA"}</small>
+                  <input className="pl-fam" value={fam[h.numero] ?? ""} placeholder={String(h.numero)} maxLength={28}
+                    size={Math.max(2, Math.min(18, (fam[h.numero] ?? "").length))} aria-label={`Nombre de la familia de la hoja ${h.numero}`}
+                    onChange={(e) => nombrar(h.numero, e.target.value)} />
+                </label>
+              </div>
+              <div className="pl-regla" />
+              <div className="pl-meta">
+                <div><small>Inventario</small><b>{nombre}</b></div>
+                <div><small>Fecha</small><b>{fechaTexto}</b></div>
+                <div><small>Grupo</small><b>{h.grupo}</b></div>
+                <div><small>Calle</small><b>{h.calle ? `Calle ${h.calle}` : ""}</b></div>
+                <div><small>Página</small><b>{p + 1} de {h.np}</b></div>
+              </div>
+              <div className="pl-par">
+                <div><span><small>Contador · Operador logístico{h.sentidoOl ? ` · ${h.sentidoOl}` : ""}</small><b>{h.olNombre}</b></span><i /></div>
+                <div><span><small>Contador · Bavaria{h.sentidoBav ? ` · ${h.sentidoBav}` : ""}</small><b>{h.bavNombre}</b></span><i /></div>
+              </div>
+              <div className="pl-tw">
+                <table className="pl-t">
+                  <colgroup>
+                    <col style={{ width: 72 }} /><col style={{ width: 84 }} /><col />
+                    <col style={{ width: 46 }} />
+                    <col style={{ width: 54 }} /><col style={{ width: 54 }} /><col style={{ width: 58 }} />
+                    <col style={{ width: 54 }} /><col style={{ width: 54 }} /><col style={{ width: 58 }} />
+                    <col style={{ width: 62 }} /><col className="pl-nop" style={{ width: 40 }} />
+                  </colgroup>
+                  <thead>
+                    <tr><th rowSpan={2}>Módulo</th><th rowSpan={2}>Código</th><th rowSpan={2}>Descripción</th><th rowSpan={2}>Uds caja</th>
+                      <th colSpan={3} className="ol">Operador logístico</th><th colSpan={3} className="bv">Bavaria</th><th rowSpan={2}>Dif.</th><th rowSpan={2} className="pl-nop">Igualar</th></tr>
+                    <tr><th className="ol" title="Estibas completas">Estiba</th><th className="ol" title="Cajas sueltas (incluye el saldo de la estiba incompleta)">Caja</th><th className="ol" title="Unidades sueltas: las que no completan una caja">Unidades</th>
+                      <th className="bv" title="Estibas completas">Estiba</th><th className="bv" title="Cajas sueltas (incluye el saldo de la estiba incompleta)">Caja</th><th className="bv" title="Unidades sueltas: las que no completan una caja">Unidades</th></tr>
+                  </thead>
+                  <tbody>
+                    {trozo.map((f, j) => {
+                      const i = desde + j;
+                      const o = ocup(h, f, i);
+                      const cO = cuenta(o.ol, f), cB = cuenta(o.bav, f);
+                      const dd = partir((cO?.u ?? 0) - (cB?.u ?? 0), f.upc ?? 1);
+                      return (
+                        <tr key={i} className={(cod && f.sku !== cod ? "pl-oc" : "") + (!verOrig && aj[k(h.numero, i)] ? " pl-mod" : "") || undefined}>
+                          <td className="m e"><input readOnly={verOrig} value={o.modulo} onChange={(e) => poner(h, i, f, "modulo", null, e.target.value)} aria-label={`Módulo de ${f.sku}`} /></td>
+                          <td className="c"><button type="button" className="pl-codb" title={cod === f.sku ? "Quitar el filtro" : "Filtrar por este código"} onClick={() => setCod(cod === f.sku ? "" : f.sku)}>{f.sku}</button></td>
+                          <td className="d">{f.material}{f.detalle && <em>{f.detalle}</em>}</td>
+                          <td className="r">{f.udsCaja ?? ""}</td>
+                          {campo(h, f, i, "ol", "e", "Estibas")}{campo(h, f, i, "ol", "c", "Cajas")}{campo(h, f, i, "ol", "u", "Unidades sueltas")}
+                          {campo(h, f, i, "bav", "e", "Estibas")}{campo(h, f, i, "bav", "c", "Cajas")}{campo(h, f, i, "bav", "u", "Unidades sueltas")}
+                          <td className={"r t" + (dd.cajas !== 0 || dd.unidades !== 0 ? " mal" : "")}>
+                            {dd.cajas !== 0 || dd.unidades !== 0
+                              ? <>{dd.cajas !== 0 ? signo(dd.cajas) : ""}{dd.unidades !== 0 && <small className="un">{signo(dd.unidades)} un.</small>}</>
+                              : (cO != null && cB != null ? "0" : "")}
+                          </td>
+                          <td className="pl-nop ig"><button type="button" disabled={verOrig} title="Pasar lo de Bavaria al operador logístico" onClick={() => igualar(h, i, f, false)}>‹</button><button type="button" disabled={verOrig} title="Pasar lo del operador logístico a Bavaria" onClick={() => igualar(h, i, f, true)}>›</button></td>
+                        </tr>
+                      );
+                    })}
+                    {mods.map((m, j) => <tr key={`b${j}`} className={cod ? "pl-oc" : undefined}><td className="m">{m}</td>{Array.from({ length: 10 }, (_, c) => <td key={c} />)}<td className="pl-nop" /></tr>)}
+                    {Array.from({ length: relleno }, (_, j) => <tr key={`r${j}`} className={cod ? "pl-oc" : undefined}><td className="m" />{Array.from({ length: 10 }, (_, c) => <td key={c} />)}<td className="pl-nop" /></tr>)}
+                  </tbody>
+                </table>
+              </div>
+              {h.conConteo && ultima && (
+                <div className="pl-tot">
+                  <span>Total de la hoja · unidades (y cajas)</span>
+                  <b>Operador logístico {nf.format(tot.uT_ol)} un.<i> · {nf.format(tot.ol)} cajas{tot.uOl > 0 ? ` + ${nf.format(tot.uOl)} un.` : ""}</i></b>
+                  <b>Bavaria {nf.format(tot.uT_bav)} un.<i> · {nf.format(tot.bav)} cajas{tot.uBav > 0 ? ` + ${nf.format(tot.uBav)} un.` : ""}</i></b>
+                  <b className={tot.uT_ol !== tot.uT_bav ? "mal" : ""}>Diferencia {tot.uT_ol === tot.uT_bav ? "0 un." : `${signo(tot.uT_ol - tot.uT_bav)} un.`}</b>
+                </div>
+              )}
+              <div className="pl-pie">
+                <div className="pl-firma"><span>Responsable OL</span></div>
+                <div className="pl-firma"><span>Responsable Bavaria</span></div>
+              </div>
+              <div className="pl-mini">{nombre} · {fam[h.numero]?.trim() || `Hoja ${h.numero}`} · generada por CONTROL CD38 · {hoy}</div>
+            </section>
+          );
+        }))}
+        </div>
+      </div>
     </div>
   );
 }
