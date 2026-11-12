@@ -1,0 +1,40 @@
+/* EL CIERRE DE TIEMPOS DE CONTEO: usa el diseño de los otros cierres (rtc-*, ca-*); aquí solo la línea de tiempo y las observaciones. */
+.rtc.tc { overflow: auto }
+.rtc.tc .ca-tabla { min-width: 760px }
+.rtc.tc .ca-tabla th.n, .rtc.tc .ca-tabla td.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap }
+.rtc.tc .ca-tabla td { vertical-align: middle }
+.tc-rueda { overflow-x: auto }
+
+/* Quitar personas */
+.rtc.tc .tc-quitar { align-items: center }
+.rtc.tc .tc-quitar .ca-grupo button { height: 30px }
+.rtc.tc .tc-quitar .ca-grupo button:not(.on):not(.tc-todas) { color: var(--rt-gris, #5b6b7f); text-decoration: line-through; background: #F1F3F6 }
+.rtc.tc .tc-todas { border-style: dashed }
+.rtc.tc .tc-nota { margin: 0; font-size: 12px; color: var(--rt-gris, #5b6b7f) }
+
+/* La línea de tiempo: columnas fijas, todo alineado a la derecha menos la persona y la pista */
+.tc-lt { min-width: 860px; font-variant-numeric: tabular-nums }
+.tc-fila { display: grid; grid-template-columns: 54px 150px minmax(240px, 1fr) 86px 84px 62px 66px; column-gap: 12px; align-items: center; padding: 0 8px; min-height: 28px; font-size: 12.5px; border-bottom: 1px solid #EEF1F5 }
+.tc-fila .n { text-align: right; white-space: nowrap }
+.tc-hi { font-weight: 700 }
+.tc-per { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.tc-rph { font-weight: 800 }
+.tc-cab { min-height: 30px; background: #F7F9FC; border: 1px solid var(--rt-linea); border-bottom: 0; font: 700 9.5px var(--rt-titulo); letter-spacing: .08em; text-transform: uppercase; color: var(--rt-gris, #5b6b7f) }
+.tc-eje { position: relative; height: 14px }
+.tc-eje em { position: absolute; top: 0; transform: translateX(-50%); font: 600 10px var(--rt-texto); font-style: normal; letter-spacing: 0; color: var(--rt-gris, #5b6b7f) }
+.tc-diat { display: flex; align-items: baseline; justify-content: space-between; padding: 6px 8px; background: #EEF1F5; font-size: 12.5px }
+.tc-diat b { font-weight: 800 }
+.tc-diat span { font-size: 12px; font-weight: 600; color: var(--rt-gris, #5b6b7f) }
+.tc-pista { position: relative; display: block; height: 28px; background-image: linear-gradient(to right, #E6EAF0 1px, transparent 1px) }
+.tc-pista i { position: absolute; top: 9px; height: 11px; background: var(--rt-tinta) }
+.tc-pista i.sin { background: #fff; border: 1.5px dashed var(--rt-gris, #5b6b7f) }
+.tc-sin { font: 700 10px var(--rt-texto); letter-spacing: .04em; text-transform: uppercase; color: var(--rt-gris, #5b6b7f) }
+
+/* Las observaciones */
+.rtc.tc .tc-obs { display: block; width: 100%; padding: 10px 12px; border: 1px solid #E6D58A; border-left: 5px solid var(--rt-oro); background: #FFFBEA; color: var(--rt-tinta); font: 500 14px/1.5 var(--rt-texto); resize: vertical }
+.rtc.tc .tc-obs:focus-visible { outline: 2px solid var(--rt-oro); outline-offset: 2px }
+.rtc.tc .tc-obs-ver { display: none; margin: 0; padding: 10px 14px 10px 30px; border-left: 5px solid var(--rt-oro); background: #FFFBEA; font-size: 14px; line-height: 1.5 }
+@media print {
+  .rtc.tc .tc-obs-ver { display: block }
+  .rtc.tc { max-height: none; overflow: visible }
+}

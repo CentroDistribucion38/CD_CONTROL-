@@ -63,3 +63,18 @@
 .fe .tp-seg-n small { display: block; font: 500 10.5px var(--fe-texto); color: var(--fe-gris-panel) }
 .fe .tp-mat { white-space: normal; min-width: 180px }
 .fe .tp-rec td .tp-sin + .tp-sin { margin-left: 4px }
+
+/* EL INFORME PARA COMPARTIR y QUITAR PERSONAS (solo quien manda). */
+.fe .tp-informe { min-height: 44px; padding: 0 18px; border: 1.5px solid var(--fe-tinta); border-radius: 0; background: var(--fe-acento); color: var(--fe-sobre-acento, var(--fe-tinta)); font: 800 13.5px var(--fe-texto); cursor: pointer }
+.fe .tp-informe:hover:not(:disabled) { filter: brightness(.95) }
+.fe .tp-informe:disabled { opacity: .5; cursor: default }
+.fe .tp-informe:focus-visible { outline: 3px solid var(--fe-tinta); outline-offset: 2px }
+.fe .tp-ocultar { position: relative }
+.fe .tp-ocultar > summary { min-height: 44px; display: inline-flex; align-items: center; padding: 0 14px; border: 1px solid var(--fe-linea); background: var(--fe-papel); color: var(--fe-tinta); font: 700 13.5px var(--fe-texto); cursor: pointer; list-style: none }
+.fe .tp-ocultar > summary::-webkit-details-marker { display: none }
+.fe .tp-ocultar[open] > summary { box-shadow: inset 0 -3px 0 var(--fe-acento) }
+.fe .tp-ocultar > summary:focus-visible { outline: 3px solid var(--fe-acento); outline-offset: 2px }
+.fe .tp-ocultar-lista { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; min-width: 240px; max-height: 320px; overflow: auto; background: var(--fe-papel); border: 1.5px solid var(--fe-tinta); box-shadow: 0 12px 28px rgba(0, 0, 0, .22); display: flex; flex-direction: column }
+.fe .tp-ocultar-lista label { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 14px; border-bottom: 1px solid var(--fe-linea); font: 600 14px var(--fe-texto); cursor: pointer }
+.fe .tp-ocultar-lista input { width: 18px; height: 18px; accent-color: var(--fe-tinta) }
+.fe .tp-ocultar-lista button { min-height: 44px; border: 0; background: var(--fe-fondo); color: var(--fe-tinta); font: 700 13px var(--fe-texto); cursor: pointer }

@@ -2,6 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { TiemposCierre } from "./TiemposCierre";
 import { analizarRecorrido, duracion, estadoConteo, fmtSeg, horaCo, hoyCo, porHora, ranking, SEG_MUY_SEGUIDO, sumarDias, textoUbicacion, type FilaTiempo, type InicioUbi, type Renglon } from "@/modulos/inventario/tiempos";
 
 /**
@@ -19,7 +20,11 @@ const diaTxt = (iso: string) => { const f = new Date(iso + "T12:00:00Z"); return
 
 type Rango = "hoy" | "ayer" | "7" | "30" | "otro";
 
-export function Tiempos() {
+/** Las personas que quien MANDA quitó de esta pantalla y del informe; se acuerda en este navegador. */
+const CLAVE_OCULTAS = "tiempos-ocultas";
+const idDe = (f: FilaTiempo) => f.responsable_id ?? "sin-persona";
+
+export function Tiempos({ manda = false }: { manda?: boolean }) {
   const supabase = useMemo(() => createClient(), []);
   const hoy = hoyCo();
   const [rango, setRango] = useState<Rango>("7");
@@ -32,6 +37,13 @@ export function Tiempos() {
   const [ubis, setUbis] = useState<Map<string, InicioUbi>>(new Map());
   const [abierto, setAbierto] = useState<string | null>(null);
   const [recorridos, setRecorridos] = useState<Record<string, Renglon[] | "cargando" | "falta">>({});
+  const [informe, setInforme] = useState(false);
+  const [ocultasTodas, setOcultasTodas] = useState<string[]>([]);
+  useEffect(() => { try { const v = JSON.parse(window.localStorage.getItem(CLAVE_OCULTAS) ?? "[]"); if (Array.isArray(v)) setOcultasTodas(v.filter((x) => typeof x === "string")) } catch { /* sin nada guardado */ } }, []);
+  const guardarOcultas = (l: string[]) => { setOcultasTodas(l); try { window.localStorage.setItem(CLAVE_OCULTAS, JSON.stringify(l)) } catch { /* sin almacenamiento */ } };
+  /* Solo quien manda quita personas; para los demás nada cambia. */
+  const ocultas = manda ? ocultasTodas : [];
+  const alternarOculta = (id: string) => guardarOcultas(ocultasTodas.includes(id) ? ocultasTodas.filter((x) => x !== id) : [...ocultasTodas, id]);
 
   const escoger = (r: Rango) => {
     setRango(r);
@@ -65,13 +77,15 @@ export function Tiempos() {
   };
   useEffect(() => { void cargar() }, [cargar]);
 
-  const personas = useMemo(() => {
+  /* Todas las personas del periodo (para quitarlas o devolverlas) y las que se ven (sin las quitadas). */
+  const personasTodas = useMemo(() => {
     const m = new Map<string, string>();
-    for (const f of filas ?? []) if (f.responsable_id) m.set(f.responsable_id, f.persona ?? "Sin nombre");
+    for (const f of filas ?? []) m.set(idDe(f), f.persona ?? "Sin nombre");
     return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1], "es"));
   }, [filas]);
+  const personas = useMemo(() => personasTodas.filter(([id]) => id !== "sin-persona" && !ocultas.includes(id)), [personasTodas, ocultas]);
 
-  const vistas = useMemo(() => (filas ?? []).filter((f) => !persona || f.responsable_id === persona), [filas, persona]);
+  const vistas = useMemo(() => (filas ?? []).filter((f) => !ocultas.includes(idDe(f)) && (!persona || f.responsable_id === persona)), [filas, persona, ocultas]);
   const rank = useMemo(() => ranking(vistas), [vistas]);
   const hechos = vistas.filter((f) => f.enviado);
   const tot = hechos.reduce((a, f) => ({ r: a.r + f.renglones, act: a.act + Number(f.activo_min), bru: a.bru + Number(f.bruto_min) }), { r: 0, act: 0, bru: 0 });
@@ -106,7 +120,19 @@ export function Tiempos() {
               {personas.map(([id, n]) => <option key={id} value={id}>{n}</option>)}
             </select>
           </div>
-          <p className="tp-res">Viendo <b>{desde === hasta ? diaTxt(desde) : `${diaTxt(desde)} – ${diaTxt(hasta)}`}</b> · {persona ? personas.find(([i]) => i === persona)?.[1] : "todas las personas"}</p>
+          {manda && personasTodas.length > 0 && (
+            <details className="tp-ocultar">
+              <summary>Quitar personas{ocultas.length > 0 && <b> · {ocultas.length} fuera</b>}</summary>
+              <div className="tp-ocultar-lista" role="group" aria-label="Personas que se quitan del tablero y del informe">
+                {personasTodas.map(([id, n]) => (
+                  <label key={id}><input type="checkbox" checked={ocultas.includes(id)} onChange={() => alternarOculta(id)} /><span>{n}</span></label>
+                ))}
+                {ocultas.length > 0 && <button type="button" onClick={() => guardarOcultas([])}>Mostrar todas</button>}
+              </div>
+            </details>
+          )}
+          <button type="button" className="tp-informe" onClick={() => setInforme(true)} disabled={filas == null || vistas.length === 0} title="Armar el informe para copiar, compartir o imprimir">Informe para compartir</button>
+          <p className="tp-res">Viendo <b>{desde === hasta ? diaTxt(desde) : `${diaTxt(desde)} – ${diaTxt(hasta)}`}</b> · {persona ? personas.find(([i]) => i === persona)?.[1] : "todas las personas"}{ocultas.length > 0 && <> · <b>{ocultas.length} fuera</b></>}</p>
         </div>
       </section>
 
@@ -181,6 +207,10 @@ export function Tiempos() {
             </tbody>
           </table>
         </div>
+      )}
+      {informe && (
+        <TiemposCierre filas={vistas} personas={personasTodas.filter(([id]) => id !== "sin-persona")} ocultas={ocultas} alternarOculta={alternarOculta} mostrarTodas={() => guardarOcultas([])}
+          manda={manda} desde={desde} hasta={hasta} quien={persona ? (personas.find(([i]) => i === persona)?.[1] ?? "una persona") : "todas las personas"} cerrar={() => setInforme(false)} />
       )}
     </section>
   );

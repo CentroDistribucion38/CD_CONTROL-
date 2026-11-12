@@ -99,7 +99,9 @@ export default async function InventarioTableroPage({ searchParams }: { searchPa
     );
   }
   if (sp.vista === "tiempos") {
-    /* La hoja de tiempos no necesita el maestro ni el riesgo: solo el permiso, que la base vuelve a exigir. */
+    /* La hoja de tiempos no necesita el maestro ni el riesgo: solo el permiso, que la base vuelve a exigir.
+       `manda` (puede todo) es quien puede quitar personas del tablero y del informe. */
+    const { manda } = await misPermisos();
     return (
       <div className="fe">
         <Hojas vista="tiempos" />
@@ -110,7 +112,7 @@ export default async function InventarioTableroPage({ searchParams }: { searchPa
             <p className="sub">Cuándo empezó y cuándo envió cada persona su conteo, cuánto trabajó de verdad y quién va más rápido.</p>
           </div>
         </section>
-        <Tiempos />
+        <Tiempos manda={manda} />
       </div>
     );
   }
