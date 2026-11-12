@@ -185,14 +185,15 @@ export function Cierre({ filas, desde, hasta, turnos, rotulo, cerrar }: Props) {
     l.push(`Foto de las ${hhmm(armado.toISOString())}`);
     l.push("");
     l.push(`Adherencia ${pct(adherencia)} — ${nf.format(adheridos)} de ${nf.format(planeado)} del plan`);
-    l.push(`Cumplimiento ${pct(cumplimiento)} · Adicionales ${nf.format(adicionales)} · Sin salir ${nf.format(faltan)}`);
+    l.push(`Cumplimiento ${pct(cumplimiento)} — ${nf.format(cumplido)} de ${nf.format(planeado)} movidos`);
+    l.push(`Vacíos ${nVacios == null ? "—" : nf.format(nVacios)} (informativo, aparte del %)`);
+    l.push(`Adicionales ${nf.format(adicionales)} · Sin salir ${nf.format(faltan)}`);
     /* EN LO QUE SE COPIA TAMBIÉN VA: si alguien pega este resumen en un
        grupo sin la frase, el que lo lea concluye que se movió menos de
        lo que se movió. */
     if (porSalir > 0)
       l.push(`${nf.format(porSalir)} esperando a facturación — con ellos el cumplimiento sería ${pct(cumplimientoTecho)}`);
-    l.push(`Carga movida ${nf.format(carga)}`
-      + (nVacios ? ` · ${nVacios} vacío${nVacios === 1 ? "" : "s"} (aparte)` : ""));
+    l.push(`Carga movida ${nf.format(carga)}`);
     if (tipos.length) {
       l.push("");
       l.push("POR TIPO");
@@ -372,10 +373,23 @@ export function Cierre({ filas, desde, hasta, turnos, rotulo, cerrar }: Props) {
 
         {/* ─ LA FRANJA DEL ACENTO: el porcentaje, la cinta y las cuatro ─ */}
         <div className="tp-ci-hero">
-          <div className="ci-pct">
-            <div className="ci-k">ADHERENCIA</div>
-            <div className="ci-v">{pct(adherencia)}</div>
-            <div className="ci-s">{nf.format(adheridos)} de {nf.format(planeado)} del plan</div>
+          {/* LAS TRES CIFRAS GRANDES: adherencia, cumplimiento y vacíos (esta última solo informa). */}
+          <div className="ci-grandes">
+            <div className="ci-pct">
+              <div className="ci-k">ADHERENCIA</div>
+              <div className="ci-v">{pct(adherencia)}</div>
+              <div className="ci-s">{nf.format(adheridos)} de {nf.format(planeado)} del plan</div>
+            </div>
+            <div className="ci-pct">
+              <div className="ci-k">CUMPLIMIENTO</div>
+              <div className="ci-v">{pct(cumplimiento)}</div>
+              <div className="ci-s">{nf.format(cumplido)} de {nf.format(planeado)} movidos</div>
+            </div>
+            <div className="ci-pct info">
+              <div className="ci-k">VACÍOS</div>
+              <div className="ci-v">{nVacios == null ? "—" : nf.format(nVacios)}</div>
+              <div className="ci-s">informativo · aparte del %</div>
+            </div>
           </div>
           <div className="ci-lado">
             <div className="ci-cinta" role="img"
@@ -391,8 +405,6 @@ export function Cierre({ filas, desde, hasta, turnos, rotulo, cerrar }: Props) {
             </div>
             <div className="ci-mini">
               <div><div className="ci-k">PLANEADOS</div><div className="ci-v">{nf.format(planeado)}</div></div>
-              <div><div className="ci-k">CUMPLIMIENTO</div>
-                <div className={"ci-v " + clase(cumplimiento)}>{pct(cumplimiento)}</div></div>
               <div><div className="ci-k">CARGA MOVIDA</div><div className="ci-v">{nf.format(carga)}</div></div>
               <div><div className="ci-k">SIN SALIR</div>
                 <div className={"ci-v " + (faltan ? "mal" : "bien")}>{nf.format(faltan)}</div></div>

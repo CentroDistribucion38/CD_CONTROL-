@@ -46,6 +46,8 @@ export type DatosFoto = {
 export type Plan = {
   titulo: string; ojo: string; sub: string;
   adherencia: number | null; bajo: string;
+  /* LAS TRES CIFRAS GRANDES: adherencia, cumplimiento y vacíos (este último solo informa, no entra en ningún %). */
+  cumplimiento: number | null; cumplBajo: string; vacios: number | null;
   /* Los tres tramos de la cinta, en tanto por uno y sumando 1. */
   tramos: { ok: number; extra: number; falta: number };
   leyenda: { rot: string; tramo: "ok" | "extra" | "falta" }[];
@@ -77,6 +79,7 @@ export function armarFoto(d: DatosFoto): Plan {
     sub: `${d.fecha} · foto de las ${d.hora}`,
     adherencia,
     bajo: `${nf.format(d.adheridos)} de ${nf.format(d.planeado)} del plan`,
+    cumplimiento, cumplBajo: `${nf.format(d.cumplido)} de ${nf.format(d.planeado)} movidos`, vacios: d.vacios,
     tramos: { ok, extra, falta },
     leyenda: [
       { rot: `${nf.format(d.adheridos)} cumplidos`, tramo: "ok" },
@@ -85,8 +88,6 @@ export function armarFoto(d: DatosFoto): Plan {
     ],
     mini: [
       { rot: "PLANEADOS", valor: nf.format(d.planeado) },
-      { rot: "CUMPLIMIENTO", valor: pc(cumplimiento),
-        tono: cumplimiento == null ? undefined : cumplimiento >= 100 ? "bien" : undefined },
       { rot: "CARGA MOVIDA", valor: nf.format(d.carga) },
       { rot: "SIN SALIR", valor: nf.format(d.faltan), tono: d.faltan ? "mal" : "bien" },
     ],
@@ -111,6 +112,8 @@ export function armarFoto(d: DatosFoto): Plan {
 
 /* ---------- LA PINTURA ---------- */
 const ANCHO = 1080, MARGEN = 44;
+/** La franja del acento: tres cifras grandes, la cinta y tres tarjetas. */
+const HERO = 480;
 const hx = (h: string) => [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
 const rgba = (h: string, a: number) => `rgba(${hx(h).join(",")},${a})`;
 const claro = (h: string, t: number) => "#" + hx(h).map((c) => Math.round(255 - (255 - c) * t).toString(16).padStart(2, "0")).join("");
@@ -124,7 +127,7 @@ const cargar = (src: string) => new Promise<HTMLImageElement | null>((ok) => {
  *  pintar porque el canvas necesita su tamaño de entrada. */
 export function altoFoto(p: Plan) {
   return 196                                  // la banda de arriba
-    + 300                                     // la franja del acento
+    + HERO                                    // la franja del acento
     + (p.tipos.length ? 58 + 40 + p.tipos.length * 56 : 0)
     + 106;                                    // el pie
 }
@@ -168,7 +171,7 @@ export async function dibujarFoto(p: Plan, c: ColoresFoto): Promise<Blob> {
   t(p.sub, xT, 146, `500 20px ${cuerpo}`, "#9A9A95");
 
   /* ---------- 2 · LA FRANJA DEL ACENTO ---------- */
-  const yH = 196, hH = 300;
+  const yH = 196, hH = HERO;
   caja(0, yH, ANCHO, hH, acento);
   /* El corte diagonal de la derecha. */
   g.save(); g.beginPath(); g.rect(0, yH, ANCHO, hH); g.clip();
@@ -177,34 +180,40 @@ export async function dibujarFoto(p: Plan, c: ColoresFoto): Promise<Blob> {
   g.closePath(); g.fillStyle = rgba(c.sobre, 0.08); g.fill();
   g.restore();
 
-  /* La cifra que manda, con su raya a la izquierda. */
-  caja(MARGEN, yH + 46, 9, 150, sobre);
-  const xP = MARGEN + 32;
-  t("ADHERENCIA", xP, yH + 76, `700 17px ${sans}`, sobre, "left", 2.4);
-  t(pc(p.adherencia), xP, yH + 160, `900 96px ${sans}`, sobre, "left", -4);
-  t(p.bajo, xP, yH + 196, `600 21px ${cuerpo}`, sobre);
+  /* LAS TRES CIFRAS GRANDES, una al lado de la otra: adherencia, cumplimiento y vacíos.
+     Los vacíos van más suaves y dicen «informativo»: se ven, pero no entran en ningún porcentaje. */
+  const grande = (x: number, rot: string, val: string, bajo: string, info = false) => {
+    const col = info ? rgba(c.sobre, 0.72) : sobre;
+    caja(x, yH + 46, 9, 150, info ? rgba(c.sobre, 0.35) : sobre);
+    t(rot, x + 32, yH + 76, `700 17px ${sans}`, col, "left", 2.4);
+    t(val, x + 32, yH + 160, `900 92px ${sans}`, col, "left", -4);
+    t(bajo, x + 32, yH + 196, `600 20px ${cuerpo}`, col);
+  };
+  grande(MARGEN, "ADHERENCIA", pc(p.adherencia), p.bajo);
+  grande(MARGEN + 350, "CUMPLIMIENTO", pc(p.cumplimiento), p.cumplBajo);
+  grande(MARGEN + 700, "VACÍOS", p.vacios == null ? "—" : nf.format(p.vacios), "informativo · aparte del %", true);
 
-  /* La cinta y su leyenda. */
-  const xC = 430, wC = ANCHO - xC - MARGEN;
-  caja(xC, yH + 48, wC, 34, rgba(c.sobre, 0.16));
+  /* La cinta y su leyenda, a todo el ancho. */
+  const xC = MARGEN, wC = ANCHO - MARGEN * 2, yCinta = yH + 232;
+  caja(xC, yCinta, wC, 34, rgba(c.sobre, 0.16));
   const wOk = Math.round(wC * p.tramos.ok), wEx = Math.round(wC * p.tramos.extra);
-  caja(xC, yH + 48, wOk, 34, sobre);
-  caja(xC + wOk, yH + 48, wEx, 34, rgba(c.sobre, 0.45));
+  caja(xC, yCinta, wOk, 34, sobre);
+  caja(xC + wOk, yCinta, wEx, 34, rgba(c.sobre, 0.45));
 
   let xL = xC;
   for (const l of p.leyenda) {
     const col = l.tramo === "ok" ? sobre : l.tramo === "extra" ? rgba(c.sobre, 0.45) : rgba(c.sobre, 0.22);
-    caja(xL, yH + 100, 16, 16, col);
-    t(l.rot, xL + 24, yH + 114, `600 19px ${cuerpo}`, sobre);
+    caja(xL, yCinta + 52, 16, 16, col);
+    t(l.rot, xL + 24, yCinta + 66, `600 19px ${cuerpo}`, sobre);
     g.font = `600 19px ${cuerpo}`;
     xL += 24 + g.measureText(l.rot).width + 30;
   }
 
-  /* Las cuatro tarjetas blancas. */
+  /* Las tarjetas blancas. */
   const nM = p.mini.length, gap = 2;
   const wM = Math.floor((wC - gap * (nM - 1)) / nM);
   p.mini.forEach((m, i) => {
-    const x = xC + i * (wM + gap), y = yH + 144, h = 108;
+    const x = xC + i * (wM + gap), y = yH + 330, h = 108;
     caja(x, y, wM, h, "#fff");
     /* EL RÓTULO SE ENCOGE HASTA QUE CABE. «CARGA MOVIDA» con el cuerpo
        de «PLANEADOS» se salía de su tarjeta y se leía «CARGA MOVIDA»
@@ -296,7 +305,10 @@ export async function entregarFoto(b: Blob, nombre: string, titulo: string):
   const f = new File([b], nombre, { type: "image/png" });
   const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
   if (nav.canShare?.({ files: [f] }) && /Android|iPhone|iPad/i.test(navigator.userAgent)) {
-    try { await nav.share({ files: [f], title: titulo }); return "compartido" } catch { /* cancelado */ }
+    try { await nav.share({ files: [f], title: titulo }); return "compartido" } catch (e) {
+      /* En Android, copiar una imagen y pegarla en WhatsApp llega como un enlace: si cerró el menú, no se copia nada. */
+      if (/Android/i.test(navigator.userAgent) && (e as { name?: string })?.name === "AbortError") return "compartido";
+    }
   }
   /* El portapapeles de imágenes solo acepta PNG y solo con permiso; si
      no está, se baja, que nunca falla. */

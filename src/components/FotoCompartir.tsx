@@ -77,6 +77,8 @@ export function useFotoCompartir(hacer: Hacer, titulo: string, nombres?: Partial
 
   async function copiar() {
     if (!foto) return;
+    /* En Android la imagen copiada llega a WhatsApp como un enlace y no deja pegarla: ahí «Copiar» abre el menú de compartir. */
+    if (/Android/i.test(navigator.userAgent) && sePuedeCompartir) { await compartir(); return }
     try {
       await navigator.clipboard.write([new ClipboardItem({ "image/png": foto.envio ?? foto.blob })]);
       setAviso("Copiada. Pégala en el correo o en WhatsApp con Ctrl + V.");

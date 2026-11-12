@@ -53,6 +53,18 @@ export function CopiarPlan({ fechaLarga, dia, tipos, publicadas, borrador, vacio
     };
 
     try {
+      /* EN ANDROID NO SE COPIA: la imagen copiada llega a WhatsApp como un enlace y no deja pegarla. Se abre el menú de
+         compartir con la imagen (de ahí sale WhatsApp o Teams). En iPhone y en el computador sigue copiando, que ahí sí pega. */
+      if (/Android/i.test(navigator.userAgent) && typeof navigator.canShare === "function") {
+        const blob = await hacerBlob();
+        const archivo = new File([blob], `plan-del-dia-${dia}.png`, { type: "image/png" });
+        if (navigator.canShare({ files: [archivo] })) {
+          try { await navigator.share({ files: [archivo], title: `Plan del día · ${fechaLarga}` }); avisar.bien("Plan listo para enviar.") }
+          catch (e) { if ((e as { name?: string })?.name !== "AbortError") throw e }
+          setListo(true); setTimeout(() => setListo(false), 2000);
+          return;
+        }
+      }
       if (navigator.clipboard && typeof ClipboardItem !== "undefined") {
         try {
           await navigator.clipboard.write([new ClipboardItem({ "image/png": hacerBlob() })]);

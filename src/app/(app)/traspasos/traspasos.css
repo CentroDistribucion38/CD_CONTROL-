@@ -600,6 +600,10 @@
 }
 .tp-ci-hero > * { position: relative; min-width: 0 }
 .tp-ci-hero .ci-lado { min-width: 0 }
+/* LAS TRES CIFRAS GRANDES, una al lado de la otra. Los vacíos van más suaves: solo informan. */
+.tp-ci-hero .ci-grandes { display: flex; gap: 30px; flex-wrap: wrap; align-items: flex-start }
+.tp-ci-hero .ci-pct.info { border-left-style: dashed; border-left-color: color-mix(in srgb, var(--tp-sobre-acento) 55%, transparent) }
+.tp-ci-hero .ci-pct.info .ci-v, .tp-ci-hero .ci-pct.info .ci-k, .tp-ci-hero .ci-pct.info .ci-s { opacity: .72 }
 .tp-ci-hero .ci-pct { border-left: 6px solid var(--tp-sobre-acento); padding-left: 18px }
 /* LOS RÓTULOS VAN A COLOR ENTERO, no a un 80% como la maqueta. Medido:
    la pareja acento/tinta de la app da 4,85 a plena fuerza —justo lo que
@@ -607,7 +611,7 @@
    La jerarquía la hacen el tamaño y el peso, que no cuestan contraste. */
 .tp-ci-hero .ci-pct .ci-k { font: 700 10px var(--tp-titulo); letter-spacing: .15em; opacity: .92 }
 .tp-ci-hero .ci-pct .ci-v {
-  font: 900 66px var(--tp-titulo); line-height: .9; letter-spacing: -.055em;
+  font: 900 58px var(--tp-titulo); line-height: .9; letter-spacing: -.055em;
   color: var(--tp-sobre-acento); margin-top: 6px;
 }
 .tp-ci-hero .ci-pct .ci-s { font-size: 13px; font-weight: 600; margin-top: 7px }
@@ -627,7 +631,7 @@
 .tp-ci-hero .ci-ley i { width: 11px; height: 11px; flex: none }
 .tp-ci-hero .ci-ley .ci-falta { background: color-mix(in srgb, var(--tp-sobre-acento) 22%, transparent) }
 .tp-ci-hero .ci-mini {
-  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; margin-top: 16px;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin-top: 16px;
   background: color-mix(in srgb, var(--tp-sobre-acento) 14%, transparent);
 }
 .tp-ci-hero .ci-mini > div { background: var(--tp-papel); padding: 11px 14px; min-width: 0 }
@@ -715,6 +719,7 @@
   .tp-ci-bt { height: 44px; padding: 0 11px } .tp-ci-bt.ico { width: 44px }
 
   .tp-ci-hero { grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 12px 14px }
+  .tp-ci-hero .ci-grandes { gap: 14px 20px }
   .tp-ci-hero .ci-pct { border-left-width: 4px; padding-left: 12px;
     display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap }
   .tp-ci-hero .ci-pct .ci-k { width: 100%; font-size: 9px }
