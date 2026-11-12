@@ -252,8 +252,9 @@
   .pl-der[data-tab="ajustar"] .pl-pane.p-aj, .pl-der[data-tab="movs"] .pl-pane.p-mv, .pl-der[data-tab="cambios"] .pl-pane.p-cb { display: block }
   .pl-der .pl-aj { margin: 14px 16px }
   .pl-der .pl-aj-cod { width: 100% }
-  .pl-der .pl-aj-c input { width: 120px }
-  .pl-der .pl-aj-u { width: 130px }
+  .pl-der .pl-aj-c input { width: 82px }
+  .pl-der .pl-aj-u { width: 118px }
+  .pl-der .pl-seg button { padding: 8px 12px }
   .pl-der .pl-aj-i { max-width: 100% }
   .pl-der .pl-movs { margin: 14px 16px }
   .pl-der .pl-mov { flex-wrap: wrap }
