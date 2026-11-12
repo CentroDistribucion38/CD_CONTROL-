@@ -346,7 +346,7 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
         </div>
         <span className="pl-filtro" aria-label="Hojas">
             <Link href={`/inventario/fiscal/planillas?fiscal=${fiscalId}`} className={!soloHoja ? "on" : ""}>Todas</Link>
-            {todas.map((n) => <Link key={n} href={`/inventario/fiscal/planillas?fiscal=${fiscalId}&hoja=${n}`} className={soloHoja === n ? "on" : ""}>Hoja {n}</Link>)}
+            {todas.map((n) => <Link key={n} href={`/inventario/fiscal/planillas?fiscal=${fiscalId}&hoja=${n}`} className={soloHoja === n ? "on" : ""} title={`Hoja ${n}`}>{fam[n]?.trim() || `Hoja ${n}`}</Link>)}
           </span>
         <div className="pl-barra-b">
           <div className="pl-cod" title="Deja solo los renglones de un código y suma lo que contó cada uno">
