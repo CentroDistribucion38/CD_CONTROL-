@@ -154,6 +154,62 @@ export async function anularMovimiento(id: string, motivo: string): Promise<{ er
 }
 
 
+/** EDITAR un movimiento (día, pallets, nota y, en trasiego/ajuste, el código). Queda en su historial qué había antes. */
+export async function editarMovimiento(id: string, f: { fecha: string; codigo: string; pallets: number; nota: string }): Promise<{ error?: string; ok?: true }> {
+  const sin = await permiso(); if (sin) return { error: sin };
+  if (!esDia(f.fecha)) return { error: "Elige el día del movimiento." };
+  const supabase = await createClient();
+  const { data: m } = await supabase.from("carnaval_movimientos").select("id, tipo, codigo, pallets, fecha, nota, anulado, historial").eq("id", id).single();
+  if (!m) return { error: "No encontré ese movimiento." };
+  if (m.tipo === "INICIAL") return { error: "El saldo inicial no se edita: corrígelo con un ajuste." };
+  if (m.anulado) return { error: "Ese movimiento está anulado: no se edita." };
+  const pal = Number(f.pallets);
+  if (!Number.isFinite(pal) || pal === 0) return { error: "Escribe los pallets (distinto de cero)." };
+  const nota = (f.nota ?? "").trim();
+  if (m.tipo === "AJUSTE" && nota.length < 3) return { error: "El ajuste necesita una nota: por qué se ajusta." };
+  const nuevo = m.tipo === "TRASIEGO" ? -Math.abs(pal) : m.tipo === "INGRESO" ? Math.abs(pal) : pal;
+  const codigo = m.tipo === "INGRESO" ? m.codigo : f.codigo;
+  const pc = await productosYCorte();
+  if (pc.error) return { error: faltaTabla(pc.error) ? SQL_FALTA : pc.error };
+  if (!pc.productos.some((p) => p.codigo === codigo)) return { error: "Ese código no está en el maestro de Carnaval." };
+  const viejo = Number(m.pallets);
+  if (m.fecha === f.fecha && codigo === m.codigo && viejo === nuevo && (m.nota ?? "") === nota) return { error: "No cambiaste nada." };
+  /* El saldo de ningún código puede quedar por debajo de cero con el cambio. */
+  const s = await saldosA("9999-12-31");
+  const hay = (c: string) => s.saldos.get(c) ?? 0;
+  const mal = codigo === m.codigo
+    ? (nuevo - viejo < 0 && hay(codigo) + (nuevo - viejo) < 0 ? codigo : null)
+    : (hay(m.codigo) - viejo < 0 ? m.codigo : (nuevo < 0 && hay(codigo) + nuevo < 0 ? codigo : null));
+  if (mal) return { error: `No se puede: con ese cambio el código ${mal} quedaría con saldo negativo. Si el saldo está mal, corrígelo con un ajuste.` };
+  const user = await usuarioActual();
+  const historial = [...((m.historial as unknown[]) ?? []), {
+    antes: { fecha: m.fecha, codigo: m.codigo, pallets: viejo, nota: m.nota }, despues: { fecha: f.fecha, codigo, pallets: nuevo, nota: nota || null },
+    editado: true, por: user?.email ?? user?.id ?? "", en: new Date().toISOString(),
+  }];
+  const { error } = await supabase.from("carnaval_movimientos").update({ fecha: f.fecha, codigo, pallets: nuevo, nota: nota || null, historial }).eq("id", id);
+  if (error) return { error: error.message };
+  refrescar();
+  return { ok: true };
+}
+
+/** ELIMINAR un movimiento: pide motivo y deja la fila completa en carnaval_mov_borrados (quién, cuándo, por qué). */
+export async function eliminarMovimiento(id: string, motivo: string): Promise<{ error?: string; ok?: true }> {
+  const sin = await permiso(); if (sin) return { error: sin };
+  if (!(motivo ?? "").trim()) return { error: "Escribe el motivo de la eliminación." };
+  const supabase = await createClient();
+  const { data: m } = await supabase.from("carnaval_movimientos").select("tipo, codigo, pallets, anulado").eq("id", id).single();
+  if (!m) return { error: "Ese movimiento ya no está." };
+  if (m.tipo === "INICIAL") return { error: "El saldo inicial no se elimina: corrígelo con un ajuste." };
+  if (!m.anulado && Number(m.pallets) > 0) {
+    const s = await saldosA("9999-12-31");
+    if ((s.saldos.get(m.codigo) ?? 0) - Number(m.pallets) < 0) return { error: `No se puede eliminar: el código ${m.codigo} quedaría con saldo negativo. Anúlalo o corrígelo con un ajuste.` };
+  }
+  const { error } = await supabase.rpc("carnaval_mov_eliminar", { p_id: id, p_motivo: motivo.trim() });
+  if (error) return { error: /carnaval_mov_eliminar|does not exist|PGRST202/i.test(error.message) ? "Falta correr supabase/migraciones/2026-11-carnaval-mov-eliminar.sql en Supabase." : error.message };
+  refrescar();
+  return { ok: true };
+}
+
 /** Los pallets que lleva la app de cada código al cierre de un día (para validar la hoja de inventario). */
 export async function saldosAl(fecha: string): Promise<{ error?: string; saldos?: Record<string, number> }> {
   if (!esDia(fecha)) return { error: "Día inválido." };

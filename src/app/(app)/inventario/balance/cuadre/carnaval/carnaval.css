@@ -46,6 +46,21 @@
 .cs .cv-msg { margin: 10px 0 0; padding: 8px 12px; font-size: 13px; border-left: 4px solid #1E8E3E; background: #EAF6EE; position: sticky; top: 8px; z-index: 20; box-shadow: 0 2px 8px rgba(0,0,0,.12) }
 .cs .cv-msg.mal { border-left-color: #A50D25; background: #FDE7EA }
 .cs details.cv-hist > summary { cursor: pointer; padding: 10px 14px; font: 700 13px var(--fe-texto); background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea) }
+.cs .cv-filtro { padding: 12px 14px; border: 1px solid var(--fe-linea); border-top: 0; background: #F6F7F8 }
+.cs .cv-filtro .cv-chk { flex-direction: row; align-items: center; gap: 6px; height: 38px; font: 600 13px var(--fe-texto); color: var(--fe-tinta) }
+.cs .cv-filtro .cv-chk input { width: 16px; height: 16px; padding: 0 }
+.cs .cv-vacio { text-align: center; color: var(--fe-gris); padding: 18px 10px; text-decoration: none }
+.cs td.cv-acc { white-space: nowrap }
+.cs td.cv-acc > button + button { margin-left: 12px }
+.cs .cv-edit, .cs .cv-elim { border: 0; background: none; font: 600 12.5px var(--fe-texto); text-decoration: underline; cursor: pointer }
+.cs .cv-edit { color: #1F5FA8 }
+.cs .cv-elim { color: #7A0A1B }
+.cs .cv-dlg-mov .cv-dlg-caja { max-width: 560px }
+.cs .cv-dlg-mov .cv-form-uno { display: flex; flex-direction: column; gap: 4px; font: 600 11.5px var(--fe-texto); color: var(--fe-gris) }
+.cs .cv-dlg-mov .cv-form-uno input { height: 38px; padding: 0 10px; border: 1px solid #9AA2A9; background: #fff; color: var(--fe-tinta); font: 500 14px var(--fe-texto); width: 100% }
+.cs .cv-dlg-mov .cv-fijo { font: 500 14px var(--fe-texto); color: var(--fe-tinta) }
+.cs .cv-peligro { margin: 0; padding: 10px 12px; background: #FDECEE; border: 1px solid #E3A1AB; color: #7A0A1B; font: 500 13.5px/1.45 var(--fe-texto) }
+.cs .cv-bt-peligro { background: #A50D25; border-color: #A50D25 }
 .cs .cv-anular { border: 0; background: none; color: #A50D25; font: 600 12.5px var(--fe-texto); text-decoration: underline; cursor: pointer }
 .cs tr.anulado td { text-decoration: line-through; color: var(--fe-gris) }
 
