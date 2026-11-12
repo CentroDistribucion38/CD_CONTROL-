@@ -310,7 +310,11 @@ export function Base({
   const [pestania, setPestania] = useState<"base" | "borradores">("base");
   /* SOLO FISCAL (botón): deja únicamente lo que salió del fiscal (recorridos FISCAL-… visibles en Contar, y los renglones que el fiscal
      tiene todavía por pasar en Borradores). Por defecto se ve TODO EL SISTEMA. */
-  const [soloFiscal, setSoloFiscal] = useState(false);
+  const [soloFiscalSel, setSoloFiscal] = useState(false);
+  /* EL BOTÓN «SOLO FISCAL» SOLO SALE CUANDO SE HABILITA: es decir, cuando hay algún inventario fiscal «Visible en Contar» (Control fiscal).
+     Mientras no se habilite ninguno, la BD es solo «todo el sistema» y el botón ni aparece; si se esconde el último, el filtro se apaga solo. */
+  const hayFiscal = !!fiscalesVisibles && fiscalesVisibles.length > 0;
+  const soloFiscal = soloFiscalSel && hayFiscal;
   /* EL FISCAL NO SE MUESTRA AQUÍ MIENTRAS NO SE MUESTRE EN CONTAR: un recorrido FISCAL-AAAAMMDD-Hnn solo sale en la BD si el inventario fiscal de esa
      fecha está «Visible en Contar» en el Control fiscal. Quitarlo de Contar lo vuelve a esconder. */
   const conteosT = useMemo(() => {
@@ -842,12 +846,14 @@ export function Base({
           <input value={fTexto} onChange={(e) => setFTexto(e.target.value)}
                  placeholder="Código, material, familia u observación…" />
         </label>
-        <div className="ba-seg" role="group" aria-label="Qué conteos se ven">
-          {([[true, "Solo fiscal"], [false, "Todo el sistema"]] as const).map(([v, t]) => (
-            <button key={t} type="button" aria-pressed={soloFiscal === v} className={soloFiscal === v ? "on" : ""}
-                    onClick={() => { setSoloFiscal(v); setFRec(""); setMarcados(new Set()) }}>{t}</button>
-          ))}
-        </div>
+        {hayFiscal && (
+          <div className="ba-seg" role="group" aria-label="Qué conteos se ven">
+            {([[true, "Solo fiscal"], [false, "Todo el sistema"]] as const).map(([v, t]) => (
+              <button key={t} type="button" aria-pressed={soloFiscal === v} className={soloFiscal === v ? "on" : ""}
+                      onClick={() => { setSoloFiscal(v); setFRec(""); setMarcados(new Set()) }}>{t}</button>
+            ))}
+          </div>
+        )}
         <div className="ba-seg" role="group" aria-label="Producto o envase">
           {([["", "Todo"], ["PRODUCTO", "Producto"], ["ENVASE", "Envase"]] as const).map(([v, t]) => (
             <button key={v || "todo"} type="button" aria-pressed={fTipo === v} className={fTipo === v ? "on" : ""}
