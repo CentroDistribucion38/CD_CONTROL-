@@ -45,7 +45,7 @@ export function TiemposCierre({ filas, personas, ocultas, alternarOculta, mostra
   const c = useMemo(() => armarCierreTiempos(filas), [filas]);
   const obs = useMemo(() => lineasObs(obsTxt), [obsTxt]);
   const periodo = periodoTxt(desde, hasta);
-  const titulo = "Cierre · Tiempos de conteo";
+  const titulo = "Cierre de turno · Tiempos de conteo";
   const ojo = "INVENTARIO · TIEMPOS DE CONTEO";
 
   const alTeclear = useCallback((e: KeyboardEvent) => { if (e.key === "Escape") cerrar() }, [cerrar]);

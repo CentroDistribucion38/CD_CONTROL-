@@ -131,7 +131,12 @@ export function Tiempos({ manda = false }: { manda?: boolean }) {
               </div>
             </details>
           )}
-          <button type="button" className="tp-informe" onClick={() => setInforme(true)} disabled={filas == null || vistas.length === 0} title="Armar el informe para copiar, compartir o imprimir">Informe para compartir</button>
+          {/* LA SALIDA DEL TABLERO: de aquí se saca el cierre que se manda, igual que «Ver el cierre del día» de Traspasos. */}
+          <button type="button" className="tp-informe" onClick={() => setInforme(true)} disabled={filas == null || vistas.length === 0} title="Armar el cierre para copiar, compartir o imprimir">
+            <span className="q">Cierre de turno</span>
+            <span className="d">{nf.format(hechos.length)} conteo{hechos.length === 1 ? "" : "s"} · {rphTodos == null ? "—" : nf1.format(rphTodos)} rengl./h</span>
+            <i className="tp-flecha" aria-hidden><svg viewBox="0 0 24 24"><path d="M4 12h15" /><path d="M13 6l6 6-6 6" /></svg></i>
+          </button>
           <p className="tp-res">Viendo <b>{desde === hasta ? diaTxt(desde) : `${diaTxt(desde)} – ${diaTxt(hasta)}`}</b> · {persona ? personas.find(([i]) => i === persona)?.[1] : "todas las personas"}{ocultas.length > 0 && <> · <b>{ocultas.length} fuera</b></>}</p>
         </div>
       </section>

@@ -65,10 +65,23 @@
 .fe .tp-rec td .tp-sin + .tp-sin { margin-left: 4px }
 
 /* EL INFORME PARA COMPARTIR y QUITAR PERSONAS (solo quien manda). */
-.fe .tp-informe { min-height: 44px; padding: 0 18px; border: 1.5px solid var(--fe-tinta); border-radius: 0; background: var(--fe-acento); color: var(--fe-sobre-acento, var(--fe-tinta)); font: 800 13.5px var(--fe-texto); cursor: pointer }
-.fe .tp-informe:hover:not(:disabled) { filter: brightness(.95) }
+.fe .tp-informe {
+  position: relative; cursor: pointer; text-align: left; min-width: 250px;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  min-height: 60px; padding: 10px 48px 10px 16px;
+  /* LLAMATIVO A PROPÓSITO, igual que «Ver el cierre del día» de Traspasos: es la salida del tablero. */
+  background: var(--fe-acento); border: 2px solid var(--fe-tinta); border-radius: 3px;
+  font: inherit; color: var(--c-marca-txt, var(--fe-tinta));
+  box-shadow: 0 3px 0 var(--fe-tinta); transition: transform .12s, box-shadow .12s;
+}
+.fe .tp-informe:hover:not(:disabled) { transform: translateY(1px); box-shadow: 0 2px 0 var(--fe-tinta) }
+.fe .tp-informe:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 0 0 var(--fe-tinta) }
 .fe .tp-informe:disabled { opacity: .5; cursor: default }
 .fe .tp-informe:focus-visible { outline: 3px solid var(--fe-tinta); outline-offset: 2px }
+.fe .tp-informe .q { font: 900 16px var(--fe-titulo); letter-spacing: .01em }
+.fe .tp-informe .d { font: 600 12.5px var(--fe-texto) }
+.fe .tp-informe .tp-flecha { position: absolute; top: 50%; right: 14px; width: 24px; height: 24px; margin-top: -12px }
+.fe .tp-informe .tp-flecha svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round }
 .fe .tp-ocultar { position: relative }
 .fe .tp-ocultar > summary { min-height: 44px; display: inline-flex; align-items: center; padding: 0 14px; border: 1px solid var(--fe-linea); background: var(--fe-papel); color: var(--fe-tinta); font: 700 13.5px var(--fe-texto); cursor: pointer; list-style: none }
 .fe .tp-ocultar > summary::-webkit-details-marker { display: none }
