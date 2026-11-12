@@ -56,7 +56,7 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
   const [ancho, setAncho] = useState(false);
   const [pest, setPest] = useState<"ajustar" | "movs" | "cambios">("ajustar");
   useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1580px)");
+    const mq = window.matchMedia("(min-width: 1600px)");
     const al = () => setAncho(mq.matches);
     al(); mq.addEventListener("change", al);
     return () => mq.removeEventListener("change", al);

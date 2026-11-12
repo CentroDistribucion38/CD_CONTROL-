@@ -234,12 +234,12 @@
 .pl-cmb td small { display: block; color: #777; font-size: 11px; margin-top: 1px }
 .pl-cmb td.mal { color: #D7141A; font-weight: 800; white-space: nowrap }
 @media screen { .pl-t tr.pl-mod td { background: #FFF1B8 } .pl-t tr.pl-mod td.m { background: #F6E7A3 } }
-@media screen and (min-width: 1580px) {
-  .pl-barra, .pl-orig-ban, .pl-guard, .pl-cuerpo { width: min(1632px, calc(100vw - 100px)) }
+@media screen and (min-width: 1600px) {
+  .pl-barra, .pl-orig-ban, .pl-guard, .pl-cuerpo { width: min(1632px, calc(100vw - 140px)) }
   .pl-cuerpo { margin: 0 auto; display: grid; grid-template-columns: 11in minmax(0, 1fr); gap: 16px; align-items: start }
-  .pl-izq { display: block; min-width: 0 }
+  .pl-izq { display: block; min-width: 0; grid-column: 1; grid-row: 1 }
   .pl-izq .pl-sub { width: auto; margin: 0 0 14px }
-  .pl-der { display: flex; flex-direction: column; position: sticky; top: 124px; height: calc(100vh - 140px); min-height: 420px; background: #fff; border-top: 4px solid #161616; box-shadow: 0 2px 14px rgba(0, 0, 0, .14) }
+  .pl-der { grid-column: 2; grid-row: 1; display: flex; flex-direction: column; position: sticky; top: 124px; height: calc(100vh - 140px); min-height: 420px; background: #fff; border-top: 4px solid #161616; box-shadow: 0 2px 14px rgba(0, 0, 0, .14) }
   .pl-tabs { display: flex; flex: none; border-bottom: 2px solid #161616 }
   .pl-tabs button { flex: 1; padding: 13px 10px; border: 0; background: #fff; color: #555; font: 700 13.5px "IBM Plex Sans", Arial, sans-serif; cursor: pointer }
   .pl-tabs button.on { background: #161616; color: #fff }
