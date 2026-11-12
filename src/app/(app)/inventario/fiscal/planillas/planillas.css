@@ -235,8 +235,8 @@
 .pl-cmb td.mal { color: #D7141A; font-weight: 800; white-space: nowrap }
 @media screen { .pl-t tr.pl-mod td { background: #FFF1B8 } .pl-t tr.pl-mod td.m { background: #F6E7A3 } }
 @media screen and (min-width: 1600px) {
-  .pl-barra, .pl-orig-ban, .pl-guard, .pl-cuerpo { width: min(1632px, calc(100vw - 140px)) }
-  .pl-cuerpo { margin: 0 auto; display: grid; grid-template-columns: 11in minmax(0, 1fr); gap: 16px; align-items: start }
+  .pl-barra, .pl-orig-ban, .pl-guard, .pl-cuerpo { width: auto; margin-left: 0; margin-right: 0 }
+  .pl-cuerpo { display: grid; grid-template-columns: 11in minmax(0, 1fr); gap: 16px; align-items: start }
   .pl-izq { display: block; min-width: 0; grid-column: 1; grid-row: 1 }
   .pl-izq .pl-sub { width: auto; margin: 0 0 14px }
   .pl-der { grid-column: 2; grid-row: 1; display: flex; flex-direction: column; position: sticky; top: 124px; height: calc(100vh - 140px); min-height: 420px; background: #fff; border-top: 4px solid #161616; box-shadow: 0 2px 14px rgba(0, 0, 0, .14) }
