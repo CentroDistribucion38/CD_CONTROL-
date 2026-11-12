@@ -234,12 +234,33 @@
 .pl-cmb td small { display: block; color: #777; font-size: 11px; margin-top: 1px }
 .pl-cmb td.mal { color: #D7141A; font-weight: 800; white-space: nowrap }
 @media screen { .pl-t tr.pl-mod td { background: #FFF1B8 } .pl-t tr.pl-mod td.m { background: #F6E7A3 } }
+/* LA BARRA DE ARRIBA, CLARA y en una sola fila: título · hojas · filtro y botones. Va antes de las reglas de pantalla ancha. */
+.pl-barra { background: #fff; color: #161616; border-bottom: 3px solid #FFC400; justify-content: flex-start; align-items: center; gap: 12px 22px; box-shadow: 0 1px 8px rgba(0, 0, 0, .1) }
+.pl-barra-t { display: block; flex: none }
+.pl-barra-t b { display: block; font-size: 15px }
+.pl-barra-t > span { display: block; margin-top: 2px; font-size: 12px; color: #666 }
+.pl-filtro { flex: 1 1 300px; display: flex; gap: 4px; flex-wrap: wrap }
+.pl-filtro a { border: 1px solid #9AA2A9; background: #fff; color: #161616; padding: 4px 10px; font-size: 12px }
+.pl-filtro a:hover { background: #FFF1B8 }
+.pl-filtro a.on { background: #FFC400; border-color: #FFC400; color: #161616; font-weight: 700 }
+.pl-filtro a:focus-visible, .pl-imprimir:focus-visible { outline: 3px solid #161616; outline-offset: 2px }
+.pl-barra-b { margin-left: auto; flex-wrap: wrap; justify-content: flex-end }
+.pl-cod { width: 220px }
+.pl-cod small { display: none }
+.pl-cod .selx-btn { border: 1px solid #9AA2A9 }
+.pl-ver { border-color: #161616 }
+.pl-ver button { color: #161616 }
+.pl-ver button + button { border-left-color: #161616 }
+.pl-ver button.on { background: #FFC400; color: #161616 }
+.pl-restablecer { border-color: #A50D25; color: #A50D25 }
+.pl-orig-ban { background: #FFF1B8; color: #161616; border-left-color: #161616 }
+
 @media screen and (min-width: 1600px) {
   .pl-barra, .pl-orig-ban, .pl-guard, .pl-cuerpo { width: auto; margin-left: 0; margin-right: 0 }
   .pl-cuerpo { display: grid; grid-template-columns: 11in minmax(0, 1fr); gap: 16px; align-items: start }
   .pl-izq { display: block; min-width: 0; grid-column: 1; grid-row: 1 }
   .pl-izq .pl-sub { width: auto; margin: 0 0 14px }
-  .pl-der { grid-column: 2; grid-row: 1; display: flex; flex-direction: column; position: sticky; top: 124px; height: calc(100vh - 140px); min-height: 420px; background: #fff; border-top: 4px solid #161616; box-shadow: 0 2px 14px rgba(0, 0, 0, .14) }
+  .pl-der { grid-column: 2; grid-row: 1; display: flex; flex-direction: column; position: sticky; top: 96px; height: calc(100vh - 112px); min-height: 420px; background: #fff; border-top: 4px solid #161616; box-shadow: 0 2px 14px rgba(0, 0, 0, .14) }
   .pl-tabs { display: flex; flex: none; border-bottom: 2px solid #161616 }
   .pl-tabs button { flex: 1; padding: 13px 10px; border: 0; background: #fff; color: #555; font: 700 13.5px "IBM Plex Sans", Arial, sans-serif; cursor: pointer }
   .pl-tabs button.on { background: #161616; color: #fff }
@@ -252,7 +273,7 @@
   .pl-der[data-tab="ajustar"] .pl-pane.p-aj, .pl-der[data-tab="movs"] .pl-pane.p-mv, .pl-der[data-tab="cambios"] .pl-pane.p-cb { display: block }
   .pl-der .pl-aj { margin: 14px 16px }
   .pl-der .pl-aj-cod { width: 100% }
-  .pl-der .pl-aj-c input { width: 82px }
+  .pl-der .pl-aj-c input { width: 62px }
   .pl-der .pl-aj-u { width: 118px }
   .pl-der .pl-seg button { padding: 8px 12px }
   .pl-der .pl-aj-i { max-width: 100% }

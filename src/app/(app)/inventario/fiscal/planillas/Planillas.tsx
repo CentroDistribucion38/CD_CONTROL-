@@ -343,14 +343,14 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
         <div className="pl-barra-t">
           <b>{nombre}</b>
           <span>{fechaTexto} · {hojas.length} {hojas.length === 1 ? "planilla" : "planillas"} · {totalPaginas} {totalPaginas === 1 ? "página" : "páginas"} carta horizontal</span>
-          <span className="pl-filtro">
+        </div>
+        <span className="pl-filtro" aria-label="Hojas">
             <Link href={`/inventario/fiscal/planillas?fiscal=${fiscalId}`} className={!soloHoja ? "on" : ""}>Todas</Link>
             {todas.map((n) => <Link key={n} href={`/inventario/fiscal/planillas?fiscal=${fiscalId}&hoja=${n}`} className={soloHoja === n ? "on" : ""}>Hoja {n}</Link>)}
           </span>
-        </div>
         <div className="pl-barra-b">
           <div className="pl-cod" title="Deja solo los renglones de un código y suma lo que contó cada uno">
-            <small>Filtrar por código</small>
+            <small>Código</small>
             <Selector valor={cod} onCambiar={(v) => { setCod(v); setAjMsg(null); if (v) { setAjAbierto(true); setLineas((ls) => ls.map((l, n) => (n === 0 && !l.cod ? { ...l, cod: v } : l))) } }} vacio="Todos los códigos" ariaLabel="Filtrar por código"
                       opciones={[{ valor: "", etiqueta: "Todos los códigos" }, ...codigos]} />
           </div>
