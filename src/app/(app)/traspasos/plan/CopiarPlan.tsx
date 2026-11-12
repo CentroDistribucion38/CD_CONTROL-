@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAvisos } from "@/components/Aviso";
 import type { PlanLinea } from "@/modulos/traspasos/datos";
 
@@ -27,46 +27,66 @@ export function CopiarPlan({ fechaLarga, dia, tipos, publicadas, borrador, vacio
   const [armando, setArmando] = useState(false);
   const [listo, setListo] = useState(false);
 
-  async function copiar() {
-    if (armando) return;
-    setArmando(true);
+  const esAndroid = typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent);
+  /* La imagen se arma YA como un File y se tiene lista: en Android el menú de compartir solo se abre si se pide en el mismo
+     toque, sin esperas en medio (si se arma después del toque, el navegador dice «no hubo toque» y no pasa nada). */
+  const archivoListo = useRef<File | null>(null);
+
+  const hacerBlob = async () => {
     const estado = publicadas.length ? "PUBLICADO" : borrador.length ? "BORRADOR" : "SIN PLAN";
     const lineas = publicadas.length ? publicadas : borrador;
+    const fo = await import("@/modulos/traspasos/foto-plan");
+    const logo = await fo.cargarLogoB();
+    const plan: Record<string, number> = {};
+    for (const l of lineas) plan[`${l.turno}|${l.tipo}`] = l.planeado;
+    const v: Record<string, number> = {};
+    for (const x of vacios) v[x.turno] = x.vacios;
+    const lienzo = fo.dibujarPlanFoto({ fechaLarga, estado, tipos, plan, vacios: v, hechos, generado: new Date(), logo });
+    return new Promise<Blob>((ok, mal) => lienzo.toBlob((b) => (b ? ok(b) : mal(new Error("sin imagen"))), "image/png"));
+  };
 
-    const hacerBlob = async () => {
-      const fo = await import("@/modulos/traspasos/foto-plan");
-      const logo = await fo.cargarLogoB();
-      const plan: Record<string, number> = {};
-      for (const l of lineas) plan[`${l.turno}|${l.tipo}`] = l.planeado;
-      const v: Record<string, number> = {};
-      for (const x of vacios) v[x.turno] = x.vacios;
-      const lienzo = fo.dibujarPlanFoto({ fechaLarga, estado, tipos, plan, vacios: v, hechos, generado: new Date(), logo });
-      return new Promise<Blob>((ok, mal) => lienzo.toBlob((b) => (b ? ok(b) : mal(new Error("sin imagen"))), "image/png"));
-    };
+  useEffect(() => {
+    if (!esAndroid) return;
+    let vivo = true;
+    archivoListo.current = null;
+    hacerBlob().then((b) => { if (vivo) archivoListo.current = new File([b], `plan-del-dia-${dia}.png`, { type: "image/png" }) }).catch(() => {});
+    return () => { vivo = false };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [esAndroid, dia, fechaLarga, publicadas, borrador, vacios, hechos, tipos]);
 
-    const bajar = async () => {
-      const blob = await hacerBlob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a"); a.href = url; a.download = `plan-del-dia-${dia}.png`;
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 4000);
-    };
+  const bajar = async (blob?: Blob) => {
+    const b = blob ?? await hacerBlob();
+    const url = URL.createObjectURL(b);
+    const a = document.createElement("a"); a.href = url; a.download = `plan-del-dia-${dia}.png`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  };
 
-    try {
-      /* EN ANDROID NO SE COPIA: la imagen copiada llega a WhatsApp como un enlace y no deja pegarla. Se abre el menú de
-         compartir con la imagen (de ahí sale WhatsApp o Teams). En iPhone y en el computador sigue copiando, que ahí sí pega. */
-      if (/Android/i.test(navigator.userAgent) && typeof navigator.canShare === "function") {
-        const blob = await hacerBlob();
-        const archivo = new File([blob], `plan-del-dia-${dia}.png`, { type: "image/png" });
-        if (navigator.canShare({ files: [archivo] })) {
-          try { await navigator.share({ files: [archivo], title: `Plan del día · ${fechaLarga}` }); avisar.bien("Plan listo para enviar.") }
-          catch (e) { if ((e as { name?: string })?.name !== "AbortError") throw e }
-          setListo(true); setTimeout(() => setListo(false), 2000);
-          return;
+  async function copiar() {
+    if (armando) return;
+
+    /* EN ANDROID NO SE COPIA: la imagen copiada llega a WhatsApp como «Portapapeles» y no se pega. Se abre el menú de
+       compartir con la imagen (de ahí sale WhatsApp o Teams). La llamada va PRIMERO, sin esperar nada antes. */
+    if (esAndroid) {
+      const f = archivoListo.current;
+      if (!f) { avisar.info("Estoy armando la imagen. Toca otra vez en un segundo."); return }
+      if (typeof navigator.canShare === "function" && navigator.canShare({ files: [f] })) {
+        try { await navigator.share({ files: [f], title: `Plan del día · ${fechaLarga}` }); avisar.bien("Plan listo para enviar."); setListo(true); setTimeout(() => setListo(false), 2000) }
+        catch (e) {
+          if ((e as { name?: string })?.name === "AbortError") return;
+          await bajar(f); avisar.info("No se pudo abrir el menú de compartir: se bajó la imagen para que la mandes desde Archivos o la Galería.");
         }
+        return;
       }
+      await bajar(f); avisar.info("Este navegador no comparte imágenes: se bajó para que la mandes desde Archivos o la Galería.");
+      return;
+    }
+
+    setArmando(true);
+    try {
       if (navigator.clipboard && typeof ClipboardItem !== "undefined") {
         try {
+          /* Safari (iPhone, iPad) solo deja copiar mientras el toque está «vivo»: la imagen va como promesa. */
           await navigator.clipboard.write([new ClipboardItem({ "image/png": hacerBlob() })]);
           avisar.bien("Imagen copiada. Pégala en WhatsApp o Teams (Ctrl + V).");
         } catch {

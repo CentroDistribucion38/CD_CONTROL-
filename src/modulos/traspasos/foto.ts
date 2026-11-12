@@ -310,6 +310,14 @@ export async function entregarFoto(b: Blob, nombre: string, titulo: string):
       if (/Android/i.test(navigator.userAgent) && (e as { name?: string })?.name === "AbortError") return "compartido";
     }
   }
+  /* En Android el portapapeles de imágenes no sirve (WhatsApp lo muestra como «Portapapeles»): se baja y se manda desde la Galería. */
+  if (/Android/i.test(navigator.userAgent)) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(b); a.download = nombre;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+    return "bajado";
+  }
   /* El portapapeles de imágenes solo acepta PNG y solo con permiso; si
      no está, se baja, que nunca falla. */
   try {
