@@ -467,7 +467,28 @@ export function dibujarCierreViajes(v: CierreViajes, o: { periodo: string; chips
     principal ? `${principal.viajes} ${principal.viajes === 1 ? "viaje" : "viajes"} SERPRO · ${fmt.hl(principal.hl)} HL · ${principal.filas.filter((f) => !f.fuera).length} referencias` : "Sin viajes a Peldar en el periodo", true);
   tarjeta(1, "ESTIBAS MOVILIZADAS", fmt.est(v.estibas), "est", `${v.rutas.length} ${v.rutas.length === 1 ? "ruta" : "rutas"} en el periodo`);
   tarjeta(2, "HL MOVILIZADOS", fmt.hl(v.hl), "HL", v.rutas.some((r) => r.sinHl) ? "hay referencias sin HL en el maestro" : "estibas × HL de cada referencia");
-  tarjeta(3, "VIAJES", String(v.viajes), "casco", `+ ${v.serpro} SERPRO a Peldar · ${v.referencias} ${v.referencias === 1 ? "referencia" : "referencias"}${o.ocultos ? ` · ${o.ocultos} ${o.ocultos === 1 ? "renglón quitado" : "renglones quitados"}` : ""}`);
+  /* VIAJES: dos cifras en la misma tarjeta — los de CASCO (entre almacenes, los que cuentan) y los SERPRO (Carnaval → Peldar). */
+  {
+    const x = M + 3 * (cw + G), y = yCards, mitad = x + cw / 2;
+    ctx.fillStyle = "#FFFFFF"; ctx.fillRect(x, y, cw, hCards);
+    ctx.strokeStyle = BORDE; ctx.strokeRect(x + .5, y + .5, cw - 1, hCards - 1);
+    ctx.fillStyle = ACENTO; ctx.fillRect(x, y + hCards - 4, cw, 4);
+    ctx.fillStyle = BORDE; ctx.fillRect(mitad, y + 18, 1, hCards - 40);
+    const lado = (x0: number, rot: string, val: string, uni: string, chip: boolean) => {
+      letra(ctx, 800, 13); ctx.fillStyle = GRIS; ctx.textAlign = "left"; espaciado(ctx, rot, x0, y + 24, 1.1);
+      letra(ctx, 900, 40); ctx.fillStyle = TINTA; ctx.fillText(val, x0, y + 66);
+      const vw = ctx.measureText(val).width;
+      if (chip) {
+        letra(ctx, 800, 12); const tw = ctx.measureText(uni).width;
+        ctx.fillStyle = T.fondo; ctx.fillRect(x0 + vw + 10, y + 60, tw + 14, 20);
+        ctx.fillStyle = T.texto; ctx.fillText(uni, x0 + vw + 17, y + 71);
+      } else { letra(ctx, 700, 14); ctx.fillStyle = GRIS; ctx.fillText(uni, x0 + 6 + vw, y + 74) }
+    };
+    lado(x + 24, "VIAJES CASCO", String(v.viajes), "casco", false);
+    lado(mitad + 20, "VIAJES SERPRO", String(v.serpro), "SERPRO", true);
+    letra(ctx, 600, 13); ctx.fillStyle = GRIS; ctx.textAlign = "left";
+    ctx.fillText(recortar(ctx, `${v.referencias} ${v.referencias === 1 ? "referencia" : "referencias"} · SERPRO = Carnaval → Peldar${o.ocultos ? ` · ${o.ocultos} quitado${o.ocultos === 1 ? "" : "s"}` : ""}`, cw - 40), x + 24, y + hCards - 22);
+  }
 
   /* ---------- LAS RUTAS ---------- */
   /* LOS RENGLONES QUE SE TOCAN: dónde quedó cada uno, para quitarlo (o volver a ponerlo) con un clic. */
