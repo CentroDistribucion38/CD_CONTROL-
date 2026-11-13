@@ -11,6 +11,27 @@ const SQL = "Falta correr supabase/migraciones/2026-11-producto-ciclico.sql en S
 const falta = (m: string) => (/prod_dif|does not exist|PGRST20[25]|42703/i.test(m) ? SQL : m);
 
 type FilaIn = { tipo: string; lado: string; documento: string | null; codigo: string; unidades: number };
+const ZEXI = "ZEXI PRODUCTO";
+
+/** LA ZEXI DE SAP TAL CUAL SALE (EXPORT.XLSX), ya leída y con los almacenes escogidos: es la EXISTENCIA (lado SAP).
+ *  Reemplaza solo la ZEXI de ese cíclico; las novedades de la plantilla se quedan. Cada almacén va como su partida. */
+export async function guardarZexiProducto(fiscalId: string, filasJson: string, archivo: string) {
+  if (!esId(fiscalId)) return { error: "Escoge el inventario cíclico." };
+  let filas: { almacen: string; codigo: string; unidades: number }[] = [];
+  try { filas = JSON.parse(filasJson) } catch { return { error: "No se pudo leer la ZEXI." } }
+  filas = (Array.isArray(filas) ? filas : []).filter((f) => f && /^\w+$/.test(String(f.codigo ?? "")) && Number.isFinite(Number(f.unidades)) && Number(f.unidades) !== 0);
+  if (!filas.length) return { error: "La ZEXI no trae cantidades de los almacenes escogidos." };
+  const supabase = await createClient();
+  const d = await supabase.from("prod_dif_novedades").delete().eq("fiscal_id", fiscalId).eq("tipo", ZEXI);
+  if (d.error) return { error: falta(`${d.error.code} ${d.error.message}`) };
+  const i = await supabase.from("prod_dif_novedades").insert(filas.map((f) => ({
+    fiscal_id: fiscalId, tipo: ZEXI, lado: "SAP", documento: String(f.almacen || "").slice(0, 60) || null,
+    codigo: String(f.codigo), unidades: Math.round(Number(f.unidades) * 100) / 100, archivo: archivo.slice(0, 200),
+  })));
+  if (i.error) return { error: falta(`${i.error.code} ${i.error.message}`) };
+  revalidatePath(RUTA);
+  return { ok: true, filas: filas.length };
+}
 
 /** SUBIR LA PLANTILLA (ya validada en el navegador): reemplaza la que tuviera ese cíclico. */
 export async function guardarNovedadesProducto(fiscalId: string, filasJson: string, archivo: string) {
@@ -20,7 +41,10 @@ export async function guardarNovedadesProducto(fiscalId: string, filasJson: stri
   filas = (Array.isArray(filas) ? filas : []).filter((f) => f && String(f.codigo ?? "").trim() && ["CONTEO", "SAP", "NO SUMA"].includes(f.lado) && Number.isFinite(Number(f.unidades)));
   if (!filas.length) return { error: "La plantilla no trae filas válidas." };
   const supabase = await createClient();
-  const d = await supabase.from("prod_dif_novedades").delete().eq("fiscal_id", fiscalId);
+  /* LA ZEXI SE SUBE APARTE (botón «Subir ZEXI»): si la plantilla no trae la ZEXI PRODUCTO, la que ya estaba se queda. */
+  const traeZexi = filas.some((f) => String(f.tipo).toUpperCase() === ZEXI);
+  const borrar = supabase.from("prod_dif_novedades").delete().eq("fiscal_id", fiscalId);
+  const d = await (traeZexi ? borrar : borrar.neq("tipo", ZEXI));
   if (d.error) return { error: falta(`${d.error.code} ${d.error.message}`) };
   const i = await supabase.from("prod_dif_novedades").insert(filas.map((f) => ({
     fiscal_id: fiscalId, tipo: String(f.tipo).slice(0, 80), lado: f.lado, documento: f.documento ? String(f.documento).slice(0, 60) : null,

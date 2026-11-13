@@ -4,7 +4,8 @@ import { Fragment, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { AnalisisProducto as Datos, FilaProducto } from "@/modulos/inventario/producto-dif";
 import { leerPlantilla } from "../../balance/analisis/leer-plantilla";
-import { guardarAnalisisProducto, guardarNovedadesProducto, quitarNovedadesProducto } from "./actions";
+import { guardarAnalisisProducto, guardarNovedadesProducto, guardarZexiProducto, quitarNovedadesProducto } from "./actions";
+import { leerZexiProducto, type FilaZexi } from "./leer-zexi";
 
 /**
  * PASO 1 · EL ANÁLISIS DE PRODUCTO — la misma hoja del análisis de Balance, para el cíclico.
@@ -22,6 +23,9 @@ const enCajas = (u: number, upc: number) => (upc > 1 && u !== 0 ? `${u > 0 ? "+"
 export function AnalisisProducto({ datos, puedeEditar, guardadoEn }: { datos: Datos; puedeEditar: boolean; guardadoEn: string | null }) {
   const router = useRouter();
   const archivo = useRef<HTMLInputElement>(null);
+  const archivoZexi = useRef<HTMLInputElement>(null);
+  /* LA ZEXI LEÍDA, esperando que se escojan los almacenes que cuentan como existencia. */
+  const [zexi, setZexi] = useState<{ archivo: string; filas: FilaZexi[]; almacenes: Record<string, boolean> } | null>(null);
   const [pend, start] = useTransition();
   const [msg, setMsg] = useState<{ t: string; mal?: boolean } | null>(null);
   const [errores, setErrores] = useState<string[]>([]);
@@ -36,6 +40,27 @@ export function AnalisisProducto({ datos, puedeEditar, guardadoEn }: { datos: Da
   }, [filas, soloDif]);
   const tot = filas.reduce((t, f) => ({ sap: t.sap + f.sap, conteo: t.conteo + f.conteo }), { sap: 0, conteo: 0 });
   const conZexi = datos.novedades.some((x) => x.tipo === "ZEXI PRODUCTO");
+  const zexiCargada = datos.novedades.filter((x) => x.tipo === "ZEXI PRODUCTO");
+  const zexiAlm = [...new Set(zexiCargada.map((x) => x.documento ?? "—"))];
+  const plantilla = datos.novedades.filter((x) => x.tipo !== "ZEXI PRODUCTO");
+
+  /* SUBIR LA ZEXI TAL CUAL SALE DE SAP: se lee aquí, se escogen los almacenes y se guarda como la existencia. */
+  async function leerZexi(a: File) {
+    setMsg(null); setErrores([]);
+    const r = await leerZexiProducto(a, (sku) => datos.maestroSistema[sku]?.upc ?? 1);
+    if (r.error) { setMsg({ mal: true, t: r.error }); return }
+    const almacenes = Object.fromEntries([...new Set(r.filas.map((f) => f.almacen))].sort().map((x) => [x, true]));
+    setZexi({ archivo: a.name, filas: r.filas, almacenes });
+  }
+  const guardarZexi = () => ciclico && zexi && start(async () => {
+    const elegidas = zexi.filas.filter((f) => zexi.almacenes[f.almacen]);
+    const g = await guardarZexiProducto(ciclico.id, JSON.stringify(elegidas.map((f) => ({ almacen: f.almacen, codigo: f.codigo, unidades: f.unidades }))), zexi.archivo);
+    if ("error" in g && g.error) { setMsg({ mal: true, t: g.error }); return }
+    const alm = Object.keys(zexi.almacenes).filter((k) => zexi.almacenes[k]);
+    setZexi(null);
+    setMsg({ t: `ZEXI cargada: ${elegidas.length} renglones de ${alm.join(", ")}. Abajo está el análisis.` });
+    router.refresh();
+  });
   const informativas = datos.novedades.filter((x) => x.lado === "NO SUMA");
 
   async function subir(a: File) {
@@ -51,8 +76,8 @@ export function AnalisisProducto({ datos, puedeEditar, guardadoEn }: { datos: Da
     start(async () => {
       const g = await guardarNovedadesProducto(ciclico.id, JSON.stringify(r.filas.map((f) => ({ tipo: f.tipo, lado: f.lado, documento: f.documento, codigo: f.codigo, unidades: f.unidades }))), a.name);
       if ("error" in g && g.error) { setMsg({ mal: true, t: g.error }); return }
-      const zexi = r.filas.filter((f) => f.tipo === "ZEXI PRODUCTO").length;
-      setMsg({ t: `Plantilla cargada: ${r.filas.length} filas${zexi ? ` (${zexi} de la ZEXI PRODUCTO)` : " — ojo: no trae la ZEXI PRODUCTO, la existencia"}. Abajo está el análisis.` });
+      const zx = r.filas.filter((f) => f.tipo === "ZEXI PRODUCTO").length;
+      setMsg({ t: `Novedades cargadas: ${r.filas.length} filas${zx ? ` (trae ${zx} de ZEXI PRODUCTO: reemplazan la ZEXI que había)` : ""}. Abajo está el análisis.` });
       router.refresh();
     });
   }
@@ -98,24 +123,63 @@ export function AnalisisProducto({ datos, puedeEditar, guardadoEn }: { datos: Da
 
   return (
     <>
+      {/* 1 · LA ZEXI (la existencia, lado SAP), tal cual sale de SAP. */}
       <div className="ad-barra">
         <div className="ad-carga">
-          <b>{datos.carga ? "Plantilla cargada" : "Falta la plantilla"}</b>
-          <small>{datos.carga
-            ? `${datos.carga.archivo ?? "—"} · ${datos.carga.filas} filas${datos.carga.subido_en ? " · " + new Date(datos.carga.subido_en).toLocaleString("es-CO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""}${conZexi ? "" : " · no trae la ZEXI PRODUCTO"}`
-            : "La ZEXI PRODUCTO (la existencia) y las novedades. Se valida antes de subir: si una fila está mal, no se sube nada."}</small>
+          <b>{conZexi ? "ZEXI cargada" : "Falta la ZEXI"}</b>
+          <small>{conZexi
+            ? `${zexiCargada[0]?.archivo ?? "—"} · ${zexiCargada.length} renglones · ${zexiAlm.join(", ")}`
+            : "El EXPORT.XLSX de la ZEXI, tal cual sale de SAP: es la existencia (lado SAP). Escoges qué almacenes cuentan."}</small>
+        </div>
+        <input ref={archivoZexi} type="file" accept=".xlsx,.xls" hidden onChange={(e) => { const a = e.target.files?.[0]; e.target.value = ""; if (a) void leerZexi(a) }} />
+        {puedeEditar && <button type="button" className="ad-bt" disabled={pend || !!datos.falta} onClick={() => archivoZexi.current?.click()}>{conZexi ? "Cambiar ZEXI" : "Subir ZEXI"}</button>}
+      </div>
+      {/* 2 · LAS NOVEDADES (opcional): la plantilla de siempre. */}
+      <div className="ad-barra">
+        <div className="ad-carga">
+          <b>{plantilla.length ? "Novedades cargadas" : "Novedades (opcional)"}</b>
+          <small>{plantilla.length
+            ? `${plantilla[0]?.archivo ?? "—"} · ${plantilla.length} filas`
+            : "Lo que existe y no se ve en el conteo, o lo que SAP todavía no tiene: la plantilla de novedades. Se valida antes de subir."}</small>
         </div>
         <input ref={archivo} type="file" accept=".xlsx,.xls" hidden onChange={(e) => { const a = e.target.files?.[0]; e.target.value = ""; if (a) void subir(a) }} />
-        {puedeEditar && datos.carga && <button type="button" className="ad-bt alt" disabled={pend} onClick={quitar}>Quitar</button>}
-        {puedeEditar && <button type="button" className="ad-bt" disabled={pend || !!datos.falta} onClick={() => archivo.current?.click()}>{pend ? "Subiendo…" : datos.carga ? "Cambiar plantilla" : "Subir plantilla"}</button>}
+        {puedeEditar && datos.carga && <button type="button" className="ad-bt alt" disabled={pend} onClick={quitar} title="Quita la ZEXI y las novedades de este cíclico">Quitar todo</button>}
+        {puedeEditar && <button type="button" className="ad-bt alt" disabled={pend || !!datos.falta} onClick={() => archivo.current?.click()}>{pend ? "Subiendo…" : plantilla.length ? "Cambiar plantilla" : "Subir plantilla"}</button>}
         <a className="ad-bt alt" href="/plantillas/analisis-diferencia-novedades.xlsx" download>Plantilla vacía</a>
       </div>
+
+      {/* LOS ALMACENES DE LA ZEXI: ventana propia (no la del navegador), recta. */}
+      {zexi && (
+        <div className="ad-modal" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget && !pend) setZexi(null) }}>
+          <div className="ad-modal-caja" role="dialog" aria-modal="true" aria-labelledby="ad-zexi-t">
+            <p className="ad-modal-ojo">ZEXI · {zexi.archivo}</p>
+            <h3 id="ad-zexi-t">¿Qué almacenes son la existencia?</h3>
+            <p className="ad-modal-sub">Lo de los almacenes marcados va al lado SAP, cada uno como su partida. Solo entran los productos del cíclico; los envases quedan en «No entran».</p>
+            <div className="ad-zexi-alm">
+              {Object.keys(zexi.almacenes).map((a) => {
+                const xs = zexi.filas.filter((f) => f.almacen === a);
+                const u = xs.reduce((t, f) => t + f.unidades, 0);
+                return (
+                  <label key={a} className="ad-chk">
+                    <input type="checkbox" checked={zexi.almacenes[a]} onChange={(e) => setZexi({ ...zexi, almacenes: { ...zexi.almacenes, [a]: e.target.checked } })} />
+                    <b>{a}</b> · {xs.length} materiales · {n(u)} unidades{xs.some((f) => f.enCajas) ? " (en cajas → unidades)" : ""}
+                  </label>
+                );
+              })}
+            </div>
+            <div className="ad-modal-acc">
+              <button type="button" className="ad-bt alt" disabled={pend} onClick={() => setZexi(null)}>Cancelar</button>
+              <button type="button" className="ad-bt" disabled={pend || !Object.values(zexi.almacenes).some(Boolean)} onClick={guardarZexi}>{pend ? "Guardando…" : "Cargar ZEXI"}</button>
+            </div>
+          </div>
+        </div>
+      )}
       {datos.falta && <p className="ad-msg mal">{datos.falta}</p>}
       {msg && <p className={"ad-msg" + (msg.mal ? " mal" : " bien")} role="status">{msg.t}</p>}
       {errores.length > 0 && <ul className="ad-errores">{errores.slice(0, 30).map((e) => <li key={e}>{e}</li>)}{errores.length > 30 && <li>… y {errores.length - 30} más.</li>}</ul>}
 
       <div className="ad-k ad-k4">
-        <div><span>SAP</span><b>{n(tot.sap)}</b><small>unidades · ZEXI PRODUCTO y novedades</small></div>
+        <div><span>SAP</span><b>{n(tot.sap)}</b><small>unidades · ZEXI y novedades</small></div>
         <div><span>CONTEO BAVARIA</span><b>{n(tot.conteo)}</b><small>unidades · {n(datos.contado.bavaria.codigos)} códigos contados</small></div>
         <div className="skus" title="Lo que contó el operador logístico: no suma, sirve para ver si la pareja coincidió">
           <span>CONTÓ EL OPERADOR</span><b>{n(datos.contado.ol.unidades)}</b><small>{n(datos.contado.ol.codigos)} códigos · no suma</small>
@@ -135,7 +199,7 @@ export function AnalisisProducto({ datos, puedeEditar, guardadoEn }: { datos: Da
             </button>
           )}
         </div>
-        {filas.length === 0 ? <p className="ad-vacio">Todavía no hay nada: falta que Bavaria cuente su hoja o subir la plantilla con la ZEXI PRODUCTO.</p> : (
+        {filas.length === 0 ? <p className="ad-vacio">Todavía no hay nada: falta que Bavaria cuente su hoja o subir la ZEXI.</p> : (
           <div className="ad-tabla-caja">
             <table className="ad-t ad-piv">
               <thead><tr><th>Familia</th><th>Código</th><th>Descripción</th><th className="n">SAP</th><th className="n">Conteo</th><th className="n">Diferencia</th><th className="n">En cajas</th></tr></thead>
@@ -161,7 +225,7 @@ export function AnalisisProducto({ datos, puedeEditar, guardadoEn }: { datos: Da
                               <tr className="ad-det"><td colSpan={6}>
                                 <div className="ad-det-dos">
                                   <div><b>SAP · {n(f.sap)}</b>
-                                    <ul>{f.deSap.map((p) => <li key={p.nombre}><span>{p.nombre}</span><em>{n(p.cantidad)}</em></li>)}{!f.deSap.length && <li><span>— (no está en la ZEXI PRODUCTO)</span></li>}</ul>
+                                    <ul>{f.deSap.map((p) => <li key={p.nombre}><span>{p.nombre}</span><em>{n(p.cantidad)}</em></li>)}{!f.deSap.length && <li><span>— (no está en la ZEXI)</span></li>}</ul>
                                   </div>
                                   <div><b>CONTEO · {n(f.conteo)}</b>
                                     <ul>{f.deConteo.map((p) => <li key={p.nombre}><span>{p.nombre}</span><em>{n(p.cantidad)}</em></li>)}{!f.deConteo.length && <li><span>— (Bavaria no lo contó)</span></li>}</ul>
@@ -191,7 +255,7 @@ export function AnalisisProducto({ datos, puedeEditar, guardadoEn }: { datos: Da
         )}
         <p className="ad-nota">
           Toca un código para ver de qué partida sale cada lado. Unidades (la última columna, en cajas). CONTEO = lo que contó
-          Bavaria en el cíclico + las novedades que suman al conteo; SAP = la ZEXI PRODUCTO + las novedades que suman a SAP.
+          Bavaria en el cíclico + las novedades que suman al conteo; SAP = la ZEXI (los almacenes escogidos) + las novedades que suman a SAP.
           {ciclico.familias.length > 0 ? <> Entran los productos de {ciclico.familias.join(", ")} y lo que Bavaria haya contado.</> : <> Las hojas no tienen familias: entran todos los productos.</>}
         </p>
         {datos.noEntran.length > 0 && (

@@ -427,3 +427,6 @@
 .ad .ad-hecho .ad-ajc { gap: 4px 8px }
 .ad .ad-cant-aj { width: 104px; flex: none }
 .ad .ad-queda, .ad .ad-cuadra { display: block; text-align: left }
+
+/* Producto · ZEXI: los almacenes que cuentan como existencia (uno por renglón). */
+.ad .ad-zexi-alm { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 0; padding: 10px 12px; border: 1px solid var(--fe-linea) }

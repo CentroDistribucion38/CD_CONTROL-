@@ -120,7 +120,7 @@ export default async function AnalisisProductoPage({ searchParams }: { searchPar
   const [datos, aj] = await Promise.all([armarAnalisisProducto(c), c ? leerAjustesProducto(c.id) : Promise.resolve(null)]);
   return (
     <div className="fe bal ad">
-      {cabeza("Análisis de diferencia", <>El conteo de <b>Bavaria</b> del inventario cíclico contra la <b>existencia de SAP</b> (la ZEXI PRODUCTO de la plantilla), por código y en unidades. Diferencia = CONTEO − SAP. La misma plantilla y los mismos pasos del análisis de Balance.</>)}
+      {cabeza("Análisis de diferencia", <>El conteo de <b>Bavaria</b> del inventario cíclico contra la <b>existencia de SAP</b> (la ZEXI, tal cual sale de SAP), por código y en unidades. Diferencia = CONTEO − SAP. Las novedades van en la misma plantilla del análisis de Balance, y los pasos son los mismos.</>)}
       {pasos}
       <AnalisisProducto key={id} datos={datos} puedeEditar={puedeEditar} guardadoEn={aj?.guardado?.guardado_en ?? null} />
     </div>
