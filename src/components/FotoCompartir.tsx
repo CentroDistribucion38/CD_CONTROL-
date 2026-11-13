@@ -11,9 +11,12 @@ import "./foto-compartir.css";
  * PNG, la vista previa, las dos pestañas para pasar de una a la otra y el portapapeles.
  */
 export type TipoFoto = "dashboard" | "detalle" | "seguridad" | "viajes";
-type Foto = { tipo: TipoFoto; url: string; blob: Blob; envio: Blob | null; nombre: string };
+/** Una zona de la imagen que se puede tocar (en las medidas del dibujo, no en píxeles de la pantalla). */
+export type ZonaFoto = { k: string; x: number; y: number; w: number; h: number };
+type Foto = { tipo: TipoFoto; url: string; blob: Blob; envio: Blob | null; nombre: string; zonas?: ZonaFoto[]; ancho?: number; nota?: string };
 /** `lienzoEnvio` (opcional): otra versión de la imagen que es la que sale al copiar, compartir o descargar; la vista en pantalla sigue siendo `lienzo`. */
-export type Hacer = (tipo: TipoFoto) => Promise<{ lienzo: HTMLCanvasElement; nombre: string; lienzoEnvio?: HTMLCanvasElement }>;
+/** `zonas` + `ancho` (opcional): partes de la imagen que se tocan (p. ej. un renglón para no contarlo); `nota`: lo que dice la ventana sobre la imagen. */
+export type Hacer = (tipo: TipoFoto) => Promise<{ lienzo: HTMLCanvasElement; nombre: string; lienzoEnvio?: HTMLCanvasElement | null; zonas?: ZonaFoto[]; ancho?: number; nota?: string }>;
 
 export const NOMBRE_FOTO: Record<TipoFoto, string> = { dashboard: "Dashboard", detalle: "Detalle por almacén", seguridad: "Seguridad", viajes: "Cierre de viajes" };
 
@@ -34,7 +37,9 @@ function bajar(blob: Blob, nombre: string) {
 export type OpcionesFoto = { titulo: string; valores: { k: string; t: string }[]; actual: string | string[]; cambiar: (k: string) => void };
 
 /** `opciones` puede depender de la imagen abierta (p. ej. una sola unidad en el Dashboard y varias en la Tabla). */
-export function useFotoCompartir(hacer: Hacer, titulo: string, nombres?: Partial<Record<TipoFoto, string>>, opcionesDe?: OpcionesFoto | ((t: TipoFoto) => OpcionesFoto | undefined), soloTabs?: TipoFoto[]) {
+/** `tocar` (opcional): qué pasa al tocar una zona de la imagen; `rearmar`: cuando cambia, la imagen abierta se vuelve a armar. */
+export function useFotoCompartir(hacer: Hacer, titulo: string, nombres?: Partial<Record<TipoFoto, string>>, opcionesDe?: OpcionesFoto | ((t: TipoFoto) => OpcionesFoto | undefined), soloTabs?: TipoFoto[],
+  extra?: { tocar?: (tipo: TipoFoto, k: string) => void; rearmar?: string }) {
   const nombreDe = (t: TipoFoto) => nombres?.[t] ?? NOMBRE_FOTO[t];
   const [foto, setFoto] = useState<Foto | null>(null);
   const [armando, setArmando] = useState<TipoFoto | null>(null);
@@ -53,19 +58,19 @@ export function useFotoCompartir(hacer: Hacer, titulo: string, nombres?: Partial
   async function abrir(tipo: TipoFoto) {
     setMal(false); setArmando(tipo);
     try {
-      const { lienzo, nombre, lienzoEnvio } = await hacer(tipo);
+      const { lienzo, nombre, lienzoEnvio, zonas, ancho, nota } = await hacer(tipo);
       const blob = await new Promise<Blob | null>((ok) => lienzo.toBlob(ok, "image/png"));
       if (!blob) throw new Error("sin imagen");
       const envio = lienzoEnvio ? await new Promise<Blob | null>((ok) => lienzoEnvio.toBlob(ok, "image/png")) : null;
       setAviso(null);
-      setFoto((viejo) => { if (viejo) URL.revokeObjectURL(viejo.url); return { tipo, url: URL.createObjectURL(blob), blob, envio, nombre } });
+      setFoto((viejo) => { if (viejo) URL.revokeObjectURL(viejo.url); return { tipo, url: URL.createObjectURL(blob), blob, envio, nombre, zonas, ancho, nota } });
     } catch { setMal(true) }
     finally { setArmando(null) }
   }
 
   /* Si cambia la opción (la unidad), la imagen que está abierta se arma otra vez con la nueva. */
   const opciones = typeof opcionesDe === "function" ? opcionesDe(foto?.tipo ?? "dashboard") : opcionesDe;
-  const claveOpc = opciones ? [opciones.actual].flat().join(",") : "";
+  const claveOpc = (opciones ? [opciones.actual].flat().join(",") : "") + "#" + (extra?.rearmar ?? "");
   const opcAntes = useRef<{ tipo?: TipoFoto; clave: string }>({ clave: claveOpc });
   useEffect(() => {
     const antes = opcAntes.current;
@@ -91,6 +96,14 @@ export function useFotoCompartir(hacer: Hacer, titulo: string, nombres?: Partial
   async function compartir() {
     if (!archivo) return;
     try { await navigator.share({ files: [archivo], title: titulo }) } catch { /* lo cerró */ }
+  }
+
+  /** La zona de la imagen que quedó bajo el dedo (las zonas vienen en las medidas del dibujo). */
+  function zonaEn(e: React.MouseEvent<HTMLImageElement>): ZonaFoto | null {
+    if (!foto?.zonas?.length || !foto.ancho) return null;
+    const r = e.currentTarget.getBoundingClientRect();
+    const f = foto.ancho / r.width, x = (e.clientX - r.left) * f, y = (e.clientY - r.top) * f;
+    return foto.zonas.find((z) => x >= z.x && x <= z.x + z.w && y >= z.y && y <= z.y + z.h) ?? null;
   }
 
   const vista = foto && (
@@ -143,10 +156,14 @@ export function useFotoCompartir(hacer: Hacer, titulo: string, nombres?: Partial
           </div>
         </div>
         {aviso && <p className="fc-aviso" role="status">{aviso}</p>}
-        {!aviso && foto.envio && <p className="fc-aviso">Aquí ves todo. Al copiar, compartir o descargar se quitan los materiales en 0 o negativos.</p>}
+        {!aviso && (foto.nota ? <p className="fc-aviso">{foto.nota}</p>
+          : foto.envio && <p className="fc-aviso">Aquí ves todo. Al copiar, compartir o descargar se quitan los materiales en 0 o negativos.</p>)}
         <div className="fc-img">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={foto.url} alt={`${titulo} · ${nombreDe(foto.tipo)}`} />
+          <img src={foto.url} alt={`${titulo} · ${nombreDe(foto.tipo)}`}
+               style={foto.zonas?.length ? { cursor: "default" } : undefined}
+               onMouseMove={foto.zonas?.length ? (e) => { e.currentTarget.style.cursor = zonaEn(e) ? "pointer" : "default" } : undefined}
+               onClick={foto.zonas?.length && extra?.tocar ? (e) => { const z = zonaEn(e); if (z && armando == null) extra.tocar!(foto.tipo, z.k) } : undefined} />
         </div>
       </div>
     </div>

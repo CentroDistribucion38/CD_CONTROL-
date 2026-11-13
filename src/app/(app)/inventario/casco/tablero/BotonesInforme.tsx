@@ -62,17 +62,6 @@ export function BotonesInforme({ datos, rango, hlEstiba = {}, chips = [] }: {
     setMovs({ clave: claveRango, filas });
     return filas;
   }
-  /* Las referencias que se movilizaron (para los botones de mostrar / quitar), las de más estibas primero. */
-  const refs = (() => {
-    const m = new Map<string, { nombre: string; est: number }>();
-    for (const x of movs?.clave === claveRango ? movs.filas : []) {
-      if (x.ajuste) continue;
-      const k = String(x.sku).trim(), r = m.get(k) ?? { nombre: x.descripcion || k, est: 0 };
-      r.est += Number(x.estibas) || 0; m.set(k, r);
-    }
-    return [...m].sort((a, b) => b[1].est - a[1].est).map(([k, r]) => ({ k, t: `${k} · ${r.nombre.length > 22 ? r.nombre.slice(0, 21) + "…" : r.nombre}` }));
-  })();
-
   const fotos = useFotoCompartir(async (tipo: TipoFoto) => {
     if (!datos) throw new Error("sin datos");
     const paleta = leerPaleta(caja.current) ?? PALETA_MARCA;
@@ -80,22 +69,28 @@ export function BotonesInforme({ datos, rango, hlEstiba = {}, chips = [] }: {
     if (tipo === "viajes") {
       const filas = await leerMovs();
       const fuera = new Set(ocultos);
-      const cierre = fo.armarCierreViajes(filas, hlEstiba, fuera);
       const corto = (f: string) => `${Number(f.slice(8, 10))} de ${new Date(f + "T12:00:00").toLocaleDateString("es-CO", { month: "long" })}`;
       const periodo = rango ? `del ${corto(rango.desde)} al ${corto(rango.hasta)} de ${rango.hasta.slice(0, 4)}` : datos.periodo;
-      return { lienzo: fo.dibujarCierreViajes(cierre, { periodo, chips: chips.length ? chips : ["Todas las rutas", "Todas las referencias"], ocultos: fuera.size }, { paleta, logo }),
-               nombre: fo.nombreCierreViajes(rango?.desde ?? datos.corte, rango?.hasta ?? datos.corte) };
+      const o = { periodo, chips: chips.length ? chips : ["Todas las rutas", "Todas las referencias"], ocultos: fuera.size };
+      /* EN PANTALLA se ven todos (los quitados en gris, para poder volver a ponerlos); LO QUE SE MANDA va sin los quitados. */
+      const vista = fo.dibujarCierreViajes(fo.armarCierreViajes(filas, hlEstiba, fuera, true), o, { paleta, logo });
+      const envio = fuera.size ? fo.dibujarCierreViajes(fo.armarCierreViajes(filas, hlEstiba, fuera, false), o, { paleta, logo }).lienzo : null;
+      return {
+        lienzo: vista.lienzo, lienzoEnvio: envio, zonas: vista.zonas, ancho: vista.ancho,
+        nota: fuera.size
+          ? `${fuera.size} ${fuera.size === 1 ? "renglón quitado (en gris)" : "renglones quitados (en gris)"}: no cuentan en viajes, estibas ni HL, y no salen al copiar, compartir o descargar. Tócalo otra vez para volver a contarlo.`
+          : "Toca un renglón para que no cuente: se actualizan los viajes, las estibas y los HL. Tócalo otra vez para volver a contarlo.",
+        nombre: fo.nombreCierreViajes(rango?.desde ?? datos.corte, rango?.hasta ?? datos.corte),
+      };
     }
     return tipo === "dashboard"
       ? { lienzo: fo.dibujarDashboardCasco(datos, { paleta, logo }), nombre: fo.nombreDashboardCasco(datos.corte) }
       : { lienzo: fo.dibujarDetalleCasco(datos, { paleta, logo }), nombre: fo.nombreDetalleCasco(datos.corte) };
-  }, "Casco de vidrio", undefined,
-  /* En el Cierre de viajes, un botón por referencia: tocarlo la quita (o la vuelve a poner) de la imagen que se manda. */
-  (t) => (t === "viajes" && refs.length ? {
-    titulo: "Referencias", valores: refs, actual: refs.map((r) => r.k).filter((k) => !ocultos.includes(k)),
-    cambiar: (k: string) => setOcultos((l) => (l.includes(k) ? l.filter((x) => x !== k) : [...l, k])),
-  } : undefined),
-  ["dashboard", "detalle", "viajes"]);
+  }, "Casco de vidrio", undefined, undefined, ["dashboard", "detalle", "viajes"], {
+    /* EN EL CIERRE DE VIAJES se toca el renglón para que no cuente (o para volver a contarlo): la imagen se arma otra vez con los totales nuevos. */
+    tocar: (t, k) => { if (t === "viajes") setOcultos((l) => (l.includes(k) ? l.filter((x) => x !== k) : [...l, k])) },
+    rearmar: ocultos.join(","),
+  });
 
   async function armar(que: "pdf" | "word") {
     if (!datos) return;
