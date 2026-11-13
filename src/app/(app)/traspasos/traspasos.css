@@ -477,27 +477,30 @@
    porcentaje: el acceso al cierre no puede competir con él. Casi
    apagado, y se prende al pasar por encima o al llegar con el
    tabulador. */
-.tp .tp-ver {
+.tp .tp-turnos-caja .tp-ver {
   position: absolute; top: 6px; right: 6px; width: 18px; height: 18px;
   display: grid; place-items: center; opacity: .3; transition: opacity .15s;
 }
-.tp .tp-ver svg { width: 14px; height: 14px; max-width: none; stroke: var(--tp-gris); stroke-width: 2;
+.tp .tp-turnos-caja .tp-ver svg { width: 14px; height: 14px; max-width: none; stroke: var(--tp-gris); stroke-width: 2;
   fill: none; stroke-linecap: round; stroke-linejoin: round }
 .tp .tp-abrir:hover .tp-ver, .tp .tp-abrir:focus-visible .tp-ver,
 .tp .tp-cierre-dia:hover .tp-ver, .tp .tp-cierre-dia:focus-visible .tp-ver { opacity: 1 }
 .tp .tp-abrir:hover .tp-ver svg, .tp .tp-cierre-dia:hover .tp-ver svg { stroke: var(--tp-acento) }
 
-/* LO QUE SE ESCOGIÓ. Sale solo cuando hay algo marcado. */
-.tp .tp-sel {
+/* LO QUE SE ESCOGIÓ. Sale solo cuando hay algo marcado.
+   VA DENTRO DE .tp-turnos-caja (igual que .tp-ver): «Tiempos de conteo» y «Evidencias» de Inventario también
+   usan .tp y tienen su propio .tp-sel y .tp-ver; sin el ancestro, este estilo se les metía y los «Ver» del
+   recorrido salían apilados arriba a la derecha de la pantalla. */
+.tp .tp-turnos-caja .tp-sel {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 10px;
   padding: 10px 14px; background: var(--tp-papel);
   border: 1px solid var(--tp-acento); border-left: 4px solid var(--tp-acento); border-radius: 3px;
 }
-.tp .tp-sel .q { font-size: 13.5px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap }
-.tp .tp-sel .q b { font-family: var(--tp-titulo); font-weight: 800 }
-.tp .tp-sel .q em { font-style: normal; font-size: 12.5px; color: var(--tp-gris) }
-.tp .tp-sel .limpiar { margin-left: auto; height: 40px }
-.tp .tp-sel .btn { min-height: 44px }
+.tp .tp-turnos-caja .tp-sel .q { font-size: 13.5px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap }
+.tp .tp-turnos-caja .tp-sel .q b { font-family: var(--tp-titulo); font-weight: 800 }
+.tp .tp-turnos-caja .tp-sel .q em { font-style: normal; font-size: 12.5px; color: var(--tp-gris) }
+.tp .tp-turnos-caja .tp-sel .limpiar { margin-left: auto; height: 40px }
+.tp .tp-turnos-caja .tp-sel .btn { min-height: 44px }
 
 /* EL CIERRE DEL DÍA ENTERO. No va escondido dentro de un turno porque
    no es de ningún turno: es la suma de los tres. */
@@ -848,7 +851,7 @@
   .sh-main { padding: 0 !important; min-height: 0 !important }
   .sh { min-height: 0 !important }
   .tp .filtros, .tp .acciones-informe, .tp .fecha-nav,
-  .tp .tp-ver, .tp .tp-cierre-dia, .tp .tp-sel, .tp .tp-marca { display: none !important }
+  .tp .tp-turnos-caja .tp-ver, .tp .tp-cierre-dia, .tp .tp-turnos-caja .tp-sel, .tp .tp-marca { display: none !important }
   /* El anillo deja de parecer un botón: en papel no se toca. */
   .tp .tp-abrir { border-color: transparent !important; background: none !important; padding: 0 !important }
 
