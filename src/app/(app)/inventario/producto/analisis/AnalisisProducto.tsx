@@ -140,12 +140,12 @@ export function AnalisisProducto({ datos, puedeEditar, guardadoEn }: { datos: Da
           <b>{plantilla.length ? "Novedades cargadas" : "Novedades (opcional)"}</b>
           <small>{plantilla.length
             ? `${plantilla[0]?.archivo ?? "—"} · ${plantilla.length} filas`
-            : "Lo que existe y no se ve en el conteo, o lo que SAP todavía no tiene: la plantilla de novedades. Se valida antes de subir."}</small>
+            : "Palés L1 a L7, producto en fábrica o expo, Z09 pendiente, maquila, mermas, bajas y pendientes del CD: la plantilla de novedades de producto. Se valida antes de subir."}</small>
         </div>
         <input ref={archivo} type="file" accept=".xlsx,.xls" hidden onChange={(e) => { const a = e.target.files?.[0]; e.target.value = ""; if (a) void subir(a) }} />
         {puedeEditar && datos.carga && <button type="button" className="ad-bt alt" disabled={pend} onClick={quitar} title="Quita la ZEXI y las novedades de este cíclico">Quitar todo</button>}
         {puedeEditar && <button type="button" className="ad-bt alt" disabled={pend || !!datos.falta} onClick={() => archivo.current?.click()}>{pend ? "Subiendo…" : plantilla.length ? "Cambiar plantilla" : "Subir plantilla"}</button>}
-        <a className="ad-bt alt" href="/plantillas/analisis-diferencia-novedades.xlsx" download>Plantilla vacía</a>
+        <a className="ad-bt alt" href="/plantillas/producto-novedades.xlsx" download>Plantilla vacía</a>
       </div>
 
       {/* LOS ALMACENES DE LA ZEXI: ventana propia (no la del navegador), recta. */}
