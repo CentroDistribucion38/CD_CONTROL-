@@ -23,7 +23,7 @@ export default async function HistorialCiclicoPage() {
   return (
     <div className="fe">
       <ControlCiclico modo="historial" personas={personas} ciclicos={fiscales} cerradasIniciales={cerradas} ahora={new Date().toISOString()}
-                      puedeEditar={permisos.puedeEditar("/inventario/producto/control") || permisos.puedeEditar("/inventario/producto/ciclico")} />
+                      puedeEditar={permisos.puedeEditar("/inventario/producto/control") || permisos.puedeEditar("/inventario/producto/ciclico")} manda={permisos.manda} />
     </div>
   );
 }

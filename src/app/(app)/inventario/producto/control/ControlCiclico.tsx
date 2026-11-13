@@ -184,14 +184,46 @@ function CopiarConteo({ f, lineas, cargando, error, cerrar }: {
    hora. Quien edita puede corregir la cantidad (cajas + unidades sueltas) o quitar el renglón; si la hoja ya se envió,
    primero se reabre.
    =================================================================== */
-function BdHoja({ lineas, numero, ol, bavaria, mal, enviada, puede, editando, setEditando, tocando, corregir, quitar }: {
-  lineas: Detalle[] | null; numero: number; ol: string; bavaria: string; mal: string | null; enviada: boolean; puede: boolean;
+type NuevoRenglon = { equipo: "OL" | "BAVARIA"; sitio: string; sku: string; cajas: number; unidades: number };
+function BdHoja({ lineas, numero, ol, bavaria, mal, enviada, manda, puede, familias, agregar, editando, setEditando, tocando, corregir, quitar }: {
+  lineas: Detalle[] | null; numero: number; ol: string; bavaria: string; mal: string | null; enviada: boolean; manda: boolean; puede: boolean;
+  familias: string[]; agregar: (x: NuevoRenglon) => Promise<boolean>;
   editando: { id: string; cajas: string; unidades: string } | null;
   setEditando: (e: { id: string; cajas: string; unidades: string } | null) => void;
   tocando: string | null; corregir: (l: Detalle) => void; quitar: (l: Detalle) => void;
 }) {
   const [q, setQ] = useState("");
   const [soloDif, setSoloDif] = useState(false);
+  /* AGREGAR UN RENGLÓN: de quién, sitio, código y cantidad. Los sitios y códigos se ofrecen en la lista (se escribe y se escoge). */
+  const [nuevo, setNuevo] = useState<{ equipo: "OL" | "BAVARIA"; sitio: string; sku: string; cajas: string; unidades: string } | null>(null);
+  const [listas, setListas] = useState<{ sitios: string[]; productos: { sku: string; nombre: string; upc: number }[] } | null>(null);
+  const [guardando, setGuardando] = useState(false);
+  async function abrirNuevo() {
+    setNuevo({ equipo: "BAVARIA", sitio: "", sku: "", cajas: "", unidades: "" });
+    if (listas) return;
+    const sb = createClient();
+    const [u, p] = await Promise.all([
+      sb.from("ubicaciones").select("clave").order("clave").limit(5000),
+      sb.from("productos").select("sku, nombre, familia, unidades_por_caja, tipo_material").limit(5000),
+    ]);
+    const fams = familias.map((x) => x.trim().toLowerCase());
+    setListas({
+      sitios: [...new Set(((u.data ?? []) as { clave: string }[]).map((x) => x.clave))],
+      productos: ((p.data ?? []) as { sku: string; nombre: string; familia: string | null; unidades_por_caja: number | null; tipo_material: string | null }[])
+        .filter((x) => (x.tipo_material ?? "PRODUCTO") === "PRODUCTO" && (!fams.length || fams.includes((x.familia ?? "").trim().toLowerCase())))
+        .map((x) => ({ sku: String(x.sku), nombre: x.nombre, upc: Number(x.unidades_por_caja) || 1 }))
+        .sort((a, b) => a.sku.localeCompare(b.sku, "es", { numeric: true })),
+    });
+  }
+  async function guardarNuevo() {
+    if (!nuevo) return;
+    const cajas = Math.trunc(Number(nuevo.cajas.replace(/\./g, "")) || 0), unidades = Math.trunc(Number(nuevo.unidades.replace(/\./g, "")) || 0);
+    setGuardando(true);
+    const ok = await agregar({ equipo: nuevo.equipo, sitio: nuevo.sitio.trim(), sku: nuevo.sku.trim(), cajas, unidades });
+    setGuardando(false);
+    if (ok) setNuevo(null);
+  }
+  const prodNuevo = listas?.productos.find((x) => x.sku === nuevo?.sku.trim());
   const grupos = useMemo(() => {
     const m = new Map<string, { ubicacion: string; sku: string; material: string; upc: number; ol: Detalle[]; ba: Detalle[] }>();
     for (const l of (lineas ?? []).filter((x) => x.hoja === numero)) {
@@ -242,8 +274,34 @@ function BdHoja({ lineas, numero, ol, bavaria, mal, enviada, puede, editando, se
       <div className="cy-bd-barra">
         <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar sitio, código o material…" aria-label="Buscar en la BD" />
         <label className="cy-chk"><input type="checkbox" checked={soloDif} onChange={(e) => setSoloDif(e.target.checked)} /> Solo lo que no coincide</label>
-        {enviada && <small className="cy-bd-nota">Conteo enviado: para corregir, primero «Reabrir» la hoja.</small>}
+        {enviada && <small className="cy-bd-nota">{manda ? "Conteo enviado · como super administrador puedes corregir, quitar o agregar sin reabrir." : "Conteo enviado: para corregir, primero «Reabrir» la hoja."}</small>}
+        {puede && !nuevo && <button type="button" className="fe-mini on cy-agregar" onClick={() => void abrirNuevo()}>+ Agregar renglón</button>}
       </div>
+      {puede && nuevo && (
+        <div className="cy-nuevo" role="group" aria-label="Agregar renglón">
+          <label><span>De quién</span>
+            <select value={nuevo.equipo} onChange={(e) => setNuevo({ ...nuevo, equipo: e.target.value as "OL" | "BAVARIA" })}>
+              <option value="BAVARIA">Bavaria · {bavaria}</option>
+              <option value="OL">Operador · {ol}</option>
+            </select>
+          </label>
+          <label><span>Sitio</span>
+            <input list={`cy-sitios-${numero}`} value={nuevo.sitio} onChange={(e) => setNuevo({ ...nuevo, sitio: e.target.value.toUpperCase() })} placeholder="A36_IZQ" autoFocus />
+            <datalist id={`cy-sitios-${numero}`}>{(listas?.sitios ?? []).map((x) => <option key={x} value={x} />)}</datalist>
+          </label>
+          <label className="cy-n-sku"><span>Código</span>
+            <input list={`cy-skus-${numero}`} value={nuevo.sku} onChange={(e) => setNuevo({ ...nuevo, sku: e.target.value.split(" ")[0] })} placeholder="2222" />
+            <datalist id={`cy-skus-${numero}`}>{(listas?.productos ?? []).map((x) => <option key={x.sku} value={x.sku}>{x.nombre}</option>)}</datalist>
+            {prodNuevo && <small>{prodNuevo.nombre}</small>}
+          </label>
+          <label className="cy-n-num"><span>Cajas</span><input inputMode="numeric" value={nuevo.cajas} onChange={(e) => setNuevo({ ...nuevo, cajas: e.target.value })} /></label>
+          {(prodNuevo?.upc ?? 2) > 1 && <label className="cy-n-num"><span>Un. sueltas</span><input inputMode="numeric" value={nuevo.unidades} onChange={(e) => setNuevo({ ...nuevo, unidades: e.target.value })} /></label>}
+          <span className="cy-n-bts">
+            <button type="button" className="fe-mini on" disabled={guardando || !nuevo.sitio.trim() || !nuevo.sku.trim() || (!nuevo.cajas && !nuevo.unidades)} onClick={() => void guardarNuevo()}>{guardando ? "Agregando…" : "Agregar"}</button>
+            <button type="button" className="fe-mini" onClick={() => setNuevo(null)}>Cancelar</button>
+          </span>
+        </div>
+      )}
       {mal && <p className="cl-mal" role="alert">{mal}</p>}
       {lineas == null ? <p className="cc-vacio">Trayendo lo contado…</p> : grupos.length === 0 ? <p className="cc-vacio">{q || soloDif ? "Nada con ese filtro." : "Esta hoja todavía no tiene renglones."}</p> : (
         <table className="cc-t cy-bd-t">
@@ -267,11 +325,13 @@ function BdHoja({ lineas, numero, ol, bavaria, mal, enviada, puede, editando, se
   );
 }
 
-export function ControlCiclico({ personas, ciclicos, cerradasIniciales, ahora, puedeEditar, modo = "control" }: {
+export function ControlCiclico({ personas, ciclicos, cerradasIniciales, ahora, puedeEditar, manda = false, modo = "control" }: {
   personas: Persona[]; ciclicos: FiscalBD[];
   /** Por id de hoja: cuándo se envió el conteo (cerrada_en). */
   cerradasIniciales: Record<string, string>;
   ahora: string; puedeEditar: boolean;
+  /** El super administrador: corrige, quita y agrega renglones aunque la hoja ya se haya enviado. */
+  manda?: boolean;
   /** «control» = lo vigente; «historial» = los cíclicos que ya pasaron. */
   modo?: "control" | "historial";
 }) {
@@ -416,6 +476,19 @@ export function ControlCiclico({ personas, ciclicos, cerradasIniciales, ahora, p
     await Promise.all([leerBd(f), cargar(f)]);
   }
 
+  async function agregar(f: FiscalBD, numero: number, x: NuevoRenglon): Promise<boolean> {
+    const id = f.hojaIds?.[numero];
+    if (!id) return false;
+    setBdMal(null);
+    const { error } = await createClient().rpc("inv_ciclico_agregar", {
+      p_hoja: id, p_equipo: x.equipo, p_sitio: x.sitio, p_sku: x.sku, p_cajas: x.cajas, p_unidades: x.unidades,
+    });
+    if (error) { setBdMal(/inv_ciclico_agregar|schema cache|does not exist/i.test(error.message) ? "Falta correr supabase/migraciones/2026-11-producto-ciclico-bd-admin.sql en Supabase." : error.message); return false }
+    setAviso(`Se agregó ${x.sku} en ${x.sitio.toUpperCase()} a ${x.equipo === "BAVARIA" ? "Bavaria" : "el operador"}.`);
+    await Promise.all([leerBd(f), cargar(f)]);
+    return true;
+  }
+
   /* EL EXCEL DE LOS CONTEOS — «debe verse como el del fiscal»: es el MISMO libro del Excel del cruce fiscal (Resumen por
      pareja con sus cifras, Diferencias con la causa, Por material, Por persona, Conteos por persona y Conteos cruzados),
      con el sello y los colores de la app. Solo cambia lo que es del fiscal: no hay «Conciliado» y la última columna de
@@ -552,7 +625,8 @@ export function ControlCiclico({ personas, ciclicos, cerradasIniciales, ahora, p
                   </div>
                   {abierta === h.numero && pestana === "bd" && (
                     <BdHoja lineas={bd} numero={h.numero} ol={h.ol ? nombre.get(h.ol) ?? "Operador" : "Operador"} bavaria={h.bavaria ? nombre.get(h.bavaria) ?? "Bavaria" : "Bavaria"}
-                            mal={bdMal} enviada={enviada} puede={puedeEditar && f.estado === "abierto" && !enviada}
+                            mal={bdMal} enviada={enviada} manda={manda} puede={manda || (puedeEditar && f.estado === "abierto" && !enviada)}
+                            familias={h.familias ?? []} agregar={(x) => agregar(f, h.numero, x)}
                             editando={editando} setEditando={setEditando} tocando={tocando}
                             corregir={(l) => corregir(f, l)} quitar={(l) => quitar(f, l)} />
                   )}
