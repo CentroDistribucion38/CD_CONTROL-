@@ -65,10 +65,11 @@ export default async function TableroCascoPage() {
   /* Los sitios que un día no se registraron siguen mostrando su último inventario. */
   puntos = rellenarInventario(puntos);
   const nombres = Object.fromEntries(materiales.map((m) => [m.sku, m.nombre]));
+  const hlEstiba = Object.fromEntries(materiales.map((m) => [m.sku, m.hl_estiba]));
 
   return (
     <div className="fe cvt">
-      <TableroCasco puntos={puntos} sitios={sitios.lista} nombres={nombres} errorLectura={errorLectura} delInventario={delInventario} />
+      <TableroCasco puntos={puntos} sitios={sitios.lista} nombres={nombres} errorLectura={errorLectura} delInventario={delInventario} hlEstiba={hlEstiba} />
     </div>
   );
 }

@@ -10,12 +10,12 @@ import "./foto-compartir.css";
  * Cada pantalla dice CÓMO se dibuja cada imagen (`hacer`); aquí está todo lo demás: el lienzo a
  * PNG, la vista previa, las dos pestañas para pasar de una a la otra y el portapapeles.
  */
-export type TipoFoto = "dashboard" | "detalle" | "seguridad";
+export type TipoFoto = "dashboard" | "detalle" | "seguridad" | "viajes";
 type Foto = { tipo: TipoFoto; url: string; blob: Blob; envio: Blob | null; nombre: string };
 /** `lienzoEnvio` (opcional): otra versión de la imagen que es la que sale al copiar, compartir o descargar; la vista en pantalla sigue siendo `lienzo`. */
 export type Hacer = (tipo: TipoFoto) => Promise<{ lienzo: HTMLCanvasElement; nombre: string; lienzoEnvio?: HTMLCanvasElement }>;
 
-export const NOMBRE_FOTO: Record<TipoFoto, string> = { dashboard: "Dashboard", detalle: "Detalle por almacén", seguridad: "Seguridad" };
+export const NOMBRE_FOTO: Record<TipoFoto, string> = { dashboard: "Dashboard", detalle: "Detalle por almacén", seguridad: "Seguridad", viajes: "Cierre de viajes" };
 
 /** El logo de la marca como imagen para el lienzo (null si no carga: la foto sale sin él). */
 export async function logoMarca() {
@@ -34,7 +34,7 @@ function bajar(blob: Blob, nombre: string) {
 export type OpcionesFoto = { titulo: string; valores: { k: string; t: string }[]; actual: string | string[]; cambiar: (k: string) => void };
 
 /** `opciones` puede depender de la imagen abierta (p. ej. una sola unidad en el Dashboard y varias en la Tabla). */
-export function useFotoCompartir(hacer: Hacer, titulo: string, nombres?: Partial<Record<TipoFoto, string>>, opcionesDe?: OpcionesFoto | ((t: TipoFoto) => OpcionesFoto), soloTabs?: TipoFoto[]) {
+export function useFotoCompartir(hacer: Hacer, titulo: string, nombres?: Partial<Record<TipoFoto, string>>, opcionesDe?: OpcionesFoto | ((t: TipoFoto) => OpcionesFoto | undefined), soloTabs?: TipoFoto[]) {
   const nombreDe = (t: TipoFoto) => nombres?.[t] ?? NOMBRE_FOTO[t];
   const [foto, setFoto] = useState<Foto | null>(null);
   const [armando, setArmando] = useState<TipoFoto | null>(null);

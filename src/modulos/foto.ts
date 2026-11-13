@@ -136,13 +136,15 @@ export function altoTabla<F>(ctx: Ctx, cols: ColTabla<F>[], filas: F[]) {
   return CAB_T + filas.reduce((t, f) => t + altoFilaTabla(ctx, cols, f), 0) + 2 + FILA_T;
 }
 
-export function dibujarTabla<F>(ctx: Ctx, TINTA: string, x: number, y: number, ancho: number, cols: ColTabla<F>[], filas: F[], total: (c: ColTabla<F>) => string, apagada?: (f: F) => boolean) {
+export function dibujarTabla<F>(ctx: Ctx, TINTA: string, x: number, y: number, ancho: number, cols: ColTabla<F>[], filas: F[], total: (c: ColTabla<F>) => string, apagada?: (f: F) => boolean,
+  /** Otro color para la cabecera (y la raya del total) que no sea la tinta: `{ fondo, texto }`. */
+  cab?: { fondo: string; texto: string }) {
   const APAGADO = "#AAB3BE";
   /* la cabecera oscura, partida en dos renglones si un título no cabe */
-  ctx.fillStyle = TINTA; ctx.fillRect(x, y, ancho, CAB_T);
+  ctx.fillStyle = cab?.fondo ?? TINTA; ctx.fillRect(x, y, ancho, CAB_T);
   let cx = x;
   for (const cc of cols) {
-    letra(ctx, 800, 11.5); ctx.fillStyle = "#FFFFFF";
+    letra(ctx, 800, 11.5); ctx.fillStyle = cab?.texto ?? "#FFFFFF";
     const cabe = cc.w - 16, pal = cc.t.split(" ");
     let l1 = cc.t, l2 = "";
     if (ctx.measureText(cc.t).width > cabe && pal.length > 1) {
@@ -193,7 +195,7 @@ export function dibujarTabla<F>(ctx: Ctx, TINTA: string, x: number, y: number, a
     }
     cy += h;
   });
-  ctx.fillStyle = TINTA; ctx.fillRect(x, cy, ancho, 2); cy += 2;
+  ctx.fillStyle = cab?.fondo ?? TINTA; ctx.fillRect(x, cy, ancho, 2); cy += 2;
   let fx = x;
   for (const cc of cols) {
     letra(ctx, 900, 13.5); ctx.fillStyle = TINTA; ctx.textAlign = cc.num ? "right" : "left";

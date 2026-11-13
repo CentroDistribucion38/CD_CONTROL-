@@ -51,8 +51,10 @@ type Rango = "mes" | "30" | "90" | "todo" | "fechas";
 const inicioDeMes = (iso: string) => (iso ? iso.slice(0, 8) + "01" : iso);
 const MESES_LARGOS = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
-export function TableroCasco({ puntos, sitios, nombres, errorLectura, delInventario = null }: {
+export function TableroCasco({ puntos, sitios, nombres, errorLectura, delInventario = null, hlEstiba = {} }: {
   puntos: Punto[]; sitios: SitioCasco[]; nombres: Record<string, string>; errorLectura: string | null;
+  /** HL de una estiba por referencia (del maestro): el Cierre de viajes pasa las estibas movilizadas a HL. */
+  hlEstiba?: Record<string, number | null>;
   /** Las ubicaciones del último inventario (AG18 ← LAVADO, AG22 ← BAJA): el informe las usa aunque
    *  Control todavía no las haya guardado. */
   delInventario?: UbicacionesInventario | null;
@@ -202,7 +204,7 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura, delInventa
           </p>
           <p className="sub"><Link href="/inventario/casco">← Registrar casco de vidrio</Link></p>
         </div>
-        <BotonesInforme datos={datosInforme} />
+        <BotonesInforme datos={datosInforme} rango={ventana.d && ventana.h ? { desde: ventana.d, hasta: ventana.h } : null} hlEstiba={hlEstiba} />
       </section>
 
       {/* ---------- FILTROS ---------- */}

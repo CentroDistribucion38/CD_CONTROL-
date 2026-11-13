@@ -340,3 +340,146 @@ export function dibujarDetalleCasco(d: DatosInformeCasco, extra: Extra = {}): HT
 export const nombreDashboardCasco = (corte: string) => `casco-dashboard-${corte}.png`;
 export const nombreDetalleCasco = (corte: string) => `casco-detalle-${corte}.png`;
 
+
+/* =====================================================================
+   CIERRE DE VIAJES DE CASCO
+   «Aparte del Dashboard y el Detalle, uno que diga cierre de viajes de casco: solo las referencias con las
+   cantidades que se movilizaron, lo que parte de Carnaval hacia Peldar.» Sale de los MOVIMIENTOS registrados
+   (Registrar → Movimiento) en el periodo del tablero: un bloque por ruta (origen → destino), Carnaval → Peldar
+   primero y destacado, y en cada bloque las referencias con sus viajes, estibas y HL. Los ajustes no son viajes.
+   «Si quiero que uno no se vea, con un clic lo quito»: las referencias ocultas no entran ni en los totales.
+   ===================================================================== */
+export type MovCasco = {
+  id: string; fecha: string; origen: string; destino: string; sku: string; descripcion: string | null;
+  estibas: number | string; entrega: string | null; placa: string | null; ajuste?: boolean | null;
+};
+export type FilaViaje = { sku: string; nombre: string; viajes: number; estibas: number; hl: number | null };
+export type RutaViajes = { origen: string; destino: string; principal: boolean; viajes: number; estibas: number; hl: number; sinHl: boolean; filas: FilaViaje[] };
+export type CierreViajes = { rutas: RutaViajes[]; viajes: number; estibas: number; hl: number; referencias: number };
+
+/** El color del almacén de origen (los mismos tonos ámbar del tablero), sacado del nombre del maestro de movimientos. */
+const sitioDeNombre = (n: string) =>
+  /ca22|atl[aá]ntico|palmar/i.test(n) ? "CARNAVAL PALMAR" : /ag07|carnaval/i.test(n) ? "CARNAVAL"
+  : /ag18|f[aá]brica/i.test(n) ? "FABRICA" : /ag22|barranquilla|bodega/i.test(n) ? "BODEGA 38" : n;
+
+/** Carnaval (AG07) → Peldar: la ruta que se destaca. */
+export const esCarnavalPeldar = (o: string, d: string) => /carnaval|ag07/i.test(o) && /peldar/i.test(d);
+
+/** Los viajes, por ruta y referencia (función pura). Un viaje = un día + una placa (o una entrega); sin ninguna de las dos, cada línea es uno. */
+export function armarCierreViajes(movs: MovCasco[], hlEstiba: Record<string, number | null>, ocultos: Set<string> = new Set()): CierreViajes {
+  const viaje = (m: MovCasco) => (m.placa?.trim() ? `${m.fecha}|P${m.placa.trim().toUpperCase()}` : m.entrega?.trim() ? `${m.fecha}|E${m.entrega.trim()}` : `${m.fecha}|${m.id}`);
+  const rutas = new Map<string, { origen: string; destino: string; v: Set<string>; refs: Map<string, { nombre: string; v: Set<string>; est: number }> }>();
+  const todos = new Set<string>(), refsTot = new Set<string>();
+  for (const m of movs) {
+    if (m.ajuste) continue;
+    const sku = String(m.sku).trim(), est = Number(m.estibas) || 0;
+    if (!sku || est <= 0 || ocultos.has(sku)) continue;
+    const k = `${m.origen}→${m.destino}`;
+    const r = rutas.get(k) ?? rutas.set(k, { origen: m.origen, destino: m.destino, v: new Set(), refs: new Map() }).get(k)!;
+    const v = viaje(m); r.v.add(v); todos.add(`${k}|${v}`); refsTot.add(sku);
+    const f = r.refs.get(sku) ?? r.refs.set(sku, { nombre: m.descripcion || sku, v: new Set(), est: 0 }).get(sku)!;
+    f.v.add(v); f.est += est;
+  }
+  const lista: RutaViajes[] = [...rutas.values()].map((r) => {
+    const filas: FilaViaje[] = [...r.refs].map(([sku, f]) => {
+      const h = hlEstiba[sku];
+      return { sku, nombre: f.nombre, viajes: f.v.size, estibas: Math.round(f.est * 100) / 100, hl: h ? Math.round(f.est * h * 10) / 10 : null };
+    }).sort((a, b) => b.estibas - a.estibas);
+    return {
+      origen: r.origen, destino: r.destino, principal: esCarnavalPeldar(r.origen, r.destino), viajes: r.v.size,
+      estibas: filas.reduce((t, f) => t + f.estibas, 0), hl: filas.reduce((t, f) => t + (f.hl ?? 0), 0), sinHl: filas.some((f) => f.hl == null), filas,
+    };
+  }).sort((a, b) => Number(b.principal) - Number(a.principal) || b.estibas - a.estibas);
+  return {
+    rutas: lista, viajes: todos.size, referencias: refsTot.size,
+    estibas: lista.reduce((t, r) => t + r.estibas, 0), hl: lista.reduce((t, r) => t + r.hl, 0),
+  };
+}
+
+/** «Otro color que no sea negro»: el de las cabeceras de las tablas y la tarjeta destacada. */
+export const TONOS_VIAJES = {
+  ambar: { fondo: "#B58200", texto: "#FFFFFF", suave: "rgba(255,255,255,.82)" },
+  amarillo: { fondo: "#FFC300", texto: "#1B1B1B", suave: "rgba(27,27,27,.72)" },
+} as const;
+export type TonoViajes = keyof typeof TONOS_VIAJES;
+
+export function dibujarCierreViajes(v: CierreViajes, o: { periodo: string; chips: string[]; ocultos: number; tono?: TonoViajes }, extra: Extra = {}): HTMLCanvasElement {
+  const P = extra.paleta ?? PALETA_MARCA;
+  const TINTA = `rgb(${P.tinta.join(",")})`, ACENTO = `rgb(${P.acento.join(",")})`;
+  const T = TONOS_VIAJES[o.tono ?? "amarillo"];
+  const W = FOTO.ancho, M = MARGEN, G = HUECO;
+  const med = medidor();
+  type F = FilaViaje;
+  const cols = (ancho: number) => anchosTabla<F>([
+    { t: "COD", w: 96, gris: true, v: (f) => f.sku },
+    { t: "REFERENCIA", w: 0, envuelve: true, v: (f) => f.nombre },
+    { t: "VIAJES", w: 80, num: true, v: (f) => String(f.viajes) },
+    { t: "ESTIBAS", w: 110, num: true, v: (f) => fmt.est(f.estibas) },
+    { t: "HL", w: 100, num: true, fuerte: true, v: (f) => (f.hl == null ? "—" : fmt.hl(f.hl)) },
+  ], ancho);
+  const principal = v.rutas.find((r) => r.principal) ?? null;
+  const otras = v.rutas.filter((r) => r !== principal);
+
+  /* las medidas: la principal a todo el ancho; las demás de a dos */
+  const yCards = 106, hCards = 118;
+  const anchoP = W - 2 * M - 32, anchoO = (W - 2 * M - G) / 2;
+  const altoRuta = (r: RutaViajes, ancho: number) => 62 + altoTabla(med, cols(ancho), r.filas) + 8;
+  let H = yCards + hCards + G;
+  const yP = H;
+  if (principal) H += altoRuta(principal, anchoP) + G;
+  const pares: RutaViajes[][] = [];
+  for (let i = 0; i < otras.length; i += 2) pares.push(otras.slice(i, i + 2));
+  const altoPar = (p: RutaViajes[]) => Math.max(...p.map((r) => altoRuta(r, anchoO - 32)));
+  const yO = H;
+  H += pares.reduce((t, p) => t + altoPar(p) + G, 0);
+  if (!v.rutas.length) H += 160;
+  H += 34;
+
+  const { c, ctx } = nuevoLienzo(W, H);
+  cabecera(ctx, W, o.chips, P, extra.logo, "Cierre de viajes de casco", `Lo que se movilizó · ${o.periodo}`);
+
+  /* ---------- LAS CIFRAS ---------- */
+  const cw = (W - 2 * M - G * 3) / 4;
+  const tarjeta = (i: number, rot: string, val: string, uni: string, bajo: string, negra = false) => {
+    const x = M + i * (cw + G), y = yCards;
+    ctx.fillStyle = negra ? T.fondo : "#FFFFFF"; ctx.fillRect(x, y, cw, hCards);
+    if (!negra) { ctx.strokeStyle = BORDE; ctx.strokeRect(x + .5, y + .5, cw - 1, hCards - 1) }
+    ctx.fillStyle = negra ? TINTA : ACENTO; ctx.fillRect(x, negra ? y : y + hCards - 4, negra ? 8 : cw, negra ? hCards : 4);
+    letra(ctx, 800, 13); ctx.fillStyle = negra ? T.suave : GRIS; ctx.textAlign = "left";
+    espaciado(ctx, rot, x + 24, y + 24, 1.1);
+    letra(ctx, 900, 40); ctx.fillStyle = negra ? T.texto : TINTA; ctx.fillText(val, x + 24, y + 66);
+    const vw = ctx.measureText(val).width;
+    letra(ctx, 700, 14); ctx.fillStyle = negra ? T.suave : GRIS; ctx.fillText(uni, x + 30 + vw, y + 74);
+    letra(ctx, 600, 13); ctx.fillText(recortar(ctx, bajo, cw - 40), x + 24, y + hCards - 22);
+  };
+  tarjeta(0, "CARNAVAL → PELDAR", principal ? fmt.est(principal.estibas) : "0", "estibas",
+    principal ? `${principal.viajes} ${principal.viajes === 1 ? "viaje" : "viajes"} · ${fmt.hl(principal.hl)} HL · ${principal.filas.length} referencias` : "Sin viajes a Peldar en el periodo", true);
+  tarjeta(1, "ESTIBAS MOVILIZADAS", fmt.est(v.estibas), "est", `${v.rutas.length} ${v.rutas.length === 1 ? "ruta" : "rutas"} en el periodo`);
+  tarjeta(2, "HL MOVILIZADOS", fmt.hl(v.hl), "HL", v.rutas.some((r) => r.sinHl) ? "hay referencias sin HL en el maestro" : "estibas × HL de cada referencia");
+  tarjeta(3, "VIAJES", String(v.viajes), "", `${v.referencias} ${v.referencias === 1 ? "referencia" : "referencias"}${o.ocultos ? ` · ${o.ocultos} oculta${o.ocultos === 1 ? "" : "s"}` : ""}`);
+
+  /* ---------- LAS RUTAS ---------- */
+  const ruta = (r: RutaViajes, b: Caja) => {
+    const nota = `${r.viajes} ${r.viajes === 1 ? "viaje" : "viajes"} · ${fmt.est(r.estibas)} est · ${fmt.hl(r.hl)} HL`;
+    const a = panel(ctx, TINTA, r.principal ? ACENTO : colorSitio(sitioDeNombre(r.origen)).fondo, b, `${r.origen}  →  ${r.destino}`, { nota });
+    dibujarTabla(ctx, TINTA, a.x, a.y, a.w, cols(a.w), r.filas, (cc) => (
+      cc.t === "COD" ? "TOTAL" : cc.t === "REFERENCIA" ? `${r.filas.length} ${r.filas.length === 1 ? "referencia" : "referencias"}`
+      : cc.t === "VIAJES" ? String(r.viajes) : cc.t === "ESTIBAS" ? fmt.est(r.estibas) : cc.t === "HL" ? fmt.hl(r.hl) : ""), undefined, { fondo: T.fondo, texto: T.texto });
+  };
+  if (principal) ruta(principal, { x: M, y: yP, w: W - 2 * M, h: altoRuta(principal, anchoP) });
+  let y = yO;
+  for (const p of pares) {
+    const h = altoPar(p);
+    p.forEach((r, j) => ruta(r, { x: M + j * (anchoO + G), y, w: anchoO, h }));
+    y += h + G;
+  }
+  if (!v.rutas.length) {
+    ctx.fillStyle = "#FFFFFF"; ctx.fillRect(M, yP, W - 2 * M, 148); ctx.strokeStyle = BORDE; ctx.strokeRect(M + .5, yP + .5, W - 2 * M - 1, 147);
+    letra(ctx, 700, 20); ctx.fillStyle = GRIS; ctx.textAlign = "center";
+    ctx.fillText("No hay viajes registrados en este periodo (Registrar → Movimiento).", W / 2, yP + 74);
+  }
+
+  pie(ctx, W, H, extra.generado ?? new Date(), "Viaje = un día y una placa (o una entrega). Los ajustes no son viajes. HL = estibas × HL por estiba del maestro.");
+  return c;
+}
+export const nombreCierreViajes = (desde: string, hasta: string) => `casco-cierre-viajes-${desde}-a-${hasta}.png`;
