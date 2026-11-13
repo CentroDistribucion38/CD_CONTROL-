@@ -2,8 +2,10 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { consolidadoDelDia, diasConConteo } from "@/modulos/inventario/balance";
-import { balanceParaPasivos, conDescartes, leerDescartes } from "@/modulos/pasivos/datos";
+import { balanceDelDia, consolidadoDelDia, diasConConteo } from "@/modulos/inventario/balance";
+import { balanceParaPasivos, conDescartes, leerDescartes, leerPasivos } from "@/modulos/pasivos/datos";
+import { separarPendiente } from "@/modulos/inventario/libro-baja-pendiente";
+import { sumarLineas, type DiaPendiente, type LineaPendiente } from "@/modulos/inventario/baja-comparativo";
 
 const normEstado = (e: string | null | undefined) => {
   const t = (e ?? "").trim().toUpperCase();
@@ -227,5 +229,30 @@ export async function reasignarPorDestino(fd: FormData) {
     return { ok: true, movidos: filas.length + vuelven.length + partidasHechas, pasivos: await alinearPasivos(fecha) };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "No se pudo reasignar" };
+  }
+}
+
+/**
+ * LO PENDIENTE POR DARLE DE BAJA DE UN DÍA, para el comparativo por días: la misma cuenta del Excel «Exportar pendiente
+ * de baja» (SORTING y PRESORTING del Balance + la rotura de línea del pasivo de ese día), sumado por SKU.
+ * Un día por llamada: así cada día se lee aparte y uno lento no tumba a los demás.
+ * `casco`: el día del casco que se cruza (el que está escogido en pantalla); sin él, el último casco hasta ese día.
+ */
+export async function pendienteBajaDia(fecha: string, casco?: string | null): Promise<DiaPendiente> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return { fecha, filas: [], error: "Fecha no válida" };
+  try {
+    const b = await balanceDelDia(fecha, casco ?? null);
+    if (b.fecha !== fecha) return { fecha, filas: [], error: "Ese día no tiene conteo enviado" };
+    if (b.error && !b.detalle.length) return { fecha, filas: [], error: b.error };
+    const filas: LineaPendiente[] = separarPendiente(b.detalle).lineas
+      .map((l) => ({ desc: l.zona.desc, codigo: l.f.codigo, material: l.f.material ?? "", un: l.un }));
+    try {
+      const pas = await leerPasivos(fecha, fecha);
+      for (const f of pas.data) if (/ROTURA\s+DE\s+L[IÍ]NEA/i.test(f.causal) && (Number(f.unidades) || 0) > 0)
+        filas.push({ desc: "ROTURA DE LINEA", codigo: f.codigo, material: f.descripcion, un: Number(f.unidades) || 0 });
+    } catch { /* sin Pasivos: sin rotura de línea */ }
+    return { fecha, filas: sumarLineas(filas), error: null };
+  } catch (e) {
+    return { fecha, filas: [], error: e instanceof Error ? e.message : "No se pudo leer ese día" };
   }
 }

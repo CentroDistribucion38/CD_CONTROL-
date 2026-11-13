@@ -1,0 +1,97 @@
+/* EL COMPARATIVO DE LO PENDIENTE POR DARLE DE BAJA — ventana propia, recta, blanca con el acento de la app. */
+.cpb-velo { position: fixed; inset: 0; z-index: 900; display: grid; grid-template-columns: minmax(0, 1fr); place-items: center; padding: 16px; background: rgba(10, 16, 24, .62) }
+.cpb {
+  --cpb-t: var(--fe-tinta, #111); --cpb-a: var(--fe-acento, #FFC000); --cpb-s: var(--fe-sobre, #111); --cpb-g: var(--fe-gris, #5b6b7f); --cpb-l: var(--fe-linea, #D5DCE5);
+  width: min(1320px, 100%); max-height: calc(100dvh - 32px); display: flex; flex-direction: column; background: #fff; color: var(--cpb-t);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .35); font-family: var(--fe-texto, "IBM Plex Sans", system-ui, sans-serif); overflow: hidden;
+}
+.cpb-cab { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: #0B0B0C; color: #fff; border-bottom: 3px solid var(--cpb-a) }
+.cpb-logo { width: 40px; height: 40px; flex: none; display: block }
+.cpb-sep { width: 1px; align-self: stretch; background: #3A3F46; flex: none }
+.cpb-tit { min-width: 0; flex: 1 }
+.cpb-ojo { margin: 0; font: 700 10px var(--fe-titulo, inherit); letter-spacing: .16em; color: color-mix(in srgb, var(--cpb-a) 70%, #fff) }
+.cpb-tit h2 { margin: 3px 0 0; font: 900 19px/1.15 var(--fe-titulo, "Archivo", system-ui); letter-spacing: -.02em; color: #fff }
+.cpb-acc { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 14px; flex: none }
+.cpb-seg { display: inline-flex; border: 1.5px solid var(--cpb-t) }
+.cpb-seg button { height: 36px; padding: 0 12px; border: 0; background: #fff; color: var(--cpb-t); font: 700 13px var(--fe-texto, inherit); cursor: pointer }
+.cpb-seg button.on { background: var(--cpb-t); color: #fff; box-shadow: inset 0 -3px 0 var(--cpb-a) }
+.cpb-bt { display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 14px; border: 1.5px solid var(--cpb-t); background: #fff; color: var(--cpb-t); font: 800 13px var(--fe-texto, inherit); cursor: pointer }
+.cpb-bt.osc { background: var(--cpb-t); color: #fff; box-shadow: inset 0 -3px 0 var(--cpb-a) }
+.cpb-bt:disabled { opacity: .5; cursor: progress }
+.cpb-bt svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
+.cpb-x { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; flex: none; border: 1px solid #444A52; background: transparent; color: #fff; cursor: pointer }
+.cpb-x:hover { border-color: #6B7280 }
+.cpb-seg button:focus-visible, .cpb-bt:focus-visible, .cpb-x:focus-visible { outline: 3px solid var(--cpb-a); outline-offset: 2px }
+.cpb-aviso { margin: 0; padding: 8px 18px; font-size: 13px; font-weight: 600; background: color-mix(in srgb, var(--cpb-a) 22%, #fff) }
+.cpb-error { margin: 0; padding: 6px 18px; font-size: 12.5px; font-weight: 600; color: #B42318; background: #FDECEE }
+
+/* El total de cada día: el de pantalla, en el acento. */
+.cpb-dias { display: grid; gap: 8px; padding: 12px 14px }
+.cpb-dia { position: relative; display: flex; flex-direction: column; gap: 2px; padding: 10px 12px 12px; border: 1px solid var(--cpb-l); background: #fff; min-width: 0 }
+.cpb-dia.hoy { background: var(--cpb-a); color: var(--cpb-s); border-color: var(--cpb-a); box-shadow: inset 6px 0 0 var(--cpb-t) }
+.cpb-dl { font: 700 10.5px var(--fe-texto, inherit); letter-spacing: .12em; text-transform: uppercase; color: var(--cpb-g) }
+.cpb-dia.hoy .cpb-dl { color: inherit; opacity: .8 }
+.cpb-dia b { font: 900 24px/1.1 var(--fe-titulo, "Archivo", system-ui); letter-spacing: -.03em; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.cpb-dd { font-size: 12px; font-weight: 700; color: var(--cpb-g); font-variant-numeric: tabular-nums }
+.cpb-dd.sube { color: #C8102E } .cpb-dd.baja { color: #0F7A4A }
+.cpb-dia.hoy .cpb-dd { color: inherit }
+.cpb-barra { display: block; height: 4px; margin-top: 6px; background: #EEF1F5 }
+.cpb-barra i { display: block; height: 100%; background: var(--cpb-t); transition: width .3s ease }
+
+/* La tabla */
+.cpb-rueda { flex: 1 1 auto; min-height: 0; overflow: auto; border-top: 1px solid var(--cpb-l) }
+.cpb-tabla { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums }
+.cpb-tabla th { position: sticky; top: 0; z-index: 2; background: var(--cpb-t); color: #fff; padding: 7px 10px; font: 800 10.5px/1.25 var(--fe-texto, inherit); letter-spacing: .08em; text-transform: uppercase; text-align: left; white-space: nowrap }
+.cpb-tabla th.n { text-align: right }
+.cpb-tabla th.hoy { box-shadow: inset 0 -3px 0 var(--cpb-a) }
+.cpb-tabla td { padding: 6px 10px; border-bottom: 1px solid #EEF1F5 }
+.cpb-tabla td.n { text-align: right; white-space: nowrap }
+.cpb-tabla td.hoy { font-weight: 800; background: color-mix(in srgb, var(--cpb-a) 9%, #fff) }
+.cpb-tabla td.cero { color: #AAB3BE }
+.cpb-tabla td.sku { min-width: 220px }
+.cpb-tabla td.sku b { display: inline-block; min-width: 72px; margin-right: 8px; font-weight: 700; color: var(--cpb-g) }
+.cpb-tabla td.sku span { font-weight: 600 }
+.cpb-tabla .dl { font-weight: 800 }
+.cpb-tabla td.dl.sube { color: #C8102E } .cpb-tabla td.dl.baja { color: #0F7A4A }
+.cpb-grupo td { padding: 12px 10px 6px; border-bottom: 2px solid var(--cpb-t); background: #fff }
+.cpb-grupo b { font: 900 14px var(--fe-titulo, "Archivo", system-ui); letter-spacing: .02em; padding-left: 8px; border-left: 4px solid var(--cpb-a) }
+.cpb-grupo span { margin-left: 10px; font-size: 12px; color: var(--cpb-g) }
+.cpb-grupo em { float: right; font-style: normal; font-size: 12px; font-weight: 700; color: var(--cpb-g) }
+.cpb-sub td { font-weight: 800; background: #F6F8FA; border-bottom: 1px solid var(--cpb-l) }
+.cpb-nada td { color: var(--cpb-g); font-style: italic }
+.cpb-tabla tfoot td { position: sticky; bottom: 0; z-index: 1; padding: 9px 10px; font-weight: 900; background: var(--cpb-a); color: var(--cpb-s); border-top: 2px solid var(--cpb-t) }
+.cpb-tabla tfoot td.dl.sube, .cpb-tabla tfoot td.dl.baja { color: var(--cpb-s) }
+.cpb-pie { margin: 0; padding: 8px 18px 10px; font-size: 11.5px; line-height: 1.4; color: var(--cpb-g); border-top: 1px solid var(--cpb-l) }
+
+/* El botón (icono) al lado de «Exportar pendiente de baja». */
+.bal .bal-cmp-baja { display: inline-grid; place-items: center; width: 34px; height: 34px; margin-left: 6px; padding: 0; border: 1.5px solid var(--fe-tinta); background: #fff; color: var(--fe-tinta); cursor: pointer }
+.bal .bal-cmp-baja svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
+.bal .bal-cmp-baja:hover { background: var(--fe-acento, #FFC20E) }
+.bal .bal-cmp-baja:focus-visible { outline: 3px solid var(--fe-acento, #FFC20E); outline-offset: 2px }
+
+@media (max-width: 720px) {
+  .cpb-velo { padding: 0 }
+  .cpb { max-height: 100dvh; height: 100%; width: 100% }
+  .cpb-cab { padding: 10px 12px; gap: 10px }
+  .cpb-logo { width: 34px; height: 34px }
+  .cpb-tit h2 { font-size: 16px }
+  .cpb-acc { padding: 10px } .cpb-seg { flex: 1 } .cpb-seg button { flex: 1; padding: 0 6px }
+  .cpb-bt { flex: 1; justify-content: center; padding: 0 8px }
+  .cpb-dias { display: flex !important; overflow-x: auto; padding: 10px }
+  .cpb-dia { flex: 0 0 132px }
+  .cpb-dia b { font-size: 20px }
+  .cpb-tabla { font-size: 12px }
+  .cpb-tabla th, .cpb-tabla td { padding: 6px 7px }
+  .cpb-tabla td.sku { min-width: 150px; position: sticky; left: 0; z-index: 1; background: #fff }
+  .cpb-tabla th.sku { position: sticky; left: 0; z-index: 3 }
+  .cpb-tabla td.sku b { display: block; min-width: 0; margin: 0 }
+  .cpb-tabla td.sku span { display: block; font-size: 11px; font-weight: 500; line-height: 1.25 }
+  .cpb-sub td.sku { background: #F6F8FA }
+  .cpb-tabla tfoot td.sku { background: var(--cpb-a) }
+  .cpb-grupo td { position: static } .cpb-grupo span { display: block; margin: 4px 0 0 12px } .cpb-grupo em { float: none; display: none }
+}
+/* Lo de arriba y abajo no se encoge: solo la tabla se desplaza. */
+.cpb-cab, .cpb-aviso, .cpb-error, .cpb-dias, .cpb-pie { flex: none }
+.cpb-seg button { white-space: nowrap }
+.cpb-tabla tfoot td.hoy { background: var(--cpb-a) }
+@media (max-width: 720px) { .cpb-pie { font-size: 10.5px; padding: 6px 12px } .cpb-ojo { letter-spacing: .1em } }

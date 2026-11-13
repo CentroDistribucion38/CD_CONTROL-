@@ -6,6 +6,7 @@ import type { CuadreFabrica, LineaConsolidado, NotaConteo, Proveniente, Reasigna
 import { DUENOS_ENVASE, esDueno } from "@/modulos/inventario/duenos";
 import { Consolidado } from "./Consolidado";
 import { Reasignaciones } from "./Reasignaciones";
+import { ComparativoBaja } from "./ComparativoBaja";
 import { Rango } from "../../sider/seguimiento/Rango";
 import { reasignarPorDestino, reclasificar, quitarReclasificacion } from "./actions";
 
@@ -153,6 +154,8 @@ export function Balance({
   /* EXPORTAR LO PENDIENTE POR DARLE DE BAJA (las dos hojas de Baja, en la plantilla de «Conteos»). */
   const [armandoBaja, setArmandoBaja] = useState(false);
   const [malBaja, setMalBaja] = useState<string | null>(null);
+  /* EL COMPARATIVO POR DÍAS de lo pendiente por darle de baja (el icono al lado del exportar). */
+  const [verComparativo, setVerComparativo] = useState(false);
   async function exportarPendienteBaja() {
     if (!fecha) return;
     setArmandoBaja(true); setMalBaja(null);
@@ -453,6 +456,14 @@ export function Balance({
                   {armandoBaja ? "Armando el Excel…" : "Exportar pendiente de baja"}
                 </button>
               )}
+              {hoja.estado === "BAJA" && fecha && (
+                <button type="button" className="bal-cmp-baja" onClick={() => setVerComparativo(true)}
+                        title="Comparativo por días: cuántas unidades pendientes de baja hay cada día (SORTING, PRESORTING y rotura de línea, por SKU), cuánto subió o bajó; para copiar y compartir"
+                        aria-label="Comparativo por días del pendiente de baja">
+                  <svg viewBox="0 0 24 24" aria-hidden><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></svg>
+                </button>
+              )}
+              {verComparativo && fecha && <ComparativoBaja fecha={fecha} fechaCasco={fechaCasco} dias={dias} cerrar={() => setVerComparativo(false)} />}
               {malBaja && <span className="bal-alertas" role="alert">{malBaja}</span>}
             </div>
           )}
