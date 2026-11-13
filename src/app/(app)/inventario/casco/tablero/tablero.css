@@ -56,7 +56,7 @@
 .cvt .cvt-vacio { padding: 28px; text-align: center; color: var(--fe-gris); background: var(--fe-papel); border: 1px dashed var(--fe-linea) }
 
 /* GRÁFICA ------------------------------------------------------------ */
-.cvt .cvt-lienzo { position: relative; overflow-x: auto }
+.cvt .cvt-lienzo { position: relative; overflow-x: auto; width: 100%; min-width: 0; align-self: stretch }
 .cvt .cvt-lienzo svg { display: block }
 .cvt .cvt-rej { stroke: var(--fe-linea); stroke-width: 1 }
 .cvt .cvt-eje { font: 500 12px var(--fe-texto); fill: var(--fe-gris) }

@@ -78,8 +78,11 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura, delInventa
   const [ancho, setAncho] = useState(0);
   useEffect(() => {
     const el = lienzo.current; if (!el) return;
-    const medir = () => setAncho(el.clientWidth);
-    medir(); const ro = new ResizeObserver(medir); ro.observe(el); return () => ro.disconnect();
+    /* Se mide la CAJA (el papá), no el lienzo: si el lienzo se ajustara a la gráfica, la gráfica se quedaría del ancho
+       con que arrancó (760) aunque la caja sea el doble — eso fue lo que se vio angosto. */
+    const medir = () => { const p = el.parentElement; const cs = p ? getComputedStyle(p) : null;
+      setAncho(p && cs ? Math.floor(p.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)) : el.clientWidth) };
+    medir(); const ro = new ResizeObserver(medir); ro.observe(el.parentElement ?? el); return () => ro.disconnect();
   });
 
   const ventana = useMemo(() => {

@@ -356,7 +356,8 @@ export type MovCasco = {
 /** `k`: la clave del renglón (ruta + referencia) para quitarlo con un clic; `fuera`: se quitó y no cuenta (se ve en gris). */
 export type FilaViaje = { k: string; sku: string; nombre: string; viajes: number; estibas: number; hl: number | null; fuera?: boolean };
 export type RutaViajes = { origen: string; destino: string; principal: boolean; viajes: number; estibas: number; hl: number; sinHl: boolean; filas: FilaViaje[] };
-export type CierreViajes = { rutas: RutaViajes[]; viajes: number; estibas: number; hl: number; referencias: number };
+/** `viajes`: los de casco (entre almacenes). `serpro`: los que salen de Carnaval a Peldar — los hace SERPRO; se ven, pero no suman en `viajes`. */
+export type CierreViajes = { rutas: RutaViajes[]; viajes: number; serpro: number; estibas: number; hl: number; referencias: number };
 
 /** El color del almacén de origen (los mismos tonos ámbar del tablero), sacado del nombre del maestro de movimientos. */
 const sitioDeNombre = (n: string) =>
@@ -375,7 +376,7 @@ export const claveViaje = (origen: string, destino: string, sku: string) => `${o
 export function armarCierreViajes(movs: MovCasco[], hlEstiba: Record<string, number | null>, ocultos: Set<string> = new Set(), conFuera = false): CierreViajes {
   const viaje = (m: MovCasco) => (m.placa?.trim() ? `${m.fecha}|P${m.placa.trim().toUpperCase()}` : m.entrega?.trim() ? `${m.fecha}|E${m.entrega.trim()}` : `${m.fecha}|${m.id}`);
   const rutas = new Map<string, { origen: string; destino: string; v: Set<string>; refs: Map<string, { nombre: string; v: Set<string>; est: number }> }>();
-  const todos = new Set<string>(), refsTot = new Set<string>();
+  const todos = new Set<string>(), serpro = new Set<string>(), refsTot = new Set<string>();
   for (const m of movs) {
     if (m.ajuste) continue;
     const sku = String(m.sku).trim(), est = Number(m.estibas) || 0;
@@ -385,7 +386,7 @@ export function armarCierreViajes(movs: MovCasco[], hlEstiba: Record<string, num
     const k = `${m.origen}→${m.destino}`;
     const r = rutas.get(k) ?? rutas.set(k, { origen: m.origen, destino: m.destino, v: new Set(), refs: new Map() }).get(k)!;
     const v = viaje(m);
-    if (!fuera) { r.v.add(v); todos.add(`${k}|${v}`); refsTot.add(sku) }
+    if (!fuera) { r.v.add(v); (esCarnavalPeldar(m.origen, m.destino) ? serpro : todos).add(`${k}|${v}`); refsTot.add(sku) }
     const f = r.refs.get(sku) ?? r.refs.set(sku, { nombre: m.descripcion || sku, v: new Set(), est: 0 }).get(sku)!;
     f.v.add(v); f.est += est;
   }
@@ -401,7 +402,7 @@ export function armarCierreViajes(movs: MovCasco[], hlEstiba: Record<string, num
     };
   }).sort((a, b) => Number(b.principal) - Number(a.principal) || b.estibas - a.estibas);
   return {
-    rutas: lista, viajes: todos.size, referencias: refsTot.size,
+    rutas: lista, viajes: todos.size, serpro: serpro.size, referencias: refsTot.size,
     estibas: lista.reduce((t, r) => t + r.estibas, 0), hl: lista.reduce((t, r) => t + r.hl, 0),
   };
 }
@@ -463,16 +464,16 @@ export function dibujarCierreViajes(v: CierreViajes, o: { periodo: string; chips
     letra(ctx, 600, 13); ctx.fillText(recortar(ctx, bajo, cw - 40), x + 24, y + hCards - 22);
   };
   tarjeta(0, "CARNAVAL → PELDAR", principal ? fmt.est(principal.estibas) : "0", "estibas",
-    principal ? `${principal.viajes} ${principal.viajes === 1 ? "viaje" : "viajes"} · ${fmt.hl(principal.hl)} HL · ${principal.filas.filter((f) => !f.fuera).length} referencias` : "Sin viajes a Peldar en el periodo", true);
+    principal ? `${principal.viajes} ${principal.viajes === 1 ? "viaje" : "viajes"} SERPRO · ${fmt.hl(principal.hl)} HL · ${principal.filas.filter((f) => !f.fuera).length} referencias` : "Sin viajes a Peldar en el periodo", true);
   tarjeta(1, "ESTIBAS MOVILIZADAS", fmt.est(v.estibas), "est", `${v.rutas.length} ${v.rutas.length === 1 ? "ruta" : "rutas"} en el periodo`);
   tarjeta(2, "HL MOVILIZADOS", fmt.hl(v.hl), "HL", v.rutas.some((r) => r.sinHl) ? "hay referencias sin HL en el maestro" : "estibas × HL de cada referencia");
-  tarjeta(3, "VIAJES", String(v.viajes), "", `${v.referencias} ${v.referencias === 1 ? "referencia" : "referencias"}${o.ocultos ? ` · ${o.ocultos} ${o.ocultos === 1 ? "renglón quitado" : "renglones quitados"}` : ""}`);
+  tarjeta(3, "VIAJES", String(v.viajes), "casco", `+ ${v.serpro} SERPRO a Peldar · ${v.referencias} ${v.referencias === 1 ? "referencia" : "referencias"}${o.ocultos ? ` · ${o.ocultos} ${o.ocultos === 1 ? "renglón quitado" : "renglones quitados"}` : ""}`);
 
   /* ---------- LAS RUTAS ---------- */
   /* LOS RENGLONES QUE SE TOCAN: dónde quedó cada uno, para quitarlo (o volver a ponerlo) con un clic. */
   const zonas: { k: string; x: number; y: number; w: number; h: number }[] = [];
   const ruta = (r: RutaViajes, b: Caja) => {
-    const nota = `${r.viajes} ${r.viajes === 1 ? "viaje" : "viajes"} · ${fmt.est(r.estibas)} est · ${fmt.hl(r.hl)} HL`;
+    const nota = `${r.viajes} ${r.viajes === 1 ? "viaje" : "viajes"}${r.principal ? " SERPRO" : ""} · ${fmt.est(r.estibas)} est · ${fmt.hl(r.hl)} HL`;
     const a = panel(ctx, TINTA, r.principal ? ACENTO : colorSitio(sitioDeNombre(r.origen)).fondo, b, `${r.origen}  →  ${r.destino}`, { nota });
     dibujarTabla(ctx, TINTA, a.x, a.y, a.w, cols(a.w), r.filas, (cc) => (
       cc.t === "COD" ? "TOTAL" : cc.t === "REFERENCIA" ? ((n) => `${n} ${n === 1 ? "referencia" : "referencias"}`)(r.filas.filter((f) => !f.fuera).length)
@@ -498,7 +499,7 @@ export function dibujarCierreViajes(v: CierreViajes, o: { periodo: string; chips
     ctx.fillText("No hay viajes registrados en este periodo (Registrar → Movimiento).", W / 2, yP + 74);
   }
 
-  pie(ctx, W, H, extra.generado ?? new Date(), "Viaje = un día y una placa (o una entrega). Los ajustes no son viajes. HL = estibas × HL por estiba del maestro.");
+  pie(ctx, W, H, extra.generado ?? new Date(), "Viaje = un día y una placa (o una entrega). Carnaval → Peldar lo hace SERPRO: se ve, pero no suma en los viajes de casco. HL = estibas × HL por estiba.");
   return { lienzo: c, zonas, ancho: W };
 }
 export const nombreCierreViajes = (desde: string, hasta: string) => `casco-cierre-viajes-${desde}-a-${hasta}.png`;
