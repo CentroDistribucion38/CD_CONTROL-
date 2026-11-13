@@ -255,8 +255,6 @@ export function Cierre({ filas, fuera, desde, hasta, turnos, rotulo, cerrar }: P
       vacios: nVacios, noMide, noMideBajo, registrados: viajes == null ? null : vivos.length,
       tipos: tipos.map((t) => ({ nombre: t.nombre, planeado: t.planeado, adheridos: t.adheridos,
         adicionales: t.adicionales, faltan: t.faltan })),
-      enlace: typeof window === "undefined" ? "" : window.location.host + window.location.pathname
-        + window.location.search,
     };
   }
 

@@ -41,7 +41,6 @@ export type DatosFoto = {
   /** Lo que se movió y no entra en el %, y su rótulo de abajo ya armado («1 viaje hecho que el plan no mide»). */
   noMide: number; noMideBajo: string;
   tipos: { nombre: string; planeado: number; adheridos: number; adicionales: number; faltan: number }[];
-  enlace: string;
 };
 
 /* ---------- LO QUE LA IMAGEN ENSEÑA ---------- */
@@ -56,7 +55,6 @@ export type Plan = {
   mini: { rot: string; valor: string; tono?: "bien" | "mal" }[];
   tipos: { nombre: string; plan: string; cumplido: string; adicional: string; falta: string; pct: number | null }[];
   pie: string;
-  enlace: string;
 };
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
@@ -109,7 +107,6 @@ export function armarFoto(d: DatosFoto): Plan {
       d.vacios ? `${nf.format(d.vacios)} vacío${d.vacios === 1 ? "" : "s"} aparte` : null,
       "los vacíos y los anulados no entran en la adherencia",
     ].filter(Boolean).join(" · "),
-    enlace: d.enlace,
   };
 }
 
@@ -132,7 +129,7 @@ export function altoFoto(p: Plan) {
   return 196                                  // la banda de arriba
     + HERO                                    // la franja del acento
     + (p.tipos.length ? 58 + 40 + p.tipos.length * 56 : 0)
-    + 106;                                    // el pie
+    + 70;                                     // el pie (sin el enlace: «esto no lo quiero ver»)
 }
 
 export async function dibujarFoto(p: Plan, c: ColoresFoto): Promise<Blob> {
@@ -299,8 +296,7 @@ export async function dibujarFoto(p: Plan, c: ColoresFoto): Promise<Blob> {
   /* ---------- 4 · EL PIE ---------- */
   caja(0, y, ANCHO, ALTO - y, claro(c.tinta, 0.04));
   caja(0, y, ANCHO, 1, linea);
-  t(p.pie, MARGEN, y + 42, `500 19px ${cuerpo}`, gris);
-  t(p.enlace, MARGEN, y + 76, `500 18px ${cuerpo}`, claro(c.tinta, 0.72));
+  t(p.pie, MARGEN, y + 43, `500 19px ${cuerpo}`, gris);
 
   return new Promise((ok, mal) =>
     cv.toBlob((b) => (b ? ok(b) : mal(new Error("sin imagen"))), "image/png"));
