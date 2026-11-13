@@ -13,11 +13,7 @@
  * saca los subtotales, el total y cuánto subió o bajó contra el día anterior, y lo dibuja para compartir.
  */
 import { PALETA_MARCA, type Paleta } from "@/modulos/rotlinea/hoja";
-import {
-  BAJA_OK, BORDE, FONDO, FOTO, GRIS, HUECO, MARGEN, SUBE,
-  altoTabla, anchosTabla, cabecera, dibujarTabla, espaciado, letra, medidor, pie, recortar,
-  type ColTabla,
-} from "@/modulos/foto";
+import { BORDE, FONDO, FOTO, GRIS, HUECO, MARGEN, cabecera, espaciado, letra, pie, recortar } from "@/modulos/foto";
 
 export const DESCRIPCIONES = [
   { k: "SORTING", t: "SORTING", sub: "Baja · Fábrica · AG18" },
@@ -100,79 +96,129 @@ function nuevoLienzo(W: number, H: number) {
   return { c, ctx };
 }
 
-/** Una fila de la tabla de la imagen: un SKU, o el total de la descripción. */
-type FilaT = { codigo: string; material: string; valores: (number | null)[]; delta: number | null };
-
+/** LA IMAGEN, IGUAL QUE LA VENTANA: una sola tabla — cabecera negra con los días (el último subrayado en el acento),
+ *  un renglón por descripción, los SKU (el día de hoy sombreado, lo que subió en rojo y lo que bajó en verde), el total
+ *  de cada descripción y abajo el TOTAL PENDIENTE DE BAJA en el acento. Sin tarjetas arriba. */
 export function dibujarComparativo(c: Comparativo, extra: Extra = {}): HTMLCanvasElement {
   const P = extra.paleta ?? PALETA_MARCA;
   const TINTA = `rgb(${P.tinta.join(",")})`, ACENTO = `rgb(${P.acento.join(",")})`;
   const W = FOTO.ancho, M = MARGEN, G = HUECO, n = c.fechas.length, conDelta = n >= 2;
-  const med = medidor();
+  const VERDE = "#0F7A4A", ROJO = "#C8102E", HOY = "rgba(255, 192, 0, .10)", CERO = "#AAB3BE";
 
-  const cols = (ancho: number) => anchosTabla<FilaT>([
-    { t: "SKU", w: 100, gris: true, v: (f) => f.codigo },
-    { t: "MATERIAL", w: 0, envuelve: true, v: (f) => f.material },
-    ...c.fechas.map((d, i): ColTabla<FilaT> => ({ t: `${diaSemana(d).toUpperCase()} ${diaCorto(d).toUpperCase()}`, w: 112, num: true, fuerte: i === n - 1, v: (f) => unidades(f.valores[i]) })),
-    ...(conDelta ? [{ t: "VS DÍA ANTERIOR", w: 130, num: true, fuerte: true, rojoNegativo: false, v: (f: FilaT) => flecha(f.delta) } as ColTabla<FilaT>] : []),
-  ], ancho);
+  /* columnas */
+  const x0 = M, ancho = W - 2 * M;
+  const wSku = 120, wDia = 150, wDel = conDelta ? 170 : 0;
+  const wMat = ancho - wSku - wDia * n - wDel;
+  const xDia = (i: number) => x0 + wSku + wMat + i * wDia;
+  const xDel = x0 + wSku + wMat + n * wDia;
 
-  /* alto: cabecera, tarjetas del total por día, un panel por descripción con su tabla */
-  const yCards = 106, hCards = 112;
-  let H = yCards + hCards + G;
-  const aW = W - 2 * M - 32;
+  /* alturas */
+  const hCab = 52, hGrupo = 46, hFila = 34, hSub = 36, hTot = 46;
   const visibles = c.grupos.filter((g) => g.filas.length);
-  const altoG = (g: GrupoComparativo) => 62 + altoTabla(med, cols(aW), g.filas) + 10;
-  H += visibles.reduce((t, g) => t + altoG(g) + G, 0);
-  if (!visibles.length) H += 120;
-  H += 34;
+  const hTabla = hCab + visibles.reduce((t, g) => t + hGrupo + g.filas.length * hFila + hSub, 0) + hTot;
+  const yCards = 106, hCards = 112;
+  const yT = yCards + hCards + G;
+  const H = yT + hTabla + G + 34;
 
   const { c: cv, ctx } = nuevoLienzo(W, H);
   const hasta = c.fechas[n - 1] ?? "", desde = c.fechas[0] ?? "";
   cabecera(ctx, W, [`${n} ${n === 1 ? "día" : "días"} de conteo`], P, extra.logo, "Pendiente de baja · comparativo",
-    n > 1 ? `Unidades pendientes por darle de baja · del ${diaCorto(desde)} al ${diaCorto(hasta)} de ${hasta.slice(0, 4)}` : `Unidades pendientes por darle de baja · ${diaCorto(hasta)}`);
+    n > 1 ? `Unidades pendientes por darle de baja, día por día · del ${diaCorto(desde)} al ${diaCorto(hasta)} de ${hasta.slice(0, 4)}` : `Unidades pendientes por darle de baja · ${diaCorto(hasta)}`);
 
   /* ---------- EL TOTAL DE CADA DÍA (el último, destacado) ---------- */
   const cw = (W - 2 * M - G * (n - 1)) / Math.max(1, n);
   c.fechas.forEach((d, i) => {
-    const x = M + i * (cw + G), y = yCards, ult = i === n - 1;
-    ctx.fillStyle = ult ? ACENTO : "#FFFFFF"; ctx.fillRect(x, y, cw, hCards);
-    if (!ult) { ctx.strokeStyle = BORDE; ctx.strokeRect(x + .5, y + .5, cw - 1, hCards - 1) }
-    ctx.fillStyle = TINTA; ctx.fillRect(x, ult ? y : y + hCards - 4, ult ? 8 : cw, ult ? hCards : 4);
+    const x = M + i * (cw + G), yc = yCards, ult = i === n - 1;
+    ctx.fillStyle = ult ? ACENTO : "#FFFFFF"; ctx.fillRect(x, yc, cw, hCards);
+    if (!ult) { ctx.strokeStyle = BORDE; ctx.strokeRect(x + .5, yc + .5, cw - 1, hCards - 1) }
+    ctx.fillStyle = TINTA; ctx.fillRect(x, ult ? yc : yc + hCards - 4, ult ? 8 : cw, ult ? hCards : 4);
     letra(ctx, 800, 13); ctx.fillStyle = ult ? TINTA : GRIS; ctx.textAlign = "left";
-    espaciado(ctx, `${diaSemana(d).toUpperCase()} ${diaCorto(d).toUpperCase()}`, x + 22, y + 24, 1.1);
-    letra(ctx, 900, 34); ctx.fillStyle = TINTA; ctx.fillText(recortar(ctx, unidades(c.totales[i]), cw - 40), x + 22, y + 62);
+    espaciado(ctx, `${diaSemana(d).toUpperCase()} ${diaCorto(d).toUpperCase()}`, x + 22, yc + 24, 1.1);
+    letra(ctx, 900, 34); ctx.fillStyle = TINTA; ctx.fillText(recortar(ctx, unidades(c.totales[i]), cw - 40), x + 22, yc + 62);
     const prev = i > 0 ? c.totales[i - 1] : null, v = c.totales[i];
     const dd = prev != null && v != null ? v - prev : null;
     letra(ctx, 700, 13);
-    ctx.fillStyle = dd == null || dd === 0 ? (ult ? TINTA : GRIS) : dd > 0 ? (ult ? TINTA : SUBE) : (ult ? TINTA : BAJA_OK);
-    ctx.fillText(dd == null ? "unidades" : dd === 0 ? "igual que el día anterior" : `${dd > 0 ? "▲" : "▼"} ${conSigno(dd)} vs el día anterior`, x + 22, y + hCards - 22);
+    ctx.fillStyle = ult || dd == null || dd === 0 ? (ult ? TINTA : GRIS) : dd > 0 ? ROJO : VERDE;
+    ctx.fillText(dd == null ? "unidades" : dd === 0 ? "igual que el día anterior" : `${dd > 0 ? "▲" : "▼"} ${conSigno(dd)} vs el día anterior`, x + 22, yc + hCards - 22);
   });
 
-  /* ---------- UNA TABLA POR DESCRIPCIÓN ---------- */
-  let y = yCards + hCards + G;
-  for (const g of visibles) {
-    const h = altoG(g), b = { x: M, y, w: W - 2 * M, h };
-    ctx.fillStyle = "#FFFFFF"; ctx.fillRect(b.x, b.y, b.w, b.h);
-    ctx.strokeStyle = BORDE; ctx.lineWidth = 1; ctx.strokeRect(b.x + .5, b.y + .5, b.w - 1, b.h - 1);
-    ctx.fillStyle = ACENTO; ctx.fillRect(b.x + 16, b.y + 18, 10, 10);
-    letra(ctx, 800, 15); ctx.fillStyle = TINTA; ctx.textAlign = "left"; espaciado(ctx, g.titulo, b.x + 34, b.y + 24);
-    letra(ctx, 600, 13); ctx.fillStyle = GRIS;
-    ctx.fillText(g.sub, b.x + 34 + ctx.measureText(g.titulo).width + 60, b.y + 24);
-    ctx.textAlign = "right";
-    ctx.fillText(`${g.filas.length} ${g.filas.length === 1 ? "SKU" : "SKU"} · hoy ${unidades(g.totales[n - 1])} und${conDelta ? ` · ${conSigno(g.delta)} vs el día anterior` : ""}`, b.x + b.w - 16, b.y + 24);
-    const cc = cols(aW);
-    dibujarTabla(ctx, TINTA, b.x + 16, b.y + 48, aW, cc, g.filas, (k) =>
-      k.t === "SKU" ? "TOTAL" : k.t === "MATERIAL" ? g.titulo
-        : k.t === "VS DÍA ANTERIOR" ? flecha(g.delta)
-          : unidades(g.totales[cc.filter((z) => z.num && z.t !== "VS DÍA ANTERIOR").findIndex((z) => z.t === k.t)] ?? null));
-    y += h + G;
+  ctx.fillStyle = "#FFFFFF"; ctx.fillRect(x0, yT, ancho, hTabla);
+  ctx.strokeStyle = BORDE; ctx.lineWidth = 1; ctx.strokeRect(x0 + .5, yT + .5, ancho - 1, hTabla - 1);
+
+  /* la columna de hoy, sombreada de arriba abajo (bajo los renglones) */
+  const sombraHoy = (y: number, h: number) => { ctx.fillStyle = HOY; ctx.fillRect(xDia(n - 1), y, wDia, h) };
+  const num = (t: string, xDer: number, y: number, col: string, peso = 600, px = 14) => {
+    letra(ctx, peso, px); ctx.fillStyle = col; ctx.textAlign = "right"; ctx.fillText(t, xDer, y);
+  };
+  const colDelta = (d: number | null) => (d == null || d === 0 ? GRIS : d > 0 ? ROJO : VERDE);
+
+  /* ---------- CABECERA DE LA TABLA ---------- */
+  let y = yT;
+  ctx.fillStyle = TINTA; ctx.fillRect(x0, y, ancho, hCab);
+  letra(ctx, 800, 12); ctx.fillStyle = "#FFFFFF"; ctx.textAlign = "left";
+  espaciado(ctx, "SKU · MATERIAL", x0 + 14, y + hCab / 2, 1);
+  c.fechas.forEach((d, i) => {
+    letra(ctx, 800, 12); ctx.fillStyle = "#FFFFFF"; ctx.textAlign = "right";
+    ctx.fillText(diaSemana(d).toUpperCase(), xDia(i) + wDia - 14, y + 18);
+    ctx.fillText(diaCorto(d).toUpperCase(), xDia(i) + wDia - 14, y + 35);
+  });
+  if (n) { ctx.fillStyle = ACENTO; ctx.fillRect(xDia(n - 1) + 8, y + hCab - 4, wDia - 16, 4) }
+  if (conDelta) {
+    letra(ctx, 800, 12); ctx.fillStyle = "#FFFFFF"; ctx.textAlign = "right";
+    ctx.fillText("VS DÍA", xDel + wDel - 14, y + 18); ctx.fillText("ANTERIOR", xDel + wDel - 14, y + 35);
   }
+  y += hCab;
+
+  /* ---------- CADA DESCRIPCIÓN ---------- */
+  for (const g of visibles) {
+    /* el renglón del título */
+    letra(ctx, 900, 17); ctx.fillStyle = TINTA; ctx.textAlign = "left";
+    ctx.fillStyle = ACENTO; ctx.fillRect(x0 + 14, y + 14, 5, 22);
+    ctx.fillStyle = TINTA; ctx.fillText(g.titulo, x0 + 28, y + 26);
+    const tw = ctx.measureText(g.titulo).width;
+    letra(ctx, 500, 13); ctx.fillStyle = GRIS; ctx.fillText(g.sub, x0 + 40 + tw, y + 27);
+    letra(ctx, 700, 13); ctx.textAlign = "right"; ctx.fillText(`${g.filas.length} SKU`, x0 + ancho - 14, y + 27);
+    ctx.fillStyle = TINTA; ctx.fillRect(x0, y + hGrupo - 2, ancho, 2);
+    y += hGrupo;
+
+    /* los SKU */
+    g.filas.forEach((f, k) => {
+      if (k % 2 === 1) { ctx.fillStyle = "#FAFBFC"; ctx.fillRect(x0, y, ancho, hFila) }
+      sombraHoy(y, hFila);
+      ctx.fillStyle = "#EEF1F5"; ctx.fillRect(x0, y + hFila - 1, ancho, 1);
+      const cy = y + hFila / 2;
+      letra(ctx, 700, 14); ctx.fillStyle = GRIS; ctx.textAlign = "left"; ctx.fillText(f.codigo, x0 + 14, cy);
+      letra(ctx, 600, 14); ctx.fillStyle = TINTA; ctx.fillText(recortar(ctx, f.material, wMat - 20), x0 + wSku, cy);
+      f.valores.forEach((v, i) => num(unidades(v), xDia(i) + wDia - 14, cy, v === 0 ? CERO : TINTA, i === n - 1 ? 800 : 600));
+      if (conDelta) num(flecha(f.delta), xDel + wDel - 14, cy, colDelta(f.delta), 800);
+      y += hFila;
+    });
+
+    /* el total de la descripción */
+    ctx.fillStyle = "#F3F5F8"; ctx.fillRect(x0, y, ancho, hSub);
+    sombraHoy(y, hSub);
+    ctx.fillStyle = BORDE; ctx.fillRect(x0, y + hSub - 1, ancho, 1);
+    const cy = y + hSub / 2;
+    letra(ctx, 800, 14); ctx.fillStyle = TINTA; ctx.textAlign = "left"; ctx.fillText(`Total ${g.titulo.toLowerCase()}`, x0 + 14, cy);
+    g.totales.forEach((v, i) => num(unidades(v), xDia(i) + wDia - 14, cy, TINTA, 800));
+    if (conDelta) num(flecha(g.delta), xDel + wDel - 14, cy, colDelta(g.delta), 800);
+    y += hSub;
+  }
+
+  /* ---------- EL TOTAL ---------- */
+  ctx.fillStyle = ACENTO; ctx.fillRect(x0, y, ancho, hTot);
+  ctx.fillStyle = TINTA; ctx.fillRect(x0, y, ancho, 2);
+  const cy = y + hTot / 2 + 1;
+  letra(ctx, 900, 15); ctx.fillStyle = TINTA; ctx.textAlign = "left"; espaciado(ctx, "TOTAL PENDIENTE DE BAJA", x0 + 14, cy, .6);
+  c.totales.forEach((v, i) => num(unidades(v), xDia(i) + wDia - 14, cy, TINTA, 900, 15));
+  if (conDelta) num(flecha(c.delta), xDel + wDel - 14, cy, TINTA, 900, 15);
+
   if (!visibles.length) {
     letra(ctx, 600, 16); ctx.fillStyle = GRIS; ctx.textAlign = "center";
-    ctx.fillText("No hay nada pendiente por darle de baja en estos días.", W / 2, y + 50);
+    ctx.fillText("No hay nada pendiente por darle de baja en estos días.", W / 2, yT + hCab + 30);
   }
   pie(ctx, W, H, extra.generado ?? new Date(),
-    "Lo mismo que «Exportar pendiente de baja»: Dif cajas × factor caja (solo lo que el físico pasa del casco) + la rotura de línea del pasivo. ▲ = subió.");
+    "Lo mismo que «Exportar pendiente de baja»: Dif cajas × factor caja (lo que el físico pasa del casco) + la rotura de línea del pasivo. ▲ subió · ▼ bajó.");
   return cv;
 }
 export const nombreComparativo = (desde: string, hasta: string) => `pendiente-baja-comparativo-${desde}-a-${hasta}.png`;
