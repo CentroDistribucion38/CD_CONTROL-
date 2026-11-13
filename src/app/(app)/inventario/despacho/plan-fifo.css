@@ -34,6 +34,23 @@
 .pf-imprimir:disabled { opacity: .4; cursor: not-allowed }
 .pf button:focus-visible, .pf select:focus-visible, .pf input:focus-visible { outline: 3px solid var(--pf-ambar); outline-offset: 1px }
 
+/* LA BARRA, ORDENADA («organiza esa barra, está horrible»): arriba lo que define la hoja (día, zona, posiciones) y a
+   la derecha las salidas; abajo, separados por una línea, los dos filtros que se escogen (material y estado del envase). */
+@media (min-width: 641px) {
+  .pf-barra { display: grid; grid-template-columns: auto auto auto minmax(0, 1fr); grid-template-areas: "dia zona tope sal" "mat mat mat est";
+    align-items: end; gap: 14px 28px }
+  .pf-barra::after { content: ""; grid-row: 2; grid-column: 1 / -1; align-self: start; height: 1px; margin-top: -8px; background: var(--fe-linea) }
+  .pf-g-dia { grid-area: dia } .pf-g-zona { grid-area: zona } .pf-g-tope { grid-area: tope }
+  .pf-barra .pf-mat { grid-area: mat; padding-top: 6px } .pf-barra .pf-est-g { grid-area: est; padding-top: 6px }
+  .pf-barra .pf-salidas { grid-area: sal; justify-self: end; margin-left: 0 }
+  .pf-barra .pf-chips { flex-wrap: nowrap }
+}
+@media (min-width: 641px) and (max-width: 1180px) {
+  .pf-barra { grid-template-columns: auto auto minmax(0, 1fr); grid-template-areas: "dia zona tope" "mat mat mat" "est est est" "sal sal sal" }
+  .pf-barra::after { display: none }
+  .pf-barra .pf-salidas { justify-self: start }
+}
+
 /* ---- el filtro de material (como el de La base) ---- */
 .pf-fc { position: absolute; z-index: 30; top: 100%; left: 0; margin-top: 4px; width: 420px; max-width: calc(100vw - 32px); background: #fff; border: 2px solid var(--fe-tinta); box-shadow: 0 14px 36px rgba(18, 38, 58, .28) }
 .pf-fc-t { padding: 10px 14px; background: var(--fe-tinta); color: #fff; font: 600 12.5px var(--fe-texto) }

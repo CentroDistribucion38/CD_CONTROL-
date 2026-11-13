@@ -80,7 +80,7 @@ export async function dibujarFotoDespacho(d: DatosFotoDespacho, c: ColoresDespac
   if (sello) g.drawImage(sello, M, 52, 62, 62);
   const xT = M + (sello ? 82 : 0);
   t(`DESPACHO FIFO · CONTEO DEL ${larga(d.dia)}`, xT, 66, `700 17px ${sans}`, acento, "left", 2.6);
-  t("Plan de despacho", xT, 112, `900 44px ${sans}`, "#fff", "left", -0.8);
+  t("FIFO", xT, 112, `900 44px ${sans}`, "#fff", "left", -0.8);
   const filtros = [d.zona || "Todas las zonas", d.estado ? `Estado ${d.estado}` : "Todos los estados", d.tope ? `las ${d.tope} posiciones más antiguas` : "todas las posiciones"].join(" · ");
   t(filtros, xT, 146, cabe(filtros, 500, 20, cuerpo, ANCHO - xT - M), "#9A9A95");
 

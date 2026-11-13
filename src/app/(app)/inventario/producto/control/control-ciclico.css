@@ -55,3 +55,33 @@
   .fe .cy-pie { padding-bottom: max(10px, env(safe-area-inset-bottom)) }
   .fe .cy-pie .btn { min-height: 44px }
 }
+
+/* LOS BOTONES DE CADA HOJA (Cruce · BD · Reabrir) y LA BD: cada renglón de cada persona, para corregir o quitar. Recto. */
+.fe .cy-bts { display: flex; gap: 6px }
+.fe .fe-mini.on { background: var(--fe-tinta); color: #fff; border-color: var(--fe-tinta) }
+.fe .cy-bd-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-bottom: 10px }
+.fe .cy-bd-barra input[type="search"] { min-width: 240px; height: 36px; padding: 0 10px; border: 1px solid var(--fe-linea); border-radius: 0; font: 500 13px var(--fe-texto, inherit) }
+.fe .cy-chk { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--fe-tinta) }
+.fe .cy-bd-nota { color: #8A5A00; font-weight: 600 }
+.fe .cy-bd-t td { vertical-align: top }
+.fe .cy-sub { display: block; font-size: 12px; color: var(--fe-gris); margin-top: 2px }
+.fe .cy-rs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px }
+.fe .cy-r { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px }
+.fe .cy-r b { font-variant-numeric: tabular-nums }
+.fe .cy-r small { font-size: 11.5px; color: var(--fe-gris) }
+.fe .cy-r-acc { display: inline-flex; gap: 4px; margin-left: auto }
+.fe .cy-quitar:hover { border-color: #B42318; color: #B42318 }
+.fe .cy-ed { display: flex; flex-wrap: wrap; align-items: center; gap: 6px }
+.fe .cy-ed label { display: inline-flex; align-items: center; gap: 4px }
+.fe .cy-ed input { width: 72px; height: 32px; padding: 0 8px; border: 1px solid var(--fe-tinta); border-radius: 0; font: 700 14px var(--fe-texto, inherit); text-align: right }
+.fe .cy-ed small { font-size: 11px; color: var(--fe-gris) }
+.fe .cy-vacio { font-style: italic; color: var(--fe-gris); font-size: 12.5px }
+@media (max-width: 760px) {
+  .fe .cy-bd-t, .fe .cy-bd-t tbody, .fe .cy-bd-t tr, .fe .cy-bd-t td { display: block; width: 100% }
+  .fe .cy-bd-t thead { display: none }
+  .fe .cy-bd-t tr { padding: 8px 0; border-bottom: 1px solid var(--fe-linea) }
+  .fe .cy-bd-t td { border: 0; padding: 3px 0 }
+  .fe .cy-bd-t td.n { text-align: left }
+  .fe .cy-bd-t td[data-et]::before { content: attr(data-et); display: block; font: 700 10px var(--fe-texto, inherit); letter-spacing: .1em; text-transform: uppercase; color: var(--fe-gris); margin-bottom: 2px }
+  .fe .cy-bd-barra input[type="search"] { min-width: 0; width: 100% }
+}

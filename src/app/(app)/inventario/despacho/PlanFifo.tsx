@@ -127,9 +127,9 @@ export function PlanFifo({ datos, inicial }: { datos: DatosPlan; inicial: string
     setFoto("armando");
     try {
       const png = await dibujarFotoDespacho(datosFoto(), coloresDelTema());
-      const nombre = `despacho-fifo-${datos.dia}-${elegidos.join("-")}.png`;
+      const nombre = `fifo-${datos.dia}-${elegidos.join("-")}.png`;
       if (bajar) { bajarPng(png, nombre); setFoto("bajado") }
-      else setFoto(await entregarFoto(png, nombre, "Plan de despacho FIFO"));
+      else setFoto(await entregarFoto(png, nombre, "FIFO"));
     } catch { setFoto("error") }
     setTimeout(() => setFoto(""), 2600);
   }
@@ -138,7 +138,7 @@ export function PlanFifo({ datos, inicial }: { datos: DatosPlan; inicial: string
   const antesDeImprimir = () => setImpreso(new Date().toLocaleString("es-CO", { timeZone: "America/Bogota", dateStyle: "medium", timeStyle: "short" }));
 
   if (!datos.dia) {
-    return <p className="pf-vacio">{datos.error ?? "Todavía no hay conteos enviados para armar el plan de despacho."}</p>;
+    return <p className="pf-vacio">{datos.error ?? "Todavía no hay conteos enviados para armar el FIFO."}</p>;
   }
 
   return (
@@ -152,7 +152,7 @@ export function PlanFifo({ datos, inicial }: { datos: DatosPlan; inicial: string
           <span>Centro de Distribución 38 · Bavaria BAQ</span>
         </div>
         <div className="pf-hoja-sello">
-          <strong>Plan de despacho FIFO</strong>
+          <strong>FIFO</strong>
           Conteo del {larga(datos.dia)} · {zona || "Todas las zonas"} · {estado || "Todos los estados"} · {tope ? `las ${tope} posiciones más antiguas por material` : "todas las posiciones"}<br />
           {impreso && <>Impreso: {impreso}</>}
         </div>
@@ -167,17 +167,17 @@ export function PlanFifo({ datos, inicial }: { datos: DatosPlan; inicial: string
           <span><small>Filtros</small>{[larga(datos.dia), zona || "Toda la bodega", tope ? `${tope} posiciones` : "Todas las posiciones"].join(" · ")}</span>
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.4"><path d={verFiltros ? "M6 15l6-6 6 6" : "M6 9l6 6 6-6"} /></svg>
         </button>
-        <label className="pf-grupo pf-plegable"><span>Conteo del día</span>
+        <label className="pf-grupo pf-plegable pf-g-dia"><span>Conteo del día</span>
           <select value={datos.dia} onChange={(e) => irDia(e.target.value)} disabled={pend}>
             {datos.dias.map((d) => <option key={d} value={d}>{larga(d)}</option>)}
           </select>
         </label>
-        <div className="pf-grupo pf-plegable"><span>Zona</span>
+        <div className="pf-grupo pf-plegable pf-g-zona"><span>Zona</span>
           <div className="pf-chips">{(["", "Bodega 38", "Fábrica"] as const).map((z) => (
             <button key={z || "todo"} type="button" className={zona === z ? "on" : ""} aria-pressed={zona === z} onClick={() => setZona(z)}>{z || "Todo"}</button>
           ))}</div>
         </div>
-        <div className="pf-grupo pf-plegable"><span>Posiciones por material</span>
+        <div className="pf-grupo pf-plegable pf-g-tope"><span>Posiciones por material</span>
           <div className="pf-chips">{TOPES.map((t) => (
             <button key={t} type="button" className={tope === t ? "on" : ""} aria-pressed={tope === t} onClick={() => setTope(t)}>{t === 0 ? "Todas" : t}</button>
           ))}</div>

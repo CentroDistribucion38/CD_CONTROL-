@@ -272,7 +272,7 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
       const m = numeradosDe(calle);
       return m.length < 2 ? undefined : eq === "ol" ? `${m[0]} → ${m[m.length - 1]}` : `${m[m.length - 1]} → ${m[0]}`;
     };
-    const equipo = (id: string, et: string, renglones: number | undefined, termino: string | null | undefined, sentido?: string) => (
+    const equipo = (id: string, et: string, renglones: number | undefined, termino: string | null | undefined, sentido?: string, enviada = false) => (
       <div className="fi-eq">
         <span className="fi-eq-et">{et}{sentido && <em className="fi-sentido">{sentido}</em>}</span>
         {id ? (
@@ -280,8 +280,8 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
             <span className="fi-quien">{nombre.get(id) ?? "—"}</span>
             {renglones !== undefined && (
               <>
-                <Medidor renglones={renglones} termino={termino ?? null} />
-                <small className="fi-sub">{textoEquipo(renglones, termino ?? null)}</small>
+                <Medidor renglones={renglones} termino={enviada ? "enviado" : termino ?? null} />
+                <small className="fi-sub">{enviada ? `${renglones} ${renglones === 1 ? "renglón" : "renglones"} · conteo enviado` : textoEquipo(renglones, termino ?? null)}</small>
               </>
             )}
           </>
@@ -303,8 +303,8 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
             return (
               <li key={h.numero} className={"fi-fila " + est}>
                 <div className="fi-num"><small>Hoja</small><b>{h.numero}</b>{h.calle && <span className="fi-calle">Calle {h.calle}</span>}{conFamilias && (h.familias?.length ?? 0) > 0 && <span className="fi-calle fi-fams-ver" title="Familias que cuenta esta hoja">{h.familias!.join(" + ")}</span>}</div>
-                {equipo(h.ol, "Operador logístico", av?.olRenglones, av?.olTermino, sentidoDe(h.calle, "ol"))}
-                {equipo(h.bavaria, "Bavaria", av?.bavariaRenglones, av?.bavariaTermino, sentidoDe(h.calle, "bavaria"))}
+                {equipo(h.ol, "Operador logístico", av?.olRenglones, av?.olTermino, sentidoDe(h.calle, "ol"), modo === "ciclico" && !!cruceDe(h.numero)?.enviada)}
+                {equipo(h.bavaria, "Bavaria", av?.bavariaRenglones, av?.bavariaTermino, sentidoDe(h.calle, "bavaria"), modo === "ciclico" && !!cruceDe(h.numero)?.enviada)}
                 {ec ? <i className={"fi-av " + ec.clase}>{ec.texto}</i>
                   : conAvance && av && <i className={"fi-av " + est}>{TEXTO_ESTADO[est]}</i>}
               </li>

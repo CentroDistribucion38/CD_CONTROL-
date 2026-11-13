@@ -25,6 +25,8 @@ import type { FiscalBD, Persona } from "../../fiscal/Fiscal";
 
 /** Un renglón de `inv_ciclico_detalle`. */
 type Detalle = {
+  /** El id del renglón (desde 2026-11-producto-ciclico-bd.sql): con él se corrige o se quita. */
+  id?: string;
   hoja: number; equipo: string; persona: string | null; ubicacion: string; sku: string; material: string; familia: string | null;
   estibas: number | string | null; saldo: number | string | null; cajas: number | string | null; unidades: number | string | null;
   cajas_por_estiba: number | null; unidades_por_caja: number | null; total_unidades: number | string | null; nota: string | null; contado_en: string | null;
@@ -176,6 +178,95 @@ function CopiarConteo({ f, lineas, cargando, error, cerrar }: {
   );
 }
 
+/* ===================================================================
+   LA BD DE UNA HOJA DEL CÍCLICO — «como en el Control fiscal: la BD, si quiero eliminar un renglón; estoy a ciegas».
+   Por sitio y código, el operador a la izquierda y Bavaria a la derecha, cada renglón con su cantidad, quién y a qué
+   hora. Quien edita puede corregir la cantidad (cajas + unidades sueltas) o quitar el renglón; si la hoja ya se envió,
+   primero se reabre.
+   =================================================================== */
+function BdHoja({ lineas, numero, ol, bavaria, mal, enviada, puede, editando, setEditando, tocando, corregir, quitar }: {
+  lineas: Detalle[] | null; numero: number; ol: string; bavaria: string; mal: string | null; enviada: boolean; puede: boolean;
+  editando: { id: string; cajas: string; unidades: string } | null;
+  setEditando: (e: { id: string; cajas: string; unidades: string } | null) => void;
+  tocando: string | null; corregir: (l: Detalle) => void; quitar: (l: Detalle) => void;
+}) {
+  const [q, setQ] = useState("");
+  const [soloDif, setSoloDif] = useState(false);
+  const grupos = useMemo(() => {
+    const m = new Map<string, { ubicacion: string; sku: string; material: string; upc: number; ol: Detalle[]; ba: Detalle[] }>();
+    for (const l of (lineas ?? []).filter((x) => x.hoja === numero)) {
+      const k = `${l.ubicacion}|${l.sku}`;
+      const g = m.get(k) ?? { ubicacion: l.ubicacion, sku: l.sku, material: l.material, upc: n(l.unidades_por_caja) || 1, ol: [], ba: [] };
+      (l.equipo === "BAVARIA" ? g.ba : g.ol).push(l);
+      m.set(k, g);
+    }
+    const t = q.trim().toLowerCase();
+    return [...m.values()]
+      .map((g) => ({ ...g, sOl: g.ol.reduce((a, x) => a + n(x.total_unidades), 0), sBa: g.ba.reduce((a, x) => a + n(x.total_unidades), 0) }))
+      .filter((g) => (!t || `${g.ubicacion} ${g.sku} ${g.material}`.toLowerCase().includes(t)) && (!soloDif || g.sOl !== g.sBa))
+      .sort((a, b) => a.ubicacion.localeCompare(b.ubicacion, "es", { numeric: true }) || a.sku.localeCompare(b.sku, "es", { numeric: true }));
+  }, [lineas, numero, q, soloDif]);
+  const enCajas = (u: number, upc: number) => { const c = Math.floor(u / upc), s = u - c * upc; return `${nf.format(c)} cj${s ? ` + ${nf.format(s)} un.` : ""}` };
+  const hora = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString("es-CO", { hour: "numeric", minute: "2-digit" }) : "");
+
+  const renglon = (l: Detalle, upc: number) => {
+    const ed = editando?.id === l.id;
+    return (
+      <li key={l.id ?? `${l.ubicacion}${l.contado_en}`} className="cy-r">
+        {ed ? (
+          <span className="cy-ed">
+            <label><input inputMode="numeric" autoFocus value={editando!.cajas} onChange={(e) => setEditando({ ...editando!, cajas: e.target.value })} aria-label="Cajas" /><small>cajas</small></label>
+            {upc > 1 && <label><input inputMode="numeric" value={editando!.unidades} onChange={(e) => setEditando({ ...editando!, unidades: e.target.value })} aria-label="Unidades sueltas" /><small>un. sueltas</small></label>}
+            <button type="button" className="fe-mini on" disabled={tocando === l.id} onClick={() => corregir(l)}>{tocando === l.id ? "Guardando…" : "Guardar"}</button>
+            <button type="button" className="fe-mini" onClick={() => setEditando(null)}>Cancelar</button>
+          </span>
+        ) : (
+          <>
+            <b>{enCajas(n(l.total_unidades), upc)}</b>
+            <small>{l.persona ?? "—"} · {hora(l.contado_en)}{l.nota ? ` · «${l.nota}»` : ""}</small>
+            {puede && l.id && (
+              <span className="cy-r-acc">
+                <button type="button" className="fe-mini" disabled={tocando === l.id}
+                        onClick={() => { const t = n(l.total_unidades); setEditando({ id: l.id!, cajas: String(Math.floor(t / upc)), unidades: String(t - Math.floor(t / upc) * upc) }) }}>Corregir</button>
+                <button type="button" className="fe-mini cy-quitar" disabled={tocando === l.id} onClick={() => quitar(l)}>Quitar</button>
+              </span>
+            )}
+          </>
+        )}
+      </li>
+    );
+  };
+
+  return (
+    <div className="cy-cruce cy-bd">
+      <div className="cy-bd-barra">
+        <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar sitio, código o material…" aria-label="Buscar en la BD" />
+        <label className="cy-chk"><input type="checkbox" checked={soloDif} onChange={(e) => setSoloDif(e.target.checked)} /> Solo lo que no coincide</label>
+        {enviada && <small className="cy-bd-nota">Conteo enviado: para corregir, primero «Reabrir» la hoja.</small>}
+      </div>
+      {mal && <p className="cl-mal" role="alert">{mal}</p>}
+      {lineas == null ? <p className="cc-vacio">Trayendo lo contado…</p> : grupos.length === 0 ? <p className="cc-vacio">{q || soloDif ? "Nada con ese filtro." : "Esta hoja todavía no tiene renglones."}</p> : (
+        <table className="cc-t cy-bd-t">
+          <thead><tr><th>Sitio · código</th><th>Operador · {ol}</th><th>Bavaria · {bavaria}</th><th className="n">Dif.</th></tr></thead>
+          <tbody>
+            {grupos.map((g) => {
+              const d = g.sOl - g.sBa;
+              return (
+                <tr key={`${g.ubicacion}|${g.sku}`} className={d === 0 ? "ok" : "mal"}>
+                  <td><b>{g.ubicacion}</b><span className="cy-sub">{g.sku} · {g.material}</span></td>
+                  <td data-et={`Operador · ${ol}`}>{g.ol.length ? <ul className="cy-rs">{g.ol.map((l) => renglon(l, g.upc))}</ul> : <span className="cy-vacio">no anotó</span>}</td>
+                  <td data-et={`Bavaria · ${bavaria}`}>{g.ba.length ? <ul className="cy-rs">{g.ba.map((l) => renglon(l, g.upc))}</ul> : <span className="cy-vacio">no anotó</span>}</td>
+                  <td className="n"><b>{d === 0 ? "✓ 0" : `${d > 0 ? "+" : "−"}${enCajas(Math.abs(d), g.upc)}`}</b></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
 export function ControlCiclico({ personas, ciclicos, cerradasIniciales, ahora, puedeEditar, modo = "control" }: {
   personas: Persona[]; ciclicos: FiscalBD[];
   /** Por id de hoja: cuándo se envió el conteo (cerrada_en). */
@@ -198,6 +289,12 @@ export function ControlCiclico({ personas, ciclicos, cerradasIniciales, ahora, p
   const [cargando, setCargando] = useState(false);
   const [hora, setHora] = useState<string | null>(null);
   const [abierta, setAbierta] = useState<number | null>(null);
+  /* Lo que se ve debajo de la hoja abierta: el cruce, o LA BD (cada renglón que anotó cada uno, para corregir o quitar). */
+  const [pestana, setPestana] = useState<"cruce" | "bd">("cruce");
+  const [bd, setBd] = useState<Detalle[] | null>(null);
+  const [bdMal, setBdMal] = useState<string | null>(null);
+  const [editando, setEditando] = useState<{ id: string; cajas: string; unidades: string } | null>(null);
+  const [tocando, setTocando] = useState<string | null>(null);
   const [verTodo, setVerTodo] = useState(false);
   const [armando, setArmando] = useState(false);
   const [mal, setMal] = useState<string | null>(null);
@@ -271,6 +368,52 @@ export function ControlCiclico({ personas, ciclicos, cerradasIniciales, ahora, p
     if (error) { setMal(/inv_ciclico_reabrir|schema cache|does not exist/i.test(error.message) ? "Falta correr supabase/migraciones/2026-11-producto-ciclico-control.sql en Supabase." : error.message); return }
     setCerradas((c) => { const x = { ...c }; delete x[id]; return x });
     setAviso(`Hoja ${numero} reabierta.`);
+  }
+
+  /* LA BD: lo que anotó cada persona, renglón por renglón (se lee al abrirla y después de cada cambio). */
+  async function leerBd(f: FiscalBD) {
+    setBdMal(null);
+    const det = await createClient().rpc("inv_ciclico_detalle", { p_fiscal: f.id });
+    if (det.error) {
+      setBd([]);
+      setBdMal(/inv_ciclico_detalle|schema cache|does not exist/i.test(det.error.message) ? "Falta correr supabase/migraciones/2026-11-producto-ciclico-bd.sql en Supabase." : det.error.message);
+      return;
+    }
+    setBd((det.data ?? []) as Detalle[]);
+  }
+  function abrir(f: FiscalBD, numero: number, que: "cruce" | "bd") {
+    if (abierta === numero && pestana === que) { setAbierta(null); return }
+    setAbierta(numero); setPestana(que); setVerTodo(false); setEditando(null);
+    if (que === "bd") { setBd(null); void leerBd(f) }
+  }
+  const sinSqlBd = (m: string) => (/inv_ciclico_(corregir|quitar)|schema cache|does not exist/i.test(m) ? "Falta correr supabase/migraciones/2026-11-producto-ciclico-bd.sql en Supabase." : m);
+  async function corregir(f: FiscalBD, l: Detalle) {
+    if (!editando || !l.id) return;
+    const cj = Math.trunc(Number(editando.cajas.replace(/\./g, "").replace(",", ".")) || 0);
+    const un = Math.trunc(Number(editando.unidades.replace(/\./g, "").replace(",", ".")) || 0);
+    if (cj < 0 || un < 0) { setBdMal("La cantidad no puede ser negativa."); return }
+    setTocando(l.id); setBdMal(null);
+    const { error } = await createClient().rpc("inv_ciclico_corregir", { p_conteo: l.id, p_cajas: cj, p_unidades: un });
+    setTocando(null);
+    if (error) { setBdMal(sinSqlBd(error.message)); return }
+    setEditando(null);
+    setAviso(`${l.sku} en ${l.ubicacion} quedó en ${nf.format(cj)} cajas${un ? ` + ${nf.format(un)} un.` : ""}.`);
+    await Promise.all([leerBd(f), cargar(f)]);
+  }
+  async function quitar(f: FiscalBD, l: Detalle) {
+    if (!l.id) return;
+    const ok = await pedir({
+      titulo: "¿Quitar este renglón?",
+      dice: <>{l.sku} · {l.material} en {l.ubicacion}, que anotó {l.persona ?? "—"} ({l.equipo === "BAVARIA" ? "Bavaria" : "operador"}).</>,
+      confirmar: "Quitarlo", peligro: true,
+    });
+    if (!ok) return;
+    setTocando(l.id); setBdMal(null);
+    const { error } = await createClient().rpc("inv_ciclico_quitar", { p_conteo: l.id });
+    setTocando(null);
+    if (error) { setBdMal(sinSqlBd(error.message)); return }
+    setAviso(`Se quitó ${l.sku} en ${l.ubicacion}.`);
+    await Promise.all([leerBd(f), cargar(f)]);
   }
 
   /* EL EXCEL DE LOS CONTEOS — «debe verse como el del fiscal»: es el MISMO libro del Excel del cruce fiscal (Resumen por
@@ -393,17 +536,27 @@ export function ControlCiclico({ personas, ciclicos, cerradasIniciales, ahora, p
                     {equipo(h.bavaria, "Bavaria", avance[h.numero]?.bavariaRenglones)}
                     <div className="cy-acc">
                       <i className={"fi-av " + e.clase}>{e.texto}</i>
-                      {filas.length > 0 && (
-                        <button type="button" className="fe-mini" onClick={() => { setAbierta(abierta === h.numero ? null : h.numero); setVerTodo(false) }}>
-                          {abierta === h.numero ? "Cerrar cruce" : "Ver cruce"}
-                        </button>
-                      )}
+                      <span className="cy-bts">
+                        {filas.length > 0 && (
+                          <button type="button" className={"fe-mini" + (abierta === h.numero && pestana === "cruce" ? " on" : "")} aria-pressed={abierta === h.numero && pestana === "cruce"} onClick={() => abrir(f, h.numero, "cruce")}>Cruce</button>
+                        )}
+                        {((avance[h.numero]?.olRenglones ?? 0) + (avance[h.numero]?.bavariaRenglones ?? 0) > 0 || filas.length > 0) && (
+                          <button type="button" className={"fe-mini" + (abierta === h.numero && pestana === "bd" ? " on" : "")} aria-pressed={abierta === h.numero && pestana === "bd"} onClick={() => abrir(f, h.numero, "bd")}
+                                  title="Lo que anotó cada persona, renglón por renglón: corregir o quitar">BD</button>
+                        )}
+                      </span>
                       {enviada && puedeEditar && f.estado === "abierto" && (
                         <button type="button" className="fe-mini" onClick={() => reabrir(f, h.numero)}>Reabrir</button>
                       )}
                     </div>
                   </div>
-                  {abierta === h.numero && (
+                  {abierta === h.numero && pestana === "bd" && (
+                    <BdHoja lineas={bd} numero={h.numero} ol={h.ol ? nombre.get(h.ol) ?? "Operador" : "Operador"} bavaria={h.bavaria ? nombre.get(h.bavaria) ?? "Bavaria" : "Bavaria"}
+                            mal={bdMal} enviada={enviada} puede={puedeEditar && f.estado === "abierto" && !enviada}
+                            editando={editando} setEditando={setEditando} tocando={tocando}
+                            corregir={(l) => corregir(f, l)} quitar={(l) => quitar(f, l)} />
+                  )}
+                  {abierta === h.numero && pestana === "cruce" && (
                     <div className="cy-cruce">
                       <table className="cc-t">
                         <thead><tr><th>Sitio</th><th>Código</th><th>Material</th><th className="n">Operador</th><th className="n">Bavaria</th><th className="n">Dif.</th><th>Estado</th></tr></thead>
