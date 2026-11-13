@@ -6,6 +6,8 @@ import type { FilaAnalisis } from "./analisis-dif";
 export const NUEVO_PARTIDA = "CONTEO · estado NUEVO";
 /** La partida del CONTEO que sale de las roturas de Quiebra en sitio (cajas rotas × unidades por caja, al código del envase). */
 export const ROTURA_PARTIDA = "ROTURA EN SITIO";
+/** La del análisis de Producto: las roturas de producto terminado (rotas + contaminadas) × unidades por caja, al código del producto. */
+export const ROTURA_PT = "ROTURA PRODUCTO TERMINADO";
 
 export const COMPENSA: [string, string][] = [
   ["3500162", "412644"],   // Envase Marrón 330R       ↔ ENVASE MARRON 330NR NUEVO

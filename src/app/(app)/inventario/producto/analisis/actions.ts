@@ -122,3 +122,23 @@ export async function guardarFinalProducto(fiscalId: string, filasJson: string) 
   revalidatePath(RUTA);
   return { ok: true };
 }
+
+/* LAS ROTURAS DE PRODUCTO TERMINADO que suman al conteo: la cantidad de un código se puede corregir en este cíclico. `null` vuelve a lo calculado. */
+export async function guardarRoturaProducto(fiscalId: string, codigo: string, unidades: number | null) {
+  const cod = String(codigo ?? "").trim().slice(0, 30);
+  if (!esId(fiscalId) || !cod) return { error: "Falta el cíclico o el código." };
+  const supabase = await createClient();
+  const sinSql = (m: string) => (/prod_dif_roturas|does not exist|PGRST205/i.test(m) ? "Falta correr supabase/migraciones/2026-11-producto-roturas.sql en Supabase." : m);
+  if (unidades == null) {
+    const { error } = await supabase.from("prod_dif_roturas").delete().eq("fiscal_id", fiscalId).eq("codigo", cod);
+    if (error) return { error: sinSql(`${error.code} ${error.message}`) };
+  } else {
+    if (!Number.isFinite(unidades) || unidades < 0) return { error: "La cantidad tiene que ser un número de cero en adelante." };
+    const { error } = await supabase.from("prod_dif_roturas").upsert({
+      fiscal_id: fiscalId, codigo: cod, unidades: Math.round(unidades), actualizado_en: new Date().toISOString(),
+    }, { onConflict: "fiscal_id,codigo" });
+    if (error) return { error: sinSql(`${error.code} ${error.message}`) };
+  }
+  revalidatePath(RUTA);
+  return { ok: true };
+}

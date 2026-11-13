@@ -2,9 +2,11 @@
 
 import { Fragment, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { AnalisisProducto as Datos, FilaProducto } from "@/modulos/inventario/producto-dif";
+import type { AnalisisProducto as Datos, FilaProducto, RoturasProducto } from "@/modulos/inventario/producto-dif";
+import { ROTURA_PT } from "@/modulos/inventario/compensa";
 import { leerPlantilla } from "../../balance/analisis/leer-plantilla";
-import { guardarAnalisisProducto, guardarNovedadesProducto, guardarZexiProducto, quitarNovedadesProducto } from "./actions";
+import { SelectorRango } from "../../balance/analisis/SelectorDia";
+import { guardarAnalisisProducto, guardarNovedadesProducto, guardarRoturaProducto, guardarZexiProducto, quitarNovedadesProducto } from "./actions";
 import { leerZexiProducto, type FilaZexi } from "./leer-zexi";
 
 /**
@@ -19,6 +21,47 @@ const n = (v: number) => nf.format(v);
 const signo = (v: number) => (v > 0 ? "+" : v < 0 ? "−" : "") + nf.format(Math.abs(v));
 /** La diferencia leída en cajas («−2,5 cajas»), para el producto que se cuenta por caja. */
 const enCajas = (u: number, upc: number) => (upc > 1 && u !== 0 ? `${u > 0 ? "+" : "−"}${nf1.format(Math.abs(u) / upc)} cj` : "");
+
+/* LA ROTURA DE PRODUCTO TERMINADO dentro del CONTEO de un código: igual que en el análisis de Balance. Solo se ve con el renglón
+   abierto y, si puedes editar, al tocar la cantidad se vuelve una casilla. Vacía o igual a lo calculado = vuelve a lo calculado. */
+function RoturaLinea({ fiscalId, cod, valor, puedeEditar, r, alGuardar }: {
+  fiscalId: string; cod: string; valor: number; puedeEditar: boolean; r: RoturasProducto; alGuardar: () => void;
+}) {
+  const x = r.porCodigo[cod];
+  const [edita, setEdita] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [, ir] = useTransition();
+  const corto = (f: string) => `${Number(f.slice(8, 10))}/${Number(f.slice(5, 7))}`;
+  function guardar(txt: string) {
+    setEdita(false);
+    const t = txt.trim().replace(/\./g, "").replace(",", ".");
+    const nuevo = t === "" ? null : Number(t);
+    if (nuevo != null && (!Number.isFinite(nuevo) || nuevo < 0)) { setErr("Número de cero en adelante"); return }
+    if ((nuevo == null || nuevo === x?.calculado) && !x?.editado) return;
+    ir(async () => {
+      const g = await guardarRoturaProducto(fiscalId, cod, nuevo == null || nuevo === x?.calculado ? null : nuevo);
+      if ("error" in g && g.error) { setErr(g.error); return }
+      setErr(null); alGuardar();
+    });
+  }
+  const cajas = [x?.rotas ? `${nf.format(x.rotas)} cajas rotas` : "", x?.contaminadas ? `${nf.format(x.contaminadas)} contaminadas` : ""].filter(Boolean).join(" + ");
+  return (
+    <li className="ad-rot">
+      <span>{ROTURA_PT} <small>
+        {cajas ? `${cajas} · ` : ""}{corto(r.desde)}–{corto(r.hasta)}
+        {x?.editado && <> · corregida (calculado {nf.format(x.calculado)}) {puedeEditar && <button type="button" className="ad-rot-x" onClick={() => guardar("")}>restablecer</button>}</>}
+        {err && <span className="ad-rot-err"> · {err}</span>}
+      </small></span>
+      {edita
+        ? <input className="ad-rot-in" autoFocus inputMode="numeric" defaultValue={String(valor)} aria-label={`Unidades de rotura de ${cod}`}
+                 onFocus={(e) => e.currentTarget.select()} onBlur={(e) => guardar(e.currentTarget.value)}
+                 onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); if (e.key === "Escape") setEdita(false) }} />
+        : puedeEditar
+          ? <em><button type="button" className="ad-rot-v" onClick={() => setEdita(true)} title="Corregir la cantidad de roturas de este código">{n(valor)}</button></em>
+          : <em>{n(valor)}</em>}
+    </li>
+  );
+}
 
 export function AnalisisProducto({ datos, puedeEditar, guardadoEn }: { datos: Datos; puedeEditar: boolean; guardadoEn: string | null }) {
   const router = useRouter();
@@ -148,6 +191,23 @@ export function AnalisisProducto({ datos, puedeEditar, guardadoEn }: { datos: Da
         <a className="ad-bt alt" href="/plantillas/producto-novedades.xlsx" download>Plantilla vacía</a>
       </div>
 
+      {/* 3 · LAS ROTURAS DE PRODUCTO TERMINADO: suman solas al CONTEO, según el rango (por defecto del 1 del mes al día del cíclico). */}
+      {datos.roturas && (
+        <div className="ad-barra">
+          <div className="ad-dia" title="Roturas de producto terminado de Quiebra en sitio que suman al CONTEO de cada código: por defecto, del 1 del mes al día del cíclico">
+            <span>Roturas</span>
+            <SelectorRango desde={datos.roturas.desde} hasta={datos.roturas.hasta} hoy={ciclico.fecha}
+                           alCambiar={(d, h) => router.push(`/inventario/producto/analisis?c=${ciclico.id}&rd=${d}&rh=${h}`)} />
+          </div>
+          <div className="ad-carga">
+            <b>Roturas de producto terminado</b>
+            <small>{datos.roturas.falta ?? (Object.keys(datos.roturas.porCodigo).length
+              ? `${Object.keys(datos.roturas.porCodigo).length} códigos · ${n(datos.roturas.total)} unidades · suman al CONTEO (rotas + contaminadas). Abre un código para corregir la cantidad.`
+              : "Sin roturas de producto terminado del cíclico en ese rango.")}</small>
+          </div>
+        </div>
+      )}
+
       {/* LOS ALMACENES DE LA ZEXI: ventana propia (no la del navegador), recta. */}
       {zexi && (
         <div className="ad-modal" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget && !pend) setZexi(null) }}>
@@ -228,7 +288,13 @@ export function AnalisisProducto({ datos, puedeEditar, guardadoEn }: { datos: Da
                                     <ul>{f.deSap.map((p) => <li key={p.nombre}><span>{p.nombre}</span><em>{n(p.cantidad)}</em></li>)}{!f.deSap.length && <li><span>— (no está en la ZEXI)</span></li>}</ul>
                                   </div>
                                   <div><b>CONTEO · {n(f.conteo)}</b>
-                                    <ul>{f.deConteo.map((p) => <li key={p.nombre}><span>{p.nombre}</span><em>{n(p.cantidad)}</em></li>)}{!f.deConteo.length && <li><span>— (Bavaria no lo contó)</span></li>}</ul>
+                                    <ul>{f.deConteo.map((p) => p.nombre === ROTURA_PT && datos.roturas
+                                      ? <RoturaLinea key={p.nombre} fiscalId={ciclico.id} cod={f.codigo} valor={p.cantidad} puedeEditar={puedeEditar} r={datos.roturas} alGuardar={() => router.refresh()} />
+                                      : <li key={p.nombre}><span>{p.nombre}</span><em>{n(p.cantidad)}</em></li>)}
+                                      {datos.roturas?.porCodigo[f.codigo] && !f.deConteo.some((p) => p.nombre === ROTURA_PT) && (
+                                        <RoturaLinea fiscalId={ciclico.id} cod={f.codigo} valor={0} puedeEditar={puedeEditar} r={datos.roturas} alGuardar={() => router.refresh()} />
+                                      )}
+                                      {!f.deConteo.length && !datos.roturas?.porCodigo[f.codigo] && <li><span>— (Bavaria no lo contó)</span></li>}</ul>
                                     {(f.ubicaciones?.length ?? 0) > 0 && (
                                       <><b>Dónde lo contó Bavaria</b>
                                       <ul>{f.ubicaciones!.map((u) => <li key={u.ubicacion}><span>{u.ubicacion}</span><em>{n(u.cantidad)}</em></li>)}</ul></>
@@ -255,7 +321,7 @@ export function AnalisisProducto({ datos, puedeEditar, guardadoEn }: { datos: Da
         )}
         <p className="ad-nota">
           Toca un código para ver de qué partida sale cada lado. Unidades (la última columna, en cajas). CONTEO = lo que contó
-          Bavaria en el cíclico + las novedades que suman al conteo; SAP = la ZEXI (los almacenes escogidos) + las novedades que suman a SAP.
+          Bavaria en el cíclico + las roturas de producto terminado del rango + las novedades que suman al conteo; SAP = la ZEXI (los almacenes escogidos) + las novedades que suman a SAP.
           {ciclico.familias.length > 0 ? <> Entran los productos de {ciclico.familias.join(", ")} y lo que Bavaria haya contado.</> : <> Las hojas no tienen familias: entran todos los productos.</>}
         </p>
         {datos.noEntran.length > 0 && (

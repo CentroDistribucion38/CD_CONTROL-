@@ -25,7 +25,7 @@ export const dynamic = "force-dynamic";
  */
 const largo = (iso: string) => new Date(iso + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
-export default async function AnalisisProductoPage({ searchParams }: { searchParams: Promise<{ c?: string; paso?: string }> }) {
+export default async function AnalisisProductoPage({ searchParams }: { searchParams: Promise<{ c?: string; paso?: string; rd?: string; rh?: string }> }) {
   const q = await searchParams;
   const PASOS = ["ajustes", "final", "historico"] as const;
   const paso = (PASOS as readonly string[]).includes(q.paso ?? "") ? (q.paso as (typeof PASOS)[number]) : "analisis";
@@ -117,12 +117,12 @@ export default async function AnalisisProductoPage({ searchParams }: { searchPar
     );
   }
 
-  const [datos, aj] = await Promise.all([armarAnalisisProducto(c), c ? leerAjustesProducto(c.id) : Promise.resolve(null)]);
+  const [datos, aj] = await Promise.all([armarAnalisisProducto(c, q.rd, q.rh), c ? leerAjustesProducto(c.id) : Promise.resolve(null)]);
   return (
     <div className="fe bal ad">
       {cabeza("Análisis de diferencia", <>El conteo de <b>Bavaria</b> del inventario cíclico contra la <b>existencia de SAP</b> (la ZEXI, tal cual sale de SAP), por código y en unidades. Diferencia = CONTEO − SAP. Las novedades van en la misma plantilla del análisis de Balance, y los pasos son los mismos.</>)}
       {pasos}
-      <AnalisisProducto key={id} datos={datos} puedeEditar={puedeEditar} guardadoEn={aj?.guardado?.guardado_en ?? null} />
+      <AnalisisProducto key={`${id}|${q.rd ?? ""}|${q.rh ?? ""}`} datos={datos} puedeEditar={puedeEditar} guardadoEn={aj?.guardado?.guardado_en ?? null} />
     </div>
   );
 }

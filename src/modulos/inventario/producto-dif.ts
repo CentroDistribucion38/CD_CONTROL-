@@ -22,10 +22,15 @@
 import { createClient } from "@/lib/supabase/server";
 import { mismaFamilia } from "./fiscal";
 import type { FilaAnalisis, Partida } from "./analisis-dif";
-import { calcularAjustes, type FilaFinal, type Hecho } from "./compensa";
+import { calcularAjustes, ROTURA_PT, type FilaFinal, type Hecho } from "./compensa";
+export { ROTURA_PT };
 
 export const ZEXI_PRODUCTO = "ZEXI PRODUCTO";
 export const CONTEO_BAVARIA = "CONTEO BAVARIA (cíclico)";
+
+/** Por código: las cajas rotas y contaminadas del período, lo calculado en unidades y lo que vale (corregido o no). */
+export type RoturaPT = { rotas: number; contaminadas: number; unidades: number; calculado: number; editado: boolean; nota: string | null; n: number };
+export type RoturasProducto = { desde: string; hasta: string; porCodigo: Record<string, RoturaPT>; total: number; falta: string | null };
 
 export type Ciclico = { id: string; nombre: string; fecha: string; estado: string; publicado: boolean; familias: string[]; hojas: number };
 export type NovedadProducto = { tipo: string; lado: "CONTEO" | "SAP" | "NO SUMA"; documento: string | null; codigo: string; unidades: number; archivo: string | null; subido_en: string };
@@ -47,6 +52,8 @@ export type AnalisisProducto = {
   maestroSistema: Record<string, { upc: number; cpe: number; caja: string | null }>;
   /** Lo que falta en la base para que la pantalla funcione completa. */
   falta: string | null;
+  /** Roturas de producto terminado del período (por defecto del 1 del mes al día del cíclico), ya sumadas al CONTEO. */
+  roturas?: RoturasProducto;
 };
 
 const SQL = "Falta correr supabase/migraciones/2026-11-producto-ciclico.sql en Supabase.";
@@ -78,7 +85,7 @@ export async function ciclicos(): Promise<{ lista: Ciclico[]; falta: string | nu
 
 type Producto = { sku: string; nombre: string; familia: string | null; unidades_por_caja: number | null; cajas_por_estiba: number | null; tipo_material: string | null; envase_sku?: string | null };
 
-export async function armarAnalisisProducto(c: Ciclico | null): Promise<AnalisisProducto> {
+export async function armarAnalisisProducto(c: Ciclico | null, rDesde?: string, rHasta?: string): Promise<AnalisisProducto> {
   const vacio: AnalisisProducto = { ciclico: c, filas: [], novedades: [], carga: null, noEntran: [], contado: { bavaria: { codigos: 0, unidades: 0 }, ol: { codigos: 0, unidades: 0 } }, maestroSistema: {}, falta: null };
   const supabase = await createClient();
   const pr = await supabase.from("productos").select("sku, nombre, familia, unidades_por_caja, cajas_por_estiba, tipo_material").limit(5000);
@@ -142,6 +149,41 @@ export async function armarAnalisisProducto(c: Ciclico | null): Promise<Analisis
     suma(x.lado === "SAP" ? a.sap : a.conteo, nombre, x.unidades);
   }
 
+  /* LAS ROTURAS DE PRODUCTO TERMINADO (Quiebra en sitio): lo que se rompió o se contaminó ya no está en la bodega y SAP todavía
+     lo tiene, así que suma al CONTEO de su código. Igual que la ROTURA EN SITIO del análisis de Balance: del 1 del mes al día
+     del cíclico, o el rango que se escoja; cajas (rotas + contaminadas) × unidades por caja del producto; si alguien corrigió
+     la cantidad de un código en este cíclico (prod_dif_roturas), vale lo corregido. */
+  const esDia = (x?: string) => /^\d{4}-\d{2}-\d{2}$/.test(x ?? "");
+  const roHasta = esDia(rHasta) ? rHasta! : c.fecha;
+  const roDesdeIn = esDia(rDesde) ? rDesde! : `${c.fecha.slice(0, 7)}-01`;
+  const roDesde = roDesdeIn <= roHasta ? roDesdeIn : roHasta;
+  const roturas: RoturasProducto = { desde: roDesde, hasta: roHasta, porCodigo: {}, total: 0, falta: null };
+  {
+    const [rr, ro] = await Promise.all([
+      supabase.rpc("prod_dif_roturas_pt", { p_desde: roDesde, p_hasta: roHasta }),
+      supabase.from("prod_dif_roturas").select("codigo, unidades, nota").eq("fiscal_id", c.id),
+    ]);
+    if (rr.error || ro.error) roturas.falta = /prod_dif_roturas|does not exist|PGRST20[25]|42883/i.test(`${(rr.error ?? ro.error)!.code} ${(rr.error ?? ro.error)!.message}`)
+      ? "Para que sumen las roturas de producto terminado falta correr supabase/migraciones/2026-11-producto-roturas.sql en Supabase."
+      : `No se pudieron leer las roturas: ${(rr.error ?? ro.error)!.message}`;
+    const sobre = new Map(((ro.error ? [] : ro.data ?? []) as { codigo: string; unidades: number; nota: string | null }[]).map((x) => [String(x.codigo), x]));
+    const calc = new Map<string, { rotas: number; contaminadas: number; n: number }>();
+    for (const r of ((rr.error ? [] : rr.data ?? []) as { codigo: string; rotas: number; contaminadas: number; reportes: number }[])) {
+      calc.set(String(r.codigo).trim(), { rotas: Number(r.rotas) || 0, contaminadas: Number(r.contaminadas) || 0, n: Number(r.reportes) || 0 });
+    }
+    for (const k of new Set([...calc.keys(), ...sobre.keys()])) {
+      if (!tot.bavaria.codigos.has(k) && !esDelCiclico(k)) continue;     // solo el producto del cíclico (o lo que Bavaria contó)
+      if (!productos.has(k) && !sobre.has(k)) continue;                   // sin maestro no hay unidades por caja
+      const a = calc.get(k), o = sobre.get(k);
+      const upc = Number(productos.get(k)?.unidades_por_caja) || 1;
+      const cu = Math.round(((a?.rotas ?? 0) + (a?.contaminadas ?? 0)) * upc);
+      const val = o ? Number(o.unidades) || 0 : cu;
+      roturas.porCodigo[k] = { rotas: a?.rotas ?? 0, contaminadas: a?.contaminadas ?? 0, unidades: val, calculado: cu, editado: !!o, nota: o?.nota ?? null, n: a?.n ?? 0 };
+      roturas.total += val;
+      if (val) suma(acum(k).conteo, ROTURA_PT, val);
+    }
+  }
+
   const lista = (m: Map<string, number>): Partida[] => [...m].filter(([, v]) => v !== 0).map(([nombre, cantidad]) => ({ nombre, cantidad }));
   const s = (m: Map<string, number>) => [...m.values()].reduce((t, v) => t + v, 0);
   const famOrden = (f: string | null | undefined) => {
@@ -163,7 +205,7 @@ export async function armarAnalisisProducto(c: Ciclico | null): Promise<Analisis
 
   const ult = novedades.reduce<NovedadProducto | null>((m, x) => (!m || x.subido_en > m.subido_en ? x : m), null);
   return {
-    ciclico: c, filas, novedades, noEntran: dedupe(noEntran), maestroSistema, falta: null,
+    ciclico: c, filas, novedades, noEntran: dedupe(noEntran), maestroSistema, falta: null, roturas,
     carga: novedades.length ? { archivo: ult?.archivo ?? null, filas: novedades.length, subido_en: ult?.subido_en ?? null } : null,
     contado: {
       bavaria: { codigos: tot.bavaria.codigos.size, unidades: tot.bavaria.unidades },
