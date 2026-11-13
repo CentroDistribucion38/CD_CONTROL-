@@ -21,7 +21,7 @@
 .pf-chip button { height: 100%; padding: 0 10px; border: 0; border-left: 1px solid var(--fe-linea); background: none; cursor: pointer; font: 700 16px var(--fe-texto); color: var(--fe-gris) }
 .pf-chip button:hover { background: #FDE7EB; color: var(--pf-rojo) }
 .pf-chip.pf-chip-est { padding-left: 12px; font-family: var(--fe-texto); letter-spacing: .02em }
-.pf-fc.pf-fc-est { width: 320px; left: auto; right: 0 }
+.pf-fc.pf-fc-est { width: 320px }
 .pf-limpia { border: 0; background: none; cursor: pointer; font: 700 12.5px var(--fe-texto); color: var(--fe-gris); text-decoration: underline }
 .pf-salidas { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end }
 .pf-sec2 { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; padding: 0 16px; border: 1px solid var(--fe-tinta); background: #fff; color: var(--fe-tinta); cursor: pointer; font: 700 13.5px var(--fe-texto) }
