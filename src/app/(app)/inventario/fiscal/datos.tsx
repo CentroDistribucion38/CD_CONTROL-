@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { maestroInventario } from "@/modulos/inventario/fefo";
-import { FAMILIAS_FISCAL, mismaFamilia, type HojaForm } from "@/modulos/inventario/fiscal";
+import { FAMILIAS_FISCAL, mismaFamilia, type HojaForm, type TipoInventario } from "@/modulos/inventario/fiscal";
 import { avanceDesdeBD, type AvanceBD, type AvanceHoja } from "@/modulos/inventario/fiscal-cruce";
 import type { FiscalBD, Persona } from "./Fiscal";
 
@@ -25,7 +25,11 @@ export type DatosFiscal = {
   familias: { nombre: string; n: number; tipo: "PT" | "EER" }[];
 };
 
-export async function cargarFiscales(): Promise<{ fallo: ReactNode } | { datos: DatosFiscal }> {
+/**
+ * `tipo`: el FISCAL de siempre (Plan, Control e Historial fiscal) o el CÍCLICO de Producto. Son las mismas tablas
+ * con la columna `tipo` (2026-11-producto-ciclico.sql). Sin esa columna todo es fiscal, y el cíclico avisa que falta el SQL.
+ */
+export async function cargarFiscales(tipo: TipoInventario = "FISCAL"): Promise<{ fallo: ReactNode } | { datos: DatosFiscal }> {
   const supabase = await createClient();
   const m = await maestroInventario();
 
@@ -60,10 +64,25 @@ export async function cargarFiscales(): Promise<{ fallo: ReactNode } | { datos: 
     ) };
   }
 
-  const leerFiscales = (cols: string) => supabase.from("inv_fiscales").select(cols)
-    .eq("bodega_id", bodega.id).order("fecha", { ascending: false }).order("creado_en", { ascending: false }).limit(100);
+  const leerFiscales = (cols: string, conTipo = false) => {
+    const q = supabase.from("inv_fiscales").select(cols)
+      .eq("bodega_id", bodega.id).order("fecha", { ascending: false }).order("creado_en", { ascending: false }).limit(100);
+    return conTipo ? q.eq("tipo", tipo) : q;
+  };
+  /* EL TIPO llega con 2026-11-producto-ciclico.sql. Sin él todo lo que hay es fiscal. */
+  let fisP = await leerFiscales("id,nombre,fecha,estado,creado_en,publicado_en,tipo", true);
+  if (fisP.error && tipo === "CICLICO") {
+    return { fallo: (
+      <div className="fe">
+        <section className="sin-tablas">
+          <h2>Falta preparar el inventario cíclico en Supabase</h2>
+          <p>Abre el SQL Editor y ejecuta <code>supabase/migraciones/2026-11-producto-ciclico.sql</code>.</p>
+        </section>
+      </div>
+    ) };
+  }
   /* `publicado_en` llega con 2026-10-fiscal-publicar.sql: sin él la pantalla sigue sirviendo (sin el botón de Contar). */
-  let fisP = await leerFiscales("id,nombre,fecha,estado,creado_en,publicado_en");
+  if (fisP.error) fisP = await leerFiscales("id,nombre,fecha,estado,creado_en,publicado_en");
   const conPublicar = !fisP.error;
   if (fisP.error) fisP = await leerFiscales("id,nombre,fecha,estado,creado_en");
   /* `calle` llega con 2026-10-fiscal-calle.sql: sin él se leen las hojas como antes. */

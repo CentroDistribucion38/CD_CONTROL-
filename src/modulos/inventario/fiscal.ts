@@ -180,11 +180,14 @@ export const fechaConDia = (f: string): string => { const [a, m, d] = f.split("-
 
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 /** El nombre que se pone solo: «FISCAL OCTUBRE 2026 · viernes 02/10». Sigue a la fecha mientras nadie lo cambie a mano. */
-export function nombreAuto(f: string): string {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(f)) return "FISCAL";
+export function nombreAuto(f: string, prefijo = "FISCAL"): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(f)) return prefijo;
   const [a, m, d] = f.split("-");
-  return `FISCAL ${MESES[Number(m) - 1].toUpperCase()} ${a} · ${diaSemana(f)} ${d}/${m}`;
+  return `${prefijo} ${MESES[Number(m) - 1].toUpperCase()} ${a} · ${diaSemana(f)} ${d}/${m}`;
 }
+
+/** El tipo de un inventario por parejas: el FISCAL de siempre o el CÍCLICO de Producto (2026-11-producto-ciclico.sql). */
+export type TipoInventario = "FISCAL" | "CICLICO";
 
 /** Los que vienen (de hoy en adelante, el más cercano primero) y los que ya pasaron (el más reciente primero). */
 /** Hasta cuántos días atrás un inventario fiscal sigue en el Control fiscal; lo más viejo pasa al Historial fiscal. */

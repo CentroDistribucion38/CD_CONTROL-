@@ -3,6 +3,7 @@ import { maestroInventario, miConteoFefo } from "@/modulos/inventario/fefo";
 import { createClient } from "@/lib/supabase/server";
 import { diaColombia } from "@/modulos/inventario/corte";
 import { hojasParaContar, type MiHojaBD } from "@/modulos/inventario/fiscal";
+import { separarPorTipo } from "@/modulos/inventario/fiscal-tipos";
 import "../fefo.css";
 import "./asignado.css";
 import "./revisiones.css";
@@ -75,8 +76,11 @@ export default async function ConteoFefoPage() {
      Si a la base le falta 2026-10-fiscal-publicar.sql la consulta falla y simplemente no sale nada:
      contar no depende de esto. */
   const hoy = diaColombia(new Date().toISOString());
-  const fiscal = await (await createClient()).rpc("inv_fiscal_mis_hojas");
-  const misHojas = fiscal.error ? [] : ((fiscal.data ?? []) as MiHojaBD[]);
+  const sb = await createClient();
+  const fiscal = await sb.rpc("inv_fiscal_mis_hojas");
+  /* LAS HOJAS DEL CÍCLICO DE PRODUCTO NO VAN AQUÍ: se cuentan en Producto → Contar. Sin separarlas, una hoja
+     del cíclico dejaba a la persona «en modo fiscal» y sin su conteo diario. */
+  const misHojas = fiscal.error ? [] : (await separarPorTipo(sb, (fiscal.data ?? []) as MiHojaBD[])).fiscal;
   const hojasContar = hojasParaContar(misHojas);
 
   /* MODO FISCAL: esta persona solo ve el inventario fiscal que le habilitaron. Sin FEFO, sin selector,

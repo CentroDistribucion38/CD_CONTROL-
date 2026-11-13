@@ -40,7 +40,7 @@ const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
  * nombres es un clic de peaje: quien entra ya sabía adónde iba.
  */
 export default async function InventarioPortada() {
-  const [permisos, conteo, aver, casco, balance] = await Promise.all([
+  const [permisos, conteo, aver, casco, balance, producto] = await Promise.all([
     misPermisos(),
 
     /* SOLO EL ÚLTIMO RECORRIDO ENVIADO, una fila. El tablero trae los
@@ -108,6 +108,21 @@ export default async function InventarioPortada() {
       const alertas = data.reduce((t, b: { con_alerta: number }) => t + b.con_alerta, 0);
       const dif = data.reduce((t, b: { dif_cajas: number }) => t + Math.abs(b.dif_cajas), 0);
       return { materiales, alertas, dif } as { materiales: number; alertas: number; dif: number };
+    })(),
+
+    /* PRODUCTO: el último inventario cíclico y, si ya se guardó su análisis de diferencia, cuántos códigos
+       quedaron con diferencia. Sin el SQL de Producto (no hay columna `tipo`) la tarjeta sale sin cifra. */
+    (async () => {
+      const supabase = await createClient();
+      const { data, error } = await supabase.from("inv_fiscales").select("id, nombre, fecha")
+        .eq("tipo", "CICLICO").order("fecha", { ascending: false }).limit(1);
+      if (error || !data?.length) return null;
+      const c = data[0] as { id: string; nombre: string; fecha: string };
+      const g = await supabase.from("prod_dif_guardado").select("filas, final").eq("fiscal_id", c.id).maybeSingle();
+      const filas = ((g.data as { filas?: { diferencia: number }[]; final?: { difFinal: number }[] | null } | null) ?? null);
+      const conDif = filas?.final ? filas.final.filter((f) => Number(f.difFinal) !== 0).length
+        : filas?.filas ? filas.filas.filter((f) => Number(f.diferencia) !== 0).length : null;
+      return { nombre: c.nombre, fecha: String(c.fecha).slice(0, 10), conDif, final: !!filas?.final };
     })(),
   ]);
 
@@ -187,6 +202,19 @@ export default async function InventarioPortada() {
       : "sin alertas · todo cuadra",
     /* SI HAY ALERTAS, la tarjeta se pinta de rojo: algo no cuadra. */
     mal: balance.alertas > 0,
+  };
+
+  /* ---------- LA CIFRA DE PRODUCTO ---------- */
+  CIFRA.producto = producto == null ? null : producto.conDif == null ? {
+    n: producto.fecha.slice(8, 10) + "/" + producto.fecha.slice(5, 7),
+    u: "último cíclico",
+    pie: `${producto.nombre} · sin análisis de diferencia guardado`,
+    mal: false,
+  } : {
+    n: nf.format(producto.conDif),
+    u: producto.conDif === 1 ? "código con diferencia" : "códigos con diferencia",
+    pie: `${producto.final ? "análisis final" : "análisis"} de ${producto.nombre}`,
+    mal: producto.conDif > 0,
   };
 
   return (

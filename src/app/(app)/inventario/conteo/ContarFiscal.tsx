@@ -30,6 +30,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Buscador } from "@/components/Buscador";
 import { usePosicion, sellar, type Foto } from "@/lib/evidencia";
 import { FamiliasHoja } from "./FamiliasHoja";
+import { CruceCiclico } from "./CruceCiclico";
 import { RevisionesFiscal, type ModuloRevision } from "./RevisionesFiscal";
 import { useConfirmar } from "@/components/Confirmar";
 import { useAvisos } from "@/components/Aviso";
@@ -64,12 +65,15 @@ export function textoCantidad(r: Pick<RenglonFiscal, "estibas" | "saldo" | "caja
 }
 
 export function ContarFiscal({
-  hojas, bodegaId, materiales, ubicaciones,
+  hojas, bodegaId, materiales, ubicaciones, ciclico = false,
 }: {
   hojas: HojaParaContar[];
   bodegaId: string;
   materiales: Material[];
   ubicaciones: Ubicacion[];
+  /** EL CÍCLICO DE PRODUCTO: el mismo Contar del fiscal, pero sin fiscal que apruebe — la pareja cruza sola
+   *  («cualquiera de los dos da clic para ir cruzando») y reabre su hoja sin pedir permiso. */
+  ciclico?: boolean;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [pedir, dialogo] = useConfirmar();
@@ -671,8 +675,18 @@ export function ContarFiscal({
   const editandoValidacion = enValidacion && (corrigiendo !== null || agregandoV !== null);
   /* El aviso de que la hoja terminada espera al fiscal (se ve en «Anotar» y debajo de lo que llevo anotado). */
   const avisoEspera = cerrada ? (() => {
-            const aprobada = enBase > 0 && (mios?.length ?? 0) === 0;
+            const aprobada = !ciclico && enBase > 0 && (mios?.length ?? 0) === 0;
             const esperaFiscal = estadoT.parejaTermino && !aprobada;
+            if (ciclico) return (
+              <div role="status" style={{ background: "#fff1b8", color: "#1a1a1a", border: "2px solid #c99700", borderRadius: 0, padding: "14px 16px", margin: "0 0 12px" }}>
+                <b style={{ display: "block", fontSize: "1.05rem" }}>
+                  {estadoT.parejaTermino ? "Terminaron los dos: crucen abajo." : `${hoja.pareja ?? "Tu pareja"} todavía está contando.`}
+                </b>
+                <span style={{ display: "block", marginTop: 4 }}>
+                  Con «Cruzar ahora» ven lo que no coincide. Si algo hay que corregir, reabre tu hoja.
+                </span>
+              </div>
+            );
             const fondo = aprobada ? "#d6f0e0" : "#fff1b8";
             const borde = aprobada ? "#0b7a3e" : "#c99700";
             return (
@@ -695,7 +709,9 @@ export function ContarFiscal({
   const sueltasMio = (mios ?? []).reduce((s, r) => s + Number(r.unidades || 0), 0);
   const textoTotalMio = `${nf.format(totalMio)} cajas${sueltasMio > 0 ? ` + ${nf.format(sueltasMio)} un. sueltas` : ""}`;
 
-  const reabrirUI = (clase: string) => reap.autorizado ? (
+  const reabrirUI = (clase: string) => ciclico ? (
+    <button type="button" className={clase} disabled={guardando} onClick={() => terminar(false)}>Reabrir mi hoja</button>
+  ) : reap.autorizado ? (
     <button type="button" className={clase} disabled={guardando} onClick={() => terminar(false)}>Reabrir mi hoja (el fiscal ya dio el OK)</button>
   ) : reap.pedido ? (
     <span className="fc-pidio">Ya pediste que te reabran la hoja: falta el OK del fiscal.{" "}
@@ -1023,7 +1039,7 @@ export function ContarFiscal({
           {avisoEspera}
           <p className="fc-term-dice"><b>Terminaste tu hoja.</b>{" "}
             {estadoT.parejaTermino
-              ? "Tu pareja también terminó: quien arma el plan ya puede cruzar las dos hojas."
+              ? (ciclico ? "Tu pareja también terminó: crucen las dos hojas abajo." : "Tu pareja también terminó: quien arma el plan ya puede cruzar las dos hojas.")
               : `Falta que ${hoja.pareja ?? "tu pareja"} termine la suya.`}</p>
           <p className="fc-term-cuenta">Llevas {mios?.length ?? 0} {(mios?.length ?? 0) === 1 ? "renglón" : "renglones"} · {textoTotalMio}.</p>
           <div className="cl-botones">
@@ -1075,7 +1091,7 @@ export function ContarFiscal({
         )}
         {cerrada && avisoEspera}
         {cerrada && (
-          <p className="fc-nota-term" role="status">Tu hoja está terminada: para cambiar algo, el fiscal tiene que darte el OK para reabrirla.{" "}
+          <p className="fc-nota-term" role="status">{ciclico ? "Tu hoja está terminada: para cambiar algo, reábrela." : "Tu hoja está terminada: para cambiar algo, el fiscal tiene que darte el OK para reabrirla."}{" "}
             {reabrirUI("fe-mini fc-reabrir")}</p>
         )}
         {!cerrada && hoja.puedeTerminar && hoja.puedeContar && (mios?.length ?? 0) > 0 && (
@@ -1085,6 +1101,9 @@ export function ContarFiscal({
           </div>
         )}
       </section>
+
+      {/* EL CÍCLICO SE CRUZA AQUÍ MISMO, por cualquiera de la pareja y cuando quiera. */}
+      {ciclico && hoja.puedeContar && <CruceCiclico key={hoja.hojaId} hojaId={hoja.hojaId} numero={hoja.numero} equipo={hoja.equipo} />}
     </>
   );
 }

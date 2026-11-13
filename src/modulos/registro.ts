@@ -677,6 +677,17 @@ export const MODULOS: Modulo[] = [
           "El cruce del conteo físico contra el casco de vidrio: las cinco tablas de " +
           "baja, lavado y extrasucio con el cuadre al lado. Lo que el Excel arma a mano, aquí sale del último conteo.",
       },
+      /* PRODUCTO: el inventario CÍCLICO del producto terminado, por parejas como el fiscal, y su análisis de
+         diferencia contra la existencia de SAP. «Aquí necesito agregar un módulo que se llame Producto.» */
+      {
+        id: "producto",
+        nombre: "Producto",
+        eyebrow: "CÍCLICO",
+        ruta: "/inventario/producto/ciclico",
+        descripcion:
+          "El inventario cíclico del producto por parejas, como el fiscal: se arma por familia, se cuenta código y " +
+          "cantidad, la pareja cruza y el conteo de Bavaria se compara contra la existencia de SAP.",
+      },
     ],
     secciones: [
       /* EL ORDEN LO PUSO QUIEN LA USA («organicemos esto»): se corta lo que
@@ -764,6 +775,11 @@ export const MODULOS: Modulo[] = [
       /* ANÁLISIS DE DIFERENCIA (2026.10.14_BODEGA_38.xlsx): la hoja que abarca todo, CONTEO vs SAP de Bodega 38.
          Va al final: usa el conteo, los cortes, Pasivos y el Cuadre SAP. */
       { nombre: "Análisis de diferencia", ruta: "/inventario/balance/analisis", rama: "balance" },
+      /* PRODUCTO, EN EL ORDEN DEL PROCESO: se arma el cíclico (familia y parejas) y se habilita el Contar → la
+         pareja cuenta y cruza → el conteo de Bavaria se compara con la existencia en el análisis de diferencia. */
+      { nombre: "Cíclico", ruta: "/inventario/producto/ciclico", rama: "producto" },
+      { nombre: "Contar", ruta: "/inventario/producto/contar", rama: "producto" },
+      { nombre: "Análisis de diferencia", ruta: "/inventario/producto/analisis", rama: "producto" },
     ],
   },
 ];

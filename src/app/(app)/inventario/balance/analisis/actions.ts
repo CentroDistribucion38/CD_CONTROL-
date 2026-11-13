@@ -148,10 +148,16 @@ export async function extrasInforme(fecha: string) {
 export async function fiscalesParaComparar(fecha: string) {
   if (!esDia(fecha)) return { error: "Día inválido." };
   const supabase = await createClient();
-  const [f, g] = await Promise.all([
-    supabase.from("inv_fiscales").select("nombre, fecha").lt("fecha", fecha).order("fecha", { ascending: false }).limit(60),
+  /* Solo los FISCALES: el cíclico de Producto vive en las mismas tablas (columna `tipo`). Sin esa columna, todo es fiscal. */
+  const leer = (conTipo: boolean) => {
+    const q = supabase.from("inv_fiscales").select("nombre, fecha").lt("fecha", fecha).order("fecha", { ascending: false }).limit(60);
+    return conTipo ? q.eq("tipo", "FISCAL") : q;
+  };
+  const [f0, g] = await Promise.all([
+    leer(true),
     supabase.from("analisis_dif_guardado").select("fecha").lt("fecha", fecha).order("fecha", { ascending: false }).limit(400),
   ]);
+  const f = f0.error ? await leer(false) : f0;
   const guardados = new Set(((g.data ?? []) as { fecha: string }[]).map((x) => x.fecha));
   /* Un día con dos fiscales (pasa si se abrió uno de prueba) es UNA fecha: se juntan los nombres. */
   const porDia = new Map<string, string[]>();

@@ -11,7 +11,7 @@ import { Ico } from "./PanelFiscal";
 import { SelectorInventario } from "./SelectorInventario";
 import {
   agregarHojas, agrupar, alternarFamilia, aPayload, completarRoles, conteoPorRol, fechaConDia, hojasVacias, opcionesPersonas,
-  nombreAuto, ponerCalle, ponerPersona, proximoDia, quitarHoja, revisar, rolPorDefecto, sumarDias, textoCuando, textoResumen,
+  nombreAuto as nombreAutoBase, ponerCalle, ponerPersona, proximoDia, quitarHoja, revisar, rolPorDefecto, sumarDias, textoCuando, textoResumen,
   mismaFamilia, type Equipo, type HojaForm, type PersonaF, type RolF,
 } from "@/modulos/inventario/fiscal";
 import { MODULOS_DE_LA_HOJA } from "@/modulos/inventario/modulos-hoja";
@@ -81,6 +81,27 @@ function MapaCalles({ hojas, nombre }: { hojas: HojaForm[]; nombre: Map<string, 
 }
 
 const ORDEN_ESTADOS: EstadoHoja[] = ["lista", "una-termino", "contando", "sin-empezar"];
+
+/* ===================================================================
+   LA MISMA PANTALLA PARA EL CÍCLICO DE PRODUCTO
+
+   «Un módulo que no sea fiscal sino que se llame CÍCLICO: se elige lo mismo del fiscal, la familia, las
+    parejas.» El armado es idéntico (hojas, calle, familias, parejas y el botón de Contar); cambian las
+   palabras, las funciones de la base que guardan (con el permiso de Producto) y adónde se sigue después.
+   =================================================================== */
+export type ModoPlan = "fiscal" | "ciclico";
+const TXT = {
+  fiscal: {
+    uno: "Inventario fiscal", el: "el inventario fiscal", prefijo: "FISCAL", ejemplo: "Ej. Fiscal octubre",
+    ojo: "INVENTARIO · POR PAREJAS", titulo: "Plan fiscal", tarjeta: "Plan fiscal · por parejas",
+    guardar: "inv_fiscal_guardar", publicar: "inv_fiscal_publicar",
+  },
+  ciclico: {
+    uno: "Inventario cíclico", el: "el inventario cíclico", prefijo: "CÍCLICO", ejemplo: "Ej. Cíclico lata",
+    ojo: "INVENTARIO · PRODUCTO · POR PAREJAS", titulo: "Cíclico", tarjeta: "Cíclico · por parejas",
+    guardar: "inv_ciclico_guardar", publicar: "inv_ciclico_publicar",
+  },
+} as const;
 export type Persona = PersonaF;
 export type FiscalBD = {
   id: string; nombre: string; fecha: string; estado: "abierto" | "cerrado"; hojas: HojaForm[];
@@ -93,8 +114,10 @@ export type FiscalBD = {
 /** `manual`: el nombre lo escribió alguien. Mientras no, sigue a la fecha («FISCAL OCTUBRE 2026 · viernes 02/10»). */
 type FormF = { id: string | null; nombre: string; fecha: string; hojas: HojaForm[]; manual: boolean };
 
-export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puedePublicar = true, conCruce = true, conCalle = true, conFamilias = true, familias = [], manda, ahora }: {
+export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puedePublicar = true, conCruce = true, conCalle = true, conFamilias = true, familias = [], manda, ahora, modo = "fiscal" }: {
   bodegaId: string; personas: Persona[]; roles: RolF[]; fiscales: FiscalBD[];
+  /** «fiscal» (Plan fiscal) o «ciclico» (Producto · Cíclico): mismo armado, otras palabras y otras funciones de la base. */
+  modo?: ModoPlan;
   puedeEditar: boolean; manda: boolean; ahora: string;
   /** false = a la base le falta 2026-10-fiscal-publicar.sql: no se ofrece el botón de Contar. */
   puedePublicar?: boolean;
@@ -108,6 +131,7 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
   familias?: { nombre: string; n: number; tipo?: "PT" | "EER" }[];
 }) {
   const router = useRouter();
+  const T = TXT[modo];
   const hoy = diaColombia(ahora);
   const [form, setForm] = useState<FormF | null>(null);
   const [ocupado, setOcupado] = useState(false);
@@ -123,23 +147,23 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
 
   const nuevo = () => {
     setMal(null); setAviso(null);
-    setForm({ id: null, nombre: nombreAuto(hoy), fecha: hoy, hojas: hojasVacias(2), manual: false });
+    setForm({ id: null, nombre: nombreAutoBase(hoy, T.prefijo), fecha: hoy, hojas: hojasVacias(2), manual: false });
   };
   const editar = (f: FiscalBD) => {
     setMal(null); setAviso(null);
-    setForm({ id: f.id, nombre: f.nombre, fecha: f.fecha, hojas: f.hojas.length ? f.hojas : hojasVacias(1), manual: f.nombre !== nombreAuto(f.fecha) });
+    setForm({ id: f.id, nombre: f.nombre, fecha: f.fecha, hojas: f.hojas.length ? f.hojas : hojasVacias(1), manual: f.nombre !== nombreAutoBase(f.fecha, T.prefijo) });
   };
 
   async function guardar() {
     if (!form) return;
     setMal(null); setOcupado(true);
-    const { error } = await createClient().rpc("inv_fiscal_guardar", {
+    const { error } = await createClient().rpc(T.guardar, {
       p_id: form.id, p_bodega: bodegaId, p_nombre: form.nombre.trim(), p_fecha: form.fecha, p_hojas: aPayload(form.hojas),
     });
     setOcupado(false);
     if (error) return setMal(traducirError(error.message));
     setForm(null);
-    setAviso(form.id ? "Inventario fiscal actualizado." : `Inventario fiscal guardado para el ${fechaConDia(form.fecha)}.`);
+    setAviso(form.id ? `${T.uno} actualizado.` : `${T.uno} guardado para el ${fechaConDia(form.fecha)}.`);
     router.refresh();
   }
   async function eliminar(id: string) {
@@ -148,14 +172,14 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
     setOcupado(false);
     if (error) return setMal(traducirError(error.message));
     setBorrar(null);
-    setAviso("Inventario fiscal eliminado.");
+    setAviso(`${T.uno} eliminado.`);
     router.refresh();
   }
 
   /* MOSTRAR EN CONTAR / QUITAR DE CONTAR: el botón que lleva el plan a la pantalla de quien cuenta. */
   async function publicar(f: FiscalBD, mostrar: boolean) {
     setMal(null); setAviso(null); setOcupado(true);
-    const { error } = await createClient().rpc("inv_fiscal_publicar", { p_id: f.id, p_publicar: mostrar });
+    const { error } = await createClient().rpc(T.publicar, { p_id: f.id, p_publicar: mostrar });
     setOcupado(false);
     if (error) return setMal(traducirError(error.message));
     setAviso(mostrar
@@ -182,7 +206,7 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
             <Ico n="ojo" tam={16} /> Mostrar en Contar
           </button>
         ))}
-        {f.hojas.length > 0 && (
+        {modo === "fiscal" && f.hojas.length > 0 && (
           <Link className="btn plano" href={`/inventario/fiscal/planillas?fiscal=${f.id}`} title="Genera las planillas de conteo, una por pareja, para imprimir" aria-label="Planillas de conteo para imprimir">
             <Ico n="impresora" tam={16} /> Planillas
           </Link>
@@ -191,7 +215,7 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
           <button type="button" className="btn plano" onClick={() => editar(f)}><Ico n="lapiz" tam={16} /> Editar</button>
         )}
         {manda && (borrar === f.id ? (
-          <span className="cl-conf">¿Eliminar este inventario fiscal?
+          <span className="cl-conf">¿Eliminar {modo === "fiscal" ? "este inventario fiscal" : "este inventario cíclico"}?
             <button type="button" className="btn plano mal" disabled={ocupado} onClick={() => eliminar(f.id)}>Sí, eliminar</button>
             <button type="button" className="btn plano" onClick={() => setBorrar(null)}>No</button>
           </span>
@@ -274,12 +298,14 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
     if (!puedePublicar && puedeEditar) avisos.push(<>Para poder <b>mostrar un plan en Contar</b> falta correr <code>supabase/migraciones/2026-10-fiscal-publicar.sql</code> en Supabase.</>);
     if (!conCalle && puedeEditar) avisos.push(<>Para poder <b>poner una calle a cada hoja</b> falta correr <code>supabase/migraciones/2026-10-fiscal-calle.sql</code> en Supabase.</>);
     if (!conFamilias && puedeEditar) avisos.push(<>Para poder <b>asignar familias a cada hoja</b> falta correr <code>supabase/migraciones/2026-11-fiscal-familias.sql</code> en Supabase.</>);
-    if (f.publicado) avisos.push(<>Ya se ve en Contar. Para seguir el avance en vivo y revisar las diferencias: <Link href="/inventario/control-fiscal">abrir el Control fiscal</Link>.</>);
+    if (f.publicado) avisos.push(modo === "fiscal"
+      ? <>Ya se ve en Contar. Para seguir el avance en vivo y revisar las diferencias: <Link href="/inventario/control-fiscal">abrir el Control fiscal</Link>.</>
+      : <>Ya se ve en <Link href="/inventario/producto/contar">Contar de Producto</Link>: cualquiera de la pareja cruza desde ahí. Lo que cuenta Bavaria va al <Link href="/inventario/producto/analisis">Análisis de diferencia</Link>.</>);
     return (
-      <section key={f.id} className="vf fi-plan" aria-label={`Plan fiscal ${f.nombre}`}>
+      <section key={f.id} className="vf fi-plan" aria-label={`${T.titulo} ${f.nombre}`}>
         <header className="vf-cab">
           <div className="vf-tit">
-            <p className="vf-ojo">Plan fiscal · por parejas</p>
+            <p className="vf-ojo">{T.tarjeta}</p>
             <h2>{f.nombre}</h2>
             <p className="vf-meta">
               <Ico n="calendario" tam={15} /> {fechaConDia(f.fecha)} · {textoCuando(hoy, f.fecha)}
@@ -310,11 +336,13 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
     <>
       <section className="cabeza fi-cabeza">
         <div>
-          <p className="ojo">INVENTARIO · POR PAREJAS</p>
-          <h1>Plan fiscal</h1>
+          <p className="ojo">{T.ojo}</p>
+          <h1>{T.titulo}</h1>
           <p className="sub">
             Cada hoja la cuentan dos personas, <b>una del operador logístico y una de Bavaria</b>, cada una por su lado.
-            Escoge la fecha, arma las parejas y numera las hojas.
+            {modo === "fiscal"
+              ? " Escoge la fecha, arma las parejas y numera las hojas."
+              : <> Escoge la fecha, la familia de producto de cada hoja y las parejas; después <b>habilita el Contar</b>. Se cuenta solo el código y la cantidad.</>}
           </p>
         </div>
       </section>
@@ -323,13 +351,13 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
       {mal && !form && <p className="cl-mal" role="alert">{mal}</p>}
 
       {form ? (
-        <FormFiscal form={form} setForm={setForm} personas={personas} roles={roles} hoy={hoy} ocupado={ocupado} mal={mal} conCalle={conCalle} conFamilias={conFamilias} familias={familias}
+        <FormFiscal modo={modo} form={form} setForm={setForm} personas={personas} roles={roles} hoy={hoy} ocupado={ocupado} mal={mal} conCalle={conCalle} conFamilias={conFamilias} familias={familias}
                     onGuardar={guardar} onCancelar={() => { setForm(null); setMal(null) }} />
       ) : (
         <>
           {puedeEditar && (
             <div className="cl-acciones">
-              <button type="button" className="btn grande" onClick={nuevo}>Nuevo inventario fiscal</button>
+              <button type="button" className="btn grande" onClick={nuevo}>Nuevo {T.el.replace(/^el /, "")}</button>
             </div>
           )}
           {fiscales.length === 0 && (
@@ -428,11 +456,13 @@ function SelectorFamilias({ familias, marcadas, alAlternar, alLimpiar, hoja }: {
   );
 }
 
-function FormFiscal({ form, setForm, personas, roles: rolesIn, hoy, ocupado, mal, conCalle, conFamilias, familias, onGuardar, onCancelar }: {
-  form: FormF; setForm: (f: FormF) => void; personas: Persona[]; roles: RolF[]; hoy: string; ocupado: boolean; mal: string | null; conCalle: boolean;
+function FormFiscal({ modo = "fiscal", form, setForm, personas, roles: rolesIn, hoy, ocupado, mal, conCalle, conFamilias, familias, onGuardar, onCancelar }: {
+  modo?: ModoPlan; form: FormF; setForm: (f: FormF) => void; personas: Persona[]; roles: RolF[]; hoy: string; ocupado: boolean; mal: string | null; conCalle: boolean;
   conFamilias: boolean; familias: { nombre: string; n: number; tipo?: "PT" | "EER" }[];
   onGuardar: () => void; onCancelar: () => void;
 }) {
+  const T = TXT[modo];
+  const nombreAuto = (f: string) => nombreAutoBase(f, T.prefijo);
   const roles = useMemo(() => completarRoles(personas, rolesIn), [personas, rolesIn]);
   const conteo = useMemo(() => conteoPorRol(personas, roles), [personas, roles]);
   const [cuantas, setCuantas] = useState("1");
@@ -496,9 +526,9 @@ function FormFiscal({ form, setForm, personas, roles: rolesIn, hoy, ocupado, mal
   );
 
   return (
-    <section className="fe-editor nuevo fi-form" aria-label={form.id ? "Editar inventario fiscal" : "Nuevo inventario fiscal"}>
+    <section className="fe-editor nuevo fi-form" aria-label={`${form.id ? "Editar" : "Nuevo"} ${T.el.replace(/^el /, "")}`}>
       <div className="fi-top">
-        <h2>{form.id ? "Editar inventario fiscal" : "Nuevo inventario fiscal"}</h2>
+        <h2>{form.id ? "Editar" : "Nuevo"} {T.el.replace(/^el /, "")}</h2>
         <div className="fi-prog" aria-label={`${r.completas} de ${r.total} parejas completas`}>
           <span><b>{r.completas}</b> de {r.total} {r.total === 1 ? "pareja completa" : "parejas completas"}</span>
           <div className="fi-bar" aria-hidden="true">
@@ -509,7 +539,7 @@ function FormFiscal({ form, setForm, personas, roles: rolesIn, hoy, ocupado, mal
       <div className="fe-campos fi-g3">
         <label className="ancho">
           <span>Nombre</span>
-          <input value={form.nombre} maxLength={80} placeholder="Ej. Fiscal octubre"
+          <input value={form.nombre} maxLength={80} placeholder={T.ejemplo}
                  onChange={(e) => setForm({ ...form, nombre: e.target.value, manual: true })} />
           {form.manual && form.fecha !== "" && form.nombre !== nombreAuto(form.fecha) && (
             <button type="button" className="btn plano fi-auto" onClick={() => setForm({ ...form, nombre: nombreAuto(form.fecha), manual: false })}>
@@ -627,7 +657,7 @@ function FormFiscal({ form, setForm, personas, roles: rolesIn, hoy, ocupado, mal
           </>)}
         </span>
         <button type="button" className="btn grande" disabled={!puede} onClick={onGuardar}>
-          {ocupado ? "Guardando…" : form.id ? "Guardar los cambios" : "Guardar el inventario fiscal"}
+          {ocupado ? "Guardando…" : form.id ? "Guardar los cambios" : `Guardar ${T.el}`}
         </button>
       </div>
     </section>
