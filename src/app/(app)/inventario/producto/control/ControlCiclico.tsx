@@ -107,13 +107,19 @@ function CopiarConteo({ f, lineas, cargando, error, cerrar }: {
   return (
     <div className="cy-modal" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) cerrar() }}>
       <div className="cy-caja" role="dialog" aria-modal="true" aria-labelledby="cy-copiar-t">
+        {/* LA BARRA DE SIEMPRE: banda negra con el sello, el título y la X (como las ventanas de la app). */}
         <header className="cy-cab">
-          <span><IcoCopiar /> Copiar conteo</span>
-          <button type="button" onClick={cerrar} aria-label="Cerrar">×</button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className="cy-logo" src="/marca/logo-b.png" alt="Bavaria" /><span className="cy-sep" aria-hidden />
+          <div className="cy-tit">
+            <div className="cy-ojo">COPIAR CONTEO · EN UNIDADES</div>
+            <h2 id="cy-copiar-t">{f.nombre}</h2>
+          </div>
+          <button type="button" className="cy-x" onClick={cerrar} aria-label="Cerrar" title="Cerrar (Esc)">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+          </button>
         </header>
         <div className="cy-cuerpo">
-          <p className="cy-ojo">{f.nombre}</p>
-          <h3 id="cy-copiar-t">Código y cantidad, en unidades</h3>
           <div className="cy-filtros">
             <div className="cy-seg" role="group" aria-label="Quién contó">
               <button type="button" className={equipo === "BAVARIA" ? "on" : ""} onClick={() => cambiar(() => setEquipo("BAVARIA"))}>Bavaria</button>

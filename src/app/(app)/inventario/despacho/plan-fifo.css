@@ -9,7 +9,7 @@
 .pf-grupo > span { font-size: 11.5px; font-weight: 600; color: var(--fe-tinta) }
 .pf-grupo > span em { font-style: normal; font-weight: 500; color: var(--fe-gris) }
 .pf-grupo select { height: 40px; min-width: 170px; padding: 0 10px; border: 1px solid var(--fe-linea); background: #fff; font: 600 13.5px var(--fe-texto) }
-.pf-chips { display: flex; gap: 6px }
+.pf-chips { display: flex; flex-wrap: wrap; gap: 6px }
 .pf-chips button { height: 40px; padding: 0 14px; border: 1px solid var(--fe-linea); background: #fff; cursor: pointer; font: 600 13px var(--fe-texto); color: var(--fe-tinta) }
 .pf-chips button.on { background: var(--fe-tinta); color: #fff; border-color: var(--fe-tinta) }
 .pf-mat { flex: 1 1 360px }
@@ -21,7 +21,13 @@
 .pf-chip button { height: 100%; padding: 0 10px; border: 0; border-left: 1px solid var(--fe-linea); background: none; cursor: pointer; font: 700 16px var(--fe-texto); color: var(--fe-gris) }
 .pf-chip button:hover { background: #FDE7EB; color: var(--pf-rojo) }
 .pf-limpia { border: 0; background: none; cursor: pointer; font: 700 12.5px var(--fe-texto); color: var(--fe-gris); text-decoration: underline }
-.pf-imprimir { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 22px; border: 0; background: var(--pf-ambar); color: var(--fe-tinta); cursor: pointer; font: 800 14px var(--fe-texto) }
+.pf-salidas { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end }
+.pf-sec2 { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; padding: 0 16px; border: 1px solid var(--fe-tinta); background: #fff; color: var(--fe-tinta); cursor: pointer; font: 700 13.5px var(--fe-texto) }
+.pf-sec2:hover:not(:disabled) { background: #F6F1E0 }
+.pf-sec2:disabled { opacity: .4; cursor: not-allowed }
+.pf-solo-cel { display: none }
+.pf-plegar { display: none }
+.pf-imprimir { display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 22px; border: 0; background: var(--pf-ambar); color: var(--fe-tinta); cursor: pointer; font: 800 14px var(--fe-texto) }
 .pf-imprimir:hover:not(:disabled) { filter: brightness(.95) }
 .pf-imprimir:disabled { opacity: .4; cursor: not-allowed }
 .pf button:focus-visible, .pf select:focus-visible, .pf input:focus-visible { outline: 3px solid var(--pf-ambar); outline-offset: 1px }
@@ -104,7 +110,79 @@
 .pf-ley i { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -1px }
 .pf-ley i.v { background: var(--pf-verde) } .pf-ley i.a { background: var(--pf-ambar) } .pf-ley i.m { background: var(--pf-mostaza) } .pf-ley i.r { background: var(--pf-rojo) }
 
-@media (max-width: 900px) { .pf-k { grid-template-columns: repeat(2, minmax(0, 1fr)) } .pf-imprimir { margin-left: 0 } }
+@media (max-width: 900px) { .pf-k { grid-template-columns: repeat(2, minmax(0, 1fr)) } .pf-salidas { margin-left: 0 } }
+
+/* ===== EL CELULAR: «organiza esa vista en el celular, está muy densa». Menos texto, filtros que se tocan con el dedo,
+   y cada posición como una tarjeta (salida · módulo · cajas / zona · estado · estibas / días), sin tabla de diez columnas. ===== */
+@media (max-width: 640px) {
+  .pf { gap: 10px }
+  .pf .cabeza .sub { display: none }
+  .pf-barra { flex-direction: column; align-items: stretch; gap: 12px; padding: 12px; min-width: 0 }
+  .pf-barra > * { min-width: 0; max-width: 100% }
+  .pf-barra > .pf-plegar { max-width: none; width: calc(100% + 24px) }
+  .pf-plegar { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 48px; margin: -12px -12px 0; padding: 8px 12px;
+    border: 0; border-bottom: 1px solid var(--fe-linea); background: #FAFAF7; color: var(--fe-tinta); text-align: left; cursor: pointer; font: 700 13.5px var(--fe-texto) }
+  .pf-plegar small { display: block; font: 700 10px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase; color: var(--fe-gris) }
+  .pf-plegada .pf-plegar { border-bottom: 0; margin-bottom: -4px }
+  .pf-plegada .pf-plegable { display: none }
+  .pf-grupo > span { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--fe-gris) }
+  .pf-grupo select { width: 100%; min-width: 0 }
+  .pf-chips { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; margin: 0 -12px; padding: 0 12px }
+  .pf-chips::-webkit-scrollbar { display: none }
+  .pf-chips button { flex: 1 0 auto; height: 40px; padding: 0 12px; white-space: nowrap }
+  .pf-mat { flex: none }
+  .pf-embudo { width: 100%; justify-content: center }
+  .pf-fc { width: auto; left: 0; right: 0 }
+  .pf-salidas { display: grid; grid-template-columns: 1fr auto; gap: 8px }
+  .pf-salidas .pf-imprimir { justify-content: center; padding: 0 12px }
+  .pf-solo-pc { display: none }
+
+  .pf-card { padding: 12px }
+  .pf-card h3 small { display: block; margin: 2px 0 0 }
+  .pf-tiles { grid-template-columns: minmax(0, 1fr); gap: 6px }
+  .pf-tile { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; row-gap: 2px; padding: 9px 12px; border-top-width: 1px; border-left: 5px solid var(--fe-tinta) }
+  .pf-tile .pf-cod { grid-column: 1 }
+  .pf-tile strong { grid-column: 1; font-size: 13.5px }
+  .pf-tile small { grid-column: 1; font-size: 12px }
+  .pf-tile em { grid-column: 2; grid-row: 1 / span 3; align-self: center; white-space: nowrap }
+
+  .pf-k { gap: 6px }
+  .pf-k > div { padding: 9px 12px; border-bottom-width: 3px }
+  .pf-k span { display: block; font-size: 9.5px; line-height: 1.35 }
+  .pf-k b { font-size: 22px }
+  .pf-k b.pf-mono { font-size: 18px; overflow-wrap: anywhere }
+  .pf-k small { font-size: 11px }
+
+  .pf-bloque-cab { padding: 10px 12px; border-left-width: 6px; gap: 8px }
+  .pf-bloque-cab h2 { font-size: 16px; line-height: 1.25 }
+  .pf-bloque-cab dl { width: 100%; justify-content: space-between; gap: 10px }
+  .pf-bloque-cab dd { font-size: 17px }
+
+  .pf-scroll { overflow: visible }
+  .pf-t-cel, .pf-t-cel tbody, .pf-t-cel tfoot { display: block }
+  .pf-t-cel thead { display: none }
+  .pf-t-cel tbody tr { display: grid; grid-template-columns: 34px auto minmax(0, 1fr) auto 30px; grid-template-areas: "o m m cj k" "o z e es k" "o d d d k";
+    column-gap: 10px; row-gap: 5px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--fe-linea) }
+  .pf-t-cel tbody td { padding: 0; border: 0 }
+  .pf-t-cel .pf-c-o { grid-area: o; align-self: start }
+  .pf-t-cel .pf-mod { grid-area: m; font-size: 16px; overflow-wrap: anywhere; white-space: normal }
+  .pf-t-cel .pf-c-cj { grid-area: cj; font-size: 16px }
+  .pf-t-cel .pf-c-z { grid-area: z; font-size: 12px; color: var(--fe-gris) }
+  .pf-t-cel .pf-c-e { grid-area: e; min-width: 0 }
+  .pf-t-cel .pf-c-es { grid-area: es; font-size: 12px; color: var(--fe-gris) }
+  .pf-t-cel .pf-c-d { grid-area: d }
+  .pf-t-cel .pf-c-f, .pf-t-cel .pf-c-a, .pf-t-cel .pf-solo-papel { display: none }
+  .pf-t-cel .pf-c-k { grid-area: k; align-self: center }
+  .pf-t-cel .pf-solo-cel { display: inline; font: 500 11px var(--fe-texto); color: var(--fe-gris) }
+  .pf-t-cel .pf-dias { grid-template-columns: 52px minmax(0, 1fr) }
+  .pf-t-cel .pf-dias b { text-align: left }
+  .pf-t-cel .pf-est { font-size: 11px; padding: 1px 6px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle }
+  .pf-t-cel tfoot tr { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 12px; padding: 10px 12px; background: #FFF3CC; border-top: 2px solid var(--fe-tinta) }
+  .pf-t-cel tfoot tr.pf-resto { background: #F1F3F6; border-top: 1px dashed var(--fe-linea) }
+  .pf-t-cel tfoot td { padding: 0; border: 0; background: none }
+  .pf-t-cel tfoot td:empty { display: none }
+  .pf-ley .pf-tenue { display: none }
+}
 
 /* ===== EL PAPEL: A4 horizontal, sin la app, con encabezado y una tabla por material ===== */
 @media print {

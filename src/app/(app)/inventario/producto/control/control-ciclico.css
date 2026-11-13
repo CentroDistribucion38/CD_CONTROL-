@@ -10,12 +10,15 @@
    SKU | UNIDADES, dos botones grandes que copian. */
 .fe .cy-modal { position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(4, 32, 63, .55) }
 .fe .cy-caja { display: flex; flex-direction: column; width: min(560px, 100%); max-height: min(86vh, 900px); background: var(--fe-papel, #fff); border: 1px solid var(--fe-tinta); border-radius: 0; box-shadow: 0 18px 50px rgba(0,0,0,.28) }
-.fe .cy-cab { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; background: var(--fe-acento); color: var(--c-marca-txt, #111) }
-.fe .cy-cab span { display: inline-flex; align-items: center; gap: 8px; font: 800 12px var(--fe-texto, inherit); letter-spacing: .12em; text-transform: uppercase }
-.fe .cy-cab button { min-width: 40px; min-height: 40px; border: 0; background: transparent; color: inherit; font-size: 26px; line-height: 1; cursor: pointer }
-.fe .cy-cuerpo { padding: 14px 16px 6px; overflow-y: auto; -webkit-overflow-scrolling: touch; flex: 1 }
-.fe .cy-ojo { margin: 0; font: 700 10.5px var(--fe-texto, inherit); letter-spacing: .12em; text-transform: uppercase; color: var(--fe-gris) }
-.fe .cy-cuerpo h3 { margin: 2px 0 10px; font: 800 18px var(--fe-titulo, inherit); color: var(--fe-tinta) }
+.fe .cy-cab { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: #0B0B0C; color: #fff; border-bottom: 3px solid var(--fe-acento) }
+.fe .cy-logo { width: 40px; height: 40px; flex: none; display: block }
+.fe .cy-sep { width: 1px; align-self: stretch; background: #3A3F46; flex: none }
+.fe .cy-tit { min-width: 0; flex: 1 }
+.fe .cy-ojo { font: 700 10px var(--fe-titulo, inherit); letter-spacing: .16em; color: color-mix(in srgb, var(--fe-acento) 70%, #fff) }
+.fe .cy-tit h2 { margin: 3px 0 0; font: 900 19px/1.15 var(--fe-titulo, inherit); letter-spacing: -.02em; color: #fff; overflow-wrap: anywhere }
+.fe .cy-x { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; flex: none; border: 1px solid #444A52; background: transparent; color: #fff; cursor: pointer; border-radius: 0 }
+.fe .cy-x:hover { border-color: #6B7280 }
+.fe .cy-cuerpo { padding: 12px 16px 6px; overflow-y: auto; -webkit-overflow-scrolling: touch; flex: 1 }
 .fe .cy-filtros { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px }
 .fe .cy-seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--fe-tinta) }
 .fe .cy-seg button { min-height: 36px; padding: 0 12px; border: 0; border-left: 1px solid var(--fe-tinta); background: transparent; font: 700 12.5px var(--fe-texto, inherit); color: var(--fe-tinta); cursor: pointer }

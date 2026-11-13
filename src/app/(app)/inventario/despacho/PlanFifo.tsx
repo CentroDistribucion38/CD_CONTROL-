@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import { useRouter } from "next/navigation";
 import type { DatosPlan, MaterialPlan, RenglonPlan, Zona } from "@/modulos/inventario/plan-fifo";
 import { textoCajas as NC } from "@/modulos/inventario/unidades";
+import { dibujarFotoDespacho, bajarPng, type DatosFotoDespacho } from "@/modulos/inventario/despacho-foto";
+import { entregarFoto } from "@/modulos/traspasos/foto";
 
 const nf0 = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const nf1 = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 1 });
@@ -14,6 +16,7 @@ const corta = (f: string | null) => (f ? `${f.slice(8, 10)}/${f.slice(5, 7)}/${f
 const tono = (d: number | null) => (d == null ? "" : d > 60 ? "r" : d > 30 ? "m" : d > 15 ? "a" : "v");
 const PALETA = ["#0F7A4A", "#0B4EA2", "#C08A16", "#E4002B", "#12263A", "#8A96A3"];
 const MAX_SKU = 6;
+const SIN = "Sin estado";
 const TOPES = [5, 10, 15, 20, 0];   // posiciones por material; 0 = todas
 
 const natural = (a: string, b: string) => a.localeCompare(b, "es", { numeric: true });
@@ -30,6 +33,11 @@ export function PlanFifo({ datos, inicial }: { datos: DatosPlan; inicial: string
   const valido = useMemo(() => new Set(datos.materiales.map((m) => m.codigo)), [datos.materiales]);
   const [elegidos, setElegidos] = useState<string[]>(() => inicial.filter((c) => valido.has(c)));
   const [zona, setZona] = useState<"" | Zona>("");
+  /* EL ESTADO DEL ENVASE («Filtro por estado»): "" = todos; SIN = los que no tienen estado. */
+  const [estado, setEstado] = useState<string>("");
+  /* EN EL CELULAR los filtros van plegados en una línea («13/11 · Todo · 10 posiciones»): lo que se toca es el material. */
+  const [verFiltros, setVerFiltros] = useState(false);
+  const [foto, setFoto] = useState<"" | "armando" | "compartido" | "copiado" | "bajado" | "error">("");
   const [tope, setTope] = useState(10);
   const [marcas, setMarcas] = useState<Set<string>>(new Set());
   const [abierto, setAbierto] = useState(false);
@@ -37,6 +45,14 @@ export function PlanFifo({ datos, inicial }: { datos: DatosPlan; inicial: string
 
   const info = useMemo(() => new Map(datos.materiales.map((m) => [m.codigo, m])), [datos.materiales]);
   const color = useMemo(() => new Map(datos.materiales.map((m, i) => [m.codigo, PALETA[i % PALETA.length]])), [datos.materiales]);
+  /* Los estados que hay en el conteo (de los materiales escogidos, o de todo si no hay ninguno), los de más cajas primero. */
+  const estados = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const r of datos.renglones) if (!elegidos.length || elegidos.includes(r.codigo)) { const k = r.estado?.trim() || SIN; m.set(k, (m.get(k) ?? 0) + r.cajas) }
+    return [...m].sort((a, b) => (a[0] === SIN ? 1 : b[0] === SIN ? -1 : b[1] - a[1])).map(([k]) => k);
+  }, [datos.renglones, elegidos]);
+  useEffect(() => { if (estado && !estados.includes(estado)) setEstado("") }, [estado, estados]);
+  const pasaEstado = useCallback((r: RenglonPlan) => !estado || (r.estado?.trim() || SIN) === estado, [estado]);
 
   /* La lista de elegidos viaja en la dirección: se puede copiar el enlace con los mismos materiales. */
   const poner = useCallback((lista: string[]) => {
@@ -56,7 +72,7 @@ export function PlanFifo({ datos, inicial }: { datos: DatosPlan; inicial: string
   }, []);
 
   const bloques = useMemo(() => elegidos.map((cod) => {
-    const todas = datos.renglones.filter((r) => r.codigo === cod && (!zona || r.zona === zona)).sort(fifo);
+    const todas = datos.renglones.filter((r) => r.codigo === cod && (!zona || r.zona === zona) && pasaEstado(r)).sort(fifo);
     /* Solo las N más antiguas (aunque tengan la misma fecha): lo que de verdad se va a despachar. */
     const rs = tope > 0 ? todas.slice(0, tope) : todas;
     let ac = 0, acE = 0;
@@ -67,7 +83,7 @@ export function PlanFifo({ datos, inicial }: { datos: DatosPlan; inicial: string
       cod, material: info.get(cod)?.material ?? cod, filas, cajas: ac, estibas: acE, maxDias,
       totalModulos: todas.length, restoModulos: resto.length, restoCajas: resto.reduce((t, r) => t + r.cajas, 0),
     };
-  }), [elegidos, datos.renglones, zona, info, tope]);
+  }), [elegidos, datos.renglones, zona, info, tope, pasaEstado]);
 
   const tCajas = bloques.reduce((t, b) => t + b.cajas, 0);
   const tEstibas = bloques.reduce((t, b) => t + b.estibas, 0);
@@ -76,6 +92,42 @@ export function PlanFifo({ datos, inicial }: { datos: DatosPlan; inicial: string
 
   const irDia = (d: string) => start(() => router.push(`/inventario/tablero?vista=despacho&dia=${d}${elegidos.length ? `&sku=${elegidos.join(",")}` : ""}`));
   const imprimir = () => { antesDeImprimir(); window.print(); };
+  /* LA IMAGEN, como el Cierre del día: en el celular se comparte (WhatsApp), en el computador se copia; «Descargar» la baja. */
+  function datosFoto(): DatosFotoDespacho {
+    return {
+      dia: datos.dia!, zona, estado, tope,
+      hecha: new Date().toLocaleString("es-CO", { timeZone: "America/Bogota", day: "2-digit", month: "2-digit", year: "numeric", hour: "numeric", minute: "2-digit" }),
+      posiciones: tModulos, cajas: tCajas, estibas: tEstibas,
+      masViejo: masViejo ? { dias: masViejo.dias!, ubicacion: masViejo.ubicacion } : null,
+      bloques: bloques.map((b) => ({
+        codigo: b.cod, material: b.material, color: color.get(b.cod) ?? "#12263A", cajas: b.cajas, estibas: b.estibas,
+        total: b.totalModulos, restoModulos: b.restoModulos, restoCajas: b.restoCajas,
+        filas: b.filas.map(({ r, n }) => ({ n, ubicacion: r.ubicacion, zona: r.zona, estado: r.estado, estibas: r.estibas, cajas: r.cajas, fechaFifo: r.fechaFifo, dias: r.dias })),
+      })),
+    };
+  }
+  function coloresDelTema() {
+    const hx = (v: string) => { const m = v.match(/[\d.]+/g); return m ? m.slice(0, 3).map((x) => Math.round(Number(x)).toString(16).padStart(2, "0")).join("").toUpperCase() : "12263A" };
+    const el = document.querySelector(".pf") ?? document.body;
+    const leer = (v: string, def: string) => {
+      const n = document.createElement("span"); n.style.color = `var(${v}, ${def})`; n.style.display = "none";
+      el.appendChild(n); const col = getComputedStyle(n).color; n.remove(); return hx(col);
+    };
+    return { tinta: leer("--fe-tinta", "#12263A"), acento: leer("--fe-acento", "#FFC000"), sobre: leer("--c-marca-txt", "#111111") };
+  }
+  async function imagen(bajar: boolean) {
+    if (foto === "armando" || !elegidos.length) return;
+    setFoto("armando");
+    try {
+      const png = await dibujarFotoDespacho(datosFoto(), coloresDelTema());
+      const nombre = `despacho-fifo-${datos.dia}-${elegidos.join("-")}.png`;
+      if (bajar) { bajarPng(png, nombre); setFoto("bajado") }
+      else setFoto(await entregarFoto(png, nombre, "Plan de despacho FIFO"));
+    } catch { setFoto("error") }
+    setTimeout(() => setFoto(""), 2600);
+  }
+  const textoFoto = foto === "armando" ? "Armando…" : foto === "copiado" ? "Copiada" : foto === "compartido" ? "Compartida" : foto === "bajado" ? "Descargada" : foto === "error" ? "No se pudo" : "";
+
   const antesDeImprimir = () => setImpreso(new Date().toLocaleString("es-CO", { timeZone: "America/Bogota", dateStyle: "medium", timeStyle: "short" }));
 
   if (!datos.dia) {
@@ -94,7 +146,7 @@ export function PlanFifo({ datos, inicial }: { datos: DatosPlan; inicial: string
         </div>
         <div className="pf-hoja-sello">
           <strong>Plan de despacho FIFO</strong>
-          Conteo del {larga(datos.dia)} · {zona || "Todas las zonas"} · {tope ? `las ${tope} posiciones más antiguas por material` : "todas las posiciones"}<br />
+          Conteo del {larga(datos.dia)} · {zona || "Todas las zonas"} · {estado || "Todos los estados"} · {tope ? `las ${tope} posiciones más antiguas por material` : "todas las posiciones"}<br />
           {impreso && <>Impreso: {impreso}</>}
         </div>
       </div>
@@ -103,18 +155,32 @@ export function PlanFifo({ datos, inicial }: { datos: DatosPlan; inicial: string
       </p>
 
       {/* ---- barra de filtros ---- */}
-      <div className="pf-barra pf-no-papel">
-        <label className="pf-grupo"><span>Conteo del día</span>
+      <div className={"pf-barra pf-no-papel" + (verFiltros ? "" : " pf-plegada")}>
+        <button type="button" className="pf-plegar" aria-expanded={verFiltros} onClick={() => setVerFiltros((v) => !v)}>
+          <span><small>Filtros</small>{[larga(datos.dia), zona || "Todo", estado || "Todos los estados", tope ? `${tope} posiciones` : "Todas"].join(" · ")}</span>
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.4"><path d={verFiltros ? "M6 15l6-6 6 6" : "M6 9l6 6 6-6"} /></svg>
+        </button>
+        <label className="pf-grupo pf-plegable"><span>Conteo del día</span>
           <select value={datos.dia} onChange={(e) => irDia(e.target.value)} disabled={pend}>
             {datos.dias.map((d) => <option key={d} value={d}>{larga(d)}</option>)}
           </select>
         </label>
-        <div className="pf-grupo"><span>Zona</span>
+        <div className="pf-grupo pf-plegable"><span>Zona</span>
           <div className="pf-chips">{(["", "Bodega 38", "Fábrica"] as const).map((z) => (
             <button key={z || "todo"} type="button" className={zona === z ? "on" : ""} aria-pressed={zona === z} onClick={() => setZona(z)}>{z || "Todo"}</button>
           ))}</div>
         </div>
-        <div className="pf-grupo"><span>Posiciones por material</span>
+        {estados.length > 1 && (
+          <div className="pf-grupo pf-estado pf-plegable"><span>Estado</span>
+            <div className="pf-chips">
+              <button type="button" className={estado === "" ? "on" : ""} aria-pressed={estado === ""} onClick={() => setEstado("")}>Todos</button>
+              {estados.map((e) => (
+                <button key={e} type="button" className={estado === e ? "on" : ""} aria-pressed={estado === e} onClick={() => setEstado(e)}>{e}</button>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="pf-grupo pf-plegable"><span>Posiciones por material</span>
           <div className="pf-chips">{TOPES.map((t) => (
             <button key={t} type="button" className={tope === t ? "on" : ""} aria-pressed={tope === t} onClick={() => setTope(t)}>{t === 0 ? "Todas" : t}</button>
           ))}</div>
@@ -139,10 +205,22 @@ export function PlanFifo({ datos, inicial }: { datos: DatosPlan; inicial: string
               aplicar={(l) => { poner(l.slice(0, MAX_SKU)); setAbierto(false); }} cerrar={() => setAbierto(false)} />
           )}
         </div>
-        <button type="button" className="pf-imprimir" disabled={!elegidos.length} onClick={imprimir}>
-          <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M5 2h10v4H5zM3 7h14a1 1 0 0 1 1 1v6h-3v4H5v-4H2V8a1 1 0 0 1 1-1zm4 6v4h6v-4z" fill="currentColor" /></svg>
-          Imprimir hoja
-        </button>
+        {/* LAS SALIDAS: la imagen (como el Cierre del día: se comparte o se copia), bajarla, o imprimir la hoja. */}
+        <div className="pf-salidas">
+          <button type="button" className="pf-imprimir" disabled={!elegidos.length || foto === "armando"} onClick={() => imagen(false)}
+                  title="La hoja como imagen: en el celular se comparte (WhatsApp), en el computador se copia para pegarla">
+            <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.2"><rect x="3" y="5" width="18" height="14" /><circle cx="12" cy="12" r="3.5" /><path d="M8 5l1.5-2h5L16 5" /></svg>
+            {textoFoto || "Copiar imagen"}
+          </button>
+          <button type="button" className="pf-sec2" disabled={!elegidos.length || foto === "armando"} onClick={() => imagen(true)} title="Bajar la imagen como archivo PNG">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 4v11M7 11l5 5 5-5M5 20h14" /></svg>
+            Descargar
+          </button>
+          <button type="button" className="pf-sec2 pf-solo-pc" disabled={!elegidos.length} onClick={imprimir}>
+            <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M5 2h10v4H5zM3 7h14a1 1 0 0 1 1 1v6h-3v4H5v-4H2V8a1 1 0 0 1 1-1zm4 6v4h6v-4z" fill="currentColor" /></svg>
+            Imprimir
+          </button>
+        </div>
       </div>
 
       {/* ---- SIN MATERIAL: tarjetas para escoger de un clic ---- */}
@@ -186,7 +264,7 @@ export function PlanFifo({ datos, inicial }: { datos: DatosPlan; inicial: string
                 <p className="pf-pista">No hay {b.cod} en {zona || "ninguna zona"} en el conteo del {larga(datos.dia!)}.</p>
               ) : (
                 <div className="pf-scroll">
-                  <table className="pf-t">
+                  <table className="pf-t pf-t-cel">
                     <thead>
                       <tr>
                         <th className="c">Salida</th><th>Módulo</th><th>Zona</th><th>Estado</th>
@@ -199,26 +277,26 @@ export function PlanFifo({ datos, inicial }: { datos: DatosPlan; inicial: string
                         const k = r.id; const hecho = marcas.has(k);
                         return (
                           <tr key={k} className={hecho ? "hecho" : ""}>
-                            <td className="c"><span className={"pf-orden" + (n === 1 ? " uno" : "")}>{n}</span></td>
+                            <td className="c pf-c-o"><span className={"pf-orden" + (n === 1 ? " uno" : "")}>{n}</span></td>
                             <td className="pf-mod">{r.ubicacion}</td>
-                            <td>{r.zona}</td>
-                            <td>{r.estado ? <span className="pf-est">{r.estado}</span> : <span className="pf-tenue">—</span>}</td>
-                            <td className="n">{n1(r.estibas)}</td>
-                            <td className="n"><b>{NC(r.cajas)}</b></td>
-                            <td>{corta(r.fechaFifo)}</td>
-                            <td>
+                            <td className="pf-c-z">{r.zona}</td>
+                            <td className="pf-c-e">{r.estado ? <span className="pf-est">{r.estado}</span> : <span className="pf-tenue">—</span>}</td>
+                            <td className="n pf-c-es">{n1(r.estibas)}<small className="pf-solo-cel"> est.</small></td>
+                            <td className="n pf-c-cj"><b>{NC(r.cajas)}</b><small className="pf-solo-cel"> cajas</small></td>
+                            <td className="pf-c-f">{corta(r.fechaFifo)}</td>
+                            <td className="pf-c-d">
                               <span className={"pf-dias " + tono(r.dias)}>
                                 <b>{r.dias == null ? "—" : `${n0(r.dias)} d`}</b>
                                 <i><u style={{ width: `${r.dias == null ? 0 : Math.max(4, (r.dias * 100) / b.maxDias)}%` }} /></i>
                               </span>
                             </td>
-                            <td>
+                            <td className="pf-c-a">
                               <span className="pf-acum">
                                 <b>{NC(ac)}</b>
                                 <i><u style={{ width: `${(ac * 100) / b.cajas}%`, background: color.get(b.cod) }} /></i>
                               </span>
                             </td>
-                            <td className="c pf-no-papel">
+                            <td className="c pf-no-papel pf-c-k">
                               <input type="checkbox" aria-label={`Ya tomé ${r.ubicacion}`} checked={hecho}
                                 onChange={() => setMarcas((s) => { const x = new Set(s); if (x.has(k)) x.delete(k); else x.add(k); return x; })} />
                             </td>
