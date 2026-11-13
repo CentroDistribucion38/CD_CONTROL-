@@ -307,21 +307,22 @@
 }
 .sd .iat-cab {
   display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap;
-  padding: 7px 10px 7px 14px; background: var(--sd-tinta); color: #fff; box-shadow: inset 0 -3px 0 var(--sd-marca);
+  padding: 6px 8px 6px 14px; background: #fff; color: var(--sd-tinta); border-bottom: 1px solid var(--sd-linea);
 }
 .sd .iat-tit { margin: 0; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; min-width: 0 }
-.sd .iat-ojo { font: 700 10px var(--sd-texto); letter-spacing: .16em; color: var(--sd-marca) }
-.sd .iat-tit b { font: 800 15px var(--sd-titulo); letter-spacing: -.01em; color: #fff }
+.sd .iat-ojo { font: 700 10px var(--sd-texto); letter-spacing: .16em; color: var(--sd-gris); padding-left: 8px; border-left: 3px solid var(--sd-marca) }
+.sd .iat-tit b { font: 800 15px var(--sd-titulo); letter-spacing: -.01em; color: var(--sd-tinta) }
 .sd .iat-dia { display: flex; align-items: center; gap: 4px }
 .sd .iat-flecha {
-  width: 32px; height: 32px; padding: 0; display: grid; place-items: center; border: 1px solid rgba(255, 255, 255, .3);
-  background: transparent; color: #fff; cursor: pointer;
+  width: 32px; height: 32px; padding: 0; display: grid; place-items: center; border: 1px solid var(--sd-linea);
+  background: #fff; color: var(--sd-tinta); cursor: pointer;
 }
 .sd .iat-flecha svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round }
-.sd .iat-flecha:hover:not(:disabled) { border-color: var(--sd-marca); color: var(--sd-marca) }
+.sd .iat-flecha:hover:not(:disabled) { border-color: var(--sd-tinta) }
 .sd .iat-flecha:disabled { opacity: .3; cursor: default }
 .sd .iat-flecha:focus-visible { outline: 2px solid var(--sd-marca); outline-offset: 2px }
-.sd .ia-turnos .dc-campo { height: 32px; min-width: 150px; border-color: #fff; font-size: 13px }
+.sd .ia-turnos .dc-campo { height: 32px; min-width: 150px; border: 1px solid var(--sd-linea); font-size: 13px }
+.sd .ia-turnos .dc-campo:hover { border-color: var(--sd-tinta) }
 .sd .ia-turnos .dc-panel { left: auto; right: 0 }
 .sd .iat-error { margin: 0; padding: 8px 14px; background: #FDECEE; color: #B00020; font-size: 13px; font-weight: 600 }
 
