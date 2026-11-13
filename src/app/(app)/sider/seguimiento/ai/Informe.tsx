@@ -6,6 +6,7 @@ import type { PorDefecto, PorSocio, PorSemana, PorOrigen } from "@/modulos/sider
 import type { Revision } from "@/modulos/sider/ai";
 import { NOMBRE_TIPO, type TipoRevision } from "@/modulos/sider/comun";
 import { CierreAi } from "./CierreAi";
+import { TurnosAi } from "./TurnosAi";
 
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const nf2 = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -53,7 +54,8 @@ export function Informe({
 }) {
   const router = useRouter();
   const [busca, setBusca] = useState("");
-  const [cierre, setCierre] = useState(false);
+  const [cierre, setCierre] = useState<{ dia: string; turnos: string[] } | null>(null);
+  const tipoCierre = (filtro.tipo === "ai" || filtro.tipo === "sorting" ? filtro.tipo : "") as "ai" | "sorting" | "";
   const [orden, setOrden] = useState<"fecha" | "indice">("fecha");
 
   function filtrar(k: string, v: string) {
@@ -109,9 +111,11 @@ export function Informe({
             <option value="">Todos</option>
             {opciones.canales.map(([k, n]) => <option key={k} value={k}>{n}</option>)}
           </select></label>
-        <button type="button" className="ia-cierre" onClick={() => setCierre(true)} title="VH y cantidad revisada, CDs de mayor a menor %AI y pareto del defecto más encontrado">Cierre de turno</button>
       </section>
-      {cierre && <CierreAi ultima={opciones.ultima} tipoInicial={filtro.tipo === "sorting" ? "sorting" : "ai"} cerrar={() => setCierre(false)} />}
+
+      {/* ---------- EL CIERRE POR TURNO Y POR DÍA, como el de Traspasos ---------- */}
+      <TurnosAi ultima={opciones.ultima} tipo={tipoCierre} abrir={(dia, turnos) => setCierre({ dia, turnos })} />
+      {cierre && <CierreAi ultima={opciones.ultima} tipoInicial={tipoCierre} diaInicial={cierre.dia} turnosInicial={cierre.turnos} cerrar={() => setCierre(null)} />}
 
       {total.revisiones === 0 ? (
         <section className="ia-vacio">

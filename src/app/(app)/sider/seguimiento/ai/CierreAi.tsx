@@ -27,13 +27,15 @@ const diaLargo = (iso: string) => new Date(iso + "T12:00:00").toLocaleDateString
 const hhmm = (d: Date) => d.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
 const hoyCo = () => new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Bogota" }).format(new Date());
 
-export function CierreAi({ ultima, tipoInicial, cerrar }: { ultima: string | null; tipoInicial: "ai" | "sorting" | ""; cerrar: () => void }) {
+export function CierreAi({ ultima, tipoInicial, cerrar, diaInicial, turnosInicial }: { ultima: string | null; tipoInicial: "ai" | "sorting" | ""; cerrar: () => void;
+  /** Desde el tablero de turnos: abre en ese día y con esos turnos. */
+  diaInicial?: string; turnosInicial?: string[] }) {
   const raiz = useRef<HTMLDivElement>(null);
   const botonX = useRef<HTMLButtonElement>(null);
   const [armado, setArmado] = useState(() => new Date());
-  const [dia, setDia] = useState(ultima ?? hoyCo());
-  const [turnos, setTurnos] = useState<string[]>([turnoAi()]);
-  const [tipo, setTipo] = useState<"ai" | "sorting" | "">(tipoInicial || "ai");
+  const [dia, setDia] = useState(diaInicial ?? ultima ?? hoyCo());
+  const [turnos, setTurnos] = useState<string[]>(turnosInicial?.length ? turnosInicial : [turnoAi()]);
+  const [tipo, setTipo] = useState<"ai" | "sorting" | "">(tipoInicial);
   const [datos, setDatos] = useState<{ revisiones: Revision[]; defectos: PorDefecto[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<{ txt: string; mal?: boolean } | null>(null);

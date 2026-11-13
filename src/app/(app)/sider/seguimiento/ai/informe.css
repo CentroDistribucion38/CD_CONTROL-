@@ -293,5 +293,120 @@
 }
 
 /* El botón que abre el cierre de turno, al final de la fila de filtros. */
-.sd .ia-filtros .ia-cierre { align-self: end; height: 38px; padding: 0 16px; border: 0; background: var(--c-grupo, #111); color: #fff; font: 700 13px var(--font-texto, system-ui); cursor: pointer; box-shadow: inset 0 -3px 0 var(--c-marca, #FFC400) }
-.sd .ia-filtros .ia-cierre:focus-visible { outline: 3px solid var(--c-marca, #FFC400); outline-offset: 2px }
+
+/* ---------------------------------------------------------------------
+   EL CIERRE POR TURNO Y POR DÍA — como el de Traspasos.
+   Banda negra con el día, tres anillos (C, A, B) y el botón grande del día en el acento. Esquinas rectas.
+   El calendario (DiaCierre) usa las variables --rt-* del cierre: aquí se le dan las del informe.
+   --------------------------------------------------------------------- */
+.sd .ia-turnos {
+  --rt-tinta: var(--sd-tinta); --rt-oro: var(--sd-marca); --rt-linea: var(--sd-linea); --rt-papel: #fff;
+  --rt-titulo: var(--sd-titulo); --rt-texto: var(--sd-texto); --rt-gris: var(--sd-gris);
+  background: var(--sd-papel); border: 1px solid var(--sd-linea);
+}
+.sd .iat-cab {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap;
+  padding: 14px 18px; background: var(--sd-tinta); color: #fff; box-shadow: inset 0 -4px 0 var(--sd-marca);
+}
+.sd .iat-ojo { margin: 0; font: 700 10.5px var(--sd-texto); letter-spacing: .16em; color: var(--sd-marca) }
+.sd .iat-cab h2 { margin: 3px 0 0; font: 900 22px/1.1 var(--sd-titulo); letter-spacing: -.02em; color: #fff }
+.sd .iat-dia { display: flex; align-items: center; gap: 6px }
+.sd .iat-flecha {
+  width: 38px; height: 38px; display: grid; place-items: center; border: 1.5px solid rgba(255, 255, 255, .35);
+  background: transparent; color: #fff; cursor: pointer;
+}
+.sd .iat-flecha svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round }
+.sd .iat-flecha:hover:not(:disabled) { border-color: var(--sd-marca); color: var(--sd-marca) }
+.sd .iat-flecha:disabled { opacity: .3; cursor: default }
+.sd .iat-flecha:focus-visible { outline: 2px solid var(--sd-marca); outline-offset: 2px }
+.sd .ia-turnos .dc-campo { height: 38px; border-color: #fff }
+.sd .ia-turnos .dc-panel { right: auto }
+.sd .iat-error { margin: 0; padding: 10px 18px; background: #FDECEE; color: #B00020; font-size: 13px; font-weight: 600 }
+
+.sd .iat-cuerpo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); gap: 12px; padding: 14px }
+.sd .iat-anillos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px }
+.sd .iat-turno { position: relative; min-width: 0 }
+.sd .iat-abrir {
+  position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center;
+  padding: 16px 10px 14px; background: #fff; border: 1.5px solid var(--sd-linea); color: var(--sd-tinta);
+  cursor: pointer; font-family: var(--sd-texto); transition: border-color .12s, transform .12s;
+}
+.sd .iat-abrir:hover:not(:disabled) { border-color: var(--sd-tinta); transform: translateY(-1px) }
+.sd .iat-abrir:focus-visible { outline: 3px solid var(--sd-marca); outline-offset: 2px }
+.sd .iat-abrir:disabled { cursor: progress }
+.sd .iat-turno.marcado .iat-abrir { border-color: var(--sd-tinta); box-shadow: inset 0 -4px 0 var(--sd-marca); background: color-mix(in srgb, var(--sd-marca) 7%, #fff) }
+.sd .iat-aro { width: 100%; max-width: 112px; height: auto; display: block }
+.sd .iat-aro .pista { fill: none; stroke: #ECEFF3; stroke-width: 9 }
+.sd .iat-aro .arco { fill: none; stroke: var(--sd-marca); stroke-width: 9; transition: stroke-dasharray .4s ease }
+.sd .iat-aro .v { font: 900 19px var(--sd-titulo); fill: var(--sd-tinta); letter-spacing: -.03em }
+.sd .iat-aro .u { font: 700 8.5px var(--sd-texto); fill: var(--sd-gris); letter-spacing: .12em }
+.sd .iat-turno.vacio .iat-aro .v { fill: #B5BFCB }
+.sd .iat-abrir b { margin-top: 8px; font: 900 16px var(--sd-titulo); letter-spacing: -.01em }
+.sd .iat-abrir .h { font-size: 11px; color: var(--sd-gris); font-variant-numeric: tabular-nums }
+.sd .iat-abrir .d { margin-top: 6px; font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums }
+.sd .iat-abrir .p { margin-top: 2px; font-size: 11px; color: var(--sd-gris) }
+.sd .iat-turno.vacio .iat-abrir .d { color: var(--sd-gris); font-weight: 500 }
+.sd .iat-ver { position: absolute; top: 10px; right: 10px; width: 18px; height: 18px; opacity: .45; transition: opacity .12s }
+.sd .iat-ver svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round }
+.sd .iat-abrir:hover .iat-ver { opacity: 1 }
+
+.sd .iat-marca {
+  position: absolute; top: 2px; left: 2px; z-index: 1; width: 44px; height: 44px; display: grid; place-items: center;
+  border: 0; background: transparent; cursor: pointer;
+}
+.sd .iat-marca i { width: 24px; height: 24px; display: grid; place-items: center; border: 2px solid #C3CCD7; background: #fff; transition: border-color .12s, background .12s }
+.sd .iat-marca:hover i, .sd .iat-marca:focus-visible i { border-color: var(--sd-tinta) }
+.sd .iat-marca:focus-visible { outline: none }
+.sd .iat-marca[aria-pressed="true"] i { background: var(--sd-tinta); border-color: var(--sd-tinta); color: var(--sd-marca) }
+.sd .iat-marca svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round }
+
+.sd .iat-dia-btn {
+  position: relative; display: flex; flex-direction: column; justify-content: center; gap: 6px; text-align: left;
+  padding: 18px 56px 18px 20px; border: 0; border-left: 8px solid var(--sd-tinta);
+  background: var(--sd-marca); color: var(--sd-marca-txt); cursor: pointer; font-family: var(--sd-texto);
+  box-shadow: 0 4px 0 var(--sd-tinta); transition: transform .1s, box-shadow .1s;
+}
+.sd .iat-dia-btn:hover:not(:disabled) { transform: translateY(2px); box-shadow: 0 2px 0 var(--sd-tinta) }
+.sd .iat-dia-btn:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 0 0 var(--sd-tinta) }
+.sd .iat-dia-btn:focus-visible { outline: 3px solid var(--sd-tinta); outline-offset: 2px }
+.sd .iat-dia-btn:disabled { cursor: progress }
+.sd .iat-dia-btn .q { font: 900 17px var(--sd-titulo); letter-spacing: .005em }
+.sd .iat-dia-btn .big { display: flex; align-items: baseline; gap: 8px; font: 900 40px/1 var(--sd-titulo); letter-spacing: -.04em; font-variant-numeric: tabular-nums }
+.sd .iat-dia-btn .big small { font: 700 11px var(--sd-texto); letter-spacing: .12em; text-transform: uppercase; opacity: .78 }
+.sd .iat-dia-btn .d { font-size: 12.5px; font-weight: 600; line-height: 1.4; opacity: .9 }
+.sd .iat-dia-btn .iat-ver { top: 50%; right: 18px; width: 26px; height: 26px; margin-top: -13px; opacity: 1 }
+.sd .iat-dia-btn .iat-ver svg { stroke-width: 2.6 }
+
+.sd .iat-sel {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 14px 14px; padding: 10px 12px;
+  border: 1.5px solid var(--sd-tinta); background: color-mix(in srgb, var(--sd-marca) 10%, #fff);
+}
+.sd .iat-sel .q { font-size: 13.5px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap }
+.sd .iat-sel .q b { font: 900 15px var(--sd-titulo) }
+.sd .iat-sel .q em { font-style: normal; font-size: 12.5px; color: var(--sd-gris); font-variant-numeric: tabular-nums }
+.sd .iat-sel button { min-height: 40px; padding: 0 14px; font: 700 13px var(--sd-texto); cursor: pointer }
+.sd .iat-sel .limpiar { margin-left: auto; border: 1.5px solid var(--sd-linea); background: #fff; color: var(--sd-tinta) }
+.sd .iat-sel .ver { border: 0; background: var(--sd-tinta); color: #fff; box-shadow: inset 0 -3px 0 var(--sd-marca) }
+.sd .iat-sel button:focus-visible { outline: 3px solid var(--sd-marca); outline-offset: 2px }
+
+@media (max-width: 860px) {
+  .sd .iat-cuerpo { grid-template-columns: 1fr; padding: 10px }
+  .sd .iat-cab { padding: 12px 14px }
+  .sd .iat-cab h2 { font-size: 19px }
+}
+@media (max-width: 520px) {
+  .sd .iat-anillos { gap: 6px }
+  .sd .iat-abrir { padding: 38px 4px 10px }
+  .sd .iat-sel { margin: 0 10px 10px }
+  .sd .iat-aro .v { font-size: 17px }
+  .sd .iat-abrir b { font-size: 14px }
+  .sd .iat-abrir .h, .sd .iat-abrir .p { display: none }
+  .sd .iat-abrir .d { font-size: 11px; text-align: center }
+  .sd .iat-ver { display: none }
+  .sd .iat-dia-btn .iat-ver { display: block }
+  .sd .iat-dia-btn .big { font-size: 34px }
+  .sd .iat-dia { width: 100% }
+  .sd .ia-turnos .dc { flex: 1 } .sd .ia-turnos .dc-campo { width: 100% }
+  .sd .iat-sel .limpiar { margin-left: 0 } .sd .iat-sel .ver { flex: 1 }
+}
+@media print { .sd .ia-turnos { display: none } }
