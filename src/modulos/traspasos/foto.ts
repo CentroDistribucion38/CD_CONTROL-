@@ -38,6 +38,8 @@ export type DatosFoto = {
   hora: string;              // «04:21 p. m.»
   planeado: number; adheridos: number; adicionales: number; faltan: number;
   cumplido: number; carga: number; vacios: number | null; registrados: number | null;
+  /** Lo que se movió y no entra en el %, y su rótulo de abajo ya armado («1 viaje hecho que el plan no mide»). */
+  noMide: number; noMideBajo: string;
   tipos: { nombre: string; planeado: number; adheridos: number; adicionales: number; faltan: number }[];
   enlace: string;
 };
@@ -46,8 +48,8 @@ export type DatosFoto = {
 export type Plan = {
   titulo: string; ojo: string; sub: string;
   adherencia: number | null; bajo: string;
-  /* LAS TRES CIFRAS GRANDES: adherencia, cumplimiento y vacíos (este último solo informa, no entra en ningún %). */
-  cumplimiento: number | null; cumplBajo: string; vacios: number | null;
+  /* LAS TRES CIFRAS GRANDES: adherencia, cumplimiento y lo que se movió y no entra en el % (este último solo informa). */
+  cumplimiento: number | null; cumplBajo: string; noMide: number; noMideBajo: string;
   /* Los tres tramos de la cinta, en tanto por uno y sumando 1. */
   tramos: { ok: number; extra: number; falta: number };
   leyenda: { rot: string; tramo: "ok" | "extra" | "falta" }[];
@@ -79,7 +81,8 @@ export function armarFoto(d: DatosFoto): Plan {
     sub: `${d.fecha} · foto de las ${d.hora}`,
     adherencia,
     bajo: `${nf.format(d.adheridos)} de ${nf.format(d.planeado)} del plan`,
-    cumplimiento, cumplBajo: `${nf.format(d.cumplido)} de ${nf.format(d.planeado)} movidos`, vacios: d.vacios,
+    cumplimiento, cumplBajo: `${nf.format(d.cumplido)} de ${nf.format(d.planeado)} movidos`,
+    noMide: d.noMide, noMideBajo: d.noMideBajo,
     tramos: { ok, extra, falta },
     leyenda: [
       { rot: `${nf.format(d.adheridos)} cumplidos`, tramo: "ok" },
@@ -180,18 +183,30 @@ export async function dibujarFoto(p: Plan, c: ColoresFoto): Promise<Blob> {
   g.closePath(); g.fillStyle = rgba(c.sobre, 0.08); g.fill();
   g.restore();
 
-  /* LAS TRES CIFRAS GRANDES, una al lado de la otra: adherencia, cumplimiento y vacíos.
-     Los vacíos van más suaves y dicen «informativo»: se ven, pero no entran en ningún porcentaje. */
+  /* LAS TRES CIFRAS GRANDES, una al lado de la otra: adherencia, cumplimiento y lo que se movió y no
+     entra en el %. Esta última va más suave: se ve, pero no entra en ningún porcentaje.
+     EL RÓTULO SE ACHICA SI NO CABE: «SE MOVIÓ Y NO ENTRA EN EL %» es más largo que «ADHERENCIA», y la
+     tercera columna llega justo al borde; un texto que se sale de la foto no se lee. */
+  const cabe = (txt: string, peso: number, tam: number, fam: string, ls: number, ancho: number) => {
+    let z = tam;
+    for (; z > 11; z--) {
+      g.font = `${peso} ${z}px ${fam}`; esp(ls);
+      const w = g.measureText(txt).width; esp(0);
+      if (w <= ancho) break;
+    }
+    return `${peso} ${z}px ${fam}`;
+  };
   const grande = (x: number, rot: string, val: string, bajo: string, info = false) => {
     const col = info ? rgba(c.sobre, 0.72) : sobre;
+    const ancho = ANCHO - MARGEN - (x + 32);
     caja(x, yH + 46, 9, 150, info ? rgba(c.sobre, 0.35) : sobre);
-    t(rot, x + 32, yH + 76, `700 17px ${sans}`, col, "left", 2.4);
+    t(rot, x + 32, yH + 76, cabe(rot, 700, 17, sans, 2.4, Math.min(ancho, 300)), col, "left", 2.4);
     t(val, x + 32, yH + 160, `900 92px ${sans}`, col, "left", -4);
-    t(bajo, x + 32, yH + 196, `600 20px ${cuerpo}`, col);
+    t(bajo, x + 32, yH + 196, cabe(bajo, 600, 20, cuerpo, 0, Math.min(ancho, 300)), col);
   };
   grande(MARGEN, "ADHERENCIA", pc(p.adherencia), p.bajo);
   grande(MARGEN + 350, "CUMPLIMIENTO", pc(p.cumplimiento), p.cumplBajo);
-  grande(MARGEN + 700, "VACÍOS", p.vacios == null ? "—" : nf.format(p.vacios), "informativo · aparte del %", true);
+  grande(MARGEN + 700, "SE MOVIÓ Y NO ENTRA EN EL %", nf.format(p.noMide), p.noMideBajo, true);
 
   /* La cinta y su leyenda, a todo el ancho. */
   const xC = MARGEN, wC = ANCHO - MARGEN * 2, yCinta = yH + 232;

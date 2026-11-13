@@ -140,6 +140,38 @@ export async function extrasInforme(fecha: string) {
   return { precios, recurrencia: recurrencias(det, fecha, 30, 3), ayer: contraAnterior(det, fecha) };
 }
 
+/* ---------------- CONTRA LOS INVENTARIOS FISCALES ----------------
+   «Una página nueva que compare con los dos últimos inventarios fiscales (con botón Cambiar fechas).»
+   Los fiscales salen de `inv_fiscales` (los anteriores al día del análisis, el más reciente primero) y,
+   para cada uno, se dice si ese día tiene análisis de diferencia guardado: sin él no hay con qué comparar.
+   También van los demás días guardados, por si se quiere comparar con uno que no fue fiscal. */
+export async function fiscalesParaComparar(fecha: string) {
+  if (!esDia(fecha)) return { error: "Día inválido." };
+  const supabase = await createClient();
+  const [f, g] = await Promise.all([
+    supabase.from("inv_fiscales").select("nombre, fecha").lt("fecha", fecha).order("fecha", { ascending: false }).limit(60),
+    supabase.from("analisis_dif_guardado").select("fecha").lt("fecha", fecha).order("fecha", { ascending: false }).limit(400),
+  ]);
+  const guardados = new Set(((g.data ?? []) as { fecha: string }[]).map((x) => x.fecha));
+  /* Un día con dos fiscales (pasa si se abrió uno de prueba) es UNA fecha: se juntan los nombres. */
+  const porDia = new Map<string, string[]>();
+  for (const x of (f.data ?? []) as { nombre: string; fecha: string }[]) porDia.set(x.fecha, [...(porDia.get(x.fecha) ?? []), x.nombre]);
+  const fiscales = [...porDia].map(([d, nombres]) => ({ fecha: d, nombre: nombres.join(" / "), conAnalisis: guardados.has(d) }));
+  const otros = [...guardados].filter((d) => !porDia.has(d)).sort((a, b) => b.localeCompare(a));
+  return { fiscales, otros, falta: !!f.error };
+}
+
+/** El análisis guardado de cada día pedido (con lo marcado como hecho), para la página de los fiscales. */
+export async function analisisDeDias(fechas: string[]) {
+  const dias = [...new Set(fechas)].filter(esDia).slice(0, 2);
+  const { leerAjustes } = await import("@/modulos/inventario/analisis-ajustes");
+  const r = await Promise.all(dias.map(async (d) => {
+    const a = await leerAjustes(d);
+    return { fecha: d, filas: a.guardado ? a.filas : null };
+  }));
+  return r;
+}
+
 /* ---------------- CÓMO VA EMPACADO CADA PRODUCTO ----------------
    Hay productos que van en cartón y no en caja plástica. Se define aquí, producto por producto, y queda para siempre:
    «carton» → no suma caja plástica; «plastica» → suma la caja escogida; «sin» → vuelve a la regla de siempre. */

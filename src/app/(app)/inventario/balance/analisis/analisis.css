@@ -171,12 +171,22 @@
 .ad .ad-modal-caja h3 { margin: 0 0 6px; font: 800 20px var(--fe-titulo, var(--fe-texto)); color: var(--fe-tinta); text-transform: capitalize }
 .ad .ad-modal-sub { margin: 0 0 16px; font-size: 13px; color: var(--fe-gris) }
 .ad .ad-modal-campo { display: flex; flex-direction: column; gap: 5px }
-.ad .ad-modal-campo span { font: 700 10.5px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase; color: var(--fe-gris) }
-.ad .ad-modal-campo input { height: 42px; padding: 0 12px; border: 1.5px solid var(--fe-tinta); font: 700 14px var(--fe-texto); color: var(--fe-tinta); text-transform: uppercase; letter-spacing: .02em }
-.ad .ad-modal-campo input:focus { outline: 3px solid var(--fe-acento, #FFC400); outline-offset: 0 }
+.ad .ad-modal-campo > span { font: 700 10.5px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase; color: var(--fe-gris) }
+.ad .ad-modal-campo > input { height: 42px; padding: 0 12px; border: 1.5px solid var(--fe-tinta); font: 700 14px var(--fe-texto); color: var(--fe-tinta); text-transform: uppercase; letter-spacing: .02em }
+.ad .ad-modal-campo > input:focus { outline: 3px solid var(--fe-acento, #FFC400); outline-offset: 0 }
 .ad .ad-modal-campo small { font-size: 12px; color: var(--fe-gris) }
 .ad .ad-modal-link { border: 0; background: none; padding: 0; margin-left: 6px; font: 700 12px var(--fe-texto); color: #1B4F8F; text-decoration: underline; cursor: pointer }
 .ad .ad-modal-acc { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; flex-wrap: wrap }
+/* «Comparar con» los inventarios fiscales: las dos fechas escogidas y el botón para cambiarlas. Todo recto. */
+.ad .ad-fis { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--fe-linea) }
+.ad .ad-fis-fila { display: flex; flex-wrap: wrap; align-items: center; gap: 8px }
+.ad .ad-fis-chip { padding: 5px 10px; border: 1.5px solid var(--fe-tinta); font: 700 12.5px var(--fe-texto); color: var(--fe-tinta) }
+.ad .ad-fis-chip.sin { border-color: #E4002B; color: #A50D25 }
+.ad .ad-fis-bt { margin-left: auto; padding: 6px 12px; font-size: 12.5px }
+.ad .ad-fis-sel { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 4px 0 2px }
+.ad .ad-fis-sel label { display: flex; flex-direction: column; gap: 4px; min-width: 0 }
+.ad .ad-fis-sel em { font: 700 10px var(--fe-texto); font-style: normal; letter-spacing: .1em; text-transform: uppercase; color: var(--fe-gris) }
+@media (max-width: 520px) { .ad .ad-fis-sel { grid-template-columns: 1fr } .ad .ad-fis-bt { margin-left: 0 } }
 
 /* El botón que es un enlace no se monta sobre el texto de arriba. */
 .ad a.ad-bt { display: inline-flex; align-items: center }

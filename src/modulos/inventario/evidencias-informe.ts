@@ -16,14 +16,21 @@ export type Col = { h: string; w: number; al?: "l" | "r" | "c" };
 export type Foto = { jpg: string; w: number; h: number };
 export type Bloque =
   | { t: "portada"; titulo: string; sub: string; meta: string[] }
-  | { t: "modulo"; n: string; titulo: string; sub?: string }
-  | { t: "sub"; texto: string }
+  /** `seguido`: el módulo va a continuación, sin hoja nueva (ej. el resumen debajo de la portada).
+   *  `ojo`: lo que dice la cabecera de las hojas de este módulo (el informe de cierre cambia por sección). */
+  | { t: "modulo"; n: string; titulo: string; sub?: string; seguido?: boolean; ojo?: string }
+  /** `extra`: el complemento en gris, en la misma línea («Ajustes en SAP · 25 códigos»). */
+  | { t: "sub"; texto: string; extra?: string }
+  /** UNA TABLA DE DOS COLUMNAS de rótulo / cifra («Resumen del cierre»): cada fila lleva un par a la izquierda
+   *  y otro a la derecha. `sep` = raya más fuerte encima (empieza otro grupo); `fuerte` = la cifra más grande. */
+  | { t: "pares"; filas: { a: [string, CeldaT]; b?: [string, CeldaT]; sep?: boolean; fuerte?: boolean }[] }
   | { t: "p"; texto: string; gris?: boolean }
   | { t: "lista"; items: string[] }
   | { t: "kpis"; items: { rotulo: string; valor: string; detalle?: string; color?: string }[] }
   | { t: "img"; img: Imagen; ancho?: number; pie?: string }
   | { t: "imgs2"; a: Imagen; b: Imagen; pieA?: string; pieB?: string }
-  | { t: "tabla"; cols: Col[]; filas: CeldaT[][]; nota?: string; compacta?: boolean }
+  /** `total`: la última fila es el TOTAL (va en negrita, con raya encima). */
+  | { t: "tabla"; cols: Col[]; filas: CeldaT[][]; nota?: string; compacta?: boolean; total?: boolean }
   | { t: "fotos"; items: { foto: Foto; titulo: string; detalle: string }[]; nota?: string };
 
 export type Graficas = { dias: Imagen; cobertura: Imagen; dona: Imagen; top: Imagen; tendencias: Imagen };

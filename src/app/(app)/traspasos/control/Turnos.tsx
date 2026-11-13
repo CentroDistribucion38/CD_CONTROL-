@@ -29,7 +29,7 @@
  */
 
 import { useEffect, useState } from "react";
-import type { Control } from "@/modulos/traspasos/datos";
+import type { Control, FueraDelPlan } from "@/modulos/traspasos/datos";
 import { Cierre } from "./Cierre";
 import { TURNO_DIA, rotuloTurno } from "@/modulos/traspasos/formato";
 
@@ -37,9 +37,11 @@ export type Anillo = {
   turno: string; planeado: number; adheridos: number; pct: number; hay: boolean;
 };
 
-export function Turnos({ anillos, filas, desde, hasta, rotulo, adherencia, adheridos, planeado }: {
+export function Turnos({ anillos, filas, fuera, desde, hasta, rotulo, adherencia, adheridos, planeado }: {
   anillos: Anillo[];
   filas: Control[];
+  /** Lo que se movió y no entra en el % (mismo filtro de turno y tipo que el tablero). */
+  fuera: FueraDelPlan[];
   desde: string;
   hasta: string;
   rotulo: string;
@@ -159,7 +161,7 @@ export function Turnos({ anillos, filas, desde, hasta, rotulo, adherencia, adher
       </button>
 
       {abierto !== null && (
-        <Cierre filas={filas} desde={desde} hasta={hasta} rotulo={rotulo}
+        <Cierre filas={filas} fuera={fuera} desde={desde} hasta={hasta} rotulo={rotulo}
                 turnos={abierto} cerrar={() => setAbierto(null)} />
       )}
     </div>

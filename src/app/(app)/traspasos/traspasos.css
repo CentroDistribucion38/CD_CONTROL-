@@ -603,6 +603,7 @@
 /* LAS TRES CIFRAS GRANDES, una al lado de la otra. Los vacíos van más suaves: solo informan. */
 .tp-ci-hero .ci-grandes { display: flex; gap: 30px; flex-wrap: wrap; align-items: flex-start }
 .tp-ci-hero .ci-pct.info { border-left-style: dashed; border-left-color: color-mix(in srgb, var(--tp-sobre-acento) 55%, transparent) }
+.tp-ci-hero .ci-pct.info { max-width: 260px }
 .tp-ci-hero .ci-pct.info .ci-v, .tp-ci-hero .ci-pct.info .ci-k, .tp-ci-hero .ci-pct.info .ci-s { opacity: .72 }
 .tp-ci-hero .ci-pct { border-left: 6px solid var(--tp-sobre-acento); padding-left: 18px }
 /* LOS RÓTULOS VAN A COLOR ENTERO, no a un 80% como la maqueta. Medido:

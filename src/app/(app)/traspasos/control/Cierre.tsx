@@ -33,7 +33,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Control, Viaje } from "@/modulos/traspasos/datos";
+import type { Control, FueraDelPlan, Viaje } from "@/modulos/traspasos/datos";
 import { HORARIO } from "@/modulos/traspasos/formato";
 import { armarPorPlaca, documentoDe, enOrdenLogico } from "@/modulos/traspasos/por-placa";
 import { armarFoto, dibujarFoto, entregarFoto } from "@/modulos/traspasos/foto";
@@ -41,6 +41,8 @@ import { armarFoto, dibujarFoto, entregarFoto } from "@/modulos/traspasos/foto";
 type Props = {
   /** Las mismas filas que el tablero está pintando, ya filtradas. */
   filas: Control[];
+  /** Lo que se movió y no entra en el %: la misma lista (ya filtrada por tipo) de la tarjeta del tablero. */
+  fuera: FueraDelPlan[];
   desde: string;
   hasta: string;
   /** Los turnos del cierre. Vacío = el día (o el rango) entero.
@@ -61,7 +63,7 @@ const corto = (n: string) => {
   return p.length > 1 ? `${p[0][0]}. ${p[p.length - 1]}` : n;
 };
 
-export function Cierre({ filas, desde, hasta, turnos, rotulo, cerrar }: Props) {
+export function Cierre({ filas, fuera, desde, hasta, turnos, rotulo, cerrar }: Props) {
   const [viajes, setViajes] = useState<Viaje[] | null>(null);
   const [nombres, setNombres] = useState<Record<string, string>>({});
   const [vacios, setVacios] = useState<number | null>(null);
@@ -99,6 +101,17 @@ export function Cierre({ filas, desde, hasta, turnos, rotulo, cerrar }: Props) {
   const mias = useMemo(() => filas.filter((f) => !turnos.length || turnos.includes(f.turno)),
     [filas, turnos]);
   const sum = (k: keyof Control) => mias.reduce((a, f) => a + (Number(f[k]) || 0), 0);
+
+  /* LO QUE SE MOVIÓ Y NO ENTRA EN EL %. «Cambia el tercer recuadro grande (VACÍOS) por SE MOVIÓ Y NO
+     ENTRA EN EL %.» Es la MISMA cifra de la tarjeta del tablero —mismas filas, mismo filtro de tipo—,
+     recortada a los turnos del cierre: si aquí se contara distinto, el cierre y el tablero dirían dos
+     números del mismo trabajo. */
+  const fueraMias = useMemo(() => fuera.filter((f) => !turnos.length || turnos.includes(f.turno)),
+    [fuera, turnos]);
+  const noMide = fueraMias.reduce((a, f) => a + (Number(f.viajes) || 0), 0);
+  const noMidePorSalir = fueraMias.reduce((a, f) => a + (Number(f.por_salir) || 0), 0);
+  /* El rótulo va SIEMPRE igual, como en la tarjeta del tablero: «viajes hechos que el plan no mide». */
+  const noMideBajo = "viajes hechos que el plan no mide";
   const planeado = sum("planeado"), cumplido = sum("cumplido");
   const adheridos = sum("adheridos"), adicionales = sum("adicionales");
   const carga = sum("carga");
@@ -186,7 +199,8 @@ export function Cierre({ filas, desde, hasta, turnos, rotulo, cerrar }: Props) {
     l.push("");
     l.push(`Adherencia ${pct(adherencia)} — ${nf.format(adheridos)} de ${nf.format(planeado)} del plan`);
     l.push(`Cumplimiento ${pct(cumplimiento)} — ${nf.format(cumplido)} de ${nf.format(planeado)} movidos`);
-    l.push(`Vacíos ${nVacios == null ? "—" : nf.format(nVacios)} (informativo, aparte del %)`);
+    l.push(`Se movió y no entra en el % ${nf.format(noMide)} — ${noMideBajo}`
+      + (noMidePorSalir > 0 ? ` (${nf.format(noMidePorSalir)} esperando a facturación)` : ""));
     l.push(`Adicionales ${nf.format(adicionales)} · Sin salir ${nf.format(faltan)}`);
     /* EN LO QUE SE COPIA TAMBIÉN VA: si alguien pega este resumen en un
        grupo sin la frase, el que lo lea concluye que se movió menos de
@@ -206,7 +220,8 @@ export function Cierre({ filas, desde, hasta, turnos, rotulo, cerrar }: Props) {
     }
     if (viajes != null) {
       l.push("");
-      l.push(`${vivos.length} viaje${vivos.length === 1 ? "" : "s"} registrado${vivos.length === 1 ? "" : "s"}.`);
+      l.push(`${vivos.length} viaje${vivos.length === 1 ? "" : "s"} registrado${vivos.length === 1 ? "" : "s"}`
+        + (nVacios ? ` · ${nf.format(nVacios)} vacío${nVacios === 1 ? "" : "s"} aparte` : "") + ".");
     }
     /* La dirección exacta de lo que se está viendo: el que lo recibe
        abre esto mismo, con el mismo rango, en vez de buscarlo. */
@@ -237,7 +252,7 @@ export function Cierre({ filas, desde, hasta, turnos, rotulo, cerrar }: Props) {
       titulo, ojo: ojoCab,
       fecha: rotulo.replace(/^./, (c) => c.toUpperCase()), hora: hhmm(armado.toISOString()),
       planeado, adheridos, adicionales, faltan, cumplido, carga,
-      vacios: nVacios, registrados: viajes == null ? null : vivos.length,
+      vacios: nVacios, noMide, noMideBajo, registrados: viajes == null ? null : vivos.length,
       tipos: tipos.map((t) => ({ nombre: t.nombre, planeado: t.planeado, adheridos: t.adheridos,
         adicionales: t.adicionales, faltan: t.faltan })),
       enlace: typeof window === "undefined" ? "" : window.location.host + window.location.pathname
@@ -373,7 +388,8 @@ export function Cierre({ filas, desde, hasta, turnos, rotulo, cerrar }: Props) {
 
         {/* ─ LA FRANJA DEL ACENTO: el porcentaje, la cinta y las cuatro ─ */}
         <div className="tp-ci-hero">
-          {/* LAS TRES CIFRAS GRANDES: adherencia, cumplimiento y vacíos (esta última solo informa). */}
+          {/* LAS TRES CIFRAS GRANDES: adherencia, cumplimiento y lo que se movió y no entra en el %
+              (esta última solo informa: el trabajo se hizo, pero el plan no lo mide). */}
           <div className="ci-grandes">
             <div className="ci-pct">
               <div className="ci-k">ADHERENCIA</div>
@@ -386,9 +402,9 @@ export function Cierre({ filas, desde, hasta, turnos, rotulo, cerrar }: Props) {
               <div className="ci-s">{nf.format(cumplido)} de {nf.format(planeado)} movidos</div>
             </div>
             <div className="ci-pct info">
-              <div className="ci-k">VACÍOS</div>
-              <div className="ci-v">{nVacios == null ? "—" : nf.format(nVacios)}</div>
-              <div className="ci-s">informativo · aparte del %</div>
+              <div className="ci-k">SE MOVIÓ Y NO ENTRA EN EL %</div>
+              <div className="ci-v">{nf.format(noMide)}</div>
+              <div className="ci-s">{noMideBajo}</div>
             </div>
           </div>
           <div className="ci-lado">

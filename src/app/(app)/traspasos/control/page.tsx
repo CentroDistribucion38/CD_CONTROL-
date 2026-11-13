@@ -410,7 +410,7 @@ export default async function ControlPage({ searchParams }: {
             las volviera a sumar, un redondeo distinto bastaría para que
             el cierre y el tablero dijeran cosas distintas del mismo
             turno. */}
-        <Turnos anillos={porTurno} filas={filas} desde={desde} hasta={hasta}
+        <Turnos anillos={porTurno} filas={filas} fuera={fueraFilas} desde={desde} hasta={hasta}
                 rotulo={rotulo} adherencia={adherencia}
                 adheridos={adheridos} planeado={planeado} />
       </section>
