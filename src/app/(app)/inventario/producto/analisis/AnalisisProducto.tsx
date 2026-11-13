@@ -16,11 +16,8 @@ import { leerZexiProducto, type FilaZexi } from "./leer-zexi";
  * cuánto contó el operador.
  */
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
-const nf1 = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 1 });
 const n = (v: number) => nf.format(v);
 const signo = (v: number) => (v > 0 ? "+" : v < 0 ? "−" : "") + nf.format(Math.abs(v));
-/** La diferencia leída en cajas («−2,5 cajas»), para el producto que se cuenta por caja. */
-const enCajas = (u: number, upc: number) => (upc > 1 && u !== 0 ? `${u > 0 ? "+" : "−"}${nf1.format(Math.abs(u) / upc)} cj` : "");
 
 /* LA ROTURA DE PRODUCTO TERMINADO dentro del CONTEO de un código: igual que en el análisis de Balance. Solo se ve con el renglón
    abierto y, si puedes editar, al tocar la cantidad se vuelve una casilla. Vacía o igual a lo calculado = vuelve a lo calculado. */
@@ -145,7 +142,7 @@ export function AnalisisProducto({ datos, puedeEditar, guardadoEn }: { datos: Da
       const libro = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(libro, XLSX.utils.json_to_sheet(filas.map((f) => ({
         FAMILIA: f.familia, CÓDIGO: f.codigo, DESCRIPCIÓN: f.descripcion, SAP: f.sap, CONTEO: f.conteo, DIFERENCIA: f.diferencia,
-        "DIFERENCIA EN CAJAS": f.upc > 1 ? Math.round((f.diferencia / f.upc) * 10) / 10 : f.diferencia, "CONTÓ EL OPERADOR (no suma)": f.ol ?? "",
+        "CONTÓ EL OPERADOR (no suma)": f.ol ?? "",
       }))), "ANÁLISIS");
       XLSX.utils.book_append_sheet(libro, XLSX.utils.json_to_sheet(filas.flatMap((f) => [
         ...f.deConteo.map((p) => ({ CÓDIGO: f.codigo, LADO: "CONTEO", PARTIDA: p.nombre, UNIDADES: p.cantidad })),
@@ -262,7 +259,7 @@ export function AnalisisProducto({ datos, puedeEditar, guardadoEn }: { datos: Da
         {filas.length === 0 ? <p className="ad-vacio">Todavía no hay nada: falta que Bavaria cuente su hoja o subir la ZEXI.</p> : (
           <div className="ad-tabla-caja">
             <table className="ad-t ad-piv">
-              <thead><tr><th>Familia</th><th>Código</th><th>Descripción</th><th className="n">SAP</th><th className="n">Conteo</th><th className="n">Diferencia</th><th className="n">En cajas</th></tr></thead>
+              <thead><tr><th>Familia</th><th>Código</th><th>Descripción</th><th className="n">SAP</th><th className="n">Conteo</th><th className="n">Diferencia</th></tr></thead>
               <tbody>
                 {familias.map(([fam, xs]) => {
                   const s = filas.filter((f) => f.familia === fam).reduce((t, f) => ({ sap: t.sap + f.sap, conteo: t.conteo + f.conteo }), { sap: 0, conteo: 0 });
@@ -279,7 +276,6 @@ export function AnalisisProducto({ datos, puedeEditar, guardadoEn }: { datos: Da
                               <td className="n">{n(f.sap)}</td>
                               <td className="n">{n(f.conteo)}</td>
                               <td className={"n b" + (f.diferencia < 0 ? " neg" : f.diferencia > 0 ? " pos" : "")}>{signo(f.diferencia)}</td>
-                              <td className="n">{enCajas(f.diferencia, f.upc)}</td>
                             </tr>
                             {ab && (
                               <tr className="ad-det"><td colSpan={6}>
@@ -310,17 +306,17 @@ export function AnalisisProducto({ datos, puedeEditar, guardadoEn }: { datos: Da
                           </Fragment>
                         );
                       })}
-                      <tr className="sub"><td colSpan={3}>Total {fam}</td><td className="n">{n(s.sap)}</td><td className="n">{n(s.conteo)}</td><td className={"n" + (s.conteo - s.sap < 0 ? " neg" : "")}>{signo(s.conteo - s.sap)}</td><td /></tr>
+                      <tr className="sub"><td colSpan={3}>Total {fam}</td><td className="n">{n(s.sap)}</td><td className="n">{n(s.conteo)}</td><td className={"n" + (s.conteo - s.sap < 0 ? " neg" : "")}>{signo(s.conteo - s.sap)}</td></tr>
                     </Fragment>
                   );
                 })}
               </tbody>
-              <tfoot><tr><td colSpan={3}>Total general</td><td className="n">{n(tot.sap)}</td><td className="n">{n(tot.conteo)}</td><td className={"n" + (tot.conteo - tot.sap < 0 ? " neg" : "")}>{signo(tot.conteo - tot.sap)}</td><td /></tr></tfoot>
+              <tfoot><tr><td colSpan={3}>Total general</td><td className="n">{n(tot.sap)}</td><td className="n">{n(tot.conteo)}</td><td className={"n" + (tot.conteo - tot.sap < 0 ? " neg" : "")}>{signo(tot.conteo - tot.sap)}</td></tr></tfoot>
             </table>
           </div>
         )}
         <p className="ad-nota">
-          Toca un código para ver de qué partida sale cada lado. Unidades (la última columna, en cajas). CONTEO = lo que contó
+          Toca un código para ver de qué partida sale cada lado. Todo en unidades, como el análisis de Balance. CONTEO = lo que contó
           Bavaria en el cíclico + las roturas de producto terminado del rango + las novedades que suman al conteo; SAP = la ZEXI (los almacenes escogidos) + las novedades que suman a SAP.
           {ciclico.familias.length > 0 ? <> Entran los productos de {ciclico.familias.join(", ")} y lo que Bavaria haya contado.</> : <> Las hojas no tienen familias: entran todos los productos.</>}
         </p>
