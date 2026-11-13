@@ -660,9 +660,11 @@ export function ContarFiscal({
         {dialogo}
         {avisos}
         <section className="fc-final" role="status">
-          <p className="fc-final-ojo">INVENTARIO FISCAL · {hoja.nombre}</p>
-          <h2>Finalizado</h2>
-          <p>El fiscal aprobó y culminó tu hoja {hoja.numero}. Todo lo que contaste ya está en La base y no hay nada más que hacer aquí.</p>
+          <p className="fc-final-ojo">{ciclico ? "INVENTARIO CÍCLICO" : "INVENTARIO FISCAL"} · {hoja.nombre}</p>
+          <h2>{ciclico ? "Conteo enviado" : "Finalizado"}</h2>
+          <p>{ciclico
+            ? <>La hoja {hoja.numero} quedó cuadrada: los dos contaron lo mismo y el conteo se envió. No hay nada más que hacer aquí.</>
+            : <>El fiscal aprobó y culminó tu hoja {hoja.numero}. Todo lo que contaste ya está en La base y no hay nada más que hacer aquí.</>}</p>
         </section>
       </>
     );

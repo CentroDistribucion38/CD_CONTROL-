@@ -777,7 +777,11 @@ export const MODULOS: Modulo[] = [
       { nombre: "Análisis de diferencia", ruta: "/inventario/balance/analisis", rama: "balance" },
       /* PRODUCTO, EN EL ORDEN DEL PROCESO: se arma el cíclico (familia y parejas) y se habilita el Contar → la
          pareja cuenta y cruza → el conteo de Bavaria se compara con la existencia en el análisis de diferencia. */
-      { nombre: "Cíclico", ruta: "/inventario/producto/ciclico", rama: "producto" },
+      /* EL CÍCLICO ES UN GRUPO, como el Fiscal: el Plan (se arma), el Control (se sigue, se reabre y se exportan los
+         conteos) y el Historial (lo que ya pasó). «Como el fiscal, que pueda esos tres, pero cíclico.» */
+      { nombre: "Plan cíclico", ruta: "/inventario/producto/ciclico", rama: "producto", grupo: "Cíclico" },
+      { nombre: "Control cíclico", ruta: "/inventario/producto/control", rama: "producto", grupo: "Cíclico" },
+      { nombre: "Historial cíclico", ruta: "/inventario/producto/historial", rama: "producto", grupo: "Cíclico" },
       { nombre: "Contar", ruta: "/inventario/producto/contar", rama: "producto" },
       { nombre: "Análisis de diferencia", ruta: "/inventario/producto/analisis", rama: "producto" },
     ],

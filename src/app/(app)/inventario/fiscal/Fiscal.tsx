@@ -98,7 +98,7 @@ const TXT = {
   },
   ciclico: {
     uno: "Inventario cíclico", el: "el inventario cíclico", prefijo: "CÍCLICO", ejemplo: "Ej. Cíclico lata",
-    ojo: "INVENTARIO · PRODUCTO · POR PAREJAS", titulo: "Cíclico", tarjeta: "Cíclico · por parejas",
+    ojo: "INVENTARIO · PRODUCTO · POR PAREJAS", titulo: "Plan cíclico", tarjeta: "Cíclico · por parejas",
     guardar: "inv_ciclico_guardar", publicar: "inv_ciclico_publicar",
   },
 } as const;
@@ -120,7 +120,7 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
   modo?: ModoPlan;
   /** Solo en el cíclico: por id de hoja, cuántos renglones cruza y cuántos NO coinciden. La hoja queda cuadrada
    *  cuando todo coincide: nadie la aprueba ni la «termina». */
-  cruces?: Record<string, { total: number; conDif: number }>;
+  cruces?: Record<string, { total: number; conDif: number; enviada?: boolean }>;
   puedeEditar: boolean; manda: boolean; ahora: string;
   /** false = a la base le falta 2026-10-fiscal-publicar.sql: no se ofrece el botón de Contar. */
   puedePublicar?: boolean;
@@ -241,18 +241,19 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
     };
     const estadoCiclico = (numero: number): { clase: EstadoHoja; texto: string } => {
       const c = cruceDe(numero);
+      if (c?.enviada) return { clase: "lista", texto: "Conteo enviado" };
       if (!c || c.total === 0) return { clase: "sin-empezar", texto: "Sin contar" };
       if (c.conDif > 0) return { clase: "contando", texto: `${c.conDif} por cruzar` };
-      return { clase: "lista", texto: "Cuadrada · todo coincide" };
+      return { clase: "lista", texto: "Todo coincide · falta enviar" };
     };
-    const cuadradas = f.hojas.filter((h) => estadoCiclico(h.numero).clase === "lista").length;
+    const enviadas = f.hojas.filter((h) => !!cruceDe(h.numero)?.enviada).length;
     const conDif = f.hojas.filter((h) => estadoCiclico(h.numero).clase === "contando").length;
     const cifras: { v: number; et: string; tono?: string }[] = modo === "ciclico" && cruces
       ? [
         { v: r.total, et: r.total === 1 ? "hoja" : "hojas" },
         { v: r.completas, et: r.completas === 1 ? "pareja completa" : "parejas completas" },
         { v: conDif, et: "con diferencias por cruzar", tono: "proceso" },
-        { v: cuadradas, et: cuadradas === 1 ? "cuadrada" : "cuadradas", tono: "ok" },
+        { v: enviadas, et: enviadas === 1 ? "conteo enviado" : "conteos enviados", tono: "ok" },
       ]
       : conAvance
       ? [
@@ -325,7 +326,7 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
     if (!conFamilias && puedeEditar) avisos.push(<>Para poder <b>asignar familias a cada hoja</b> falta correr <code>supabase/migraciones/2026-11-fiscal-familias.sql</code> en Supabase.</>);
     if (f.publicado) avisos.push(modo === "fiscal"
       ? <>Ya se ve en Contar. Para seguir el avance en vivo y revisar las diferencias: <Link href="/inventario/control-fiscal">abrir el Control fiscal</Link>.</>
-      : <>Ya se ve en <Link href="/inventario/producto/contar">Contar de Producto</Link>: cualquiera de la pareja cruza desde ahí. Lo que cuenta Bavaria va al <Link href="/inventario/producto/analisis">Análisis de diferencia</Link>.</>);
+      : <>Ya se ve en <Link href="/inventario/producto/contar">Contar de Producto</Link>: la pareja cruza y, cuando todo coincide, envía el conteo. El avance y el Excel de los conteos están en el <Link href="/inventario/producto/control">Control cíclico</Link>.</>);
     return (
       <section key={f.id} className="vf fi-plan" aria-label={`${T.titulo} ${f.nombre}`}>
         <header className="vf-cab">

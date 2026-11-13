@@ -29,8 +29,8 @@ export default async function CiclicoPage() {
   /* EL CRUCE DE CADA HOJA ABIERTA: la hoja queda cuadrada sola cuando todo coincide (nadie la aprueba).
      Sin 2026-11-producto-ciclico-sin-aprobar.sql no viene, y la pantalla sigue con el avance de siempre. */
   const res = await (await createClient()).rpc("inv_ciclico_resumen");
-  const cruces = res.error ? undefined : Object.fromEntries(((res.data ?? []) as { hoja_id: string; total: number; con_diferencia: number }[])
-    .map((x) => [x.hoja_id, { total: Number(x.total) || 0, conDif: Number(x.con_diferencia) || 0 }]));
+  const cruces = res.error ? undefined : Object.fromEntries(((res.data ?? []) as { hoja_id: string; total: number; con_diferencia: number; enviada_en?: string | null }[])
+    .map((x) => [x.hoja_id, { total: Number(x.total) || 0, conDif: Number(x.con_diferencia) || 0, enviada: !!x.enviada_en }]));
 
   return (
     <div className="fe">

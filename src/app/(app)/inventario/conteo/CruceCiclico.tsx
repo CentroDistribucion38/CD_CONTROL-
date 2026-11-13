@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   filaDesdeBD, ordenarCruce, resumenCruce, titularCruce, TEXTO_FILA, difUnid, upcFila,
@@ -13,7 +14,12 @@ import {
    «En Contar solo se habilita el cíclico y cualquiera de los dos da clic para ir cruzando.»
    En el fiscal cruza el fiscal; en el cíclico lo hace la misma pareja, cuando quiera y las veces que quiera:
    cada clic trae lo que van contando los dos HASTA AHORA. Mismo criterio del fiscal: sitio + código (+ estado),
-   en unidades exactas, sin la fecha. Lo que no coincide va primero; lo que coincide se puede abrir.
+   en unidades exactas, sin la fecha.
+
+   «Si se cruzan y todo coincide, que aparezca ENVIAR CONTEO; o si solo quiero cruzar para ver cómo voy, que le dé
+   SEGUIR CONTANDO y se cierra el cruce. Para que no se vea nada denso.»
+   Por eso aquí no vive una tabla abierta: una barra con «Cruzar». El resultado se abre solo al cruzar y se cierra
+   con «Seguir contando». Si todo coincide, «Enviar conteo» cierra la hoja (ya no se anota más).
    =================================================================== */
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 
@@ -32,12 +38,14 @@ function dif(f: FilaCruce): string {
   return `${signo}${nf.format(c)}${s > 0 ? ` + ${nf.format(s)} un.` : ""}`;
 }
 
-export function CruceCiclico({ hojaId, numero, equipo }: { hojaId: string; numero: number; equipo: string }) {
+export function CruceCiclico({ hojaId, numero }: { hojaId: string; numero: number; equipo?: string }) {
+  const router = useRouter();
+  /** null = cerrado (solo la barra); con filas = el resultado del último cruce, abierto. */
   const [filas, setFilas] = useState<FilaCruce[] | null>(null);
   const [cargando, setCargando] = useState(false);
+  const [enviando, setEnviando] = useState(false);
   const [mal, setMal] = useState<string | null>(null);
   const [hora, setHora] = useState<string | null>(null);
-  const [verTodo, setVerTodo] = useState(false);
 
   async function cruzar() {
     setCargando(true); setMal(null);
@@ -52,71 +60,79 @@ export function CruceCiclico({ hojaId, numero, equipo }: { hojaId: string; numer
     setHora(new Date().toLocaleTimeString("es-CO", { hour: "numeric", minute: "2-digit" }));
   }
 
+  async function enviar() {
+    setEnviando(true); setMal(null);
+    const { error } = await createClient().rpc("inv_ciclico_enviar", { p_hoja: hojaId });
+    setEnviando(false);
+    if (error) {
+      setMal(/inv_ciclico_enviar|schema cache|does not exist/i.test(error.message)
+        ? "Para enviar el conteo falta correr supabase/migraciones/2026-11-producto-ciclico-control.sql en Supabase." : error.message);
+      return;
+    }
+    setFilas(null);
+    router.refresh();
+  }
+
   const r = filas ? resumenCruce(filas) : null;
-  const vistas = (filas ?? []).filter((f) => verTodo || f.estado !== "COINCIDE");
+  const cuadra = !!r && r.total > 0 && r.conDiferencia === 0;
+  /* Solo lo que NO coincide: lo que coincide no hay que mirarlo. */
+  const pendientes = (filas ?? []).filter((f) => f.estado !== "COINCIDE");
+
+  /* CERRADO: una barra sola, nada más. */
+  if (!filas) {
+    return (
+      <section className="cc cc-barra" aria-label={`Cruce de la hoja ${numero}`}>
+        <p className="cc-sub"><b>¿Cómo van?</b> Cruza lo que llevan contado los dos.</p>
+        <button type="button" className="btn" disabled={cargando} onClick={cruzar}>{cargando ? "Cruzando…" : "Cruzar"}</button>
+        {mal && <p className="cc-mal" role="alert">{mal}</p>}
+      </section>
+    );
+  }
 
   return (
-    <section className="cc" aria-label={`Cruce de la hoja ${numero}`}>
-      <div className="cc-cab">
-        <div>
-          <p className="cc-ojo">CRUCE CON TU PAREJA · HOJA {numero}</p>
-          <h2>{r ? titularCruce(r) : "Cruza lo que llevan contado los dos"}</h2>
-          <p className="cc-sub">
-            {r ? <>Cruzado a las {hora}. Operador logístico contra Bavaria, por sitio y código, sin la fecha. Tú eres {equipo || "de la pareja"}.</>
-              : <>Cualquiera de los dos puede cruzar, cuando quiera: trae lo que van contando hasta ahora. Lo que no coincida, revísenlo en el sitio y corríjanlo. La hoja queda cuadrada cuando todo coincide: nadie la aprueba.</>}
-          </p>
-        </div>
-        <button type="button" className="btn grande" disabled={cargando} onClick={cruzar}>
-          {cargando ? "Cruzando…" : filas ? "Volver a cruzar" : "Cruzar ahora"}
-        </button>
-      </div>
-
-      {mal && <p className="cc-mal" role="alert">{mal}</p>}
-      {/* LA HOJA QUEDA CUADRADA SOLA cuando todo coincide: nadie la aprueba ni hay que «terminarla». */}
-      {r && r.total > 0 && r.conDiferencia === 0 && (
-        <p className="cc-ok" role="status"><b>Hoja cuadrada.</b> Todo lo que contaron los dos coincide: no hay nada más que hacer en esta hoja.</p>
-      )}
-
-      {r && r.total > 0 && (
+    <section className={"cc " + (cuadra ? "cc-cuadra" : "cc-falta")} aria-label={`Cruce de la hoja ${numero}`}>
+      <p className="cc-ojo">CRUCE · HOJA {numero}{hora ? ` · ${hora}` : ""}</p>
+      {cuadra ? (
         <>
-          <ul className="cc-cifras">
-            <li><b>{r.total}</b><span>renglones</span></li>
-            <li className="ok"><b>{r.coinciden}</b><span>coinciden</span></li>
-            <li className={r.difieren ? "mal" : ""}><b>{r.difieren}</b><span>difieren</span></li>
-            <li className={r.soloOl ? "mal" : ""}><b>{r.soloOl}</b><span>solo el operador</span></li>
-            <li className={r.soloBavaria ? "mal" : ""}><b>{r.soloBavaria}</b><span>solo Bavaria</span></li>
-          </ul>
+          <h2>Todo coincide</h2>
+          <p className="cc-sub">Los dos contaron lo mismo en {r!.total} {r!.total === 1 ? "renglón" : "renglones"}. Si ya terminaron la hoja, envíen el conteo; si les falta contar, sigan.</p>
+        </>
+      ) : r!.total === 0 ? (
+        <>
+          <h2>Todavía no hay nada que cruzar</h2>
+          <p className="cc-sub">Ninguno de los dos ha anotado nada en esta hoja.</p>
+        </>
+      ) : (
+        <>
+          <h2>{titularCruce(r!)}</h2>
+          <p className="cc-sub">{r!.coinciden} de {r!.total} coinciden. Revisen en el sitio lo que no coincide, corrijan y vuelvan a cruzar.</p>
           <div className="cc-tabla-caja">
             <table className="cc-t">
               <thead>
-                <tr><th>Sitio</th><th>Código</th><th>Material</th><th className="n">Operador</th><th className="n">Bavaria</th><th className="n">Diferencia</th><th>Estado</th></tr>
+                <tr><th>Sitio</th><th>Código</th><th className="n">Operador</th><th className="n">Bavaria</th><th className="n">Dif.</th></tr>
               </thead>
               <tbody>
-                {vistas.length === 0 && (
-                  <tr><td colSpan={7} className="cc-vacio">Todo coincide hasta ahora.</td></tr>
-                )}
-                {vistas.map((f, i) => (
-                  <tr key={`${f.ubicacion}|${f.sku}|${f.estadoEnvase ?? ""}|${i}`} className={f.estado === "COINCIDE" ? "ok" : "mal"}>
+                {pendientes.map((f, i) => (
+                  <tr key={`${f.ubicacion}|${f.sku}|${f.estadoEnvase ?? ""}|${i}`} className="mal" title={`${f.material} · ${TEXTO_FILA[f.estado]}`}>
                     <td><b>{f.ubicacion}</b></td>
-                    <td>{f.sku}</td>
-                    <td>{f.material}{f.estadoEnvase ? ` · ${f.estadoEnvase}` : ""}{f.averia ? " · AVERÍA" : ""}{f.pnc ? " · PNC" : ""}</td>
+                    <td>{f.sku}<small className="cc-mat">{f.material}</small></td>
                     <td className="n">{cant(f.cajasOl, f.sueltasOl)}</td>
                     <td className="n">{cant(f.cajasBavaria, f.sueltasBavaria)}</td>
                     <td className="n"><b>{dif(f)}</b></td>
-                    <td>{TEXTO_FILA[f.estado]}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          {r.coinciden > 0 && (
-            <button type="button" className="fe-mini cc-ver" onClick={() => setVerTodo((v) => !v)}>
-              {verTodo ? "Ver solo lo que no coincide" : `Ver también lo que coincide (${r.coinciden})`}
-            </button>
-          )}
         </>
       )}
-      {r && r.total === 0 && <p className="cc-sub">Ninguno de los dos ha anotado nada todavía en esta hoja.</p>}
+      {mal && <p className="cc-mal" role="alert">{mal}</p>}
+      <div className="cc-botones">
+        {cuadra && (
+          <button type="button" className="btn" disabled={enviando} onClick={enviar}>{enviando ? "Enviando…" : "Enviar conteo"}</button>
+        )}
+        <button type="button" className={cuadra ? "btn plano" : "btn"} disabled={enviando} onClick={() => { setFilas(null); setMal(null) }}>Seguir contando</button>
+      </div>
     </section>
   );
 }
