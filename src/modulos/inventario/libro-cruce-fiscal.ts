@@ -60,6 +60,10 @@ export type HojaCruzada = {
   resolucion?: Record<string, string> | null;
   /** El equipo cuyo conteo el fiscal dejó como definitivo en cada módulo aprobado (si no escogió, el del operador). */
   definitivo?: Record<string, "OL" | "BAVARIA"> | null;
+  /** Solo en el cíclico: lo que dice la columna «Estado» de la hoja («Conteo enviado», «3 por cruzar»…) en vez del estado del fiscal. */
+  estadoTexto?: string;
+  /** Solo en el cíclico: la pareja ya envió el conteo (todo coincidió). */
+  enviada?: boolean;
 };
 
 export type InsumosCruce = {
@@ -71,6 +75,8 @@ export type InsumosCruce = {
   colores?: ColoresLibro;
   /** true = a la base le falta 2026-10-fiscal-conteos-por-persona.sql: el libro lo dice en vez de dejar las pestañas en blanco. */
   sinConteos?: boolean;
+  /** «Exportar conteos» del CÍCLICO (Producto): el mismo libro, sin lo que decide el fiscal (no hay «Conciliado» ni resoluciones). */
+  ciclico?: boolean;
 };
 
 /* ---------- colores ---------- */
@@ -189,7 +195,7 @@ export async function armarCruceFiscal(o0: InsumosCruce): Promise<ArrayBuffer> {
   };
   const P = paleta(o.colores);
   const wb = new ExcelJS.Workbook();
-  wb.creator = "CONTROL · Inventario fiscal"; wb.created = new Date();
+  wb.creator = o.ciclico ? "CONTROL · Inventario cíclico" : "CONTROL · Inventario fiscal"; wb.created = new Date();
   const sello = o.sello ? wb.addImage({ buffer: o.sello as unknown as ExcelJS.Buffer, extension: "png" }) : null;
   const cruzadas = o.hojas.filter((h) => h.filas);
   const todas = cruzadas.flatMap((h) => h.filas!.map((f) => ({ h, f })));
@@ -203,7 +209,7 @@ export async function armarCruceFiscal(o0: InsumosCruce): Promise<ArrayBuffer> {
     .sort((a, b) => Math.abs(b.f.diferencia) - Math.abs(a.f.diferencia) || a.h.numero - b.h.numero);
   /* Este cruce es el CRUDO (lo que anotó cada persona): lo que el fiscal compensó o aprobó sigue apareciendo como diferencia, pero esta columna dice qué se decidió. */
   const modDe = (ubic: string) => ubic.replace(/_(IZQ|DER)$/i, "");
-  const resDe = (h: HojaCruzada, ubic: string) => h.resolucion?.[modDe(ubic)] ?? "Sin resolver";
+  const resDe = (h: HojaCruzada, ubic: string) => (o.ciclico ? (h.enviada ? "Conteo enviado" : "Por cruzar en Contar") : h.resolucion?.[modDe(ubic)] ?? "Sin resolver");
   const estaResuelta = (h: HojaCruzada, f: FilaCruce) => f.estado === "COINCIDE" || !["Sin resolver", "En validación"].includes(resDe(h, f.ubicacion));
   const hoy = new Date().toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric" });
   const fechaInv = o.fecha.split("-").reverse().join("/");
@@ -211,7 +217,8 @@ export async function armarCruceFiscal(o0: InsumosCruce): Promise<ArrayBuffer> {
 
   /* LAS PESTAÑAS EN SU ORDEN: primero lo que se lee, al final el detalle. */
   const rs = wb.addWorksheet("Resumen", { properties: { tabColor: { argb: P.BANDA } } });
-  const cn = wb.addWorksheet("Conciliado", { properties: { tabColor: { argb: VERDE } } });
+  /* El cíclico no tiene fiscal que concilie: la pareja cruza hasta que todo coincide, así que no lleva «Conciliado». */
+  const cn = o.ciclico ? null : wb.addWorksheet("Conciliado", { properties: { tabColor: { argb: VERDE } } });
   const df = wb.addWorksheet("Diferencias", { properties: { tabColor: { argb: NARANJA } } });
   const pm = wb.addWorksheet("Por material", { properties: { tabColor: { argb: P.TINTA } } });
   const pp = wb.addWorksheet("Por persona", { properties: { tabColor: { argb: P.BANDA } } });
@@ -284,7 +291,7 @@ export async function armarCruceFiscal(o0: InsumosCruce): Promise<ArrayBuffer> {
     "Cajas operador", "Cajas Bavaria", "Diferencia neta", "Cajas distintas", "% de renglones que coinciden", "Exactitud en cajas", "Lectura"];
   const RA = [2, 7, 24, 24, 17, 11, 11, 11, 11, 11, 14, 14, 13, 13, 15, 14, 44, 2];
   rs.columns = RA.map((w) => ({ width: w }));
-  cabecera(rs, P, sello, "Cruce del inventario fiscal · por pareja", sub, RA.length, false);
+  cabecera(rs, P, sello, o.ciclico ? "Cruce del inventario cíclico · por pareja" : "Cruce del inventario fiscal · por pareja", sub, RA.length, false);
   const listas = cruzadas.filter((h) => !h.parcial).length, parciales = cruzadas.length - listas;
   const totFilas = todas.length, coinc = todas.filter((x) => x.f.estado === "COINCIDE").length;
   const sumOl = todas.reduce((t, x) => t + (x.f.cajasOl ?? 0), 0), sumBa = todas.reduce((t, x) => t + (x.f.cajasBavaria ?? 0), 0);
@@ -320,7 +327,7 @@ export async function armarCruceFiscal(o0: InsumosCruce): Promise<ArrayBuffer> {
     const ex = fs ? exactitud(fs) : null;
     const contar = (est: string, res: number): ExcelJS.CellValue => fs ? { formula: `COUNTIFS(${dr("B")},B${r},${dr("D")},"${est}")`, result: res } : null;
     const vals: ExcelJS.CellValue[] = [
-      hojaN, h.ol ?? "falta", h.bavaria ?? "falta", TEXTO_ESTADO[h.estado],
+      hojaN, h.ol ?? "falta", h.bavaria ?? "falta", h.estadoTexto ?? TEXTO_ESTADO[h.estado],
       fs ? { formula: `COUNTIFS(${dr("B")},B${r})`, result: fs.length } : null,
       contar(TEXTO_FILA.COINCIDE, cuenta("COINCIDE")), contar(TEXTO_FILA.DIFIERE, cuenta("DIFIERE")),
       contar(TEXTO_FILA.SOLO_OL, cuenta("SOLO_OL")), contar(TEXTO_FILA.SOLO_BAVARIA, cuenta("SOLO_BAVARIA")),
@@ -336,7 +343,7 @@ export async function armarCruceFiscal(o0: InsumosCruce): Promise<ArrayBuffer> {
         fmt: k === 11 ? DIF : k >= 4 && k <= 12 ? NF : k === 13 || k === 14 ? PCT : undefined });
     });
     const e = row.getCell(5); e.font = letra(9, BLANCO, true);
-    e.fill = relleno(h.estado === "lista" ? VERDE : h.estado === "una-termino" ? NARANJA : "FF8A8E8A");
+    e.fill = relleno(o.ciclico ? (h.enviada ? VERDE : h.filas?.some((f) => f.estado !== "COINCIDE") ? NARANJA : "FF8A8E8A") : h.estado === "lista" ? VERDE : h.estado === "una-termino" ? NARANJA : "FF8A8E8A");
     for (const k of [14, 15]) { const v = k === 14 ? pc : ex; if (v !== null) { const c = row.getCell(k + 1); c.font = letra(10, BLANCO, true); c.fill = relleno(colorPct(v)); c.alignment = { vertical: "middle", horizontal: "center" } } }
     row.getCell(17).alignment = { vertical: "middle", indent: 1, wrapText: true };
   });
@@ -411,7 +418,9 @@ export async function armarCruceFiscal(o0: InsumosCruce): Promise<ArrayBuffer> {
   const N0 = C0;
   const notas = [
     "CÓMO LEERLO",
-    "Cada hoja la cuentan dos personas, a ciegas: una del operador logístico y una de Bavaria. Se cruzan cuando las dos terminan.",
+    o.ciclico
+      ? "Cada hoja la cuentan dos personas, a ciegas: una del operador logístico y una de Bavaria. La pareja cruza desde Contar las veces que quiera; cuando todo coincide, envía el conteo."
+      : "Cada hoja la cuentan dos personas, a ciegas: una del operador logístico y una de Bavaria. Se cruzan cuando las dos terminan.",
     "Un renglón es «lo mismo» si coincide el sitio, el material y el vencimiento. Coincide si además las cajas son las mismas; Difiere si los dos lo anotaron pero con distinta cantidad; Solo… si lo anotó una sola persona (ver la tabla «Estado del cruce»).",
     "Cajas = estibas × cajas por estiba + saldo + cajas sueltas. Lo que contó solo uno de los dos cuenta como diferencia.",
     "Las unidades sueltas (las que no completan una caja) también cuentan: aparecen como cajas con decimales (unidades ÷ unidades por caja), por ejemplo 20,21 = 20 cajas + 5 unidades de 24.",
@@ -431,9 +440,9 @@ export async function armarCruceFiscal(o0: InsumosCruce): Promise<ArrayBuffer> {
 
   /* =================== DIFERENCIAS =================== */
   const FC = ["Hoja", "Pareja (operador · Bavaria)", "Estado del cruce", "Sitio", "Código", "Material", "Vence", "Cajas operador", "Cajas Bavaria", "Diferencia (operador − Bavaria)", "Quién contó más",
-    "Causa técnica", "Qué pasó exactamente", "Qué revisar", "Resolución del fiscal"];
+    "Causa técnica", "Qué pasó exactamente", "Qué revisar", o.ciclico ? "Estado de la hoja" : "Resolución del fiscal"];
   const FA = [2, 7, 34, 17, 18, 11, 38, 13, 13, 13, 17, 22, 28, 70, 52, 28, 2];
-  const resueltas = mal.filter(({ h, f }) => resDe(h, f.ubicacion) !== "Sin resolver").length;
+  const resueltas = o.ciclico ? 0 : mal.filter(({ h, f }) => resDe(h, f.ubicacion) !== "Sin resolver").length;
   df.columns = FA.map((w) => ({ width: w }));
   cabecera(df, P, sello, "Lo que no coincide · lo más grande primero", `${sub}  ·  ${mal.length} ${mal.length === 1 ? "renglón" : "renglones"}${resueltas ? `  ·  ${resueltas} ya resuelto${resueltas === 1 ? "" : "s"} por el fiscal (ver la última columna)` : ""}`, FA.length);
   const FF0 = FF_ROW0;
@@ -454,7 +463,7 @@ export async function armarCruceFiscal(o0: InsumosCruce): Promise<ArrayBuffer> {
       });
     const e = row.getCell(4); e.fill = relleno(COLOR_ESTADO[f.estado]); e.font = letra(9, BLANCO, true);
     const ce = row.getCell(13); ce.font = letra(10, P.TINTA, true);
-    const rf = row.getCell(16), sin = resDe(h, f.ubicacion) === "Sin resolver";
+    const rf = row.getCell(16), sin = o.ciclico ? !h.enviada : resDe(h, f.ubicacion) === "Sin resolver";
     rf.font = letra(10, sin ? ROJO : VERDE, true);
   });
   if (mal.length === 0) {
@@ -468,7 +477,7 @@ export async function armarCruceFiscal(o0: InsumosCruce): Promise<ArrayBuffer> {
   /* El cruce DESPUÉS de lo que decidió el fiscal: lo compensado o aprobado queda en 0 y se ve el conteo definitivo. Lo que no se resolvió sigue en rojo.
      Las columnas siguen la estructura del Excel de la BD (Cruce OL vs Bavaria): a la izquierda el operador, a la derecha Bavaria, cada lado con
      Cajas · Estibas · Saldo · Sueltas · Unidades · Vence · Envase · Hora, y al final el cruce, lo que decidió el fiscal y el conteo definitivo. */
-  {
+  if (cn) {
     const LADO = ["Cajas", "Estibas", "Saldo", "Sueltas", "Unidades", "Vence", "Envase", "Hora"];
     const CC = ["Hoja", "Pareja (operador · Bavaria)", "Sitio", "Código", "Material", ...LADO, ...LADO,
       "Diferencia cruda", "Resolución del fiscal", "Diferencia final", "Conteo definitivo", "Estibas definitivas", "Cajas definitivas"];
@@ -668,7 +677,7 @@ export async function armarCruceFiscal(o0: InsumosCruce): Promise<ArrayBuffer> {
   const todosCon = conHojas.flatMap((h) => [...h.conteos!].sort((a, b) => (a.equipo === b.equipo ? 0 : a.equipo === "OL" ? -1 : 1) || a.ubicacion.localeCompare(b.ubicacion) || a.sku.localeCompare(b.sku))
     .map((c) => ({ h, c })));
   const cr = (col: string) => `'${S_CON}'!$${col}$${CONF0 + 1}:$${col}$${Math.max(CONF0 + todosCon.length, CONF0 + 1)}`;
-  const PC = ["Hoja", "Equipo", "Persona", "Su pareja", "Renglones", "Estibas", "Saldo", "Cajas sueltas", "Total de cajas", "Cajas en el cruce", "¿Cuadra con el cruce?", "Empezó", "Última anotación", "Terminó"];
+  const PC = ["Hoja", "Equipo", "Persona", "Su pareja", "Renglones", "Estibas", "Saldo", "Cajas sueltas", "Total de cajas", "Cajas en el cruce", "¿Cuadra con el cruce?", "Empezó", "Última anotación", o.ciclico ? "Envió el conteo" : "Terminó"];
   const PA = [2, 7, 20, 26, 26, 11, 11, 11, 13, 14, 14, 16, 17, 17, 17, 2];
   pp.columns = PA.map((w) => ({ width: w }));
   cabecera(pp, P, sello, "Por persona · lo que anotó cada quien", `${sub}  ·  ${o.hojas.length * 2} personas en ${o.hojas.length} hojas`, PA.length);

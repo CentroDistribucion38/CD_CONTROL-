@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Rango } from "../../sider/seguimiento/Rango";
@@ -51,7 +51,9 @@ export function FifoEnvase({ datos }: { datos: DatosFifo }) {
   const router = useRouter();
   const [pend, start] = useTransition();
   const [zona, setZona] = useState<"" | Zona>("");
-  const [material, setMaterial] = useState("");
+  /* EL FILTRO DE MATERIAL: varios a la vez, con buscador y las cajas de cada uno (como el de La base). [] = todos. */
+  const [mats, setMats] = useState<string[]>([]);
+  const [abreMat, setAbreMat] = useState(false);
   const [verEstado, setVerEstado] = useState<"" | Estado>("");
   const [orden, setOrden] = useState<"quietas" | "movimiento">("quietas");
   const [cuantas, setCuantas] = useState(60);
@@ -59,15 +61,21 @@ export function FifoEnvase({ datos }: { datos: DatosFifo }) {
 
   const nombre = useMemo(() => new Map(datos.materiales.map((m) => [m.codigo, m.material])), [datos.materiales]);
   const color = useMemo(() => new Map(datos.materiales.map((m, i) => [m.codigo, PALETA[i] ?? OTROS])), [datos.materiales]);
-  const pasa = (z: Zona, c?: string) => (!zona || z === zona) && (!material || !c || c === material);
+  const pasa = (z: Zona, c?: string) => (!zona || z === zona) && (!mats.length || !c || mats.includes(c));
+  /* Las cajas de cada material en la foto del último día (lo que dice el filtro al lado de cada uno). */
+  const cajasDe = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const l of datos.lineas) if (!zona || l.zona === zona) m.set(l.codigo, (m.get(l.codigo) ?? 0) + l.cajas);
+    return m;
+  }, [datos.lineas, zona]);
 
   const lineas = useMemo(() => datos.lineas.filter((l) => pasa(l.zona, l.codigo)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [datos.lineas, zona, material]);
+    [datos.lineas, zona, mats]);
   const ubic = useMemo(() => datos.ubicaciones
-    .filter((u) => (!zona || u.zona === zona) && (!material || u.celdas.some((c) => c?.codigo === material)))
+    .filter((u) => (!zona || u.zona === zona) && (!mats.length || u.celdas.some((c) => !!c && mats.includes(c.codigo))))
     .map((u) => ({ u, estado: estadoDe(u), mov: cambios(u) }))
-    .filter((x) => x.estado), [datos.ubicaciones, zona, material]);
+    .filter((x) => x.estado), [datos.ubicaciones, zona, mats]);
 
   /* ---- indicadores (del último día del rango) ---- */
   const total = lineas.reduce((t, l) => t + l.cajas, 0);
@@ -128,12 +136,25 @@ export function FifoEnvase({ datos }: { datos: DatosFifo }) {
             <button key={z || "todo"} type="button" className={zona === z ? "on" : ""} aria-pressed={zona === z} onClick={() => setZona(z)}>{z || "Todo"}</button>
           ))}</div>
         </div>
-        <label className="ff-grupo"><span>Material</span>
-          <select value={material} onChange={(e) => setMaterial(e.target.value)}>
-            <option value="">Todos</option>
-            {datos.materiales.map((m) => <option key={m.codigo} value={m.codigo}>{m.codigo} · {m.material}</option>)}
-          </select>
-        </label>
+        <div className="ff-grupo ff-mat"><span>Material</span>
+          <div className="pf-mat-fila">
+            <button type="button" className="pf-embudo" aria-haspopup="dialog" aria-expanded={abreMat} onClick={() => setAbreMat((v) => !v)}>
+              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M1.5 2h13L9.5 8.5V14l-3-1.6V8.5z" fill="currentColor" /></svg>
+              {mats.length ? `${mats.length} de ${datos.materiales.length} materiales` : `Todos los materiales (${datos.materiales.length})`}
+            </button>
+            {mats.map((c) => (
+              <span key={c} className="pf-chip" style={{ borderColor: color.get(c) ?? OTROS }} title={nombre.get(c)}>
+                <i style={{ background: color.get(c) ?? OTROS }} />{c}
+                <button type="button" aria-label={`Quitar ${c}`} onClick={() => setMats(mats.filter((x) => x !== c))}>×</button>
+              </span>
+            ))}
+            {mats.length > 0 && <button type="button" className="pf-limpia" onClick={() => setMats([])}>Limpiar</button>}
+          </div>
+          {abreMat && (
+            <FiltroMat materiales={datos.materiales} cajas={cajasDe} color={color} elegidos={mats}
+              aplicar={(l) => { setMats(l); setAbreMat(false) }} cerrar={() => setAbreMat(false)} />
+          )}
+        </div>
         <small className="ff-dice">{datos.rango.length} días con conteo · foto del {corto(datos.rango[datos.rango.length - 1])}{pend && " · trayendo…"}</small>
       </div>
 
@@ -243,6 +264,59 @@ export function FifoEnvase({ datos }: { datos: DatosFifo }) {
           <span><i className="sin" />Sin registro ese día (no se contó o estaba vacía)</span>
         </div>
       </section>
+    </div>
+  );
+}
+
+/** EL FILTRO DE MATERIAL («este filtro hay que mejorarlo»): en lugar de la lista larga del navegador, una ventanita
+ *  con buscador (código o nombre), las cajas de cada material, su color en las gráficas y varios a la vez. */
+function FiltroMat({ materiales, cajas, color, elegidos, aplicar, cerrar }: {
+  materiales: { codigo: string; material: string }[]; cajas: Map<string, number>; color: Map<string, string>;
+  elegidos: string[]; aplicar: (l: string[]) => void; cerrar: () => void;
+}) {
+  const [q, setQ] = useState("");
+  const [marca, setMarca] = useState<string[]>(elegidos);
+  const caja = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const fuera = (e: MouseEvent) => { if (caja.current && !caja.current.contains(e.target as Node)) cerrar() };
+    const tecla = (e: KeyboardEvent) => { if (e.key === "Escape") cerrar() };
+    const t = setTimeout(() => document.addEventListener("mousedown", fuera), 0);
+    document.addEventListener("keydown", tecla);
+    return () => { clearTimeout(t); document.removeEventListener("mousedown", fuera); document.removeEventListener("keydown", tecla) };
+  }, [cerrar]);
+  const sinTilde = (x: string) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const vistos = useMemo(() => {
+    const ts = sinTilde(q).split(/\s+/).filter(Boolean);
+    const l = ts.length ? materiales.filter((m) => ts.every((t) => sinTilde(`${m.codigo} ${m.material}`).includes(t))) : materiales;
+    return [...l].sort((a, b) => (cajas.get(b.codigo) ?? 0) - (cajas.get(a.codigo) ?? 0));
+  }, [materiales, q, cajas]);
+  const alterna = (c: string) => setMarca((l) => (l.includes(c) ? l.filter((x) => x !== c) : [...l, c]));
+  return (
+    <div className="pf-fc" ref={caja} role="dialog" aria-label="Filtrar material">
+      <div className="pf-fc-t">Filtrar · <b>Material</b>{marca.length > 0 && <> · {marca.length} marcado{marca.length === 1 ? "" : "s"}</>}</div>
+      <input className="pf-fc-q" autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar código o nombre…"
+             onKeyDown={(e) => { if (e.key === "Enter") aplicar(marca) }} />
+      <div className="pf-fc-l">
+        {vistos.map((m) => {
+          const on = marca.includes(m.codigo);
+          return (
+            <label key={m.codigo}>
+              <input type="checkbox" checked={on} onChange={() => alterna(m.codigo)} />
+              <i style={{ background: color.get(m.codigo) ?? OTROS }} />
+              <span><b>{m.codigo}</b> · {m.material}</span>
+              <em>{NC(cajas.get(m.codigo) ?? 0)}</em>
+            </label>
+          );
+        })}
+        {vistos.length === 0 && <p className="pf-fc-mas">Nada con «{q}».</p>}
+      </div>
+      <div className="pf-fc-b">
+        <button type="button" className="pf-fc-limpia" onClick={() => aplicar([])} disabled={!elegidos.length}>Quitar filtro</button>
+        <span>
+          <button type="button" className="pf-sec" onClick={cerrar}>Cancelar</button>
+          <button type="button" className="pf-prim" onClick={() => aplicar(marca)}>Aplicar{marca.length ? ` (${marca.length})` : ""}</button>
+        </span>
+      </div>
     </div>
   );
 }

@@ -34,7 +34,8 @@ export function PlanFifo({ datos, inicial }: { datos: DatosPlan; inicial: string
   const [elegidos, setElegidos] = useState<string[]>(() => inicial.filter((c) => valido.has(c)));
   const [zona, setZona] = useState<"" | Zona>("");
   /* EL ESTADO DEL ENVASE («Filtro por estado»): "" = todos; SIN = los que no tienen estado. */
-  const [estado, setEstado] = useState<string>("");
+  const [ests, setEsts] = useState<string[]>([]);
+  const [abreEst, setAbreEst] = useState(false);
   /* EN EL CELULAR los filtros van plegados en una línea («13/11 · Todo · 10 posiciones»): lo que se toca es el material. */
   const [verFiltros, setVerFiltros] = useState(false);
   const [foto, setFoto] = useState<"" | "armando" | "compartido" | "copiado" | "bajado" | "error">("");
@@ -49,10 +50,16 @@ export function PlanFifo({ datos, inicial }: { datos: DatosPlan; inicial: string
   const estados = useMemo(() => {
     const m = new Map<string, number>();
     for (const r of datos.renglones) if (!elegidos.length || elegidos.includes(r.codigo)) { const k = r.estado?.trim() || SIN; m.set(k, (m.get(k) ?? 0) + r.cajas) }
-    return [...m].sort((a, b) => (a[0] === SIN ? 1 : b[0] === SIN ? -1 : b[1] - a[1])).map(([k]) => k);
+    return [...m].sort((a, b) => (a[0] === SIN ? 1 : b[0] === SIN ? -1 : b[1] - a[1])).map(([k, cajas]) => ({ k, cajas }));
   }, [datos.renglones, elegidos]);
-  useEffect(() => { if (estado && !estados.includes(estado)) setEstado("") }, [estado, estados]);
-  const pasaEstado = useCallback((r: RenglonPlan) => !estado || (r.estado?.trim() || SIN) === estado, [estado]);
+  /* Un estado que ya no existe con los materiales escogidos se suelta solo. */
+  useEffect(() => {
+    const hay = new Set(estados.map((e) => e.k));
+    if (ests.some((e) => !hay.has(e))) setEsts((l) => l.filter((e) => hay.has(e)));
+  }, [ests, estados]);
+  const pasaEstado = useCallback((r: RenglonPlan) => !ests.length || ests.includes(r.estado?.trim() || SIN), [ests]);
+  /** Cómo se dice el filtro de estado en la hoja, la imagen y la línea plegada. */
+  const estado = ests.join(", ");
 
   /* La lista de elegidos viaja en la dirección: se puede copiar el enlace con los mismos materiales. */
   const poner = useCallback((lista: string[]) => {
@@ -157,7 +164,7 @@ export function PlanFifo({ datos, inicial }: { datos: DatosPlan; inicial: string
       {/* ---- barra de filtros ---- */}
       <div className={"pf-barra pf-no-papel" + (verFiltros ? "" : " pf-plegada")}>
         <button type="button" className="pf-plegar" aria-expanded={verFiltros} onClick={() => setVerFiltros((v) => !v)}>
-          <span><small>Filtros</small>{[larga(datos.dia), zona || "Todo", estado || "Todos los estados", tope ? `${tope} posiciones` : "Todas"].join(" · ")}</span>
+          <span><small>Filtros</small>{[larga(datos.dia), zona || "Toda la bodega", tope ? `${tope} posiciones` : "Todas las posiciones"].join(" · ")}</span>
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.4"><path d={verFiltros ? "M6 15l6-6 6 6" : "M6 9l6 6 6-6"} /></svg>
         </button>
         <label className="pf-grupo pf-plegable"><span>Conteo del día</span>
@@ -170,16 +177,6 @@ export function PlanFifo({ datos, inicial }: { datos: DatosPlan; inicial: string
             <button key={z || "todo"} type="button" className={zona === z ? "on" : ""} aria-pressed={zona === z} onClick={() => setZona(z)}>{z || "Todo"}</button>
           ))}</div>
         </div>
-        {estados.length > 1 && (
-          <div className="pf-grupo pf-estado pf-plegable"><span>Estado</span>
-            <div className="pf-chips">
-              <button type="button" className={estado === "" ? "on" : ""} aria-pressed={estado === ""} onClick={() => setEstado("")}>Todos</button>
-              {estados.map((e) => (
-                <button key={e} type="button" className={estado === e ? "on" : ""} aria-pressed={estado === e} onClick={() => setEstado(e)}>{e}</button>
-              ))}
-            </div>
-          </div>
-        )}
         <div className="pf-grupo pf-plegable"><span>Posiciones por material</span>
           <div className="pf-chips">{TOPES.map((t) => (
             <button key={t} type="button" className={tope === t ? "on" : ""} aria-pressed={tope === t} onClick={() => setTope(t)}>{t === 0 ? "Todas" : t}</button>
@@ -205,6 +202,28 @@ export function PlanFifo({ datos, inicial }: { datos: DatosPlan; inicial: string
               aplicar={(l) => { poner(l.slice(0, MAX_SKU)); setAbierto(false); }} cerrar={() => setAbierto(false)} />
           )}
         </div>
+        {/* EL ESTADO DEL ENVASE, igual que el material: ventanita con los estados que hay, sus cajas y varios a la vez. */}
+        {estados.length > 0 && (
+          <div className="pf-grupo pf-est-g">
+            <span>Estado del envase</span>
+            <div className="pf-mat-fila">
+              <button type="button" className="pf-embudo" aria-haspopup="dialog" aria-expanded={abreEst} onClick={() => setAbreEst((v) => !v)}>
+                <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M1.5 2h13L9.5 8.5V14l-3-1.6V8.5z" fill="currentColor" /></svg>
+                {ests.length ? `${ests.length} de ${estados.length} estados` : `Todos los estados (${estados.length})`}
+              </button>
+              {ests.map((e) => (
+                <span key={e} className="pf-chip pf-chip-est">
+                  {e}
+                  <button type="button" aria-label={`Quitar ${e}`} onClick={() => setEsts(ests.filter((x) => x !== e))}>×</button>
+                </span>
+              ))}
+              {ests.length > 0 && <button type="button" className="pf-limpia" onClick={() => setEsts([])}>Limpiar</button>}
+            </div>
+            {abreEst && (
+              <FiltroEstado estados={estados} elegidos={ests} aplicar={(l) => { setEsts(l); setAbreEst(false) }} cerrar={() => setAbreEst(false)} />
+            )}
+          </div>
+        )}
         {/* LAS SALIDAS: la imagen (como el Cierre del día: se comparte o se copia), bajarla, o imprimir la hoja. */}
         <div className="pf-salidas">
           <button type="button" className="pf-imprimir" disabled={!elegidos.length || foto === "armando"} onClick={() => imagen(false)}
@@ -382,6 +401,43 @@ function FiltroMaterial({ materiales, elegidos, color, aplicar, cerrar }: {
         {vistos.length === 0 && <p className="pf-fc-mas">Nada con «{q}».</p>}
       </div>
       {llena && <p className="pf-fc-mas">Máximo {MAX_SKU} materiales por hoja.</p>}
+      <div className="pf-fc-b">
+        <button type="button" className="pf-fc-limpia" onClick={() => aplicar([])} disabled={!elegidos.length}>Quitar filtro</button>
+        <span>
+          <button type="button" className="pf-sec" onClick={cerrar}>Cancelar</button>
+          <button type="button" className="pf-prim" onClick={() => aplicar(marca)}>Aplicar{marca.length ? ` (${marca.length})` : ""}</button>
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** EL FILTRO DE ESTADO DEL ENVASE («que filtre así como el material»): los estados que hay, con sus cajas, varios a la vez. */
+function FiltroEstado({ estados, elegidos, aplicar, cerrar }: {
+  estados: { k: string; cajas: number }[]; elegidos: string[]; aplicar: (l: string[]) => void; cerrar: () => void;
+}) {
+  const [marca, setMarca] = useState<string[]>(elegidos);
+  const caja = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const fuera = (e: MouseEvent) => { if (caja.current && !caja.current.contains(e.target as Node)) cerrar() };
+    const tecla = (e: KeyboardEvent) => { if (e.key === "Escape") cerrar() };
+    const t = setTimeout(() => document.addEventListener("mousedown", fuera), 0);
+    document.addEventListener("keydown", tecla);
+    return () => { clearTimeout(t); document.removeEventListener("mousedown", fuera); document.removeEventListener("keydown", tecla) };
+  }, [cerrar]);
+  const alterna = (k: string) => setMarca((l) => (l.includes(k) ? l.filter((x) => x !== k) : [...l, k]));
+  return (
+    <div className="pf-fc pf-fc-est" ref={caja} role="dialog" aria-label="Filtrar estado del envase">
+      <div className="pf-fc-t">Filtrar · <b>Estado del envase</b></div>
+      <div className="pf-fc-l">
+        {estados.map((e) => (
+          <label key={e.k}>
+            <input type="checkbox" checked={marca.includes(e.k)} onChange={() => alterna(e.k)} />
+            <span><b>{e.k}</b></span>
+            <em>{NC(e.cajas)}</em>
+          </label>
+        ))}
+      </div>
       <div className="pf-fc-b">
         <button type="button" className="pf-fc-limpia" onClick={() => aplicar([])} disabled={!elegidos.length}>Quitar filtro</button>
         <span>

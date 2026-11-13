@@ -7,8 +7,8 @@ import { useConfirmar } from "@/components/Confirmar";
 import { diaColombia } from "@/modulos/inventario/corte";
 import { fechaConDia, separarHistorial, textoCuando } from "@/modulos/inventario/fiscal";
 import {
-  avanceDesdeBD, filaDesdeBD, ordenarCruce, resumenCruce, unidOl, unidBavaria, difUnid, upcFila, TEXTO_FILA,
-  type AvanceBD, type AvanceHoja, type FilaCruce, type FilaCruceBD,
+  avanceDesdeBD, conteoDesdeBD, filaDesdeBD, ordenarCruce, resumenCruce, difUnid, upcFila, TEXTO_FILA,
+  type AvanceBD, type AvanceHoja, type EstadoHoja, type FilaCruce, type FilaCruceBD,
 } from "@/modulos/inventario/fiscal-cruce";
 import { Ico } from "../../fiscal/PanelFiscal";
 import { SelectorInventario } from "../../fiscal/SelectorInventario";
@@ -273,70 +273,61 @@ export function ControlCiclico({ personas, ciclicos, cerradasIniciales, ahora, p
     setAviso(`Hoja ${numero} reabierta.`);
   }
 
-  /* EL EXCEL DE LOS CONTEOS: resumen por hoja, el cruce, por código y cada renglón que se anotó. */
+  /* EL EXCEL DE LOS CONTEOS — «debe verse como el del fiscal»: es el MISMO libro del Excel del cruce fiscal (Resumen por
+     pareja con sus cifras, Diferencias con la causa, Por material, Por persona, Conteos por persona y Conteos cruzados),
+     con el sello y los colores de la app. Solo cambia lo que es del fiscal: no hay «Conciliado» y la última columna de
+     Diferencias dice si la hoja ya se envió. */
   async function exportar(f: FiscalBD) {
     setArmando(true); setMal(null); setAviso(null);
     try {
       const sb = createClient();
-      const det = await sb.rpc("inv_ciclico_detalle", { p_fiscal: f.id });
+      const [det, u] = await Promise.all([sb.rpc("inv_ciclico_detalle", { p_fiscal: f.id }), sb.auth.getUser()]);
       if (det.error) throw new Error(/inv_ciclico_detalle|schema cache|does not exist/i.test(det.error.message)
         ? "Para exportar los conteos falta correr supabase/migraciones/2026-11-producto-ciclico-control.sql en Supabase." : det.error.message);
       const lineas = (det.data ?? []) as Detalle[];
-      const familiaDe = new Map(lineas.map((l) => [l.sku, l.familia ?? ""]));
-      const XLSX = await import("xlsx");
-      const libro = XLSX.utils.book_new();
-      const hoja = (filas: Record<string, unknown>[], nombreHoja: string, anchos: number[]) => {
-        const ws = XLSX.utils.json_to_sheet(filas);
-        ws["!cols"] = anchos.map((w) => ({ wch: w }));
-        if (filas.length) ws["!autofilter"] = { ref: ws["!ref"] as string };
-        XLSX.utils.book_append_sheet(libro, ws, nombreHoja);
-      };
-
-      hoja(f.hojas.map((h) => {
-        const r = cruces[h.numero] ? resumenCruce(cruces[h.numero]) : null;
+      const quien = (u.data.user && nombre.get(u.data.user.id)) || "";
+      const hojas = f.hojas.map((h) => {
         const av = avance[h.numero];
-        const env = enviadaDe(f, h.numero);
+        const e = estadoDe(f, h.numero);
+        const conteos = lineas.filter((l) => l.hoja === h.numero).map((l) => conteoDesdeBD({
+          equipo: l.equipo, persona: l.persona, ubicacion: l.ubicacion, sku: l.sku, material: l.material,
+          cajas_por_estiba: l.cajas_por_estiba, estibas: l.estibas, saldo: l.saldo, cajas: l.cajas,
+          total_cajas: n(l.cajas_por_estiba) * n(l.estibas) + n(l.saldo) + n(l.cajas),
+          venc_dia: null, venc_mes: null, venc_anio: null, nota: l.nota, contado_en: l.contado_en,
+          unidades: l.unidades, unidades_por_caja: l.unidades_por_caja,
+        }));
+        const filas = cruces[h.numero] ?? [];
         return {
-          HOJA: h.numero, FAMILIAS: (h.familias ?? []).join(" + "),
-          "OPERADOR LOGÍSTICO": h.ol ? nombre.get(h.ol) ?? "" : "", "RENGLONES OL": av?.olRenglones ?? 0,
-          BAVARIA: h.bavaria ? nombre.get(h.bavaria) ?? "" : "", "RENGLONES BAVARIA": av?.bavariaRenglones ?? 0,
-          "RENGLONES CRUZADOS": r?.total ?? 0, COINCIDEN: r?.coinciden ?? 0, "NO COINCIDEN": r?.conDiferencia ?? 0,
-          ESTADO: estadoDe(f, h.numero).texto,
-          "ENVIADO": env ? new Date(env).toLocaleString("es-CO") : "",
+          numero: h.numero,
+          ol: h.ol ? nombre.get(h.ol) ?? null : null, bavaria: h.bavaria ? nombre.get(h.bavaria) ?? null : null,
+          estado: (e.clase === "lista" ? "lista" : e.clase === "sin-empezar" ? "sin-empezar" : "contando") as EstadoHoja,
+          estadoTexto: e.texto, enviada: e.texto === "Conteo enviado",
+          /* «Envió el conteo» (en «Por persona»): cuándo la pareja lo envió. */
+          olTermino: enviadaDe(f, h.numero), bavariaTermino: enviadaDe(f, h.numero),
+          olRenglones: av?.olRenglones ?? 0, bavariaRenglones: av?.bavariaRenglones ?? 0,
+          filas: filas.length || conteos.length ? filas : null, parcial: false, conteos,
         };
-      }), "RESUMEN", [6, 16, 24, 13, 24, 17, 18, 11, 13, 26, 20]);
-
-      const cruce = f.hojas.flatMap((h) => (cruces[h.numero] ?? []).map((x) => ({ h: h.numero, x })));
-      hoja(cruce.map(({ h, x }) => ({
-        HOJA: h, SITIO: x.ubicacion, "CÓDIGO": x.sku, MATERIAL: x.material, FAMILIA: familiaDe.get(x.sku) ?? "",
-        "OL (UN.)": unidOl(x) ?? "", "BAVARIA (UN.)": unidBavaria(x) ?? "", "DIFERENCIA (UN.)": difUnid(x),
-        "OL (CAJAS)": cant(x.cajasOl, x.sueltasOl), "BAVARIA (CAJAS)": cant(x.cajasBavaria, x.sueltasBavaria),
-        ESTADO: TEXTO_FILA[x.estado],
-      })), "CRUCE", [6, 12, 10, 34, 10, 10, 13, 15, 14, 16, 18]);
-
-      /* POR CÓDIGO: lo de todas las hojas junto, OL contra Bavaria, en unidades. */
-      const porCodigo = new Map<string, { material: string; ol: number; ba: number; upc: number }>();
-      for (const l of lineas) {
-        const g = porCodigo.get(l.sku) ?? { material: l.material, ol: 0, ba: 0, upc: n(l.unidades_por_caja) || 1 };
-        if (l.equipo === "BAVARIA") g.ba += n(l.total_unidades); else g.ol += n(l.total_unidades);
-        porCodigo.set(l.sku, g);
-      }
-      hoja([...porCodigo.entries()].sort((a, b) => a[0].localeCompare(b[0], "es", { numeric: true })).map(([sku, g]) => ({
-        "CÓDIGO": sku, MATERIAL: g.material, FAMILIA: familiaDe.get(sku) ?? "", "UN./CAJA": g.upc,
-        "OL (UN.)": g.ol, "BAVARIA (UN.)": g.ba, "DIFERENCIA (UN.)": g.ol - g.ba,
-        "OL (CAJAS)": Math.round((g.ol / g.upc) * 100) / 100, "BAVARIA (CAJAS)": Math.round((g.ba / g.upc) * 100) / 100,
-      })), "POR CÓDIGO", [10, 34, 10, 9, 10, 13, 15, 11, 15]);
-
-      hoja(lineas.map((l) => ({
-        HOJA: l.hoja, EQUIPO: l.equipo === "BAVARIA" ? "Bavaria" : "Operador logístico", PERSONA: l.persona ?? "",
-        SITIO: l.ubicacion, "CÓDIGO": l.sku, MATERIAL: l.material, FAMILIA: l.familia ?? "",
-        ESTIBAS: n(l.estibas), CAJAS: n(l.saldo) + n(l.cajas), "UNIDADES SUELTAS": n(l.unidades),
-        "TOTAL UNIDADES": n(l.total_unidades),
-        "TOTAL CAJAS": Math.round((n(l.total_unidades) / (n(l.unidades_por_caja) || 1)) * 100) / 100,
-        NOTA: l.nota ?? "", HORA: l.contado_en ? new Date(l.contado_en).toLocaleString("es-CO") : "",
-      })), "CONTEOS", [6, 18, 22, 12, 10, 34, 10, 8, 8, 15, 14, 12, 20, 20]);
-
-      XLSX.writeFile(libro, `conteos-ciclico-${f.fecha}.xlsx`);
+      });
+      const leer = (v: string, def: string) => {
+        const el = document.querySelector(".fe") ?? document.body;
+        const x = document.createElement("span"); x.style.color = `var(${v}, ${def})`; x.style.display = "none";
+        el.appendChild(x); const col = getComputedStyle(x).color; x.remove();
+        const m = col.match(/[\d.]+/g);
+        return m ? m.slice(0, 3).map((k) => Math.round(Number(k)).toString(16).padStart(2, "0")).join("").toUpperCase() : def.slice(1);
+      };
+      const [{ armarCruceFiscal }, sello] = await Promise.all([
+        import("@/modulos/inventario/libro-cruce-fiscal"),
+        fetch("/marca/logo-b.png").then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null),
+      ]);
+      const buf = await armarCruceFiscal({
+        nombre: f.nombre, fecha: f.fecha, quien, hojas, sello, ciclico: true,
+        colores: { tinta: leer("--fe-tinta", "#12263A"), banda: leer("--fe-acento", "#FFC000") },
+      });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+      a.download = `conteos-ciclico-${f.fecha}.xlsx`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
       setAviso(`Excel listo: ${lineas.length} renglones contados de ${new Set(lineas.map((l) => l.hoja)).size} de ${f.hojas.length} hojas.`);
     } catch (e) {
       setMal(e instanceof Error && e.message ? e.message : "No se pudo armar el Excel de los conteos.");

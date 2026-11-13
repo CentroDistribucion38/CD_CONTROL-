@@ -48,16 +48,18 @@
    CELULAR. `auto-fit` con mínimo y no `repeat(2, 1fr)`: a quien su rol
    solo le abra una rama, con dos columnas fijas la vería ocupando media
    pantalla y un hueco al lado. */
+/* LAS CINCO RAMAS EN UNA SOLA FILA en pantalla grande («pon Producto al lado de Balance, no lo quiero allá abajo»):
+   el mínimo baja a 200 px y el ancho deja de topar en 1180. En pantallas medianas se reparten solas. */
 .inv-p .inv-ramas {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 16px; max-width: 1180px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px; max-width: 1640px;
 }
 .inv-p .inv-rama {
   position: relative; overflow: hidden; min-width: 0;
   display: flex; flex-direction: column;
   background: var(--fe-papel); border: 1px solid var(--fe-linea);
   border-left: 5px solid var(--fe-tinta);
-  padding: 26px 28px 24px; text-decoration: none; color: var(--fe-tinta);
+  padding: 24px 22px 22px; text-decoration: none; color: var(--fe-tinta);
 }
 .inv-p .inv-rama:hover { border-left-color: var(--fe-acento) }
 /* EL ADORNO DE LA ESQUINA, CHICO Y CALLADO.
@@ -83,7 +85,7 @@
 }
 .inv-p .inv-rama .inv-nom {
   position: relative; font-family: var(--fe-titulo); font-weight: 900;
-  font-size: clamp(30px, 3.2vw, 44px); line-height: 1; letter-spacing: -.05em;
+  font-size: clamp(28px, 2.5vw, 42px); line-height: 1; letter-spacing: -.05em;
   margin-top: 8px;
 }
 .inv-p .inv-rama .inv-des {
@@ -100,7 +102,7 @@
   border-top: 1px solid var(--fe-linea);
 }
 .inv-p .inv-rama .inv-cifra b {
-  font-family: var(--fe-titulo); font-weight: 900; font-size: 38px;
+  font-family: var(--fe-titulo); font-weight: 900; font-size: clamp(28px, 2.2vw, 38px);
   letter-spacing: -.045em; font-variant-numeric: tabular-nums;
 }
 .inv-p .inv-rama .inv-cifra i {
