@@ -114,10 +114,13 @@ export type FiscalBD = {
 /** `manual`: el nombre lo escribió alguien. Mientras no, sigue a la fecha («FISCAL OCTUBRE 2026 · viernes 02/10»). */
 type FormF = { id: string | null; nombre: string; fecha: string; hojas: HojaForm[]; manual: boolean };
 
-export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puedePublicar = true, conCruce = true, conCalle = true, conFamilias = true, familias = [], manda, ahora, modo = "fiscal" }: {
+export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puedePublicar = true, conCruce = true, conCalle = true, conFamilias = true, familias = [], manda, ahora, modo = "fiscal", cruces }: {
   bodegaId: string; personas: Persona[]; roles: RolF[]; fiscales: FiscalBD[];
   /** «fiscal» (Plan fiscal) o «ciclico» (Producto · Cíclico): mismo armado, otras palabras y otras funciones de la base. */
   modo?: ModoPlan;
+  /** Solo en el cíclico: por id de hoja, cuántos renglones cruza y cuántos NO coinciden. La hoja queda cuadrada
+   *  cuando todo coincide: nadie la aprueba ni la «termina». */
+  cruces?: Record<string, { total: number; conDif: number }>;
   puedeEditar: boolean; manda: boolean; ahora: string;
   /** false = a la base le falta 2026-10-fiscal-publicar.sql: no se ofrece el botón de Contar. */
   puedePublicar?: boolean;
@@ -231,7 +234,27 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
       if (av) porEstado.set(estadoHoja(av), (porEstado.get(estadoHoja(av)) ?? 0) + 1);
     }
     const n = (e: EstadoHoja) => porEstado.get(e) ?? 0;
-    const cifras: { v: number; et: string; tono?: string }[] = conAvance
+    /* EL CÍCLICO SE LEE POR EL CRUCE, no por «terminó»: cuadrada = todo coincide; si no, lo que falta por cruzar. */
+    const cruceDe = (numero: number) => {
+      const id = f.hojaIds?.[numero];
+      return id && cruces ? cruces[id] : undefined;
+    };
+    const estadoCiclico = (numero: number): { clase: EstadoHoja; texto: string } => {
+      const c = cruceDe(numero);
+      if (!c || c.total === 0) return { clase: "sin-empezar", texto: "Sin contar" };
+      if (c.conDif > 0) return { clase: "contando", texto: `${c.conDif} por cruzar` };
+      return { clase: "lista", texto: "Cuadrada · todo coincide" };
+    };
+    const cuadradas = f.hojas.filter((h) => estadoCiclico(h.numero).clase === "lista").length;
+    const conDif = f.hojas.filter((h) => estadoCiclico(h.numero).clase === "contando").length;
+    const cifras: { v: number; et: string; tono?: string }[] = modo === "ciclico" && cruces
+      ? [
+        { v: r.total, et: r.total === 1 ? "hoja" : "hojas" },
+        { v: r.completas, et: r.completas === 1 ? "pareja completa" : "parejas completas" },
+        { v: conDif, et: "con diferencias por cruzar", tono: "proceso" },
+        { v: cuadradas, et: cuadradas === 1 ? "cuadrada" : "cuadradas", tono: "ok" },
+      ]
+      : conAvance
       ? [
         { v: r.total, et: r.total === 1 ? "hoja" : "hojas" },
         { v: r.completas, et: r.completas === 1 ? "pareja completa" : "parejas completas" },
@@ -274,13 +297,15 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
         <ol className="fi-filas">
           {f.hojas.map((h) => {
             const av = conAvance ? f.avance?.[h.numero] : undefined;
-            const est = av ? estadoHoja(av) : "sin-empezar";
+            const ec = modo === "ciclico" && cruces ? estadoCiclico(h.numero) : null;
+            const est = ec ? ec.clase : av ? estadoHoja(av) : "sin-empezar";
             return (
               <li key={h.numero} className={"fi-fila " + est}>
                 <div className="fi-num"><small>Hoja</small><b>{h.numero}</b>{h.calle && <span className="fi-calle">Calle {h.calle}</span>}{conFamilias && (h.familias?.length ?? 0) > 0 && <span className="fi-calle fi-fams-ver" title="Familias que cuenta esta hoja">{h.familias!.join(" + ")}</span>}</div>
                 {equipo(h.ol, "Operador logístico", av?.olRenglones, av?.olTermino, sentidoDe(h.calle, "ol"))}
                 {equipo(h.bavaria, "Bavaria", av?.bavariaRenglones, av?.bavariaTermino, sentidoDe(h.calle, "bavaria"))}
-                {conAvance && av && <i className={"fi-av " + est}>{TEXTO_ESTADO[est]}</i>}
+                {ec ? <i className={"fi-av " + ec.clase}>{ec.texto}</i>
+                  : conAvance && av && <i className={"fi-av " + est}>{TEXTO_ESTADO[est]}</i>}
               </li>
             );
           })}

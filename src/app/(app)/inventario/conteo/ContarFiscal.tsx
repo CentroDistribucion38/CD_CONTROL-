@@ -669,7 +669,8 @@ export function ContarFiscal({
   }
   const estadoT = terminos[hoja.hojaId] ?? { termine: hoja.termine, parejaTermino: hoja.parejaTermino };
   /* Terminada: solo si la base ya sabe terminar hojas y la persona la terminó. */
-  const cerrada = hoja.puedeContar && hoja.puedeTerminar && estadoT.termine;
+  /* EL CÍCLICO NO SE TERMINA: la pareja cuenta y cruza hasta que todo coincida, sin botón de «terminé». */
+  const cerrada = !ciclico && hoja.puedeContar && hoja.puedeTerminar && estadoT.termine;
   /* Con módulos por validar la pantalla muestra solo eso; el formulario aparece únicamente para corregir o agregar. */
   const enValidacion = hoja.puedeContar && validando;
   const editandoValidacion = enValidacion && (corrigiendo !== null || agregandoV !== null);
@@ -1013,7 +1014,7 @@ export function ContarFiscal({
 
           <div className="fe-barra-fija">
             <p className="fe-fija-cuenta"><b>{mios?.length ?? 0}</b> anotados</p>
-            {hoja.puedeTerminar && (
+            {!ciclico && hoja.puedeTerminar && (
               <button type="button" className="btn plano fc-terminar-ir" disabled={guardando || (mios?.length ?? 0) === 0}
                       title={(mios?.length ?? 0) === 0 ? "Anota al menos un renglón" : undefined} onClick={() => terminar(true)}>
                 Terminé mi hoja
@@ -1094,7 +1095,7 @@ export function ContarFiscal({
           <p className="fc-nota-term" role="status">{ciclico ? "Tu hoja está terminada: para cambiar algo, reábrela." : "Tu hoja está terminada: para cambiar algo, el fiscal tiene que darte el OK para reabrirla."}{" "}
             {reabrirUI("fe-mini fc-reabrir")}</p>
         )}
-        {!cerrada && hoja.puedeTerminar && hoja.puedeContar && (mios?.length ?? 0) > 0 && (
+        {!ciclico && !cerrada && hoja.puedeTerminar && hoja.puedeContar && (mios?.length ?? 0) > 0 && (
           <div className="fc-terminar">
             <p>¿Ya contaste toda tu hoja? Avísalo para que se pueda cruzar con tu pareja.</p>
             <button type="button" className="btn fc-terminar-fin" disabled={guardando} onClick={() => terminar(true)}>Terminé mi hoja</button>

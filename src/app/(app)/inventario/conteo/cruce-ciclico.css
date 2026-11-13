@@ -5,6 +5,7 @@
 .fe .cc-ojo { margin: 0; font: 700 10.5px/1.2 var(--fe-texto, inherit); letter-spacing: .14em; color: var(--fe-gris) }
 .fe .cc-sub { margin: 0; font-size: 13px; color: var(--fe-gris); max-width: 60ch }
 .fe .cc-mal { margin: 10px 0 0; padding: 9px 12px; border-left: 4px solid #E4002B; background: #FFF6F7; color: #A50D25; font-size: 13px }
+.fe .cc-ok { margin: 12px 0 0; padding: 10px 14px; border-left: 4px solid #0F7A4A; background: #E3F4EA; color: #0F5E3A; font-size: 14px }
 .fe .cc-cifras { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; margin: 14px 0 10px; padding: 0; list-style: none; border: 1px solid var(--fe-linea) }
 .fe .cc-cifras li { padding: 8px 10px; border-left: 1px solid var(--fe-linea) }
 .fe .cc-cifras li:first-child { border-left: 0 }

@@ -313,8 +313,8 @@ revoke all on function public.inv_ciclico_cruce(uuid) from public, anon;
 grant execute on function public.inv_ciclico_cruce(uuid) to authenticated;
 
 -- ---------------------------------------------------------------------
--- 7b. TERMINAR / REABRIR LA HOJA: igual que en el fiscal, pero en el CÍCLICO se reabre sin pedirle el OK a
---     nadie (no hay fiscal que apruebe: la pareja cruza y corrige).
+-- 7b. TERMINAR / REABRIR LA HOJA: igual que en el fiscal, pero el CÍCLICO no se termina ni lo aprueba nadie:
+--     la pareja cruza hasta que todo coincida (ver 2026-11-producto-ciclico-sin-aprobar.sql).
 -- ---------------------------------------------------------------------
 create or replace function public.inv_fiscal_terminar(p_hoja uuid, p_terminado boolean default true)
 returns void
@@ -332,6 +332,17 @@ begin
     from public.inv_fiscal_miembros m join public.inv_fiscales f on f.id = m.fiscal_id
    where m.hoja_id = p_hoja and m.user_id = v_yo;
   if v_equipo is null then raise exception 'Esa hoja no es tuya.'; end if;
+
+  /* EL CÍCLICO NO SE TERMINA: se cruza hasta que todo coincida. Reabrir sí (suelta un «terminé» viejo). */
+  if v_tipo = 'CICLICO' then
+    if coalesce(p_terminado, true) then
+      raise exception 'En el cíclico la hoja no se termina ni la aprueba nadie: sigan cruzando hasta que todo coincida.';
+    end if;
+    delete from public.inv_fiscal_terminos where hoja_id = p_hoja and user_id = v_yo;
+    delete from public.inv_fiscal_reaperturas where hoja_id = p_hoja and user_id = v_yo;
+    return;
+  end if;
+
   if v_pub is null then raise exception 'Este inventario no está visible en Contar.'; end if;
   if v_estado <> 'abierto' then raise exception 'Este inventario ya está cerrado.'; end if;
   if exists (select 1 from public.inv_fiscal_hojas where id = p_hoja and cerrada_en is not null) then
@@ -349,9 +360,8 @@ begin
       on conflict (hoja_id, user_id) do nothing;
     delete from public.inv_fiscal_reaperturas where hoja_id = p_hoja and user_id = v_yo;
   else
-    -- En el fiscal, reabrir pide el OK del fiscal. En el cíclico no.
-    if v_tipo <> 'CICLICO'
-       and exists (select 1 from public.inv_fiscal_terminos where hoja_id = p_hoja and user_id = v_yo)
+    -- En el fiscal, reabrir pide el OK del fiscal.
+    if exists (select 1 from public.inv_fiscal_terminos where hoja_id = p_hoja and user_id = v_yo)
        and not exists (select 1 from public.inv_fiscal_reaperturas r
                         where r.hoja_id = p_hoja and r.user_id = v_yo and r.autorizado_en is not null) then
       raise exception 'Para reabrir tu hoja hace falta el OK del fiscal. Pídeselo con «Pedir que me reabran la hoja».';

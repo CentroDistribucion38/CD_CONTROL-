@@ -63,7 +63,7 @@ export function CruceCiclico({ hojaId, numero, equipo }: { hojaId: string; numer
           <h2>{r ? titularCruce(r) : "Cruza lo que llevan contado los dos"}</h2>
           <p className="cc-sub">
             {r ? <>Cruzado a las {hora}. Operador logístico contra Bavaria, por sitio y código, sin la fecha. Tú eres {equipo || "de la pareja"}.</>
-              : <>Cualquiera de los dos puede cruzar, cuando quiera: trae lo que van contando hasta ahora. Lo que no coincida, revísenlo en el sitio y corríjanlo.</>}
+              : <>Cualquiera de los dos puede cruzar, cuando quiera: trae lo que van contando hasta ahora. Lo que no coincida, revísenlo en el sitio y corríjanlo. La hoja queda cuadrada cuando todo coincide: nadie la aprueba.</>}
           </p>
         </div>
         <button type="button" className="btn grande" disabled={cargando} onClick={cruzar}>
@@ -72,6 +72,10 @@ export function CruceCiclico({ hojaId, numero, equipo }: { hojaId: string; numer
       </div>
 
       {mal && <p className="cc-mal" role="alert">{mal}</p>}
+      {/* LA HOJA QUEDA CUADRADA SOLA cuando todo coincide: nadie la aprueba ni hay que «terminarla». */}
+      {r && r.total > 0 && r.conDiferencia === 0 && (
+        <p className="cc-ok" role="status"><b>Hoja cuadrada.</b> Todo lo que contaron los dos coincide: no hay nada más que hacer en esta hoja.</p>
+      )}
 
       {r && r.total > 0 && (
         <>
