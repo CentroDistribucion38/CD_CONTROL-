@@ -28,3 +28,104 @@
 .fc-opc-t { font: 800 11px var(--fe-texto, inherit); letter-spacing: .08em; text-transform: uppercase; color: var(--fe-gris, #5B6573) }
 
 .fc-solo { display: inline-flex; align-items: center; min-height: 38px; padding: 0 16px; background: var(--c-grupo, #0B0B0C); color: #fff; font: 800 14px var(--fuente-ui, inherit); letter-spacing: .02em }
+
+/* EL PERIODO DENTRO DE LA VENTANA (Cierre de viajes del casco): atajos a la vista + el calendario de siempre (CalendarioRango). */
+.fc-filtro { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 14px; border-bottom: 1px solid var(--fe-linea, #D5DCE5); background: #fff;
+  --fe-acento: var(--c-marca, #FFC000); --fe-sobre: var(--c-marca-txt, #111); --fe-tinta: var(--c-04203f, #111); --fe-gris: var(--c-5b6b7f, #5b6b7f);
+  --fe-linea: var(--c-d5dce5, #D5DCE5); --fe-titulo: "Archivo", system-ui, sans-serif; --fe-texto: "IBM Plex Sans", system-ui, sans-serif }
+.fc-periodo { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0 }
+.fc-periodo .fc-tabs button { min-height: 38px }
+.fc .fc-cal .calendario { position: relative }
+.fc .fc-cal .disparo {
+  display: flex; align-items: center; gap: 10px; min-height: 46px; min-width: 250px; padding: 0 12px; width: 100%;
+  font: 600 14px var(--fe-texto); color: var(--fe-tinta); background: #fff; border: 1.5px solid var(--fe-linea); border-radius: 0; cursor: pointer; text-align: left;
+}
+.fc .fc-cal .disparo[aria-expanded="true"], .fc .fc-cal .disparo:focus-visible { outline: none; border-color: var(--fe-acento); box-shadow: 0 0 0 3px color-mix(in srgb, var(--fe-acento) 22%, transparent) }
+.fc .fc-cal .disparo .ico { width: 16px; height: 16px; stroke: var(--fe-gris); stroke-width: 1.8; fill: none; flex: none }
+.fc .fc-cal .disparo .flecha { margin-left: auto; width: 14px; height: 14px; stroke: var(--fe-gris); stroke-width: 2.2; fill: none; flex: none; transition: transform .14s }
+.fc .fc-cal .disparo[aria-expanded="true"] .flecha { transform: rotate(180deg) }
+.fc .fc-cal .disparo .txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.fc .fc-cal .calendario .panel {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; max-width: calc(100vw - 24px);
+  background: #fff; border: 1px solid var(--fe-linea); border-radius: 0; overflow: hidden; box-shadow: 0 28px 56px -24px rgba(4,32,63,.5);
+}
+.fc .fc-cal .calendario .panel::before { content: ""; display: block; height: 3px; background: var(--fe-acento) }
+.fc .fc-cal .cal-cuerpo { display: flex }
+.fc .fc-cal .atajos { width: 170px; border-right: 1px solid var(--fe-linea); padding: 12px 0; flex: none }
+.fc .fc-cal .atajos button {
+  display: block; width: 100%; min-height: 44px; text-align: left; padding: 9px 18px; border: 0; background: none; border-radius: 0;
+  font: 600 13.5px var(--fe-texto); color: var(--fe-tinta); cursor: pointer; border-left: 3px solid transparent;
+}
+.fc .fc-cal .atajos button:hover { background: color-mix(in srgb, var(--fe-acento) 8%, #fff) }
+.fc .fc-cal .atajos button.on { border-left-color: var(--fe-acento); font-weight: 800 }
+.fc .fc-cal .meses { display: flex; gap: 26px; padding: 16px 20px }
+.fc .fc-cal .mes { width: 224px }
+.fc .fc-cal .mes-cab { display: flex; align-items: center; justify-content: space-between; height: 30px; margin-bottom: 8px }
+.fc .fc-cal .mes-cab .titulo-mes { font: 800 14.5px var(--fe-titulo); text-transform: capitalize; color: var(--fe-tinta) }
+.fc .fc-cal .mes-cab button { width: 44px; height: 44px; border: 1px solid var(--fe-linea); background: #fff; border-radius: 0; cursor: pointer; display: grid; place-items: center; padding: 0 }
+.fc .fc-cal .mes-cab button svg { width: 13px; height: 13px; stroke: var(--fe-tinta); stroke-width: 2.3; fill: none }
+.fc .fc-cal .mes-cab .hueco { width: 44px }
+.fc .fc-cal .mes-cab .ant-movil { display: none }
+.fc .fc-cal .mes-cab .titulo-mes { white-space: nowrap }
+.fc .fc-cal .semana, .fc .fc-cal .dias { display: grid; grid-template-columns: repeat(7, 1fr) }
+.fc .fc-cal .semana span { text-align: center; font-size: 11px; font-weight: 700; color: var(--fe-gris); padding-bottom: 6px }
+.fc .fc-cal .dias button {
+  height: 40px; min-height: 0; border: 0; background: none; cursor: pointer; padding: 0; border-radius: 0;
+  font: 600 13.5px var(--fe-texto); color: var(--fe-tinta); position: relative;
+}
+.fc .fc-cal .dias button.fuera { color: color-mix(in srgb, var(--fe-gris) 40%, #fff); cursor: default }
+.fc .fc-cal .dias button:hover:not(.fuera):not(.punta) { background: color-mix(in srgb, var(--fe-acento) 10%, #fff) }
+.fc .fc-cal .dias button.dentro { background: color-mix(in srgb, var(--fe-acento) 18%, #fff) }
+.fc .fc-cal .dias button.punta { background: var(--fe-acento); color: var(--fe-sobre); font-weight: 800 }
+.fc .fc-cal .dias button.inicio { border-radius: 0 }
+.fc .fc-cal .dias button.fin { border-radius: 0 }
+.fc .fc-cal .dias button.inicio.fin { border-radius: 0 }
+.fc .fc-cal .dias button.hoy { text-decoration: underline; text-underline-offset: 3px }
+.fc .fc-cal .dias button.marcado::after { content: ""; position: absolute; left: 50%; bottom: 4px; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 0; background: var(--fe-acento) }
+.fc .fc-cal .dias button.punta.marcado::after { background: var(--fe-sobre) }
+.fc .fc-cal .cal-pie { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-top: 1px solid var(--fe-linea); flex-wrap: wrap }
+.fc .fc-cal .cal-pie .resumen { font-size: 13.5px; color: var(--fe-gris); min-width: 0 }
+.fc .fc-cal .cal-pie .resumen b { color: var(--fe-tinta) }
+.fc .fc-cal .cal-pie .btns { margin-left: auto; display: flex; gap: 10px }
+.fc .fc-cal .cal-pie button { min-height: 44px; padding: 0 18px; border-radius: 0; cursor: pointer; font: 800 13.5px var(--fe-titulo) }
+.fc .fc-cal .cal-pie .aplicar { border: 0; background: var(--fe-acento); color: var(--fe-sobre) }
+.fc .fc-cal .cal-pie .aplicar:disabled { opacity: .45; cursor: default }
+.fc .fc-cal .cal-pie .cancelar { border: 0; background: none; color: var(--fe-gris) }
+@media (max-width: 1000px) {
+  .fc .fc-cal .disparo { min-width: 0 }
+}
+.fc .fc-cal { display: block }
+.fc .fc-cal .disparo { min-height: 38px; min-width: 210px; width: auto }
+@media (max-width: 1000px) { .fc .fc-cal .disparo { min-width: 0 } }
+@media (max-width: 720px) {
+  .fc .fc-cal .calendario .panel { left: 0; right: 0; width: auto }
+  .fc .fc-cal .cal-cuerpo { flex-direction: column }
+  .fc .fc-cal .atajos { width: 100%; border-right: 0; border-bottom: 1px solid var(--fe-linea); display: flex; overflow-x: auto; padding: 8px }
+  .fc .fc-cal .atajos button { width: auto; white-space: nowrap; border-left: 0; border-bottom: 2px solid transparent; padding: 7px 12px; min-height: 44px }
+  .fc .fc-cal .atajos button.on { border-bottom-color: var(--fe-acento) }
+  .fc .fc-cal .meses { padding: 14px }
+  .fc .fc-cal .mes { width: 100% }
+  .fc .fc-cal .mes:not(.segundo) { display: none }
+  .fc .fc-cal .mes-cab .ant-movil { display: grid }
+}
+
+.fc .fc-cal .disparo { min-height: 38px; min-width: 230px; border-radius: 0 }
+@media (max-width: 720px) {
+  .fc-filtro { padding: 8px 10px }
+  .fc-periodo, .fc-periodo .fc-tabs, .fc .fc-cal { width: 100% }
+  .fc-periodo .fc-tabs { overflow-x: auto }
+  .fc .fc-cal .disparo { width: 100% }
+  .fc .fc-cal .calendario .panel { position: fixed; top: 60px; left: 8px; right: 8px }
+}
+/* EN EL CELULAR la barra de arriba no se parte en tres pisos: pestañas en una línea (se deslizan), la X arriba a la derecha. */
+@media (max-width: 720px) {
+  .fc-barra { position: relative; padding: 10px 56px 10px 10px; gap: 8px }
+  .fc-barra > .fc-tabs { max-width: 100%; overflow-x: auto }
+  .fc-tabs button { height: 36px; padding: 0 11px; font-size: 13px; white-space: nowrap; flex: none }
+  .fc-acc { width: 100% } .fc-acc .fc-bt { flex: 1; justify-content: center; height: 38px; padding: 0 10px; font-size: 13px }
+  .fc-x { position: absolute; top: 6px; right: 6px }
+  .fc-aviso { font-size: 12.5px; padding: 7px 10px }
+  .fc-periodo { gap: 6px } .fc-periodo .fc-opc-t { display: none }
+}
+.fc { grid-template-columns: minmax(0, 1fr) }
+@media (max-width: 720px) { .fc-filtro { min-width: 0 } .fc-periodo .fc-tabs { width: 100% } .fc-periodo .fc-tabs button { flex: 1 0 auto } }

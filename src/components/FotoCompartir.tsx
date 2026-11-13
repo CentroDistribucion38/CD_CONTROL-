@@ -39,7 +39,9 @@ export type OpcionesFoto = { titulo: string; valores: { k: string; t: string }[]
 /** `opciones` puede depender de la imagen abierta (p. ej. una sola unidad en el Dashboard y varias en la Tabla). */
 /** `tocar` (opcional): qué pasa al tocar una zona de la imagen; `rearmar`: cuando cambia, la imagen abierta se vuelve a armar. */
 export function useFotoCompartir(hacer: Hacer, titulo: string, nombres?: Partial<Record<TipoFoto, string>>, opcionesDe?: OpcionesFoto | ((t: TipoFoto) => OpcionesFoto | undefined), soloTabs?: TipoFoto[],
-  extra?: { tocar?: (tipo: TipoFoto, k: string) => void; rearmar?: string }) {
+  extra?: { tocar?: (tipo: TipoFoto, k: string) => void; rearmar?: string;
+    /** Una barra propia dentro de la ventana, debajo de los botones (p. ej. el periodo del Cierre de viajes). */
+    barra?: (tipo: TipoFoto) => React.ReactNode }) {
   const nombreDe = (t: TipoFoto) => nombres?.[t] ?? NOMBRE_FOTO[t];
   const [foto, setFoto] = useState<Foto | null>(null);
   const [armando, setArmando] = useState<TipoFoto | null>(null);
@@ -155,6 +157,7 @@ export function useFotoCompartir(hacer: Hacer, titulo: string, nombres?: Partial
             <button type="button" className="fc-x" onClick={cerrar} aria-label="Cerrar">×</button>
           </div>
         </div>
+        {(() => { const b = extra?.barra?.(foto.tipo); return b ? <div className="fc-filtro">{b}</div> : null })()}
         {aviso && <p className="fc-aviso" role="status">{aviso}</p>}
         {!aviso && (foto.nota ? <p className="fc-aviso">{foto.nota}</p>
           : foto.envio && <p className="fc-aviso">Aquí ves todo. Al copiar, compartir o descargar se quitan los materiales en 0 o negativos.</p>)}

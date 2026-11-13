@@ -63,16 +63,14 @@ export function TurnosAi({ ultima, tipo, abrir }: {
   const marcar = (k: string) => setMarcados((m) => (m.includes(k) ? m.filter((x) => x !== k) : [...m, k]));
   const cambiarDia = (f: string) => { setDia(f); setMarcados([]) };
 
-  const R = 36, C = 2 * Math.PI * R;
+  const R = 24, C = 2 * Math.PI * R;
   const cargando = revs == null && !error;
+  const largo = diaLargo(dia);
 
   return (
     <section className="ia-turnos" aria-label="Cierre por turno y por día">
       <header className="iat-cab">
-        <div>
-          <p className="iat-ojo">CIERRE POR TURNO Y POR DÍA</p>
-          <h2>{diaLargo(dia).charAt(0).toUpperCase() + diaLargo(dia).slice(1)}</h2>
-        </div>
+        <p className="iat-tit"><span className="iat-ojo">CIERRE POR TURNO</span><b>{largo.charAt(0).toUpperCase() + largo.slice(1)}</b></p>
         <div className="iat-dia">
           <button type="button" className="iat-flecha" onClick={() => cambiarDia(mover(dia, -1))} aria-label="Día anterior">
             <svg viewBox="0 0 24 24" aria-hidden><path d="M15 6l-6 6 6 6" /></svg>
@@ -87,51 +85,47 @@ export function TurnosAi({ ultima, tipo, abrir }: {
       {error && <p className="iat-error">{error}</p>}
 
       <div className="iat-cuerpo">
-        <div className="iat-anillos">
-          {anillos.map(({ k, l, h, c, parte }) => {
-            const on = marcados.includes(k), hay = c.revisiones > 0;
-            return (
-              <div className={"iat-turno" + (on ? " marcado" : "") + (hay ? "" : " vacio")} key={k}>
-                <button type="button" className="iat-marca" aria-pressed={on} onClick={() => marcar(k)} disabled={cargando}
-                        aria-label={`${on ? "Quitar" : "Sumar"} el turno ${l} a la selección`}>
-                  <i aria-hidden>{on && <svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>}</i>
-                </button>
-                <button type="button" className="iat-abrir" onClick={() => abrir(dia, [k])} disabled={cargando} aria-label={`Ver el cierre del turno ${l}`}>
-                  <svg className="iat-aro" viewBox="0 0 92 92" aria-hidden>
-                    <circle cx="46" cy="46" r={R} className="pista" />
-                    {hay && <circle cx="46" cy="46" r={R} className="arco" strokeDasharray={`${Math.max(0.02, parte) * C} ${C}`} transform="rotate(-90 46 46)" />}
-                    <text x="46" y={hay ? 47 : 52} textAnchor="middle" className="v">{cargando ? "…" : hay ? pc(c.indice).replace(" %", "") : "—"}</text>
-                    {hay && <text x="46" y="62" textAnchor="middle" className="u">% AI</text>}
-                  </svg>
-                  <b>Turno {l}</b>
-                  <span className="h">{h}</span>
-                  <span className="d">{cargando ? "Leyendo…" : hay ? `${c.revisiones} rev · ${nf.format(c.revisadas)} und` : "sin revisiones"}</span>
-                  {hay && <span className="p">{Math.round(parte * 100)} % de lo revisado</span>}
-                  <i className="iat-ver" aria-hidden><svg viewBox="0 0 24 24"><path d="M4 12h15" /><path d="M13 6l6 6-6 6" /></svg></i>
-                </button>
-              </div>
-            );
-          })}
-        </div>
+        {anillos.map(({ k, l, h, c, parte }) => {
+          const on = marcados.includes(k), hay = c.revisiones > 0;
+          return (
+            <div className={"iat-turno" + (on ? " iat-on" : "") + (hay ? "" : " iat-sin")} key={k}>
+              <button type="button" className="iat-marca" aria-pressed={on} onClick={() => marcar(k)} disabled={cargando}
+                      aria-label={`${on ? "Quitar" : "Sumar"} el turno ${l} a la selección`}>
+                <i aria-hidden>{on && <svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>}</i>
+              </button>
+              <button type="button" className="iat-abrir" onClick={() => abrir(dia, [k])} disabled={cargando} aria-label={`Ver el cierre del turno ${l}`}>
+                <svg className="iat-aro" viewBox="0 0 60 60" aria-hidden>
+                  <circle cx="30" cy="30" r={R} className="iat-pista" />
+                  {hay && <circle cx="30" cy="30" r={R} className="iat-arco" strokeDasharray={`${Math.max(0.02, parte) * C} ${C}`} transform="rotate(-90 30 30)" />}
+                  <text x="30" y="35" textAnchor="middle" className="iat-l">{l}</text>
+                </svg>
+                <span className="iat-txt">
+                  <span className="iat-pc">{cargando ? "…" : hay ? pc(c.indice) : "—"}</span>
+                  <span className="iat-nom">Turno {l} <small>{h}</small></span>
+                  <span className="iat-det">{cargando ? "Leyendo…" : hay ? <>{c.revisiones} rev<span className="iat-mas"> · {nf.format(c.revisadas)} und · {Math.round(parte * 100)} % del día</span></> : "Sin revisiones"}</span>
+                </span>
+                <svg className="iat-ir" viewBox="0 0 24 24" aria-hidden><path d="M4 12h15" /><path d="M13 6l6 6-6 6" /></svg>
+              </button>
+            </div>
+          );
+        })}
 
-        <button type="button" className="iat-dia-btn" onClick={() => abrir(dia, ["T3", "T1", "T2"])} disabled={cargando}>
-          <span className="q">Ver el cierre del día</span>
-          <span className="big">{dia_ && dia_.revisiones ? pc(dia_.indice) : "—"}<small>AI del día</small></span>
-          <span className="d">
-            {cargando ? "Leyendo el día…" : dia_ && dia_.revisiones
-              ? `${dia_.revisiones} revisiones · ${dia_.vh} VH · ${nf.format(dia_.revisadas)} und · ${nf.format(dia_.malas)} en mal estado`
-              : "Ese día no hay revisiones"}
+        <button type="button" className="iat-diabt" onClick={() => abrir(dia, ["T3", "T1", "T2"])} disabled={cargando}>
+          <span className="iat-txt">
+            <span className="iat-q">Cierre del día</span>
+            <span className="iat-pc">{dia_ && dia_.revisiones ? pc(dia_.indice) : "—"}</span>
+            <span className="iat-det">{cargando ? "Leyendo…" : dia_ && dia_.revisiones ? `${dia_.revisiones} rev · ${dia_.vh} VH · ${nf.format(dia_.revisadas)} und` : "Sin revisiones"}</span>
           </span>
-          <i className="iat-ver" aria-hidden><svg viewBox="0 0 24 24"><path d="M4 12h15" /><path d="M13 6l6 6-6 6" /></svg></i>
+          <svg className="iat-ir" viewBox="0 0 24 24" aria-hidden><path d="M4 12h15" /><path d="M13 6l6 6-6 6" /></svg>
         </button>
       </div>
 
       {/* LO QUE SE ESCOGIÓ, Y CÓMO VA: sale solo con algo marcado. */}
       {sel.length > 0 && (
         <div className="iat-sel">
-          <span className="q">Turno{sel.length === 1 ? "" : "s"} <b>{letras(sel)}</b><em>{pc(cSel.indice)} AI · {cSel.revisiones} rev · {nf.format(cSel.revisadas)} und</em></span>
-          <button type="button" className="limpiar" onClick={() => setMarcados([])}>Quitar</button>
-          <button type="button" className="ver" onClick={() => abrir(dia, sel)}>Ver el cierre de {sel.length === 1 ? "este turno" : letras(sel)}</button>
+          <span className="iat-selq">Turno{sel.length === 1 ? "" : "s"} <b>{letras(sel)}</b><em>{pc(cSel.indice)} AI · {cSel.revisiones} rev · {nf.format(cSel.revisadas)} und</em></span>
+          <button type="button" className="iat-limpiar" onClick={() => setMarcados([])}>Quitar</button>
+          <button type="button" className="iat-ver" onClick={() => abrir(dia, sel)}>Ver el cierre de {sel.length === 1 ? "este turno" : letras(sel)}</button>
         </div>
       )}
     </section>
