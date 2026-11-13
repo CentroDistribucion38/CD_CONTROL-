@@ -5,3 +5,50 @@
 @media (max-width: 760px) {
   .fe .cy-acc { grid-column: 2; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-start; padding: 0 14px 12px }
 }
+
+/* COPIAR CONTEO: ventana propia de la app (tipo toolbox), recta. En el celular ocupa toda la pantalla y cada renglón es
+   SKU | UNIDADES, dos botones grandes que copian. */
+.fe .cy-modal { position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(4, 32, 63, .55) }
+.fe .cy-caja { display: flex; flex-direction: column; width: min(560px, 100%); max-height: min(86vh, 900px); background: var(--fe-papel, #fff); border: 1px solid var(--fe-tinta); border-radius: 0; box-shadow: 0 18px 50px rgba(0,0,0,.28) }
+.fe .cy-cab { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; background: var(--fe-acento); color: var(--c-marca-txt, #111) }
+.fe .cy-cab span { display: inline-flex; align-items: center; gap: 8px; font: 800 12px var(--fe-texto, inherit); letter-spacing: .12em; text-transform: uppercase }
+.fe .cy-cab button { min-width: 40px; min-height: 40px; border: 0; background: transparent; color: inherit; font-size: 26px; line-height: 1; cursor: pointer }
+.fe .cy-cuerpo { padding: 14px 16px 6px; overflow-y: auto; -webkit-overflow-scrolling: touch; flex: 1 }
+.fe .cy-ojo { margin: 0; font: 700 10.5px var(--fe-texto, inherit); letter-spacing: .12em; text-transform: uppercase; color: var(--fe-gris) }
+.fe .cy-cuerpo h3 { margin: 2px 0 10px; font: 800 18px var(--fe-titulo, inherit); color: var(--fe-tinta) }
+.fe .cy-filtros { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px }
+.fe .cy-seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--fe-tinta) }
+.fe .cy-seg button { min-height: 36px; padding: 0 12px; border: 0; border-left: 1px solid var(--fe-tinta); background: transparent; font: 700 12.5px var(--fe-texto, inherit); color: var(--fe-tinta); cursor: pointer }
+.fe .cy-seg button:first-child { border-left: 0 }
+.fe .cy-seg button.on { background: var(--fe-tinta); color: #fff }
+.fe .cy-resumen { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0 10px; border-bottom: 1.5px solid var(--fe-tinta); font-size: 13px; color: var(--fe-gris) }
+.fe .cy-resumen b { color: var(--fe-tinta) }
+.fe .cy-resumen .btn { display: inline-flex; align-items: center; gap: 6px }
+.fe .cy-nota { margin: 12px 0; font-size: 13px; color: var(--fe-gris) }
+.fe .cy-lista { list-style: none; margin: 0; padding: 0 }
+.fe .cy-lista li { display: grid; grid-template-columns: 28px minmax(0, 1fr) minmax(0, 1fr); gap: 8px; align-items: stretch; padding: 8px 0; border-bottom: 1px solid var(--fe-linea) }
+.fe .cy-lista li.listo { opacity: .55 }
+.fe .cy-i { align-self: center; font: 700 12px var(--fe-texto, inherit); color: var(--fe-gris); text-align: right; font-variant-numeric: tabular-nums }
+.fe .cy-v { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; align-items: center; column-gap: 8px; min-height: 52px; padding: 6px 10px; text-align: left;
+  border: 1px solid var(--fe-linea); border-radius: 0; background: var(--fe-fondo, #f4f4f4); color: var(--fe-tinta); cursor: pointer; -webkit-tap-highlight-color: transparent }
+.fe .cy-v small { grid-column: 1; font: 700 9.5px var(--fe-texto, inherit); letter-spacing: .12em; text-transform: uppercase; color: var(--fe-gris) }
+.fe .cy-v b { grid-column: 1; font: 800 18px/1.15 var(--fe-titulo, inherit); font-variant-numeric: tabular-nums; overflow-wrap: anywhere }
+.fe .cy-v svg { grid-column: 2; grid-row: 1 / span 2; color: var(--fe-gris) }
+.fe .cy-v.n { text-align: right }
+.fe .cy-v.n small, .fe .cy-v.n b { justify-self: end }
+.fe .cy-v:hover { border-color: var(--fe-tinta) }
+.fe .cy-v:active { background: var(--fe-acento) }
+.fe .cy-v.ok { border-color: #0F7A4A; background: #E3F4EA }
+.fe .cy-v.ok svg { color: #0F7A4A }
+.fe .cy-pie { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; border-top: 1px solid var(--fe-linea) }
+.fe .cy-ultimo { font-size: 12.5px; color: var(--fe-gris); overflow-wrap: anywhere }
+.fe .vf-acc .btn svg { vertical-align: -3px }
+@media (max-width: 640px) {
+  .fe .cy-modal { padding: 0; align-items: stretch }
+  .fe .cy-caja { width: 100%; max-height: none; height: 100dvh; border: 0 }
+  .fe .cy-lista li { grid-template-columns: 22px minmax(0, 1fr) minmax(0, 1fr); gap: 6px }
+  .fe .cy-v { min-height: 56px; padding: 6px 8px }
+  .fe .cy-v b { font-size: 17px }
+  .fe .cy-pie { padding-bottom: max(10px, env(safe-area-inset-bottom)) }
+  .fe .cy-pie .btn { min-height: 44px }
+}

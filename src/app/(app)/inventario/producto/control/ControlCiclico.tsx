@@ -42,6 +42,134 @@ function dif(f: FilaCruce): string {
   return `${u > 0 ? "+" : "-"}${nf.format(c)}${s > 0 ? ` + ${nf.format(s)} un.` : ""}`;
 }
 
+/** El ícono de copiar (dos hojas). */
+const IcoCopiar = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" aria-hidden="true">
+    <rect x="9" y="9" width="12" height="12" /><path d="M5 15H3V3h12v2" />
+  </svg>
+);
+const IcoListo = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square" aria-hidden="true"><path d="m4 12 5 5L20 6" /></svg>
+);
+
+/** Copia al portapapeles; si el navegador no deja (http, permisos), con el método viejo. */
+async function alPortapapeles(texto: string): Promise<boolean> {
+  try { await navigator.clipboard.writeText(texto); return true } catch { /* sigue con el viejo */ }
+  try {
+    const t = document.createElement("textarea");
+    t.value = texto; t.setAttribute("readonly", ""); t.style.position = "fixed"; t.style.opacity = "0";
+    document.body.appendChild(t); t.select(); const ok = document.execCommand("copy"); t.remove(); return ok;
+  } catch { return false }
+}
+
+/* ===================================================================
+   COPIAR EL CONTEO — «un ícono de copiar que abra un toolbox donde pueda copiar el SKU y luego la cantidad, en
+   unidades: renglón 1, primero el código y luego la cantidad, cada uno. Que en el celular quede perfecto: solo
+   SKU y cantidad, no importa la ubicación: totalizas todo.»
+   Por código, todo sumado (todas las ubicaciones, y todas las hojas o la que se escoja), en UNIDADES. Cada valor es
+   un botón que copia; lo ya copiado queda marcado para no perder el renglón. «Copiar todo» copia código y cantidad
+   separados por tabulación (se pega directo en Excel).
+   =================================================================== */
+type LineaCopiar = { sku: string; material: string; unidades: number };
+function CopiarConteo({ f, lineas, cargando, error, cerrar }: {
+  f: FiscalBD; lineas: Detalle[] | null; cargando: boolean; error: string | null; cerrar: () => void;
+}) {
+  const [hoja, setHoja] = useState<number | null>(null);
+  const [equipo, setEquipo] = useState<"BAVARIA" | "OL">("BAVARIA");
+  const [copiado, setCopiado] = useState<Record<string, true>>({});
+  const [ultimo, setUltimo] = useState<string | null>(null);
+  useEffect(() => {
+    const tecla = (e: KeyboardEvent) => { if (e.key === "Escape") cerrar() };
+    window.addEventListener("keydown", tecla);
+    return () => window.removeEventListener("keydown", tecla);
+  }, [cerrar]);
+
+  const filas: LineaCopiar[] = useMemo(() => {
+    const m = new Map<string, LineaCopiar>();
+    for (const l of lineas ?? []) {
+      if ((l.equipo === "BAVARIA" ? "BAVARIA" : "OL") !== equipo) continue;
+      if (hoja != null && l.hoja !== hoja) continue;
+      const x = m.get(l.sku) ?? { sku: l.sku, material: l.material, unidades: 0 };
+      x.unidades += n(l.total_unidades);
+      m.set(l.sku, x);
+    }
+    return [...m.values()].filter((x) => x.unidades !== 0).sort((a, b) => a.sku.localeCompare(b.sku, "es", { numeric: true }));
+  }, [lineas, equipo, hoja]);
+  const total = filas.reduce((t, x) => t + x.unidades, 0);
+  const hechos = filas.filter((x) => copiado[`${x.sku}|c`] && copiado[`${x.sku}|u`]).length;
+
+  async function copiar(clave: string, texto: string) {
+    if (await alPortapapeles(texto)) { setCopiado((c) => ({ ...c, [clave]: true })); setUltimo(`Copiado: ${texto}`) }
+    else setUltimo("El navegador no dejó copiar. Mantén presionado el número y cópialo a mano.");
+  }
+  const cambiar = (fn: () => void) => { fn(); setCopiado({}); setUltimo(null) };
+
+  return (
+    <div className="cy-modal" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) cerrar() }}>
+      <div className="cy-caja" role="dialog" aria-modal="true" aria-labelledby="cy-copiar-t">
+        <header className="cy-cab">
+          <span><IcoCopiar /> Copiar conteo</span>
+          <button type="button" onClick={cerrar} aria-label="Cerrar">×</button>
+        </header>
+        <div className="cy-cuerpo">
+          <p className="cy-ojo">{f.nombre}</p>
+          <h3 id="cy-copiar-t">Código y cantidad, en unidades</h3>
+          <div className="cy-filtros">
+            <div className="cy-seg" role="group" aria-label="Quién contó">
+              <button type="button" className={equipo === "BAVARIA" ? "on" : ""} onClick={() => cambiar(() => setEquipo("BAVARIA"))}>Bavaria</button>
+              <button type="button" className={equipo === "OL" ? "on" : ""} onClick={() => cambiar(() => setEquipo("OL"))}>Operador</button>
+            </div>
+            {f.hojas.length > 1 && (
+              <div className="cy-seg" role="group" aria-label="Hoja">
+                <button type="button" className={hoja == null ? "on" : ""} onClick={() => cambiar(() => setHoja(null))}>Todas</button>
+                {f.hojas.map((h) => (
+                  <button key={h.numero} type="button" className={hoja === h.numero ? "on" : ""} onClick={() => cambiar(() => setHoja(h.numero))}>Hoja {h.numero}</button>
+                ))}
+              </div>
+            )}
+          </div>
+          {cargando && <p className="cy-nota">Trayendo lo contado…</p>}
+          {error && <p className="cl-mal" role="alert">{error}</p>}
+          {!cargando && !error && (
+            <>
+              <div className="cy-resumen">
+                <span><b>{filas.length}</b> {filas.length === 1 ? "código" : "códigos"} · <b>{nf.format(total)}</b> unidades{filas.length > 0 && <> · {hechos} de {filas.length} copiados</>}</span>
+                {filas.length > 0 && (
+                  <button type="button" className="btn plano" onClick={() => copiar("todo", filas.map((x) => `${x.sku}\t${x.unidades}`).join("\n"))}>
+                    {copiado.todo ? <IcoListo /> : <IcoCopiar />} Copiar todo
+                  </button>
+                )}
+              </div>
+              {filas.length === 0 ? <p className="cy-nota">{equipo === "BAVARIA" ? "Bavaria" : "El operador"} todavía no ha contado nada{hoja != null ? ` en la hoja ${hoja}` : ""}.</p> : (
+                <ol className="cy-lista">
+                  {filas.map((x, i) => {
+                    const c = !!copiado[`${x.sku}|c`], u = !!copiado[`${x.sku}|u`];
+                    return (
+                      <li key={x.sku} className={c && u ? "listo" : ""}>
+                        <span className="cy-i">{i + 1}</span>
+                        <button type="button" className={"cy-v" + (c ? " ok" : "")} onClick={() => copiar(`${x.sku}|c`, x.sku)} title={x.material}>
+                          <small>SKU</small><b>{x.sku}</b>{c ? <IcoListo /> : <IcoCopiar />}
+                        </button>
+                        <button type="button" className={"cy-v n" + (u ? " ok" : "")} onClick={() => copiar(`${x.sku}|u`, String(x.unidades))}>
+                          <small>Unidades</small><b>{nf.format(x.unidades)}</b>{u ? <IcoListo /> : <IcoCopiar />}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ol>
+              )}
+            </>
+          )}
+        </div>
+        <footer className="cy-pie">
+          <span className="cy-ultimo" role="status">{ultimo ?? "Toca el código y luego la cantidad: cada uno se copia solo."}</span>
+          <button type="button" className="btn" onClick={cerrar}>Cerrar</button>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
 export function ControlCiclico({ personas, ciclicos, cerradasIniciales, ahora, puedeEditar, modo = "control" }: {
   personas: Persona[]; ciclicos: FiscalBD[];
   /** Por id de hoja: cuándo se envió el conteo (cerrada_en). */
@@ -68,6 +196,15 @@ export function ControlCiclico({ personas, ciclicos, cerradasIniciales, ahora, p
   const [armando, setArmando] = useState(false);
   const [mal, setMal] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
+  /* EL TOOLBOX DE COPIAR: lo contado (inv_ciclico_detalle) se trae al abrirlo. */
+  const [copiar, setCopiar] = useState<{ lineas: Detalle[] | null; cargando: boolean; error: string | null } | null>(null);
+  const cerrarCopiar = useCallback(() => setCopiar(null), []);
+  async function abrirCopiar(f: FiscalBD) {
+    setCopiar({ lineas: null, cargando: true, error: null });
+    const det = await createClient().rpc("inv_ciclico_detalle", { p_fiscal: f.id });
+    setCopiar({ lineas: det.error ? null : ((det.data ?? []) as Detalle[]), cargando: false,
+      error: det.error ? (/inv_ciclico_detalle|schema cache|does not exist/i.test(det.error.message) ? "Falta correr supabase/migraciones/2026-11-producto-ciclico-control.sql en Supabase." : det.error.message) : null });
+  }
 
   /* EL CRUCE DE CADA HOJA, AL ABRIR Y CON «ACTUALIZAR»: lo que van contando los dos hasta ahora. */
   const cargar = useCallback(async (f: FiscalBD | null) => {
@@ -231,6 +368,9 @@ export function ControlCiclico({ personas, ciclicos, cerradasIniciales, ahora, p
             <button type="button" className="btn plano" disabled={cargando} onClick={() => cargar(f)} title={hora ? `Actualizado a las ${hora}` : undefined}>
               <Ico n="refrescar" tam={16} /> {cargando ? "Actualizando…" : "Actualizar"}
             </button>
+            <button type="button" className="btn plano" onClick={() => abrirCopiar(f)} title="Código y cantidad en unidades, totalizado, para copiar uno por uno">
+              <IcoCopiar /> Copiar conteo
+            </button>
             <button type="button" className="btn plano fi-excel" disabled={armando} onClick={() => exportar(f)}
                     title="Un Excel con el resumen por hoja, el cruce, el total por código y cada renglón contado">
               <Ico n="bajar" tam={16} /> {armando ? "Armando el Excel…" : "Exportar conteos"}
@@ -324,6 +464,7 @@ export function ControlCiclico({ personas, ciclicos, cerradasIniciales, ahora, p
           items={todos.map((f) => ({ id: f.id, nombre: f.nombre, fecha: fechaConDia(f.fecha), cuando: textoCuando(hoy, f.fecha), abierto: f.estado === "abierto" }))} />
       )}
       {sel && vista(sel)}
+      {sel && copiar && <CopiarConteo f={sel} lineas={copiar.lineas} cargando={copiar.cargando} error={copiar.error} cerrar={cerrarCopiar} />}
       {modo === "control" && historial.length > 0 && (
         <p className="cl-nota" role="note">Los cíclicos anteriores ({historial.length}) están en el <Link href="/inventario/producto/historial">Historial cíclico</Link>.</p>
       )}
