@@ -473,7 +473,7 @@ export function dibujarCierreViajes(v: CierreViajes, o: { periodo: string; chips
     ctx.fillStyle = "#FFFFFF"; ctx.fillRect(x, y, cw, hCards);
     ctx.strokeStyle = BORDE; ctx.strokeRect(x + .5, y + .5, cw - 1, hCards - 1);
     ctx.fillStyle = ACENTO; ctx.fillRect(x, y + hCards - 4, cw, 4);
-    ctx.fillStyle = BORDE; ctx.fillRect(mitad, y + 18, 1, hCards - 40);
+    ctx.fillStyle = BORDE; ctx.fillRect(mitad, y + 18, 1, hCards - 36);
     const lado = (x0: number, rot: string, val: string, uni: string, chip: boolean) => {
       letra(ctx, 800, 13); ctx.fillStyle = GRIS; ctx.textAlign = "left"; espaciado(ctx, rot, x0, y + 24, 1.1);
       letra(ctx, 900, 40); ctx.fillStyle = TINTA; ctx.fillText(val, x0, y + 66);
@@ -486,8 +486,6 @@ export function dibujarCierreViajes(v: CierreViajes, o: { periodo: string; chips
     };
     lado(x + 24, "VIAJES CASCO", String(v.viajes), "casco", false);
     lado(mitad + 20, "VIAJES SERPRO", String(v.serpro), "SERPRO", true);
-    letra(ctx, 600, 13); ctx.fillStyle = GRIS; ctx.textAlign = "left";
-    ctx.fillText(recortar(ctx, `${v.referencias} ${v.referencias === 1 ? "referencia" : "referencias"} · SERPRO = Carnaval → Peldar${o.ocultos ? ` · ${o.ocultos} quitado${o.ocultos === 1 ? "" : "s"}` : ""}`, cw - 40), x + 24, y + hCards - 22);
   }
 
   /* ---------- LAS RUTAS ---------- */
