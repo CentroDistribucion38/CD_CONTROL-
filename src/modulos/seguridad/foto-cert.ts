@@ -176,15 +176,18 @@ export function dibujarListaCert(t: TableroCert, u: ListaCert, extra: Extra & { 
     `Licencias VACA · ${deptos} · corte del ${fechaCorta(t.hoy)} de ${t.hoy.slice(0, 4)}`);
 
   /* ---------- LA CIFRA ---------- */
-  ctx.fillStyle = U.color; ctx.fillRect(M, yB, ancho, hB);
-  if (u === "vencida" && gente.length) { ctx.fillStyle = "#C8102E"; ctx.fillRect(M, yB + hB - 5, ancho, 5) }
-  const sobre = U.sobre;
-  letra(ctx, 900, 64); ctx.fillStyle = sobre; ctx.textAlign = "left"; ctx.fillText(String(gente.length), M + 26, yB + hB / 2 + 2);
+  /* Blanco con ámbar: la tarjeta es blanca; el color va en la franja y en la cifra (rojo si son vencidas). */
+  const tono = u === "vencida" ? "#C8102E" : U.color;
+  ctx.fillStyle = "#FFFFFF"; ctx.fillRect(M, yB, ancho, hB);
+  ctx.strokeStyle = BORDE; ctx.strokeRect(M + .5, yB + .5, ancho - 1, hB - 1);
+  ctx.fillStyle = tono; ctx.fillRect(M, yB, 8, hB); ctx.fillRect(M, yB + hB - 5, ancho, 5);
+  const sobre = TINTA;
+  letra(ctx, 900, 64); ctx.fillStyle = u === "vencida" ? "#C8102E" : u === "critica" ? "#8A6300" : TINTA; ctx.textAlign = "left"; ctx.fillText(String(gente.length), M + 30, yB + hB / 2 + 2);
   const wN = ctx.measureText(String(gente.length)).width;
-  letra(ctx, 800, 15); espaciado(ctx, L0.titulo(t.config.diasCriticos).toUpperCase(), M + 50 + wN, yB + 42, 1.2);
-  letra(ctx, 600, 15); ctx.fillText(L0.nota, M + 50 + wN, yB + 72);
+  ctx.fillStyle = sobre; letra(ctx, 800, 15); espaciado(ctx, L0.titulo(t.config.diasCriticos).toUpperCase(), M + 54 + wN, yB + 42, 1.2);
+  letra(ctx, 600, 15); ctx.fillStyle = GRIS; ctx.fillText(L0.nota, M + 54 + wN, yB + 72);
   const empresas = new Set(gente.map((a) => a.empresa.trim().toUpperCase())).size;
-  letra(ctx, 700, 14); ctx.textAlign = "right";
+  letra(ctx, 700, 14); ctx.textAlign = "right"; ctx.fillStyle = GRIS;
   ctx.fillText(`${empresas} ${empresas === 1 ? "empresa" : "empresas"} · ${orden.length} ${orden.length === 1 ? "interventor" : "interventores"}`, W - M - 26, yB + hB / 2);
   ctx.textAlign = "left";
 
@@ -196,22 +199,22 @@ export function dibujarListaCert(t: TableroCert, u: ListaCert, extra: Extra & { 
   const xi = M + 16, wi = ancho - 32;
   const C = { num: xi + 12, nom: xi + 52, ced: xi + wi * 0.40, emp: xi + wi * 0.52, perm: xi + wi * 0.70, vence: xi + wi - 12 };
   let y = yT + 54;
-  ctx.fillStyle = TINTA; ctx.fillRect(xi, y, wi, hCab);
-  letra(ctx, 800, 11); ctx.fillStyle = "#FFFFFF";
+  ctx.fillStyle = "#FFF6E3"; ctx.fillRect(xi, y, wi, hCab);
+  ctx.fillStyle = "#FFC300"; ctx.fillRect(xi, y + hCab - 3, wi, 3);
+  letra(ctx, 800, 11); ctx.fillStyle = "#5A4100";
   ([["#", C.num], ["NOMBRE", C.nom], ["CÉDULA", C.ced], ["EMPRESA", C.emp], ["PERMISOS · NIVEL", C.perm]] as const).forEach(([tx, x]) => espaciado(ctx, tx, x, y + hCab / 2, .8));
   ctx.textAlign = "right"; ctx.fillText("VENCE", C.vence, y + hCab / 2); ctx.textAlign = "left";
   y += hCab;
   if (!gente.length) { letra(ctx, 600, 16); ctx.fillStyle = GRIS; ctx.fillText("Nadie en esta lista.", xi + 12, y + 34) }
   let k = 0;
   for (const [iv, cos] of orden) {
-    ctx.fillStyle = "#3B3B3B"; ctx.fillRect(xi, y, wi, hIv);
-    ctx.fillStyle = ACENTO; ctx.fillRect(xi, y + hIv - 3, wi, 3);
-    letra(ctx, 800, 15); ctx.fillStyle = "#FFFFFF";
+    ctx.fillStyle = "#FFC300"; ctx.fillRect(xi, y, wi, hIv);
+    letra(ctx, 800, 15); ctx.fillStyle = "#1B1B1B";
     ctx.fillText(iv ? `Interventor ABI: ${iv}` : "Sin Interventor ABI asignado", xi + 12, y + hIv / 2);
     letra(ctx, 700, 13); ctx.textAlign = "right"; ctx.fillText(`${n(cos)} ${n(cos) === 1 ? "persona" : "personas"}`, xi + wi - 12, y + hIv / 2); ctx.textAlign = "left";
     y += hIv;
     for (const [co, lista] of [...cos].sort((a, b) => Number(a[0] === "") - Number(b[0] === "") || b[1].length - a[1].length)) {
-      ctx.fillStyle = "#FFF6E3"; ctx.fillRect(xi, y, wi, hCo);
+      ctx.fillStyle = "#FFF9EA"; ctx.fillRect(xi, y, wi, hCo);
       ctx.fillStyle = "#B58200"; ctx.fillRect(xi, y, 4, hCo);
       letra(ctx, 800, 13.5); ctx.fillStyle = "#8A6300"; ctx.fillText(`↳  ${co ? `Coordinador: ${co}` : "Sin coordinador asignado"}`, xi + 14, y + hCo / 2);
       letra(ctx, 700, 12.5); ctx.textAlign = "right"; ctx.fillText(String(lista.length), xi + wi - 12, y + hCo / 2); ctx.textAlign = "left";

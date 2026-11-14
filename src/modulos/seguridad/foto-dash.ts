@@ -93,7 +93,7 @@ export function dibujarDashboardCert(I: Indicadores, t: TableroCert, extra: { pa
       const cy = a.y + i * fila + fila / 2;
       letra(ctx, 600, 12.5); ctx.fillStyle = TINTA; ctx.textAlign = "right"; ctx.fillText(recortar(ctx, f.empresa.toUpperCase(), NOM), a.x + NOM, cy);
       ctx.fillStyle = SUAVE; ctx.fillRect(X0, cy - bh / 2, X1 - X0, bh);
-      const col = f.pct >= 0.95 ? AMARILLO : f.pct >= 0.8 ? OCRE : CARBON;
+      const col = f.pct >= 0.95 ? AMARILLO : f.pct >= 0.8 ? OCRE : ROJO;
       ctx.fillStyle = col; ctx.fillRect(X0, cy - bh / 2, Math.max(2, (X1 - X0) * f.pct), bh);
       letra(ctx, 900, 14); ctx.fillStyle = f.pct < 0.8 ? ROJO : TINTA; ctx.textAlign = "right"; ctx.fillText(pct(f.pct), a.x + a.w - 46, cy);
       letra(ctx, 500, 11.5); ctx.fillStyle = GRIS; ctx.textAlign = "left"; ctx.fillText(`${f.activos} act.`, a.x + a.w - 40, cy);
@@ -104,7 +104,7 @@ export function dibujarDashboardCert(I: Indicadores, t: TableroCert, extra: { pa
   {
     const a = panel({ x: xC, y: Y1, w: wC, h: H1 }, "Alertas de hoy");
     const bloques = [
-      { t: "VENCIDAS · TRABAJANDO", n: t.vencidas, sub: "exigir hoy", col: CARBON },
+      { t: "VENCIDAS · TRABAJANDO", n: t.vencidas, sub: "exigir hoy", col: "#FFFFFF" },
       { t: `VENCEN EN ${t.config.diasCriticos} DÍAS`, n: t.criticas, sub: "renovar esta semana", col: OCRE },
       { t: "VENCEN ESTE MES", n: t.avisos, sub: "programar la renovación", col: AMARILLO },
     ];
@@ -112,11 +112,11 @@ export function dibujarDashboardCert(I: Indicadores, t: TableroCert, extra: { pa
     bloques.forEach((b, i) => {
       const y = a.y + i * (bh + 10);
       ctx.fillStyle = b.col; ctx.fillRect(a.x, y, a.w, bh);
-      if (i === 0 && b.n > 0) { ctx.fillStyle = ROJO; ctx.fillRect(a.x, y + bh - 5, a.w, 5) }
-      const tc = tintaSobre(b.col);
+      if (i === 0) { ctx.strokeStyle = BORDE; ctx.strokeRect(a.x + .5, y + .5, a.w - 1, bh - 1); ctx.fillStyle = ROJO; ctx.fillRect(a.x, y, 6, bh); ctx.fillRect(a.x, y + bh - 5, a.w, 5) }
+      const tc = i === 0 ? TINTA : tintaSobre(b.col);
       letra(ctx, 800, 12); ctx.fillStyle = tc; ctx.textAlign = "left"; espaciado(ctx, b.t, a.x + 16, y + 22, 1.1);
       letra(ctx, 500, 12.5); ctx.fillText(b.sub, a.x + 16, y + bh - 22);
-      letra(ctx, 900, 52); ctx.textAlign = "right"; ctx.fillText(String(b.n), a.x + a.w - 16, y + bh / 2 + 4);
+      letra(ctx, 900, 52); ctx.textAlign = "right"; if (i === 0) ctx.fillStyle = b.n ? ROJO : TINTA; ctx.fillText(String(b.n), a.x + a.w - 16, y + bh / 2 + 4);
     });
   }
 
@@ -168,14 +168,14 @@ export function dibujarDashboardCert(I: Indicadores, t: TableroCert, extra: { pa
 
   /* ---------- E · COBERTURA DE PERMISOS: hoy y en 30 días ---------- */
   {
-    const a = panel({ x: xB, y: Y2, w: wE, h: H2 }, "Cobertura de permisos", [{ t: "hoy", col: CARBON }, { t: `en ${t.config.diasAviso} días`, col: AMARILLO }]);
+    const a = panel({ x: xB, y: Y2, w: wE, h: H2 }, "Cobertura de permisos", [{ t: "hoy", col: OCRE }, { t: `en ${t.config.diasAviso} días`, col: AMARILLO }]);
     const filas = I.cobertura, NOM = 86, VAL = 120, X0 = a.x + NOM + 10, X1 = a.x + a.w - VAL;
     const max = Math.max(1, ...filas.map((f) => f.hoy)), fila = Math.min(48, a.h / Math.max(1, filas.length));
     filas.forEach((f, i) => {
       const cy = a.y + i * fila + fila / 2;
       letra(ctx, 700, 13); ctx.fillStyle = TINTA; ctx.textAlign = "right"; ctx.fillText(f.t, a.x + NOM, cy);
       ctx.fillStyle = SUAVE; ctx.fillRect(X0, cy - 11, X1 - X0, 22);
-      ctx.fillStyle = CARBON; ctx.fillRect(X0, cy - 11, (X1 - X0) * (f.hoy / max), 11);
+      ctx.fillStyle = OCRE; ctx.fillRect(X0, cy - 11, (X1 - X0) * (f.hoy / max), 11);
       ctx.fillStyle = AMARILLO; ctx.fillRect(X0, cy + 1, (X1 - X0) * (f.en30 / max), 10);
       const baja = f.hoy ? (f.en30 - f.hoy) / f.hoy : 0;
       letra(ctx, 900, 15); ctx.fillStyle = TINTA; ctx.textAlign = "right"; ctx.fillText(String(f.hoy), a.x + a.w - 80, cy);

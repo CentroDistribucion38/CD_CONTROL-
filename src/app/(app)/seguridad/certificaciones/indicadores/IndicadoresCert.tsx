@@ -98,7 +98,7 @@ export function IndicadoresCert({ personas, hist, hoy, config, departamentos }: 
         </section>
 
         <section className="sg-card">
-          <header><h2>Cobertura de permisos</h2><span className="sg-leg"><i style={{ background: "#3B3B3B" }} />hoy <i style={{ background: "#FFC300" }} />en {config.diasAviso} días</span></header>
+          <header><h2>Cobertura de permisos</h2><span className="sg-leg"><i style={{ background: "#B58200" }} />hoy <i style={{ background: "#FFC300" }} />en {config.diasAviso} días</span></header>
           <div className="sg-pad">
             {I.cobertura.map((c) => {
               const baja = c.hoy ? (c.hoy - c.en30) / c.hoy : 0;
@@ -137,7 +137,7 @@ export function IndicadoresCert({ personas, hist, hoy, config, departamentos }: 
             {I.empresas.slice(0, 12).map((e) => (
               <div key={e.empresa} className="sg-emp">
                 <span title={e.empresa}>{e.empresa}</span>
-                <div className="sg-emp-t"><i style={{ width: `${e.pct * 100}%`, background: e.pct < 0.8 ? "#3B3B3B" : e.pct < 0.95 ? "#B58200" : "#FFC300" }} /></div>
+                <div className="sg-emp-t"><i style={{ width: `${e.pct * 100}%`, background: e.pct < 0.8 ? "#C8102E" : e.pct < 0.95 ? "#B58200" : "#FFC300" }} /></div>
                 <b style={{ color: e.pct < 0.8 ? "#C8102E" : undefined }}>{Math.round(e.pct * 100)}%</b>
                 <small>{e.activos} act.</small>
               </div>

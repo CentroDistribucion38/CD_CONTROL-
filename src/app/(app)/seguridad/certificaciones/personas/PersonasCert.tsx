@@ -220,7 +220,7 @@ function Ficha({ p, hoy, config, grupos, puedeEditar, cerrar, renovar, decir }: 
         <div><p>FICHA · CC {p.cedula}</p><h3>{p.nombre}</h3><small>{p.empresa} · {p.departamento}{p.grupo ? ` · ${p.grupo}` : ""}</small></div>
         <button type="button" className="sg-x" onClick={cerrar} aria-label="Cerrar la ficha"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" /></svg></button>
       </header>
-      <div className="sg-ficha-big" style={{ background: U.color, color: U.sobre }}>
+      <div className="sg-ficha-big" style={u === "vencida" ? { background: "#FDECEE", color: "#7A0A1C", boxShadow: "inset 5px 0 0 #C8102E" } : { background: U.color, color: U.sobre }}>
         <span>{dias < 0 ? "VENCIDA HACE" : dias === 0 ? "VENCE" : "VENCE EN"}</span>
         <b>{dias === 0 ? "HOY" : `${Math.abs(dias)} ${Math.abs(dias) === 1 ? "día" : "días"}`}</b>
         <small>{fechaLarga(p.vencimiento)} · expedida {fechaLarga(p.expedicion)}</small>
