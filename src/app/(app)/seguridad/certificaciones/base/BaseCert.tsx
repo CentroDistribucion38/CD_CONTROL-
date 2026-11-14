@@ -92,6 +92,7 @@ export function BaseCert({ total, departamentos, vigencia, puedeEditar }: { tota
               {nf.format(lect.leidas)} filas leídas · {lect.porDepto.map((d) => `${d.depto.charAt(0) + d.depto.slice(1).toLowerCase()} ${nf.format(d.n)}${d.entra ? " ✓" : ""}`).join(" · ")}
               {lect.repetidas > 0 && <> · {lect.repetidas} cédulas vienen dos veces (entra la más nueva y la otra queda de historial)</>}
               {lect.sinFecha > 0 && <> · {lect.sinFecha} sin fecha de expedición (no entran)</>}
+              {lect.vencMalos.length > 0 && <> · vencimiento que no existe en el calendario, se calcula con expedición + {vigencia} días: {lect.vencMalos.map((v) => `${v.nombre} («${v.texto}»)`).join(", ")}</>}
             </p>
             <ol className="sg-pasos">
               <li><b>Persona nueva</b>: se crea con su licencia.</li>

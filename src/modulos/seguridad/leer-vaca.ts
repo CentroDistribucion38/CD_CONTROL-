@@ -39,22 +39,29 @@ const OBLIGATORIAS = ["empresa", "nombre", "cedula", "departamento", "expedicion
 
 export type LecturaVaca = {
   hoja: string; filas: FilaImporte[]; leidas: number; fuera: number; sinFecha: number; repetidas: number;
+  /** Vencimientos que no existen (p. ej. 29/02/2027): se recalculan con la vigencia de las Reglas. */
+  vencMalos: { nombre: string; texto: string }[];
   porDepto: { depto: string; n: number; entra: boolean }[];
   personas: number; activos: number; empresas: number;
 };
 
 const dos = (n: number) => String(n).padStart(2, "0");
+/** Solo fechas que existen en el calendario: un «29/02/2027» escrito a mano en el Excel no es una fecha. */
+function real(y: number, m: number, d: number): string | null {
+  const f = new Date(Date.UTC(y, m - 1, d));
+  return y > 1990 && f.getUTCFullYear() === y && f.getUTCMonth() === m - 1 && f.getUTCDate() === d ? `${y}-${dos(m)}-${dos(d)}` : null;
+}
 function fecha(X: XLSXMod, v: unknown): string | null {
   if (v == null || v === "") return null;
   if (typeof v === "number") {
     const d = X.SSF.parse_date_code(v);
-    return d && d.y > 1990 ? `${d.y}-${dos(d.m)}-${dos(d.d)}` : null;
+    return d ? real(d.y, d.m, d.d) : null;
   }
-  if (v instanceof Date) return `${v.getFullYear()}-${dos(v.getMonth() + 1)}-${dos(v.getDate())}`;
+  if (v instanceof Date) return real(v.getFullYear(), v.getMonth() + 1, v.getDate());
   const m = String(v).trim().match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})$/);
-  if (m) { const y = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]); return `${y}-${dos(Number(m[2]))}-${dos(Number(m[1]))}` }
+  if (m) return real(m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]), Number(m[2]), Number(m[1]));
   const iso = String(v).trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
-  return iso ? `${iso[1]}-${iso[2]}-${iso[3]}` : null;
+  return iso ? real(Number(iso[1]), Number(iso[2]), Number(iso[3])) : null;
 }
 const texto = (v: unknown) => { const s = String(v ?? "").replace(/\s+/g, " ").trim(); return s && s !== "#N/A" ? s : null };
 function nivel(v: unknown) {
@@ -87,6 +94,7 @@ export async function leerVaca(X: XLSXMod, datos: ArrayBuffer, departamentos: st
   const conteo = new Map<string, number>();
   const salen: FilaImporte[] = [];
   let leidas = 0, fuera = 0, sinFecha = 0;
+  const vencMalos: { nombre: string; texto: string }[] = [];
   for (const r of filas) {
     const cedula = String(r[col.cedula] ?? "").replace(/\.0+$/, "").replace(/[^0-9A-Za-z]/g, "");
     if (!cedula) continue;
@@ -97,11 +105,14 @@ export async function leerVaca(X: XLSXMod, datos: ArrayBuffer, departamentos: st
     const exp = fecha(X, r[col.expedicion]);
     if (!exp) { sinFecha++; continue }
     const est = claveTexto(String(r[col.estado] ?? ""));
+    const crudoVen = col.vencimiento != null ? r[col.vencimiento] : null;
+    const ven = crudoVen != null && crudoVen !== "" ? fecha(X, crudoVen) : null;
+    if (crudoVen != null && crudoVen !== "" && !ven) vencMalos.push({ nombre: texto(r[col.nombre]) ?? cedula, texto: String(crudoVen) });
     salen.push({
       cedula, nombre: texto(r[col.nombre]) ?? "", empresa: texto(r[col.empresa]) ?? "SIN EMPRESA", departamento: depto,
       estado: ["ACTIVO", "NO ACTIVO", "BLOQUEADO", "VACACIONES"].includes(est) ? est : "ACTIVO",
       motivo: col.motivo != null ? texto(r[col.motivo]) : null,
-      expedicion: exp, vencimiento: col.vencimiento != null ? fecha(X, r[col.vencimiento]) : null,
+      expedicion: exp, vencimiento: ven,
       permisos: PERM.filter((k) => col[k] != null && claveTexto(String(r[col[k]] ?? "")) === "X"),
       nivel: col.nivel != null ? nivel(r[col.nivel]) : null,
       validador: col.validador != null ? texto(r[col.validador]) : null,
@@ -114,7 +125,7 @@ export async function leerVaca(X: XLSXMod, datos: ArrayBuffer, departamentos: st
   for (const f of salen) ultima.set(f.cedula, f);
   const vigentes = [...ultima.values()];
   return {
-    hoja, filas: salen, leidas, fuera, sinFecha, repetidas: salen.length - vigentes.length,
+    hoja, filas: salen, leidas, fuera, sinFecha, vencMalos, repetidas: salen.length - vigentes.length,
     porDepto: [...conteo].map(([depto, n]) => ({ depto, n, entra: deps.has(depto) })).sort((a, b) => b.n - a.n),
     personas: vigentes.length, activos: vigentes.filter((f) => f.estado === "ACTIVO").length,
     empresas: new Set(vigentes.map((f) => claveTexto(f.empresa))).size,
