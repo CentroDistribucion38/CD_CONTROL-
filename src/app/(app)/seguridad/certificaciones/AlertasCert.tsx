@@ -10,10 +10,9 @@ import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   URGENCIA, armarTablero, claveTexto, fechaCorta, textoAlertas, textoLista, PERMISOS,
-  type Alerta, type ConfigCert, type PersonaCert, type Urgencia,
+  type Alerta, type ConfigCert, type PersonaCert, type Urgencia, type ValidacionHist,
 } from "@/modulos/seguridad/certificaciones";
-import { logoMarca, useFotoCompartir } from "@/components/FotoCompartir";
-import { leerPaleta } from "@/app/(app)/quiebra/rotura/HojaFirma";
+import { BotonDashboard, useFotosVaca } from "./FotosVaca";
 
 const nf = new Intl.NumberFormat("es-CO");
 const COLS: { k: Exclude<Urgencia, "vigente">; t: string; sub: string }[] = [
@@ -23,8 +22,8 @@ const COLS: { k: Exclude<Urgencia, "vigente">; t: string; sub: string }[] = [
 ];
 const MOSTRAR = 12;
 
-export function AlertasCert({ personas, hoy, config, departamentos }: {
-  personas: PersonaCert[]; hoy: string; config: ConfigCert; departamentos: string[];
+export function AlertasCert({ personas, hist, hoy, config, departamentos }: {
+  personas: PersonaCert[]; hist: ValidacionHist[]; hoy: string; config: ConfigCert; departamentos: string[];
 }) {
   const caja = useRef<HTMLDivElement>(null);
   const [empresa, setEmpresa] = useState("");
@@ -43,10 +42,8 @@ export function AlertasCert({ personas, hoy, config, departamentos }: {
   const responsables = [...new Set(personas.flatMap((p) => [p.interventor, p.coordinador]).filter(Boolean) as string[])].sort();
   const deptos = departamentos.map((d) => d.charAt(0) + d.slice(1).toLowerCase()).join(", ");
 
-  const foto = useFotoCompartir(async () => {
-    const [{ dibujarTableroCert, nombreTableroCert }, logo] = await Promise.all([import("@/modulos/seguridad/foto-cert"), logoMarca()]);
-    return { lienzo: dibujarTableroCert(t, { paleta: leerPaleta(caja.current), logo }), nombre: nombreTableroCert(hoy) };
-  }, "Licencias VACA", { dashboard: "Alertas" }, undefined, ["dashboard"]);
+  /* LAS IMÁGENES: Dashboard y cada lista por separado (vencidas, 7 días, este mes), con los filtros puestos. */
+  const foto = useFotosVaca({ personas: filtradas, hist, hoy, config, departamentos, caja });
 
   const DEPTO = departamentos.join(", ").replace("LOGISTICA", "LOGÍSTICA");
   /* Se copia cada lista sola (vencidas, 7 días, este mes) o las tres seguidas. */
@@ -94,10 +91,7 @@ export function AlertasCert({ personas, hoy, config, departamentos }: {
           <button type="button" className="sg-bt" onClick={() => copiar()} disabled={!t.alertas.length}>
             <svg viewBox="0 0 24 24" aria-hidden><rect x="8" y="8" width="12" height="12" /><path d="M16 8V4H4v12h4" /></svg>Copiar las 3 listas
           </button>
-          <button type="button" className="sg-bt osc" onClick={() => foto.abrir("dashboard")} disabled={foto.armando != null}>
-            <svg viewBox="0 0 24 24" aria-hidden><rect x="3" y="5" width="18" height="14" /><circle cx="9" cy="11" r="2" /><path d="M21 16l-5-5-8 8" /></svg>
-            {foto.armando ? "Armando…" : "Imagen"}
-          </button>
+          <BotonDashboard foto={foto} />
         </div>
       </header>
       {aviso && <p className="sg-aviso" role="status">{aviso}</p>}

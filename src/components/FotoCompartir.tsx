@@ -10,7 +10,9 @@ import "./foto-compartir.css";
  * Cada pantalla dice CÓMO se dibuja cada imagen (`hacer`); aquí está todo lo demás: el lienzo a
  * PNG, la vista previa, las dos pestañas para pasar de una a la otra y el portapapeles.
  */
-export type TipoFoto = "dashboard" | "detalle" | "seguridad" | "viajes";
+export type TipoFoto = "dashboard" | "detalle" | "seguridad" | "viajes"
+  /* Licencias VACA: una imagen por lista. */
+  | "vencidas" | "semana" | "mes";
 /** Una zona de la imagen que se puede tocar (en las medidas del dibujo, no en píxeles de la pantalla). */
 export type ZonaFoto = { k: string; x: number; y: number; w: number; h: number };
 type Foto = { tipo: TipoFoto; url: string; blob: Blob; envio: Blob | null; nombre: string; zonas?: ZonaFoto[]; ancho?: number; nota?: string };
@@ -18,7 +20,7 @@ type Foto = { tipo: TipoFoto; url: string; blob: Blob; envio: Blob | null; nombr
 /** `zonas` + `ancho` (opcional): partes de la imagen que se tocan (p. ej. un renglón para no contarlo); `nota`: lo que dice la ventana sobre la imagen. */
 export type Hacer = (tipo: TipoFoto) => Promise<{ lienzo: HTMLCanvasElement; nombre: string; lienzoEnvio?: HTMLCanvasElement | null; zonas?: ZonaFoto[]; ancho?: number; nota?: string }>;
 
-export const NOMBRE_FOTO: Record<TipoFoto, string> = { dashboard: "Dashboard", detalle: "Detalle por almacén", seguridad: "Seguridad", viajes: "Cierre de viajes" };
+export const NOMBRE_FOTO: Record<TipoFoto, string> = { dashboard: "Dashboard", detalle: "Detalle por almacén", seguridad: "Seguridad", viajes: "Cierre de viajes", vencidas: "Vencidas", semana: "Vencen en 7 días", mes: "Vencen este mes" };
 
 /** El logo de la marca como imagen para el lienzo (null si no carga: la foto sale sin él). */
 export async function logoMarca() {

@@ -2,8 +2,8 @@
 
 /**
  * SEGURIDAD · CERTIFICACIONES · DASHBOARD LICENCIAS — cómo vamos con las licencias VACA.
- *   · «Dashboard» arma TODO en una sola imagen (como el de Pasivos) para copiar, compartir o descargar;
- *     «Alertas» arma la lista de a quién exigirle.
+ *   · «Dashboard» arma TODO en una sola imagen (como el de Pasivos); en las pestañas, cada lista por separado:
+ *     vencidas, vencen en 7 días y vencen este mes. Copiar, compartir o descargar.
  *   · La franja: índice de cumplimiento (activos con la licencia al día), vencidas trabajando, renovadas a tiempo,
  *     validadas este mes y los días promedio que le quedan a una licencia vigente.
  *   · La ola de renovaciones (12 semanas) contra el ritmo de validación de las últimas 8 semanas.
@@ -12,9 +12,8 @@
  *     los bloqueos.
  */
 import { useMemo, useRef } from "react";
-import { armarIndicadores, armarTablero, fechaCorta, type ConfigCert, type PersonaCert, type ValidacionHist } from "@/modulos/seguridad/certificaciones";
-import { BotonesFoto, logoMarca, useFotoCompartir, type TipoFoto } from "@/components/FotoCompartir";
-import { leerPaleta } from "@/app/(app)/quiebra/rotura/HojaFirma";
+import { armarIndicadores, fechaCorta, type ConfigCert, type PersonaCert, type ValidacionHist } from "@/modulos/seguridad/certificaciones";
+import { BotonDashboard, useFotosVaca } from "../FotosVaca";
 
 const nf = new Intl.NumberFormat("es-CO");
 const pc = (x: number) => new Intl.NumberFormat("es-CO", { maximumFractionDigits: 1 }).format(x * 100) + " %";
@@ -25,18 +24,9 @@ export function IndicadoresCert({ personas, hist, hoy, config, departamentos }: 
   const caja = useRef<HTMLDivElement>(null);
   const I = useMemo(() => armarIndicadores(personas, hist, hoy, config), [personas, hist, hoy, config]);
   const deptos = departamentos.map((d) => d.charAt(0) + d.slice(1).toLowerCase()).join(", ");
-  const T = useMemo(() => armarTablero(personas, hoy, config), [personas, hoy, config]);
 
-  /* LAS IMÁGENES: el dashboard completo y la lista de alertas por responsable. */
-  const foto = useFotoCompartir(async (tipo: TipoFoto) => {
-    const paleta = leerPaleta(caja.current) ?? undefined;
-    if (tipo === "dashboard") {
-      const [{ dibujarDashboardCert, nombreDashboardCert }, logo] = await Promise.all([import("@/modulos/seguridad/foto-dash"), logoMarca()]);
-      return { lienzo: dibujarDashboardCert(I, T, { paleta, logo, deptos: deptos.replace("Logistica", "Logística") }), nombre: nombreDashboardCert(hoy) };
-    }
-    const [{ dibujarTableroCert, nombreTableroCert }, logo] = await Promise.all([import("@/modulos/seguridad/foto-cert"), logoMarca()]);
-    return { lienzo: dibujarTableroCert(T, { paleta, logo }), nombre: nombreTableroCert(hoy) };
-  }, "Licencias VACA", { dashboard: "Dashboard", detalle: "Alertas · a quién exigirle" });
+  /* LAS IMÁGENES: el Dashboard y, en pestañas, cada lista (vencidas, 7 días, este mes). */
+  const foto = useFotosVaca({ personas, hist, hoy, config, departamentos, caja });
 
   /* LA OLA: barras por semana; en ocre las que pasan el ritmo de validación. */
   const W = I.semanas.length, bw = 46, g = 18, h = 190;
@@ -58,7 +48,7 @@ export function IndicadoresCert({ personas, hist, hoy, config, departamentos }: 
           <p className="sg-sub">Licencias VACA · corte {fechaCorta(hoy)} de {hoy.slice(0, 4)} · {nf.format(I.activos)} activos de {nf.format(personas.length)} en la base</p>
         </div>
         <div className="sg-acc">
-          <BotonesFoto abrir={foto.abrir} armando={foto.armando} abierta={foto.abierta} clase="sg-bt foto" etiquetaDetalle="Alertas" />
+          <BotonDashboard foto={foto} />
         </div>
       </header>
       {foto.mal && <p className="sg-aviso mal" role="alert">No se pudo armar la imagen. Recarga la página y vuelve a intentar.</p>}
