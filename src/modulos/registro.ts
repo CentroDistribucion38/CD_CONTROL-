@@ -594,6 +594,41 @@ export const MODULOS: Modulo[] = [
     ],
   },
   {
+    id: "seguridad",
+    nombre: "Seguridad",
+    eyebrow: "PERSONAS Y CERTIFICACIONES",
+    descripcion:
+      "Quién está habilitado para trabajar: las licencias VACA de cada contratista, a quién exigirle y qué se vence este mes.",
+    /* Verde de seguridad industrial: es el módulo que dice quién puede entrar a trabajar y quién no. */
+    acento: "#0F7A4A",
+    fondo: "#E7F5EE",
+    etiquetas: ["Licencias VACA", "Alerta a 30 días", "Interventor ABI"],
+    imagen: "/modulos/seguridad.jpg",
+    ruta: "/seguridad",
+    activo: true,
+    /* RAMAS: hoy solo Certificaciones; el módulo queda listo para lo que siga en Seguridad. */
+    ramas: [
+      {
+        id: "certificaciones",
+        nombre: "Certificaciones",
+        eyebrow: "LICENCIAS VACA",
+        ruta: "/seguridad/certificaciones",
+        descripcion:
+          "«Licencia para cuidar» de las contratistas de Logística: quién vence, a quién exigirle " +
+          "(Interventor ABI y Coordinador de la contratista) y cómo vamos.",
+      },
+    ],
+    /* EL ORDEN DEL PROCESO: lo que hay que exigir hoy → cómo vamos → la base donde se trabaja → subir el Excel →
+       el Maestro (empresas, validadores, responsables y reglas), que es configuración y cierra la lista. */
+    secciones: [
+      { nombre: "Alertas", ruta: "/seguridad/certificaciones", rama: "certificaciones" },
+      { nombre: "Indicadores", ruta: "/seguridad/certificaciones/indicadores", rama: "certificaciones" },
+      { nombre: "Personas", ruta: "/seguridad/certificaciones/personas", rama: "certificaciones" },
+      { nombre: "Base · importar", ruta: "/seguridad/certificaciones/base", rama: "certificaciones" },
+      { nombre: "Maestro", ruta: "/seguridad/certificaciones/maestro", rama: "certificaciones" },
+    ],
+  },
+  {
     id: "admin",
     nombre: "Administración",
     eyebrow: "PLATAFORMA",
