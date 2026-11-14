@@ -118,16 +118,25 @@ function Empresas({ personas, empresas, grupos, responsables, puedeEditar, hacer
                     <td className="n"><b>{nf.format(g?.activos ?? 0)}</b><small className="sg-sm"> / {nf.format(g?.total ?? 0)}</small></td>
                     <td onClick={(ev) => ev.stopPropagation()}>
                       <select className={e.interventor_id ? "set" : ""} value={e.interventor_id ?? ""} disabled={!puedeEditar || pend} aria-label={`Interventor ABI de ${e.nombre}`}
-                        onChange={(ev) => hacer(() => guardarEmpresa({ id: e.id, interventor_id: ev.target.value || null }))}>
+                        onChange={(ev) => {
+                          const iv = ev.target.value || null;
+                          const co = coord.find((c) => c.id === e.coordinador_id);
+                          /* Si el coordinador que tenía responde a otro interventor, se suelta: la cadena tiene que cuadrar. */
+                          hacer(() => guardarEmpresa({ id: e.id, interventor_id: iv, ...(co && iv && co.interventor_id !== iv ? { coordinador_id: null } : {}) }));
+                        }}>
                         <option value="">Sin asignar</option>
                         {interv.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
                       </select>
                     </td>
                     <td onClick={(ev) => ev.stopPropagation()}>
                       <select className={e.coordinador_id ? "set" : ""} value={e.coordinador_id ?? ""} disabled={!puedeEditar || pend} aria-label={`Coordinador de ${e.nombre}`}
-                        onChange={(ev) => hacer(() => guardarEmpresa({ id: e.id, coordinador_id: ev.target.value || null }))}>
+                        onChange={(ev) => {
+                          const co = coord.find((c) => c.id === ev.target.value);
+                          /* Escoger el coordinador pone solo a su interventor. */
+                          hacer(() => guardarEmpresa({ id: e.id, coordinador_id: co?.id ?? null, ...(co?.interventor_id ? { interventor_id: co.interventor_id } : {}) }));
+                        }}>
                         <option value="">Sin asignar</option>
-                        {coord.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
+                        {coord.filter((r) => !e.interventor_id || r.interventor_id === e.interventor_id || r.id === e.coordinador_id).map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
                       </select>
                     </td>
                     <td className="n">{grupos.filter((x) => x.empresa_id === e.id).length || "—"}</td>
@@ -227,14 +236,20 @@ function EditarGrupo({ g, responsables, pend, cerrar, guardar }: { g: Partial<Gr
         <div className="sg-campo full"><label htmlFor="sg-gn">NOMBRE DEL GRUPO</label>
           <input id="sg-gn" value={f.nombre ?? ""} onChange={(e) => setF({ ...f, nombre: e.target.value })} placeholder="Turno noche, Frente patio…" autoFocus /></div>
         <div className="sg-campo"><label htmlFor="sg-gi">INTERVENTOR ABI</label>
-          <select id="sg-gi" value={f.interventor_id ?? ""} onChange={(e) => setF({ ...f, interventor_id: e.target.value || null })}>
+          <select id="sg-gi" value={f.interventor_id ?? ""} onChange={(e) => {
+            const iv = e.target.value || null, co = responsables.find((r) => r.id === f.coordinador_id);
+            setF({ ...f, interventor_id: iv, coordinador_id: co && iv && co.interventor_id !== iv ? null : f.coordinador_id });
+          }}>
             <option value="">Sin asignar</option>
             {responsables.filter((r) => r.tipo === "interventor" && r.activo).map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
           </select></div>
         <div className="sg-campo"><label htmlFor="sg-gc">COORDINADOR DE LA CONTRATISTA</label>
-          <select id="sg-gc" value={f.coordinador_id ?? ""} onChange={(e) => setF({ ...f, coordinador_id: e.target.value || null })}>
+          <select id="sg-gc" value={f.coordinador_id ?? ""} onChange={(e) => {
+            const co = responsables.find((r) => r.id === e.target.value);
+            setF({ ...f, coordinador_id: co?.id ?? null, interventor_id: co?.interventor_id ?? f.interventor_id });
+          }}>
             <option value="">Sin asignar</option>
-            {responsables.filter((r) => r.tipo === "coordinador" && r.activo).map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
+            {responsables.filter((r) => r.tipo === "coordinador" && r.activo && (!f.interventor_id || r.interventor_id === f.interventor_id || r.id === f.coordinador_id)).map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
           </select></div>
       </div>
     </Ventana>
@@ -306,8 +321,10 @@ function Validadores({ personas, validadores, puedeEditar, hacer, pend }: Ctx) {
 }
 
 /* ================================ RESPONSABLES ================================ */
+/* LA CADENA DEL AVISO: la app le avisa al Interventor ABI y el interventor a su Coordinador de la contratista.
+   Por eso la lista va por interventor y, debajo de cada uno, los coordinadores que le responden. */
 function Responsables({ empresas, grupos, responsables, puedeEditar, hacer, pend, pedir }: Ctx) {
-  const vacio = { nombre: "", tipo: "interventor" as Responsable["tipo"], telefono: "", correo: "" };
+  const vacio = { nombre: "", tipo: "interventor" as Responsable["tipo"], telefono: "", correo: "", interventor_id: "" };
   const [n, setN] = useState(vacio);
   const [edita, setEdita] = useState<Responsable | null>(null);
   const aCargo = (r: Responsable) => {
@@ -315,47 +332,72 @@ function Responsables({ empresas, grupos, responsables, puedeEditar, hacer, pend
     return empresas.filter((e) => e[k] === r.id).map((e) => e.nombre)
       .concat(grupos.filter((g) => g[k] === r.id).map((g) => `${empresas.find((e) => e.id === g.empresa_id)?.nombre ?? ""} · ${g.nombre}`));
   };
+  const porNombre = (a: Responsable, b: Responsable) => a.nombre.localeCompare(b.nombre, "es");
+  const interventores = responsables.filter((r) => r.tipo === "interventor").sort(porNombre);
+  const ids = new Set(interventores.map((r) => r.id));
+  const sueltos = responsables.filter((r) => r.tipo === "coordinador" && !ids.has(r.interventor_id ?? "")).sort(porNombre);
+  const fila = (r: Responsable, hijo: boolean) => {
+    const c = aCargo(r);
+    return (
+      <tr key={r.id} className={hijo ? "" : "iv"} onClick={() => puedeEditar && setEdita(r)} style={puedeEditar ? undefined : { cursor: "default" }}>
+        <td className={hijo ? "hijo" : ""}>{hijo && <span aria-hidden className="sg-flecha">↳</span>}<b>{r.nombre}</b></td>
+        <td>{TIPO[r.tipo]}</td>
+        <td>{r.telefono ?? "—"}</td>
+        <td>{r.correo ?? "—"}</td>
+        <td className="sg-sm">{c.length ? c.join(" · ") : "—"}</td>
+        <td onClick={(ev) => ev.stopPropagation()}>
+          <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
+            <button type="button" className={"sg-sw" + (r.activo ? " on" : "")} aria-pressed={r.activo} aria-label={`${r.nombre} activo`}
+              disabled={!puedeEditar || pend} onClick={() => hacer(() => guardarResponsable({ ...r, telefono: r.telefono ?? "", correo: r.correo ?? "", activo: !r.activo }))} />
+            {!hijo && puedeEditar && (
+              <button type="button" className="sg-bt" style={{ minHeight: 30, padding: "0 10px", fontSize: 12 }}
+                onClick={() => setN({ ...vacio, tipo: "coordinador", interventor_id: r.id })}>+ Coordinador</button>
+            )}
+          </span>
+        </td>
+      </tr>
+    );
+  };
   return (
     <section className="sg-card">
-      <h2>Interventores ABI y coordinadores de las contratistas</h2>
+      <h2>Interventores ABI y sus coordinadores</h2>
+      <p className="sg-cadena">La app le avisa al <b>Interventor ABI</b> <span aria-hidden>→</span> el interventor le avisa a su <b>Coordinador de la contratista</b>.</p>
       <div className="sg-tabla-rueda">
         <table className="sg-tabla">
           <thead><tr><th>Nombre</th><th>Rol</th><th>Teléfono</th><th>Correo</th><th>A cargo de</th><th>Activo</th></tr></thead>
           <tbody>
-            {[...responsables].sort((a, b) => a.tipo.localeCompare(b.tipo) || a.nombre.localeCompare(b.nombre, "es")).map((r) => {
-              const c = aCargo(r);
-              return (
-                <tr key={r.id} onClick={() => puedeEditar && setEdita(r)} style={puedeEditar ? undefined : { cursor: "default" }}>
-                  <td><b>{r.nombre}</b></td>
-                  <td>{TIPO[r.tipo]}</td>
-                  <td>{r.telefono ?? "—"}</td>
-                  <td>{r.correo ?? "—"}</td>
-                  <td className="sg-sm">{c.length ? c.join(" · ") : "—"}</td>
-                  <td onClick={(ev) => ev.stopPropagation()}><button type="button" className={"sg-sw" + (r.activo ? " on" : "")} aria-pressed={r.activo} aria-label={`${r.nombre} activo`}
-                    disabled={!puedeEditar || pend} onClick={() => hacer(() => guardarResponsable({ ...r, telefono: r.telefono ?? "", correo: r.correo ?? "", activo: !r.activo }))} /></td>
-                </tr>
-              );
-            })}
+            {interventores.flatMap((iv) => [fila(iv, false),
+              ...responsables.filter((r) => r.tipo === "coordinador" && r.interventor_id === iv.id).sort(porNombre).map((c) => fila(c, true))])}
+            {sueltos.length > 0 && <tr className="iv"><td colSpan={6}><b>Coordinadores sin interventor</b> <span className="sg-sm">· tócalos para decir a quién responden</span></td></tr>}
+            {sueltos.map((c) => fila(c, true))}
           </tbody>
         </table>
       </div>
-      {responsables.length === 0 && <p className="sg-vacio">Agrega aquí a los interventores ABI y a los coordinadores; luego se asignan a cada empresa.</p>}
+      {responsables.length === 0 && <p className="sg-vacio">Primero agrega a los interventores ABI; luego, a cada uno, sus coordinadores. Después se asignan a cada empresa.</p>}
       {puedeEditar && (
         <div className="sg-nuevo">
-          <input placeholder="Nombre" value={n.nombre} onChange={(e) => setN({ ...n, nombre: e.target.value })} aria-label="Nombre del responsable" />
           <select value={n.tipo} onChange={(e) => setN({ ...n, tipo: e.target.value as Responsable["tipo"] })} aria-label="Rol">
             <option value="interventor">{TIPO.interventor}</option><option value="coordinador">{TIPO.coordinador}</option>
           </select>
+          <input placeholder={n.tipo === "interventor" ? "Nombre del interventor ABI" : "Nombre del coordinador"} value={n.nombre} onChange={(e) => setN({ ...n, nombre: e.target.value })} aria-label="Nombre" />
+          {n.tipo === "coordinador" && (
+            <select value={n.interventor_id} onChange={(e) => setN({ ...n, interventor_id: e.target.value })} aria-label="Interventor ABI al que responde">
+              <option value="">Responde a…</option>
+              {interventores.filter((r) => r.activo).map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
+            </select>
+          )}
           <input placeholder="Teléfono" inputMode="tel" value={n.telefono} onChange={(e) => setN({ ...n, telefono: e.target.value })} aria-label="Teléfono" />
           <input placeholder="Correo" type="email" value={n.correo} onChange={(e) => setN({ ...n, correo: e.target.value })} aria-label="Correo" />
-          <button type="button" className="sg-bt osc" disabled={pend || !n.nombre.trim()} onClick={() => { hacer(() => guardarResponsable(n)); setN(vacio) }}>Agregar</button>
+          <button type="button" className="sg-bt osc" disabled={pend || !n.nombre.trim() || (n.tipo === "coordinador" && !n.interventor_id)}
+            onClick={() => { hacer(() => guardarResponsable({ ...n, interventor_id: n.interventor_id || null })); setN(vacio) }}>Agregar</button>
         </div>
       )}
       {edita && (
-        <EditarResponsable r={edita} pend={pend} cerrar={() => setEdita(null)}
+        <EditarResponsable r={edita} interventores={interventores} pend={pend} cerrar={() => setEdita(null)}
           guardar={(r) => { hacer(() => guardarResponsable({ ...r, telefono: r.telefono ?? "", correo: r.correo ?? "" })); setEdita(null) }}
           quitar={async () => {
-            if (await pedir({ titulo: `¿Quitar a ${edita.nombre}?`, dice: "Las empresas y grupos que tenía a cargo quedan «sin asignar» hasta que les pongas otro.", confirmar: "Quitar", peligro: true })) {
+            const hijos = responsables.filter((r) => r.interventor_id === edita.id).length;
+            if (await pedir({ titulo: `¿Quitar a ${edita.nombre}?`, dice: `Las empresas y grupos que tenía a cargo quedan «sin asignar» hasta que les pongas otro.${hijos ? ` Sus ${hijos} coordinadores quedan sin interventor.` : ""}`, confirmar: "Quitar", peligro: true })) {
               hacer(() => borrarResponsable(edita.id)); setEdita(null);
             }
           }} />
@@ -364,19 +406,26 @@ function Responsables({ empresas, grupos, responsables, puedeEditar, hacer, pend
   );
 }
 
-function EditarResponsable({ r, pend, cerrar, guardar, quitar }: { r: Responsable; pend: boolean; cerrar: () => void; guardar: (r: Responsable) => void; quitar: () => void }) {
+function EditarResponsable({ r, interventores, pend, cerrar, guardar, quitar }: { r: Responsable; interventores: Responsable[]; pend: boolean; cerrar: () => void; guardar: (r: Responsable) => void; quitar: () => void }) {
   const [f, setF] = useState(r);
   return (
-    <Ventana ojo={TIPO[r.tipo].toUpperCase()} titulo={r.nombre} chica cerrar={cerrar}
+    <Ventana ojo={TIPO[f.tipo].toUpperCase()} titulo={r.nombre} chica cerrar={cerrar}
       pie={<><button type="button" className="sg-bt" style={{ marginRight: "auto", color: "#C8102E" }} onClick={quitar}>Quitar</button>
         <button type="button" className="sg-bt" onClick={cerrar}>Cancelar</button>
-        <button type="button" className="sg-bt osc" disabled={pend || !f.nombre.trim()} onClick={() => guardar(f)}>Guardar</button></>}>
+        <button type="button" className="sg-bt osc" disabled={pend || !f.nombre.trim() || (f.tipo === "coordinador" && !f.interventor_id)} onClick={() => guardar(f)}>Guardar</button></>}>
       <div className="sg-mo-b">
         <div className="sg-campo full"><label htmlFor="sg-rn">NOMBRE</label><input id="sg-rn" value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} /></div>
-        <div className="sg-campo full"><label htmlFor="sg-rt">ROL</label>
+        <div className="sg-campo"><label htmlFor="sg-rt">ROL</label>
           <select id="sg-rt" value={f.tipo} onChange={(e) => setF({ ...f, tipo: e.target.value as Responsable["tipo"] })}>
             <option value="interventor">{TIPO.interventor}</option><option value="coordinador">{TIPO.coordinador}</option>
           </select></div>
+        {f.tipo === "coordinador" ? (
+          <div className="sg-campo"><label htmlFor="sg-ri">RESPONDE AL INTERVENTOR ABI</label>
+            <select id="sg-ri" value={f.interventor_id ?? ""} onChange={(e) => setF({ ...f, interventor_id: e.target.value || null })}>
+              <option value="">Escoger…</option>
+              {interventores.filter((x) => x.activo || x.id === f.interventor_id).map((x) => <option key={x.id} value={x.id}>{x.nombre}</option>)}
+            </select></div>
+        ) : <div />}
         <div className="sg-campo"><label htmlFor="sg-rf">TELÉFONO</label><input id="sg-rf" inputMode="tel" value={f.telefono ?? ""} onChange={(e) => setF({ ...f, telefono: e.target.value })} /></div>
         <div className="sg-campo"><label htmlFor="sg-rc">CORREO</label><input id="sg-rc" type="email" value={f.correo ?? ""} onChange={(e) => setF({ ...f, correo: e.target.value })} /></div>
       </div>

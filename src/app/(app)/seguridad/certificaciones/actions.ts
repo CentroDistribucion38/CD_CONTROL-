@@ -86,10 +86,15 @@ export async function guardarReglas(r: { vigencia: number; aviso: number; critic
   return { ok: "Reglas guardadas." };
 }
 
-export async function guardarResponsable(r: { id?: string; nombre: string; tipo: "interventor" | "coordinador"; telefono?: string; correo?: string; activo?: boolean }): Promise<R> {
+export async function guardarResponsable(r: { id?: string; nombre: string; tipo: "interventor" | "coordinador"; telefono?: string; correo?: string; activo?: boolean; interventor_id?: string | null }): Promise<R> {
   if (!limpio(r.nombre)) return { error: "Escribe el nombre." };
+  if (r.tipo === "coordinador" && !r.interventor_id) return { error: "Escoge a qué Interventor ABI responde este coordinador." };
   const sb = await createClient();
-  const fila = { nombre: limpio(r.nombre), tipo: r.tipo, telefono: r.telefono ? limpio(r.telefono) : null, correo: r.correo ? limpio(r.correo) : null, activo: r.activo ?? true };
+  const fila = {
+    nombre: limpio(r.nombre), tipo: r.tipo, telefono: r.telefono ? limpio(r.telefono) : null, correo: r.correo ? limpio(r.correo) : null, activo: r.activo ?? true,
+    /* La cadena del aviso: solo el coordinador responde a un interventor. */
+    interventor_id: r.tipo === "coordinador" ? r.interventor_id ?? null : null,
+  };
   const { error } = r.id ? await sb.from("seg_responsables").update(fila).eq("id", r.id) : await sb.from("seg_responsables").insert(fila);
   if (error) return { error: /duplicate|unique/i.test(error.message) ? "Ya hay un responsable con ese nombre." : error.message };
   refrescar();
