@@ -333,3 +333,41 @@
   .sg-cob { grid-template-columns: 90px minmax(0, 1fr) 34px 72px }
   .sg-tabs button { flex: 1; padding: 0 8px; font-size: 12.5px }
 }
+
+/* =========================== FILTROS COMO LA BD DE INVENTARIO =========================== */
+.sg-buscar { min-height: 40px; min-width: 260px; padding: 0 12px; border: 1.5px solid var(--sg-linea); background: #fff; font: 600 13px var(--sg-texto) }
+.sg-campo-sel { min-height: 40px; padding: 0 12px; border: 1.5px dashed var(--sg-ocre); background: #FFF9EA; font: 700 13px var(--sg-texto); color: var(--sg-ocre-txt); cursor: pointer }
+.sg-fchip { display: inline-flex; align-items: stretch; border: 1.5px solid var(--sg-amarillo); background: #FFF6E3 }
+.sg-fchip button { min-height: 36px; padding: 0 10px; border: 0; background: transparent; font: 600 12.5px var(--sg-texto); color: var(--sg-tinta); cursor: pointer; max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.sg-fchip button b { font-weight: 800; color: var(--sg-ocre-txt) }
+.sg-fchip button.x { padding: 0 10px; font: 800 16px var(--sg-titulo); border-left: 1.5px solid var(--sg-amarillo) }
+.sg-fchip button:hover { background: #FFE9A8 }
+.sg-link { border: 0; background: none; padding: 0 4px; font: 700 12.5px var(--sg-texto); color: var(--sg-rojo); text-decoration: underline; cursor: pointer }
+.sg-thc { display: flex; align-items: center; justify-content: space-between; gap: 4px }
+.sg-tabla th.n .sg-thc { justify-content: flex-end }
+.sg-fil { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; border: 0; background: transparent; color: #8A6300; opacity: .5; cursor: pointer }
+.sg-tabla th:hover .sg-fil, .sg-fil[aria-expanded="true"] { opacity: 1 }
+.sg-fil svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round }
+.sg-fil.on { opacity: 1; background: var(--sg-amarillo); color: #1b1b1b }
+.sg-fil.on svg { fill: currentColor }
+.sg-fc { position: fixed; z-index: 950; display: flex; flex-direction: column; max-width: calc(100vw - 16px); background: #fff; border: 1px solid var(--sg-linea); border-top: 4px solid var(--sg-amarillo); box-shadow: 0 12px 32px rgba(0, 0, 0, .2); font-family: var(--sg-texto); color: var(--sg-tinta) }
+.sg-fc-t { padding: 10px 12px 6px; font-size: 12px; color: var(--sg-gris) }
+.sg-fc-t b { color: var(--sg-tinta); font-family: var(--sg-titulo) }
+.sg-fc-ord { display: flex; gap: 4px; padding: 0 12px 6px }
+.sg-fc-ord button { flex: 1; min-height: 30px; border: 1px solid var(--sg-linea); background: #fff; font: 600 12px var(--sg-texto); cursor: pointer }
+.sg-fc-q { margin: 0 12px 6px; min-height: 36px; padding: 0 10px; border: 1.5px solid var(--sg-linea); font: 13px var(--sg-texto) }
+.sg-fc-l { max-height: min(320px, 50vh); overflow-y: auto; border-block: 1px solid var(--sg-linea); padding: 4px 0 }
+.sg-fc-l label { display: flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 13px; cursor: pointer }
+.sg-fc-l label:hover { background: #FFF6E3 }
+.sg-fc-l label span { flex: 1; min-width: 0; overflow-wrap: anywhere }
+.sg-fc-l label span.vac { font-style: italic; color: var(--sg-gris) }
+.sg-fc-l label i { font: 600 11px var(--sg-texto); font-style: normal; color: var(--sg-gris); font-variant-numeric: tabular-nums }
+.sg-fc-l .sg-fc-todo { font-weight: 700; border-bottom: 1px dashed var(--sg-linea) }
+.sg-fc-l input { width: 16px; height: 16px; flex: none; accent-color: var(--sg-ocre) }
+.sg-fc-mas { margin: 6px 12px; font-size: 12px; color: var(--sg-gris) }
+.sg-fc-b { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 12px }
+.sg-fc-b > span { display: flex; gap: 6px }
+.sg-fc-b .sg-bt { min-height: 36px; padding: 0 12px }
+.sg-fc-limpia { border: 0; background: none; padding: 0; cursor: pointer; font: 700 12px var(--sg-texto); color: var(--sg-rojo); text-decoration: underline }
+.sg-fc-limpia:disabled { color: var(--sg-gris); opacity: .5; cursor: default; text-decoration: none }
+@media (max-width: 720px) { .sg-buscar { min-width: 0; flex: 1 1 100% } }

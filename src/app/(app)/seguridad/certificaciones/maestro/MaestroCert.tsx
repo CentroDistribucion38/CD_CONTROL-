@@ -459,7 +459,7 @@ function ReglasTab({ reglas, puedeEditar, hacer, pend }: Ctx) {
               </select>
             )}
           </div>
-          <small className="sg-sm">Al agregar uno, vuelve a cargar el Excel en Base para que entre su gente.</small>
+          <small className="sg-sm">Al agregar uno, vuelve a cargar el Excel en «Importar Excel» para que entre su gente.</small>
         </div>
       </div>
       {puedeEditar && (

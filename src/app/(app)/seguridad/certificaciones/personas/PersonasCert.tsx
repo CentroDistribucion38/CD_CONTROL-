@@ -1,7 +1,9 @@
 "use client";
 
 /**
- * SEGURIDAD · CERTIFICACIONES · PERSONAS — la base de las licencias VACA, organizada para trabajar desde aquí.
+ * SEGURIDAD · CERTIFICACIONES · BASE DE DATOS — las licencias VACA, organizadas para trabajar desde aquí.
+ *   · FILTROS COMO LA BD DE INVENTARIO: embudo en cada encabezado (varios valores a la vez), «＋ Filtrar por campo»
+ *     para los que no son columna y chips de lo que está puesto.
  *
  *   · La tabla: persona, empresa, estado, nivel, la matriz de los 8 permisos, expedición, vencimiento (con su barra)
  *     y a quién se le exige (Interventor ABI · Coordinador de la contratista).
@@ -10,22 +12,43 @@
  *     El vencimiento y la fecha de la alerta se calculan solos con las Reglas del Maestro.
  *   · CAMBIAR ESTADO (activo, no activo, bloqueado con motivo, vacaciones) y GRUPO (otros responsables).
  */
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import {
   PERMISOS, URGENCIA, claveTexto, diasEntre, fechaCorta, masDias, urgencia, ESTADOS,
-  type ConfigCert, type PersonaCert,
+  type ConfigCert, type PersonaCert, type Urgencia,
 } from "@/modulos/seguridad/certificaciones";
 import type { Empresa, EventoPersona, Grupo, Responsable, Validador, ValidacionPersona } from "@/modulos/seguridad/datos";
 import { Ventana } from "../Ventana";
+import { FiltroCol, VACIAS } from "../FiltroCol";
 import { asignarResponsables, asignarGrupo, cambiarEstado, fichaPersona, registrarValidacion, type Registro } from "../actions";
 
 const nf = new Intl.NumberFormat("es-CO");
 const CORTO = ["Alt", "Cal", "SQ", "360", "Elé", "EC", "Izj", "HPRM"];
 const NIVELES = ["Básico", "Intermedio", "Avanzado"];
-const VENCE = [
-  { k: "", t: "Vence: cualquiera" }, { k: "vencida", t: "Ya vencidas" }, { k: "critica", t: "En 7 días o menos" },
-  { k: "aviso", t: "Este mes" }, { k: "vigente", t: "Más de un mes" },
+const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+const VENCE_T: Record<string, string> = { vencida: "Vencida", critica: "Vence en 7 días o menos", aviso: "Vence este mes", vigente: "Más de un mes" };
+const ORDEN_VENCE = Object.values(VENCE_T);
+const cap = (x: string) => x.charAt(0) + x.slice(1).toLowerCase();
+
+/* LOS FILTROS POR COLUMNA (como la BD de inventario): cada columna da uno o varios valores por fila. */
+type Fila = { p: PersonaCert; dias: number; u: Urgencia };
+type Campo = { id: string; t: string; de: (r: Fila) => string[]; orden?: (a: string, b: string) => number };
+const CAMPOS: Campo[] = [
+  { id: "persona", t: "Persona", de: (r) => [r.p.nombre] },
+  { id: "empresa", t: "Empresa", de: (r) => [r.p.empresa.trim().toUpperCase() || VACIAS] },
+  { id: "estado", t: "Estado", de: (r) => [cap(r.p.estado)] },
+  { id: "nivel", t: "Nivel", de: (r) => [r.p.nivel ? cap(r.p.nivel) : VACIAS] },
+  { id: "permisos", t: "Permisos", de: (r) => r.p.permisos.length ? r.p.permisos.map((k) => PERMISOS.find((x) => x.k === k)?.t ?? k) : [VACIAS] },
+  { id: "expedicion", t: "Expedición", de: (r) => [`${MESES[Number(r.p.expedicion.slice(5, 7)) - 1]} ${r.p.expedicion.slice(0, 4)}`],
+    orden: (a, b) => (a.slice(-4) + String(MESES.indexOf(a.slice(0, 3))).padStart(2, "0")).localeCompare(b.slice(-4) + String(MESES.indexOf(b.slice(0, 3))).padStart(2, "0")) },
+  { id: "vence", t: "Vence", de: (r) => [VENCE_T[r.u]], orden: (a, b) => ORDEN_VENCE.indexOf(a) - ORDEN_VENCE.indexOf(b) },
+  { id: "interventor", t: "Interventor ABI", de: (r) => [r.p.interventor || VACIAS] },
+  { id: "coordinador", t: "Coordinador", de: (r) => [r.p.coordinador || VACIAS] },
+  { id: "validador", t: "Quién validó", de: (r) => [r.p.validador || VACIAS] },
+  { id: "grupo", t: "Grupo", de: (r) => [r.p.grupo || VACIAS] },
+  { id: "departamento", t: "Departamento", de: (r) => [r.p.departamento || VACIAS] },
 ];
+const POR_ID = new Map(CAMPOS.map((c) => [c.id, c]));
 const PAGINA = 80;
 const fechaLarga = (f: string) => `${fechaCorta(f)} de ${f.slice(0, 4)}`;
 
@@ -39,41 +62,61 @@ type Props = {
 
 export function PersonasCert(P: Props) {
   const { personas, hoy, config } = P;
-  const [estado, setEstado] = useState("ACTIVO");
-  const [empresa, setEmpresa] = useState("");
-  const [permiso, setPermiso] = useState("");
-  const [vence, setVence] = useState("");
+  /* Por defecto se ven los ACTIVOS (el filtro se ve como chip y se puede quitar). */
+  const [fCol, setFCol] = useState<Record<string, ReadonlySet<string>>>(() => (P.abrir || P.renovar ? {} : { estado: new Set(["Activo"]) }) as Record<string, ReadonlySet<string>>);
+  const [abierto, setAbierto] = useState<{ id: string; x: number; y: number } | null>(null);
   const [busca, setBusca] = useState("");
   const [ver, setVer] = useState(PAGINA);
   const [sel, setSel] = useState<string | null>(P.renovar ?? P.abrir ?? null);
   const [registro, setRegistro] = useState<{ cedula?: string } | null>(P.renovar && P.puedeEditar ? { cedula: P.renovar } : null);
   const [aviso, setAviso] = useState<{ t: string; mal?: boolean } | null>(null);
-  const [resp, setResp] = useState("");
   /* LA SELECCIÓN DE LA MATRIZ: varias filas para asignarles Interventor ABI y Coordinador de una vez. */
   const [marca, setMarca] = useState<Set<string>>(new Set());
   const [aIv, setAIv] = useState(""), [aCo, setACo] = useState("");
   const [pendA, startA] = useTransition();
   const interv = P.responsables.filter((r) => r.tipo === "interventor" && r.activo);
   const coord = P.responsables.filter((r) => r.tipo === "coordinador" && r.activo && (!aIv || r.interventor_id === aIv));
-  const nombresIv = [...new Set(personas.map((p) => p.interventor).filter(Boolean) as string[])].sort();
 
-  const cuenta = useMemo(() => {
-    const c: Record<string, number> = { TODOS: personas.length };
-    for (const p of personas) c[p.estado] = (c[p.estado] ?? 0) + 1;
-    return c;
-  }, [personas]);
-  const empresas = [...new Set(personas.map((p) => p.empresa.trim()))].sort();
-  const filas = useMemo(() => personas
-    .map((p) => { const dias = diasEntre(hoy, p.vencimiento); return { p, dias, u: urgencia(dias, config) } })
-    .filter(({ p, u }) =>
-      (estado === "TODOS" || p.estado === estado) &&
-      (!empresa || claveTexto(p.empresa) === claveTexto(empresa)) &&
-      (!permiso || p.permisos.includes(permiso)) &&
-      (!vence || u === vence) &&
-      (!resp || (resp === "-" ? !p.interventor && !p.coordinador : p.interventor === resp)) &&
-      (!busca || claveTexto(`${p.nombre} ${p.cedula}`).includes(claveTexto(busca))))
-    .sort((a, b) => a.dias - b.dias || a.p.nombre.localeCompare(b.p.nombre, "es")), [personas, hoy, config, estado, empresa, permiso, vence, busca, resp]);
-  useEffect(() => setVer(PAGINA), [estado, empresa, permiso, vence, busca, resp]);
+  const todas = useMemo<Fila[]>(() => personas.map((p) => { const dias = diasEntre(hoy, p.vencimiento); return { p, dias, u: urgencia(dias, config) } }), [personas, hoy, config]);
+  const pasaBusca = (r: Fila) => !busca || claveTexto(`${r.p.nombre} ${r.p.cedula}`).includes(claveTexto(busca));
+  /* `menos` = la columna que se está abriendo: su lista sale con lo demás filtrado pero sin ella misma (como Excel). */
+  const pasaCampos = (r: Fila, menos?: string) => {
+    for (const id in fCol) {
+      if (id === menos) continue;
+      const c = POR_ID.get(id);
+      if (c && !c.de(r).some((v) => fCol[id].has(v))) return false;
+    }
+    return true;
+  };
+  const filas = useMemo(() => todas.filter((r) => pasaBusca(r) && pasaCampos(r))
+    .sort((a, b) => a.dias - b.dias || a.p.nombre.localeCompare(b.p.nombre, "es")), // eslint-disable-next-line react-hooks/exhaustive-deps
+    [todas, busca, fCol]);
+  useEffect(() => setVer(PAGINA), [busca, fCol]);
+  const valoresDe = (id: string) => {
+    const c = POR_ID.get(id); if (!c) return [];
+    const m = new Map<string, number>();
+    for (const r of todas) { if (!pasaBusca(r) || !pasaCampos(r, id)) continue; for (const v of new Set(c.de(r))) m.set(v, (m.get(v) ?? 0) + 1) }
+    for (const v of fCol[id] ?? []) if (!m.has(v)) m.set(v, 0);
+    return [...m].sort((a, b) => a[0] === VACIAS ? 1 : b[0] === VACIAS ? -1 : c.orden ? c.orden(a[0], b[0]) : a[0].localeCompare(b[0], "es", { numeric: true }))
+      .map(([v, n]) => ({ v, n }));
+  };
+  const abrirFiltro = (id: string, el: HTMLElement) => {
+    const b = el.getBoundingClientRect();
+    setAbierto((x) => (x?.id === id ? null : { id, x: b.left, y: b.bottom + 4 }));
+  };
+  const ponerFiltro = (id: string, set: ReadonlySet<string> | null) => {
+    setFCol((f) => { const n = { ...f }; if (set) n[id] = set; else delete n[id]; return n });
+    setAbierto(null);
+  };
+  const cerrarFiltro = useCallback(() => setAbierto(null), []);
+  const filtrando = Object.keys(fCol).length > 0 || !!busca;
+  const embudo = (id: string, t: string) => (
+    <button type="button" className={"sg-fil" + (fCol[id] ? " on" : "")} title={`Filtrar ${t}`} aria-label={`Filtrar ${t}`}
+            aria-expanded={abierto?.id === id} onClick={(e) => { e.stopPropagation(); abrirFiltro(id, e.currentTarget) }}>
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h12l-4.6 5.4V13l-2.8 1.2V8.4z" /></svg>
+    </button>
+  );
+  const th = (id: string, t: string, cls?: string) => <th className={cls}><div className="sg-thc"><span>{t}</span>{embudo(id, t)}</div></th>;
   const todasMarcadas = filas.length > 0 && filas.every(({ p }) => marca.has(p.cedula));
   const alternar = (c: string) => setMarca((m) => { const n = new Set(m); if (n.has(c)) n.delete(c); else n.add(c); return n });
   function asignar(quitar = false) {
@@ -92,8 +135,8 @@ export function PersonasCert(P: Props) {
       <header className="sg-cab">
         <div>
           <p className="sg-ojo">SEGURIDAD · CERTIFICACIONES</p>
-          <h1>Personas <span className="sg-tag">{config.departamentos.map((d) => d.charAt(0) + d.slice(1).toLowerCase()).join(", ")}</span></h1>
-          <p className="sg-sub">La base de las licencias VACA · {nf.format(personas.length)} personas · se actualiza registrando aquí o con el Excel en Base</p>
+          <h1>Base de datos <span className="sg-tag">{config.departamentos.map((d) => d.charAt(0) + d.slice(1).toLowerCase()).join(", ")}</span></h1>
+          <p className="sg-sub">La base de las licencias VACA · {nf.format(personas.length)} personas · se actualiza registrando aquí o con «Importar Excel»</p>
         </div>
         {P.puedeEditar && (
           <div className="sg-acc">
@@ -103,32 +146,32 @@ export function PersonasCert(P: Props) {
       </header>
       {aviso && <p className={"sg-aviso" + (aviso.mal ? " mal" : "")} role="status">{aviso.t}</p>}
 
+      {/* LOS FILTROS: buscar, ＋ filtrar por cualquier campo (aunque no sea columna) y los chips de lo que está puesto.
+          Cada encabezado de la tabla tiene su embudo: se marcan varios valores y se aplica, como en la BD de inventario. */}
       <div className="sg-filtros">
-        <div className="sg-seg" role="radiogroup" aria-label="Estado">
-          {(["ACTIVO", "NO ACTIVO", "BLOQUEADO", "VACACIONES", "TODOS"] as const).map((k) => (
-            <button key={k} type="button" role="radio" aria-checked={estado === k} className={estado === k ? "on" : ""} onClick={() => setEstado(k)}>
-              {k === "TODOS" ? "Todos" : k === "NO ACTIVO" ? "No activos" : k.charAt(0) + k.slice(1).toLowerCase() + (k === "VACACIONES" ? "" : "s")}<i>{cuenta[k] ?? 0}</i>
-            </button>
-          ))}
-        </div>
-        <select value={empresa} onChange={(e) => setEmpresa(e.target.value)} aria-label="Empresa">
-          <option value="">Todas las empresas</option>
-          {empresas.map((e) => <option key={e} value={e}>{e}</option>)}
+        <input type="search" className="sg-buscar" placeholder="Buscar nombre o cédula" value={busca} onChange={(e) => setBusca(e.target.value)} aria-label="Buscar persona" />
+        <select value="" onChange={(e) => { const id = e.target.value; if (id) abrirFiltro(id, e.currentTarget) }} aria-label="Filtrar por campo" className="sg-campo-sel">
+          <option value="">＋ Filtrar por campo…</option>
+          {CAMPOS.map((c) => <option key={c.id} value={c.id}>{c.t}{fCol[c.id] ? " ●" : ""}</option>)}
         </select>
-        <select value={permiso} onChange={(e) => setPermiso(e.target.value)} aria-label="Permiso">
-          <option value="">Cualquier permiso</option>
-          {PERMISOS.map((x) => <option key={x.k} value={x.k}>{x.t}</option>)}
-        </select>
-        <select value={vence} onChange={(e) => setVence(e.target.value)} aria-label="Vencimiento">
-          {VENCE.map((v) => <option key={v.k} value={v.k}>{v.t}</option>)}
-        </select>
-        <select value={resp} onChange={(e) => setResp(e.target.value)} aria-label="Interventor ABI">
-          <option value="">Cualquier interventor</option>
-          <option value="-">Sin interventor ni coordinador</option>
-          {nombresIv.map((n) => <option key={n} value={n}>{n}</option>)}
-        </select>
-        <input type="search" placeholder="Nombre o cédula" value={busca} onChange={(e) => setBusca(e.target.value)} aria-label="Buscar persona" />
+        {Object.entries(fCol).map(([id, set]) => {
+          const c = POR_ID.get(id); if (!c) return null;
+          const vs = [...set];
+          return (
+            <span key={id} className="sg-fchip">
+              <button type="button" onClick={(e) => abrirFiltro(id, e.currentTarget)} title="Cambiar este filtro">
+                <b>{c.t}:</b> {vs.length === 0 ? "nada" : vs.length <= 2 ? vs.join(", ") : `${vs.slice(0, 2).join(", ")} +${vs.length - 2}`}
+              </button>
+              <button type="button" className="x" aria-label={`Quitar el filtro de ${c.t}`} onClick={() => ponerFiltro(id, null)}>×</button>
+            </span>
+          );
+        })}
+        {filtrando && <button type="button" className="sg-link" onClick={() => { setFCol({}); setBusca("") }}>Quitar filtros</button>}
       </div>
+      {abierto && POR_ID.get(abierto.id) && (
+        <FiltroCol key={abierto.id} titulo={POR_ID.get(abierto.id)!.t} valores={valoresDe(abierto.id)} elegidos={fCol[abierto.id] ?? null}
+                   pos={{ x: abierto.x, y: abierto.y }} aplicar={(set) => ponerFiltro(abierto.id, set)} cerrar={cerrarFiltro} />
+      )}
 
       {P.puedeEditar && marca.size > 0 && (
         <div className="sg-asignar" role="region" aria-label="Asignar a las personas escogidas">
@@ -155,7 +198,7 @@ export function PersonasCert(P: Props) {
             <div className="sg-tabla-rueda">
               <table className="sg-tabla">
                 <thead><tr>{P.puedeEditar && <th className="ck"><input type="checkbox" checked={todasMarcadas} aria-label="Escoger todas las de este filtro"
-                  onChange={() => setMarca((m) => { const n = new Set(m); for (const { p } of filas) { if (todasMarcadas) n.delete(p.cedula); else n.add(p.cedula) } return n })} /></th>}<th>Persona</th><th>Empresa</th><th>Estado</th><th>Nivel</th><th>Permisos</th><th className="n">Expedición</th><th>Vence</th><th>Interventor ABI · Coordinador</th></tr></thead>
+                  onChange={() => setMarca((m) => { const n = new Set(m); for (const { p } of filas) { if (todasMarcadas) n.delete(p.cedula); else n.add(p.cedula) } return n })} /></th>}{th("persona", "Persona")}{th("empresa", "Empresa")}{th("estado", "Estado")}{th("nivel", "Nivel")}{th("permisos", "Permisos")}{th("expedicion", "Expedición", "n")}{th("vence", "Vence")}{th("interventor", "Interventor ABI · Coordinador")}</tr></thead>
                 <tbody>
                   {filas.slice(0, ver).map(({ p, dias, u }) => (
                     <tr key={p.cedula} className={(sel === p.cedula ? "sel" : "") + (marca.has(p.cedula) ? " marcada" : "")} onClick={() => setSel(sel === p.cedula ? null : p.cedula)}

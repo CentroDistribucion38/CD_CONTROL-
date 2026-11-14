@@ -623,8 +623,8 @@ export const MODULOS: Modulo[] = [
     secciones: [
       { nombre: "Alertas", ruta: "/seguridad/certificaciones", rama: "certificaciones" },
       { nombre: "Dashboard licencias", ruta: "/seguridad/certificaciones/indicadores", rama: "certificaciones" },
-      { nombre: "Personas", ruta: "/seguridad/certificaciones/personas", rama: "certificaciones" },
-      { nombre: "Base · importar", ruta: "/seguridad/certificaciones/base", rama: "certificaciones" },
+      { nombre: "Base de datos", ruta: "/seguridad/certificaciones/personas", rama: "certificaciones" },
+      { nombre: "Importar Excel", ruta: "/seguridad/certificaciones/base", rama: "certificaciones" },
       { nombre: "Maestro", ruta: "/seguridad/certificaciones/maestro", rama: "certificaciones" },
     ],
   },

@@ -55,12 +55,12 @@ export function BaseCert({ total, departamentos, vigencia, puedeEditar }: { tota
       <header className="sg-cab">
         <div>
           <p className="sg-ojo">SEGURIDAD · CERTIFICACIONES</p>
-          <h1>Base · importar <span className="sg-tag">{deptos}</span></h1>
+          <h1>Importar Excel <span className="sg-tag">{deptos}</span></h1>
           <p className="sg-sub">Hoy hay {nf.format(total)} personas con licencia en la base · el Excel actualiza sin borrar ni duplicar</p>
         </div>
       </header>
 
-      {!puedeEditar && <p className="sg-aviso">Puedes ver esta pantalla pero no cargar: pide el permiso «Base · importar» en editar (Administración › Roles).</p>}
+      {!puedeEditar && <p className="sg-aviso">Puedes ver esta pantalla pero no cargar: pide el permiso «Importar Excel» en editar (Administración › Roles).</p>}
 
       <section className="sg-card sg-pad">
         <div className={"sg-subir" + (sobre ? " sobre" : "")} role="button" tabIndex={0}

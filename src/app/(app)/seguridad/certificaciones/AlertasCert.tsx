@@ -6,13 +6,14 @@
  * Cada tarjeta dice a quién se le exige (Interventor ABI y Coordinador de la contratista). Copiar alertas (texto para
  * WhatsApp/correo) e Imagen (copiar, compartir, descargar), como los cierres de turno.
  */
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   URGENCIA, armarTablero, claveTexto, fechaCorta, textoAlertas, textoLista, PERMISOS,
   type Alerta, type ConfigCert, type PersonaCert, type Urgencia, type ValidacionHist,
 } from "@/modulos/seguridad/certificaciones";
 import { BotonDashboard, useFotosVaca } from "./FotosVaca";
+import { FiltroCol, VACIAS } from "./FiltroCol";
 
 const nf = new Intl.NumberFormat("es-CO");
 const COLS: { k: Exclude<Urgencia, "vigente">; t: string; sub: string }[] = [
@@ -21,25 +22,46 @@ const COLS: { k: Exclude<Urgencia, "vigente">; t: string; sub: string }[] = [
   { k: "aviso", t: "VENCEN ESTE MES", sub: "pedir fecha de renovación" },
 ];
 const MOSTRAR = 12;
+const capi = (x: string) => x.charAt(0) + x.slice(1).toLowerCase();
+const CAMPOS_A: { id: string; t: string; de: (p: PersonaCert) => string[] }[] = [
+  { id: "empresa", t: "Empresa", de: (p) => [p.empresa.trim().toUpperCase() || VACIAS] },
+  { id: "interventor", t: "Interventor ABI", de: (p) => [p.interventor || VACIAS] },
+  { id: "coordinador", t: "Coordinador", de: (p) => [p.coordinador || VACIAS] },
+  { id: "nivel", t: "Nivel", de: (p) => [p.nivel ? capi(p.nivel) : VACIAS] },
+  { id: "permisos", t: "Permisos", de: (p) => p.permisos.length ? p.permisos.map((k) => PERMISOS.find((x) => x.k === k)?.t ?? k) : [VACIAS] },
+  { id: "grupo", t: "Grupo", de: (p) => [p.grupo || VACIAS] },
+];
 
 export function AlertasCert({ personas, hist, hoy, config, departamentos }: {
   personas: PersonaCert[]; hist: ValidacionHist[]; hoy: string; config: ConfigCert; departamentos: string[];
 }) {
   const caja = useRef<HTMLDivElement>(null);
-  const [empresa, setEmpresa] = useState("");
-  const [resp, setResp] = useState("");
+  /* FILTROS COMO LA BD: «＋ Filtrar por campo», varios valores a la vez, chips de lo que está puesto. */
+  const [fCol, setFCol] = useState<Record<string, ReadonlySet<string>>>({});
+  const [abierto, setAbierto] = useState<{ id: string; x: number; y: number } | null>(null);
   const [busca, setBusca] = useState("");
   const [abiertas, setAbiertas] = useState<Record<string, boolean>>({});
   const [aviso, setAviso] = useState<string | null>(null);
 
+  function pasa(p: PersonaCert, menos?: string) {
+    for (const id in fCol) { if (id === menos) continue; const c = CAMPOS_A.find((x) => x.id === id); if (c && !c.de(p).some((v) => fCol[id].has(v))) return false }
+    return true;
+  }
+  const valoresDe = (id: string) => {
+    const c = CAMPOS_A.find((x) => x.id === id)!; const m = new Map<string, number>();
+    for (const p of personas) { if (p.estado !== "ACTIVO" || !pasa(p, id)) continue; for (const v of new Set(c.de(p))) m.set(v, (m.get(v) ?? 0) + 1) }
+    for (const v of fCol[id] ?? []) if (!m.has(v)) m.set(v, 0);
+    return [...m].sort((a, b) => a[0] === VACIAS ? 1 : b[0] === VACIAS ? -1 : a[0].localeCompare(b[0], "es")).map(([v, n]) => ({ v, n }));
+  };
+  const abrirFiltro = (id: string, el: HTMLElement) => { const b = el.getBoundingClientRect(); setAbierto((x) => (x?.id === id ? null : { id, x: b.left, y: b.bottom + 4 })) };
+  const ponerFiltro = (id: string, set: ReadonlySet<string> | null) => { setFCol((f) => { const n = { ...f }; if (set) n[id] = set; else delete n[id]; return n }); setAbierto(null) };
+  const cerrarFiltro = useCallback(() => setAbierto(null), []);
   const filtradas = useMemo(() => personas.filter((p) =>
-    (!empresa || claveTexto(p.empresa) === claveTexto(empresa)) &&
-    (!resp || p.interventor === resp || p.coordinador === resp) &&
-    (!busca || claveTexto(`${p.nombre} ${p.cedula}`).includes(claveTexto(busca)))), [personas, empresa, resp, busca]);
+    pasa(p) &&
+    (!busca || claveTexto(`${p.nombre} ${p.cedula}`).includes(claveTexto(busca)))), // eslint-disable-next-line react-hooks/exhaustive-deps
+    [personas, fCol, busca]);
   const t = useMemo(() => armarTablero(filtradas, hoy, config), [filtradas, hoy, config]);
   const todas = useMemo(() => armarTablero(personas, hoy, config), [personas, hoy, config]);
-  const empresas = [...new Set(personas.map((p) => p.empresa.trim()))].sort();
-  const responsables = [...new Set(personas.flatMap((p) => [p.interventor, p.coordinador]).filter(Boolean) as string[])].sort();
   const deptos = departamentos.map((d) => d.charAt(0) + d.slice(1).toLowerCase()).join(", ");
 
   /* LAS IMÁGENES: Dashboard y cada lista por separado (vencidas, 7 días, este mes), con los filtros puestos. */
@@ -97,16 +119,29 @@ export function AlertasCert({ personas, hist, hoy, config, departamentos }: {
       {aviso && <p className="sg-aviso" role="status">{aviso}</p>}
 
       <div className="sg-filtros">
-        <select value={empresa} onChange={(e) => setEmpresa(e.target.value)} aria-label="Empresa">
-          <option value="">Todas las empresas</option>
-          {empresas.map((e) => <option key={e} value={e}>{e}</option>)}
+        <input type="search" className="sg-buscar" placeholder="Buscar nombre o cédula" value={busca} onChange={(e) => setBusca(e.target.value)} aria-label="Buscar persona" />
+        <select value="" onChange={(e) => { const id = e.target.value; if (id) abrirFiltro(id, e.currentTarget) }} aria-label="Filtrar por campo" className="sg-campo-sel">
+          <option value="">＋ Filtrar por campo…</option>
+          {CAMPOS_A.map((c) => <option key={c.id} value={c.id}>{c.t}{fCol[c.id] ? " ●" : ""}</option>)}
         </select>
-        <select value={resp} onChange={(e) => setResp(e.target.value)} aria-label="Interventor ABI o coordinador">
-          <option value="">Todos los responsables</option>
-          {responsables.map((r) => <option key={r} value={r}>{r}</option>)}
-        </select>
-        <input type="search" placeholder="Nombre o cédula" value={busca} onChange={(e) => setBusca(e.target.value)} aria-label="Buscar persona" />
+        {Object.entries(fCol).map(([id, set]) => {
+          const c = CAMPOS_A.find((x) => x.id === id); if (!c) return null;
+          const vs = [...set];
+          return (
+            <span key={id} className="sg-fchip">
+              <button type="button" onClick={(e) => abrirFiltro(id, e.currentTarget)} title="Cambiar este filtro">
+                <b>{c.t}:</b> {vs.length === 0 ? "nada" : vs.length <= 2 ? vs.join(", ") : `${vs.slice(0, 2).join(", ")} +${vs.length - 2}`}
+              </button>
+              <button type="button" className="x" aria-label={`Quitar el filtro de ${c.t}`} onClick={() => ponerFiltro(id, null)}>×</button>
+            </span>
+          );
+        })}
+        {(Object.keys(fCol).length > 0 || busca) && <button type="button" className="sg-link" onClick={() => { setFCol({}); setBusca("") }}>Quitar filtros</button>}
       </div>
+      {abierto && (
+        <FiltroCol key={abierto.id} titulo={CAMPOS_A.find((x) => x.id === abierto.id)!.t} valores={valoresDe(abierto.id)} elegidos={fCol[abierto.id] ?? null}
+                   pos={{ x: abierto.x, y: abierto.y }} aplicar={(set) => ponerFiltro(abierto.id, set)} cerrar={cerrarFiltro} />
+      )}
 
       <div className="sg-kb">
         {COLS.map((c) => {
