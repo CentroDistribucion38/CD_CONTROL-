@@ -8,7 +8,7 @@ import { CONFIG_CERT, type ConfigCert, type PersonaCert, type ValidacionHist } f
 
 /** Interventor ABI o Coordinador de la contratista. El coordinador responde a un interventor (interventor_id):
  *  la app le avisa al interventor y el interventor a su coordinador. */
-export type Responsable = { id: string; nombre: string; tipo: "interventor" | "coordinador"; telefono: string | null; correo: string | null; activo: boolean; interventor_id?: string | null };
+export type Responsable = { id: string; nombre: string; tipo: "interventor" | "coordinador"; telefono: string | null; correo: string | null; activo: boolean; interventor_id?: string | null; cedula?: string | null };
 export type Validador = { id: string; nombre: string; activo: boolean };
 export type Empresa = { id: string; nombre: string; alias: string[]; departamento: string; activa: boolean; interventor_id: string | null; coordinador_id: string | null };
 export type Grupo = { id: string; empresa_id: string; nombre: string; interventor_id: string | null; coordinador_id: string | null };

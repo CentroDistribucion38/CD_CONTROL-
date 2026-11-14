@@ -71,6 +71,8 @@ create table if not exists public.seg_responsables (
 -- LA CADENA DEL AVISO: la app le avisa al Interventor ABI y el interventor a su Coordinador de la contratista.
 -- Cada coordinador sabe a qué interventor responde.
 alter table public.seg_responsables add column if not exists interventor_id uuid references public.seg_responsables(id) on delete set null;
+-- Del responsable solo se pide el nombre y la cédula.
+alter table public.seg_responsables add column if not exists cedula text;
 
 create table if not exists public.seg_validadores (
   id      uuid primary key default gen_random_uuid(),

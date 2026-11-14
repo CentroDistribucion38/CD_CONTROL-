@@ -86,12 +86,13 @@ export async function guardarReglas(r: { vigencia: number; aviso: number; critic
   return { ok: "Reglas guardadas." };
 }
 
-export async function guardarResponsable(r: { id?: string; nombre: string; tipo: "interventor" | "coordinador"; telefono?: string; correo?: string; activo?: boolean; interventor_id?: string | null }): Promise<R> {
+export async function guardarResponsable(r: { id?: string; nombre: string; tipo: "interventor" | "coordinador"; telefono?: string; correo?: string; activo?: boolean; interventor_id?: string | null; cedula?: string | null }): Promise<R> {
   if (!limpio(r.nombre)) return { error: "Escribe el nombre." };
   if (r.tipo === "coordinador" && !r.interventor_id) return { error: "Escoge a qué Interventor ABI responde este coordinador." };
   const sb = await createClient();
+  const cedula = (r.cedula ?? "").replace(/[^0-9A-Za-z]/g, "") || null;
   const fila = {
-    nombre: limpio(r.nombre), tipo: r.tipo, telefono: r.telefono ? limpio(r.telefono) : null, correo: r.correo ? limpio(r.correo) : null, activo: r.activo ?? true,
+    nombre: limpio(r.nombre), tipo: r.tipo, cedula, activo: r.activo ?? true,
     /* La cadena del aviso: solo el coordinador responde a un interventor. */
     interventor_id: r.tipo === "coordinador" ? r.interventor_id ?? null : null,
   };

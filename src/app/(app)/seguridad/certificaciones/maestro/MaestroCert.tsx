@@ -5,7 +5,7 @@
  *   EMPRESAS      cada contratista con su Interventor ABI y su Coordinador de la contratista («a quién exigirle»),
  *                 y sus GRUPOS: parte de la gente de una empresa (ej. Easy) que responde a otros responsables.
  *   VALIDADORES   quién valida las licencias (la lista del registro).
- *   RESPONSABLES  interventores ABI y coordinadores, con teléfono y correo.
+ *   RESPONSABLES  interventores ABI y coordinadores: nombre y cédula.
  *   REGLAS        días de vigencia, desde cuándo se alerta, qué es urgente y qué departamentos entran.
  */
 import { useMemo, useState, useTransition } from "react";
@@ -324,7 +324,7 @@ function Validadores({ personas, validadores, puedeEditar, hacer, pend }: Ctx) {
 /* LA CADENA DEL AVISO: la app le avisa al Interventor ABI y el interventor a su Coordinador de la contratista.
    Por eso la lista va por interventor y, debajo de cada uno, los coordinadores que le responden. */
 function Responsables({ empresas, grupos, responsables, puedeEditar, hacer, pend, pedir }: Ctx) {
-  const vacio = { nombre: "", tipo: "interventor" as Responsable["tipo"], telefono: "", correo: "", interventor_id: "" };
+  const vacio = { nombre: "", tipo: "interventor" as Responsable["tipo"], cedula: "", interventor_id: "" };
   const [n, setN] = useState(vacio);
   const [edita, setEdita] = useState<Responsable | null>(null);
   const aCargo = (r: Responsable) => {
@@ -341,14 +341,13 @@ function Responsables({ empresas, grupos, responsables, puedeEditar, hacer, pend
     return (
       <tr key={r.id} className={hijo ? "" : "iv"} onClick={() => puedeEditar && setEdita(r)} style={puedeEditar ? undefined : { cursor: "default" }}>
         <td className={hijo ? "hijo" : ""}>{hijo && <span aria-hidden className="sg-flecha">↳</span>}<b>{r.nombre}</b></td>
+        <td className="n" style={{ textAlign: "left" }}>{r.cedula ?? "—"}</td>
         <td>{TIPO[r.tipo]}</td>
-        <td>{r.telefono ?? "—"}</td>
-        <td>{r.correo ?? "—"}</td>
         <td className="sg-sm">{c.length ? c.join(" · ") : "—"}</td>
         <td onClick={(ev) => ev.stopPropagation()}>
           <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
             <button type="button" className={"sg-sw" + (r.activo ? " on" : "")} aria-pressed={r.activo} aria-label={`${r.nombre} activo`}
-              disabled={!puedeEditar || pend} onClick={() => hacer(() => guardarResponsable({ ...r, telefono: r.telefono ?? "", correo: r.correo ?? "", activo: !r.activo }))} />
+              disabled={!puedeEditar || pend} onClick={() => hacer(() => guardarResponsable({ ...r, telefono: undefined, correo: undefined, activo: !r.activo }))} />
             {!hijo && puedeEditar && (
               <button type="button" className="sg-bt" style={{ minHeight: 30, padding: "0 10px", fontSize: 12 }}
                 onClick={() => setN({ ...vacio, tipo: "coordinador", interventor_id: r.id })}>+ Coordinador</button>
@@ -364,11 +363,11 @@ function Responsables({ empresas, grupos, responsables, puedeEditar, hacer, pend
       <p className="sg-cadena">La app le avisa al <b>Interventor ABI</b> <span aria-hidden>→</span> el interventor le avisa a su <b>Coordinador de la contratista</b>.</p>
       <div className="sg-tabla-rueda">
         <table className="sg-tabla">
-          <thead><tr><th>Nombre</th><th>Rol</th><th>Teléfono</th><th>Correo</th><th>A cargo de</th><th>Activo</th></tr></thead>
+          <thead><tr><th>Nombre</th><th>Cédula</th><th>Rol</th><th>A cargo de</th><th>Activo</th></tr></thead>
           <tbody>
             {interventores.flatMap((iv) => [fila(iv, false),
               ...responsables.filter((r) => r.tipo === "coordinador" && r.interventor_id === iv.id).sort(porNombre).map((c) => fila(c, true))])}
-            {sueltos.length > 0 && <tr className="iv"><td colSpan={6}><b>Coordinadores sin interventor</b> <span className="sg-sm">· tócalos para decir a quién responden</span></td></tr>}
+            {sueltos.length > 0 && <tr className="iv"><td colSpan={5}><b>Coordinadores sin interventor</b> <span className="sg-sm">· tócalos para decir a quién responden</span></td></tr>}
             {sueltos.map((c) => fila(c, true))}
           </tbody>
         </table>
@@ -380,21 +379,20 @@ function Responsables({ empresas, grupos, responsables, puedeEditar, hacer, pend
             <option value="interventor">{TIPO.interventor}</option><option value="coordinador">{TIPO.coordinador}</option>
           </select>
           <input placeholder={n.tipo === "interventor" ? "Nombre del interventor ABI" : "Nombre del coordinador"} value={n.nombre} onChange={(e) => setN({ ...n, nombre: e.target.value })} aria-label="Nombre" />
+          <input placeholder="Cédula" inputMode="numeric" value={n.cedula} onChange={(e) => setN({ ...n, cedula: e.target.value })} aria-label="Cédula" />
           {n.tipo === "coordinador" && (
             <select value={n.interventor_id} onChange={(e) => setN({ ...n, interventor_id: e.target.value })} aria-label="Interventor ABI al que responde">
               <option value="">Responde a…</option>
               {interventores.filter((r) => r.activo).map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
             </select>
           )}
-          <input placeholder="Teléfono" inputMode="tel" value={n.telefono} onChange={(e) => setN({ ...n, telefono: e.target.value })} aria-label="Teléfono" />
-          <input placeholder="Correo" type="email" value={n.correo} onChange={(e) => setN({ ...n, correo: e.target.value })} aria-label="Correo" />
           <button type="button" className="sg-bt osc" disabled={pend || !n.nombre.trim() || (n.tipo === "coordinador" && !n.interventor_id)}
             onClick={() => { hacer(() => guardarResponsable({ ...n, interventor_id: n.interventor_id || null })); setN(vacio) }}>Agregar</button>
         </div>
       )}
       {edita && (
         <EditarResponsable r={edita} interventores={interventores} pend={pend} cerrar={() => setEdita(null)}
-          guardar={(r) => { hacer(() => guardarResponsable({ ...r, telefono: r.telefono ?? "", correo: r.correo ?? "" })); setEdita(null) }}
+          guardar={(r) => { hacer(() => guardarResponsable({ ...r, telefono: undefined, correo: undefined })); setEdita(null) }}
           quitar={async () => {
             const hijos = responsables.filter((r) => r.interventor_id === edita.id).length;
             if (await pedir({ titulo: `¿Quitar a ${edita.nombre}?`, dice: `Las empresas y grupos que tenía a cargo quedan «sin asignar» hasta que les pongas otro.${hijos ? ` Sus ${hijos} coordinadores quedan sin interventor.` : ""}`, confirmar: "Quitar", peligro: true })) {
@@ -414,7 +412,8 @@ function EditarResponsable({ r, interventores, pend, cerrar, guardar, quitar }: 
         <button type="button" className="sg-bt" onClick={cerrar}>Cancelar</button>
         <button type="button" className="sg-bt osc" disabled={pend || !f.nombre.trim() || (f.tipo === "coordinador" && !f.interventor_id)} onClick={() => guardar(f)}>Guardar</button></>}>
       <div className="sg-mo-b">
-        <div className="sg-campo full"><label htmlFor="sg-rn">NOMBRE</label><input id="sg-rn" value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} /></div>
+        <div className="sg-campo"><label htmlFor="sg-rn">NOMBRE</label><input id="sg-rn" value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} /></div>
+        <div className="sg-campo"><label htmlFor="sg-rk">CÉDULA</label><input id="sg-rk" inputMode="numeric" value={f.cedula ?? ""} onChange={(e) => setF({ ...f, cedula: e.target.value })} /></div>
         <div className="sg-campo"><label htmlFor="sg-rt">ROL</label>
           <select id="sg-rt" value={f.tipo} onChange={(e) => setF({ ...f, tipo: e.target.value as Responsable["tipo"] })}>
             <option value="interventor">{TIPO.interventor}</option><option value="coordinador">{TIPO.coordinador}</option>
@@ -426,8 +425,6 @@ function EditarResponsable({ r, interventores, pend, cerrar, guardar, quitar }: 
               {interventores.filter((x) => x.activo || x.id === f.interventor_id).map((x) => <option key={x.id} value={x.id}>{x.nombre}</option>)}
             </select></div>
         ) : <div />}
-        <div className="sg-campo"><label htmlFor="sg-rf">TELÉFONO</label><input id="sg-rf" inputMode="tel" value={f.telefono ?? ""} onChange={(e) => setF({ ...f, telefono: e.target.value })} /></div>
-        <div className="sg-campo"><label htmlFor="sg-rc">CORREO</label><input id="sg-rc" type="email" value={f.correo ?? ""} onChange={(e) => setF({ ...f, correo: e.target.value })} /></div>
       </div>
     </Ventana>
   );
