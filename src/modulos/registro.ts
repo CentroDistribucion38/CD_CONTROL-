@@ -622,7 +622,7 @@ export const MODULOS: Modulo[] = [
        el Maestro (empresas, validadores, responsables y reglas), que es configuración y cierra la lista. */
     secciones: [
       { nombre: "Alertas", ruta: "/seguridad/certificaciones", rama: "certificaciones" },
-      { nombre: "Indicadores", ruta: "/seguridad/certificaciones/indicadores", rama: "certificaciones" },
+      { nombre: "Dashboard licencias", ruta: "/seguridad/certificaciones/indicadores", rama: "certificaciones" },
       { nombre: "Personas", ruta: "/seguridad/certificaciones/personas", rama: "certificaciones" },
       { nombre: "Base · importar", ruta: "/seguridad/certificaciones/base", rama: "certificaciones" },
       { nombre: "Maestro", ruta: "/seguridad/certificaciones/maestro", rama: "certificaciones" },

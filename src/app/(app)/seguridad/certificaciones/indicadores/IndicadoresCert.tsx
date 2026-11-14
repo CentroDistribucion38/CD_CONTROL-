@@ -1,7 +1,9 @@
 "use client";
 
 /**
- * SEGURIDAD · CERTIFICACIONES · INDICADORES — cómo vamos con las licencias VACA.
+ * SEGURIDAD · CERTIFICACIONES · DASHBOARD LICENCIAS — cómo vamos con las licencias VACA.
+ *   · «Dashboard» arma TODO en una sola imagen (como el de Pasivos) para copiar, compartir o descargar;
+ *     «Alertas» arma la lista de a quién exigirle.
  *   · La franja: índice de cumplimiento (activos con la licencia al día), vencidas trabajando, renovadas a tiempo,
  *     validadas este mes y los días promedio que le quedan a una licencia vigente.
  *   · La ola de renovaciones (12 semanas) contra el ritmo de validación de las últimas 8 semanas.
@@ -10,7 +12,9 @@
  *     los bloqueos.
  */
 import { useMemo, useRef } from "react";
-import { armarIndicadores, fechaCorta, type ConfigCert, type PersonaCert, type ValidacionHist } from "@/modulos/seguridad/certificaciones";
+import { armarIndicadores, armarTablero, fechaCorta, type ConfigCert, type PersonaCert, type ValidacionHist } from "@/modulos/seguridad/certificaciones";
+import { BotonesFoto, logoMarca, useFotoCompartir, type TipoFoto } from "@/components/FotoCompartir";
+import { leerPaleta } from "@/app/(app)/quiebra/rotura/HojaFirma";
 
 const nf = new Intl.NumberFormat("es-CO");
 const pc = (x: number) => new Intl.NumberFormat("es-CO", { maximumFractionDigits: 1 }).format(x * 100) + " %";
@@ -21,6 +25,18 @@ export function IndicadoresCert({ personas, hist, hoy, config, departamentos }: 
   const caja = useRef<HTMLDivElement>(null);
   const I = useMemo(() => armarIndicadores(personas, hist, hoy, config), [personas, hist, hoy, config]);
   const deptos = departamentos.map((d) => d.charAt(0) + d.slice(1).toLowerCase()).join(", ");
+  const T = useMemo(() => armarTablero(personas, hoy, config), [personas, hoy, config]);
+
+  /* LAS IMÁGENES: el dashboard completo y la lista de alertas por responsable. */
+  const foto = useFotoCompartir(async (tipo: TipoFoto) => {
+    const paleta = leerPaleta(caja.current) ?? undefined;
+    if (tipo === "dashboard") {
+      const [{ dibujarDashboardCert, nombreDashboardCert }, logo] = await Promise.all([import("@/modulos/seguridad/foto-dash"), logoMarca()]);
+      return { lienzo: dibujarDashboardCert(I, T, { paleta, logo, deptos: deptos.replace("Logistica", "Logística") }), nombre: nombreDashboardCert(hoy) };
+    }
+    const [{ dibujarTableroCert, nombreTableroCert }, logo] = await Promise.all([import("@/modulos/seguridad/foto-cert"), logoMarca()]);
+    return { lienzo: dibujarTableroCert(T, { paleta, logo }), nombre: nombreTableroCert(hoy) };
+  }, "Licencias VACA", { dashboard: "Dashboard", detalle: "Alertas · a quién exigirle" });
 
   /* LA OLA: barras por semana; en ocre las que pasan el ritmo de validación. */
   const W = I.semanas.length, bw = 46, g = 18, h = 190;
@@ -38,18 +54,22 @@ export function IndicadoresCert({ personas, hist, hoy, config, departamentos }: 
       <header className="sg-cab">
         <div>
           <p className="sg-ojo">SEGURIDAD · CERTIFICACIONES</p>
-          <h1>Indicadores <span className="sg-tag">{deptos}</span></h1>
+          <h1>Dashboard licencias <span className="sg-tag">{deptos}</span></h1>
           <p className="sg-sub">Licencias VACA · corte {fechaCorta(hoy)} de {hoy.slice(0, 4)} · {nf.format(I.activos)} activos de {nf.format(personas.length)} en la base</p>
         </div>
+        <div className="sg-acc">
+          <BotonesFoto abrir={foto.abrir} armando={foto.armando} abierta={foto.abierta} clase="sg-bt foto" etiquetaDetalle="Alertas" />
+        </div>
       </header>
+      {foto.mal && <p className="sg-aviso mal" role="alert">No se pudo armar la imagen. Recarga la página y vuelve a intentar.</p>}
 
       <section className="sg-hero" aria-label="Indicadores principales">
         <div className="anillo">
           <svg viewBox="0 0 150 150" aria-hidden>
-            <circle cx="75" cy="75" r={r} fill="none" stroke="#2a2f36" strokeWidth="14" />
+            <circle cx="75" cy="75" r={r} fill="none" stroke="#EEF1F5" strokeWidth="14" />
             <circle cx="75" cy="75" r={r} fill="none" stroke="#FFC300" strokeWidth="14" strokeDasharray={`${C * I.cumplimiento} ${C}`} transform="rotate(-90 75 75)" />
-            <text x="75" y="78" textAnchor="middle" style={{ font: "900 25px Archivo, system-ui", fill: "#fff" }}>{pc(I.cumplimiento).replace(" ", "")}</text>
-            <text x="75" y="100" textAnchor="middle" style={{ font: "800 10px sans-serif", fill: "#FFC300", letterSpacing: ".14em" }}>AL DÍA</text>
+            <text x="75" y="78" textAnchor="middle" style={{ font: "900 25px Archivo, system-ui", fill: "#0d0d0d" }}>{pc(I.cumplimiento).replace(" ", "")}</text>
+            <text x="75" y="100" textAnchor="middle" style={{ font: "800 10px sans-serif", fill: "#8A6300", letterSpacing: ".14em" }}>AL DÍA</text>
           </svg>
           <div>
             <span>ÍNDICE DE CUMPLIMIENTO</span>
@@ -165,6 +185,7 @@ export function IndicadoresCert({ personas, hist, hoy, config, departamentos }: 
           </div>
         </section>
       </div>
+      {foto.vista}
     </div>
   );
 }
