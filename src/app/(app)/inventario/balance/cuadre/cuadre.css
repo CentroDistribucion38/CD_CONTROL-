@@ -339,3 +339,11 @@
 .cs .cs-cambio > summary b { font-weight: 700; letter-spacing: .1em }
 .cs .cs-cambio > summary span { font-size: 12px; color: var(--fe-gris) }
 .cs .cs-cambio > .cs-nota, .cs .cs-cambio > .cs-scroll { margin: 0 14px 12px }
+
+/* TODO DE UNA: envase, estibas y cajas juntos en cada movimiento de SAP. */
+.cs .cs-todo { padding: 0 }
+.cs .cs-todo > li { padding-top: 12px }
+.cs .cs-cuenta { margin: 8px 12px 0; font-size: 12px; color: var(--fe-gris) }
+.cs .cs-antes-t span .cs-h3d { margin-left: 8px }
+.cs .cs-cajest { margin-top: 14px }
+.cs .cs-cajest > h3 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px }

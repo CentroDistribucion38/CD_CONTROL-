@@ -151,7 +151,6 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
      PLÁSTICAS, que van por estado (libre · control-cal · bloqueado). En AG22 igual, pero sin 311 (no se cambia de almacén). */
   const esCaja = (f: FilaCuadre) => f.grupo === "CAJA";
   const entranEnv = entran.filter((f) => !esCaja(f)), salenEnv = salen.filter((f) => !esCaja(f));
-  const entranCaja = entran.filter(esCaja), salenCaja = salen.filter(esCaja);
 
   /* CAJAS PLÁSTICAS POR ESTADO (AG18): «en caja debe quedar el balance de los 3 estados».
      Suelta en BAJA → Bloqueado · suelta en RETORNO → Libre · la caja que lleva el envase → Control-cal.
@@ -211,16 +210,49 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
     filas: cajasEstado.flatMap((c) => c.movs.filter((x) => x.clave === clave && x.antes === antes).map((x) => ({ ...c.f, dif: x.cant }))) })))
     .filter((x) => x.filas.length);
 
+  /* TODO DE UNA: «del AG22 al AG18 que pueda hacer los movimientos de una y no primero el envase y después
+     otra vez la caja». Envase, estibas y cajas van JUNTOS en cada movimiento de SAP, en el orden en que se hacen:
+       1. Antes del 311: lo que tiene que quedar en libre para poder salir (343 · 321).
+       2. El 311, en las dos direcciones, con todo junto.
+       3. Después del 311: los estados (344 · 322 · 349 · 350 · y lo que pase a libre sin salir).
+     AG22 no tiene 311: solo los movimientos de estado, todo junto. Los cálculos no cambian, solo se juntan. */
+  const juntar = (...listas: FilaCuadre[][]) => {
+    const m = new Map<string, FilaCuadre>();
+    for (const f of listas.flat()) {
+      const q = Math.abs(f.dif ?? 0); if (q < 0.5) continue;
+      const x = m.get(f.codigo);
+      m.set(f.codigo, x ? { ...x, dif: (x.dif ?? 0) + q } : { ...f, dif: q, sap: f.grupo === "CAJA" || f.grupo === "ENVASE" ? f.sap : null });
+    }
+    return [...m.values()];
+  };
+  const cajasDe = (mov: string, antes: boolean) => porMov.filter((m) => m.mov === mov && m.antes311 === antes).flatMap((m) => m.filas);
+  type PasoSap = { mov: string; t: string; filas: FilaCuadre[]; cual: string; azul: boolean };
+  const paso = (mov: string, t: string, filas: FilaCuadre[], cual: string, azul: boolean): PasoSap[] => filas.length ? [{ mov, t, filas, cual, azul }] : [];
+  /* En el 344 el envase que entra va como «sin SAP» (se bloquea lo que llega): no aplica la alerta de existencia. */
+  const sinSap = (xs: FilaCuadre[]) => xs.map((f) => ({ ...f, sap: null }));
+  const antes311: PasoSap[] = esAG22 ? [] : [
+    ...paso("343", "Bloqueado → Libre", juntar(del343, cajasDe("343", true)), "todo-343-a", false),
+    ...paso("321", "Control-cal → Libre", juntar(cajasDe("321", true)), "todo-321-a", false),
+  ];
+  const despues311: PasoSap[] = [
+    ...paso("321", "Control-cal → Libre", juntar(cajasDe("321", false)), "todo-321-d", true),
+    ...paso("343", "Bloqueado → Libre", juntar(esAG22 ? salenEnv : [], cajasDe("343", false)), "todo-343-d", true),
+    ...paso("349", "Bloqueado → Control-cal", juntar(cajasDe("349", false)), "todo-349-d", true),
+    ...paso("350", "Control-cal → Bloqueado", juntar(cajasDe("350", false)), "todo-350-d", true),
+    ...paso("322", "Libre → Control-cal", juntar(cajasDe("322", false)), "todo-322-d", true),
+    ...paso("344", "Libre → Bloqueado", juntar(esAG22 || !esSimple ? sinSap(entranEnv) : [], sinSap(aBloquear), cajasDe("344", false)), "todo-344-d", true),
+  ];
+  const cuentaGrupos = (xs: FilaCuadre[]) => {
+    const c = (g: string) => xs.filter((f) => f.grupo === g).length;
+    const e = c("ENVASE"), es = c("ESTIBA"), k = c("CAJA"), o = xs.length - e - es - k;
+    return [e && `${e} envase`, es && `${es} ${es === 1 ? "estiba" : "estibas"}`, k && `${k} ${k === 1 ? "caja" : "cajas"}`, o && `${o} más`].filter(Boolean).join(" · ");
+  };
+
   /* Dónde aparece cada código (para la barra del código escogido). */
   const listasSap: { t: string; filas: FilaCuadre[]; ancla: string }[] = [
-    { t: `Envase · Mov 343 en ${ALM}`, filas: del343, ancla: "p-env" },
-    { t: `Envase · 311 ${ALM} → ${OTRO}`, filas: salenEnv, ancla: "p-env" },
-    { t: `Envase · 311 ${OTRO} → ${ALM}`, filas: entranEnv, ancla: "p-env" },
-    { t: `Envase y estibas · Mov 344 en ${ALM} (Libre → Bloqueado)`, filas: aBloquear, ancla: "p-344" },
-    ...porMov.filter((m) => m.antes311).map((m) => ({ t: `Cajas · Mov ${m.mov} antes del 311`, filas: m.filas, ancla: "p-cajas" })),
-    { t: `Cajas · 311 ${ALM} → ${OTRO}`, filas: esAG22 ? [] : salenCaja, ancla: "p-cajas" },
-    { t: `Cajas · 311 ${OTRO} → ${ALM}`, filas: esAG22 ? [] : entranCaja, ancla: "p-cajas" },
-    ...porMov.filter((m) => !m.antes311).map((m) => ({ t: `Cajas · Mov ${m.mov} (${m.t})`, filas: m.filas, ancla: "p-cajas" })),
+    ...antes311.map((m) => ({ t: `Antes del 311 · Mov ${m.mov} en ${ALM}`, filas: m.filas, ancla: "p-env" })),
+    ...(esAG22 ? [] : [{ t: `311 ${OTRO} → ${ALM}`, filas: entran, ancla: "p-env" }, { t: `311 ${ALM} → ${OTRO}`, filas: salen, ancla: "p-env" }]),
+    ...despues311.map((m) => ({ t: `${esAG22 ? "" : "Después del 311 · "}Mov ${m.mov} en ${ALM}`, filas: m.filas, ancla: "p-344" })),
   ];
   const ir = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   /* Y AL REVÉS: lo que ENTRA a AG18 por el 311 llega en libre utilización y aquí va bloqueado: después
@@ -447,11 +479,10 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
       </nav>
 
       {vista === "cuadre" && (<>
-      <ol className="cs-pasos" style={{ gridTemplateColumns: `repeat(${conCajas ? 4 : 3}, minmax(0, 1fr))` }}>
+      <ol className="cs-pasos" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
         <li className={conZexi ? "hecho" : "on"}><span>PASO 1</span><b>Cuadre del día</b><small>{esAG22 ? "Base de Pasivos + ZEXI (bloqueado) → diferencias" : "Conteo + ZEXI → diferencias"}</small></li>
-        <li className={conMov ? "hecho" : conZexi ? "on" : ""}><span>PASO 2</span><b>{esAG22 ? "Bloquear / liberar en SAP" : "Hacer el 311 en SAP"}</b><small>{conCajas ? "Envase y estiba · lo que dice la app" : "La app dice qué mover · subes la ZEXI nueva"}</small></li>
-        {conCajas && <li className={conMov ? "hecho" : conZexi ? "on" : ""}><span>PASO 3</span><b>Balancear las cajas</b><small>Libre · control-cal · bloqueado · subes la ZEXI nueva</small></li>}
-        <li className={conMov ? (pendientes.length ? "on" : "hecho") : ""}><span>PASO {conCajas ? 4 : 3}</span><b>¿Quedó balanceado?</b><small>El cuadre otra vez, con lo movido</small></li>
+        <li className={conMov ? "hecho" : conZexi ? "on" : ""}><span>PASO 2</span><b>{esAG22 ? "Bloquear / liberar en SAP" : "Hacer el 311 en SAP"}</b><small>{conCajas ? "Envase, estibas y cajas juntos · subes la ZEXI nueva" : "La app dice qué mover · subes la ZEXI nueva"}</small></li>
+        <li className={conMov ? (pendientes.length ? "on" : "hecho") : ""}><span>PASO 3</span><b>¿Quedó balanceado?</b><small>El cuadre otra vez, con lo movido</small></li>
       </ol>
 
       {/* LOS DATOS DEL CUADRE: cuatro tarjetas iguales, encabezado oscuro (como las tablas) con el estado
@@ -675,7 +706,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
       {/* ---------- PASO 2 ---------- */}
       {conZexi && (
         <>
-          <h2 className="cs-h"><i>2</i> Qué hacer en SAP {esAG22 ? `(de libre a bloqueado, o al revés, en AG22${conCajas ? " · el envase" : ""})` : conCajas ? "(311 del envase y la estiba · todo a bloqueado)" : "(movimiento 311)"}</h2>
+          <h2 className="cs-h"><i>2</i> Qué hacer en SAP {esAG22 ? "(movimientos de estado en AG22 · envase y cajas juntos)" : conCajas ? "(todo de una: envase, estibas y cajas juntos)" : "(movimiento 311)"}</h2>
           {foco && (() => {
             const donde = listasSap.map((p) => ({ p, f: p.filas.find((x) => x.codigo === foco) })).filter((x) => x.f);
             const fila = filas.find((x) => x.codigo === foco);
@@ -690,52 +721,56 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
             );
           })()}
 
-          {/* ================= A · ENVASE (y estiba): 311 y todo a bloqueado ================= */}
-          {!esAG22 && <span id="p-env" />}
-          {entranEnv.length + salenEnv.length === 0 ? <p className="cs-msg">{esAG22 ? "Todo cuadra: no hay nada que mover en SAP." : "El envase cuadra: no hay nada que mover."}</p> : (
-            <div className="cs-dos">
-              <div className="cs-caja r"><h3>{esAG22 ? "Pasar de Libre a Bloqueado (Mov 344)" : `Pasar de ${OTRO} a ${ALM}`} {cabezaLista(entranEnv, "entran")}</h3>
-                {entranEnv.length ? documentos(entranEnv, "entran") : <p className="cs-vacio">Nada.</p>}
-                {/* «Solo era poner el mensaje: puedo copiar y pegar lo mismo.» Sin lista aparte: los mismos documentos del 311. */}
-                {!esAG22 && !esSimple && entranEnv.length > 0 && (
-                  <div className="cs-antes azul">
-                    <p className="cs-antes-t"><b>Después, en {ALM}: Mov 344 (Libre → Bloqueado)</b>
-                      <span>El 311 deja todo en <b>libre utilización</b>. Con los <b>mismos documentos</b> de arriba (copia y pega igual) haz el 344 en {ALM}, antes de bajar la ZEXI nueva.</span></p>
+          {/* ================= TODO JUNTO: envase, estibas y cajas en cada movimiento de SAP ================= */}
+          <span id="p-env" />
+          {antes311.length + despues311.length + (esAG22 ? 0 : entran.length + salen.length) === 0
+            ? <p className="cs-msg">{esAG22 ? "Todo cuadra: no hay nada que mover en SAP." : "Todo cuadra: no hay nada que mover."}</p> : (
+            <ol className="cs-cajest-pasos cs-todo">
+              {antes311.length > 0 && (
+                <li><b>Antes del 311</b> — lo que sale de {ALM} y no está en libre: pásalo a libre primero (envase y cajas juntos).
+                  {antes311.map((m) => (
+                    <div key={m.cual} className="cs-antes">
+                      <p className="cs-antes-t"><b>Mov {m.mov} en {ALM} ({m.t})</b><span>{cuentaGrupos(m.filas)} {cabezaLista(m.filas, m.cual)}</span></p>
+                      {documentos(m.filas, m.cual)}
+                    </div>
+                  ))}
+                </li>
+              )}
+              {!esAG22 && (
+                <li><b>El 311</b> — envase, estibas y cajas en los mismos documentos.
+                  {entran.length + salen.length === 0 ? <p className="cs-vacio">Todo cuadra en cantidad: no hay 311.</p> : (
+                    <div className="cs-dos">
+                      <div className="cs-caja r"><h3>{`Pasar de ${OTRO} a ${ALM}`} {cabezaLista(entran, "todo-entran")}</h3>
+                        {entran.length ? <><p className="cs-cuenta">{cuentaGrupos(entran)}</p>{documentos(entran, "todo-entran")}</> : <p className="cs-vacio">Nada.</p>}</div>
+                      <div className="cs-caja a"><h3>{`Pasar de ${ALM} a ${OTRO}`} {cabezaLista(salen, "todo-salen")}</h3>
+                        {alertaSinSap(salen)}
+                        {sinReparto && salen.length > 0 && <p className="cs-nota">La ZEXI guardada no dice cuánto está libre o bloqueado: vuelve a subirla para saber si algo necesita 343 antes.</p>}
+                        {salen.length ? <><p className="cs-cuenta">{cuentaGrupos(salen)}</p>{documentos(salen, "todo-salen")}</> : <p className="cs-vacio">Nada.</p>}</div>
+                    </div>
+                  )}
+                </li>
+              )}
+              <li id="p-344"><b>{esAG22 ? "Los movimientos en AG22" : "Después del 311: los estados"}</b> — {esAG22
+                  ? "envase y cajas juntos, en cada movimiento."
+                  : <span>el 311 deja todo en <strong>libre</strong>; con esto el envase y las estibas quedan en bloqueado y cada caja como en el físico. Antes de bajar la ZEXI nueva.</span>}
+                {sinLibreZexi && <p className="cs-nota">La ZEXI guardada no dice cuánto está libre o bloqueado: vuelve a subirla con esas columnas para calcular el 344.</p>}
+                {despues311.length === 0 ? <p className="cs-vacio">Nada: todo queda en su estado.</p> : despues311.map((m) => (
+                  <div key={m.cual} className="cs-antes azul">
+                    <p className="cs-antes-t"><b>Mov {m.mov} en {ALM} ({m.t})</b><span>{cuentaGrupos(m.filas)} {cabezaLista(m.filas, m.cual)}</span></p>
+                    {documentos(m.filas, m.cual)}
                   </div>
-                )}
-              </div>
-              <div className="cs-caja a"><h3>{esAG22 ? "Pasar de Bloqueado a Libre (Mov 343)" : `Pasar de ${ALM} a ${OTRO}`} {cabezaLista(salenEnv, "salen")}</h3>
-                {del343.length > 0 && (
-                  <div className="cs-antes">
-                    <p className="cs-antes-t"><b>Primero, en {ALM}: Mov 343 (Bloqueado → Libre)</b>
-                      <span>{del343.length === 1 ? "Este material está" : "Estos materiales están"} en <b>bloqueado</b> en SAP y lo libre no alcanza para el 311. Haz el 343 por estas cantidades y después el 311 de abajo.</span></p>
-                    {documentos(del343, "salen343")}
-                  </div>
-                )}
-                {alertaSinSap(salenEnv)}
-                {sinReparto && salenEnv.length > 0 && <p className="cs-nota">La ZEXI guardada no dice cuánto está libre o bloqueado: vuelve a subirla para saber si algo necesita 343 antes.</p>}
-                {salenEnv.length ? <>{del343.length > 0 && <p className="cs-antes-311">Luego, el 311 de {ALM} a {OTRO}:</p>}{documentos(salenEnv, "salen")}</> : <p className="cs-vacio">Nada.</p>}
-              </div>
-            </div>
+                ))}
+              </li>
+            </ol>
           )}
 
-          {/* ================= AG17 / AG16: TODO EL ENVASE BLOQUEADO (Mov 344) ================= */}
-          {(esSimple || aBloquear.length > 0) && (
-            <div className="cs-antes azul" id="p-344">
-              <p className="cs-antes-t"><b>Al final, en {ALM}: Mov 344 (Libre → Bloqueado) · {esSimple ? "envase y estibas" : "estibas"}</b>
-                <span>{!esSimple ? <>Las estibas de madera de {ALM} deben quedar en <b>bloqueado</b>: lo libre en SAP más lo que llega del 311 y menos lo que sale. Hazlo después del 311 y antes de bajar la ZEXI nueva.</> : <>Todo el envase y las estibas de madera de {ALM} deben quedar en <b>bloqueado</b>. En el envase es lo que entra por el 311 (el libre de hoy sale al 22 y vuelve a entrar para bloquearse); en las estibas, lo libre en SAP más lo que llega del 311 y menos lo que sale. Hazlo después del 311 y antes de bajar la ZEXI nueva.</>}</span></p>
-              {sinLibreZexi && <p className="cs-nota">La ZEXI guardada no dice cuánto está libre o bloqueado: vuelve a subirla con esas columnas para calcular el 344.</p>}
-              {aBloquear.length ? documentos(aBloquear, "bloq344") : <p className="cs-vacio">{sinLibreZexi ? "—" : "Nada: el envase y las estibas ya están bloqueados."}</p>}
-            </div>
-          )}
-
-          {/* ================= B · CAJAS PLÁSTICAS: 311 y balance por estado ================= */}
-          {conCajas && (<>
-            <h2 className="cs-h" id="p-cajas"><i>3</i> Balancear las cajas <small className="cs-h-s">{esAG22 ? "el balance por estado en AG22" : "el 311 y el balance por estado"}: libre · control-cal · bloqueado</small></h2>
-            <div className="cs-caja cs-cajest">
+          {/* ================= CAJAS PLÁSTICAS: el cálculo por estado (de aquí salen sus movimientos de arriba) ================= */}
+          {conCajas && (
+            <div className="cs-caja cs-cajest" id="p-cajas">
+              <h3>Cajas plásticas por estado · el cálculo <small className="cs-h-s">libre · control-cal · bloqueado (sus movimientos ya están arriba, junto con el envase)</small></h3>
               <p className="cs-cajest-dice">
-                {esSimple ? <>En {ALM} las cajas plásticas también van <b>todas a Bloqueado</b>: el 311 las deja en libre y aquí se pasan a bloqueado. </> : esAG22 ? <>Lo contado en <b>Bodega 38</b>. </> : null}{!esSimple && <>Suelta en <b>BAJA → Bloqueado</b> · suelta en <b>RETORNO → Libre utilización</b> · la caja que lleva el envase → <b>In control-cal</b>.</>}{esAG22 && " Aquí no hay 311: solo se balancean los estados dentro de AG22; lo que no cuadre en cantidad es una diferencia de inventario: libre no se evalúa y el control-cal que sobre, cuando ya no cabe en libre, se bloquea."}
-                Toca un código para verlo resaltado en todos sus movimientos.
+                {esSimple ? <>En {ALM} las cajas plásticas también van <b>todas a Bloqueado</b>: el 311 las deja en libre y se pasan a bloqueado. </> : esAG22 ? <>Lo contado en <b>Bodega 38</b>. </> : null}{!esSimple && <>Suelta en <b>BAJA → Bloqueado</b> · suelta en <b>RETORNO → Libre utilización</b> · la caja que lleva el envase → <b>In control-cal</b>.</>}{esAG22 && " Aquí no hay 311: solo se balancean los estados dentro de AG22; lo que no cuadre en cantidad es una diferencia de inventario: libre no se evalúa y el control-cal que sobre, cuando ya no cabe en libre, se bloquea."}
+                {" "}Toca un código para verlo resaltado en todos sus movimientos.
               </p>
               <div className="cs-scroll">
                 <table className="cs-t chica cs-cajest-t">
@@ -764,40 +799,12 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
                   </tbody>
                 </table>
               </div>
-
-              {/* Los pasos de las cajas, en orden: (lo que pasa a libre si la caja sale) → 311 → estados. */}
-              <ol className="cs-cajest-pasos">
-                {porMov.some((m) => m.antes311) && (
-                  <li><b>Antes del 311</b> — la caja sale de {ALM} y lo libre no alcanza: pásala a libre primero.
-                    {porMov.filter((m) => m.antes311).map((m) => (
-                      <div key={m.cual} className="cs-antes"><p className="cs-antes-t"><b>Mov {m.mov} en {ALM} ({m.t})</b></p>{documentos(m.filas, m.cual)}</div>
-                    ))}
-                  </li>
-                )}
-                {!esAG22 && <li><b>El 311 de las cajas</b>
-                  {entranCaja.length + salenCaja.length === 0 ? <p className="cs-vacio">Las cajas cuadran en cantidad: no hay 311.</p> : (
-                    <div className="cs-dos">
-                      <div className="cs-caja r"><h3>{`Pasar de ${OTRO} a ${ALM}`} {cabezaLista(entranCaja, "caja-entran")}</h3>
-                        {entranCaja.length ? documentos(entranCaja, "caja-entran") : <p className="cs-vacio">Nada.</p>}</div>
-                      <div className="cs-caja a"><h3>{`Pasar de ${ALM} a ${OTRO}`} {cabezaLista(salenCaja, "caja-salen")}</h3>
-                        {alertaSinSap(salenCaja)}
-                        {salenCaja.length ? documentos(salenCaja, "caja-salen") : <p className="cs-vacio">Nada.</p>}</div>
-                    </div>
-                  )}
-                </li>}
-                <li><b>{esAG22 ? "Los estados" : "Después del 311: los estados"}</b> — {esAG22 ? "cada caja queda como en el conteo de Bodega 38." : "el 311 deja todo en libre; con esto cada caja queda como en el físico."}
-                  {porMov.filter((m) => !m.antes311).length === 0 ? <p className="cs-vacio">Los estados ya quedan como el físico.</p>
-                    : porMov.filter((m) => !m.antes311).map((m) => (
-                      <div key={m.cual} className="cs-antes azul"><p className="cs-antes-t"><b>Mov {m.mov} en {ALM} ({m.t})</b></p>{documentos(m.filas, m.cual)}</div>
-                    ))}
-                </li>
-              </ol>
             </div>
-          </>)}
+          )}
 
           <div className="cs-subir" id="p-zexi">
             <div>
-              <b>{conMov ? `Lo de después de ${MOV} está cargado` : conCajas ? `Ya hiciste el ${MOV} y los estados de las cajas en SAP: baja la ZEXI nueva y súbela aquí` : `Ya hiciste ${MOV} en SAP: baja la ZEXI nueva y súbela aquí`}</b>
+              <b>{conMov ? `Lo de después de ${MOV} está cargado` : `Ya hiciste los movimientos en SAP: baja la ZEXI nueva y súbela aquí`}</b>
               <small>{conMov
                 ? `${guardado!.mov_archivo} · ${guardado!.movimientos!.length} materiales · ${hora(guardado!.mov_en)} · documentos ${[...new Set(guardado!.movimientos!.flatMap((m) => m.documentos))].join(", ") || "—"}`
                 : `La ZEXI de ${ALM} bajada después de ${MOV}${esAG22 ? "" : " (o el archivo de movimientos 311 de SAP)"}. La app la compara con ${esAG22 ? "la base" : "el conteo"} y dice si quedó balanceado.`}</small>
@@ -814,7 +821,7 @@ export function Cuadre({ fecha, dias, filas, guardado, estibasBodega, avisos, er
       {/* ---------- PASO 3 ---------- */}
       {conZexi && conMov && (
         <>
-          <h2 className="cs-h"><i>{conCajas ? 4 : 3}</i> Cómo quedó</h2>
+          <h2 className="cs-h"><i>3</i> Cómo quedó</h2>
           <div className="cs-k dos">
             <div><span>Balanceados</span><b className="bien">{balanceados.length} de {filas.filter((f) => f.queda != null).length}</b></div>
             <div><span>Pendientes</span><b className={pendientes.length ? "mal" : "bien"}>{pendientes.length}</b></div>
