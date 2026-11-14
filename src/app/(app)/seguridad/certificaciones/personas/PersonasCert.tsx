@@ -17,7 +17,7 @@ import {
 } from "@/modulos/seguridad/certificaciones";
 import type { Empresa, EventoPersona, Grupo, Responsable, Validador, ValidacionPersona } from "@/modulos/seguridad/datos";
 import { Ventana } from "../Ventana";
-import { asignarGrupo, cambiarEstado, fichaPersona, registrarValidacion, type Registro } from "../actions";
+import { asignarResponsables, asignarGrupo, cambiarEstado, fichaPersona, registrarValidacion, type Registro } from "../actions";
 
 const nf = new Intl.NumberFormat("es-CO");
 const CORTO = ["Alt", "Cal", "SQ", "360", "Elé", "EC", "Izj", "HPRM"];
@@ -48,6 +48,14 @@ export function PersonasCert(P: Props) {
   const [sel, setSel] = useState<string | null>(P.renovar ?? P.abrir ?? null);
   const [registro, setRegistro] = useState<{ cedula?: string } | null>(P.renovar && P.puedeEditar ? { cedula: P.renovar } : null);
   const [aviso, setAviso] = useState<{ t: string; mal?: boolean } | null>(null);
+  const [resp, setResp] = useState("");
+  /* LA SELECCIÓN DE LA MATRIZ: varias filas para asignarles Interventor ABI y Coordinador de una vez. */
+  const [marca, setMarca] = useState<Set<string>>(new Set());
+  const [aIv, setAIv] = useState(""), [aCo, setACo] = useState("");
+  const [pendA, startA] = useTransition();
+  const interv = P.responsables.filter((r) => r.tipo === "interventor" && r.activo);
+  const coord = P.responsables.filter((r) => r.tipo === "coordinador" && r.activo && (!aIv || r.interventor_id === aIv));
+  const nombresIv = [...new Set(personas.map((p) => p.interventor).filter(Boolean) as string[])].sort();
 
   const cuenta = useMemo(() => {
     const c: Record<string, number> = { TODOS: personas.length };
@@ -62,9 +70,19 @@ export function PersonasCert(P: Props) {
       (!empresa || claveTexto(p.empresa) === claveTexto(empresa)) &&
       (!permiso || p.permisos.includes(permiso)) &&
       (!vence || u === vence) &&
+      (!resp || (resp === "-" ? !p.interventor && !p.coordinador : p.interventor === resp)) &&
       (!busca || claveTexto(`${p.nombre} ${p.cedula}`).includes(claveTexto(busca))))
-    .sort((a, b) => a.dias - b.dias || a.p.nombre.localeCompare(b.p.nombre, "es")), [personas, hoy, config, estado, empresa, permiso, vence, busca]);
-  useEffect(() => setVer(PAGINA), [estado, empresa, permiso, vence, busca]);
+    .sort((a, b) => a.dias - b.dias || a.p.nombre.localeCompare(b.p.nombre, "es")), [personas, hoy, config, estado, empresa, permiso, vence, busca, resp]);
+  useEffect(() => setVer(PAGINA), [estado, empresa, permiso, vence, busca, resp]);
+  const todasMarcadas = filas.length > 0 && filas.every(({ p }) => marca.has(p.cedula));
+  const alternar = (c: string) => setMarca((m) => { const n = new Set(m); if (n.has(c)) n.delete(c); else n.add(c); return n });
+  function asignar(quitar = false) {
+    const ced = [...marca];
+    startA(async () => {
+      const r = await asignarResponsables(ced, quitar ? null : aIv || null, quitar ? null : aCo || null);
+      if (r.error) decir(r.error, true); else { decir(r.ok ?? "Listo."); setMarca(new Set()) }
+    });
+  }
 
   const persona = sel ? personas.find((p) => p.cedula === sel) ?? null : null;
   const decir = (t: string, mal = false) => { setAviso({ t, mal }); window.setTimeout(() => setAviso(null), 4500) };
@@ -104,19 +122,45 @@ export function PersonasCert(P: Props) {
         <select value={vence} onChange={(e) => setVence(e.target.value)} aria-label="Vencimiento">
           {VENCE.map((v) => <option key={v.k} value={v.k}>{v.t}</option>)}
         </select>
+        <select value={resp} onChange={(e) => setResp(e.target.value)} aria-label="Interventor ABI">
+          <option value="">Cualquier interventor</option>
+          <option value="-">Sin interventor ni coordinador</option>
+          {nombresIv.map((n) => <option key={n} value={n}>{n}</option>)}
+        </select>
         <input type="search" placeholder="Nombre o cédula" value={busca} onChange={(e) => setBusca(e.target.value)} aria-label="Buscar persona" />
       </div>
+
+      {P.puedeEditar && marca.size > 0 && (
+        <div className="sg-asignar" role="region" aria-label="Asignar a las personas escogidas">
+          <b>{marca.size} {marca.size === 1 ? "persona escogida" : "personas escogidas"}</b>
+          <select value={aIv} onChange={(e) => { setAIv(e.target.value); if (e.target.value && P.responsables.find((r) => r.id === aCo)?.interventor_id !== e.target.value) setACo("") }} aria-label="Interventor ABI">
+            <option value="">Interventor ABI…</option>
+            {interv.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
+          </select>
+          <span aria-hidden>→</span>
+          <select value={aCo} onChange={(e) => { setACo(e.target.value); const c = P.responsables.find((r) => r.id === e.target.value); if (c?.interventor_id) setAIv(c.interventor_id) }} aria-label="Coordinador de la contratista">
+            <option value="">Coordinador…</option>
+            {coord.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
+          </select>
+          <button type="button" className="sg-bt osc" disabled={pendA || (!aIv && !aCo)} onClick={() => asignar()}>{pendA ? "Guardando…" : "Asignar"}</button>
+          <button type="button" className="sg-bt" disabled={pendA} onClick={() => asignar(true)} title="Vuelven a responder a los de su grupo o su empresa">Quitar asignación</button>
+          <button type="button" className="sg-bt" onClick={() => setMarca(new Set())}>Limpiar</button>
+          {interv.length === 0 && <small>Primero agrega interventores y coordinadores en Maestro › Responsables.</small>}
+        </div>
+      )}
 
       <div className={"sg-split" + (persona ? "" : " solo")}>
         <section className="sg-card">
           {filas.length === 0 ? <p className="sg-vacio">Nadie con esos filtros.</p> : (
             <div className="sg-tabla-rueda">
               <table className="sg-tabla">
-                <thead><tr><th>Persona</th><th>Empresa</th><th>Estado</th><th>Nivel</th><th>Permisos</th><th className="n">Expedición</th><th>Vence</th><th>Interventor ABI · Coordinador</th></tr></thead>
+                <thead><tr>{P.puedeEditar && <th className="ck"><input type="checkbox" checked={todasMarcadas} aria-label="Escoger todas las de este filtro"
+                  onChange={() => setMarca((m) => { const n = new Set(m); for (const { p } of filas) { if (todasMarcadas) n.delete(p.cedula); else n.add(p.cedula) } return n })} /></th>}<th>Persona</th><th>Empresa</th><th>Estado</th><th>Nivel</th><th>Permisos</th><th className="n">Expedición</th><th>Vence</th><th>Interventor ABI · Coordinador</th></tr></thead>
                 <tbody>
                   {filas.slice(0, ver).map(({ p, dias, u }) => (
-                    <tr key={p.cedula} className={sel === p.cedula ? "sel" : ""} onClick={() => setSel(sel === p.cedula ? null : p.cedula)}
+                    <tr key={p.cedula} className={(sel === p.cedula ? "sel" : "") + (marca.has(p.cedula) ? " marcada" : "")} onClick={() => setSel(sel === p.cedula ? null : p.cedula)}
                         tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter") setSel(p.cedula) }}>
+                      {P.puedeEditar && <td className="ck" onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={marca.has(p.cedula)} onChange={() => alternar(p.cedula)} aria-label={`Escoger a ${p.nombre}`} /></td>}
                       <td className="sg-pp"><b>{p.nombre}</b><small>CC {p.cedula}</small></td>
                       <td>{p.empresa}</td>
                       <td><span className={"sg-st " + p.estado.split(" ")[0]}>{p.estado.charAt(0) + p.estado.slice(1).toLowerCase()}</span></td>
@@ -127,7 +171,7 @@ export function PersonasCert(P: Props) {
                         <div className="bar"><i style={{ width: `${Math.max(0, Math.min(100, (dias / config.vigencia) * 100))}%`, background: URGENCIA[u].color }} /></div>
                         <span style={{ color: u === "vencida" ? "#C8102E" : URGENCIA[u].texto }}><b>{fechaCorta(p.vencimiento)}</b> {dias < 0 ? `−${-dias}` : dias} d</span>
                       </td>
-                      <td className="sg-resp-c">{p.interventor || p.coordinador ? <><b>{p.interventor ?? "—"}</b><br />{p.coordinador ?? "—"}</> : <em>sin asignar</em>}</td>
+                      <td className="sg-resp-c">{p.interventor || p.coordinador ? <><b>{p.interventor ?? "—"}</b><br />↳ {p.coordinador ?? "—"}{(p.interventor_propio_id || p.coordinador_propio_id) && <i className="sg-propio" title="Asignado a la persona (no por su empresa)">propio</i>}</> : <em>sin asignar</em>}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -135,7 +179,7 @@ export function PersonasCert(P: Props) {
             </div>
           )}
           <div className="sg-pie-tabla">
-            <span>{nf.format(Math.min(ver, filas.length))} de {nf.format(filas.length)} personas</span>
+            <span>{nf.format(Math.min(ver, filas.length))} de {nf.format(filas.length)} personas{marca.size > 0 ? ` · ${marca.size} escogidas` : ""}</span>
             {filas.length > ver && <button type="button" className="sg-bt" onClick={() => setVer((v) => v + PAGINA)}>Ver {Math.min(PAGINA, filas.length - ver)} más</button>}
           </div>
         </section>

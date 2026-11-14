@@ -54,6 +54,22 @@ export async function asignarGrupo(cedulas: string[], grupoId: string | null): P
   return { ok: `${cedulas.length} ${cedulas.length === 1 ? "persona" : "personas"} ${grupoId ? "en el grupo" : "con los responsables de su empresa"}.` };
 }
 
+/** Desde la matriz: a varias personas a la vez se les pone su Interventor ABI y su Coordinador (o se les quita,
+ *  y vuelven a responder a los de su grupo o su empresa). */
+export async function asignarResponsables(cedulas: string[], interventorId: string | null, coordinadorId: string | null): Promise<R> {
+  if (!cedulas.length) return { error: "Escoge al menos una persona." };
+  const sb = await createClient();
+  const nombre = async (id: string | null) => id ? ((await sb.from("seg_responsables").select("nombre").eq("id", id).maybeSingle()).data?.nombre as string | undefined) ?? "—" : null;
+  const { error } = await sb.from("seg_personas").update({ interventor_id: interventorId, coordinador_id: coordinadorId, actualizado: new Date().toISOString() }).in("cedula", cedulas);
+  if (error) return { error: error.message };
+  const [iv, co] = await Promise.all([nombre(interventorId), nombre(coordinadorId)]);
+  const detalle = interventorId || coordinadorId ? `Responde a ${iv ?? "—"} → ${co ?? "—"}` : "Vuelve a los responsables de su grupo o empresa";
+  await sb.from("seg_eventos").insert(cedulas.map((cedula) => ({ cedula, tipo: "responsable", detalle })));
+  refrescar();
+  const n = cedulas.length;
+  return { ok: interventorId || coordinadorId ? `${n} ${n === 1 ? "persona asignada" : "personas asignadas"} a ${iv ?? "—"} → ${co ?? "—"}.` : `${n} ${n === 1 ? "persona vuelve" : "personas vuelven"} a los responsables de su empresa.` };
+}
+
 /* ---------------------------- BASE (IMPORTAR) ---------------------------- */
 export type FilaImporte = {
   cedula: string; nombre: string; empresa: string; departamento: string; estado: string; motivo: string | null;

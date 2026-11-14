@@ -165,6 +165,15 @@
 .sg-tabla tr.sel td:first-child { box-shadow: inset 4px 0 0 var(--sg-marca) }
 .sg-tabla .n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums }
 .sg-tabla th input, .sg-tabla td input[type=checkbox] { width: 18px; height: 18px; accent-color: #0d0d0d }
+.sg-tabla th.ck, .sg-tabla td.ck { width: 34px; padding-right: 0; cursor: default }
+.sg-tabla tr.marcada td { background: #FFF6E3 }
+.sg-propio { display: inline-block; margin-left: 6px; padding: 0 5px; font: 800 9.5px var(--sg-texto); font-style: normal; letter-spacing: .08em; text-transform: uppercase; background: var(--sg-crema); color: var(--sg-ocre-txt) }
+/* LA BARRA DE ASIGNAR: aparece al escoger filas; se queda pegada arriba mientras se baja por la matriz. */
+.sg-asignar { position: sticky; top: 8px; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; background: #fff; border: 1.5px solid var(--sg-tinta); box-shadow: inset 4px 0 0 var(--sg-amarillo), 0 8px 20px rgba(0, 0, 0, .12) }
+.sg-asignar b { font: 900 14px var(--sg-titulo); margin-right: 6px }
+.sg-asignar select { min-height: 40px; padding: 0 10px; border: 1.5px solid var(--sg-linea); background: #fff; font: 600 13px var(--sg-texto); min-width: 180px }
+.sg-asignar span { font-weight: 900; color: var(--sg-ocre) }
+.sg-asignar small { flex-basis: 100%; color: var(--sg-gris) }
 .sg-pp b { display: block; font-size: 13px }
 .sg-pp small, .sg-sm { color: var(--sg-gris); font-size: 11px }
 .sg-st { padding: 2px 8px; font-size: 11px; font-weight: 800; white-space: nowrap }

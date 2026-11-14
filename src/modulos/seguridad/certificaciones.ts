@@ -43,9 +43,12 @@ export type PersonaCert = {
   validador?: string | null;
   estado: string;
   motivo?: string | null;
-  /** A quién se le exige: el de su grupo si está en uno; si no, el de su empresa. */
+  /** A quién se le exige: el puesto a la persona; si no, el de su grupo; si no, el de su empresa. */
   interventor?: string | null;
   coordinador?: string | null;
+  /** Lo puesto a la persona misma desde la matriz (manda sobre grupo y empresa). */
+  interventor_propio_id?: string | null;
+  coordinador_propio_id?: string | null;
   empresa_id?: string | null;
   grupo_id?: string | null;
   grupo?: string | null;
