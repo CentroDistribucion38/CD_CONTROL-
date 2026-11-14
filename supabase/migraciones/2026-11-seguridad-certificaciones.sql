@@ -146,24 +146,24 @@ begin
   foreach t in array array['seg_reglas','seg_responsables','seg_validadores','seg_empresas','seg_grupos','seg_personas','seg_validaciones','seg_eventos'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('drop policy if exists %I on public.%I', t || '_ver', t);
-    execute format('create policy %I on public.%I for select to authenticated using (public.seg_ve())', t || '_ver', t);
+    execute format('create policy %I on public.%I for select to authenticated using ((select public.seg_ve()))', t || '_ver', t);
   end loop;
   -- El Maestro configura
   foreach t in array array['seg_reglas','seg_responsables','seg_validadores','seg_empresas','seg_grupos'] loop
     execute format('drop policy if exists %I on public.%I', t || '_editar', t);
-    execute format('create policy %I on public.%I for all to authenticated using (public.seg_edita(''/seguridad/certificaciones/maestro'')) with check (public.seg_edita(''/seguridad/certificaciones/maestro''))', t || '_editar', t);
+    execute format('create policy %I on public.%I for all to authenticated using ((select public.seg_edita(''/seguridad/certificaciones/maestro''))) with check ((select public.seg_edita(''/seguridad/certificaciones/maestro'')))', t || '_editar', t);
   end loop;
 end $$;
 -- Personas y validaciones se escriben por las funciones de abajo (registrar, importar, estado); quien tiene
 -- «Personas» en editar también puede asignar el grupo directo.
 drop policy if exists seg_personas_grupo on public.seg_personas;
 create policy seg_personas_grupo on public.seg_personas for update to authenticated
-  using (public.seg_edita('/seguridad/certificaciones/personas') or public.seg_edita('/seguridad/certificaciones/maestro'))
-  with check (public.seg_edita('/seguridad/certificaciones/personas') or public.seg_edita('/seguridad/certificaciones/maestro'));
+  using ((select public.seg_edita('/seguridad/certificaciones/personas') or public.seg_edita('/seguridad/certificaciones/maestro')))
+  with check ((select public.seg_edita('/seguridad/certificaciones/personas') or public.seg_edita('/seguridad/certificaciones/maestro')));
 
 drop policy if exists seg_eventos_anotar on public.seg_eventos;
 create policy seg_eventos_anotar on public.seg_eventos for insert to authenticated
-  with check (public.seg_edita('/seguridad/certificaciones/personas') or public.seg_edita('/seguridad/certificaciones/maestro'));
+  with check ((select public.seg_edita('/seguridad/certificaciones/personas') or public.seg_edita('/seguridad/certificaciones/maestro')));
 
 grant select, insert, update, delete on public.seg_reglas, public.seg_responsables, public.seg_validadores,
   public.seg_empresas, public.seg_grupos, public.seg_personas, public.seg_validaciones, public.seg_eventos to authenticated;
