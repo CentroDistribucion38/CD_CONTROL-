@@ -161,20 +161,61 @@ export function armarTablero(personas: PersonaCert[], hoy: string, config: Confi
 export const permisosTexto = (p: string[]) => p.map((k) => PERMISOS.find((x) => x.k === k)?.t ?? k).join(" · ");
 export const diasTexto = (d: number) => (d < 0 ? `venció hace ${-d} ${d === -1 ? "día" : "días"}` : d === 0 ? "vence hoy" : d === 1 ? "vence mañana" : `vence en ${d} días`);
 
-/** Para pegar en WhatsApp o en un correo: por responsable y empresa, cada persona con su fecha. */
-export function textoAlertas(t: TableroCert): string {
-  const L: string[] = [];
-  L.push(`*LICENCIAS VACA · LOGÍSTICA* — ${fechaCorta(t.hoy)}`);
-  L.push(`⚫ Vencidas trabajando: ${t.vencidas} · 🟤 Vencen en ${t.config.diasCriticos} días: ${t.criticas} · 🟡 Vencen este mes: ${t.avisos}`);
-  for (const g of t.grupos) {
+/* =============================== COPIAR (WhatsApp / correo) ===============================
+ * TRES LISTAS, UNA POR COLUMNA: vencidas y trabajando, vencen en 7 días, vencen este mes. Cada una se copia sola
+ * y va por la cadena del aviso: Interventor ABI → su Coordinador de la contratista → empresa → personas numeradas. */
+const LISTA: Record<Exclude<Urgencia, "vigente">, { punto: string; titulo: (c: ConfigCert) => string; nota: string }> = {
+  vencida: { punto: "⚫", titulo: () => "VENCIDAS Y TRABAJANDO", nota: "Exigir hoy: sin licencia vigente no pueden seguir trabajando." },
+  critica: { punto: "🟤", titulo: (c) => `VENCEN EN ${c.diasCriticos} DÍAS`, nota: "Renovar esta semana." },
+  aviso: { punto: "🟡", titulo: () => "VENCEN ESTE MES", nota: "Programar la renovación antes de la fecha." },
+};
+const cuando = (a: Alerta) =>
+  a.dias < 0 ? `venció ${fechaCorta(a.vencimiento)} (hace ${-a.dias} ${a.dias === -1 ? "día" : "días"})`
+    : a.dias === 0 ? `vence HOY ${fechaCorta(a.vencimiento)}`
+      : `vence ${fechaCorta(a.vencimiento)} (${a.dias === 1 ? "mañana" : `en ${a.dias} días`})`;
+
+/** Una lista: solo las personas de esa columna, por responsable y empresa. */
+export function textoLista(t: TableroCert, u: Exclude<Urgencia, "vigente">, deptos = "LOGÍSTICA"): string {
+  const L0 = LISTA[u];
+  const gente = t.alertas.filter((a) => a.urgencia === u);
+  const L: string[] = [`${L0.punto} *${L0.titulo(t.config)} · ${gente.length}*`, `Licencias VACA · ${deptos} · ${fechaCorta(t.hoy)}`];
+  if (!gente.length) { L.push("", "Nadie en esta lista. ✅"); return L.join("\n") }
+  L.push(`_${L0.nota}_`);
+  /* LA CADENA: interventor → sus coordinadores → empresas → personas. Los sin asignar, al final. */
+  type Emp = Map<string, Alerta[]>;
+  const ivs = new Map<string, Map<string, Emp>>();
+  for (const a of gente) {
+    const iv = bonito(a.interventor), co = bonito(a.coordinador);
+    const cos = ivs.get(iv) ?? ivs.set(iv, new Map()).get(iv)!;
+    const emp = cos.get(co) ?? cos.set(co, new Map()).get(co)!;
+    const e = bonito(a.empresa).toUpperCase();
+    emp.set(e, [...(emp.get(e) ?? []), a]);
+  }
+  const cuenta = (m: Map<string, unknown>): number =>
+    [...m.values()].reduce<number>((n, v) => n + (Array.isArray(v) ? v.length : cuenta(v as Map<string, unknown>)), 0);
+  const orden = <T,>(m: Map<string, T>) => [...m].sort((a, b) => Number(a[0] === "") - Number(b[0] === "") || cuenta(b[1] as Map<string, unknown>) - cuenta(a[1] as Map<string, unknown>) || a[0].localeCompare(b[0], "es"));
+  let n = 0;
+  for (const [iv, cos] of orden(ivs)) {
     L.push("");
-    L.push(g.interventor || g.coordinador ? `*Interventor ABI:* ${g.interventor ?? "—"} · *Coordinador de la contratista:* ${g.coordinador ?? "—"}` : "*Sin responsable asignado*");
-    for (const e of g.empresas) {
-      L.push(`_${e.empresa}_`);
-      for (const a of e.personas) L.push(`${a.urgencia === "vencida" ? "⚫" : a.urgencia === "critica" ? "🟤" : "🟡"} ${a.nombre} · CC ${a.cedula} · ${fechaCorta(a.vencimiento)} (${diasTexto(a.dias)})`);
+    L.push(iv ? `👷 *Interventor ABI: ${iv}* (${cuenta(cos)})` : `👷 *Sin Interventor ABI asignado* (${cuenta(cos)})`);
+    for (const [co, emps] of orden(cos)) {
+      L.push(co ? `↳ *Coordinador: ${co}*` : "↳ *Sin coordinador asignado*");
+      for (const [emp, lista] of [...emps].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0], "es"))) {
+        L.push(`_${emp}_ (${lista.length})`);
+        for (const a of lista) L.push(`${++n}. ${bonito(a.nombre).toUpperCase()} · CC ${a.cedula} · ${cuando(a)}`);
+      }
     }
   }
   return L.join("\n");
+}
+
+/** Las tres listas seguidas, en orden de urgencia. */
+export function textoAlertas(t: TableroCert, deptos = "LOGÍSTICA"): string {
+  return [
+    `*LICENCIAS VACA · ${deptos}* — ${fechaCorta(t.hoy)}`,
+    `⚫ Vencidas trabajando: ${t.vencidas} · 🟤 Vencen en ${t.config.diasCriticos} días: ${t.criticas} · 🟡 Vencen este mes: ${t.avisos}`,
+    ...(["vencida", "critica", "aviso"] as const).map((u) => "\n— — — — —\n" + textoLista(t, u, deptos)),
+  ].join("\n");
 }
 
 /* =============================== INDICADORES =============================== */

@@ -8,7 +8,7 @@
  */
 import { useMemo, useRef, useState } from "react";
 import {
-  URGENCIA, armarTablero, claveTexto, fechaCorta, textoAlertas, PERMISOS,
+  URGENCIA, armarTablero, claveTexto, fechaCorta, textoAlertas, textoLista, PERMISOS,
   type Alerta, type ConfigCert, type PersonaCert, type Urgencia,
 } from "@/modulos/seguridad/certificaciones";
 import { logoMarca, useFotoCompartir } from "@/components/FotoCompartir";
@@ -47,8 +47,12 @@ export function AlertasCert({ personas, hoy, config, departamentos }: {
     return { lienzo: dibujarTableroCert(t, { paleta: leerPaleta(caja.current), logo }), nombre: nombreTableroCert(hoy) };
   }, "Licencias VACA", { dashboard: "Alertas" }, undefined, ["dashboard"]);
 
-  async function copiar() {
-    try { await navigator.clipboard.writeText(textoAlertas(t)); setAviso("Alertas copiadas. Pégalas en WhatsApp o en el correo.") }
+  const DEPTO = departamentos.join(", ").replace("LOGISTICA", "LOGÍSTICA");
+  /* Se copia cada lista sola (vencidas, 7 días, este mes) o las tres seguidas. */
+  async function copiar(u?: "vencida" | "critica" | "aviso") {
+    const txt = u ? textoLista(t, u, DEPTO) : textoAlertas(t, DEPTO);
+    const nom = u ? COLS.find((c) => c.k === u)!.t.toLowerCase() : "las tres listas";
+    try { await navigator.clipboard.writeText(txt); setAviso(`Copiado: ${nom}. Pégalo en WhatsApp o en el correo.`) }
     catch { setAviso("Este navegador no dejó copiar.") }
     window.setTimeout(() => setAviso(null), 3500);
   }
@@ -64,7 +68,7 @@ export function AlertasCert({ personas, hoy, config, departamentos }: {
           <b title={a.nombre}>{a.nombre}</b>
           <small>{a.empresa} · CC {a.cedula}{a.nivel ? ` · ${a.nivel}` : ""}</small>
           {a.permisos.length > 0 && <div className="sg-pm">{a.permisos.map((k) => <i key={k}>{PERMISOS.find((x) => x.k === k)?.t ?? k}</i>)}</div>}
-          <div className="sg-tj-r">{a.interventor || a.coordinador ? `${a.interventor ?? "—"} · ${a.coordinador ?? "—"}` : "Sin interventor ABI ni coordinador"}</div>
+          <div className="sg-tj-r">{a.interventor || a.coordinador ? `${a.interventor ?? "Sin interventor"} → ${a.coordinador ?? "sin coordinador"}` : "Sin interventor ABI ni coordinador"}</div>
         </div>
         <div className="sg-tj-f">{fechaCorta(a.vencimiento)}</div>
       </div>
@@ -82,8 +86,8 @@ export function AlertasCert({ personas, hoy, config, departamentos }: {
           </p>
         </div>
         <div className="sg-acc">
-          <button type="button" className="sg-bt" onClick={copiar} disabled={!t.alertas.length}>
-            <svg viewBox="0 0 24 24" aria-hidden><rect x="8" y="8" width="12" height="12" /><path d="M16 8V4H4v12h4" /></svg>Copiar alertas
+          <button type="button" className="sg-bt" onClick={() => copiar()} disabled={!t.alertas.length}>
+            <svg viewBox="0 0 24 24" aria-hidden><rect x="8" y="8" width="12" height="12" /><path d="M16 8V4H4v12h4" /></svg>Copiar las 3 listas
           </button>
           <button type="button" className="sg-bt osc" onClick={() => foto.abrir("dashboard")} disabled={foto.armando != null}>
             <svg viewBox="0 0 24 24" aria-hidden><rect x="3" y="5" width="18" height="14" /><circle cx="9" cy="11" r="2" /><path d="M21 16l-5-5-8 8" /></svg>
@@ -111,7 +115,12 @@ export function AlertasCert({ personas, hoy, config, departamentos }: {
           const ver = abiertas[c.k] ? L : L.slice(0, MOSTRAR);
           return (
             <section key={c.k} className={"sg-kb-col " + c.k} aria-label={c.t}>
-              <header><span>{c.t}</span><b>{L.length}</b><small>{c.sub}</small></header>
+              <header>
+                <span>{c.t}</span><b>{L.length}</b><small>{c.sub}</small>
+                <button type="button" className="sg-kb-copiar" onClick={() => copiar(c.k)} disabled={!L.length} aria-label={`Copiar la lista: ${c.t}`}>
+                  <svg viewBox="0 0 24 24" aria-hidden><rect x="8" y="8" width="12" height="12" /><path d="M16 8V4H4v12h4" /></svg>Copiar lista
+                </button>
+              </header>
               <div className="sg-kb-lista">
                 {L.length === 0 && <div className="sg-kb-nada">Nadie en esta columna.</div>}
                 {ver.map(tarjeta)}
