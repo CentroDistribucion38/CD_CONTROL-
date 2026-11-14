@@ -33,6 +33,8 @@ type Props = {
   personas: PersonaCert[]; hoy: string; config: ConfigCert & { departamentos: string[] };
   empresas: Empresa[]; grupos: Grupo[]; responsables: Responsable[]; validadores: Validador[];
   puedeEditar: boolean;
+  /** Llegar desde una alerta: ?cedula= abre su ficha; ?renovar= abre de una el registro de la renovación. */
+  abrir?: string; renovar?: string;
 };
 
 export function PersonasCert(P: Props) {
@@ -43,8 +45,8 @@ export function PersonasCert(P: Props) {
   const [vence, setVence] = useState("");
   const [busca, setBusca] = useState("");
   const [ver, setVer] = useState(PAGINA);
-  const [sel, setSel] = useState<string | null>(null);
-  const [registro, setRegistro] = useState<{ cedula?: string } | null>(null);
+  const [sel, setSel] = useState<string | null>(P.renovar ?? P.abrir ?? null);
+  const [registro, setRegistro] = useState<{ cedula?: string } | null>(P.renovar && P.puedeEditar ? { cedula: P.renovar } : null);
   const [aviso, setAviso] = useState<{ t: string; mal?: boolean } | null>(null);
 
   const cuenta = useMemo(() => {
@@ -221,7 +223,10 @@ function RegistrarValidacion({ inicial, personas, hoy, config, empresas, grupos,
   });
   const [error, setError] = useState<string | null>(null);
   const [pend, start] = useTransition();
-  const ced = f.cedula.replace(/[^0-9A-Za-z]/g, "");
+  /* EL CAMPO BUSCA POR CÉDULA O POR NOMBRE: con letras, sale la lista de quienes coinciden y se toca uno. */
+  const porNombre = /[A-Za-zÁÉÍÓÚÑáéíóúñ]{2,}/.test(f.cedula);
+  const ced = porNombre ? "" : f.cedula.replace(/[^0-9A-Za-z]/g, "");
+  const parecidos = porNombre ? personas.filter((p) => claveTexto(p.nombre).includes(claveTexto(f.cedula))).slice(0, 6) : [];
   const ya = personas.find((p) => p.cedula === ced) ?? null;
 
   /* SI LA CÉDULA YA ESTÁ, SE CARGA LO QUE SE SABE: es una renovación, no una persona nueva. */
@@ -260,8 +265,17 @@ function RegistrarValidacion({ inicial, personas, hoy, config, empresas, grupos,
       </>}>
       <div className="sg-mo-b">
         <div className="sg-campo full">
-          <label htmlFor="sg-ced">CÉDULA</label>
-          <input id="sg-ced" inputMode="numeric" value={f.cedula} onChange={(e) => set("cedula", e.target.value)} autoFocus={!inicial} />
+          <label htmlFor="sg-ced">CÉDULA O NOMBRE</label>
+          <input id="sg-ced" value={f.cedula} onChange={(e) => set("cedula", e.target.value)} autoFocus={!inicial} placeholder="Escribe la cédula o el nombre para buscar" />
+          {porNombre && (parecidos.length
+            ? <div className="sg-parecidos" role="listbox" aria-label="Personas que coinciden">
+                {parecidos.map((p) => (
+                  <button key={p.cedula} type="button" role="option" aria-selected={false} onClick={() => set("cedula", p.cedula)}>
+                    <b>{p.nombre}</b><span>CC {p.cedula} · {p.empresa} · vence {fechaCorta(p.vencimiento)}</span>
+                  </button>
+                ))}
+              </div>
+            : <p className="sg-hit nuevo">Nadie con ese nombre. Para una persona nueva, escribe su cédula.</p>)}
           {ced && (ya
             ? <p className="sg-hit">Ya está en la base: <b>{ya.nombre}</b> · {ya.empresa} · {diasEntre(hoy, ya.vencimiento) < 0 ? `venció el ${fechaLarga(ya.vencimiento)}` : `vence el ${fechaLarga(ya.vencimiento)}`}.
                 {esRenov ? <> Con una fecha nueva esto es una <b>RENOVACIÓN</b>: la licencia anterior queda en su historial.</> : <> Con la misma fecha de expedición se <b>corrige</b> esa validación.</>}</p>

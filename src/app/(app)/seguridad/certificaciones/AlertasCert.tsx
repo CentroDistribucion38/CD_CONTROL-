@@ -7,6 +7,7 @@
  * WhatsApp/correo) e Imagen (copiar, compartir, descargar), como los cierres de turno.
  */
 import { useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import {
   URGENCIA, armarTablero, claveTexto, fechaCorta, textoAlertas, textoLista, PERMISOS,
   type Alerta, type ConfigCert, type PersonaCert, type Urgencia,
@@ -70,7 +71,11 @@ export function AlertasCert({ personas, hoy, config, departamentos }: {
           {a.permisos.length > 0 && <div className="sg-pm">{a.permisos.map((k) => <i key={k}>{PERMISOS.find((x) => x.k === k)?.t ?? k}</i>)}</div>}
           <div className="sg-tj-r">{a.interventor || a.coordinador ? `${a.interventor ?? "Sin interventor"} → ${a.coordinador ?? "sin coordinador"}` : "Sin interventor ABI ni coordinador"}</div>
         </div>
-        <div className="sg-tj-f">{fechaCorta(a.vencimiento)}</div>
+        <div className="sg-tj-f">
+          {fechaCorta(a.vencimiento)}
+          {/* Ya la validaron: se registra la renovación de una, sin buscarla. */}
+          <Link href={`/seguridad/certificaciones/personas?renovar=${a.cedula}`} className="sg-renovar" title={`Registrar la renovación de ${a.nombre}`}>Renovar →</Link>
+        </div>
       </div>
     );
   };
