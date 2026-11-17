@@ -336,13 +336,21 @@ export function Maestro({ tipos, puntos, placas, faltantes, uso, puedeEditar }: 
           <Lista filas={filasTipos} puedeEditar={puedeEditar} mandando={mandando}
                  sinUso={uso.falta} sinSub
                  alOrdenar={(cs) => ordenar("traspaso_ordenar_tipos", cs)}
-                 bandera={{
+                 bandera={[{
                    rotulo: "Lleva vidrio en tolvas",
                    marca: "vidrio",
                    puesta: (c) => tipos.find((t) => t.clave === c)?.lleva_vidrio === true,
                    alCambiar: (c, v) =>
                      cambiar("traspasos_tipos", "clave", c, { lleva_vidrio: v }),
-                 }}
+                 }, {
+                   /* «Que salgan los SKU con inventario y la cantidad que se puede despachar»: el tipo pide
+                      SKU + estibas del casco de vidrio de la bodega de origen y se descuenta con el DOC. */
+                   rotulo: "Pide SKU del casco de vidrio",
+                   marca: "casco",
+                   puesta: (c) => tipos.find((t) => t.clave === c)?.materiales === "casco",
+                   alCambiar: (c, v) =>
+                     cambiar("traspasos_tipos", "clave", c, { materiales: v ? "casco" : null }),
+                 }]}
                  alPrender={(c, a) => cambiar("traspasos_tipos", "clave", c, { activo: a })}
                  alRenombrar={(c, nom) => cambiar("traspasos_tipos", "clave", c, { nombre: nom })}
                  alBorrar={(c, n) => borrar("traspasos_tipos", "clave", c, n)} />
@@ -384,6 +392,15 @@ export function Maestro({ tipos, puntos, placas, faltantes, uso, puedeEditar }: 
    LA LISTA
    ===================================================================== */
 
+/** Una casilla extra de la fila (ej. «lleva vidrio en tolvas», «pide SKU del casco»). */
+type Bandera = {
+  rotulo: string;
+  /** Lo que se pinta al lado del nombre cuando está puesta. */
+  marca: string;
+  puesta: (clave: string) => boolean;
+  alCambiar: (clave: string, valor: boolean) => void;
+};
+
 function Lista({ filas, puedeEditar, mandando, sinUso, sinSub, sinRenombrar, borrarSiempre,
                  bandera, alOrdenar, alPrender, alRenombrar, alBorrar }: {
   filas: Fila[];
@@ -402,13 +419,7 @@ function Lista({ filas, puedeEditar, mandando, sinUso, sinSub, sinRenombrar, bor
      genérica y no dentro de `Fila` porque las otras tres listas no
      tienen ninguna, y una propiedad que casi siempre sobra se vuelve
      una que nadie sabe si hay que llenar. */
-  bandera?: {
-    rotulo: string;
-    /** Lo que se pinta al lado del nombre cuando está puesta. */
-    marca: string;
-    puesta: (clave: string) => boolean;
-    alCambiar: (clave: string, valor: boolean) => void;
-  };
+  bandera?: Bandera | Bandera[];
   alOrdenar: (claves: string[]) => void;
   alPrender: (clave: string, activo: boolean) => void;
   alRenombrar: (clave: string, nombre: string, sub: string | null) => void;
@@ -492,16 +503,13 @@ function Renglon({ f, sinSub, sinRenombrar, borrarSiempre, sinUso, puedeEditar, 
   puedeEditar: boolean;
   mandando: boolean;
   moviendo: boolean;
-  bandera?: {
-    rotulo: string; marca: string;
-    puesta: (clave: string) => boolean;
-    alCambiar: (clave: string, valor: boolean) => void;
-  };
+  bandera?: Bandera | Bandera[];
   alTomar: (e: React.PointerEvent) => void;
   alPrender: (clave: string, activo: boolean) => void;
   alRenombrar: (clave: string, nombre: string, sub: string | null) => void;
   alBorrar: (clave: string, nombre: string) => void;
 }) {
+  const banderas = bandera ? (Array.isArray(bandera) ? bandera : [bandera]) : [];
   const [menu, setMenu] = useState(false);
   /* HACIA DÓNDE SE ABRE, y se mide contra LA TARJETA, no contra la
      pantalla. Abierto hacia abajo en el último renglón, el menú se
@@ -613,7 +621,7 @@ function Renglon({ f, sinSub, sinRenombrar, borrarSiempre, sinUso, puedeEditar, 
             asoma dentro de un menú de tres puntos es una bandera que
             nadie sabe que existe — y esta decide si al registrar sale
             el bloque del vidrio. */}
-        {bandera?.puesta(f.clave) && <em className="bandera-m">{bandera.marca}</em>}
+        {banderas.filter((b) => b.puesta(f.clave)).map((b) => <em key={b.marca} className="bandera-m">{b.marca}</em>)}
         {!sinSub || f.sub ? <span>{f.sub}</span> : null}
       </div>
 
@@ -644,13 +652,13 @@ function Renglon({ f, sinSub, sinRenombrar, borrarSiempre, sinUso, puedeEditar, 
                     onClick={() => { setMenu(false); alPrender(f.clave, !f.activo) }}>
               {f.activo ? "Apagar" : "Prender"}
             </button>
-            {bandera && (
-              <button type="button" disabled={!puedeEditar || mandando}
+            {banderas.map((b) => (
+              <button key={b.marca} type="button" disabled={!puedeEditar || mandando}
                       onClick={() => { setMenu(false);
-                                       bandera.alCambiar(f.clave, !bandera.puesta(f.clave)) }}>
-                {bandera.puesta(f.clave) ? `Quitar: ${bandera.rotulo}` : bandera.rotulo}
+                                       b.alCambiar(f.clave, !b.puesta(f.clave)) }}>
+                {b.puesta(f.clave) ? `Quitar: ${b.rotulo}` : b.rotulo}
               </button>
-            )}
+            ))}
             {sePuedeBorrar ? (
               <>
                 <button type="button" className="mal" disabled={mandando}

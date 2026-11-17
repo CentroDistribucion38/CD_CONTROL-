@@ -273,3 +273,13 @@
   .fc-pesadas { flex-direction: row; align-items: baseline; gap: 8px; flex-wrap: wrap }
   .fc-pesadas b { font-size: 26px }
 }
+
+/* El casco que lleva el viaje (SKU + estibas): se descuenta con el DOC. */
+.tp .fc-casco { margin-top: 8px; padding: 6px 10px; border-left: 3px solid var(--tp-tinta); background: var(--tp-papel) }
+.tp .fc-casco-cab { margin: 0; font-size: 12.5px; color: var(--tp-tinta) }
+.tp .fc-casco-cab b { letter-spacing: .1em; font-size: 11px; margin-right: 4px }
+.tp .fc-casco-cab span { color: var(--tp-gris) }
+.tp .fc-casco ul { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px }
+.tp .fc-casco li { font-size: 12.5px; color: var(--tp-gris) }
+.tp .fc-casco li code { font: 700 12px var(--tp-titulo); color: var(--tp-tinta); margin-right: 4px }
+.tp .fc-casco li b { color: var(--tp-tinta); font-variant-numeric: tabular-nums }

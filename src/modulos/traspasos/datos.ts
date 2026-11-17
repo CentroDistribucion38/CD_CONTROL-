@@ -29,6 +29,9 @@ export type TipoViaje = {
    *  `2026-09-traspasos-tipo-lleva-vidrio.sql` todavía no se ha corrido,
    *  la columna no existe y la pantalla tiene que seguir pintándose. */
   lleva_vidrio?: boolean;
+  /** 'casco' = al registrar pide SKU + estibas del casco de vidrio de la bodega de origen (se descuenta con el DOC).
+   *  'pet' = pide SKU + cantidad de PET. Opcional por si el SQL todavía no se corrió. */
+  materiales?: "casco" | "pet" | null;
 };
 
 export type Punto = {
@@ -37,6 +40,8 @@ export type Punto = {
   /** El subtítulo: "Bodega propia", "Planta", "Zona interna". Lo que
    *  distingue dos puntos parecidos sin meterlo dentro del nombre. */
   descripcion: string | null;
+  /** A qué tabla de Casco de vidrio corresponde (Bodega 38 → AG22, Fábrica → AG18, Carnaval → AG07). */
+  casco_ubicacion?: string | null;
 };
 
 export type Viaje = {
@@ -747,10 +752,13 @@ export const FACTURACION_DESDE = "2026-09-21";
    bandeja, que es "use client", y este archivo es del SERVIDOR. */
 export type { Cedula, EnBascula } from "./formato";
 
+/** Un renglón del casco que lleva un viaje: se descuenta del origen cuando facturación pone el DOC. */
+export type MaterialViaje = { sku: string; descripcion: string; estibas: number; hl: number | null; aplicado_en: string | null };
+
 export async function bandejaFacturacion(diasSalieron = 3) {
   const supabase = await createClient();
   const desde = new Date(Date.now() - diasSalieron * 86400000).toISOString();
-  const [pend, sal, ced, basc, resv] = await Promise.all([
+  const [pend, sal, ced, basc, resv, mats] = await Promise.all([
     supabase.from("v_traspasos_viajes").select("*")
       .eq("por_facturar", true).gte("fecha", FACTURACION_DESDE)
       .order("fecha").order("turno_orden").order("hora").limit(500),
@@ -778,6 +786,12 @@ export async function bandejaFacturacion(diasSalieron = 3) {
        que quien pone el documento sepa qué va en ese camión. */
     supabase.from("v_salidas_reservadas")
       .select("id, viaje, cedula, placa, tolvas, neto_kg, observacion").limit(500),
+    /* EL CASCO QUE LLEVA CADA VIAJE (SKU + estibas). Facturación lo ve
+       porque es su DOC lo que lo descuenta del casco de origen. Sin la
+       migración, la consulta falla sola y la bandeja sigue igual. */
+    supabase.from("v_traspasos_viaje_materiales")
+      .select("viaje, sku, descripcion, estibas, hl, aplicado_en")
+      .order("sku").limit(2000),
   ]);
   if (pend.error) {
     return {
@@ -785,6 +799,7 @@ export async function bandejaFacturacion(diasSalieron = 3) {
       pendientes: [] as Viaje[], salieron: [] as Viaje[],
       cedulas: {} as Record<string, Cedula[]>, bascula: {} as Record<string, EnBascula[]>,
       reservadas: {} as Record<string, Cedula>, faltaCedulas: false,
+      materiales: {} as Record<string, MaterialViaje[]>,
     };
   }
 
@@ -810,10 +825,15 @@ export async function bandejaFacturacion(diasSalieron = 3) {
     reservadas[r.viaje] = r;
   }
 
+  const materiales: Record<string, MaterialViaje[]> = {};
+  if (!mats.error) for (const m of (mats.data ?? []) as (MaterialViaje & { viaje: string })[]) {
+    (materiales[m.viaje] ??= []).push({ ...m, estibas: Number(m.estibas), hl: m.hl == null ? null : Number(m.hl) });
+  }
+
   return {
     falta: false,
     pendientes: (pend.data ?? []) as Viaje[],
     salieron: (sal.data ?? []) as Viaje[],
-    cedulas, bascula, reservadas, faltaCedulas,
+    cedulas, bascula, reservadas, faltaCedulas, materiales,
   };
 }

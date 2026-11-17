@@ -96,7 +96,14 @@ const NOMBRES = { u1: "Santiago Leal" };
 const pinta = (p) => renderToStaticMarkup(createElement(B.Bandeja, {
   pendientes: PEND, salieron: SAL, nombres: NOMBRES, puedeConfirmar: true, puedeReabrir: true, ...p }));
 
-const html = pinta({});
+const MATS = {
+  "1": [{ sku: "3500162", descripcion: "Envase Marron 330R", estibas: 20, hl: 891, aplicado_en: null },
+        { sku: "3500888", descripcion: "Botella Marron 1000CC", estibas: 2.5, hl: 117, aplicado_en: null }],
+  "4": [{ sku: "3500162", descripcion: "Envase Marron 330R", estibas: 12, hl: 534.6, aplicado_en: "2026-09-21T16:00:00Z" }],
+};
+const html = pinta({ materiales: MATS });
+ok((html.match(/class="fc-casco"/g) ?? []).length === 2, "el casco no sale solo en los viajes que lo llevan");
+ok(/22,5 est\./.test(html) && /Con el DOC se descuenta/.test(html), "el pendiente no dice el total del casco ni que el DOC lo descuenta");
 const texto = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
 ok(/3 viajes por facturar/.test(texto), `arriba no dice cuántos esperan: «${texto.slice(0, 120)}»`);
 ok(/<span>PLACA<\/span><b>ABC121<\/b>/.test(html), "la tarjeta no pone la placa arriba");
@@ -160,7 +167,8 @@ ok(/No hay viajes/.test(vacia), "sin pendientes no lo dice");
                "placa": par(".fc-placa"), "datos del viaje": par(".fc-meta"),
                "rótulo del número": par(".fc-confirmar label span"), "número": par(".fc-confirmar input"),
                "confirmar salida": par(".fc-confirmar .btn"), "error": par(".fc-error"),
-               "documento que salió": par(".fc-doc b"), "reabrir": par(".fc-salido .btn") };
+               "documento que salió": par(".fc-doc b"), "reabrir": par(".fc-salido .btn"),
+               "casco": par(".fc-casco-cab"), "casco gris": par(".fc-casco-cab span"), "sku del casco": par(".fc-casco li code"), "renglón del casco": par(".fc-casco li") };
     });
     for (const [k, v] of Object.entries(m)) {
       if (v.falta) { ok(false, `tema ${t ?? "oficial"}: en pantalla no está «${k}» (${v.falta})`); continue }

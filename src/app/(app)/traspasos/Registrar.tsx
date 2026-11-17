@@ -104,6 +104,10 @@ export function Registrar({ tipos, puntos, placas, placasM,
   /* LA CÉDULA ESCOGIDA. El viaje nace amarrado a ella: no hay que
      acordarse de nada después, y facturación solo pone el documento. */
   const [cedula, setCedula] = useState<Cedula | null>(null);
+  /* El material del casco: renglones SKU + estibas, y lo que se puede despachar del casco de origen. */
+  const [mats, setMats] = useState<{ k: number; sku: string; est: string }[]>([]);
+  const [disp, setDisp] = useState<{ sku: string; descripcion: string; inventario: number; apartado: number; disponible: number; hl_estiba: number | null }[] | null>(null);
+  const [faltaCasco, setFaltaCasco] = useState(false);
   const [bodegaNueva, setBodegaNueva] = useState<{ lado: "o" | "d"; texto: string } | null>(null);
   const campoPlaca = useRef<HTMLButtonElement>(null);
 
@@ -218,7 +222,7 @@ export function Registrar({ tipos, puntos, placas, placasM,
 
   useEffect(() => {
     const t = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && puedeMandar && !mandando) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && puedeMandar && matsOk && !mandando) {
         e.preventDefault(); mandar();
       }
     };
@@ -291,12 +295,76 @@ export function Registrar({ tipos, puntos, placas, placasM,
     if (!esDeTolvas || (placa && placaClave(placa) !== placaClave(cedula.placa))) setCedula(null);
   }, [cedula, esDeTolvas, placa]);
 
+  /* ------------------------------------------------------------------
+     EL SKU Y LAS ESTIBAS DEL CASCO DE VIDRIO.
+
+     «Solo me deben salir los SKU que tengan inventario y en cantidad que
+      pueda registrar, ni más ni menos; si intento sacar más, que salga en
+      rojo y no me deje.»
+
+     Los tipos con «Pide SKU del casco» (Maestro → Tipos) piden SKU +
+     estibas. El inventario es el del casco de la bodega de ORIGEN
+     (Bodega 38 → AG22, Fábrica → AG18…) menos lo que otros viajes ya
+     apartaron y todavía no tienen DOC. Lo de este viaje queda apartado
+     al registrar y se descuenta del casco cuando facturación pone el DOC.
+     ------------------------------------------------------------------ */
+  type Disp = { sku: string; descripcion: string; inventario: number; apartado: number; disponible: number; hl_estiba: number | null };
+  const tiposCasco = escogidos.filter((c) => tipos.find((t) => t.clave === c)?.materiales === "casco");
+  const pideCasco = modo === "carga" && tiposCasco.length > 0;
+  const puntoO = puntos.find((p) => p.clave === origen);
+  const ubicO = puntoO?.casco_ubicacion ?? null;
+  const conCasco = pideCasco && !!ubicO && !faltaCasco;
+  const n2 = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 });
+  const num = (t: string) => { const x = Number(t.replace(/\./g, "").replace(",", ".")); return Number.isFinite(x) ? x : 0 };
+  async function leerDisp(ubic: string): Promise<Disp[] | null> {
+    const { data, error } = await supabase.rpc("traspaso_casco_disponible", { p_ubic: ubic });
+    if (error) {
+      if (/does not exist|could not find the function|schema cache/i.test(error.message)) setFaltaCasco(true);
+      else avisar.mal(`No se pudo leer el inventario del casco: ${error.message}`);
+      return null;
+    }
+    return ((data ?? []) as Disp[]).map((d) => ({ ...d, inventario: Number(d.inventario), apartado: Number(d.apartado), disponible: Number(d.disponible), hl_estiba: d.hl_estiba == null ? null : Number(d.hl_estiba) }));
+  }
+  useEffect(() => {
+    if (!pideCasco || !ubicO || faltaCasco) { setDisp(null); return }
+    let vivo = true;
+    setDisp(null);
+    leerDisp(ubicO).then((d) => { if (vivo) setDisp(d ?? []) });
+    return () => { vivo = false };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pideCasco, ubicO, faltaCasco]);
+  useEffect(() => { if (pideCasco && mats.length === 0) setMats([{ k: Date.now(), sku: "", est: "" }]) }, [pideCasco, mats.length]);
+  const usado = (sku: string) => mats.filter((m) => m.sku === sku).reduce((t, m) => t + num(m.est), 0);
+  const dispDe = (sku: string) => disp?.find((d) => d.sku === sku);
+  const pasado = (sku: string) => { const d = dispDe(sku); return !!sku && (!d || usado(sku) > d.disponible + 0.004) };
+  const matsOk = !conCasco || (disp !== null && mats.length > 0
+    && mats.every((m) => m.sku && num(m.est) > 0) && !mats.some((m) => pasado(m.sku)));
+  const totMat = mats.reduce((t, m) => ({ est: t.est + num(m.est), hl: t.hl + num(m.est) * (dispDe(m.sku)?.hl_estiba ?? 0) }), { est: 0, hl: 0 });
+  const ponMat = (k: number, c: Partial<{ sku: string; est: string }>) => setMats((ms) => ms.map((m) => m.k === k ? { ...m, ...c } : m));
+
   function ponCantidad(clave: string, v: string) {
     setTipos((m) => new Map(m).set(clave, v.replace(/\D/g, "")));
   }
   async function mandar() {
     setMandando(true);
     const esVacio = modo === "vacio";
+    /* ANTES DE REGISTRAR SE VUELVE A LEER LO QUE HAY: otro supervisor pudo apartar esas estibas hace un minuto. */
+    const llevaCasco = !esVacio && conCasco && !!ubicO;
+    if (llevaCasco) {
+      const d = await leerDisp(ubicO!);
+      if (d) {
+        setDisp(d);
+        const falta = [...new Set(mats.map((m) => m.sku))].find((sku) => {
+          const x = d.find((y) => y.sku === sku); return !x || usado(sku) > x.disponible + 0.004;
+        });
+        if (falta) {
+          const x = d.find((y) => y.sku === falta);
+          setMandando(false);
+          avisar.mal(`Del ${falta} ya solo se pueden despachar ${n2.format(Math.max(0, x?.disponible ?? 0))} estibas: corrige la cantidad.`);
+          return;
+        }
+      }
+    }
     /* DOS PUERTAS, Y CADA UNA ES LA SUYA.
        El vacío sigue por `traspaso_registrar`: no lleva tipo ni placa ni
        documento, es un número de viajes del turno, y meterlo por la
@@ -315,7 +383,9 @@ export function Registrar({ tipos, puntos, placas, placasM,
           p_fecha: fecha, p_turno: turno,
           p_tipos: escogidos.map((c) => ({
             tipo: c,
-            cantidad: (tipos_.get(c) ?? "").trim() === "" ? null : Number(tipos_.get(c)),
+            /* Con material del casco, la cantidad del tipo ES el total de estibas (la columna es entera). */
+            cantidad: conCasco && tiposCasco.includes(c) ? Math.round(totMat.est)
+              : (tipos_.get(c) ?? "").trim() === "" ? null : Number(tipos_.get(c)),
           })),
           p_placa: placa,
           p_origen: origen,
@@ -355,6 +425,16 @@ export function Registrar({ tipos, puntos, placas, placasM,
       if (r.error) avisar.mal(`El viaje se registró, pero la cédula ${cedula.cedula} no quedó amarrada: ${r.error.message}`);
     }
 
+    /* EL MATERIAL DEL CASCO, amarrado al viaje (igual que la cédula del vidrio: en una llamada aparte). */
+    if (llevaCasco && idViaje) {
+      const r = await supabase.rpc("traspaso_materiales_guardar", {
+        p_viaje: idViaje,
+        p_filas: mats.map((m) => ({ tipo: tiposCasco[0], sku: m.sku, estibas: num(m.est) })),
+      });
+      if (r.error) avisar.mal(`El viaje se registró, pero el material del casco NO quedó: ${r.error.message}. Corrígelo en el viaje antes de que facturación ponga el DOC.`);
+      else avisoVidrio += ` · ${n2.format(totMat.est)} est. de casco apartadas (se descuentan con el DOC)`;
+    }
+
     setMandando(false);
 
     const cuantos = escogidos.length;
@@ -379,7 +459,7 @@ export function Registrar({ tipos, puntos, placas, placasM,
        siguiente suele ser igual», y con varios tipos eso es otra cosa:
        un camión de casco registrado detrás de uno de casco+estibas+PET
        avanzaría tres planes sin que nadie lo tocara. */
-    setTipos(new Map()); setArenosa(null);
+    setTipos(new Map()); setArenosa(null); setMats([]);
     campoPlaca.current?.focus();
     router.refresh();
   }
@@ -776,6 +856,65 @@ export function Registrar({ tipos, puntos, placas, placasM,
                     </p>
                   )}
                 </div>
+
+                {/* ─ EL SKU Y LAS ESTIBAS DEL CASCO DE VIDRIO ─ solo con los tipos que lo piden. */}
+                {pideCasco && (
+                  <div className="tp-mat">
+                    <span className="rot-campo">
+                      Material · casco de vidrio{puntoO && ubicO ? <em className="rot-suave"> sale del casco de {puntoO.nombre}</em> : null}
+                    </span>
+                    {!origen ? (
+                      <p className="guia">Escoge primero de dónde sale: de eso depende de qué casco se descuenta.</p>
+                    ) : faltaCasco ? (
+                      <p className="guia adicional">Falta correr <code>2026-11-traspasos-materiales-casco.sql</code> en Supabase. Mientras tanto el viaje se registra sin SKU.</p>
+                    ) : !ubicO ? (
+                      <p className="guia"><b>{puntoO?.nombre ?? origen}</b> no tiene inventario de casco de vidrio: el viaje se registra sin SKU.</p>
+                    ) : disp === null ? (
+                      <p className="guia">Leyendo el inventario del casco…</p>
+                    ) : disp.every((d) => d.disponible <= 0.004) && mats.every((m) => !m.sku) ? (
+                      <p className="guia adicional">En el casco de <b>{puntoO?.nombre}</b> no hay nada para despachar (o ya está todo apartado por viajes sin DOC).</p>
+                    ) : (
+                      <>
+                        <div className="tp-mat-lista">
+                          {mats.map((m) => {
+                            const d = dispDe(m.sku);
+                            const otros = d ? usado(m.sku) - num(m.est) : 0;
+                            const puede = d ? Math.max(0, d.disponible - otros) : 0;
+                            const mal = !!m.sku && num(m.est) > puede + 0.004;
+                            const elegidos = new Set(mats.filter((x) => x.k !== m.k).map((x) => x.sku));
+                            return (
+                              <div key={m.k} className={"tp-mat-fila" + (mal ? " mal" : "")}>
+                                <div className="tp-mat-sku">
+                                  <Desplegable valor={m.sku} ariaLabel="SKU del casco" vacio="Escoge el SKU…"
+                                               opciones={disp.filter((x) => (x.disponible > 0.004 && !elegidos.has(x.sku)) || x.sku === m.sku).map((x) => ({
+                                                 valor: x.sku, texto: `${x.sku} · ${x.descripcion}`,
+                                                 nota: `${n2.format(x.disponible)} est. para despachar${x.apartado > 0.004 ? ` · ${n2.format(x.apartado)} apartadas en viajes sin DOC` : ""}`,
+                                               }))}
+                                               alEscoger={(v) => ponMat(m.k, { sku: v })} />
+                                </div>
+                                <label className="tp-mat-est">
+                                  <input value={m.est} inputMode="decimal" placeholder="0" aria-label="Estibas" aria-invalid={mal}
+                                         onChange={(e) => ponMat(m.k, { est: e.target.value.replace(/[^0-9,.]/g, "") })} />
+                                  <span>est.</span>
+                                </label>
+                                <span className="tp-mat-hl">{d?.hl_estiba ? `${n2.format(num(m.est) * d.hl_estiba)} HL` : "— HL"}</span>
+                                <span className="tp-mat-disp">{m.sku ? <>máx. <b>{n2.format(puede)}</b></> : ""}</span>
+                                <button type="button" className="tp-mat-x" aria-label="Quitar este SKU" disabled={mats.length === 1}
+                                        onClick={() => setMats((ms) => ms.filter((x) => x.k !== m.k))}>×</button>
+                                {mal && <p className="tp-mat-err">No alcanza: de este SKU solo se pueden despachar {n2.format(puede)} estibas.</p>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="tp-mat-pie">
+                          <button type="button" className="tp-mat-mas" onClick={() => setMats((ms) => [...ms, { k: Date.now(), sku: "", est: "" }])}>+ Otro SKU</button>
+                          <span>Total <b>{n2.format(totMat.est)} est.</b> · {n2.format(totMat.hl)} HL</span>
+                        </div>
+                        <p className="guia" style={{ marginTop: 6 }}>Queda <b>apartado</b> al registrar y se descuenta del casco cuando facturación ponga el <b>DOC</b>.</p>
+                      </>
+                    )}
+                  </div>
+                )}
               </>
             )}
 
@@ -828,10 +967,15 @@ export function Registrar({ tipos, puntos, placas, placasM,
                             invisible. */}
                         {i === 0 && escogidos.length > 1 && <i>principal</i>}
                       </span>
-                      <input value={tipos_.get(c) ?? ""} inputMode="numeric"
-                             placeholder="Canastas, estibas…"
-                             aria-label={`Cuánto lleva de ${nombreTipo(c)}`}
-                             onChange={(e) => ponCantidad(c, e.target.value)} />
+                      {conCasco && tiposCasco.includes(c) ? (
+                        /* Ya se dijo arriba, SKU por SKU: pedirlo otra vez sería escribirlo dos veces. */
+                        <span className="pt-del-mat">{n2.format(totMat.est)} est. · del material</span>
+                      ) : (
+                        <input value={tipos_.get(c) ?? ""} inputMode="numeric"
+                               placeholder="Canastas, estibas…"
+                               aria-label={`Cuánto lleva de ${nombreTipo(c)}`}
+                               onChange={(e) => ponCantidad(c, e.target.value)} />
+                      )}
                     </label>
                   ))}
                 </div>
@@ -854,7 +998,7 @@ export function Registrar({ tipos, puntos, placas, placasM,
           </div>
 
           <div className="pie-reg">
-            <button type="button" className="btn si" disabled={!puedeMandar || mandando}
+            <button type="button" className="btn si" disabled={!puedeMandar || !matsOk || mandando}
                     onClick={mandar}>
               {mandando ? "Registrando…"
                 : modo === "vacio" ? `Registrar ${viajesN} vacío${viajesN === 1 ? "" : "s"}`

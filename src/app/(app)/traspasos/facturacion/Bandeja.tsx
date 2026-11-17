@@ -24,7 +24,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
 import { Depurar } from "../Depurar";
-import type { Viaje } from "@/modulos/traspasos/datos";
+import type { MaterialViaje, Viaje } from "@/modulos/traspasos/datos";
 /* placaClave y Cedula salen de formato.ts y NO de datos.ts: datos.ts es
    del servidor —pide next/headers— y esta pantalla es "use client".
    Importar de allá se arrastra el módulo del servidor al navegador. */
@@ -47,7 +47,7 @@ const coincide = (v: Viaje, q: string) => {
 };
 
 export function Bandeja({ pendientes, salieron, nombres, cedulas = {}, bascula = {},
-                         reservadas = {}, faltaCedulas = false,
+                         reservadas = {}, faltaCedulas = false, materiales = {},
                          puedeConfirmar, puedeReabrir, puedeDepurar = false }: {
   pendientes: Viaje[];
   salieron: Viaje[];
@@ -62,6 +62,8 @@ export function Bandeja({ pendientes, salieron, nombres, cedulas = {}, bascula =
   reservadas?: Record<string, Cedula>;
   /** La migración del vidrio todavía no se ha corrido en esta base. */
   faltaCedulas?: boolean;
+  /** El casco (SKU + estibas) que lleva cada viaje, por id de viaje. */
+  materiales?: Record<string, MaterialViaje[]>;
   puedeConfirmar: boolean;
   puedeReabrir: boolean;
   /** Solo quien administra la plataforma: anular, no se factura, eliminar. */
@@ -142,6 +144,7 @@ export function Bandeja({ pendientes, salieron, nombres, cedulas = {}, bascula =
                      cedulas={cedulas[placaClave(v.placa)] ?? []}
                      bascula={bascula[placaClave(v.placa)] ?? []}
                      reservada={reservadas[v.id] ?? null}
+                     mats={materiales[v.id] ?? []}
                      depurar={puedeDepurar ? { marcado: sel.has(v.id), marcar: () => marcar(v.id) } : null}
                      listo={(m) => avisar.bien(m)} fallo={(m) => avisar.mal(m)} />
         ))}
@@ -159,7 +162,7 @@ export function Bandeja({ pendientes, salieron, nombres, cedulas = {}, bascula =
             {busca ? <>Ninguna salida reciente coincide con «{busca}».</> : <>Todavía no hay salidas confirmadas.</>}
           </div>
         ) : sal.map((v) => (
-          <Salido key={v.id} v={v} puedeReabrir={puedeReabrir}
+          <Salido key={v.id} v={v} puedeReabrir={puedeReabrir} mats={materiales[v.id] ?? []}
                   listo={(m) => avisar.bien(m)} fallo={(m) => avisar.mal(m)} />
         ))}
       </section>
@@ -167,11 +170,31 @@ export function Bandeja({ pendientes, salieron, nombres, cedulas = {}, bascula =
   );
 }
 
+/* EL CASCO QUE LLEVA EL VIAJE, en una línea por SKU. Solo aparece en los
+   viajes que lo tienen: la inmensa mayoría no, y no se pinta nada. */
+const n2 = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 });
+function CascoDelViaje({ mats, cuando }: { mats: MaterialViaje[]; cuando: string }) {
+  if (mats.length === 0) return null;
+  const est = mats.reduce((t, m) => t + m.estibas, 0), hl = mats.reduce((t, m) => t + (m.hl ?? 0), 0);
+  return (
+    <div className="fc-casco">
+      <p className="fc-casco-cab"><b>CASCO</b> {n2.format(est)} est. · {n2.format(hl)} HL <span>· {cuando}</span></p>
+      <ul>
+        {mats.map((m) => (
+          <li key={m.sku}><code>{m.sku}</code> {m.descripcion} <b>{n2.format(m.estibas)} est.</b>{m.hl != null && <> · {n2.format(m.hl)} HL</>}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 /* =====================================================================
    UN VIAJE ESPERANDO SU NÚMERO
    ===================================================================== */
-function Pendiente({ v, nombres, puede, cedulas, bascula, reservada, depurar, listo, fallo }: {
+function Pendiente({ v, nombres, puede, cedulas, bascula, reservada, mats, depurar, listo, fallo }: {
   v: Viaje;
+  /** El casco que lleva: el DOC lo descuenta del casco de origen. */
+  mats: MaterialViaje[];
   depurar: { marcado: boolean; marcar: () => void } | null;
   nombres: Record<string, string>;
   /** Las cédulas de vidrio sin despachar de ESTA placa. Casi siempre vacío. */
@@ -272,6 +295,7 @@ function Pendiente({ v, nombres, puede, cedulas, bascula, reservada, depurar, li
           {v.carga != null && <> · {nf.format(v.carga)} {v.unidad ?? "und"}</>}
         </p>
         <p className="fc-meta">{ruta(v)} · registró {quien(nombres, v.registrado_por)}</p>
+        <CascoDelViaje mats={mats} cuando="Con el DOC se descuenta del casco de origen" />
       </div>
 
       {puede && (
@@ -408,8 +432,9 @@ function Pendiente({ v, nombres, puede, cedulas, bascula, reservada, depurar, li
 /* =====================================================================
    UN VIAJE QUE YA SALIÓ — y, para quien administra, reabrirlo
    ===================================================================== */
-function Salido({ v, puedeReabrir, listo, fallo }: {
+function Salido({ v, puedeReabrir, mats, listo, fallo }: {
   v: Viaje;
+  mats: MaterialViaje[];
   puedeReabrir: boolean;
   listo: (m: string) => void;
   fallo: (m: string) => void;
@@ -448,6 +473,7 @@ function Salido({ v, puedeReabrir, listo, fallo }: {
           </button>
         )}
       </div>
+      <CascoDelViaje mats={mats} cuando="Descontado del casco · si se reabre, vuelve" />
       {puedeReabrir && abierto && (
         <div className="fc-reabrir">
           <label>

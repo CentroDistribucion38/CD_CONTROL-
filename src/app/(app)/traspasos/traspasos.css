@@ -2791,3 +2791,56 @@
 .tp .btn-foto-plan:disabled { opacity: .5; cursor: progress }
 .tp .btn-foto-plan.listo { background: var(--tp-bien); border-color: var(--tp-bien); color: #fff }
 @media print { .tp .btn-foto-plan { display: none } }
+
+/* ---------------------------------------------------------------------
+   EL MATERIAL DEL CASCO DE VIDRIO (Registrar). SKU + estibas + HL.
+   Una fila por SKU: el SKU manda el ancho, las estibas son el dato que
+   se teclea y lo que se puede despachar va al lado, para que nadie
+   tenga que abrir el casco en otra pestaña. Se pasa → la fila en rojo
+   y el botón Registrar no deja.
+   --------------------------------------------------------------------- */
+.tp .tp-mat { border-top: 1px solid var(--tp-linea); padding-top: 16px }
+.tp .tp-mat .rot-campo em.rot-suave { margin-left: 8px; text-transform: none; letter-spacing: 0; font-style: normal }
+.tp .tp-mat-lista { display: flex; flex-direction: column; gap: 8px }
+.tp .tp-mat-fila {
+  display: grid; grid-template-columns: minmax(0, 1fr) 118px 92px 70px 38px;
+  gap: 10px; align-items: center; padding: 8px; border: 1px solid var(--tp-linea);
+  background: var(--tp-papel); border-radius: 2px;
+}
+.tp .tp-mat-fila.mal { border-color: var(--tp-mal); background: color-mix(in srgb, var(--tp-mal) 6%, var(--tp-papel)) }
+.tp .tp-mat-sku { min-width: 0 }
+.tp .tp-mat-est { display: flex; align-items: center; gap: 6px; margin: 0 }
+.tp .tp-mat-est input {
+  width: 100%; min-width: 0; padding: 10px 10px; border: 1px solid var(--tp-linea); border-radius: 2px;
+  font: 800 17px var(--tp-titulo); text-align: right; color: var(--tp-tinta); background: var(--tp-papel);
+  font-variant-numeric: tabular-nums;
+}
+.tp .tp-mat-est input:focus { outline: 2px solid var(--tp-tinta); outline-offset: -1px }
+.tp .tp-mat-fila.mal .tp-mat-est input { border-color: var(--tp-mal); color: var(--tp-mal) }
+.tp .tp-mat-est span { font-size: 12px; color: var(--tp-gris) }
+.tp .tp-mat-hl { font: 700 14px var(--tp-titulo); color: var(--tp-tinta); font-variant-numeric: tabular-nums; text-align: right }
+.tp .tp-mat-disp { font-size: 12px; color: var(--tp-gris) }
+.tp .tp-mat-disp b { color: var(--tp-tinta); font-variant-numeric: tabular-nums }
+.tp .tp-mat-fila.mal .tp-mat-disp b { color: var(--tp-mal) }
+.tp .tp-mat-x {
+  width: 38px; height: 38px; border: 1px solid var(--tp-linea); background: var(--tp-papel); border-radius: 2px;
+  font-size: 20px; line-height: 1; color: var(--tp-gris); cursor: pointer;
+}
+.tp .tp-mat-x:hover:not(:disabled) { border-color: var(--tp-mal); color: var(--tp-mal) }
+.tp .tp-mat-x:disabled { opacity: .35; cursor: default }
+.tp .tp-mat-err { grid-column: 1 / -1; margin: 0; font-size: 12.5px; font-weight: 700; color: var(--tp-mal) }
+.tp .tp-mat-pie { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 10px; font-size: 13px; color: var(--tp-gris) }
+.tp .tp-mat-pie b { color: var(--tp-tinta) }
+.tp .tp-mat-mas {
+  border: 1px dashed var(--tp-linea); background: none; padding: 9px 14px; border-radius: 2px;
+  font: 700 13px var(--tp-texto); color: var(--tp-tinta); cursor: pointer;
+}
+.tp .tp-mat-mas:hover { border-color: var(--tp-ojo) }
+@media (max-width: 720px) {
+  .tp .tp-mat-fila { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 38px; }
+  .tp .tp-mat-sku { grid-column: 1 / -1 }
+  .tp .tp-mat-hl { text-align: left }
+  .tp .tp-mat-disp { grid-column: 1 / -1 }
+  .tp .tp-mat-x { grid-row: 2; grid-column: 3 }
+}
+.tp .pt-del-mat { font: 700 14px var(--tp-titulo); color: var(--tp-tinta); padding: 10px 0; text-align: right }
