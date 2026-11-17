@@ -212,3 +212,23 @@
 /* Histórico: el día se ve congelado, tal como se guardó */
 .cs .cv-congelado { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 0 14px; padding: 10px 14px; background: #FFF6D6; border-left: 5px solid var(--fe-acento, #FFC400); font: 500 13.5px var(--fe-texto) }
 .cs .cv-congelado .cs-bt { flex: none }
+
+/* AGREGAR / QUITAR UNA SECCIÓN de la hoja del día. Mismo amarillo punteado de «+ Agregar SKU»: es la misma acción, un nivel arriba. */
+.cs .cv-mas-sec { display: block; width: 100%; margin-top: 12px; min-height: 42px; border: 1.5px dashed var(--fe-acento, #FFC400); background: #FFFBEA; color: var(--fe-tinta); font: 700 13px var(--fe-mono, ui-monospace, monospace); letter-spacing: .02em; cursor: pointer }
+.cs .cv-mas-sec:hover { background: #FFF3C4 }
+.cs .cv-quitar-sec { flex: none; height: 28px; padding: 0 10px; border: 1px solid #9AA2A9; background: #fff; color: #B3141E; font: 600 12px var(--fe-texto); cursor: pointer }
+.cs .cv-quitar-sec:hover { border-color: #B3141E }
+.cs .cv-campo-sec { display: flex; flex-direction: column; gap: 4px; font: 600 11.5px var(--fe-texto); color: var(--fe-gris) }
+.cs .cv-campo-sec input, .cs .cv-campo-sec select { height: 40px; padding: 0 10px; border: 1px solid #9AA2A9; background: #fff; color: var(--fe-tinta); font: 600 14px var(--fe-texto); width: 100% }
+.cs .cv-campo-sec input { text-transform: uppercase }
+.cs .cv-campo-sec input[aria-invalid="true"] { border-color: #B3141E }
+.cs .cv-sec-mal { font: 600 12px var(--fe-texto); font-style: normal; color: #B3141E }
+.cs .cv-cols-sec { border: 0; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px }
+.cs .cv-cols-sec legend { padding: 0 0 4px; font: 600 11.5px var(--fe-texto); color: var(--fe-gris) }
+.cs .cv-cols-sec label { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border: 1px solid #9AA2A9; background: #fff; cursor: pointer }
+.cs .cv-cols-sec label.on { border: 2px solid var(--fe-tinta); padding: 9px 11px; background: #FFFBEA }
+.cs .cv-cols-sec input { position: absolute; opacity: 0; pointer-events: none }
+.cs .cv-cols-sec b { font: 700 13.5px var(--fe-texto); color: var(--fe-tinta) }
+.cs .cv-cols-sec span { font-size: 11.5px; color: var(--fe-gris) }
+.cs .cv-cols-sec label:has(input:focus-visible) { outline: 2px solid var(--fe-tinta); outline-offset: 2px }
+@media (max-width: 560px) { .cs .cv-cols-sec { grid-template-columns: 1fr } }

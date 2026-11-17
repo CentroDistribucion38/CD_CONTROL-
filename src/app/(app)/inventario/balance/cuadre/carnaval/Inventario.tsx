@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { aHojaGuardada, CENTRO_DE_CASCO, conAuto, limpio, SIN_SKU, type ContextoAuto, type SeccionHoja } from "@/modulos/carnaval/logica";
+import { aHojaGuardada, CENTRO_DE_CASCO, conAuto, esSeccionPallet, limpio, SIN_SKU, type ContextoAuto, type SeccionHoja } from "@/modulos/carnaval/logica";
 import type { Sku } from "@/modulos/carnaval/datos";
 import { eliminarInventario, guardarHoja } from "./actions";
 import { SelectorCodigo } from "./SelectorCodigo";
@@ -69,6 +69,44 @@ export function Inventario({ fecha, hoy, guardado, base, dias, puedeEditar, maes
     tocar(si, secs[si]?.filas.length ?? 0);
     cambiar((all) => all.map((s, i) => i !== si ? s : { ...s, filas: [...s.filas, { concepto: mapa.get(cod) ?? cod, codigo: cod, a: 0, b: s.colB ? 0 : null }] }));
   }
+  /* ------------------------------------------------------------------
+     UNA SECCIÓN NUEVA. «Salió ese nuevo (ENVASE RETORNO CERVECERIA
+     ATLANTICO): que yo pueda con un + agregar ese tipo también.»
+     Queda en la hoja del día al guardar y, como cada día arranca con el
+     último guardado, sigue en los días que vienen. Las columnas son las
+     mismas formas que ya usa la hoja: estiba y caja, solo estiba, o una
+     cantidad. Va en el lugar que se escoja, para que la hoja siga en el
+     orden de la de papel.
+     ------------------------------------------------------------------ */
+  const dlgSec = useRef<HTMLDialogElement>(null);
+  const [nSec, setNSec] = useState({ titulo: "", cols: "ec" as "ec" | "e" | "c", despues: -1 });
+  const tituloN = nSec.titulo.replace(/\s+/g, " ").trim().toUpperCase();
+  const choque = !tituloN ? null
+    : esSeccionPallet(tituloN) || CENTRO_DE_CASCO[limpio(tituloN)] ? "Esa sección ya se llena sola (app o Casco de vidrio): no se crea a mano."
+    : secs.some((x) => limpio(x.titulo) === limpio(tituloN)) ? "Ya hay una sección con ese nombre."
+    : null;
+  /* Al meter o sacar una sección, los índices de las de abajo corren: lo que estaba abierto (ojito) o tocado se corre con ellas. */
+  function correr(desde: number, d: 1 | -1) {
+    setVerCeros((v) => Object.fromEntries(Object.entries(v).flatMap(([k, x]) => { const i = Number(k); return d < 0 && i === desde ? [] : [[String(i >= desde ? i + d : i), x]] })));
+    setTocados((t) => new Set([...t].flatMap((k) => { const [a, b] = k.split("|").map(Number); return d < 0 && a === desde ? [] : [`${a >= desde ? a + d : a}|${b}`] })));
+  }
+  function abrirSec() { setNSec({ titulo: "", cols: "ec", despues: secs.length - 1 }); dlgSec.current?.showModal() }
+  function crearSec() {
+    if (!tituloN || choque) return;
+    const [colA, colB] = nSec.cols === "ec" ? ["ESTIBA", "CAJA"] : nSec.cols === "e" ? ["ESTIBA", ""] : ["CANTIDAD", ""];
+    const pos = Math.min(secs.length, Math.max(0, nSec.despues + 1));
+    correr(pos, 1);
+    cambiar((all) => [...all.slice(0, pos), { titulo: tituloN, colA, colB, filas: [] }, ...all.slice(pos)]);
+    dlgSec.current?.close();
+    setAviso({ t: `Sección «${tituloN}» agregada: agrégale los SKU y guarda el inventario.` });
+  }
+  function quitarSec(si: number) {
+    const t = secs[si]?.titulo;
+    correr(si, -1);
+    cambiar((all) => all.filter((_, i) => i !== si));
+    setAviso({ t: `Sección «${t}» quitada. Guarda para que quede así.` });
+  }
+
   function descartar() { setSecs(guardado?.secciones ?? base?.secciones ?? []); setSucio(false); setAviso(null); setTocados(new Set()) }
 
   function guardar() {
@@ -183,6 +221,8 @@ export function Inventario({ fecha, hoy, guardado, base, dias, puedeEditar, maes
                     {(s.nota || (puedeEditar && s.fuente !== "casco")) && (
                       <tfoot><tr><td colSpan={5 + (dosCols ? 0 : -1)} className="cv-pie-sec"><div className="cv-pie-in">
                         {s.nota && <span className="cv-pie-nota">{s.nota}</span>}
+                        {/* Una sección sin renglones (recién creada o vaciada) se puede quitar; con datos, primero se quitan sus SKU. */}
+                        {puedeEditar && s.fuente === null && s.filas.length === 0 && <button type="button" className="cv-quitar-sec" onClick={() => quitarSec(si)}>Quitar sección</button>}
                         {puedeEditar && s.fuente !== "casco" && <span className="cv-add"><SelectorCodigo compacto productos={maestro} value="" placeholder="+ Agregar SKU" onChange={(c) => agregar(si, c)} /></span>}
                       </div></td></tr></tfoot>
                     )}
@@ -191,6 +231,7 @@ export function Inventario({ fecha, hoy, guardado, base, dias, puedeEditar, maes
               );
             })}
           </div>
+          {puedeEditar && <button type="button" className="cv-mas-sec" onClick={abrirSec}>+ Agregar sección</button>}
           <details className="cv-hist" style={{ marginTop: 14 }}>
             <summary>De dónde sale cada dato</summary>
             <p className="cv-nota" style={{ margin: "8px 0 0" }}>
@@ -200,6 +241,45 @@ export function Inventario({ fecha, hoy, guardado, base, dias, puedeEditar, maes
           </details>
         </>
       )}
+
+      {/* AGREGAR UNA SECCIÓN: ventana propia (nada de cuadros del navegador). */}
+      <dialog ref={dlgSec} className="cv-dlg chico" aria-label="Agregar sección">
+        <form className="cv-dlg-caja" onSubmit={(e) => { e.preventDefault(); crearSec() }}>
+          <div className="cv-dlg-cab">
+            <div><p>Carnaval · inventario diario</p><h2>Agregar sección</h2></div>
+            <button type="button" className="cv-dlg-x" aria-label="Cerrar" onClick={() => dlgSec.current?.close()}>×</button>
+          </div>
+          <div className="cv-dlg-cuerpo">
+            <label className="cv-campo-sec">Nombre de la sección
+              <input type="text" value={nSec.titulo} autoFocus maxLength={60} placeholder="Ej.: ENVASE RETORNO CERVECERIA ATLANTICO"
+                     onChange={(e) => setNSec((x) => ({ ...x, titulo: e.target.value }))} aria-invalid={!!choque} />
+              {choque && <em className="cv-sec-mal">{choque}</em>}
+            </label>
+            <fieldset className="cv-cols-sec">
+              <legend>Columnas</legend>
+              {([["ec", "Estiba y caja", "como ENVASE y CAJA PLASTICA"], ["e", "Solo estiba", "como los CASCO"], ["c", "Solo cantidad", "como ESTIBAS DE MADERA"]] as const).map(([v, t, n]) => (
+                <label key={v} className={nSec.cols === v ? "on" : ""}>
+                  <input type="radio" name="cols-sec" checked={nSec.cols === v} onChange={() => setNSec((x) => ({ ...x, cols: v }))} />
+                  <b>{t}</b><span>{n}</span>
+                </label>
+              ))}
+            </fieldset>
+            <label className="cv-campo-sec">Va después de
+              <select value={nSec.despues} onChange={(e) => setNSec((x) => ({ ...x, despues: Number(e.target.value) }))}>
+                <option value={-1}>— al principio —</option>
+                {secs.map((x, i) => <option key={i} value={i}>{x.titulo}</option>)}
+              </select>
+            </label>
+          </div>
+          <div className="cv-dlg-pie">
+            <span />
+            <span className="cv-form">
+              <button type="button" className="cs-bt alt" onClick={() => dlgSec.current?.close()}>Cancelar</button>
+              <button type="submit" className="cs-bt" disabled={!tituloN || !!choque}>Agregar sección</button>
+            </span>
+          </div>
+        </form>
+      </dialog>
 
       {/* ELIMINAR UN DÍA: ventana propia, con motivo; los ajustes de pallets que hizo (hojas anteriores) se anulan, no se borran */}
       <dialog ref={dlgBorrar} className="cv-dlg chico" aria-label="Eliminar inventario">
