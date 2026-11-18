@@ -3,11 +3,11 @@
  * otra, las inspecciones. Si falta correr el SQL, se dice con `falta` y la pantalla lo explica.
  */
 import { createClient } from "@/lib/supabase/server";
-import type { Area5S, Inspeccion5S, Punto5S, Responsable5S } from "./cinco-s";
+import type { Area5S, Inspeccion5S, Programada5S, Punto5S, Responsable5S, Zona5S } from "./cinco-s";
 
 export type Maestro5S = {
   falta: boolean; error: string | null;
-  meta: number; areas: Area5S[]; responsables: Responsable5S[]; puntos: Punto5S[];
+  meta: number; areas: Area5S[]; responsables: Responsable5S[]; puntos: Punto5S[]; zonas: Zona5S[];
 };
 
 const esFalta = (e: { message: string; code?: string }) =>
@@ -15,20 +15,23 @@ const esFalta = (e: { message: string; code?: string }) =>
 
 export async function leerMaestro5S(): Promise<Maestro5S> {
   const sb = await createClient();
-  const [r, a, s, p] = await Promise.all([
+  const [r, a, s, p, z] = await Promise.all([
     sb.from("s5_reglas").select("meta").eq("id", 1).maybeSingle(),
     sb.from("s5_areas").select("*").order("orden").order("nombre"),
     sb.from("s5_responsables").select("*").order("nombre"),
     sb.from("s5_puntos").select("*").order("orden"),
+    /* Las zonas son del paso 2: si su SQL no se ha corrido, no hay zonas y todo lo demás sigue. */
+    sb.from("s5_zonas").select("*").order("orden").order("nombre"),
   ]);
   const e = a.error ?? p.error ?? s.error ?? r.error;
-  if (e) return { falta: esFalta(e), error: esFalta(e) ? null : e.message, meta: 90, areas: [], responsables: [], puntos: [] };
+  if (e) return { falta: esFalta(e), error: esFalta(e) ? null : e.message, meta: 90, areas: [], responsables: [], puntos: [], zonas: [] };
   return {
     falta: false, error: null,
     meta: Number(r.data?.meta ?? 90),
     areas: ((a.data ?? []) as Area5S[]).map((x) => ({ ...x, meta: x.meta == null ? null : Number(x.meta) })),
     responsables: (s.data ?? []) as Responsable5S[],
     puntos: ((p.data ?? []) as Punto5S[]).map((x) => ({ ...x, peso: Number(x.peso) })),
+    zonas: z.error ? [] : (z.data ?? []) as Zona5S[],
   };
 }
 
@@ -54,4 +57,25 @@ export async function miNombre(): Promise<string> {
   if (!user) return "";
   const { data } = await sb.from("perfiles").select("nombre, usuario").eq("id", user.id).maybeSingle();
   return (data?.nombre || data?.usuario || "").trim();
+}
+
+/** El cronograma con su estado calculado. `falta` = no se ha corrido el SQL del paso 2. */
+export async function leerCronograma5S(): Promise<{ falta: boolean; error: string | null; filas: Programada5S[] }> {
+  const sb = await createClient();
+  const { data, error } = await sb.from("v_s5_cronograma").select("*").order("desde").limit(3000);
+  if (error) return { falta: esFalta(error), error: esFalta(error) ? null : error.message, filas: [] };
+  return {
+    falta: false, error: null,
+    filas: ((data ?? []) as Programada5S[]).map((x) => ({
+      ...x, cumplimiento: x.cumplimiento == null ? null : Number(x.cumplimiento), meta: x.meta == null ? null : Number(x.meta),
+    })),
+  };
+}
+
+/** Los puntos que no cumplieron (para «lo que más se repite» del Tablero). */
+export async function leerNoCumple5S(): Promise<{ inspeccion_id: string; s: string; pregunta: string; zona: string | null; severidad: string | null }[]> {
+  const sb = await createClient();
+  const { data, error } = await sb.from("s5_inspeccion_puntos").select("*").eq("resultado", "no_cumple").limit(5000);
+  if (error) return [];
+  return (data ?? []).map((x) => ({ inspeccion_id: x.inspeccion_id, s: x.s, pregunta: x.pregunta, zona: x.zona ?? null, severidad: x.severidad }));
 }

@@ -15,7 +15,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
 import {
   LAS_S, NOMBRE_S, checklistDe, pct,
-  type Area5S, type ClaveS, type Punto5S, type Responsable5S,
+  type Area5S, type ClaveS, type Punto5S, type Responsable5S, type Zona5S,
 } from "@/modulos/cinco-s/cinco-s";
 
 type Tab = "responsables" | "areas" | "checklist";
@@ -24,8 +24,8 @@ type Edit =
   | { que: "area"; v: Partial<Area5S> & { metaTxt?: string } }
   | { que: "punto"; v: Partial<Punto5S> & { pesoTxt?: string } };
 
-export function Maestro5S({ meta, areas, responsables, puntos, puedeEditar }: {
-  meta: number; areas: Area5S[]; responsables: Responsable5S[]; puntos: Punto5S[]; puedeEditar: boolean;
+export function Maestro5S({ meta, areas, responsables, puntos, zonas = [], puedeEditar }: {
+  meta: number; areas: Area5S[]; responsables: Responsable5S[]; puntos: Punto5S[]; zonas?: Zona5S[]; puedeEditar: boolean;
 }) {
   const router = useRouter();
   const [avisar, avisos] = useAvisos();
@@ -34,6 +34,7 @@ export function Maestro5S({ meta, areas, responsables, puntos, puedeEditar }: {
   const [edit, setEdit] = useState<Edit | null>(null);
   const [metaTxt, setMetaTxt] = useState(String(meta));
   const [ocupado, setOcupado] = useState(false);
+  const [zonaNueva, setZonaNueva] = useState<{ area: string; txt: string } | null>(null);
 
   const nomResp = (id: string | null) => responsables.find((r) => r.id === id)?.nombre ?? null;
   const propios = (areaId: string) => puntos.filter((p) => p.activo && p.area_id === areaId).length;
@@ -85,9 +86,22 @@ export function Maestro5S({ meta, areas, responsables, puntos, puedeEditar }: {
     }
   }
 
-  async function activar(tabla: "s5_responsables" | "s5_areas" | "s5_puntos", id: string, campo: "activo" | "activa", valor: boolean, que: string) {
+  async function activar(tabla: "s5_responsables" | "s5_areas" | "s5_puntos" | "s5_zonas", id: string, campo: "activo" | "activa", valor: boolean, que: string) {
     const sb = createClient();
     await correr(() => sb.from(tabla).update({ [campo]: valor }).eq("id", id), valor ? `${que}: activo otra vez.` : `${que}: desactivado.`);
+  }
+
+  /* LAS ZONAS DE UN ÁREA: calle 1, calle 2, muelle… En la inspección, cada «no cumple» dice en cuál fue. */
+  async function agregarZona() {
+    if (!zonaNueva) return;
+    const nombre = zonaNueva.txt.trim().toUpperCase();
+    if (!nombre) { setZonaNueva(null); return }
+    const sb = createClient();
+    const ya = zonas.find((z) => z.area_id === zonaNueva.area && z.nombre === nombre);
+    const ok = await correr(() => ya ? sb.from("s5_zonas").update({ activa: true }).eq("id", ya.id)
+      : sb.from("s5_zonas").insert({ area_id: zonaNueva.area, nombre, orden: zonas.filter((z) => z.area_id === zonaNueva.area).length + 1 }),
+      `Zona ${nombre} agregada.`);
+    if (ok) setZonaNueva({ area: zonaNueva.area, txt: "" });
   }
 
   async function guardarMeta() {
@@ -180,6 +194,25 @@ export function Maestro5S({ meta, areas, responsables, puntos, puedeEditar }: {
                         {" · "}{generales + propios(a.id)} puntos{propios(a.id) ? ` (${propios(a.id)} propios)` : ""}
                         {a.descripcion ? ` · ${a.descripcion}` : ""}
                       </small>
+                      <div className="s5-zonas">
+                        <span>Zonas</span>
+                        {zonas.filter((z) => z.area_id === a.id && z.activa).map((z) => (
+                          <span key={z.id} className="s5-zona-chip">{z.nombre}
+                            {puedeEditar && <button type="button" aria-label={"Quitar zona " + z.nombre} disabled={ocupado}
+                              onClick={() => activar("s5_zonas", z.id, "activa", false, `Zona ${z.nombre}`)}>×</button>}
+                          </span>
+                        ))}
+                        {zonas.filter((z) => z.area_id === a.id && z.activa).length === 0 && !(zonaNueva?.area === a.id) && <em>sin zonas</em>}
+                        {puedeEditar && (zonaNueva?.area === a.id ? (
+                          <form className="s5-zona-nueva" onSubmit={(e) => { e.preventDefault(); agregarZona() }}>
+                            <input autoFocus value={zonaNueva.txt} placeholder="CALLE 3" aria-label="Nueva zona"
+                                   onChange={(e) => setZonaNueva({ area: a.id, txt: e.target.value })}
+                                   onKeyDown={(e) => { if (e.key === "Escape") setZonaNueva(null) }} />
+                            <button type="submit" className="s5-bt" disabled={ocupado}>Agregar</button>
+                            <button type="button" className="s5-link" onClick={() => setZonaNueva(null)}>listo</button>
+                          </form>
+                        ) : <button type="button" className="s5-link" onClick={() => setZonaNueva({ area: a.id, txt: "" })}>+ zona</button>)}
+                      </div>
                     </div>
                     {puedeEditar && (
                       <div className="s5-acc">

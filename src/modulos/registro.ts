@@ -637,14 +637,17 @@ export const MODULOS: Modulo[] = [
     /* Ámbar de la marca: 5S es orden visual, y la demarcación de piso es amarilla. */
     acento: "#B58200",
     fondo: "#FFF6DA",
-    etiquetas: ["Checklist por S", "Fotos selladas", "Meta por área"],
+    etiquetas: ["Checklist por S", "Gantt de auditorías", "Informe carta"],
     imagen: "/modulos/cinco-s.jpg",
     ruta: "/5s",
     activo: true,
-    /* EL ORDEN DEL PROCESO: auditar → ver cómo va → configurar (que se arma una vez y cierra la lista). */
+    /* EL ORDEN DEL PROCESO: programar → auditar → lo auditado → cómo vamos → configurar (se arma una vez y cierra la lista).
+       La tarjeta entra a Inspeccionar (/5s), que es lo que se hace casi siempre. */
     secciones: [
+      { nombre: "Cronograma", ruta: "/5s/cronograma" },
       { nombre: "Inspeccionar", ruta: "/5s" },
       { nombre: "Historial", ruta: "/5s/historial" },
+      { nombre: "Tablero", ruta: "/5s/tablero" },
       { nombre: "Maestro", ruta: "/5s/maestro" },
     ],
   },

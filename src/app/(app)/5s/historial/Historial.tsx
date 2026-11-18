@@ -8,6 +8,7 @@
  */
 
 import { Fragment, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
@@ -44,7 +45,7 @@ export function Historial({ filas, areas, puedeBorrar }: { filas: Inspeccion5S[]
     setDet((d) => ({ ...d, [id]: "cargando" }));
     const sb = createClient();
     const [it, ft] = await Promise.all([
-      sb.from("s5_inspeccion_puntos").select("id, orden, s, pregunta, peso, resultado, severidad, observacion").eq("inspeccion_id", id),
+      sb.from("s5_inspeccion_puntos").select("*").eq("inspeccion_id", id),
       sb.from("s5_fotos").select("item_id, ruta").eq("inspeccion_id", id).order("ruta"),
     ]);
     if (it.error || ft.error) { setDet((d) => ({ ...d, [id]: { error: (it.error ?? ft.error)!.message } })); return }
@@ -212,7 +213,7 @@ function DetalleInsp({ f, items, fotos, puedeBorrar, borrar }: {
                 {i.resultado === "no_cumple" ? i.severidad ?? "media" : i.resultado === "cumple" ? "cumple" : "n/a"}
               </span>
               <div>
-                <b><em>{NOMBRE_S[i.s]?.n}S · #{n(i)}</em>{i.pregunta}</b>
+                <b><em>{NOMBRE_S[i.s]?.n}S · #{n(i)}{i.zona ? ` · ${i.zona}` : ""}</em>{i.pregunta}</b>
                 {i.observacion && <p>{i.observacion}</p>}
                 {fotos[i.id]?.length ? (
                   <div className="s5-fotos">
@@ -241,7 +242,11 @@ function DetalleInsp({ f, items, fotos, puedeBorrar, borrar }: {
 
       <div className="s5-det-pie">
         <p>Guardada el {new Date(f.creado).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}</p>
-        {puedeBorrar && <button type="button" className="s5-bt peligro" onClick={borrar}>Borrar inspección</button>}
+        <span className="s5-acc">
+          <Link className="s5-bt" href={`/5s/informe/${f.id}`}>Ver informe</Link>
+          <Link className="s5-bt osc" href={`/5s/informe/${f.id}?pdf=1`}>Informe PDF</Link>
+          {puedeBorrar && <button type="button" className="s5-bt peligro" onClick={borrar}>Borrar inspección</button>}
+        </span>
       </div>
     </>
   );

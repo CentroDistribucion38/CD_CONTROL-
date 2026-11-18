@@ -59,11 +59,12 @@ import { Maestro5S } from "../src/app/(app)/5s/maestro/Maestro5S";
 const w = window as any;
 const D = ${JSON.stringify({ AREAS, RESP, PUNTOS, INSP, ITEMS })};
 w.datos = { s5_inspeccion_puntos: D.ITEMS, s5_fotos: [{ inspeccion_id: "i1", item_id: "it4", ruta: "i1/p5-1.jpg" }, { inspeccion_id: "i1", item_id: "it6", ruta: "i1/p7-1.jpg" }] };
+const Z = [{ id: "z1", area_id: "a1", nombre: "CALLE 3", activa: true, orden: 1 }, { id: "z2", area_id: "a1", nombre: "CALLE 4", activa: true, orden: 2 }, { id: "z3", area_id: "a2", nombre: "MUELLE", activa: true, orden: 1 }];
 const pant = new URLSearchParams(location.hash.slice(1)).get("p") ?? "insp";
 createRoot(document.getElementById("r")!).render(
   pant === "hist" ? <Historial filas={D.INSP as any} areas={D.AREAS as any} puedeBorrar />
-  : pant === "maestro" ? <Maestro5S meta={90} areas={D.AREAS as any} responsables={D.RESP as any} puntos={D.PUNTOS as any} puedeEditar />
-  : <Inspeccionar areas={D.AREAS as any} responsables={D.RESP as any} puntos={D.PUNTOS as any} metaGeneral={90} auditor="Cristian Padilla" puedeEditar />);
+  : pant === "maestro" ? <Maestro5S meta={90} areas={D.AREAS as any} responsables={D.RESP as any} puntos={D.PUNTOS as any} zonas={Z as any} puedeEditar />
+  : <Inspeccionar areas={D.AREAS as any} responsables={D.RESP as any} puntos={D.PUNTOS as any} zonas={Z as any} metaGeneral={90} auditor="Cristian Padilla" puedeEditar />);
 `);
 const r = await build({ entryPoints: [R(".arnes/_s5-entrada.tsx")], bundle: true, write: false, format: "iife", jsx: "automatic",
   alias: { "next/navigation": R(".arnes/_nav-s5.ts"), "next/link": R(".arnes/_link-s5.tsx"), "@/lib/supabase/client": R(".arnes/_supa-s5.ts"), "@": R("src") },
@@ -100,6 +101,9 @@ for (let i = 0; i < 16; i++) {
 ok(/no cumple sin decir/.test(JSON.stringify(await pg.textContent(".s5-m-faltas")))|| /por completar/.test(await pg.textContent(".s5-m-faltas")), "no pide la observación del no cumple");
 await filas.nth(6).locator("textarea").fill("Vidrio en la calle 4, junto a la columna 12.");
 await filas.nth(6).locator('.s5-sev button:text-is("Alta")').click();
+const opZ = await filas.nth(6).locator(".s5-zona option").allTextContents();
+ok(opZ.join("|") === "Zona…|CALLE 3|CALLE 4", "zonas del área: " + opZ.join("|"));
+await filas.nth(6).locator(".s5-zona").selectOption("z2");
 ok(/2 por completar/.test(await pg.textContent(".s5-m-faltas")), "faltan las 2 fotos exigidas: " + await pg.textContent(".s5-m-faltas"));
 for (const i of [1, 4]) {
   const [fc] = await Promise.all([pg.waitForEvent("filechooser"), filas.nth(i).locator(".s5-foto-bt").click()]);
@@ -117,7 +121,7 @@ const subidas = log.filter((l) => l.k === "subir"), rpc = log.find((l) => l.k ==
 ok(subidas.length === 2 && subidas.every((s) => s.v.ruta.startsWith(rpc.v.p.id + "/")), "fotos con la ruta de la inspección");
 ok(log.findIndex((l) => l.k === "subir") < log.findIndex((l) => l.k === "rpc:s5_guardar"), "las fotos deben subir antes");
 const pts = rpc.v.p.puntos;
-ok(pts.length === 16 && pts[6].resultado === "no_cumple" && pts[6].severidad === "alta" && /columna 12/.test(pts[6].observacion), "punto 7 mal enviado");
+ok(pts.length === 16 && pts[6].resultado === "no_cumple" && pts[6].severidad === "alta" && /columna 12/.test(pts[6].observacion) && pts[6].zona_id === "z2" && pts[0].zona_id === null, "punto 7 mal enviado: " + JSON.stringify(pts[6]));
 ok(pts[0].observacion === null && pts[2].resultado === "na" && pts[2].fotos.length === 0, "observación/NA mal enviados");
 ok(rpc.v.p.area_id === "a1", "área mal enviada");
 ok(/93,8/.test(await pg.textContent(".s5-hecha")) && (await pg.$$(".s5-p.cumple")).length === 0, "después de guardar no limpia");
@@ -174,6 +178,12 @@ const ins = (await pg.evaluate(() => window.log)).find((l) => l.k === "insert:s5
 ok(ins && ins.v.s === "ordenar" && ins.v.area_id === "a1" && ins.v.orden === 7, "punto nuevo mal: " + JSON.stringify(ins?.v));
 await pg.screenshot({ path: "/tmp/s5-maestro.png", fullPage: true });
 await pg.click('.s5-tabs button:has-text("Áreas")');
+ok(/CALLE 3/.test(await pg.textContent(".s5-zonas")), "no salen las zonas del área");
+await pg.click('.s5-zonas button:has-text("+ zona") >> nth=0');
+await pg.fill('.s5-zona-nueva input', "muelle norte");
+await pg.click('.s5-zona-nueva button[type=submit]');
+const iz = (await pg.evaluate(() => window.log)).find((l) => l.k === "insert:s5_zonas");
+ok(iz && iz.v.nombre === "MUELLE NORTE" && iz.v.area_id === "a1", "zona nueva mal: " + JSON.stringify(iz?.v));
 await pg.click('button:has-text("+ Nueva área")');
 await pg.fill('.s5-mo input >> nth=0', "patio");
 await pg.fill('.s5-mo input >> nth=1', "150");

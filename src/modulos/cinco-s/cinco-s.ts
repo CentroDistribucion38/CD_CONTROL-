@@ -25,6 +25,18 @@ export const SEVERIDADES: { v: Severidad; t: string }[] = [
 
 export type Responsable5S = { id: string; nombre: string; cedula: string | null; cargo: string | null; activo: boolean };
 export type Area5S = { id: string; nombre: string; descripcion: string | null; responsable_id: string | null; meta: number | null; activa: boolean; orden: number };
+export type Zona5S = { id: string; area_id: string; nombre: string; activa: boolean; orden: number };
+export type EstadoProg = "programada" | "en_curso" | "hecha" | "vencida" | "cancelada";
+export type Prioridad = "baja" | "media" | "alta";
+/** Una auditoría programada. El estado lo calcula la base: «hecha» = hay una inspección del área en esas fechas. */
+export type Programada5S = {
+  id: string; area_id: string; area: string; auditor_id: string | null; auditor: string | null; actividad: string;
+  desde: string; hasta: string; prioridad: Prioridad; nota: string | null; cancelada: boolean; estado: EstadoProg;
+  inspeccion_id: string | null; hecha_el: string | null; cumplimiento: number | null; meta: number | null;
+};
+export const ESTADOS: Record<EstadoProg, string> = {
+  programada: "Programada", en_curso: "En curso", hecha: "Hecha", vencida: "Vencida", cancelada: "Cancelada",
+};
 export type Punto5S = { id: string; area_id: string | null; s: ClaveS; pregunta: string; peso: number; exige_foto: boolean; orden: number; activo: boolean };
 
 export type Inspeccion5S = {
@@ -34,7 +46,7 @@ export type Inspeccion5S = {
 };
 export type ItemInspeccion = {
   id: string; orden: number; s: ClaveS; pregunta: string; peso: number; resultado: Resultado;
-  severidad: Severidad | null; observacion: string | null;
+  severidad: Severidad | null; observacion: string | null; zona: string | null;
 };
 
 /** Los puntos que se le preguntan a un área: los generales (sin área) y los suyos, activos, por S y por orden. */

@@ -22,15 +22,15 @@ import { useConfirmar } from "@/components/Confirmar";
 import { sellar, type Foto } from "@/lib/evidencia";
 import {
   LAS_S, SEVERIDADES, checklistDe, cumplimiento, pct, semanaIso, hoyCo,
-  type Area5S, type Punto5S, type Responsable5S, type Resultado, type Severidad,
+  type Area5S, type Punto5S, type Zona5S, type Responsable5S, type Resultado, type Severidad,
 } from "@/modulos/cinco-s/cinco-s";
 
-type Resp = { resultado: Resultado | null; severidad: Severidad; observacion: string; conNota: boolean; fotos: (Foto & { k: number })[] };
-const VACIA: Resp = { resultado: null, severidad: "media", observacion: "", conNota: false, fotos: [] };
+type Resp = { resultado: Resultado | null; severidad: Severidad; observacion: string; conNota: boolean; zona: string; fotos: (Foto & { k: number })[] };
+const VACIA: Resp = { resultado: null, severidad: "media", observacion: "", conNota: false, zona: "", fotos: [] };
 const RECORDAR = "s5-area";
 
-export function Inspeccionar({ areas, responsables, puntos, metaGeneral, auditor, puedeEditar }: {
-  areas: Area5S[]; responsables: Responsable5S[]; puntos: Punto5S[]; metaGeneral: number; auditor: string; puedeEditar: boolean;
+export function Inspeccionar({ areas, responsables, puntos, zonas = [], metaGeneral, auditor, puedeEditar }: {
+  areas: Area5S[]; responsables: Responsable5S[]; puntos: Punto5S[]; zonas?: Zona5S[]; metaGeneral: number; auditor: string; puedeEditar: boolean;
 }) {
   const router = useRouter();
   const [avisar, avisos] = useAvisos();
@@ -60,6 +60,7 @@ export function Inspeccionar({ areas, responsables, puntos, metaGeneral, auditor
   const duenno = responsables.find((r) => r.id === area?.responsable_id) ?? null;
   const lista = useMemo(() => (area ? checklistDe(puntos, area.id) : []), [puntos, area]);
   const r = (id: string) => resp[id] ?? VACIA;
+  const zonasArea = zonas.filter((z) => z.activa && z.area_id === area?.id);
 
   const respondidos = lista.filter((p) => r(p.id).resultado).length;
   const tieneAlgo = respondidos > 0 || Object.values(resp).some((x) => x.fotos.length);
@@ -163,6 +164,7 @@ export function Inspeccionar({ areas, responsables, puntos, metaGeneral, auditor
           return {
             punto_id: p.id, resultado: x.resultado,
             severidad: x.resultado === "no_cumple" ? x.severidad : null,
+            zona_id: x.resultado === "no_cumple" && x.zona ? x.zona : null,
             observacion: (x.resultado === "no_cumple" || x.conNota ? x.observacion.trim() : "") || null,
             fotos: fotosDe[p.id] ?? [],
           };
@@ -180,8 +182,8 @@ export function Inspeccionar({ areas, responsables, puntos, metaGeneral, auditor
     for (const x of Object.values(resp)) for (const f of x.fotos) URL.revokeObjectURL(f.url);
     setHecha({ id, area: area.nombre, pct: total ?? 0, meta });
     setResp({}); setNota(""); setVerFaltas(false);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    router.refresh();
+    /* EL RESULTADO DE LA INSPECCIÓN ES SU INFORME: se abre y el PDF se descarga solo. */
+    router.push(`/5s/informe/${id}?pdf=1`);
   }
 
   if (activas.length === 0) {
@@ -210,7 +212,7 @@ export function Inspeccionar({ areas, responsables, puntos, metaGeneral, auditor
             <strong>Inspección de {hecha.area} guardada</strong>
             <span>{hecha.pct >= hecha.meta ? "Cumple la meta" : "Quedó bajo la meta"} de {pct(hecha.meta)}.</span>
           </div>
-          <Link href="/5s/historial" className="s5-bt">Ver en historial</Link>
+          <Link href={`/5s/informe/${hecha.id}?pdf=1`} className="s5-bt osc">Informe PDF</Link>
           <button type="button" className="s5-x" aria-label="Cerrar" onClick={() => setHecha(null)}>×</button>
         </div>
       )}
@@ -294,6 +296,13 @@ export function Inspeccionar({ areas, responsables, puntos, metaGeneral, auditor
                                       onClick={() => poner(p.id, { severidad: v.v })}>{v.t}</button>
                             ))}
                           </div>
+                          {/* EN QUÉ ZONA: «no cumple en Bodega 38» no dice adónde ir; «en la calle 3» sí. */}
+                          {zonasArea.length > 0 && (
+                            <select className="s5-zona" value={x.zona} aria-label="Zona" onChange={(e) => poner(p.id, { zona: e.target.value })}>
+                              <option value="">Zona…</option>
+                              {zonasArea.map((z) => <option key={z.id} value={z.id}>{z.nombre}</option>)}
+                            </select>
+                          )}
                           <textarea value={x.observacion} rows={2} maxLength={600} aria-invalid={malObs || undefined}
                                     placeholder="¿Qué se encontró? Dónde, qué y cuánto (ej.: vidrio en la calle 4, junto a la columna 12)."
                                     onChange={(e) => poner(p.id, { observacion: e.target.value })} />
