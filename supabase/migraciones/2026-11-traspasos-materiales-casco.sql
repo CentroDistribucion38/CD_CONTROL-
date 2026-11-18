@@ -64,7 +64,7 @@ exception when duplicate_object then null; end $$;
 /* `is null`: si alguien ya lo cambió a mano, volver a correr esto no se lo pisa. */
 update public.traspasos_tipos set materiales = 'casco'
  where materiales is null and not coalesce(lleva_vidrio, false)
-   and (clave in ('casco_vidrio', 'envase') or nombre ilike 'casco%' or nombre ilike 'envase%');
+   and (clave = 'casco_vidrio' or nombre ilike 'casco%vidrio%');  -- SOLO casco de vidrio
 update public.traspasos_tipos set materiales = 'pet'
  where materiales is null and (clave = 'pet' or nombre ilike 'pet');
 
