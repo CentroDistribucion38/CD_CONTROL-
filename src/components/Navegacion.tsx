@@ -372,6 +372,43 @@ const IconoCuatroTablas = () => (
   </svg>
 );
 
+/* 5S: cada pantalla con su dibujo (antes todas caían al de tablero y había que leer el rótulo).
+   El módulo es la escoba (orden y aseo); Cronograma, las barras del Gantt; Inspeccionar, la tabla de
+   checklist con su chulo; Plan de acción, el ciclo que se cierra; Historial, el reloj hacia atrás. */
+const IconoEscoba = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <path d="M19.5 3.5l-7 7" />
+    <path d="M12.5 10.5c-2.6-1.3-5.3-.3-6.4 2l-2.6 6 3.1.9 1.1-2.3.1 2.9 3.1.9 1.1-2.4.4 2.4 2.4.6c1.5-3 1.5-6.4-2.3-9z" />
+  </svg>
+);
+const IconoGantt = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <path d="M3.5 3.5v17h17" />
+    <path d="M7 7.5h6M10 12h7.5M8.5 16.5h5" strokeWidth="2.6" />
+  </svg>
+);
+const IconoInspeccion = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <path d="M9 4.5H6.5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-13a2 2 0 0 0-2-2H15" />
+    <rect x="9" y="3" width="6" height="3.2" rx="1" />
+    <path d="M8.5 13.2l2.4 2.4 4.6-5" />
+  </svg>
+);
+const IconoCiclo = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <path d="M20 12a8 8 0 1 1-2.6-5.9" />
+    <path d="M20.2 3.8v4.5h-4.5" />
+    <path d="M8.6 12.3l2.4 2.4 4.4-4.8" />
+  </svg>
+);
+const IconoHistorial = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <path d="M3.8 12a8.2 8.2 0 1 0 2.4-5.8" />
+    <path d="M3.5 3.8v4.6h4.6" />
+    <path d="M12 7.8V12l3 2" />
+  </svg>
+);
+
 const ICONO_MODULO: Record<string, () => React.ReactElement> = {
   /* Roturas ya no es un módulo: se mudó dentro de Quiebra. Su dibujo
      sigue vivo como icono de las ramas «En sitio» y «Salida» y de sus
@@ -381,6 +418,7 @@ const ICONO_MODULO: Record<string, () => React.ReactElement> = {
   inventario: IconoInventario,
   acciones: IconoAcciones,
   gestion: IconoTablero,
+  "cinco-s": IconoEscoba,
 };
 /* EL ICONO DE UNA RAMA VA POR SU ID Y NO POR SU RUTA.
    La rama «Envase» entra por /quiebra/tablero, que como SECCIÓN es el
@@ -496,6 +534,12 @@ const ICONO_RUTA: Record<string, () => React.ReactElement> = {
   "/roturas/salida/validacion": IconoSello,
   "/roturas/salida/analisis": IconoAnalisis,
   "/roturas/salida/tolvas": IconoCaja,
+  "/5s/cronograma": IconoGantt,
+  "/5s": IconoInspeccion,
+  "/5s/plan": IconoCiclo,
+  "/5s/historial": IconoHistorial,
+  "/5s/tablero": IconoTablero,
+  "/5s/maestro": IconoLlave,
 };
 
 export function Navegacion({ permitidas, anclado, alternar }: {

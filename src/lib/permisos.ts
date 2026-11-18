@@ -22,7 +22,7 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { usuarioActual } from "@/lib/sesion";
-import { MODULOS, type Modulo } from "@/modulos/registro";
+import { MODULOS, moduloPorRuta, type Modulo } from "@/modulos/registro";
 
 export type Nivel = "ninguno" | "ver" | "editar";
 
@@ -112,11 +112,12 @@ export const misPermisos = cache(async function misPermisos(): Promise<Permisos>
      qué no ve el menú. */
   if (rolesR.error || permisosR.error) {
     const viejo = rol === "admin" || rol === "supervisor";
-    const nivel = (): Nivel => (viejo ? "editar" : "ver");
+    const cerrado = (ruta: string) => rol !== "admin" && !!moduloPorRuta(ruta)?.soloManda;
+    const nivel = (ruta: string): Nivel => (cerrado(ruta) ? "ninguno" : viejo ? "editar" : "ver");
     return {
       rol, nombreRol: rol, manda: rol === "admin",
-      nivel, puedeVer: () => true, puedeEditar: () => viejo,
-      modulos: MODULOS.filter((m) => m.activo && !m.oculto),
+      nivel, puedeVer: (ruta: string) => !cerrado(ruta), puedeEditar: (ruta: string) => viejo && !cerrado(ruta),
+      modulos: MODULOS.filter((m) => m.activo && !m.oculto && (rol === "admin" || !m.soloManda)),
       falta: true, fiscal: false,
     };
   }
@@ -141,6 +142,8 @@ export const misPermisos = cache(async function misPermisos(): Promise<Permisos>
      que es una decisión visible. */
   const nivelBase = (ruta: string): Nivel => {
     if (manda) return "editar";
+    /* Un módulo solo para quien manda (5S) queda cerrado para todos los demás, diga lo que diga su rol. */
+    if (moduloPorRuta(ruta)?.soloManda) return "ninguno";
     const suyo = extra[ruta];
     if (suyo) return suyo;
     return mapa.get(ruta) ?? "ninguno";

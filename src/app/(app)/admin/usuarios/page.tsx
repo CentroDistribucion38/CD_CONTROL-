@@ -79,7 +79,7 @@ export default async function UsuariosPage({ searchParams }: {
 
   /* El catálogo de pantallas sale del REGISTRO, que es la única lista
      que existe: una sección nueva aparece aquí sola el día que se cree. */
-  const catalogo = MODULOS.filter((m) => m.activo).map((m) => ({
+  const catalogo = MODULOS.filter((m) => m.activo && !m.soloManda).map((m) => ({
     id: m.id,
     nombre: m.nombre,
     acento: m.acento,

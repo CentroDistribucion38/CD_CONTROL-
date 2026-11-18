@@ -105,6 +105,11 @@ export type Modulo = {
   entrada?: string;
   activo: boolean;
   oculto?: boolean;
+  /**
+   * SOLO PARA QUIEN MANDA (el super administrador). Nadie más lo ve ni entra, aunque su rol tenga marcadas sus
+   * pantallas en /admin/roles; por eso tampoco sale en Roles ni en Usuarios. La base lo cierra igual (RLS con manda()).
+   */
+  soloManda?: boolean;
   roles?: Rol[];
   /** Si el módulo se parte en submódulos. Sin esto, `ruta` es una
    *  pantalla normal y las secciones se listan todas juntas. */
@@ -641,6 +646,8 @@ export const MODULOS: Modulo[] = [
     imagen: "/modulos/cinco-s.jpg",
     ruta: "/5s",
     activo: true,
+    /* «Que nadie que no sea super admin pueda ver lo de 5S.» */
+    soloManda: true,
     /* EL ORDEN DEL PROCESO: programar → auditar → corregir lo encontrado → lo auditado → cómo vamos → configurar (se arma una vez y cierra la lista).
        La tarjeta entra a Inspeccionar (/5s), que es lo que se hace casi siempre. */
     secciones: [

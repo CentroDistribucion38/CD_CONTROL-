@@ -64,7 +64,8 @@ export default async function RolesPage() {
   /* El catálogo de secciones sale del REGISTRO, no de la base: el
      registro es la única lista de pantallas que existe, y una sección
      nueva tiene que aparecer aquí sola el día que alguien la cree. */
-  const catalogo = MODULOS.filter((m) => m.activo).map((m) => ({
+  /* Lo que es solo del super administrador (5S) no se reparte por rol: no sale aquí. */
+  const catalogo = MODULOS.filter((m) => m.activo && !m.soloManda).map((m) => ({
     id: m.id,
     nombre: m.nombre,
     acento: m.acento,

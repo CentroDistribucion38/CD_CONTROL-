@@ -22,11 +22,8 @@ begin;
 create or replace function public.s5_ve() returns boolean
 language sql stable security definer set search_path = public
 as $$
-  select public.mi_nivel_pantalla('/5s') <> 'ninguno'
-      or public.mi_nivel_pantalla('/5s/historial') <> 'ninguno'
-      or public.mi_nivel_pantalla('/5s/tablero') <> 'ninguno'
-      or public.mi_nivel_pantalla('/5s/cronograma') <> 'ninguno'
-      or public.mi_nivel_pantalla('/5s/maestro') <> 'ninguno'
+  -- 5S es solo del super administrador (2026-11-cinco-s-5.sql).
+  select public.manda()
 $$;
 
 -- ---------------------------------------------------------------------
