@@ -1,4 +1,4 @@
-/* 5S PASO 2: Cronograma (Gantt), Tablero (+ imagen), Informe (hojas + PDF) y zonas. */
+/* 5S PASO 3 (plan de acción, firmas, visor B) — basado en el paso 2: Cronograma (Gantt), Tablero (+ imagen), Informe (hojas + PDF) y zonas. */
 import { readFileSync, writeFileSync } from "node:fs";
 import { build } from "esbuild";
 const R = (p) => new URL("../" + p, import.meta.url).pathname;
@@ -47,20 +47,31 @@ const PREG = ["No hay materiales, herramientas ni equipos que no se usen en el �
 const SS = [0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 4, 4, 4];
 const ITEMS = PREG.map((p, i) => ({ id: "it" + i, orden: i, s: S[SS[i]], pregunta: p, peso: 1,
   resultado: i === 4 || i === 6 ? "no_cumple" : i === 2 ? "na" : "cumple", severidad: i === 4 ? "alta" : i === 6 ? "media" : null,
-  observacion: i === 4 ? "Extintor de la calle 3 tapado por estibas de envase vacío." : i === 6 ? "Vidrio roto junto a la columna 12." : null, zona: i === 4 ? "CALLE 3" : i === 6 ? "CALLE 4" : null }));
+  observacion: i === 4 ? "Extintor de la calle 3 tapado por estibas de envase vacío." : i === 6 ? "Vidrio roto junto a la columna 12." : null, zona: i === 4 ? "CALLE 3" : i === 6 ? "CALLE 4" : null,
+  accion: i === 4 ? "Retirar las estibas de envase y demarcar el área del extintor." : null, accion_resp: i === 4 ? "Carlos Mejía" : null, accion_fecha: i === 4 ? "2026-11-20" : null,
+  cerrada_el: i === 6 ? "2026-11-19T15:00:00Z" : null, cerrada_por: i === 6 ? "Cristian" : null, cierre_nota: i === 6 ? "Se barrió y se retiró el vidrio; se dejó caneca de vidrio en la columna 12." : null }));
+const HALL = [
+  { id: "h1", inspeccion_id: "x1", fecha: mas(hoy, -9), area_id: "a1", area: "BODEGA 38", area_responsable: "Genesis Visbal", orden: 4, s: "ordenar", pregunta: "Pasillos, salidas de emergencia y extintores libres y señalizados.", severidad: "alta", observacion: "Extintor de la calle 3 tapado por estibas de envase vacío.", zona: "CALLE 3", accion: "Retirar las estibas y demarcar el área del extintor.", accion_resp_id: "r2", accion_resp: "Carlos Mejía", accion_fecha: mas(hoy, -2), cerrada_el: null, cerrada_por: null, cierre_nota: null, estado: "vencida", dias: 9, fotos_antes: 1, fotos_despues: 0 },
+  { id: "h2", inspeccion_id: "x1", fecha: mas(hoy, -1), area_id: "a2", area: "FABRICA", area_responsable: "Carlos Mejía", orden: 6, s: "limpiar", pregunta: "Pisos, estanterías y equipos limpios, sin derrames ni vidrio.", severidad: "media", observacion: "Derrame de cerveza junto a la llenadora 2.", zona: null, accion: null, accion_resp_id: null, accion_resp: null, accion_fecha: null, cerrada_el: null, cerrada_por: null, cierre_nota: null, estado: "sin_plan", dias: 1, fotos_antes: 0, fotos_despues: 0 },
+  { id: "h3", inspeccion_id: "x2", fecha: mas(hoy, -3), area_id: "a1", area: "BODEGA 38", area_responsable: "Genesis Visbal", orden: 9, s: "estandarizar", pregunta: "Los estándares visuales están al día.", severidad: "baja", observacion: "Rótulo de la calle 5 caído.", zona: "CALLE 5", accion: "Volver a pegar el rótulo.", accion_resp_id: "r1", accion_resp: "Genesis Visbal", accion_fecha: mas(hoy, 4), cerrada_el: null, cerrada_por: null, cierre_nota: null, estado: "abierta", dias: 3, fotos_antes: 1, fotos_despues: 0 },
+  { id: "h4", inspeccion_id: "x3", fecha: mas(hoy, -12), area_id: "a3", area: "PATIO", area_responsable: "Genesis Visbal", orden: 2, s: "clasificar", pregunta: "Lo dañado está identificado y separado.", severidad: "media", observacion: "Estibas rotas mezcladas con las buenas.", zona: null, accion: "Separar estibas rotas.", accion_resp_id: "r1", accion_resp: "Genesis Visbal", accion_fecha: mas(hoy, -6), cerrada_el: mas(hoy, -7) + "T15:00:00Z", cerrada_por: "Cristian", cierre_nota: "Se separaron 14 estibas rotas en la zona de baja.", estado: "cerrada", dias: 5, fotos_antes: 1, fotos_despues: 1 },
+];
+const FOTOSH = { h1: { antes: [foto], despues: [] }, h3: { antes: [foto2], despues: [] }, h4: { antes: [foto2], despues: [foto] } };
 const DATOS = { insp: { ...INSP[0], id: "x1", area: "BODEGA 38", fecha: "2026-11-18", creado: "2026-11-18T14:42:00Z", cumplimiento: 77.8, meta: 90, evaluados: 15, no_cumple: 2, nota: "Turno B con mucho movimiento de envase. El extintor de la calle 3 se despejó durante la visita.", por_s: { clasificar: 100, ordenar: 66.7, limpiar: 80, estandarizar: 100, disciplina: 100 }, fotos: 3, responsable: "ANDRES PALACIO", auditor_nombre: "Cristian Padilla" },
-  items: ITEMS, fotos: [{ item_id: "it4", url: foto }, { item_id: "it6", url: foto2 }, { item_id: "it1", url: foto }, { item_id: "it3", url: foto2 }, { item_id: "it5", url: foto }, { item_id: "it8", url: foto2 }, { item_id: "it9", url: foto }], cargo: "Warehouse Supervisor", anterior: 91, numero: "5S-2026-0147" };
+  items: ITEMS, fotos: [{ item_id: "it4", url: foto }, { item_id: "it6", url: foto2 }, { item_id: "it1", url: foto }, { item_id: "it3", url: foto2 }, { item_id: "it5", url: foto }, { item_id: "it8", url: foto2 }, { item_id: "it9", url: foto }, { item_id: "it6", url: foto, momento: "despues" }], cargo: "Warehouse Supervisor", anterior: 91, numero: "5S-2026-0147" };
 
 writeFileSync(R(".arnes/_s5b-entrada.tsx"), `
 import { createRoot } from "react-dom/client";
 import { Cronograma } from "../src/app/(app)/5s/cronograma/Cronograma";
 import { Tablero } from "../src/app/(app)/5s/tablero/Tablero";
 import { Informe5S } from "../src/app/(app)/5s/informe/[id]/Informe5S";
-const D = ${JSON.stringify({ AREAS, RESP, INSP, NC, PLAN, DATOS })};
+import { PlanAccion } from "../src/app/(app)/5s/plan/PlanAccion";
+const D = ${JSON.stringify({ AREAS, RESP, INSP, NC, PLAN, DATOS, HALL, FOTOSH })};
 const pant = new URLSearchParams(location.hash.slice(1)).get("p") ?? "crono";
 createRoot(document.getElementById("r")!).render(
-  pant === "tab" ? <Tablero filas={D.INSP as any} areas={D.AREAS as any} responsables={D.RESP as any} meta={90} plan={D.PLAN as any} noCumple={D.NC as any} />
-  : pant === "inf" ? <Informe5S datos={D.DATOS as any} descargar={false} />
+  pant === "tab" ? <Tablero filas={D.INSP as any} areas={D.AREAS as any} responsables={D.RESP as any} meta={90} plan={D.PLAN as any} noCumple={D.NC as any} hallazgos={D.HALL as any} />
+  : pant === "inf" ? <Informe5S datos={D.DATOS as any} descargar={false} responsables={D.RESP as any} areaResp="r1" puedeFirmar />
+  : pant === "plan" ? <PlanAccion filas={D.HALL as any} areas={D.AREAS as any} responsables={D.RESP as any} fotos={D.FOTOSH as any} puedeEditar />
   : <Cronograma filas={D.PLAN as any} areas={D.AREAS as any} responsables={D.RESP as any} puedeEditar />);
 `);
 const r = await build({ entryPoints: [R(".arnes/_s5b-entrada.tsx")], bundle: true, write: false, format: "iife", jsx: "automatic",
@@ -80,20 +91,69 @@ const pg = await ctxB.newPage();
 pg.on("pageerror", (e) => fallas.push("error: " + e.message));
 const abrir = async (p, ancho = 1440) => { await pg.setViewportSize({ width: ancho, height: 1000 }); await pg.goto(`http://localhost:8765/__s5b.html#p=${p}`); await pg.reload(); await pg.waitForSelector(".s5 h1, .i5 h1") };
 
-/* ---------- INFORME ---------- */
+/* ---------- PLAN DE ACCIÓN ---------- */
+await abrir("plan");
+const est = await pg.$$eval(".s5-hal > li", (ls) => ls.map((l) => l.className));
+ok(est.join() === "est-vencida,est-sin_plan,est-abierta", "orden/pendientes: " + est.join());
+ok(/Vencidos\s*1/.test(await pg.textContent(".s5-kpis")), "kpi vencidos");
+await pg.screenshot({ path: "/tmp/s5-plan.png", fullPage: true });
+await pg.click('.s5-hal > li.est-sin_plan button:has-text("Asignar plan")');
+ok(/Derrame de cerveza/.test(await pg.textContent(".s5-mo-hal")), "la ventana no muestra el hallazgo");
+ok(await pg.inputValue(".s5-mo select") === "r2", "no arranca en el responsable del área: " + await pg.inputValue(".s5-mo select"));
+await pg.click('.s5-mo button[type=submit]');
+ok(/Escribe qué se va a hacer/.test(await pg.textContent("body")), "dejó guardar sin acción");
+await pg.fill(".s5-mo textarea", "Limpiar el derrame y revisar la válvula de la llenadora.");
+await pg.click('.s5-mo button:has-text("1 semana")');
+await pg.locator(".s5-mo").screenshot({ path: "/tmp/s5-plan-mo.png" });
+await pg.click('.s5-mo button[type=submit]');
+{ const l = (await pg.evaluate(() => window.log)).find((x) => x.k === "rpc:s5_plan");
+  ok(l && l.v.p_item === "h2" && l.v.p_resp === "r2" && l.v.p_fecha === mas(hoy, 7) && /válvula/.test(l.v.p_accion), "rpc plan: " + JSON.stringify(l)); }
+await pg.click('.s5-hal > li.est-vencida button:has-text("Cerrar con foto")');
+await pg.fill(".s5-mo textarea", "Se retiraron las estibas.");
+await pg.click('.s5-mo button[type=submit]');
+ok(/foto del después/i.test(await pg.textContent("body")), "dejó cerrar sin foto");
+ok(!(await pg.evaluate(() => window.log)).some((x) => x.k === "rpc:s5_cerrar"), "llamó cerrar sin foto");
+await pg.setInputFiles("input[type=file]", "/tmp/inf/f1.jpg");
+await pg.waitForSelector(".s5-despues figure img");
+await pg.locator(".s5-mo").screenshot({ path: "/tmp/s5-cierre-mo.png" });
+await pg.click('.s5-mo button[type=submit]');
+await pg.waitForTimeout(300);
+{ const log = await pg.evaluate(() => window.log);
+  const sub = log.filter((x) => x.k === "subir"); const c = log.find((x) => x.k === "rpc:s5_cerrar");
+  ok(sub.length === 1 && /^x1\/cierre-h1-\d+-1\.jpg$/.test(sub[0].v.ruta), "ruta de la foto: " + JSON.stringify(sub));
+  ok(c && c.v.p_item === "h1" && c.v.p_fotos.length === 1 && c.v.p_fotos[0].ruta === sub[0]?.v.ruta, "rpc cerrar: " + JSON.stringify(c)); }
+await pg.click('.s5-seg button:has-text("Cerrados")');
+ok((await pg.$$(".s5-hal > li.est-cerrada")).length === 1 && /a tiempo/.test(await pg.textContent(".s5-hal")), "cerrados / a tiempo");
+await pg.click('.s5-hal button:has-text("Reabrir")');
+await pg.click('.cf-velo .cf-botones button:not(.plano)');
+await pg.waitForTimeout(200);
+ok((await pg.evaluate(() => window.log)).some((x) => x.k === "rpc:s5_reabrir"), "no reabrió");
+await abrir("plan", 390);
+await pg.screenshot({ path: "/tmp/s5-plan-cel.png", fullPage: true });
+
+/* ---------- TABLERO (plan) ---------- */
+await abrir("tab");
+ok(/Plan de acción/.test(await pg.textContent(".s5-tab-grid")), "falta la tarjeta del plan");
+await pg.locator('.s5-card:has(h2:has-text("Plan de acción"))').screenshot({ path: "/tmp/s5-tab-plan.png" });
+
+/* ---------- INFORME (visor B) ---------- */
 await abrir("inf");
-await pg.screenshot({ path: "/tmp/s5-vista.png", clip: { x: 0, y: 0, width: 1440, height: 760 } });
-await pg.hover(".i5-x"); await pg.screenshot({ path: "/tmp/s5-x.png", clip: { x: 1100, y: 0, width: 340, height: 130 } });
-const hojas = await pg.$$(".i5-hoja");
-ok(hojas.length >= 2, "hojas del informe: " + hojas.length);
-const desborda = await pg.$$eval(".i5-cuerpo", (cs) => cs.map((c) => { const h = c.closest(".i5-hoja"); return c.getBoundingClientRect().bottom > h.getBoundingClientRect().bottom - 34 }));
-ok(!desborda.some(Boolean), "alguna hoja se desborda: " + desborda);
-ok(!(await pg.textContent(".i5-barra")).includes("Historial") && await pg.isVisible(".i5-x"), "falta la X");
-ok(/Página: 1 de/.test(await pg.textContent(".i5-hoja")), "sin «Página X de N»");
-ok(/Inspeccion 5S - BODEGA 38 - 18-11-2026 09-42\.pdf/.test(await pg.textContent(".i5-barra")), "nombre del archivo: " + await pg.textContent(".i5-barra .s5-sub"));
-for (const [i, h] of hojas.entries()) await h.screenshot({ path: `/tmp/s5-inf-${i + 1}.png` });
-const [dl] = await Promise.all([pg.waitForEvent("download", { timeout: 30000 }), pg.click('button:has-text("Descargar PDF")')]);
-await dl.saveAs("/tmp/s5-informe-hd.pdf");
-ok(dl.suggestedFilename() === "Inspeccion 5S - BODEGA 38 - 18-11-2026 09-42.pdf", "archivo: " + dl.suggestedFilename());
+await pg.waitForTimeout(300);
+await pg.screenshot({ path: "/tmp/s5-visorB.png" });
+ok(await pg.inputValue(".i5-lado .firmas select >> nth=0") === "r1", "firma OL no arranca en el responsable del área");
+await pg.selectOption(".i5-lado .firmas select >> nth=1", "r2");
+{ const f = (await pg.evaluate(() => window.log)).find((x) => x.k === "rpc:s5_firmas");
+  ok(f && f.v.p_ol === "r1" && f.v.p_abi === "r2", "rpc firmas: " + JSON.stringify(f)); }
+ok(/Carlos Mejía\s*Warehouse Supervisor ABI/.test(await pg.textContent(".i5-fir")), "la firma no sale en la hoja: " + await pg.textContent(".i5-fir"));
+await pg.click('.i5-pag button[aria-label="Hoja siguiente"]');
+await pg.waitForTimeout(700);
+ok(/Hoja 2 de/.test(await pg.textContent(".i5-pag")), "paginación: " + await pg.textContent(".i5-pag"));
+await pg.click('.i5-pag button[aria-label="Acercar"]');
+ok(/\d+ %/.test(await pg.textContent(".i5-pag .z")), "zoom");
+await pg.click('.i5-pag .z'); // vuelve a ajustar
+const [dl] = await Promise.all([pg.waitForEvent("download", { timeout: 30000 }), pg.click('.i5-lado button:has-text("Descargar PDF")')]);
+await dl.saveAs("/tmp/s5-informe-p3.pdf");
+await abrir("inf", 390);
+await pg.screenshot({ path: "/tmp/s5-visorB-cel.png" });
 await nav.close();
 console.log(fallas.length ? "FALLAS:\n- " + fallas.join("\n- ") : "TODO OK");

@@ -4,16 +4,68 @@
    Títulos de sección en gris claro con la raya roja (nada de franjas negras).
    --------------------------------------------------------------------- */
 .i5 { --i5-rojo: #E30613; --i5-linea: #9ca3af; --i5-suave: #c9cdd3; --i5-tit: "Archivo", system-ui, sans-serif; --i5-txt: "IBM Plex Sans", system-ui, sans-serif;
-  display: flex; flex-direction: column; gap: 14px; font-family: var(--i5-txt); color: #141414 }
+  --i5-tinta: #141414; --i5-gris: #5b6b7f; --i5-am: #FFC300; --i5-ocre: #8A6300;
+  /* Las piezas de 5S (botones, campos, avisos) usan las variables --s5-*: el informe no vive dentro de .s5, así que se
+     declaran aquí también (sin esto los botones salían sin borde y «Descargar PDF» sin su amarillo). */
+  --s5-tinta: var(--c-04203f, #0d0d0d); --s5-marca: var(--c-marca, #FFC000); --s5-gris: var(--c-5b6b7f, #5b6b7f);
+  --s5-linea: var(--c-d5dce5, #d5dce5); --s5-fondo: #F4F5F7; --s5-carbon: #3B3B3B; --s5-ocre: #B58200; --s5-ocre-txt: #8A6300;
+  --s5-amarillo: #FFC300; --s5-crema: #FFF1C2; --s5-rojo: #C8102E; --s5-rojo-suave: #FDECEE;
+  --s5-titulo: "Archivo", system-ui, sans-serif; --s5-texto: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  display: grid; grid-template-columns: 360px minmax(0, 1fr); align-items: start; margin: -26px -30px -40px; min-height: calc(100dvh - 70px);
+  font-family: var(--i5-txt); color: var(--i5-tinta); background: #E9ECF0 }
 .i5 * { box-sizing: border-box }
-.i5-barra { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap }
-.i5-x { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex: none; margin-left: 6px; border: 1px solid #141414; background: #141414; color: #fff; cursor: pointer }
+.i5 button, .i5 select { font-family: inherit; border-radius: 0 }
+
+/* EL PANEL (opción B): resultado, por S, firmas y botones. Se queda quieto mientras las hojas ruedan. */
+.i5-lado { position: sticky; top: 0; align-self: start; max-height: 100dvh; overflow-y: auto; display: flex; flex-direction: column;
+  min-height: calc(100dvh - 70px); background: #fff; border-right: 1px solid #DDE1E7; border-top: 4px solid var(--i5-am) }
+.i5-lado .top { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid #EEF0F3 }
+.i5-lado .top img { height: 26px; width: auto }
+.i5-lado .sec { padding: 16px 20px; border-bottom: 1px solid #EEF0F3 }
+.i5-lado h1 { margin: 4px 0 0; font: 900 24px/1.1 var(--i5-tit); letter-spacing: -.02em; overflow-wrap: anywhere }
+.i5-lado .sub { margin: 4px 0 0; font-size: 13px; color: var(--i5-gris) }
+.i5-lado .big { display: block; font: 900 56px/1 var(--i5-tit); letter-spacing: -.045em; font-variant-numeric: tabular-nums }
+.i5-lado .big.bajo { color: var(--i5-rojo) }
+.i5-lado .meta { margin: 6px 0 0; font: 700 13px var(--i5-txt) }
+.i5-lado .porS { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 7px }
+.i5-lado .porS li { display: grid; grid-template-columns: 26px minmax(0, 1fr) 52px; align-items: center; gap: 8px }
+.i5-lado .porS b { font: 900 13px var(--i5-tit) }
+.i5-lado .porS i { position: relative; height: 7px; background: #EEF0F2 }
+.i5-lado .porS em { position: absolute; left: 0; top: 0; bottom: 0; background: #2F2F2F }
+.i5-lado .porS em.bajo { background: var(--i5-rojo) }
+.i5-lado .porS u { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--i5-tinta) }
+.i5-lado .porS span { text-align: right; font: 800 13px var(--i5-tit); font-variant-numeric: tabular-nums }
+.i5-lado .porS span.bajo { color: var(--i5-rojo) }
+.i5-lado .plan { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-top: 14px; padding: 9px 12px; background: #FFF8E1; border-left: 3px solid var(--i5-am); color: inherit; text-decoration: none }
+.i5-lado .plan span { font: 700 10.5px var(--i5-txt); letter-spacing: .12em; text-transform: uppercase; color: var(--i5-ocre) }
+.i5-lado .plan b { font-size: 13px }
+.i5-lado .plan:hover b { text-decoration: underline }
+.i5-lado .firmas { display: grid; gap: 12px }
+.i5-lado .s5-ojo.tinta { color: var(--i5-tinta) }
+.i5-lado .firmas .falta select { border-color: var(--i5-am); background: #FFF8E1; color: var(--i5-ocre) }
+.i5-lado .firmas small { font-size: 12px; color: var(--i5-gris); line-height: 1.4 }
+.i5-lado .s5-aviso { margin: 12px 20px 0 }
+.i5-lado .acc { margin-top: auto; padding: 16px 20px 20px; display: grid; gap: 8px }
+.i5-lado .acc > .s5-bt { min-height: 48px; font-size: 14.5px }
+.i5-lado .acc .dos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px }
+.i5-lado .acc .archivo { margin: 2px 0 0; font-size: 11.5px; color: var(--i5-gris); overflow-wrap: anywhere }
+.i5-x { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex: none; border: 1px solid #141414; background: #141414; color: #fff; cursor: pointer }
 .i5-x svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4 }
-.i5-x:hover { background: var(--s5-rojo, #E30613); border-color: var(--s5-rojo, #E30613) }
-.i5-x:focus-visible { outline: 2px solid #F5B800; outline-offset: 2px }
-.i5-barra h1 { margin: 4px 0 0; font: 900 26px/1.1 var(--i5-tit); letter-spacing: -.02em }
-.i5-hojas { display: flex; flex-direction: column; align-items: center; gap: 22px; padding: 22px 0; background: #8a9099; overflow-x: auto }
-.i5-hoja { position: relative; flex: none; width: 816px; height: 1056px; padding: 36px 40px 44px; background: #fff; box-shadow: 0 10px 34px rgba(0, 0, 0, .35); overflow: hidden; font-size: 10.5px; line-height: 1.35 }
+.i5-x:hover { background: var(--i5-rojo); border-color: var(--i5-rojo) }
+.i5-x:focus-visible { outline: 3px solid var(--i5-am); outline-offset: 2px }
+
+/* LAS HOJAS, con la paginación y el zoom flotando abajo. */
+.i5-lienzo { position: relative; min-width: 0; display: flex; flex-direction: column }
+.i5-hojas { display: flex; flex-direction: column; align-items: center; gap: 22px; padding: 26px 20px 90px; overflow-x: auto }
+.i5-pag { position: sticky; bottom: 18px; align-self: center; z-index: 5; margin-top: -72px; display: flex; align-items: stretch; height: 44px; background: #fff; border: 1px solid #DDE1E7; box-shadow: 0 10px 28px rgba(15, 23, 42, .16) }
+.i5-pag > * { display: grid; place-items: center; padding: 0 14px; border: 0; border-left: 1px solid #DDE1E7; background: #fff; font: 700 13.5px var(--i5-txt); color: var(--i5-tinta); white-space: nowrap; font-variant-numeric: tabular-nums }
+.i5-pag > :first-child { border-left: 0 }
+.i5-pag button { cursor: pointer; min-width: 42px; font-size: 17px }
+.i5-pag button.z { font-size: 13.5px; min-width: 70px }
+.i5-pag button:hover:not(:disabled) { background: #FFF8E1 }
+.i5-pag button:disabled { color: #C2C8D0; cursor: default }
+.i5-pag button:focus-visible { outline: 3px solid var(--i5-am); outline-offset: -3px }
+.i5-hoja { position: relative; flex: none; width: 816px; height: 1056px; padding: 36px 40px 44px; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .08), 0 18px 50px rgba(15, 23, 42, .18); overflow: hidden; font-size: 10.5px; line-height: 1.35 }
 .i5-hoja table { width: 100%; border-collapse: collapse }
 
 /* ENCABEZADO DE CALIDAD */
@@ -97,18 +149,21 @@
 
 .i5-pie { position: absolute; left: 40px; right: 40px; bottom: 18px; display: flex; justify-content: space-between; font-size: 8.5px; color: #6b7280 }
 
-@media (max-width: 860px) {
-  /* En el celular la hoja se ve completa, más pequeña (se lee en el PDF). */
-  .i5-hojas { align-items: flex-start; padding: 12px }
-  .i5-hoja { zoom: .45 }
+@media (max-width: 1100px) {
+  /* En tablet y celular el panel va arriba (no al lado) y las hojas se ajustan al ancho. */
+  .i5 { grid-template-columns: minmax(0, 1fr); margin: -18px -18px -30px }
+  .i5-lado { position: static; max-height: none; min-height: 0; border-right: 0; border-bottom: 1px solid #DDE1E7 }
+  .i5-lado .acc { margin-top: 0 }
+  .i5-hojas { padding: 16px 10px 84px }
 }
 @media print {
   @page { size: letter; margin: 0 }
   html, body { background: #fff !important; margin: 0 !important; height: auto !important }
-  .sh-barra, .sh-lado, .sh-riel, .sh-refrescar, .i5-barra, .s5-aviso, .av-pila { display: none !important }
+  .sh-barra, .sh-lado, .sh-riel, .sh-refrescar, .i5-lado, .i5-pag, .s5-aviso, .av-pila { display: none !important }
+  .i5 { display: block; margin: 0; background: #fff; min-height: 0 }
   .sh-marco, .sh-marco.anclado { display: block !important; min-height: 0 !important; grid-template-columns: 1fr !important }
   .sh-main { padding: 0 !important; display: block !important; min-height: 0 !important }
   .i5-hojas { display: block; padding: 0; background: #fff; gap: 0 }
-  .i5-hoja { zoom: 1; box-shadow: none; width: 8.5in; height: 11in; break-after: page; page-break-after: always }
+  .i5-hoja { zoom: 1 !important; box-shadow: none; width: 8.5in; height: 11in; break-after: page; page-break-after: always }
   .i5-hoja:last-child { break-after: auto; page-break-after: auto }
 }

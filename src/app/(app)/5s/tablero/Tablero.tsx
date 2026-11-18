@@ -7,7 +7,8 @@
  *   · la tendencia semana a semana;
  *   · los responsables de área, por el puntaje de sus áreas (INOVA rankeaba al auditor, que no es quien ordena);
  *   · lo que más se repite como «no cumple» — lo que una acción correctiva sola arreglaría en todas partes;
- *   · si el cronograma se está cumpliendo.
+ *   · si el cronograma se está cumpliendo;
+ *   · el plan de acción: cuántos hallazgos siguen abiertos o vencidos en cada área, y si se cierran a tiempo.
  * Colores de los informes: carbón para lo que está bien, rojo de Bavaria solo bajo la meta.
  */
 
@@ -17,7 +18,7 @@ import { logoMarca, useFotoCompartir, type TipoFoto } from "@/components/FotoCom
 import { leerPaleta } from "@/app/(app)/quiebra/rotura/HojaFirma";
 import {
   NOMBRE_S, fechaLarga, hoyCo, pct,
-  type Area5S, type ClaveS, type Inspeccion5S, type Programada5S, type Responsable5S,
+  type Area5S, type ClaveS, type Hallazgo5S, type Inspeccion5S, type Programada5S, type Responsable5S,
 } from "@/modulos/cinco-s/cinco-s";
 import { armarTablero5S, piso, restar, type NoCumple5S } from "@/modulos/cinco-s/tablero";
 
@@ -26,8 +27,9 @@ const PERIODOS = [
   { id: "6m", t: "6 meses", dias: 182 }, { id: "1a", t: "12 meses", dias: 365 }, { id: "todo", t: "Todo", dias: 99999 },
 ] as const;
 
-export function Tablero({ filas, areas, responsables, meta, plan, noCumple }: {
+export function Tablero({ filas, areas, responsables, meta, plan, noCumple, hallazgos }: {
   filas: Inspeccion5S[]; areas: Area5S[]; responsables: Responsable5S[]; meta: number; plan: Programada5S[]; noCumple: NoCumple5S[];
+  hallazgos?: Hallazgo5S[];
 }) {
   const hoy = hoyCo();
   const [periodo, setPeriodo] = useState<(typeof PERIODOS)[number]["id"]>("3m");
@@ -52,6 +54,21 @@ export function Tablero({ filas, areas, responsables, meta, plan, noCumple }: {
   }, "Dashboard 5S", { dashboard: "Dashboard 5S" }, undefined, ["dashboard"]);
 
   const maxRep = repetidos[0]?.n ?? 1;
+
+  /* EL PLAN DE ACCIÓN POR ÁREA: lo pendiente cuenta siempre (no importa de cuándo es); lo cerrado, en el periodo. */
+  const planArea = useMemo(() => {
+    if (!hallazgos) return null;
+    const m = new Map<string, { area: string; vencida: number; sin_plan: number; abierta: number; cerradas: number; aTiempo: number }>();
+    for (const h of hallazgos) {
+      if (areaF && h.area_id !== areaF) continue;
+      if (h.estado === "cerrada" && (h.cerrada_el ?? "").slice(0, 10) < desde) continue;
+      const x = m.get(h.area) ?? { area: h.area, vencida: 0, sin_plan: 0, abierta: 0, cerradas: 0, aTiempo: 0 };
+      if (h.estado === "cerrada") { x.cerradas++; if (!h.accion_fecha || (h.cerrada_el ?? "").slice(0, 10) <= h.accion_fecha) x.aTiempo++ }
+      else x[h.estado]++;
+      m.set(h.area, x);
+    }
+    return [...m.values()].sort((a, b) => b.vencida - a.vencida || b.sin_plan - a.sin_plan || b.abierta - a.abierta || a.area.localeCompare(b.area));
+  }, [hallazgos, areaF, desde]);
 
   return (
     <div className="s5" ref={caja}>
@@ -146,6 +163,27 @@ export function Tablero({ filas, areas, responsables, meta, plan, noCumple }: {
               </ol>
             )}
           </section>
+
+          {/* PLAN DE ACCIÓN */}
+          {planArea && (
+            <section className="s5-card">
+              <header><h2>Plan de acción</h2><p>Hallazgos pendientes por área y cuántos se cerraron a tiempo en el periodo. <Link href="/5s/plan">Ir al plan</Link></p></header>
+              {planArea.length === 0 ? <p className="s5-vacio" style={{ border: 0 }}>Sin hallazgos.</p> : (
+                <table className="s5-tabla">
+                  <thead><tr><th>Área</th><th className="num">Vencidos</th><th className="num">Sin plan</th><th className="num">En curso</th><th className="num">Cerrados</th><th className="num">A tiempo</th></tr></thead>
+                  <tbody>
+                    {planArea.map((x) => (
+                      <tr key={x.area}><td><b>{x.area}</b></td>
+                        <td className={"num" + (x.vencida ? " nc" : "")}>{x.vencida}</td>
+                        <td className={"num" + (x.sin_plan ? " nc" : "")}>{x.sin_plan}</td>
+                        <td className="num">{x.abierta}</td><td className="num">{x.cerradas}</td>
+                        <td className="num pct">{x.cerradas ? `${Math.round((100 * x.aTiempo) / x.cerradas)} %` : "—"}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </section>
+          )}
 
           {/* RESPONSABLES */}
           <section className="s5-card">

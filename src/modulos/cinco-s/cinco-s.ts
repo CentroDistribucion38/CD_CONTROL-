@@ -43,10 +43,26 @@ export type Inspeccion5S = {
   id: string; fecha: string; area_id: string | null; area: string; responsable: string | null;
   auditor_nombre: string | null; cumplimiento: number; meta: number; evaluados: number; no_cumple: number;
   nota: string | null; creado: string; por_s: Partial<Record<ClaveS, number | null>>; fotos: number;
+  /* Quién firma el informe (paso 3; antes de su SQL no vienen). */
+  firma_ol_id?: string | null; firma_ol?: string | null; firma_abi_id?: string | null; firma_abi?: string | null;
 };
 export type ItemInspeccion = {
   id: string; orden: number; s: ClaveS; pregunta: string; peso: number; resultado: Resultado;
   severidad: Severidad | null; observacion: string | null; zona: string | null;
+  /* El plan de acción del hallazgo (paso 3). */
+  accion?: string | null; accion_resp?: string | null; accion_fecha?: string | null;
+  cerrada_el?: string | null; cerrada_por?: string | null; cierre_nota?: string | null;
+};
+
+/** Un «no cumple» con su plan y su estado calculado en la base (v_s5_hallazgos). */
+export type EstadoHallazgo = "vencida" | "sin_plan" | "abierta" | "cerrada";
+export const ESTADOS_H: Record<EstadoHallazgo, string> = { vencida: "Vencido", sin_plan: "Sin plan", abierta: "En curso", cerrada: "Cerrado" };
+export type Hallazgo5S = {
+  id: string; inspeccion_id: string; fecha: string; area_id: string | null; area: string; area_responsable: string | null;
+  orden: number; s: ClaveS; pregunta: string; severidad: Severidad | null; observacion: string | null; zona: string | null;
+  accion: string | null; accion_resp_id: string | null; accion_resp: string | null; accion_fecha: string | null;
+  cerrada_el: string | null; cerrada_por: string | null; cierre_nota: string | null;
+  estado: EstadoHallazgo; dias: number; fotos_antes: number; fotos_despues: number;
 };
 
 /** Los puntos que se le preguntan a un área: los generales (sin área) y los suyos, activos, por S y por orden. */

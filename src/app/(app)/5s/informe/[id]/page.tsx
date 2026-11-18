@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import { LAS_S, type Inspeccion5S, type ItemInspeccion } from "@/modulos/cinco-s/cinco-s";
+import { misPermisos } from "@/lib/permisos";
+import { LAS_S, type Inspeccion5S, type ItemInspeccion, type Responsable5S } from "@/modulos/cinco-s/cinco-s";
 import { Informe5S } from "./Informe5S";
 import { Falta5S } from "../../Falta";
 import "../../cinco-s.css";
@@ -23,9 +24,10 @@ export default async function Informe5SPage({ params, searchParams }: {
   const i = { ...insp, cumplimiento: Number(insp.cumplimiento), meta: Number(insp.meta) } as Inspeccion5S;
 
   const anio = i.fecha.slice(0, 4);
-  const [it, ft, ant, cuenta, area] = await Promise.all([
+  const [it, ft, ant, cuenta, area, resp, permisos] = await Promise.all([
     sb.from("s5_inspeccion_puntos").select("*").eq("inspeccion_id", id),
-    sb.from("s5_fotos").select("item_id, ruta").eq("inspeccion_id", id).order("ruta"),
+    /* «*»: con el paso 3 trae `momento` (antes / después); sin él, todas son del antes. */
+    sb.from("s5_fotos").select("*").eq("inspeccion_id", id).order("ruta"),
     i.area_id
       ? sb.from("s5_inspecciones").select("cumplimiento, fecha, creado").eq("area_id", i.area_id)
           .or(`fecha.lt.${i.fecha},and(fecha.eq.${i.fecha},creado.lt.${i.creado})`)
@@ -34,6 +36,8 @@ export default async function Informe5SPage({ params, searchParams }: {
     sb.from("s5_inspecciones").select("id", { count: "exact", head: true })
       .gte("fecha", `${anio}-01-01`).lte("creado", i.creado),
     i.area_id ? sb.from("s5_areas").select("responsable_id").eq("id", i.area_id).maybeSingle() : Promise.resolve({ data: null }),
+    sb.from("s5_responsables").select("*").order("nombre"),
+    misPermisos(),
   ]);
   let cargo: string | null = null;
   const respId = (area.data as { responsable_id: string | null } | null)?.responsable_id;
@@ -53,11 +57,14 @@ export default async function Informe5SPage({ params, searchParams }: {
     <Informe5S
       datos={{
         insp: i, items, cargo,
-        fotos: (ft.data ?? []).map((f) => ({ item_id: f.item_id as string, url: url.get(f.ruta as string) ?? "" })).filter((f) => f.url),
+        fotos: (ft.data ?? []).map((f) => ({ item_id: f.item_id as string, url: url.get(f.ruta as string) ?? "", momento: (f.momento === "despues" ? "despues" : "antes") as "antes" | "despues" })).filter((f) => f.url),
         anterior: prev ? Number(prev.cumplimiento) : null,
         numero: `5S-${anio}-${String(cuenta.count ?? 1).padStart(4, "0")}`,
       }}
       descargar={pdf === "1"}
+      responsables={(resp.data ?? []) as Responsable5S[]}
+      areaResp={respId ?? null}
+      puedeFirmar={permisos.puedeEditar("/5s") || permisos.puedeEditar("/5s/historial")}
     />
   );
 }

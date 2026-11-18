@@ -58,6 +58,8 @@ export async function pdfInforme5S(JsPDFc: typeof JsPDF, d: DatosInforme, genera
   const num = new Map(items.map((x, i) => [x.id, i + 1]));
   const gen = `${generado.toLocaleDateString("es-CO")} ${generado.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}`;
   const imgLogo = await logo();
+  const nAntes = d.fotos.filter((f) => f.momento !== "despues").length;
+  const corta = (f: string) => `${f.slice(8, 10)}/${f.slice(5, 7)}`;
 
   /* ---------------- herramientas ---------------- */
   const color = (c: RGB) => doc.setTextColor(c[0], c[1], c[2]);
@@ -134,7 +136,7 @@ export async function pdfInforme5S(JsPDFc: typeof JsPDF, d: DatosInforme, genera
       ["Auditor", insp.auditor_nombre ?? "—"],
       ["Puntos evaluados", `${evaluados} de ${items.length}${na ? ` (${na} N/A)` : ""}`],
       ["No cumple", `${nc.length}${altas ? ` · ${altas === 1 ? "uno" : altas} de severidad alta` : ""}`],
-      ["Evidencia fotográfica", `${d.fotos.length} ${d.fotos.length === 1 ? "foto" : "fotos"}`],
+      ["Evidencia fotográfica", `${nAntes} ${nAntes === 1 ? "foto" : "fotos"}`],
     ];
     filas.forEach(([a, b], i) => {
       const fy = y0 + i * 19;
@@ -227,7 +229,11 @@ export async function pdfInforme5S(JsPDFc: typeof JsPDF, d: DatosInforme, genera
     for (const it of malos) {
       const pre = `${NOMBRE_S[it.s as ClaveS].n}S${it.zona ? ` · ${it.zona}` : ""}. `;
       const lineas = partir(pre + (it.observacion ?? ""), cw[1] - 8, 7.8);
-      const h = Math.max(36, lineas.length * 9.2 + 10);
+      /* El plan, si ya lo tiene: lo cerrado dice qué se hizo; lo abierto, qué se va a hacer. */
+      const acc = it.cerrada_el ? partir(`Cerrado. ${it.cierre_nota ?? ""}`, cw[3] - 8, 7.5) : partir(it.accion ?? "", cw[3] - 8, 7.5);
+      const rs = partir(it.accion_resp ?? "", cw[4] - 8, 7.5);
+      const fe = it.cerrada_el ? `Cerrado ${corta(it.cerrada_el.slice(0, 10))}` : it.accion_fecha ? fecha(it.accion_fecha) : "";
+      const h = Math.max(36, Math.max(lineas.length, acc.length, rs.length) * 9.2 + 10);
       if (cabe(h)) cabeza();
       cw.forEach((w, i) => caja(xs[i], y, w, h, undefined, SUAVE, 0.5));
       texto(String(num.get(it.id)), xs[0] + 4, y + 9, { tam: 7.8 });
@@ -239,13 +245,28 @@ export async function pdfInforme5S(JsPDFc: typeof JsPDF, d: DatosInforme, genera
         } else texto(l, xs[1] + 4, y + 9 + j * 9.2, { tam: 7.8 });
       });
       texto(cap(it.severidad), xs[2] + 4, y + 9, { tam: 7.8 });
+      acc.forEach((l, j) => {
+        if (j === 0 && it.cerrada_el && l.startsWith("Cerrado.")) {
+          texto("Cerrado.", xs[3] + 4, y + 9, { tam: 7.5, b: true });
+          letra(7.5, true); const wc = doc.getTextWidth("Cerrado. ");
+          texto(l.slice(9), xs[3] + 4 + wc, y + 9, { tam: 7.5 });
+        } else texto(l, xs[3] + 4, y + 9 + j * 9.2, { tam: 7.5 });
+      });
+      rs.forEach((l, j) => texto(l, xs[4] + 4, y + 9 + j * 9.2, { tam: 7.5 }));
+      if (fe) texto(fe, xs[5] + 4, y + 9, { tam: 7.5, b: !!it.cerrada_el });
       y += h;
     }
   }
 
   /* ================= 5. REGISTRO FOTOGRÁFICO ================= */
   const orden = [...malos, ...items.filter((i) => i.resultado !== "no_cumple")];
-  const fotos = orden.flatMap((it) => d.fotos.filter((f) => f.item_id === it.id).map((f) => ({ url: f.url, it })));
+  const fotos = orden.flatMap((it) => d.fotos.filter((f) => f.item_id === it.id)
+    .sort((a, b) => Number(a.momento === "despues") - Number(b.momento === "despues"))
+    .map((f) => ({ url: f.url, it, despues: f.momento === "despues" })));
+  const encab = (f: (typeof fotos)[number], n: number) => f.despues
+    ? `Foto ${n} · Punto ${num.get(f.it.id)} · DESPUÉS (cierre).`
+    : `Foto ${n} · Punto ${num.get(f.it.id)} (${RES[f.it.resultado]}${f.it.severidad ? `, ${f.it.severidad}` : ""}).`;
+  const pie = (f: (typeof fotos)[number]) => f.despues ? f.it.cierre_nota ?? "" : f.it.observacion ?? f.it.pregunta;
   seccion(5, "Registro fotográfico", fotos.length ? 190 : 30);
   if (fotos.length === 0) {
     caja(MX, y, ANCHO, 22, undefined, LINEA); texto("Sin fotos en esta inspección.", MX + 8, y + 11, { tam: 8.5 }); y += 22;
@@ -254,7 +275,7 @@ export async function pdfInforme5S(JsPDFc: typeof JsPDF, d: DatosInforme, genera
     const recortes = await Promise.all(fotos.map((f) => recortar(f.url, fw - 10, ih)));
     for (let i = 0; i < fotos.length; i += 2) {
       const par = fotos.slice(i, i + 2);
-      const caps = par.map((f, j) => partir(`Foto ${i + j + 1} · Punto ${num.get(f.it.id)} (${RES[f.it.resultado]}${f.it.severidad ? `, ${f.it.severidad}` : ""}). ${f.it.observacion ?? f.it.pregunta}`, fw - 12, 7.5));
+      const caps = par.map((f, j) => partir(`${encab(f, i + j + 1)} ${pie(f)}`, fw - 12, 7.5));
       const h = 5 + ih + 6 + Math.max(...caps.map((c) => c.length)) * 9 + 6;
       cabe(h + gap);
       par.forEach((f, j) => {
@@ -266,7 +287,7 @@ export async function pdfInforme5S(JsPDFc: typeof JsPDF, d: DatosInforme, genera
         caps[j].forEach((l, k) => {
           const yy = y + 5 + ih + 10 + k * 9;
           if (k === 0) {
-            const cab = `Foto ${i + j + 1} · Punto ${num.get(f.it.id)} (${RES[f.it.resultado]}${f.it.severidad ? `, ${f.it.severidad}` : ""}).`;
+            const cab = encab(f, i + j + 1);
             if (l.startsWith(cab)) {
               texto(cab, x + 6, yy, { tam: 7.5, b: true });
               letra(7.5, true); const wc = doc.getTextWidth(cab + " ");
@@ -295,7 +316,7 @@ export async function pdfInforme5S(JsPDFc: typeof JsPDF, d: DatosInforme, genera
   seccion(7, "Firmas", 74);
   {
     const fw = ANCHO / 2, h = 70;
-    [["Supervisor OL", insp.responsable ?? ""], ["Warehouse Supervisor ABI", ""]].forEach(([rol, nombre], i) => {
+    [["Supervisor OL", insp.firma_ol ?? ""], ["Warehouse Supervisor ABI", insp.firma_abi ?? ""]].forEach(([rol, nombre], i) => {
       const x = MX + i * fw;
       caja(x, y, fw, h, undefined, LINEA);
       trazo(TINTA, 0.8); doc.line(x + 10, y + h - 26, x + fw - 10, y + h - 26);

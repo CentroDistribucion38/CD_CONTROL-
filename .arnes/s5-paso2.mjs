@@ -143,7 +143,7 @@ ok(hojas.length >= 2, "hojas del informe: " + hojas.length);
 const desborda = await pg.$$eval(".i5-cuerpo", (cs) => cs.map((c) => { const h = c.closest(".i5-hoja"); return c.getBoundingClientRect().bottom > h.getBoundingClientRect().bottom - 34 }));
 ok(!desborda.some(Boolean), "alguna hoja se desborda: " + desborda);
 ok(/Página: 1 de/.test(await pg.textContent(".i5-hoja")), "sin «Página X de N»");
-ok(/Inspeccion 5S - BODEGA 38 - 18-11-2026 09-42\.pdf/.test(await pg.textContent(".i5-barra")), "nombre del archivo: " + await pg.textContent(".i5-barra .s5-sub"));
+ok(/Inspeccion 5S - BODEGA 38 - 18-11-2026 09-42\.pdf/.test(await pg.textContent(".i5-lado")), "nombre del archivo: " + await pg.textContent(".i5-lado .archivo"));
 for (const [i, h] of hojas.entries()) await h.screenshot({ path: `/tmp/s5-inf-${i + 1}.png` });
 const [dl] = await Promise.all([pg.waitForEvent("download", { timeout: 30000 }), pg.click('button:has-text("Descargar PDF")')]);
 await dl.saveAs("/tmp/s5-informe.pdf");

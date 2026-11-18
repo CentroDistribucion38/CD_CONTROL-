@@ -46,9 +46,11 @@ export function Historial({ filas, areas, puedeBorrar }: { filas: Inspeccion5S[]
     const sb = createClient();
     const [it, ft] = await Promise.all([
       sb.from("s5_inspeccion_puntos").select("*").eq("inspeccion_id", id),
-      sb.from("s5_fotos").select("item_id, ruta").eq("inspeccion_id", id).order("ruta"),
+      /* «*»: con el paso 3 trae `momento`. Aquí van las del antes; las del cierre se ven en el Plan de acción y el informe. */
+      sb.from("s5_fotos").select("*").eq("inspeccion_id", id).order("ruta"),
     ]);
     if (it.error || ft.error) { setDet((d) => ({ ...d, [id]: { error: (it.error ?? ft.error)!.message } })); return }
+    ft.data = (ft.data ?? []).filter((f) => f.momento !== "despues");
     const rutas = (ft.data ?? []).map((f) => f.ruta as string);
     const firmadas = rutas.length ? await sb.storage.from("cinco-s").createSignedUrls(rutas, 3600) : { data: [] as { path: string | null; signedUrl: string }[] };
     const url = new Map((firmadas.data ?? []).map((x) => [x.path, x.signedUrl]));

@@ -9,7 +9,7 @@
  */
 import { NOMBRE_S, LAS_S, type ClaveS, type Inspeccion5S, type ItemInspeccion } from "./cinco-s";
 
-export type FotoInf = { item_id: string; url: string };
+export type FotoInf = { item_id: string; url: string; momento?: "antes" | "despues" };
 export type DatosInforme = {
   insp: Inspeccion5S; items: ItemInspeccion[]; fotos: FotoInf[];
   cargo: string | null; anterior: number | null; numero: string;
@@ -20,7 +20,7 @@ export type Bloque =
   | { k: "titulo"; n: number; t: string }
   | { k: "matriz"; filas: ({ grupo: ClaveS } | { item: ItemInspeccion; n: number })[] }
   | { k: "hallazgos"; filas: { item: ItemInspeccion; n: number }[] }
-  | { k: "fotos"; fotos: { url: string; item: ItemInspeccion; n: number; i: number }[] }
+  | { k: "fotos"; fotos: { url: string; item: ItemInspeccion; n: number; i: number; despues: boolean }[] }
   | { k: "obs" } | { k: "firmas" };
 
 /** Lo que cabe en una hoja: 11 in menos márgenes, encabezado y pie, con aire. */
@@ -36,7 +36,10 @@ export function armarHojas(d: DatosInforme): Bloque[][] {
     .sort((a, b) => ({ alta: 0, media: 1, baja: 2 }[a.severidad ?? "media"] - ({ alta: 0, media: 1, baja: 2 }[b.severidad ?? "media"])));
   /* Las fotos: primero las de los hallazgos, en el orden de los hallazgos. */
   const orden = [...malos, ...items.filter((i) => i.resultado !== "no_cumple")];
-  const fotos = orden.flatMap((it) => d.fotos.filter((f) => f.item_id === it.id).map((f) => ({ url: f.url, item: it, n: num.get(it.id)! })))
+  /* De cada hallazgo, primero el antes y después la del cierre (el después). */
+  const fotos = orden.flatMap((it) => d.fotos.filter((f) => f.item_id === it.id)
+      .sort((a, b) => Number(a.momento === "despues") - Number(b.momento === "despues"))
+      .map((f) => ({ url: f.url, item: it, n: num.get(it.id)!, despues: f.momento === "despues" })))
     .map((f, i) => ({ ...f, i: i + 1 }));
 
   /* LOS PEDAZOS, con su alto. */
@@ -58,7 +61,7 @@ export function armarHojas(d: DatosInforme): Bloque[][] {
   piezas.push({ alto: 34, b: { k: "titulo", n: 4, t: "Hallazgos y plan de acción" } });
   if (malos.length === 0) piezas.push({ alto: 40, b: { k: "hallazgos", filas: [] } });
   for (const it of malos) {
-    const lineas = largo(`${it.zona ?? ""} ${it.observacion ?? ""}`, 52);
+    const lineas = Math.max(largo(`${it.zona ?? ""} ${it.observacion ?? ""}`, 44), largo(it.cierre_nota ?? it.accion, 30) + (it.cerrada_el ? 1 : 0));
     piezas.push({ alto: Math.max(52, 14 + lineas * 14), b: { k: "hallazgos", filas: [{ item: it, n: num.get(it.id)! }] }, junta: "hallazgos", cab: 26 });
   }
   piezas.push({ alto: 34, b: { k: "titulo", n: 5, t: "Registro fotográfico" } });

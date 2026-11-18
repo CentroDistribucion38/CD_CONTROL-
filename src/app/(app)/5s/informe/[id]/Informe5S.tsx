@@ -9,22 +9,39 @@
  *   · desde el Historial, cada inspección tiene su «Informe PDF».
  * El PDF se dibuja con jsPDF (pdf-5s.ts) con el mismo formato que la pantalla: vectorial, nítido y liviano.
  * También se puede imprimir.
+ *
+ * EL VISOR (opción B): a la izquierda un panel con el resultado, las barras por S, QUIÉN FIRMA (se escoge de los
+ * responsables 5S y se guarda solo) y los botones; a la derecha las hojas, con paginación y zoom flotantes.
  */
 
 import { useEffect, useRef, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LAS_S, fechaLarga, pct, semanaIso, type ClaveS } from "@/modulos/cinco-s/cinco-s";
+import { LAS_S, fechaLarga, pct, semanaIso, type ClaveS, type Responsable5S } from "@/modulos/cinco-s/cinco-s";
 import { armarHojas, nombreS, type Bloque, type DatosInforme } from "@/modulos/cinco-s/informe";
 
 const CODIGO = "CD38-5S-F01", VERSION = "01";
 const nf1 = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const fecha = (f: string) => `${f.slice(8, 10)}/${f.slice(5, 7)}/${f.slice(0, 4)}`;
 const RES = { cumple: "C", no_cumple: "NC", na: "N/A" } as const;
+const RECORDAR_ABI = "s5-firma-abi";
+const cap = (s: string | null | undefined) => (s ? s[0].toUpperCase() + s.slice(1) : "");
+const corta = (f: string) => `${f.slice(8, 10)}/${f.slice(5, 7)}`;
 
-export function Informe5S({ datos, descargar }: { datos: DatosInforme; descargar: boolean }) {
-  const { insp, items, fotos } = datos;
-  const hojas = armarHojas(datos);
+export function Informe5S({ datos, descargar, responsables = [], areaResp = null, puedeFirmar = false }: {
+  datos: DatosInforme; descargar: boolean; responsables?: Responsable5S[]; areaResp?: string | null; puedeFirmar?: boolean;
+}) {
+  const { items, fotos } = datos;
+  /* LAS FIRMAS: la de Supervisor OL arranca en el responsable del área; la de ABI, en blanco hasta que se escoja. */
+  const [firmas, setFirmas] = useState({ ol: datos.insp.firma_ol_id ?? areaResp ?? "", abi: datos.insp.firma_abi_id ?? "" });
+  const [firmando, setFirmando] = useState(false);
+  const nombreDe = (id: string) => responsables.find((x) => x.id === id)?.nombre ?? null;
+  const nomOl = (firmas.ol ? nombreDe(firmas.ol) : null) ?? datos.insp.firma_ol ?? (firmas.ol ? null : datos.insp.responsable);
+  const nomAbi = (firmas.abi ? nombreDe(firmas.abi) : null) ?? (firmas.abi ? datos.insp.firma_abi ?? null : null);
+  const insp = { ...datos.insp, firma_ol: nomOl, firma_abi: nomAbi };
+  const conFirmas = { ...datos, insp };
+  const hojas = armarHojas(conFirmas);
   const ref = useRef<HTMLDivElement>(null);
   const [haciendo, setHaciendo] = useState(false);
   const [mal, setMal] = useState<string | null>(null);
@@ -42,15 +59,34 @@ export function Informe5S({ datos, descargar }: { datos: DatosInforme; descargar
   const na = items.length - evaluados;
   const nc = items.filter((i) => i.resultado === "no_cumple");
   const altas = nc.filter((i) => i.severidad === "alta").length;
+  const nAntes = fotos.filter((f) => f.momento !== "despues").length;
   const difMeta = insp.cumplimiento - insp.meta;
   const cuentaS = (s: ClaveS, r: string) => items.filter((i) => i.s === s && i.resultado === r).length;
 
-  async function pdf() {
+  async function guardarFirmas(nuevas: { ol: string; abi: string }) {
+    const antes = firmas;
+    setFirmas(nuevas);
+    if (nuevas.abi) { try { localStorage.setItem(RECORDAR_ABI, nuevas.abi) } catch { /* sin almacenamiento */ } }
+    if (!puedeFirmar) return true;
+    setFirmando(true);
+    const { error } = await createClient().rpc("s5_firmas", { p_insp: datos.insp.id, p_ol: nuevas.ol || null, p_abi: nuevas.abi || null });
+    setFirmando(false);
+    if (error) {
+      setFirmas(antes);
+      setMal(/s5_firmas|schema cache/i.test(error.message) ? "Falta correr 2026-11-cinco-s-3.sql en Supabase para guardar las firmas." : "No se guardó la firma: " + error.message);
+      return false;
+    }
+    return true;
+  }
+
+  async function pdf(f = firmas) {
     setHaciendo(true); setMal(null);
     try {
       /* Dibujado de verdad (vectorial), no una foto de la pantalla: letras nítidas a cualquier zoom y nada montado. */
       const [{ jsPDF }, { pdfInforme5S }] = await Promise.all([import("jspdf"), import("@/modulos/cinco-s/pdf-5s")]);
-      const doc = await pdfInforme5S(jsPDF, datos, generado);
+      const ol = (f.ol ? nombreDe(f.ol) : null) ?? (f.ol ? datos.insp.firma_ol ?? null : datos.insp.responsable);
+      const abi = (f.abi ? nombreDe(f.abi) : null) ?? (f.abi ? datos.insp.firma_abi ?? null : null);
+      const doc = await pdfInforme5S(jsPDF, { ...datos, insp: { ...datos.insp, firma_ol: ol, firma_abi: abi } }, generado);
       /* Se baja con un enlace propio (no doc.save): así el archivo conserva su nombre en todos los navegadores. */
       const url = URL.createObjectURL(doc.output("blob"));
       const enlace = document.createElement("a");
@@ -72,12 +108,24 @@ export function Informe5S({ datos, descargar }: { datos: DatosInforme; descargar
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* ?pdf=1 (recién guardada): el PDF sale solo, una vez. */
+  /* ?pdf=1 (recién guardada): el PDF sale solo, una vez. Si la firma de ABI está en blanco, se pone la última que
+     se escogió en este equipo (casi siempre firma el mismo), se guarda y entonces sale el PDF. */
   const yaBajo = useRef(false);
   useEffect(() => {
     if (!descargar || yaBajo.current) return;
     yaBajo.current = true;
-    const t = setTimeout(pdf, 400);
+    const t = setTimeout(async () => {
+      let f = firmas;
+      if (!f.abi) {
+        let ult = "";
+        try { ult = localStorage.getItem(RECORDAR_ABI) ?? "" } catch { /* sin almacenamiento */ }
+        if (ult && responsables.some((x) => x.id === ult && x.activo)) {
+          f = { ...f, abi: ult };
+          if (!(await guardarFirmas(f))) f = firmas;
+        }
+      }
+      await pdf(f);
+    }, 400);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [descargar]);
@@ -114,7 +162,7 @@ export function Informe5S({ datos, descargar }: { datos: DatosInforme; descargar
             <tr><td>Auditor</td><td>{insp.auditor_nombre ?? "—"}</td></tr>
             <tr><td>Puntos evaluados</td><td>{evaluados} de {items.length}{na ? ` (${na} N/A)` : ""}</td></tr>
             <tr><td>No cumple</td><td>{nc.length}{altas ? ` · ${altas === 1 ? "uno" : altas} de severidad alta` : ""}</td></tr>
-            <tr><td>Evidencia fotográfica</td><td>{fotos.length} {fotos.length === 1 ? "foto" : "fotos"}</td></tr>
+            <tr><td>Evidencia fotográfica</td><td>{nAntes} {nAntes === 1 ? "foto" : "fotos"}</td></tr>
           </tbody></table>
         </div>
       );
@@ -164,8 +212,10 @@ export function Informe5S({ datos, descargar }: { datos: DatosInforme; descargar
               <tr key={f.item.id}>
                 <td className="c">{f.n}</td>
                 <td><b>{nombreS(f.item.s)?.n}S{f.item.zona ? ` · ${f.item.zona}` : ""}.</b> {f.item.observacion}</td>
-                <td className="sev">{f.item.severidad ? f.item.severidad[0].toUpperCase() + f.item.severidad.slice(1) : ""}</td>
-                <td /><td /><td />
+                <td className="sev">{cap(f.item.severidad)}</td>
+                <td>{f.item.cerrada_el ? <><b>Cerrado.</b> {f.item.cierre_nota}</> : f.item.accion ?? ""}</td>
+                <td>{f.item.accion_resp ?? ""}</td>
+                <td>{f.item.cerrada_el ? `Cerrado ${corta(f.item.cerrada_el.slice(0, 10))}` : f.item.accion_fecha ? fecha(f.item.accion_fecha) : ""}</td>
               </tr>
             ))}
           </tbody>
@@ -178,8 +228,10 @@ export function Informe5S({ datos, descargar }: { datos: DatosInforme; descargar
           {b.fotos.map((f) => (
             <figure key={f.i}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={f.url} alt={`Foto ${f.i}`} crossOrigin="anonymous" />
-              <figcaption><b>Foto {f.i} · Punto {f.n} ({RES[f.item.resultado]}{f.item.severidad ? `, ${f.item.severidad}` : ""}).</b> {f.item.observacion ?? f.item.pregunta}</figcaption>
+              <img src={f.url} alt={`Foto ${f.i}`} />
+              {f.despues
+                ? <figcaption><b>Foto {f.i} · Punto {f.n} · DESPUÉS (cierre).</b> {f.item.cierre_nota}</figcaption>
+                : <figcaption><b>Foto {f.i} · Punto {f.n} ({RES[f.item.resultado]}{f.item.severidad ? `, ${f.item.severidad}` : ""}).</b> {f.item.observacion ?? f.item.pregunta}</figcaption>}
             </figure>
           ))}
         </div>
@@ -188,43 +240,127 @@ export function Informe5S({ datos, descargar }: { datos: DatosInforme; descargar
       case "firmas": return (
         /* LAS DOS FIRMAS: el supervisor del operador logístico (el responsable del área) y el Warehouse Supervisor de ABI. */
         <div key={k} className="i5-fir dos">
-          <div><b>{insp.responsable ?? "\u00a0"}</b>Supervisor OL</div>
-          <div><b>&nbsp;</b>Warehouse Supervisor ABI</div>
+          <div><b>{insp.firma_ol || "\u00a0"}</b>Supervisor OL</div>
+          <div><b>{insp.firma_abi || "\u00a0"}</b>Warehouse Supervisor ABI</div>
         </div>
       );
     }
   };
 
+  /* ---------------- el visor: zoom, hoja actual y saltar de hoja ---------------- */
+  const lienzo = useRef<HTMLDivElement>(null);
+  const [ajuste, setAjuste] = useState(1);
+  const [zoom, setZoom] = useState<number | null>(null); // null = ajustar al ancho
+  const [actual, setActual] = useState(1);
+  const z = zoom ?? ajuste;
+  useEffect(() => {
+    const el = lienzo.current; if (!el) return;
+    const ro = new ResizeObserver(([e]) => setAjuste(Math.max(0.3, Math.min(1, (e.contentRect.width - 40) / 816))));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  useEffect(() => {
+    const hs = [...(ref.current?.querySelectorAll<HTMLElement>(".i5-hoja") ?? [])];
+    const io = new IntersectionObserver((es) => {
+      const vis = es.filter((e) => e.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+      if (vis) setActual(hs.indexOf(vis.target as HTMLElement) + 1);
+    }, { threshold: [0.25, 0.5, 0.75] });
+    hs.forEach((h) => io.observe(h));
+    return () => io.disconnect();
+  }, [hojas.length, z]);
+  const ir = (n: number) => ref.current?.querySelectorAll<HTMLElement>(".i5-hoja")[n - 1]?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const PASOS = [0.5, 0.67, 0.8, 1, 1.25, 1.5, 2];
+  const zoomar = (d: 1 | -1) => {
+    const i = PASOS.findIndex((p) => p >= z - 0.001);
+    const sig = d > 0 ? PASOS.find((p) => p > z + 0.01) ?? PASOS[PASOS.length - 1] : [...PASOS].reverse().find((p) => p < z - 0.01) ?? PASOS[0];
+    setZoom(i < 0 && d < 0 ? PASOS[PASOS.length - 1] : sig);
+  };
+  const activos = responsables.filter((x) => x.activo || x.id === firmas.ol || x.id === firmas.abi);
+  const planes = { cerrados: nc.filter((i) => i.cerrada_el).length, conPlan: nc.filter((i) => !i.cerrada_el && i.accion).length };
+
   return (
     <div className="i5">
-      <div className="i5-barra">
-        <div>
-          <p className="s5-ojo">5S · INFORME DE AUDITORÍA</p>
-          <h1>{insp.area} · {fechaLarga(insp.fecha)}</h1>
-          <p className="s5-sub">{datos.numero} · se descarga como «{nombreArchivo}»{haciendo ? " · armando el PDF…" : ""}</p>
-        </div>
-        <div className="s5-acc">
-          <Link href="/5s" className="s5-bt">Nueva inspección</Link>
-          <button type="button" className="s5-bt" onClick={() => window.print()}>Imprimir</button>
-          <button type="button" className="s5-bt osc" onClick={pdf} disabled={haciendo}>
-            <svg viewBox="0 0 24 24" aria-hidden><path d="M12 3v12M7 10l5 5 5-5M5 20h14" /></svg>
-            {haciendo ? "Armando PDF…" : "Descargar PDF"}
-          </button>
+      <aside className="i5-lado" aria-label="Resumen del informe">
+        <div className="top">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/marca/logo-bavaria.png" alt="Bavaria" />
           <button type="button" className="i5-x" onClick={cerrar} aria-label="Cerrar y volver al Historial" title="Cerrar (Esc)">
             <svg viewBox="0 0 24 24" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
         </div>
-      </div>
-      {mal && <p className="s5-aviso mal" role="alert">{mal}</p>}
+        <div className="sec">
+          <p className="s5-ojo">5S · INFORME · {datos.numero}</p>
+          <h1>{insp.area}</h1>
+          <p className="sub">{fechaLarga(insp.fecha)} · S{semanaIso(insp.fecha)} · Auditor: {insp.auditor_nombre ?? "—"}</p>
+        </div>
+        <div className="sec">
+          <b className={"big" + (bajo ? " bajo" : "")}>{nf1.format(insp.cumplimiento)} %</b>
+          <p className="meta">{bajo ? "Bajo" : "Cumple"} la meta de {pct(insp.meta)} · {nc.length} {nc.length === 1 ? "hallazgo" : "hallazgos"}</p>
+          <ul className="porS">
+            {LAS_S.map((x) => {
+              const v = insp.por_s[x.clave]; if (v === undefined) return null;
+              const b2 = v != null && v < insp.meta;
+              return (
+                <li key={x.clave} title={`${x.n}S ${x.nombre}`}>
+                  <b>{x.n}S</b><i><em className={b2 ? "bajo" : ""} style={{ width: `${v ?? 0}%` }} /><u style={{ left: `${insp.meta}%` }} /></i>
+                  <span className={b2 ? "bajo" : ""}>{v == null ? "—" : pct(v)}</span>
+                </li>
+              );
+            })}
+          </ul>
+          {nc.length > 0 && (
+            <Link className="plan" href="/5s/plan">
+              <span>Plan de acción</span>
+              <b>{planes.cerrados} de {nc.length} {nc.length === 1 ? "cerrado" : "cerrados"}{planes.conPlan ? ` · ${planes.conPlan} en curso` : ""}</b>
+            </Link>
+          )}
+        </div>
+        <div className="sec firmas">
+          <p className="s5-ojo tinta">Firmas del informe</p>
+          <label className="s5-campo"><span>Supervisor OL</span>
+            <select value={firmas.ol} disabled={!puedeFirmar || firmando} onChange={(e) => guardarFirmas({ ...firmas, ol: e.target.value })}>
+              <option value="">Sin firma (en blanco)</option>
+              {activos.map((x) => <option key={x.id} value={x.id}>{x.nombre}{x.cargo ? ` · ${x.cargo}` : ""}</option>)}
+            </select></label>
+          <label className={"s5-campo" + (firmas.abi ? "" : " falta")}><span>Warehouse Supervisor ABI</span>
+            <select value={firmas.abi} disabled={!puedeFirmar || firmando} onChange={(e) => guardarFirmas({ ...firmas, abi: e.target.value })}>
+              <option value="">Escoger quién firma…</option>
+              {activos.map((x) => <option key={x.id} value={x.id}>{x.nombre}{x.cargo ? ` · ${x.cargo}` : ""}</option>)}
+            </select></label>
+          <small>{puedeFirmar ? (firmando ? "Guardando…" : "Se guarda solo y sale en el PDF. Los nombres salen de 5S › Maestro › Responsables.") : "Solo quien inspecciona puede cambiar las firmas."}</small>
+        </div>
+        {mal && <p className="s5-aviso mal" role="alert">{mal}</p>}
+        <div className="acc">
+          <button type="button" className="s5-bt osc" onClick={() => pdf()} disabled={haciendo}>
+            <svg viewBox="0 0 24 24" aria-hidden><path d="M12 3v12M7 10l5 5 5-5M5 20h14" /></svg>
+            {haciendo ? "Armando PDF…" : "Descargar PDF"}
+          </button>
+          <div className="dos">
+            <button type="button" className="s5-bt" onClick={() => window.print()}>Imprimir</button>
+            <Link href="/5s" className="s5-bt">Nueva inspección</Link>
+          </div>
+          <p className="archivo">Se descarga como «{nombreArchivo}»</p>
+        </div>
+      </aside>
 
-      <div ref={ref} className="i5-hojas">
-        {hojas.map((h, n) => (
-          <section key={n} className="i5-hoja" aria-label={`Hoja ${n + 1}`}>
-            {encabezado(n + 1)}
-            <div className="i5-cuerpo">{h.map(pintar)}</div>
-            <footer className="i5-pie"><span>Documento generado por CONTROL · {gen}</span><span>{CODIGO} · v{VERSION}</span></footer>
-          </section>
-        ))}
+      <div className="i5-lienzo" ref={lienzo}>
+        <div ref={ref} className="i5-hojas">
+          {hojas.map((h, n) => (
+            <section key={n} className="i5-hoja" aria-label={`Hoja ${n + 1}`} style={{ zoom: z }}>
+              {encabezado(n + 1)}
+              <div className="i5-cuerpo">{h.map(pintar)}</div>
+              <footer className="i5-pie"><span>Documento generado por CONTROL · {gen}</span><span>{CODIGO} · v{VERSION}</span></footer>
+            </section>
+          ))}
+        </div>
+        <nav className="i5-pag" aria-label="Hojas y zoom">
+          <button type="button" aria-label="Hoja anterior" disabled={actual <= 1} onClick={() => ir(actual - 1)}>‹</button>
+          <span>Hoja {actual} de {hojas.length}</span>
+          <button type="button" aria-label="Hoja siguiente" disabled={actual >= hojas.length} onClick={() => ir(actual + 1)}>›</button>
+          <button type="button" aria-label="Alejar" onClick={() => zoomar(-1)}>−</button>
+          <button type="button" className="z" title="Ajustar al ancho" onClick={() => setZoom(zoom == null ? 1 : null)}>{Math.round(z * 100)} %</button>
+          <button type="button" aria-label="Acercar" onClick={() => zoomar(1)}>+</button>
+        </nav>
       </div>
     </div>
   );

@@ -3,7 +3,7 @@
  * otra, las inspecciones. Si falta correr el SQL, se dice con `falta` y la pantalla lo explica.
  */
 import { createClient } from "@/lib/supabase/server";
-import type { Area5S, Inspeccion5S, Programada5S, Punto5S, Responsable5S, Zona5S } from "./cinco-s";
+import type { Area5S, Hallazgo5S, Inspeccion5S, Programada5S, Punto5S, Responsable5S, Zona5S } from "./cinco-s";
 
 export type Maestro5S = {
   falta: boolean; error: string | null;
@@ -78,4 +78,13 @@ export async function leerNoCumple5S(): Promise<{ inspeccion_id: string; s: stri
   const { data, error } = await sb.from("s5_inspeccion_puntos").select("*").eq("resultado", "no_cumple").limit(5000);
   if (error) return [];
   return (data ?? []).map((x) => ({ inspeccion_id: x.inspeccion_id, s: x.s, pregunta: x.pregunta, zona: x.zona ?? null, severidad: x.severidad }));
+}
+
+/** Los hallazgos con su plan y estado (paso 3). `falta` = no se ha corrido 2026-11-cinco-s-3.sql. */
+export async function leerHallazgos5S(): Promise<{ falta: boolean; error: string | null; filas: Hallazgo5S[] }> {
+  const sb = await createClient();
+  const { data, error } = await sb.from("v_s5_hallazgos").select("*")
+    .order("fecha", { ascending: false }).order("orden").limit(3000);
+  if (error) return { falta: esFalta(error), error: esFalta(error) ? null : error.message, filas: [] };
+  return { falta: false, error: null, filas: (data ?? []) as Hallazgo5S[] };
 }
