@@ -597,7 +597,10 @@ export async function armarAnalisis(fecha: string, rDesde?: string, rHasta?: str
       } else zexiProdNo++;
       continue;
     }
-    const lado = nv.lado === "SAP" ? "sap" : "conteo";
+    /* NOTIFICACIÓN suma a SAP (se cruza con la DEPA, que suma al conteo) y PENDIENTE POR NOTIFICAR suma al conteo,
+       diga lo que diga la plantilla con la que se subió (las viejas tenían NOTIFICACION → CONTEO). */
+    const tn = norm(nv.tipo);
+    const lado = tn === "NOTIFICACION" ? "sap" : /^PEND(IENTE)?( POR)? NOTIFICAR$/.test(tn) ? "conteo" : nv.lado === "SAP" ? "sap" : "conteo";
     const etq = norm(nv.tipo) + (nv.documento ? ` · ${nv.documento}` : "");
     suma(lado, String(nv.codigo), norm(nv.tipo) === "ZEXI 6 AM" ? "ZEXI 6 AM" : etq, Number(nv.unidades) || 0);
     if (nv.caja_codigo && nv.cajas && !conCajaPropia.has(grupoNv(nv))) suma(lado, String(nv.caja_codigo), etq, Number(nv.cajas) || 0);

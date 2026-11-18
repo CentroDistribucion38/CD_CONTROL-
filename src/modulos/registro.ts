@@ -706,11 +706,10 @@ export const MODULOS: Modulo[] = [
         id: "conteos",
         nombre: "Conteos",
         eyebrow: "EXISTENCIAS",
-        /* ENTRA POR EL TABLERO Y NO POR "/inventario": "/inventario" es
-           ahora la portada, y una tarjeta que apunta a la pantalla
-           donde está la tarjeta es un botón que no lleva a ningún
-           lado. */
-        ruta: "/inventario/tablero",
+        /* ENTRA POR LA BD: «cuando entre a Conteos debe mostrar es la BD». No por "/inventario", que es la portada
+           (una tarjeta que apunta a donde ya está no lleva a ningún lado). Quien no tenga la BD entra a la primera
+           pantalla de Conteos que sí pueda ver. El permiso de la rama sigue siendo el del Tablero, como siempre. */
+        ruta: "/inventario/base",
         permiso: "/inventario/tablero",
         descripcion:
           "El maestro de materiales y ubicaciones, el conteo por módulo con sus " +

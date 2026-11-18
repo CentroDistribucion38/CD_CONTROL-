@@ -35,6 +35,12 @@ export async function leerPlantilla(archivo: File, sistema: MaestroSistema = {})
   if (!tipos.has(ZEXI_PRODUCTO)) tipos.set(ZEXI_PRODUCTO, { lado: "SAP", pide: false, caja: true });
   /* AJUSTE CAJAS: cajas plásticas que existen y no estaban contadas (código de la CAJA y cuántas). Suma al conteo. */
   if (!tipos.has("AJUSTE CAJAS")) tipos.set("AJUSTE CAJAS", { lado: "CONTEO", pide: false, caja: false });
+  /* NOTIFICACIÓN Y PENDIENTE POR NOTIFICAR: «lo que es NOTIFICACIÓN debe sumar a SAP para que pueda hacer el cruce y
+     restarlo con la DEPA; lo que es PENDIENTE POR NOTIFICAR debe sumar al conteo». Se fija aquí (no solo en la hoja
+     TIPOS) porque hay plantillas guardadas que todavía dicen NOTIFICACION → CONTEO. */
+  for (const n of ["NOTIFICACION", "NOTIFICACIÓN"]) tipos.set(n, { ...(tipos.get(n) ?? { pide: false, caja: false }), lado: "SAP" });
+  for (const n of ["PENDIENTE POR NOTIFICAR", "PEND POR NOTIFICAR", "PENDIENTE NOTIFICAR"])
+    tipos.set(n, { ...(tipos.get(n) ?? { pide: false, caja: false }), lado: "CONTEO" });
   const maestro = new Map<string, { upc: number; cpe: number; caja: string | null }>();
   for (const f of filas("MAESTRO").slice(1)) {
     const c = codigo(f[0]); if (!/^\d+$/.test(c)) continue;

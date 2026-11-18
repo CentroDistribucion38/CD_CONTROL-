@@ -43,6 +43,7 @@ const FUENTES: Fuente[] = [
   { renglon: "BAJA PENDIENTE POR DISPOSICIÓN", lado: "CONTEO", deDonde: "Plantilla de novedades (suma su caja plástica).", estado: "falta" },
   { renglon: "SINIESTRO", lado: "CONTEO", deDonde: "Plantilla de novedades (suma su caja plástica).", estado: "falta" },
   { renglon: "AJUSTE INV BAJA PRESORTING", lado: "CONTEO", deDonde: "Plantilla de novedades.", estado: "falta" },
+  { renglon: "PENDIENTE POR NOTIFICAR", lado: "CONTEO", deDonde: "Plantilla de novedades: envase que todavía no se ha notificado; existe, suma al conteo.", estado: "falta" },
   { renglon: "CONTEO TW", lado: "CONTEO", deDonde: "Plantilla de novedades: informativo, no entra en la diferencia.", estado: "falta" },
   { renglon: "ZEXI de las 6 a. m.", lado: "SAP", deDonde: "Plantilla de novedades, tipo ZEXI 6 AM: la ZEXI de Bodega 38 descargada a las 6, ANTES de balancear (Total General por código, en unidades; el cilindro de AG01 también).", estado: "falta",
     nota: "Si se descarga después de balancear, ya no sirve." },
@@ -52,6 +53,7 @@ const FUENTES: Fuente[] = [
     nota: "Lo que sale de AG22 resta a SAP siempre. Lo que entra a AG22 se suma cuando la plantilla trae la ZEXI de las 6 a. m.; sin ella se ve en el detalle de cada código." },
   { renglon: "DESCUADRE · de AG18 · AG17 · AG16 a AG22", lado: "SAP", deDonde: "Lo que quedó sin cuadrar cuando el SAP de ese almacén tiene de más que el conteo (p. ej. la 3500005 en AG16).", estado: "ok",
     nota: "Solo suma a SAP cuando la plantilla trae la ZEXI de las 6 a. m.; sin ella SAP queda en 0 y esto se ve en el detalle de cada código." },
+  { renglon: "NOTIFICACIÓN", lado: "SAP", deDonde: "Plantilla de novedades: el envase ya notificado suma a SAP, para que se cruce con la DEPA (que suma al conteo) y se resten.", estado: "falta" },
   { renglon: "PEND NOVEDADES CD", lado: "SAP", deDonde: "Plantilla de novedades: una fila por entrega pendiente, con su N° de entrega (o SOCIO); suma su caja plástica.", estado: "falta" },
 ];
 const ETQ = { ok: "Ya está en la app", falta: "Falta: plantilla", parcial: "Falta importar" } as const;
