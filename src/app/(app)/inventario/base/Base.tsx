@@ -45,6 +45,7 @@ import type { ReactNode } from "react";
 import type { Renglon, ConteoFefo } from "@/modulos/inventario/fefo";
 import { cruzar, sufijoRecorrido, type Vigente } from "@/modulos/inventario/base-cruce";
 import { EliminarFefos } from "./EliminarFefos";
+import { BorrarBorradores } from "./BorrarBorradores";
 import { QuitarRenglones } from "./QuitarRenglones";
 import { CorregirRenglon } from "./CorregirRenglon";
 import { CambiarCodigo } from "./CambiarCodigo";
@@ -829,6 +830,8 @@ export function Base({
           está el recorrido.
         </p>
       )}
+      {/* Quien administra sí puede eliminar un borrador desde aquí (con confirmación). */}
+      {pestania === "borradores" && manda && <BorrarBorradores abiertos={recorridosDe} />}
 
       {/* ================= PESTAÑAS, BÚSQUEDA Y FILTROS ================= */}
       <div className="ba-barra">

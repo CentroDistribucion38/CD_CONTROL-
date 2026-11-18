@@ -374,3 +374,7 @@
 .fe .ba-kp .ba-copiar:hover svg { stroke: var(--fe-tinta) }
 .fe .ba-kp .ba-copiar:focus-visible { outline: 3px solid var(--fe-acento); outline-offset: 1px }
 .fe .ba-kp .ba-copiar.ok svg { stroke: #0F7A4A }
+
+/* Borrar un borrador desde la pestaña Borradores (solo administrador). */
+.fe .ba-borr { display: flex; flex-wrap: wrap; align-items: center; gap: 8px }
+.fe .ba-borr .ba-elim-conf { margin: 0 }
