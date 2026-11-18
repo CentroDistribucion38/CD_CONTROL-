@@ -7,6 +7,10 @@
   display: flex; flex-direction: column; gap: 14px; font-family: var(--i5-txt); color: #141414 }
 .i5 * { box-sizing: border-box }
 .i5-barra { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap }
+.i5-x { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex: none; margin-left: 6px; border: 1px solid #141414; background: #141414; color: #fff; cursor: pointer }
+.i5-x svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4 }
+.i5-x:hover { background: var(--s5-rojo, #E30613); border-color: var(--s5-rojo, #E30613) }
+.i5-x:focus-visible { outline: 2px solid #F5B800; outline-offset: 2px }
 .i5-barra h1 { margin: 4px 0 0; font: 900 26px/1.1 var(--i5-tit); letter-spacing: -.02em }
 .i5-hojas { display: flex; flex-direction: column; align-items: center; gap: 22px; padding: 22px 0; background: #8a9099; overflow-x: auto }
 .i5-hoja { position: relative; flex: none; width: 816px; height: 1056px; padding: 36px 40px 44px; background: #fff; box-shadow: 0 10px 34px rgba(0, 0, 0, .35); overflow: hidden; font-size: 10.5px; line-height: 1.35 }

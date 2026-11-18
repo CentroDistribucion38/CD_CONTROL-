@@ -7,12 +7,13 @@
  * «La inspección, en el historial o cuando la hago, me debe generar el PDF como resultado.» Por eso:
  *   · al guardar una inspección se entra aquí con ?pdf=1 y el PDF se descarga solo;
  *   · desde el Historial, cada inspección tiene su «Informe PDF».
- * El PDF se arma hoja por hoja con lo que se ve en pantalla (html2canvas → jsPDF), así que lo que se revisa es
- * exactamente lo que sale. También se puede imprimir.
+ * El PDF se dibuja con jsPDF (pdf-5s.ts) con el mismo formato que la pantalla: vectorial, nítido y liviano.
+ * También se puede imprimir.
  */
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { LAS_S, fechaLarga, pct, semanaIso, type ClaveS } from "@/modulos/cinco-s/cinco-s";
 import { armarHojas, nombreS, type Bloque, type DatosInforme } from "@/modulos/cinco-s/informe";
 
@@ -45,21 +46,11 @@ export function Informe5S({ datos, descargar }: { datos: DatosInforme; descargar
   const cuentaS = (s: ClaveS, r: string) => items.filter((i) => i.s === s && i.resultado === r).length;
 
   async function pdf() {
-    if (!ref.current) return;
     setHaciendo(true); setMal(null);
     try {
-      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import("html2canvas"), import("jspdf")]);
-      await document.fonts?.ready;
-      /* Que las fotos estén cargadas antes de fotografiar la hoja. */
-      await Promise.all([...ref.current.querySelectorAll("img")].map((im) => im.complete ? null : new Promise((ok) => { im.onload = ok; im.onerror = ok })));
-      const doc = new jsPDF({ unit: "in", format: "letter", compress: true });
-      const paginas = [...ref.current.querySelectorAll<HTMLElement>(".i5-hoja")];
-      for (const [n, p] of paginas.entries()) {
-        const c = await html2canvas(p, { scale: 2, useCORS: true, backgroundColor: "#ffffff", logging: false, windowWidth: 1100 });
-        if (n > 0) doc.addPage("letter");
-        doc.addImage(c.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, 8.5, 11, undefined, "FAST");
-      }
-      doc.setProperties({ title: `Informe de auditoría 5S · ${insp.area} · ${insp.fecha}`, author: insp.auditor_nombre ?? "CONTROL", creator: "CONTROL · CD38" });
+      /* Dibujado de verdad (vectorial), no una foto de la pantalla: letras nítidas a cualquier zoom y nada montado. */
+      const [{ jsPDF }, { pdfInforme5S }] = await Promise.all([import("jspdf"), import("@/modulos/cinco-s/pdf-5s")]);
+      const doc = await pdfInforme5S(jsPDF, datos, generado);
       /* Se baja con un enlace propio (no doc.save): así el archivo conserva su nombre en todos los navegadores. */
       const url = URL.createObjectURL(doc.output("blob"));
       const enlace = document.createElement("a");
@@ -70,6 +61,16 @@ export function Informe5S({ datos, descargar }: { datos: DatosInforme; descargar
     }
     setHaciendo(false);
   }
+
+  /* La X (y Esc) cierra el informe y vuelve al Historial. */
+  const router = useRouter();
+  const cerrar = () => router.push("/5s/historial");
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape") cerrar() };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* ?pdf=1 (recién guardada): el PDF sale solo, una vez. */
   const yaBajo = useRef(false);
@@ -106,7 +107,7 @@ export function Informe5S({ datos, descargar }: { datos: DatosInforme; descargar
             <small>CUMPLIMIENTO</small>
             <b>{nf1.format(insp.cumplimiento)} %</b>
             <span>{bajo ? "Bajo" : "Cumple"} la meta de {pct(insp.meta)}</span>
-            <em>{nf1.format(Math.abs(difMeta))} puntos {difMeta < 0 ? "por debajo" : "por encima"}{datos.anterior != null ? ` · inspección anterior ${nf1.format(datos.anterior)} %` : " · primera inspección del área"}</em>
+            <em>{nf1.format(Math.abs(difMeta))} puntos {difMeta < 0 ? "por debajo" : "por encima"} de la meta<br />{datos.anterior != null ? `Inspección anterior: ${nf1.format(datos.anterior)} %` : "Primera inspección del área"}</em>
           </div>
           <table className="resumen"><tbody>
             <tr><td>Responsable del área</td><td>{insp.responsable ?? "Sin asignar"}{datos.cargo ? ` · ${datos.cargo}` : ""}</td></tr>
@@ -200,15 +201,17 @@ export function Informe5S({ datos, descargar }: { datos: DatosInforme; descargar
         <div>
           <p className="s5-ojo">5S · INFORME DE AUDITORÍA</p>
           <h1>{insp.area} · {fechaLarga(insp.fecha)}</h1>
-          <p className="s5-sub">{hojas.length} {hojas.length === 1 ? "hoja" : "hojas"} carta · {datos.numero} · se descarga como «{nombreArchivo}»{haciendo ? " · armando el PDF…" : ""}</p>
+          <p className="s5-sub">{datos.numero} · se descarga como «{nombreArchivo}»{haciendo ? " · armando el PDF…" : ""}</p>
         </div>
         <div className="s5-acc">
           <Link href="/5s" className="s5-bt">Nueva inspección</Link>
-          <Link href="/5s/historial" className="s5-bt">Historial</Link>
           <button type="button" className="s5-bt" onClick={() => window.print()}>Imprimir</button>
           <button type="button" className="s5-bt osc" onClick={pdf} disabled={haciendo}>
             <svg viewBox="0 0 24 24" aria-hidden><path d="M12 3v12M7 10l5 5 5-5M5 20h14" /></svg>
             {haciendo ? "Armando PDF…" : "Descargar PDF"}
+          </button>
+          <button type="button" className="i5-x" onClick={cerrar} aria-label="Cerrar y volver al Historial" title="Cerrar (Esc)">
+            <svg viewBox="0 0 24 24" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
         </div>
       </div>
