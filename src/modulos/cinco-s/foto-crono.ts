@@ -164,8 +164,14 @@ export function dibujarCrono5S(d: DatosCrono, o: { logo?: CanvasImageSource | nu
       letra(ctx, 900, 14); const wp = pctTxt ? ctx.measureText(pctTxt).width + 12 : 0;
       const etiqueta = d.porArea ? (b.auditor ?? "Sin auditor") : b.area;
       letra(ctx, 700, 13); ctx.fillStyle = claro ? "#fff" : b.estado === "cancelada" ? GRIS : "#1b1b1b"; ctx.textAlign = "left";
-      if (bw - (tx - bx) - wp > 30) ctx.fillText(recortar(ctx, etiqueta, bw - (tx - bx) - wp - 8), tx, by + bh / 2);
-      if (pctTxt && bw > 46) {
+      const adentro = bw - (tx - bx) - wp > 30 && ctx.measureText(etiqueta).width <= bw - (tx - bx) - wp - 8;
+      if (adentro) ctx.fillText(etiqueta, tx, by + bh / 2);
+      else {
+        /* NO CABE ADENTRO: el nombre (y el %) va al lado de la barra, en tinta. Una auditoría de un día también dice quién. */
+        letra(ctx, 800, 13); ctx.fillStyle = TINTA;
+        ctx.fillText(etiqueta + (pctTxt ? ` · ${pctTxt}` : ""), bx + bw + 8, by + bh / 2);
+      }
+      if (pctTxt && adentro) {
         letra(ctx, 900, 14); ctx.fillStyle = b.meta != null && b.cumplimiento! < b.meta ? "#FFB4BE" : "#fff"; ctx.textAlign = "right";
         ctx.fillText(pctTxt, bx + bw - 8, by + bh / 2);
       }

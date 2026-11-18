@@ -20,6 +20,7 @@ import { useAvisos } from "@/components/Aviso";
 import { useConfirmar } from "@/components/Confirmar";
 import { logoMarca, useFotoCompartir, type TipoFoto } from "@/components/FotoCompartir";
 import { leerPaleta } from "@/app/(app)/quiebra/rotura/HojaFirma";
+import { CabezaVentana } from "../CabezaVentana";
 import {
   ESTADOS, fechaLarga, hoyCo, pct, semanaIso,
   type Area5S, type EstadoProg, type Prioridad, type Programada5S, type Responsable5S,
@@ -283,8 +284,9 @@ export function Cronograma({ filas, areas, responsables, puedeEditar }: {
                               style={{ left: x0 * R.px + 1, width: Math.max(R.px - 2, w - 2), top: 6 + (g.lane.get(b.id) ?? 0) * ALTO_CARRIL }}
                               title={titulo} aria-label={titulo} onClick={() => abrir(b)}>
                         {b.prioridad === "alta" && b.estado !== "hecha" && <em className="prio" aria-hidden>!</em>}
-                        <span>{w > 60 ? etiqueta : ""}</span>
-                        {b.estado === "hecha" && b.cumplimiento != null && w > 40 && <b className={b.meta != null && b.cumplimiento < b.meta ? "bajo" : ""}>{Math.round(b.cumplimiento)}%</b>}
+                        {/* SI NO CABE ADENTRO, EL NOMBRE VA AL LADO: una barra de un día también dice quién la hace. */}
+                        {w > 60 ? <span>{etiqueta}</span> : <span className="fuera">{etiqueta}{b.estado === "hecha" && b.cumplimiento != null ? ` · ${Math.round(b.cumplimiento)}%` : ""}</span>}
+                        {b.estado === "hecha" && b.cumplimiento != null && w > 60 && <b className={b.meta != null && b.cumplimiento < b.meta ? "bajo" : ""}>{Math.round(b.cumplimiento)}%</b>}
                         {b.hecha_el && b.hecha_el >= inicio && b.hecha_el <= fin && (
                           <i className="rombo" style={{ left: (dias(inicio, b.hecha_el) - x0) * R.px + R.px / 2 - 5 }} aria-hidden />
                         )}
@@ -323,13 +325,23 @@ export function Cronograma({ filas, areas, responsables, puedeEditar }: {
         <div className="s5-velo" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) setForm(null) }}
              onKeyDown={(e) => { if (e.key === "Escape") setForm(null) }}>
           <form className="s5-mo" role="dialog" aria-modal="true" aria-label="Auditoría programada" onSubmit={(e) => { e.preventDefault(); guardar() }}>
-            <header>
-              <div>
-                <p>5S · CRONOGRAMA{form.estado ? ` · ${ESTADOS[form.estado].toUpperCase()}` : ""}</p>
-                <h3>{form.id ? `${nomArea(form.area_id)}` : "Programar auditoría"}</h3>
-              </div>
-              <button type="button" className="s5-x" aria-label="Cerrar" onClick={() => setForm(null)}>×</button>
-            </header>
+            <CabezaVentana ojo={`5S · CRONOGRAMA${form.estado ? ` · ${ESTADOS[form.estado].toUpperCase()}` : ""}`}
+                           titulo={form.id ? "Auditoría programada" : "Programar auditoría"} cerrar={() => setForm(null)} />
+            {/* LO QUE VA A QUEDAR, en grande y en vivo: área, fechas, quién y prioridad. */}
+            {(() => {
+              const n = form.desde && form.hasta ? dias(form.desde, form.hasta) + 1 : 0;
+              const quien = responsables.find((r) => r.id === form.auditor_id)?.nombre;
+              return (
+                <div className={"s5-mo-res p-" + form.prioridad}>
+                  <div className="area"><span>Área</span><b>{nomArea(form.area_id) || "—"}</b></div>
+                  <div><span>Fechas · S{form.desde ? semanaIso(form.desde) : "—"}</span>
+                    <b>{form.desde ? corta(form.desde) : "—"}{form.hasta && form.hasta !== form.desde ? ` → ${corta(form.hasta)}` : ""}</b>
+                    <small>{n > 0 ? `${n} ${n === 1 ? "día" : "días"}` : ""}{!form.id && form.cada ? ` · ×${Math.max(1, Math.min(52, form.veces))}` : ""}</small></div>
+                  <div><span>Audita</span><b className={quien ? "" : "sin"}>{quien ?? "Sin asignar"}</b></div>
+                  <div className="prio"><span>Prioridad</span><b>{PRIORIDADES.find((p) => p.v === form.prioridad)?.t}</b></div>
+                </div>
+              );
+            })()}
             {form.estado === "hecha" && (
               <div className="s5-aviso" style={{ margin: "12px 16px 0" }}>
                 Hecha el {fechaLarga(form.hecha_el!)} · {pct(form.cumplimiento)}. <Link href="/5s/historial">Ver en el historial</Link>

@@ -188,6 +188,13 @@
 .s5-tabla .nc { color: var(--s5-rojo); font-weight: 800 }
 .s5-tabla .fecha b { display: block; font: 800 14px var(--s5-titulo) }
 .s5-tabla .fecha small { color: var(--s5-gris); font-size: 12px }
+.s5-tabla th.inf, .s5-tabla td.inf { width: 1%; white-space: nowrap; text-align: right }
+.s5-tabla td.inf { cursor: default }
+.s5-ico { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; margin-left: 6px; border: 1.5px solid var(--s5-tinta); background: #fff; color: var(--s5-tinta) }
+.s5-ico.osc { background: var(--s5-amarillo); border-color: var(--s5-amarillo); color: #1b1b1b; box-shadow: inset 0 -3px 0 var(--s5-ocre) }
+.s5-ico svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
+.s5-ico:hover { background: var(--s5-crema) }
+.s5-ico.osc:hover { filter: brightness(.96) }
 .s5-mini { display: inline-grid; grid-template-columns: repeat(5, 9px); gap: 3px; align-items: end; height: 26px }
 .s5-mini i { display: block; background: var(--s5-carbon); min-height: 2px }
 .s5-mini i.bajo { background: var(--s5-rojo) }
@@ -263,9 +270,35 @@
 .s5-zona-nueva input { width: 140px; min-height: 32px; padding: 0 8px; border: 1.5px solid var(--s5-tinta); font: 700 12.5px var(--s5-texto); text-transform: uppercase }
 .s5-zona-nueva .s5-bt { min-height: 32px; padding: 0 10px; font-size: 12px }
 
-/* LA VENTANA DE EDITAR */
+/* LA VENTANA DE EDITAR — cabeza de cierre: cinta de la marca, logo, título grande. */
+.s5-mo-cab { position: relative; display: flex; align-items: center; gap: 16px; padding: 20px 18px 16px; background: #fff; border-bottom: 4px solid var(--s5-amarillo) }
+.s5-mo-cab .cinta { position: absolute; left: 0; right: 0; top: 0; height: 6px; background: linear-gradient(90deg, #B8860B 0%, #FFC300 35%, #E30613 100%) }
+.s5-mo-cab img { height: 34px; width: auto; flex: none }
+.s5-mo-cab .sep { width: 1px; align-self: stretch; background: var(--s5-linea) }
+.s5-mo-cab div { flex: 1; min-width: 0 }
+.s5-mo-cab p { margin: 0; font: 700 10.5px var(--s5-texto); letter-spacing: .18em; color: var(--s5-ocre-txt) }
+.s5-mo-cab h3 { margin: 3px 0 0; font: 900 24px/1.1 var(--s5-titulo); letter-spacing: -.02em }
+.s5-mo-x { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; flex: none; border: 1px solid var(--s5-linea); background: #fff; color: var(--s5-tinta); cursor: pointer }
+.s5-mo-x svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.2 }
+.s5-mo-x:hover { border-color: var(--s5-tinta) }
+.s5-mo-res { display: grid; grid-template-columns: 1.3fr 1.2fr 1.2fr .8fr; background: #FFFBEA; border-bottom: 1px solid var(--s5-linea) }
+.s5-mo-res > div { padding: 12px 16px; border-left: 1px solid #F1E3B0; min-width: 0 }
+.s5-mo-res > div:first-child { border-left: 0 }
+.s5-mo-res span { display: block; font: 700 9.5px var(--s5-texto); letter-spacing: .14em; text-transform: uppercase; color: var(--s5-gris) }
+.s5-mo-res b { display: block; margin-top: 3px; font: 900 17px/1.15 var(--s5-titulo); overflow-wrap: anywhere }
+.s5-mo-res .area b { font-size: 20px }
+.s5-mo-res b.sin { color: var(--s5-ocre-txt) }
+.s5-mo-res small { font-size: 11.5px; color: var(--s5-gris) }
+.s5-mo-res.p-alta .prio { background: var(--s5-rojo); }
+.s5-mo-res.p-alta .prio span, .s5-mo-res.p-alta .prio b { color: #fff }
+.s5-mo-res.p-media .prio { background: var(--s5-amarillo) }
+.s5-mo-res.p-media .prio span { color: #1b1b1b }
+/* La etiqueta de una barra que no cabe adentro: al lado, en tinta. */
+.s5-g-bar > span.fuera { position: absolute; left: calc(100% + 6px); top: 50%; transform: translateY(-50%); overflow: visible; color: var(--s5-tinta); font-weight: 800; white-space: nowrap; pointer-events: none }
+
+/* LA VENTANA DE EDITAR (cuerpo) */
 .s5-velo { position: fixed; inset: 0; z-index: 900; display: grid; place-items: center; padding: 16px; background: rgba(10, 16, 24, .6) }
-.s5-mo { width: min(560px, 100%); max-height: calc(100dvh - 32px); display: flex; flex-direction: column; background: #fff; box-shadow: 0 24px 60px rgba(0, 0, 0, .35) }
+.s5-mo { width: min(700px, 100%); max-height: calc(100dvh - 32px); display: flex; flex-direction: column; background: #fff; box-shadow: 0 24px 60px rgba(0, 0, 0, .35) }
 .s5-mo > header { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 4px solid var(--s5-amarillo) }
 .s5-mo > header div { flex: 1; min-width: 0 }
 .s5-mo > header p { margin: 0; font: 700 10px var(--s5-texto); letter-spacing: .16em; color: var(--s5-ocre-txt) }
@@ -416,6 +449,10 @@
   .s5-hecha .s5-bt { grid-column: 1 / -1 }
   .s5-hecha .s5-x { grid-row: 1; grid-column: 3 }
   .s5-mo-b { grid-template-columns: minmax(0, 1fr) }
+  .s5-mo-res { grid-template-columns: 1fr 1fr }
+  .s5-mo-res > div:nth-child(3) { border-left: 0 }
+  .s5-mo-cab img { height: 26px }
+  .s5-mo-cab h3 { font-size: 19px }
   .s5-filtros .s5-campo { min-width: 0; flex: 1 1 140px }
   .s5-s-pick button span { display: none }
   .s5-gantt { --s5-g-izq: 118px }

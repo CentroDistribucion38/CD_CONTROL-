@@ -148,6 +148,8 @@ ok(!(await pg.evaluate(() => document.documentElement.scrollWidth > innerWidth))
 await abrir("hist");
 ok(/87,5/.test(await t()) && /100 %/.test(await t()), "no salen los %");
 ok(/1\b/.test(await pg.textContent(".s5-kpi:nth-child(3) b")), "bajo la meta debe ser 1");
+ok((await pg.$$('.s5-tabla tr.fila td.inf a')).length === 4, "faltan el ojito y el PDF en cada fila");
+ok(await pg.getAttribute('.s5-tabla tr.fila >> nth=0 >> td.inf a >> nth=1', "href") === "/5s/informe/i1?pdf=1", "el PDF no apunta a su informe");
 await pg.click(".s5-tabla tr.fila >> nth=0");
 await pg.waitForSelector(".s5-hz");
 ok((await pg.$$(".s5-hz:not(.ok)")).length === 2, "faltan los 2 hallazgos");

@@ -13,6 +13,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
+import { CabezaVentana } from "../CabezaVentana";
 import {
   LAS_S, NOMBRE_S, checklistDe, pct,
   type Area5S, type ClaveS, type Punto5S, type Responsable5S, type Zona5S,
@@ -298,15 +299,10 @@ export function Maestro5S({ meta, areas, responsables, puntos, zonas = [], puede
         <div className="s5-velo" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) setEdit(null) }}
              onKeyDown={(e) => { if (e.key === "Escape") setEdit(null) }}>
           <form className="s5-mo" role="dialog" aria-modal="true" aria-label="Editar" onSubmit={(e) => { e.preventDefault(); guardarEdit() }}>
-            <header>
-              <div>
-                <p>5S · MAESTRO</p>
-                <h3>{edit.que === "responsable" ? (edit.v.id ? "Editar responsable" : "Nuevo responsable")
-                  : edit.que === "area" ? (edit.v.id ? "Editar área" : "Nueva área")
-                  : (edit.v.id ? "Editar punto" : "Nuevo punto del checklist")}</h3>
-              </div>
-              <button type="button" className="s5-x" aria-label="Cerrar" onClick={() => setEdit(null)}>×</button>
-            </header>
+            <CabezaVentana ojo="5S · MAESTRO" cerrar={() => setEdit(null)}
+              titulo={edit.que === "responsable" ? (edit.v.id ? "Editar responsable" : "Nuevo responsable")
+                : edit.que === "area" ? (edit.v.id ? "Editar área" : "Nueva área")
+                : (edit.v.id ? "Editar punto" : "Nuevo punto del checklist")} />
             <div className="s5-mo-b">
               {edit.que === "responsable" && (<>
                 <label className="s5-campo ancho"><span>Nombre</span>

@@ -34,6 +34,7 @@ const PLAN = [
   { id: "c4", area_id: "a2", area: "FABRICA", auditor_id: "r1", auditor: "Genesis Visbal", actividad: "Auditoría 5S", desde: mas(hoy, 5), hasta: mas(hoy, 9), prioridad: "baja", nota: null, cancelada: false, estado: "programada", inspeccion_id: null, hecha_el: null, cumplimiento: null, meta: null },
   { id: "c5", area_id: "a3", area: "PATIO", auditor_id: null, auditor: null, actividad: "Auditoría 5S", desde: mas(hoy, 1), hasta: mas(hoy, 3), prioridad: "media", nota: null, cancelada: false, estado: "programada", inspeccion_id: null, hecha_el: null, cumplimiento: null, meta: null },
   { id: "c6", area_id: "a3", area: "PATIO", auditor_id: null, auditor: null, actividad: "Auditoría 5S", desde: mas(hoy, 2), hasta: mas(hoy, 6), prioridad: "media", nota: null, cancelada: false, estado: "programada", inspeccion_id: null, hecha_el: null, cumplimiento: null, meta: null },
+  { id: "c8", area_id: "a4", area: "OFICINAS", auditor_id: "r2", auditor: "Andres Palacio", actividad: "Auditoría 5S", desde: mas(hoy, 2), hasta: mas(hoy, 2), prioridad: "alta", nota: null, cancelada: false, estado: "programada", inspeccion_id: null, hecha_el: null, cumplimiento: null, meta: null },
   { id: "c7", area_id: "a4", area: "OFICINAS", auditor_id: null, auditor: null, actividad: "Auditoría 5S", desde: mas(hoy, 12), hasta: mas(hoy, 16), prioridad: "media", nota: null, cancelada: true, estado: "cancelada", inspeccion_id: null, hecha_el: null, cumplimiento: null, meta: null },
 ];
 const foto = "data:image/jpeg;base64," + readFileSync("/tmp/inf/f1.jpg").toString("base64");
@@ -81,13 +82,17 @@ const abrir = async (p, ancho = 1440) => { await pg.setViewportSize({ width: anc
 
 /* ---------- CRONOGRAMA ---------- */
 await abrir("crono");
-ok((await pg.$$(".s5-g-bar")).length === 6, "barras visibles (sin la cancelada): " + (await pg.$$(".s5-g-bar")).length);
+ok((await pg.$$(".s5-g-bar")).length === 7, "barras visibles (sin la cancelada): " + (await pg.$$(".s5-g-bar")).length);
 ok(await pg.isVisible(".s5-g-bar.hecha") && await pg.isVisible(".s5-g-bar.vencida") && await pg.isVisible(".s5-g-bar.en_curso"), "faltan estados");
 ok(await pg.isVisible(".s5-g-bar .rombo"), "no marca el día en que se hizo");
 ok(/88%/.test(await pg.textContent(".s5-g-bar.hecha")), "la hecha no muestra su %");
 const carrilesPatio = await pg.$$eval(".s5-g-pista", (ps) => ps.map((p) => p.getBoundingClientRect().height));
 ok(carrilesPatio[2] > carrilesPatio[1], "las de PATIO que se cruzan no bajan a otro carril");
 ok(await pg.isVisible(".s5-g-pista > i.hoy"), "no se ve la raya de hoy");
+await pg.click('.s5-gantt-barra button:has-text("4 semanas")');
+ok(await pg.isVisible('.s5-g-bar span.fuera:has-text("Andres Palacio")'), "la auditoría de un día no dice quién");
+await pg.screenshot({ path: "/tmp/s5-gantt4.png" });
+await pg.click('.s5-gantt-barra button:has-text("8 semanas")');
 await pg.screenshot({ path: "/tmp/s5-gantt.png", fullPage: true });
 await pg.click('.s5-leyenda button:has-text("Cancelada")');
 ok((await pg.$$(".s5-g-bar.cancelada")).length === 1, "no muestra la cancelada al prenderla");
@@ -96,6 +101,9 @@ ok(/Genesis Visbal/.test(await pg.textContent(".s5-gantt")) && /Sin auditor asig
 await pg.click('.s5-gantt-barra button:has-text("Por área")');
 await pg.click('button:has-text("+ Programar auditoría")');
 await pg.selectOption('.s5-mo select >> nth=0', "a3");
+await pg.selectOption('.s5-mo select >> nth=1', "r1");
+ok(/PATIO/.test(await pg.textContent(".s5-mo-res")) && /Genesis Visbal/.test(await pg.textContent(".s5-mo-res")), "el resumen de la ventana no se actualiza");
+await pg.locator(".s5-mo").screenshot({ path: "/tmp/s5-modal.png" });
 await pg.selectOption('.s5-mo select >> nth=2', "7");
 await pg.fill('.s5-mo input[type=number]', "6");
 ok(/Programa 6 auditorías/.test(await pg.textContent(".s5-mo")), "no explica la repetición");
@@ -104,7 +112,7 @@ const ins = (await pg.evaluate(() => window.log)).find((l) => l.k === "insert:s5
 ok(ins && ins.v.length === 6 && ins.v[1].desde === mas(ins.v[0].desde, 7) && ins.v.every((x) => x.area_id === "a3"), "repetición mal: " + JSON.stringify(ins?.v?.slice(0, 2)));
 await pg.click(".s5-g-bar.vencida");
 ok(/Cancelar auditoría/.test(await pg.textContent(".s5-mo")), "no deja cancelar");
-await pg.click('.s5-mo .s5-x');
+await pg.click('.s5-mo .s5-mo-x');
 await pg.click('button:has-text("Cronograma para copiar")');
 await pg.waitForSelector("[class*=fc] img", { timeout: 15000 });
 {

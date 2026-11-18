@@ -121,11 +121,11 @@ export function Historial({ filas, areas, puedeBorrar }: { filas: Inspeccion5S[]
               <thead>
                 <tr>
                   <th>Fecha</th><th>Área</th><th>Auditor</th><th>Por S</th>
-                  <th className="num">No cumple</th><th className="num">Fotos</th><th className="num">Cumplimiento</th>
+                  <th className="num">No cumple</th><th className="num">Fotos</th><th className="num">Cumplimiento</th><th className="inf">Informe</th>
                 </tr>
               </thead>
               <tbody>
-                {vista.length === 0 && <tr><td colSpan={7} className="s5-vacio">No hay inspecciones con ese filtro.</td></tr>}
+                {vista.length === 0 && <tr><td colSpan={8} className="s5-vacio">No hay inspecciones con ese filtro.</td></tr>}
                 {vista.map((f) => {
                   const d = det[f.id];
                   return (
@@ -147,9 +147,18 @@ export function Historial({ filas, areas, puedeBorrar }: { filas: Inspeccion5S[]
                         <td className={"num" + (f.no_cumple ? " nc" : "")}>{f.no_cumple}</td>
                         <td className="num">{f.fotos}</td>
                         <td className={"num pct" + (f.cumplimiento < f.meta ? " bajo" : "")}>{pct(f.cumplimiento)}</td>
+                        {/* EL OJITO: ver el informe de esa inspección; la flecha: bajarlo en PDF. Sin abrir la fila. */}
+                        <td className="inf" onClick={(e) => e.stopPropagation()}>
+                          <Link className="s5-ico" href={`/5s/informe/${f.id}`} title="Ver el informe" aria-label={`Ver el informe de ${f.area} del ${fechaLarga(f.fecha)}`}>
+                            <svg viewBox="0 0 24 24" aria-hidden><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></svg>
+                          </Link>
+                          <Link className="s5-ico osc" href={`/5s/informe/${f.id}?pdf=1`} title="Descargar en PDF" aria-label={`Descargar en PDF el informe de ${f.area} del ${fechaLarga(f.fecha)}`}>
+                            <svg viewBox="0 0 24 24" aria-hidden><path d="M12 4v11M7 10l5 5 5-5M5 20h14" /></svg>
+                          </Link>
+                        </td>
                       </tr>
                       {abierta === f.id && (
-                        <tr><td colSpan={7} style={{ padding: 0 }}>
+                        <tr><td colSpan={8} style={{ padding: 0 }}>
                           <div className="s5-det">
                             {d === "cargando" || !d ? <p className="s5-sub">Abriendo la inspección…</p>
                               : "error" in d ? <p className="s5-aviso mal">No se pudo abrir: {d.error}</p>
