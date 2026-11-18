@@ -18,6 +18,8 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
 import { useConfirmar } from "@/components/Confirmar";
+import { logoMarca, useFotoCompartir, type TipoFoto } from "@/components/FotoCompartir";
+import { leerPaleta } from "@/app/(app)/quiebra/rotura/HojaFirma";
 import {
   ESTADOS, fechaLarga, hoyCo, pct, semanaIso,
   type Area5S, type EstadoProg, type Prioridad, type Programada5S, type Responsable5S,
@@ -109,6 +111,18 @@ export function Cronograma({ filas, areas, responsables, puedeEditar }: {
   const ANCHO = R.dias * R.px;
   const ALTO_CARRIL = 34;
 
+  /* EL CRONOGRAMA PARA COPIAR: el mismo Gantt que se ve (rango, agrupación y estados), en una imagen. */
+  const foto = useFotoCompartir(async (_t: TipoFoto) => {
+    const [{ dibujarCrono5S, nombreCrono5S }, logo] = await Promise.all([import("@/modulos/cinco-s/foto-crono"), logoMarca()]);
+    const lienzo = dibujarCrono5S({
+      grupos, inicio, dias: R.dias, hoy, porArea: grupo === "area", rango: R.t,
+      visibles: (Object.keys(ESTADOS) as EstadoProg[]).filter((e) => !ocultos.has(e)),
+      kpis: { enRango: vivas.length, cumplido, hechas: cerradas.filter((f) => f.estado === "hecha").length, cerradas: cerradas.length,
+        vencidas: cuenta("vencida"), proximas: proximas.length, proximasTxt: proximas.slice(0, 3).map((f) => f.area).join(", ") },
+    }, { logo, paleta: leerPaleta(caja.current) ?? undefined });
+    return { lienzo, nombre: nombreCrono5S(inicio, fin) };
+  }, "Cronograma 5S", { dashboard: "Cronograma" }, undefined, ["dashboard"]);
+
   function mover(n: number) { setInicio((i) => mas(i, n)) }
   function irHoy() { setInicio(mas(lunes(hoy), -7)) }
   function alternar(e: EstadoProg) { setOcultos((o) => { const n = new Set(o); if (n.has(e)) n.delete(e); else n.add(e); return n }) }
@@ -171,19 +185,25 @@ export function Cronograma({ filas, areas, responsables, puedeEditar }: {
 
   return (
     <div className="s5">
-      {avisos}{dialogo}
+      {avisos}{dialogo}{foto.vista}
       <header className="s5-cab">
         <div>
           <p className="s5-ojo">5S · ORDEN Y ASEO</p>
           <h1>Cronograma</h1>
           <p className="s5-sub">Las auditorías programadas. Se marcan solas como hechas cuando se guarda la inspección del área en esas fechas.</p>
         </div>
-        {puedeEditar && <button type="button" className="s5-bt osc" onClick={() => nueva()}>+ Programar auditoría</button>}
+        <div className="s5-acc">
+          <button type="button" className="s5-bt" onClick={() => foto.abrir("dashboard")} disabled={foto.armando != null || areas.length === 0}>
+            <svg viewBox="0 0 24 24" aria-hidden><rect x="3" y="5" width="18" height="15" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>
+            {foto.armando ? "Armando…" : "Cronograma para copiar"}
+          </button>
+          {puedeEditar && <button type="button" className="s5-bt osc" onClick={() => nueva()}>+ Programar auditoría</button>}
+        </div>
       </header>
 
       <section className="s5-kpis" aria-label="Resumen del rango">
         <div className="s5-kpi"><span>En el rango</span><b>{vivas.length}</b><small>{corta(inicio)} – {corta(fin)}</small></div>
-        <div className={"s5-kpi" + (cumplido != null && cumplido < 100 ? " bajo" : "")}><span>Cumplimiento del plan</span><b>{pct(cumplido)}</b><small>{cerradas.length ? `${cerradas.filter((f) => f.estado === "hecha").length} hechas de ${cerradas.length} que ya cerraron` : "aún no cierra ninguna"}</small></div>
+        <div className={"s5-kpi" + (cumplido != null && cumplido < 100 ? " bajo" : "")}><span>Cumplimiento del plan</span><b>{pct(cumplido)}</b><small>{cerradas.length ? `${cerradas.filter((f) => f.estado === "hecha").length} de ${cerradas.length} hechas (las que ya cerraron)` : "aún no cierra ninguna"}</small></div>
         <div className={"s5-kpi" + (cuenta("vencida") ? " bajo" : "")}><span>Vencidas</span><b>{cuenta("vencida")}</b><small>pasó la fecha sin inspección</small></div>
         <div className="s5-kpi"><span>Próximos 7 días</span><b>{proximas.length}</b><small>{proximas.slice(0, 2).map((f) => f.area).join(", ") || "nada pendiente"}</small></div>
       </section>

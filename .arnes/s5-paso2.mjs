@@ -105,6 +105,14 @@ ok(ins && ins.v.length === 6 && ins.v[1].desde === mas(ins.v[0].desde, 7) && ins
 await pg.click(".s5-g-bar.vencida");
 ok(/Cancelar auditoría/.test(await pg.textContent(".s5-mo")), "no deja cancelar");
 await pg.click('.s5-mo .s5-x');
+await pg.click('button:has-text("Cronograma para copiar")');
+await pg.waitForSelector("[class*=fc] img", { timeout: 15000 });
+{
+  const u = await pg.$eval("[class*=fc] img", (i) => i.src);
+  const b = await pg.evaluate(async (u) => { const r = await fetch(u); const b = await r.blob(); return await new Promise((ok) => { const f = new FileReader(); f.onload = () => ok(f.result); f.readAsDataURL(b) }) }, u);
+  writeFileSync("/tmp/s5-crono-img.png", Buffer.from(b.split(",")[1], "base64"));
+}
+await pg.keyboard.press("Escape");
 await abrir("crono", 390);
 await pg.screenshot({ path: "/tmp/s5-gantt-cel.png", fullPage: true });
 
