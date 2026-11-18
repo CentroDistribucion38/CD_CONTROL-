@@ -143,6 +143,7 @@ await abrir("insp", 390);
 await filas.nth(0).locator('.s5-res button:text-is("No cumple")').click();
 await pg.screenshot({ path: "/tmp/s5-cel.png", fullPage: false });
 ok(!(await pg.evaluate(() => document.documentElement.scrollWidth > innerWidth)), "en 390 se sale de ancho");
+ok(await pg.$eval(".s5-ficha input[type=date]", (i) => i.getBoundingClientRect().right <= i.closest(".s5-ficha").getBoundingClientRect().right + 0.5), "la fecha se sale de la tarjeta");
 
 /* ---------------- HISTORIAL ---------------- */
 await abrir("hist");

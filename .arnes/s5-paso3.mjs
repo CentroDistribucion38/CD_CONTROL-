@@ -140,11 +140,20 @@ await pg.locator('.s5-card:has(h2:has-text("Plan de acción"))').screenshot({ pa
 await abrir("inf");
 await pg.waitForTimeout(300);
 await pg.screenshot({ path: "/tmp/s5-visorB.png" });
-ok(await pg.inputValue(".i5-lado .firmas select >> nth=0") === "r1", "firma OL no arranca en el responsable del área");
-await pg.selectOption(".i5-lado .firmas select >> nth=1", "r2");
-{ const f = (await pg.evaluate(() => window.log)).find((x) => x.k === "rpc:s5_firmas");
-  ok(f && f.v.p_ol === "r1" && f.v.p_abi === "r2", "rpc firmas: " + JSON.stringify(f)); }
-ok(/Carlos Mejía\s*Warehouse Supervisor ABI/.test(await pg.textContent(".i5-fir")), "la firma no sale en la hoja: " + await pg.textContent(".i5-fir"));
+ok(await pg.inputValue(".i5-lado .firmas select") === "r1", "firma ABI no arranca en el responsable del área");
+await pg.fill(".i5-lado .firmas input", "Luis Pérez");
+await pg.keyboard.press("Escape");
+ok(await pg.isVisible(".i5-lado"), "Esc dentro del campo cerró el informe");
+await pg.press(".i5-lado .firmas input", "Enter");
+await pg.waitForTimeout(150);
+{ const f = (await pg.evaluate(() => window.log)).filter((x) => x.k === "rpc:s5_firmas").pop();
+  ok(f && f.v.p_ol === "Luis Pérez" && f.v.p_abi === "r1", "rpc firmas OL: " + JSON.stringify(f)); }
+await pg.selectOption(".i5-lado .firmas select", "r2");
+await pg.waitForTimeout(150);
+{ const f = (await pg.evaluate(() => window.log)).filter((x) => x.k === "rpc:s5_firmas").pop();
+  ok(f && f.v.p_ol === "Luis Pérez" && f.v.p_abi === "r2", "rpc firmas ABI: " + JSON.stringify(f)); }
+ok(/Luis Pérez\s*Supervisor OL/.test(await pg.textContent(".i5-fir")) && /Carlos Mejía\s*Warehouse Supervisor ABI/.test(await pg.textContent(".i5-fir")), "las firmas no salen en la hoja: " + await pg.textContent(".i5-fir"));
+await pg.evaluate(() => scrollTo(0, 0)); await pg.waitForTimeout(100); { const b = await pg.locator(".i5-lado .firmas").boundingBox(); await pg.screenshot({ path: "/tmp/s5-firmas.png", clip: { x: b.x, y: b.y, width: b.width, height: b.height } }) }
 await pg.click('.i5-pag button[aria-label="Hoja siguiente"]');
 await pg.waitForTimeout(700);
 ok(/Hoja 2 de/.test(await pg.textContent(".i5-pag")), "paginación: " + await pg.textContent(".i5-pag"));

@@ -24,7 +24,8 @@
 --   s5_reabrir(uuid)       lo reabre (devuelve las fotos que hay que quitar).
 --
 -- Y LAS FIRMAS DEL INFORME: se escoge quién firma como Supervisor OL y
--- quién como Warehouse Supervisor ABI (de los responsables 5S).
+-- quién como Warehouse Supervisor ABI: la de OL se escribe; la de ABI se
+-- escoge de los responsables 5S.
 --   s5_inspecciones        + firma_ol_id, firma_ol, firma_abi_id, firma_abi
 --   s5_firmas(...)         las pone o las cambia.
 --
@@ -206,32 +207,30 @@ revoke all on function public.s5_reabrir(uuid) from public, anon;
 grant execute on function public.s5_reabrir(uuid) to authenticated;
 
 -- ---------------------------------------------------------------------
--- 6. LAS FIRMAS: quién firma como Supervisor OL y quién como Warehouse
---    Supervisor ABI. null = la línea queda en blanco.
+-- 6. LAS FIRMAS: Supervisor OL se escribe (nombre libre, es del operador
+--    logístico); Warehouse Supervisor ABI se escoge de los responsables
+--    (arranca en el responsable del área). null = la línea en blanco.
 -- ---------------------------------------------------------------------
-create or replace function public.s5_firmas(p_insp uuid, p_ol uuid, p_abi uuid) returns void
+drop function if exists public.s5_firmas(uuid, uuid, uuid);
+create or replace function public.s5_firmas(p_insp uuid, p_ol text, p_abi uuid) returns void
 language plpgsql security definer set search_path = public
 as $$
-declare v_ol text; v_abi text;
+declare v_abi text;
 begin
   if not (public.s5_edita('/5s') or public.s5_edita('/5s/historial')) then
     raise exception 'No tienes permiso para cambiar las firmas del informe.';
-  end if;
-  if p_ol is not null then
-    select nombre into v_ol from public.s5_responsables where id = p_ol;
-    if v_ol is null then raise exception 'Ese responsable ya no existe.'; end if;
   end if;
   if p_abi is not null then
     select nombre into v_abi from public.s5_responsables where id = p_abi;
     if v_abi is null then raise exception 'Ese responsable ya no existe.'; end if;
   end if;
   update public.s5_inspecciones
-     set firma_ol_id = p_ol, firma_ol = v_ol, firma_abi_id = p_abi, firma_abi = v_abi
+     set firma_ol_id = null, firma_ol = nullif(left(trim(p_ol), 80), ''), firma_abi_id = p_abi, firma_abi = v_abi
    where id = p_insp;
   if not found then raise exception 'Esa inspección ya no existe.'; end if;
 end $$;
-revoke all on function public.s5_firmas(uuid, uuid, uuid) from public, anon;
-grant execute on function public.s5_firmas(uuid, uuid, uuid) to authenticated;
+revoke all on function public.s5_firmas(uuid, text, uuid) from public, anon;
+grant execute on function public.s5_firmas(uuid, text, uuid) to authenticated;
 
 -- ---------------------------------------------------------------------
 -- 7. LAS FOTOS DEL CIERRE: las sube y las quita quien edita el plan

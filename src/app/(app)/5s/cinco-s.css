@@ -49,6 +49,10 @@
 .s5-campo textarea { padding: 10px 12px; min-height: 64px; resize: vertical; font-weight: 500; line-height: 1.4 }
 .s5-campo.grande select { font: 800 18px var(--s5-titulo); letter-spacing: -.01em }
 .s5-campo :is(input, select, textarea):focus { border-color: var(--s5-tinta); outline: none }
+/* EL CAMPO DE FECHA DEL IPHONE trae un ancho mínimo propio y se salía de la tarjeta: se le quita la apariencia
+   nativa (sigue abriendo el selector de fecha del teléfono) y se deja del ancho del campo. */
+.s5 input[type="date"], .i5 input[type="date"] { -webkit-appearance: none; appearance: none; display: block; min-width: 0; max-width: 100%; line-height: 42px }
+.s5 input[type="date"]::-webkit-date-and-time-value, .i5 input[type="date"]::-webkit-date-and-time-value { text-align: left; margin: 0 }
 
 /* AVISO DE GUARDADA */
 .s5-hecha { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 6px 16px; padding: 12px 12px 12px 18px; background: #fff; border: 1px solid var(--s5-linea); border-left: 6px solid var(--s5-amarillo) }

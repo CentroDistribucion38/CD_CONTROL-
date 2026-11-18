@@ -24,7 +24,7 @@ export default async function Informe5SPage({ params, searchParams }: {
   const i = { ...insp, cumplimiento: Number(insp.cumplimiento), meta: Number(insp.meta) } as Inspeccion5S;
 
   const anio = i.fecha.slice(0, 4);
-  const [it, ft, ant, cuenta, area, resp, permisos] = await Promise.all([
+  const [it, ft, ant, cuenta, area, resp, permisos, prevOl] = await Promise.all([
     sb.from("s5_inspeccion_puntos").select("*").eq("inspeccion_id", id),
     /* «*»: con el paso 3 trae `momento` (antes / después); sin él, todas son del antes. */
     sb.from("s5_fotos").select("*").eq("inspeccion_id", id).order("ruta"),
@@ -38,6 +38,8 @@ export default async function Informe5SPage({ params, searchParams }: {
     i.area_id ? sb.from("s5_areas").select("responsable_id").eq("id", i.area_id).maybeSingle() : Promise.resolve({ data: null }),
     sb.from("s5_responsables").select("*").order("nombre"),
     misPermisos(),
+    /* Los nombres de Supervisor OL que ya se han escrito, para sugerirlos al escribir. */
+    sb.from("s5_inspecciones").select("firma_ol").not("firma_ol", "is", null).order("creado", { ascending: false }).limit(300),
   ]);
   let cargo: string | null = null;
   const respId = (area.data as { responsable_id: string | null } | null)?.responsable_id;
@@ -65,6 +67,7 @@ export default async function Informe5SPage({ params, searchParams }: {
       responsables={(resp.data ?? []) as Responsable5S[]}
       areaResp={respId ?? null}
       puedeFirmar={permisos.puedeEditar("/5s") || permisos.puedeEditar("/5s/historial")}
+      olPrevios={[...new Set(((prevOl.data ?? []) as { firma_ol: string }[]).map((x) => x.firma_ol.trim()).filter(Boolean))].slice(0, 30)}
     />
   );
 }
