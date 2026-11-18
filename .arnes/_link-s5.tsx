@@ -1,0 +1,1 @@
+export default function Link(p: any) { return <a href={p.href} className={p.className}>{p.children}</a> }

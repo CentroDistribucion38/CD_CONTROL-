@@ -629,6 +629,26 @@ export const MODULOS: Modulo[] = [
     ],
   },
   {
+    id: "cinco-s",
+    nombre: "5S",
+    eyebrow: "ORDEN Y ASEO",
+    descripcion:
+      "Auditoría 5S por área: checklist por S con peso, cumple / no cumple / N/A, hallazgos con foto y el puntaje contra la meta.",
+    /* Ámbar de la marca: 5S es orden visual, y la demarcación de piso es amarilla. */
+    acento: "#B58200",
+    fondo: "#FFF6DA",
+    etiquetas: ["Checklist por S", "Fotos selladas", "Meta por área"],
+    imagen: "/modulos/cinco-s.jpg",
+    ruta: "/5s",
+    activo: true,
+    /* EL ORDEN DEL PROCESO: auditar → ver cómo va → configurar (que se arma una vez y cierra la lista). */
+    secciones: [
+      { nombre: "Inspeccionar", ruta: "/5s" },
+      { nombre: "Historial", ruta: "/5s/historial" },
+      { nombre: "Maestro", ruta: "/5s/maestro" },
+    ],
+  },
+  {
     id: "admin",
     nombre: "Administración",
     eyebrow: "PLATAFORMA",
