@@ -228,6 +228,27 @@ grant execute on function public.traspaso_materiales_guardar(uuid, jsonb) to aut
 -- ---------------------------------------------------------------------
 -- 6. EL AVAL DEL FACTURADOR DESCUENTA (y reabrir lo devuelve)
 -- ---------------------------------------------------------------------
+-- El almacén de Casco de vidrio (con su nombre de SAP) que corresponde a una tabla de Control:
+-- del maestro de movimientos si está (origen para la salida; receptor y si no cliente para la llegada),
+-- y si no, el nombre de la ubicación (que ya es el de SAP: «AG22 EER Barranquilla»).
+create or replace function public.traspasos_casco_almacen(p_ubic text, p_origen boolean)
+returns table (id uuid, nombre text)
+language sql stable security definer set search_path = public
+as $$
+  select z.id, z.nombre from (
+    select mm.id, mm.nombre, case when mm.tipo = 'cliente' then 1 else 0 end as pref, mm.orden
+      from public.casco_mov_maestro mm
+     where mm.ubicacion = p_ubic and mm.activo
+       and (case when p_origen then mm.tipo = 'origen' else mm.tipo in ('receptor', 'cliente') end)
+    union all
+    select null::uuid, u.nombre, 2, null from public.casco_ubicaciones u where u.clave = p_ubic
+  ) z
+  where p_ubic is not null
+  order by z.pref, z.orden nulls last
+  limit 1
+$$;
+revoke all on function public.traspasos_casco_almacen(text, boolean) from public, anon;
+
 create or replace function public.traspasos_materiales_al_aval()
 returns trigger
 language plpgsql
@@ -237,17 +258,21 @@ as $$
 declare
   m public.traspasos_viaje_materiales%rowtype;
   v_hoy date := (now() at time zone 'America/Bogota')::date;
-  v_o text; v_d text; v_mov uuid;
+  v_o text; v_d text; v_oid uuid; v_did uuid; v_mov uuid;
 begin
   /* EL AVAL: el viaje recibe su DOC. */
   if old.salida_en is null and new.salida_en is not null then
-    select coalesce(nombre, new.origen) into v_o from public.traspasos_puntos where clave = new.origen;
-    select coalesce(nombre, new.destino) into v_d from public.traspasos_puntos where clave = new.destino;
     for m in select * from public.traspasos_viaje_materiales where viaje = new.id and aplicado_en is null loop
+      /* En Casco de vidrio el movimiento se escribe como se lleva la data de SAP: FABRICA = «AG18 EER Fábrica»,
+         BODEGA 38 = «AG22 EER Barranquilla», CARNAVAL = «AG07 Alm. Bodega Carnaval» (no como se llaman en Traspasos). */
+      select x.id, x.nombre into v_oid, v_o from public.traspasos_casco_almacen(m.ubic_origen, true) x;
+      select x.id, x.nombre into v_did, v_d from public.traspasos_casco_almacen(m.ubic_destino, false) x;
+      if v_o is null then select nombre into v_o from public.traspasos_puntos where clave = new.origen; end if;
+      if v_d is null then select nombre into v_d from public.traspasos_puntos where clave = new.destino; end if;
       insert into public.casco_movimientos
-        (fecha, origen, destino, ubic_origen, ubic_destino, sku, estibas, entrega, placa, afecta, creado_por)
+        (fecha, origen_id, destino_id, origen, destino, ubic_origen, ubic_destino, sku, estibas, entrega, placa, afecta, creado_por)
       values
-        (v_hoy, coalesce(v_o, new.origen, '—'), coalesce(v_d, new.destino, '—'), m.ubic_origen, m.ubic_destino,
+        (v_hoy, v_oid, v_did, coalesce(v_o, new.origen, '—'), coalesce(v_d, new.destino, '—'), m.ubic_origen, m.ubic_destino,
          m.sku, m.estibas, new.factura_documento, new.placa, true, auth.uid())
       returning id into v_mov;
       if m.ubic_destino is not null then perform public.casco_aplicar_delta(v_hoy, m.ubic_destino, m.sku, m.estibas); end if;
