@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { BuscarEnLista } from "@/components/BuscarEnLista";
@@ -98,6 +98,10 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar, d
   const [verCeros, setVerCeros] = useState<Record<string, boolean>>({});
   const [tocados, setTocados] = useState<Set<string>>(() => new Set());
   const tocar = (s: string, sku: string) => setTocados((t) => (t.has(`${s}|${sku}`) ? t : new Set(t).add(`${s}|${sku}`)));
+  /* LAS TABLAS DONDE ALGUIEN TECLEÓ ALGO QUE NO SE HA GUARDADO. Las demás se pueden refrescar solas cuando la base
+     cambia (un traspaso que facturación ejecutó, una baja, un movimiento): «no quiero tener que entrar a Control a
+     darle guardar». Solo una tabla con lo tuyo sin guardar se queda quieta y avisa, para no perder lo tecleado. */
+  const tecleo = useRef<Set<string>>(new Set());
   const dato = useMemo(() => Object.fromEntries(materiales.map((m) => [m.sku, m])), [materiales]);
 
   const poner = useCallback((clave: string, cambio: Partial<Bloque> | ((b: Bloque) => Partial<Bloque>)) =>
@@ -116,6 +120,7 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar, d
   /* ---------- LAS CUATRO TABLAS DE ESTE DÍA ---------- */
   const cargar = useCallback(async (f: string) => {
     setErrorLectura(null);
+    tecleo.current.clear();
     setBloques(Object.fromEntries(sitios.map((s) => [s.clave, { ...VACIO, de: f }])));
     const { data: delD, error } = await supabase.from("v_casco").select(COLS).eq("fecha", f).order("sku");
     if (error) {
@@ -170,6 +175,7 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar, d
       /* Un borrador hecho ANTES de que la base cambiara (bajas, movimientos u otro guardado) no se guarda
          solo: pisaría lo nuevo. Se muestra y se avisa; «Descartar cambios» trae lo actual. */
       const viejo = !!br && (br.marca === undefined || (br.marca ?? null) !== (base.marca ?? null));
+      if (br) tecleo.current.add(clave);
       return alimentar(s, br ? { ...base, filas: br.filas, sucio: true, recuperado: br.en, choque: viejo,
         aviso: viejo ? { tipo: "mal", texto: "Este borrador es de antes de que se registraran bajas, movimientos o cambios en esta tabla. No se guarda solo para no borrarlos: toca «Descartar cambios» para traer lo actual y vuelve a teclear lo tuyo." } : base.aviso ?? null }
         : { ...base, recuperado: null });
@@ -261,6 +267,8 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar, d
       .eq("fecha", fecha).eq("ubicacion", s.clave).order("actualizado_en", { ascending: false }).limit(1);
     const marcaAhora = (ahora?.[0]?.actualizado_en as string | undefined) ?? null;
     if (!eM && marcaAhora !== (b.marca ?? null)) {
+      /* Sin nada tecleado por ti en esta tabla: se trae lo nuevo y listo (no hay nada que perder). */
+      if (!tecleo.current.has(s.clave)) { void cargar(fecha); return false }
       poner(s.clave, { guardando: false, choque: true, aviso: { tipo: "mal", texto:
         "Mientras tenías esta tabla abierta se registraron bajas, movimientos o alguien la guardó. No se guardó para no borrar eso: toca «Descartar cambios» para traer lo actual y vuelve a teclear lo tuyo." } });
       return false;
@@ -278,6 +286,7 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar, d
     if (error && /p_marca|schema cache|Could not find the function/i.test(error.message))
       ({ data, error } = await supabase.rpc("casco_guardar", { p_fecha: fecha, p_ubicacion: s.clave, p_filas: payload }));
     if (error && /CHOQUE/.test(error.message)) {
+      if (!tecleo.current.has(s.clave)) { void cargar(fecha); return false }
       poner(s.clave, { guardando: false, choque: true, aviso: { tipo: "mal", texto: error.message.replace(/^.*?CHOQUE:\s*/, "").replace(/^./, (c) => c.toUpperCase()) } });
       return false;
     }
@@ -289,7 +298,7 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar, d
     /* Si mientras guardaba se tecleó algo más, la tabla sigue «sucia» y se guarda en la siguiente vuelta. */
     poner(s.clave, (cur) => {
       const igual = cur.filas === b.filas;
-      if (igual) borrarBorrador(fecha, s.clave);
+      if (igual) { borrarBorrador(fecha, s.clave); tecleo.current.delete(s.clave) }
       return igual
         ? { guardando: false, sucio: false, guardado: true, arranque: null, recuperado: null, aviso, marca, choque: false }
         : { guardando: false, guardado: true, arranque: null, recuperado: null, marca, choque: false };
@@ -323,16 +332,61 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar, d
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bloques, fecha, puedeEditar]);
 
+  /* AL DÍA SOLA, CUANDO HAY UN CAMBIO (no cada tanto): la base AVISA en el momento en que cambia una tabla de este día
+     —facturación ejecutó un traspaso, entró una baja, un movimiento, otro equipo guardó— (Supabase Realtime sobre
+     casco_registros). Entonces se mira qué tabla cambió: si nadie tiene nada tecleado sin guardar, la pantalla se
+     recarga sola; si en esa tabla hay algo tuyo sin guardar, se avisa y no se pisa nada. También se mira al volver a
+     la ventana (si el aviso llegó con el equipo dormido). Los avisos de tu propio guardado no recargan nada: después de
+     guardar la pantalla ya tiene la misma marca que la base. */
+  const vistaRef = useRef({ bloques, fecha, sitios });
+  vistaRef.current = { bloques, fecha, sitios };
+  const revisarCambios = useCallback(async () => {
+    const { bloques: bl, fecha: fe, sitios: si } = vistaRef.current;
+    const bs = Object.values(bl);
+    if (!bs.length || bs.some((b) => b.cargando || b.guardando || b.de !== fe)) return;
+    const { data, error } = await supabase.from("v_casco").select("ubicacion, actualizado_en").eq("fecha", fe);
+    if (error || vistaRef.current.fecha !== fe) return;
+    const ult = new Map<string, string>();
+    for (const x of (data ?? []) as { ubicacion: string; actualizado_en: string | null }[])
+      if (x.actualizado_en && (!ult.has(x.ubicacion) || x.actualizado_en > ult.get(x.ubicacion)!)) ult.set(x.ubicacion, x.actualizado_en);
+    const cambiadas = si.filter((x) => bl[x.clave] && (ult.get(x.clave) ?? null) !== (bl[x.clave].marca ?? null));
+    if (!cambiadas.length) return;
+    if (tecleo.current.size === 0) { void cargar(fe); return }
+    for (const x of cambiadas) {
+      if (!tecleo.current.has(x.clave) || bl[x.clave].choque) continue;
+      poner(x.clave, { choque: true, aviso: { tipo: "mal", texto:
+        "Entró un cambio en esta tabla (un traspaso, una baja o un movimiento) mientras tecleabas. Para no borrarlo no se guarda lo tuyo: toca «Descartar cambios» para traer lo actual y vuelve a teclear lo tuyo." } });
+    }
+  }, [supabase, cargar, poner]);
+  useEffect(() => {
+    let espera: ReturnType<typeof setTimeout> | null = null;
+    /* Un traspaso toca varias filas a la vez: se espera un instante y se revisa UNA vez. */
+    const alCambio = () => { if (espera) clearTimeout(espera); espera = setTimeout(() => { void revisarCambios() }, 1200) };
+    const canal = supabase.channel(`casco-control-${fecha}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "casco_registros", filter: `fecha=eq.${fecha}` }, alCambio)
+      .subscribe();
+    const alVolver = () => { if (document.visibilityState === "visible") alCambio() };
+    document.addEventListener("visibilitychange", alVolver);
+    return () => {
+      if (espera) clearTimeout(espera);
+      document.removeEventListener("visibilitychange", alVolver);
+      void supabase.removeChannel(canal);
+    };
+  }, [supabase, fecha, revisarCambios]);
+
   const cambiar = (s: string, i: number, k: keyof Fila, v: string) => {
+    tecleo.current.add(s);
     const sku = bloques[s]?.filas[i]?.sku; if (sku) tocar(s, sku);
     poner(s, (b) => ({ filas: b.filas.map((f, j) => (j === i ? { ...f, [k]: v } : f)), sucio: true, aviso: null }));
   };
   const agregar = (s: string, sku: string) => {
+    tecleo.current.add(s);
     if (sku) tocar(s, sku);
     poner(s, (b) => b.filas.some((f) => f.sku === sku) || !sku ? {} :
       { filas: [...b.filas, { sku, inv: "", baja: "", puesto: "", calidad: "" }], sucio: true, aviso: null });
   };
-  const quitar = (s: string, i: number) => poner(s, (b) => ({ filas: b.filas.filter((_, j) => j !== i), sucio: true }));
+  const quitar = (s: string, i: number) => { tecleo.current.add(s); quitarFila(s, i) };
+  const quitarFila = (s: string, i: number) => poner(s, (b) => ({ filas: b.filas.filter((_, j) => j !== i), sucio: true }));
   /** La × pregunta primero: dice QUÉ material se va, de QUÉ tabla y cuánto tenía. */
   const quitarConfirmado = async (s: SitioCasco, i: number, sku: string, resumen: string) => {
     const ok = await pedir({
