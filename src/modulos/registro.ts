@@ -746,6 +746,18 @@ export const MODULOS: Modulo[] = [
           "El cruce del conteo físico contra el casco de vidrio: las cinco tablas de " +
           "baja, lavado y extrasucio con el cuadre al lado. Lo que el Excel arma a mano, aquí sale del último conteo.",
       },
+      /* PLAN VS NOTIFICADO: el instructivo de envase (plan inicial y cortes) contra la MB51. «Cómo cruzo el plan de
+         producción con la MB51… qué le falta al envase por notificar» + «yo valido las notificaciones por día» +
+         las partidas del corte de inventario de las 6. */
+      {
+        id: "plan-envase",
+        nombre: "Plan vs notificado",
+        eyebrow: "ENVASE",
+        ruta: "/inventario/envase",
+        descripcion:
+          "El plan de envase de Suite 360 (inicial y cortes) contra la MB51: lo notificado de cada día, el envase que falta " +
+          "por notificar (261) y las partidas del corte de inventario.",
+      },
       /* PRODUCTO: el inventario CÍCLICO del producto terminado, por parejas como el fiscal, y su análisis de
          diferencia contra la existencia de SAP. «Aquí necesito agregar un módulo que se llame Producto.» */
       {
@@ -844,6 +856,11 @@ export const MODULOS: Modulo[] = [
       /* ANÁLISIS DE DIFERENCIA (2026.10.14_BODEGA_38.xlsx): la hoja que abarca todo, CONTEO vs SAP de Bodega 38.
          Va al final: usa el conteo, los cortes, Pasivos y el Cuadre SAP. */
       { nombre: "Análisis de diferencia", ruta: "/inventario/balance/analisis", rama: "balance" },
+      /* PLAN VS NOTIFICADO, EN EL ORDEN DEL TRABAJO: se carga (instructivo y MB51) → se valida el día → el corte de
+         inventario con sus partidas. */
+      { nombre: "Cargar", ruta: "/inventario/envase/cargar", rama: "plan-envase" },
+      { nombre: "Validación del día", ruta: "/inventario/envase", rama: "plan-envase" },
+      { nombre: "Corte de inventario", ruta: "/inventario/envase/corte", rama: "plan-envase" },
       /* PRODUCTO, EN EL ORDEN DEL PROCESO: se arma el cíclico (familia y parejas) y se habilita el Contar → la
          pareja cuenta y cruza → el conteo de Bavaria se compara con la existencia en el análisis de diferencia. */
       /* EL CÍCLICO ES UN GRUPO, como el Fiscal: el Plan (se arma), el Control (se sigue, se reabre y se exportan los

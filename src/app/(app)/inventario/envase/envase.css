@@ -1,0 +1,150 @@
+/* ---------------------------------------------------------------------
+   INVENTARIO › PLAN VS NOTIFICADO (Cargar · Validación del día · Corte).
+   Cuelga de .fe.pe: toma los tokens --fe-* (tinta, acento, papel, línea) para
+   que funcione con todas las apariencias. Recto, sin sombras.
+   --------------------------------------------------------------------- */
+.fe.pe { gap: 12px }
+.pe .pe-card { background: var(--fe-papel); border: 1px solid var(--fe-linea) }
+.pe .pe-h3 {
+  display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; margin: 0;
+  padding: 12px 16px; border-bottom: 1px solid var(--fe-linea); font: 800 15px var(--fe-titulo);
+}
+.pe .pe-h3 > small { margin-left: auto; font: 600 12px var(--fe-texto); color: var(--fe-gris) }
+.pe .pe-nota { margin: 0; padding: 10px 16px; font-size: 12px; line-height: 1.5; color: var(--fe-gris) }
+.pe .pe-vacio { margin: 0; padding: 22px 18px; font-size: 13.5px; line-height: 1.5; color: var(--fe-gris-panel); background: var(--fe-papel); border: 1px solid var(--fe-linea) }
+.pe .pe-error { margin: 0; padding: 10px 14px; background: color-mix(in srgb, var(--fe-mal) 9%, var(--fe-papel)); border-left: 4px solid var(--fe-mal); font-size: 13px }
+.pe .pe-ok { margin: 0; padding: 10px 14px; background: color-mix(in srgb, var(--fe-bien) 9%, var(--fe-papel)); border-left: 4px solid var(--fe-bien); font-size: 13px }
+.pe .pe-aviso { margin: 0; padding: 10px 14px; background: color-mix(in srgb, var(--fe-aviso) 16%, var(--fe-papel)); border-left: 4px solid var(--fe-aviso); font-size: 13px; line-height: 1.45 }
+
+.pe .pe-tag {
+  display: inline-block; padding: 3px 7px; font: 800 10.5px var(--fe-texto); letter-spacing: .07em; text-transform: uppercase; white-space: nowrap;
+}
+.pe .t-r { background: var(--fe-mal); color: #fff }
+.pe .t-a { background: color-mix(in srgb, var(--fe-aviso) 30%, var(--fe-papel)); color: var(--fe-tinta); box-shadow: inset 3px 0 0 var(--fe-aviso) }
+.pe .t-g { background: var(--fe-fondo); color: var(--fe-tinta) }
+.pe .t-v { background: var(--fe-bien); color: #fff }
+.pe .t-n { background: var(--fe-tinta); color: var(--fe-papel) }
+.pe .mal { color: var(--fe-mal); font-weight: 700 }
+.pe .bien { color: var(--fe-bien); font-weight: 700 }
+.pe .mut { color: var(--fe-gris) }
+
+/* ---------- botones y segmentos ---------- */
+.pe .pe-bt {
+  height: 38px; padding: 0 14px; border: 1.5px solid var(--fe-tinta); background: var(--fe-papel); color: var(--fe-tinta);
+  font: 700 13px var(--fe-texto); cursor: pointer; border-radius: 0; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+}
+.pe .pe-bt.am { background: var(--fe-acento); color: var(--fe-sobre); border-color: var(--fe-acento) }
+.pe .pe-bt:disabled { opacity: .45; cursor: default }
+.pe .pe-bt:focus-visible, .pe .pe-seg button:focus-visible, .pe .pe-dias a:focus-visible { outline: 2px solid var(--fe-acento); outline-offset: 2px }
+.pe .pe-seg { display: inline-flex; height: 36px; border: 1.5px solid var(--fe-tinta); background: var(--fe-papel) }
+.pe .pe-seg button { padding: 0 12px; border: 0; border-left: 1px solid var(--fe-linea); background: none; color: var(--fe-tinta); font: 700 12.5px var(--fe-texto); cursor: pointer; border-radius: 0; white-space: nowrap }
+.pe .pe-seg button:first-child { border-left: 0 }
+.pe .pe-seg button.on { background: var(--fe-tinta); color: var(--fe-papel) }
+
+/* ---------- días de la semana ---------- */
+.pe .pe-barra { display: flex; flex-wrap: wrap; gap: 10px; align-items: center }
+.pe .pe-dias { display: flex; overflow-x: auto; max-width: 100% }
+.pe .pe-dias a {
+  flex: none; min-width: 112px; padding: 7px 12px; border: 1.5px solid var(--fe-tinta); margin-right: -1.5px;
+  background: var(--fe-papel); color: var(--fe-tinta); text-decoration: none;
+}
+.pe .pe-dias a b { display: block; font: 800 14px var(--fe-titulo) }
+.pe .pe-dias a span { font: 700 10.5px var(--fe-texto); letter-spacing: .06em; text-transform: uppercase }
+.pe .pe-dias a.on { background: var(--fe-tinta); color: var(--fe-papel) }
+.pe .pe-dias .e-cerrado { color: var(--fe-bien) }
+.pe .pe-dias .on .e-cerrado { color: color-mix(in srgb, var(--fe-bien) 45%, #fff) }
+.pe .pe-dias .e-abierto { color: var(--fe-ojo) }
+.pe .pe-dias .on .e-abierto { color: var(--fe-aviso) }
+.pe .pe-dias .e-sin, .pe .pe-dias .e-futuro { color: var(--fe-gris) }
+.pe .pe-dias a.flecha { min-width: 0; display: grid; place-items: center; font: 800 18px var(--fe-titulo); padding: 0 12px }
+.pe .pe-unidad { margin-left: auto; display: flex; align-items: center; gap: 8px; font: 700 10.5px var(--fe-texto); letter-spacing: .12em; color: var(--fe-gris); text-transform: uppercase }
+
+/* ---------- cifras ---------- */
+.pe .pe-kpi { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)) }
+.pe .pe-kpi > div { padding: 13px 16px; border-left: 1px solid var(--fe-linea); border-top: 4px solid transparent; min-width: 0 }
+.pe .pe-kpi > div:first-child { border-left: 0 }
+.pe .pe-kpi .l { font: 700 10.5px var(--fe-texto); letter-spacing: .12em; text-transform: uppercase; color: var(--fe-gris) }
+.pe .pe-kpi b { display: block; font: 900 30px/1 var(--fe-titulo); letter-spacing: -.03em; margin-top: 8px; font-variant-numeric: tabular-nums }
+.pe .pe-kpi b small { font: 700 12.5px var(--fe-texto); color: var(--fe-gris); letter-spacing: 0; margin-left: 4px }
+.pe .pe-kpi em { display: block; margin-top: 5px; font-style: normal; font-size: 12px; color: var(--fe-gris); line-height: 1.35 }
+.pe .pe-kpi .k-am { border-top-color: var(--fe-aviso) }
+.pe .pe-kpi .k-r { border-top-color: var(--fe-mal); background: color-mix(in srgb, var(--fe-mal) 7%, var(--fe-papel)) }
+
+/* ---------- tablas ---------- */
+.pe .pe-caja { overflow-x: auto }
+.pe table.pe-t { border-collapse: collapse; width: 100% }
+.pe .pe-t th {
+  background: var(--fe-tinta); color: var(--fe-papel); font: 700 10px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase;
+  padding: 9px 8px; text-align: right; white-space: nowrap;
+}
+.pe .pe-t th.g { border-left: 2px solid var(--fe-aviso) }
+.pe .pe-t td { padding: 8px; border-bottom: 1px solid var(--fe-linea); font-size: 13px; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums }
+.pe .pe-t .l { text-align: left }
+.pe .pe-t td.g { border-left: 2px solid var(--fe-aviso) }
+.pe .pe-t td.na { text-align: center; color: var(--fe-gris) }
+.pe .pe-t tr.tot td { background: color-mix(in srgb, var(--fe-aviso) 18%, var(--fe-papel)); font: 800 13.5px var(--fe-titulo); border-top: 2px solid var(--fe-tinta) }
+.pe .pe-t tr.sub td { background: var(--fe-fondo); font-size: 12.5px }
+.pe .pe-t .sku { all: unset; cursor: pointer; display: inline-flex; gap: 6px; align-items: baseline }
+.pe .pe-t .sku b { font-weight: 700 }
+.pe .pe-t .sku i { font-style: normal; color: var(--fe-gris); width: 10px }
+.pe .pe-t .sku:focus-visible { outline: 2px solid var(--fe-acento); outline-offset: 2px }
+.pe .pe-pct { display: inline-flex; align-items: center; gap: 6px }
+.pe .pe-pct u { display: block; position: relative; width: 56px; height: 7px; background: var(--fe-fondo) }
+.pe .pe-pct u i { position: absolute; inset: 0 auto 0 0 }
+
+/* ---------- alertas ---------- */
+.pe details.pe-card > summary { list-style: none; cursor: pointer }
+.pe details.pe-card > summary::-webkit-details-marker { display: none }
+.pe details.pe-card > summary::after { content: "▾"; margin-left: 8px; color: var(--fe-gris) }
+.pe details[open].pe-card > summary::after { content: "▴" }
+.pe .pe-al { display: grid; grid-template-columns: 104px 1fr auto; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--fe-linea); align-items: center; font-size: 13px }
+.pe .pe-al .q { font: 800 15px var(--fe-titulo); text-align: right; white-space: nowrap }
+.pe .pe-al p { margin: 2px 0 0; color: var(--fe-gris); font-size: 12px; line-height: 1.4 }
+
+/* ---------- cargar ---------- */
+.pe .pe-drop {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 18px; align-items: center; padding: 22px;
+  background: var(--fe-papel); border: 2px dashed var(--fe-tinta); cursor: pointer;
+}
+.pe .pe-drop.sobre { background: color-mix(in srgb, var(--fe-aviso) 14%, var(--fe-papel)) }
+.pe .pe-drop .ic { width: 52px; height: 52px; display: grid; place-items: center; background: var(--fe-acento); color: var(--fe-sobre); font: 900 26px var(--fe-titulo) }
+.pe .pe-drop b { display: block; font: 800 17px var(--fe-titulo) }
+.pe .pe-drop span { font-size: 12.5px; color: var(--fe-gris); line-height: 1.4 }
+.pe .pe-lec { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px }
+.pe .pe-lc { border-top: 5px solid var(--fe-tinta) }
+.pe .pe-lc.lc-ok { border-top-color: var(--fe-bien) }
+.pe .pe-lc.lc-av { border-top-color: var(--fe-aviso) }
+.pe .pe-lc.lc-mal { border-top-color: var(--fe-mal) }
+.pe .pe-lc h4 { margin: 0; padding: 12px 16px 3px; display: flex; gap: 8px; align-items: center; font: 800 15px var(--fe-titulo) }
+.pe .pe-lc h4 label { margin-left: auto; display: flex; gap: 6px; align-items: center; font: 600 12px var(--fe-texto); color: var(--fe-gris); cursor: pointer }
+.pe .pe-lc .f { margin: 0; padding: 0 16px 10px; border-bottom: 1px solid var(--fe-linea); font: 12px ui-monospace, Menlo, monospace; color: var(--fe-gris); overflow-wrap: anywhere }
+.pe .pe-lc dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0; padding: 12px 16px; font-size: 13px }
+.pe .pe-lc dt { color: var(--fe-gris) }
+.pe .pe-lc dd { margin: 0; font-weight: 700; text-align: right }
+.pe .pe-lc > p:not(.f) { margin: 0 16px 14px }
+.pe .pe-acciones { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap }
+
+/* ---------- corte ---------- */
+.pe .pe-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; padding: 14px 16px }
+.pe .pe-campo { display: flex; flex-direction: column; gap: 4px }
+.pe .pe-campo span { font: 700 10px var(--fe-texto); letter-spacing: .14em; text-transform: uppercase; color: var(--fe-gris-panel) }
+.pe .pe-campo input {
+  height: 38px; border: 1.5px solid var(--fe-linea); background: var(--fe-papel); color: var(--fe-tinta); border-radius: 0;
+  font: 600 14px var(--fe-texto); padding: 0 10px; -webkit-appearance: none; appearance: none; min-width: 0; max-width: 100%;
+}
+.pe .pe-formula { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; padding: 12px; font: 800 14px var(--fe-titulo) }
+.pe .pe-formula span { padding: 7px 12px; border: 1.5px solid var(--fe-tinta) }
+.pe .pe-formula span.y { background: var(--fe-acento); border-color: var(--fe-acento); color: var(--fe-sobre) }
+.pe .pe-formula i { font: 900 18px var(--fe-titulo); font-style: normal }
+.pe .pe-dos { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 12px; align-items: start }
+.pe .pe-t .exp { white-space: normal; text-align: left; color: var(--fe-gris); font-size: 12px; line-height: 1.4; min-width: 260px }
+.pe .pe-t .pos { color: var(--fe-bien); font-weight: 800 }
+.pe .pe-t .neg { color: var(--fe-mal); font-weight: 800 }
+
+@media (max-width: 900px) {
+  .pe .pe-dos { grid-template-columns: 1fr }
+  .pe .pe-unidad { margin-left: 0 }
+  .pe .pe-drop { grid-template-columns: 1fr; text-align: left }
+  .pe .pe-al { grid-template-columns: 1fr; gap: 4px }
+  .pe .pe-al .q { text-align: left }
+}

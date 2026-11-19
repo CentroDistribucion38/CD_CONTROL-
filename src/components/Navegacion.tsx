@@ -381,6 +381,13 @@ const IconoEscoba = () => (
     <path d="M12.5 10.5c-2.6-1.3-5.3-.3-6.4 2l-2.6 6 3.1.9 1.1-2.3.1 2.9 3.1.9 1.1-2.4.4 2.4 2.4.6c1.5-3 1.5-6.4-2.3-9z" />
   </svg>
 );
+/* CORTE DE INVENTARIO: la hora del conteo. */
+const IconoReloj = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M12 7.5V12l3 2" />
+  </svg>
+);
 /* PET: barras de colores (formatos) en una base. */
 const IconoFormatos = () => (
   <svg viewBox="0 0 24 24" {...P}>
@@ -443,6 +450,7 @@ const ICONO_MODULO: Record<string, () => React.ReactElement> = {
    dirección, así que se nombran aparte. */
 const ICONO_RAMA: Record<string, () => React.ReactElement> = {
   envase: IconoBotella,
+  "plan-envase": IconoBotella,
   "en-sitio": IconoRoturas,
   salida: IconoTolva,
   balance: IconoBalanza,
@@ -518,6 +526,9 @@ const ICONO_RUTA: Record<string, () => React.ReactElement> = {
   "/traspasos/pet/programar": IconoTendencia,
   "/traspasos/compartir-ubicacion": IconoUbicacion,
   "/inventario/casco/registrar": IconoEntrada,
+  "/inventario/envase/cargar": IconoEntrada,
+  "/inventario/envase": IconoVerificar,
+  "/inventario/envase/corte": IconoReloj,
   "/inventario/casco": IconoCuatroTablas,
   "/inventario/casco/tablero": IconoTablero,
   "/inventario/casco/comparativo": IconoComparar,
