@@ -167,7 +167,7 @@ export function TablaPet({ filas, desde, hasta }: { filas: FilaPet[]; desde: str
             </tbody>
           </table>
         </div>
-        <p className="guia">Del {corto(desde)} al {corto(hasta)} · {DIAS[diaSemana(hasta)]} incluido. Un Vh que lleva dos SKU del mismo formato suma los dos en esa columna.</p>
+        <p className="guia">Del {corto(desde)} al {corto(hasta)} · {DIAS[diaSemana(hasta)]} incluido. Un Vh que lleva dos SKU del mismo formato suma los dos en esa columna. «Sin formato» son los viajes de PET registrados sin SKU (los de antes): cuentan como Vh con su carga, pero no se sabe de qué formato.</p>
       </>)}
     </>
   );
