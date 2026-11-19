@@ -93,6 +93,9 @@ export type FilaCruce = {
   estado: EstadoFila;
   /** true = esta diferencia se compensa con otra igual y de signo contrario en el mismo módulo (ver `compensarCruce`). */
   compensada?: boolean;
+  /** Si se compensa con OTRO código del mismo módulo (las mismas cajas de más en uno y de menos en el otro: se anotó con el código
+   *  cambiado), ese otro código. Vacío si se compensa con el mismo código. */
+  compensaCon?: string;
 };
 
 /** Lo que devuelve `inv_fiscal_cruce`. */
@@ -303,6 +306,7 @@ export function compensarCruce(filas: FilaCruce[]): { filas: FilaCruce[]; pares:
     }
   }
   /* Entre materiales distintos (+45 de uno, −45 de otro) se empareja por CAJAS equivalentes, porque cada material trae sus unidades por caja. */
+  const con = new Map<FilaCruce, string>();
   for (const l of porModulo.values()) {
     const neg = l.filter((f) => difUnid(f) < 0 && !marcadas.has(f));
     const usadas = new Set<FilaCruce>();
@@ -310,6 +314,7 @@ export function compensarCruce(filas: FilaCruce[]): { filas: FilaCruce[]; pares:
       const q = neg.find((n) => !usadas.has(n) && -difEnCajas(n) === difEnCajas(p));
       if (!q) continue;
       usadas.add(q); marcadas.add(p); marcadas.add(q); pares++;
+      if (q.sku !== p.sku) { con.set(p, q.sku); con.set(q, p.sku) }
     }
   }
   /* Paso 2: el mismo material, módulos distintos. */
@@ -328,7 +333,7 @@ export function compensarCruce(filas: FilaCruce[]): { filas: FilaCruce[]; pares:
       usadas.add(q); marcadas.add(p); marcadas.add(q); pares++;
     }
   }
-  return { filas: filas.map((f) => (marcadas.has(f) ? { ...f, compensada: true } : f)), pares };
+  return { filas: filas.map((f) => (marcadas.has(f) ? { ...f, compensada: true, ...(con.has(f) ? { compensaCon: con.get(f) } : {}) } : f)), pares };
 }
 
 /** «BAJA · AVERÍA» / «PNC» / «»: lo que acompaña al material en el cruce (estado, avería, PNC). */

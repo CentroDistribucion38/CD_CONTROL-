@@ -28,7 +28,7 @@ type Linea = {
   unidades?: number | null; unidades_por_caja?: number | null;
 };
 type Lado = { estibas: number; saldo: number; cajas: number; unidades: number; total: number };
-type Fila = { modulo: string; sku: string; material: string; udsCaja: number | null; upc: number | null; detalle: string; ol: Lado | null; bav: Lado | null; compensada?: boolean };
+type Fila = { modulo: string; sku: string; material: string; udsCaja: number | null; upc: number | null; detalle: string; ol: Lado | null; bav: Lado | null; compensada?: boolean; compensaCon?: string };
 
 const vacio = (): Lado => ({ estibas: 0, saldo: 0, cajas: 0, unidades: 0, total: 0 });
 
@@ -64,12 +64,15 @@ function armarFilas(lineas: Linea[]): Fila[] {
   });
   const r = compensarCruce(cruce);
   /* Lo que se compensaba NO se muestra como compensado: el mismo material contado en varios sitios de la hoja se junta en UN renglón,
-     en el primer sitio donde aparece, con el conteo de los dos: ahí la diferencia sale en cero. */
+     en el primer sitio donde aparece, con el conteo de los dos: ahí la diferencia sale en cero.
+     OJO: solo se junta lo que se compensa con el MISMO código. Lo que se compensa con OTRO código del mismo módulo (anotado con el
+     código cambiado: A05 22613 del operador ↔ 9139 de Bavaria) se queda en su módulo, cada uno con su conteo, marcado «compensa con»;
+     antes se juntaba con renglones de otro módulo y salía una diferencia que no existe (las 88 de B23 aparecían en A05). */
   const sale = new Set<number>();
   const primero = new Map<string, number>();
-  const unidas = filas.map((f) => ({ ...f, ol: f.ol ? { ...f.ol } : null, bav: f.bav ? { ...f.bav } : null }));
+  const unidas = filas.map((f, i) => ({ ...f, ol: f.ol ? { ...f.ol } : null, bav: f.bav ? { ...f.bav } : null, compensaCon: r.filas[i]?.compensaCon }));
   filas.forEach((f, i) => {
-    if (!r.filas[i]?.compensada) return;
+    if (!r.filas[i]?.compensada || r.filas[i]?.compensaCon) return;
     const j = primero.get(f.sku);
     if (j === undefined) { primero.set(f.sku, i); return }
     const base = unidas[j];
@@ -140,7 +143,8 @@ export default async function PlanillasPage({ searchParams }: { searchParams: Pr
       sentidoOl: lim ? `${lim[0]} → ${lim[1]}` : "", sentidoBav: lim ? `${lim[1]} → ${lim[0]}` : "",
       filas: filas.map((x) => ({ modulo: x.modulo, sku: x.sku, material: x.material, udsCaja: x.udsCaja, upc: x.upc, detalle: x.detalle,
         ol: x.ol ? { estibas: x.ol.estibas, saldo: x.ol.saldo, cajas: x.ol.cajas, unidades: x.ol.unidades } : null,
-        bav: x.bav ? { estibas: x.bav.estibas, saldo: x.bav.saldo, cajas: x.bav.cajas, unidades: x.bav.unidades } : null })),
+        bav: x.bav ? { estibas: x.bav.estibas, saldo: x.bav.saldo, cajas: x.bav.cajas, unidades: x.bav.unidades } : null,
+        ...(x.compensaCon ? { compensaCon: x.compensaCon } : {}) })),
       blancos, conConteo, np: Math.max(1, Math.ceil(total / FILAS)),
     };
   }));
