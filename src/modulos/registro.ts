@@ -454,8 +454,9 @@ export const MODULOS: Modulo[] = [
        turno, después se registra lo que sale, después se compara, y la
        configuración de último. */
     secciones: [
-      /* PROGRAMAR PET ANTES DEL PLAN: de ahí sale el número de Vhs de PET que se pone en el plan. */
-      { nombre: "Programar PET", ruta: "/traspasos/pet/programar" },
+      /* PET, UNO SOLO Y ANTES DEL PLAN: adentro está Programar (el número de Vhs de PET que va al plan) y los Vhs por
+         formato. «Solo debías agregar uno llamado PET y allí dentro todo lo relacionado.» */
+      { nombre: "PET", ruta: "/traspasos/pet" },
       { nombre: "Plan", ruta: "/traspasos/plan" },
       { nombre: "Registrar", ruta: "/traspasos" },
       /* FACTURACIÓN, DESPUÉS DE REGISTRAR: es el paso siguiente del mismo
@@ -466,8 +467,6 @@ export const MODULOS: Modulo[] = [
          pantalla. */
       { nombre: "Facturación", ruta: "/traspasos/facturacion" },
       { nombre: "Control", ruta: "/traspasos/control" },
-      /* PET: lo que salió de cada formato Vh por Vh; se mira junto con Control. */
-      { nombre: "PET", ruta: "/traspasos/pet" },
       /* TIEMPOS GPS: el mapa de los vehículos con sus zonas (Fábrica, Bodega 38, Arenosa…); se mira después de Control. */
       { nombre: "Tiempos GPS", ruta: "/traspasos/tiempos-gps" },
       /* COMPARTIR UBICACIÓN: la pantalla del conductor; con ella el GPS funciona sin Traccar, desde el celular. */

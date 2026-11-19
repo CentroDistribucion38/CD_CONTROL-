@@ -395,14 +395,6 @@ const IconoFormatos = () => (
     <path d="M6.5 17V11M10.5 17V6.5M14.5 17v-8M18.5 17v-4.5" strokeWidth="2.6" />
   </svg>
 );
-/* PROGRAMAR PET: la tendencia y el punto que sigue. */
-const IconoTendencia = () => (
-  <svg viewBox="0 0 24 24" {...P}>
-    <path d="M3.5 3.5v17h17" />
-    <path d="M7 15.5l3.5-4 3 2.5 4-5" />
-    <circle cx="19.5" cy="7" r="1.6" />
-  </svg>
-);
 const IconoGantt = () => (
   <svg viewBox="0 0 24 24" {...P}>
     <path d="M3.5 3.5v17h17" />
@@ -523,7 +515,6 @@ const ICONO_RUTA: Record<string, () => React.ReactElement> = {
   "/inventario/historial-fiscal": IconoLista,
   "/traspasos/tiempos-gps": IconoRuta,
   "/traspasos/pet": IconoFormatos,
-  "/traspasos/pet/programar": IconoTendencia,
   "/traspasos/compartir-ubicacion": IconoUbicacion,
   "/inventario/casco/registrar": IconoEntrada,
   "/inventario/envase/cargar": IconoEntrada,

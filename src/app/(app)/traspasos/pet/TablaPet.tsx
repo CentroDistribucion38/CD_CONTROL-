@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { PetCabeza } from "./PetCabeza";
 import {
   cantidad, colorFormato, formatosDe, nombreFormato, DIAS, diaSemana,
   type FilaPet, type Unidad,
@@ -60,7 +61,7 @@ export function TablaPet({ filas, desde, hasta }: { filas: FilaPet[]; desde: str
 
   function buscar() {
     const p = new URLSearchParams({ desde: d1 <= d2 ? d1 : d2, hasta: d1 <= d2 ? d2 : d1 });
-    router.push(`/traspasos/pet?${p}`);
+    router.push(`/traspasos/pet?v=vhs&${p}`);
   }
   async function excel() {
     const XLSX = await import("xlsx");
@@ -75,42 +76,53 @@ export function TablaPet({ filas, desde, hasta }: { filas: FilaPet[]; desde: str
 
   return (
     <>
-      <div className="pv-filtros">
-        <label className="pv-campo"><span>Desde</span><input type="date" value={d1} max={d2} onChange={(e) => setD1(e.target.value)} /></label>
-        <label className="pv-campo"><span>Hasta</span><input type="date" value={d2} onChange={(e) => setD2(e.target.value)} /></label>
-        <button type="button" className="pv-bt" onClick={buscar} disabled={d1 === desde && d2 === hasta}>Ver</button>
-        <label className="pv-campo"><span>Origen</span><select value={origen} onChange={(e) => setOrigen(e.target.value)}><option value="">Todos</option>{opc("origen").map((x) => <option key={x}>{x}</option>)}</select></label>
-        <label className="pv-campo"><span>Destino</span><select value={destino} onChange={(e) => setDestino(e.target.value)}><option value="">Todos</option>{opc("destino").map((x) => <option key={x}>{x}</option>)}</select></label>
-        <label className="pv-campo"><span>Placa</span><select value={placa} onChange={(e) => setPlaca(e.target.value)}><option value="">Todas</option>{opc("placa").map((x) => <option key={x}>{x}</option>)}</select></label>
-        <div className="pv-campo"><span>Unidad</span>
-          <div className="pv-seg" role="group" aria-label="Unidad">
-            {UNIDADES.map(([k, t]) => <button key={k} type="button" className={unidad === k ? "on" : ""} aria-pressed={unidad === k} onClick={() => setUnidad(k)}>{t}</button>)}
+      <PetCabeza
+        v="vhs"
+        sub={<>Cada Vh que movió PET y cuánto llevó de cada formato, agrupado por día. El formato sale del SKU que se escoge al registrar el viaje.</>}
+        rot={`VHS DE PET · ${corto(desde).toUpperCase()} AL ${corto(hasta).toUpperCase()}`}
+        num={vhs.length}
+        pie={<><b>{n.format(T)}</b> {u} en el periodo</>}
+      />
+
+      <section className="filtros">
+        <div className="arriba"><div className="tp-f1">
+          <label className="sel fecha"><span>Desde</span><input type="date" value={d1} max={d2} onChange={(e) => setD1(e.target.value)} /></label>
+          <label className="sel fecha"><span>Hasta</span><input type="date" value={d2} onChange={(e) => setD2(e.target.value)} /></label>
+          <button type="button" className="btn" onClick={buscar} disabled={d1 === desde && d2 === hasta}>Ver</button>
+          <button type="button" className="btn si pv-plan" onClick={excel} disabled={vhs.length === 0}>Descargar Excel</button>
+        </div><div className="tp-f2">
+          <label className="sel"><span>Origen</span><select value={origen} onChange={(e) => setOrigen(e.target.value)}><option value="">Todos</option>{opc("origen").map((x) => <option key={x}>{x}</option>)}</select></label>
+          <label className="sel"><span>Destino</span><select value={destino} onChange={(e) => setDestino(e.target.value)}><option value="">Todos</option>{opc("destino").map((x) => <option key={x}>{x}</option>)}</select></label>
+          <label className="sel"><span>Placa</span><select value={placa} onChange={(e) => setPlaca(e.target.value)}><option value="">Todas</option>{opc("placa").map((x) => <option key={x}>{x}</option>)}</select></label>
+          <div className="sel"><span>Unidad</span>
+            <div className="seg" role="group" aria-label="Unidad">
+              {UNIDADES.map(([k, t]) => <button key={k} type="button" className={unidad === k ? "on" : ""} aria-pressed={unidad === k} onClick={() => setUnidad(k)}>{t}</button>)}
+            </div>
           </div>
-        </div>
-        <button type="button" className="pv-bt am" onClick={excel} disabled={vhs.length === 0}>Descargar Excel</button>
-      </div>
+        </div></div>
+      </section>
 
       {vhs.length === 0 ? (
-        <p className="pv-vacio">
+        <section className="caja"><div className="vacio">
           {filas.length === 0
-            ? <>No hay Vhs de PET con SKU entre estas fechas. Salen aquí los viajes de un tipo PET registrados con su SKU (Traspasos › Registrar).</>
-            : <>Ningún Vh con esos filtros.</>}
-        </p>
+            ? <><b>No hay Vhs de PET con SKU entre estas fechas</b>Salen aquí los viajes de un tipo PET registrados con su SKU (Traspasos › Registrar).</>
+            : <><b>Ningún Vh con esos filtros</b>Quita algún filtro para ver más.</>}
+        </div></section>
       ) : (<>
-        <section className="pv-res" aria-label="Resumen del periodo">
-          <div className="tot"><span className="l">Total PET <small>{vhs.length} {vhs.length === 1 ? "Vh" : "Vhs"}</small></span><b>{n.format(T)}</b><em>{u} en el periodo</em></div>
+        <section className="cifras pv-cifras" aria-label="Resumen del periodo">
           {visibles.map((fm) => {
             const t = tot(vhs, fm);
             return (
-              <div key={String(fm)} style={{ ["--c" as string]: colorFormato(fm) }}>
-                <span className="l">{nombreFormato(fm)} <small>en {enVhs(fm)} {enVhs(fm) === 1 ? "Vh" : "Vhs"}</small></span>
-                <b>{n.format(t)}</b><em>{u} · {T ? Math.round((100 * t) / T) : 0} % del PET</em>
+              <div key={String(fm)} className="cifra" style={{ borderLeftColor: colorFormato(fm) }}>
+                <div className="rot">{nombreFormato(fm).toUpperCase()}</div>
+                <div className="n">{n.format(t)}</div>
+                <div className="u">{u} · {T ? Math.round((100 * t) / T) : 0} % del PET · en {enVhs(fm)} {enVhs(fm) === 1 ? "Vh" : "Vhs"}</div>
               </div>
             );
           })}
         </section>
 
-        <div className="pv-tabla-caja">
+        <div className="caja pv-tabla-caja">
           <table className="pv-tabla">
             <thead>
               <tr>
@@ -155,7 +167,7 @@ export function TablaPet({ filas, desde, hasta }: { filas: FilaPet[]; desde: str
             </tbody>
           </table>
         </div>
-        <p className="pv-nota">Del {corto(desde)} al {corto(hasta)} · {DIAS[diaSemana(hasta)]} incluido. Un Vh que lleva dos SKU del mismo formato suma los dos en esa columna.</p>
+        <p className="guia">Del {corto(desde)} al {corto(hasta)} · {DIAS[diaSemana(hasta)]} incluido. Un Vh que lleva dos SKU del mismo formato suma los dos en esa columna.</p>
       </>)}
     </>
   );
