@@ -83,7 +83,7 @@ export default async function UsuariosPage({ searchParams }: {
     id: m.id,
     nombre: m.nombre,
     acento: m.acento,
-    secciones: m.secciones.map((s) => ({ nombre: s.nombre, ruta: s.ruta })),
+    secciones: m.secciones.filter((s) => !s.soloManda).map((s) => ({ nombre: s.nombre, ruta: s.ruta })),
   }));
 
   return (

@@ -21,6 +21,9 @@ export type Rol = "admin" | "supervisor" | "operador";
 export type Seccion = {
   nombre: string;
   ruta: string;
+  /** SOLO PARA QUIEN MANDA (super administrador): la pantalla no se le muestra ni se le abre a nadie más, diga lo que
+   *  diga su rol, y no sale en Roles ni en Usuarios. Lo mismo que `soloManda` del módulo, para una sola pantalla. */
+  soloManda?: boolean;
   /**
    * Existe, funciona y SIGUE teniendo permiso propio en /admin/roles,
    * pero no se lista en el menú lateral. Es para las pantallas a las que
@@ -463,12 +466,12 @@ export const MODULOS: Modulo[] = [
          Quien solo tiene el rol Facturación ve Traspasos con esta sola
          pantalla. */
       { nombre: "Facturación", ruta: "/traspasos/facturacion" },
-      /* PET, UNO SOLO Y ANTES DE CONTROL: adentro está Programar (el número de Vhs de PET que va al plan) y los Vhs
-         por formato. «Solo debías agregar uno llamado PET y allí dentro todo lo relacionado» + «antes de Control pon la PET». */
-      { nombre: "PET", ruta: "/traspasos/pet" },
       { nombre: "Control", ruta: "/traspasos/control" },
       /* TIEMPOS GPS: el mapa de los vehículos con sus zonas (Fábrica, Bodega 38, Arenosa…); se mira después de Control. */
       { nombre: "Tiempos GPS", ruta: "/traspasos/tiempos-gps" },
+      /* PET, UNO SOLO Y DESPUÉS DE TIEMPOS GPS: adentro está Programar (el número de Vhs de PET que va al plan) y los
+         Vhs por formato. «PET va después del tiempo de GPS y por ahora que ese módulo solo lo vean los super admin.» */
+      { nombre: "PET", ruta: "/traspasos/pet", soloManda: true },
       /* COMPARTIR UBICACIÓN: la pantalla del conductor; con ella el GPS funciona sin Traccar, desde el celular. */
       { nombre: "Compartir ubicación", ruta: "/traspasos/compartir-ubicacion" },
       /* IMPORTAR VA DESPUÉS DE CONTROL Y ANTES DEL MAESTRO, porque ese
@@ -910,6 +913,14 @@ export function modulosVisibles(rol: string): Modulo[] {
  * Gana la coincidencia MÁS LARGA, para que un módulo que cuelgue de otro
  * no se lo robe.
  */
+/** ¿La ruta es (o cuelga de) una pantalla que es solo para quien manda? Por módulo entero (5S) o por pantalla (PET). */
+export function esSoloManda(pathname: string): boolean {
+  const m = moduloPorRuta(pathname);
+  if (!m) return false;
+  if (m.soloManda) return true;
+  return m.secciones.some((x) => x.soloManda && (pathname === x.ruta || pathname.startsWith(`${x.ruta}/`)));
+}
+
 export function moduloPorRuta(pathname: string): Modulo | undefined {
   let mejor: Modulo | undefined;
   let largo = -1;

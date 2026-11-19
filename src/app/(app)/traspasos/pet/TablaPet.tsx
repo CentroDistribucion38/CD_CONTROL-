@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PetCabeza } from "./PetCabeza";
+import { PonerSku } from "./PonerSku";
 import {
   cantidad, colorFormato, formatosDe, nombreFormato, DIAS, diaSemana,
   type FilaPet, type Unidad,
@@ -16,7 +17,7 @@ const corto = (f: string) => {
 };
 
 type Vh = { viaje: string; fecha: string; turno: string; hora: string | null; placa: string | null;
-            origen: string | null; destino: string | null; por: Map<number | null, number>; total: number };
+            origen: string | null; destino: string | null; por: Map<number | null, number>; total: number; sinSku: boolean; carga: number };
 
 /**
  * LA TABLA DE PET. Un renglón por Vh (los SKU del mismo formato se suman), una columna por formato con una barrita
@@ -31,6 +32,8 @@ export function TablaPet({ filas, desde, hasta }: { filas: FilaPet[]; desde: str
   const [placa, setPlaca] = useState("");
   const [d1, setD1] = useState(desde);
   const [d2, setD2] = useState(hasta);
+  /* El Vh sin SKU al que se le está poniendo (los de antes). */
+  const [poniendo, setPoniendo] = useState<string | null>(null);
 
   const formatos = useMemo(() => formatosDe(filas), [filas]);
   const opc = (k: "origen" | "destino" | "placa") => [...new Set(filas.map((f) => f[k]).filter(Boolean) as string[])].sort();
@@ -40,7 +43,9 @@ export function TablaPet({ filas, desde, hasta }: { filas: FilaPet[]; desde: str
     const m = new Map<string, Vh>();
     for (const f of vistas) {
       const v = m.get(f.viaje) ?? { viaje: f.viaje, fecha: f.fecha, turno: f.turno, hora: f.hora, placa: f.placa,
-                                    origen: f.origen, destino: f.destino, por: new Map(), total: 0 };
+                                    origen: f.origen, destino: f.destino, por: new Map(), total: 0, sinSku: true, carga: 0 };
+      if (f.sku) v.sinSku = false;
+      v.carga += f.estibas;
       const c = cantidad(f, unidad);
       v.por.set(f.formato_ml, (v.por.get(f.formato_ml) ?? 0) + c);
       v.total += c;
@@ -140,7 +145,7 @@ export function TablaPet({ filas, desde, hasta }: { filas: FilaPet[]; desde: str
                     {visibles.map((fm) => <td key={String(fm)} className="n">{tot(del, fm) ? n.format(tot(del, fm)) : "—"}</td>)}
                     <td className="n tt">{n.format(tot(del))}</td>
                   </tr>,
-                  ...del.map((v) => (
+                  ...del.flatMap((v) => [
                     <tr key={v.viaje}>
                       <td><span className="turno">{v.turno}</span>{v.hora?.slice(0, 5) ?? ""}</td>
                       <td>{v.placa ? <span className="pl">{v.placa}</span> : "—"}</td>
@@ -149,14 +154,21 @@ export function TablaPet({ filas, desde, hasta }: { filas: FilaPet[]; desde: str
                         const c = v.por.get(fm) ?? 0;
                         return (
                           <td key={String(fm)} className="n">
-                            {c ? <span className="cel"><u style={{ width: `${Math.max(4, Math.round((64 * c) / max))}px`, background: colorFormato(fm) }} /><em>{n.format(c)}</em></span>
+                            {c ? <span className="cel">
+                                   {fm === null && v.sinSku && <button type="button" className="pv-ponerbt" onClick={() => setPoniendo(poniendo === v.viaje ? null : v.viaje)}>Poner SKU</button>}
+                                   <u style={{ width: `${Math.max(4, Math.round((64 * c) / max))}px`, background: colorFormato(fm) }} /><em>{n.format(c)}</em></span>
                                : <span className="cel z"><em>—</em></span>}
                           </td>
                         );
                       })}
                       <td className="n tt"><b>{n.format(v.total)}</b></td>
-                    </tr>
-                  )),
+                    </tr>,
+                    ...(poniendo === v.viaje ? [
+                      <tr key={`${v.viaje}-poner`} className="pv-poner-fila"><td colSpan={4 + visibles.length}>
+                        <PonerSku viaje={v.viaje} carga={v.carga} alCerrar={() => setPoniendo(null)} alGuardar={() => { setPoniendo(null); router.refresh() }} />
+                      </td></tr>,
+                    ] : []),
+                  ]),
                 ];
               })}
               <tr className="sum">

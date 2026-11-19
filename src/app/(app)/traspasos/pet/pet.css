@@ -51,6 +51,16 @@
 .tp .pv-tabla .cel em { font-style: normal; font-weight: 600; min-width: 26px; text-align: right }
 .tp .pv-tabla .cel.z em { color: var(--tp-linea); font-weight: 500 }
 
+.tp .pv-ponerbt {
+  margin-right: 6px; border: 1px solid var(--tp-acento); background: var(--tp-papel); color: var(--tp-tinta);
+  font: 700 11.5px var(--tp-texto); padding: 3px 8px; border-radius: 2px; cursor: pointer; white-space: nowrap;
+}
+.tp .pv-ponerbt:hover { background: var(--tp-acento); color: var(--tp-sobre-acento) }
+.tp .pv-tabla tr.pv-poner-fila td { background: var(--tp-fondo); white-space: normal; padding: 12px 14px }
+.tp .pv-poner { max-width: 720px }
+.tp .pv-poner-pie { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px }
+.tp .pv-poner-msg { font-size: 12.5px; color: var(--tp-mal) }
+
 @media (max-width: 640px) {
   .tp .filtros .pv-plan { margin-left: 0 }
   .tp .pv-graf { grid-template-columns: 1fr }
