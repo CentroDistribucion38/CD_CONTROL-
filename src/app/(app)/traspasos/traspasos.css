@@ -1155,6 +1155,12 @@
   background: var(--tp-fondo); border-bottom: 1px solid var(--tp-linea);
 }
 .tp .plan-cerrado b { font-weight: 700 }
+/* Lo que llegó de Programar PET: mismo renglón, con la raya del acento y su X. */
+.tp .plan-pet { display: flex; align-items: center; gap: 12px; border-left: 4px solid var(--tp-acento) }
+.tp .plan-pet-x {
+  margin-left: auto; flex: none; width: 30px; height: 30px; border: 1px solid var(--tp-linea); background: var(--tp-papel);
+  color: var(--tp-tinta); font: 700 18px/1 var(--tp-texto); cursor: pointer; border-radius: 0;
+}
 
 .tp .pie-publicar {
   display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
@@ -2836,6 +2842,8 @@
   font: 700 13px var(--tp-texto); color: var(--tp-tinta); cursor: pointer;
 }
 .tp .tp-mat-mas:hover { border-color: var(--tp-ojo) }
+/* El formato del PET, como etiqueta (330 ml, 1,5 L). */
+.tp .tp-pet .tp-fmt { display: inline-block; padding: 3px 8px; background: var(--tp-tinta); color: #fff; font: 800 12px var(--tp-titulo); white-space: nowrap }
 @media (max-width: 720px) {
   .tp .tp-mat-fila { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 38px; }
   .tp .tp-mat-sku { grid-column: 1 / -1 }

@@ -381,6 +381,21 @@ const IconoEscoba = () => (
     <path d="M12.5 10.5c-2.6-1.3-5.3-.3-6.4 2l-2.6 6 3.1.9 1.1-2.3.1 2.9 3.1.9 1.1-2.4.4 2.4 2.4.6c1.5-3 1.5-6.4-2.3-9z" />
   </svg>
 );
+/* PET: barras de colores (formatos) en una base. */
+const IconoFormatos = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <path d="M3.5 20.5h17" />
+    <path d="M6.5 17V11M10.5 17V6.5M14.5 17v-8M18.5 17v-4.5" strokeWidth="2.6" />
+  </svg>
+);
+/* PROGRAMAR PET: la tendencia y el punto que sigue. */
+const IconoTendencia = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <path d="M3.5 3.5v17h17" />
+    <path d="M7 15.5l3.5-4 3 2.5 4-5" />
+    <circle cx="19.5" cy="7" r="1.6" />
+  </svg>
+);
 const IconoGantt = () => (
   <svg viewBox="0 0 24 24" {...P}>
     <path d="M3.5 3.5v17h17" />
@@ -499,6 +514,8 @@ const ICONO_RUTA: Record<string, () => React.ReactElement> = {
   "/inventario/control-fiscal": IconoVerificar,
   "/inventario/historial-fiscal": IconoLista,
   "/traspasos/tiempos-gps": IconoRuta,
+  "/traspasos/pet": IconoFormatos,
+  "/traspasos/pet/programar": IconoTendencia,
   "/traspasos/compartir-ubicacion": IconoUbicacion,
   "/inventario/casco/registrar": IconoEntrada,
   "/inventario/casco": IconoCuatroTablas,

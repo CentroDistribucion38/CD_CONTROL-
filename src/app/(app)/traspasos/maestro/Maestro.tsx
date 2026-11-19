@@ -350,6 +350,14 @@ export function Maestro({ tipos, puntos, placas, faltantes, uso, puedeEditar }: 
                    puesta: (c) => tipos.find((t) => t.clave === c)?.materiales === "casco",
                    alCambiar: (c, v) =>
                      cambiar("traspasos_tipos", "clave", c, { materiales: v ? "casco" : null }),
+                 }, {
+                   /* «Cuántos Vhs de PET de cada formato debo programar»: el tipo pide SKU + estibas de PET
+                      (el formato sale del maestro) y alimenta Traspasos › PET y Programar PET. No mueve inventario. */
+                   rotulo: "Pide SKU de PET (formato)",
+                   marca: "pet",
+                   puesta: (c) => tipos.find((t) => t.clave === c)?.materiales === "pet",
+                   alCambiar: (c, v) =>
+                     cambiar("traspasos_tipos", "clave", c, { materiales: v ? "pet" : null }),
                  }]}
                  alPrender={(c, a) => cambiar("traspasos_tipos", "clave", c, { activo: a })}
                  alRenombrar={(c, nom) => cambiar("traspasos_tipos", "clave", c, { nombre: nom })}

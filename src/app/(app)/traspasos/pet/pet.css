@@ -1,0 +1,135 @@
+/* ---------------------------------------------------------------------
+   TRASPASOS › PET y PROGRAMAR PET.
+   Todo cuelga de .tp (los tokens --tp-* del módulo). Recto, sin sombras.
+   Cada formato trae su color en --c (200 gris, 330 mostaza, 1000 rojo,
+   1.500 negro): el mismo en tarjetas, tabla y gráficas.
+   --------------------------------------------------------------------- */
+
+/* ---------- barra de filtros ---------- */
+.tp .pv-filtros { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end }
+.tp .pv-campo { display: flex; flex-direction: column; gap: 4px; min-width: 0 }
+.tp .pv-campo > span {
+  font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--tp-gris-panel);
+}
+.tp .pv-campo input, .tp .pv-campo select {
+  height: 40px; border: 1.5px solid var(--tp-linea); background: var(--tp-papel); color: var(--tp-tinta);
+  font: 600 14px var(--tp-texto); padding: 0 10px; border-radius: 0; min-width: 0; max-width: 100%;
+}
+.tp .pv-campo select { min-width: 140px }
+.tp .pv-campo input[type="date"] { -webkit-appearance: none; appearance: none; line-height: 38px; min-width: 150px }
+.tp .pv-campo input:focus-visible, .tp .pv-campo select:focus-visible { outline: 2px solid var(--tp-tinta); outline-offset: 1px }
+
+.tp .pv-seg { display: flex; height: 40px; border: 1.5px solid var(--tp-tinta); background: var(--tp-papel) }
+.tp .pv-seg button {
+  padding: 0 13px; border: 0; border-left: 1px solid var(--tp-linea); background: none; color: var(--tp-tinta);
+  font: 700 13px var(--tp-texto); cursor: pointer; white-space: nowrap; border-radius: 0;
+}
+.tp .pv-seg button:first-child { border-left: 0 }
+.tp .pv-seg button.on { background: var(--tp-tinta); color: var(--tp-papel) }
+.tp .pv-seg button:focus-visible { outline: 2px solid var(--tp-acento); outline-offset: -3px }
+
+.tp .pv-bt {
+  height: 40px; padding: 0 16px; border: 1.5px solid var(--tp-tinta); background: var(--tp-papel); color: var(--tp-tinta);
+  font: 700 13.5px var(--tp-texto); cursor: pointer; white-space: nowrap; border-radius: 0;
+}
+.tp .pv-bt.am { margin-left: auto; background: var(--tp-acento); color: var(--tp-sobre-acento); border-color: var(--tp-acento);
+  box-shadow: inset 0 -3px 0 color-mix(in srgb, #000 22%, var(--tp-acento)) }
+.tp .pv-bt:disabled { opacity: .45; cursor: default }
+.tp .pv-bt:not(:disabled):active { transform: translateY(1px) }
+
+.tp .pv-vacio, .tp .pv-nota { font-size: 13px; color: var(--tp-gris-panel); line-height: 1.5; margin: 0 }
+.tp .pv-vacio { background: var(--tp-papel); border: 1px solid var(--tp-linea); padding: 22px 20px }
+
+/* ---------- resumen del periodo ---------- */
+.tp .pv-res {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  background: var(--tp-papel); border: 1px solid var(--tp-linea);
+}
+.tp .pv-res > div { padding: 14px 18px; border-left: 1px solid var(--tp-linea); border-top: 5px solid var(--c, var(--tp-acento)); min-width: 0 }
+.tp .pv-res > div:first-child { border-left: 0 }
+.tp .pv-res > .tot { --c: var(--tp-acento); background: color-mix(in srgb, var(--tp-acento) 10%, var(--tp-papel)) }
+.tp .pv-res .l { display: flex; justify-content: space-between; gap: 8px; font: 800 14px var(--tp-titulo) }
+.tp .pv-res .l small { font: 600 12px var(--tp-texto); color: var(--tp-gris) }
+.tp .pv-res b { display: block; font: 900 34px/1 var(--tp-titulo); letter-spacing: -.03em; margin-top: 6px; font-variant-numeric: tabular-nums }
+.tp .pv-res em { font-style: normal; font-size: 12px; color: var(--tp-gris) }
+
+/* ---------- tabla ---------- */
+.tp .pv-tabla-caja { background: var(--tp-papel); border: 1px solid var(--tp-linea); overflow-x: auto }
+.tp .pv-tabla { border-collapse: collapse; width: 100%; min-width: 760px }
+.tp .pv-tabla th {
+  background: var(--tp-tinta); color: var(--tp-papel); font: 700 10.5px var(--tp-texto); letter-spacing: .12em;
+  text-transform: uppercase; padding: 10px 12px; text-align: left; white-space: nowrap; position: sticky; top: 0;
+}
+.tp .pv-tabla th.n, .tp .pv-tabla td.n { text-align: right }
+.tp .pv-tabla .sw { display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: -1px; outline: 1px solid color-mix(in srgb, var(--tp-papel) 60%, transparent) }
+.tp .pv-tabla td { padding: 9px 12px; border-bottom: 1px solid var(--tp-linea); font-size: 13.5px; vertical-align: middle; white-space: nowrap }
+.tp .pv-tabla .tt { border-left: 2px solid var(--tp-tinta) }
+.tp .pv-tabla td.tt b { font: 800 15px var(--tp-titulo); font-variant-numeric: tabular-nums }
+.tp .pv-tabla tr.dia td { background: var(--tp-fondo); font: 700 12.5px var(--tp-texto); color: var(--tp-gris-panel); padding: 8px 12px }
+.tp .pv-tabla tr.dia td:first-child b { font: 800 13px var(--tp-titulo); color: var(--tp-tinta); text-transform: capitalize }
+.tp .pv-tabla tr.dia td small { font: 600 12px var(--tp-texto); color: var(--tp-gris-panel); margin-left: 8px }
+.tp .pv-tabla tr.dia td.tt { font: 800 13px var(--tp-titulo); color: var(--tp-tinta) }
+.tp .pv-tabla tr.sum td {
+  background: color-mix(in srgb, var(--tp-acento) 18%, var(--tp-papel)); font: 800 14px var(--tp-titulo);
+  border-top: 2px solid var(--tp-tinta); font-variant-numeric: tabular-nums;
+}
+.tp .pv-tabla .turno { display: inline-block; font: 800 11px var(--tp-texto); padding: 2px 6px; background: var(--tp-tinta); color: var(--tp-papel); margin-right: 6px }
+.tp .pv-tabla .pl { font: 600 12px var(--tp-mono); background: var(--tp-fondo); padding: 3px 7px; border: 1px solid var(--tp-linea) }
+.tp .pv-tabla .pv-ruta span { color: var(--tp-gris) }
+.tp .pv-tabla .cel { display: inline-flex; align-items: center; justify-content: flex-end; gap: 8px }
+.tp .pv-tabla .cel u { display: block; height: 8px; text-decoration: none }
+.tp .pv-tabla .cel em { font: 700 14px var(--tp-texto); font-style: normal; min-width: 26px; text-align: right; font-variant-numeric: tabular-nums }
+.tp .pv-tabla .cel.z em { color: var(--tp-linea); font-weight: 500 }
+
+/* ---------- PROGRAMAR ---------- */
+.tp .pv-hero {
+  display: grid; grid-template-columns: minmax(220px, 1.2fr) repeat(var(--nf, 4), minmax(150px, 1fr)) minmax(200px, 1fr);
+  background: var(--tp-papel); border: 1px solid var(--tp-linea);
+}
+.tp .pv-hero > div { padding: 18px 20px; border-left: 1px solid var(--tp-linea); min-width: 0 }
+.tp .pv-hero > div:first-child { border-left: 0; background: color-mix(in srgb, var(--tp-acento) 10%, var(--tp-papel)) }
+.tp .pv-hero .l { font: 700 11px var(--tp-texto); letter-spacing: .14em; text-transform: uppercase; color: var(--tp-gris-panel) }
+.tp .pv-hero .big { font: 900 64px/1 var(--tp-titulo); letter-spacing: -.04em; margin-top: 8px; font-variant-numeric: tabular-nums }
+.tp .pv-hero .big small { font: 700 16px var(--tp-texto); letter-spacing: 0; color: var(--tp-gris); margin-left: 10px }
+.tp .pv-hero .fm { display: flex; align-items: center; gap: 8px; font: 800 15px var(--tp-titulo) }
+.tp .pv-hero .fm i { width: 12px; height: 12px; background: var(--c); outline: 1px solid var(--tp-linea) }
+.tp .pv-hero .n { font: 900 56px/1 var(--tp-titulo); letter-spacing: -.04em; margin-top: 10px; font-variant-numeric: tabular-nums }
+.tp .pv-hero .n small { font: 700 14px var(--tp-texto); color: var(--tp-gris); letter-spacing: 0; margin-left: 6px }
+.tp .pv-hero .d { font-size: 12.5px; color: var(--tp-gris); margin-top: 8px; line-height: 1.45 }
+.tp .pv-hero .d b { color: var(--tp-tinta) }
+.tp .pv-hero .go { display: flex; flex-direction: column; justify-content: center; gap: 8px }
+.tp .pv-hero .go .pv-bt { margin: 0; display: grid; place-items: center; text-decoration: none; height: 44px }
+.tp .pv-hero .go p { margin: 0; font-size: 12px; color: var(--tp-gris); text-align: center; line-height: 1.4 }
+.tp .pv-sube { color: var(--tp-bien); font-weight: 700 }
+.tp .pv-baja { color: var(--tp-mal); font-weight: 700 }
+.tp .pv-igual { color: var(--tp-gris); font-weight: 700 }
+
+.tp .pv-graf { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 12px }
+.tp .pv-fc { background: var(--tp-papel); border: 1px solid var(--tp-linea); padding: 16px 18px; min-width: 0 }
+.tp .pv-fc h3 { margin: 0; display: flex; align-items: center; gap: 8px; font: 800 16px var(--tp-titulo) }
+.tp .pv-fc h3 i { width: 12px; height: 12px; background: var(--c); outline: 1px solid var(--tp-linea) }
+.tp .pv-fc h3 span { margin-left: auto; font: 600 12.5px var(--tp-texto); color: var(--tp-gris) }
+.tp .pv-leg { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--tp-gris); margin: 6px 0 4px }
+.tp .pv-leg i { display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: -1px }
+.tp .pv-fc svg { display: block; width: 100%; height: auto }
+.tp .pv-fc svg text { font-family: var(--tp-texto) }
+.tp .pv-aviso {
+  margin: 0; padding: 10px 14px; background: var(--tp-papel); border: 1px solid var(--tp-linea);
+  border-left: 4px solid var(--tp-aviso); font-size: 13px; line-height: 1.5;
+}
+
+@media (max-width: 1180px) {
+  .tp .pv-hero { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .tp .pv-hero > div:first-child, .tp .pv-hero > .go { grid-column: 1 / -1 }
+  .tp .pv-hero > div { border-top: 1px solid var(--tp-linea) }
+  .tp .pv-hero > div:nth-child(odd):not(:first-child) { border-left: 1px solid var(--tp-linea) }
+  .tp .pv-hero > div:nth-child(even) { border-left: 0 }
+}
+@media (max-width: 640px) {
+  .tp .pv-bt.am { margin-left: 0 }
+  .tp .pv-filtros > * { flex: 1 1 140px }
+  .tp .pv-seg { overflow-x: auto }
+  .tp .pv-hero .big { font-size: 52px }
+  .tp .pv-hero .n { font-size: 44px }
+  .tp .pv-graf { grid-template-columns: 1fr }
+}

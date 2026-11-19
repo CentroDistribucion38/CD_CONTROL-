@@ -1,0 +1,162 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  cantidad, colorFormato, formatosDe, nombreFormato, DIAS, diaSemana,
+  type FilaPet, type Unidad,
+} from "@/modulos/traspasos/pet";
+
+const nf = (u: Unidad) => new Intl.NumberFormat("es-CO", { maximumFractionDigits: u === "hl" ? 2 : 1 });
+const UNIDADES: [Unidad, string][] = [["estibas", "Estibas"], ["pacas", "Pacas"], ["hl", "HL"]];
+const corto = (f: string) => {
+  const d = new Date(f + "T12:00:00Z");
+  return `${DIAS[d.getUTCDay()].slice(0, 3)} ${d.getUTCDate()} ${d.toLocaleDateString("es-CO", { month: "short", timeZone: "UTC" }).replace(".", "")}`;
+};
+
+type Vh = { viaje: string; fecha: string; turno: string; hora: string | null; placa: string | null;
+            origen: string | null; destino: string | null; por: Map<number | null, number>; total: number };
+
+/**
+ * LA TABLA DE PET. Un renglón por Vh (los SKU del mismo formato se suman), una columna por formato con una barrita
+ * de su color (se ve de un vistazo qué pesó más en cada Vh), agrupada por día con su subtotal, y arriba el resumen
+ * del periodo. Origen, destino, placa y unidad filtran aquí mismo; las fechas van a la base.
+ */
+export function TablaPet({ filas, desde, hasta }: { filas: FilaPet[]; desde: string; hasta: string }) {
+  const router = useRouter();
+  const [unidad, setUnidad] = useState<Unidad>("estibas");
+  const [origen, setOrigen] = useState("");
+  const [destino, setDestino] = useState("");
+  const [placa, setPlaca] = useState("");
+  const [d1, setD1] = useState(desde);
+  const [d2, setD2] = useState(hasta);
+
+  const formatos = useMemo(() => formatosDe(filas), [filas]);
+  const opc = (k: "origen" | "destino" | "placa") => [...new Set(filas.map((f) => f[k]).filter(Boolean) as string[])].sort();
+  const vistas = filas.filter((f) => (!origen || f.origen === origen) && (!destino || f.destino === destino) && (!placa || f.placa === placa));
+
+  const vhs = useMemo(() => {
+    const m = new Map<string, Vh>();
+    for (const f of vistas) {
+      const v = m.get(f.viaje) ?? { viaje: f.viaje, fecha: f.fecha, turno: f.turno, hora: f.hora, placa: f.placa,
+                                    origen: f.origen, destino: f.destino, por: new Map(), total: 0 };
+      const c = cantidad(f, unidad);
+      v.por.set(f.formato_ml, (v.por.get(f.formato_ml) ?? 0) + c);
+      v.total += c;
+      m.set(f.viaje, v);
+    }
+    const orden = { C: 0, A: 1, B: 2 } as Record<string, number>;
+    return [...m.values()].sort((a, b) => b.fecha.localeCompare(a.fecha) || (orden[a.turno] ?? 9) - (orden[b.turno] ?? 9) || (a.hora ?? "").localeCompare(b.hora ?? ""));
+  }, [vistas, unidad]);
+
+  const dias = [...new Set(vhs.map((v) => v.fecha))];
+  const tot = (lista: Vh[], fm?: number | null) => lista.reduce((a, v) => a + (fm === undefined ? v.total : v.por.get(fm) ?? 0), 0);
+  const enVhs = (fm: number | null) => vhs.filter((v) => (v.por.get(fm) ?? 0) > 0).length;
+  const T = tot(vhs);
+  const visibles = formatos.filter((fm) => (formatos.indexOf(fm) < 4) || enVhs(fm) > 0);
+  const max = Math.max(1, ...vhs.flatMap((v) => [...v.por.values()]));
+  const n = nf(unidad);
+  const u = UNIDADES.find((x) => x[0] === unidad)![1].toLowerCase();
+
+  function buscar() {
+    const p = new URLSearchParams({ desde: d1 <= d2 ? d1 : d2, hasta: d1 <= d2 ? d2 : d1 });
+    router.push(`/traspasos/pet?${p}`);
+  }
+  async function excel() {
+    const XLSX = await import("xlsx");
+    const datos: (string | number)[][] = [["Fecha", "Turno", "Hora", "Placa", "Origen", "Destino", ...visibles.map((fm) => nombreFormato(fm)), `Total (${u})`]];
+    for (const v of vhs) datos.push([v.fecha, v.turno, v.hora?.slice(0, 5) ?? "", v.placa ?? "", v.origen ?? "", v.destino ?? "",
+      ...visibles.map((fm) => Number((v.por.get(fm) ?? 0).toFixed(2))), Number(v.total.toFixed(2))]);
+    datos.push(["Total", "", "", `${vhs.length} Vhs`, "", "", ...visibles.map((fm) => Number(tot(vhs, fm).toFixed(2))), Number(T.toFixed(2))]);
+    const libro = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(libro, XLSX.utils.aoa_to_sheet(datos), "PET por formato");
+    XLSX.writeFile(libro, `PET_por_formato_${desde}_${hasta}.xlsx`);
+  }
+
+  return (
+    <>
+      <div className="pv-filtros">
+        <label className="pv-campo"><span>Desde</span><input type="date" value={d1} max={d2} onChange={(e) => setD1(e.target.value)} /></label>
+        <label className="pv-campo"><span>Hasta</span><input type="date" value={d2} onChange={(e) => setD2(e.target.value)} /></label>
+        <button type="button" className="pv-bt" onClick={buscar} disabled={d1 === desde && d2 === hasta}>Ver</button>
+        <label className="pv-campo"><span>Origen</span><select value={origen} onChange={(e) => setOrigen(e.target.value)}><option value="">Todos</option>{opc("origen").map((x) => <option key={x}>{x}</option>)}</select></label>
+        <label className="pv-campo"><span>Destino</span><select value={destino} onChange={(e) => setDestino(e.target.value)}><option value="">Todos</option>{opc("destino").map((x) => <option key={x}>{x}</option>)}</select></label>
+        <label className="pv-campo"><span>Placa</span><select value={placa} onChange={(e) => setPlaca(e.target.value)}><option value="">Todas</option>{opc("placa").map((x) => <option key={x}>{x}</option>)}</select></label>
+        <div className="pv-campo"><span>Unidad</span>
+          <div className="pv-seg" role="group" aria-label="Unidad">
+            {UNIDADES.map(([k, t]) => <button key={k} type="button" className={unidad === k ? "on" : ""} aria-pressed={unidad === k} onClick={() => setUnidad(k)}>{t}</button>)}
+          </div>
+        </div>
+        <button type="button" className="pv-bt am" onClick={excel} disabled={vhs.length === 0}>Descargar Excel</button>
+      </div>
+
+      {vhs.length === 0 ? (
+        <p className="pv-vacio">
+          {filas.length === 0
+            ? <>No hay Vhs de PET con SKU entre estas fechas. Salen aquí los viajes de un tipo PET registrados con su SKU (Traspasos › Registrar).</>
+            : <>Ningún Vh con esos filtros.</>}
+        </p>
+      ) : (<>
+        <section className="pv-res" aria-label="Resumen del periodo">
+          <div className="tot"><span className="l">Total PET <small>{vhs.length} {vhs.length === 1 ? "Vh" : "Vhs"}</small></span><b>{n.format(T)}</b><em>{u} en el periodo</em></div>
+          {visibles.map((fm) => {
+            const t = tot(vhs, fm);
+            return (
+              <div key={String(fm)} style={{ ["--c" as string]: colorFormato(fm) }}>
+                <span className="l">{nombreFormato(fm)} <small>en {enVhs(fm)} {enVhs(fm) === 1 ? "Vh" : "Vhs"}</small></span>
+                <b>{n.format(t)}</b><em>{u} · {T ? Math.round((100 * t) / T) : 0} % del PET</em>
+              </div>
+            );
+          })}
+        </section>
+
+        <div className="pv-tabla-caja">
+          <table className="pv-tabla">
+            <thead>
+              <tr>
+                <th>Turno · hora</th><th>Placa</th><th>Origen → destino</th>
+                {visibles.map((fm) => <th key={String(fm)} className="n"><i className="sw" style={{ background: colorFormato(fm) }} />{nombreFormato(fm)}</th>)}
+                <th className="n tt">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {dias.map((d) => {
+                const del = vhs.filter((v) => v.fecha === d);
+                return [
+                  <tr key={d} className="dia">
+                    <td colSpan={3}><b>{corto(d)}</b><small>{del.length} {del.length === 1 ? "Vh" : "Vhs"} · {n.format(tot(del))} {u}</small></td>
+                    {visibles.map((fm) => <td key={String(fm)} className="n">{tot(del, fm) ? n.format(tot(del, fm)) : "—"}</td>)}
+                    <td className="n tt">{n.format(tot(del))}</td>
+                  </tr>,
+                  ...del.map((v) => (
+                    <tr key={v.viaje}>
+                      <td><span className="turno">{v.turno}</span>{v.hora?.slice(0, 5) ?? ""}</td>
+                      <td>{v.placa ? <span className="pl">{v.placa}</span> : "—"}</td>
+                      <td className="pv-ruta"><b>{v.origen ?? "—"}</b> <span>→</span> {v.destino ?? "—"}</td>
+                      {visibles.map((fm) => {
+                        const c = v.por.get(fm) ?? 0;
+                        return (
+                          <td key={String(fm)} className="n">
+                            {c ? <span className="cel"><u style={{ width: `${Math.max(4, Math.round((64 * c) / max))}px`, background: colorFormato(fm) }} /><em>{n.format(c)}</em></span>
+                               : <span className="cel z"><em>—</em></span>}
+                          </td>
+                        );
+                      })}
+                      <td className="n tt"><b>{n.format(v.total)}</b></td>
+                    </tr>
+                  )),
+                ];
+              })}
+              <tr className="sum">
+                <td colSpan={3}>Total · {vhs.length} {vhs.length === 1 ? "Vh" : "Vhs"}</td>
+                {visibles.map((fm) => <td key={String(fm)} className="n">{n.format(tot(vhs, fm))}</td>)}
+                <td className="n tt">{n.format(T)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p className="pv-nota">Del {corto(desde)} al {corto(hasta)} · {DIAS[diaSemana(hasta)]} incluido. Un Vh que lleva dos SKU del mismo formato suma los dos en esa columna.</p>
+      </>)}
+    </>
+  );
+}

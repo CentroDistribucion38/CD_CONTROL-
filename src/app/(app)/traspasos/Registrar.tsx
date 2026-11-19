@@ -44,6 +44,9 @@ export type PlanTipo = {
   general?: boolean;
 };
 
+/** Un producto PET del maestro, con su formato en ml (lo que se escoge al registrar un Vh de PET). */
+type ProductoPet = { sku: string; nombre: string; formato_ml: number | null; cajas_por_estiba: number | null; hl_estiba: number | null };
+
 export function Registrar({ tipos, puntos, placas, placasM,
                             vidrio = [], faltaVidrio = false,
                             fecha, turnoSugerido,
@@ -108,6 +111,11 @@ export function Registrar({ tipos, puntos, placas, placasM,
   const [mats, setMats] = useState<{ k: number; sku: string; est: string }[]>([]);
   const [disp, setDisp] = useState<{ sku: string; descripcion: string; inventario: number; apartado: number; disponible: number; hl_estiba: number | null }[] | null>(null);
   const [faltaCasco, setFaltaCasco] = useState(false);
+  /* EL PET: renglones SKU + estibas; el formato (200, 330, 1000, 1.500) sale del maestro. Sirve para saber cuántos Vhs
+     de cada formato salen y cuántos programar (Traspasos › PET y Programar PET). No mueve inventario. */
+  const [pets, setPets] = useState<{ k: number; sku: string; est: string }[]>([]);
+  const [catPet, setCatPet] = useState<ProductoPet[] | null>(null);
+  const [faltaPet, setFaltaPet] = useState(false);
   const [bodegaNueva, setBodegaNueva] = useState<{ lado: "o" | "d"; texto: string } | null>(null);
   const campoPlaca = useRef<HTMLButtonElement>(null);
 
@@ -222,7 +230,7 @@ export function Registrar({ tipos, puntos, placas, placasM,
 
   useEffect(() => {
     const t = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && puedeMandar && matsOk && !mandando) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && puedeMandar && matsOk && petOk && !mandando) {
         e.preventDefault(); mandar();
       }
     };
@@ -342,6 +350,33 @@ export function Registrar({ tipos, puntos, placas, placasM,
   const totMat = mats.reduce((t, m) => ({ est: t.est + num(m.est), hl: t.hl + num(m.est) * (dispDe(m.sku)?.hl_estiba ?? 0) }), { est: 0, hl: 0 });
   const ponMat = (k: number, c: Partial<{ sku: string; est: string }>) => setMats((ms) => ms.map((m) => m.k === k ? { ...m, ...c } : m));
 
+  /* ---------------- EL PET (SKU + estibas; el formato sale solo) ---------------- */
+  const tiposPet = escogidos.filter((c) => tipos.find((t) => t.clave === c)?.materiales === "pet");
+  const pidePet = modo === "carga" && tiposPet.length > 0;
+  useEffect(() => {
+    if (!pidePet || catPet !== null || faltaPet) return;
+    let vivo = true;
+    supabase.rpc("traspaso_pet_catalogo").then(({ data, error }) => {
+      if (!vivo) return;
+      if (error) {
+        if (/does not exist|could not find the function|schema cache/i.test(error.message)) setFaltaPet(true);
+        else avisar.mal(`No se pudo leer la lista de PET: ${error.message}`);
+        return;
+      }
+      setCatPet(((data ?? []) as ProductoPet[]).map((x) => ({ ...x, formato_ml: x.formato_ml == null ? null : Number(x.formato_ml), hl_estiba: x.hl_estiba == null ? null : Number(x.hl_estiba) })));
+    });
+    return () => { vivo = false };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pidePet, catPet, faltaPet]);
+  useEffect(() => { if (pidePet && pets.length === 0) setPets([{ k: Date.now(), sku: "", est: "" }]) }, [pidePet, pets.length]);
+  const conPet = pidePet && !faltaPet && catPet !== null && catPet.length > 0;
+  const petDe = (sku: string) => catPet?.find((x) => x.sku === sku);
+  const petOk = !pidePet || faltaPet || (catPet !== null && (catPet.length === 0
+    || (pets.length > 0 && pets.every((m) => m.sku && num(m.est) > 0))));
+  const totPet = pets.reduce((t, m) => ({ est: t.est + num(m.est), hl: t.hl + num(m.est) * (petDe(m.sku)?.hl_estiba ?? 0) }), { est: 0, hl: 0 });
+  const ponPet = (k: number, c: Partial<{ sku: string; est: string }>) => setPets((ms) => ms.map((m) => m.k === k ? { ...m, ...c } : m));
+  const fmtMl = (ml: number | null | undefined) => ml == null ? "sin formato" : ml >= 1000 ? `${n2.format(ml / 1000)} L` : `${ml} ml`;
+
   function ponCantidad(clave: string, v: string) {
     setTipos((m) => new Map(m).set(clave, v.replace(/\D/g, "")));
   }
@@ -385,6 +420,7 @@ export function Registrar({ tipos, puntos, placas, placasM,
             tipo: c,
             /* Con material del casco, la cantidad del tipo ES el total de estibas (la columna es entera). */
             cantidad: conCasco && tiposCasco.includes(c) ? Math.round(totMat.est)
+              : conPet && tiposPet.includes(c) ? Math.round(totPet.est)
               : (tipos_.get(c) ?? "").trim() === "" ? null : Number(tipos_.get(c)),
           })),
           p_placa: placa,
@@ -435,6 +471,16 @@ export function Registrar({ tipos, puntos, placas, placasM,
       else avisoVidrio += ` · ${n2.format(totMat.est)} est. de casco apartadas (se descuentan con el DOC)`;
     }
 
+    /* EL PET, amarrado al viaje (en una llamada aparte, como el casco). */
+    if (!esVacio && conPet && idViaje) {
+      const r = await supabase.rpc("traspaso_pet_guardar", {
+        p_viaje: idViaje,
+        p_filas: pets.filter((m) => m.sku && num(m.est) > 0).map((m) => ({ sku: m.sku, estibas: num(m.est) })),
+      });
+      if (r.error) avisar.mal(`El viaje se registró, pero el PET por formato NO quedó: ${r.error.message}.`);
+      else avisoVidrio += ` · ${n2.format(totPet.est)} est. de PET`;
+    }
+
     setMandando(false);
 
     const cuantos = escogidos.length;
@@ -459,7 +505,7 @@ export function Registrar({ tipos, puntos, placas, placasM,
        siguiente suele ser igual», y con varios tipos eso es otra cosa:
        un camión de casco registrado detrás de uno de casco+estibas+PET
        avanzaría tres planes sin que nadie lo tocara. */
-    setTipos(new Map()); setArenosa(null); setMats([]);
+    setTipos(new Map()); setArenosa(null); setMats([]); setPets([]);
     campoPlaca.current?.focus();
     router.refresh();
   }
@@ -915,6 +961,54 @@ export function Registrar({ tipos, puntos, placas, placasM,
                     )}
                   </div>
                 )}
+
+                {/* ─ EL PET: SKU + estibas; el formato sale del maestro ─ solo con los tipos que lo piden. */}
+                {pidePet && (
+                  <div className="tp-mat tp-pet">
+                    <span className="rot-campo">Material · PET <em className="rot-suave">el formato sale solo del SKU</em></span>
+                    {faltaPet ? (
+                      <p className="guia adicional">Falta correr <code>2026-11-traspasos-pet.sql</code> en Supabase. Mientras tanto el viaje se registra sin SKU.</p>
+                    ) : catPet === null ? (
+                      <p className="guia">Leyendo la lista de PET…</p>
+                    ) : catPet.length === 0 ? (
+                      <p className="guia adicional">No hay productos PET activos en el maestro (Inventario → Maestro): el viaje se registra sin SKU.</p>
+                    ) : (
+                      <>
+                        <div className="tp-mat-lista">
+                          {pets.map((m) => {
+                            const d = petDe(m.sku);
+                            const elegidos = new Set(pets.filter((x) => x.k !== m.k).map((x) => x.sku));
+                            return (
+                              <div key={m.k} className="tp-mat-fila">
+                                <div className="tp-mat-sku">
+                                  <Desplegable valor={m.sku} ariaLabel="SKU de PET" vacio="Escoge el SKU de PET…"
+                                               opciones={catPet.filter((x) => !elegidos.has(x.sku) || x.sku === m.sku).map((x) => ({
+                                                 valor: x.sku, texto: `${x.sku} · ${x.nombre}`,
+                                                 nota: `${fmtMl(x.formato_ml)}${x.cajas_por_estiba ? ` · ${x.cajas_por_estiba} pacas por estiba` : ""}`,
+                                               }))}
+                                               alEscoger={(v) => ponPet(m.k, { sku: v })} />
+                                </div>
+                                <label className="tp-mat-est">
+                                  <input value={m.est} inputMode="decimal" placeholder="0" aria-label="Estibas de PET"
+                                         onChange={(e) => ponPet(m.k, { est: e.target.value.replace(/[^0-9,.]/g, "") })} />
+                                  <span>est.</span>
+                                </label>
+                                <span className="tp-mat-hl">{d?.hl_estiba ? `${n2.format(num(m.est) * d.hl_estiba)} HL` : "— HL"}</span>
+                                <span className="tp-mat-disp">{d ? <b className="tp-fmt">{fmtMl(d.formato_ml)}</b> : ""}</span>
+                                <button type="button" className="tp-mat-x" aria-label="Quitar este SKU" disabled={pets.length === 1}
+                                        onClick={() => setPets((ms) => ms.filter((x) => x.k !== m.k))}>×</button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="tp-mat-pie">
+                          <button type="button" className="tp-mat-mas" onClick={() => setPets((ms) => [...ms, { k: Date.now(), sku: "", est: "" }])}>+ Otro SKU</button>
+                          <span>Total <b>{n2.format(totPet.est)} est.</b> · {n2.format(totPet.hl)} HL</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
               </>
             )}
 
@@ -970,6 +1064,8 @@ export function Registrar({ tipos, puntos, placas, placasM,
                       {conCasco && tiposCasco.includes(c) ? (
                         /* Ya se dijo arriba, SKU por SKU: pedirlo otra vez sería escribirlo dos veces. */
                         <span className="pt-del-mat">{n2.format(totMat.est)} est. · del material</span>
+                      ) : conPet && tiposPet.includes(c) ? (
+                        <span className="pt-del-mat">{n2.format(totPet.est)} est. · del PET</span>
                       ) : (
                         <input value={tipos_.get(c) ?? ""} inputMode="numeric"
                                placeholder="Canastas, estibas…"
@@ -998,7 +1094,7 @@ export function Registrar({ tipos, puntos, placas, placasM,
           </div>
 
           <div className="pie-reg">
-            <button type="button" className="btn si" disabled={!puedeMandar || !matsOk || mandando}
+            <button type="button" className="btn si" disabled={!puedeMandar || !matsOk || !petOk || mandando}
                     onClick={mandar}>
               {mandando ? "Registrando…"
                 : modo === "vacio" ? `Registrar ${viajesN} vacío${viajesN === 1 ? "" : "s"}`

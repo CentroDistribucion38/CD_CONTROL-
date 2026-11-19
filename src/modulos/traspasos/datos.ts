@@ -837,3 +837,29 @@ export async function bandejaFacturacion(diasSalieron = 3) {
     cedulas, bascula, reservadas, faltaCedulas, materiales,
   };
 }
+
+
+/* ======================= PET POR FORMATO ======================= */
+
+/** Los renglones de PET (un Vh y un SKU) entre dos fechas. `falta` = no se ha corrido 2026-11-traspasos-pet.sql. */
+export async function petRango(desde: string, hasta: string): Promise<{ falta: boolean; error: string | null; filas: import("./pet").FilaPet[] }> {
+  const supabase = await createClient();
+  const filas: import("./pet").FilaPet[] = [];
+  for (let desdeFila = 0; ; desdeFila += 1000) {
+    const { data, error } = await supabase.from("v_traspasos_pet").select("*")
+      .gte("fecha", desde).lte("fecha", hasta)
+      .order("fecha", { ascending: false }).order("hora", { ascending: true }).order("id", { ascending: true })
+      .range(desdeFila, desdeFila + 999);
+    if (error) {
+      const falta = /v_traspasos_pet|does not exist|schema cache|PGRST205/i.test(`${error.code} ${error.message}`);
+      return { falta, error: falta ? null : error.message, filas: [] };
+    }
+    for (const x of data ?? []) filas.push({
+      ...(x as import("./pet").FilaPet),
+      formato_ml: x.formato_ml == null ? null : Number(x.formato_ml),
+      estibas: Number(x.estibas), pacas: x.pacas == null ? null : Number(x.pacas), hl: x.hl == null ? null : Number(x.hl),
+    });
+    if ((data ?? []).length < 1000) break;
+  }
+  return { falta: false, error: null, filas };
+}
