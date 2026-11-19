@@ -371,8 +371,10 @@ export function Registrar({ tipos, puntos, placas, placasM,
   useEffect(() => { if (pidePet && pets.length === 0) setPets([{ k: Date.now(), sku: "", est: "" }]) }, [pidePet, pets.length]);
   const conPet = pidePet && !faltaPet && catPet !== null && catPet.length > 0;
   const petDe = (sku: string) => catPet?.find((x) => x.sku === sku);
-  const petOk = !pidePet || faltaPet || (catPet !== null && (catPet.length === 0
-    || (pets.length > 0 && pets.every((m) => m.sku && num(m.est) > 0))));
+  /* EL SKU ES OBLIGATORIO: un Vh de PET no se registra sin decir qué SKU lleva y cuántas estibas. Sin la lista de PET (falta el SQL o
+     no hay PET en el maestro) tampoco se registra: antes pasaba sin SKU y salía «Sin formato». */
+  const petOk = !pidePet || (!faltaPet && catPet !== null && catPet.length > 0
+    && pets.length > 0 && pets.every((m) => m.sku && num(m.est) > 0));
   const totPet = pets.reduce((t, m) => ({ est: t.est + num(m.est), hl: t.hl + num(m.est) * (petDe(m.sku)?.hl_estiba ?? 0) }), { est: 0, hl: 0 });
   const ponPet = (k: number, c: Partial<{ sku: string; est: string }>) => setPets((ms) => ms.map((m) => m.k === k ? { ...m, ...c } : m));
   const fmtMl = (ml: number | null | undefined) => ml == null ? "sin formato" : ml >= 1000 ? `${n2.format(ml / 1000)} L` : `${ml} ml`;
@@ -414,7 +416,10 @@ export function Registrar({ tipos, puntos, placas, placasM,
           p_carga: null, p_unidad: null,
           p_nota: nota.trim() || null, p_documento: null,
         })
-      : await supabase.rpc("traspaso_registrar_varios", {
+      /* CON PET, EN UNA SOLA LLAMADA: el viaje y su SKU entran juntos o no entra nada (antes eran dos llamadas y, si la segunda
+         fallaba, el viaje quedaba sin SKU). */
+      : await supabase.rpc(conPet ? "traspaso_registrar_con_pet" : "traspaso_registrar_varios", {
+          ...(conPet ? { p_pet: pets.filter((m) => m.sku && num(m.est) > 0).map((m) => ({ sku: m.sku, estibas: num(m.est) })) } : {}),
           p_fecha: fecha, p_turno: turno,
           p_tipos: escogidos.map((c) => ({
             tipo: c,
@@ -471,15 +476,8 @@ export function Registrar({ tipos, puntos, placas, placasM,
       else avisoVidrio += ` · ${n2.format(totMat.est)} est. de casco apartadas (se descuentan con el DOC)`;
     }
 
-    /* EL PET, amarrado al viaje (en una llamada aparte, como el casco). */
-    if (!esVacio && conPet && idViaje) {
-      const r = await supabase.rpc("traspaso_pet_guardar", {
-        p_viaje: idViaje,
-        p_filas: pets.filter((m) => m.sku && num(m.est) > 0).map((m) => ({ sku: m.sku, estibas: num(m.est) })),
-      });
-      if (r.error) avisar.mal(`El viaje se registró, pero el PET por formato NO quedó: ${r.error.message}.`);
-      else avisoVidrio += ` · ${n2.format(totPet.est)} est. de PET`;
-    }
+    /* EL PET ya entró con el viaje (traspaso_registrar_con_pet). */
+    if (!esVacio && conPet && idViaje) avisoVidrio += ` · ${n2.format(totPet.est)} est. de PET`;
 
     setMandando(false);
 
@@ -515,6 +513,9 @@ export function Registrar({ tipos, puntos, placas, placasM,
      constraint». La base ya manda el mensaje bueno cuando puede; esto
      cubre el caso en que llegue el crudo. */
   function mensajeRegistro(m: string) {
+    if (/traspaso_registrar_con_pet/i.test(m) && /does not exist|could not find the function|schema cache/i.test(m)) {
+      return "Falta correr supabase/migraciones/2026-11-traspasos-pet-obligatorio.sql en Supabase.";
+    }
     if (/does not exist|could not find the function|schema cache/i.test(m)) {
       return "Falta correr supabase/migraciones/2026-09-traspasos-documento.sql en Supabase.";
     }
@@ -967,11 +968,11 @@ export function Registrar({ tipos, puntos, placas, placasM,
                   <div className="tp-mat tp-pet">
                     <span className="rot-campo">Material · PET <em className="rot-suave">el formato sale solo del SKU</em></span>
                     {faltaPet ? (
-                      <p className="guia adicional">Falta correr <code>2026-11-traspasos-pet.sql</code> en Supabase. Mientras tanto el viaje se registra sin SKU.</p>
+                      <p className="guia adicional">Falta correr <code>2026-11-traspasos-pet.sql</code> en Supabase. El Vh de PET no se puede registrar sin su SKU.</p>
                     ) : catPet === null ? (
                       <p className="guia">Leyendo la lista de PET…</p>
                     ) : catPet.length === 0 ? (
-                      <p className="guia adicional">No hay productos PET activos en el maestro (Inventario → Maestro): el viaje se registra sin SKU.</p>
+                      <p className="guia adicional">No hay productos PET activos en el maestro (Inventario → Maestro): el Vh de PET no se puede registrar sin su SKU.</p>
                     ) : (
                       <>
                         <div className="tp-mat-lista">
