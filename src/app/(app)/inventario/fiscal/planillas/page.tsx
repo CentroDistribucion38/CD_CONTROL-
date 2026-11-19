@@ -28,7 +28,7 @@ type Linea = {
   unidades?: number | null; unidades_por_caja?: number | null;
 };
 type Lado = { estibas: number; saldo: number; cajas: number; unidades: number; total: number };
-type Fila = { modulo: string; sku: string; material: string; udsCaja: number | null; upc: number | null; detalle: string; ol: Lado | null; bav: Lado | null; compensada?: boolean; compensaCon?: string };
+type Fila = { modulo: string; sku: string; material: string; udsCaja: number | null; upc: number | null; detalle: string; ol: Lado | null; bav: Lado | null; compensada?: boolean };
 
 const vacio = (): Lado => ({ estibas: 0, saldo: 0, cajas: 0, unidades: 0, total: 0 });
 
@@ -64,13 +64,31 @@ function armarFilas(lineas: Linea[]): Fila[] {
   });
   const r = compensarCruce(cruce);
   /* Lo que se compensaba NO se muestra como compensado: el mismo material contado en varios sitios de la hoja se junta en UN renglón,
-     en el primer sitio donde aparece, con el conteo de los dos: ahí la diferencia sale en cero.
-     OJO: solo se junta lo que se compensa con el MISMO código. Lo que se compensa con OTRO código del mismo módulo (anotado con el
-     código cambiado: A05 22613 del operador ↔ 9139 de Bavaria) se queda en su módulo, cada uno con su conteo, marcado «compensa con»;
-     antes se juntaba con renglones de otro módulo y salía una diferencia que no existe (las 88 de B23 aparecían en A05). */
+     en el primer sitio donde aparece, con el conteo de los dos: ahí la diferencia sale en cero. */
   const sale = new Set<number>();
   const primero = new Map<string, number>();
-  const unidas = filas.map((f, i) => ({ ...f, ol: f.ol ? { ...f.ol } : null, bav: f.bav ? { ...f.bav } : null, compensaCon: r.filas[i]?.compensaCon }));
+  const unidas = filas.map((f) => ({ ...f, ol: f.ol ? { ...f.ol } : null, bav: f.bav ? { ...f.bav } : null }));
+  /* Lo que se compensa con OTRO código del MISMO módulo (las mismas cajas anotadas con el código cambiado: A05 22613 del operador y
+     9139 de Bavaria) sale como lo aprobado: UN renglón con el código del operador logístico y lo de Bavaria pasado a ese código.
+     No se junta con renglones de otros módulos (antes las 88 de B23 aparecían en A05 y salía una diferencia que no existe). */
+  const ponerCajas = (l: Lado, total: number, uds: number | null) => {
+    const t = Math.max(0, total);
+    l.estibas = uds ? Math.floor(t / uds) : 0; l.saldo = 0; l.cajas = uds ? t % uds : t; l.total = t;
+  };
+  filas.forEach((f, i) => {
+    const otro = r.filas[i]?.compensaCon;
+    if (!otro || sale.has(i)) return;
+    const d = (f.ol?.total ?? 0) - (f.bav?.total ?? 0);
+    if (d <= 0) return; /* recibe el renglón donde el operador tiene de más: ese es su código */
+    const j = filas.findIndex((g, x) => x !== i && !sale.has(x) && g.modulo === f.modulo && g.sku === otro && r.filas[x]?.compensaCon === f.sku
+      && (g.bav?.total ?? 0) - (g.ol?.total ?? 0) === d);
+    if (j < 0) return;
+    const a = unidas[i], b = unidas[j];
+    ponerCajas((a.bav ??= vacio()), (a.bav.total ?? 0) + d, a.udsCaja);
+    ponerCajas(b.bav!, (b.bav!.total ?? 0) - d, b.udsCaja);
+    if (b.bav!.total === 0 && b.bav!.unidades === 0) b.bav = null;
+    if (!b.ol && !b.bav) sale.add(j);
+  });
   filas.forEach((f, i) => {
     if (!r.filas[i]?.compensada || r.filas[i]?.compensaCon) return;
     const j = primero.get(f.sku);
@@ -143,8 +161,7 @@ export default async function PlanillasPage({ searchParams }: { searchParams: Pr
       sentidoOl: lim ? `${lim[0]} → ${lim[1]}` : "", sentidoBav: lim ? `${lim[1]} → ${lim[0]}` : "",
       filas: filas.map((x) => ({ modulo: x.modulo, sku: x.sku, material: x.material, udsCaja: x.udsCaja, upc: x.upc, detalle: x.detalle,
         ol: x.ol ? { estibas: x.ol.estibas, saldo: x.ol.saldo, cajas: x.ol.cajas, unidades: x.ol.unidades } : null,
-        bav: x.bav ? { estibas: x.bav.estibas, saldo: x.bav.saldo, cajas: x.bav.cajas, unidades: x.bav.unidades } : null,
-        ...(x.compensaCon ? { compensaCon: x.compensaCon } : {}) })),
+        bav: x.bav ? { estibas: x.bav.estibas, saldo: x.bav.saldo, cajas: x.bav.cajas, unidades: x.bav.unidades } : null })),
       blancos, conConteo, np: Math.max(1, Math.ceil(total / FILAS)),
     };
   }));

@@ -12,9 +12,7 @@ import { aUnidades, partir, textoCantidad } from "@/modulos/inventario/unidades"
 
 export type Lado = { estibas: number; saldo: number; cajas: number; unidades: number };
 /** `upc` = unidades por caja del material (null = no se sabe: no hay unidades sueltas). */
-/** `compensaCon`: el otro código del MISMO módulo con el que esta diferencia se compensa (se anotó con el código cambiado): en el
- *  Control fiscal eso no es diferencia, y en la planilla tampoco (sale en 0 con «↔ código»), mientras no se ajuste ese renglón. */
-export type FilaP = { modulo: string; sku: string; material: string; udsCaja: number | null; upc: number | null; detalle: string; ol: Lado | null; bav: Lado | null; compensaCon?: string };
+export type FilaP = { modulo: string; sku: string; material: string; udsCaja: number | null; upc: number | null; detalle: string; ol: Lado | null; bav: Lado | null };
 export type HojaP = {
   numero: number; calle: string; grupo: string; olNombre: string; bavNombre: string; sentidoOl: string; sentidoBav: string;
   filas: FilaP[]; blancos: string[]; conConteo: boolean; np: number;
@@ -116,8 +114,6 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
     const a = x[k(h.numero, i)];
     return { modulo: a?.modulo ?? f.modulo, ol: a?.ol ?? cantDe(f.ol), bav: a?.bav ?? cantDe(f.bav) };
   };
-  /* Se compensa con otro código del módulo y nadie tocó ese renglón en la planilla: su diferencia no cuenta (como en el Control fiscal). */
-  const comp = (h: HojaP, f: FilaP, i: number) => !!f.compensaCon && (verOrig || !aj[k(h.numero, i)]);
   /* Lo que se ve: con los movimientos y ajustes, o el ORIGINAL si se pidió verlo. */
   const ocup = (h: HojaP, f: FilaP, i: number) => ocupCon(verOrig ? {} : aj, h, f, i);
   /* Lo contado de un lado en UNIDADES exactas (cajas × unidades por caja + sueltas) y partido otra vez en cajas + sueltas.
@@ -526,11 +522,9 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
           const tot = h.filas.reduce((t, f, i) => {
             const o = ocup(h, f, i);
             const a = cuenta(o.ol, f), b = cuenta(o.bav, f);
-            const c = comp(h, f, i), d = (a?.u ?? 0) - (b?.u ?? 0);
             return { uT_ol: t.uT_ol + (a?.u ?? 0), uT_bav: t.uT_bav + (b?.u ?? 0), ol: t.ol + (a?.cajas ?? 0), bav: t.bav + (b?.cajas ?? 0), uOl: t.uOl + (a?.sueltas ?? 0), uBav: t.uBav + (b?.sueltas ?? 0),
-                     dc: t.dc + partir((a?.u ?? 0) - (b?.u ?? 0), f.upc ?? 1).cajas, du: t.du + partir((a?.u ?? 0) - (b?.u ?? 0), f.upc ?? 1).unidades,
-                     dif: t.dif + (c ? 0 : d), nComp: t.nComp + (c && d !== 0 ? 1 : 0) };
-          }, { uT_ol: 0, uT_bav: 0, ol: 0, bav: 0, uOl: 0, uBav: 0, dc: 0, du: 0, dif: 0, nComp: 0 });
+                     dc: t.dc + partir((a?.u ?? 0) - (b?.u ?? 0), f.upc ?? 1).cajas, du: t.du + partir((a?.u ?? 0) - (b?.u ?? 0), f.upc ?? 1).unidades };
+          }, { uT_ol: 0, uT_bav: 0, ol: 0, bav: 0, uOl: 0, uBav: 0, dc: 0, du: 0 });
           const sinCod = !!cod && !trozo.some((f) => f.sku === cod);
           return (
             <section key={`${h.numero}-${p}`} className={`pl-pg${cod ? " pl-fil" : ""}${sinCod ? " pl-sin" : ""}`} aria-label={`Planilla hoja ${h.numero}, página ${p + 1} de ${h.np}`}>
@@ -577,8 +571,7 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
                       const i = desde + j;
                       const o = ocup(h, f, i);
                       const cO = cuenta(o.ol, f), cB = cuenta(o.bav, f);
-                      const cmp = comp(h, f, i);
-                      const dd = cmp ? { cajas: 0, unidades: 0 } : partir((cO?.u ?? 0) - (cB?.u ?? 0), f.upc ?? 1);
+                      const dd = partir((cO?.u ?? 0) - (cB?.u ?? 0), f.upc ?? 1);
                       return (
                         <tr key={i} className={(cod && f.sku !== cod ? "pl-oc" : "") + (!verOrig && aj[k(h.numero, i)] ? " pl-mod" : "") || undefined}>
                           <td className="m e"><input readOnly={verOrig} value={o.modulo} onChange={(e) => poner(h, i, f, "modulo", null, e.target.value)} aria-label={`Módulo de ${f.sku}`} /></td>
@@ -590,7 +583,6 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
                           <td className={"r t" + (dd.cajas !== 0 || dd.unidades !== 0 ? " mal" : "")}>
                             {dd.cajas !== 0 || dd.unidades !== 0
                               ? <>{dd.cajas !== 0 ? signo(dd.cajas) : ""}{dd.unidades !== 0 && <small className="un">{signo(dd.unidades)} un.</small>}</>
-                              : cmp ? <span className="pl-comp" title={`Se compensa con el código ${f.compensaCon} de este módulo: las mismas cajas, anotadas con el código cambiado. En el Control fiscal no es diferencia.`}>0<small>↔ {f.compensaCon}</small></span>
                               : (cO != null && cB != null ? "0" : "")}
                           </td>
                           <td className="pl-nop ig"><button type="button" disabled={verOrig} title="Pasar lo de Bavaria al operador logístico" onClick={() => igualar(h, i, f, false)}>‹</button><button type="button" disabled={verOrig} title="Pasar lo del operador logístico a Bavaria" onClick={() => igualar(h, i, f, true)}>›</button></td>
@@ -607,7 +599,7 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
                   <span>Total de la hoja · unidades (y cajas)</span>
                   <b>Operador logístico {nf.format(tot.uT_ol)} un.<i> · {nf.format(tot.ol)} cajas{tot.uOl > 0 ? ` + ${nf.format(tot.uOl)} un.` : ""}</i></b>
                   <b>Bavaria {nf.format(tot.uT_bav)} un.<i> · {nf.format(tot.bav)} cajas{tot.uBav > 0 ? ` + ${nf.format(tot.uBav)} un.` : ""}</i></b>
-                  <b className={tot.dif !== 0 ? "mal" : ""}>Diferencia {tot.dif === 0 ? "0 un." : `${signo(tot.dif)} un.`}{tot.nComp > 0 && <i> · {tot.nComp} renglones compensados entre códigos (↔)</i>}</b>
+                  <b className={tot.uT_ol !== tot.uT_bav ? "mal" : ""}>Diferencia {tot.uT_ol === tot.uT_bav ? "0 un." : `${signo(tot.uT_ol - tot.uT_bav)} un.`}</b>
                 </div>
               )}
               <div className="pl-pie">
