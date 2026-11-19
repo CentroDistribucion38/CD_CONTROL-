@@ -4,8 +4,12 @@
 -- «Necesito que estén los Vhs que se han movido estos días: ellos relacionan el SKU y la cantidad, que sería el
 --  viaje; si dice PONY 330X24, por ejemplo, sería formato 330: debes identificarlos.»
 --
+-- «Eso arranca desde ayer: antes no poníamos SKU, desde ayer le ponemos. Si lees 200 es formato 200, si es 1.0 es
+--  formato 1000, si es 1.5 es formato 1500 y si es 330 es formato 330.»
+--
 -- La vista trae TODOS los Vhs del tipo PET, y a cada uno le busca el SKU en este orden:
---   1. lo que se escogió al registrar (traspasos_viaje_pet, desde que Registrar lo pide);
+--   1. lo que se escogió al registrar: los renglones de PET (traspasos_viaje_pet) o los de material del viaje
+--      (traspasos_viaje_materiales: el SKU y las estibas que se le ponen al registrar desde ayer);
 --   2. el documento SAP del viaje (traspasos_sap_mov, lo de Traspasos › Importar): material, descripción y
 --      cantidad de cada renglón del documento, cruzado por el documento del viaje;
 --   3. la nota del viaje, si dice el producto («PONY 330X24»);
@@ -32,6 +36,12 @@ begin
   /* «1.5X6», «1,5 x 6»: litros antes de la X. */
   m := regexp_match(t, '(?:^|[^\d])([1-3])[.,]([0-9])\s*x\s*\d');
   if m is not null then return (m[1] || '.' || m[2])::numeric * 1000; end if;
+  /* «1.0», «1.5», «2.0» sueltos: litros (1.0 = 1000, 1.5 = 1500). */
+  m := regexp_match(t, '(?:^|[^\d.,])([1-3])[.,]([05])(?:$|[^\d])');
+  if m is not null then return (m[1] || '.' || m[2])::numeric * 1000; end if;
+  /* «200», «330», «1000», «1500» sueltos: el formato tal cual. */
+  m := regexp_match(t, '(?:^|[^\d.,])(200|220|237|250|269|300|330|350|355|400|473|500|600|750|1000|1250|1500|2000|2500|3000)(?:$|[^\d.,])');
+  if m is not null then return m[1]::int; end if;
   return null;
 end $$;
 
@@ -54,6 +64,27 @@ select x.id, x.viaje, v.fecha, v.turno,
   left join public.productos p on p.sku = x.sku
   left join public.traspasos_puntos po on po.clave = v.origen
   left join public.traspasos_puntos pd on pd.clave = v.destino
+union all
+/* 1b · el SKU y las estibas que se le ponen al viaje al registrarlo (renglones de material), desde ayer */
+select m.id, v.id, v.fecha, v.turno,
+       (v.hora at time zone 'America/Bogota')::time,
+       v.placa,
+       coalesce(po.nombre, v.origen_texto, v.origen),
+       coalesce(pd.nombre, v.destino_texto, v.destino),
+       m.sku, coalesce(p.nombre, e.nombre, m.sku),
+       coalesce(public.traspasos_formato_ml(p.nombre, p.contenido), public.traspasos_formato_texto(p.nombre), public.traspasos_formato_texto(e.nombre), public.traspasos_formato_texto(m.sku)),
+       m.estibas::numeric,
+       round(m.estibas * p.cajas_por_estiba, 0),
+       round(m.estibas * public.casco_hl_estiba(m.sku), 2)
+  from public.traspasos_viaje_materiales m
+  join public.traspasos_viajes v on v.id = m.viaje and v.estado = 'registrado'
+  join public.traspasos_tipos t on t.clave = v.tipo
+  left join public.productos p on p.sku = m.sku
+  left join public.casco_extras e on e.sku = m.sku
+  left join public.traspasos_puntos po on po.clave = v.origen
+  left join public.traspasos_puntos pd on pd.clave = v.destino
+ where (t.materiales = 'pet' or t.clave = 'pet' or t.nombre ilike 'pet' or t.nombre ilike 'pet %')
+   and not exists (select 1 from public.traspasos_viaje_pet x where x.viaje = v.id)
 union all
 /* 2 · del documento SAP del viaje (Importar), un renglón por material del documento */
 select v.id, v.id, v.fecha, v.turno,
@@ -84,6 +115,7 @@ select v.id, v.id, v.fecha, v.turno,
    and (t.materiales = 'pet' or t.clave = 'pet' or t.nombre ilike 'pet' or t.nombre ilike 'pet %')
    and v.documento_clave is not null
    and not exists (select 1 from public.traspasos_viaje_pet x where x.viaje = v.id)
+   and not exists (select 1 from public.traspasos_viaje_materiales x where x.viaje = v.id)
 union all
 /* 3 y 4 · sin SKU ni documento SAP: el formato de la nota (si lo dice) o «Sin formato» */
 select v.id, v.id, v.fecha, v.turno,
@@ -102,6 +134,7 @@ select v.id, v.id, v.fecha, v.turno,
  where v.estado = 'registrado' and coalesce(v.vacio, false) = false
    and (t.materiales = 'pet' or t.clave = 'pet' or t.nombre ilike 'pet' or t.nombre ilike 'pet %')
    and not exists (select 1 from public.traspasos_viaje_pet x where x.viaje = v.id)
+   and not exists (select 1 from public.traspasos_viaje_materiales x where x.viaje = v.id)
    and not exists (select 1 from public.traspasos_sap_mov m where m.referencia = v.documento_clave and m.material is not null);
 grant select on public.v_traspasos_pet to authenticated;
 
@@ -117,6 +150,7 @@ begin
     into a, b, c, d from public.v_traspasos_pet;
   raise notice '----------------------------------------------------------';
   raise notice 'Vhs de PET con SKU y formato ............ %', a;
+  raise notice '(los que traen SKU salen en su formato: 200, 330, 1000, 1500)';
   raise notice 'Vhs con SKU pero sin formato en el maestro %', b;
   raise notice 'Vhs con el formato sacado de la nota .... %', c;
   raise notice 'Vhs sin formato (ni SKU, ni SAP, ni nota)  %', d;
