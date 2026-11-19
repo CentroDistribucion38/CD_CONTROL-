@@ -8,6 +8,7 @@ import type { Mov311 } from "@/modulos/inventario/analisis-dif";
 import { guardarHecho, guardarObservacion } from "./actions";
 import { Partidas311 } from "./Partidas311";
 import { EtiquetaEnLinea, LeyendaEnLinea, type MapaEnLinea } from "./EnLinea";
+import { DetalleCodigo } from "./DetalleCodigo";
 
 /**
  * PASO 2 · LOS AJUSTES — del análisis guardado del día: diferencia, lo que se compensa entre el envase
@@ -27,6 +28,8 @@ export function Ajustes({ fecha, guardado, filas: inicio, puedeEditar, faltaSql,
   const [ver, setVer] = useState<"todo" | "sobra" | "falta" | "cruza">("todo");
   const [estado, setEstado] = useState<Record<string, "guardando" | "ok" | "mal">>({});
   const [msg, setMsg] = useState<string | null>(null);
+  /* Como en el paso 1: tocar el código despliega sus partidas y sus ubicaciones (y las del código con que se compensa). */
+  const [abierta, setAbierta] = useState<string | null>(null);
 
   const vistas = useMemo(() => {
     const xs = ver === "sobra" ? filas.filter((f) => f.ajuste > 0).sort((a, b) => b.ajuste - a.ajuste)
@@ -138,9 +141,10 @@ export function Ajustes({ fecha, guardado, filas: inicio, puedeEditar, faltaSql,
               {familias.map(([fam, xs]) => (
                 <Fragment key={fam}>
                   {xs.map((f, i) => (
-                    <tr key={f.codigo} className={(f.compensa ? "cruza" : "") + (enLinea[f.codigo]?.length ? " enl" : "")}>
-                      {i === 0 && <td className="fam" rowSpan={xs.length}>{fam}</td>}
-                      <td className="mono">{f.codigo}</td>
+                    <Fragment key={f.codigo}>
+                    <tr className={(f.compensa ? "cruza" : "") + (enLinea[f.codigo]?.length ? " enl" : "") + (abierta === f.codigo ? " ab" : "")}>
+                      {i === 0 && <td className="fam" rowSpan={xs.length + (xs.some((x) => x.codigo === abierta) ? 1 : 0)}>{fam}</td>}
+                      <td className="mono"><button type="button" className="ad-cod" aria-expanded={abierta === f.codigo} onClick={() => setAbierta(abierta === f.codigo ? null : f.codigo)}>{f.codigo}</button></td>
                       <td>{f.descripcion}<EtiquetaEnLinea xs={enLinea[f.codigo]} /></td>
                       <td className={"n" + (f.diferencia < 0 ? " neg" : f.diferencia > 0 ? " pos" : "")}>{signo(f.diferencia)}</td>
                       <td>{f.par ? <><b className="mono">{f.par}</b><small>{f.parDescripcion}</small><small className="ad-nuevo">R contado en NUEVO: <b>{n(f.nuevo)}</b></small></> : <span className="ad-na">—</span>}</td>
@@ -180,6 +184,10 @@ export function Ajustes({ fecha, guardado, filas: inicio, puedeEditar, faltaSql,
                         ) : (f.observacion || <span className="ad-na">—</span>)}
                       </td>
                     </tr>
+                    {abierta === f.codigo && (
+                      <tr className="ad-det"><td colSpan={9}><DetalleCodigo analisis={guardado.filas} codigo={f.codigo} par={f.par} fecha={fecha} /></td></tr>
+                    )}
+                    </Fragment>
                   ))}
                 </Fragment>
               ))}

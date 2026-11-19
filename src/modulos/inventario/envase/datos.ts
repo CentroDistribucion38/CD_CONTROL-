@@ -82,3 +82,41 @@ export async function loCargado() {
     mb51: { filas: n.count ?? 0, desde: min.data?.[0]?.fecha_contab ?? null, hasta: max.data?.[0]?.fecha_contab ?? null },
   };
 }
+
+/**
+ * Lo que necesita el ANÁLISIS DE DIFERENCIA para el conteo de un día: todo lo digitado desde ese día (las partidas)
+ * y lo contabilizado en los diez días anteriores (las órdenes a las que les puede faltar el 261). Sin repetir.
+ * «falta» = no se ha corrido 2026-11-plan-envase.sql.
+ */
+export async function movimientosParaElConteo(dia: string) {
+  const s = await createClient();
+  const sel = `id, ${MOV}`;
+  const [a, b] = await Promise.all([
+    paginar<Mov & { id: number }>((x, y) => s.from("pe_mb51").select(sel).gte("fecha_entrada", dia).order("id").range(x, y)),
+    paginar<Mov & { id: number }>((x, y) => s.from("pe_mb51").select(sel).gte("fecha_contab", masDias(dia, -10)).lt("fecha_contab", dia)
+      .in("clase", ["Z01", "Z02", "261", "262", "531", "532"]).order("id").range(x, y)),
+  ]);
+  const error = a.error ?? b.error;
+  if (error) return { falta: faltaTabla(error), error, filas: [] as Mov[] };
+  const vistos = new Set<number>(), filas: Mov[] = [];
+  for (const m of [...a.filas, ...b.filas]) {
+    if (vistos.has(m.id)) continue;
+    vistos.add(m.id);
+    const { id: _id, ...resto } = m; void _id;
+    filas.push({ ...resto, cantidad: Number(resto.cantidad) });
+  }
+  return { falta: false, error: null as string | null, filas };
+}
+
+/** Unidades por caja de cada envase (maestro de Pasivos y, si no está, el de productos). */
+export async function upcEnvases() {
+  const s = await createClient();
+  const [a, b] = await Promise.all([
+    s.from("pasivos_maestro").select("codigo, unidades_por_caja"),
+    s.from("productos").select("sku, unidades_por_caja").limit(5000),
+  ]);
+  const m = new Map<string, number>();
+  for (const x of (b.data ?? []) as { sku: string; unidades_por_caja: number | null }[]) if (x.unidades_por_caja) m.set(String(x.sku), Number(x.unidades_por_caja));
+  for (const x of (a.data ?? []) as { codigo: string; unidades_por_caja: number | null }[]) if (x.unidades_por_caja) m.set(String(x.codigo), Number(x.unidades_por_caja));
+  return m;
+}

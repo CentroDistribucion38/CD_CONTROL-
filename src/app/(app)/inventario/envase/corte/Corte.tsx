@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { porMaterial, type Partida } from "@/modulos/inventario/envase/calc";
+import Link from "next/link";
+import { porMaterial, type FilaNotif, type Partida } from "@/modulos/inventario/envase/calc";
 
 const n0 = (x: number) => Math.round(x).toLocaleString("es-CO");
 const fh = (e: string) => `${e.slice(8, 10)}/${e.slice(5, 7)} ${e.slice(11, 16)}`;
@@ -19,8 +20,8 @@ const nombreClases = (c: Set<string>) => [...c].map((x) => CLASE[x] ?? x).join("
  * el conteo físico. Lo contabilizado el mismo día y digitado en la hora siguiente no se puede saber: lo marca
  * quien hizo el conteo (por defecto «después», y no cuenta).
  */
-export function Corte({ dia, hora, seguras, dudosas, alcanza, ultima }: {
-  dia: string; hora: string; seguras: Partida[]; dudosas: Partida[]; alcanza: boolean; ultima: string | null;
+export function Corte({ dia, hora, seguras, dudosas, alcanza, ultima, notif }: {
+  dia: string; hora: string; seguras: Partida[]; dudosas: Partida[]; alcanza: boolean; ultima: string | null; notif: FilaNotif[];
 }) {
   const router = useRouter();
   const [d, setD] = useState(dia);
@@ -29,6 +30,11 @@ export function Corte({ dia, hora, seguras, dudosas, alcanza, ultima }: {
   const todas = useMemo(() => [...seguras, ...dudosas.filter((_, i) => antes.has(i))], [seguras, dudosas, antes]);
   const mats = porMaterial(todas).filter((m) => Math.abs(m.q) > 0.0001);
   const cambia = d !== dia || h !== hora;
+  const [copiado, setCopiado] = useState<string | null>(null);
+  async function copiar() {
+    try { await navigator.clipboard.writeText(notif.map((f) => [f.tipo, f.documento, f.codigo, "", "", f.unidades].join("\t")).join("\n")); setCopiado("Copiadas: pégalas en la columna A de NOVEDADES.") }
+    catch { setCopiado("El navegador no dejó copiar.") }
+  }
   const marcar = (i: number) => setAntes((x) => { const y = new Set(x); if (y.has(i)) y.delete(i); else y.add(i); return y });
 
   return (
@@ -45,6 +51,23 @@ export function Corte({ dia, hora, seguras, dudosas, alcanza, ultima }: {
       {!alcanza ? (
         <p className="pe-aviso">La MB51 cargada no llega después de las {hora} del {dia.slice(8)}/{dia.slice(5, 7)}: todavía no se puede saber qué se digitó tarde. Sube una MB51 sacada después del corte en Cargar.</p>
       ) : (<>
+        <section className="pe-card">
+          <h3 className="pe-h3">Para el análisis de diferencia · Bodega 38 (AG22)
+            <small>{hora === "06:00" ? "ya suman solas en el análisis de este día" : "el análisis de diferencia usa el corte de las 06:00"} · <Link href={`/inventario/balance/analisis?fecha=${dia}`}>abrir el análisis</Link></small></h3>
+          {notif.length ? (<>
+            <div className="pe-caja"><table className="pe-t">
+              <thead><tr><th className="l">Tipo (plantilla)</th><th className="l">Suma en</th><th className="l">Código</th><th>Unidades</th><th className="l">Orden</th><th className="l">Por qué</th></tr></thead>
+              <tbody>{notif.map((f, i) => (
+                <tr key={i}>
+                  <td className="l"><b>{f.tipo}</b></td><td className="l"><span className={`pe-tag ${f.lado === "SAP" ? "t-a" : "t-g"}`}>{f.lado}</span></td>
+                  <td className="l"><b>{f.codigo}</b> {f.texto}</td><td><b>{n0(f.unidades)}</b></td><td className="l">{f.documento}</td><td className="exp">{f.porque}</td>
+                </tr>
+              ))}</tbody>
+            </table></div>
+            <p className="pe-nota"><button type="button" className="pe-bt" onClick={() => void copiar()}>Copiar para la plantilla</button> {copiado}</p>
+          </>) : <p className="pe-nota">Nada pendiente por notificar ni notificaciones en AG22 al corte de las {hora}.</p>}
+        </section>
+
         <div className="pe-card pe-formula" aria-label="Cómo se usan las partidas">
           <span>Existencia SAP {hora}</span><i>+</i><span>Partidas</span><i>=</i><span className="y">Lo que debía haber a las {hora}</span><i>vs</i><span>Conteo físico</span>
         </div>

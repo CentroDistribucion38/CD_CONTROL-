@@ -9,6 +9,8 @@ import { excluye } from "@/modulos/pasivos/excluidos";
 import { leerExcluidos } from "@/modulos/pasivos/excluidos-leer";
 import { NUEVO_PARTIDA, ROTURA_PARTIDA } from "./compensa";
 import { CAJA_EN_DEPA, lineaDeDepa } from "./depa";
+import { notificacionesAlCorte, type FilaNotif } from "./envase/calc";
+import { movimientosParaElConteo } from "./envase/datos";
 
 /**
  * EL ANÁLISIS DE DIFERENCIA DE BODEGA 38 — la hoja CONTEOS + la tabla dinámica de 2026.10.14_BODEGA_38.xlsx.
@@ -86,6 +88,9 @@ export type Analisis = {
   /** El maestro del sistema (productos y envases): unidades por caja, cajas por estiba y caja plástica de cada código.
       La plantilla de novedades lo usa cuando su hoja MAESTRO no trae el código o no trae su caja. */
   maestroSistema?: Record<string, { upc: number; cpe: number; caja: string | null }>;
+  /** LAS NOTIFICACIONES DE LA MB51 al corte de las 6 (Plan vs notificado): PENDIENTE POR NOTIFICAR (suma al conteo) y
+      NOTIFICACION (suma a SAP), por código y orden. `sumadas` = entraron al análisis (no, si la plantilla ya las trae). */
+  notificaciones?: { filas: FilaNotif[]; sumadas: boolean; motivo: string | null; ultima: string | null; alcanza: boolean } | null;
 };
 export type PorFuera = { codigo: string; nombre: string; cantidad: number; motivos: string[] };
 export type SinCaja = { codigo: string; nombre: string; cajas: number; motivo: string; sugerida?: string | null };
@@ -606,6 +611,36 @@ export async function armarAnalisis(fecha: string, rDesde?: string, rHasta?: str
     if (nv.caja_codigo && nv.cajas && !conCajaPropia.has(grupoNv(nv))) suma(lado, String(nv.caja_codigo), etq, Number(nv.cajas) || 0);
     if (norm(nv.tipo) === "ZEXI 6 AM") hayZexi = true;
   }
+  /* 5b. LAS NOTIFICACIONES DE LA MB51 (Plan vs notificado), al corte de las 6: el 261 que se digitó después de las 6 o que
+         nunca apareció es PENDIENTE POR NOTIFICAR (suma al conteo); el 262 digitado después es NOTIFICACION (suma a SAP).
+         «Esas partidas son las que se deben enlazar en el análisis de diferencia.» Si la plantilla del día ya trae
+         NOTIFICACION o PENDIENTE POR NOTIFICAR, manda la plantilla y estas solo se muestran (no se cuentan dos veces). */
+  let notificaciones: Analisis["notificaciones"] = null;
+  {
+    const mv = await movimientosParaElConteo(fecha);
+    if (mv.falta) fuentes.push({ nombre: "Notificaciones (MB51)", ok: false, detalle: "Falta correr supabase/migraciones/2026-11-plan-envase.sql (Inventario › Plan vs notificado)." });
+    else if (mv.error) fuentes.push({ nombre: "Notificaciones (MB51)", ok: false, detalle: `No se pudo leer la MB51: ${mv.error}` });
+    else {
+      const r = notificacionesAlCorte(fecha, "06:00", mv.filas, (c) => upc(c));
+      /* Por tipo: si la plantilla ya trae PENDIENTE POR NOTIFICAR, manda la plantilla para ese tipo (y lo mismo con NOTIFICACION). */
+      const plPend = novedades.some((nv) => /^PEND(IENTE)?( POR)? NOTIFICAR$/.test(norm(nv.tipo)));
+      const plNotif = novedades.some((nv) => norm(nv.tipo) === "NOTIFICACION");
+      let sumadas = false;
+      for (const f of r.filas) {
+        if (f.lado === "CONTEO" ? plPend : plNotif) continue;
+        suma(f.lado === "SAP" ? "sap" : "conteo", f.codigo, `${f.tipo} (MB51)${f.documento ? ` · ${f.documento}` : ""}`, f.unidades);
+        sumadas = true;
+      }
+      const motivo = !r.ultima ? "No hay MB51 cargada en Plan vs notificado."
+        : plPend || plNotif ? `La plantilla del día ya trae ${[plPend && "PENDIENTE POR NOTIFICAR", plNotif && "NOTIFICACION"].filter(Boolean).join(" y ")}: para ese tipo se usó la plantilla y lo de la MB51 no suma (para no contarlo dos veces).` : null;
+      notificaciones = { filas: r.filas, sumadas, motivo, ultima: r.ultima, alcanza: r.alcanza };
+      const pend = r.filas.filter((f) => f.lado === "CONTEO").reduce((a, f) => a + f.unidades, 0), notif = r.filas.filter((f) => f.lado === "SAP").reduce((a, f) => a + f.unidades, 0);
+      fuentes.push({ nombre: "Notificaciones (MB51)", ok: !!r.ultima,
+        detalle: !r.ultima ? "Sube la MB51 en Inventario › Plan vs notificado › Cargar"
+          : `${sumadas ? "suman" : "no suman"} · pendiente por notificar ${Math.round(pend).toLocaleString("es-CO")} u (conteo) · notificación ${Math.round(notif).toLocaleString("es-CO")} u (SAP) · MB51 hasta ${r.ultima.slice(8, 10)}/${r.ultima.slice(5, 7)} ${r.ultima.slice(11, 16)}` });
+      if (r.ultima && !r.alcanza) avisos.push("La MB51 cargada en Plan vs notificado no llega después de las 6 de este día: todavía no se ve lo que se digitó tarde. Lo que ya se sabe (órdenes sin 261) sí entra.");
+    }
+  }
   if (zexiProdN || zexiProdSin.length) {
     fuentes.push({ nombre: "ZEXI de productos (caja plástica)", ok: zexiProdN > 0,
       detalle: `${zexiProdN} productos con caja · ${Math.round(zexiProdCajas).toLocaleString("es-CO")} cajas plásticas suman a SAP${zexiProdSin.length ? ` · ${zexiProdSin.length} que parecen de caja plástica y no la tienen en el Maestro Sku vs Caja (no suman)` : ""}${zexiProdNo ? ` · ${zexiProdNo} sin caja plástica (lata, PET, no retornable, cartón)` : ""}` });
@@ -736,7 +771,7 @@ export async function armarAnalisis(fecha: string, rDesde?: string, rHasta?: str
     maestroSistema[c] = { upc: Number(m.unidades_por_caja) || 1, cpe: Number(m.cajas_por_estiba) || 0, caja: m.caja ? String(m.caja) : maestroSistema[c]?.caja ?? null };
   }
 
-  return { fecha, filas, fuentes, avisos, roturas: roturasA, novedades, movimientos311: cruzarMb51(movimientos311, await leerMb51(supabase, fecha), nombre), noEntran: noEntran.sort(), porFuera, faltaSql, carga, contados, existencias, enLinea, maestroSistema, sinCaja: [...sinCajaMap.values()].map((x) => ({ ...x, cajas: Math.round(x.cajas) })).sort((x, y) => y.cajas - x.cajas),
+  return { fecha, filas, fuentes, avisos, roturas: roturasA, novedades, notificaciones, movimientos311: cruzarMb51(movimientos311, await leerMb51(supabase, fecha), nombre), noEntran: noEntran.sort(), porFuera, faltaSql, carga, contados, existencias, enLinea, maestroSistema, sinCaja: [...sinCajaMap.values()].map((x) => ({ ...x, cajas: Math.round(x.cajas) })).sort((x, y) => y.cajas - x.cajas),
     cartones: [...cartonMap.values()].map((x) => ({ ...x, cajas: Math.round(x.cajas) })).sort((x, y) => y.cajas - x.cajas),
     conCaja: [...conCajaMap.values()].map((x) => ({ ...x, cajas: Math.round(x.cajas) })).sort((x, y) => y.cajas - x.cajas),
     cajasLista: cajasPlasticas.map((m) => ({ codigo: String(m.codigo), nombre: String(m.descripcion ?? m.codigo) })).sort((x, y) => x.nombre.localeCompare(y.nombre)) };

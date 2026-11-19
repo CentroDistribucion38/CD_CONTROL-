@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { partidasCorte } from "@/modulos/inventario/envase/calc";
-import { hoyBogota, movimientosDigitadosDesde } from "@/modulos/inventario/envase/datos";
+import { notificacionesAlCorte, partidasCorte } from "@/modulos/inventario/envase/calc";
+import { hoyBogota, movimientosDigitadosDesde, movimientosParaElConteo, upcEnvases } from "@/modulos/inventario/envase/datos";
 import "../../fefo.css";
 import "../envase.css";
 import { Corte } from "./Corte";
@@ -19,9 +19,11 @@ export default async function CortePage({ searchParams }: { searchParams: Promis
   const q = await searchParams;
   const dia = esF(q.f) ? q.f! : hoyBogota();
   const hora = esH(q.h) ? q.h! : "06:00";
-  const mv = await movimientosDigitadosDesde(dia);
+  const [mv, mc, upc] = await Promise.all([movimientosDigitadosDesde(dia), movimientosParaElConteo(dia), upcEnvases()]);
   const falta = !!mv.error && /pe_mb51|does not exist|PGRST20[25]|42P01/i.test(mv.error);
   const r = partidasCorte(`${dia}T${hora}`, mv.filas);
+  /* Lo que va al análisis de diferencia de Bodega 38 (AG22) con los nombres de la plantilla. */
+  const nt = notificacionesAlCorte(dia, hora, mc.filas, (c) => upc.get(c) ?? 0);
 
   return (
     <div className="fe pe">
@@ -36,7 +38,7 @@ export default async function CortePage({ searchParams }: { searchParams: Promis
       ) : mv.error ? (
         <p className="pe-error">No se pudo leer la MB51: {mv.error}</p>
       ) : (
-        <Corte dia={dia} hora={hora} seguras={r.seguras} dudosas={r.dudosas} alcanza={r.alcanza} ultima={r.ultima} />
+        <Corte dia={dia} hora={hora} seguras={r.seguras} dudosas={r.dudosas} alcanza={r.alcanza} ultima={r.ultima} notif={nt.filas} />
       )}
     </div>
   );

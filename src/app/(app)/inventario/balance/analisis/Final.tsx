@@ -10,6 +10,7 @@ import type { Mov311 } from "@/modulos/inventario/analisis-dif";
 import { guardarFinal } from "./actions";
 import { Partidas311 } from "./Partidas311";
 import { EtiquetaEnLinea, LeyendaEnLinea, type MapaEnLinea } from "./EnLinea";
+import { DetalleCodigo } from "./DetalleCodigo";
 
 /**
  * PASO 3 · EL ANÁLISIS FINAL — cómo queda SAP con lo que ya se hizo: SAP inicial + compensación hecha +
@@ -29,6 +30,8 @@ export function Final({ fecha, guardado, ajustes, final, puedeEditar, faltaSql, 
   const [pend, start] = useTransition();
   const [msg, setMsg] = useState<{ t: string; mal?: boolean } | null>(null);
   const [solo, setSolo] = useState(false);
+  /* Como en el paso 1: tocar el código despliega sus partidas y sus ubicaciones (y las del código con que se compensa). */
+  const [abierta, setAbierta] = useState<string | null>(null);
   const filas = useMemo(() => analisisFinal(ajustes), [ajustes]);
   const vistas = useMemo(() => filas.filter((f) => !solo || f.difFinal !== 0), [filas, solo]);
   const familias = useMemo(() => {
@@ -112,9 +115,10 @@ export function Final({ fecha, guardado, ajustes, final, puedeEditar, faltaSql, 
               {familias.map(([fam, xs]) => (
                 <Fragment key={fam}>
                   {xs.map((f, i) => (
-                    <tr key={f.codigo} className={enLinea[f.codigo]?.length ? "enl" : ""}>
-                      {i === 0 && <td className="fam" rowSpan={xs.length}>{fam}</td>}
-                      <td className="mono">{f.codigo}</td>
+                    <Fragment key={f.codigo}>
+                    <tr className={(enLinea[f.codigo]?.length ? "enl" : "") + (abierta === f.codigo ? " ab" : "")}>
+                      {i === 0 && <td className="fam" rowSpan={xs.length + (xs.some((x) => x.codigo === abierta) ? 1 : 0)}>{fam}</td>}
+                      <td className="mono"><button type="button" className="ad-cod" aria-expanded={abierta === f.codigo} onClick={() => setAbierta(abierta === f.codigo ? null : f.codigo)}>{f.codigo}</button></td>
                       <td>{f.descripcion}<EtiquetaEnLinea xs={enLinea[f.codigo]} /></td>
                       <td className="n">{n(f.sap)}</td>
                       <td className="n">{f.movComp ? signo(f.movComp) : <span className="ad-na">—</span>}</td>
@@ -125,6 +129,10 @@ export function Final({ fecha, guardado, ajustes, final, puedeEditar, faltaSql, 
                       <td><span className={"ad-sent" + (f.difFinal === 0 ? (f.diferencia === 0 ? " ok" : " sobra") : " falta")}>{f.difFinal === 0 ? (f.diferencia === 0 ? "Cuadraba" : "Cuadrado ✓") : "Pendiente"}</span></td>
                       <td className="ad-obs-final">{f.observacion || <span className="ad-na">—</span>}</td>
                     </tr>
+                    {abierta === f.codigo && (
+                      <tr className="ad-det"><td colSpan={10}><DetalleCodigo analisis={guardado.filas} codigo={f.codigo} par={f.par} fecha={fecha} /></td></tr>
+                    )}
+                    </Fragment>
                   ))}
                   <tr className="sub">
                     <td colSpan={3}>Total {fam.split(" · ")[0]}</td>

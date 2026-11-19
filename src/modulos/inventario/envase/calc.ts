@@ -198,3 +198,92 @@ export function porMaterial(ps: Partida[]) {
   }
   return [...m.values()].sort((a, b) => a.almacen.localeCompare(b.almacen) || a.material.localeCompare(b.material));
 }
+
+/* ------------------------------------------------------------------ PARA EL ANÁLISIS DE DIFERENCIA */
+
+export type FilaNotif = {
+  tipo: "PENDIENTE POR NOTIFICAR" | "NOTIFICACION"; lado: "CONTEO" | "SAP";
+  codigo: string; texto: string; unidades: number; documento: string; porque: string;
+};
+const dm = (f: string) => `${f.slice(8, 10)}/${f.slice(5, 7)}`;
+
+/**
+ * LAS NOTIFICACIONES DEL ANÁLISIS DE DIFERENCIA, sacadas de la MB51, para un conteo a cierta hora (06:00).
+ * El análisis compara el conteo contra la ZEXI de esa hora, que solo tiene lo DIGITADO hasta esa hora. En el almacén
+ * del envase vacío (AG22) eso deja dos partidas, con los nombres de la plantilla:
+ *
+ *  PENDIENTE POR NOTIFICAR (suma al CONTEO): envase que físicamente ya se consumió y SAP todavía tenía a esa hora.
+ *    · el 261 de una orden contabilizada antes del día del conteo pero digitado después de la hora del conteo;
+ *    · el 261 que nunca apareció: orden con Z01 en los últimos días y menos botella (o caja) consumida de la que produjo.
+ *  NOTIFICACION (suma a SAP): envase que SAP ya había sacado y físicamente seguía ahí: el 262 (reverso) digitado
+ *    después de la hora del conteo, de algo contabilizado antes.
+ *
+ * Todo en unidades (botellas, cajas) y positivo, como se escribe en la plantilla. Los 311 no entran: ya van en el BALANCE.
+ * @param upcDe unidades por caja de un envase (para la caja teórica de cada orden)
+ */
+export function notificacionesAlCorte(dia: string, hora: string, movs: Mov[], upcDe: (material: string) => number, almacen = "AG22", diasAtras = 7) {
+  const corte = `${dia}T${hora.length === 5 ? hora + ":00" : hora}`;
+  const desde = masDias(dia, -diasAtras);
+  const filas = new Map<string, FilaNotif>();
+  const poner = (f: FilaNotif) => {
+    const k = `${f.tipo}|${f.codigo}|${f.documento}`;
+    const x = filas.get(k);
+    if (x) { x.unidades += f.unidades; if (!x.porque.includes(f.porque)) x.porque += ` · ${f.porque}` } else filas.set(k, { ...f });
+  };
+  let ultima = "";
+  for (const m of movs) { const e = entrada(m); if (e > ultima) ultima = e }
+
+  /* (a) 261 / 262 del almacén digitados después del corte, contabilizados antes del día. */
+  for (const m of movs) {
+    if (m.almacen !== almacen || !CONSUMO.has(m.clase)) continue;
+    const e = entrada(m);
+    if (e <= corte || m.fecha_contab >= dia || !m.cantidad) continue;
+    const doc = m.orden || m.documento || "";
+    const cuando = `${m.clase} digitado ${dm(e.slice(0, 10))} ${e.slice(11, 16)}, contabilizado ${dm(m.fecha_contab)}`;
+    if (m.cantidad < 0) poner({ tipo: "PENDIENTE POR NOTIFICAR", lado: "CONTEO", codigo: m.material, texto: m.texto, unidades: -m.cantidad, documento: doc,
+      porque: `${cuando}: a las ${hora} SAP todavía lo tenía` });
+    else poner({ tipo: "NOTIFICACION", lado: "SAP", codigo: m.material, texto: m.texto, unidades: m.cantidad, documento: doc,
+      porque: `${cuando}: a las ${hora} SAP ya lo había sacado` });
+  }
+
+  /* (b) Órdenes con Z01 de los últimos días a las que les falta 261 (en cualquier momento, no solo después del corte). */
+  type O = { sku: string; z: number; fc: string; bot: Map<string, number>; caja: Map<string, number> };
+  const O = new Map<string, O>();
+  const botSku = new Map<string, string>(), cajaSku = new Map<string, string>(), textos = new Map<string, string>();
+  for (const m of movs) {
+    if (!m.orden) continue;
+    if (ES_Z.has(m.clase) && /P$/i.test(m.material)) {
+      const o = O.get(m.orden) ?? { sku: skuDe(m.material), z: 0, fc: m.fecha_contab, bot: new Map(), caja: new Map() };
+      o.z += m.clase === "Z02" ? -Math.abs(m.cantidad) : m.cantidad;
+      if (m.clase === "Z01" && m.fecha_contab > o.fc) o.fc = m.fecha_contab;
+      O.set(m.orden, o);
+    }
+  }
+  for (const m of movs) {
+    if (!m.orden || !(CONSUMO.has(m.clase) || LLEGA.has(m.clase))) continue;
+    const o = O.get(m.orden); if (!o) continue;
+    const caja = esCaja(m.texto), mapa = caja ? o.caja : o.bot;
+    textos.set(m.material, m.texto);
+    (caja ? cajaSku : botSku).set(o.sku, m.material);
+    if (!mapa.has(m.material)) mapa.set(m.material, 0);
+    if (CONSUMO.has(m.clase) && m.almacen === almacen) mapa.set(m.material, mapa.get(m.material)! - m.cantidad);
+  }
+  for (const [orden, o] of O) {
+    if (o.fc < desde || o.fc >= dia || o.z <= 0) continue;
+    const bot = [...o.bot.keys()][0] ?? botSku.get(o.sku);
+    if (!bot) continue;                                     // no retornable: no lleva envase
+    const caja = [...o.caja.keys()][0] ?? cajaSku.get(o.sku);
+    const upc = upcDe(bot) || 0;
+    const pendientes: [string, number, number][] = [[bot, o.z, o.bot.get(bot) ?? 0]];
+    if (caja && upc > 1) pendientes.push([caja, Math.round(o.z / upc), o.caja.get(caja) ?? 0]);
+    for (const [mat, teo, usado] of pendientes) {
+      const falta = teo - usado;
+      if (falta > Math.max(1, teo * 0.001)) poner({ tipo: "PENDIENTE POR NOTIFICAR", lado: "CONTEO", codigo: mat, texto: textos.get(mat) ?? "", unidades: Math.round(falta), documento: orden,
+        porque: usado ? `Orden ${orden} (SKU ${o.sku}, Z01 del ${dm(o.fc)}): produjo ${Math.round(teo).toLocaleString("es-CO")} y solo tiene 261 de ${Math.round(usado).toLocaleString("es-CO")}`
+                      : `Orden ${orden} (SKU ${o.sku}, Z01 del ${dm(o.fc)}): no tiene el 261` });
+    }
+  }
+  const lista = [...filas.values()].map((f) => ({ ...f, unidades: Math.round(f.unidades) })).filter((f) => f.unidades > 0)
+    .sort((a, b) => a.tipo.localeCompare(b.tipo) || a.codigo.localeCompare(b.codigo) || b.unidades - a.unidades);
+  return { filas: lista, ultima: ultima || null, alcanza: ultima > corte };
+}
