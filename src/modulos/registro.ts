@@ -454,9 +454,6 @@ export const MODULOS: Modulo[] = [
        turno, después se registra lo que sale, después se compara, y la
        configuración de último. */
     secciones: [
-      /* PET, UNO SOLO Y ANTES DEL PLAN: adentro está Programar (el número de Vhs de PET que va al plan) y los Vhs por
-         formato. «Solo debías agregar uno llamado PET y allí dentro todo lo relacionado.» */
-      { nombre: "PET", ruta: "/traspasos/pet" },
       { nombre: "Plan", ruta: "/traspasos/plan" },
       { nombre: "Registrar", ruta: "/traspasos" },
       /* FACTURACIÓN, DESPUÉS DE REGISTRAR: es el paso siguiente del mismo
@@ -466,6 +463,9 @@ export const MODULOS: Modulo[] = [
          Quien solo tiene el rol Facturación ve Traspasos con esta sola
          pantalla. */
       { nombre: "Facturación", ruta: "/traspasos/facturacion" },
+      /* PET, UNO SOLO Y ANTES DE CONTROL: adentro está Programar (el número de Vhs de PET que va al plan) y los Vhs
+         por formato. «Solo debías agregar uno llamado PET y allí dentro todo lo relacionado» + «antes de Control pon la PET». */
+      { nombre: "PET", ruta: "/traspasos/pet" },
       { nombre: "Control", ruta: "/traspasos/control" },
       /* TIEMPOS GPS: el mapa de los vehículos con sus zonas (Fábrica, Bodega 38, Arenosa…); se mira después de Control. */
       { nombre: "Tiempos GPS", ruta: "/traspasos/tiempos-gps" },
