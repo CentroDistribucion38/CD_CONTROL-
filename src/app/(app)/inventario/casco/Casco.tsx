@@ -271,7 +271,16 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar, d
       baja: s.baja_rotulo ? c[i].baja ?? 0 : 0, baja_expr: s.baja_rotulo && esCuenta(f.baja) ? f.baja.replace(/^\s*=/, "").trim() : "",
       puesto: f.puesto.trim(), calidad: f.calidad.trim(),
     }));
-    const { data, error } = await supabase.rpc("casco_guardar", { p_fecha: fecha, p_ubicacion: s.clave, p_filas: payload });
+    /* p_marca: la base vuelve a revisar, en el mismo momento de guardar, que la tabla no haya cambiado desde que se
+       trajo (un traspaso o una baja que entra entre la revisión de arriba y el guardado no se pisa). */
+    let { data, error } = await supabase.rpc("casco_guardar", { p_fecha: fecha, p_ubicacion: s.clave, p_filas: payload, p_marca: b.marca ?? null });
+    /* Si la base todavía no tiene la revisión (falta 2026-11-casco-guardar-sin-pisar.sql), se guarda como antes. */
+    if (error && /p_marca|schema cache|Could not find the function/i.test(error.message))
+      ({ data, error } = await supabase.rpc("casco_guardar", { p_fecha: fecha, p_ubicacion: s.clave, p_filas: payload }));
+    if (error && /CHOQUE/.test(error.message)) {
+      poner(s.clave, { guardando: false, choque: true, aviso: { tipo: "mal", texto: error.message.replace(/^.*?CHOQUE:\s*/, "").replace(/^./, (c) => c.toUpperCase()) } });
+      return false;
+    }
     if (error) { poner(s.clave, { guardando: false, aviso: { tipo: "mal", texto: error.message } }); return false }
     const aviso = { tipo: "ok" as const, texto: `Guardado: ${data ?? payload.length} material${payload.length === 1 ? "" : "es"} en ${s.nombre}.` };
     const { data: tras } = await supabase.from("v_casco").select("actualizado_en")
