@@ -6,7 +6,7 @@ import { NOMBRE_INFORME_AI, OJO_AI, archivoInformeAi, construirInformeAi, imagen
 import { useRouter } from "next/navigation";
 import type { PorDefecto, PorSocio, PorOrigen, PorEnvase, PorDia } from "@/modulos/sider/informe-ai";
 import type { ParetoFila } from "@/modulos/sider/cierre-ai";
-import type { FilaRanking } from "@/modulos/sider/informe-ai-graficas";
+import { META_AI, type FilaRanking } from "@/modulos/sider/informe-ai-graficas";
 import { ParetoLienzo } from "./ParetoLienzo";
 import { useFotoCompartir } from "@/components/FotoCompartir";
 import type { Revision } from "@/modulos/sider/ai";
@@ -279,7 +279,7 @@ export function Informe({
                 aporta ese origen a todo lo que salió en mal estado.
               </p>
             </div>
-            <div className="ia-pareto"><RankingImg filas={filasRankCd} promedio={total.indice} etiqueta="Ranking de CDs por %AI" /></div>
+            <div className="ia-pareto"><RankingImg filas={filasRankCd} promedio={META_AI} etiqueta="Ranking de CDs por %AI" /></div>
             <div className="ia-tabla">
               <table className="ia-origen">
                 <thead>
@@ -385,10 +385,10 @@ export function Informe({
               <h2>%AI por referencia (SKU)</h2>
               <p>
                 Ranking por %AI: mal estado sobre revisadas de cada referencia, del más alto al más bajo. Debajo de cada una, cuánto se
-                revisó: un %AI sobre pocas unidades pesa menos. En negro, las que quedan por encima del %AI del período.
+                revisó: un %AI sobre pocas unidades pesa menos. En negro, las que quedan por encima de la meta (1 %).
               </p>
             </div>
-            <div className="ia-pareto"><RankingImg filas={filasRankRef} promedio={total.indice} etiqueta="Ranking de referencias por %AI" /></div>
+            <div className="ia-pareto"><RankingImg filas={filasRankRef} promedio={META_AI} etiqueta="Ranking de referencias por %AI" /></div>
             <div className="ia-tabla">
               <table className="ia-origen">
                 <thead>
@@ -399,7 +399,7 @@ export function Informe({
                 </thead>
                 <tbody>
                   {rankRef.map((x, i) => (
-                    <tr key={x.envase} className={x.indice > total.indice ? "ia-vital" : undefined}>
+                    <tr key={x.envase} className={x.indice > META_AI ? "ia-vital" : undefined}>
                       <td className="n">{i + 1}</td>
                       <td><b>{x.envase}</b>{x.nombre && x.nombre !== x.envase ? <small className="ia-sub"> {x.nombre}</small> : null}</td>
                       <td className="n">{nf.format(x.revisiones)}</td>
@@ -415,7 +415,7 @@ export function Informe({
           </section>
 
           {/* ---------- LA TENDENCIA, POR DÍA ---------- */}
-          <TendenciaDia dias={datos.dias} promedio={total.indice} />
+          <TendenciaDia dias={datos.dias} promedio={META_AI} />
 
           {/* ---------- REVISIÓN POR REVISIÓN ---------- */}
           <section className="ia-caja">
@@ -533,7 +533,7 @@ function TablaPareto({ filas, titulo }: { filas: ParetoFila[]; titulo: string })
 
 /**
  * LA TENDENCIA, POR DÍA. «Necesito gráfica de tendencia por día del AI.» Cada punto es un día: mal estado sobre revisadas
- * de ese día. La raya punteada es el %AI del período, para ver qué días quedan por encima. La escala arranca en cero.
+ * de ese día. La raya punteada es la meta del %AI (1 %), para ver qué días quedan por encima. La escala arranca en cero.
  * Un día con pocas unidades revisadas sube y baja por azar: al pasar el mouse se ve cuántas revisiones lo sostienen.
  */
 function TendenciaDia({ dias, promedio }: { dias: PorDia[]; promedio: number }) {
@@ -564,7 +564,7 @@ function TendenciaDia({ dias, promedio }: { dias: PorDia[]; promedio: number }) 
       <div className="ia-caja-cab">
         <h2>Tendencia del %AI por día</h2>
         <p>
-          Cada punto es un día: unidades en mal estado sobre revisadas de ese día. La raya punteada es el %AI del período
+          Cada punto es un día: unidades en mal estado sobre revisadas de ese día. La raya punteada es la meta
           ({pct(promedio)}): {sobre} de {dias.length} días quedan por encima. Pasa el mouse por un punto para ver sus revisiones.
         </p>
       </div>

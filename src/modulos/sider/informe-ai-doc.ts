@@ -7,11 +7,11 @@
  *
  * Es EL MISMO PAPEL del cierre del análisis de diferencia (carta, logo de Bavaria en la portada, la B de marca de agua,
  * secciones numeradas, tablas sobrias): se arma con los mismos bloques y se pinta con `cierre-pdf.ts` / `cierre-word.ts`.
- * Aquí solo se decide QUÉ dice. Las gráficas y la lectura del período salen de `informe-ai-pdf.ts`.
+ * Aquí solo se decide QUÉ dice. Las gráficas y la lectura del período salen de `informe-ai-graficas.ts`.
  */
 import type { Bloque, CeldaT, Col } from "@/modulos/inventario/evidencias-informe";
 import type { Imagen } from "@/modulos/inventario/evidencias-graficas";
-import { MEDIDA, graficaPareto, graficaRanking, rankingOrigen, rankingSku, graficaTendencia, hallazgos, n0 as n, pc, periodoLargo, vitales, type DatosInformeAi } from "./informe-ai-graficas";
+import { MEDIDA, META_AI, graficaPareto, graficaRanking, rankingOrigen, rankingSku, graficaTendencia, hallazgos, n0 as n, pc, periodoLargo, vitales, type DatosInformeAi } from "./informe-ai-graficas";
 
 export type { DatosInformeAi };
 export const NOMBRE_INFORME_AI = "INFORME %AI · REVISIÓN DE ENVASE";
@@ -28,11 +28,11 @@ export function imagenesAi(d: DatosInformeAi): ImagenesAi {
   const t = <T,>(f: () => T) => { try { return f() } catch { return null } };
   const P = MEDIDA.pareto, T = MEDIDA.tendencia, R = MEDIDA.ranking;
   return {
-    origen: d.origenes.length ? t(() => im(graficaRanking(rankingOrigen(d), d.total.indice), R.ancho, R.alto)) : null,
+    origen: d.origenes.length ? t(() => im(graficaRanking(rankingOrigen(d), META_AI), R.ancho, R.alto)) : null,
     causal: d.causales.length ? t(() => im(graficaPareto(d.causales), P.ancho, P.alto)) : null,
     dry: d.top5.length ? t(() => im(graficaPareto(d.top5), P.ancho, P.alto)) : null,
-    sku: d.envases.length ? t(() => im(graficaRanking(rankingSku(d), d.total.indice), R.ancho, R.alto)) : null,
-    tendencia: d.dias.length > 1 ? t(() => im(graficaTendencia(d.dias, d.total.indice), T.ancho, T.alto)) : null,
+    sku: d.envases.length ? t(() => im(graficaRanking(rankingSku(d), META_AI), R.ancho, R.alto)) : null,
+    tendencia: d.dias.length > 1 ? t(() => im(graficaTendencia(d.dias, META_AI), T.ancho, T.alto)) : null,
   };
 }
 
@@ -44,7 +44,7 @@ export function construirInformeAi(d: DatosInformeAi, o: { titulo: string; gener
   const periodo = periodoLargo(d.desde, d.hasta);
   const fuerte = (x: string): CeldaT => ({ x, bold: true });
   const rojoSi = (si: boolean, x: string): CeldaT => (si ? { x, color: ROJO, bold: true } : x);
-  const prom = d.total.indice;
+  const prom = d.total.indice, meta = META_AI;
 
   b.push({ t: "portada", titulo: o.titulo, sub: `Período: ${periodo.replace(/^./, (c) => c.toUpperCase())} · revisión de envase`, meta: [
     `Filtros: ${d.filtros}.`,
@@ -70,10 +70,10 @@ export function construirInformeAi(d: DatosInformeAi, o: { titulo: string; gener
   if (d.origenes.length) {
     const o2 = [...d.origenes].sort((a, c) => c.indice - a.indice);
     b.push({ t: "modulo", n: sig(), titulo: "%AI por origen (CD)", seguido: true, sub: "ranking: del %AI más alto al más bajo", ojo: OJO_AI });
-    if (img.origen) b.push({ t: "img", img: img.origen, pie: "Ranking por %AI (mal estado ÷ revisadas de cada CD). Debajo de cada CD, cuánto se revisó: un %AI sobre pocas unidades pesa menos. En negro, los que quedan por encima del %AI del período (raya punteada)." });
+    if (img.origen) b.push({ t: "img", img: img.origen, pie: "Ranking por %AI (mal estado ÷ revisadas de cada CD). Debajo de cada CD, cuánto se revisó: un %AI sobre pocas unidades pesa menos. En negro, los que quedan por encima de la meta de 1 % (raya punteada)." });
     const colsO: Col[] = [{ h: "Origen (CD)", w: 30 }, { h: "Revisiones", w: 13, al: "r" }, { h: "Revisadas", w: 16, al: "r" }, { h: "Mal estado", w: 15, al: "r" }, { h: "% del mal estado", w: 16, al: "r" }, { h: "%AI", w: 13, al: "r" }];
     b.push({ t: "tabla", cols: colsO, total: true, filas: [
-      ...o2.map((x) => [x.origen, n(x.revisiones), n(x.revisadas), n(x.malas), pc(d.total.defectos ? x.malas / d.total.defectos : 0), rojoSi(x.indice > prom, pc(x.indice))] as CeldaT[]),
+      ...o2.map((x) => [x.origen, n(x.revisiones), n(x.revisadas), n(x.malas), pc(d.total.defectos ? x.malas / d.total.defectos : 0), rojoSi(x.indice > meta, pc(x.indice))] as CeldaT[]),
       ["Total", n(d.total.revisiones), n(d.total.revisadas), n(d.total.defectos), "100,00 %", pc(prom)],
     ] });
   }
@@ -95,25 +95,25 @@ export function construirInformeAi(d: DatosInformeAi, o: { titulo: string; gener
     if (img.dry) b.push({ t: "img", img: img.dry, ancho: 0.85, pie: "El pareto de los 5 DRY: unidades en mal estado de cada socio; la curva roja es el acumulado sobre el mal estado de todos los socios." });
     b.push({ t: "tabla", cols: [{ h: "#", w: 5, al: "r" }, { h: "DRY (socio)", w: 29 }, { h: "Revisiones", w: 12, al: "r" }, { h: "Revisadas", w: 13, al: "r" }, { h: "Mal estado", w: 13, al: "r" }, { h: "% del mal estado", w: 14, al: "r" }, { h: "% acum.", w: 11, al: "r" }, { h: "%AI", w: 11, al: "r" }],
       filas: d.top5.map((x, i) => [String(i + 1), fuerte(x.nombre), n(x.socio?.revisiones ?? 0), n(x.socio?.revisadas ?? 0), n(x.unidades), fuerte(pc(x.pctDefectos)), pc(x.acumulado),
-        rojoSi((x.socio?.indice ?? 0) > prom, pc(x.socio?.indice ?? 0))]) });
+        rojoSi((x.socio?.indice ?? 0) > meta, pc(x.socio?.indice ?? 0))]) });
   }
 
   /* 5 · POR REFERENCIA: un ranking por %AI, no un pareto */
   if (rk.length) {
-    const sobre = rk.filter((x) => x.indice > prom).length;
-    b.push({ t: "modulo", n: sig(), titulo: "%AI por referencia (SKU)", seguido: true, sub: `ranking: ${sobre} de ${rk.length} referencias por encima del %AI del período`, ojo: OJO_AI });
-    if (img.sku) b.push({ t: "img", img: img.sku, pie: "Ranking por %AI (mal estado ÷ revisadas de cada referencia), con lo revisado debajo de cada una. En negro, las que quedan por encima del %AI del período (raya punteada)." });
+    const sobre = rk.filter((x) => x.indice > meta).length;
+    b.push({ t: "modulo", n: sig(), titulo: "%AI por referencia (SKU)", seguido: true, sub: `ranking: ${sobre} de ${rk.length} referencias por encima de la meta (${pc(meta)})`, ojo: OJO_AI });
+    if (img.sku) b.push({ t: "img", img: img.sku, pie: "Ranking por %AI (mal estado ÷ revisadas de cada referencia), con lo revisado debajo de cada una. En negro, las que quedan por encima de la meta de 1 % (raya punteada)." });
     b.push({ t: "tabla", cols: [{ h: "#", w: 5, al: "r" }, { h: "Referencia", w: 30 }, { h: "Revisiones", w: 13, al: "r" }, { h: "Revisadas", w: 16, al: "r" }, { h: "Mal estado", w: 15, al: "r" }, { h: "% del mal estado", w: 16, al: "r" }, { h: "%AI", w: 13, al: "r" }],
-      filas: rk.map((x, i) => [String(i + 1), x.indice > prom ? fuerte(x.nombre) : x.nombre, n(x.revisiones), n(x.revisadas), n(x.malas), pc(d.total.defectos ? x.malas / d.total.defectos : 0), rojoSi(x.indice > prom, pc(x.indice))]) });
+      filas: rk.map((x, i) => [String(i + 1), x.indice > meta ? fuerte(x.nombre) : x.nombre, n(x.revisiones), n(x.revisadas), n(x.malas), pc(d.total.defectos ? x.malas / d.total.defectos : 0), rojoSi(x.indice > meta, pc(x.indice))]) });
   }
 
   /* 6 · TENDENCIA POR DÍA */
   if (d.dias.length) {
-    const sobre = d.dias.filter((x) => x.indice > prom).length;
-    b.push({ t: "modulo", n: sig(), titulo: "Tendencia del %AI por día", seguido: true, sub: `${sobre} de ${d.dias.length} días quedaron por encima del %AI del período`, ojo: OJO_AI });
-    if (img.tendencia) b.push({ t: "img", img: img.tendencia, pie: "Cada punto es un día. La raya punteada es el %AI del período; en rojo, los días que quedaron por encima." });
+    const sobre = d.dias.filter((x) => x.indice > meta).length;
+    b.push({ t: "modulo", n: sig(), titulo: "Tendencia del %AI por día", seguido: true, sub: `${sobre} de ${d.dias.length} días quedaron por encima de la meta (${pc(meta)})`, ojo: OJO_AI });
+    if (img.tendencia) b.push({ t: "img", img: img.tendencia, pie: `Cada punto es un día. La raya punteada es la meta (${pc(meta)}); en rojo, los días que quedaron por encima.` });
     b.push({ t: "tabla", compacta: true, total: true, cols: [{ h: "Día", w: 28 }, { h: "Revisiones", w: 16, al: "r" }, { h: "Revisadas", w: 20, al: "r" }, { h: "Mal estado", w: 18, al: "r" }, { h: "%AI", w: 18, al: "r" }],
-      filas: [...d.dias.map((x) => [fCorta(x.dia), n(x.revisiones), n(x.revisadas), n(x.malas), rojoSi(x.indice > prom, pc(x.indice))] as CeldaT[]),
+      filas: [...d.dias.map((x) => [fCorta(x.dia), n(x.revisiones), n(x.revisadas), n(x.malas), rojoSi(x.indice > meta, pc(x.indice))] as CeldaT[]),
         ["Período", n(d.total.revisiones), n(d.total.revisadas), n(d.total.defectos), pc(prom)]] });
   }
   return b;

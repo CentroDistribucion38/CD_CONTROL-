@@ -60,6 +60,9 @@ export const FUERTE = "#111111", GRIS_BARRA = "#B4BEC9", ROJO = "#C8102E";
    LO QUE DICE EL PERÍODO (la lectura, en frases cortas)
    ===================================================================== */
 /** Las que juntas llegan al 80 %: la que cruza la raya también cuenta. */
+/** LA META DEL %AI: la raya de referencia de la tendencia y de los rankings. «La línea media déjala con valor de 1 %». */
+export const META_AI = 0.01;
+
 export const vitales = <T extends ParetoFila>(p: T[]) => p.filter((x) => x.acumulado - x.pctDefectos < 0.8);
 
 export function hallazgos(d: DatosInformeAi): string[] {
@@ -88,9 +91,9 @@ export function hallazgos(d: DatosInformeAi): string[] {
     out.push(`${alto.nombre} es la referencia con el %AI más alto (${pc(alto.indice)} sobre ${n0(alto.revisadas)} revisadas); ${bajo.nombre} la más baja (${pc(bajo.indice)}).`);
   } else if (refs.length === 1) out.push(`Una sola referencia revisada: ${refs[0].nombre}, con ${pc(refs[0].indice)}.`);
   if (d.dias.length > 1) {
-    const sobre = d.dias.filter((x) => x.indice > t.indice).length;
+    const sobre = d.dias.filter((x) => x.indice > META_AI).length;
     const pico = [...d.dias].sort((a, b) => b.indice - a.indice)[0];
-    out.push(`${sobre} de ${d.dias.length} días quedaron por encima del %AI del período; el más alto fue el ${corta(pico.dia)} con ${pc(pico.indice)}.`);
+    out.push(`${sobre} de ${d.dias.length} días quedaron por encima de la meta (${pc(META_AI)}); el más alto fue el ${corta(pico.dia)} con ${pc(pico.indice)}.`);
   }
   return out;
 }
@@ -190,7 +193,7 @@ export function graficaPareto(filas: ParetoFila[], tinta: RGB = PALETA_MARCA.tin
   return c.toDataURL("image/png");
 }
 
-/** La tendencia: el %AI de cada día con el área suave, la raya del %AI del período y los días por encima en rojo. */
+/** La tendencia: el %AI de cada día con el área suave, la raya de la meta y los días por encima en rojo. */
 export const graficaTendencia = (dias: PorDia[], promedio: number, tinta: RGB = PALETA_MARCA.tinta): string =>
   lienzoTendencia(dias, promedio, tinta).toDataURL("image/png");
 /** El mismo dibujo como lienzo, para pegarlo dentro de otra imagen (la foto del informe). */
@@ -206,7 +209,7 @@ export function lienzoTendencia(dias: PorDia[], promedio: number, tinta: RGB = P
   ctx.setLineDash([]);
   ctx.fillStyle = "rgba(200,16,46,0.07)"; ctx.beginPath(); ctx.moveTo(X(0), H - MB);
   dias.forEach((x, i) => ctx.lineTo(X(i), Y(x.indice))); ctx.lineTo(X(dias.length - 1), H - MB); ctx.closePath(); ctx.fill();
-  /* La raya del período. */
+  /* La raya de la meta. */
   ctx.strokeStyle = rgb(tinta); ctx.lineWidth = 3; ctx.setLineDash([12, 10]);
   ctx.beginPath(); ctx.moveTo(ML, Y(promedio)); ctx.lineTo(W - MR, Y(promedio)); ctx.stroke(); ctx.setLineDash([]);
   ctx.strokeStyle = ROJO; ctx.lineWidth = 0.6 * K; ctx.lineJoin = "round"; ctx.beginPath();
@@ -225,9 +228,9 @@ export function lienzoTendencia(dias: PorDia[], promedio: number, tinta: RGB = P
     halo(ctx, nf2.format(x.indice * 100), X(i), Y(x.indice) + (abajo ? 3 : -3) * K, sobre ? ROJO : rgb(tinta));
     if ((i % paso === 0 && dias.length - 1 - i >= paso / 2) || i === dias.length - 1) { letra(ctx, 500, 2.4); ctx.fillStyle = "#5F6B79"; ctx.textAlign = "center"; ctx.fillText(corta(x.dia), X(i), H - MB / 2) }
   });
-  /* La leyenda arriba a la derecha, fuera de la línea: la raya del período y los días por encima. */
+  /* La leyenda arriba a la derecha, fuera de la línea: la raya de la meta y los días por encima. */
   letra(ctx, 600, 2.4); ctx.textAlign = "right";
-  const t2 = "día por encima", t1 = `%AI del período ${pc(promedio)}`;
+  const t2 = "día por encima de la meta", t1 = `Meta %AI ${pc(promedio)}`;
   let lx = W - MR; const ly = 3.5 * K;
   ctx.fillStyle = "#5F6B79"; ctx.fillText(t2, lx, ly); lx -= ctx.measureText(t2).width + 2.2 * K;
   ctx.beginPath(); ctx.arc(lx, ly, 1 * K, 0, Math.PI * 2); ctx.fillStyle = ROJO; ctx.fill(); lx -= 5 * K;
@@ -250,7 +253,7 @@ export const rankingSku = (d: DatosInformeAi): FilaRanking[] =>
   [...d.envases].sort((a, b) => b.indice - a.indice).map((x) => ({ nombre: x.envase, indice: x.indice, revisadas: x.revisadas, revisiones: x.revisiones, malas: x.malas }));
 
 /** La gráfica del ranking: una columna por CD o referencia, de mayor a menor %AI, con su %AI encima, lo revisado debajo del
- *  nombre y la raya del %AI del período. En negro las que quedan por encima del período; en gris las de debajo. */
+ *  nombre y la raya de la meta. En negro las que quedan por encima de la meta; en gris las de debajo. */
 export function lienzoRanking(filas: FilaRanking[], promedio: number, tinta: RGB = PALETA_MARCA.tinta): HTMLCanvasElement {
   const { c, ctx, W, H } = lienzo(MEDIDA.ranking.ancho, MEDIDA.ranking.alto);
   if (!filas.length) return c;
@@ -272,11 +275,11 @@ export function lienzoRanking(filas: FilaRanking[], promedio: number, tinta: RGB
     letra(ctx, 500, chico ? 1.9 : 2.2); ctx.fillStyle = "#5F6B79";
     ctx.fillText(`${n0(x.revisadas)} rev.`, cx(i), H - MB + (3.2 + ls.length * 2.8) * K);
   });
-  /* La raya del período, por encima de las columnas, y su leyenda arriba a la derecha. */
+  /* La raya de la meta, por encima de las columnas, y su leyenda arriba a la derecha. */
   ctx.strokeStyle = rgb(tinta); ctx.lineWidth = 3; ctx.setLineDash([12, 10]);
   ctx.beginPath(); ctx.moveTo(ML, Y(promedio)); ctx.lineTo(W - MR, Y(promedio)); ctx.stroke(); ctx.setLineDash([]);
   letra(ctx, 600, 2.4); ctx.textAlign = "right";
-  const t2 = "por encima del período", t1 = `%AI del período ${pc(promedio)}`;
+  const t2 = "por encima de la meta", t1 = `Meta %AI ${pc(promedio)}`;
   let lx = W - MR; const ly = 3.5 * K;
   ctx.fillStyle = "#5F6B79"; ctx.fillText(t2, lx, ly); lx -= ctx.measureText(t2).width + 1.5 * K;
   ctx.fillStyle = FUERTE; ctx.fillRect(lx - 2.4 * K, ly - 1.2 * K, 2.4 * K, 2.4 * K); lx -= 5 * K;

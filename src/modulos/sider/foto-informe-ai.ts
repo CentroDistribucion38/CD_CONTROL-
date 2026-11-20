@@ -14,7 +14,7 @@
  * Las dos llevan la misma franja de cifras arriba, para que cada una se entienda sola.
  */
 import { banda, cifra, partir, pintarGrafica, vitales, type ExtraPareto } from "./foto-pareto";
-import { lienzoRanking, lienzoTendencia, rankingOrigen, rankingSku, type DatosInformeAi } from "./informe-ai-graficas";
+import { META_AI, lienzoRanking, lienzoTendencia, rankingOrigen, rankingSku, type DatosInformeAi } from "./informe-ai-graficas";
 
 type Ctx = CanvasRenderingContext2D;
 const TINTA = "#111111", ORO = "#FFC400", ROJO = "#C8102E", GRIS = "#5b6b7f", LINEA = "#E6EAF0", AZUL = "#2c4361";
@@ -101,7 +101,7 @@ export function dibujarInformeParte1(d: DatosInformeAi, x: ExtraPareto): HTMLCan
   const RANK = Math.round((W - 2 * M) * (72 / 182));
   const conTend = d.dias.length > 1;
   const TEND = Math.round((W - 2 * M) * (66 / 182));
-  const pie = `%AI = unidades en mal estado ÷ unidades revisadas, sumadas en el período (no el promedio de cada revisión). En rojo, lo que queda por encima del %AI del período (${pc(d.total.indice)}). Filtros: ${d.filtros}.`;
+  const pie = `%AI = unidades en mal estado ÷ unidades revisadas, sumadas en el período (no el promedio de cada revisión). En rojo, lo que queda por encima de la meta (${pc(META_AI)}); raya punteada = la meta. Filtros: ${d.filtros}.`;
   const lineasPie = partir(medir(), pie, W - 2 * M, 4).length;
   const alto = 184 + 34 + 22 + 32 + Math.max(1, o.length) * FILA + 40 + 30
     + (ro.length ? 4 + 34 + 18 + RANK + 26 : 0)
@@ -116,23 +116,23 @@ export function dibujarInformeParte1(d: DatosInformeAi, x: ExtraPareto): HTMLCan
   const colO: ColT[] = [{ t: "#", x: 64, der: true }, { t: "CD", x: 84 }, { t: "REVISIONES", x: 560, der: true }, { t: "REVISADAS", x: 720, der: true }, { t: "MAL ESTADO", x: 870, der: true }, { t: "% DEL MAL ESTADO", x: 1060, der: true }, { t: "%AI", x: W - 50, der: true }];
   y = tabla(ctx, y, colO,
     o.map((r, i) => ({ celdas: [String(i + 1), r.origen, nf.format(r.revisiones), nf.format(r.revisadas), nf.format(r.malas), pc(d.total.defectos ? r.malas / d.total.defectos : 0), pc(r.indice)],
-      barra: r.indice / tope, rojo: [false, false, false, false, false, false, r.indice > d.total.indice] })),
+      barra: r.indice / tope, rojo: [false, false, false, false, false, false, r.indice > META_AI] })),
     ["", "Total", nf.format(d.total.revisiones), nf.format(d.total.revisadas), nf.format(d.total.defectos), "100,00 %", pc(d.total.indice)]);
   y += 30;
 
   /* EL RANKING POR ORIGEN, debajo de su tabla. */
   if (ro.length) {
-    const sobre = ro.filter((r) => r.indice > d.total.indice).length;
-    y = seccion(ctx, y + 4, "Ranking de CDs por %AI", `${sobre} de ${ro.length} por encima del período · debajo, lo revisado`) - 4;
-    ctx.drawImage(lienzoRanking(ro, d.total.indice, [17, 17, 17]), M, y, W - 2 * M, RANK);
+    const sobre = ro.filter((r) => r.indice > META_AI).length;
+    y = seccion(ctx, y + 4, "Ranking de CDs por %AI", `${sobre} de ${ro.length} por encima de la meta · debajo, lo revisado`) - 4;
+    ctx.drawImage(lienzoRanking(ro, META_AI, [17, 17, 17]), M, y, W - 2 * M, RANK);
     y += RANK + 26;
   }
 
   /* TENDENCIA */
   if (conTend) {
-    const sobre = d.dias.filter((r) => r.indice > d.total.indice).length;
-    y = seccion(ctx, y + 4, "Tendencia del %AI por día", `${sobre} de ${d.dias.length} días por encima del período`);
-    ctx.drawImage(lienzoTendencia(d.dias, d.total.indice, [17, 17, 17]), M, y, W - 2 * M, TEND);
+    const sobre = d.dias.filter((r) => r.indice > META_AI).length;
+    y = seccion(ctx, y + 4, "Tendencia del %AI por día", `${sobre} de ${d.dias.length} días por encima de la meta`);
+    ctx.drawImage(lienzoTendencia(d.dias, META_AI, [17, 17, 17]), M, y, W - 2 * M, TEND);
     y += TEND + 16;
   }
   ctx.fillStyle = LINEA; ctx.fillRect(M, y, W - 2 * M, 1);
@@ -147,7 +147,7 @@ export function dibujarInformeParte2(d: DatosInformeAi, x: ExtraPareto): HTMLCan
   const bloques = [
     d.causales.length ? { t: "Pareto por causal · el estado más encontrado", p: d.causales, de: "causales" } : null,
   ].filter(Boolean) as { t: string; p: typeof d.causales; de: string }[];
-  const pie = `Paretos (causal y DRY): barras = unidades en mal estado, de más a menos; en negro, las que juntas forman el 80 %; línea roja = % acumulado. Ranking (SKU): %AI de cada referencia; en negro, las que quedan por encima del %AI del período.${d.otrosCausal.length ? ` Contados pero fuera del %AI: ${d.otrosCausal.map((r) => `${r.nombre} ${nf.format(r.unidades)}`).join(" · ")}.` : ""}`;
+  const pie = `Paretos (causal y DRY): barras = unidades en mal estado, de más a menos; en negro, las que juntas forman el 80 %; línea roja = % acumulado. Ranking (SKU): %AI de cada referencia; en negro, las que quedan por encima de la meta (${pc(META_AI)}).${d.otrosCausal.length ? ` Contados pero fuera del %AI: ${d.otrosCausal.map((r) => `${r.nombre} ${nf.format(r.unidades)}`).join(" · ")}.` : ""}`;
   const lineasPie = partir(medir(), pie, W - 2 * M, 4).length;
   const rs = rankingSku(d);
   const RANK = Math.round((W - 2 * M) * (72 / 182));
@@ -176,9 +176,9 @@ export function dibujarInformeParte2(d: DatosInformeAi, x: ExtraPareto): HTMLCan
 
   /* %AI POR REFERENCIA: ranking por %AI, con lo revisado debajo de cada una. */
   if (rs.length) {
-    const sobre = rs.filter((r) => r.indice > d.total.indice).length;
-    y = seccion(ctx, y + 34, "%AI por referencia (SKU) · ranking", `${sobre} de ${rs.length} por encima del período · debajo, lo revisado`) - 4;
-    ctx.drawImage(lienzoRanking(rs, d.total.indice, [17, 17, 17]), M, y, W - 2 * M, RANK);
+    const sobre = rs.filter((r) => r.indice > META_AI).length;
+    y = seccion(ctx, y + 34, "%AI por referencia (SKU) · ranking", `${sobre} de ${rs.length} por encima de la meta · debajo, lo revisado`) - 4;
+    ctx.drawImage(lienzoRanking(rs, META_AI, [17, 17, 17]), M, y, W - 2 * M, RANK);
     y += RANK + 26;
   }
 
@@ -190,7 +190,7 @@ export function dibujarInformeParte2(d: DatosInformeAi, x: ExtraPareto): HTMLCan
     const topeD = Math.max(1, ...d.top5.map((r) => r.unidades));
     y = tabla(ctx, y, colD, d.top5.map((r, i) => ({
       celdas: [String(i + 1), r.nombre, nf.format(r.socio?.revisadas ?? 0), nf.format(r.unidades), pc(r.pctDefectos), pc(r.acumulado), pc(r.socio?.indice ?? 0)],
-      barra: r.unidades / topeD, rojo: [false, false, false, false, false, false, (r.socio?.indice ?? 0) > d.total.indice],
+      barra: r.unidades / topeD, rojo: [false, false, false, false, false, false, (r.socio?.indice ?? 0) > META_AI],
     })));
     y += 14;
     /* La gráfica cuenta todo el mal estado de los socios (la última barra es el resto): así su acumulado es el de la tabla. */
