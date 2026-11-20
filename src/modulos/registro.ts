@@ -859,10 +859,11 @@ export const MODULOS: Modulo[] = [
          Va al final: usa el conteo, los cortes, Pasivos y el Cuadre SAP. */
       { nombre: "Análisis de diferencia", ruta: "/inventario/balance/analisis", rama: "balance" },
       /* PLAN VS NOTIFICADO, EN EL ORDEN DEL TRABAJO: se carga (instructivo y MB51) → se ve el plan por SKU (para la
-         solicitud) → se valida el día → el corte de inventario con sus partidas. */
+         solicitud) → se valida el día → el cruce a la hora (producto y envase contra el plan) → el corte de inventario con sus partidas. */
       { nombre: "Cargar", ruta: "/inventario/envase/cargar", rama: "plan-envase" },
       { nombre: "Plan por SKU", ruta: "/inventario/envase/plan", rama: "plan-envase" },
       { nombre: "Validación del día", ruta: "/inventario/envase", rama: "plan-envase" },
+      { nombre: "Cruce a la hora", ruta: "/inventario/envase/cruce", rama: "plan-envase" },
       { nombre: "Corte de inventario", ruta: "/inventario/envase/corte", rama: "plan-envase" },
       /* PRODUCTO, EN EL ORDEN DEL PROCESO: se arma el cíclico (familia y parejas) y se habilita el Contar → la
          pareja cuenta y cruza → el conteo de Bavaria se compara con la existencia en el análisis de diferencia. */
