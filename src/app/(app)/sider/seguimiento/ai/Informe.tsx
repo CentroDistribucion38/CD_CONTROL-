@@ -1,8 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { NOMBRE_INFORME_AI, OJO_AI, archivoInformeAi, construirInformeAi, imagenesAi, type DatosInformeAi } from "@/modulos/sider/informe-ai-doc";
 import { useRouter } from "next/navigation";
-import type { PorDefecto, PorSocio, PorSemana, PorOrigen } from "@/modulos/sider/informe-ai";
+import type { PorDefecto, PorSocio, PorOrigen, PorEnvase, PorDia } from "@/modulos/sider/informe-ai";
+import type { ParetoFila } from "@/modulos/sider/cierre-ai";
+import { ParetoLienzo } from "./ParetoLienzo";
+import { copiarPng, descargarPng, fijarColores } from "@/modulos/roturas/captura";
 import type { Revision } from "@/modulos/sider/ai";
 import { NOMBRE_TIPO, type TipoRevision } from "@/modulos/sider/comun";
 import { CierreAi } from "./CierreAi";
@@ -18,8 +23,10 @@ type Datos = {
   revisiones: Revision[];
   defectos: PorDefecto[];
   socios: PorSocio[];
-  semanas: PorSemana[];
+  semanas: unknown[];
   origenes: PorOrigen[];
+  envases: PorEnvase[];
+  dias: PorDia[];
   total: {
     revisiones: number; recibidas: number; revisadas: number; defectos: number;
     otros: number; no_abono: number; hl: number; socios: number;
@@ -64,7 +71,128 @@ export function Informe({
     router.push(`/sider/seguimiento/ai?${p.toString()}`);
   }
 
-  const { total, semanas, origenes, revisiones } = datos;
+  const { total, origenes, revisiones } = datos;
+  /* EL PARETO: de más a menos unidades en mal estado; cada uno con su parte del total en mal estado y el acumulado. */
+  const pareto = (xs: { clave: string; nombre: string; unidades: number }[]): ParetoFila[] => {
+    const malas = xs.reduce((a, x) => a + x.unidades, 0);
+    let acum = 0;
+    return [...xs].filter((x) => x.unidades > 0).sort((a, b) => b.unidades - a.unidades).map((x) => {
+      acum += x.unidades;
+      return { clave: x.clave, nombre: x.nombre, unidades: x.unidades, pct: total.revisadas > 0 ? x.unidades / total.revisadas : 0,
+               pctDefectos: malas > 0 ? x.unidades / malas : 0, acumulado: malas > 0 ? acum / malas : 0 };
+    });
+  };
+  /* Por causal: solo los estados que cuentan como «mal estado» (los que entran en el %AI). */
+  const causales = pareto(datos.defectos.filter((d) => d.cobra).map((d) => ({ clave: d.clave, nombre: d.nombre, unidades: d.unidades })));
+  const otrosCausal = datos.defectos.filter((d) => !d.cobra && d.unidades > 0);
+  /* Los DRY son los socios (distribuidores); lo de T1 no tiene socio y no entra. */
+  const conSocio = datos.socios.filter((x) => x.clave !== "—");
+  const paretoSocios = pareto(conSocio.map((x) => ({ clave: x.clave, nombre: x.nombre, unidades: x.defectos })));
+  const top5 = paretoSocios.slice(0, 5);
+  const malasSocios = conSocio.reduce((a, x) => a + x.defectos, 0);
+  const socioDe = new Map(conSocio.map((x) => [x.clave, x]));
+  const paretoEnv = pareto(datos.envases.map((x) => ({ clave: x.envase, nombre: x.envase, unidades: x.malas })));
+  const envDe = new Map(datos.envases.map((x) => [x.envase, x]));
+
+  /* ---------- EL INFORME (Word · PDF) Y LA IMAGEN PARA COMPARTIR ---------- */
+  const captura = useRef<HTMLDivElement>(null);
+  const [haciendo, setHaciendo] = useState<"pdf" | "word" | "imagen" | null>(null);
+  const [avisoInf, setAvisoInf] = useState<{ t: string; mal?: boolean } | null>(null);
+  const nombreDe = (lista: [string, string][], v?: string) => (v ? lista.find((x) => x[0] === v)?.[1] ?? v : null);
+  const textoFiltros = [
+    filtro.tipo === "ai" ? "revisión certificada" : filtro.tipo === "sorting" ? "revisión normal" : "las dos revisiones",
+    nombreDe(opciones.socios, filtro.socio) ? `socio ${nombreDe(opciones.socios, filtro.socio)}` : null,
+    nombreDe(opciones.envases, filtro.envase) ? `envase ${nombreDe(opciones.envases, filtro.envase)}` : null,
+    nombreDe(opciones.canales, filtro.canal) ? `canal ${nombreDe(opciones.canales, filtro.canal)}` : null,
+  ].filter(Boolean).join(" · ");
+  const desdeI = filtro.desde ?? datos.dias[0]?.dia ?? "", hastaI = filtro.hasta ?? datos.dias[datos.dias.length - 1]?.dia ?? "";
+  const periodoTx = desdeI === hastaI ? dia(desdeI) : `${dia(desdeI)} al ${dia(hastaI)}`;
+
+  async function informe(formato: "pdf" | "word") {
+    setHaciendo(formato); setAvisoInf(null);
+    try {
+      let quien = "—";
+      try {
+        const sb = createClient();
+        const { data: { user } } = await sb.auth.getUser();
+        if (user) { const { data: p } = await sb.from("perfiles").select("nombre, usuario").eq("id", user.id).maybeSingle(); quien = p?.nombre || p?.usuario || "—" }
+      } catch { /* sin nombre */ }
+      const ahora = new Date();
+      const generado = ahora.toLocaleString("es-CO", { dateStyle: "long", timeStyle: "short", timeZone: "America/Bogota" });
+      const hoyLargo = ahora.toLocaleDateString("es-CO", { dateStyle: "long", timeZone: "America/Bogota" });
+      const d: DatosInformeAi = {
+        desde: desdeI, hasta: hastaI, filtros: textoFiltros, total,
+        origenes, causales, otrosCausal: otrosCausal.map((x) => ({ nombre: x.nombre, unidades: x.unidades })),
+        top5: top5.map((x) => ({ ...x, socio: socioDe.get(x.clave) })), malasSocios,
+        envases: paretoEnv.map((x) => ({ ...x, env: envDe.get(x.clave) })), dias: datos.dias,
+      };
+      const titulo = NOMBRE_INFORME_AI;
+      const bloques = construirInformeAi(d, { titulo, generado, quien }, imagenesAi(d));
+      const comoDataUrl = async (url: string) => {
+        try {
+          const r = await fetch(url); if (!r.ok) return null;
+          const b = await r.blob();
+          return await new Promise<string | null>((ok) => { const f = new FileReader(); f.onload = () => ok(String(f.result)); f.onerror = () => ok(null); f.readAsDataURL(b) });
+        } catch { return null }
+      };
+      const [logo, sello] = await Promise.all([comoDataUrl("/marca/logo-bavaria.png"), comoDataUrl("/marca/logo-b.png")]);
+      const pie = `Período: ${periodoTx} · Informe %AI de la revisión de envase`;
+      if (formato === "pdf") {
+        const [{ jsPDF }, { dibujarCierre }] = await Promise.all([import("jspdf"), import("@/modulos/inventario/cierre-pdf")]);
+        const doc = dibujarCierre(jsPDF, bloques, { pie, fechaPortada: hoyLargo, fechaHojas: periodoTx, ojoPortada: OJO_AI, ojo: OJO_AI, logo: logo ?? undefined, sello: sello ?? undefined });
+        doc.save(archivoInformeAi(titulo, desdeI, hastaI, "pdf"));
+      } else {
+        const { armarWordCierre, aclararImagen } = await import("@/modulos/inventario/cierre-word");
+        const agua = sello ? await aclararImagen(sello, 0.07) : null;
+        const bytes = armarWordCierre(bloques, { pie, fechaHojas: periodoTx, ojo: OJO_AI, titulo: `${titulo} · ${periodoTx}`, logo: logo ?? undefined, sello: agua ?? undefined });
+        const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" }));
+        const a = document.createElement("a"); a.href = url; a.download = archivoInformeAi(titulo, desdeI, hastaI, "docx");
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+      }
+      setAvisoInf({ t: formato === "pdf" ? "PDF listo: quedó en tus descargas." : "Word listo: quedó en tus descargas." });
+    } catch {
+      setAvisoInf({ t: "No se pudo armar el informe. Recarga la página e intenta otra vez.", mal: true });
+    } finally { setHaciendo(null) }
+  }
+
+  /* TODO EL INFORME COMO UNA IMAGEN, al portapapeles para pegarla en WhatsApp o en un correo (si el navegador no deja, se descarga). */
+  async function copiarImagen() {
+    if (!captura.current) return;
+    setHaciendo("imagen"); setAvisoInf(null);
+    const nodo = captura.current;
+    /* La imagen se arma como promesa y se le pasa así al portapapeles: Safari (iPhone) solo deja
+       copiar si la orden sale en el mismo toque, y armarla tarda. */
+    const imagen = (async () => {
+      const html2canvas = (await import("html2canvas")).default;
+      const cv = await html2canvas(nodo, {
+        backgroundColor: "#eef1f5", scale: 2, useCORS: true, logging: false,
+        onclone: (docu) => {
+          docu.querySelectorAll<HTMLElement>(".ia-cap-cab").forEach((e) => { e.style.display = "block" });
+          /* Lo que html2canvas no dibuja bien: las cifras grandes con interlineado 1 se montan sobre
+             el pie, y la marca de las filas vitales hecha con sombra sale como una raya suelta. */
+          docu.querySelectorAll<HTMLElement>(".ia-hero .num").forEach((e) => { e.style.paddingBottom = "12px" });
+          docu.querySelectorAll<HTMLElement>(".ia-vital td:first-child").forEach((e) => { e.style.boxShadow = "none"; e.style.borderLeft = "3px solid #04203f" });
+          fijarColores(docu);
+        },
+      });
+      /* El aire alrededor se pone en otro lienzo: si se le pone al recuadro, las gráficas no se encogen y se salen. */
+      const m = 48, marco = document.createElement("canvas");
+      marco.width = cv.width + m * 2; marco.height = cv.height + m * 2;
+      const g = marco.getContext("2d");
+      if (g) { g.fillStyle = "#eef1f5"; g.fillRect(0, 0, marco.width, marco.height); g.drawImage(cv, m, m) }
+      return await new Promise<Blob>((ok, mal) => (g ? marco : cv).toBlob((b) => (b ? ok(b) : mal(new Error("sin imagen"))), "image/png"));
+    })();
+    const nombre = `Informe AI ${desdeI === hastaI ? desdeI : `${desdeI} a ${hastaI}`}.png`;
+    try {
+      let copiada = false;
+      try { copiada = await copiarPng(imagen) } catch { copiada = false }
+      if (copiada) setAvisoInf({ t: "Imagen copiada: pégala donde quieras con Ctrl + V." });
+      else { descargarPng(await imagen, nombre); setAvisoInf({ t: "Tu navegador no deja copiar imágenes: la descargué para que la compartas." }) }
+    } catch {
+      setAvisoInf({ t: "No se pudo armar la imagen. Intenta otra vez.", mal: true });
+    } finally { setHaciendo(null) }
+  }
 
   /* El tope de las barras nunca puede ser cero: `width: NaN%` se descarta y la barra se llena. */
   const topeOri = Math.max(0.0001, ...origenes.map((o) => o.indice));
@@ -124,6 +252,25 @@ export function Informe({
         </section>
       ) : (
         <>
+          {/* ---------- EL INFORME: copiar como imagen, Word y PDF ---------- */}
+          <div className="ia-acciones">
+            <span>Informe del período · <b>{periodoTx}</b></span>
+            {avisoInf && <em className={avisoInf.mal ? "mal" : ""} role="status">{avisoInf.t}</em>}
+            <button type="button" className="ia-bt ico" onClick={() => void copiarImagen()} disabled={!!haciendo}
+                    title="Copiar todo el informe como imagen para pegarlo y compartirlo" aria-label="Copiar imagen del informe">
+              <svg viewBox="0 0 24 24" aria-hidden><rect x="8" y="8" width="12" height="12" rx="1" /><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3" /></svg>
+              {haciendo === "imagen" ? "Copiando…" : "Copiar imagen"}
+            </button>
+            <button type="button" className="ia-bt" onClick={() => void informe("word")} disabled={!!haciendo}>{haciendo === "word" ? "Armando…" : "Word"}</button>
+            <button type="button" className="ia-bt am" onClick={() => void informe("pdf")} disabled={!!haciendo}>{haciendo === "pdf" ? "Armando…" : "PDF"}</button>
+          </div>
+
+          <div className="ia-captura" ref={captura}>
+          <div className="ia-cap-cab">
+            <p>SIDER · INFORME %AI DE LA REVISIÓN DE ENVASE</p>
+            <h2>%AI de la revisión de envase · {periodoTx}</h2>
+            <small>{textoFiltros}</small>
+          </div>
           {/* ---------- LAS TRES CIFRAS ----------
               %AI = suma de unidades en mal estado / suma de unidades revisadas. Promediar
               porcentajes le daría el mismo peso a una muestra de 200 que a una de 4.104. */}
@@ -151,10 +298,11 @@ export function Informe({
           {/* ---------- %AI POR ORIGEN ---------- */}
           <section className="ia-caja">
             <div className="ia-caja-cab">
-              <h2>%AI por origen</h2>
+              <h2>%AI por origen (CD)</h2>
               <p>
-                La planta de donde viene el camión, del %AI más alto al más bajo. Cada %AI es la suma
-                de unidades en mal estado sobre la suma de revisadas de ese origen.
+                El CD de donde viene el camión, del %AI más alto al más bajo. Cada %AI es la suma
+                de unidades en mal estado sobre la suma de revisadas de ese origen; «% del mal estado» es cuánto
+                aporta ese origen a todo lo que salió en mal estado.
               </p>
             </div>
             <div className="ia-tabla">
@@ -166,6 +314,7 @@ export function Informe({
                     <th className="n">Unid. revisadas</th>
                     <th className="n">Unid. en mal estado</th>
                     <th className="n">%AI</th>
+                    <th className="n">% del mal estado</th>
                     <th className="ia-col-barra"><span className="sr">Barra del %AI</span></th>
                   </tr>
                 </thead>
@@ -177,6 +326,7 @@ export function Informe({
                       <td className="n">{nf.format(o.revisadas)}</td>
                       <td className="n">{nf.format(o.malas)}</td>
                       <td className="n destaca">{pct(o.indice)}</td>
+                      <td className="n">{pct(total.defectos > 0 ? o.malas / total.defectos : 0)}</td>
                       <td className="ia-col-barra">
                         <span className="pista"><i style={{ width: `${(o.indice / topeOri) * 100}%` }} /></span>
                       </td>
@@ -188,6 +338,7 @@ export function Informe({
                     <td className="n">{nf.format(total.revisadas)}</td>
                     <td className="n">{nf.format(total.defectos)}</td>
                     <td className="n destaca">{pct(total.indice)}</td>
+                    <td className="n">100,00 %</td>
                     <td className="ia-col-barra" />
                   </tr>
                 </tbody>
@@ -195,8 +346,105 @@ export function Informe({
             </div>
           </section>
 
-          {/* ---------- LA TENDENCIA ---------- */}
-          <Tendencia semanas={semanas} />
+          {/* ---------- PARETO POR CAUSAL (estado del envase) ---------- */}
+          <section className="ia-caja">
+            <div className="ia-caja-cab">
+              <h2>Pareto por causal</h2>
+              <p>
+                Los estados que salen en mal estado, de más a menos unidades. «% del mal estado» es su parte de las
+                {" "}{nf.format(total.defectos)} unidades en mal estado; «%AI» es cuánto pesa sobre las revisadas. Las barras oscuras son
+                las que juntas llegan al 80 %.
+              </p>
+            </div>
+            <div className="ia-pareto"><ParetoLienzo pareto={causales} /></div>
+            <TablaPareto filas={causales} titulo="Causal" />
+            {otrosCausal.length > 0 && (
+              <p className="ia-mas">Contados pero fuera del %AI: {otrosCausal.map((d) => `${d.nombre} ${nf.format(d.unidades)}`).join(" · ")}.</p>
+            )}
+          </section>
+
+          {/* ---------- TOP 5 DRY (socios) ---------- */}
+          <section className="ia-caja">
+            <div className="ia-caja-cab">
+              <h2>Top 5 DRY por unidades en mal estado</h2>
+              <p>
+                Los socios (DRY) que más envase en mal estado mandan. Juntos son el{" "}
+                <b>{pct(top5.length ? top5[top5.length - 1].acumulado : 0)}</b> de las {nf.format(malasSocios)} unidades en mal estado
+                del canal Socios.
+              </p>
+            </div>
+            <div className="ia-tabla">
+              <table className="ia-origen">
+                <thead>
+                  <tr>
+                    <th className="n">#</th><th>DRY (socio)</th>
+                    <th className="n">Revisiones</th><th className="n">Unid. revisadas</th><th className="n">Unid. en mal estado</th>
+                    <th className="n">% del mal estado</th><th className="n">% acumulado</th><th className="n">%AI</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {top5.map((f, i) => {
+                    const x = socioDe.get(f.clave);
+                    return (
+                      <tr key={f.clave}>
+                        <td className="n">{i + 1}</td>
+                        <td><b>{f.nombre}</b></td>
+                        <td className="n">{nf.format(x?.revisiones ?? 0)}</td>
+                        <td className="n">{nf.format(x?.revisadas ?? 0)}</td>
+                        <td className="n">{nf.format(f.unidades)}</td>
+                        <td className="n destaca">{pct(f.pctDefectos)}</td>
+                        <td className="n">{pct(f.acumulado)}</td>
+                        <td className="n">{pct(x && x.revisadas > 0 ? x.defectos / x.revisadas : 0)}</td>
+                      </tr>
+                    );
+                  })}
+                  {top5.length === 0 && <tr><td colSpan={8} className="nada">No hay revisiones del canal Socios en el rango.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          {/* ---------- %AI POR REFERENCIA (SKU del envase) ---------- */}
+          <section className="ia-caja">
+            <div className="ia-caja-cab">
+              <h2>%AI por referencia (SKU)</h2>
+              <p>
+                El pareto por envase: de más a menos unidades en mal estado, con su parte del total, el acumulado y su %AI
+                (mal estado sobre revisadas de esa referencia).
+              </p>
+            </div>
+            <div className="ia-pareto"><ParetoLienzo pareto={paretoEnv} /></div>
+            <div className="ia-tabla">
+              <table className="ia-origen">
+                <thead>
+                  <tr>
+                    <th>Referencia</th><th className="n">Revisiones</th><th className="n">Unid. revisadas</th><th className="n">Unid. en mal estado</th>
+                    <th className="n">% del mal estado</th><th className="n">% acumulado</th><th className="n">%AI</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paretoEnv.map((f) => {
+                    const x = envDe.get(f.clave);
+                    return (
+                      <tr key={f.clave} className={f.acumulado - f.pctDefectos < 0.8 ? "ia-vital" : undefined}>
+                        <td><b>{f.clave}</b>{x?.nombre && x.nombre !== f.clave ? <small className="ia-sub"> {x.nombre}</small> : null}</td>
+                        <td className="n">{nf.format(x?.revisiones ?? 0)}</td>
+                        <td className="n">{nf.format(x?.revisadas ?? 0)}</td>
+                        <td className="n">{nf.format(f.unidades)}</td>
+                        <td className="n">{pct(f.pctDefectos)}</td>
+                        <td className="n">{pct(f.acumulado)}</td>
+                        <td className="n destaca">{pct(x?.indice ?? 0)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          {/* ---------- LA TENDENCIA, POR DÍA ---------- */}
+          <TendenciaDia dias={datos.dias} promedio={total.indice} />
+          </div>
 
           {/* ---------- REVISIÓN POR REVISIÓN ---------- */}
           <section className="ia-caja">
@@ -273,84 +521,85 @@ export function Informe({
   );
 }
 
-/**
- * LA TENDENCIA, POR SEMANA.
- *
- * POR SEMANA Y NO POR DÍA: hay días con una sola revisión, y un %AI
- * sacado de una muestra sube y baja por azar — la línea diría «se
- * disparó el martes» cuando lo que pasó es que el martes se revisó un
- * solo camión. Y no por mes: cuatro meses darían cuatro puntos.
- *
- * UNA SOLA SERIE, así que NO LLEVA LEYENDA: el título ya dice qué es.
- * Una leyenda de un elemento es una fila de píxeles que no contesta
- * ninguna pregunta.
- */
-function Tendencia({ semanas }: { semanas: PorSemana[] }) {
-  const ANCHO = 1000, ALTO = 150, ABAJO = 22, ARRIBA = 14;
+/** La tabla debajo de la gráfica del pareto: unidades, su parte del mal estado, el acumulado y el %AI sobre las revisadas. */
+function TablaPareto({ filas, titulo }: { filas: ParetoFila[]; titulo: string }) {
+  if (filas.length === 0) return <p className="ia-mas">No se encontraron unidades en mal estado.</p>;
+  return (
+    <div className="ia-tabla">
+      <table className="ia-origen">
+        <thead>
+          <tr><th>{titulo}</th><th className="n">Unidades</th><th className="n">% del mal estado</th><th className="n">% acumulado</th><th className="n">%AI</th></tr>
+        </thead>
+        <tbody>
+          {filas.map((f) => (
+            <tr key={f.clave} className={f.acumulado - f.pctDefectos < 0.8 ? "ia-vital" : undefined}>
+              <td><b>{f.nombre}</b></td>
+              <td className="n">{nf.format(f.unidades)}</td>
+              <td className="n destaca">{pct(f.pctDefectos)}</td>
+              <td className="n">{pct(f.acumulado)}</td>
+              <td className="n">{pct(f.pct)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
-  if (semanas.length < 2) {
+/**
+ * LA TENDENCIA, POR DÍA. «Necesito gráfica de tendencia por día del AI.» Cada punto es un día: mal estado sobre revisadas
+ * de ese día. La raya punteada es el %AI del período, para ver qué días quedan por encima. La escala arranca en cero.
+ * Un día con pocas unidades revisadas sube y baja por azar: al pasar el mouse se ve cuántas revisiones lo sostienen.
+ */
+function TendenciaDia({ dias, promedio }: { dias: PorDia[]; promedio: number }) {
+  const ANCHO = 1000, ALTO = 190, ABAJO = 26, ARRIBA = 16;
+  if (dias.length < 2) {
     return (
       <section className="ia-caja">
         <div className="ia-caja-cab">
-          <h2>Cómo va el %AI, semana a semana</h2>
-          <p>
-            Con una sola semana no hay tendencia que dibujar. Amplía el rango de fechas.
-          </p>
+          <h2>Tendencia del %AI por día</h2>
+          <p>Con un solo día no hay tendencia que dibujar. Amplía el rango de fechas.</p>
         </div>
       </section>
     );
   }
-
-  const vals = semanas.map((s) => s.indice);
-  const max = Math.max(...vals);
-  /* EL PISO ES CERO Y NO EL MÍNIMO. Arrancar la escala en el valor más
-     bajo hace que una variación de dos décimas se vea como un
-     precipicio: la misma serie contada honestamente es casi plana.
-     Exagerar la pendiente es la forma más fácil de mentir con una
-     gráfica y no requiere mala intención.
-
-     Y el techo nunca es cero: con todas las semanas en cero la división
-     daría NaN, el `d` del path saldría con «NaN» dentro y el SVG no
-     dibujaría NADA — sin un solo error en la consola. */
+  const vals = dias.map((d) => d.indice);
+  const max = Math.max(...vals, promedio);
   const techo = max > 0 ? max * 1.15 : 1;
-  const x = (i: number) => (i / (semanas.length - 1)) * ANCHO;
+  const x = (i: number) => (i / (dias.length - 1)) * ANCHO;
   const y = (v: number) => ARRIBA + (1 - v / techo) * (ALTO - ARRIBA - ABAJO);
-
-  const linea = semanas.map((s, i) => `${x(i).toFixed(1)},${y(s.indice).toFixed(1)}`).join(" ");
+  const linea = dias.map((d, i) => `${x(i).toFixed(1)},${y(d.indice).toFixed(1)}`).join(" ");
   const area = `M0,${ALTO - ABAJO} L${linea.replace(/ /g, " L")} L${ANCHO},${ALTO - ABAJO} Z`;
-
-  /* Solo se rotulan los extremos y el pico: un número sobre cada punto
-     tapa la línea, que es lo que se vino a ver. */
-  const iPico = vals.indexOf(max);
-  const rotular = new Set([0, semanas.length - 1, iPico]);
-
+  const iPico = vals.indexOf(Math.max(...vals));
+  const paso = Math.max(1, Math.ceil(dias.length / 10));
+  const rotular = new Set([0, dias.length - 1, iPico, ...dias.map((_, i) => i).filter((i) => i % paso === 0)]);
+  const sobre = dias.filter((d) => d.indice > promedio).length;
   return (
     <section className="ia-caja">
       <div className="ia-caja-cab">
-        <h2>Cómo va el %AI, semana a semana</h2>
+        <h2>Tendencia del %AI por día</h2>
         <p>
-          Cada punto es una semana completa: unidades en mal estado sobre unidades revisadas
-          de esa semana. La escala arranca en cero — empezarla en el valor más bajo convertiría
-          dos décimas en un precipicio.
+          Cada punto es un día: unidades en mal estado sobre revisadas de ese día. La raya punteada es el %AI del período
+          ({pct(promedio)}): {sobre} de {dias.length} días quedan por encima. Pasa el mouse por un punto para ver sus revisiones.
         </p>
       </div>
-      <div className="ia-linea">
+      <div className="ia-linea ia-linea-dia">
         <svg viewBox={`0 0 ${ANCHO} ${ALTO}`} preserveAspectRatio="none" role="img"
-             aria-label={`%AI por semana, de ${semanas[0].semana} a ${semanas[semanas.length - 1].semana}`}>
+             aria-label={`%AI por día, del ${dias[0].dia} al ${dias[dias.length - 1].dia}`}>
           <path className="area" d={area} />
+          <line className="prom" x1={0} x2={ANCHO} y1={y(promedio)} y2={y(promedio)} />
           <polyline className="traza" points={linea} />
-          {semanas.map((s, i) => (
-            <circle key={s.semana} className={i === iPico ? "punto pico" : "punto"}
-                    cx={x(i)} cy={y(s.indice)} r={i === iPico ? 6 : 4}>
-              <title>{`Semana del ${dia(s.semana)} · ${pct(s.indice)} · ${s.revisiones} revisiones`}</title>
+          {dias.map((d, i) => (
+            <circle key={d.dia} className={i === iPico ? "punto pico" : d.indice > promedio ? "punto sobre" : "punto"}
+                    cx={x(i)} cy={y(d.indice)} r={i === iPico ? 6 : 4}>
+              <title>{`${dia(d.dia)} · ${pct(d.indice)} · ${nf.format(d.malas)} en mal estado de ${nf.format(d.revisadas)} · ${d.revisiones} revisiones`}</title>
             </circle>
           ))}
         </svg>
         <div className="ia-rotulos">
-          {semanas.map((s, i) => (
-            <span key={s.semana} className={rotular.has(i) ? "on" : ""}
-                  style={{ left: `${(i / (semanas.length - 1)) * 100}%` }}>
-              {rotular.has(i) && <><b>{pct(s.indice)}</b><em>{dia(s.semana)}</em></>}
+          {dias.map((d, i) => (
+            <span key={d.dia} className={rotular.has(i) ? "on" : ""} style={{ left: `${(i / (dias.length - 1)) * 100}%` }}>
+              {rotular.has(i) && <><b>{pct(d.indice)}</b><em>{dia(d.dia)}</em></>}
             </span>
           ))}
         </div>

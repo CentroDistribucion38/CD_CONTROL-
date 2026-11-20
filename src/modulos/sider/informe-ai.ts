@@ -47,6 +47,11 @@ export type PorSocio = {
 /** %AI por ORIGEN (la planta de donde viene el camión). */
 export type PorOrigen = { origen: string; revisiones: number; revisadas: number; malas: number; indice: number };
 
+/** %AI por REFERENCIA: el envase (SKU) revisado. */
+export type PorEnvase = { envase: string; nombre: string; revisiones: number; revisadas: number; malas: number; indice: number };
+/** %AI por DÍA, para la tendencia. */
+export type PorDia = { dia: string; revisiones: number; revisadas: number; malas: number; indice: number };
+
 export type PorSemana = {
   /** El lunes de esa semana, para ordenar y rotular. */
   semana: string;
@@ -106,6 +111,7 @@ export async function informeAi(f: FiltroAi = {}) {
       falta: sinTablas(error.message),
       revisiones: [] as Revision[], defectos: [] as PorDefecto[],
       socios: [] as PorSocio[], semanas: [] as PorSemana[], origenes: [] as PorOrigen[],
+      envases: [] as PorEnvase[], dias: [] as PorDia[],
       total: vacio(),
       porRevision: new Map<string, Record<string, { pct: number; hl: number }>>(),
     };
@@ -115,7 +121,8 @@ export async function informeAi(f: FiltroAi = {}) {
   if (revisiones.length === 0) {
     return {
       falta: false, revisiones, defectos: [] as PorDefecto[],
-      socios: [] as PorSocio[], semanas: [] as PorSemana[], origenes: [] as PorOrigen[], total: vacio(),
+      socios: [] as PorSocio[], semanas: [] as PorSemana[], origenes: [] as PorOrigen[],
+      envases: [] as PorEnvase[], dias: [] as PorDia[], total: vacio(),
       porRevision: new Map<string, Record<string, { pct: number; hl: number }>>(),
     };
   }
@@ -220,6 +227,30 @@ export async function informeAi(f: FiltroAi = {}) {
     .map((x) => ({ ...x, indice: x.revisadas > 0 ? x.malas / x.revisadas : 0 }))
     .sort((a, b) => b.indice - a.indice || b.revisadas - a.revisadas);
 
+  /* ---------- POR REFERENCIA (ENVASE) ----------
+     «El AI por referencia, es decir por SKU: cuál es el pareto y su porcentaje.» De más a menos unidades en mal estado. */
+  const porEnvase = new Map<string, PorEnvase>();
+  for (const r of revisiones) {
+    const k = r.envase || "—";
+    const x = porEnvase.get(k) ?? { envase: k, nombre: r.envase_nombre ?? k, revisiones: 0, revisadas: 0, malas: 0, indice: 0 };
+    x.revisiones += 1; x.revisadas += r.revisadas; x.malas += r.defectos;
+    porEnvase.set(k, x);
+  }
+  const envases = [...porEnvase.values()]
+    .map((x) => ({ ...x, indice: x.revisadas > 0 ? x.malas / x.revisadas : 0 }))
+    .sort((a, b) => b.malas - a.malas || b.indice - a.indice);
+
+  /* ---------- POR DÍA (la tendencia) ---------- */
+  const porDia = new Map<string, PorDia>();
+  for (const r of revisiones) {
+    const x = porDia.get(r.fecha) ?? { dia: r.fecha, revisiones: 0, revisadas: 0, malas: 0, indice: 0 };
+    x.revisiones += 1; x.revisadas += r.revisadas; x.malas += r.defectos;
+    porDia.set(r.fecha, x);
+  }
+  const dias = [...porDia.values()]
+    .map((x) => ({ ...x, indice: x.revisadas > 0 ? x.malas / x.revisadas : 0 }))
+    .sort((a, b) => a.dia.localeCompare(b.dia));
+
   /* ---------- POR SEMANA ----------
      En orden CRONOLÓGICO aunque la tabla venga al revés: una tendencia
      dibujada de derecha a izquierda se lee al revés sin que nadie lo
@@ -249,7 +280,7 @@ export async function informeAi(f: FiltroAi = {}) {
     porRevision.set(d.revision_id, x);
   }
 
-  return { falta: false, revisiones, defectos, socios, semanas, origenes, total, porRevision };
+  return { falta: false, revisiones, defectos, socios, semanas, origenes, envases, dias, total, porRevision };
 }
 
 function vacio() {

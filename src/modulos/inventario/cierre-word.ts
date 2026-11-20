@@ -97,6 +97,16 @@ export function armarWordCierre(bloques: Bloque[], o: OpcionesCierreWord): Uint8
   }
 
   const body: string[] = [];
+  /* LAS IMÁGENES DEL CUERPO (las gráficas del informe AI) viven en los rels del documento. */
+  const relsDoc: string[] = [];
+  const imgDoc = (url: string) => {
+    const { bytes, ext } = dataUrlABytes(url);
+    nImg++;
+    const id = `rIdD${nImg}`, nombre = `img${nImg}.${ext === "jpeg" ? "jpg" : "png"}`;
+    media[`word/media/${nombre}`] = bytes;
+    relsDoc.push(`<Relationship Id="${id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${nombre}"/>`);
+    return { id, nombre };
+  };
 
   const titulo = (fuerte: string, suave: string | undefined, salto: boolean) => {
     body.push(para([{ t: fuerte, b: true, sz: 20, color: TINTA }, ...(suave ? [{ t: "   " + suave, sz: 20, color: GRIS }] : [])],
@@ -151,6 +161,16 @@ export function armarWordCierre(bloques: Bloque[], o: OpcionesCierreWord): Uint8
         body.push(espacio(80));
         break;
       }
+      case "img": {
+        try {
+          const { id, nombre } = imgDoc(b.img.png);
+          const anTw = CW * Math.min(1, b.ancho ?? 1), alTw = anTw * (b.img.h / Math.max(1, b.img.w));
+          const cx = Math.round(anTw * EMU_TW), cy = Math.round(alTw * EMU_TW);
+          body.push(`<w:p>${ppr({ al: "center", antes: 120, despues: 60, keep: !!b.pie })}<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${8000 + nImg}" name="${nombre}"/><wp:cNvGraphicFramePr/>${grafico(id, nombre, cx, cy)}</wp:inline></w:drawing></w:r></w:p>`);
+          if (b.pie) body.push(para([{ t: b.pie, sz: 13, color: GRIS }], { despues: 120 }));
+        } catch { /* sin imagen */ }
+        break;
+      }
       default: break;
     }
   }
@@ -174,7 +194,7 @@ export function armarWordCierre(bloques: Bloque[], o: OpcionesCierreWord): Uint8
     "word/styles.xml": strToU8(estilos),
     "word/header1.xml": strToU8(cabecera),
     "word/footer1.xml": strToU8(pie),
-    "word/_rels/document.xml.rels": strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdSt" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rIdHead" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/><Relationship Id="rIdFoot" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/></Relationships>`),
+    "word/_rels/document.xml.rels": strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdSt" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rIdHead" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/><Relationship Id="rIdFoot" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>${relsDoc.join("")}</Relationships>`),
     "word/_rels/header1.xml.rels": strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${relsCab.join("")}</Relationships>`),
     ...media,
   };

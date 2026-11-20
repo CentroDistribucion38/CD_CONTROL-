@@ -4,12 +4,12 @@
  * quede limpia, y se fijan los colores que html2canvas no sabe leer (los `color-mix`).
  */
 /** html2canvas no lee colores tipo `color(srgb …)` (así devuelve el navegador los `color-mix`): se pasan a rgb(). */
-function fijarColores(doc: Document) {
+export function fijarColores(doc: Document) {
   const lienzo = doc.createElement("canvas"); lienzo.width = lienzo.height = 1;
   const g = lienzo.getContext("2d", { willReadFrequently: true });
   if (!g) return;
   const aRgb = (v: string) => { g.clearRect(0, 0, 1, 1); g.fillStyle = "#000"; g.fillStyle = v; g.fillRect(0, 0, 1, 1); const [r, gg, b, a] = g.getImageData(0, 0, 1, 1).data; return `rgba(${r}, ${gg}, ${b}, ${(a / 255).toFixed(3)})` };
-  const props = ["color", "backgroundColor", "borderTopColor", "borderRightColor", "borderBottomColor", "borderLeftColor", "outlineColor", "textDecorationColor"] as const;
+  const props = ["color", "backgroundColor", "borderTopColor", "borderRightColor", "borderBottomColor", "borderLeftColor", "outlineColor", "textDecorationColor", "fill", "stroke"] as const;
   const vista = doc.defaultView;
   if (!vista) return;
   doc.querySelectorAll<HTMLElement>("*").forEach((el) => {

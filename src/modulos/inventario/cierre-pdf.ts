@@ -110,6 +110,7 @@ export function dibujarCierre(JsPDFCtor: typeof JsPDF, bloques: Bloque[], o: Opc
   const modulo = (b: Extract<Bloque, { t: "modulo" }>) => {
     if (b.ojo) ojoActual = b.ojo;
     if (!b.seguido) { hojaNueva(); y -= px(12) }      // la sección abre la hoja: su margen de arriba es menor
+    else cabe(px(110))                                // seguido, pero el título nunca queda solo al pie de la hoja
     encabezadoSeccion(b.n, b.titulo);
     if (b.sub) { fuente("normal", 9); color(GRIS); const t = partir(b.sub, CW); doc.text(t, M, y + px(9)); y += t.length * lh(9, 1.45) + px(4) }
   };
@@ -204,7 +205,9 @@ export function dibujarCierre(JsPDFCtor: typeof JsPDF, bloques: Bloque[], o: Opc
       });
       const nl = Math.max(...lineas.map((l) => l.length));
       const alto = nl * LH + 2 * PADY + (esTotal ? px(2) : 0);
-      if (y + alto > TOPE) { hojaNueva(); y += px(14); pintaEncabezado() }
+      /* La fila del TOTAL nunca queda sola en la hoja siguiente: la última fila se va con ella. */
+      const antesDelTotal = !!b.total && r === b.filas.length - 2;
+      if (y + alto * (antesDelTotal ? 2.2 : 1) > TOPE) { hojaNueva(); y += px(14); pintaEncabezado() }
       if (esTotal) raya(M, y, W - M, 1.5, TINTA);
       let xx = M;
       fila.forEach((c, i) => {
@@ -225,6 +228,16 @@ export function dibujarCierre(JsPDFCtor: typeof JsPDF, bloques: Bloque[], o: Opc
     for (const it of items) parrafo(`· ${it}`);
   };
 
+  /* UNA GRÁFICA (el informe AI lleva sus paretos): a lo ancho (o la fracción que diga), con su pie en gris. */
+  const imagen = (b: Extract<Bloque, { t: "img" }>) => {
+    const an = CW * Math.min(1, b.ancho ?? 1), al = an * (b.img.h / Math.max(1, b.img.w));
+    cabe(al + px(10) + (b.pie ? px(16) : 0));
+    try { doc.addImage(b.img.png, "PNG", M + (CW - an) / 2, y + px(6), an, al, undefined, "FAST") } catch { /* sin imagen */ }
+    y += px(6) + al;
+    if (b.pie) { fuente("normal", 8.5); color(GRIS); const t = partir(b.pie, CW); doc.text(t, M, y + px(11)); y += px(4) + t.length * lh(8.5, 1.5) }
+    y += px(8);
+  };
+
   /* ----------------- recorrido ----------------- */
   for (const b of bloques) {
     switch (b.t) {
@@ -235,7 +248,8 @@ export function dibujarCierre(JsPDFCtor: typeof JsPDF, bloques: Bloque[], o: Opc
       case "lista": lista(b.items); break;
       case "pares": pares(b); break;
       case "tabla": tabla(b); break;
-      /* El informe de cierre no lleva tarjetas, gráficas ni fotos. */
+      case "img": imagen(b); break;
+      /* El informe de cierre no lleva tarjetas ni fotos. */
       default: break;
     }
   }
