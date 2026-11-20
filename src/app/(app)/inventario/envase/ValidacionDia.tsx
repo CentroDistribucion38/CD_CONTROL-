@@ -23,9 +23,11 @@ const n0 = (x: number) => Math.round(x).toLocaleString("es-CO");
  * VALIDACIÓN DEL DÍA. Lo principal arriba: las cifras del día y la tabla por SKU (clic en el SKU abre sus órdenes).
  * Las alertas van al final, cerradas, con su conteo a la vista en las cifras.
  */
-export function ValidacionDia({ dia, hoy, conDatos, antes, despues, filas, alertas, maestro, hayCorte, estado }: {
+export function ValidacionDia({ dia, hoy, conDatos, antes, despues, filas, alertas, maestro, hayCorte, estado, ahora }: {
   dia: string; hoy: string; conDatos: string[]; antes: string; despues: string; filas: FilaDia[]; alertas: Alerta[]; maestro: M;
   hayCorte: boolean; estado: Dia["estado"];
+  /** Solo HOY: la hora, el plan vigente sumado hora por hora hasta ahora (unidades por SKU) y hasta dónde llega la MB51. */
+  ahora?: { hora: string; planHasta: Record<string, number>; mb51: string | null };
 }) {
   const router = useRouter();
   const ir = (f: string) => router.push(`/inventario/envase?d=${f}`);
@@ -49,6 +51,15 @@ export function ValidacionDia({ dia, hoy, conDatos, antes, despues, filas, alert
     return { s, sinDato };
   };
   const plan = suma((f) => f.planIni), corte = suma((f) => f.planCorte ?? 0), notif = suma((f) => f.notif), madr = suma((f) => f.madrugada);
+  /* HOY, A ESTA HORA: lo que el plan vigente dice que ya debería ir notificado, y lo que falta. */
+  const hasta = (sku: string) => ahora?.planHasta[sku] ?? 0;
+  const planAhora = suma((f) => hasta(f.sku));
+  const vigente = hayCorte ? corte : plan;
+  const pendAhora = Math.max(0, planAhora.s - notif.s), faltaDia = Math.max(0, vigente.s - notif.s);
+  const mb51Hora = ahora?.mb51 ? (ahora.mb51.slice(0, 10) === dia ? ahora.mb51.slice(11, 16) : `${corto(ahora.mb51.slice(0, 10))} ${ahora.mb51.slice(11, 16)}`) : null;
+  /* La MB51 vieja: más de una hora antes de ahora (o de otro día) — lo notificado después todavía no se ve. */
+  const mb51Vieja = !!ahora && (!ahora.mb51 || ahora.mb51.slice(0, 10) !== dia
+    || (Number(ahora.hora.slice(0, 2)) * 60 + Number(ahora.hora.slice(3))) - (Number(ahora.mb51.slice(11, 13)) * 60 + Number(ahora.mb51.slice(14, 16))) > 60);
   const ret = filas.filter((f) => f.retornable);
   const falta = alertas.filter((a) => a.tipo === "falta261");
   const faltaUn = falta.reduce((a, x) => a + x.un, 0);
@@ -89,7 +100,13 @@ export function ValidacionDia({ dia, hoy, conDatos, antes, despues, filas, alert
         </div>
       </div></div>
 
-      {estado === "abierto" && (
+      {ahora ? (
+        <p className="pe-aviso"><b>Hoy a las {ahora.hora}.</b> «Plan a las {ahora.hora}» es el plan {hayCorte ? "vigente (último corte)" : "inicial"} sumado
+          hora por hora hasta ahora, y «Pendiente» es eso menos lo notificado.{" "}
+          {mb51Vieja
+            ? <><b>Lo notificado llega hasta la última MB51 ({mb51Hora ?? "sin MB51"})</b>: lo que se haya notificado después todavía no se ve. Para el dato real, sube una MB51 nueva en <Link href="/inventario/envase/cargar">Cargar</Link>.</>
+            : <>La MB51 es de las {mb51Hora}: el dato está al día.</>}</p>
+      ) : estado === "abierto" && (
         <p className="pe-aviso"><b>Este día todavía está abierto.</b> La noche se notifica de madrugada con la fecha de hoy: el día se cierra
           cuando subas una MB51 sacada después de las 6:00 del día siguiente. Lo que ves es lo notificado hasta ahora.</p>
       )}
@@ -100,9 +117,15 @@ export function ValidacionDia({ dia, hoy, conDatos, antes, despues, filas, alert
         <section className="pe-card pe-kpi" aria-label="Cifras del día">
           <div className="k-am"><span className="l">Plan del día</span><b>{fmt(plan.s)}<small>{unom}</small></b>
             <em>{hayCorte ? <>último corte: <b style={{ display: "inline", font: "inherit", fontWeight: 700 }}>{fmt(corte.s)}</b></> : "plan inicial"}</em></div>
-          <div><span className="l">Notificado (Z01)</span><b>{fmt(notif.s)}<small>{unom}</small></b><em>{madr.s ? `${fmt(madr.s)} ${unom} digitados al otro día` : "nada digitado al día siguiente"}</em></div>
+          <div><span className="l">Notificado (Z01)</span><b>{fmt(notif.s)}<small>{unom}</small></b><em>{ahora ? `hasta la MB51 de las ${mb51Hora ?? "—"}` : madr.s ? `${fmt(madr.s)} ${unom} digitados al otro día` : "nada digitado al día siguiente"}</em></div>
+          {ahora ? (<>
+            <div className={pendAhora > 0.5 ? "k-r" : ""}><span className="l">Pendiente a las {ahora.hora}</span><b className={pendAhora > 0.5 ? "mal" : "bien"}>{pendAhora > 0.5 ? fmt(pendAhora) : "0 ✓"}<small>{pendAhora > 0.5 ? unom : ""}</small></b>
+              <em>plan a esta hora {fmt(planAhora.s)} {unom} − notificado · del día faltan {fmt(faltaDia)} {unom}</em></div>
+            <div><span className="l">Cumplimiento a las {ahora.hora}</span><b className={planAhora.s && notif.s / planAhora.s < 0.9 ? "mal" : ""}>{planAhora.s ? `${Math.round((100 * notif.s) / planAhora.s)} %` : "—"}</b>
+              <em>{vigente.s ? `del día: ${Math.round((100 * notif.s) / vigente.s)} % de ${fmt(vigente.s)} ${unom}` : "sin plan"}</em></div>
+          </>) : (
           <div><span className="l">Cumplimiento</span><b className={plan.s && notif.s / plan.s < 0.9 ? "mal" : ""}>{plan.s ? `${Math.round((100 * notif.s) / plan.s)} %` : "—"}</b>
-            <em>{plan.s ? `${notif.s - plan.s > 0 ? "+" : ""}${fmt(notif.s - plan.s)} ${unom} contra el plan` : "sin plan inicial"}</em></div>
+            <em>{plan.s ? `${notif.s - plan.s > 0 ? "+" : ""}${fmt(notif.s - plan.s)} ${unom} contra el plan` : "sin plan inicial"}</em></div>)}
           <div className={faltaUn ? "k-r" : ""}><span className="l">Botella sin 261</span><b className={faltaUn ? "mal" : "bien"}>{faltaUn ? n0(faltaUn) : "0 ✓"}</b>
             <em>{faltaUn ? `${n0(faltaHl)} HL · ${n0(faltaCj)} cajas · ${falta.length} ${falta.length === 1 ? "orden" : "órdenes"}` : `${ret.length} SKU retornables`}</em></div>
           <div className={cajaMas ? "k-am" : ""}><span className="l">Caja de más</span><b>{n0(cajaMas)}</b><em>261 de caja sobre Z01 ÷ unidades por caja</em></div>
@@ -117,21 +140,25 @@ export function ValidacionDia({ dia, hoy, conDatos, antes, despues, filas, alert
           <div className="pe-caja">
             <table className="pe-t">
               <thead><tr>
-                <th className="l">SKU</th><th>Plan del día</th>{hayCorte && <th>Último corte</th>}<th>Notificado</th><th className="l">Cumplimiento</th><th>Diferencia</th><th title="Notificado con fecha de este día pero digitado en SAP al día siguiente (la producción de la noche)">Digitado al otro día</th>
+                <th className="l">SKU</th><th>Plan del día</th>{hayCorte && <th>Último corte</th>}{ahora && <th className="pe-ahora" title="El plan vigente sumado hora por hora hasta ahora">Plan a las {ahora.hora}</th>}<th>Notificado</th><th className="l">Cumplimiento{ahora ? " a esta hora" : ""}</th><th>{ahora ? "Pendiente" : "Diferencia"}</th><th title="Notificado con fecha de este día pero digitado en SAP al día siguiente (la producción de la noche)">Digitado al otro día</th>
                 <th className="g">Botella teórica</th><th>261 botella</th><th>Falta 261</th><th className="g">Caja teórica</th><th>261 caja</th><th>Caja de más</th>
               </tr></thead>
               <tbody>
                 {filas.map((f) => {
                   const ab = abiertos.has(f.sku), dif = f.notif - f.planIni;
+                  const ph = hasta(f.sku), pend = ph - f.notif;
                   return (
                     <Fragment key={f.sku}>
                       <tr>
                         <td className="l"><button type="button" className="sku" aria-expanded={ab} onClick={() => abrir(f.sku)}><i>{ab ? "▾" : "▸"}</i><b>{f.sku}</b> {(f.nombre || maestro[f.sku]?.nombre || "").slice(0, 30)}</button></td>
                         <td>{fmt(conv(f.planIni, f.sku))}</td>
                         {hayCorte && <td>{f.planCorte == null ? "—" : fmt(conv(f.planCorte, f.sku))}</td>}
+                        {ahora && <td className="pe-ahora">{ph ? fmt(conv(ph, f.sku)) : "—"}</td>}
                         <td><b>{fmt(conv(f.notif, f.sku))}</b></td>
-                        <td className="l">{pct(f.notif, f.planIni)}</td>
-                        <td className={f.planIni && dif < -0.5 ? "mal" : ""}>{dif > 0 ? "+" : ""}{fmt(conv(dif, f.sku))}</td>
+                        <td className="l">{ahora ? pct(f.notif, ph) : pct(f.notif, f.planIni)}</td>
+                        {ahora
+                          ? <td className={pend > 0.5 ? "mal" : "bien"}>{pend > 0.5 ? fmt(conv(pend, f.sku)) : pend < -0.5 ? `+${fmt(conv(-pend, f.sku))}` : "✓"}</td>
+                          : <td className={f.planIni && dif < -0.5 ? "mal" : ""}>{dif > 0 ? "+" : ""}{fmt(conv(dif, f.sku))}</td>}
                         <td className="mut">{f.madrugada ? fmt(conv(f.madrugada, f.sku)) : "—"}</td>
                         {f.retornable && (f.botTeo || f.b261 || f.c261) ? (<>
                           <td className="g">{n0(f.botTeo)}</td><td>{n0(f.b261)}</td>
@@ -143,7 +170,7 @@ export function ValidacionDia({ dia, hoy, conDatos, antes, despues, filas, alert
                       {ab && (f.ordenes.length ? f.ordenes.map((o) => (
                         <tr key={o.orden} className="sub">
                           <td className="l">Orden <b>{o.orden}</b></td>
-                          <td></td>{hayCorte && <td></td>}
+                          <td></td>{hayCorte && <td></td>}{ahora && <td></td>}
                           <td>{fmt(conv(o.z, f.sku))}</td><td className="l mut">{n0(o.z)} un.</td><td></td>
                           <td className="mut">{o.madrugada ? fmt(conv(o.madrugada, f.sku)) : "—"}</td>
                           {f.retornable ? (<>
@@ -153,13 +180,15 @@ export function ValidacionDia({ dia, hoy, conDatos, antes, despues, filas, alert
                             <td className={f.ref && o.c261 - o.z / f.ref > 0.5 ? "mal" : "bien"}>{f.ref && o.c261 - o.z / f.ref > 0.5 ? `+${n0(o.c261 - o.z / f.ref)}` : "✓"}</td>
                           </>) : <td className="g na" colSpan={6}></td>}
                         </tr>
-                      )) : <tr className="sub"><td className="l mut" colSpan={hayCorte ? 13 : 12}>Sin órdenes notificadas este día.</td></tr>)}
+                      )) : <tr className="sub"><td className="l mut" colSpan={12 + (hayCorte ? 1 : 0) + (ahora ? 1 : 0)}>Sin órdenes notificadas este día.</td></tr>)}
                     </Fragment>
                   );
                 })}
                 <tr className="tot">
-                  <td className="l">Total del día</td><td>{fmt(plan.s)}</td>{hayCorte && <td>{fmt(corte.s)}</td>}<td>{fmt(notif.s)}</td>
-                  <td className="l">{plan.s ? `${Math.round((100 * notif.s) / plan.s)} %` : "—"}</td><td>{fmt(notif.s - plan.s)}</td><td>{madr.s ? fmt(madr.s) : "—"}</td>
+                  <td className="l">Total del día</td><td>{fmt(plan.s)}</td>{hayCorte && <td>{fmt(corte.s)}</td>}{ahora && <td className="pe-ahora">{fmt(planAhora.s)}</td>}<td>{fmt(notif.s)}</td>
+                  {ahora
+                    ? <><td className="l">{planAhora.s ? `${Math.round((100 * notif.s) / planAhora.s)} %` : "—"}</td><td>{pendAhora > 0.5 ? fmt(pendAhora) : "✓"}</td></>
+                    : <><td className="l">{plan.s ? `${Math.round((100 * notif.s) / plan.s)} %` : "—"}</td><td>{fmt(notif.s - plan.s)}</td></>}<td>{madr.s ? fmt(madr.s) : "—"}</td>
                   <td className="g"></td><td></td><td>{faltaUn ? n0(faltaUn) : "0"}</td><td className="g"></td><td></td><td>{cajaMas ? `+${n0(cajaMas)}` : "0"}</td>
                 </tr>
               </tbody>

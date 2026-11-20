@@ -16,7 +16,12 @@ const hora = (g: string) => new Date(g.replace(" ", "T") + "Z").toLocaleString("
  * INVENTARIO › PLAN VS NOTIFICADO › VALIDACIÓN DEL DÍA.
  *
  * «Yo valido las notificaciones por día.» Se escoge el día y se compara contra el plan de ESE día: lo notificado
- * con fecha de contabilización del día y el envase de sus órdenes. Por defecto abre el último día cerrado.
+ * con fecha de contabilización del día y el envase de sus órdenes.
+ *
+ * «Quiero que me muestre el del día de hoy y me diga, según la hora y el plan, cuál es el pendiente por notificar; quiero el dato
+ *  real y que siempre muestre el actual.» Por defecto abre HOY. Para hoy se suma el plan HORA POR HORA del instructivo (cada
+ * columna es una hora, de las 00:00 a las 23:00) hasta la hora actual —la hora en curso, en proporción a los minutos—, con el
+ * plan vigente (el último corte; si no hay, el inicial): eso es lo que debería ir notificado, y el pendiente es eso menos lo notificado.
  */
 export default async function ValidacionPage({ searchParams }: { searchParams: Promise<{ d?: string }> }) {
   const q = await searchParams;
@@ -38,12 +43,8 @@ export default async function ValidacionPage({ searchParams }: { searchParams: P
     );
   }
 
-  /* Por defecto, el último día cerrado (el de ayer si la MB51 ya trae la madrugada de hoy). */
-  let d = esF(q.d) ? q.d! : masDias(hoy, -1);
-  if (!esF(q.d) && u.valor) {
-    const ult = u.valor.slice(0, 10);
-    d = estadoDia(masDias(ult, -1), u.valor, hoy) === "cerrado" ? masDias(ult, -1) : masDias(ult, -2);
-  }
+  /* Por defecto, HOY: siempre el día actual. */
+  const d = esF(q.d) ? q.d! : hoy;
   const lunes = lunesDe(d);
   const [ps, mv] = await Promise.all([planesDeSemana(lunes), movimientosContab(masDias(d, -28), d)]);
   const P = papeles(ps.planes);
@@ -59,6 +60,20 @@ export default async function ValidacionPage({ searchParams }: { searchParams: P
   for (let f = masDias(hoy, -60); f <= hoy; f = masDias(f, 1)) { const e = estadoDia(f, u.valor, hoy); if (e === "cerrado" || e === "abierto") conDatos.push(f) }
   const semana = ps.planes[0]?.semana;
 
+  /* HOY, A ESTA HORA: el plan vigente sumado hora por hora hasta ahora (la hora en curso en proporción a los minutos). */
+  let ahora: { hora: string; planHasta: Record<string, number>; mb51: string | null } | undefined;
+  if (d === hoy) {
+    const [hh, mm] = new Intl.DateTimeFormat("en-GB", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date()).split(":").map(Number);
+    const vig = (cor ?? ini).filter((f) => f.fecha === d && f.sku);
+    const planHasta: Record<string, number> = {};
+    for (const f of vig) {
+      const peso = f.hora < hh ? 1 : f.hora === hh ? mm / 60 : 0;
+      const un = f.unidades ?? (f.formato_ml ? (f.hl * 1e5) / f.formato_ml : 0);
+      if (peso > 0 && un) planHasta[f.sku!] = (planHasta[f.sku!] ?? 0) + un * peso;
+    }
+    ahora = { hora: `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`, planHasta, mb51: u.valor };
+  }
+
   return (
     <div className="fe pe">
       {cabeza(<>
@@ -72,7 +87,7 @@ export default async function ValidacionPage({ searchParams }: { searchParams: P
       <ValidacionDia
         dia={d} hoy={hoy} conDatos={conDatos} antes={masDias(d, -1)} despues={masDias(d, 1)}
         filas={v.filas} alertas={v.alertas} maestro={Object.fromEntries(M)} hayCorte={!!c}
-        estado={estadoDia(d, u.valor, hoy)}
+        estado={estadoDia(d, u.valor, hoy)} ahora={ahora}
       />
     </div>
   );

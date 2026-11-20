@@ -70,6 +70,10 @@
 .pe .pe-kpi .k-am { border-top-color: var(--fe-aviso) }
 .pe .pe-kpi .k-r { border-top-color: var(--fe-mal); background: color-mix(in srgb, var(--fe-mal) 7%, var(--fe-papel)) }
 
+/* La columna de HOY a esta hora: fondo suave del acento para que se lea como la referencia del pendiente. */
+.pe .pe-t td.pe-ahora { background: color-mix(in srgb, var(--fe-aviso, #FFC400) 12%, transparent) }
+.pe .pe-t th.pe-ahora { box-shadow: inset 0 -3px 0 var(--fe-aviso, #FFC400) }
+
 /* ---------- tablas ---------- */
 .pe .pe-caja { overflow-x: auto }
 .pe table.pe-t { border-collapse: collapse; width: 100% }
