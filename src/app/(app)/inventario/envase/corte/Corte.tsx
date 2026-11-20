@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { porMaterial, type FilaNotif, type Partida } from "@/modulos/inventario/envase/calc";
+import { masDias, porMaterial, type FilaNotif, type Partida } from "@/modulos/inventario/envase/calc";
+import { Calendario } from "@/components/CalendarioRango";
 
 const n0 = (x: number) => Math.round(x).toLocaleString("es-CO");
 const fh = (e: string) => `${e.slice(8, 10)}/${e.slice(5, 7)} ${e.slice(11, 16)}`;
@@ -20,16 +21,18 @@ const nombreClases = (c: Set<string>) => [...c].map((x) => CLASE[x] ?? x).join("
  * el conteo físico. Lo contabilizado el mismo día y digitado en la hora siguiente no se puede saber: lo marca
  * quien hizo el conteo (por defecto «después», y no cuenta).
  */
-export function Corte({ dia, hora, seguras, dudosas, alcanza, ultima, notif }: {
-  dia: string; hora: string; seguras: Partida[]; dudosas: Partida[]; alcanza: boolean; ultima: string | null; notif: FilaNotif[];
+const HORAS = Array.from({ length: 48 }, (_, i) => `${String(Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`);
+const TURNOS = ["06:00", "14:00", "22:00"];
+
+export function Corte({ dia, hora, hoy, seguras, dudosas, alcanza, ultima, notif }: {
+  dia: string; hora: string; hoy: string; seguras: Partida[]; dudosas: Partida[]; alcanza: boolean; ultima: string | null; notif: FilaNotif[];
 }) {
   const router = useRouter();
-  const [d, setD] = useState(dia);
-  const [h, setH] = useState(hora);
+  const ir = (f: string, h: string) => router.push(`/inventario/envase/corte?f=${f}&h=${h}`);
+  const ayer = masDias(hoy, -1);
   const [antes, setAntes] = useState<Set<number>>(new Set());
   const todas = useMemo(() => [...seguras, ...dudosas.filter((_, i) => antes.has(i))], [seguras, dudosas, antes]);
   const mats = porMaterial(todas).filter((m) => Math.abs(m.q) > 0.0001);
-  const cambia = d !== dia || h !== hora;
   const [copiado, setCopiado] = useState<string | null>(null);
   async function copiar() {
     try { await navigator.clipboard.writeText(notif.map((f) => [f.tipo, f.documento, f.codigo, "", "", f.unidades].join("\t")).join("\n")); setCopiado("Copiadas: pégalas en la columna A de NOVEDADES.") }
@@ -39,14 +42,27 @@ export function Corte({ dia, hora, seguras, dudosas, alcanza, ultima, notif }: {
 
   return (
     <>
-      <section className="pe-card pe-form" aria-label="Hora del conteo">
-        <label className="pe-campo"><span>Día del conteo</span><input type="date" value={d} onChange={(e) => setD(e.target.value)} /></label>
-        <label className="pe-campo"><span>Hora</span><input type="time" value={h} step={60} onChange={(e) => setH(e.target.value)} /></label>
-        <button type="button" className="pe-bt am" disabled={!cambia || !d || !h} onClick={() => router.push(`/inventario/envase/corte?f=${d}&h=${h}`)}>Ver partidas</button>
-        <p className="pe-nota" style={{ padding: 0, flex: "1 1 280px" }}>
+      {/* EL DÍA Y LA HORA DEL CONTEO: el mismo calendario de Validación y Análisis de diferencia; la hora en una lista
+          (los cambios de turno primero). Al escoger se ve de una, sin botón. */}
+      <div className="ad"><div className="ad-barra pe-barra">
+        <div className="ad-dia"><span>Día del conteo</span>
+          <div className="ad-cal">
+            <Calendario desde={dia} hasta={dia} minF="2026-01-01" maxF={hoy} unDia
+                        atajos={[{ t: "Hoy", d: () => [hoy, hoy] }, { t: "Ayer", d: () => [ayer, ayer] }]}
+                        aplicar={(x) => { if (x && x !== dia) ir(x, hora) }} />
+          </div>
+        </div>
+        <div className="ad-dia"><span>Hora</span>
+          <select className="pe-hora" value={hora} onChange={(e) => ir(dia, e.target.value)} aria-label="Hora del conteo">
+            <optgroup label="Cambios de turno">{TURNOS.map((x) => <option key={"t" + x} value={x}>{x}</option>)}</optgroup>
+            <optgroup label="Otra hora">{HORAS.filter((x) => !TURNOS.includes(x)).map((x) => <option key={x} value={x}>{x}</option>)}</optgroup>
+            {!HORAS.includes(hora) && <option value={hora}>{hora}</option>}
+          </select>
+        </div>
+        <p className="pe-nota" style={{ padding: 0, flex: "1 1 280px", alignSelf: "center" }}>
           MB51 cargada hasta <b>{ultima ? fh(ultima) : "—"}</b>. Tiene que ser sacada <b>después</b> del corte: trae lo que se digitó en las horas siguientes.
         </p>
-      </section>
+      </div></div>
 
       {!alcanza ? (
         <p className="pe-aviso">La MB51 cargada no llega después de las {hora} del {dia.slice(8)}/{dia.slice(5, 7)}: todavía no se puede saber qué se digitó tarde. Sube una MB51 sacada después del corte en Cargar.</p>

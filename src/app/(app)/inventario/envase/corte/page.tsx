@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notificacionesAlCorte, partidasCorte } from "@/modulos/inventario/envase/calc";
 import { hoyBogota, movimientosDigitadosDesde, movimientosParaElConteo, upcEnvases } from "@/modulos/inventario/envase/datos";
 import "../../fefo.css";
+import "../../balance/analisis/analisis.css";
 import "../envase.css";
 import { Corte } from "./Corte";
 
@@ -38,7 +39,7 @@ export default async function CortePage({ searchParams }: { searchParams: Promis
       ) : mv.error ? (
         <p className="pe-error">No se pudo leer la MB51: {mv.error}</p>
       ) : (
-        <Corte dia={dia} hora={hora} seguras={r.seguras} dudosas={r.dudosas} alcanza={r.alcanza} ultima={r.ultima} notif={nt.filas} />
+        <Corte dia={dia} hora={hora} hoy={hoyBogota()} seguras={r.seguras} dudosas={r.dudosas} alcanza={r.alcanza} ultima={r.ultima} notif={nt.filas} />
       )}
     </div>
   );
