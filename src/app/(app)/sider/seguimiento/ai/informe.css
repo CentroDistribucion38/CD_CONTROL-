@@ -426,6 +426,9 @@
 .sd .ia-origen tr.ia-vital td:first-child { box-shadow: inset 3px 0 0 var(--sd-tinta) }
 .sd .ia-sub { color: var(--sd-gris); font-weight: 400 }
 
+/* El ranking por %AI (CDs y referencias): imagen a lo ancho, en su proporción. */
+.sd .ia-rank { display: block; width: 100%; height: auto; aspect-ratio: 182 / 72 }
+
 /* ===== LA TENDENCIA POR DÍA ===== */
 .sd .ia-linea-dia svg { height: 190px }
 .sd .ia-linea .prom { stroke: var(--sd-tinta); stroke-width: 1.5; stroke-dasharray: 7 6; vector-effect: non-scaling-stroke }

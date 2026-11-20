@@ -7,13 +7,14 @@
  * El mismo diseño de la foto del cierre de turno (`foto-pareto.ts`): la banda negra con el sello, el filo rojo, la franja
  * amarilla con las cifras y las secciones con su raya. El informe completo en una sola imagen sale larguísima y en el
  * celular no se lee; partido en dos, cada imagen cabe en una pantalla:
- *   · PARTE 1 · ORIGEN Y TENDENCIA — las cifras, el %AI por origen (CD) con su pareto y la tendencia por día.
- *   · PARTE 2 · PARETOS — el pareto por causal, el de referencia (SKU) y el top 5 DRY con su pareto.
- * «Junto con su pareto gráfica»: cada tabla va con su pareto debajo.
+ *   · PARTE 1 · ORIGEN Y TENDENCIA — las cifras, el %AI por origen (CD) con su ranking y la tendencia por día.
+ *   · PARTE 2 · CAUSAL, SKU Y DRY — el pareto por causal, el ranking por referencia (SKU) y el top 5 DRY con su pareto.
+ * CDs y referencias van en RANKING por %AI, no en pareto: el pareto ordena por unidades malas y no tiene en cuenta lo que
+ * se revisa. El pareto queda para las causales (todas sobre las mismas revisadas) y el top 5 DRY.
  * Las dos llevan la misma franja de cifras arriba, para que cada una se entienda sola.
  */
 import { banda, cifra, partir, pintarGrafica, vitales, type ExtraPareto } from "./foto-pareto";
-import { lienzoTendencia, paretoOrigen, type DatosInformeAi } from "./informe-ai-graficas";
+import { lienzoRanking, lienzoTendencia, rankingOrigen, rankingSku, type DatosInformeAi } from "./informe-ai-graficas";
 
 type Ctx = CanvasRenderingContext2D;
 const TINTA = "#111111", ORO = "#FFC400", ROJO = "#C8102E", GRIS = "#5b6b7f", LINEA = "#E6EAF0", AZUL = "#2c4361";
@@ -96,13 +97,14 @@ const medir = () => { const c = document.createElement("canvas").getContext("2d"
    ===================================================================== */
 export function dibujarInformeParte1(d: DatosInformeAi, x: ExtraPareto): HTMLCanvasElement {
   const o = [...d.origenes].sort((a, b) => b.indice - a.indice);
-  const po = paretoOrigen(d);
+  const ro = rankingOrigen(d);
+  const RANK = Math.round((W - 2 * M) * (72 / 182));
   const conTend = d.dias.length > 1;
   const TEND = Math.round((W - 2 * M) * (66 / 182));
   const pie = `%AI = unidades en mal estado ÷ unidades revisadas, sumadas en el período (no el promedio de cada revisión). En rojo, lo que queda por encima del %AI del período (${pc(d.total.indice)}). Filtros: ${d.filtros}.`;
   const lineasPie = partir(medir(), pie, W - 2 * M, 4).length;
   const alto = 184 + 34 + 22 + 32 + Math.max(1, o.length) * FILA + 40 + 30
-    + (po.length ? 4 + 34 + 18 + G + 26 : 0)
+    + (ro.length ? 4 + 34 + 18 + RANK + 26 : 0)
     + (conTend ? 34 + 22 + TEND + 16 : 0) + 10 + lineasPie * 16 + 22;
   const { cv, ctx } = lienzo(alto);
   banda(ctx, W, x.titulo, x);
@@ -118,12 +120,12 @@ export function dibujarInformeParte1(d: DatosInformeAi, x: ExtraPareto): HTMLCan
     ["", "Total", nf.format(d.total.revisiones), nf.format(d.total.revisadas), nf.format(d.total.defectos), "100,00 %", pc(d.total.indice)]);
   y += 30;
 
-  /* EL PARETO POR ORIGEN, debajo de su tabla. */
-  if (po.length) {
-    const v = vitales(po), vPct = v.length ? v[v.length - 1].acumulado : 0;
-    y = seccion(ctx, y + 4, "Pareto por origen · unidades en mal estado", `${v.length} de ${po.length} CDs forman el ${pc0(vPct)}`) - 4;
-    pintarGrafica(ctx, M, y, W - 2 * M, G, po);
-    y += G + 26;
+  /* EL RANKING POR ORIGEN, debajo de su tabla. */
+  if (ro.length) {
+    const sobre = ro.filter((r) => r.indice > d.total.indice).length;
+    y = seccion(ctx, y + 4, "Ranking de CDs por %AI", `${sobre} de ${ro.length} por encima del período · debajo, lo revisado`) - 4;
+    ctx.drawImage(lienzoRanking(ro, d.total.indice, [17, 17, 17]), M, y, W - 2 * M, RANK);
+    y += RANK + 26;
   }
 
   /* TENDENCIA */
@@ -144,11 +146,12 @@ export function dibujarInformeParte1(d: DatosInformeAi, x: ExtraPareto): HTMLCan
 export function dibujarInformeParte2(d: DatosInformeAi, x: ExtraPareto): HTMLCanvasElement {
   const bloques = [
     d.causales.length ? { t: "Pareto por causal · el estado más encontrado", p: d.causales, de: "causales" } : null,
-    d.envases.length ? { t: "%AI por referencia (SKU) · pareto por envase", p: d.envases, de: "referencias" } : null,
   ].filter(Boolean) as { t: string; p: typeof d.causales; de: string }[];
-  const pie = `Barras = unidades en mal estado, de más a menos. En negro, las que juntas forman el 80 %; en gris, el resto. Línea roja = % acumulado; raya punteada = el 80 %.${d.otrosCausal.length ? ` Contados pero fuera del %AI: ${d.otrosCausal.map((r) => `${r.nombre} ${nf.format(r.unidades)}`).join(" · ")}.` : ""}`;
+  const pie = `Paretos (causal y DRY): barras = unidades en mal estado, de más a menos; en negro, las que juntas forman el 80 %; línea roja = % acumulado. Ranking (SKU): %AI de cada referencia; en negro, las que quedan por encima del %AI del período.${d.otrosCausal.length ? ` Contados pero fuera del %AI: ${d.otrosCausal.map((r) => `${r.nombre} ${nf.format(r.unidades)}`).join(" · ")}.` : ""}`;
   const lineasPie = partir(medir(), pie, W - 2 * M, 4).length;
-  const alto = 184 + Math.max(1, bloques.length) * (34 + 18 + G + 10 + 30 + 20)
+  const rs = rankingSku(d);
+  const RANK = Math.round((W - 2 * M) * (72 / 182));
+  const alto = 184 + Math.max(1, bloques.length) * (34 + 18 + G + 10 + 30 + 20) + (rs.length ? 34 + 18 + RANK + 26 : 0)
     + (d.top5.length ? 34 + 22 + 32 + d.top5.length * FILA + 14 + GD + 26 : 0) + 10 + lineasPie * 16 + 22;
   const { cv, ctx } = lienzo(alto);
   banda(ctx, W, x.titulo, x);
@@ -169,6 +172,14 @@ export function dibujarInformeParte2(d: DatosInformeAi, x: ExtraPareto): HTMLCan
     ctx.font = `500 13.5px ${FUENTE}`; ctx.fillStyle = AZUL;
     ctx.fillText(` es el ${pc0(t0.pctDefectos)} del mal estado. Con ${v.length === 1 ? "el primero" : `${v.length === b.p.length ? "todos" : `los ${v.length} primeros`}`} ya se explica el ${pc0(vPct)}.`, M + a, y + 20);
     y += 30 + 20;
+  }
+
+  /* %AI POR REFERENCIA: ranking por %AI, con lo revisado debajo de cada una. */
+  if (rs.length) {
+    const sobre = rs.filter((r) => r.indice > d.total.indice).length;
+    y = seccion(ctx, y + 34, "%AI por referencia (SKU) · ranking", `${sobre} de ${rs.length} por encima del período · debajo, lo revisado`) - 4;
+    ctx.drawImage(lienzoRanking(rs, d.total.indice, [17, 17, 17]), M, y, W - 2 * M, RANK);
+    y += RANK + 26;
   }
 
   /* TOP 5 DRY: la tabla y su pareto debajo. */

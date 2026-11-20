@@ -24,7 +24,8 @@ export type DatosInformeAi = {
   top5: (ParetoFila & { socio?: PorSocio })[];
   /** Todo el mal estado de los socios (el 100 % del pareto de DRY). */
   malasSocios: number;
-  envases: (ParetoFila & { env?: PorEnvase })[];
+  /** %AI por referencia: un RANKING por %AI, no un pareto («el pareto saca lo que más malo hay pero no tiene en cuenta lo que se revisa»). */
+  envases: PorEnvase[];
   dias: PorDia[];
 };
 
@@ -81,13 +82,11 @@ export function hallazgos(d: DatosInformeAi): string[] {
     const a5 = d.top5[d.top5.length - 1].acumulado;
     out.push(`Los ${d.top5.length} DRY con más mal estado suman el ${pc1(a5)} del mal estado de los socios; el primero es ${d.top5[0].nombre} con ${n0(d.top5[0].unidades)} unidades (%AI ${pc(d.top5[0].socio?.indice ?? 0)}).`);
   }
-  if (d.envases.length) {
-    const e = d.envases[0];
-    const peor = [...d.envases].filter((x) => (x.env?.revisadas ?? 0) > 0).sort((a, b) => (b.env?.indice ?? 0) - (a.env?.indice ?? 0))[0];
-    out.push(peor && peor.clave !== e.clave
-      ? `${e.nombre} es la referencia con más mal estado (${n0(e.unidades)} unidades, ${pc1(e.pctDefectos)} del total); la de %AI más alto es ${peor.nombre} (${pc(peor.env?.indice ?? 0)}).`
-      : `${e.nombre} es la referencia con más mal estado (${n0(e.unidades)} unidades, ${pc1(e.pctDefectos)} del total) y también la de %AI más alto (${pc(e.env?.indice ?? 0)}).`);
-  }
+  const refs = rankingSku(d);
+  if (refs.length > 1) {
+    const alto = refs[0], bajo = refs[refs.length - 1];
+    out.push(`${alto.nombre} es la referencia con el %AI más alto (${pc(alto.indice)} sobre ${n0(alto.revisadas)} revisadas); ${bajo.nombre} la más baja (${pc(bajo.indice)}).`);
+  } else if (refs.length === 1) out.push(`Una sola referencia revisada: ${refs[0].nombre}, con ${pc(refs[0].indice)}.`);
   if (d.dias.length > 1) {
     const sobre = d.dias.filter((x) => x.indice > t.indice).length;
     const pico = [...d.dias].sort((a, b) => b.indice - a.indice)[0];
@@ -103,6 +102,7 @@ const K = 12;
 export const MEDIDA = {
   pareto: { ancho: 182, alto: 80 },
   tendencia: { ancho: 182, alto: 66 },
+  ranking: { ancho: 182, alto: 72 },
 } as const;
 
 function lienzo(wmm: number, hmm: number) {
@@ -236,13 +236,52 @@ export function lienzoTendencia(dias: PorDia[], promedio: number, tinta: RGB = P
   return c;
 }
 
-/** EL PARETO POR ORIGEN: los CDs de más a menos unidades en mal estado, con su parte del mal estado y el acumulado. */
-export function paretoOrigen(d: DatosInformeAi): ParetoFila[] {
-  const malas = d.origenes.reduce((a, x) => a + x.malas, 0);
-  let acum = 0;
-  return [...d.origenes].filter((x) => x.malas > 0).sort((a, b) => b.malas - a.malas).map((x) => {
-    acum += x.malas;
-    return { clave: x.origen, nombre: x.origen, unidades: x.malas, pct: d.total.revisadas ? x.malas / d.total.revisadas : 0,
-             pctDefectos: malas ? x.malas / malas : 0, acumulado: malas ? acum / malas : 0 };
+/**
+ * LOS RANKINGS DE %AI (por CD y por referencia).
+ *
+ * «El %AI por referencia no es pareto: ahí saldría lo que más malo hay, pero no tiene en cuenta lo que se revisa. Sería un
+ *  ranking. Igual los CDs.» Se ordena por %AI (mal estado ÷ revisadas de cada uno) y debajo de cada nombre va cuánto se
+ * revisó, para que un CD con una sola revisión no se lea igual que uno con cuarenta.
+ */
+export type FilaRanking = { nombre: string; indice: number; revisadas: number; revisiones: number; malas: number };
+export const rankingOrigen = (d: DatosInformeAi): FilaRanking[] =>
+  [...d.origenes].sort((a, b) => b.indice - a.indice).map((x) => ({ nombre: x.origen, indice: x.indice, revisadas: x.revisadas, revisiones: x.revisiones, malas: x.malas }));
+export const rankingSku = (d: DatosInformeAi): FilaRanking[] =>
+  [...d.envases].sort((a, b) => b.indice - a.indice).map((x) => ({ nombre: x.envase, indice: x.indice, revisadas: x.revisadas, revisiones: x.revisiones, malas: x.malas }));
+
+/** La gráfica del ranking: una columna por CD o referencia, de mayor a menor %AI, con su %AI encima, lo revisado debajo del
+ *  nombre y la raya del %AI del período. En negro las que quedan por encima del período; en gris las de debajo. */
+export function lienzoRanking(filas: FilaRanking[], promedio: number, tinta: RGB = PALETA_MARCA.tinta): HTMLCanvasElement {
+  const { c, ctx, W, H } = lienzo(MEDIDA.ranking.ancho, MEDIDA.ranking.alto);
+  if (!filas.length) return c;
+  const ML = 2 * K, MR = 2 * K, MT = 12 * K, MB = 15 * K;
+  const n = filas.length, PASO = (W - ML - MR) / n, BW = Math.min(18 * K, PASO * 0.62);
+  const techo = Math.max(promedio, ...filas.map((x) => x.indice)) * 1.15 || 0.01;
+  const Y = (v: number) => H - MB - (v / techo) * (H - MT - MB);
+  const cx = (i: number) => ML + i * PASO + PASO / 2;
+  ctx.strokeStyle = "#9AA5B1"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(ML, H - MB + 1); ctx.lineTo(W - MR, H - MB + 1); ctx.stroke();
+  const chico = n > 10;
+  filas.forEach((x, i) => {
+    const sobre = x.indice > promedio, y = Y(x.indice);
+    ctx.fillStyle = sobre ? FUERTE : GRIS_BARRA; ctx.fillRect(cx(i) - BW / 2, y, BW, H - MB - y);
+    letra(ctx, 800, chico ? 2.2 : 2.7); ctx.textAlign = "center";
+    halo(ctx, chico ? nf2.format(x.indice * 100) : pc(x.indice), cx(i), y - 2.4 * K, sobre ? ROJO : rgb(tinta));
+    letra(ctx, sobre ? 700 : 500, chico ? 2.1 : 2.5); ctx.fillStyle = rgb(tinta);
+    const ls = dosRenglones(ctx, x.nombre, PASO - 0.8 * K);
+    ls.forEach((r, k) => ctx.fillText(r, cx(i), H - MB + (3.2 + k * 2.8) * K));
+    letra(ctx, 500, chico ? 1.9 : 2.2); ctx.fillStyle = "#5F6B79";
+    ctx.fillText(`${n0(x.revisadas)} rev.`, cx(i), H - MB + (3.2 + ls.length * 2.8) * K);
   });
+  /* La raya del período, por encima de las columnas, y su leyenda arriba a la derecha. */
+  ctx.strokeStyle = rgb(tinta); ctx.lineWidth = 3; ctx.setLineDash([12, 10]);
+  ctx.beginPath(); ctx.moveTo(ML, Y(promedio)); ctx.lineTo(W - MR, Y(promedio)); ctx.stroke(); ctx.setLineDash([]);
+  letra(ctx, 600, 2.4); ctx.textAlign = "right";
+  const t2 = "por encima del período", t1 = `%AI del período ${pc(promedio)}`;
+  let lx = W - MR; const ly = 3.5 * K;
+  ctx.fillStyle = "#5F6B79"; ctx.fillText(t2, lx, ly); lx -= ctx.measureText(t2).width + 1.5 * K;
+  ctx.fillStyle = FUERTE; ctx.fillRect(lx - 2.4 * K, ly - 1.2 * K, 2.4 * K, 2.4 * K); lx -= 5 * K;
+  letra(ctx, 800, 2.4); ctx.fillStyle = rgb(tinta); ctx.fillText(t1, lx, ly); lx -= ctx.measureText(t1).width + 2 * K;
+  ctx.strokeStyle = rgb(tinta); ctx.lineWidth = 3; ctx.setLineDash([12, 10]); ctx.beginPath(); ctx.moveTo(lx - 8 * K, ly); ctx.lineTo(lx, ly); ctx.stroke(); ctx.setLineDash([]);
+  return c;
 }
+export const graficaRanking = (filas: FilaRanking[], promedio: number, tinta?: RGB) => lienzoRanking(filas, promedio, tinta).toDataURL("image/png");

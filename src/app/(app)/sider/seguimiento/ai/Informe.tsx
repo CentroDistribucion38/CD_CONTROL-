@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { NOMBRE_INFORME_AI, OJO_AI, archivoInformeAi, construirInformeAi, imagenesAi, type DatosInformeAi } from "@/modulos/sider/informe-ai-doc";
 import { useRouter } from "next/navigation";
 import type { PorDefecto, PorSocio, PorOrigen, PorEnvase, PorDia } from "@/modulos/sider/informe-ai";
 import type { ParetoFila } from "@/modulos/sider/cierre-ai";
+import type { FilaRanking } from "@/modulos/sider/informe-ai-graficas";
 import { ParetoLienzo } from "./ParetoLienzo";
 import { useFotoCompartir } from "@/components/FotoCompartir";
 import type { Revision } from "@/modulos/sider/ai";
@@ -91,8 +92,11 @@ export function Informe({
   const top5 = paretoSocios.slice(0, 5);
   const malasSocios = conSocio.reduce((a, x) => a + x.defectos, 0);
   const socioDe = new Map(conSocio.map((x) => [x.clave, x]));
-  const paretoEnv = pareto(datos.envases.map((x) => ({ clave: x.envase, nombre: x.envase, unidades: x.malas })));
-  const envDe = new Map(datos.envases.map((x) => [x.envase, x]));
+  /* CDs y referencias van en RANKING por %AI, no en pareto: el pareto ordena por unidades malas y no tiene en cuenta lo que
+     se revisa («sería un ranking, igual los CDs»). */
+  const rankRef = useMemo(() => [...datos.envases].sort((a, b) => b.indice - a.indice), [datos.envases]);
+  const filasRankRef = useMemo(() => rankRef.map((x) => ({ nombre: x.envase, indice: x.indice, revisadas: x.revisadas, revisiones: x.revisiones, malas: x.malas })), [rankRef]);
+  const filasRankCd = useMemo(() => [...origenes].sort((a, b) => b.indice - a.indice).map((x) => ({ nombre: x.origen, indice: x.indice, revisadas: x.revisadas, revisiones: x.revisiones, malas: x.malas })), [origenes]);
 
   /* ---------- EL INFORME (Word · PDF) Y LA IMAGEN PARA COMPARTIR ---------- */
   const [haciendo, setHaciendo] = useState<"pdf" | "word" | null>(null);
@@ -112,7 +116,7 @@ export function Informe({
     desde: desdeI, hasta: hastaI, filtros: textoFiltros, total,
     origenes, causales, otrosCausal: otrosCausal.map((x) => ({ nombre: x.nombre, unidades: x.unidades })),
     top5: top5.map((x) => ({ ...x, socio: socioDe.get(x.clave) })), malasSocios,
-    envases: paretoEnv.map((x) => ({ ...x, env: envDe.get(x.clave) })), dias: datos.dias,
+    envases: datos.envases, dias: datos.dias,
   });
 
   async function informe(formato: "pdf" | "word") {
@@ -163,12 +167,12 @@ export function Informe({
   const imagen = useFotoCompartir(async (tipo) => {
     const [fo, { cargarLogoB }, { periodoLargo }] = await Promise.all([import("@/modulos/sider/foto-informe-ai"), import("@/modulos/sider/foto-pareto"), import("@/modulos/sider/informe-ai-graficas")]);
     const d = datosInforme(), logo = await cargarLogoB(), uno = tipo !== "detalle";
-    const x = { titulo: "Informe %AI", ojo: `REVISIÓN DE ENVASE · PARTE ${uno ? "1 DE 2 · ORIGEN Y TENDENCIA" : "2 DE 2 · PARETOS"}`, periodo: periodoLargo(desdeI, hastaI), generado: new Date(), logo };
+    const x = { titulo: "Informe %AI", ojo: `REVISIÓN DE ENVASE · PARTE ${uno ? "1 DE 2 · ORIGEN Y TENDENCIA" : "2 DE 2 · CAUSAL, SKU Y DRY"}`, periodo: periodoLargo(desdeI, hastaI), generado: new Date(), logo };
     const rango = desdeI === hastaI ? desdeI : `${desdeI}-a-${hastaI}`;
     return uno
       ? { lienzo: fo.dibujarInformeParte1(d, x), nombre: `informe-ai-${rango}-1-origen-tendencia.png` }
-      : { lienzo: fo.dibujarInformeParte2(d, x), nombre: `informe-ai-${rango}-2-paretos.png` };
-  }, "Informe %AI para compartir", { dashboard: "1 · Origen y tendencia", detalle: "2 · Paretos" }, undefined, ["dashboard", "detalle"]);
+      : { lienzo: fo.dibujarInformeParte2(d, x), nombre: `informe-ai-${rango}-2-causal-sku-dry.png` };
+  }, "Informe %AI para compartir", { dashboard: "1 · Origen y tendencia", detalle: "2 · Causal, SKU y DRY" }, undefined, ["dashboard", "detalle"]);
 
   /* El tope de las barras nunca puede ser cero: `width: NaN%` se descarta y la barra se llena. */
   const topeOri = Math.max(0.0001, ...origenes.map((o) => o.indice));
@@ -275,6 +279,7 @@ export function Informe({
                 aporta ese origen a todo lo que salió en mal estado.
               </p>
             </div>
+            <div className="ia-pareto"><RankingImg filas={filasRankCd} promedio={total.indice} etiqueta="Ranking de CDs por %AI" /></div>
             <div className="ia-tabla">
               <table className="ia-origen">
                 <thead>
@@ -374,39 +379,36 @@ export function Informe({
             </div>
           </section>
 
-          {/* ---------- %AI POR REFERENCIA (SKU del envase) ---------- */}
+          {/* ---------- %AI POR REFERENCIA (SKU del envase): ranking por %AI ---------- */}
           <section className="ia-caja">
             <div className="ia-caja-cab">
               <h2>%AI por referencia (SKU)</h2>
               <p>
-                El pareto por envase: de más a menos unidades en mal estado, con su parte del total, el acumulado y su %AI
-                (mal estado sobre revisadas de esa referencia).
+                Ranking por %AI: mal estado sobre revisadas de cada referencia, del más alto al más bajo. Debajo de cada una, cuánto se
+                revisó: un %AI sobre pocas unidades pesa menos. En negro, las que quedan por encima del %AI del período.
               </p>
             </div>
-            <div className="ia-pareto"><ParetoLienzo pareto={paretoEnv} /></div>
+            <div className="ia-pareto"><RankingImg filas={filasRankRef} promedio={total.indice} etiqueta="Ranking de referencias por %AI" /></div>
             <div className="ia-tabla">
               <table className="ia-origen">
                 <thead>
                   <tr>
-                    <th>Referencia</th><th className="n">Revisiones</th><th className="n">Unid. revisadas</th><th className="n">Unid. en mal estado</th>
-                    <th className="n">% del mal estado</th><th className="n">% acumulado</th><th className="n">%AI</th>
+                    <th className="n">#</th><th>Referencia</th><th className="n">Revisiones</th><th className="n">Unid. revisadas</th><th className="n">Unid. en mal estado</th>
+                    <th className="n">% del mal estado</th><th className="n">%AI</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {paretoEnv.map((f) => {
-                    const x = envDe.get(f.clave);
-                    return (
-                      <tr key={f.clave} className={f.acumulado - f.pctDefectos < 0.8 ? "ia-vital" : undefined}>
-                        <td><b>{f.clave}</b>{x?.nombre && x.nombre !== f.clave ? <small className="ia-sub"> {x.nombre}</small> : null}</td>
-                        <td className="n">{nf.format(x?.revisiones ?? 0)}</td>
-                        <td className="n">{nf.format(x?.revisadas ?? 0)}</td>
-                        <td className="n">{nf.format(f.unidades)}</td>
-                        <td className="n">{pct(f.pctDefectos)}</td>
-                        <td className="n">{pct(f.acumulado)}</td>
-                        <td className="n destaca">{pct(x?.indice ?? 0)}</td>
-                      </tr>
-                    );
-                  })}
+                  {rankRef.map((x, i) => (
+                    <tr key={x.envase} className={x.indice > total.indice ? "ia-vital" : undefined}>
+                      <td className="n">{i + 1}</td>
+                      <td><b>{x.envase}</b>{x.nombre && x.nombre !== x.envase ? <small className="ia-sub"> {x.nombre}</small> : null}</td>
+                      <td className="n">{nf.format(x.revisiones)}</td>
+                      <td className="n">{nf.format(x.revisadas)}</td>
+                      <td className="n">{nf.format(x.malas)}</td>
+                      <td className="n">{pct(total.defectos > 0 ? x.malas / total.defectos : 0)}</td>
+                      <td className="n destaca">{pct(x.indice)}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -492,6 +494,19 @@ export function Informe({
 }
 
 /** La tabla debajo de la gráfica del pareto: unidades, su parte del mal estado, el acumulado y el %AI sobre las revisadas. */
+/** El ranking por %AI (CDs o referencias): el mismo dibujo del PDF y de la imagen para compartir. */
+function RankingImg({ filas, promedio, etiqueta }: { filas: FilaRanking[]; promedio: number; etiqueta: string }) {
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    import("@/modulos/sider/informe-ai-graficas").then((g) => { if (vivo) setSrc(g.graficaRanking(filas, promedio, [17, 17, 17])) }).catch(() => {});
+    return () => { vivo = false };
+  }, [filas, promedio]);
+  const resumen = filas.map((x, i) => `${i + 1}. ${x.nombre}: ${pct(x.indice)}`).join("; ");
+  /* eslint-disable-next-line @next/next/no-img-element */
+  return src ? <img className="ia-rank" src={src} alt={`${etiqueta}. ${resumen}`} /> : <div className="ia-rank" aria-hidden />;
+}
+
 function TablaPareto({ filas, titulo }: { filas: ParetoFila[]; titulo: string }) {
   if (filas.length === 0) return <p className="ia-mas">No se encontraron unidades en mal estado.</p>;
   return (
