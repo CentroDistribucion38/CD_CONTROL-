@@ -7,7 +7,8 @@ import { Calendario, type Atajo } from "@/components/CalendarioRango";
 import type { Unidad } from "@/modulos/inventario/envase/calc";
 
 export type FilaCruceHora = { tren: string; sku: string; planDia: number; planHasta: number };
-export type DetalleSku = { nombre: string; notif: number; retornable: boolean; ref: number; b261: number; c261: number };
+type Env = { cod: string; txt: string } | null;
+export type DetalleSku = { nombre: string; notif: number; retornable: boolean; ref: number; b261: number; c261: number; botella: Env; caja: Env };
 type M = Record<string, { nombre: string; ml: number; ref: number; cpe: number }>;
 
 const UNI: [Unidad, string, string][] = [["hl", "HL", "HL"], ["un", "Unidades", "un."], ["cajas", "Cajas", "cajas"], ["estibas", "Estibas", "est."]];
@@ -73,16 +74,31 @@ export function CruceHora({ dia, hoy, hora, esAhora, mb51, filas, detalle, maest
   const tDia = sumaU(todos, (r) => r.dia), tHasta = sumaU(todos, (r) => r.hasta), tNot = sumaU(todos, (r) => r.notif);
   const tPend = tHasta - tNot;
 
-  /* ENVASE (retornables): botellas y cajas que el plan dice que ya salieron de AG22 contra el 261 digitado. Lo que el plan lleva
-     y el 261 no, SAP todavía lo tiene en AG22: al contar, el físico sale por debajo de SAP en esa cantidad. */
-  const env = [...skus].filter((s) => detalle[s]?.retornable).map((s) => {
-    const d = detalle[s], p = planSku.get(s)?.hasta ?? 0, ref = d.ref || maestro[s]?.ref || 0;
-    return { sku: s, plan: p, notif: d.notif, b261: d.b261, botPlan: p - d.b261, botNot: d.notif - d.b261,
-             cjPlan: ref ? p / ref : null, c261: d.c261, cjMas: ref ? p / ref - d.c261 : null };
-  }).sort((a, b) => b.plan - a.plan || b.b261 - a.b261);
-  const eBot = env.reduce((a, x) => a + x.botPlan, 0), eBotN = env.reduce((a, x) => a + x.botNot, 0);
-  const eCj = env.reduce((a, x) => a + (x.cjMas ?? 0), 0);
-  const signo = (x: number) => (x > 0.5 ? <b className="mal">{n0(x)}</b> : x < -0.5 ? <span className="mut">−{n0(-x)}</span> : <span className="bien">✓</span>);
+  /* ENVASE (retornables). Lo que se debería haber cargado (261) a esta hora sale del PLAN A LA HORA, no del día: si el día son
+     100 estibas y a esta hora van 70, el envase de esas 70 (cada estiba = cajas × botellas). No se puede cargar lo que no se ha
+     envasado. Se agrupa por el envase (código de botella + código de caja): varios SKU pueden usar el mismo. */
+  const est = (un: number, sku: string) => conv(un, sku, "estibas");
+  const EG = new Map<string, { bot: Env; caja: Env; skus: string[]; estDia: number; estHasta: number; sinEst: boolean;
+    botPlan: number; b261: number; cjPlan: number; c261: number }>();
+  for (const s of skus) {
+    const d = detalle[s]; if (!d?.retornable) continue;
+    const p = planSku.get(s) ?? { dia: 0, hasta: 0 }, ref = d.ref || maestro[s]?.ref || 0;
+    const k = `${d.botella?.cod ?? "?"}|${d.caja?.cod ?? "?"}`;
+    const g = EG.get(k) ?? { bot: d.botella, caja: d.caja, skus: [], estDia: 0, estHasta: 0, sinEst: false, botPlan: 0, b261: 0, cjPlan: 0, c261: 0 };
+    g.skus.push(s);
+    const ed = est(p.dia, s), eh = est(p.hasta, s);
+    if (ed == null) { if (p.dia) g.sinEst = true } else { g.estDia += ed; g.estHasta += eh ?? 0 }
+    g.botPlan += p.hasta; g.b261 += d.b261; g.cjPlan += ref ? p.hasta / ref : 0; g.c261 += d.c261;
+    EG.set(k, g);
+  }
+  const envs = [...EG.values()].sort((a, b) => b.estHasta - a.estHasta || b.b261 - a.b261);
+  const tot = envs.reduce((a, g) => ({ estDia: a.estDia + g.estDia, estHasta: a.estHasta + g.estHasta, botPlan: a.botPlan + g.botPlan, b261: a.b261 + g.b261, cjPlan: a.cjPlan + g.cjPlan, c261: a.c261 + g.c261 }),
+    { estDia: 0, estHasta: 0, botPlan: 0, b261: 0, cjPlan: 0, c261: 0 });
+  const e1 = (x: number) => x.toLocaleString("es-CO", { maximumFractionDigits: 1 });
+  /* Plan − 261: positivo = falta cargar (SAP todavía tiene ese envase en AG22); negativo = se cargó más de lo que el plan lleva. */
+  const dif = (x: number) => (x > 0.5 ? <b className="mal">{n0(x)} <small>falta</small></b> : x < -0.5 ? <b style={{ color: "var(--fe-aviso)" }}>{n0(-x)} <small>de más</small></b> : <span className="bien">✓</span>);
+  const faltaBot = envs.reduce((a, g) => a + Math.max(0, g.botPlan - g.b261), 0), masBot = envs.reduce((a, g) => a + Math.max(0, g.b261 - g.botPlan), 0);
+  const faltaCj = envs.reduce((a, g) => a + Math.max(0, g.cjPlan - g.c261), 0), masCj = envs.reduce((a, g) => a + Math.max(0, g.c261 - g.cjPlan), 0);
   const pct = (a: number, b: number) => {
     if (!b) return a ? <span className="mut">sin plan</span> : <span className="mut">—</span>;
     const p = a / b, c = p < 0.9 ? "var(--fe-mal)" : p > 1.1 ? "var(--fe-aviso)" : "var(--fe-bien)";
@@ -128,9 +144,10 @@ export function CruceHora({ dia, hoy, hora, esAhora, mb51, filas, detalle, maest
             <em>{tPend < -0.5 ? `${fmt(-tPend)} ${unom} por encima del plan` : "plan a esta hora − notificado"}</em></div>
           <div><span className="l">Cumplimiento a las {hora}</span><b className={tHasta && tNot / tHasta < 0.9 ? "mal" : ""}>{tHasta ? `${Math.round((100 * tNot) / tHasta)} %` : "—"}</b>
             <em>{tDia ? `del día: ${Math.round((100 * tNot) / tDia)} %` : "sin plan"}</em></div>
-          <div className={eBot > 0.5 ? "k-r" : ""}><span className="l">Botella · SAP de más</span><b className={eBot > 0.5 ? "mal" : "bien"}>{eBot > 0.5 ? n0(eBot) : "0 ✓"}</b>
-            <em>plan − 261 · según lo notificado: {n0(Math.max(0, eBotN))}</em></div>
-          <div className={eCj > 0.5 ? "k-am" : ""}><span className="l">Caja · SAP de más</span><b>{eCj > 0.5 ? n0(eCj) : "0 ✓"}</b><em>plan ÷ unidades por caja − 261 de caja</em></div>
+          <div className="k-am"><span className="l">Envase a las {hora}</span><b>{e1(tot.estHasta)}<small>est.</small></b><em>del día: {e1(tot.estDia)} estibas retornables</em></div>
+          <div className={faltaBot > 0.5 || masBot > 0.5 ? "k-r" : ""}><span className="l">Botella · plan − 261</span>
+            <b className={faltaBot > 0.5 ? "mal" : "bien"}>{faltaBot > 0.5 ? n0(faltaBot) : "0 ✓"}</b>
+            <em>{faltaBot > 0.5 ? "falta cargar" : "nada por cargar"}{masBot > 0.5 ? ` · ${n0(masBot)} cargadas de más` : ""} · cajas: {faltaCj > 0.5 ? `faltan ${n0(faltaCj)}` : "✓"}{masCj > 0.5 ? `, ${n0(masCj)} de más` : ""}</em></div>
         </section>
 
         <section className="pe-card">
@@ -178,28 +195,37 @@ export function CruceHora({ dia, hoy, hora, esAhora, mb51, filas, detalle, maest
 
         <section className="pe-card">
           <h3 className="pe-h3">Envase a las {hora} · retornables
-            <small>botellas y cajas en unidades · «SAP de más» = lo que el plan ya consumió y el 261 todavía no: al contar AG22, el físico sale por debajo de SAP</small></h3>
-          {env.length ? (
+            <small>lo que debería ir cargado (261) sale del plan a esta hora en estibas · cada estiba = cajas × botellas · «falta» = SAP todavía lo tiene en AG22</small></h3>
+          {envs.length ? (
             <div className="pe-caja">
-              <table className="pe-t">
+              <table className="pe-t pe-lin">
                 <thead><tr>
-                  <th className="l">SKU</th><th className="pe-ahora">Plan a las {hora}</th><th>Notificado</th>
-                  <th className="g">261 botella</th><th>SAP de más · plan</th><th>SAP de más · notificado</th>
-                  <th className="g">Cajas plan</th><th>261 caja</th><th>SAP de más · cajas</th>
+                  <th className="l">Envase · código SAP</th><th>Estibas del día</th><th className="pe-ahora">Estibas a las {hora}</th>
+                  <th>Debería ir cargado</th><th>261 cargado</th><th>Plan − 261</th>
                 </tr></thead>
                 <tbody>
-                  {env.map((x) => (
-                    <tr key={x.sku}>
-                      <td className="l"><b>{x.sku}</b> {nombre(x.sku)}</td>
-                      <td className="pe-ahora">{x.plan ? n0(x.plan) : "—"}</td><td>{n0(x.notif)}</td>
-                      <td className="g">{n0(x.b261)}</td><td>{signo(x.botPlan)}</td><td>{signo(x.botNot)}</td>
-                      <td className="g">{x.cjPlan == null ? "—" : n0(x.cjPlan)}</td><td>{n0(x.c261)}</td><td>{x.cjMas == null ? "—" : signo(x.cjMas)}</td>
-                    </tr>
+                  {envs.map((g) => (
+                    <Fragment key={(g.bot?.cod ?? "?") + (g.caja?.cod ?? "?")}>
+                      <tr className="pe-lin-cab">
+                        <td className="l"><b>{g.skus.map((s) => `${s} ${nombre(s)}`).join(" · ")}</b></td>
+                        <td>{g.sinEst && !g.estDia ? "—" : e1(g.estDia)}</td><td className="pe-ahora"><b>{g.sinEst && !g.estHasta ? "—" : e1(g.estHasta)}</b></td>
+                        <td colSpan={3} className="l mut">{g.sinEst ? "falta cajas por estiba en el maestro" : ""}</td>
+                      </tr>
+                      <tr className="sub">
+                        <td className="l">Botella · {g.bot ? <><b>{g.bot.cod}</b> {g.bot.txt}</> : <span className="mut">sin 261 en las últimas 4 semanas</span>}</td>
+                        <td /><td className="pe-ahora" />
+                        <td>{n0(g.botPlan)} <small className="mut">bot.</small></td><td>{n0(g.b261)}</td><td>{dif(g.botPlan - g.b261)}</td>
+                      </tr>
+                      <tr className="sub">
+                        <td className="l">Caja · {g.caja ? <><b>{g.caja.cod}</b> {g.caja.txt}</> : <span className="mut">sin 261 en las últimas 4 semanas</span>}</td>
+                        <td /><td className="pe-ahora" />
+                        <td>{n0(g.cjPlan)} <small className="mut">cajas</small></td><td>{n0(g.c261)}</td><td>{dif(g.cjPlan - g.c261)}</td>
+                      </tr>
+                    </Fragment>
                   ))}
                   <tr className="pe-lin-cab">
-                    <td className="l"><b>Total</b></td><td className="pe-ahora">{n0(env.reduce((a, x) => a + x.plan, 0))}</td><td>{n0(env.reduce((a, x) => a + x.notif, 0))}</td>
-                    <td className="g">{n0(env.reduce((a, x) => a + x.b261, 0))}</td><td>{signo(eBot)}</td><td>{signo(eBotN)}</td>
-                    <td className="g">{n0(env.reduce((a, x) => a + (x.cjPlan ?? 0), 0))}</td><td>{n0(env.reduce((a, x) => a + x.c261, 0))}</td><td>{signo(eCj)}</td>
+                    <td className="l"><b>Total</b></td><td>{e1(tot.estDia)}</td><td className="pe-ahora"><b>{e1(tot.estHasta)}</b></td>
+                    <td>{n0(tot.botPlan)} bot. · {n0(tot.cjPlan)} cajas</td><td>{n0(tot.b261)} · {n0(tot.c261)}</td><td />
                   </tr>
                 </tbody>
               </table>
@@ -209,7 +235,7 @@ export function CruceHora({ dia, hoy, hora, esAhora, mb51, filas, detalle, maest
 
         <p className="pe-nota">«Plan a las {hora}»: el plan vigente (último corte; si no hay, el inicial) sumado hora por hora — cada columna del instructivo
           es una hora y la hora en curso cuenta en proporción a los minutos. Lo notificado y el 261 son lo digitado en SAP hasta las {hora}, con fecha
-          de este día. En gris con «−», el 261 va por encima del plan.</p>
+          de este día. El envase se calcula del plan a la hora: no se carga lo que todavía no se ha envasado.</p>
       </>)}
     </>
   );

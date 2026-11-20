@@ -69,8 +69,24 @@ export default async function CruceHoraPage({ searchParams }: { searchParams: Pr
     x.planDia += unDe(f); x.planHasta += unDe(f) * peso;
     L.set(k, x);
   }
+  /* EL CÓDIGO DEL ENVASE de cada SKU (botella y caja): el material del 261 de sus órdenes en las últimas 4 semanas (el más usado). */
+  const skuOrden = new Map<string, string>();
+  for (const m of mv.filas) if (m.orden && /^Z0[12]$/.test(m.clase) && /P$/i.test(m.material)) skuOrden.set(m.orden, m.material.replace(/P$/i, ""));
+  const usos = new Map<string, Map<string, { cod: string; txt: string; n: number; caja: boolean }>>();
+  for (const m of mv.filas) {
+    if (m.clase !== "261" || !m.orden || !skuOrden.has(m.orden)) continue;
+    const sku = skuOrden.get(m.orden)!, k = sku;
+    if (!usos.has(k)) usos.set(k, new Map());
+    const x = usos.get(k)!.get(m.material) ?? { cod: m.material, txt: m.texto, n: 0, caja: /caja/i.test(m.texto) };
+    x.n++; usos.get(k)!.set(m.material, x);
+  }
+  const envaseDe = (sku: string, caja: boolean) => {
+    const xs = [...(usos.get(sku)?.values() ?? [])].filter((x) => x.caja === caja).sort((a, b) => b.n - a.n);
+    return xs[0] ? { cod: xs[0].cod, txt: xs[0].txt } : null;
+  };
   const detalle: Record<string, DetalleSku> = Object.fromEntries(v.filas.map((f) => [f.sku, {
     nombre: f.nombre, notif: f.notif, retornable: f.retornable, ref: f.ref, b261: f.b261, c261: f.c261,
+    botella: envaseDe(f.sku, false), caja: envaseDe(f.sku, true),
   }]));
 
   return (
