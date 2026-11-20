@@ -12,7 +12,7 @@ import { CopiarPlan } from "./CopiarPlan";
 export const dynamic = "force-dynamic";
 
 export default async function PlanPage({ searchParams }: {
-  searchParams: Promise<{ d?: string; pet?: string; pt?: string }>;
+  searchParams: Promise<{ d?: string }>;
 }) {
   const q = await searchParams;
   const hoy = hoyLocal();
@@ -30,12 +30,6 @@ export default async function PlanPage({ searchParams }: {
   if (t.falta || plan.falta) return <div className="tp"><SinTablas /></div>;
 
   const hayBorrador = plan.borrador.length > 0;
-  /* Viene de Programar PET: ?pet=N&pt=D|C|A|B llena la celda del tipo PET (el que pide SKU de PET en el maestro). */
-  const tipoPet = t.tipos.find((x) => x.materiales === "pet");
-  const nPet = /^\d{1,3}$/.test(q.pet ?? "") ? Number(q.pet) : null;
-  const desdePet = tipoPet && nPet != null
-    ? { tipo: tipoPet.clave, nombre: tipoPet.nombre, turno: ["D", "C", "A", "B"].includes(q.pt ?? "") ? q.pt! : "D", n: nPet }
-    : null;
 
   return (
     <div className="tp">
@@ -92,7 +86,6 @@ export default async function PlanPage({ searchParams }: {
         esHoy={dia === hoy}
         puedeEditar={permisos.puedeEditar("/traspasos/plan")}
         manda={permisos.manda}
-        desdePet={desdePet}
       />
     </div>
   );

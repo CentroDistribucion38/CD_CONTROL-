@@ -1155,12 +1155,6 @@
   background: var(--tp-fondo); border-bottom: 1px solid var(--tp-linea);
 }
 .tp .plan-cerrado b { font-weight: 700 }
-/* Lo que llegó de Programar PET: mismo renglón, con la raya del acento y su X. */
-.tp .plan-pet { display: flex; align-items: center; gap: 12px; border-left: 4px solid var(--tp-acento) }
-.tp .plan-pet-x {
-  margin-left: auto; flex: none; width: 30px; height: 30px; border: 1px solid var(--tp-linea); background: var(--tp-papel);
-  color: var(--tp-tinta); font: 700 18px/1 var(--tp-texto); cursor: pointer; border-radius: 0;
-}
 
 .tp .pie-publicar {
   display: flex; align-items: center; gap: 14px; flex-wrap: wrap;

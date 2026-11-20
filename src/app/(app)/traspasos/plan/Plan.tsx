@@ -39,7 +39,7 @@ const CON_DIA = [DIA, ...TURNOS] as string[];
  * el turno B sin saber que el A ya lleva cuatro es planear a ciegas.
  */
 export function Plan({ tipos, publicadas, borrador, vaciosGuardados, control,
-                       promedio, ayer, fecha, hoy, esHoy, puedeEditar, manda, desdePet }: {
+                       promedio, ayer, fecha, hoy, esHoy, puedeEditar, manda }: {
   tipos: TipoViaje[];
   publicadas: PlanLinea[];
   borrador: PlanLinea[];
@@ -57,8 +57,6 @@ export function Plan({ tipos, publicadas, borrador, vaciosGuardados, control,
   puedeEditar: boolean;
   /** Es quien manda: el único que cambia un día ya publicado. */
   manda: boolean;
-  /** Lo que mandó Programar PET (?pet=N&pt=D|C|A|B): se pone UNA vez en la celda del tipo PET, sin publicar. */
-  desdePet?: { tipo: string; nombre: string; turno: string; n: number } | null;
 }) {
   const router = useRouter();
   const supabase = createClient();
@@ -94,16 +92,7 @@ export function Plan({ tipos, publicadas, borrador, vaciosGuardados, control,
     return v;
   }, [vaciosGuardados]);
 
-  /* LO QUE TRAE PROGRAMAR PET entra como un cambio más del borrador: se ve, se corrige y se publica igual que
-     lo escrito a mano. Solo si se puede editar el día; si no, se dice por qué no entró. */
-  const petEntra = !!desdePet && editaDia;
-  const [rejilla, setRejilla] = useState<Rejilla>(() => {
-    if (!petEntra || !desdePet) return inicial;
-    const sig: Rejilla = { ...inicial, [k(desdePet.turno, desdePet.tipo)]: Math.max(0, desdePet.n) };
-    for (const o of CON_DIA) if (o !== desdePet.turno && (o === DIA) !== (desdePet.turno === DIA)) sig[k(o, desdePet.tipo)] = 0;
-    return sig;
-  });
-  const [verPet, setVerPet] = useState(!!desdePet);
+  const [rejilla, setRejilla] = useState<Rejilla>(inicial);
   const [vacios, setVacios] = useState<Vacios>(inicialVac);
 
   /* CUÁNTOS CAMBIOS HAY SIN PUBLICAR. Se compara contra lo PUBLICADO y
@@ -271,14 +260,6 @@ export function Plan({ tipos, publicadas, borrador, vaciosGuardados, control,
             {/* SE DICE POR QUÉ NO HAY BOTONES. Una rejilla en solo
                 lectura sin explicación se lee como «la pantalla está
                 rota»; con la razón se sabe a quién pedirle el cambio. */}
-            {desdePet && verPet && (
-              <p className="plan-cerrado plan-pet" role="status">
-                {petEntra
-                  ? <><b>{desdePet.nombre}: {desdePet.n} {desdePet.n === 1 ? "Vh" : "Vhs"} {desdePet.turno === DIA ? "en el día" : `en el turno ${desdePet.turno}`}</b>, como lo sugirió Programar PET. Revísalo y publica.</>
-                  : <><b>No se llenó el PET ({desdePet.n}).</b> Este día no se puede editar desde tu usuario.</>}
-                <button type="button" className="plan-pet-x" aria-label="Cerrar aviso" onClick={() => setVerPet(false)}>×</button>
-              </p>
-            )}
             {bloqueado && (
               <p className="plan-cerrado" role="note">
                 <b>Este día ya tiene el plan publicado.</b>{" "}

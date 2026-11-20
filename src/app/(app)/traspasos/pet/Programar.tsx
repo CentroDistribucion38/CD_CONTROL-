@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import {
   colorFormato, nombreFormato, programar, masDias, diaSemana, DIAS,
   type FilaPet, type PlanFormato,
@@ -23,9 +22,8 @@ function Tendencia({ t, hay }: { t: number; hay: boolean }) {
 }
 
 /**
- * PET › PROGRAMAR. El panel grande es el número para el plan; debajo, uno por formato con los días iguales, su promedio
- * y si va subiendo o bajando, y la gráfica de 28 días de cada formato. «Pasar al Plan» abre el plan de ese día con la
- * celda de PET ya llena, para revisar y publicar allá.
+ * PET › PROGRAMAR. Solo para VER LA TENDENCIA por formato: cuántos Vhs de cada formato salieron los días iguales, su
+ * promedio, si va subiendo o bajando y la gráfica de 28 días. No llena el Plan: el plan se sigue haciendo en Plan.
  */
 export function Programar({ filas, hoy }: { filas: FilaPet[]; hoy: string }) {
   const [dow, setDow] = useState(diaSemana(masDias(hoy, 1)));
@@ -73,9 +71,6 @@ export function Programar({ filas, hoy }: { filas: FilaPet[]; hoy: string }) {
               {TURNOS.map(([k, t]) => <button key={k} type="button" className={turno === k ? "on" : ""} aria-pressed={turno === k} onClick={() => setTurno(k)}>{t}</button>)}
             </div>
           </div>
-          {p.usados > 0 && (
-            <Link className="btn si pv-plan" href={`/traspasos/plan?d=${fecha}&pet=${p.total.sugerido}&pt=${turno}`}>Pasar al Plan del {dia} →</Link>
-          )}
         </div></div>
       </section>
 
