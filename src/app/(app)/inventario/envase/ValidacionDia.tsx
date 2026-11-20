@@ -2,23 +2,37 @@
 
 import { Fragment, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Calendario, type Atajo } from "@/components/CalendarioRango";
 import type { Alerta, FilaDia, Unidad } from "@/modulos/inventario/envase/calc";
 
 type M = Record<string, { nombre: string; ml: number; ref: number; cpe: number }>;
 type Dia = { fecha: string; estado: "cerrado" | "abierto" | "sin" | "futuro" };
 const UNI: [Unidad, string, string][] = [["hl", "HL", "HL"], ["un", "Unidades", "un."], ["cajas", "Cajas", "cajas"], ["estibas", "Estibas", "est."]];
-const ESTADO = { cerrado: "✓ cerrado", abierto: "● abierto", sin: "sin MB51", futuro: "—" } as const;
+const ESTADO = {
+  cerrado: ["Cerrado", "la MB51 ya trae la madrugada siguiente"],
+  abierto: ["Abierto", "falta la MB51 de después de las 6:00 del día siguiente"],
+  sin: ["Sin MB51", "no hay movimientos cargados de este día"],
+  futuro: ["Sin datos", "todavía no llega este día"],
+} as const;
 const corto = (f: string) => new Date(f + "T12:00:00Z").toLocaleDateString("es-CO", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).replace(/\./g, "").replace(/^./, (c) => c.toUpperCase());
+const antesDe = (f: string) => { const x = new Date(f + "T12:00:00Z"); x.setUTCDate(x.getUTCDate() - 1); return x.toISOString().slice(0, 10) };
 const n0 = (x: number) => Math.round(x).toLocaleString("es-CO");
 
 /**
  * VALIDACIÓN DEL DÍA. Lo principal arriba: las cifras del día y la tabla por SKU (clic en el SKU abre sus órdenes).
  * Las alertas van al final, cerradas, con su conteo a la vista en las cifras.
  */
-export function ValidacionDia({ dia, dias, antes, despues, filas, alertas, maestro, hayCorte, estado }: {
-  dia: string; dias: Dia[]; antes: string; despues: string; filas: FilaDia[]; alertas: Alerta[]; maestro: M;
+export function ValidacionDia({ dia, hoy, conDatos, antes, despues, filas, alertas, maestro, hayCorte, estado }: {
+  dia: string; hoy: string; conDatos: string[]; antes: string; despues: string; filas: FilaDia[]; alertas: Alerta[]; maestro: M;
   hayCorte: boolean; estado: Dia["estado"];
 }) {
+  const router = useRouter();
+  const ir = (f: string) => router.push(`/inventario/envase?d=${f}`);
+  const atajos: Atajo[] = [
+    { t: "Ayer", d: () => [antesDe(hoy), antesDe(hoy)] },
+    { t: "Hoy", d: () => [hoy, hoy] },
+  ];
   const [u, setU] = useState<Unidad>("hl");
   const [abiertos, setAbiertos] = useState<Set<string>>(new Set());
   const conv = (un: number, sku: string, uu: Unidad = u): number | null => {
@@ -54,22 +68,26 @@ export function ValidacionDia({ dia, dias, antes, despues, filas, alertas, maest
 
   return (
     <>
-      <div className="pe-barra">
-        <nav className="pe-dias" aria-label="Día a validar">
-          <Link className="flecha" href={`/inventario/envase?d=${antes}`} aria-label="Semana anterior">‹</Link>
-          {dias.map((d) => (
-            <Link key={d.fecha} href={`/inventario/envase?d=${d.fecha}`} className={d.fecha === dia ? "on" : ""} aria-current={d.fecha === dia ? "date" : undefined}>
-              <b>{corto(d.fecha)}</b><span className={`e-${d.estado}`}>{ESTADO[d.estado]}</span>
-            </Link>
-          ))}
-          <Link className="flecha" href={`/inventario/envase?d=${despues}`} aria-label="Semana siguiente">›</Link>
-        </nav>
+      {/* EL DÍA: el mismo calendario de Análisis de diferencia y Base (un punto en los días que tienen MB51), con
+          flechas para el anterior y el siguiente. Lo escogido va en ámbar, nada en negro. */}
+      <div className="ad"><div className="ad-barra pe-barra">
+        <div className="ad-dia"><span>Día</span>
+          <div className="ad-cal">
+            <Calendario desde={dia} hasta={dia} minF="2026-01-01" maxF={hoy} atajos={atajos} unDia marcados={new Set(conDatos)}
+                        aplicar={(d) => { if (d && d !== dia) ir(d) }} />
+          </div>
+        </div>
+        <div className="pe-flechas">
+          <Link href={`/inventario/envase?d=${antes}`} aria-label="Día anterior">‹</Link>
+          {despues <= hoy ? <Link href={`/inventario/envase?d=${despues}`} aria-label="Día siguiente">›</Link> : <span aria-hidden>›</span>}
+        </div>
+        <div className={`pe-estado e-${estado}`}><b>{ESTADO[estado][0]}</b><small>{ESTADO[estado][1]}</small></div>
         <div className="pe-unidad">Unidad
           <div className="pe-seg" role="group" aria-label="Unidad">
             {UNI.map(([k, t]) => <button key={k} type="button" className={u === k ? "on" : ""} aria-pressed={u === k} onClick={() => setU(k)}>{t}</button>)}
           </div>
         </div>
-      </div>
+      </div></div>
 
       {estado === "abierto" && (
         <p className="pe-aviso"><b>Este día todavía está abierto.</b> La noche se notifica de madrugada con la fecha de hoy: el día se cierra

@@ -23,41 +23,41 @@
 .pe .t-a { background: color-mix(in srgb, var(--fe-aviso) 30%, var(--fe-papel)); color: var(--fe-tinta); box-shadow: inset 3px 0 0 var(--fe-aviso) }
 .pe .t-g { background: var(--fe-fondo); color: var(--fe-tinta) }
 .pe .t-v { background: var(--fe-bien); color: #fff }
-.pe .t-n { background: var(--fe-tinta); color: var(--fe-papel) }
+.pe .t-n { background: color-mix(in srgb, var(--fe-gris) 16%, var(--fe-papel)); color: var(--fe-tinta) }
 .pe .mal { color: var(--fe-mal); font-weight: 700 }
 .pe .bien { color: var(--fe-bien); font-weight: 700 }
 .pe .mut { color: var(--fe-gris) }
 
-/* ---------- botones y segmentos ---------- */
+/* ---------- botones y segmentos (como el resto de módulos: borde fino, lo escogido en ámbar, nada en negro) ---------- */
 .pe .pe-bt {
-  height: 38px; padding: 0 14px; border: 1.5px solid var(--fe-tinta); background: var(--fe-papel); color: var(--fe-tinta);
-  font: 700 13px var(--fe-texto); cursor: pointer; border-radius: 0; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+  height: 36px; padding: 0 14px; border: 1px solid var(--fe-linea); background: var(--fe-papel); color: var(--fe-tinta);
+  font: 600 13px var(--fe-texto); cursor: pointer; border-radius: 0; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
 }
-.pe .pe-bt.am { background: var(--fe-acento); color: var(--fe-sobre); border-color: var(--fe-acento) }
+.pe .pe-bt.am { background: var(--fe-acento); color: var(--fe-sobre); border-color: var(--fe-acento); font-weight: 700 }
 .pe .pe-bt:disabled { opacity: .45; cursor: default }
-.pe .pe-bt:focus-visible, .pe .pe-seg button:focus-visible, .pe .pe-dias a:focus-visible { outline: 2px solid var(--fe-acento); outline-offset: 2px }
-.pe .pe-seg { display: inline-flex; height: 36px; border: 1.5px solid var(--fe-tinta); background: var(--fe-papel) }
-.pe .pe-seg button { padding: 0 12px; border: 0; border-left: 1px solid var(--fe-linea); background: none; color: var(--fe-tinta); font: 700 12.5px var(--fe-texto); cursor: pointer; border-radius: 0; white-space: nowrap }
+.pe .pe-bt:focus-visible, .pe .pe-seg button:focus-visible, .pe .pe-flechas a:focus-visible { outline: 2px solid var(--fe-acento); outline-offset: 2px }
+.pe .pe-seg { display: inline-flex; height: 34px; border: 1px solid var(--fe-linea); background: var(--fe-papel) }
+.pe .pe-seg button { padding: 0 12px; border: 0; border-left: 1px solid var(--fe-linea); background: none; color: var(--fe-gris-panel, var(--fe-tinta)); font: 600 12.5px var(--fe-texto); cursor: pointer; border-radius: 0; white-space: nowrap }
 .pe .pe-seg button:first-child { border-left: 0 }
-.pe .pe-seg button.on { background: var(--fe-tinta); color: var(--fe-papel) }
+.pe .pe-seg button.on { background: var(--fe-acento); color: var(--fe-sobre); font-weight: 700 }
 
-/* ---------- días de la semana ---------- */
-.pe .pe-barra { display: flex; flex-wrap: wrap; gap: 10px; align-items: center }
-.pe .pe-dias { display: flex; overflow-x: auto; max-width: 100% }
-.pe .pe-dias a {
-  flex: none; min-width: 112px; padding: 7px 12px; border: 1.5px solid var(--fe-tinta); margin-right: -1.5px;
-  background: var(--fe-papel); color: var(--fe-tinta); text-decoration: none;
+/* ---------- el día: la misma barra de Análisis de diferencia ---------- */
+.pe .ad .ad-barra.pe-barra { margin: 0; gap: 14px }
+.pe .ad .ad-cal .disparo { min-height: 38px; min-width: 230px }
+.pe .pe-flechas { display: flex; align-self: flex-end }
+.pe .pe-flechas a, .pe .pe-flechas span {
+  width: 38px; height: 38px; display: grid; place-items: center; border: 1px solid var(--fe-linea); margin-left: -1px;
+  background: var(--fe-papel); color: var(--fe-tinta); font: 700 18px var(--fe-texto); text-decoration: none;
 }
-.pe .pe-dias a b { display: block; font: 800 14px var(--fe-titulo) }
-.pe .pe-dias a span { font: 700 10.5px var(--fe-texto); letter-spacing: .06em; text-transform: uppercase }
-.pe .pe-dias a.on { background: var(--fe-tinta); color: var(--fe-papel) }
-.pe .pe-dias .e-cerrado { color: var(--fe-bien) }
-.pe .pe-dias .on .e-cerrado { color: color-mix(in srgb, var(--fe-bien) 45%, #fff) }
-.pe .pe-dias .e-abierto { color: var(--fe-ojo) }
-.pe .pe-dias .on .e-abierto { color: var(--fe-aviso) }
-.pe .pe-dias .e-sin, .pe .pe-dias .e-futuro { color: var(--fe-gris) }
-.pe .pe-dias a.flecha { min-width: 0; display: grid; place-items: center; font: 800 18px var(--fe-titulo); padding: 0 12px }
-.pe .pe-unidad { margin-left: auto; display: flex; align-items: center; gap: 8px; font: 700 10.5px var(--fe-texto); letter-spacing: .12em; color: var(--fe-gris); text-transform: uppercase }
+.pe .pe-flechas span { color: var(--fe-linea) }
+.pe .pe-flechas a:hover { border-color: var(--fe-acento); position: relative }
+.pe .pe-estado { align-self: flex-end; display: flex; flex-direction: column; gap: 1px; padding-left: 10px; border-left: 3px solid var(--fe-gris); min-height: 38px; justify-content: center }
+.pe .pe-estado b { font: 700 13px var(--fe-texto); color: var(--fe-tinta) }
+.pe .pe-estado small { font-size: 11.5px; color: var(--fe-gris) }
+.pe .pe-estado.e-cerrado { border-left-color: var(--fe-bien) }
+.pe .pe-estado.e-cerrado b { color: var(--fe-bien) }
+.pe .pe-estado.e-abierto { border-left-color: var(--fe-aviso) }
+.pe .pe-unidad { margin-left: auto; align-self: flex-end; display: flex; align-items: center; gap: 8px; font: 700 10.5px var(--fe-texto); letter-spacing: .12em; color: var(--fe-gris); text-transform: uppercase }
 
 /* ---------- cifras ---------- */
 .pe .pe-kpi { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)) }

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { estadoDia, maestro, masDias, papeles, validarDia } from "@/modulos/inventario/envase/calc";
 import { hoyBogota, lunesDe, movimientosContab, planesDeSemana, productosDe, ultimaEntrada } from "@/modulos/inventario/envase/datos";
 import "../fefo.css";
+import "../balance/analisis/analisis.css";
 import "./envase.css";
 import { ValidacionDia } from "./ValidacionDia";
 
@@ -53,7 +54,9 @@ export default async function ValidacionPage({ searchParams }: { searchParams: P
   for (const m of mv.filas) if (/^Z0[12]$/.test(m.clase)) skus.add(m.material.replace(/P$/i, ""));
   const M = maestro(ps.filas, await productosDe([...skus]));
   const v = validarDia(d, ini, cor, mv.filas, M);
-  const dias = Array.from({ length: 7 }, (_, i) => masDias(lunes, i)).map((f) => ({ fecha: f, estado: estadoDia(f, u.valor, hoy) }));
+  /* Los días con MB51 (un punto en el calendario): de los 60 días antes de la última entrada hasta hoy. */
+  const conDatos: string[] = [];
+  for (let f = masDias(hoy, -60); f <= hoy; f = masDias(f, 1)) { const e = estadoDia(f, u.valor, hoy); if (e === "cerrado" || e === "abierto") conDatos.push(f) }
   const semana = ps.planes[0]?.semana;
 
   return (
@@ -67,7 +70,7 @@ export default async function ValidacionPage({ searchParams }: { searchParams: P
         <p className="pe-aviso">Esta semana no tiene plan inicial: los instructivos cargados empiezan después del lunes. Sube el que se sacó al arrancar la semana.</p>
       )}
       <ValidacionDia
-        dia={d} dias={dias} antes={masDias(lunes, -7)} despues={masDias(lunes, 7)}
+        dia={d} hoy={hoy} conDatos={conDatos} antes={masDias(d, -1)} despues={masDias(d, 1)}
         filas={v.filas} alertas={v.alertas} maestro={Object.fromEntries(M)} hayCorte={!!c}
         estado={estadoDia(d, u.valor, hoy)}
       />
