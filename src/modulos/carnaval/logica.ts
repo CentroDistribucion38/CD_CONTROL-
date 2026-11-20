@@ -270,7 +270,16 @@ export type FilaCuadre07 = {
   bloqRestante: number;
   /** lo que sumaron las partidas rápidas (unidades) */
   partidas: { conteo: number; sap: number };
+  /** EL MOVIMIENTO QUE HOY NO SE PUEDE HACER: la diferencia la arman partidas «a la ZEXI» (pendiente EM, un 647…) que todavía no están
+   *  en SAP, así que en la ZEXI de hoy no hay de dónde sacarlo. `explica` dice por qué, con las existencias y las partidas. */
+  espera?: { titulo: string; cantidad: number; explica: string[] };
 };
+const fmt = (v: number) => new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 }).format(Math.round(v));
+const conSignoN = (v: number) => (v > 0 ? "+" : "") + fmt(v);
+/** «PENDIENTE EM +319.950 · MOV 647 +48.600»: las partidas de un código en un lado, con su nota. */
+const listaPartidas = (ps: Partida[], paso: 1 | 2, codigo: string, lado: Partida["lado"]) =>
+  ps.filter((x) => x.paso === paso && x.codigo === codigo && x.lado === lado && Math.abs(x.cantidad) > 0.5)
+    .map((x) => `${x.nota?.trim() || "sin nota"} ${conSignoN(x.cantidad)}`).join(" · ");
 export function cuadrePallets07(productos: { codigo: string; descripcion: string; und_por_pallet: number }[], saldos: Map<string, number>, pend: Map<string, number>, zexi: ZexiAlm[], partidas: Partida[] = []): FilaCuadre07[] {
   const z = (alm: string, c: string) => zexi.find((x) => x.almacen === alm && x.codigo === c);
   const out: FilaCuadre07[] = [];
@@ -284,6 +293,20 @@ export function cuadrePallets07(productos: { codigo: string; descripcion: string
     const conteoEf = Math.max(0, conteo);
     const libre = a7?.libre ?? 0, calidad = (a7?.calidad ?? 0) + (SKU_A_AG71.has(p.codigo) ? 0 : pt.sap), bloqueado = a7?.bloqueado ?? 0;
     const movs: Mov07[] = []; let sinAlcanzar = 0, bloqUsado = 0, dif: number, destino: FilaCuadre07["destino"], libre71: number | null = null;
+    let espera: FilaCuadre07["espera"];
+    /* LA EXPLICACIÓN de un movimiento que hoy no se puede: qué tiene la ZEXI, qué sumaron las partidas, cómo da la cuenta y qué hace falta. */
+    const explicar = (real: number, donde: string, titulo: string, resto: number): string[] => {
+      const sapP = listaPartidas(partidas, 1, p.codigo, "SAP"), conP = listaPartidas(partidas, 1, p.codigo, "CONTEO");
+      const conPartidas = SKU_A_AG71.has(p.codigo) ? (libre71 ?? 0) : calidad;
+      const xs = [
+        `En la ZEXI de hoy el ${p.codigo} tiene ${fmt(real)} en ${donde}${!SKU_A_AG71.has(p.codigo) && libre > 0.5 ? ` (y ${fmt(libre)} en libre, que no sirve para este movimiento)` : ""}: ${real > 0.5 ? `solo hay ${fmt(real)} para mover` : "no hay nada que mover"}.`,
+        `La diferencia la arman partidas que suman a la ZEXI y todavía no están en SAP: ${sapP || "—"} (${conSignoN(pt.sap)} en total).`,
+        `Con ellas SAP quedaría con ${fmt(conPartidas)}; el conteo es ${fmt(conteoEf)} (${fmt(palletsSap)} pallets con EM × ${fmt(p.und_por_pallet)}${conP ? ` + partidas al conteo: ${conP}` : ""}). Sobran ${fmt(conPartidas - conteoEf)}.`,
+      ];
+      if (pendientes > pallets + 0.5) xs.push(`El registro tiene ${fmt(pallets)} pallets y ${fmt(pendientes)} sin EM: a SAP van a entrar ${fmt(pendientes - pallets)} pallets más de los que hay en el patio. Confirma que esos pallets sí salieron.`);
+      xs.push(`Primero tiene que entrar a SAP lo de las partidas. Cuando la ZEXI nueva lo traiga, se puede hacer el ${titulo.replace(/^Mov /, "").replace(/ \(.*$/, "")} de ${fmt(resto)}.${real > 0.5 ? ` Los otros ${fmt(real)} sí se pueden mover hoy: están en «Qué hacer en SAP».` : ""}`);
+      return xs;
+    };
     if (SKU_A_AG71.has(p.codigo)) {
       destino = "AG71 libre"; libre71 = (a71?.libre ?? 0) + pt.sap;
       /* Lo que haya en control-cal de AG07 NO se mira ni se mueve (no se puede): no cuenta y permanece. Solo se compara AG71 libre contra el conteo. */
@@ -295,7 +318,12 @@ export function cuadrePallets07(productos: { codigo: string; descripcion: string
         const db = Math.min(falta, Math.max(0, bloqueado)); if (db > 0.5) { a311 += db; bloqUsado += db; falta -= db }
         if (a311 > 0.5) movs.push({ titulo: "Mov 311 (AG07 Libre → AG71 Libre)", cantidad: Math.round(a311) });
         sinAlcanzar = falta > 0.5 ? Math.round(falta) : 0;
-      } else if (dif > 0.5) movs.push({ titulo: "Mov 311 (AG71 Libre → AG07 Libre)", cantidad: Math.round(Math.min(dif, Math.max(0, libre71 ?? 0))) });
+      } else if (dif > 0.5) {
+        const titulo = "Mov 311 (AG71 Libre → AG07 Libre)";
+        const real = Math.max(0, a71?.libre ?? 0), hoy = Math.min(dif, real), resto = Math.round(dif - hoy);
+        if (hoy > 0.5) movs.push({ titulo, cantidad: Math.round(hoy) });
+        if (resto > 0.5) espera = { titulo, cantidad: resto, explica: explicar(real, "libre de AG71", titulo, resto) };
+      }
     } else {
       destino = "AG07 control-cal"; dif = redondear(calidad - conteoEf);
       if (dif < -0.5) {
@@ -303,12 +331,19 @@ export function cuadrePallets07(productos: { codigo: string; descripcion: string
         const dl = Math.min(falta, Math.max(0, libre)); if (dl > 0.5) { movs.push({ titulo: "Mov 322 en AG07 (Libre → Control de calidad)", cantidad: Math.round(dl) }); falta -= dl }
         const db = Math.min(falta, Math.max(0, bloqueado)); if (db > 0.5) { movs.push({ titulo: "Mov 349 en AG07 (Bloqueado → Control de calidad)", cantidad: Math.round(db) }); bloqUsado += db; falta -= db }
         sinAlcanzar = falta > 0.5 ? Math.round(falta) : 0;
-      } else if (dif > 0.5) movs.push({ titulo: "Mov 321 en AG07 (Control de calidad → Libre)", cantidad: Math.round(Math.min(dif, Math.max(0, calidad))) });  /* nunca más de lo que hay en control de calidad */
+      } else if (dif > 0.5) {
+        /* El 321 sale de control de calidad: hoy solo se puede mover lo que la ZEXI REAL tiene ahí. Lo que pone una partida «a la ZEXI»
+           todavía no está en SAP: esa parte espera, y la fila explica por qué. */
+        const titulo = "Mov 321 en AG07 (Control de calidad → Libre)";
+        const real = Math.max(0, a7?.calidad ?? 0), hoy = Math.min(dif, real), resto = Math.round(dif - hoy);
+        if (hoy > 0.5) movs.push({ titulo, cantidad: Math.round(hoy) });
+        if (resto > 0.5) espera = { titulo, cantidad: resto, explica: explicar(real, "control de calidad de AG07", titulo, resto) };
+      }
     }
     /* NADA debe quedar en bloqueado: lo que no se usó para cuadrar pasa a libre con el 343 (3500005: todo el bloqueado pasa antes del 311). */
     const bloqRestante = SKU_A_AG71.has(p.codigo) ? Math.max(0, bloqueado) : Math.max(0, bloqueado - bloqUsado);
     if (bloqRestante > 0.5) movs.unshift({ titulo: "Mov 343 en AG07 (Bloqueado → Libre)", cantidad: Math.round(bloqRestante) });
-    out.push({ codigo: p.codigo, descripcion: p.descripcion, undPorPallet: p.und_por_pallet, pallets, pendientes, palletsSap, conteo, conteoEf, libre, calidad, bloqueado, libre71, enZexi: !!a7 || !!a71, dif, destino, movs, sinAlcanzar, bloqRestante: bloqRestante > 0.5 ? Math.round(bloqRestante) : 0, partidas: pt });
+    out.push({ codigo: p.codigo, descripcion: p.descripcion, undPorPallet: p.und_por_pallet, pallets, pendientes, palletsSap, conteo, conteoEf, libre, calidad, bloqueado, libre71, enZexi: !!a7 || !!a71, dif, destino, movs, sinAlcanzar, bloqRestante: bloqRestante > 0.5 ? Math.round(bloqRestante) : 0, partidas: pt, ...(espera ? { espera } : {}) });
   }
   return out;
 }

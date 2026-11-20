@@ -127,6 +127,7 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
   }, [difs2]);
 
   const sinFilas = filas.length === 0;
+  const esperas = filas.filter((f) => f.espera);
   const [tab, setTab] = useState<1 | 2>(1);
   const [verCeros, setVerCeros] = useState(false);
   const cuadra1 = (f: FilaCuadre07) => !!zexi && Math.abs(f.dif) < 0.5 && !f.bloqRestante && f.movs.length === 0 && !f.sinAlcanzar;
@@ -242,14 +243,19 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
                             <td className="n">{ent.format(f.conteo)}{(f.partidas.conteo !== 0 || f.partidas.sap !== 0) && <small className="cs-ext">partidas: {f.partidas.conteo !== 0 && `${conSigno(f.partidas.conteo)} al conteo`}{f.partidas.conteo !== 0 && f.partidas.sap !== 0 && " · "}{f.partidas.sap !== 0 && `${conSigno(f.partidas.sap)} a la ZEXI`}</small>}{f.pendientes > 0 && <small className="cs-ext" title="Pallets sin entrada de mercancía: no están en SAP y no cuentan">{nf.format(f.palletsSap)} pallets · sin EM −{nf.format(f.pendientes)}</small>}</td>
                             <td className="n">{zexi ? ent.format(sapAntes) : "—"}<small className="cs-ext">{f.libre71 != null ? "AG71 libre" : "AG07 control-cal"}</small></td>
                             <td className="n">{!zexi ? "—" : cuadra ? "0" : conSigno(f.dif)}</td>
-                            <td className="n">{!zexi || !f.movs.length ? "—" : f.movs.map((m) => <div key={m.titulo + m.cantidad}>{ent.format(m.cantidad)} <em>{m.titulo.replace(/^Mov /, "")}</em></div>)}</td>
+                            <td className="n">{!zexi || (!f.movs.length && !f.espera) ? "—" : <>
+                              {f.movs.map((m) => <div key={m.titulo + m.cantidad}>{ent.format(m.cantidad)} <em>{m.titulo.replace(/^Mov /, "")}</em></div>)}
+                              {f.espera && <div className="cv-espera-c" title="No se puede hacer hoy: mira el porqué abajo">{ent.format(f.espera.cantidad)} <em>{f.espera.titulo.replace(/^Mov /, "")} · no se puede hoy</em></div>}
+                            </>}</td>
                             <td className="n">{zexi ? ent.format((f.conteoEf ?? f.conteo) + queda) : "—"}</td>
                             <td className="n"><b>{!zexi ? "—" : queda ? conSigno(queda) : "0"}</b></td>
                             <td>
                               {!zexi ? "—" : cuadra ? <span className="cs-chip ok">Balanceado</span>
                                 : f.bloqRestante > 0 && Math.abs(f.dif) < 0.5 ? <span className="cs-chip in">Quedan {ent.format(f.bloqRestante)} en bloqueado: pasarlos a libre (343)</span>
                                 : f.sinAlcanzar > 0 ? <span className="cs-chip in">Faltan {ent.format(f.sinAlcanzar)} que no hay en libre ni bloqueado</span>
-                                : <span className="cs-chip in">Falta hacer {f.movs.length > 1 ? "los movimientos" : "el movimiento"} en SAP</span>}
+                                : f.movs.length ? <span className="cs-chip in">Falta hacer {f.movs.length > 1 ? "los movimientos" : "el movimiento"} en SAP</span>
+                                : null}
+                              {f.espera && <a className="cs-chip out cv-espera-chip" href={`#espera-${f.codigo}`}>No se puede mover hoy · ver por qué ↓</a>}
                               {f.conteo < -0.5 && <div className="cv-neg" style={{ marginTop: 4 }}>Conteo negativo ({ent.format(f.conteo)}): en el registro salieron más pallets de los que entraron. Se cuadra contra 0; corrige el registro de pallets.</div>}
                               {rojo && <div className="cv-neg" style={{ marginTop: 4 }}>AG07 control de calidad: {ent.format(f.calidad)} no se puede mover y no cuenta; esa cantidad permanece ahí.</div>}
                             </td>
@@ -261,6 +267,23 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
                 </div>
               )}
               {zexi && grupos.length > 0 && (<><h3 className="cv-sub-h">Qué hacer en SAP</h3>{renderGrupos(grupos, "p1")}</>)}
+              {/* LO QUE HOY NO SE PUEDE MOVER: el sistema dice por qué, con la ZEXI, las partidas y el registro de pallets. */}
+              {zexi && esperas.length > 0 && (
+                <>
+                  <h3 className="cv-sub-h">No se puede hacer hoy</h3>
+                  <div className="cv-movs">
+                    {esperas.map((f) => (
+                      <div key={f.codigo} id={`espera-${f.codigo}`} className="cv-mov cv-espera">
+                        <div className="cv-mov-cab">
+                          <b>{f.espera!.titulo}</b><span><code>{f.codigo}</code> · {f.descripcion}</span>
+                          <span className="grow" /><b className="cv-espera-n">{ent.format(f.espera!.cantidad)} · espera</b>
+                        </div>
+                        <ol>{f.espera!.explica.map((t) => <li key={t}>{t}</li>)}</ol>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </>
           )}
 
