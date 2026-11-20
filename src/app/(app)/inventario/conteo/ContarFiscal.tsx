@@ -39,6 +39,7 @@ import { MODULOS_DE_LA_HOJA, moduloConLados, modulosQueFaltan } from "@/modulos/
 import { fechaConDia, type HojaParaContar } from "@/modulos/inventario/fiscal";
 import {
   VACIO_FISCAL, argumentosFiscal, revisarFiscal, totalCajas, esCuenta, cantidad, pideEstadoFiscal, esCilindroFiscal, opcionesEstadoFiscal,
+  esCarnaval, leerNotaPallet,
   type BorradorFiscal, type RenglonFiscal,
 } from "@/modulos/inventario/fiscal-contar";
 
@@ -49,12 +50,14 @@ const ordenCalle = (a: string, b: string) => {
   return suelta(a) - suelta(b) || a.localeCompare(b, "es", { numeric: true });
 };
 const nombreLado = (l: string) => l === "" ? "Este módulo no tiene lados" : l === "IZQ" ? "Izquierdo" : "Derecho";
-type CampoCant = "estibas" | "saldo" | "cajas" | "unidades";
+type CampoCant = "estibas" | "saldo" | "cajas" | "unidades" | "pallets";
 const dosDigitos = (v: string) => v.replace(/\D/g, "").slice(0, 2);
 const dd = (n: number | null) => n == null ? "··" : String(n).padStart(2, "0");
 
 /** «3 estibas + 10 cajas» / «12 cajas». */
-export function textoCantidad(r: Pick<RenglonFiscal, "estibas" | "saldo" | "cajas"> & { unidades?: number | null }): string {
+export function textoCantidad(r: Pick<RenglonFiscal, "estibas" | "saldo" | "cajas"> & { unidades?: number | null; nota?: string | null }): string {
+  const pl = leerNotaPallet(r.nota);
+  if (pl) return `${nf.format(pl.pallets)} pallet${pl.pallets === 1 ? "" : "s"}`;
   const su = Number(r.unidades ?? 0);
   const sueltas = su > 0 ? ` + ${nf.format(su)} unidad${su === 1 ? "" : "es"} suelta${su === 1 ? "" : "s"}` : "";
   if (r.cajas != null) return `${nf.format(r.cajas)} caja${r.cajas === 1 ? "" : "s"}${sueltas}`;
@@ -250,7 +253,21 @@ export function ContarFiscal({
   useEffect(() => {
     if (b.estado && (!esEnvase || !opcionesEstadoFiscal(material).includes(b.estado))) setB((x) => ({ ...x, estado: "" }));
   }, [b.estado, esEnvase, material]);
-  const cuenta = useMemo(() => totalCajas(b, material), [b, material]);
+  /* PALLETS DE CARNAVAL: las unidades por pallet salen del maestro de Carnaval (el mismo del Cuadre SAP AG07). */
+  const [porPalletDe, setPorPalletDe] = useState<Map<string, number>>(new Map());
+  useEffect(() => {
+    let vivo = true;
+    void supabase.rpc("inv_fiscal_factores_pallet").then(({ data, error }) => {
+      if (!vivo || error) return;
+      setPorPalletDe(new Map(((data ?? []) as { sku: string; und_por_pallet: number }[]).map((x) => [String(x.sku), Number(x.und_por_pallet)])));
+    });
+    return () => { vivo = false };
+  }, [supabase]);
+  const enCarnaval = esCarnaval(b.calle);
+  const porPallet = enCarnaval && material ? porPalletDe.get(material.sku) ?? null : null;
+  /* Fuera de Carnaval no hay pallets: si se cambia de calle, vuelve a estibas. */
+  useEffect(() => { if (b.modo === "pallets" && b.calle !== "" && !enCarnaval) setB((x) => ({ ...x, modo: "estibas" })) }, [b.modo, b.calle, enCarnaval]);
+  const cuenta = useMemo(() => totalCajas(b, material, porPallet), [b, material, porPallet]);
 
   /* ---------- LAS FOTOS Y EL ESTADO DEL MÓDULO (igual que en el conteo normal) ----------
      · Una foto por renglón (opcional; obligatoria si es avería). Sube al anotar.
@@ -450,7 +467,7 @@ export function ContarFiscal({
   /* ---------- ANOTAR ---------- */
   async function anotar() {
     if (!hoja || guardando) return;
-    const mal = revisarFiscal(b, material, claveEscogida);
+    const mal = revisarFiscal(b, material, claveEscogida, porPallet);
     if (mal || !material) { avisar.mal(mal ?? "Falta el código del material."); return }
     if (b.averia && !fotoNueva && !(corrigiendo && fotosDe[corrigiendo])) { avisar.mal("Avería: falta la foto de la estiba. Sin ella no se anota."); return }
     if ((mod.mezclado || mod.sinAcceso) && !fotoMod && !marcaGuardada?.ruta) {
@@ -469,7 +486,7 @@ export function ContarFiscal({
     let nuevoId: string | null = null;
     if (corrigiendo) {
       /* Corregir: el renglón cambia en su sitio y conserva su foto. */
-      const { p_hoja: _h, ...resto } = argumentosFiscal(hoja.hojaId, idU, material, b);
+      const { p_hoja: _h, ...resto } = argumentosFiscal(hoja.hojaId, idU, material, b, porPallet);
       void _h;
       const { error } = await supabase.rpc("inv_fiscal_contar_corregir", { p_id: corrigiendo, ...resto });
       if (error) {
@@ -479,7 +496,7 @@ export function ContarFiscal({
       }
       nuevoId = corrigiendo;
     } else {
-      const { data, error } = await supabase.rpc("inv_fiscal_contar_agregar", argumentosFiscal(hoja.hojaId, idU, material, b));
+      const { data, error } = await supabase.rpc("inv_fiscal_contar_agregar", argumentosFiscal(hoja.hojaId, idU, material, b, porPallet));
       if (error) { setGuardando(false); avisar.mal(error.message); return }
       nuevoId = (data as string) ?? null;
     }
@@ -539,9 +556,18 @@ export function ContarFiscal({
     setB({
       calle: u.calle, base: claveBase(u), lado: u.lado ?? "", codigo: r.sku,
       dia: r.venc_dia == null ? "" : dd(r.venc_dia), mes: r.venc_mes == null ? "" : dd(r.venc_mes), anio: r.venc_anio == null ? "" : dd(r.venc_anio),
-      modo: Number(r.unidades ?? 0) > 0 ? "unidades" : r.cajas != null ? "cajas" : "estibas", estibas: t(r.estibas), saldo: t(r.saldo), cajas: t(r.cajas),
-      unidades: Number(r.unidades ?? 0) > 0 ? String(aUnidades(r.cajas, r.unidades, r.unidades_por_caja)) : "",
-      nota: r.nota ?? "", estado: r.estado_envase ?? "",
+      ...(() => {
+        /* Un renglón en pallets se corrige en pallets (la nota trae cuántos fueron). */
+        const pl = leerNotaPallet(r.nota);
+        if (pl) return { modo: "pallets" as const, estibas: "", saldo: "", cajas: "", unidades: "", pallets: String(pl.pallets), nota: pl.resto };
+        return {
+          modo: (Number(r.unidades ?? 0) > 0 ? "unidades" : r.cajas != null ? "cajas" : "estibas") as BorradorFiscal["modo"],
+          estibas: t(r.estibas), saldo: t(r.saldo), cajas: t(r.cajas),
+          unidades: Number(r.unidades ?? 0) > 0 ? String(aUnidades(r.cajas, r.unidades, r.unidades_por_caja)) : "", pallets: "",
+          nota: r.nota ?? "",
+        };
+      })(),
+      estado: r.estado_envase ?? "",
       averia: !!r.averia, pnc: !!r.pnc, pncRotulo: r.pnc ? r.pnc_rotulo ?? null : null, pncBloqueo: r.pnc ? r.pnc_bloqueo_mecanico ?? null : null,
     });
     setCorrigiendo(r.id);
@@ -870,6 +896,10 @@ export function ContarFiscal({
                   <button type="button" className={b.modo === "estibas" ? "on" : ""} aria-pressed={b.modo === "estibas"} onClick={() => pon("modo", "estibas")}>Estibas</button>
                   <button type="button" className={b.modo === "cajas" ? "on" : ""} aria-pressed={b.modo === "cajas"} onClick={() => pon("modo", "cajas")}>Cajas</button>
                   <button type="button" className={b.modo === "unidades" ? "on" : ""} aria-pressed={b.modo === "unidades"} onClick={() => pon("modo", "unidades")}>Unidades</button>
+                  {enCarnaval && (
+                    <button type="button" className={b.modo === "pallets" ? "on" : ""} aria-pressed={b.modo === "pallets"} onClick={() => pon("modo", "pallets")}
+                            title="Pallets de Peldar: se pasan a unidades con las unidades por pallet del maestro de Carnaval">Pallets</button>
+                  )}
                 </div>
               </div>
               {b.modo === "estibas" ? (
@@ -883,6 +913,11 @@ export function ContarFiscal({
                       onFocus={(e) => abrirCalc("saldo", e.currentTarget)} onBlur={() => soltarCalc("saldo")}
                       onChange={(e) => pon("saldo", e.target.value)} onKeyDown={(e) => saltaCon(e)} /></label>
                 </>
+              ) : b.modo === "pallets" ? (
+                <label className="fe-cuanto-campo ancho"><span>Pallets{porPallet ? ` · ${nf.format(porPallet)} unidades por pallet` : material ? " · sin factor de pallet" : ""}</span>
+                  <input ref={campoCantidad} inputMode={escritorio ? "numeric" : "none"} value={b.pallets}
+                    onFocus={(e) => abrirCalc("pallets", e.currentTarget)} onBlur={() => soltarCalc("pallets")}
+                    onChange={(e) => pon("pallets", e.target.value)} onKeyDown={(e) => saltaCon(e)} /></label>
               ) : b.modo === "unidades" ? (
                 <label className="fe-cuanto-campo ancho"><span>Unidades{material?.unidades_por_caja ? ` · ${nf.format(material.unidades_por_caja)} por caja` : ""}</span>
                   <input ref={campoCantidad} inputMode={escritorio ? "numeric" : "none"} value={b.unidades}
@@ -904,7 +939,7 @@ export function ContarFiscal({
             {(calcAbierta || escritorio) && (
               <div className={"fe-calc fe-calc-fija " + (escritorio ? "en-linea" : "en-hoja")} role="group" aria-label="Calculadora para las cantidades">
                 <div className="fe-calc-cab">
-                  <span>{calcActiva === "estibas" ? "Estibas completas" : calcActiva === "saldo" ? "Saldo · cajas" : calcActiva === "unidades" ? "Unidades" : "Cajas"}</span>
+                  <span>{calcActiva === "estibas" ? "Estibas completas" : calcActiva === "saldo" ? "Saldo · cajas" : calcActiva === "unidades" ? "Unidades" : calcActiva === "pallets" ? "Pallets" : "Cajas"}</span>
                   <p className="fe-calc-vista" aria-live="polite">
                     {b[calcActiva].trim() === "" ? <i>toca los números</i>
                       : esCuenta(b[calcActiva])
@@ -927,7 +962,11 @@ export function ContarFiscal({
             {cuenta && (
               <p className="fe-cuenta-linea">
                 {cuenta.total == null
-                  ? <><b className="ojo">Sin factor estibado</b> — cuéntalo por cajas o avísale a quien lleva el maestro.</>
+                  ? (b.modo === "pallets"
+                      ? <><b className="ojo">Sin factor de pallet</b> — este código no está en el maestro de Carnaval (o no tiene unidades por caja): cuéntalo por estibas o cajas.</>
+                      : <><b className="ojo">Sin factor estibado</b> — cuéntalo por cajas o avísale a quien lleva el maestro.</>)
+                  : b.modo === "pallets"
+                    ? <>{nf.format(cantidad(b.pallets) ?? 0)} pallet{cantidad(b.pallets) === 1 ? "" : "s"} × {nf.format(porPallet ?? 0)} = <b>{nf.format(cuenta.unidades ?? 0)} unidades</b> = <b>{nf.format(cuenta.total)}</b> cajas{(cuenta.sueltas ?? 0) > 0 && <> + <b className="ojo">{nf.format(cuenta.sueltas ?? 0)} sueltas</b></>}</>
                   : b.modo === "unidades"
                     ? (material?.unidades_por_caja ? <>{cuenta.formula} = <b>{nf.format(cuenta.total)}</b> cajas{(cuenta.sueltas ?? 0) > 0 && <> + <b className="ojo">{nf.format(cuenta.sueltas ?? 0)} unidades sueltas</b></>}</> : <><b className="ojo">Sin unidades por caja</b> — cuéntalo por cajas o avísale a quien lleva el maestro.</>)
                     : <>{cuenta.formula} = <b>{nf.format(cuenta.total)}</b> cajas</>}

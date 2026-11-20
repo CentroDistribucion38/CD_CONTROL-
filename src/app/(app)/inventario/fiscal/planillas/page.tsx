@@ -139,9 +139,15 @@ export default async function PlanillasPage({ searchParams }: { searchParams: Pr
   const datos: HojaP[] = await Promise.all(hojas.map(async (h) => {
     const id = f.hojaIds?.[h.numero];
     let filas: Fila[] = [];
+    /* Una hoja sin pareja asignada (p. ej. la que se separó para los pallets de Carnaval) toma los nombres de quien contó. */
+    const quien: Record<string, string> = {};
     if (id) {
       const bd = await supabase.rpc("inv_fiscal_bd_hoja", { p_hoja: id });
-      if (bd.error) sinConteo = true; else filas = armarFilas((bd.data ?? []) as Linea[]);
+      if (bd.error) sinConteo = true;
+      else {
+        filas = armarFilas((bd.data ?? []) as Linea[]);
+        for (const l of (bd.data ?? []) as { equipo: string; persona?: string | null }[]) if (l.persona && !quien[l.equipo]) quien[l.equipo] = l.persona;
+      }
     } else sinConteo = true;
     const conConteo = filas.length > 0;
     /* PT o EER sale de lo contado: si todo es producto es PT, si todo es envase es EER, si hay de los dos, los dos. Sin conteo, queda libre. */
@@ -157,7 +163,7 @@ export default async function PlanillasPage({ searchParams }: { searchParams: Pr
     const lim = numerados.length > 1 ? [numerados[0], numerados[numerados.length - 1]] : null;
     return {
       numero: h.numero, calle: h.calle ?? "", grupo,
-      olNombre: h.ol ? (nombre.get(h.ol) ?? "—") : "", bavNombre: h.bavaria ? (nombre.get(h.bavaria) ?? "—") : "",
+      olNombre: h.ol ? (nombre.get(h.ol) ?? "—") : (quien.OL ?? ""), bavNombre: h.bavaria ? (nombre.get(h.bavaria) ?? "—") : (quien.BAVARIA ?? ""),
       sentidoOl: lim ? `${lim[0]} → ${lim[1]}` : "", sentidoBav: lim ? `${lim[1]} → ${lim[0]}` : "",
       filas: filas.map((x) => ({ modulo: x.modulo, sku: x.sku, material: x.material, udsCaja: x.udsCaja, upc: x.upc, detalle: x.detalle,
         ol: x.ol ? { estibas: x.ol.estibas, saldo: x.ol.saldo, cajas: x.ol.cajas, unidades: x.ol.unidades } : null,

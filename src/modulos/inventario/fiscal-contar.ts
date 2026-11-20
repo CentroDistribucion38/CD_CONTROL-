@@ -8,7 +8,21 @@ import type { Material } from "./fefo";
    inventario fiscal eso es un dato, no un renglón vacío (en el diario
    no se puede anotar cero porque no se cuenta lo que no está).
    =================================================================== */
-export type ModoFiscal = "estibas" | "cajas" | "unidades";
+export type ModoFiscal = "estibas" | "cajas" | "unidades" | "pallets";
+
+/* PALLETS (CARNAVAL). «Cuando cuenten Carnaval debes dar la opción de pallet, y si es pallet debe calcular de acuerdo a ese
+   factor.» Un pallet de Peldar no es una estiba: trae las unidades del maestro de Carnaval (Costeñita 5.616, 330 4.347…).
+   Se anota como unidades = pallets × factor (cajas completas + sueltas, igual que contar en unidades) y la nota lo dice:
+   «Pallet: 166 × 5.616 = 932.256 un.» — así el renglón sigue sumando bien en todo el recorrido sin otra columna. */
+export const esCarnaval = (calle: string) => /carnaval/i.test(calle);
+const NOTA_PALLET = /^\s*Pallet:\s*([\d.]+)\s*[×x]\s*([\d.]+)\s*=\s*[\d.]+\s*un\.?\s*(?:·\s*)?/i;
+const miles = (n: number) => n.toLocaleString("es-CO", { maximumFractionDigits: 0 });
+/** De la nota de un renglón en pallets: cuántos pallets fueron y el resto de la nota (lo que escribió la persona). */
+export function leerNotaPallet(nota: string | null | undefined): { pallets: number; resto: string } | null {
+  const m = (nota ?? "").match(NOTA_PALLET);
+  if (!m) return null;
+  return { pallets: Number(m[1].replace(/\./g, "")), resto: (nota ?? "").replace(NOTA_PALLET, "").trim() };
+}
 
 export type BorradorFiscal = {
   calle: string;
@@ -18,6 +32,8 @@ export type BorradorFiscal = {
   codigo: string;
   dia: string; mes: string; anio: string;
   modo: ModoFiscal; estibas: string; saldo: string; cajas: string; unidades: string;
+  /** Pallets de Carnaval (solo con modo «pallets»). */
+  pallets: string;
   nota: string;
   /** Estado del envase (RETORNO, BAJA…) o LLENO/VACÍO del cilindro; vacío si lo contado es producto. */
   estado: string;
@@ -26,7 +42,7 @@ export type BorradorFiscal = {
 };
 export const VACIO_FISCAL: BorradorFiscal = {
   calle: "", base: "", lado: "", codigo: "", dia: "", mes: "", anio: "",
-  modo: "estibas", estibas: "", saldo: "", cajas: "", unidades: "", nota: "", estado: "",
+  modo: "estibas", estibas: "", saldo: "", cajas: "", unidades: "", pallets: "", nota: "", estado: "",
   averia: false, pnc: false, pncRotulo: null, pncBloqueo: null,
 };
 
@@ -91,7 +107,15 @@ export const cantidad = (s: string): number | null => {
 const hayFecha = (b: BorradorFiscal) => b.dia.trim() !== "" || b.mes.trim() !== "" || b.anio.trim() !== "";
 
 /** Cajas que da el renglón, o null si no se puede saber (estibas de un material sin factor). */
-export function totalCajas(b: BorradorFiscal, mat: Material | null): { formula: string | null; total: number | null; sueltas?: number } | null {
+export function totalCajas(b: BorradorFiscal, mat: Material | null, porPallet?: number | null): { formula: string | null; total: number | null; sueltas?: number; unidades?: number } | null {
+  if (b.modo === "pallets") {
+    const p = cantidad(b.pallets);
+    if (p == null) return null;
+    const upc = mat?.unidades_por_caja ?? null;
+    if (!porPallet || !upc || upc <= 0) return { formula: null, total: null };
+    const u = p * porPallet;
+    return { formula: `${miles(p)} × ${miles(porPallet)} = ${miles(u)} un. ÷ ${upc}`, total: Math.floor(u / upc), sueltas: u % upc, unidades: u };
+  }
   if (b.modo === "cajas") {
     const c = cantidad(b.cajas);
     return c == null ? null : { formula: String(c), total: c };
@@ -121,12 +145,12 @@ export function avisoUnidades(b: BorradorFiscal, mat: Material | null): string |
   return !upc || upc <= 0 ? "Este material no tiene «unidades por caja» en el maestro: cuéntalo por cajas." : null;
 }
 /** Lo que falta o está mal en el renglón, dicho como lo diría una persona; null si se puede anotar. */
-export function revisarFiscal(b: BorradorFiscal, mat: Material | null, claveEscogida: string | null): string | null {
+export function revisarFiscal(b: BorradorFiscal, mat: Material | null, claveEscogida: string | null, porPallet?: number | null): string | null {
   const env = pideEstadoFiscal(mat);
   if (!b.base) return "Escoge el módulo.";
   if (!claveEscogida) return "Falta decir de qué lado del módulo.";
   if (!mat) return b.codigo.trim() === "" ? "Falta el código del material." : `El código «${b.codigo.trim()}» no está en el maestro.`;
-  for (const [campo, v] of [["estibas", b.estibas], ["saldo", b.saldo], ["cajas", b.cajas], ["unidades", b.unidades]] as const) {
+  for (const [campo, v] of [["estibas", b.estibas], ["saldo", b.saldo], ["cajas", b.cajas], ["unidades", b.unidades], ["pallets", b.pallets]] as const) {
     if (esCuenta(v) && cantidad(v) == null) return `No entiendo la cuenta de ${campo}: revisa los números y los signos (+ − × ÷), y que el resultado sea un entero.`;
   }
   if (b.modo === "cajas") {
@@ -135,6 +159,11 @@ export function revisarFiscal(b: BorradorFiscal, mat: Material | null, claveEsco
     if (cantidad(b.unidades) == null) return "¿Cuántas unidades? Si no hay nada, anota 0.";
     const av = avisoUnidades(b, mat);
     if (av) return av;
+  } else if (b.modo === "pallets") {
+    if (esCuenta(b.pallets) && cantidad(b.pallets) == null) return "No entiendo la cuenta de pallets: revisa los números y los signos.";
+    if (cantidad(b.pallets) == null) return "¿Cuántos pallets? Si no hay nada, anota 0.";
+    if (!porPallet) return "Este material no tiene «unidades por pallet» en el maestro de Carnaval: cuéntalo por estibas o cajas.";
+    if (!mat.unidades_por_caja || mat.unidades_por_caja <= 0) return "Este material no tiene «unidades por caja» en el maestro: cuéntalo por cajas.";
   } else {
     const e = cantidad(b.estibas), s = cantidad(b.saldo);
     if (e == null && s == null) return "¿Cuántas estibas? Si solo hay sueltas, anótalas en el saldo; si no hay nada, anota 0.";
@@ -155,12 +184,16 @@ export function revisarFiscal(b: BorradorFiscal, mat: Material | null, claveEsco
 }
 
 /** Los argumentos de `inv_fiscal_contar_agregar`. Solo se llama con un renglón que pasó `revisarFiscal`. */
-export function argumentosFiscal(hojaId: string, ubicacionId: string, mat: Material, b: BorradorFiscal) {
+export function argumentosFiscal(hojaId: string, ubicacionId: string, mat: Material, b: BorradorFiscal, porPallet?: number | null) {
   const fecha = hayFecha(b);
-  /* Unidades: las cajas completas van en `cajas` y lo que no completa una caja va en `unidades` (sueltas): las dos cuentan. */
-  const porUnidades = b.modo === "unidades";
-  const cuenta = porUnidades ? totalCajas(b, mat) : null;
-  const nota = b.nota.trim();
+  /* Unidades (y pallets, que son unidades): las cajas completas van en `cajas` y lo que no completa una caja va en `unidades`
+     (sueltas): las dos cuentan. */
+  const porUnidades = b.modo === "unidades" || b.modo === "pallets";
+  const cuenta = porUnidades ? totalCajas(b, mat, porPallet) : null;
+  const escrita = b.nota.trim();
+  const nota = b.modo === "pallets" && cuenta?.unidades != null
+    ? `Pallet: ${miles(cantidad(b.pallets) ?? 0)} × ${miles(porPallet ?? 0)} = ${miles(cuenta.unidades)} un.${escrita ? ` · ${escrita}` : ""}`
+    : escrita;
   return {
     p_hoja: hojaId,
     p_ubicacion: ubicacionId,
