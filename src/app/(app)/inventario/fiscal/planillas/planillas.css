@@ -285,3 +285,4 @@
   .pl-der .pl-ayuda-d { flex: none; width: auto; margin: 0; padding: 8px 16px; border-top: 1px solid #E5E5E5 }
 }
 @media print { .pl-der { display: none !important } }
+.pl .pl-pallet small { display: block; font-size: 7px; font-weight: 700; letter-spacing: .04em; color: #8a6d00; line-height: 1; text-transform: uppercase }

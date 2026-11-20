@@ -26,11 +26,15 @@ type Linea = {
   venc_dia: number | null; venc_mes: number | null; venc_anio: number | null; estado_envase?: string | null; averia?: boolean | null; pnc?: boolean | null;
   /** Unidades sueltas (no completan una caja) y unidades por caja del material. */
   unidades?: number | null; unidades_por_caja?: number | null;
+  nota?: string | null;
 };
-type Lado = { estibas: number; saldo: number; cajas: number; unidades: number; total: number };
-type Fila = { modulo: string; sku: string; material: string; udsCaja: number | null; upc: number | null; detalle: string; ol: Lado | null; bav: Lado | null; compensada?: boolean };
+type Lado = { estibas: number; saldo: number; cajas: number; unidades: number; total: number; pallets: number };
+/** `porPallet`: el renglón se contó en PALLETS de Carnaval (la nota dice «Pallet: 166 × 5.616 = …»): en la planilla los pallets van en
+ *  la columna de estibas y las unidades por pallet en la de «uds»; el total sigue saliendo en unidades. */
+type Fila = { modulo: string; sku: string; material: string; udsCaja: number | null; upc: number | null; detalle: string; ol: Lado | null; bav: Lado | null; compensada?: boolean; porPallet?: number };
 
-const vacio = (): Lado => ({ estibas: 0, saldo: 0, cajas: 0, unidades: 0, total: 0 });
+const vacio = (): Lado => ({ estibas: 0, saldo: 0, cajas: 0, unidades: 0, total: 0, pallets: 0 });
+const PALLET = /^\s*Pallet:\s*([\d.]+)\s*[×x]\s*([\d.]+)/i;
 
 /** Junta lo que contó cada equipo igual que el cruce del Control fiscal: por MÓDULO (sin lado), material y estado; el vencimiento NO cuenta
  *  (importan el SKU y la cantidad). Después marca lo que se compensa (mismas cajas de más y de menos) para que se lea igual que allá. */
@@ -38,17 +42,22 @@ function armarFilas(lineas: Linea[]): Fila[] {
   const m = new Map<string, Fila>();
   for (const l of lineas) {
     const mod = moduloDeUbicacion(l.ubicacion);
-    const k = [mod, l.sku, l.estado_envase ?? "", l.averia ? 1 : 0, l.pnc ? 1 : 0].join("|");
+    const pl = PALLET.exec(l.nota ?? "");
+    const porPallet = pl ? Number(pl[2].replace(/\./g, "")) : 0;
+    const k = [mod, l.sku, l.estado_envase ?? "", l.averia ? 1 : 0, l.pnc ? 1 : 0, porPallet ? `pallet${porPallet}` : ""].join("|");
     let f = m.get(k);
     if (!f) {
       const partes: string[] = [];
+      if (porPallet) partes.push("PALLET");
       if (l.estado_envase) partes.push(l.estado_envase);
       if (l.averia) partes.push("AVERÍA");
       if (l.pnc) partes.push("PNC");
-      f = { modulo: mod.replace(/_/g, " "), sku: l.sku, material: l.material, udsCaja: l.cajas_por_estiba || null, upc: upcDe(l.unidades_por_caja) > 1 ? upcDe(l.unidades_por_caja) : null, detalle: partes.join(" · "), ol: null, bav: null };
+      f = { modulo: mod.replace(/_/g, " "), sku: l.sku, material: l.material, udsCaja: l.cajas_por_estiba || null, upc: upcDe(l.unidades_por_caja) > 1 ? upcDe(l.unidades_por_caja) : null, detalle: partes.join(" · "), ol: null, bav: null,
+            ...(porPallet ? { porPallet } : {}) };
       m.set(k, f);
     }
     const lado = l.equipo === "BAVARIA" ? (f.bav ??= vacio()) : (f.ol ??= vacio());
+    if (pl) lado.pallets += Number(pl[1].replace(/\./g, ""));
     lado.estibas += Number(l.estibas ?? 0); lado.saldo += Number(l.saldo ?? 0); lado.cajas += Number(l.cajas ?? 0); lado.unidades += Number(l.unidades ?? 0); lado.total += Number(l.total_cajas ?? 0);
   }
   const filas = [...m.values()].sort((a, b) => a.modulo.localeCompare(b.modulo, "es", { numeric: true }) || a.sku.localeCompare(b.sku));
@@ -166,8 +175,10 @@ export default async function PlanillasPage({ searchParams }: { searchParams: Pr
       olNombre: h.ol ? (nombre.get(h.ol) ?? "—") : (quien.OL ?? ""), bavNombre: h.bavaria ? (nombre.get(h.bavaria) ?? "—") : (quien.BAVARIA ?? ""),
       sentidoOl: lim ? `${lim[0]} → ${lim[1]}` : "", sentidoBav: lim ? `${lim[1]} → ${lim[0]}` : "",
       filas: filas.map((x) => ({ modulo: x.modulo, sku: x.sku, material: x.material, udsCaja: x.udsCaja, upc: x.upc, detalle: x.detalle,
-        ol: x.ol ? { estibas: x.ol.estibas, saldo: x.ol.saldo, cajas: x.ol.cajas, unidades: x.ol.unidades } : null,
-        bav: x.bav ? { estibas: x.bav.estibas, saldo: x.bav.saldo, cajas: x.bav.cajas, unidades: x.bav.unidades } : null })),
+        /* En pallets: los pallets en «estiba» y nada más (las unidades salen de pallets × unidades por pallet). */
+        ...(x.porPallet ? { porPallet: x.porPallet } : {}),
+        ol: x.ol ? (x.porPallet ? { estibas: x.ol.pallets, saldo: 0, cajas: 0, unidades: 0 } : { estibas: x.ol.estibas, saldo: x.ol.saldo, cajas: x.ol.cajas, unidades: x.ol.unidades }) : null,
+        bav: x.bav ? (x.porPallet ? { estibas: x.bav.pallets, saldo: 0, cajas: 0, unidades: 0 } : { estibas: x.bav.estibas, saldo: x.bav.saldo, cajas: x.bav.cajas, unidades: x.bav.unidades }) : null })),
       blancos, conConteo, np: Math.max(1, Math.ceil(total / FILAS)),
     };
   }));

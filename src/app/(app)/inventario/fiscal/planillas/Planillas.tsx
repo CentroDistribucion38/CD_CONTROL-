@@ -12,7 +12,8 @@ import { aUnidades, partir, textoCantidad } from "@/modulos/inventario/unidades"
 
 export type Lado = { estibas: number; saldo: number; cajas: number; unidades: number };
 /** `upc` = unidades por caja del material (null = no se sabe: no hay unidades sueltas). */
-export type FilaP = { modulo: string; sku: string; material: string; udsCaja: number | null; upc: number | null; detalle: string; ol: Lado | null; bav: Lado | null };
+/** `porPallet`: renglón contado en pallets de Carnaval: «Estiba» son pallets y cada uno trae `porPallet` unidades. */
+export type FilaP = { modulo: string; sku: string; material: string; udsCaja: number | null; upc: number | null; detalle: string; ol: Lado | null; bav: Lado | null; porPallet?: number };
 export type HojaP = {
   numero: number; calle: string; grupo: string; olNombre: string; bavNombre: string; sentidoOl: string; sentidoBav: string;
   filas: FilaP[]; blancos: string[]; conConteo: boolean; np: number;
@@ -121,6 +122,12 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
   const cuenta = (c: Cant | null, f: FilaP): { cajas: number; sueltas: number; u: number } | null => {
     if (!hay(c)) return null;
     const upc = f.upc ?? 1;
+    if (f.porPallet) {
+      /* Pallets × unidades por pallet, más lo que se haya anotado suelto. */
+      const u = num(c!.e) * f.porPallet + (num(c!.s) + num(c!.c)) * upc + num(c!.u);
+      const p = partir(u, upc);
+      return { cajas: p.cajas, sueltas: p.unidades, u };
+    }
     const cajas = num(c!.e) * (f.udsCaja ?? 0) + num(c!.s) + num(c!.c);
     const u = f.upc ? aUnidades(cajas, num(c!.u), upc) : cajas;
     const p = partir(u, upc);
@@ -577,7 +584,7 @@ export function Planillas({ fiscalId, nombre, fecha, fechaTexto, hoy, hojas, tod
                           <td className="m e"><input readOnly={verOrig} value={o.modulo} onChange={(e) => poner(h, i, f, "modulo", null, e.target.value)} aria-label={`Módulo de ${f.sku}`} /></td>
                           <td className="c"><button type="button" className="pl-codb" title={cod === f.sku ? "Quitar el filtro" : "Filtrar por este código"} onClick={() => setCod(cod === f.sku ? "" : f.sku)}>{f.sku}</button></td>
                           <td className="d">{f.material}{f.detalle && <em>{f.detalle}</em>}</td>
-                          <td className="r">{f.udsCaja ?? ""}</td>
+                          <td className="r">{f.porPallet ? <span className="pl-pallet" title="Unidades por pallet (maestro de Carnaval): la columna «Estiba» de este renglón son pallets">{nf.format(f.porPallet)}<small>un./pallet</small></span> : f.udsCaja ?? ""}</td>
                           {campo(h, f, i, "ol", "e", "Estibas")}{campo(h, f, i, "ol", "c", "Cajas")}{campo(h, f, i, "ol", "u", "Unidades sueltas")}
                           {campo(h, f, i, "bav", "e", "Estibas")}{campo(h, f, i, "bav", "c", "Cajas")}{campo(h, f, i, "bav", "u", "Unidades sueltas")}
                           <td className={"r t" + (dd.cajas !== 0 || dd.unidades !== 0 ? " mal" : "")}>
