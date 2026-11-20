@@ -158,6 +158,36 @@
 .pe .pe-acciones { margin-left: auto; align-self: flex-end; display: flex; gap: 8px }
 .pe .pe-psku th i { display: block; font: 600 9px var(--fe-texto); letter-spacing: .06em; color: var(--fe-aviso); font-style: normal }
 .pe .pe-psku td.l { max-width: 380px; overflow: hidden; text-overflow: ellipsis }
+/* LA HOJA: se baja dentro de la tabla con el encabezado y el SKU quietos; la celda activa con marco del tema y su cruz suave. */
+.pe .pe-hoja { max-height: calc(100vh - 290px); min-height: 260px; overflow: auto; outline: none }
+.pe .pe-hoja:focus-visible { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--fe-acento) 40%, transparent) }
+.pe .pe-hoja thead th { position: sticky; top: 0; z-index: 2 }
+.pe .pe-hoja td.l, .pe .pe-hoja th.l { position: sticky; left: 0; z-index: 1; background: var(--fe-papel) }
+.pe .pe-hoja thead th.l { z-index: 3; background: var(--fe-tinta) }
+.pe .pe-hoja tr.tot td { position: sticky; bottom: 0; z-index: 1 }
+.pe .pe-hoja tr.tot td.l { z-index: 2; background: color-mix(in srgb, var(--fe-aviso) 18%, var(--fe-papel)) }
+.pe .pe-psku td { cursor: cell; user-select: none }
+/* que la celda activa no quede escondida debajo del encabezado, del total o de la columna del SKU */
+.pe .pe-hoja td { scroll-margin: 64px 0 52px 380px }
+.pe .pe-hoja tr.tot td { scroll-margin: 0 }
+.pe .pe-psku td.cruz { background: color-mix(in srgb, var(--fe-acento) 6%, var(--fe-papel)) }
+.pe .pe-psku tr.fila-act td.l { background: color-mix(in srgb, var(--fe-acento) 10%, var(--fe-papel)) }
+.pe .pe-psku th.cruz { box-shadow: inset 0 -3px 0 var(--fe-acento) }
+.pe .pe-psku td.act { box-shadow: inset 0 0 0 2px var(--fe-acento); background: color-mix(in srgb, var(--fe-acento) 12%, var(--fe-papel)) }
+/* QUÉ CAMBIÓ: lo vigente arriba y, abajo, cuánto subió (verde) o bajó (rojo) contra el inicial. */
+.pe .pe-psku.cmb td { vertical-align: top; padding-top: 7px; padding-bottom: 6px }
+.pe .pe-psku.cmb .pv-v { display: block }
+.pe .pe-psku.cmb small { display: block; font: 700 11px var(--fe-texto); margin-top: 1px; white-space: nowrap }
+.pe .pe-psku.cmb small.sube { color: var(--fe-bien) }
+.pe .pe-psku.cmb small.baja { color: var(--fe-mal) }
+.pe .pe-psku.cmb small.igual { color: var(--fe-gris); font-weight: 400 }
+.pe .pe-psku.cmb td.c-sube { background: color-mix(in srgb, var(--fe-bien) 8%, var(--fe-papel)) }
+.pe .pe-psku.cmb td.c-baja { background: color-mix(in srgb, var(--fe-mal) 7%, var(--fe-papel)) }
+.pe .pe-psku.cmb td.c-sube.act, .pe .pe-psku.cmb td.c-baja.act { box-shadow: inset 0 0 0 2px var(--fe-acento) }
+.pe .pv-tdif { font: 700 12.5px var(--fe-texto); padding: 3px 8px; background: var(--fe-fondo) }
+.pe .pv-tdif.sube { color: var(--fe-bien) }
+.pe .pv-tdif.baja { color: var(--fe-mal) }
+.pe .pv-solo { display: inline-flex; align-items: center; gap: 6px; font: 600 12.5px var(--fe-texto); color: var(--fe-tinta); cursor: pointer }
 @media (max-width: 760px) { .pe .pe-acciones { margin-left: 0 } }
 
 /* la hora del corte: una lista con el mismo marco del calendario */
