@@ -23,11 +23,13 @@ const n0 = (x: number) => Math.round(x).toLocaleString("es-CO");
  * VALIDACIÓN DEL DÍA. Lo principal arriba: las cifras del día y la tabla por SKU (clic en el SKU abre sus órdenes).
  * Las alertas van al final, cerradas, con su conteo a la vista en las cifras.
  */
-export function ValidacionDia({ dia, hoy, conDatos, antes, despues, filas, alertas, maestro, hayCorte, estado, ahora }: {
+export function ValidacionDia({ dia, hoy, conDatos, antes, despues, filas, alertas, maestro, hayCorte, estado, ahora, lineas = [] }: {
   dia: string; hoy: string; conDatos: string[]; antes: string; despues: string; filas: FilaDia[]; alertas: Alerta[]; maestro: M;
   hayCorte: boolean; estado: Dia["estado"];
   /** Solo HOY: la hora, el plan vigente sumado hora por hora hasta ahora (unidades por SKU) y hasta dónde llega la MB51. */
   ahora?: { hora: string; planHasta: Record<string, number>; mb51: string | null };
+  /** El plan de cada SKU en cada línea (TREN) del instructivo, en unidades: inicial, vigente y (hoy) hasta esta hora. */
+  lineas?: { tren: string; sku: string; ini: number; vig: number; hasta: number }[];
 }) {
   const router = useRouter();
   const ir = (f: string) => router.push(`/inventario/envase?d=${f}`);
@@ -37,6 +39,7 @@ export function ValidacionDia({ dia, hoy, conDatos, antes, despues, filas, alert
   ];
   const [u, setU] = useState<Unidad>("hl");
   const [abiertos, setAbiertos] = useState<Set<string>>(new Set());
+  const [vista, setVista] = useState<"sku" | "linea">("sku");
   const conv = (un: number, sku: string, uu: Unidad = u): number | null => {
     const x = maestro[sku];
     if (uu === "un") return un;
@@ -73,6 +76,32 @@ export function ValidacionDia({ dia, hoy, conDatos, antes, despues, filas, alert
     const p = a / b, c = p < 0.9 ? "var(--fe-mal)" : p > 1.1 ? "var(--fe-aviso)" : "var(--fe-bien)";
     return <span className="pe-pct"><u><i style={{ width: `${Math.min(100, 100 * p)}%`, background: c }} /></u><b className={p < 0.9 ? "mal" : ""}>{Math.round(100 * p)} %</b></span>;
   };
+  /* POR LÍNEA. La MB51 no dice en qué línea se envasó: lo notificado de un SKU se reparte entre las líneas que lo tienen en el plan,
+     en proporción a su plan (hoy, al plan hasta esta hora). Un SKU notificado que no está en ninguna línea va en «Sin línea en el plan». */
+  const grupos = (() => {
+    const notifDe = new Map(filas.map((f) => [f.sku, f.notif]));
+    const peso = (l: (typeof lineas)[number]) => (ahora ? l.hasta || l.vig : l.vig || l.ini);
+    const totalPeso = new Map<string, number>();
+    for (const l of lineas) totalPeso.set(l.sku, (totalPeso.get(l.sku) ?? 0) + peso(l));
+    const enVarias = new Set<string>();
+    const cuenta = new Map<string, number>(); for (const l of lineas) cuenta.set(l.sku, (cuenta.get(l.sku) ?? 0) + 1);
+    for (const [k, n] of cuenta) if (n > 1) enVarias.add(k);
+    const G = new Map<string, { tren: string; rs: { sku: string; ini: number; vig: number; hasta: number; notif: number; repartido: boolean }[] }>();
+    for (const l of lineas) {
+      const tp = totalPeso.get(l.sku) ?? 0, n = notifDe.get(l.sku) ?? 0;
+      const notif = tp > 0 ? (n * peso(l)) / tp : n / (cuenta.get(l.sku) ?? 1);
+      if (!G.has(l.tren)) G.set(l.tren, { tren: l.tren, rs: [] });
+      G.get(l.tren)!.rs.push({ sku: l.sku, ini: l.ini, vig: l.vig, hasta: l.hasta, notif, repartido: enVarias.has(l.sku) });
+    }
+    const sinLinea = filas.filter((f) => !cuenta.has(f.sku) && Math.abs(f.notif) > 0.5);
+    if (sinLinea.length) G.set("~", { tren: "Sin línea en el plan", rs: sinLinea.map((f) => ({ sku: f.sku, ini: 0, vig: 0, hasta: 0, notif: f.notif, repartido: false })) });
+    return [...G.values()].sort((a, b) => a.tren.localeCompare(b.tren, "es", { numeric: true }));
+  })();
+  const nombreLinea = (t: string) => t.replace(/^TREN-?\s*/i, "Línea ");
+  const sumaU = (rs: { sku: string }[], k: (r: never) => number) => {
+    let s = 0; for (const r of rs) { const v = conv(k(r as never), r.sku); if (v != null) s += v } return s;
+  };
+
   const abrir = (s: string) => setAbiertos((x) => { const y = new Set(x); if (y.has(s)) y.delete(s); else y.add(s); return y });
   const conteo = (t: Alerta["tipo"]) => alertas.filter((a) => a.tipo === t).length;
   const NOMBRE: Record<Alerta["tipo"], [string, string]> = { falta261: ["Falta 261", "t-r"], perdida: ["261 ≠ 531", "t-g"], caja: ["Caja de más", "t-a"], plan: ["Bajo plan", "t-n"] };
@@ -136,7 +165,52 @@ export function ValidacionDia({ dia, hoy, conDatos, antes, despues, filas, alert
         )}
 
         <section className="pe-card">
-          <h3 className="pe-h3">{corto(dia)} · por SKU <small>clic en el SKU abre sus órdenes · envase en botellas y cajas</small></h3>
+          <h3 className="pe-h3">{corto(dia)} · {vista === "sku" ? "por SKU" : "por línea"}
+            <span className="pe-seg pe-vista" role="group" aria-label="Ver">
+              <button type="button" className={vista === "sku" ? "on" : ""} aria-pressed={vista === "sku"} onClick={() => setVista("sku")}>Por SKU</button>
+              <button type="button" className={vista === "linea" ? "on" : ""} aria-pressed={vista === "linea"} onClick={() => setVista("linea")} disabled={!lineas.length} title={lineas.length ? "" : "El plan de este día no trae líneas"}>Por línea</button>
+            </span>
+            <small>{vista === "sku" ? "clic en el SKU abre sus órdenes · envase en botellas y cajas" : "cada TREN del instructivo con sus SKU · lo notificado de un SKU en varias líneas se reparte por su plan"}</small></h3>
+          {vista === "linea" ? (
+            <div className="pe-caja">
+              <table className="pe-t pe-lin">
+                <thead><tr>
+                  <th className="l">Línea · SKU</th><th>Plan inicial</th>{hayCorte && <th>Plan vigente</th>}{ahora && <th className="pe-ahora">Plan a las {ahora.hora}</th>}
+                  <th>Notificado</th><th className="l">Cumplimiento{ahora ? " a esta hora" : ""}</th><th>{ahora ? "Pendiente" : "Diferencia"}</th>
+                </tr></thead>
+                <tbody>
+                  {grupos.map((g) => {
+                    const base = (r: { vig: number; ini: number; hasta: number }) => (ahora ? r.hasta : hayCorte ? r.vig : r.ini);
+                    const gIni = sumaU(g.rs, (r: { ini: number }) => r.ini), gVig = sumaU(g.rs, (r: { vig: number }) => r.vig), gHasta = sumaU(g.rs, (r: { hasta: number }) => r.hasta);
+                    const gNot = sumaU(g.rs, (r: { notif: number }) => r.notif), gBase = ahora ? gHasta : hayCorte ? gVig : gIni, gPend = gBase - gNot;
+                    return (
+                      <Fragment key={g.tren}>
+                        <tr className="pe-lin-cab">
+                          <td className="l"><b>{g.tren === "Sin línea en el plan" ? g.tren : nombreLinea(g.tren)}</b> <small>{g.rs.length} SKU</small></td>
+                          <td>{fmt(gIni)}</td>{hayCorte && <td>{fmt(gVig)}</td>}{ahora && <td className="pe-ahora">{fmt(gHasta)}</td>}
+                          <td><b>{fmt(gNot)}</b></td>
+                          <td className="l">{gBase ? <span className="pe-pct"><u><i style={{ width: `${Math.min(100, (100 * gNot) / gBase)}%`, background: gNot / gBase < 0.9 ? "var(--fe-mal)" : "var(--fe-bien)" }} /></u><b className={gNot / gBase < 0.9 ? "mal" : ""}>{Math.round((100 * gNot) / gBase)} %</b></span> : <span className="mut">—</span>}</td>
+                          <td className={gPend > 0.5 ? "mal" : "bien"}><b>{gPend > 0.5 ? fmt(gPend) : gPend < -0.5 ? `+${fmt(-gPend)}` : "✓"}</b></td>
+                        </tr>
+                        {g.rs.map((r) => {
+                          const b = base(r), pend = b - r.notif;
+                          return (
+                            <tr key={g.tren + r.sku} className="sub">
+                              <td className="l"><b>{r.sku}</b> {(filas.find((f) => f.sku === r.sku)?.nombre || maestro[r.sku]?.nombre || "").slice(0, 30)}{r.repartido && <small className="mut"> · repartido</small>}</td>
+                              <td>{fmt(conv(r.ini, r.sku))}</td>{hayCorte && <td>{fmt(conv(r.vig, r.sku))}</td>}{ahora && <td className="pe-ahora">{r.hasta ? fmt(conv(r.hasta, r.sku)) : "—"}</td>}
+                              <td>{fmt(conv(r.notif, r.sku))}</td>
+                              <td className="l">{pct(r.notif, b)}</td>
+                              <td className={pend > 0.5 ? "mal" : "bien"}>{pend > 0.5 ? fmt(conv(pend, r.sku)) : pend < -0.5 ? `+${fmt(conv(-pend, r.sku))}` : "✓"}</td>
+                            </tr>
+                          );
+                        })}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
           <div className="pe-caja">
             <table className="pe-t">
               <thead><tr>
@@ -194,6 +268,7 @@ export function ValidacionDia({ dia, hoy, conDatos, antes, despues, filas, alert
               </tbody>
             </table>
           </div>
+          )}
           <p className="pe-nota">Notificado = Z01 − Z02 con fecha de contabilización de este día, aunque se haya digitado al día siguiente («Digitado al otro día»: la producción de la noche que se notifica de madrugada). Envase solo en
             retornables: la botella va 1 a 1 con lo producido y la caja es unidades ÷ unidades por caja; lo que salió de AG22 y no llegó igual a AG28 sale en las alertas.</p>
         </section>

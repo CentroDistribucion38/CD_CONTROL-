@@ -74,6 +74,23 @@ export default async function ValidacionPage({ searchParams }: { searchParams: P
     ahora = { hora: `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`, planHasta, mb51: u.valor };
   }
 
+  /* POR LÍNEA (cada TREN del instructivo): el plan del día de cada SKU en cada línea —inicial y vigente— y, hoy, el plan hasta
+     esta hora. Lo notificado se reparte en la pantalla (la MB51 no dice la línea). */
+  const hm = ahora ? ahora.hora.split(":").map(Number) : null;
+  const unDe = (f: (typeof ini)[number]) => f.unidades ?? (f.formato_ml ? (f.hl * 1e5) / f.formato_ml : 0);
+  const porLinea = new Map<string, { tren: string; sku: string; ini: number; vig: number; hasta: number }>();
+  const lin = (tren: string, sku: string) => {
+    const k = `${tren}|${sku}`;
+    let x = porLinea.get(k); if (!x) { x = { tren, sku, ini: 0, vig: 0, hasta: 0 }; porLinea.set(k, x) }
+    return x;
+  };
+  for (const f of ini) if (f.fecha === d && f.sku) lin(f.tren, f.sku).ini += unDe(f);
+  for (const f of (cor ?? ini)) if (f.fecha === d && f.sku) {
+    const x = lin(f.tren, f.sku); x.vig += unDe(f);
+    if (hm) { const peso = f.hora < hm[0] ? 1 : f.hora === hm[0] ? hm[1] / 60 : 0; x.hasta += unDe(f) * peso }
+  }
+  const lineas = [...porLinea.values()];
+
   return (
     <div className="fe pe">
       {cabeza(<>
@@ -87,7 +104,7 @@ export default async function ValidacionPage({ searchParams }: { searchParams: P
       <ValidacionDia
         dia={d} hoy={hoy} conDatos={conDatos} antes={masDias(d, -1)} despues={masDias(d, 1)}
         filas={v.filas} alertas={v.alertas} maestro={Object.fromEntries(M)} hayCorte={!!c}
-        estado={estadoDia(d, u.valor, hoy)} ahora={ahora}
+        estado={estadoDia(d, u.valor, hoy)} ahora={ahora} lineas={lineas}
       />
     </div>
   );

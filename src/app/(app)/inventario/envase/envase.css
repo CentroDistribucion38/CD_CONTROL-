@@ -74,6 +74,14 @@
 .pe .pe-t td.pe-ahora { background: color-mix(in srgb, var(--fe-aviso, #FFC400) 12%, transparent) }
 .pe .pe-t th.pe-ahora { box-shadow: inset 0 -3px 0 var(--fe-aviso, #FFC400) }
 
+/* Por SKU / Por línea, en el título de la tabla. */
+.pe .pe-h3 .pe-vista { display: inline-flex; margin-left: 12px; vertical-align: middle }
+.pe .pe-h3 .pe-vista button { font-size: 12px; padding: 5px 12px }
+/* Por línea: la fila de la línea con su total, y debajo sus SKU. */
+.pe .pe-lin tr.pe-lin-cab td { background: var(--fe-fondo, #F4F6F9); border-top: 2px solid var(--fe-tinta, #111); font-weight: 700 }
+.pe .pe-lin tr.pe-lin-cab td small { font-weight: 500; color: var(--fe-gris); margin-left: 6px }
+.pe .pe-lin tr.sub td.l { padding-left: 28px }
+
 /* ---------- tablas ---------- */
 .pe .pe-caja { overflow-x: auto }
 .pe table.pe-t { border-collapse: collapse; width: 100% }
