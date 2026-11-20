@@ -11,7 +11,7 @@
  */
 import type { Bloque, CeldaT, Col } from "@/modulos/inventario/evidencias-informe";
 import type { Imagen } from "@/modulos/inventario/evidencias-graficas";
-import { MEDIDA, filasDry, filasOrigen, graficaBarras, graficaPareto, graficaTendencia, hallazgos, n0 as n, pc, periodoLargo, vitales, type DatosInformeAi } from "./informe-ai-graficas";
+import { MEDIDA, graficaPareto, paretoOrigen, graficaTendencia, hallazgos, n0 as n, pc, periodoLargo, vitales, type DatosInformeAi } from "./informe-ai-graficas";
 
 export type { DatosInformeAi };
 export const NOMBRE_INFORME_AI = "INFORME %AI · REVISIÓN DE ENVASE";
@@ -26,11 +26,11 @@ export type ImagenesAi = { origen: Imagen | null; causal: Imagen | null; dry: Im
 export function imagenesAi(d: DatosInformeAi): ImagenesAi {
   const im = (png: string, w: number, h: number): Imagen => ({ png, w: w * 12, h: h * 12 });
   const t = <T,>(f: () => T) => { try { return f() } catch { return null } };
-  const bo = MEDIDA.barras(d.origenes.length), bd = MEDIDA.barras(d.top5.length), P = MEDIDA.pareto, T = MEDIDA.tendencia;
+  const P = MEDIDA.pareto, T = MEDIDA.tendencia;
   return {
-    origen: d.origenes.length ? t(() => im(graficaBarras(filasOrigen(d)), bo.ancho, bo.alto)) : null,
+    origen: d.origenes.length ? t(() => im(graficaPareto(paretoOrigen(d)), P.ancho, P.alto)) : null,
     causal: d.causales.length ? t(() => im(graficaPareto(d.causales), P.ancho, P.alto)) : null,
-    dry: d.top5.length ? t(() => im(graficaBarras(filasDry(d)), bd.ancho, bd.alto)) : null,
+    dry: d.top5.length ? t(() => im(graficaPareto(d.top5), P.ancho, P.alto)) : null,
     sku: d.envases.length ? t(() => im(graficaPareto(d.envases), P.ancho, P.alto)) : null,
     tendencia: d.dias.length > 1 ? t(() => im(graficaTendencia(d.dias, d.total.indice), T.ancho, T.alto)) : null,
   };
@@ -69,7 +69,7 @@ export function construirInformeAi(d: DatosInformeAi, o: { titulo: string; gener
   if (d.origenes.length) {
     const o2 = [...d.origenes].sort((a, c) => c.indice - a.indice);
     b.push({ t: "modulo", n: sig(), titulo: "%AI por origen (CD)", seguido: true, sub: "del %AI más alto al más bajo, y cuánto aporta cada uno al mal estado", ojo: OJO_AI });
-    if (img.origen) b.push({ t: "img", img: img.origen, ancho: 0.8, pie: "Barra: %AI de cada origen (en negro el más alto). A la derecha, su parte de todo el mal estado." });
+    if (img.origen) b.push({ t: "img", img: img.origen, pie: "El pareto por origen: unidades en mal estado de cada CD, de más a menos. En negro, los CDs que juntos llegan al 80 %; la curva roja es el acumulado. La tabla los ordena por %AI." });
     const colsO: Col[] = [{ h: "Origen (CD)", w: 30 }, { h: "Revisiones", w: 13, al: "r" }, { h: "Revisadas", w: 16, al: "r" }, { h: "Mal estado", w: 15, al: "r" }, { h: "% del mal estado", w: 16, al: "r" }, { h: "%AI", w: 13, al: "r" }];
     b.push({ t: "tabla", cols: colsO, total: true, filas: [
       ...o2.map((x) => [x.origen, n(x.revisiones), n(x.revisadas), n(x.malas), pc(d.total.defectos ? x.malas / d.total.defectos : 0), rojoSi(x.indice > prom, pc(x.indice))] as CeldaT[]),
@@ -91,7 +91,7 @@ export function construirInformeAi(d: DatosInformeAi, o: { titulo: string; gener
   if (d.top5.length) {
     const acum5 = d.top5[d.top5.length - 1].acumulado;
     b.push({ t: "modulo", n: sig(), titulo: "Top 5 DRY por unidades en mal estado", sub: `juntos son el ${pc1(acum5)} del mal estado de los socios (${n(d.malasSocios)} unidades)`, ojo: OJO_AI });
-    if (img.dry) b.push({ t: "img", img: img.dry, ancho: 0.8, pie: "Unidades en mal estado de cada socio y su parte del mal estado de todos los socios." });
+    if (img.dry) b.push({ t: "img", img: img.dry, ancho: 0.85, pie: "El pareto de los 5 DRY: unidades en mal estado de cada socio; la curva roja es el acumulado sobre el mal estado de todos los socios." });
     b.push({ t: "tabla", cols: [{ h: "#", w: 5, al: "r" }, { h: "DRY (socio)", w: 29 }, { h: "Revisiones", w: 12, al: "r" }, { h: "Revisadas", w: 13, al: "r" }, { h: "Mal estado", w: 13, al: "r" }, { h: "% del mal estado", w: 14, al: "r" }, { h: "% acum.", w: 11, al: "r" }, { h: "%AI", w: 11, al: "r" }],
       filas: d.top5.map((x, i) => [String(i + 1), fuerte(x.nombre), n(x.socio?.revisiones ?? 0), n(x.socio?.revisadas ?? 0), n(x.unidades), fuerte(pc(x.pctDefectos)), pc(x.acumulado),
         rojoSi((x.socio?.indice ?? 0) > prom, pc(x.socio?.indice ?? 0))]) });

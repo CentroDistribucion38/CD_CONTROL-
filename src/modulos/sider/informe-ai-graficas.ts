@@ -103,7 +103,6 @@ const K = 12;
 export const MEDIDA = {
   pareto: { ancho: 182, alto: 80 },
   tendencia: { ancho: 182, alto: 66 },
-  barras: (n: number) => ({ ancho: 182, alto: Math.max(20, 4 + n * 8) }),
 } as const;
 
 function lienzo(wmm: number, hmm: number) {
@@ -191,30 +190,14 @@ export function graficaPareto(filas: ParetoFila[], tinta: RGB = PALETA_MARCA.tin
   return c.toDataURL("image/png");
 }
 
-/** Barras horizontales: el nombre a la izquierda, la barra y su cifra a la derecha. */
-export function graficaBarras(filas: { k: string; v: number; txt: string; sub?: string; fuerte?: boolean }[], tinta: RGB = PALETA_MARCA.tinta): string {
-  const m = MEDIDA.barras(filas.length);
-  const { c, ctx, W } = lienzo(m.ancho, m.alto);
-  const NOM = 52 * K, VAL = 40 * K, X0 = NOM + 3 * K, X1 = W - VAL - 3 * K, FILA = 8 * K, BH = 4.2 * K;
-  const max = Math.max(1e-9, ...filas.map((f) => f.v));
-  filas.forEach((f, i) => {
-    const y = 2 * K + i * FILA, yc = y + FILA / 2;
-    letra(ctx, f.fuerte ? 700 : 500, 2.9); ctx.fillStyle = rgb(tinta); ctx.textAlign = "left";
-    ctx.fillText(dosRenglones(ctx, f.k, NOM)[0], 0, yc);
-    ctx.fillStyle = "#F1F3F5"; ctx.fillRect(X0, yc - BH / 2, X1 - X0, BH);
-    ctx.fillStyle = f.fuerte ? FUERTE : GRIS_BARRA; ctx.fillRect(X0, yc - BH / 2, Math.max(1, (f.v / max) * (X1 - X0)), BH);
-    letra(ctx, 800, 3); ctx.fillStyle = rgb(tinta); ctx.textAlign = "right";
-    ctx.fillText(f.txt, f.sub ? W - 17 * K : W, yc);
-    if (f.sub) { letra(ctx, 500, 2.5); ctx.fillStyle = "#5F6B79"; ctx.fillText(f.sub, W, yc) }
-  });
-  return c.toDataURL("image/png");
-}
-
 /** La tendencia: el %AI de cada día con el área suave, la raya del %AI del período y los días por encima en rojo. */
-export function graficaTendencia(dias: PorDia[], promedio: number, tinta: RGB = PALETA_MARCA.tinta): string {
+export const graficaTendencia = (dias: PorDia[], promedio: number, tinta: RGB = PALETA_MARCA.tinta): string =>
+  lienzoTendencia(dias, promedio, tinta).toDataURL("image/png");
+/** El mismo dibujo como lienzo, para pegarlo dentro de otra imagen (la foto del informe). */
+export function lienzoTendencia(dias: PorDia[], promedio: number, tinta: RGB = PALETA_MARCA.tinta): HTMLCanvasElement {
   const { c, ctx, W, H } = lienzo(MEDIDA.tendencia.ancho, MEDIDA.tendencia.alto);
-  const ML = 6 * K, MR = 6 * K, MT = 12 * K, MB = 9 * K;
-  if (!dias.length) return c.toDataURL("image/png");
+  const ML = 6 * K, MR = 6 * K, MT = 12 * K, MB = 12 * K;
+  if (!dias.length) return c;
   const techo = Math.max(promedio, ...dias.map((x) => x.indice)) * 1.18 || 0.01;
   const X = (i: number) => (dias.length === 1 ? W / 2 : ML + (i * (W - ML - MR)) / (dias.length - 1));
   const Y = (v: number) => MT + (1 - v / techo) * (H - MT - MB);
@@ -229,15 +212,18 @@ export function graficaTendencia(dias: PorDia[], promedio: number, tinta: RGB = 
   ctx.strokeStyle = ROJO; ctx.lineWidth = 0.6 * K; ctx.lineJoin = "round"; ctx.beginPath();
   dias.forEach((x, i) => (i ? ctx.lineTo(X(i), Y(x.indice)) : ctx.moveTo(X(i), Y(x.indice)))); ctx.stroke();
   const pico = dias.reduce((a, x) => (x.indice > a.indice ? x : a), dias[0]);
-  const valle = dias.reduce((a, x) => (x.indice < a.indice ? x : a), dias[0]);
-  const conCifra = (x: PorDia) => dias.length <= 21 || x === pico || x === valle;
   const paso = Math.max(1, Math.ceil(dias.length / 16));
   dias.forEach((x, i) => {
     const sobre = x.indice > promedio;
     ctx.beginPath(); ctx.arc(X(i), Y(x.indice), (x === pico ? 1.5 : 1.05) * K, 0, Math.PI * 2);
     ctx.fillStyle = sobre ? ROJO : "#FFFFFF"; ctx.fill(); ctx.lineWidth = 0.45 * K; ctx.strokeStyle = sobre ? ROJO : FUERTE; ctx.stroke();
-    if (conCifra(x)) { letra(ctx, 800, dias.length > 14 ? 2.2 : 2.6); ctx.textAlign = "center"; halo(ctx, nf2.format(x.indice * 100), X(i), Y(x.indice) - 3 * K, sobre ? ROJO : rgb(tinta)) }
-    if (i % paso === 0 || i === dias.length - 1) { letra(ctx, 500, 2.4); ctx.fillStyle = "#5F6B79"; ctx.textAlign = "center"; ctx.fillText(corta(x.dia), X(i), H - MB / 2) }
+    /* LA ETIQUETA DE CADA DÍA, en todos los puntos. Va arriba si el punto es un pico frente a sus vecinos y abajo si es
+       un valle: así dos días seguidos no se montan la cifra. */
+    const vec = [dias[i - 1], dias[i + 1]].filter(Boolean).map((v) => v!.indice);
+    const abajo = vec.length > 0 && x.indice < vec.reduce((a, v) => a + v, 0) / vec.length;
+    letra(ctx, 800, dias.length > 30 ? 1.8 : dias.length > 14 ? 2.2 : 2.6); ctx.textAlign = "center";
+    halo(ctx, nf2.format(x.indice * 100), X(i), Y(x.indice) + (abajo ? 3 : -3) * K, sobre ? ROJO : rgb(tinta));
+    if ((i % paso === 0 && dias.length - 1 - i >= paso / 2) || i === dias.length - 1) { letra(ctx, 500, 2.4); ctx.fillStyle = "#5F6B79"; ctx.textAlign = "center"; ctx.fillText(corta(x.dia), X(i), H - MB / 2) }
   });
   /* La leyenda arriba a la derecha, fuera de la línea: la raya del período y los días por encima. */
   letra(ctx, 600, 2.4); ctx.textAlign = "right";
@@ -247,12 +233,16 @@ export function graficaTendencia(dias: PorDia[], promedio: number, tinta: RGB = 
   ctx.beginPath(); ctx.arc(lx, ly, 1 * K, 0, Math.PI * 2); ctx.fillStyle = ROJO; ctx.fill(); lx -= 5 * K;
   letra(ctx, 800, 2.4); ctx.fillStyle = rgb(tinta); ctx.fillText(t1, lx, ly); lx -= ctx.measureText(t1).width + 2 * K;
   ctx.strokeStyle = rgb(tinta); ctx.lineWidth = 3; ctx.setLineDash([12, 10]); ctx.beginPath(); ctx.moveTo(lx - 8 * K, ly); ctx.lineTo(lx, ly); ctx.stroke(); ctx.setLineDash([]);
-  return c.toDataURL("image/png");
+  return c;
 }
 
-export const filasOrigen = (d: DatosInformeAi) => {
-  const o = [...d.origenes].sort((a, b) => b.indice - a.indice);
-  return o.map((x, i) => ({ k: x.origen, v: x.indice, txt: pc(x.indice), sub: pc1(d.total.defectos ? x.malas / d.total.defectos : 0), fuerte: i === 0 }));
-};
-export const filasDry = (d: DatosInformeAi) =>
-  d.top5.map((x, i) => ({ k: `${i + 1}. ${x.nombre}`, v: x.unidades, txt: n0(x.unidades), sub: pc1(x.pctDefectos), fuerte: i === 0 }));
+/** EL PARETO POR ORIGEN: los CDs de más a menos unidades en mal estado, con su parte del mal estado y el acumulado. */
+export function paretoOrigen(d: DatosInformeAi): ParetoFila[] {
+  const malas = d.origenes.reduce((a, x) => a + x.malas, 0);
+  let acum = 0;
+  return [...d.origenes].filter((x) => x.malas > 0).sort((a, b) => b.malas - a.malas).map((x) => {
+    acum += x.malas;
+    return { clave: x.origen, nombre: x.origen, unidades: x.malas, pct: d.total.revisadas ? x.malas / d.total.revisadas : 0,
+             pctDefectos: malas ? x.malas / malas : 0, acumulado: malas ? acum / malas : 0 };
+  });
+}

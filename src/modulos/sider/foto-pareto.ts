@@ -20,7 +20,7 @@ const pc0 = (x: number) => `${Math.round(x * 100)} %`;
 /** Los defectos que juntos forman el 80 %: los que todavía no habían llegado al 80 % cuando se suman. */
 export const vitales = (p: ParetoFila[]) => p.filter((d) => d.acumulado - d.pctDefectos < 0.8);
 
-function partir(ctx: Ctx, texto: string, ancho: number, maxLineas: number): string[] {
+export function partir(ctx: Ctx, texto: string, ancho: number, maxLineas: number): string[] {
   const palabras = texto.split(/\s+/); const lineas: string[] = []; let l = "";
   for (const p of palabras) {
     const t = l ? `${l} ${p}` : p;
@@ -94,7 +94,7 @@ export async function cargarLogoB(): Promise<HTMLImageElement | null> {
 }
 
 /** La banda negra con el sello, el título y el día; lleva el filo rojo debajo. */
-function banda(ctx: Ctx, W: number, titulo: string, x: ExtraPareto) {
+export function banda(ctx: Ctx, W: number, titulo: string, x: ExtraPareto) {
   ctx.fillStyle = TINTA; ctx.fillRect(0, 0, W, 96); ctx.fillStyle = ROJO; ctx.fillRect(0, 96, W, 4);
   if (x.logo) ctx.drawImage(x.logo, 30, 24, 48, 48);
   else { ctx.beginPath(); ctx.arc(54, 48, 24, 0, Math.PI * 2); ctx.fillStyle = ORO; ctx.fill(); ctx.lineWidth = 5; ctx.strokeStyle = ROJO; ctx.stroke(); ctx.fillStyle = TINTA; ctx.font = `900 22px ${TITULO}`; ctx.textAlign = "center"; ctx.fillText("B", 54, 56) }
@@ -106,7 +106,7 @@ function banda(ctx: Ctx, W: number, titulo: string, x: ExtraPareto) {
 }
 
 /** Una cifra de la franja amarilla: rótulo, número grande y su línea de apoyo. */
-function cifra(ctx: Ctx, xx: number, k: string, val: string, sub: string, der = false) {
+export function cifra(ctx: Ctx, xx: number, k: string, val: string, sub: string, der = false) {
   ctx.textAlign = der ? "right" : "left";
   ctx.fillStyle = TINTA; ctx.globalAlpha = 0.8; ctx.font = `700 10.5px ${FUENTE}`; ctx.fillText(k.split("").join("\u200A"), xx, 122); ctx.globalAlpha = 1;
   ctx.font = `900 38px ${TITULO}`; ctx.fillText(val, xx, 158);

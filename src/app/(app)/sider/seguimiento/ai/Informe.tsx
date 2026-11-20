@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import type { PorDefecto, PorSocio, PorOrigen, PorEnvase, PorDia } from "@/modulos/sider/informe-ai";
 import type { ParetoFila } from "@/modulos/sider/cierre-ai";
 import { ParetoLienzo } from "./ParetoLienzo";
-import { copiarPng, descargarPng, fijarColores } from "@/modulos/roturas/captura";
+import { useFotoCompartir } from "@/components/FotoCompartir";
 import type { Revision } from "@/modulos/sider/ai";
 import { NOMBRE_TIPO, type TipoRevision } from "@/modulos/sider/comun";
 import { CierreAi } from "./CierreAi";
@@ -95,8 +95,7 @@ export function Informe({
   const envDe = new Map(datos.envases.map((x) => [x.envase, x]));
 
   /* ---------- EL INFORME (Word · PDF) Y LA IMAGEN PARA COMPARTIR ---------- */
-  const captura = useRef<HTMLDivElement>(null);
-  const [haciendo, setHaciendo] = useState<"pdf" | "word" | "imagen" | null>(null);
+  const [haciendo, setHaciendo] = useState<"pdf" | "word" | null>(null);
   const [avisoInf, setAvisoInf] = useState<{ t: string; mal?: boolean } | null>(null);
   const nombreDe = (lista: [string, string][], v?: string) => (v ? lista.find((x) => x[0] === v)?.[1] ?? v : null);
   const textoFiltros = [
@@ -107,6 +106,14 @@ export function Informe({
   ].filter(Boolean).join(" · ");
   const desdeI = filtro.desde ?? datos.dias[0]?.dia ?? "", hastaI = filtro.hasta ?? datos.dias[datos.dias.length - 1]?.dia ?? "";
   const periodoTx = desdeI === hastaI ? dia(desdeI) : `${dia(desdeI)} al ${dia(hastaI)}`;
+
+  /* Lo mismo que pinta la pantalla, con los filtros puestos: de aquí salen el Word, el PDF y las dos imágenes. */
+  const datosInforme = (): DatosInformeAi => ({
+    desde: desdeI, hasta: hastaI, filtros: textoFiltros, total,
+    origenes, causales, otrosCausal: otrosCausal.map((x) => ({ nombre: x.nombre, unidades: x.unidades })),
+    top5: top5.map((x) => ({ ...x, socio: socioDe.get(x.clave) })), malasSocios,
+    envases: paretoEnv.map((x) => ({ ...x, env: envDe.get(x.clave) })), dias: datos.dias,
+  });
 
   async function informe(formato: "pdf" | "word") {
     setHaciendo(formato); setAvisoInf(null);
@@ -120,12 +127,7 @@ export function Informe({
       const ahora = new Date();
       const generado = ahora.toLocaleString("es-CO", { dateStyle: "long", timeStyle: "short", timeZone: "America/Bogota" });
       const hoyLargo = ahora.toLocaleDateString("es-CO", { dateStyle: "long", timeZone: "America/Bogota" });
-      const d: DatosInformeAi = {
-        desde: desdeI, hasta: hastaI, filtros: textoFiltros, total,
-        origenes, causales, otrosCausal: otrosCausal.map((x) => ({ nombre: x.nombre, unidades: x.unidades })),
-        top5: top5.map((x) => ({ ...x, socio: socioDe.get(x.clave) })), malasSocios,
-        envases: paretoEnv.map((x) => ({ ...x, env: envDe.get(x.clave) })), dias: datos.dias,
-      };
+      const d = datosInforme();
       const titulo = NOMBRE_INFORME_AI;
       const bloques = construirInformeAi(d, { titulo, generado, quien }, imagenesAi(d));
       const comoDataUrl = async (url: string) => {
@@ -156,43 +158,17 @@ export function Informe({
     } finally { setHaciendo(null) }
   }
 
-  /* TODO EL INFORME COMO UNA IMAGEN, al portapapeles para pegarla en WhatsApp o en un correo (si el navegador no deja, se descarga). */
-  async function copiarImagen() {
-    if (!captura.current) return;
-    setHaciendo("imagen"); setAvisoInf(null);
-    const nodo = captura.current;
-    /* La imagen se arma como promesa y se le pasa así al portapapeles: Safari (iPhone) solo deja
-       copiar si la orden sale en el mismo toque, y armarla tarda. */
-    const imagen = (async () => {
-      const html2canvas = (await import("html2canvas")).default;
-      const cv = await html2canvas(nodo, {
-        backgroundColor: "#eef1f5", scale: 2, useCORS: true, logging: false,
-        onclone: (docu) => {
-          docu.querySelectorAll<HTMLElement>(".ia-cap-cab").forEach((e) => { e.style.display = "block" });
-          /* Lo que html2canvas no dibuja bien: las cifras grandes con interlineado 1 se montan sobre
-             el pie, y la marca de las filas vitales hecha con sombra sale como una raya suelta. */
-          docu.querySelectorAll<HTMLElement>(".ia-hero .num").forEach((e) => { e.style.paddingBottom = "12px" });
-          docu.querySelectorAll<HTMLElement>(".ia-vital td:first-child").forEach((e) => { e.style.boxShadow = "none"; e.style.borderLeft = "3px solid #04203f" });
-          fijarColores(docu);
-        },
-      });
-      /* El aire alrededor se pone en otro lienzo: si se le pone al recuadro, las gráficas no se encogen y se salen. */
-      const m = 48, marco = document.createElement("canvas");
-      marco.width = cv.width + m * 2; marco.height = cv.height + m * 2;
-      const g = marco.getContext("2d");
-      if (g) { g.fillStyle = "#eef1f5"; g.fillRect(0, 0, marco.width, marco.height); g.drawImage(cv, m, m) }
-      return await new Promise<Blob>((ok, mal) => (g ? marco : cv).toBlob((b) => (b ? ok(b) : mal(new Error("sin imagen"))), "image/png"));
-    })();
-    const nombre = `Informe AI ${desdeI === hastaI ? desdeI : `${desdeI} a ${hastaI}`}.png`;
-    try {
-      let copiada = false;
-      try { copiada = await copiarPng(imagen) } catch { copiada = false }
-      if (copiada) setAvisoInf({ t: "Imagen copiada: pégala donde quieras con Ctrl + V." });
-      else { descargarPng(await imagen, nombre); setAvisoInf({ t: "Tu navegador no deja copiar imágenes: la descargué para que la compartas." }) }
-    } catch {
-      setAvisoInf({ t: "No se pudo armar la imagen. Intenta otra vez.", mal: true });
-    } finally { setHaciendo(null) }
-  }
+  /* LA IMAGEN PARA COMPARTIR, COMO EL CIERRE DE TURNO: una ventana con dos pestañas —1 · Resumen y 2 · Paretos— y los
+     botones Copiar imagen, Compartir y Descargar PNG. Partido en dos para que cada imagen se lea en el celular. */
+  const imagen = useFotoCompartir(async (tipo) => {
+    const [fo, { cargarLogoB }, { periodoLargo }] = await Promise.all([import("@/modulos/sider/foto-informe-ai"), import("@/modulos/sider/foto-pareto"), import("@/modulos/sider/informe-ai-graficas")]);
+    const d = datosInforme(), logo = await cargarLogoB(), uno = tipo !== "detalle";
+    const x = { titulo: "Informe %AI", ojo: `REVISIÓN DE ENVASE · PARTE ${uno ? "1 DE 2 · ORIGEN Y TENDENCIA" : "2 DE 2 · PARETOS"}`, periodo: periodoLargo(desdeI, hastaI), generado: new Date(), logo };
+    const rango = desdeI === hastaI ? desdeI : `${desdeI}-a-${hastaI}`;
+    return uno
+      ? { lienzo: fo.dibujarInformeParte1(d, x), nombre: `informe-ai-${rango}-1-origen-tendencia.png` }
+      : { lienzo: fo.dibujarInformeParte2(d, x), nombre: `informe-ai-${rango}-2-paretos.png` };
+  }, "Informe %AI para compartir", { dashboard: "1 · Origen y tendencia", detalle: "2 · Paretos" }, undefined, ["dashboard", "detalle"]);
 
   /* El tope de las barras nunca puede ser cero: `width: NaN%` se descarta y la barra se llena. */
   const topeOri = Math.max(0.0001, ...origenes.map((o) => o.indice));
@@ -256,21 +232,15 @@ export function Informe({
           <div className="ia-acciones">
             <span>Informe del período · <b>{periodoTx}</b></span>
             {avisoInf && <em className={avisoInf.mal ? "mal" : ""} role="status">{avisoInf.t}</em>}
-            <button type="button" className="ia-bt ico" onClick={() => void copiarImagen()} disabled={!!haciendo}
-                    title="Copiar todo el informe como imagen para pegarlo y compartirlo" aria-label="Copiar imagen del informe">
+            <button type="button" className="ia-bt ico" onClick={() => void imagen.abrir("dashboard")} disabled={!!haciendo || imagen.armando != null}
+                    title="El informe en dos imágenes (resumen y paretos) para copiar, compartir o descargar">
               <svg viewBox="0 0 24 24" aria-hidden><rect x="8" y="8" width="12" height="12" rx="1" /><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3" /></svg>
-              {haciendo === "imagen" ? "Copiando…" : "Copiar imagen"}
+              {imagen.armando && !imagen.abierta ? "Armando…" : "Copiar imagen"}
             </button>
             <button type="button" className="ia-bt" onClick={() => void informe("word")} disabled={!!haciendo}>{haciendo === "word" ? "Armando…" : "Word"}</button>
             <button type="button" className="ia-bt am" onClick={() => void informe("pdf")} disabled={!!haciendo}>{haciendo === "pdf" ? "Armando…" : "PDF"}</button>
           </div>
 
-          <div className="ia-captura" ref={captura}>
-          <div className="ia-cap-cab">
-            <p>SIDER · INFORME %AI DE LA REVISIÓN DE ENVASE</p>
-            <h2>%AI de la revisión de envase · {periodoTx}</h2>
-            <small>{textoFiltros}</small>
-          </div>
           {/* ---------- LAS TRES CIFRAS ----------
               %AI = suma de unidades en mal estado / suma de unidades revisadas. Promediar
               porcentajes le daría el mismo peso a una muestra de 200 que a una de 4.104. */}
@@ -444,7 +414,6 @@ export function Informe({
 
           {/* ---------- LA TENDENCIA, POR DÍA ---------- */}
           <TendenciaDia dias={datos.dias} promedio={total.indice} />
-          </div>
 
           {/* ---------- REVISIÓN POR REVISIÓN ---------- */}
           <section className="ia-caja">
@@ -517,6 +486,7 @@ export function Informe({
           </section>
         </>
       )}
+      {imagen.vista}
     </>
   );
 }

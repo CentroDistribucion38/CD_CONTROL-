@@ -123,7 +123,7 @@ export function armarWordCierre(bloques: Bloque[], o: OpcionesCierreWord): Uint8
       }
       case "modulo": {
         titulo(b.n, b.titulo, !b.seguido);
-        if (b.sub) body.push(para([{ t: b.sub, sz: 14, color: GRIS }], { despues: 100 }));
+        if (b.sub) body.push(para([{ t: b.sub, sz: 14, color: GRIS }], { despues: 100, keep: true }));
         break;
       }
       case "sub": titulo(b.texto, b.extra, false); break;

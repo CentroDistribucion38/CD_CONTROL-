@@ -420,14 +420,6 @@
 .sd .ia-bt.am { background: var(--sd-oro); border-color: var(--sd-oro); color: #111 }
 .sd .ia-bt:disabled { opacity: .55; cursor: default }
 .sd .ia-bt svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8 }
-/* Lo que sale en la imagen: el título solo aparece en la copia. */
-.sd .ia-captura { display: flex; flex-direction: column; gap: inherit }
-.sd .ia-captura > * + * { margin-top: 12px }
-.sd .ia-cap-cab { display: none; padding: 4px 2px 6px }
-.sd .ia-cap-cab p { margin: 0; font: 700 10.5px var(--sd-texto); letter-spacing: .15em; color: var(--sd-gris) }
-.sd .ia-cap-cab h2 { margin: 4px 0 2px; font: 900 24px var(--sd-titulo); letter-spacing: -.02em; color: var(--sd-tinta) }
-.sd .ia-cap-cab small { font: 500 12px var(--sd-texto); color: var(--sd-gris) }
-
 /* ===== LOS PARETOS ===== */
 .sd .ia-pareto { padding: 12px 20px 4px }
 .sd .ia-pareto .ca-pareto { display: block; width: 100%; height: auto; aspect-ratio: 1212 / 405 }

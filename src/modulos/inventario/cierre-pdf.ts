@@ -107,10 +107,11 @@ export function dibujarCierre(JsPDFCtor: typeof JsPDF, bloques: Bloque[], o: Opc
     y += px(9);
   };
 
-  const modulo = (b: Extract<Bloque, { t: "modulo" }>) => {
+  const modulo = (b: Extract<Bloque, { t: "modulo" }>, siguiente?: Bloque) => {
     if (b.ojo) ojoActual = b.ojo;
     if (!b.seguido) { hojaNueva(); y -= px(12) }      // la sección abre la hoja: su margen de arriba es menor
-    else cabe(px(110))                                // seguido, pero el título nunca queda solo al pie de la hoja
+    /* Seguido, pero el título nunca queda solo al pie de la hoja: si lo que viene es una gráfica, se va con ella. */
+    else cabe(px(110) + (siguiente?.t === "img" ? CW * Math.min(1, siguiente.ancho ?? 1) * (siguiente.img.h / Math.max(1, siguiente.img.w)) + px(30) : 0))
     encabezadoSeccion(b.n, b.titulo);
     if (b.sub) { fuente("normal", 9); color(GRIS); const t = partir(b.sub, CW); doc.text(t, M, y + px(9)); y += t.length * lh(9, 1.45) + px(4) }
   };
@@ -239,10 +240,10 @@ export function dibujarCierre(JsPDFCtor: typeof JsPDF, bloques: Bloque[], o: Opc
   };
 
   /* ----------------- recorrido ----------------- */
-  for (const b of bloques) {
+  for (const [i, b] of bloques.entries()) {
     switch (b.t) {
       case "portada": portada(b); break;
-      case "modulo": modulo(b); break;
+      case "modulo": modulo(b, bloques[i + 1]); break;
       case "sub": encabezadoSeccion(b.texto, b.extra); break;
       case "p": parrafo(b.texto, b.gris); break;
       case "lista": lista(b.items); break;
