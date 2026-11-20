@@ -49,6 +49,7 @@ function armarFilas(lineas: Linea[]): Fila[] {
     if (!f) {
       const partes: string[] = [];
       if (porPallet) partes.push("PALLET");
+      if (/^\s*te[oó]rico\b/i.test(l.nota ?? "")) partes.push("TEÓRICO SAP");
       if (l.estado_envase) partes.push(l.estado_envase);
       if (l.averia) partes.push("AVERÍA");
       if (l.pnc) partes.push("PNC");
@@ -154,8 +155,12 @@ export default async function PlanillasPage({ searchParams }: { searchParams: Pr
       const bd = await supabase.rpc("inv_fiscal_bd_hoja", { p_hoja: id });
       if (bd.error) sinConteo = true;
       else {
-        filas = armarFilas((bd.data ?? []) as Linea[]);
-        for (const l of (bd.data ?? []) as { equipo: string; persona?: string | null }[]) if (l.persona && !quien[l.equipo]) quien[l.equipo] = l.persona;
+        const lineas = (bd.data ?? []) as (Linea & { persona?: string | null })[];
+        filas = armarFilas(lineas);
+        /* Las hojas llevadas al teórico de SAP (Exportación, BTS: la nota dice «Teórico SAP …») no las contó nadie en el piso: la
+           pareja sale EN BLANCO para firmar a mano. */
+        const alTeorico = lineas.length > 0 && lineas.every((l) => /^\s*te[oó]rico\b/i.test(l.nota ?? ""));
+        if (!alTeorico) for (const l of lineas) if (l.persona && !quien[l.equipo]) quien[l.equipo] = l.persona;
       }
     } else sinConteo = true;
     const conConteo = filas.length > 0;
