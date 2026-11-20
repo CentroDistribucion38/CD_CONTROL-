@@ -100,7 +100,7 @@ export function ValidacionDia({ dia, hoy, conDatos, antes, despues, filas, alert
         <section className="pe-card pe-kpi" aria-label="Cifras del día">
           <div className="k-am"><span className="l">Plan del día</span><b>{fmt(plan.s)}<small>{unom}</small></b>
             <em>{hayCorte ? <>último corte: <b style={{ display: "inline", font: "inherit", fontWeight: 700 }}>{fmt(corte.s)}</b></> : "plan inicial"}</em></div>
-          <div><span className="l">Notificado (Z01)</span><b>{fmt(notif.s)}<small>{unom}</small></b><em>{madr.s ? `${fmt(madr.s)} ${unom} digitados de madrugada` : "nada digitado al día siguiente"}</em></div>
+          <div><span className="l">Notificado (Z01)</span><b>{fmt(notif.s)}<small>{unom}</small></b><em>{madr.s ? `${fmt(madr.s)} ${unom} digitados al otro día` : "nada digitado al día siguiente"}</em></div>
           <div><span className="l">Cumplimiento</span><b className={plan.s && notif.s / plan.s < 0.9 ? "mal" : ""}>{plan.s ? `${Math.round((100 * notif.s) / plan.s)} %` : "—"}</b>
             <em>{plan.s ? `${notif.s - plan.s > 0 ? "+" : ""}${fmt(notif.s - plan.s)} ${unom} contra el plan` : "sin plan inicial"}</em></div>
           <div className={faltaUn ? "k-r" : ""}><span className="l">Botella sin 261</span><b className={faltaUn ? "mal" : "bien"}>{faltaUn ? n0(faltaUn) : "0 ✓"}</b>
@@ -117,7 +117,7 @@ export function ValidacionDia({ dia, hoy, conDatos, antes, despues, filas, alert
           <div className="pe-caja">
             <table className="pe-t">
               <thead><tr>
-                <th className="l">SKU</th><th>Plan del día</th>{hayCorte && <th>Último corte</th>}<th>Notificado</th><th className="l">Cumplimiento</th><th>Diferencia</th><th>De madrugada</th>
+                <th className="l">SKU</th><th>Plan del día</th>{hayCorte && <th>Último corte</th>}<th>Notificado</th><th className="l">Cumplimiento</th><th>Diferencia</th><th title="Notificado con fecha de este día pero digitado en SAP al día siguiente (la producción de la noche)">Digitado al otro día</th>
                 <th className="g">Botella teórica</th><th>261 botella</th><th>Falta 261</th><th className="g">Caja teórica</th><th>261 caja</th><th>Caja de más</th>
               </tr></thead>
               <tbody>
@@ -165,7 +165,7 @@ export function ValidacionDia({ dia, hoy, conDatos, antes, despues, filas, alert
               </tbody>
             </table>
           </div>
-          <p className="pe-nota">Notificado = Z01 − Z02 con fecha de contabilización de este día, aunque se haya digitado de madrugada. Envase solo en
+          <p className="pe-nota">Notificado = Z01 − Z02 con fecha de contabilización de este día, aunque se haya digitado al día siguiente («Digitado al otro día»: la producción de la noche que se notifica de madrugada). Envase solo en
             retornables: la botella va 1 a 1 con lo producido y la caja es unidades ÷ unidades por caja; lo que salió de AG22 y no llegó igual a AG28 sale en las alertas.</p>
         </section>
       </>)}

@@ -858,9 +858,10 @@ export const MODULOS: Modulo[] = [
       /* ANÁLISIS DE DIFERENCIA (2026.10.14_BODEGA_38.xlsx): la hoja que abarca todo, CONTEO vs SAP de Bodega 38.
          Va al final: usa el conteo, los cortes, Pasivos y el Cuadre SAP. */
       { nombre: "Análisis de diferencia", ruta: "/inventario/balance/analisis", rama: "balance" },
-      /* PLAN VS NOTIFICADO, EN EL ORDEN DEL TRABAJO: se carga (instructivo y MB51) → se valida el día → el corte de
-         inventario con sus partidas. */
+      /* PLAN VS NOTIFICADO, EN EL ORDEN DEL TRABAJO: se carga (instructivo y MB51) → se ve el plan por SKU (para la
+         solicitud) → se valida el día → el corte de inventario con sus partidas. */
       { nombre: "Cargar", ruta: "/inventario/envase/cargar", rama: "plan-envase" },
+      { nombre: "Plan por SKU", ruta: "/inventario/envase/plan", rama: "plan-envase" },
       { nombre: "Validación del día", ruta: "/inventario/envase", rama: "plan-envase" },
       { nombre: "Corte de inventario", ruta: "/inventario/envase/corte", rama: "plan-envase" },
       /* PRODUCTO, EN EL ORDEN DEL PROCESO: se arma el cíclico (familia y parejas) y se habilita el Contar → la

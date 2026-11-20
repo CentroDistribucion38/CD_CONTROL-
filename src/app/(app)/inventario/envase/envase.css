@@ -148,3 +148,14 @@
   .pe .pe-al { grid-template-columns: 1fr; gap: 4px }
   .pe .pe-al .q { text-align: left }
 }
+
+/* ---------- plan por SKU ---------- */
+.pe .pe-semana { display: flex; align-items: stretch; height: 38px; border: 1px solid var(--fe-linea); background: var(--fe-papel) }
+.pe .pe-semana a { width: 36px; display: grid; place-items: center; color: var(--fe-tinta); text-decoration: none; font: 700 18px var(--fe-texto) }
+.pe .pe-semana a:hover { background: color-mix(in srgb, var(--fe-acento) 14%, var(--fe-papel)) }
+.pe .pe-semana b { display: flex; align-items: center; gap: 8px; padding: 0 12px; border-left: 1px solid var(--fe-linea); border-right: 1px solid var(--fe-linea); font: 700 13.5px var(--fe-texto); white-space: nowrap }
+.pe .pe-semana b small { font: 400 12px var(--fe-texto); color: var(--fe-gris) }
+.pe .pe-acciones { margin-left: auto; align-self: flex-end; display: flex; gap: 8px }
+.pe .pe-psku th i { display: block; font: 600 9px var(--fe-texto); letter-spacing: .06em; color: var(--fe-aviso); font-style: normal }
+.pe .pe-psku td.l { max-width: 380px; overflow: hidden; text-overflow: ellipsis }
+@media (max-width: 760px) { .pe .pe-acciones { margin-left: 0 } }
