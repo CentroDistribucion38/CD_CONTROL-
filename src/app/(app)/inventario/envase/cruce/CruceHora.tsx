@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Calendario, type Atajo } from "@/components/CalendarioRango";
 import type { Unidad } from "@/modulos/inventario/envase/calc";
 
-export type FilaCruceHora = { tren: string; sku: string; planDia: number; planHasta: number };
+export type FilaCruceHora = { tren: string; sku: string; planDia: number; planHasta: number; /** la primera hora con plan en esa línea */ desde: number | null };
 type Env = { cod: string; txt: string } | null;
 export type DetalleSku = { nombre: string; notif: number; retornable: boolean; ref: number; b261: number; c261: number; botella: Env; caja: Env };
 type M = Record<string, { nombre: string; ml: number; ref: number; cpe: number }>;
@@ -56,15 +56,15 @@ export function CruceHora({ dia, hoy, hora, esAhora, mb51, filas, detalle, maest
      en proporción a su plan a esa hora. */
   const cuenta = new Map<string, number>(); for (const f of filas) cuenta.set(f.sku, (cuenta.get(f.sku) ?? 0) + 1);
   const peso = (f: FilaCruceHora) => f.planHasta || f.planDia;
-  const G = new Map<string, { tren: string; rs: { sku: string; dia: number; hasta: number; notif: number; repartido: boolean }[] }>();
+  const G = new Map<string, { tren: string; rs: { sku: string; dia: number; hasta: number; notif: number; repartido: boolean; desde: number | null }[] }>();
   for (const f of filas) {
     const tp = filas.filter((x) => x.sku === f.sku).reduce((a, x) => a + peso(x), 0), n = detalle[f.sku]?.notif ?? 0;
     const notif = tp > 0 ? (n * peso(f)) / tp : n / (cuenta.get(f.sku) ?? 1);
     if (!G.has(f.tren)) G.set(f.tren, { tren: f.tren, rs: [] });
-    G.get(f.tren)!.rs.push({ sku: f.sku, dia: f.planDia, hasta: f.planHasta, notif, repartido: (cuenta.get(f.sku) ?? 0) > 1 });
+    G.get(f.tren)!.rs.push({ sku: f.sku, dia: f.planDia, hasta: f.planHasta, notif, repartido: (cuenta.get(f.sku) ?? 0) > 1, desde: f.desde });
   }
   const sinLinea = [...skus].filter((s) => !planSku.has(s) && Math.abs(detalle[s]?.notif ?? 0) > 0.5);
-  if (sinLinea.length) G.set("~", { tren: "Sin línea en el plan", rs: sinLinea.map((s) => ({ sku: s, dia: 0, hasta: 0, notif: detalle[s].notif, repartido: false })) });
+  if (sinLinea.length) G.set("~", { tren: "Sin línea en el plan", rs: sinLinea.map((s) => ({ sku: s, dia: 0, hasta: 0, notif: detalle[s].notif, repartido: false, desde: null })) });
   const grupos = [...G.entries()].sort(([a], [b]) => (a === "~" ? 1 : 0) - (b === "~" ? 1 : 0) || a.localeCompare(b, "es", { numeric: true })).map(([, g]) => g);
   for (const g of grupos) g.rs.sort((a, b) => b.hasta - a.hasta || b.notif - a.notif);
   const sumaU = (rs: { sku: string }[], k: (r: { sku: string; dia: number; hasta: number; notif: number }) => number) => {
@@ -74,31 +74,35 @@ export function CruceHora({ dia, hoy, hora, esAhora, mb51, filas, detalle, maest
   const tDia = sumaU(todos, (r) => r.dia), tHasta = sumaU(todos, (r) => r.hasta), tNot = sumaU(todos, (r) => r.notif);
   const tPend = tHasta - tNot;
 
-  /* ENVASE (retornables). Lo que se debería haber cargado (261) a esta hora sale del PLAN A LA HORA, no del día: si el día son
-     100 estibas y a esta hora van 70, el envase de esas 70 (cada estiba = cajas × botellas). No se puede cargar lo que no se ha
-     envasado. Se agrupa por el envase (código de botella + código de caja): varios SKU pueden usar el mismo. */
-  const est = (un: number, sku: string) => conv(un, sku, "estibas");
-  const EG = new Map<string, { bot: Env; caja: Env; skus: string[]; estDia: number; estHasta: number; sinEst: boolean;
-    botPlan: number; b261: number; cjPlan: number; c261: number }>();
+  /* ENVASE (retornables). Lo que debería ir cargado (261) a esta hora sale del PLAN A LA HORA, no del día: si el día son 100
+     y a esta hora van 70, el envase de esas 70. No se puede cargar lo que no se ha envasado. Va en la misma unidad que el
+     producto (HL por defecto; unidades, cajas o estibas al escoger): la botella y la caja de lo envasado. Se agrupa por el envase
+     (código de botella + código de caja): varios SKU pueden usar el mismo. Todo se guarda en unidades de producto (una botella por
+     unidad, una caja por «unidades por caja») y se convierte al mostrar. */
+  type ES = { sku: string; dia: number; hasta: number; b261: number; c261: number };
+  const EG = new Map<string, { bot: Env; caja: Env; rs: ES[] }>();
   for (const s of skus) {
     const d = detalle[s]; if (!d?.retornable) continue;
     const p = planSku.get(s) ?? { dia: 0, hasta: 0 }, ref = d.ref || maestro[s]?.ref || 0;
     const k = `${d.botella?.cod ?? "?"}|${d.caja?.cod ?? "?"}`;
-    const g = EG.get(k) ?? { bot: d.botella, caja: d.caja, skus: [], estDia: 0, estHasta: 0, sinEst: false, botPlan: 0, b261: 0, cjPlan: 0, c261: 0 };
-    g.skus.push(s);
-    const ed = est(p.dia, s), eh = est(p.hasta, s);
-    if (ed == null) { if (p.dia) g.sinEst = true } else { g.estDia += ed; g.estHasta += eh ?? 0 }
-    g.botPlan += p.hasta; g.b261 += d.b261; g.cjPlan += ref ? p.hasta / ref : 0; g.c261 += d.c261;
+    const g = EG.get(k) ?? { bot: d.botella, caja: d.caja, rs: [] };
+    g.rs.push({ sku: s, dia: p.dia, hasta: p.hasta, b261: d.b261, c261: ref ? d.c261 * ref : 0 });
     EG.set(k, g);
   }
-  const envs = [...EG.values()].sort((a, b) => b.estHasta - a.estHasta || b.b261 - a.b261);
-  const tot = envs.reduce((a, g) => ({ estDia: a.estDia + g.estDia, estHasta: a.estHasta + g.estHasta, botPlan: a.botPlan + g.botPlan, b261: a.b261 + g.b261, cjPlan: a.cjPlan + g.cjPlan, c261: a.c261 + g.c261 }),
-    { estDia: 0, estHasta: 0, botPlan: 0, b261: 0, cjPlan: 0, c261: 0 });
-  const e1 = (x: number) => x.toLocaleString("es-CO", { maximumFractionDigits: 1 });
-  /* Plan − 261: positivo = falta cargar (SAP todavía tiene ese envase en AG22); negativo = se cargó más de lo que el plan lleva. */
-  const dif = (x: number) => (x > 0.5 ? <b className="mal">{n0(x)} <small>falta</small></b> : x < -0.5 ? <b style={{ color: "var(--fe-aviso)" }}>{n0(-x)} <small>de más</small></b> : <span className="bien">✓</span>);
-  const faltaBot = envs.reduce((a, g) => a + Math.max(0, g.botPlan - g.b261), 0), masBot = envs.reduce((a, g) => a + Math.max(0, g.b261 - g.botPlan), 0);
-  const faltaCj = envs.reduce((a, g) => a + Math.max(0, g.cjPlan - g.c261), 0), masCj = envs.reduce((a, g) => a + Math.max(0, g.c261 - g.cjPlan), 0);
+  const sumE = (rs: ES[], k: (r: ES) => number) => sumaU(rs as never, k as never);
+  const crudo = (rs: ES[], k: (r: ES) => number) => rs.reduce((a, r) => a + k(r), 0);
+  const envs = [...EG.values()].sort((a, b) => crudo(b.rs, (r) => r.hasta) - crudo(a.rs, (r) => r.hasta) || crudo(b.rs, (r) => r.b261) - crudo(a.rs, (r) => r.b261));
+  const envRs = envs.flatMap((g) => g.rs);
+  /* Plan − 261: positivo = falta cargar (SAP todavía tiene ese envase en AG22); negativo = se cargó más de lo que el plan lleva.
+     El umbral va en unidades (media botella), y el valor se muestra en la unidad escogida. */
+  const dif = (rs: ES[], k: (r: ES) => number) => {
+    const x = crudo(rs, (r) => r.hasta - k(r)), v = sumE(rs, (r) => r.hasta - k(r));
+    if (crudo(rs, (r) => r.hasta) < 0.5 && Math.abs(crudo(rs, k)) < 0.5 && crudo(rs, (r) => r.dia) > 0) return <span className="mut">todavía no le toca</span>;
+    return x > 0.5 ? <b className="mal">{fmt(v)} <small>falta</small></b> : x < -0.5 ? <b style={{ color: "var(--fe-aviso)" }}>{fmt(-v)} <small>de más</small></b> : <span className="bien">✓</span>;
+  };
+  const porSku = (k: (r: ES) => number, signo: 1 | -1) => sumE(envRs.filter((r) => signo * (r.hasta - k(r)) > 0.5), (r) => signo * (r.hasta - k(r)));
+  const faltaBot = porSku((r) => r.b261, 1), masBot = porSku((r) => r.b261, -1);
+  const faltaCj = porSku((r) => r.c261, 1), masCj = porSku((r) => r.c261, -1);
   const pct = (a: number, b: number) => {
     if (!b) return a ? <span className="mut">sin plan</span> : <span className="mut">—</span>;
     const p = a / b, c = p < 0.9 ? "var(--fe-mal)" : p > 1.1 ? "var(--fe-aviso)" : "var(--fe-bien)";
@@ -122,7 +126,7 @@ export function CruceHora({ dia, hoy, hora, esAhora, mb51, filas, detalle, maest
             {!esAhora && !HORAS.includes(hora) && <option value={hora}>{hora === "23:59" ? "Día completo" : hora}</option>}
           </select>
         </div>
-        <div className="pe-unidad">Producto en
+        <div className="pe-unidad">Unidad
           <div className="pe-seg" role="group" aria-label="Unidad">
             {UNI.map(([k, t]) => <button key={k} type="button" className={u === k ? "on" : ""} aria-pressed={u === k} onClick={() => setU(k)}>{t}</button>)}
           </div>
@@ -144,10 +148,10 @@ export function CruceHora({ dia, hoy, hora, esAhora, mb51, filas, detalle, maest
             <em>{tPend < -0.5 ? `${fmt(-tPend)} ${unom} por encima del plan` : "plan a esta hora − notificado"}</em></div>
           <div><span className="l">Cumplimiento a las {hora}</span><b className={tHasta && tNot / tHasta < 0.9 ? "mal" : ""}>{tHasta ? `${Math.round((100 * tNot) / tHasta)} %` : "—"}</b>
             <em>{tDia ? `del día: ${Math.round((100 * tNot) / tDia)} %` : "sin plan"}</em></div>
-          <div className="k-am"><span className="l">Envase a las {hora}</span><b>{e1(tot.estHasta)}<small>est.</small></b><em>del día: {e1(tot.estDia)} estibas retornables</em></div>
-          <div className={faltaBot > 0.5 || masBot > 0.5 ? "k-r" : ""}><span className="l">Botella · plan − 261</span>
-            <b className={faltaBot > 0.5 ? "mal" : "bien"}>{faltaBot > 0.5 ? n0(faltaBot) : "0 ✓"}</b>
-            <em>{faltaBot > 0.5 ? "falta cargar" : "nada por cargar"}{masBot > 0.5 ? ` · ${n0(masBot)} cargadas de más` : ""} · cajas: {faltaCj > 0.5 ? `faltan ${n0(faltaCj)}` : "✓"}{masCj > 0.5 ? `, ${n0(masCj)} de más` : ""}</em></div>
+          <div className="k-am"><span className="l">Envase a las {hora}</span><b>{fmt(sumE(envRs, (r) => r.hasta))}<small>{unom}</small></b><em>retornables · del día: {fmt(sumE(envRs, (r) => r.dia))} {unom}</em></div>
+          <div className={faltaBot > 0 || masBot > 0 ? "k-r" : ""}><span className="l">Botella · plan − 261</span>
+            <b className={faltaBot > 0 ? "mal" : "bien"}>{faltaBot > 0 ? fmt(faltaBot) : "0 ✓"}<small>{faltaBot > 0 ? unom : ""}</small></b>
+            <em>{faltaBot > 0 ? "falta cargar" : "nada por cargar"}{masBot > 0 ? ` · ${fmt(masBot)} ${unom} de más` : ""} · caja: {faltaCj > 0 ? `faltan ${fmt(faltaCj)} ${unom}` : "✓"}{masCj > 0 ? `, ${fmt(masCj)} de más` : ""}</em></div>
         </section>
 
         <section className="pe-card">
@@ -172,12 +176,15 @@ export function CruceHora({ dia, hoy, hora, esAhora, mb51, filas, detalle, maest
                       </tr>
                       {g.rs.map((r) => {
                         const p = r.hasta - r.notif;
+                        /* Todavía no le toca: su plan en esta línea empieza después de la hora escogida. No es «✓», es «empieza a las …». */
+                        const despues = !r.hasta && r.dia > 0 && Math.abs(r.notif) < 0.5;
+                        const hd = r.desde == null ? "" : `${String(r.desde).padStart(2, "0")}:00`;
                         return (
                           <tr key={g.tren + r.sku} className="sub">
                             <td className="l"><b>{r.sku}</b> {nombre(r.sku)}{r.repartido && <small className="mut"> · repartido</small>}</td>
-                            <td>{fmt(conv(r.dia, r.sku))}</td><td className="pe-ahora">{r.hasta ? fmt(conv(r.hasta, r.sku)) : "—"}</td>
-                            <td>{fmt(conv(r.notif, r.sku))}</td><td className="l">{pct(r.notif, r.hasta)}</td>
-                            <td className={p > 0.5 ? "mal" : "bien"}>{p > 0.5 ? fmt(conv(p, r.sku)) : p < -0.5 ? `+${fmt(conv(-p, r.sku))}` : "✓"}</td>
+                            <td>{fmt(conv(r.dia, r.sku))}</td><td className="pe-ahora">{r.hasta ? fmt(conv(r.hasta, r.sku)) : despues ? <span className="mut">empieza {hd}</span> : "—"}</td>
+                            <td>{fmt(conv(r.notif, r.sku))}</td><td className="l">{despues ? <span className="mut">todavía no le toca</span> : pct(r.notif, r.hasta)}</td>
+                            <td className={despues ? "mut" : p > 0.5 ? "mal" : "bien"}>{despues ? "—" : p > 0.5 ? fmt(conv(p, r.sku)) : p < -0.5 ? `+${fmt(conv(-p, r.sku))}` : "✓"}</td>
                           </tr>
                         );
                       })}
@@ -195,37 +202,37 @@ export function CruceHora({ dia, hoy, hora, esAhora, mb51, filas, detalle, maest
 
         <section className="pe-card">
           <h3 className="pe-h3">Envase a las {hora} · retornables
-            <small>lo que debería ir cargado (261) sale del plan a esta hora en estibas · cada estiba = cajas × botellas · «falta» = SAP todavía lo tiene en AG22</small></h3>
+            <small>lo que debería ir cargado (261) sale del plan a esta hora · en {unom} de producto · «falta» = SAP todavía lo tiene en AG22</small></h3>
           {envs.length ? (
             <div className="pe-caja">
               <table className="pe-t pe-lin">
                 <thead><tr>
-                  <th className="l">Envase · código SAP</th><th>Estibas del día</th><th className="pe-ahora">Estibas a las {hora}</th>
+                  <th className="l">Envase · código SAP</th><th>Plan del día</th><th className="pe-ahora">Plan a las {hora}</th>
                   <th>Debería ir cargado</th><th>261 cargado</th><th>Plan − 261</th>
                 </tr></thead>
                 <tbody>
                   {envs.map((g) => (
                     <Fragment key={(g.bot?.cod ?? "?") + (g.caja?.cod ?? "?")}>
                       <tr className="pe-lin-cab">
-                        <td className="l"><b>{g.skus.map((s) => `${s} ${nombre(s)}`).join(" · ")}</b></td>
-                        <td>{g.sinEst && !g.estDia ? "—" : e1(g.estDia)}</td><td className="pe-ahora"><b>{g.sinEst && !g.estHasta ? "—" : e1(g.estHasta)}</b></td>
-                        <td colSpan={3} className="l mut">{g.sinEst ? "falta cajas por estiba en el maestro" : ""}</td>
+                        <td className="l"><b>{g.rs.map((r) => `${r.sku} ${nombre(r.sku)}`).join(" · ")}</b></td>
+                        <td>{fmt(sumE(g.rs, (r) => r.dia))}</td><td className="pe-ahora"><b>{fmt(sumE(g.rs, (r) => r.hasta))}</b></td>
+                        <td colSpan={3} />
                       </tr>
                       <tr className="sub">
-                        <td className="l">Botella · {g.bot ? <><b>{g.bot.cod}</b> {g.bot.txt}</> : <span className="mut">sin 261 en las últimas 4 semanas</span>}</td>
+                        <td className="l">Botella · {g.bot ? <><b>{g.bot.cod}</b> {g.bot.txt}</> : <span className="mut">sin 261 en la última semana</span>}</td>
                         <td /><td className="pe-ahora" />
-                        <td>{n0(g.botPlan)} <small className="mut">bot.</small></td><td>{n0(g.b261)}</td><td>{dif(g.botPlan - g.b261)}</td>
+                        <td>{fmt(sumE(g.rs, (r) => r.hasta))}</td><td>{fmt(sumE(g.rs, (r) => r.b261))}</td><td>{dif(g.rs, (r) => r.b261)}</td>
                       </tr>
                       <tr className="sub">
-                        <td className="l">Caja · {g.caja ? <><b>{g.caja.cod}</b> {g.caja.txt}</> : <span className="mut">sin 261 en las últimas 4 semanas</span>}</td>
+                        <td className="l">Caja · {g.caja ? <><b>{g.caja.cod}</b> {g.caja.txt}</> : <span className="mut">sin 261 en la última semana</span>}</td>
                         <td /><td className="pe-ahora" />
-                        <td>{n0(g.cjPlan)} <small className="mut">cajas</small></td><td>{n0(g.c261)}</td><td>{dif(g.cjPlan - g.c261)}</td>
+                        <td>{fmt(sumE(g.rs, (r) => r.hasta))}</td><td>{fmt(sumE(g.rs, (r) => r.c261))}</td><td>{dif(g.rs, (r) => r.c261)}</td>
                       </tr>
                     </Fragment>
                   ))}
                   <tr className="pe-lin-cab">
-                    <td className="l"><b>Total</b></td><td>{e1(tot.estDia)}</td><td className="pe-ahora"><b>{e1(tot.estHasta)}</b></td>
-                    <td>{n0(tot.botPlan)} bot. · {n0(tot.cjPlan)} cajas</td><td>{n0(tot.b261)} · {n0(tot.c261)}</td><td />
+                    <td className="l"><b>Total</b></td><td>{fmt(sumE(envRs, (r) => r.dia))}</td><td className="pe-ahora"><b>{fmt(sumE(envRs, (r) => r.hasta))}</b></td>
+                    <td colSpan={3} />
                   </tr>
                 </tbody>
               </table>

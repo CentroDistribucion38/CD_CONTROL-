@@ -48,7 +48,7 @@ export async function planesDeSemana(lunes: string) {
 export async function movimientosContab(desde: string, hasta: string) {
   const s = await createClient();
   const r = await paginar<Mov>((a, b) => s.from("pe_mb51").select(MOV).gte("fecha_contab", desde).lte("fecha_contab", hasta)
-    .in("clase", ["Z01", "Z02", "261", "262", "531", "532"]).order("id").range(a, b));
+    .in("clase", ["Z01", "Z02", "261", "262", "531", "532"]).order("fecha_contab").order("id").range(a, b));
   return { ...r, filas: r.filas.map((m) => ({ ...m, cantidad: Number(m.cantidad) })) };
 }
 

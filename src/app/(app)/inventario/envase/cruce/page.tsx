@@ -43,7 +43,7 @@ export default async function CruceHoraPage({ searchParams }: { searchParams: Pr
     );
   }
 
-  const [ps, mv] = await Promise.all([planesDeSemana(lunesDe(d)), movimientosContab(masDias(d, -28), d)]);
+  const [ps, mv] = await Promise.all([planesDeSemana(lunesDe(d)), movimientosContab(masDias(d, -7), d)]);
   const P = papeles(ps.planes);
   const ini = P.inicial ? ps.filas.filter((f) => f.plan_id === P.inicial!.id) : [];
   const c = P.corteDe(d);
@@ -64,12 +64,14 @@ export default async function CruceHoraPage({ searchParams }: { searchParams: Pr
   const L = new Map<string, FilaCruceHora>();
   for (const f of vig) {
     const k = `${f.tren}|${f.sku}`;
-    const x = L.get(k) ?? { tren: f.tren, sku: f.sku!, planDia: 0, planHasta: 0 };
+    const x = L.get(k) ?? { tren: f.tren, sku: f.sku!, planDia: 0, planHasta: 0, desde: null };
+    if (unDe(f) > 0 && (x.desde == null || f.hora < x.desde)) x.desde = f.hora;
     const peso = f.hora < hh ? 1 : f.hora === hh ? mm / 60 : 0;
     x.planDia += unDe(f); x.planHasta += unDe(f) * peso;
     L.set(k, x);
   }
-  /* EL CÓDIGO DEL ENVASE de cada SKU (botella y caja): el material del 261 de sus órdenes en las últimas 4 semanas (el más usado). */
+  /* EL CÓDIGO DEL ENVASE de cada SKU (botella y caja): el material del 261 de sus órdenes en la última semana (el más usado). Una semana y no cuatro: con cuatro la consulta se pasaba del
+     tiempo de Supabase («statement timeout») y la pantalla salía sin notificado. */
   const skuOrden = new Map<string, string>();
   for (const m of mv.filas) if (m.orden && /^Z0[12]$/.test(m.clase) && /P$/i.test(m.material)) skuOrden.set(m.orden, m.material.replace(/P$/i, ""));
   const usos = new Map<string, Map<string, { cod: string; txt: string; n: number; caja: boolean }>>();
