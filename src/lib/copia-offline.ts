@@ -133,7 +133,7 @@ function esPantalla(r: Response): boolean {
  * que cada una necesita para abrir. Quien ya tiene sesión y señal no
  * nota nada: es lo mismo que recorrer el menú.
  */
-export async function prepararCopia(rutas: string[], alAvanzar: (a: Avance) => void): Promise<Resultado> {
+export async function prepararCopia(rutas: string[], alAvanzar: (a: Avance) => void, trabajadores?: number): Promise<Resultado> {
   const unicas = [...new Set(rutas)];
   const guardadas: string[] = [], fallidas: string[] = [];
   const motivos: Record<string, string> = {};
@@ -165,7 +165,9 @@ export async function prepararCopia(rutas: string[], alAvanzar: (a: Avance) => v
     }
   }
   /* La primera pasada son decenas de pantallas, y cada una la arma el servidor: de a cuatro para que no tarde minutos. */
-  await Promise.all(Array.from({ length: unicas.length > 6 ? 5 : 2 }, () => trabajador()));
+  /* Desde Mi perfil (la persona la pidió y espera): de a cinco. La copia que se hace sola va de a UNA (`trabajadores` = 1):
+     de a cinco, al abrir la app se armaban cinco pantallas pesadas a la vez justo cuando la persona tocaba el menú. */
+  await Promise.all(Array.from({ length: trabajadores ?? (unicas.length > 6 ? 5 : 2) }, () => trabajador()));
 
   /* Lo que las pantallas cargan al abrirse: sin esto el HTML estaría pero la pantalla no arrancaría. */
   const lista = [...recursos];
@@ -275,14 +277,16 @@ export async function edadesGuardadas(): Promise<Map<string, number>> {
 
 /**
  * QUÉ PANTALLAS PEDIR EN ESTE CICLO. La copia se va haciendo sola, de a poco:
- *  1. las que faltan, todas de una vez (equipo nuevo, o una pasada que falló);
+ *  1. las que faltan, de a `lote` (equipo nuevo, o una pasada que falló);
  *  2. la pantalla que se está mirando, si su copia ya tiene unos minutos;
  *  3. las demás más viejas, de a `lote`, para no cargar el servidor.
  * Así, usando la app, todo se mantiene con menos de una hora de antigüedad.
  */
 export function elegirPantallas(todas: string[], edades: Map<string, number>, ahora: number, actual: string | null, lote = 3): string[] {
+  /* Las que faltan también de a `lote`: pedirlas TODAS de una vez (decenas de pantallas pesadas) al abrir la app era lo
+     que dejaba el servidor ocupado y la pantalla que se tocaba tardaba en abrir. */
   const faltan = todas.filter((r) => !edades.has(r));
-  if (faltan.length) return faltan;
+  if (faltan.length) return faltan.slice(0, lote);
   const salida: string[] = [];
   if (actual && edades.has(actual) && ahora - (edades.get(actual) as number) >= ACTUAL_MIN * 60_000) salida.push(actual);
   const viejas = todas

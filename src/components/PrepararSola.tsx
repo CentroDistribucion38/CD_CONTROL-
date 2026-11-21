@@ -13,13 +13,18 @@ import { copiaDeEstaPersona, sondear, CICLO_MIN, edadesGuardadas, elegirPantalla
  * Sin internet no hace nada y se retoma sola cuando vuelve; con «ahorro de
  * datos» o red 2G tampoco corre: esos equipos la preparan desde Mi perfil.
  */
-const PRIMERA_MS = 1_500;
-const AL_VOLVER_MS = 3_000;
+/* LA COPIA NUNCA COMPITE CON LA PERSONA. Antes arrancaba a 1,5 s de abrir la app y pedía de a cinco todas las pantallas
+   que faltaran (y además le pedía al service worker recorrer toda la app): justo cuando la persona tocaba el menú, el
+   servidor estaba armando siete pantallas pesadas para la copia y la que se tocó tardaba, o había que tocar varias veces.
+   Ahora espera dos minutos, solo corre si nadie ha tocado la pantalla en el último medio minuto, y pide de a una. */
+const PRIMERA_MS = 120_000;
+const AL_VOLVER_MS = 60_000;
+const QUIETO_MS = 30_000;
 /* Con un internet que parpadea no se arranca a copiar a cada «online»: hay que llevar este rato seguido con señal. */
 const FIRME_MS = 8_000;
 /* Si una pasada no alcanzó (falló una pantalla, la sonda no respondió…) se reintenta pronto, no a los 5 minutos. */
-const REINTENTO_MS = 15_000;
-const REINTENTOS = 12;
+const REINTENTO_MS = 5 * 60_000;
+const REINTENTOS = 3;
 
 export function PrepararSola({ rutas, dueno }: { rutas: string[]; dueno?: string }) {
   const llave = rutas.join("|");
@@ -30,7 +35,7 @@ export function PrepararSola({ rutas, dueno }: { rutas: string[]; dueno?: string
 
     /* Antes de guardar nada: ¿la copia que hay es de esta persona? Si es de otra, se borra. */
     const duenoListo = dueno ? copiaDeEstaPersona(dueno) : Promise.resolve(false);
-    let seguidos = 0, corte = 0;      // reintentos rápidos seguidos (con tope, para no insistir sin fin)
+    let seguidos = 0, corte = 0, tocado = Date.now();      // reintentos rápidos seguidos (con tope, para no insistir sin fin)
     const ciclo = async () => {
       if (!vivo || corriendo) return;
       await duenoListo;
@@ -38,6 +43,7 @@ export function PrepararSola({ rutas, dueno }: { rutas: string[]; dueno?: string
       if (con && (con.saveData === true || con.effectiveType === "slow-2g" || con.effectiveType === "2g")) return;
       if (!navigator.onLine || document.visibilityState !== "visible") return;   // al volver / al mirar la pestaña se retoma solo
       if (Date.now() - corte < FIRME_MS) return;     // hubo un corte hace nada: lo retoma el aviso de «volvió» cuando lleve un rato firme
+      if (Date.now() - tocado < QUIETO_MS) { luego(QUIETO_MS); return }   // la persona está usando la app: se espera a que se quede quieta
       corriendo = true;
       let reintentar = false;
       try {
@@ -48,9 +54,9 @@ export function PrepararSola({ rutas, dueno }: { rutas: string[]; dueno?: string
           const todas = todasLasRutas(rutas);
           const lote = elegirPantallas(todas, edades, Date.now(), location.pathname + location.search);
           /* Lo que falta lo recorre también el service worker por su cuenta (sigue aunque se cambie de pantalla). */
-          if (todas.some((r) => !edades.has(r))) { try { navigator.serviceWorker?.controller?.postMessage({ tipo: "rastrear", forzar: true }) } catch { /* sin service worker: queda la copia de aquí */ } }
+          /* Ya no se le pide al service worker un recorrido forzado de toda la app: él lo hace solo cada 6 horas. */
           if (lote.length > 0) {
-            await prepararCopia(lote, () => {});
+            await prepararCopia(lote, () => {}, 1);
             /* Si después de la pasada todavía falta alguna, no se espera 5 minutos: se reintenta enseguida. */
             const ya = await edadesGuardadas();
             reintentar = todas.some((r) => !ya.has(r));
@@ -77,12 +83,15 @@ export function PrepararSola({ rutas, dueno }: { rutas: string[]; dueno?: string
     };
     const alIrse = () => { corte = Date.now(); if (firme) { clearTimeout(firme); firme = undefined } };
     const alVer = () => { if (document.visibilityState === "visible") luego(AL_VOLVER_MS) };
+    const alTocar = () => { tocado = Date.now() };
+    window.addEventListener("pointerdown", alTocar, { passive: true });
+    window.addEventListener("keydown", alTocar, { passive: true });
     window.addEventListener("online", alVolver);
     window.addEventListener("offline", alIrse);
     document.addEventListener("visibilitychange", alVer);
     return () => {
       vivo = false; clearInterval(reloj); clearInterval(repaso); timers.forEach(clearTimeout); if (firme) clearTimeout(firme);
-      window.removeEventListener("online", alVolver); window.removeEventListener("offline", alIrse); document.removeEventListener("visibilitychange", alVer);
+      window.removeEventListener("online", alVolver); window.removeEventListener("offline", alIrse); document.removeEventListener("visibilitychange", alVer); window.removeEventListener("pointerdown", alTocar); window.removeEventListener("keydown", alTocar);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [llave, dueno]);

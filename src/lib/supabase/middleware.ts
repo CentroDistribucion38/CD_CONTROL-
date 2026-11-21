@@ -81,8 +81,11 @@ async function usuarioConTope(
 ): Promise<{ id: string } | null> {
   const tarde = new Promise<"tarde">((r) => setTimeout(() => r("tarde"), TOPE_MS));
   try {
-    const r = await Promise.race([supabase.auth.getUser(), tarde]);
-    if (r !== "tarde") return r.data.user;
+    /* getClaims() comprueba la firma de la sesión aquí mismo (y la renueva si venció) en vez de preguntarle a Supabase en
+       CADA pedido: el middleware corre en cada pantalla y en cada adelanto (prefetch) del menú, así que eran decenas de viajes
+       a Supabase por minuto y cada uno sumaba espera antes de abrir. Cada consulta a la base sigue validando la sesión (RLS). */
+    const r = await Promise.race([supabase.auth.getClaims(), tarde]);
+    if (r !== "tarde") { const sub = r.data?.claims?.sub; return !r.error && sub ? { id: String(sub) } : null }
   } catch {
     /* sigue con la cookie */
   }
