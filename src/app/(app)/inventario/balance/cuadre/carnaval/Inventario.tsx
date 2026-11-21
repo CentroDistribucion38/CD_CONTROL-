@@ -4,6 +4,7 @@ import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { aHojaGuardada, CENTRO_DE_CASCO, conAuto, esSeccionPallet, limpio, SIN_SKU, type ContextoAuto, type SeccionHoja } from "@/modulos/carnaval/logica";
 import type { Sku } from "@/modulos/carnaval/datos";
+import { PLANTILLA_INICIAL } from "@/modulos/carnaval/plantilla";
 import { eliminarInventario, guardarHoja } from "./actions";
 import { SelectorCodigo } from "./SelectorCodigo";
 
@@ -68,6 +69,24 @@ export function Inventario({ fecha, hoy, guardado, base, dias, puedeEditar, maes
     setAviso(null);
     tocar(si, secs[si]?.filas.length ?? 0);
     cambiar((all) => all.map((s, i) => i !== si ? s : { ...s, filas: [...s.filas, { concepto: mapa.get(cod) ?? cod, codigo: cod, a: 0, b: s.colB ? 0 : null }] }));
+  }
+  /* LOS RENGLONES DE LA HOJA DE PAPEL QUE FALTAN EN UNA SECCIÓN. «Agrega la estiba tipo B en el AG07»: en ESTIBAS DE MADERA
+     los tres tipos (A, B, C) son el mismo SKU 3500163, así que «+ Agregar SKU» decía «ya estaba» y no había cómo volver a poner
+     el tipo B después de quitarlo. Cada renglón de la plantilla que no esté en la sección sale como botón «+ TIPO B»; entra con
+     el código que ya usan los demás renglones de la sección (si todos usan el mismo). */
+  function faltanDePlantilla(si: number): string[] {
+    const s = secs[si]; if (!s) return [];
+    const p = PLANTILLA_INICIAL.find((x) => limpio(x.titulo) === limpio(s.titulo));
+    if (!p) return [];
+    const hay = new Set(s.filas.map((f) => limpio(f.concepto)));
+    return p.filas.map((f) => f.concepto).filter((c) => !hay.has(limpio(c)));
+  }
+  function agregarRenglon(si: number, concepto: string) {
+    const s = secs[si]; if (!s) return;
+    const cods = [...new Set(s.filas.map((f) => f.codigo).filter((c): c is string => !!c))];
+    tocar(si, s.filas.length);
+    cambiar((all) => all.map((x, i) => i !== si ? x : { ...x, filas: [...x.filas, { concepto, codigo: cods.length === 1 ? cods[0] : null, a: 0, b: x.colB ? 0 : null }] }));
+    setAviso({ t: `«${concepto}» agregado en ${s.titulo}: llénalo y guarda el inventario.` });
   }
   /* ------------------------------------------------------------------
      UNA SECCIÓN NUEVA. «Salió ese nuevo (ENVASE RETORNO CERVECERIA
@@ -223,6 +242,9 @@ export function Inventario({ fecha, hoy, guardado, base, dias, puedeEditar, maes
                         {s.nota && <span className="cv-pie-nota">{s.nota}</span>}
                         {/* Una sección sin renglones (recién creada o vaciada) se puede quitar; con datos, primero se quitan sus SKU. */}
                         {puedeEditar && s.fuente === null && s.filas.length === 0 && <button type="button" className="cv-quitar-sec" onClick={() => quitarSec(si)}>Quitar sección</button>}
+                        {puedeEditar && s.fuente !== "casco" && faltanDePlantilla(si).map((c) => (
+                          <button key={c} type="button" className="cv-add-fila" onClick={() => agregarRenglon(si, c)}>+ {c}</button>
+                        ))}
                         {puedeEditar && s.fuente !== "casco" && <span className="cv-add"><SelectorCodigo compacto productos={maestro} value="" placeholder="+ Agregar SKU" onChange={(c) => agregar(si, c)} /></span>}
                       </div></td></tr></tfoot>
                     )}

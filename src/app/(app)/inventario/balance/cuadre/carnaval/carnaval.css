@@ -147,6 +147,9 @@
 .cs .cv-pie-nota { flex: 1 1 auto; min-width: 0; font-weight: 500 }
 .cs .cv-add { display: inline-block; flex: 0 0 150px; width: 150px }
 .cs .cv-add .cv-sel.cmp { width: 100% }
+/* «+ TIPO B»: un renglón de la hoja de papel que falta en la sección (mismo SKU, otro tipo). Recto, como el «+ Agregar SKU». */
+.cs .cv-add-fila { flex: 0 0 auto; height: 30px; padding: 0 12px; border: 1px solid var(--fe-acento, #FFC400); border-radius: 0; background: var(--fe-papel, #fff); color: var(--fe-tinta); font: 700 11px var(--fe-texto); letter-spacing: .04em; cursor: pointer }
+.cs .cv-add-fila:hover { background: var(--fe-acento, #FFC400) }
 
 /* El ojito de los ceros (como en Casco de vidrio): oculta los renglones en cero; con el ojo abierto se ven todos. */
 .cs .cv-tabla th.cv-ojo-th { text-align: right; padding-right: 8px; width: 1% }
