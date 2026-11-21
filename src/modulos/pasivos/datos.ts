@@ -123,9 +123,16 @@ export function conDescartes<T extends ClaveFila>(filas: T[], descartes: Set<str
 }
 
 /** Los días que tienen algo cargado (para el calendario). */
+/* LOS DÍAS CON BASE, en una sola lectura (función pasivos_dias, 2026-11-pasivos-dias-rapido.sql). Antes se leía TODA la tabla de a
+   1.000 filas revisando el permiso en cada una: las últimas páginas se pasaban del tiempo, el error se tragaba y la lista quedaba
+   cortada en un día viejo — el Cuadre SAP AG22 abría el 04/11 aunque se pidiera hoy. Sin la función (falta el SQL) se lee como antes,
+   pero ordenado por fecha Y id (sin un orden fijo, dos páginas pueden repetir o saltarse filas). Devuelve de la más vieja a la más nueva. */
 export async function diasConPasivos(): Promise<string[]> {
   const supabase = await createClient();
-  const r = await todas<{ fecha: string }>((d, h) => supabase.from("pasivos_base").select("fecha").order("fecha").range(d, h));
+  const rpc = await supabase.rpc("pasivos_dias");
+  /* PostgREST puede devolver el día solo o como { pasivos_dias: día }: se aceptan las dos formas. */
+  if (!rpc.error) return [...new Set(((rpc.data ?? []) as unknown[]).map((x) => String(x && typeof x === "object" ? Object.values(x)[0] : x).slice(0, 10)))].sort();
+  const r = await todas<{ fecha: string }>((d, h) => supabase.from("pasivos_base").select("fecha").order("fecha").order("id").range(d, h));
   return [...new Set(r.data.map((x) => x.fecha))];
 }
 
