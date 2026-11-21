@@ -145,7 +145,7 @@
 .cs .cv-tabla td.cv-pie-sec { padding: 4px 12px; border-top: 2px solid var(--fe-tinta); color: var(--fe-gris); font: 500 10.5px var(--fe-texto); background: color-mix(in srgb, var(--fe-acento, #FFC400) 10%, var(--fe-papel, #fff)); width: auto }
 .cs .cv-pie-in { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 24px }
 .cs .cv-pie-nota { flex: 1 1 auto; min-width: 0; font-weight: 500 }
-.cs .cv-add { display: inline-block; flex: 0 0 150px; width: 150px }
+.cs .cv-add { display: inline-block; flex: 0 0 150px; width: 150px; margin-left: auto }
 .cs .cv-add .cv-sel.cmp { width: 100% }
 /* «+ TIPO B»: un renglón de la hoja de papel que falta en la sección (mismo SKU, otro tipo). Recto, como el «+ Agregar SKU». */
 .cs .cv-add-fila { flex: 0 0 auto; height: 30px; padding: 0 12px; border: 1px solid var(--fe-acento, #FFC400); border-radius: 0; background: var(--fe-papel, #fff); color: var(--fe-tinta); font: 700 11px var(--fe-texto); letter-spacing: .04em; cursor: pointer }
