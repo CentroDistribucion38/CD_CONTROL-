@@ -182,7 +182,41 @@ export async function presentacion() {
   await decir("¡Barranquilla!", 0.82, 0.8);
 }
 
+/* UNA VEZ POR SESIÓN: suene donde suene primero (sola al abrir, al primer toque o al darle «Entrar»), no se repite. */
+const YA = "cd38-bienvenida-sono";
+const yaSono = () => { try { return sessionStorage.getItem(YA) === "1" } catch { return false } };
+const marcar = () => { try { sessionStorage.setItem(YA, "1") } catch { /* sigue */ } };
+
+/**
+ * SONAR SOLA AL ABRIR LA APP. Se intenta sin que nadie toque nada:
+ *   · Android (app instalada) y Chrome/Edge en computador donde ya se usa CONTROL: el navegador lo permite → suena sola.
+ *   · iPhone: Apple no deja sonar NUNCA sin un toque. Ahí suena con el PRIMER toque que la persona haga en
+ *     cualquier parte (la entrada, el campo de usuario, un módulo…), sin botón aparte.
+ */
+export function sonarAlAbrir() {
+  if (yaSono()) return;
+  let hecho = false;
+  const sonar = () => { if (hecho || yaSono()) return; hecho = true; marcar(); quitar(); void presentacion() };
+  const alTocar = () => { prepararBienvenida(); sonar() };
+  const eventos = ["pointerdown", "keydown", "touchend"] as const;
+  const quitar = () => eventos.forEach((e) => window.removeEventListener(e, alTocar, true));
+  eventos.forEach((e) => window.addEventListener(e, alTocar, { capture: true, passive: true }));
+  /* El intento sin toque: si el navegador deja correr el audio, suena ya. */
+  try {
+    try { (navigator as unknown as { audioSession?: { type: string } }).audioSession!.type = "playback" } catch { /* otro navegador */ }
+    const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AC) return;
+    ctx ??= new AC();
+    const c = ctx;
+    void c.resume().then(() => { if (c.state === "running") sonar() }).catch(() => { /* espera el primer toque */ });
+    window.setTimeout(() => { if (c.state === "running") sonar() }, 250);
+  } catch { /* espera el primer toque */ }
+}
+
+/** Al darle «Entrar»: suena si en esta sesión todavía no ha sonado. */
 export function sonarBienvenida(nombre?: string | null) {
   void nombre; // la frase es la misma para todos; el nombre queda por si se quiere volver a usar
+  if (yaSono()) return;
+  marcar();
   void presentacion();
 }

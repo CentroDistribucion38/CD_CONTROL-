@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { prepararBienvenida, presentacion } from "@/lib/bienvenida";
+import { sonarAlAbrir } from "@/lib/bienvenida";
 import "./entrada.css";
 
 /**
@@ -14,9 +14,9 @@ import "./entrada.css";
  *
  * VA EN EL HTML DEL SERVIDOR para que se pinte antes que la página (sin parpadeo). Si en esta sesión ya salió,
  * el script del <head> marca <html data-sin-entrada> y el CSS la esconde antes del primer cuadro.
- * EL SONIDO. Ningún navegador deja sonar una página que se acaba de abrir sin que la persona toque algo. Por eso
- * la entrada muestra «🔊 Toca para el sonido»: al tocar, suena la presentación (tono Oro y la voz). Y al darle
- * «Entrar» en el inicio de sesión suena siempre (ver lib/bienvenida.ts). Con «reducir movimiento» solo hace un fundido.
+ * EL SONIDO suena solo al abrir donde el navegador lo permite (Android instalado, Chrome/Edge en computador); en
+ * iPhone, con el primer toque en cualquier parte. Una vez por sesión (ver sonarAlAbrir en lib/bienvenida.ts).
+ * Tocar la pantalla no salta la entrada. Con «reducir movimiento» solo hace un fundido.
  */
 export const CLAVE_ENTRADA = "cd38-entrada";
 const VUELA_EN = 3700, TERMINA_EN = 4600;
@@ -31,6 +31,7 @@ export function Entrada() {
     try { ya = sessionStorage.getItem(CLAVE_ENTRADA) === "1" } catch {}
     if (ya || document.documentElement.hasAttribute("data-sin-entrada")) { setViva(false); return }
     try { sessionStorage.setItem(CLAVE_ENTRADA, "1") } catch {}
+    sonarAlAbrir();
     const reducir = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     /* El vuelo: la B grande va a ponerse encima del logo de la página (el primero que se vea). */
@@ -53,18 +54,9 @@ export function Entrada() {
     return () => { window.clearTimeout(t1); window.clearTimeout(t2) };
   }, []);
 
-  const [sono, setSono] = useState(false);
   if (!viva) return null;
-  /* Tocar no la salta: hace que suene (una vez). */
-  const sonar = () => {
-    if (sono) return;
-    setSono(true);
-    prepararBienvenida();
-    void presentacion();
-    try { sessionStorage.setItem("cd38-bienvenida-sono", "1") } catch { /* sigue */ }
-  };
   return (
-    <div className="ent" aria-hidden onPointerDown={sonar}>
+    <div className="ent" aria-hidden>
       <div className="ent-capa" ref={capa}>
         <div className="ent-glow" />
         <div className="ent-onda" /><div className="ent-onda d" />
@@ -72,7 +64,6 @@ export function Entrada() {
         <svg className="ent-arco b" viewBox="-150 -150 300 300"><circle r="118" fill="none" stroke="#C8102E" strokeWidth="2.5" strokeLinecap="round" transform="rotate(90)" /></svg>
         <div className="ent-chispas">{Array.from({ length: 16 }, (_, k) => <i key={k} style={{ ["--a" as string]: `${k * 22.5}deg`, ["--d" as string]: `${90 + (k % 3) * 22}px`, animationDelay: `${1.1 + (k % 4) * 0.02}s` }} />)}</div>
         <div className="ent-cd">CD38</div>
-        {!sono && <div className="ent-toca">🔊 Toca para el sonido</div>}
         <div className="ent-barrido"><i className="r" /><i className="o" /><i className="w" /></div>
       </div>
       <div className="ent-logo" ref={logo}>

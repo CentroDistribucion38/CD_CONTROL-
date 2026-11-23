@@ -50,10 +50,6 @@ html[data-sin-entrada] .ent { display: none }
 .ent-barrido i.w { background: #fff; animation-delay: .24s }
 @keyframes ent-barre { to { left: 120% } }
 
-.ent-toca { position: absolute; left: 0; right: 0; margin: 0 auto; width: max-content; bottom: calc(46px + env(safe-area-inset-bottom)); white-space: nowrap;
-  padding: 10px 16px; border: 1px solid #e6e6e6; background: rgba(255, 255, 255, .9); color: #333; font: 700 13px "IBM Plex Sans", system-ui, sans-serif;
-  opacity: 0; animation: ent-en .5s ease-out .6s forwards }
-
 /* LA B: entra girando en 3D, rebota y, al final, vuela a su sitio. */
 .ent-logo { position: absolute; left: 50%; top: 44%; width: 184px; height: 184px; margin: -92px; opacity: 0;
   animation: ent-pop 1.15s cubic-bezier(.2, 1.4, .4, 1) .6s forwards, ent-respira 2.2s ease-in-out 1.75s 1 forwards; will-change: transform, opacity }
