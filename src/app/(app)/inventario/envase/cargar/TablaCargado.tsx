@@ -13,8 +13,8 @@ const fecha = (f: string) => new Date(f + "T12:00:00Z").toLocaleDateString("es-C
 
 /**
  * LO QUE HAY CARGADO, CON QUÉ HACERLE. «¿Cómo puedo eliminar, cambiar, editar? No me deja hacer nada.»
- *   · Hacer plan inicial / Pasar a corte: el papel lo pone solo la pantalla (el primero generado que cubre desde el lunes es el
- *     inicial); si se subió en otro orden, aquí se escoge a mano. «Automático» lo devuelve a la regla.
+ *   · Usar como plan inicial / Usar como corte: el papel lo pone solo la pantalla (el primero generado que cubre desde el lunes es el
+ *     inicial); si se subió en otro orden, aquí se escoge a mano. «Quitar el cambio» lo devuelve a la regla.
  *   · Eliminar: borra el instructivo con todas sus horas (se puede volver a subir el archivo).
  * Las confirmaciones van en la ventana de la app, no en el cuadro del navegador.
  */
@@ -71,13 +71,13 @@ export function TablaCargado({ filas, puede }: { filas: FilaCargado[]; puede: bo
             <td className="l">{new Date(f.subido_en).toLocaleString("es-CO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Bogota" })}</td>
             <td className="l">
               {f.es === "inicial" ? <span className="pe-tag t-g">Plan inicial</span> : f.es === "vigente" ? <span className="pe-tag t-a">Corte vigente</span> : <span className="pe-tag t-g">Corte anterior</span>}
-              {f.papel && <small className="mut"> · a mano</small>}
+              {f.papel && <small className="mut"> · cambiado a mano</small>}
             </td>
             {puede && (
               <td className="l"><span className="pe-acc">
-                {f.es !== "inicial" && <button type="button" disabled={!!ocupado} onClick={() => papel(f, "inicial")}>Hacer plan inicial</button>}
-                {f.es === "inicial" && <button type="button" disabled={!!ocupado} onClick={() => papel(f, "corte")}>Pasar a corte</button>}
-                {f.papel && <button type="button" disabled={!!ocupado} onClick={() => papel(f, null)}>Automático</button>}
+                {f.es !== "inicial" && <button type="button" disabled={!!ocupado} onClick={() => papel(f, "inicial")}>Usar como plan inicial</button>}
+                {f.es === "inicial" && <button type="button" disabled={!!ocupado} onClick={() => papel(f, "corte")}>Usar como corte</button>}
+                {f.papel && <button type="button" disabled={!!ocupado} onClick={() => papel(f, null)}>Quitar el cambio</button>}
                 <button type="button" className="mal" disabled={!!ocupado} onClick={() => eliminar(f)}>Eliminar</button>
               </span></td>
             )}
