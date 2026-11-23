@@ -913,9 +913,11 @@ a.sh-avatar:focus-visible { outline: 2px solid #fff; outline-offset: 3px }
 /* PASOS NUMERADOS (Plan vs notificado): el número en un cuadro, en el lugar del icono; y el título de cada bloque
    («ANTES · CADA DÍA · CADA SEMANA») un poco más pegado a sus pantallas que el «ESTÁS EN». */
 .sh-lado .riel a .paso {
-  width: 18px; height: 18px; flex: none; display: grid; place-items: center;
-  border: 1px solid var(--c-7e97b5); font: 700 10.5px/1 var(--fe-texto, inherit); color: var(--c-a9c2de);
+  width: 18px; height: 18px; flex: none; display: grid; place-items: center; box-sizing: border-box;
+  border: 1.5px solid var(--c-7e97b5); font-size: 10.5px; font-weight: 700; line-height: 1; color: var(--c-a9c2de);
+  font-variant-numeric: tabular-nums;
 }
 .sh-lado .riel a:hover .paso { border-color: var(--c-d6e4f4); color: #fff }
 .sh-lado .riel a.hijo.on .paso { border-color: var(--sh-rojo); color: #fff }
-.sh-lado .grupo.bloque { margin-top: 14px; padding-left: 38px; padding-bottom: 4px }
+/* (Se llama «etapa» y no «bloque»: .bloque ya es la tarjeta blanca de los tableros y le pintaba fondo y borde.) */
+.sh-lado .grupo.etapa { margin-top: 12px; padding: 0 0 6px 38px; height: auto; font-size: 10px; letter-spacing: .18em; color: var(--c-6f87a5) }

@@ -694,7 +694,7 @@ export function Navegacion({ permitidas, anclado, alternar }: {
           const Icono = ICONO_RUTA[s.ruta] ?? IconoTablero;
           const aqui = pathname === s.ruta;
           /* EL BLOQUE (Antes · Cada día · Cada semana): un título encima de su primera pantalla. */
-          const titulo = s.bloque && <div key={`bloque-${s.bloque}`} className="grupo texto bloque">{s.bloque.toUpperCase()}</div>;
+          const titulo = s.bloque && <div key={`bloque-${s.bloque}`} className="grupo texto etapa">{s.bloque.toUpperCase()}</div>;
           return [titulo, cabeza, (
             <Link
               key={s.ruta}
