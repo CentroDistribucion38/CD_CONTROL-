@@ -222,8 +222,8 @@ export async function activarIndicador(id: string, activo: boolean) {
  * resultado en adelante.
  */
 export async function cambiarDesdeTablero(id: string, f: { nombre: string; meta_op: Op; meta_valor: number; disparo_activo: boolean; disparo_consecutivos: number }) {
-  const permisos = await misPermisos();
-  if (!permisos.puedeEditar("/gestion") && !permisos.puedeEditar("/gestion/maestro")) return { error: "No tienes permiso para cambiar indicadores." };
+  /* Solo Maestro en editar: es lo que deja escribir la base (RLS de gestion_indicadores). */
+  if (!(await puedeMaestro())) return { error: "No tienes permiso para cambiar indicadores (hace falta Maestro de Gestión en editar)." };
   const nombre = (f.nombre ?? "").trim();
   if (!nombre) return { error: "Ponle nombre al indicador." };
   if (!opOk(f.meta_op) || !Number.isFinite(Number(f.meta_valor))) return { error: "La meta necesita operador y número." };
@@ -233,6 +233,48 @@ export async function cambiarDesdeTablero(id: string, f: { nombre: string; meta_
   const { error } = await supabase.from("gestion_indicadores")
     .update({ nombre, meta_op: f.meta_op, meta_valor: Number(f.meta_valor), disparo_activo: !!f.disparo_activo, disparo_consecutivos: n })
     .eq("id", id);
+  if (error) return { error: msj(error.message) };
+  refrescar();
+  return { ok: true };
+}
+
+/* ====================================================================================================
+   ÁREAS (gestion_procesos) desde el tablero: agregar, renombrar, ordenar, activar y eliminar.
+   ==================================================================================================== */
+/** Varias áreas a la vez (las de la ventana «Áreas»): las que tienen id se corrigen, las demás se crean. */
+export async function guardarAreas(lista: { id?: string; nombre: string; orden: number; activo: boolean }[]) {
+  if (!(await puedeMaestro())) return { error: "No tienes permiso para editar las áreas (hace falta Maestro de Gestión en editar)." };
+  const limpias = lista.map((a) => ({ ...a, nombre: (a.nombre ?? "").trim() }));
+  if (limpias.some((a) => !a.nombre)) return { error: "Hay un área sin nombre." };
+  const vistos = new Set<string>();
+  for (const a of limpias) {
+    const k = a.nombre.toLowerCase();
+    if (vistos.has(k)) return { error: `«${a.nombre}» está dos veces.` };
+    vistos.add(k);
+  }
+  const supabase = await createClient();
+  /* Primero las que cambian de nombre (por si dos se intercambian), luego las nuevas. */
+  for (const a of limpias.filter((x) => x.id)) {
+    const { error } = await supabase.from("gestion_procesos").update({ nombre: a.nombre, orden: a.orden, activo: a.activo }).eq("id", a.id!);
+    if (error) return { error: /duplicate|unique/i.test(error.message) ? `Ya hay un área «${a.nombre}».` : msj(error.message) };
+  }
+  const nuevas = limpias.filter((x) => !x.id).map((a) => ({ nombre: a.nombre, orden: a.orden, activo: a.activo }));
+  if (nuevas.length) {
+    const { error } = await supabase.from("gestion_procesos").insert(nuevas);
+    if (error) return { error: /duplicate|unique/i.test(error.message) ? "Una de las áreas nuevas ya existe." : msj(error.message) };
+  }
+  refrescar();
+  return { ok: true };
+}
+
+/** Eliminar un área. Solo si ningún indicador cuelga de ella: si tiene, se desactiva o se le cambian los indicadores. */
+export async function eliminarArea(id: string) {
+  if (!(await puedeMaestro())) return { error: "No tienes permiso para editar las áreas (hace falta Maestro de Gestión en editar)." };
+  const supabase = await createClient();
+  const { count, error: e0 } = await supabase.from("gestion_indicadores").select("id", { count: "exact", head: true }).eq("proceso_id", id);
+  if (e0) return { error: msj(e0.message) };
+  if (count) return { error: `Esa área tiene ${count} indicador${count === 1 ? "" : "es"}. Desactívala, o pásalos a otra área en Maestro, y después elimínala.` };
+  const { error } = await supabase.from("gestion_procesos").delete().eq("id", id);
   if (error) return { error: msj(error.message) };
   refrescar();
   return { ok: true };

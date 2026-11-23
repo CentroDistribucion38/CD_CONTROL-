@@ -9,6 +9,7 @@ import {
   type Accion, type Analisis, type Disparador, type Estado, type Indicador, type Op, type Proceso, type Resultado, type Turno,
 } from "@/modulos/gestion/semaforo";
 import { cambiarDesdeTablero } from "./actions";
+import { Areas } from "./Areas";
 import { Hoja5W } from "./Hoja5W";
 import { PlanAccion } from "./PlanAccion";
 
@@ -41,19 +42,24 @@ export function estado5w(d: Disparador, a?: Analisis | null): { t: string; c: st
 
 type Hoja = "tablero" | "plan";
 
-export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, resultados, disparadores, analisis, acciones, faltaSql, puedeIndicador, puede5w }: {
+export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, resultados, disparadores, analisis, acciones, faltaSql, puedeIndicador, puede5w, areasRoturas }: {
   d: string; h: string; hoy: string; maxDias: number;
   turnos: Turno[]; procesos: Proceso[]; indicadores: Indicador[]; resultados: Resultado[]; disparadores: Disparador[];
-  analisis: Analisis[]; acciones: Accion[]; faltaSql: boolean; puedeIndicador: boolean; puede5w: boolean;
+  analisis: Analisis[]; acciones: Accion[]; faltaSql: boolean; puedeIndicador: boolean; puede5w: boolean; areasRoturas: string[];
 }) {
   const router = useRouter();
   const [hoja, setHoja] = useState<Hoja>("tablero");
   const [area, setArea] = useState<string>("todas");
   const [editar, setEditar] = useState<Indicador | null>(null);
+  const [verAreas, setVerAreas] = useState(false);
   const [abierto, setAbierto] = useState<string | null>(null);
   const [desde, setDesde] = useState(d);
   const [hasta, setHasta] = useState(h);
   useEffect(() => { setDesde(d); setHasta(h) }, [d, h]);
+  /* Si el área escogida se desactivó o se eliminó, vuelve a «Todas». */
+  useEffect(() => {
+    if (area !== "todas" && area !== "ninguna" && !procesos.some((p) => p.activo && p.id === area)) setArea("todas");
+  }, [procesos, area]);
 
   const tActivos = useMemo(() => [...turnos].filter((t) => t.activo).sort((a, b) => a.orden - b.orden || a.nombre.localeCompare(b.nombre)), [turnos]);
   const turnoPorId = useMemo(() => new Map(turnos.map((t) => [t.id, t])), [turnos]);
@@ -153,13 +159,6 @@ export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, res
           </button>
         </div>
         <div className="tb-filtros">
-          <label>Área
-            <select value={area} onChange={(e) => setArea(e.target.value)}>
-              <option value="todas">Todas</option>
-              {procesos.filter((p) => p.activo).map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-              {indicadores.some((i) => i.activo && !i.proceso_id) && <option value="ninguna">Sin área</option>}
-            </select>
-          </label>
           {hoja === "tablero" && (
             <>
               <label>Desde<input type="date" value={desde} max={hoy} onChange={(e) => setDesde(e.target.value)} onBlur={() => desde && desde !== d && ir(desde, hasta)} /></label>
@@ -167,6 +166,13 @@ export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, res
             </>
           )}
         </div>
+      </div>
+      <div className="tb-areas" role="group" aria-label="Área">
+        <b>Área</b>
+        {[{ id: "todas", nombre: "Todas" }, ...procesos.filter((p) => p.activo),
+          ...(indicadores.some((i) => i.activo && (!i.proceso_id || !procesos.some((p) => p.activo && p.id === i.proceso_id))) ? [{ id: "ninguna", nombre: "Sin área" }] : [])]
+          .map((p) => <button key={p.id} type="button" className={area === p.id ? "on" : ""} aria-pressed={area === p.id} onClick={() => setArea(p.id)}>{p.nombre}</button>)}
+        {puedeIndicador && <button type="button" className="tb-areas-ed" onClick={() => setVerAreas(true)}>✎ Editar áreas</button>}
       </div>
       {hoja === "tablero" && (
         <div className="tb-atajos" role="group" aria-label="Fechas rápidas">
@@ -269,6 +275,7 @@ export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, res
         </>
       )}
 
+      {verAreas && <Areas procesos={procesos} indicadores={indicadores} deRoturas={areasRoturas} cerrar={() => setVerAreas(false)} />}
       {editar && <EditarIndicador i={editar} cerrar={() => setEditar(null)} />}
       {disp && (
         <Hoja5W

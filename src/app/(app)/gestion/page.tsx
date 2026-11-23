@@ -3,6 +3,7 @@ import "./gestion.css";
 import "./tablero.css";
 import { misPermisos } from "@/lib/permisos";
 import { leerAnalisis, leerGestion } from "@/modulos/gestion/datos";
+import { procesos as procesosRoturas } from "@/modulos/roturas/datos";
 import { hoyBogota, inicioPeriodo, sumarDias } from "@/modulos/gestion/semaforo";
 import { Falta } from "./comunes";
 import { Tablero } from "./Tablero";
@@ -31,7 +32,11 @@ export default async function GestionTablero({ searchParams }: { searchParams: P
 
   /* Desde el lunes / día 1 del primer día, por si hay indicadores semanales o mensuales. */
   const desde = [d, inicioPeriodo(d, "semana"), inicioPeriodo(d, "mes")].sort()[0];
-  const [datos, an, permisos] = await Promise.all([leerGestion(desde, h), leerAnalisis(), misPermisos()]);
+  const [datos, an, permisos, deRoturas] = await Promise.all([
+    leerGestion(desde, h), leerAnalisis(), misPermisos(),
+    /* Las áreas que ya usa Roturas (T1, Líneas, Traspaso…), para traerlas de un toque. Si no se pueden leer, nada. */
+    procesosRoturas().catch(() => []),
+  ]);
   if (datos.error) return <Falta ojo="GESTIÓN · TABLERO" falta={datos.falta} error={datos.error} />;
 
   return (
@@ -41,7 +46,8 @@ export default async function GestionTablero({ searchParams }: { searchParams: P
         turnos={datos.turnos} procesos={datos.procesos} indicadores={datos.indicadores}
         resultados={datos.resultados} disparadores={datos.disparadores}
         analisis={an.analisis} acciones={an.acciones} faltaSql={an.falta}
-        puedeIndicador={permisos.puedeEditar("/gestion") || permisos.puedeEditar("/gestion/maestro")}
+        puedeIndicador={permisos.puedeEditar("/gestion/maestro")}
+        areasRoturas={deRoturas.map((p) => p.nombre)}
         puede5w={permisos.puedeEditar("/gestion/disparadores")}
       />
     </div>

@@ -168,3 +168,29 @@
   .gs .h5-cuerpo { grid-template-columns: 1fr }
   .gs .h5-fila { grid-template-columns: 1fr 1fr } .h5-fila .btn { grid-column: 1 / -1 }
 }
+
+/* ---------- áreas: botones como los del registro y su ventana ---------- */
+.gs .tb-areas { display: flex; gap: 6px; flex-wrap: wrap; align-items: center }
+.gs .tb-areas > b { font: 800 13px var(--fe-titulo); color: var(--fe-tinta); margin-right: 4px; flex-basis: 100% }
+.gs .tb-areas button { min-height: 44px; padding: 0 18px; border: 1px solid var(--fe-linea); background: var(--fe-papel, #fff); color: var(--fe-tinta); font: 500 14.5px var(--fe-texto); border-radius: 0; cursor: pointer }
+.gs .tb-areas button:hover { border-color: var(--fe-tinta) }
+.gs .tb-areas button.on { background: var(--fe-tinta); border-color: var(--fe-tinta); color: var(--fe-papel, #fff); font-weight: 700; box-shadow: inset 0 -3px 0 var(--fe-acento) }
+.gs .tb-areas button.tb-areas-ed { border-style: dashed; color: var(--fe-gris); font-weight: 700; font-size: 13px }
+.gs .ar-caja { max-width: 560px }
+.gs .ar-lista { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow: auto }
+.gs .ar-lista li { display: grid; grid-template-columns: auto 1fr auto auto auto; gap: 8px; align-items: center }
+.gs .ar-lista li.off input:not([type="checkbox"]) { color: var(--c-5b6b7f); background: var(--c-f7f9fc) }
+.gs .ar-lista input:not([type="checkbox"]), .gs .ar-nueva input:not([type="checkbox"]) { box-sizing: border-box; min-height: 42px; padding: 0 10px; border: 1px solid var(--c-d5dce5); border-radius: 2px; background: #fff; color: var(--c-04203f); font: 600 14.5px "IBM Plex Sans", system-ui, sans-serif; min-width: 0; width: 100% }
+.gs .ar-lista small { font-size: 12px; color: var(--c-5b6b7f); white-space: nowrap }
+.gs .ar-mover { display: flex }
+.gs .ar-mover button, .gs .ar-quitar { width: 32px; height: 42px; border: 1px solid var(--c-d5dce5); background: #fff; color: var(--c-04203f); cursor: pointer; font-size: 14px }
+.gs .ar-mover button + button { border-left: 0 }
+.gs .ar-mover button:disabled { opacity: .35; cursor: default }
+.gs .ar-quitar { width: 42px; color: var(--c-5b6b7f) } .gs .ar-quitar:hover { color: #E4002B; border-color: #E4002B }
+.gs .ar-act { display: flex; align-items: center; gap: 5px; font-size: 13px; color: var(--c-04203f); white-space: nowrap }
+.gs .ar-act input { width: 18px; height: 18px; accent-color: var(--c-04203f) }
+.gs .ar-vacio { color: var(--c-5b6b7f); font-size: 13.5px; padding: 8px 0 }
+.gs .ar-nueva { display: flex; gap: 8px; margin-top: 10px } .gs .ar-nueva .cf-btn { white-space: nowrap; flex: none }
+.gs .ar-traer { margin-top: 10px; width: 100%; text-align: left; padding: 10px 12px; border: 1px dashed var(--c-d5dce5); background: var(--c-f7f9fc); color: var(--c-2c4361); font: 500 13.5px "IBM Plex Sans", system-ui, sans-serif; cursor: pointer }
+.gs .ar-traer:hover { border-color: var(--c-04203f) }
+@media (max-width: 520px) { .gs .ar-lista li { grid-template-columns: auto 1fr auto; } .gs .ar-lista small { display: none } .gs .ar-act { grid-column: 2 } }
