@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { maestro, masDias, papeles, type FilaPlanBD } from "@/modulos/inventario/envase/calc";
 import { hoyBogota, lunesDe, planesDeSemana, productosDe } from "@/modulos/inventario/envase/datos";
+import { Pasos } from "../Pasos";
 import "../../fefo.css";
 import "../../balance/analisis/analisis.css";
 import "../envase.css";
@@ -22,13 +23,14 @@ export default async function PlanSkuPage({ searchParams }: { searchParams: Prom
   const hoy = hoyBogota();
   const lunes = lunesDe(esF(q.s) ? q.s! : hoy);
   const ps = await planesDeSemana(lunes);
-  const cabeza = (sub: React.ReactNode) => (
+  const cabeza = (sub: React.ReactNode) => (<>
     <section className="cabeza"><div>
       <p className="ojo">INVENTARIO · PLAN VS NOTIFICADO</p>
-      <h1>Plan por SKU</h1>
+      <h1>Plan de la semana</h1>
       <p className="sub">{sub}</p>
     </div></section>
-  );
+    <Pasos ruta="/inventario/envase/plan" />
+  </>);
   if (ps.falta) {
     return (
       <div className="fe pe">

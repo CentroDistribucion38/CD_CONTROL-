@@ -252,3 +252,19 @@
 .pe .pe-sem-k.cinco { grid-template-columns: repeat(5, 1fr) }
 .pe .pe-sem-k > div.k-am { box-shadow: inset 0 3px 0 var(--fe-acento, #FFC400) }
 @media (max-width: 640px) { .pe .pe-sem-k.cinco { grid-template-columns: repeat(2, 1fr) } .pe .pe-sem-bar { flex-direction: column; align-items: flex-start } }
+
+/* «PASO 3 DE 6 · CADA DÍA · ← Plan de la semana · Sigue: Validación →»: una línea recta arriba de cada pantalla. */
+.pe .pe-pasos { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 6px 0 14px; padding: 8px 12px;
+  background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea, #dde2e8); border-left: 3px solid var(--fe-acento, #FFC400);
+  font: 500 12px var(--fe-texto) }
+.pe .pe-pasos .n { font-weight: 800; letter-spacing: .06em; text-transform: uppercase }
+.pe .pe-pasos .b { color: var(--fe-gris, #6b7280); letter-spacing: .08em; text-transform: uppercase; font-size: 11px }
+.pe .pe-pasos .fil { display: inline-flex; gap: 4px }
+.pe .pe-pasos .fil a { width: 22px; height: 22px; display: grid; place-items: center; border: 1px solid var(--fe-linea, #cfd5dc);
+  color: var(--fe-gris, #6b7280); text-decoration: none; font-weight: 700; font-size: 11px }
+.pe .pe-pasos .fil a.hecho { color: var(--fe-tinta); border-color: var(--fe-tinta) }
+.pe .pe-pasos .fil a.on { background: var(--fe-acento, #FFC400); border-color: var(--fe-acento, #FFC400); color: #111 }
+.pe .pe-pasos .ant { color: var(--fe-gris, #6b7280); text-decoration: none }
+.pe .pe-pasos .sig { margin-left: auto; color: var(--fe-tinta); font-weight: 700; text-decoration: none }
+.pe .pe-pasos a:hover { text-decoration: underline }
+@media (max-width: 640px) { .pe .pe-pasos .ant { display: none } .pe .pe-pasos .sig { margin-left: 0 } }

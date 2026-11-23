@@ -107,11 +107,11 @@ export function PlanSku({ lunes, semana, antes, despues, dias, filas, maestro, d
     catch { avisar.mal("No se pudo copiar. Usa Descargar Excel.") }
   }
   function excel() {
-    const ws = XLSX.utils.aoa_to_sheet([[`Plan por SKU · ${nomV} · semana ${semana ?? ""} · ${dMes(dias[0])} – ${dMes(dias[6])} · en ${nomU}`], [], ...tabla()]);
+    const ws = XLSX.utils.aoa_to_sheet([[`Plan de la semana · ${nomV} · semana ${semana ?? ""} · ${dMes(dias[0])} – ${dMes(dias[6])} · en ${nomU}`], [], ...tabla()]);
     ws["!cols"] = [{ wch: 10 }, { wch: 42 }, ...dias.map(() => ({ wch: 13 })), { wch: 14 }, { wch: 14 }, { wch: 15 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, `Semana ${semana ?? ""}`.trim());
-    XLSX.writeFile(wb, `Plan por SKU - semana ${semana ?? lunes} - ${nomV} - ${nomU}.xlsx`);
+    XLSX.writeFile(wb, `Plan de la semana - semana ${semana ?? lunes} - ${nomV} - ${nomU}.xlsx`);
   }
 
   const celda = (r: number, c: number) => ({
@@ -170,7 +170,7 @@ export function PlanSku({ lunes, semana, antes, despues, dias, filas, maestro, d
             <small>en {nomU} · clic en una celda y muévete con las flechas</small>
           </h3>
           {t.rs.length === 0 ? <p className="pe-nota">Ningún SKU cambió del plan inicial al vigente esta semana.</p> : (
-          <div className="pe-caja pe-hoja" ref={hoja} tabIndex={0} onKeyDown={tecla} aria-label="Plan por SKU: muévete con las flechas">
+          <div className="pe-caja pe-hoja" ref={hoja} tabIndex={0} onKeyDown={tecla} aria-label="Plan de la semana: muévete con las flechas">
             <table className={`pe-t pe-psku ${vista === "cambios" ? "cmb" : ""}`}>
               <thead>
                 <tr>

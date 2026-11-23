@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { estadoDia, maestro, masDias, papeles, validarDia, type Alerta, type FilaDia, type FilaPlanBD } from "@/modulos/inventario/envase/calc";
 import { hoyBogota, lunesDe, movimientosContab, planesDeSemana, productosDe, ultimaEntrada } from "@/modulos/inventario/envase/datos";
+import { Pasos } from "./Pasos";
 import "../fefo.css";
 import "../balance/analisis/analisis.css";
 import "./envase.css";
@@ -28,13 +29,14 @@ export default async function ValidacionPage({ searchParams }: { searchParams: P
   const q = await searchParams;
   const hoy = hoyBogota();
   const u = await ultimaEntrada();
-  const cabeza = (sub: React.ReactNode) => (
+  const cabeza = (sub: React.ReactNode) => (<>
     <section className="cabeza"><div>
       <p className="ojo">INVENTARIO · PLAN VS NOTIFICADO</p>
-      <h1>Validación del día</h1>
+      <h1>Validación</h1>
       <p className="sub">{sub}</p>
     </div></section>
-  );
+    <Pasos ruta="/inventario/envase" />
+  </>);
   if (u.falta) {
     return (
       <div className="fe pe">

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { entrada, maestro, masDias, papeles, validarDia } from "@/modulos/inventario/envase/calc";
 import { hoyBogota, lunesDe, movimientosContab, planesDeSemana, productosDe, ultimaEntrada } from "@/modulos/inventario/envase/datos";
+import { Pasos } from "../Pasos";
 import "../../fefo.css";
 import "../../balance/analisis/analisis.css";
 import "../envase.css";
@@ -99,6 +100,7 @@ export default async function CruceHoraPage({ searchParams }: { searchParams: Pr
         <p className="sub">Lo que el plan dice que ya se envasó a esa hora, contra lo notificado (producto) y contra el 261 de SAP (envase).
           Plan {c ? <b>vigente (corte del {c.generado.slice(8, 10)}/{c.generado.slice(5, 7)} {c.generado.slice(11, 16)})</b> : P.inicial ? <b>inicial</b> : <b className="mal">no hay</b>}.</p>
       </div></section>
+      <Pasos ruta="/inventario/envase/cruce" />
       {(ps.error || mv.error) && <p className="pe-error">No se pudo leer todo: {ps.error ?? mv.error}</p>}
       <CruceHora dia={d} hoy={hoy} hora={hora} esAhora={!esH(q.h) && d === hoy} mb51={u.valor} filas={[...L.values()]} detalle={detalle}
                  maestro={Object.fromEntries(M)} />

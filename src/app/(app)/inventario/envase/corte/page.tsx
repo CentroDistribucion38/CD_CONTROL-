@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notificacionesAlCorte, partidasCorte } from "@/modulos/inventario/envase/calc";
 import { hoyBogota, movimientosDigitadosDesde, movimientosParaElConteo, upcEnvases } from "@/modulos/inventario/envase/datos";
+import { Pasos } from "../Pasos";
 import "../../fefo.css";
 import "../../balance/analisis/analisis.css";
 import "../envase.css";
@@ -34,6 +35,7 @@ export default async function CortePage({ searchParams }: { searchParams: Promis
         <p className="sub">La existencia que bajas a la hora del conteo solo tiene lo <b>digitado</b> hasta esa hora. Lo que pasó antes pero se
           digitó después son tus partidas: se suman o se restan a la existencia para compararla con el conteo físico.</p>
       </div></section>
+      <Pasos ruta="/inventario/envase/corte" />
       {falta ? (
         <p className="pe-vacio">Falta crear esta parte en Supabase: corre <b>supabase/migraciones/2026-11-plan-envase.sql</b> y sube la MB51 en <Link href="/inventario/envase/cargar">Cargar</Link>.</p>
       ) : mv.error ? (

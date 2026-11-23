@@ -522,6 +522,7 @@ const ICONO_RUTA: Record<string, () => React.ReactElement> = {
   "/inventario/envase": IconoVerificar,
   "/inventario/envase/cruce": IconoComparar,
   "/inventario/envase/corte": IconoReloj,
+  "/inventario/envase/cierre": IconoVerificar,
   "/inventario/casco": IconoCuatroTablas,
   "/inventario/casco/tablero": IconoTablero,
   "/inventario/casco/comparativo": IconoComparar,
@@ -692,7 +693,9 @@ export function Navegacion({ permitidas, anclado, alternar }: {
           if (s.grupo && !dentro) return cabeza || null;
           const Icono = ICONO_RUTA[s.ruta] ?? IconoTablero;
           const aqui = pathname === s.ruta;
-          return [cabeza, (
+          /* EL BLOQUE (Antes · Cada día · Cada semana): un título encima de su primera pantalla. */
+          const titulo = s.bloque && <div key={`bloque-${s.bloque}`} className="grupo texto bloque">{s.bloque.toUpperCase()}</div>;
+          return [titulo, cabeza, (
             <Link
               key={s.ruta}
               href={s.ruta}
@@ -707,9 +710,9 @@ export function Navegacion({ permitidas, anclado, alternar }: {
               onPointerDown={() => adelantar(s.ruta)}
               onFocus={() => adelantar(s.ruta)}
             >
-              <Icono />
+              {s.paso ? <span className="paso" aria-hidden="true">{s.paso}</span> : <Icono />}
               <span className="texto">{s.nombre}</span>
-              <span className="globo">{s.grupo ? `${s.grupo} · ${s.nombre}` : s.nombre}</span>
+              <span className="globo">{s.paso ? `${s.paso} · ` : ""}{s.grupo ? `${s.grupo} · ${s.nombre}` : s.nombre}</span>
             </Link>
           )];
         })}
