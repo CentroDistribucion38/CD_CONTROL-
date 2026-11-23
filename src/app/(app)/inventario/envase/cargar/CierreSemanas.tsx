@@ -5,6 +5,33 @@ const n0 = (x: number) => Math.round(x).toLocaleString("es-CO");
 const corta = (f: string) => new Date(f + "T12:00:00Z").toLocaleDateString("es-CO", { day: "numeric", month: "short", timeZone: "UTC" }).replace(".", "");
 const DIA = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
+/* LO QUE QUEDÓ PENDIENTE POR NOTIFICAR, POR SKU. «En el cierre de la semana anterior, qué quedó pendiente por notificar.»
+   Plan vigente − notificado de la semana (en la actual, hasta esta hora), en HL, unidades y cajas, del más grande al más chico.
+   Lo notificado de más va al final, en gris. En la semana pasada abre de una; en la actual, cerrado. */
+function Pendientes({ s, k }: { s: ResumenSemana; k: number }) {
+  const pend = s.skus.filter((r) => r.pendUn > 0), mas = s.skus.filter((r) => r.pendUn < 0);
+  if (!s.skus.length) return <p className="pe-nota">Nada pendiente por notificar: todo lo del plan está notificado.</p>;
+  const tHl = pend.reduce((a, r) => a + r.pendHl, 0);
+  return (
+    <details className="pe-sem-p" open={k === 0}>
+      <summary><b>Pendiente por notificar</b> · {pend.length} SKU · {n0(tHl)} HL{mas.length ? ` · ${mas.length} ${mas.length === 1 ? "notificado" : "notificados"} de más` : ""}</summary>
+      <table className="pe-t">
+        <thead><tr><th className="l">SKU</th><th>Plan vigente</th><th>Notificado</th><th>Pendiente HL</th><th>Pendiente un.</th><th>Pendiente cajas</th></tr></thead>
+        <tbody>
+          {pend.map((r) => (
+            <tr key={r.sku}><td className="l"><b>{r.sku}</b> {r.nombre.slice(0, 32)}</td><td>{n0(r.planHl)}</td><td>{n0(r.notifHl)}</td>
+              <td className="mal"><b>{n0(r.pendHl)}</b></td><td>{n0(r.pendUn)}</td><td>{r.pendCajas == null ? "—" : n0(r.pendCajas)}</td></tr>
+          ))}
+          {mas.map((r) => (
+            <tr key={r.sku} className="mut"><td className="l"><b>{r.sku}</b> {r.nombre.slice(0, 32)} <small>· de más</small></td><td>{n0(r.planHl)}</td><td>{n0(r.notifHl)}</td>
+              <td>+{n0(-r.pendHl)}</td><td>+{n0(-r.pendUn)}</td><td>{r.pendCajas == null ? "—" : `+${n0(-r.pendCajas)}`}</td></tr>
+          ))}
+        </tbody>
+      </table>
+    </details>
+  );
+}
+
 /**
  * CARGAR › EL CIERRE DE LA SEMANA PASADA Y CÓMO VA LA ACTUAL. Lo primero que se ve al subir la MB51: dos tarjetas (pasada y
  * actual) con plan inicial, plan vigente, notificado y cumplimiento en HL, y abajo los siete días. Cada día abre su Validación.
@@ -45,6 +72,7 @@ export function CierreSemanas({ semanas, mb51 }: { semanas: ResumenSemana[]; mb5
                   })}</tr>
                 </tbody>
               </table>
+              <Pendientes s={s} k={k} />
             </>)}
           </article>
         );

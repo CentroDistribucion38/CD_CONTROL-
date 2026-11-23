@@ -16,6 +16,9 @@ export type DiaSemana = { dia: string; planIni: number; planVig: number; planHas
 export type ResumenSemana = {
   lunes: string; domingo: string; semana: number | null; estado: "cerrada" | "abierta" | "en curso" | "sin plan";
   dias: DiaSemana[]; planIni: number; planVig: number; planHasta: number; notif: number;
+  /** Por SKU, lo que quedó pendiente por notificar (plan vigente hasta esta hora − notificado), del más grande al más chico.
+   *  un = unidades, hl = HL, cajas = un ÷ unidades por caja (null si no se sabe). Negativo = se notificó de más. */
+  skus: { sku: string; nombre: string; planUn: number; notifUn: number; planHl: number; notifHl: number; pendUn: number; pendHl: number; pendCajas: number | null }[];
 };
 
 export async function cierreDeSemanas(): Promise<{ semanas: ResumenSemana[]; mb51: string | null; error: string | null }> {
@@ -52,13 +55,36 @@ export async function cierreDeSemanas(): Promise<{ semanas: ResumenSemana[]; mb5
       const planHasta = dia < hoy ? planVig : dia > hoy ? 0 : suma(vig, dia, (f) => (f.hora < hh ? 1 : f.hora === hh ? mm / 60 : 0));
       dias.push({ dia, planIni: suma(ini, dia), planVig, planHasta, notif: dia > hoy ? 0 : notifDia.get(dia) ?? 0, estado: estadoDia(dia, u.valor, hoy) });
     }
+    /* POR SKU: el plan vigente de cada día (hasta esta hora en el día de hoy) contra lo notificado de la semana. */
+    const S = new Map<string, { planUn: number; planHl: number; notifUn: number }>();
+    const x = (sku: string) => { let v = S.get(sku); if (!v) { v = { planUn: 0, planHl: 0, notifUn: 0 }; S.set(sku, v) } return v };
+    const unDe = (f: FilaPlanBD) => Number(f.unidades) || (f.formato_ml ? (Number(f.hl) * 1e5) / Number(f.formato_ml) : 0);
+    for (let i = 0; i < 7; i++) {
+      const dia = masDias(lunes, i);
+      if (dia > hoy) continue;
+      const c = P.corteDe(dia);
+      for (const f of (c ? ps.filas.filter((r) => r.plan_id === c.id) : ini)) {
+        if (f.fecha !== dia || !f.sku) continue;
+        const w = dia < hoy ? 1 : f.hora < hh ? 1 : f.hora === hh ? mm / 60 : 0;
+        const v = x(f.sku); v.planUn += unDe(f) * w; v.planHl += Number(f.hl) * w;
+      }
+    }
+    const domingo0 = masDias(lunes, 6);
+    for (const m of movZ) {
+      if (m.fecha_contab < lunes || m.fecha_contab > domingo0) continue;
+      x(m.material.replace(/P$/i, "")).notifUn += m.clase === "Z02" ? -Math.abs(m.cantidad) : m.cantidad;
+    }
+    const skusSem = [...S].map(([sku, v]) => {
+      const notifHl = hl(v.notifUn, sku), ref = M.get(sku)?.ref ?? 0, pendUn = v.planUn - v.notifUn;
+      return { sku, nombre: M.get(sku)?.nombre ?? "", planUn: v.planUn, notifUn: v.notifUn, planHl: v.planHl, notifHl, pendUn, pendHl: v.planHl - notifHl, pendCajas: ref ? pendUn / ref : null };
+    }).filter((r) => Math.abs(r.pendUn) >= 1).sort((a, b) => b.pendHl - a.pendHl);
     const t = (k: keyof DiaSemana) => dias.reduce((a, d) => a + (d[k] as number), 0);
     const domingo = masDias(lunes, 6);
     const cerrada = !!u.valor && u.valor >= `${masDias(lunes, 7)}T06:00:00`;
     return {
       lunes, domingo, semana: P.inicial?.semana ?? ps.planes[0]?.semana ?? null,
       estado: !ps.planes.length ? "sin plan" : domingo >= hoy ? "en curso" : cerrada ? "cerrada" : "abierta",
-      dias, planIni: t("planIni"), planVig: t("planVig"), planHasta: t("planHasta"), notif: t("notif"),
+      dias, planIni: t("planIni"), planVig: t("planVig"), planHasta: t("planHasta"), notif: t("notif"), skus: skusSem,
     };
   };
   return { semanas: [semana(pasada, pa), semana(actual, pb)], mb51: u.valor, error };

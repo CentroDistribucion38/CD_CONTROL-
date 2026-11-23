@@ -40,7 +40,7 @@ export default async function CargarPage() {
         <CierreSemanas semanas={sem.semanas} mb51={sem.mb51} />
 
         <section className="pe-card">
-          <h3 className="pe-h3">Lo que hay cargado <small>{c.mb51?.filas ? `MB51: ${c.mb51.filas.toLocaleString("es-CO")} movimientos · contabilizados del ${fecha(c.mb51.desde!)} al ${fecha(c.mb51.hasta!)}` : "MB51: nada todavía"}</small></h3>
+          <h3 className="pe-h3">Lo que hay cargado <small>{c.mb51?.desde ? `MB51: ${c.mb51.filas ? `${c.mb51.filas.toLocaleString("es-CO")} movimientos · ` : ""}contabilizados del ${fecha(c.mb51.desde)} al ${fecha(c.mb51.hasta!)}` : "MB51: nada todavía"}</small></h3>
           {c.planes.length ? (
             <TablaCargado puede={puede} filas={c.planes.map((p) => {
               const P = papeles(porSemana.get(p.lunes) ?? []);

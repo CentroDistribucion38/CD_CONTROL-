@@ -242,3 +242,7 @@
 .pe .pe-sem-t th a:hover { text-decoration: underline }
 .pe .pe-sem-n { grid-column: 1 / -1; margin: 0 }
 @media (max-width: 640px) { .pe .pe-sem-k { grid-template-columns: repeat(2, 1fr) } .pe .pe-sem-k > div:nth-child(2) { border-right: 0 } }
+.pe .pe-sem-p { border-top: 1px solid var(--fe-linea, #dde2e8); padding-top: 10px }
+.pe .pe-sem-p > summary { cursor: pointer; font: 500 13px var(--fe-texto); list-style-position: inside }
+.pe .pe-sem-p > table { width: 100%; margin-top: 8px }
+.pe .pe-sem-p tr.mut td { color: var(--fe-gris, #6b7280) }
