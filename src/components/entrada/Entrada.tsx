@@ -1,23 +1,25 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { prepararBienvenida, presentacion } from "@/lib/bienvenida";
 import "./entrada.css";
 
 /**
  * LA ENTRADA DE LA APP — la B de Bavaria con movimiento, una vez por sesión.
  *
- * Coreografía (≈3 s): barrido diagonal rojo, dorado y blanco · la B entra girando en 3D y rebota · dos ondas
+ * Coreografía (≈4,5 s): barrido diagonal rojo, dorado y blanco · la B entra girando en 3D y rebota · dos ondas
  * (dorada y roja) cuando aterriza · dos arcos que se trazan en sentidos contrarios · chispas doradas · un brillo
  * que recorre la B · «C D 38» pequeño · y al final la pantalla de debajo se abre en un círculo desde el centro
  * mientras la B vuela a su sitio (el logo de la entrada o el de la barra de arriba, el que esté a la vista).
  *
  * VA EN EL HTML DEL SERVIDOR para que se pinte antes que la página (sin parpadeo). Si en esta sesión ya salió,
  * el script del <head> marca <html data-sin-entrada> y el CSS la esconde antes del primer cuadro.
- * Tocar la pantalla la salta. Con «reducir movimiento» del sistema solo hace un fundido corto.
- * No suena: el navegador no deja reproducir audio sin un toque; el sonido de bienvenida va al darle «Entrar».
+ * EL SONIDO. Ningún navegador deja sonar una página que se acaba de abrir sin que la persona toque algo. Por eso
+ * la entrada muestra «🔊 Toca para el sonido»: al tocar, suena la presentación (tono Oro y la voz). Y al darle
+ * «Entrar» en el inicio de sesión suena siempre (ver lib/bienvenida.ts). Con «reducir movimiento» solo hace un fundido.
  */
 export const CLAVE_ENTRADA = "cd38-entrada";
-const VUELA_EN = 2250, TERMINA_EN = 3100;
+const VUELA_EN = 3700, TERMINA_EN = 4600;
 
 export function Entrada() {
   const [viva, setViva] = useState(true);
@@ -51,22 +53,31 @@ export function Entrada() {
     return () => { window.clearTimeout(t1); window.clearTimeout(t2) };
   }, []);
 
+  const [sono, setSono] = useState(false);
   if (!viva) return null;
-  const saltar = () => setViva(false);
+  /* Tocar no la salta: hace que suene (una vez). */
+  const sonar = () => {
+    if (sono) return;
+    setSono(true);
+    prepararBienvenida();
+    void presentacion();
+    try { sessionStorage.setItem("cd38-bienvenida-sono", "1") } catch { /* sigue */ }
+  };
   return (
-    <div className="ent" aria-hidden onClick={saltar}>
+    <div className="ent" aria-hidden onPointerDown={sonar}>
       <div className="ent-capa" ref={capa}>
         <div className="ent-glow" />
         <div className="ent-onda" /><div className="ent-onda d" />
         <svg className="ent-arco a" viewBox="-150 -150 300 300"><defs><linearGradient id="ent-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#FFE7A0" /><stop offset=".5" stopColor="#E0A92E" /><stop offset="1" stopColor="#C8102E" /></linearGradient></defs><circle r="130" fill="none" stroke="url(#ent-g)" strokeWidth="3" strokeLinecap="round" transform="rotate(-90)" /></svg>
         <svg className="ent-arco b" viewBox="-150 -150 300 300"><circle r="118" fill="none" stroke="#C8102E" strokeWidth="2.5" strokeLinecap="round" transform="rotate(90)" /></svg>
-        <div className="ent-chispas">{Array.from({ length: 16 }, (_, k) => <i key={k} style={{ ["--a" as string]: `${k * 22.5}deg`, ["--d" as string]: `${90 + (k % 3) * 22}px`, animationDelay: `${0.85 + (k % 4) * 0.02}s` }} />)}</div>
+        <div className="ent-chispas">{Array.from({ length: 16 }, (_, k) => <i key={k} style={{ ["--a" as string]: `${k * 22.5}deg`, ["--d" as string]: `${90 + (k % 3) * 22}px`, animationDelay: `${1.1 + (k % 4) * 0.02}s` }} />)}</div>
         <div className="ent-cd">CD38</div>
+        {!sono && <div className="ent-toca">🔊 Toca para el sonido</div>}
         <div className="ent-barrido"><i className="r" /><i className="o" /><i className="w" /></div>
       </div>
       <div className="ent-logo" ref={logo}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/marca/logo-b.png" alt="" />
+        <img src="/marca/logo-b-hd.png" alt="" />
         <div className="ent-brillo" />
       </div>
     </div>

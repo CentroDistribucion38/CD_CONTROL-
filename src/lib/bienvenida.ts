@@ -22,14 +22,25 @@ let ctx: AudioContext | null = null;
 let eco: ConvolverNode | null = null;
 
 export function prepararBienvenida() {
+  /* iPhone: con el botón de silencio puesto, el audio de una página web no suena… salvo que la página diga que
+     reproduce medios («playback»). Safari 16.4+ lo permite con navigator.audioSession. */
+  try { (navigator as unknown as { audioSession?: { type: string } }).audioSession!.type = "playback" } catch { /* otro navegador */ }
   try {
     const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (AC) { ctx ??= new AC(); void ctx.resume() }
+    if (AC) {
+      ctx ??= new AC();
+      void ctx.resume();
+      /* Un sonido mudo dentro del toque: en iPhone es lo que deja «desbloqueado» el audio para después. */
+      const b = ctx.createBuffer(1, 1, 22050), src = ctx.createBufferSource();
+      src.buffer = b; src.connect(ctx.destination); src.start(0);
+    }
   } catch { /* sin audio, sigue */ }
   try {
     if ("speechSynthesis" in window) {
-      const u = new SpeechSynthesisUtterance(" ");
-      u.volume = 0;
+      /* La voz también se «desbloquea» hablando dentro del toque (en silencio). Un espacio solo, iPhone lo ignora. */
+      const u = new SpeechSynthesisUtterance("listo");
+      u.volume = 0; u.rate = 2;
+      window.speechSynthesis.cancel();
       window.speechSynthesis.speak(u);
     }
   } catch { /* sin voz, sigue */ }
