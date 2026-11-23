@@ -56,7 +56,14 @@ export function CierreSemanas({ semanas, maestro, mb51, faltaAdh }: { semanas: R
         const tag = s.estado === "cerrada" ? <span className="pe-tag t-v">Cerrada</span>
           : s.estado === "abierta" ? <span className="pe-tag t-a">Falta la madrugada del domingo</span>
           : s.estado === "en curso" ? <span className="pe-tag t-g">En curso</span> : <span className="pe-tag t-g">Sin plan</span>;
-        const contra = hayReal ? realT : base, pend = contra - notif;
+        /* EL PENDIENTE SE SUMA SKU POR SKU, no como total − total: lo notificado de más en un SKU no tapa lo que falta en otro
+           («tengo un pendiente en rojo y arriba sale 0»). Lo de más va aparte. */
+        let pend = 0, deMas = 0;
+        for (const x of s.skus) {
+          const c = hayReal ? real(x) ?? 0 : x.dias.reduce((a, d) => a + (k === 0 ? d.planVig : d.planHasta), 0);
+          const nn = x.dias.reduce((a, d) => a + d.notif, 0), v = conv(Math.abs(c - nn), x.sku) ?? 0;
+          if (c - nn >= 1) pend += v; else if (nn - c >= 1) deMas += v;
+        }
         return (
           <article key={s.lunes} className="pe-card pe-sem-c">
             <header>
@@ -71,8 +78,8 @@ export function CierreSemanas({ semanas, maestro, mb51, faltaAdh }: { semanas: R
                 <div><span>{k === 0 ? "Plan vigente" : "Plan vigente a esta hora"}</span><b>{fmt(base)}<small>{unom}</small></b>{k === 1 && <em>semana: {fmt(planVig)} {unom}</em>}</div>
                 {hayReal && <div className="k-am"><span>Real · adherencia</span><b>{fmt(realT)}<small>{unom}</small></b><em>adherencia {pct(realT, planVig)} del plan</em></div>}
                 <div><span>Notificado</span><b>{fmt(notif)}<small>{unom}</small></b><em>{hayReal ? `${pct(notif, realT)} de lo real` : `${pct(notif, base)} del plan`}</em></div>
-                <div className={pend > 0.5 ? "mal" : ""}><span>Pendiente por notificar</span><b>{pend > 0.5 ? fmt(pend) : "0 ✓"}<small>{pend > 0.5 ? unom : ""}</small></b>
-                  <em>{hayReal ? "real − notificado" : "plan − notificado"}{pend < -0.5 ? ` · ${fmt(-pend)} ${unom} de más` : ""}</em></div>
+                <div className={pend >= 0.5 ? "mal" : ""}><span>Pendiente por notificar</span><b>{pend >= 0.5 ? fmt(pend) : "0 ✓"}<small>{pend >= 0.5 ? unom : ""}</small></b>
+                  <em>{hayReal ? "real − notificado" : "plan − notificado"}, SKU por SKU{deMas >= 0.5 ? ` · ${fmt(deMas)} ${unom} notificados de más en otros SKU` : ""}</em></div>
               </div>
               <table className="pe-t pe-sem-t">
                 <thead><tr><th className="l" />{s.dias.map((d, i) => <th key={d.dia}><Link href={`/inventario/envase?d=${d.dia}`}>{DIA[i]} {d.dia.slice(8)}</Link></th>)}</tr></thead>
@@ -107,9 +114,11 @@ function Pendientes({ s, k, hayReal, conv, fmt, real, unom }: {
     const r = real(x), contra = hayReal ? r ?? 0 : plan, pendUn = contra - notif;
     return { x, plan, notif, r, pendUn, pend: conv(pendUn, x.sku) };
   }).filter((f) => Math.abs(f.pendUn) >= 1 || (hayReal && Math.abs(f.plan - (f.r ?? 0)) >= 1));
-  const pend = filas.filter((f) => f.pendUn >= 1).sort((a, b) => (b.pend ?? 0) - (a.pend ?? 0));
-  const mas = filas.filter((f) => f.pendUn <= -1).sort((a, b) => (a.pend ?? 0) - (b.pend ?? 0));
-  const ok = filas.filter((f) => Math.abs(f.pendUn) < 1);
+  /* Lo que redondeado a la unidad escogida da 0 (p. ej. 0,3 HL) no es pendiente ni «de más»: es ✓. */
+  const cuenta = (v: number | null) => v == null || Math.abs(v) >= 0.5;
+  const pend = filas.filter((f) => f.pendUn >= 1 && cuenta(f.pend)).sort((a, b) => (b.pend ?? 0) - (a.pend ?? 0));
+  const mas = filas.filter((f) => f.pendUn <= -1 && cuenta(f.pend)).sort((a, b) => (a.pend ?? 0) - (b.pend ?? 0));
+  const ok = filas.filter((f) => !pend.includes(f) && !mas.includes(f));
   if (!pend.length && !mas.length) return <p className="pe-nota">Nada pendiente por notificar: {hayReal ? "todo lo real" : "todo lo del plan"} está notificado.</p>;
   const t = pend.reduce((a, f) => a + (f.pend ?? 0), 0);
   const fila = (f: (typeof filas)[number], cls = "") => (
@@ -119,7 +128,7 @@ function Pendientes({ s, k, hayReal, conv, fmt, real, unom }: {
       {hayReal && <td>{f.r == null ? "—" : fmt(conv(f.r, f.x.sku))}</td>}
       {hayReal && <td>{f.plan ? `${Math.round((100 * (f.r ?? 0)) / f.plan)} %` : "—"}</td>}
       <td>{fmt(conv(f.notif, f.x.sku))}</td>
-      <td className={f.pendUn >= 1 ? "mal" : ""}><b>{f.pendUn >= 1 ? fmt(f.pend) : f.pendUn <= -1 ? `+${fmt(f.pend == null ? null : -f.pend)}` : "✓"}</b></td>
+      <td className={f.pendUn >= 1 && cuenta(f.pend) ? "mal" : ""}><b>{f.pendUn >= 1 && cuenta(f.pend) ? fmt(f.pend) : f.pendUn <= -1 && cuenta(f.pend) ? `+${fmt(f.pend == null ? null : -f.pend)}` : "✓"}</b></td>
     </tr>
   );
   return (
