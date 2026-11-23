@@ -1,7 +1,6 @@
 /**
  * EL SONIDO DE BIENVENIDA: un «logo sonoro» (hecho con Web Audio, sin archivos) y la voz del celular PRESENTANDO,
- * como locutor de evento, en tres tiempos con su pausa (sin pitos en medio: la música va solo al principio):
- *     «Bienvenido a…»   ·   «¡CONTROL TEAM!»   ·   «¡BARRANQUILLA!»
+ * de una sola vez y rápido, encima de las campanas: «Bienvenido a Control Team Barranquilla».
  * A la voz se le escribe «Tim»: las voces en español leen «Team» como «te-am».
  *
  * TRES TONOS (el que suena es TONO_APP):
@@ -169,17 +168,12 @@ function decir(texto: string, rate: number, pitch: number): Promise<void> {
 }
 const espera = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms));
 
-/** LA PRESENTACIÓN: el tono Oro al principio y luego la voz sola, en tres tiempos con su pausa (sin sonidos en medio). */
+/** LA PRESENTACIÓN: el tono Oro y, encima de sus campanas, la frase de una sola vez, ágil y sin pausas. */
 export async function presentacion() {
-  let t0 = 0;
-  try { t0 = logoSonoro("oro") } catch { /* sigue */ }
-  await espera(Math.max(400, t0 - 250));
+  try { logoSonoro("oro") } catch { /* sigue */ }
+  await espera(700);
   try { window.speechSynthesis?.cancel() } catch { /* sigue */ }
-  await decir("Bienvenido a", 0.9, 0.85);
-  await espera(220);
-  await decir("Control Tim", 0.8, 0.78);
-  await espera(260);
-  await decir("¡Barranquilla!", 0.82, 0.8);
+  await decir("Bienvenido a Control Tim Barranquilla", 1.08, 0.92);
 }
 
 /* UNA VEZ POR SESIÓN: suene donde suene primero (sola al abrir, al primer toque o al darle «Entrar»), no se repite. */
