@@ -187,3 +187,4 @@
 .gs .gi-listo { display: flex; flex-direction: column; gap: 14px; padding: 18px; background: var(--fe-papel); border: 1px solid var(--fe-linea); border-top: 6px solid var(--gs-verde) }
 .gs .gi-listo h2 { margin: 0; font: 800 22px var(--fe-titulo); color: var(--fe-tinta) }
 @media (max-width: 900px) { .gs .gi-pasos { grid-template-columns: 1fr } .gs .gs-cifras.c4 { grid-template-columns: repeat(2, minmax(0, 1fr)) } }
+.gs .btn.plano.gs-borrar:hover:not(:disabled) { color: var(--gs-rojo); border-color: var(--gs-rojo) }

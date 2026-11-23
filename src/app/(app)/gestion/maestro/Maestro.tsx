@@ -3,11 +3,12 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useAvisos } from "@/components/Aviso";
+import { useConfirmar } from "@/components/Confirmar";
 import {
   FRECUENCIAS, OPERADORES, SIMBOLO, fmt, textoDisparo, textoMeta, textoRegla,
   type Indicador, type Op, type Proceso, type Turno,
 } from "@/modulos/gestion/semaforo";
-import { activarIndicador, guardarIndicador, guardarProceso, guardarTurno, type FormIndicador } from "../actions";
+import { activarIndicador, eliminarArea, guardarIndicador, guardarProceso, guardarTurno, type FormIndicador } from "../actions";
 import { SoloVer } from "../comunes";
 
 type Pestana = "indicadores" | "procesos" | "turnos";
@@ -42,6 +43,7 @@ export function Maestro({ turnos, procesos, indicadores, puedeEditar }: {
   const router = useRouter();
   const [avisar, avisos] = useAvisos();
   const [pend, start] = useTransition();
+  const [pedir, dialogo] = useConfirmar();
   const [pestana, setPestana] = useState<Pestana>("indicadores");
   const [f, setF] = useState<Form | null>(null);
   const [fp, setFp] = useState<{ id?: string; nombre: string; orden: string; activo: boolean } | null>(null);
@@ -49,6 +51,13 @@ export function Maestro({ turnos, procesos, indicadores, puedeEditar }: {
   const pro = useMemo(() => new Map(procesos.map((p) => [p.id, p.nombre])), [procesos]);
   const kpis = indicadores.filter((i) => i.tipo === "kpi" && i.activo);
 
+  /* Eliminar un proceso: solo si ningún indicador cuelga de él (si tiene, se desactiva o se le cambian los indicadores). */
+  const eliminarProceso = async (p: Proceso) => {
+    const n = indicadores.filter((i) => i.proceso_id === p.id).length;
+    if (n) { avisar.mal(`«${p.nombre}» tiene ${n} indicador${n === 1 ? "" : "es"}. Pásalos a otro proceso o desactívalo en vez de eliminarlo.`); return }
+    if (!(await pedir({ titulo: `¿Eliminar «${p.nombre}»?`, dice: "Se borra de Supabase y deja de salir en el tablero. No tiene indicadores.", confirmar: "Eliminar", peligro: true }))) return;
+    start(async () => fin(await eliminarArea(p.id), `«${p.nombre}» eliminado.`, () => { if (fp?.id === p.id) setFp(null) }));
+  };
   const fin = (r: { error?: string; ok?: boolean }, bien: string, cerrar: () => void) => {
     if (r.error) { avisar.mal(r.error); return }
     avisar.bien(bien); cerrar(); router.refresh();
@@ -88,7 +97,7 @@ export function Maestro({ turnos, procesos, indicadores, puedeEditar }: {
 
   return (
     <>
-      {avisos}
+      {avisos}{dialogo}
       <section className="cabeza">
         <div>
           <p className="ojo">GESTIÓN · MAESTRO</p>
@@ -244,7 +253,10 @@ export function Maestro({ turnos, procesos, indicadores, puedeEditar }: {
                 <tr key={p.id} className={p.activo ? "" : "off"}>
                   <td><span className="gs-nom">{p.nombre}</span></td>
                   <td>{indicadores.filter((i) => i.proceso_id === p.id).length}</td><td>{p.orden}</td><td>{p.activo ? "Activo" : "Inactivo"}</td>
-                  <td className="gs-acc">{puedeEditar && <button type="button" className="btn plano" onClick={() => setFp({ id: p.id, nombre: p.nombre, orden: String(p.orden), activo: p.activo })}>Editar</button>}</td>
+                  <td className="gs-acc">{puedeEditar && (<>
+                    <button type="button" className="btn plano" onClick={() => setFp({ id: p.id, nombre: p.nombre, orden: String(p.orden), activo: p.activo })}>Editar</button>
+                    <button type="button" className="btn plano gs-borrar" disabled={pend} onClick={() => eliminarProceso(p)}>Eliminar</button>
+                  </>)}</td>
                 </tr>
               ))}
               {!procesos.length && <tr><td colSpan={5} className="gs-vacio">Sin procesos todavía. Los indicadores pueden quedar sin proceso, pero agruparlos ayuda al tablero.</td></tr>}
