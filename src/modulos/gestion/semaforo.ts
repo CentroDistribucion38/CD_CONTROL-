@@ -61,11 +61,22 @@ export type Analisis = {
   disparador_id: string; responsable: string;
   porque1: string; porque2: string; porque3: string; porque4: string; porque5: string;
   causa_raiz: string; iniciado_en: string; actualizado_en: string;
+  /** Estación del relevo (1 Sup OL · 2 Coord OL · 3 Sup AB · 4 OPL), los pases y la lección de un punto. */
+  paso?: number; relevos?: Relevo[]; opl?: string;
 };
+export type Relevo = { de: number; a: number; en: string; por: string | null };
+/** EL RELEVO DEL 5W: cada estación recibe, revisa y pasa a la siguiente; la última cierra con la OPL. */
+export const RELEVO: { n: number; quien: string; que: string }[] = [
+  { n: 1, quien: "Sup OL", que: "Analiza y escribe los 5 porqués" },
+  { n: 2, quien: "Coord OL", que: "Revisa y aprueba la causa" },
+  { n: 3, quien: "Sup AB", que: "Valida las acciones" },
+  { n: 4, quien: "OPL", que: "Lección de un punto · cierre" },
+];
+export type TipoAccion = "correctiva" | "preventiva";
 /** Una acción del plan de un disparador. */
 export type Accion = {
   id: string; disparador_id: string; accion: string; responsable: string; fecha_limite: string;
-  estado: "abierta" | "hecha"; hecha_en: string | null; creado_en: string;
+  estado: "abierta" | "hecha"; hecha_en: string | null; creado_en: string; tipo?: TipoAccion;
 };
 /** Dónde va un disparador: PENDIENTE (sin análisis) → EN ANÁLISIS (tomado) → CERRADO; o DESCARTADO. */
 export type Etapa = "pendiente" | "analisis" | "cerrado" | "descartado";

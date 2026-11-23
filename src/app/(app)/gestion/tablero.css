@@ -1,0 +1,170 @@
+/* =====================================================================
+   GESTIÓN · TABLERO (tb-) y la hoja del 5W (h5-). Cuelga de `.gs`. Recto, tinta, acento del tema y rojo.
+   ===================================================================== */
+
+/* ---------- hojas y filtros ---------- */
+.gs .tb-barra { display: flex; justify-content: space-between; align-items: end; gap: 12px; flex-wrap: wrap }
+.gs .tb-hojas { display: flex; border: 1px solid var(--fe-linea); background: var(--fe-papel) }
+.gs .tb-hojas button { min-height: 44px; padding: 0 20px; border: 0; background: none; color: var(--fe-tinta); font: 800 14px var(--fe-titulo); cursor: pointer; display: inline-flex; align-items: center; gap: 8px }
+.gs .tb-hojas button + button { border-left: 1px solid var(--fe-linea) }
+.gs .tb-hojas button.on { background: var(--fe-tinta); color: var(--fe-papel, #fff); box-shadow: inset 0 -4px 0 var(--fe-acento) }
+.gs .tb-hojas em { font: 900 11.5px var(--fe-titulo); font-style: normal; background: var(--fe-acento); color: var(--fe-tinta); padding: 1px 6px }
+.gs .tb-filtros { display: flex; gap: 10px; flex-wrap: wrap; align-items: end }
+.gs .tb-filtros label { display: flex; flex-direction: column; gap: 4px; font: 700 10.5px var(--fe-texto); letter-spacing: .12em; text-transform: uppercase; color: var(--fe-gris) }
+.gs .tb-filtros select { min-width: 170px }
+.gs .tb-filtros input[type="date"] { min-height: 40px; border: 1px solid var(--fe-linea); background: var(--fe-papel); color: var(--fe-tinta); font: 700 13px var(--fe-titulo); border-radius: 2px; padding: 0 10px }
+.gs .tb-atajos { display: flex; gap: 6px; flex-wrap: wrap; align-items: center }
+.gs .tb-atajos button { min-height: 34px; padding: 0 12px; border: 1px solid var(--fe-linea); background: var(--fe-papel); color: var(--fe-tinta); font: 700 12.5px var(--fe-titulo); border-radius: 2px; cursor: pointer }
+.gs .tb-atajos button.on { background: var(--fe-tinta); border-color: var(--fe-tinta); color: var(--fe-papel, #fff); box-shadow: inset 0 -3px 0 var(--fe-acento) }
+.gs .tb-atajos button.mal:not(.on) { border-color: var(--gs-rojo); color: var(--gs-rojo) }
+.gs .tb-atajos span { font-size: 12px; color: var(--fe-gris); margin-left: 4px }
+.gs a.gs-cif { cursor: pointer }
+
+/* ---------- la tabla: tres columnas fijas y un bloque por día ---------- */
+.gs .tb-scroll { overflow-x: auto; background: var(--fe-papel); border: 1px solid var(--fe-linea) }
+.gs .tb-t { border-collapse: separate; border-spacing: 0; font-size: 13px; min-width: 100% }
+.gs .tb-t th { background: var(--fe-tinta); color: var(--fe-papel, #fff); font: 700 10.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase; padding: 8px 10px; text-align: left; white-space: nowrap }
+.gs .tb-t th.dia { text-align: center; font: 800 12px var(--fe-titulo); letter-spacing: .02em; border-left: 2px solid #3a4a5e; padding: 7px 8px 3px }
+.gs .tb-t th.dia small { display: block; font: 600 10px var(--fe-texto); letter-spacing: .1em; opacity: .65 }
+.gs .tb-t th.dia.hoy { box-shadow: inset 0 3px 0 var(--fe-acento) }
+.gs .tb-t th.tur { text-align: center; background: color-mix(in srgb, var(--fe-tinta) 82%, #fff); padding: 5px 6px; font-size: 11px; min-width: 64px }
+.gs .tb-t th.tur.ini { border-left: 2px solid #3a4a5e }
+.gs .tb-t td { padding: 0; border-bottom: 1px solid var(--fe-linea); color: var(--fe-tinta); vertical-align: middle; background: var(--fe-papel, #fff) }
+
+/* fijas a la izquierda */
+.gs .tb-t .fijo { position: sticky; z-index: 2 }
+.gs .tb-t th.fijo { z-index: 3 }
+.gs .tb-t .f1 { left: 0; width: 260px; min-width: 260px; max-width: 260px }
+.gs .tb-t .f2 { left: 260px; width: 112px; min-width: 112px }
+.gs .tb-t .f3 { left: 372px; width: 168px; min-width: 168px; box-shadow: 2px 0 0 var(--fe-linea) }
+.gs .tb-t th.f3 { box-shadow: 2px 0 0 #3a4a5e }
+.gs .tb-t tr.es-kpi td.fijo { background: color-mix(in srgb, var(--fe-fondo) 55%, var(--fe-papel, #fff)) }
+.gs .tb-t tr.disp td.f1 { box-shadow: inset 4px 0 0 var(--gs-rojo) }
+.gs .tb-t tr.grupo td { background: var(--fe-fondo); font: 800 11px var(--fe-titulo); letter-spacing: .13em; text-transform: uppercase; color: var(--fe-tinta); padding: 7px 12px; border-bottom: 1px solid var(--fe-linea) }
+
+/* las tres celdas editables: todo el ancho es el botón */
+.gs .tb-ed { width: 100%; min-height: 48px; padding: 6px 12px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px }
+.gs .tb-ed:disabled { cursor: default }
+.gs .tb-ed:not(:disabled):hover { background: color-mix(in srgb, var(--fe-acento) 16%, transparent) }
+.gs .tb-ed:focus-visible { outline: 2px solid var(--fe-acento); outline-offset: -2px }
+.gs .tb-ed b { font: 800 13px var(--fe-titulo) }
+.gs .tb-tag { display: inline-block; font: 800 10px var(--fe-titulo); letter-spacing: .1em; padding: 2px 6px; border: 1px solid var(--fe-linea); background: var(--fe-fondo); color: var(--fe-tinta) }
+.gs .tb-tag.es-kpi { background: var(--fe-tinta); border-color: var(--fe-tinta); color: var(--fe-papel, #fff) }
+.gs .tb-ed .nom { flex-basis: 100%; font-size: 12.5px; color: var(--fe-gris); line-height: 1.3 }
+.gs .tb-t tr.es-pi .tb-ed { padding-left: 26px }
+.gs .tb-ed.val { flex-wrap: nowrap; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap }
+.gs .tb-ed.val.off { color: var(--fe-gris); font-weight: 500 }
+.gs .tb-ed i { font-style: normal; color: var(--fe-gris); font-size: 12px; margin-left: auto; padding-left: 6px }
+
+/* las celdas de los turnos */
+.gs .tb-t td.c { text-align: center; padding: 8px 6px; font: 800 13px var(--fe-titulo); font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 64px }
+.gs .tb-t td.c.ini { border-left: 2px solid var(--fe-linea) }
+.gs .tb-t td.c.verde { background: color-mix(in srgb, var(--gs-verde) 11%, var(--fe-papel, #fff)); color: var(--gs-verde) }
+.gs .tb-t td.c.rojo { background: color-mix(in srgb, var(--gs-rojo) 12%, var(--fe-papel, #fff)); color: var(--gs-rojo) }
+.gs .tb-t td.c.sin { color: var(--fe-gris); font-weight: 500 }
+.gs .tb-t td.c.na { background: repeating-linear-gradient(135deg, transparent 0 5px, var(--fe-linea) 5px 6px) }
+.gs .tb-t td.c.per { font-style: italic }
+
+/* ---------- ocurrencias y plan de acción ---------- */
+.gs .tb-ocu { display: flex; flex-direction: column; gap: 8px; scroll-margin-top: 80px }
+.gs .tb-ocu h2 { margin: 8px 0 0; display: flex; align-items: baseline; gap: 8px; font: 800 18px var(--fe-titulo); color: var(--fe-tinta) }
+.gs .tb-ocu h2 b { color: var(--gs-rojo) }
+.gs .tb-ocu h2 small { font: 500 12.5px var(--fe-texto); color: var(--fe-gris) }
+.gs .tb-o { width: 100%; min-width: 820px; border-collapse: collapse; font-size: 13.5px }
+.gs .tb-o th { background: var(--fe-tinta); color: var(--fe-papel, #fff); font: 700 10.5px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase; padding: 9px 12px; text-align: left; white-space: nowrap }
+.gs .tb-o td { padding: 9px 12px; border-bottom: 1px solid var(--fe-linea); color: var(--fe-tinta) }
+.gs .tb-o td.nw { white-space: nowrap }
+.gs .tb-o td.mal { color: var(--gs-rojo); font-weight: 700 }
+.gs .tb-o tr.cerrado td, .gs .tb-o tr.descartado td { color: var(--fe-gris) }
+.gs .tb-o td .btn { min-height: 38px }
+.gs .tb-pill { display: inline-block; font: 800 10.5px var(--fe-titulo); letter-spacing: .06em; text-transform: uppercase; padding: 3px 8px; white-space: nowrap }
+.gs .tb-pill.mal { background: var(--gs-rojo); color: #fff }
+.gs .tb-pill.va { background: color-mix(in srgb, var(--fe-acento) 30%, #fff); color: var(--fe-tinta) }
+.gs .tb-pill.ok { background: color-mix(in srgb, var(--gs-verde) 14%, #fff); color: var(--gs-verde) }
+.gs .tb-pill.gris { background: var(--fe-fondo); color: var(--fe-gris) }
+.gs .tb-tipo { display: inline-block; font: 800 10px var(--fe-titulo); letter-spacing: .08em; text-transform: uppercase; padding: 3px 7px; color: #fff; background: var(--gs-rojo); white-space: nowrap }
+.gs .tb-tipo.preventiva { background: #1F5FAE }
+.gs .tb-plan { display: flex; flex-direction: column; gap: 10px }
+.gs .tb-p td.acc { min-width: 260px; font-weight: 600 }
+.gs .tb-p tr.hecha td.acc { text-decoration: line-through; color: var(--fe-gris) }
+.gs .tb-p input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--fe-tinta) }
+.gs .tb-link { border: 0; background: none; padding: 0; font: 700 13px var(--fe-titulo); color: var(--fe-tinta); text-decoration: underline; text-decoration-color: var(--fe-acento); text-decoration-thickness: 2px; text-underline-offset: 3px; cursor: pointer }
+
+/* ---------- ventana ✎ ---------- */
+.gs .tb-edcaja { max-width: 480px }
+.gs .tb-edcaja select, .gs .tb-edcaja input:not([type="checkbox"]) { box-sizing: border-box; min-height: 44px; padding: 0 12px; border: 1px solid var(--c-d5dce5); border-radius: 2px; background: #fff; color: var(--c-04203f); font: 600 15px "IBM Plex Sans", system-ui, sans-serif }
+.gs .tb-edcaja .tb-fila { display: flex; gap: 8px; align-items: center }
+.gs .tb-edcaja .tb-fila select { width: 190px; flex: none } .tb-edcaja .tb-fila input { flex: 1; min-width: 0 }
+.gs .tb-edcaja .tb-fila input[type="number"] { flex: 0 0 90px }
+.gs .tb-edcaja .tb-fila em { font-style: normal; font-size: 14px; color: var(--c-2c4361) }
+.gs .tb-edcaja .tb-chk { display: flex; align-items: center; gap: 8px; font-size: 14px; margin-bottom: 8px; color: var(--c-04203f) }
+.gs .tb-edcaja .tb-chk input { width: 18px; height: 18px; accent-color: var(--c-04203f) }
+
+/* ---------- la hoja del 5W ---------- */
+.gs .h5-velo { position: fixed; inset: 0; z-index: 80; background: var(--c-velo, rgba(4, 32, 63, .55)); overflow-y: auto; padding: 28px 24px }
+.gs .h5 { max-width: 1240px; margin: 0 auto; background: var(--fe-papel, #fff); border-top: 6px solid var(--gs-rojo); box-shadow: 0 24px 60px rgba(4, 32, 63, .32); padding: 18px 22px 20px; display: flex; flex-direction: column; gap: 16px; color: var(--fe-tinta) }
+.gs .h5.cerrado { border-top-color: var(--gs-verde) } .h5.descartado { border-top-color: var(--fe-gris) }
+.gs .h5-cab { display: flex; justify-content: space-between; gap: 16px; align-items: start }
+.gs .h5-cab .ojo { margin: 0; font: 800 11px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase; color: var(--fe-gris) }
+.gs .h5-cab h2 { margin: 3px 0 0; font: 800 21px/1.25 var(--fe-titulo) }
+.gs .h5-x { width: 44px; height: 44px; flex: none; border: 1px solid var(--fe-linea); background: var(--fe-papel); color: var(--fe-tinta); font-size: 18px; cursor: pointer }
+.gs .h5-x:hover { background: var(--fe-fondo) }
+
+.gs .h5-relevo { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 3px solid var(--fe-linea) }
+.gs .h5-relevo li { display: flex; gap: 10px; align-items: start; padding: 12px 10px 4px 0; position: relative }
+.gs .h5-relevo li::before { content: ""; position: absolute; left: 0; right: 0; top: -3px; height: 3px; background: transparent }
+.gs .h5-relevo li.hecho::before { background: var(--gs-verde) }
+.gs .h5-relevo li.aqui::before { background: var(--fe-acento) }
+.gs .h5-relevo .n { width: 32px; height: 32px; flex: none; display: grid; place-items: center; border: 2px solid var(--fe-linea); font: 900 15px var(--fe-titulo); color: var(--fe-gris); background: var(--fe-papel) }
+.gs .h5-relevo li.aqui .n { background: var(--fe-acento); border-color: var(--fe-acento); color: var(--fe-tinta) }
+.gs .h5-relevo li.hecho .n { background: var(--gs-verde); border-color: var(--gs-verde); color: #fff }
+.gs .h5-relevo b { display: block; font: 800 15px var(--fe-titulo) }
+.gs .h5-relevo small { display: block; font-size: 12.5px; color: var(--fe-gris) }
+.gs .h5-fin { margin: 0; padding: 10px 14px; border-left: 5px solid var(--gs-verde); background: color-mix(in srgb, var(--gs-verde) 9%, #fff); font-size: 13.5px }
+.gs .h5-fin.descartado { border-left-color: var(--fe-gris); background: var(--fe-fondo) }
+
+.gs .h5-cuerpo { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 22px; align-items: start }
+.gs .h5-izq, .gs .h5-der { display: flex; flex-direction: column; gap: 8px; min-width: 0 }
+.gs .h5-campo { display: flex; flex-direction: column; gap: 3px; padding: 8px 12px; border: 1px solid var(--fe-linea); background: var(--fe-papel, #fff) }
+.gs .h5-campo > span { font: 800 10.5px var(--fe-texto); letter-spacing: .1em; text-transform: uppercase; color: var(--fe-gris) }
+.gs .h5-campo.lleno > span { color: var(--fe-tinta) }
+.gs .h5-campo input:not([type="checkbox"]), .gs .h5-campo textarea { border: 0; padding: 2px 0; background: transparent; color: var(--fe-tinta); font: 500 15px/1.4 var(--fe-texto); resize: vertical; width: 100%; min-height: 26px; field-sizing: content }
+.gs .h5-campo textarea:disabled { color: var(--fe-gris) }
+.gs .h5-campo:focus-within { border-color: var(--fe-tinta); box-shadow: inset 0 -3px 0 var(--fe-acento) }
+.gs .h5-campo input:focus, .gs .h5-campo textarea:focus { outline: none }
+.gs .h5-campo p { margin: 0; font: 500 15px/1.4 var(--fe-texto); white-space: pre-wrap }
+.gs .h5-campo.raiz { border-left: 5px solid var(--gs-rojo) }
+.gs .h5-campo.opl { border-left: 5px solid var(--fe-acento); background: color-mix(in srgb, var(--fe-acento) 8%, #fff) }
+
+.gs .h5-der h3 { margin: 0; font: 800 17px var(--fe-titulo) } .h5-der h3 small { font: 500 12.5px var(--fe-texto); color: var(--fe-gris); margin-left: 6px }
+.gs .h5-acc { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px }
+.gs .h5-acc li { display: grid; grid-template-columns: auto auto 1fr auto; gap: 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--fe-linea) }
+.gs .h5-acc li.hecha b { text-decoration: line-through; color: var(--fe-gris) }
+.gs .h5-acc li.vencida { border-left: 5px solid var(--gs-rojo) } .h5-acc li.vencida small { color: var(--gs-rojo); font-weight: 800 }
+.gs .h5-acc input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--fe-tinta) }
+.gs .h5-acc b { font: 600 14px/1.35 var(--fe-texto) } .h5-acc small { display: block; font-size: 12px; color: var(--fe-gris) }
+.gs .h5-quitar { width: 32px; height: 32px; border: 1px solid var(--fe-linea); background: none; color: var(--fe-gris); cursor: pointer }
+.gs .h5-quitar:hover { color: var(--gs-rojo); border-color: var(--gs-rojo) }
+.gs .h5-nueva { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px dashed var(--fe-linea); background: var(--fe-fondo) }
+.gs .h5-nueva input:not([type="checkbox"]) { min-height: 42px; border: 1px solid var(--fe-linea); background: var(--fe-papel, #fff); color: var(--fe-tinta); font: 500 14px var(--fe-texto); padding: 0 10px; border-radius: 2px; min-width: 0 }
+.gs .h5-fila { display: grid; grid-template-columns: 1fr 150px auto; gap: 8px }
+.gs .h5-seg { display: flex }
+.gs .h5-seg button { min-height: 36px; padding: 0 14px; border: 1px solid var(--fe-linea); background: var(--fe-papel, #fff); font: 800 11.5px var(--fe-titulo); letter-spacing: .08em; text-transform: uppercase; color: var(--fe-gris); cursor: pointer }
+.gs .h5-seg button + button { border-left: 0 }
+.gs .h5-seg button.on.correctiva { background: var(--gs-rojo); border-color: var(--gs-rojo); color: #fff }
+.gs .h5-seg button.on.preventiva { background: #1F5FAE; border-color: #1F5FAE; color: #fff }
+
+.gs .h5-pie { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; border-top: 1px solid var(--fe-linea); padding-top: 14px }
+.gs .h5-falta { flex: 1; font-size: 12.5px; color: var(--fe-gris); min-width: 160px }
+.gs .h5 .btn { min-height: 44px }
+
+@media (max-width: 900px) {
+  .gs .tb-t .f1 { width: 150px; min-width: 150px; max-width: 150px; box-shadow: 2px 0 0 var(--fe-linea) }
+  .gs .tb-t .f2, .gs .tb-t .f3 { position: static; box-shadow: none }
+  .gs .tb-ed .nom { font-size: 11.5px }
+  .gs .h5-velo { padding: 0 }
+  .gs .h5 { min-height: 100%; padding: 14px }
+  .gs .h5-relevo { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .gs .h5-cuerpo { grid-template-columns: 1fr }
+  .gs .h5-fila { grid-template-columns: 1fr 1fr } .h5-fila .btn { grid-column: 1 / -1 }
+}

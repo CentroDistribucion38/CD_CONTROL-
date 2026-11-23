@@ -10,7 +10,9 @@ import { misPermisos } from "@/lib/permisos";
  * Estados: PENDIENTE (sin análisis) → EN ANÁLISIS (con responsable) → CERRADO (causa raíz + todas las acciones hechas).
  */
 const RUTA = "/gestion/disparadores";
-const msj = (m: string) => (/does not exist|schema cache|Could not find/i.test(m)
+const msj = (m: string) => (/\b(paso|relevos|opl|tipo)\b/i.test(m) && /column|schema cache|Could not find/i.test(m)
+  ? "Falta el relevo del 5W: corre supabase/migraciones/2026-11-gestion-tablero-relevo.sql en Supabase."
+  : /does not exist|schema cache|Could not find/i.test(m)
   ? "Falta crear las tablas del 5 Why: corre supabase/migraciones/2026-10-gestion-5why-plan.sql en Supabase."
   : m);
 const refrescar = () => { revalidatePath("/gestion", "layout"); };
@@ -28,7 +30,7 @@ async function quien(): Promise<{ error: string } | Ctx> {
 type Resp = { ok?: boolean; error?: string };
 
 /** Toma el disparador (lo pasa a EN ANÁLISIS) o guarda el avance: responsable, los 5 por qué y la causa raíz. */
-export async function guardarAnalisis(f: { disparador_id: string; responsable: string; porques: string[]; causa_raiz: string }): Promise<Resp> {
+export async function guardarAnalisis(f: { disparador_id: string; responsable: string; porques: string[]; causa_raiz: string; opl?: string }): Promise<Resp> {
   const q = await quien(); if ("error" in q) return { error: q.error };
   const responsable = (f.responsable ?? "").trim();
   if (responsable.length < 2) return { error: "Escribe quién es el responsable del análisis." };
@@ -42,6 +44,8 @@ export async function guardarAnalisis(f: { disparador_id: string; responsable: s
     disparador_id: f.disparador_id, responsable,
     porque1: p[0], porque2: p[1], porque3: p[2], porque4: p[3], porque5: p[4],
     causa_raiz: (f.causa_raiz ?? "").trim(), actualizado_en: new Date().toISOString(),
+    /* La OPL solo la manda el tablero (relevo); la pantalla de Disparadores no la toca. */
+    ...(f.opl != null ? { opl: f.opl.trim() } : {}),
   };
   const { data: ya } = await q.supabase.from("gestion_analisis").select("disparador_id").eq("disparador_id", f.disparador_id).maybeSingle();
   const { error } = ya
@@ -53,7 +57,7 @@ export async function guardarAnalisis(f: { disparador_id: string; responsable: s
 }
 
 /** Una acción del plan. Con `id` la corrige; sin `id` la crea. */
-export async function guardarAccion(f: { id?: string; disparador_id: string; accion: string; responsable: string; fecha_limite: string }): Promise<Resp> {
+export async function guardarAccion(f: { id?: string; disparador_id: string; accion: string; responsable: string; fecha_limite: string; tipo?: "correctiva" | "preventiva" }): Promise<Resp> {
   const q = await quien(); if ("error" in q) return { error: q.error };
   const accion = (f.accion ?? "").trim(), responsable = (f.responsable ?? "").trim();
   if (accion.length < 5) return { error: "Describe la acción (mínimo unas palabras)." };
@@ -61,9 +65,11 @@ export async function guardarAccion(f: { id?: string; disparador_id: string; acc
   if (!fechaOk(f.fecha_limite)) return { error: "Escoge la fecha límite." };
   const { data: a } = await q.supabase.from("gestion_analisis").select("disparador_id").eq("disparador_id", f.disparador_id).maybeSingle();
   if (!a) return { error: "Primero toma el disparador (guarda el responsable del análisis)." };
+  /* El tipo solo va si lo mandan (el tablero); así la pantalla de Disparadores sigue andando sin el SQL nuevo. */
+  const tipo = f.tipo === "preventiva" || f.tipo === "correctiva" ? { tipo: f.tipo } : {};
   const { error } = f.id
-    ? await q.supabase.from("gestion_acciones").update({ accion, responsable, fecha_limite: f.fecha_limite }).eq("id", f.id).eq("estado", "abierta")
-    : await q.supabase.from("gestion_acciones").insert({ disparador_id: f.disparador_id, accion, responsable, fecha_limite: f.fecha_limite, creado_por: q.uid });
+    ? await q.supabase.from("gestion_acciones").update({ accion, responsable, fecha_limite: f.fecha_limite, ...tipo }).eq("id", f.id).eq("estado", "abierta")
+    : await q.supabase.from("gestion_acciones").insert({ disparador_id: f.disparador_id, accion, responsable, fecha_limite: f.fecha_limite, creado_por: q.uid, ...tipo });
   if (error) return { error: msj(error.message) };
   refrescar();
   return { ok: true };
@@ -107,6 +113,37 @@ export async function cerrarDisparador(id: string, nota: string): Promise<Resp> 
   const { error } = await q.supabase.from("gestion_disparadores")
     .update({ estado: "cerrado", nota: verificacion, cerrado_en: new Date().toISOString(), cerrado_por: q.uid })
     .eq("id", id).eq("estado", "activo");
+  if (error) return { error: msj(error.message) };
+  refrescar();
+  return { ok: true };
+}
+
+/**
+ * EL RELEVO DEL 5W: Sup OL (1) → Coord OL (2) → Sup AB (3) → OPL (4). Pasar adelante pide lo de cada estación:
+ * a Coord OL, los porqués y la causa raíz; a Sup AB, al menos una acción. Devolver (a una estación anterior) siempre
+ * se puede: es cuando el que revisa no está de acuerdo. Cada pase queda en `relevos`.
+ */
+export async function pasarRelevo(disparador_id: string, a: number): Promise<Resp> {
+  const q = await quien(); if ("error" in q) return { error: q.error };
+  if (![1, 2, 3, 4].includes(a)) return { error: "Estación inválida." };
+  const [d, an, ac] = await Promise.all([
+    q.supabase.from("gestion_disparadores").select("estado").eq("id", disparador_id).maybeSingle(),
+    q.supabase.from("gestion_analisis").select("*").eq("disparador_id", disparador_id).maybeSingle(),
+    q.supabase.from("gestion_acciones").select("id").eq("disparador_id", disparador_id),
+  ]);
+  const e = d.error ?? an.error ?? ac.error;
+  if (e) return { error: msj(e.message) };
+  if (!d.data || d.data.estado !== "activo") return { error: "Ese disparador ya no está activo." };
+  if (!an.data) return { error: "Primero guarda el 5W (responsable y porqués)." };
+  const de = Number(an.data.paso ?? 1);
+  if (a > de) {
+    if (!(an.data.porque1 ?? "").trim() || (an.data.causa_raiz ?? "").trim().length < 10)
+      return { error: "Para pasar el relevo guarda al menos el primer porqué y la causa raíz." };
+    if (a >= 3 && !(ac.data ?? []).length) return { error: "Para pasar a Sup AB registra al menos una acción." };
+  }
+  const relevos = [...(Array.isArray(an.data.relevos) ? an.data.relevos : []), { de, a, en: new Date().toISOString(), por: q.uid }];
+  const { error } = await q.supabase.from("gestion_analisis")
+    .update({ paso: a, relevos, actualizado_en: new Date().toISOString() }).eq("disparador_id", disparador_id);
   if (error) return { error: msj(error.message) };
   refrescar();
   return { ok: true };

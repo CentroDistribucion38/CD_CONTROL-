@@ -216,4 +216,26 @@ export async function activarIndicador(id: string, activo: boolean) {
   return { ok: true };
 }
 
+/**
+ * DESDE EL TABLERO: cambiar el nombre, la meta y el disparador («no cumple N turnos») de un indicador sin ir al Maestro.
+ * Lo puede quien edite el Tablero o el Maestro. Lo ya capturado conserva su color: la meta nueva cuenta del próximo
+ * resultado en adelante.
+ */
+export async function cambiarDesdeTablero(id: string, f: { nombre: string; meta_op: Op; meta_valor: number; disparo_activo: boolean; disparo_consecutivos: number }) {
+  const permisos = await misPermisos();
+  if (!permisos.puedeEditar("/gestion") && !permisos.puedeEditar("/gestion/maestro")) return { error: "No tienes permiso para cambiar indicadores." };
+  const nombre = (f.nombre ?? "").trim();
+  if (!nombre) return { error: "Ponle nombre al indicador." };
+  if (!opOk(f.meta_op) || !Number.isFinite(Number(f.meta_valor))) return { error: "La meta necesita operador y número." };
+  const n = Math.round(Number(f.disparo_consecutivos));
+  if (!Number.isFinite(n) || n < 1 || n > 30) return { error: "El disparador va de 1 a 30 turnos seguidos." };
+  const supabase = await createClient();
+  const { error } = await supabase.from("gestion_indicadores")
+    .update({ nombre, meta_op: f.meta_op, meta_valor: Number(f.meta_valor), disparo_activo: !!f.disparo_activo, disparo_consecutivos: n })
+    .eq("id", id);
+  if (error) return { error: msj(error.message) };
+  refrescar();
+  return { ok: true };
+}
+
 export type DisparadorFila = Disparador;
