@@ -1,91 +1,108 @@
-import { convertir, estadoDia, maestro, masDias, papeles, type FilaPlanBD } from "./calc";
+import { createClient } from "@/lib/supabase/server";
+import { estadoDia, maestro, masDias, papeles, type FilaPlanBD } from "./calc";
 import { hoyBogota, lunesDe, movimientosContab, planesDeSemana, productosDe, ultimaEntrada } from "./datos";
 
 /**
- * EL CIERRE DE LA SEMANA PASADA Y CÓMO VA LA ACTUAL — en HL.
+ * EL CIERRE DE LA SEMANA PASADA Y CÓMO VA LA ACTUAL.
  *
  * «Así como subo toda la MB51 para revisar todo, me debería dar primero el cierre del plan de la semana pasada y la actual.»
- * Por semana (lunes a domingo) y día por día:
- *   · plan inicial y plan vigente (cada día con el último corte que lo cubre; si no hay corte, el inicial)
+ * «Con el reporte de adherencia yo cierro la semana y así digo qué quedó del plan de producción, y con eso validamos.»
+ *
+ * Por semana (lunes a domingo), SKU por SKU y día por día, en UNIDADES (la pantalla pasa a HL, cajas o estibas):
+ *   · plan inicial y plan vigente (cada día con el último corte que lo cubre; si no hay corte, el inicial);
+ *     en la semana actual, hoy cuenta hasta esta hora y los días que vienen no cuentan
  *   · notificado = Z01 − Z02 con fecha de contabilización de ese día (lo de madrugada cuenta en su día)
- *   · cumplimiento = notificado ÷ plan vigente
- * La semana pasada queda CERRADA cuando la MB51 trae algo digitado desde las 6:00 del lunes siguiente (la madrugada del domingo
- * ya está). En la semana actual, hoy cuenta el plan hasta esta hora (la hora en curso, por minutos) y los días que vienen no cuentan.
+ *   · REAL = el reporte de adherencia de la semana (cajas × unidades por caja), si se cargó
+ * La semana pasada queda CERRADA cuando la MB51 trae algo digitado desde las 6:00 del lunes siguiente.
  */
-export type DiaSemana = { dia: string; planIni: number; planVig: number; planHasta: number; notif: number; estado: "cerrado" | "abierto" | "sin" | "futuro" };
+export type DiaSku = { planIni: number; planVig: number; planHasta: number; notif: number };
+export type SkuSemana = { sku: string; nombre: string; dias: DiaSku[]; realUn: number | null; realCajas: number | null };
 export type ResumenSemana = {
   lunes: string; domingo: string; semana: number | null; estado: "cerrada" | "abierta" | "en curso" | "sin plan";
-  dias: DiaSemana[]; planIni: number; planVig: number; planHasta: number; notif: number;
-  /** Por SKU, lo que quedó pendiente por notificar (plan vigente hasta esta hora − notificado), del más grande al más chico.
-   *  un = unidades, hl = HL, cajas = un ÷ unidades por caja (null si no se sabe). Negativo = se notificó de más. */
-  skus: { sku: string; nombre: string; planUn: number; notifUn: number; planHl: number; notifHl: number; pendUn: number; pendHl: number; pendCajas: number | null }[];
+  dias: { dia: string; estado: "cerrado" | "abierto" | "sin" | "futuro" }[];
+  skus: SkuSemana[];
+  /** Hay reporte de adherencia (lo real) de esta semana: cuándo se subió. */
+  real: { subido: string; archivo: string | null } | null;
 };
+export type MaestroPlano = Record<string, { nombre: string; ml: number; ref: number; cpe: number }>;
 
-export async function cierreDeSemanas(): Promise<{ semanas: ResumenSemana[]; mb51: string | null; error: string | null }> {
+type FilaAdh = { lunes: string; sku: string; producto: string | null; ref_nombre: number | null; cajas_real: number; archivo: string | null; subido_en: string };
+
+export async function cierreDeSemanas(): Promise<{ semanas: ResumenSemana[]; maestro: MaestroPlano; mb51: string | null; error: string | null; faltaAdh: boolean }> {
   const hoy = hoyBogota();
   const ahora = new Intl.DateTimeFormat("en-GB", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date());
   const [hh, mm] = ahora.split(":").map(Number);
   const actual = lunesDe(hoy), pasada = masDias(actual, -7);
-  const [u, pa, pb, mv] = await Promise.all([ultimaEntrada(), planesDeSemana(pasada), planesDeSemana(actual), movimientosContab(pasada, masDias(actual, 6))]);
-  const error = pa.error ?? pb.error ?? mv.error ?? null;
+  const s = await createClient();
+  const [u, pa, pb, mv, ad] = await Promise.all([
+    ultimaEntrada(), planesDeSemana(pasada), planesDeSemana(actual), movimientosContab(pasada, masDias(actual, 6)),
+    s.from("pe_adherencia").select("lunes, sku, producto, ref_nombre, cajas_real, archivo, subido_en").in("lunes", [pasada, actual]),
+  ]);
+  const faltaAdh = !!ad.error && /pe_adherencia|does not exist|PGRST20[25]|42P01/i.test(ad.error.message);
+  const adh = ((ad.error ? [] : ad.data) ?? []).map((x) => ({ ...x, cajas_real: Number(x.cajas_real), ref_nombre: x.ref_nombre == null ? null : Number(x.ref_nombre) })) as FilaAdh[];
+  const error = pa.error ?? pb.error ?? mv.error ?? (ad.error && !faltaAdh ? ad.error.message : null);
+
   const skus = new Set<string>();
   for (const f of [...pa.filas, ...pb.filas]) if (f.sku) skus.add(f.sku);
   const movZ = mv.filas.filter((m) => (m.clase === "Z01" || m.clase === "Z02") && /P$/i.test(m.material));
   for (const m of movZ) skus.add(m.material.replace(/P$/i, ""));
+  for (const a of adh) skus.add(a.sku);
   const M = maestro([...pa.filas, ...pb.filas], await productosDe([...skus]));
-  const hl = (un: number, sku: string) => convertir(un, sku, "hl", M) ?? 0;
-
-  /* Notificado en HL por día de contabilización. */
-  const notifDia = new Map<string, number>();
-  for (const m of movZ) {
-    const q = m.clase === "Z02" ? -Math.abs(m.cantidad) : m.cantidad;
-    notifDia.set(m.fecha_contab, (notifDia.get(m.fecha_contab) ?? 0) + hl(q, m.material.replace(/P$/i, "")));
+  /* Lo que el maestro no sepa de un SKU que solo está en la adherencia: el nombre y las unidades por caja del reporte. */
+  for (const a of adh) {
+    const x = M.get(a.sku) ?? { nombre: "", ml: 0, ref: 0, cpe: 0 };
+    M.set(a.sku, { ...x, nombre: x.nombre || a.producto || "", ref: x.ref || a.ref_nombre || 0 });
   }
 
   const semana = (lunes: string, ps: typeof pa): ResumenSemana => {
     const P = papeles(ps.planes);
     const ini = P.inicial ? ps.filas.filter((f) => f.plan_id === P.inicial!.id) : [];
-    const suma = (fs: FilaPlanBD[], dia: string, peso: (f: FilaPlanBD) => number = () => 1) => fs.reduce((a, f) => a + (f.fecha === dia ? Number(f.hl) * peso(f) : 0), 0);
-    const dias: DiaSemana[] = [];
-    for (let i = 0; i < 7; i++) {
-      const dia = masDias(lunes, i);
-      const c = P.corteDe(dia);
-      const vig = c ? ps.filas.filter((f) => f.plan_id === c.id) : ini;
-      const planVig = suma(vig, dia);
-      const planHasta = dia < hoy ? planVig : dia > hoy ? 0 : suma(vig, dia, (f) => (f.hora < hh ? 1 : f.hora === hh ? mm / 60 : 0));
-      dias.push({ dia, planIni: suma(ini, dia), planVig, planHasta, notif: dia > hoy ? 0 : notifDia.get(dia) ?? 0, estado: estadoDia(dia, u.valor, hoy) });
-    }
-    /* POR SKU: el plan vigente de cada día (hasta esta hora en el día de hoy) contra lo notificado de la semana. */
-    const S = new Map<string, { planUn: number; planHl: number; notifUn: number }>();
-    const x = (sku: string) => { let v = S.get(sku); if (!v) { v = { planUn: 0, planHl: 0, notifUn: 0 }; S.set(sku, v) } return v };
     const unDe = (f: FilaPlanBD) => Number(f.unidades) || (f.formato_ml ? (Number(f.hl) * 1e5) / Number(f.formato_ml) : 0);
+    const S = new Map<string, SkuSemana>();
+    const x = (sku: string) => {
+      let v = S.get(sku);
+      if (!v) { v = { sku, nombre: M.get(sku)?.nombre ?? "", dias: Array.from({ length: 7 }, () => ({ planIni: 0, planVig: 0, planHasta: 0, notif: 0 })), realUn: null, realCajas: null }; S.set(sku, v) }
+      return v;
+    };
+    const dias: ResumenSemana["dias"] = [];
     for (let i = 0; i < 7; i++) {
       const dia = masDias(lunes, i);
-      if (dia > hoy) continue;
+      dias.push({ dia, estado: estadoDia(dia, u.valor, hoy) });
+      for (const f of ini) if (f.fecha === dia && f.sku) x(f.sku).dias[i].planIni += unDe(f);
       const c = P.corteDe(dia);
       for (const f of (c ? ps.filas.filter((r) => r.plan_id === c.id) : ini)) {
         if (f.fecha !== dia || !f.sku) continue;
-        const w = dia < hoy ? 1 : f.hora < hh ? 1 : f.hora === hh ? mm / 60 : 0;
-        const v = x(f.sku); v.planUn += unDe(f) * w; v.planHl += Number(f.hl) * w;
+        const d = x(f.sku).dias[i], un = unDe(f);
+        d.planVig += un;
+        d.planHasta += dia < hoy ? un : dia > hoy ? 0 : un * (f.hora < hh ? 1 : f.hora === hh ? mm / 60 : 0);
       }
     }
-    const domingo0 = masDias(lunes, 6);
     for (const m of movZ) {
-      if (m.fecha_contab < lunes || m.fecha_contab > domingo0) continue;
-      x(m.material.replace(/P$/i, "")).notifUn += m.clase === "Z02" ? -Math.abs(m.cantidad) : m.cantidad;
+      const i = Math.round((Date.parse(m.fecha_contab + "T12:00:00Z") - Date.parse(lunes + "T12:00:00Z")) / 864e5);
+      if (i < 0 || i > 6 || m.fecha_contab > hoy) continue;
+      x(m.material.replace(/P$/i, "")).dias[i].notif += m.clase === "Z02" ? -Math.abs(m.cantidad) : m.cantidad;
     }
-    const skusSem = [...S].map(([sku, v]) => {
-      const notifHl = hl(v.notifUn, sku), ref = M.get(sku)?.ref ?? 0, pendUn = v.planUn - v.notifUn;
-      return { sku, nombre: M.get(sku)?.nombre ?? "", planUn: v.planUn, notifUn: v.notifUn, planHl: v.planHl, notifHl, pendUn, pendHl: v.planHl - notifHl, pendCajas: ref ? pendUn / ref : null };
-    }).filter((r) => Math.abs(r.pendUn) >= 1).sort((a, b) => b.pendHl - a.pendHl);
-    const t = (k: keyof DiaSemana) => dias.reduce((a, d) => a + (d[k] as number), 0);
+    const mias = adh.filter((a) => a.lunes === lunes);
+    for (const a of mias) {
+      const v = x(a.sku), ref = M.get(a.sku)?.ref || a.ref_nombre || 0;
+      v.realCajas = (v.realCajas ?? 0) + a.cajas_real;
+      v.realUn = ref ? (v.realUn ?? 0) + a.cajas_real * ref : v.realUn;
+    }
+    /* Con reporte, el SKU que no aparece en él produjo 0. */
+    if (mias.length) for (const v of S.values()) {
+      v.realCajas ??= 0;
+      if (v.realUn == null) { const ref = M.get(v.sku)?.ref || 0; v.realUn = ref ? v.realCajas * ref : v.realCajas === 0 ? 0 : null }
+    }
     const domingo = masDias(lunes, 6);
     const cerrada = !!u.valor && u.valor >= `${masDias(lunes, 7)}T06:00:00`;
+    const ult = mias.map((a) => a.subido_en).sort().at(-1);
     return {
       lunes, domingo, semana: P.inicial?.semana ?? ps.planes[0]?.semana ?? null,
-      estado: !ps.planes.length ? "sin plan" : domingo >= hoy ? "en curso" : cerrada ? "cerrada" : "abierta",
-      dias, planIni: t("planIni"), planVig: t("planVig"), planHasta: t("planHasta"), notif: t("notif"), skus: skusSem,
+      estado: !ps.planes.length && !mias.length ? "sin plan" : domingo >= hoy ? "en curso" : cerrada ? "cerrada" : "abierta",
+      dias, skus: [...S.values()], real: ult ? { subido: ult, archivo: mias.find((a) => a.subido_en === ult)?.archivo ?? null } : null,
     };
   };
-  return { semanas: [semana(pasada, pa), semana(actual, pb)], mb51: u.valor, error };
+  const semanas = [semana(pasada, pa), semana(actual, pb)];
+  const usados = new Set(semanas.flatMap((w) => w.skus.map((k) => k.sku)));
+  return { semanas, maestro: Object.fromEntries([...M].filter(([k]) => usados.has(k))), mb51: u.valor, error, faltaAdh };
 }

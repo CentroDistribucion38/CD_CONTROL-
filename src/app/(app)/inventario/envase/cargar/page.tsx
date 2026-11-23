@@ -37,7 +37,7 @@ export default async function CargarPage() {
         <Cargar puedeCargar={puede} existentes={c.planes.map((p) => ({ lunes: p.lunes, generado: p.generado.slice(0, 19), desde: p.desde, semana: p.semana }))} />
 
         {sem.error && <p className="pe-error">No se pudo leer todo para el cierre: {sem.error}</p>}
-        <CierreSemanas semanas={sem.semanas} mb51={sem.mb51} />
+        <CierreSemanas semanas={sem.semanas} maestro={sem.maestro} mb51={sem.mb51} faltaAdh={sem.faltaAdh} />
 
         <section className="pe-card">
           <h3 className="pe-h3">Lo que hay cargado <small>{c.mb51?.desde ? `MB51: ${c.mb51.filas ? `${c.mb51.filas.toLocaleString("es-CO")} movimientos · ` : ""}contabilizados del ${fecha(c.mb51.desde)} al ${fecha(c.mb51.hasta!)}` : "MB51: nada todavía"}</small></h3>

@@ -3,13 +3,14 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { leerInstructivo, leerMB51, queEs, type FilaMB51, type PlanLeido } from "@/modulos/inventario/envase/leer";
+import { leerAdherencia, leerInstructivo, leerMB51, queEs, type AdherenciaLeida, type FilaMB51, type PlanLeido } from "@/modulos/inventario/envase/leer";
 import { masDias } from "@/modulos/inventario/envase/calc";
 
 type Existente = { lunes: string; generado: string; desde: string; semana: number };
 type Leido =
   | { id: string; nombre: string; tipo: "plan"; plan: PlanLeido; incluir: boolean }
-  | { id: string; nombre: string; tipo: "mb51"; filas: FilaMB51[]; incluir: boolean };
+  | { id: string; nombre: string; tipo: "mb51"; filas: FilaMB51[]; incluir: boolean }
+  | { id: string; nombre: string; tipo: "adherencia"; rep: AdherenciaLeida; incluir: boolean };
 
 const n0 = (x: number) => Math.round(x).toLocaleString("es-CO");
 const fecha = (f: string) => new Date(f.slice(0, 10) + "T12:00:00Z").toLocaleDateString("es-CO", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).replace(/\./g, "");
@@ -44,7 +45,11 @@ export function Cargar({ existentes, puedeCargar }: { existentes: Existente[]; p
           const r = await leerMB51(buf);
           if (r.error) errs.push(`${f.name}: ${r.error}`);
           else nuevos.push({ id: f.name, nombre: f.name, tipo: "mb51", filas: r.filas, incluir: true });
-        } else errs.push(`${f.name}: no es un instructivo de envase ni una MB51.`);
+        } else if (t === "adherencia") {
+          const r = await leerAdherencia(buf, f.name);
+          if (r.error) errs.push(`${f.name}: ${r.error}`);
+          for (const rep of r.reportes) nuevos.push({ id: `${f.name}|${rep.anio}-${rep.semana}`, nombre: f.name, tipo: "adherencia", rep, incluir: true });
+        } else errs.push(`${f.name}: no es un instructivo de envase, una MB51 ni un reporte de adherencia.`);
       } catch (e) { errs.push(`${f.name}: no se pudo leer (${e instanceof Error ? e.message : "error"}).`) }
     }
     setLeidos((x) => [...x.filter((y) => !nuevos.some((n) => n.id === y.id)), ...nuevos]);
@@ -89,6 +94,13 @@ export function Cargar({ existentes, puedeCargar }: { existentes: Existente[]; p
         }
         partes.push(`MB51: ${n0(nuevos)} movimientos nuevos, ${n0(l.filas.length - nuevos)} ya estaban`);
       }
+      for (const l of sel.filter((x): x is Extract<Leido, { tipo: "adherencia" }> => x.tipo === "adherencia")) {
+        const a = l.rep;
+        setGuardando(`Guardando la adherencia de la semana ${a.semana}…`);
+        const r = await s.rpc("pe_guardar_adherencia", { p_lunes: a.lunes, p_anio: a.anio, p_semana: a.semana, p_archivo: a.archivo, p_filas: a.filas });
+        if (r.error) throw new Error(/pe_guardar_adherencia|pe_adherencia|does not exist|PGRST202/i.test(r.error.message) ? "Falta correr 2026-11-plan-envase-adherencia.sql en Supabase." : r.error.message);
+        partes.push(`Adherencia semana ${a.semana}: ${n0(Number(r.data) || a.filas.length)} productos`);
+      }
       setHecho(`Guardado: ${partes.join(" · ")}.`); setLeidos([]); setErrores([]);
       router.refresh();
     } catch (e) {
@@ -109,8 +121,8 @@ export function Cargar({ existentes, puedeCargar }: { existentes: Existente[]; p
         onDrop={(e) => { e.preventDefault(); setSobre(false); if (e.dataTransfer.files.length) void leer(e.dataTransfer.files) }}
       >
         <span className="ic" aria-hidden>↥</span>
-        <div><b>{leyendo ? "Leyendo…" : "Arrastra aquí el instructivo o la MB51 (uno o varios a la vez)"}</b>
-          <span>Tal como salen: Instructivo_Envase_Barranquilla_*.xlsx de Suite 360 y la MB51 exportada de SAP. La MB51 se puede subir completa cada vez: lo repetido se salta solo.</span></div>
+        <div><b>{leyendo ? "Leyendo…" : "Arrastra aquí el instructivo, la MB51 o el reporte de adherencia (uno o varios a la vez)"}</b>
+          <span>Tal como salen: Instructivo_Envase_Barranquilla_*.xlsx de Suite 360, la MB51 exportada de SAP y el Reporte_de_Adherencia_*.xlsx del cierre de la semana. La MB51 se puede subir completa cada vez: lo repetido se salta solo.</span></div>
         <span className="pe-bt">Escoger archivo</span>
         <input ref={entradaRef} type="file" accept=".xlsx,.xls,.XLSX" multiple hidden onChange={(e) => { if (e.target.files?.length) void leer(e.target.files); e.target.value = "" }} />
       </div>
@@ -140,6 +152,26 @@ export function Cargar({ existentes, puedeCargar }: { existentes: Existente[]; p
                   </dl>
                   {p.sinSku.length > 0 && <p className="pe-error">No supe a qué SKU va: {p.sinSku.join(" · ")}</p>}
                   <p className={pp.c === "av" ? "pe-aviso" : "pe-ok"}>{pp.txt}{pp.repite ? " Ya estaba cargado: se reemplaza." : ""}</p>
+                </section>
+              );
+            }
+            if (l.tipo === "adherencia") {
+              const a = l.rep, tot = a.filas.reduce((x, f) => x + f.cajas_real, 0);
+              const trenes = [...new Set(a.filas.map((f) => f.tren.replace(/^TREN-?/i, "")))].sort().join(", ");
+              const ya = existentes.some((e) => e.lunes === a.lunes);
+              return (
+                <section key={l.id} className="pe-card pe-lc lc-ok">
+                  <h4><span className="pe-tag t-n">ADHERENCIA</span>Semana {a.semana}
+                    <label><input type="checkbox" checked={l.incluir} onChange={() => marcar(l.id)} /> guardar</label></h4>
+                  <p className="f">{l.nombre}</p>
+                  <dl>
+                    <dt>Semana</dt><dd>{a.semana} · {fecha(a.lunes)} al {fecha(masDias(a.lunes, 6))}</dd>
+                    <dt>Planta</dt><dd>{[...new Set(a.filas.map((f) => f.planta))].filter(Boolean).join(", ") || "—"}</dd>
+                    <dt>Trenes · SKU</dt><dd>{trenes} · {new Set(a.filas.map((f) => f.sku)).size}</dd>
+                    <dt>Real producido</dt><dd>{n0(tot)} cajas</dd>
+                    <dt>Plan de la semana</dt><dd className={ya ? "bien" : "mal"}>{ya ? "cargado ✓" : "no hay instructivo de esta semana"}</dd>
+                  </dl>
+                  <p className="pe-ok">Es el <b>cierre real</b> de la semana {a.semana}: con esto se valida el plan y lo notificado. Si ya había uno de esta semana, se reemplaza.</p>
                 </section>
               );
             }

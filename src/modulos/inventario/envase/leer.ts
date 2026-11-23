@@ -221,14 +221,63 @@ export async function leerMB51(datos: ArrayBuffer): Promise<{ filas: FilaMB51[];
   return { filas };
 }
 
+/* ------------------------------------------------------------------ REPORTE DE ADHERENCIA */
+
+/**
+ * Reporte_de_Adherencia_AAAA-MM-DD_HH.MM.SS.xlsx — el cierre REAL de la semana: por planta, semana («2026-47»), línea
+ * («TREN-7») y producto («21447 - PONY MALTA LESS SUGAR PET 200CC X6»), lo real producido en CAJAS (puede traer decimales).
+ * Columnas por su nombre. Un mismo SKU en la misma línea se suma. De la etiqueta se saca el SKU y las unidades por caja («X6»).
+ */
+export type FilaAdherencia = { planta: string; tren: string; sku: string; producto: string; ref: number | null; cajas_real: number; cajas_plan: number | null };
+export type AdherenciaLeida = { anio: number; semana: number; lunes: string; filas: FilaAdherencia[]; archivo: string };
+
+/** El lunes de una semana ISO (la semana 1 es la del 4 de enero). */
+export function lunesIso(anio: number, semana: number) {
+  const e4 = new Date(Date.UTC(anio, 0, 4, 12));
+  const lunes1 = new Date(e4.getTime() - ((e4.getUTCDay() + 6) % 7) * 864e5);
+  return new Date(lunes1.getTime() + (semana - 1) * 7 * 864e5).toISOString().slice(0, 10);
+}
+
+export async function leerAdherencia(datos: ArrayBuffer, archivo: string): Promise<{ reportes: AdherenciaLeida[]; error?: string }> {
+  const XLSX = await import("xlsx");
+  const libro = XLSX.read(datos, { type: "array" });
+  const R = XLSX.utils.sheet_to_json<Celda[]>(libro.Sheets[libro.SheetNames[0]], { header: 1, raw: true, defval: null });
+  const fc = R.findIndex((f) => f.some((c) => /real.*cajas/.test(norm(c))));
+  if (fc < 0) return { reportes: [], error: "No encontré la columna «Real (Cajas)»." };
+  const cab = R[fc].map(norm);
+  const col = (re: RegExp) => cab.findIndex((c) => re.test(c));
+  const cP = col(/^planta/), cS = col(/^semana/), cL = col(/^linea/), cPr = col(/^producto/), cR = col(/real.*cajas/), cPl = col(/planead.*cajas/);
+  if (cS < 0 || cL < 0 || cPr < 0) return { reportes: [], error: "Faltan columnas: se esperan Semana, Linea, Producto y Real (Cajas)." };
+  const num = (v: Celda) => { if (typeof v === "number") return v; const t = txt(v).replace(/\./g, "").replace(",", "."); return t === "" ? null : Number(t) };
+  const porSem = new Map<string, AdherenciaLeida>();
+  for (const f of R.slice(fc + 1)) {
+    const sem = txt(f[cS]).match(/(\d{4})\D+(\d{1,2})/);
+    const pr = txt(f[cPr]), m = pr.match(/^(\d{3,})\s*-\s*(.*)$/);
+    const real = num(f[cR]);
+    if (!sem || !m || real == null || !Number.isFinite(real)) continue;
+    const anio = Number(sem[1]), semana = Number(sem[2]), k = `${anio}-${semana}`;
+    if (!porSem.has(k)) porSem.set(k, { anio, semana, lunes: lunesIso(anio, semana), filas: [], archivo });
+    const tren = txt(f[cL]).toUpperCase().replace(/\s+/g, ""), sku = m[1];
+    const refM = [...m[2].matchAll(/X\s*(\d+)/gi)].pop();   // la última «X N» del nombre («250cc X 38 BOT RB», «200ccX30»)
+    const pl = cPl >= 0 ? num(f[cPl]) : null;
+    const filas = porSem.get(k)!.filas, ya = filas.find((x) => x.tren === tren && x.sku === sku);
+    if (ya) { ya.cajas_real += real; if (pl != null && Number.isFinite(pl)) ya.cajas_plan = (ya.cajas_plan ?? 0) + pl }
+    else filas.push({ planta: cP >= 0 ? txt(f[cP]) : "", tren, sku, producto: m[2].trim(), ref: refM ? Number(refM[1]) : null, cajas_real: real, cajas_plan: pl != null && Number.isFinite(pl) ? pl : null });
+  }
+  if (!porSem.size) return { reportes: [], error: "El reporte no trae filas con semana, producto y cajas reales." };
+  return { reportes: [...porSem.values()] };
+}
+
 /** ¿Qué es este archivo? Por el nombre y, si no dice, por el contenido. */
-export async function queEs(datos: ArrayBuffer, nombre: string): Promise<"instructivo" | "mb51" | null> {
+export async function queEs(datos: ArrayBuffer, nombre: string): Promise<"instructivo" | "mb51" | "adherencia" | null> {
   if (/instructivo/i.test(nombre)) return "instructivo";
   if (/mb51/i.test(nombre)) return "mb51";
+  if (/adherencia/i.test(nombre)) return "adherencia";
   const XLSX = await import("xlsx");
   const libro = XLSX.read(datos, { type: "array", sheetRows: 12 });
   if (libro.SheetNames.some((n) => /^semana\s*\d+/i.test(n.trim()))) return "instructivo";
   const R = XLSX.utils.sheet_to_json<Celda[]>(libro.Sheets[libro.SheetNames[0]], { header: 1, raw: true, defval: null });
   if (R.some((f) => f.some((c) => /contabiliz/.test(norm(c))))) return "mb51";
+  if (R.some((f) => f.some((c) => /real.*cajas/.test(norm(c))))) return "adherencia";
   return null;
 }

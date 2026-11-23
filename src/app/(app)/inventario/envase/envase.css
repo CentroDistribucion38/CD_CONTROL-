@@ -247,3 +247,8 @@
 .pe .pe-sem-p > table { width: 100%; margin-top: 8px }
 .pe .pe-sem-p tr.mut td { color: var(--fe-gris, #6b7280) }
 .pe .pe-sem-ver { display: inline-block; margin-top: 4px; font: 600 12px var(--fe-texto); color: var(--fe-tinta); text-decoration: underline }
+.pe .pe-sem-bar { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 12px; font: 500 12px var(--fe-texto); color: var(--fe-gris, #6b7280) }
+.pe .pe-sem-tags { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end }
+.pe .pe-sem-k.cinco { grid-template-columns: repeat(5, 1fr) }
+.pe .pe-sem-k > div.k-am { box-shadow: inset 0 3px 0 var(--fe-acento, #FFC400) }
+@media (max-width: 640px) { .pe .pe-sem-k.cinco { grid-template-columns: repeat(2, 1fr) } .pe .pe-sem-bar { flex-direction: column; align-items: flex-start } }
