@@ -11,7 +11,8 @@
  *    Lo contabilizado antes del día del corte pero digitado después son las partidas.
  */
 
-export type Plan = { id: string; anio: number; semana: number; generado: string; archivo: string | null; desde: string; hasta: string; lunes: string; total_hl: number };
+export type Plan = { id: string; anio: number; semana: number; generado: string; archivo: string | null; desde: string; hasta: string; lunes: string; total_hl: number;
+  /** Escogido a mano en Cargar: «inicial» o «corte». Vacío = automático. */ papel?: string | null };
 export type FilaPlanBD = { plan_id: string; fecha: string; tren: string; hora: number; sku: string | null; nombre: string | null; formato_ml: number | null; referencia: number | null; hl: number; unidades: number | null };
 export type Mov = { fecha_contab: string; fecha_entrada: string; hora_entrada: string; almacen: string; clase: string; material: string; texto: string; documento: string | null; cantidad: number; um: string | null; orden: string | null };
 export type Prod = { sku: string; nombre: string | null; contenido: number | null; unidades_por_caja: number | null; cajas_por_estiba: number | null };
@@ -28,7 +29,9 @@ const LLEGA = new Set(["531", "532"]);
 /** Qué planes mandan en la semana: el INICIAL (el primero que cubre desde el lunes) y los CORTES (los demás). */
 export function papeles(planes: Plan[]) {
   const orden = [...planes].sort((a, b) => a.generado.localeCompare(b.generado));
-  const inicial = orden.find((p) => p.desde <= p.lunes) ?? null;
+  /* Si en Cargar se escogió a mano cuál es el plan inicial, manda ese; si no, el primero generado que cubre desde el lunes
+     (y que no se marcó como corte). */
+  const inicial = orden.filter((p) => p.papel === "inicial").pop() ?? orden.find((p) => p.papel !== "corte" && p.desde <= p.lunes) ?? null;
   const cortes = orden.filter((p) => p !== inicial);
   /** El corte que manda para un día: el último generado que cubre ese día. */
   const corteDe = (dia: string) => [...cortes].reverse().find((p) => p.desde <= dia && dia <= p.hasta) ?? null;

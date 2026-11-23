@@ -210,3 +210,13 @@
   background-position: calc(100% - 17px) 16px, calc(100% - 12px) 16px; background-size: 5px 5px; background-repeat: no-repeat;
 }
 .pe .pe-hora:focus-visible { outline: none; border-color: var(--fe-acento); box-shadow: 0 0 0 3px color-mix(in srgb, var(--fe-acento) 22%, transparent) }
+
+/* Cargar › lo que hay cargado: los botones para cambiar el papel o eliminar un instructivo. Rectos, chicos, en fila. */
+.pe .pe-acc { display: inline-flex; gap: 6px; flex-wrap: wrap }
+.pe .pe-acc button { height: 28px; padding: 0 10px; border: 1px solid var(--fe-linea, #cfd5dc); border-radius: 0; background: var(--fe-papel, #fff); color: var(--fe-tinta); font: 600 12px var(--fe-texto); cursor: pointer }
+.pe .pe-acc button:hover:not(:disabled) { border-color: var(--fe-tinta) }
+.pe .pe-acc button.mal { color: var(--fe-mal); border-color: color-mix(in srgb, var(--fe-mal) 40%, transparent) }
+.pe .pe-acc button.mal:hover:not(:disabled) { background: var(--fe-mal); color: #fff }
+.pe .pe-acc button:disabled { opacity: .5; cursor: default }
+/* La ventana de confirmar vive dentro de .pe: su botón rojo no hereda el texto rojo de «.pe .mal». */
+.pe .cf-btn.mal { color: #fff }

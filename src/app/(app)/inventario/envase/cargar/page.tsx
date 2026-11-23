@@ -5,10 +5,10 @@ import { loCargado } from "@/modulos/inventario/envase/datos";
 import "../../fefo.css";
 import "../envase.css";
 import { Cargar } from "./Cargar";
+import { TablaCargado } from "./TablaCargado";
 
 export const dynamic = "force-dynamic";
 
-const fh = (g: string) => new Date(g.slice(0, 19) + "Z").toLocaleString("es-CO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "UTC" });
 const fecha = (f: string) => new Date(f + "T12:00:00Z").toLocaleDateString("es-CO", { day: "numeric", month: "short", timeZone: "UTC" });
 
 /**
@@ -20,13 +20,6 @@ export default async function CargarPage() {
   const puede = permisos.puedeEditar("/inventario/envase/cargar");
   const porSemana = new Map<string, typeof c.planes>();
   for (const p of c.planes) porSemana.set(p.lunes, [...(porSemana.get(p.lunes) ?? []), p]);
-  const papel = (p: (typeof c.planes)[number]) => {
-    const P = papeles(porSemana.get(p.lunes) ?? []);
-    if (P.inicial?.id === p.id) return <span className="pe-tag t-g">Plan inicial</span>;
-    if (P.ultimo?.id === p.id) return <span className="pe-tag t-a">Corte vigente</span>;
-    return <span className="pe-tag t-g">Corte anterior</span>;
-  };
-
   return (
     <div className="fe pe">
       <section className="cabeza"><div>
@@ -44,17 +37,11 @@ export default async function CargarPage() {
         <section className="pe-card">
           <h3 className="pe-h3">Lo que hay cargado <small>{c.mb51?.filas ? `MB51: ${c.mb51.filas.toLocaleString("es-CO")} movimientos · contabilizados del ${fecha(c.mb51.desde!)} al ${fecha(c.mb51.hasta!)}` : "MB51: nada todavía"}</small></h3>
           {c.planes.length ? (
-            <div className="pe-caja"><table className="pe-t">
-              <thead><tr><th className="l">Instructivo</th><th className="l">Semana</th><th className="l">Cubre</th><th>Total HL</th><th className="l">Subido</th><th className="l">Papel</th></tr></thead>
-              <tbody>{c.planes.map((p) => (
-                <tr key={p.id}>
-                  <td className="l">Generado {fh(p.generado)}</td><td className="l">{p.semana}</td>
-                  <td className="l">{fecha(p.desde)} al {fecha(p.hasta)}</td><td>{Math.round(p.total_hl).toLocaleString("es-CO")}</td>
-                  <td className="l">{new Date(p.subido_en).toLocaleString("es-CO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Bogota" })}</td>
-                  <td className="l">{papel(p)}</td>
-                </tr>
-              ))}</tbody>
-            </table></div>
+            <TablaCargado puede={puede} filas={c.planes.map((p) => {
+              const P = papeles(porSemana.get(p.lunes) ?? []);
+              return { id: p.id, lunes: p.lunes, generado: p.generado, semana: p.semana, desde: p.desde, hasta: p.hasta, total_hl: p.total_hl,
+                subido_en: p.subido_en, papel: p.papel ?? null, es: P.inicial?.id === p.id ? "inicial" : P.ultimo?.id === p.id ? "vigente" : "anterior" };
+            })} />
           ) : <p className="pe-nota">Todavía no hay instructivos cargados.</p>}
         </section>
       </>)}

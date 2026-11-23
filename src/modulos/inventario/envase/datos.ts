@@ -34,7 +34,7 @@ export async function ultimaEntrada() {
 /** Los planes de una semana con sus filas. */
 export async function planesDeSemana(lunes: string) {
   const s = await createClient();
-  const p = await s.from("pe_planes").select("id, anio, semana, generado, archivo, desde, hasta, lunes, total_hl").eq("lunes", lunes).order("generado");
+  const p = await s.from("pe_planes").select("*").eq("lunes", lunes).order("generado");
   if (p.error) return { falta: faltaTabla(p.error.message), error: p.error.message, planes: [] as Plan[], filas: [] as FilaPlanBD[] };
   const planes = (p.data ?? []).map((x) => ({ ...x, total_hl: Number(x.total_hl) })) as Plan[];
   if (!planes.length) return { falta: false, error: null, planes, filas: [] as FilaPlanBD[] };
@@ -70,7 +70,7 @@ export async function productosDe(skus: string[]) {
 export async function loCargado() {
   const s = await createClient();
   const [p, n, min, max] = await Promise.all([
-    s.from("pe_planes").select("id, anio, semana, generado, archivo, desde, hasta, lunes, total_hl, subido_en").order("generado", { ascending: false }).limit(12),
+    s.from("pe_planes").select("*").order("generado", { ascending: false }).limit(12),
     s.from("pe_mb51").select("id", { count: "exact", head: true }),
     s.from("pe_mb51").select("fecha_contab").order("fecha_contab").limit(1),
     s.from("pe_mb51").select("fecha_contab").order("fecha_contab", { ascending: false }).limit(1),
