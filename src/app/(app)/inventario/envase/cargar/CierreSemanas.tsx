@@ -50,7 +50,8 @@ export function CierreSemanas({ semanas, mb51 }: { semanas: ResumenSemana[]; mb5
           <article key={s.lunes} className="pe-card pe-sem-c">
             <header>
               <div><small>{k === 0 ? "SEMANA PASADA · CIERRE" : "SEMANA ACTUAL · A ESTA HORA"}</small>
-                <h3>Semana {s.semana ?? "—"} <em>{corta(s.lunes)} al {corta(s.domingo)}</em></h3></div>
+                <h3>Semana {s.semana ?? "—"} <em>{corta(s.lunes)} al {corta(s.domingo)}</em></h3>
+                <Link className="pe-sem-ver" href={`/inventario/envase?d=${s.lunes}&h=${k === 0 ? s.domingo : s.dias.filter((d) => d.estado !== "futuro").pop()?.dia ?? s.lunes}`}>Validar la semana por SKU →</Link></div>
               {tag}
             </header>
             {s.estado === "sin plan" ? <p className="pe-nota">No hay instructivo cargado para esta semana.</p> : (<>

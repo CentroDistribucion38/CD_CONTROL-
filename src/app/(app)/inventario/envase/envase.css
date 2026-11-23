@@ -246,3 +246,4 @@
 .pe .pe-sem-p > summary { cursor: pointer; font: 500 13px var(--fe-texto); list-style-position: inside }
 .pe .pe-sem-p > table { width: 100%; margin-top: 8px }
 .pe .pe-sem-p tr.mut td { color: var(--fe-gris, #6b7280) }
+.pe .pe-sem-ver { display: inline-block; margin-top: 4px; font: 600 12px var(--fe-texto); color: var(--fe-tinta); text-decoration: underline }

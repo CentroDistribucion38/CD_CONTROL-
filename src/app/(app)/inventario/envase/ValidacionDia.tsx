@@ -23,8 +23,9 @@ const n0 = (x: number) => Math.round(x).toLocaleString("es-CO");
  * VALIDACIÓN DEL DÍA. Lo principal arriba: las cifras del día y la tabla por SKU (clic en el SKU abre sus órdenes).
  * Las alertas van al final, cerradas, con su conteo a la vista en las cifras.
  */
-export function ValidacionDia({ dia, hoy, conDatos, antes, despues, filas, alertas, maestro, hayCorte, estado, ahora, lineas = [] }: {
-  dia: string; hoy: string; conDatos: string[]; antes: string; despues: string; filas: FilaDia[]; alertas: Alerta[]; maestro: M;
+export function ValidacionDia({ dia, hastaDia, hoy, conDatos, antes, despues, filas, alertas, maestro, hayCorte, estado, ahora, lineas = [] }: {
+  /** El rango: un día (dia = hastaDia) o varios. Con varios, todo va sumado día por día. */
+  dia: string; hastaDia: string; hoy: string; conDatos: string[]; antes: [string, string]; despues: [string, string]; filas: FilaDia[]; alertas: Alerta[]; maestro: M;
   hayCorte: boolean; estado: Dia["estado"];
   /** Solo HOY: la hora, el plan vigente sumado hora por hora hasta ahora (unidades por SKU) y hasta dónde llega la MB51. */
   ahora?: { hora: string; planHasta: Record<string, number>; mb51: string | null };
@@ -32,11 +33,22 @@ export function ValidacionDia({ dia, hoy, conDatos, antes, despues, filas, alert
   lineas?: { tren: string; sku: string; ini: number; vig: number; hasta: number }[];
 }) {
   const router = useRouter();
-  const ir = (f: string) => router.push(`/inventario/envase?d=${f}`);
+  /* «En cualquier rango de fecha: semana, días, lo que yo quiera.» */
+  const rango = hastaDia > dia;
+  const url = (d: string, h: string) => `/inventario/envase?d=${d}${h > d ? `&h=${h}` : ""}`;
+  const ir = (d: string, h: string) => router.push(url(d, h));
+  const lunesDe = (f: string) => { const x = new Date(f + "T12:00:00Z"); x.setUTCDate(x.getUTCDate() - ((x.getUTCDay() + 6) % 7)); return x.toISOString().slice(0, 10) };
+  const mas = (f: string, n: number) => { const x = new Date(f + "T12:00:00Z"); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10) };
   const atajos: Atajo[] = [
-    { t: "Ayer", d: () => [antesDe(hoy), antesDe(hoy)] },
     { t: "Hoy", d: () => [hoy, hoy] },
+    { t: "Ayer", d: () => [antesDe(hoy), antesDe(hoy)] },
+    { t: "Esta semana", d: () => [lunesDe(hoy), hoy] },
+    { t: "Semana pasada", d: () => [mas(lunesDe(hoy), -7), mas(lunesDe(hoy), -1)] },
+    { t: "Últimos 7 días", d: () => [mas(hoy, -6), hoy] },
+    { t: "Este mes", d: () => [hoy.slice(0, 8) + "01", hoy] },
   ];
+  const nombreRango = rango ? `${corto(dia)} al ${corto(hastaDia)}` : corto(dia);
+  const del = rango ? "del período" : "del día";
   const [u, setU] = useState<Unidad>("hl");
   const [abiertos, setAbiertos] = useState<Set<string>>(new Set());
   const [vista, setVista] = useState<"sku" | "linea">("sku");
@@ -59,9 +71,9 @@ export function ValidacionDia({ dia, hoy, conDatos, antes, despues, filas, alert
   const planAhora = suma((f) => hasta(f.sku));
   const vigente = hayCorte ? corte : plan;
   const pendAhora = Math.max(0, planAhora.s - notif.s), faltaDia = Math.max(0, vigente.s - notif.s);
-  const mb51Hora = ahora?.mb51 ? (ahora.mb51.slice(0, 10) === dia ? ahora.mb51.slice(11, 16) : `${corto(ahora.mb51.slice(0, 10))} ${ahora.mb51.slice(11, 16)}`) : null;
+  const mb51Hora = ahora?.mb51 ? (ahora.mb51.slice(0, 10) === hastaDia ? ahora.mb51.slice(11, 16) : `${corto(ahora.mb51.slice(0, 10))} ${ahora.mb51.slice(11, 16)}`) : null;
   /* La MB51 vieja: más de una hora antes de ahora (o de otro día) — lo notificado después todavía no se ve. */
-  const mb51Vieja = !!ahora && (!ahora.mb51 || ahora.mb51.slice(0, 10) !== dia
+  const mb51Vieja = !!ahora && (!ahora.mb51 || ahora.mb51.slice(0, 10) !== hastaDia
     || (Number(ahora.hora.slice(0, 2)) * 60 + Number(ahora.hora.slice(3))) - (Number(ahora.mb51.slice(11, 13)) * 60 + Number(ahora.mb51.slice(14, 16))) > 60);
   const ret = filas.filter((f) => f.retornable);
   const falta = alertas.filter((a) => a.tipo === "falta261");
@@ -111,15 +123,15 @@ export function ValidacionDia({ dia, hoy, conDatos, antes, despues, filas, alert
       {/* EL DÍA: el mismo calendario de Análisis de diferencia y Base (un punto en los días que tienen MB51), con
           flechas para el anterior y el siguiente. Lo escogido va en ámbar, nada en negro. */}
       <div className="ad"><div className="ad-barra pe-barra">
-        <div className="ad-dia"><span>Día</span>
+        <div className="ad-dia"><span>{rango ? "Fechas" : "Día"}</span>
           <div className="ad-cal">
-            <Calendario desde={dia} hasta={dia} minF="2026-01-01" maxF={hoy} atajos={atajos} unDia marcados={new Set(conDatos)}
-                        aplicar={(d) => { if (d && d !== dia) ir(d) }} />
+            <Calendario desde={dia} hasta={hastaDia} minF="2026-01-01" maxF={hoy} atajos={atajos} marcados={new Set(conDatos)}
+                        aplicar={(d, h) => { const hh = h || d; if (d && (d !== dia || hh !== hastaDia)) ir(d, hh) }} />
           </div>
         </div>
         <div className="pe-flechas">
-          <Link href={`/inventario/envase?d=${antes}`} aria-label="Día anterior">‹</Link>
-          {despues <= hoy ? <Link href={`/inventario/envase?d=${despues}`} aria-label="Día siguiente">›</Link> : <span aria-hidden>›</span>}
+          <Link href={url(antes[0], antes[1])} aria-label={rango ? "Período anterior" : "Día anterior"}>‹</Link>
+          {despues[1] <= hoy ? <Link href={url(despues[0], despues[1])} aria-label={rango ? "Período siguiente" : "Día siguiente"}>›</Link> : <span aria-hidden>›</span>}
         </div>
         <div className={`pe-estado e-${estado}`}><b>{ESTADO[estado][0]}</b><small>{ESTADO[estado][1]}</small></div>
         <div className="pe-unidad">Unidad
@@ -136,15 +148,15 @@ export function ValidacionDia({ dia, hoy, conDatos, antes, despues, filas, alert
             ? <><b>Lo notificado llega hasta la última MB51 ({mb51Hora ?? "sin MB51"})</b>: lo que se haya notificado después todavía no se ve. Para el dato real, sube una MB51 nueva en <Link href="/inventario/envase/cargar">Cargar</Link>.</>
             : <>La MB51 es de las {mb51Hora}: el dato está al día.</>}</p>
       ) : estado === "abierto" && (
-        <p className="pe-aviso"><b>Este día todavía está abierto.</b> La noche se notifica de madrugada con la fecha de hoy: el día se cierra
+        <p className="pe-aviso"><b>{rango ? "El último día de las fechas todavía está abierto." : "Este día todavía está abierto."}</b> La noche se notifica de madrugada con la fecha de hoy: el día se cierra
           cuando subas una MB51 sacada después de las 6:00 del día siguiente. Lo que ves es lo notificado hasta ahora.</p>
       )}
 
       {filas.length === 0 ? (
-        <p className="pe-vacio">No hay plan ni notificaciones para este día. Sube el instructivo de la semana y la MB51 en <Link href="/inventario/envase/cargar">Cargar</Link>.</p>
+        <p className="pe-vacio">No hay plan ni notificaciones {rango ? "en estas fechas" : "para este día"}. Sube el instructivo de la semana y la MB51 en <Link href="/inventario/envase/cargar">Cargar</Link>.</p>
       ) : (<>
-        <section className="pe-card pe-kpi" aria-label="Cifras del día">
-          <div className="k-am"><span className="l">Plan del día</span><b>{fmt(plan.s)}<small>{unom}</small></b>
+        <section className="pe-card pe-kpi" aria-label={`Cifras ${del}`}>
+          <div className="k-am"><span className="l">Plan {del}</span><b>{fmt(plan.s)}<small>{unom}</small></b>
             <em>{hayCorte ? <>último corte: <b style={{ display: "inline", font: "inherit", fontWeight: 700 }}>{fmt(corte.s)}</b></> : "plan inicial"}</em></div>
           <div><span className="l">Notificado (Z01)</span><b>{fmt(notif.s)}<small>{unom}</small></b><em>{ahora ? `hasta la MB51 de las ${mb51Hora ?? "—"}` : madr.s ? `${fmt(madr.s)} ${unom} digitados al otro día` : "nada digitado al día siguiente"}</em></div>
           {ahora ? (<>
@@ -165,7 +177,7 @@ export function ValidacionDia({ dia, hoy, conDatos, antes, despues, filas, alert
         )}
 
         <section className="pe-card">
-          <h3 className="pe-h3">{corto(dia)} · {vista === "sku" ? "por SKU" : "por línea"}
+          <h3 className="pe-h3">{nombreRango} · {vista === "sku" ? "por SKU" : "por línea"}
             <span className="pe-seg pe-vista" role="group" aria-label="Ver">
               <button type="button" className={vista === "sku" ? "on" : ""} aria-pressed={vista === "sku"} onClick={() => setVista("sku")}>Por SKU</button>
               <button type="button" className={vista === "linea" ? "on" : ""} aria-pressed={vista === "linea"} onClick={() => setVista("linea")} disabled={!lineas.length} title={lineas.length ? "" : "El plan de este día no trae líneas"}>Por línea</button>
@@ -214,7 +226,7 @@ export function ValidacionDia({ dia, hoy, conDatos, antes, despues, filas, alert
           <div className="pe-caja">
             <table className="pe-t">
               <thead><tr>
-                <th className="l">SKU</th><th>Plan del día</th>{hayCorte && <th>Último corte</th>}{ahora && <th className="pe-ahora" title="El plan vigente sumado hora por hora hasta ahora">Plan a las {ahora.hora}</th>}<th>Notificado</th><th className="l">Cumplimiento{ahora ? " a esta hora" : ""}</th><th>{ahora ? "Pendiente" : "Diferencia"}</th><th title="Notificado con fecha de este día pero digitado en SAP al día siguiente (la producción de la noche)">Digitado al otro día</th>
+                <th className="l">SKU</th><th>Plan {del}</th>{hayCorte && <th>{rango ? "Plan vigente" : "Último corte"}</th>}{ahora && <th className="pe-ahora" title="El plan vigente sumado hora por hora hasta ahora">Plan a las {ahora.hora}</th>}<th>Notificado</th><th className="l">Cumplimiento{ahora ? " a esta hora" : ""}</th><th>{ahora ? "Pendiente" : "Diferencia"}</th><th title="Notificado con fecha de este día pero digitado en SAP al día siguiente (la producción de la noche)">Digitado al otro día</th>
                 <th className="g">Botella teórica</th><th>261 botella</th><th>Falta 261</th><th className="g">Caja teórica</th><th>261 caja</th><th>Caja de más</th>
               </tr></thead>
               <tbody>
@@ -259,7 +271,7 @@ export function ValidacionDia({ dia, hoy, conDatos, antes, despues, filas, alert
                   );
                 })}
                 <tr className="tot">
-                  <td className="l">Total del día</td><td>{fmt(plan.s)}</td>{hayCorte && <td>{fmt(corte.s)}</td>}{ahora && <td className="pe-ahora">{fmt(planAhora.s)}</td>}<td>{fmt(notif.s)}</td>
+                  <td className="l">Total {del}</td><td>{fmt(plan.s)}</td>{hayCorte && <td>{fmt(corte.s)}</td>}{ahora && <td className="pe-ahora">{fmt(planAhora.s)}</td>}<td>{fmt(notif.s)}</td>
                   {ahora
                     ? <><td className="l">{planAhora.s ? `${Math.round((100 * notif.s) / planAhora.s)} %` : "—"}</td><td>{pendAhora > 0.5 ? fmt(pendAhora) : "✓"}</td></>
                     : <><td className="l">{plan.s ? `${Math.round((100 * notif.s) / plan.s)} %` : "—"}</td><td>{fmt(notif.s - plan.s)}</td></>}<td>{madr.s ? fmt(madr.s) : "—"}</td>
@@ -276,7 +288,7 @@ export function ValidacionDia({ dia, hoy, conDatos, antes, despues, filas, alert
 
       {alertas.length > 0 && (
         <details className="pe-card">
-          <summary className="pe-h3">Alertas del día
+          <summary className="pe-h3">Alertas {del}
             {(["falta261", "perdida", "caja", "plan"] as const).filter((t) => conteo(t)).map((t) => <span key={t} className={`pe-tag ${NOMBRE[t][1]}`}>{conteo(t)} {NOMBRE[t][0]}</span>)}
             <small>se recalculan con cada MB51</small>
           </summary>
