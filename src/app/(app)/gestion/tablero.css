@@ -2,22 +2,44 @@
    GESTIÓN · TABLERO (tb-) y la hoja del 5W (h5-). Cuelga de `.gs`. Recto, tinta, acento del tema y rojo.
    ===================================================================== */
 
-/* ---------- hojas y filtros ---------- */
-.gs .tb-barra { display: flex; justify-content: space-between; align-items: end; gap: 12px; flex-wrap: wrap }
-.gs .tb-hojas { display: flex; border: 1px solid var(--fe-linea); background: var(--fe-papel) }
-.gs .tb-hojas button { min-height: 44px; padding: 0 20px; border: 0; background: none; color: var(--fe-tinta); font: 800 14px var(--fe-titulo); cursor: pointer; display: inline-flex; align-items: center; gap: 8px }
-.gs .tb-hojas button + button { border-left: 1px solid var(--fe-linea) }
-.gs .tb-hojas button.on { background: var(--fe-tinta); color: var(--fe-papel, #fff); box-shadow: inset 0 -4px 0 var(--fe-acento) }
-.gs .tb-hojas em { font: 900 11.5px var(--fe-titulo); font-style: normal; background: var(--fe-acento); color: var(--fe-tinta); padding: 1px 6px }
-.gs .tb-filtros { display: flex; gap: 10px; flex-wrap: wrap; align-items: end }
-.gs .tb-filtros label { display: flex; flex-direction: column; gap: 4px; font: 700 10.5px var(--fe-texto); letter-spacing: .12em; text-transform: uppercase; color: var(--fe-gris) }
-.gs .tb-filtros select { min-width: 170px }
-.gs .tb-filtros input[type="date"] { min-height: 40px; border: 1px solid var(--fe-linea); background: var(--fe-papel); color: var(--fe-tinta); font: 700 13px var(--fe-titulo); border-radius: 2px; padding: 0 10px }
+/* ---------- pestañas de texto y, a la derecha, los desplegables Área y Fechas ---------- */
+.gs .tb-linea { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px 16px; flex-wrap: wrap; border-bottom: 1px solid var(--fe-linea) }
+.gs .tb-hojas { display: flex; gap: 26px }
+.gs .tb-hojas button { min-height: 44px; padding: 0 2px; border: 0; background: none; color: var(--fe-gris); font: 800 15px var(--fe-titulo); cursor: pointer; display: inline-flex; align-items: center; gap: 8px }
+.gs .tb-hojas button:hover { color: var(--fe-tinta) }
+.gs .tb-hojas button.on { color: var(--fe-tinta); box-shadow: inset 0 -4px 0 #F5B800 }
+.gs .tb-hojas em { font: 900 11px var(--fe-titulo); font-style: normal; background: #F5B800; color: #111; padding: 1px 6px }
+.gs .tb-drops { display: flex; gap: 8px; padding-bottom: 8px }
+.gs .tb-dropw { position: relative }
+.gs .tb-drop { display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 0 14px; border: 1px solid var(--fe-linea); background: var(--fe-papel, #fff); color: var(--fe-tinta); cursor: pointer; border-radius: 0 }
+.gs .tb-drop:hover { border-color: var(--fe-tinta) }
+.gs .tb-drop small { font: 700 10px var(--fe-texto); letter-spacing: .12em; text-transform: uppercase; color: var(--fe-gris) }
+.gs .tb-drop b { font: 800 14px var(--fe-titulo); white-space: nowrap }
+.gs .tb-drop i { font-style: normal; font-size: 12px }
+.gs .tb-drop.ab { border-color: var(--fe-tinta); box-shadow: inset 0 -3px 0 #F5B800 }
+.gs .tb-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; background: var(--fe-papel, #fff); border: 1px solid var(--fe-linea); border-top: 4px solid #F5B800; box-shadow: 0 14px 34px rgba(0, 0, 0, .18); padding: 10px }
+.gs .tb-pop-area { min-width: 240px; display: flex; flex-direction: column; gap: 2px; max-height: 60vh; overflow: auto }
+.gs .tb-pop-area button { min-height: 40px; display: flex; justify-content: space-between; align-items: center; padding: 0 12px; border: 0; background: none; color: var(--fe-tinta); font: 600 14px var(--fe-texto); text-align: left; cursor: pointer }
+.gs .tb-pop-area button:hover { background: var(--fe-fondo) }
+.gs .tb-pop-area button.on { background: #F5B800; font-weight: 800 }
+.gs .tb-pop-area .tb-pop-ed { margin-top: 6px; border-top: 1px solid var(--fe-linea); color: var(--fe-gris); font-weight: 700; font-size: 13px }
+.gs .tb-pop-fechas { width: 430px; max-width: calc(100vw - 32px) }
+.gs .tb-at { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px }
+.gs .tb-at button { min-height: 40px; border: 1px solid var(--fe-linea); background: var(--fe-papel, #fff); color: var(--fe-tinta); font: 600 13px var(--fe-texto); cursor: pointer }
+.gs .tb-at button:hover { border-color: var(--fe-tinta) }
+.gs .tb-at button.on { background: #F5B800; border-color: #F5B800; font-weight: 800 }
+.gs .tb-cal { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px }
+.gs .tb-cal label { display: flex; flex-direction: column; gap: 4px; font: 700 10px var(--fe-texto); letter-spacing: .12em; text-transform: uppercase; color: var(--fe-gris) }
+.gs .tb-cal input[type="date"] { min-height: 42px; border: 1px solid var(--fe-linea); background: var(--fe-papel, #fff); color: var(--fe-tinta); font: 700 13.5px var(--fe-titulo); padding: 0 10px; border-radius: 0; letter-spacing: 0 }
+.gs .tb-ver { display: flex; justify-content: space-between; align-items: center; margin-top: 10px }
+.gs .tb-ver small { font-size: 12px; color: var(--fe-gris) }
+.gs .tb-ver button { min-height: 40px; padding: 0 22px; border: 0; background: #F5B800; color: #111; font: 800 13.5px var(--fe-titulo); cursor: pointer }
+.gs .tb-ver button:disabled { opacity: .5; cursor: default }
+/* las fichas de estado del Plan de acción */
 .gs .tb-atajos { display: flex; gap: 6px; flex-wrap: wrap; align-items: center }
-.gs .tb-atajos button { min-height: 34px; padding: 0 12px; border: 1px solid var(--fe-linea); background: var(--fe-papel); color: var(--fe-tinta); font: 700 12.5px var(--fe-titulo); border-radius: 2px; cursor: pointer }
-.gs .tb-atajos button.on { background: var(--fe-tinta); border-color: var(--fe-tinta); color: var(--fe-papel, #fff); box-shadow: inset 0 -3px 0 var(--fe-acento) }
+.gs .tb-atajos button { min-height: 36px; padding: 0 12px; border: 1px solid var(--fe-linea); background: var(--fe-papel); color: var(--fe-tinta); font: 700 12.5px var(--fe-titulo); border-radius: 0; cursor: pointer }
+.gs .tb-atajos button.on { background: #F5B800; border-color: #F5B800; color: #111 }
 .gs .tb-atajos button.mal:not(.on) { border-color: var(--gs-rojo); color: var(--gs-rojo) }
-.gs .tb-atajos span { font-size: 12px; color: var(--fe-gris); margin-left: 4px }
 .gs a.gs-cif { cursor: pointer }
 
 /* ---------- la tabla: tres columnas fijas y un bloque por día ---------- */
@@ -159,6 +181,9 @@
 .gs .h5 .btn { min-height: 44px }
 
 @media (max-width: 900px) {
+  .gs .tb-linea { align-items: stretch }
+  .gs .tb-drops { width: 100%; padding-top: 4px } .gs .tb-dropw { flex: 1 } .gs .tb-drop { width: 100%; justify-content: space-between }
+  .gs .tb-pop-area { left: 0; right: auto }
   .gs .tb-t .f1 { width: 150px; min-width: 150px; max-width: 150px; box-shadow: 2px 0 0 var(--fe-linea) }
   .gs .tb-t .f2, .gs .tb-t .f3 { position: static; box-shadow: none }
   .gs .tb-ed .nom { font-size: 11.5px }
@@ -169,13 +194,7 @@
   .gs .h5-fila { grid-template-columns: 1fr 1fr } .h5-fila .btn { grid-column: 1 / -1 }
 }
 
-/* ---------- áreas: botones como los del registro y su ventana ---------- */
-.gs .tb-areas { display: flex; gap: 6px; flex-wrap: wrap; align-items: center }
-.gs .tb-areas > b { font: 800 13px var(--fe-titulo); color: var(--fe-tinta); margin-right: 4px; flex-basis: 100% }
-.gs .tb-areas button { min-height: 44px; padding: 0 18px; border: 1px solid var(--fe-linea); background: var(--fe-papel, #fff); color: var(--fe-tinta); font: 500 14.5px var(--fe-texto); border-radius: 0; cursor: pointer }
-.gs .tb-areas button:hover { border-color: var(--fe-tinta) }
-.gs .tb-areas button.on { background: var(--fe-tinta); border-color: var(--fe-tinta); color: var(--fe-papel, #fff); font-weight: 700; box-shadow: inset 0 -3px 0 var(--fe-acento) }
-.gs .tb-areas button.tb-areas-ed { border-style: dashed; color: var(--fe-gris); font-weight: 700; font-size: 13px }
+/* ---------- la ventana «Editar áreas» ---------- */
 .gs .ar-caja { max-width: 560px }
 .gs .ar-lista { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow: auto }
 .gs .ar-lista li { display: grid; grid-template-columns: auto 1fr auto auto auto; gap: 8px; align-items: center }

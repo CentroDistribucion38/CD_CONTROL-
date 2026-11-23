@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAvisos } from "@/components/Aviso";
 import {
-  OPERADORES, PESO, RELEVO, conUnidad, inicioPeriodo, sumarDias, textoMeta,
+  OPERADORES, PESO, RELEVO, conUnidad, diaCorto, inicioPeriodo, sumarDias, textoMeta,
   type Accion, type Analisis, type Disparador, type Estado, type Indicador, type Op, type Proceso, type Resultado, type Turno,
 } from "@/modulos/gestion/semaforo";
 import { cambiarDesdeTablero } from "./actions";
@@ -52,6 +52,15 @@ export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, res
   const [area, setArea] = useState<string>("todas");
   const [editar, setEditar] = useState<Indicador | null>(null);
   const [verAreas, setVerAreas] = useState(false);
+  const [abre, setAbre] = useState<"area" | "fechas" | null>(null);
+  const dropsRef = useRef<HTMLDivElement>(null);
+  /* Los desplegables se cierran al tocar fuera. */
+  useEffect(() => {
+    if (!abre) return;
+    const fuera = (e: MouseEvent) => { if (dropsRef.current && !dropsRef.current.contains(e.target as Node)) setAbre(null) };
+    document.addEventListener("mousedown", fuera);
+    return () => document.removeEventListener("mousedown", fuera);
+  }, [abre]);
   const [abierto, setAbierto] = useState<string | null>(null);
   const [desde, setDesde] = useState(d);
   const [hasta, setHasta] = useState(h);
@@ -67,6 +76,8 @@ export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, res
   const anPor = useMemo(() => new Map(analisis.map((a) => [a.disparador_id, a])), [analisis]);
   const dias = useMemo(() => diasEntre(d, h), [d, h]);
   const nT = Math.max(1, tActivos.length);
+  const opcionesArea = [{ id: "todas", nombre: "Todas" }, ...procesos.filter((p) => p.activo),
+    ...(indicadores.some((i) => i.activo && (!i.proceso_id || !procesos.some((p) => p.activo && p.id === i.proceso_id))) ? [{ id: "ninguna", nombre: "Sin área" }] : [])];
   const enArea = (i?: Indicador) => !!i && (area === "todas" || (area === "ninguna" ? !i.proceso_id : i.proceso_id === area));
 
   /* Resultado por indicador · fecha · turno ("-" = sin turno). */
@@ -133,7 +144,7 @@ export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, res
   const lunes = inicioPeriodo(hoy, "semana");
   const atajos: [string, string, string][] = [
     ["Hoy", hoy, hoy], ["3 días", sumarDias(hoy, -2), hoy], ["7 días", sumarDias(hoy, -6), hoy], ["Esta semana", lunes, hoy],
-    ["Semana pasada", sumarDias(lunes, -7), sumarDias(lunes, -1)],
+    ["Semana pasada", sumarDias(lunes, -7), sumarDias(lunes, -1)], ["Este mes", inicioPeriodo(hoy, "mes"), hoy],
   ];
 
   const disp = abierto ? disparadores.find((x) => x.id === abierto) ?? null : null;
@@ -151,35 +162,53 @@ export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, res
         </div>
       </section>
 
-      <div className="tb-barra">
+      <div className="tb-linea">
         <div className="tb-hojas" role="tablist" aria-label="Hoja">
           <button type="button" role="tab" aria-selected={hoja === "tablero"} className={hoja === "tablero" ? "on" : ""} onClick={() => setHoja("tablero")}>Tablero</button>
           <button type="button" role="tab" aria-selected={hoja === "plan"} className={hoja === "plan" ? "on" : ""} onClick={() => setHoja("plan")}>
             Plan de acción {abiertas > 0 && <em>{abiertas}</em>}
           </button>
         </div>
-        <div className="tb-filtros">
+        <div className="tb-drops" ref={dropsRef} onKeyDown={(e) => { if (e.key === "Escape") setAbre(null) }}>
+          <div className="tb-dropw">
+            <button type="button" className={"tb-drop" + (abre === "area" ? " ab" : "")} aria-haspopup="listbox" aria-expanded={abre === "area"} onClick={() => setAbre(abre === "area" ? null : "area")}>
+              <small>Área</small><b>{opcionesArea.find((p) => p.id === area)?.nombre ?? "Todas"}</b><i aria-hidden>▾</i>
+            </button>
+            {abre === "area" && (
+              <div className="tb-pop tb-pop-area" role="listbox" aria-label="Área">
+                {opcionesArea.map((p) => (
+                  <button key={p.id} type="button" role="option" aria-selected={area === p.id} className={area === p.id ? "on" : ""} onClick={() => { setArea(p.id); setAbre(null) }}>
+                    {p.nombre}{area === p.id && <span aria-hidden>✓</span>}
+                  </button>
+                ))}
+                {puedeIndicador && <button type="button" className="tb-pop-ed" onClick={() => { setAbre(null); setVerAreas(true) }}>✎ Editar áreas</button>}
+              </div>
+            )}
+          </div>
           {hoja === "tablero" && (
-            <>
-              <label>Desde<input type="date" value={desde} max={hoy} onChange={(e) => setDesde(e.target.value)} onBlur={() => desde && desde !== d && ir(desde, hasta)} /></label>
-              <label>Hasta<input type="date" value={hasta} max={hoy} onChange={(e) => setHasta(e.target.value)} onBlur={() => hasta && hasta !== h && ir(desde, hasta)} /></label>
-            </>
+            <div className="tb-dropw">
+              <button type="button" className={"tb-drop" + (abre === "fechas" ? " ab" : "")} aria-haspopup="dialog" aria-expanded={abre === "fechas"} onClick={() => { setDesde(d); setHasta(h); setAbre(abre === "fechas" ? null : "fechas") }}>
+                <small>Fechas</small><b>{d === h ? diaCorto(d) : `${diaCorto(d)} – ${diaCorto(h)}`}</b><i aria-hidden>▾</i>
+              </button>
+              {abre === "fechas" && (
+                <div className="tb-pop tb-pop-fechas" role="dialog" aria-label="Fechas">
+                  <div className="tb-at">
+                    {atajos.map(([t, a, b]) => <button key={t} type="button" className={a === d && b === h ? "on" : ""} onClick={() => { setAbre(null); ir(a, b) }}>{t}</button>)}
+                  </div>
+                  <div className="tb-cal">
+                    <label>Desde<input type="date" value={desde} max={hoy} onChange={(e) => setDesde(e.target.value)} /></label>
+                    <label>Hasta<input type="date" value={hasta} max={hoy} onChange={(e) => setHasta(e.target.value)} /></label>
+                  </div>
+                  <div className="tb-ver">
+                    <small>Máximo {maxDias} días</small>
+                    <button type="button" disabled={!desde || !hasta} onClick={() => { setAbre(null); ir(desde, hasta) }}>Ver</button>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
-      <div className="tb-areas" role="group" aria-label="Área">
-        <b>Área</b>
-        {[{ id: "todas", nombre: "Todas" }, ...procesos.filter((p) => p.activo),
-          ...(indicadores.some((i) => i.activo && (!i.proceso_id || !procesos.some((p) => p.activo && p.id === i.proceso_id))) ? [{ id: "ninguna", nombre: "Sin área" }] : [])]
-          .map((p) => <button key={p.id} type="button" className={area === p.id ? "on" : ""} aria-pressed={area === p.id} onClick={() => setArea(p.id)}>{p.nombre}</button>)}
-        {puedeIndicador && <button type="button" className="tb-areas-ed" onClick={() => setVerAreas(true)}>✎ Editar áreas</button>}
-      </div>
-      {hoja === "tablero" && (
-        <div className="tb-atajos" role="group" aria-label="Fechas rápidas">
-          {atajos.map(([t, a, b]) => <button key={t} type="button" className={a === d && b === h ? "on" : ""} onClick={() => ir(a, b)}>{t}</button>)}
-          <span>{dias.length} día{dias.length === 1 ? "" : "s"} · máximo {maxDias}</span>
-        </div>
-      )}
 
       {faltaSql && <p className="gs-solover">Falta crear las tablas del 5W: corre <b>supabase/migraciones/2026-10-gestion-5why-plan.sql</b> y después <b>2026-11-gestion-tablero-relevo.sql</b>.</p>}
 
