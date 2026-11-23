@@ -268,3 +268,10 @@
 .pe .pe-pasos .sig { margin-left: auto; color: var(--fe-tinta); font-weight: 700; text-decoration: none }
 .pe .pe-pasos a:hover { text-decoration: underline }
 @media (max-width: 640px) { .pe .pe-pasos .ant { display: none } .pe .pe-pasos .sig { margin-left: 0 } }
+
+/* Corte › producto sin notificar (según plan, por confirmar): aparte de las partidas de SAP, con su casilla. */
+.pe .pe-sin { margin-top: 14px; border-top: 1px solid var(--fe-linea, #dde2e8); padding-top: 12px }
+.pe .pe-sin h4 { margin: 0 0 8px; font: 700 14px var(--fe-texto); display: flex; align-items: center; gap: 8px; flex-wrap: wrap }
+.pe .pe-sin h4 small { flex-basis: 100%; font-weight: 500; font-size: 12px; color: var(--fe-gris, #6b7280) }
+.pe .pe-sin tr.mut td { color: var(--fe-gris, #6b7280) }
+.pe .pe-sin input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--fe-acento, #FFC400) }

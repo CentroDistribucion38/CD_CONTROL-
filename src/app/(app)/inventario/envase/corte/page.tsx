@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { notificacionesAlCorte, partidasCorte } from "@/modulos/inventario/envase/calc";
-import { hoyBogota, movimientosDigitadosDesde, movimientosParaElConteo, upcEnvases } from "@/modulos/inventario/envase/datos";
+import { maestro, masDias, notificacionesAlCorte, papeles, partidasCorte, productoSinNotificar, type FilaPlanBD } from "@/modulos/inventario/envase/calc";
+import { hoyBogota, lunesDe, movimientosDigitadosDesde, movimientosParaElConteo, planesDeSemana, productosDe, upcEnvases } from "@/modulos/inventario/envase/datos";
 import { Pasos } from "../Pasos";
 import "../../fefo.css";
 import "../../balance/analisis/analisis.css";
@@ -26,6 +26,19 @@ export default async function CortePage({ searchParams }: { searchParams: Promis
   const r = partidasCorte(`${dia}T${hora}`, mv.filas);
   /* Lo que va al análisis de diferencia de Bodega 38 (AG22) con los nombres de la plantilla. */
   const nt = notificacionesAlCorte(dia, hora, mc.filas, (c) => upc.get(c) ?? 0);
+  /* EL PRODUCTO SIN NINGUNA NOTIFICACIÓN (según el plan vigente de ayer y de hoy hasta el corte) y su envase: POR CONFIRMAR. */
+  const ayer = masDias(dia, -1);
+  const lunesS = [...new Set([lunesDe(ayer), lunesDe(dia)])];
+  const semanas = await Promise.all(lunesS.map((l) => planesDeSemana(l)));
+  const planDia = new Map<string, FilaPlanBD[]>();
+  for (const d of [ayer, dia]) {
+    const ps = semanas[lunesS.indexOf(lunesDe(d))];
+    const P = papeles(ps.planes), c = P.corteDe(d), id = c?.id ?? P.inicial?.id;
+    planDia.set(d, id ? ps.filas.filter((f) => f.plan_id === id && f.fecha === d) : []);
+  }
+  const filasPlan = semanas.flatMap((x) => x.filas);
+  const skus = [...new Set(filasPlan.map((f) => f.sku).filter((x): x is string => !!x))];
+  const sinNotif = productoSinNotificar(dia, hora, planDia, mc.filas, maestro(filasPlan, await productosDe(skus)));
 
   return (
     <div className="fe pe">
@@ -41,7 +54,7 @@ export default async function CortePage({ searchParams }: { searchParams: Promis
       ) : mv.error ? (
         <p className="pe-error">No se pudo leer la MB51: {mv.error}</p>
       ) : (
-        <Corte dia={dia} hora={hora} hoy={hoyBogota()} seguras={r.seguras} dudosas={r.dudosas} alcanza={r.alcanza} ultima={r.ultima} notif={nt.filas} />
+        <Corte dia={dia} hora={hora} hoy={hoyBogota()} seguras={r.seguras} dudosas={r.dudosas} alcanza={r.alcanza} ultima={r.ultima} notif={nt.filas} sinNotif={sinNotif} />
       )}
     </div>
   );

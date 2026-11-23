@@ -290,3 +290,67 @@ export function notificacionesAlCorte(dia: string, hora: string, movs: Mov[], up
     .sort((a, b) => a.tipo.localeCompare(b.tipo) || a.codigo.localeCompare(b.codigo) || b.unidades - a.unidades);
   return { filas: lista, ultima: ultima || null, alcanza: ultima > corte };
 }
+
+/* ------------------------------------------------------------------ PRODUCTO SIN NOTIFICAR (SEGÚN EL PLAN) */
+
+export type SinNotificar = {
+  sku: string; nombre: string; plan: number; notif: number; sin: number;
+  botella: { codigo: string; texto: string; unidades: number } | null;
+  caja: { codigo: string; texto: string; unidades: number } | null;
+};
+
+/**
+ * EL PRODUCTO QUE SE ENVASÓ Y TODAVÍA NO TIENE NINGUNA NOTIFICACIÓN, para el corte de un conteo.
+ * «Aquí sale el envase y está perfecto, ¿y si está pendiente el producto?» Lo que ya tiene Z01 (antes o después del corte) lo
+ * cubren las partidas de arriba; lo que no tiene NINGUNA notificación tampoco tiene 261: SAP sigue teniendo su botella y su
+ * caja en AG22 y el conteo sale por debajo sin explicación. Se estima con el PLAN VIGENTE, por SKU retornable:
+ *   sin notificar = plan (ayer completo + hoy hasta la hora del corte) − todo lo notificado (Z01 − Z02) con fecha de esos dos días,
+ *                   se haya digitado cuando se haya digitado
+ * y su envase: botellas = unidades (una por unidad), cajas = unidades ÷ unidades por caja, con el código SAP que usan sus órdenes.
+ * Es una estimación (si la línea produjo menos que el plan, sale de más): la pantalla la muestra POR CONFIRMAR.
+ * @param planDia las filas del plan vigente de cada día (ayer y hoy)
+ */
+export function productoSinNotificar(dia: string, hora: string, planDia: Map<string, FilaPlanBD[]>, movs: Mov[], M: Maestro): SinNotificar[] {
+  const ayer = masDias(dia, -1);
+  const [hh, mm] = hora.split(":").map(Number);
+  const unDe = (f: FilaPlanBD) => Number(f.unidades) || (f.formato_ml ? (Number(f.hl) * 1e5) / Number(f.formato_ml) : 0);
+  const plan = new Map<string, number>();
+  for (const f of planDia.get(ayer) ?? []) if (f.fecha === ayer && f.sku) plan.set(f.sku, (plan.get(f.sku) ?? 0) + unDe(f));
+  for (const f of planDia.get(dia) ?? []) {
+    if (f.fecha !== dia || !f.sku) continue;
+    const w = f.hora < hh ? 1 : f.hora === hh ? mm / 60 : 0;
+    if (w) plan.set(f.sku, (plan.get(f.sku) ?? 0) + unDe(f) * w);
+  }
+  const notif = new Map<string, number>();
+  const skuOrden = new Map<string, string>();
+  for (const m of movs) {
+    if (!ES_Z.has(m.clase) || !/P$/i.test(m.material)) continue;
+    if (m.orden) skuOrden.set(m.orden, skuDe(m.material));
+    if (m.fecha_contab !== ayer && m.fecha_contab !== dia) continue;
+    const q = m.clase === "Z02" ? -Math.abs(m.cantidad) : m.cantidad;
+    notif.set(skuDe(m.material), (notif.get(skuDe(m.material)) ?? 0) + q);
+  }
+  /* El envase de cada SKU: el material del 261 de sus órdenes (el más usado), botella y caja por separado. */
+  const usos = new Map<string, Map<string, { texto: string; n: number; caja: boolean }>>();
+  for (const m of movs) {
+    if (m.clase !== "261" || !m.orden || !skuOrden.has(m.orden)) continue;
+    const sku = skuOrden.get(m.orden)!;
+    if (!usos.has(sku)) usos.set(sku, new Map());
+    const x = usos.get(sku)!.get(m.material) ?? { texto: m.texto, n: 0, caja: esCaja(m.texto) };
+    x.n++; usos.get(sku)!.set(m.material, x);
+  }
+  const envase = (sku: string, caja: boolean) => {
+    const xs = [...(usos.get(sku) ?? new Map()).entries()].filter(([, v]) => v.caja === caja).sort((a, b) => b[1].n - a[1].n);
+    return xs[0] ? { codigo: xs[0][0], texto: xs[0][1].texto } : null;
+  };
+  const out: SinNotificar[] = [];
+  for (const [sku, p] of plan) {
+    const n = notif.get(sku) ?? 0, sin = p - n;
+    const bot = envase(sku, false);
+    if (sin < 1 || !bot) continue;                         // sin envase en el historial: no es retornable
+    const caja = envase(sku, true), ref = M.get(sku)?.ref ?? 0;
+    out.push({ sku, nombre: M.get(sku)?.nombre ?? "", plan: p, notif: n, sin,
+      botella: { ...bot, unidades: Math.round(sin) }, caja: caja && ref ? { ...caja, unidades: Math.round(sin / ref) } : null });
+  }
+  return out.sort((a, b) => b.sin - a.sin);
+}

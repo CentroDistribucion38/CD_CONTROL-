@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { masDias, porMaterial, type FilaNotif, type Partida } from "@/modulos/inventario/envase/calc";
+import { masDias, porMaterial, type FilaNotif, type Partida, type SinNotificar } from "@/modulos/inventario/envase/calc";
 import { Calendario } from "@/components/CalendarioRango";
 
 const n0 = (x: number) => Math.round(x).toLocaleString("es-CO");
@@ -24,8 +24,10 @@ const nombreClases = (c: Set<string>) => [...c].map((x) => CLASE[x] ?? x).join("
 const HORAS = Array.from({ length: 48 }, (_, i) => `${String(Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`);
 const TURNOS = ["06:00", "14:00", "22:00"];
 
-export function Corte({ dia, hora, hoy, seguras, dudosas, alcanza, ultima, notif }: {
+export function Corte({ dia, hora, hoy, seguras, dudosas, alcanza, ultima, notif, sinNotif = [] }: {
   dia: string; hora: string; hoy: string; seguras: Partida[]; dudosas: Partida[]; alcanza: boolean; ultima: string | null; notif: FilaNotif[];
+  /** Producto sin ninguna notificación según el plan, con su envase: POR CONFIRMAR (solo lo marcado se copia). */
+  sinNotif?: SinNotificar[];
 }) {
   const router = useRouter();
   const ir = (f: string, h: string) => router.push(`/inventario/envase/corte?f=${f}&h=${h}`);
@@ -34,10 +36,16 @@ export function Corte({ dia, hora, hoy, seguras, dudosas, alcanza, ultima, notif
   const todas = useMemo(() => [...seguras, ...dudosas.filter((_, i) => antes.has(i))], [seguras, dudosas, antes]);
   const mats = porMaterial(todas).filter((m) => Math.abs(m.q) > 0.0001);
   const [copiado, setCopiado] = useState<string | null>(null);
+  /* Lo de «Producto sin notificar» que se marcó: entra a la copia como PENDIENTE POR NOTIFICAR (suma al conteo), botella y caja. */
+  const [conf, setConf] = useState<Set<string>>(new Set());
+  const confirmadas = sinNotif.filter((x) => conf.has(x.sku)).flatMap((x) => [x.botella, x.caja].filter((e): e is NonNullable<typeof e> => !!e)
+    .map((e) => ({ tipo: "PENDIENTE POR NOTIFICAR", documento: `SKU ${x.sku} sin notificar`, codigo: e.codigo, unidades: e.unidades })));
   async function copiar() {
-    try { await navigator.clipboard.writeText(notif.map((f) => [f.tipo, f.documento, f.codigo, "", "", f.unidades].join("\t")).join("\n")); setCopiado("Copiadas: pégalas en la columna A de NOVEDADES.") }
+    const filas = [...notif.map((f) => ({ tipo: f.tipo, documento: f.documento, codigo: f.codigo, unidades: f.unidades })), ...confirmadas];
+    try { await navigator.clipboard.writeText(filas.map((f) => [f.tipo, f.documento, f.codigo, "", "", f.unidades].join("\t")).join("\n")); setCopiado(`Copiadas ${filas.length}${confirmadas.length ? ` (${confirmadas.length} del producto sin notificar)` : ""}: pégalas en la columna A de NOVEDADES.`) }
     catch { setCopiado("El navegador no dejó copiar.") }
   }
+  const confirmar = (sku: string) => setConf((x) => { const y = new Set(x); if (y.has(sku)) y.delete(sku); else y.add(sku); return y });
   const marcar = (i: number) => setAntes((x) => { const y = new Set(x); if (y.has(i)) y.delete(i); else y.add(i); return y });
 
   return (
@@ -80,8 +88,31 @@ export function Corte({ dia, hora, hoy, seguras, dudosas, alcanza, ultima, notif
                 </tr>
               ))}</tbody>
             </table></div>
-            <p className="pe-nota"><button type="button" className="pe-bt" onClick={() => void copiar()}>Copiar para la plantilla</button> {copiado}</p>
           </>) : <p className="pe-nota">Nada pendiente por notificar ni notificaciones en AG22 al corte de las {hora}.</p>}
+
+          {/* PRODUCTO SIN NINGUNA NOTIFICACIÓN, SEGÚN EL PLAN (opción A: por confirmar). Lo de arriba sale de movimientos de SAP;
+              esto es una estimación del plan, así que nada entra solo: se marca SKU por SKU. */}
+          {sinNotif.length > 0 && (
+            <div className="pe-sin">
+              <h4>Producto sin notificar · según plan <span className="pe-tag t-a">Por confirmar</span>
+                <small>plan vigente de ayer y de hoy hasta las {hora} − lo notificado de esos días · su envase sigue en AG22 · marca los que se envasaron de verdad</small></h4>
+              <div className="pe-caja"><table className="pe-t">
+                <thead><tr><th className="l">Entra</th><th className="l">SKU</th><th>Plan</th><th>Notificado</th><th>Sin notificar</th><th className="l">Botella (PENDIENTE POR NOTIFICAR · CONTEO)</th><th className="l">Caja</th></tr></thead>
+                <tbody>{sinNotif.map((x) => (
+                  <tr key={x.sku} className={conf.has(x.sku) ? "" : "mut"}>
+                    <td className="l"><input type="checkbox" checked={conf.has(x.sku)} onChange={() => confirmar(x.sku)} aria-label={`Incluir ${x.sku}`} /></td>
+                    <td className="l"><b>{x.sku}</b> {x.nombre.slice(0, 30)}</td>
+                    <td>{n0(x.plan)}</td><td>{n0(x.notif)}</td><td><b>{n0(x.sin)}</b></td>
+                    <td className="l">{x.botella ? <><b>{x.botella.codigo}</b> {x.botella.texto} · <b>{n0(x.botella.unidades)}</b></> : "—"}</td>
+                    <td className="l">{x.caja ? <><b>{x.caja.codigo}</b> {x.caja.texto} · <b>{n0(x.caja.unidades)}</b></> : "—"}</td>
+                  </tr>
+                ))}</tbody>
+              </table></div>
+            </div>
+          )}
+          {(notif.length > 0 || confirmadas.length > 0) && (
+            <p className="pe-nota"><button type="button" className="pe-bt" onClick={() => void copiar()}>Copiar para la plantilla{confirmadas.length ? ` (+${confirmadas.length} sin notificar)` : ""}</button> {copiado}</p>
+          )}
         </section>
 
         <div className="pe-card pe-formula" aria-label="Cómo se usan las partidas">
