@@ -26,7 +26,11 @@ function unidadDe(f: FilaAnalisis) {
   return f.familia.startsWith("E03") ? "estibas" : f.familia.startsWith("E01") ? "cajas" : "unidades";
 }
 
-export function UbicacionesDif({ fila, fecha }: { fila: FilaAnalisis; fecha: string }) {
+/** @param lugar el renglón de arriba de la tarjeta (por defecto Bodega 38; el cíclico de producto dice el suyo).
+ *  @param sinUbi qué es lo que suma al conteo sin ubicación en ese análisis. */
+export function UbicacionesDif({ fila, fecha, lugar = "CD Barranquilla · Bodega 38", sinUbi: sinUbiTxt = "casco con baja, novedades" }: {
+  fila: FilaAnalisis; fecha: string; lugar?: string; sinUbi?: string;
+}) {
   const [abierto, setAbierto] = useState(false);
   const [aviso, setAviso] = useState("");
   const [trabajando, setTrabajando] = useState(false);
@@ -115,7 +119,7 @@ export function UbicacionesDif({ fila, fecha }: { fila: FilaAnalisis; fecha: str
                 <div className="ub-top">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src="/marca/logo-bavaria.png" alt="Bavaria" height={34} />
-                  <span>CD Barranquilla · Bodega 38<br />{fechaLarga}</span>
+                  <span>{lugar}<br />{fechaLarga}</span>
                 </div>
                 <div className="ub-tit">
                   <p className="ub-ojo">DÓNDE SE CONTÓ</p>
@@ -130,7 +134,7 @@ export function UbicacionesDif({ fila, fecha }: { fila: FilaAnalisis; fecha: str
 
                 <div className="ub-h"><span>Ubicación</span><span>Contado ({unidad})</span><span className="n">Un.</span><span className="n">%</span></div>
                 <div className="ub-l">
-                  {ubis.length === 0 && <p className="ub-vacio">Este código no tiene ubicación en el conteo: lo que suma viene de casco con baja o de novedades.</p>}
+                  {ubis.length === 0 && <p className="ub-vacio">Este código no tiene ubicación en el conteo: lo que suma viene de {sinUbiTxt}.</p>}
                   {ubis.map((u, i) => (
                     <div key={u.ubicacion} className={"ub-r" + (i === 0 ? " p1" : "")}>
                       <span className="ub-u">{u.ubicacion}</span>
@@ -141,7 +145,7 @@ export function UbicacionesDif({ fila, fecha }: { fila: FilaAnalisis; fecha: str
                   ))}
                   {ubis.length > 0 && Math.abs(sinUbi) >= 1 && (
                     <div className="ub-r ub-sin">
-                      <span className="ub-u">Sin ubicación<small>casco con baja, novedades</small></span>
+                      <span className="ub-u">Sin ubicación<small>{sinUbiTxt}</small></span>
                       <div className="ub-tr"><i style={{ width: `${Math.max(1, Math.round((Math.abs(sinUbi) / tope) * 100))}%` }} /></div>
                       <span className={"ub-v" + (sinUbi < 0 ? " neg" : "")}>{signo(sinUbi)}</span>
                       <span className="ub-p">{pct(sinUbi)}</span>

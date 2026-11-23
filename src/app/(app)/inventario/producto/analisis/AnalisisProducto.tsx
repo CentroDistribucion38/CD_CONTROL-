@@ -6,6 +6,8 @@ import type { AnalisisProducto as Datos, FilaProducto, RoturasProducto } from "@
 import { ROTURA_PT } from "@/modulos/inventario/compensa";
 import { leerPlantilla } from "../../balance/analisis/leer-plantilla";
 import { SelectorRango } from "../../balance/analisis/SelectorDia";
+import { UbicacionesDif } from "../../balance/analisis/UbicacionesDif";
+import "../../balance/analisis/ubicaciones.css";
 import { guardarAnalisisProducto, guardarNovedadesProducto, guardarRoturaProducto, guardarZexiProducto, quitarNovedadesProducto } from "./actions";
 import { leerZexiProducto, type FilaZexi } from "./leer-zexi";
 
@@ -283,7 +285,9 @@ export function AnalisisProducto({ datos, puedeEditar, guardadoEn }: { datos: Da
                                   <div><b>SAP · {n(f.sap)}</b>
                                     <ul>{f.deSap.map((p) => <li key={p.nombre}><span>{p.nombre}</span><em>{n(p.cantidad)}</em></li>)}{!f.deSap.length && <li><span>— (no está en la ZEXI)</span></li>}</ul>
                                   </div>
-                                  <div><b>CONTEO · {n(f.conteo)}</b>
+                                  <div>{/* El mismo ícono de ubicaciones del análisis de Balance: dónde lo contó Bavaria, en una tarjeta que se copia como imagen. */}
+                                    <span className="ad-ub-pos"><UbicacionesDif fila={f} fecha={ciclico.fecha} lugar={`CD Barranquilla · ${ciclico.nombre ?? "Inventario cíclico"}`} sinUbi="roturas de producto terminado, novedades" /></span>
+                                    <b>CONTEO · {n(f.conteo)}</b>
                                     <ul>{f.deConteo.map((p) => p.nombre === ROTURA_PT && datos.roturas
                                       ? <RoturaLinea key={p.nombre} fiscalId={ciclico.id} cod={f.codigo} valor={p.cantidad} puedeEditar={puedeEditar} r={datos.roturas} alGuardar={() => router.refresh()} />
                                       : <li key={p.nombre}><span>{p.nombre}</span><em>{n(p.cantidad)}</em></li>)}
@@ -291,10 +295,6 @@ export function AnalisisProducto({ datos, puedeEditar, guardadoEn }: { datos: Da
                                         <RoturaLinea fiscalId={ciclico.id} cod={f.codigo} valor={0} puedeEditar={puedeEditar} r={datos.roturas} alGuardar={() => router.refresh()} />
                                       )}
                                       {!f.deConteo.length && !datos.roturas?.porCodigo[f.codigo] && <li><span>— (Bavaria no lo contó)</span></li>}</ul>
-                                    {(f.ubicaciones?.length ?? 0) > 0 && (
-                                      <><b>Dónde lo contó Bavaria</b>
-                                      <ul>{f.ubicaciones!.map((u) => <li key={u.ubicacion}><span>{u.ubicacion}</span><em>{n(u.cantidad)}</em></li>)}</ul></>
-                                    )}
                                     <b title="No suma: es para ver si la pareja coincidió">CONTÓ EL OPERADOR (no suma) · {f.ol == null ? "—" : n(f.ol)}</b>
                                     {f.ol != null && f.ol !== (f.deConteo.find((p) => p.nombre.startsWith("CONTEO BAVARIA"))?.cantidad ?? 0) && (
                                       <p className="ad-nota">El operador y Bavaria no contaron lo mismo en este código: crucen la hoja en Contar antes de ajustar.</p>
