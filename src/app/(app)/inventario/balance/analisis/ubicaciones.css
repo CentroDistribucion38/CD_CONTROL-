@@ -69,3 +69,7 @@
 .ub-bt:focus-visible { outline: 3px solid #FFC400; outline-offset: 2px }
 .ub-aviso { flex: 1; min-width: 160px; font-size: 13px; color: #0F5E3A }
 @media (max-width: 520px) { .ub-kpis b { font-size: 17px } .ub-h, .ub-r { grid-template-columns: 96px minmax(24px, 1fr) 64px 34px } }
+
+/* Análisis de producto: el SKU que está en producción ese día (plan de envase), al lado de la descripción. Recto, ámbar. */
+.ad .ad-prod { display: inline-block; margin-left: 8px; padding: 1px 6px; font: 700 10px var(--fe-texto, system-ui); letter-spacing: .06em;
+  color: #111; background: var(--fe-acento, #FFC400); vertical-align: 1px; white-space: nowrap; cursor: help }

@@ -55,7 +55,12 @@ export function UbicacionesDif({ fila, fecha, lugar = "CD Barranquilla · Bodega
   const unidad = unidadDe(fila);
   const pct = (v: number) => (fila.conteo ? `${Math.round((Math.abs(v) / Math.abs(fila.conteo)) * 100)}%` : "—");
   const dif = fila.diferencia;
-  const tope = Math.max(1, ...ubis.map((u) => Math.abs(u.cantidad)), Math.abs(sinUbi));
+  /* LO QUE SUMA AL CONTEO SIN UBICACIÓN, PARTIDA POR PARTIDA: «¿y ya tiene los SKU que están en producción?». Los palés de
+     L1 a L7, el producto en fábrica, el casco con baja, las roturas… llegan sin ubicación; en vez de un solo «Sin ubicación»,
+     cada partida sale con su nombre. Solo si cuadran con lo que falta (si no, queda el renglón único de siempre). */
+  const fuera = fila.deConteo.filter((p) => !/^CONTEO\b/i.test(p.nombre) && Math.abs(p.cantidad) >= 1);
+  const porPartida = fuera.length > 0 && Math.abs(fuera.reduce((t, p) => t + p.cantidad, 0) - sinUbi) < 1;
+  const tope = Math.max(1, ...ubis.map((u) => Math.abs(u.cantidad)), ...(porPartida ? fuera.map((p) => Math.abs(p.cantidad)) : [Math.abs(sinUbi)]));
   const fechaLarga = new Date(fecha + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).replace(/^./, (c) => c.toUpperCase());
 
   /* La tarjeta a PNG. El html2canvas se carga solo cuando se usa. */
@@ -134,7 +139,7 @@ export function UbicacionesDif({ fila, fecha, lugar = "CD Barranquilla · Bodega
 
                 <div className="ub-h"><span>Ubicación</span><span>Contado ({unidad})</span><span className="n">Un.</span><span className="n">%</span></div>
                 <div className="ub-l">
-                  {ubis.length === 0 && <p className="ub-vacio">Este código no tiene ubicación en el conteo: lo que suma viene de {sinUbiTxt}.</p>}
+                  {ubis.length === 0 && !porPartida && <p className="ub-vacio">Este código no tiene ubicación en el conteo: lo que suma viene de {sinUbiTxt}.</p>}
                   {ubis.map((u, i) => (
                     <div key={u.ubicacion} className={"ub-r" + (i === 0 ? " p1" : "")}>
                       <span className="ub-u">{u.ubicacion}</span>
@@ -143,7 +148,15 @@ export function UbicacionesDif({ fila, fecha, lugar = "CD Barranquilla · Bodega
                       <span className="ub-p">{pct(u.cantidad)}</span>
                     </div>
                   ))}
-                  {ubis.length > 0 && Math.abs(sinUbi) >= 1 && (
+                  {porPartida && fuera.map((p) => (
+                    <div key={p.nombre} className="ub-r ub-sin">
+                      <span className="ub-u">{p.nombre}<small>sin ubicación · {/\bL\s*\d|PAL[EÉ]S?\b|F[AÁ]BRICA|PRODUCCI[OÓ]N|Z09/i.test(p.nombre) ? "en producción" : "suma al conteo"}</small></span>
+                      <div className="ub-tr"><i style={{ width: `${Math.max(1, Math.round((Math.abs(p.cantidad) / tope) * 100))}%` }} /></div>
+                      <span className={"ub-v" + (p.cantidad < 0 ? " neg" : "")}>{signo(p.cantidad)}</span>
+                      <span className="ub-p">{pct(p.cantidad)}</span>
+                    </div>
+                  ))}
+                  {!porPartida && ubis.length > 0 && Math.abs(sinUbi) >= 1 && (
                     <div className="ub-r ub-sin">
                       <span className="ub-u">Sin ubicación<small>{sinUbiTxt}</small></span>
                       <div className="ub-tr"><i style={{ width: `${Math.max(1, Math.round((Math.abs(sinUbi) / tope) * 100))}%` }} /></div>
@@ -152,7 +165,7 @@ export function UbicacionesDif({ fila, fecha, lugar = "CD Barranquilla · Bodega
                     </div>
                   )}
                 </div>
-                <div className="ub-tot"><span>Total contado · {ubis.length} {ubis.length === 1 ? "ubicación" : "ubicaciones"}</span><b>{n(fila.conteo)}</b></div>
+                <div className="ub-tot"><span>Total contado · {ubis.length} {ubis.length === 1 ? "ubicación" : "ubicaciones"}{porPartida ? ` + ${fuera.length} sin ubicación` : ""}</span><b>{n(fila.conteo)}</b></div>
                 <p className="ub-pie"><span>SAP no se lleva por ubicación: la diferencia ({signo(dif)}) se lee contra el total contado.</span><span>Control CD38 · Bavaria</span></p>
               </div>
             </div>

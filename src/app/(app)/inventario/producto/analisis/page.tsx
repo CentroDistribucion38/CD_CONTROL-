@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { misPermisos } from "@/lib/permisos";
 import { armarAnalisisProducto, ciclicos, historicoProducto, leerAjustesProducto } from "@/modulos/inventario/producto-dif";
+import { enProduccionDe } from "@/modulos/inventario/envase/semana";
 import { AnalisisProducto } from "./AnalisisProducto";
 import { AjustesProducto, FinalProducto } from "./AjustesProducto";
 import { SelectorCiclico } from "./SelectorCiclico";
@@ -117,12 +118,12 @@ export default async function AnalisisProductoPage({ searchParams }: { searchPar
     );
   }
 
-  const [datos, aj] = await Promise.all([armarAnalisisProducto(c, q.rd, q.rh), c ? leerAjustesProducto(c.id) : Promise.resolve(null)]);
+  const [datos, aj, prod] = await Promise.all([armarAnalisisProducto(c, q.rd, q.rh), c ? leerAjustesProducto(c.id) : Promise.resolve(null), c ? enProduccionDe(c.fecha).catch(() => ({})) : Promise.resolve({})]);
   return (
     <div className="fe bal ad">
       {cabeza("Análisis de diferencia", <>El conteo de <b>Bavaria</b> del inventario cíclico contra la <b>existencia de SAP</b> (la ZEXI, tal cual sale de SAP), por código y en unidades. Diferencia = CONTEO − SAP. Las novedades van en la misma plantilla del análisis de Balance, y los pasos son los mismos.</>)}
       {pasos}
-      <AnalisisProducto key={`${id}|${q.rd ?? ""}|${q.rh ?? ""}`} datos={datos} puedeEditar={puedeEditar} guardadoEn={aj?.guardado?.guardado_en ?? null} />
+      <AnalisisProducto key={`${id}|${q.rd ?? ""}|${q.rh ?? ""}`} datos={datos} puedeEditar={puedeEditar} guardadoEn={aj?.guardado?.guardado_en ?? null} enProduccion={prod} />
     </div>
   );
 }

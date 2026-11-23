@@ -106,3 +106,24 @@ export async function cierreDeSemanas(): Promise<{ semanas: ResumenSemana[]; mae
   const usados = new Set(semanas.flatMap((w) => w.skus.map((k) => k.sku)));
   return { semanas, maestro: Object.fromEntries([...M].filter(([k]) => usados.has(k))), mb51: u.valor, error, faltaAdh };
 }
+
+/**
+ * QUÉ SKU ESTÁ EN PRODUCCIÓN UN DÍA — para el análisis del cíclico de producto: «si tomo la familia de la Pet, debe salir el SKU
+ * que está en producción». Del plan vigente de ese día (su corte; si no hay, el inicial): por SKU, en qué trenes y entre qué horas.
+ * Lo de producción está en la línea o en palés sin ubicar, y explica diferencias del conteo.
+ */
+export type EnProduccion = Record<string, { trenes: string[]; desde: number; hasta: number; hl: number }>;
+export async function enProduccionDe(dia: string): Promise<EnProduccion> {
+  const ps = await planesDeSemana(lunesDe(dia));
+  if (ps.error || !ps.planes.length) return {};
+  const P = papeles(ps.planes), c = P.corteDe(dia), id = c?.id ?? P.inicial?.id;
+  const out: EnProduccion = {};
+  for (const f of ps.filas) {
+    if (f.plan_id !== id || f.fecha !== dia || !f.sku || !(Number(f.hl) > 0)) continue;
+    const x = out[f.sku] ?? { trenes: [], desde: 23, hasta: 0, hl: 0 };
+    if (!x.trenes.includes(f.tren)) x.trenes.push(f.tren);
+    x.desde = Math.min(x.desde, f.hora); x.hasta = Math.max(x.hasta, f.hora); x.hl += Number(f.hl);
+    out[f.sku] = x;
+  }
+  return out;
+}

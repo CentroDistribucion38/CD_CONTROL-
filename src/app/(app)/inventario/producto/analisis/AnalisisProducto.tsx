@@ -7,6 +7,7 @@ import { ROTURA_PT } from "@/modulos/inventario/compensa";
 import { leerPlantilla } from "../../balance/analisis/leer-plantilla";
 import { SelectorRango } from "../../balance/analisis/SelectorDia";
 import { UbicacionesDif } from "../../balance/analisis/UbicacionesDif";
+import type { EnProduccion } from "@/modulos/inventario/envase/semana";
 import "../../balance/analisis/ubicaciones.css";
 import { guardarAnalisisProducto, guardarNovedadesProducto, guardarRoturaProducto, guardarZexiProducto, quitarNovedadesProducto } from "./actions";
 import { leerZexiProducto, type FilaZexi } from "./leer-zexi";
@@ -62,7 +63,15 @@ function RoturaLinea({ fiscalId, cod, valor, puedeEditar, r, alGuardar }: {
   );
 }
 
-export function AnalisisProducto({ datos, puedeEditar, guardadoEn }: { datos: Datos; puedeEditar: boolean; guardadoEn: string | null }) {
+/** «Si tomo la familia de la Pet, debe salir el SKU que está en producción»: la marca EN PRODUCCIÓN al lado del código, con su tren y sus horas. */
+function MarcaProduccion({ p }: { p?: EnProduccion[string] }) {
+  if (!p) return null;
+  const h = (x: number) => `${String(x).padStart(2, "0")}:00`;
+  const trenes = p.trenes.map((t) => t.replace(/^TREN-?/i, "L")).join(" · ");
+  return <span className="ad-prod" title={`En el plan de envase de ese día: ${p.trenes.join(", ")}, de ${h(p.desde)} a ${h(p.hasta + 1)} · ${Math.round(p.hl).toLocaleString("es-CO")} HL`}>EN PRODUCCIÓN · {trenes}</span>;
+}
+
+export function AnalisisProducto({ datos, puedeEditar, guardadoEn, enProduccion = {} }: { datos: Datos; puedeEditar: boolean; guardadoEn: string | null; enProduccion?: EnProduccion }) {
   const router = useRouter();
   const archivo = useRef<HTMLInputElement>(null);
   const archivoZexi = useRef<HTMLInputElement>(null);
@@ -274,7 +283,7 @@ export function AnalisisProducto({ datos, puedeEditar, guardadoEn }: { datos: Da
                             <tr className={ab ? "ab" : ""}>
                               {i === 0 && <td className="fam" rowSpan={xs.length + xs.filter((x) => x.codigo === abierta).length}>{fam}</td>}
                               <td className="mono"><button type="button" className="ad-cod" aria-expanded={ab} onClick={() => setAbierta(ab ? null : f.codigo)}>{f.codigo}</button></td>
-                              <td>{f.descripcion}</td>
+                              <td>{f.descripcion} <MarcaProduccion p={enProduccion[f.codigo]} /></td>
                               <td className="n">{n(f.sap)}</td>
                               <td className="n">{n(f.conteo)}</td>
                               <td className={"n b" + (f.diferencia < 0 ? " neg" : f.diferencia > 0 ? " pos" : "")}>{signo(f.diferencia)}</td>
