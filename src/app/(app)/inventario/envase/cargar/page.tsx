@@ -2,10 +2,12 @@ import Link from "next/link";
 import { misPermisos } from "@/lib/permisos";
 import { papeles } from "@/modulos/inventario/envase/calc";
 import { loCargado } from "@/modulos/inventario/envase/datos";
+import { cierreDeSemanas } from "@/modulos/inventario/envase/semana";
 import "../../fefo.css";
 import "../envase.css";
 import { Cargar } from "./Cargar";
 import { TablaCargado } from "./TablaCargado";
+import { CierreSemanas } from "./CierreSemanas";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +18,7 @@ const fecha = (f: string) => new Date(f + "T12:00:00Z").toLocaleDateString("es-C
  * El instructivo de envase (plan inicial y cortes) y la MB51, tal cual salen. Abajo, lo que ya hay cargado.
  */
 export default async function CargarPage() {
-  const [permisos, c] = await Promise.all([misPermisos(), loCargado()]);
+  const [permisos, c, sem] = await Promise.all([misPermisos(), loCargado(), cierreDeSemanas()]);
   const puede = permisos.puedeEditar("/inventario/envase/cargar");
   const porSemana = new Map<string, typeof c.planes>();
   for (const p of c.planes) porSemana.set(p.lunes, [...(porSemana.get(p.lunes) ?? []), p]);
@@ -33,6 +35,9 @@ export default async function CargarPage() {
         <p className="pe-vacio">Falta crear esta parte en Supabase: corre <b>supabase/migraciones/2026-11-plan-envase.sql</b> en el editor de SQL y vuelve a esta pantalla.</p>
       ) : (<>
         <Cargar puedeCargar={puede} existentes={c.planes.map((p) => ({ lunes: p.lunes, generado: p.generado.slice(0, 19), desde: p.desde, semana: p.semana }))} />
+
+        {sem.error && <p className="pe-error">No se pudo leer todo para el cierre: {sem.error}</p>}
+        <CierreSemanas semanas={sem.semanas} mb51={sem.mb51} />
 
         <section className="pe-card">
           <h3 className="pe-h3">Lo que hay cargado <small>{c.mb51?.filas ? `MB51: ${c.mb51.filas.toLocaleString("es-CO")} movimientos · contabilizados del ${fecha(c.mb51.desde!)} al ${fecha(c.mb51.hasta!)}` : "MB51: nada todavía"}</small></h3>

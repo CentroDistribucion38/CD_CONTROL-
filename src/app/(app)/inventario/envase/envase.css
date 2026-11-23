@@ -220,3 +220,25 @@
 .pe .pe-acc button:disabled { opacity: .5; cursor: default }
 /* La ventana de confirmar vive dentro de .pe: su botón rojo no hereda el texto rojo de «.pe .mal». */
 .pe .cf-btn.mal { color: #fff }
+
+/* Cargar › cierre de la semana pasada y semana actual: dos tarjetas lado a lado (una debajo de otra en pantalla angosta). */
+.pe .pe-sem { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 16px 0 }
+@media (max-width: 1100px) { .pe .pe-sem { grid-template-columns: 1fr } }
+.pe .pe-sem-c { margin: 0; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; min-width: 0 }
+.pe .pe-sem-t { width: 100% }
+.pe .pe-sem-c > header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px }
+.pe .pe-sem-c > header small { font: 700 10px var(--fe-texto); letter-spacing: .12em; color: var(--fe-gris, #6b7280) }
+.pe .pe-sem-c > header h3 { margin: 2px 0 0; font: 800 20px var(--fe-titulo, inherit) }
+.pe .pe-sem-c > header h3 em { font: 500 13px var(--fe-texto); font-style: normal; color: var(--fe-gris, #6b7280); margin-left: 6px }
+.pe .pe-sem-k { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--fe-linea, #dde2e8) }
+.pe .pe-sem-k > div { padding: 10px 12px; border-right: 1px solid var(--fe-linea, #dde2e8); display: flex; flex-direction: column; gap: 2px }
+.pe .pe-sem-k > div:last-child { border-right: 0 }
+.pe .pe-sem-k span { font: 700 10px var(--fe-texto); letter-spacing: .08em; text-transform: uppercase; color: var(--fe-gris, #6b7280) }
+.pe .pe-sem-k b { font: 800 22px var(--fe-titulo, inherit) }
+.pe .pe-sem-k b small { font: 600 11px var(--fe-texto); margin-left: 3px }
+.pe .pe-sem-k em { font: 500 11px var(--fe-texto); font-style: normal; color: var(--fe-gris, #6b7280) }
+.pe .pe-sem-k > div.mal b { color: var(--fe-mal) }
+.pe .pe-sem-t th a { color: inherit; text-decoration: none }
+.pe .pe-sem-t th a:hover { text-decoration: underline }
+.pe .pe-sem-n { grid-column: 1 / -1; margin: 0 }
+@media (max-width: 640px) { .pe .pe-sem-k { grid-template-columns: repeat(2, 1fr) } .pe .pe-sem-k > div:nth-child(2) { border-right: 0 } }
