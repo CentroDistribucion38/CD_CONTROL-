@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { RegistrarSW } from "@/components/RegistrarSW";
+import { Entrada } from "@/components/entrada/Entrada";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -49,7 +50,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="es">
+    <html lang="es" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
@@ -57,8 +58,11 @@ export default function RootLayout({
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
         />
+        {/* La entrada animada sale una vez por sesión: si ya salió, se esconde antes del primer cuadro. */}
+        <script dangerouslySetInnerHTML={{ __html: "try{if(sessionStorage.getItem('cd38-entrada')==='1')document.documentElement.setAttribute('data-sin-entrada','')}catch(e){}" }} />
       </head>
       <body className="min-h-screen antialiased">
+        <Entrada />
         {children}
         <RegistrarSW />
       </body>

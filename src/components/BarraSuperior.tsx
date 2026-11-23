@@ -35,7 +35,7 @@ export function BarraSuperior({
       <NuevaPestana />
       <Link href="/inicio" className="esquina" aria-label="Ir a los módulos">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/marca/logo-b.png" alt="Bavaria" />
+        <img src="/marca/logo-b.png" alt="Bavaria" data-logo-entrada />
       </Link>
 
       <Ruta permitidas={permitidas} />

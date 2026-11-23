@@ -1,0 +1,77 @@
+/* =====================================================================
+   LA ENTRADA (ver Entrada.tsx). Todo cuelga de .ent y va por encima de todo.
+   ===================================================================== */
+html[data-sin-entrada] .ent { display: none }
+@property --ent-r { syntax: "<length>"; inherits: false; initial-value: 0px }
+.ent { position: fixed; inset: 0; z-index: 9999; pointer-events: auto; cursor: pointer }
+.ent-capa { position: absolute; inset: 0; overflow: hidden; background: #fff;
+  -webkit-mask: radial-gradient(circle at 50% 44%, transparent var(--ent-r), #000 calc(var(--ent-r) + 1px));
+          mask: radial-gradient(circle at 50% 44%, transparent var(--ent-r), #000 calc(var(--ent-r) + 1px)) }
+.ent-capa.abre { animation: ent-abre .8s cubic-bezier(.65, 0, .25, 1) forwards }
+@keyframes ent-abre { to { --ent-r: 150vmax; opacity: .0 } }
+
+.ent-glow { position: absolute; left: 50%; top: 44%; width: 560px; height: 560px; margin: -280px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(245, 184, 0, .28), rgba(0, 0, 0, 0) 62%); opacity: 0; transform: scale(.6);
+  animation: ent-glow 1.4s cubic-bezier(.16, 1, .3, 1) .5s forwards }
+@keyframes ent-glow { to { opacity: 1; transform: scale(1) } }
+
+.ent-onda { position: absolute; left: 50%; top: 44%; width: 200px; height: 200px; margin: -100px; border-radius: 50%;
+  border: 3px solid #E0A92E; opacity: 0; animation: ent-onda .9s cubic-bezier(.16, 1, .3, 1) .78s forwards }
+.ent-onda.d { border-color: #C8102E; border-width: 2px; animation-delay: .9s }
+@keyframes ent-onda { 0% { opacity: .9; transform: scale(.8) } 100% { opacity: 0; transform: scale(2.4) } }
+
+.ent-arco { position: absolute; left: 50%; top: 44%; width: 340px; height: 340px; margin: -170px; overflow: visible;
+  animation: ent-gira 2.4s cubic-bezier(.3, 0, .2, 1) forwards }
+.ent-arco.b { width: 300px; height: 300px; margin: -150px; animation-name: ent-gira-b }
+.ent-arco circle { stroke-dasharray: 880; stroke-dashoffset: 880; animation: ent-traza 1s cubic-bezier(.65, 0, .35, 1) .05s forwards, ent-desv .5s ease-out 1.05s forwards }
+.ent-arco.b circle { stroke-dasharray: 780; stroke-dashoffset: 780; animation-delay: .3s, 1.15s }
+@keyframes ent-traza { to { stroke-dashoffset: 0 } }
+@keyframes ent-desv { to { opacity: 0 } }
+@keyframes ent-gira { to { transform: rotate(200deg) } }
+@keyframes ent-gira-b { to { transform: rotate(-220deg) } }
+
+.ent-chispas { position: absolute; left: 50%; top: 44% }
+.ent-chispas i { position: absolute; width: 8px; height: 8px; margin: -4px; border-radius: 50%; background: #E0A92E;
+  box-shadow: 0 0 10px 2px rgba(245, 184, 0, .6); opacity: 0; transform: rotate(var(--a)) translateY(-80px);
+  animation: ent-chispa .8s cubic-bezier(.16, 1, .3, 1) forwards }
+@keyframes ent-chispa { 0% { opacity: 0; transform: rotate(var(--a)) translateY(-80px) scale(1) } 20% { opacity: 1 }
+  100% { opacity: 0; transform: rotate(var(--a)) translateY(calc(-80px - var(--d))) scale(.3) } }
+
+.ent-cd { position: absolute; left: 0; right: 0; top: calc(44% + 150px); text-align: center; font: 800 13px "Archivo", system-ui, sans-serif;
+  letter-spacing: .7em; padding-left: .7em; color: #1a1a1a; opacity: 0; transform: translateY(8px);
+  animation: ent-en .7s cubic-bezier(.16, 1, .3, 1) 1.5s forwards, ent-desv .3s 2.2s forwards }
+@keyframes ent-en { to { opacity: 1; transform: none } }
+
+.ent-barrido { position: absolute; inset: -200px; pointer-events: none }
+.ent-barrido i { position: absolute; top: 0; bottom: 0; width: 180%; left: -180%; transform: skewX(-20deg);
+  animation: ent-barre .7s cubic-bezier(.77, 0, .18, 1) forwards }
+.ent-barrido i.r { background: linear-gradient(90deg, #C8102E, #E4002B) }
+.ent-barrido i.o { background: linear-gradient(90deg, #B8862B, #F1D27A); animation-delay: .09s }
+.ent-barrido i.w { background: #fff; animation-delay: .18s }
+@keyframes ent-barre { to { left: 120% } }
+
+/* LA B: entra girando en 3D, rebota y, al final, vuela a su sitio. */
+.ent-logo { position: absolute; left: 50%; top: 44%; width: 184px; height: 184px; margin: -92px; opacity: 0;
+  animation: ent-pop .9s cubic-bezier(.2, 1.4, .4, 1) .45s forwards; will-change: transform, opacity }
+.ent-logo img { width: 100%; height: 100%; display: block }
+@keyframes ent-pop { 0% { opacity: 0; filter: blur(14px); transform: perspective(600px) scale(.35) rotateY(-110deg) }
+  60% { opacity: 1; filter: blur(0); transform: perspective(600px) scale(1.1) rotateY(12deg) }
+  100% { opacity: 1; filter: blur(0); transform: perspective(600px) scale(1) rotateY(0) } }
+.ent-logo.vuela { opacity: 1; animation: none; transition: transform .75s cubic-bezier(.65, 0, .25, 1);
+  transform: translate(var(--tx), var(--ty)) scale(var(--ts)) }
+.ent-logo.se-va { opacity: 1; animation: none; transition: opacity .5s, transform .6s; opacity: 0; transform: scale(1.4) }
+.ent-brillo { position: absolute; inset: 0; pointer-events: none;
+  -webkit-mask: url(/marca/logo-b.png) center / 100% 100% no-repeat; mask: url(/marca/logo-b.png) center / 100% 100% no-repeat;
+  background: linear-gradient(105deg, rgba(255, 255, 255, 0) 35%, rgba(255, 255, 255, .95) 50%, rgba(255, 255, 255, 0) 65%) no-repeat;
+  background-size: 300% 100%; background-position: 120% 0; animation: ent-brilla .9s cubic-bezier(.4, 0, .2, 1) 1.2s forwards }
+@keyframes ent-brilla { to { background-position: -20% 0 } }
+
+/* Sin @property (navegadores viejos) el círculo no se anima, pero la capa igual se desvanece (opacity en ent-abre). */
+@media (prefers-reduced-motion: reduce) {
+  .ent-capa *, .ent-logo { animation: none !important }
+  .ent-logo { opacity: 1 }
+  .ent-barrido, .ent-chispas, .ent-onda, .ent-arco { display: none }
+  .ent-capa.abre { animation: ent-fade .4s forwards }
+  .ent-logo.vuela, .ent-logo.se-va { transition: opacity .4s; opacity: 0; transform: none }
+}
+@keyframes ent-fade { to { opacity: 0 } }

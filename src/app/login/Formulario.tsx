@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { correoDeUsuario, normalizarUsuario } from "@/lib/auth";
 import { modulosActivos } from "@/modulos/registro";
 import { AccionesApp } from "@/components/AccionesApp";
+import { prepararBienvenida, sonarBienvenida } from "@/lib/bienvenida";
 
 /**
  * Nunca se muestra el error crudo de Supabase ni se dice cuál de los dos
@@ -61,6 +62,8 @@ export function Formulario() {
     if (sinC) return refClave.current?.focus();
 
     setCargando(true);
+    /* En el mismo toque: despierta el audio para poder dar la bienvenida cuando la clave resulte buena. */
+    prepararBienvenida();
 
     const limpio = escrito.includes("@")
       ? escrito.toLowerCase()
@@ -86,18 +89,20 @@ export function Formulario() {
     // Si la persona eligió un módulo de arranque en Mi perfil, se abre ese.
     // El parámetro ?next= manda: significa que la traía una ruta concreta.
     let destino = siguiente;
-    if (!params.get("next")) {
-      const { data: usuarioActual } = await supabase.auth.getUser();
-      if (usuarioActual.user) {
-        const { data: perfil } = await supabase
-          .from("perfiles")
-          .select("modulo_inicio")
-          .eq("id", usuarioActual.user.id)
-          .single();
-        const inicio = (perfil as { modulo_inicio?: string } | null)?.modulo_inicio;
-        if (inicio) destino = inicio;
-      }
+    let nombre: string | null = null;
+    const { data: usuarioActual } = await supabase.auth.getUser();
+    if (usuarioActual.user) {
+      /* select("*"): así no se cae si alguna columna no existe en esta base. */
+      const { data: perfil } = await supabase
+        .from("perfiles")
+        .select("*")
+        .eq("id", usuarioActual.user.id)
+        .single();
+      const p = perfil as { modulo_inicio?: string; nombre?: string } | null;
+      nombre = p?.nombre ?? null;
+      if (!params.get("next") && p?.modulo_inicio) destino = p.modulo_inicio;
     }
+    sonarBienvenida(nombre);
 
     router.push(destino);
     router.refresh();
@@ -116,7 +121,7 @@ export function Formulario() {
 
           <div className="acc-marca">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/marca/logo-b.png" alt="Bavaria" />
+            <img src="/marca/logo-b.png" alt="Bavaria" data-logo-entrada />
             <div className="barra" />
             <div className="nombre">CONTROL</div>
           </div>
