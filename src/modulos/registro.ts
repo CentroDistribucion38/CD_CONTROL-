@@ -46,13 +46,6 @@ export type Seccion = {
    * (lleva a su primera pantalla) y debajo, sangradas, sus pantallas cuando uno está en alguna.
    */
   grupo?: string;
-  /**
-   * UN TÍTULO ENCIMA en el menú, para partir una rama por el momento del trabajo: «Antes · Cada día · Cada semana».
-   * Va en la PRIMERA pantalla de cada bloque; las que siguen sin bloque quedan en el mismo.
-   */
-  bloque?: string;
-  /** El número del paso, en lugar del icono, cuando la rama se recorre en orden (1 al 6). */
-  paso?: number;
 };
 
 /**
@@ -867,14 +860,15 @@ export const MODULOS: Modulo[] = [
       { nombre: "Análisis de diferencia", ruta: "/inventario/balance/analisis", rama: "balance" },
       /* PLAN VS NOTIFICADO, EN EL ORDEN DEL TRABAJO: se carga (instructivo y MB51) → se ve el plan por SKU (para la
          solicitud) → se valida el día → el cruce a la hora (producto y envase contra el plan) → el corte de inventario con sus partidas. */
-      /* PLAN VS NOTIFICADO, EN EL ORDEN DEL TRABAJO (opción B): antes (los archivos y el plan), cada día (a la hora, validar,
-         el corte para el conteo) y cada semana (el cierre contra lo real). Numeradas del 1 al 6. */
-      { nombre: "Cargar archivos", ruta: "/inventario/envase/cargar", rama: "plan-envase", bloque: "Antes", paso: 1 },
-      { nombre: "Plan de la semana", ruta: "/inventario/envase/plan", rama: "plan-envase", paso: 2 },
-      { nombre: "Cruce a la hora", ruta: "/inventario/envase/cruce", rama: "plan-envase", bloque: "Cada día", paso: 3 },
-      { nombre: "Validación", ruta: "/inventario/envase", rama: "plan-envase", paso: 4 },
-      { nombre: "Corte de inventario", ruta: "/inventario/envase/corte", rama: "plan-envase", paso: 5 },
-      { nombre: "Cierre de la semana", ruta: "/inventario/envase/cierre", rama: "plan-envase", bloque: "Cada semana", paso: 6 },
+      /* PLAN VS NOTIFICADO, EN EL ORDEN DEL TRABAJO (opción D): tres subgrupos plegables, como Pasivos dentro de Balance —
+         Antes (los archivos y el plan), Cada día (a la hora, validar, el corte para el conteo) y Cada semana (el cierre contra
+         lo real)—. Se abre solo el bloque donde uno está. */
+      { nombre: "Cargar archivos", ruta: "/inventario/envase/cargar", rama: "plan-envase", grupo: "Antes" },
+      { nombre: "Plan de la semana", ruta: "/inventario/envase/plan", rama: "plan-envase", grupo: "Antes" },
+      { nombre: "Cruce a la hora", ruta: "/inventario/envase/cruce", rama: "plan-envase", grupo: "Cada día" },
+      { nombre: "Validación", ruta: "/inventario/envase", rama: "plan-envase", grupo: "Cada día" },
+      { nombre: "Corte de inventario", ruta: "/inventario/envase/corte", rama: "plan-envase", grupo: "Cada día" },
+      { nombre: "Cierre de la semana", ruta: "/inventario/envase/cierre", rama: "plan-envase", grupo: "Cada semana" },
       /* PRODUCTO, EN EL ORDEN DEL PROCESO: se arma el cíclico (familia y parejas) y se habilita el Contar → la
          pareja cuenta y cruza → el conteo de Bavaria se compara con la existencia en el análisis de diferencia. */
       /* EL CÍCLICO ES UN GRUPO, como el Fiscal: el Plan (se arma), el Control (se sigue, se reabre y se exportan los

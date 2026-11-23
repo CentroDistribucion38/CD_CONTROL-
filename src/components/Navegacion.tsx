@@ -449,9 +449,21 @@ const ICONO_RAMA: Record<string, () => React.ReactElement> = {
 };
 
 /* EL ICONO DE UN SUBGRUPO del menú (Seccion.grupo): Pasivos es el candado, el EER bloqueado. */
+/* Cierre de la semana: barras (lo de la semana contra lo real). */
+const IconoBarras = () => (
+  <svg viewBox="0 0 24 24" {...P}>
+    <path d="M4 20.5h16" />
+    <rect x="5.5" y="11" width="3" height="7" /><rect x="10.5" y="7" width="3" height="11" /><rect x="15.5" y="4" width="3" height="14" />
+  </svg>
+);
+
 const ICONO_GRUPO: Record<string, () => React.ReactElement> = {
   Pasivos: IconoCandado,
   Fiscal: IconoUsuarios,
+  /* Plan vs notificado, por el momento del trabajo. */
+  Antes: IconoEntrada,
+  "Cada día": IconoVerificar,
+  "Cada semana": IconoBarras,
 };
 
 const ICONO_RUTA: Record<string, () => React.ReactElement> = {
@@ -522,7 +534,7 @@ const ICONO_RUTA: Record<string, () => React.ReactElement> = {
   "/inventario/envase": IconoVerificar,
   "/inventario/envase/cruce": IconoComparar,
   "/inventario/envase/corte": IconoReloj,
-  "/inventario/envase/cierre": IconoVerificar,
+  "/inventario/envase/cierre": IconoBarras,
   "/inventario/casco": IconoCuatroTablas,
   "/inventario/casco/tablero": IconoTablero,
   "/inventario/casco/comparativo": IconoComparar,
@@ -621,6 +633,8 @@ export function Navegacion({ permitidas, anclado, alternar }: {
     ? (rama ? visibles.filter((s) => s.rama === rama.id) : [])
     : visibles;
 
+  const masCerca = secciones.filter((x) => pathname === x.ruta || pathname.startsWith(x.ruta + "/")).sort((a, b) => b.ruta.length - a.ruta.length)[0];
+
   /* Las ramas que esta persona puede abrir. Una rama sin ninguna
      pantalla abierta no se ofrece: sería una puerta a un pasillo vacío. */
   const ramas = rama || !actual.ramas?.length ? [] : actual.ramas.filter((r) =>
@@ -677,7 +691,10 @@ export function Navegacion({ permitidas, anclado, alternar }: {
           /* EL SUBGRUPO (Pasivos dentro de Balance): la primera pantalla del grupo pinta antes la
              entrada del grupo; sus pantallas solo se ven, sangradas, cuando uno está en alguna. */
           const delGrupo = s.grupo ? secciones.filter((x) => x.grupo === s.grupo) : [];
-          const dentro = delGrupo.some((x) => pathname === x.ruta || pathname.startsWith(x.ruta + "/"));
+          /* «Dentro» = la pantalla donde uno está es de este grupo. Se toma la sección MÁS ESPECÍFICA que calce con la ruta:
+             Validación es /inventario/envase y todas las demás de Plan vs notificado empiezan por ahí, así que «empieza por»
+             solo habría abierto «Cada día» en todas. */
+          const dentro = !!masCerca && delGrupo.includes(masCerca);
           const primeraDelGrupo = !!s.grupo && secciones.findIndex((x) => x.grupo === s.grupo) === i;
           const IconoG = s.grupo ? ICONO_GRUPO[s.grupo] ?? IconoLista : IconoLista;
           const cabeza = primeraDelGrupo && (
@@ -693,9 +710,7 @@ export function Navegacion({ permitidas, anclado, alternar }: {
           if (s.grupo && !dentro) return cabeza || null;
           const Icono = ICONO_RUTA[s.ruta] ?? IconoTablero;
           const aqui = pathname === s.ruta;
-          /* EL BLOQUE (Antes · Cada día · Cada semana): un título encima de su primera pantalla. */
-          const titulo = s.bloque && <div key={`bloque-${s.bloque}`} className="grupo texto etapa">{s.bloque.toUpperCase()}</div>;
-          return [titulo, cabeza, (
+          return [cabeza, (
             <Link
               key={s.ruta}
               href={s.ruta}
@@ -710,9 +725,9 @@ export function Navegacion({ permitidas, anclado, alternar }: {
               onPointerDown={() => adelantar(s.ruta)}
               onFocus={() => adelantar(s.ruta)}
             >
-              {s.paso ? <span className="paso" aria-hidden="true">{s.paso}</span> : <Icono />}
+              <Icono />
               <span className="texto">{s.nombre}</span>
-              <span className="globo">{s.paso ? `${s.paso} · ` : ""}{s.grupo ? `${s.grupo} · ${s.nombre}` : s.nombre}</span>
+              <span className="globo">{s.grupo ? `${s.grupo} · ${s.nombre}` : s.nombre}</span>
             </Link>
           )];
         })}
