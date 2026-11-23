@@ -143,24 +143,36 @@ export function AnalisisProducto({ datos, puedeEditar, guardadoEn, enProduccion 
     router.push(`/inventario/producto/analisis?c=${ciclico.id}&paso=ajustes`);
   });
 
-  /* EL EXCEL: la tabla del análisis y, en otra hoja, de dónde sale cada lado (código · lado · partida). */
+  /* EL EXCEL: el mismo libro del análisis de Bodega 38 (banda negra, cifras grandes, dinámica por familia con sus
+     totales, Base código · lado · partida, Fuentes, Resumen, Ajustes, Sobrantes, Faltantes y Detalle), más lo propio
+     del cíclico: lo que contó el operador (no suma) y la hoja «Conteo Bavaria» con las ubicaciones. */
   const [armando, setArmando] = useState(false);
   async function bajarExcel() {
     if (!ciclico) return;
     setArmando(true);
     try {
-      const XLSX = await import("xlsx");
-      const libro = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(libro, XLSX.utils.json_to_sheet(filas.map((f) => ({
-        FAMILIA: f.familia, CÓDIGO: f.codigo, DESCRIPCIÓN: f.descripcion, SAP: f.sap, CONTEO: f.conteo, DIFERENCIA: f.diferencia,
-        "CONTÓ EL OPERADOR (no suma)": f.ol ?? "",
-      }))), "ANÁLISIS");
-      XLSX.utils.book_append_sheet(libro, XLSX.utils.json_to_sheet(filas.flatMap((f) => [
-        ...f.deConteo.map((p) => ({ CÓDIGO: f.codigo, LADO: "CONTEO", PARTIDA: p.nombre, UNIDADES: p.cantidad })),
-        ...f.deSap.map((p) => ({ CÓDIGO: f.codigo, LADO: "SAP", PARTIDA: p.nombre, UNIDADES: p.cantidad })),
-      ])), "DE DÓNDE SALE");
-      XLSX.utils.book_append_sheet(libro, XLSX.utils.json_to_sheet(filas.flatMap((f) => (f.ubicaciones ?? []).map((u) => ({ CÓDIGO: f.codigo, DESCRIPCIÓN: f.descripcion, UBICACIÓN: u.ubicacion, UNIDADES: u.cantidad })))), "CONTEO BAVARIA");
-      XLSX.writeFile(libro, `analisis-diferencia-producto-${ciclico.fecha}.xlsx`);
+      const [{ armarLibroAnalisis }, { calcularAjustes }] = await Promise.all([import("@/modulos/inventario/libro-ajustes"), import("@/modulos/inventario/compensa")]);
+      const largo = new Date(ciclico.fecha + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+      const r = datos.roturas;
+      const fuentes = [
+        { nombre: "Conteo Bavaria (cíclico)", ok: datos.contado.bavaria.codigos > 0, detalle: `${ciclico.nombre ?? "Inventario cíclico"} · ${n(datos.contado.bavaria.codigos)} códigos · ${n(datos.contado.bavaria.unidades)} unidades` },
+        { nombre: "Contó el operador (no suma)", ok: datos.contado.ol.codigos > 0, detalle: datos.contado.ol.codigos ? `${n(datos.contado.ol.codigos)} códigos · ${n(datos.contado.ol.unidades)} unidades · solo para comparar` : "El operador no contó" },
+        { nombre: "ZEXI de producto (SAP)", ok: zexiCargada.length > 0, detalle: zexiCargada.length ? `${zexiCargada.length} renglones${datos.carga?.archivo ? ` · ${datos.carga.archivo}` : ""}` : "Falta cargar la ZEXI" },
+        { nombre: "Novedades (plantilla)", ok: true, detalle: plantilla.length ? `${plantilla.length} filas` : "Sin novedades" },
+        ...(r ? [{ nombre: "Roturas de producto terminado", ok: !r.falta, detalle: r.falta ?? `${Object.keys(r.porCodigo).length} códigos · ${n(r.total)} unidades · del ${r.desde} al ${r.hasta} · suman al CONTEO` }] : []),
+      ];
+      const buf = await armarLibroAnalisis({
+        ojo: `INVENTARIO · PRODUCTO · ANÁLISIS DE DIFERENCIA · ${(ciclico.nombre ?? "CÍCLICO").toUpperCase()}`,
+        sin311: true, conUbicaciones: true,
+        ol: Object.fromEntries(filas.map((f) => [f.codigo, f.ol])),
+        fecha: ciclico.fecha, fechaLarga: largo, guardadoEn, guardadoPor: null,
+        analisis: filas, ajustes: calcularAjustes(filas, {}), fuentes,
+        noEntran: datos.noEntran.map((x) => `${x.codigo} (${x.motivo})`),
+      });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+      a.download = `analisis-diferencia-producto-${ciclico.fecha}.xlsx`; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     } catch { setMsg({ mal: true, t: "No se pudo armar el Excel. Vuelve a intentar." }) }
     finally { setArmando(false) }
   }

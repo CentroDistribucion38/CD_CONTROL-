@@ -31,6 +31,10 @@ export type InsumosLibroAjustes = {
   /** Vacío = el análisis en vivo, sin guardar. */
   guardadoEn: string | null; guardadoPor: string | null;
   ajustes: FilaAjuste[]; analisis: FilaAnalisis[];
+  /** El renglón de arriba de cada hoja (por defecto el de Bodega 38). */
+  ojo?: string;
+  /** Producto: no hay 311 ni descuadres de AG18/AG17/AG16, esas dos hojas no salen. */
+  sin311?: boolean;
   /** Los 311 de AG22 contra AG18, AG17 y AG16 por SKU (hoja «311»). */
   movimientos311?: { almacen: string; codigo: string; descripcion: string; grupo: string; movido: number; documentos: string[]; entraAlAnalisis: boolean; conteoAlm: number | null; sapDespues: number | null; queda: number | null }[];
 };
@@ -38,6 +42,9 @@ export type InsumosLibroAjustes = {
 /* EL SELLO DE LA B, arriba a la derecha de cada hoja, como en los demás libros. Se baja de /marca/logo-b.png
    (el libro se arma en el navegador); si no llega, el libro sale igual sin él. */
 const anchoDe = new Map<ExcelJS.Worksheet, number>();
+/* El renglón amarillo de arriba de cada hoja: de qué análisis es. El de producto lo cambia. */
+const OJO_BODEGA = "INVENTARIO · BALANCE · ANÁLISIS DE DIFERENCIA · BODEGA 38";
+let OJO = OJO_BODEGA;
 async function cargarLogo(wb: ExcelJS.Workbook): Promise<number | null> {
   try {
     if (typeof fetch === "undefined") return null;
@@ -66,7 +73,7 @@ function banda(h: ExcelJS.Worksheet, ancho: number, titulo: string, sub: string)
   h.views = [{ showGridLines: false }];
   for (let f = 1; f <= 4; f++) for (let c = 1; c <= ancho; c++) h.getRow(f).getCell(c).fill = relleno(TINTA);
   h.getRow(1).height = 16; h.getRow(2).height = 28; h.getRow(3).height = 16; h.getRow(4).height = 8;
-  const o = h.getCell(1, 1); o.value = "INVENTARIO · BALANCE · ANÁLISIS DE DIFERENCIA · BODEGA 38"; o.font = letra(8.5, BANDA, true); o.alignment = { vertical: "bottom", indent: 1 };
+  const o = h.getCell(1, 1); o.value = OJO; o.font = letra(8.5, BANDA, true); o.alignment = { vertical: "bottom", indent: 1 };
   const t = h.getCell(2, 1); t.value = titulo; t.font = letra(18, BLANCO, true); t.alignment = { vertical: "middle", indent: 1 };
   const s = h.getCell(3, 1); s.value = sub; s.font = letra(9, GRIS_CLARO); s.alignment = { indent: 1 };
   const r5 = h.getRow(5); r5.height = 4;
@@ -123,6 +130,7 @@ const subDe = (d: { fechaLarga: string; guardadoEn: string | null; guardadoPor: 
   `${d.fechaLarga} · ${d.guardadoEn ? `análisis guardado el ${cuando(d.guardadoEn)}${d.guardadoPor ? ` por ${d.guardadoPor}` : ""}` : `análisis en vivo (sin guardar) · exportado el ${cuando(new Date().toISOString())}`}`;
 
 export async function armarLibroAjustes(d: InsumosLibroAjustes): Promise<ArrayBuffer> {
+  OJO = d.ojo ?? OJO_BODEGA;
   const wb = libroNuevo();
   const logo = await cargarLogo(wb);
   agregarHojasAjustes(wb, d);
@@ -134,7 +142,7 @@ export async function armarLibroAjustes(d: InsumosLibroAjustes): Promise<ArrayBu
 function agregarHojasAjustes(wb: ExcelJS.Workbook, d: InsumosLibroAjustes) {
   const sub = subDe(d);
   /* ---------------- 311: los movimientos entre AG22 y los otros almacenes, por SKU ---------------- */
-  {
+  if (!d.sin311) {
     const h = wb.addWorksheet("311", { properties: { tabColor: { argb: VERDE } } });
     const cols: Col[] = [{ t: "Almacén", w: 10, centro: true }, { t: "Código", w: 12 }, { t: "Descripción", w: 44, texto: true }, { t: "Grupo", w: 12 }, { t: "Movimiento", w: 22, texto: true },
       { t: "Cantidad", w: 14, fmt: NUM }, { t: "Efecto en SAP de AG22", w: 18, fmt: SIG }, { t: "Entra al análisis", w: 14, centro: true }, { t: "Documentos", w: 40, texto: true }];
@@ -161,7 +169,7 @@ function agregarHojasAjustes(wb: ExcelJS.Workbook, d: InsumosLibroAjustes) {
   }
 
   /* ---------------- DESCUADRES: lo que quedó sin cuadrar en AG18, AG17 y AG16 después de los 311 ---------------- */
-  {
+  if (!d.sin311) {
     const h = wb.addWorksheet("Descuadres", { properties: { tabColor: { argb: ROJO } } });
     const cols: Col[] = [{ t: "Almacén", w: 10, centro: true }, { t: "Código", w: 12 }, { t: "Descripción", w: 44, texto: true }, { t: "Grupo", w: 12 },
       { t: "Conteo en el almacén", w: 16, fmt: NUM }, { t: "311 hechos", w: 14, fmt: SIG }, { t: "SAP después", w: 15, fmt: NUM }, { t: "Queda sin cuadrar", w: 16, fmt: SIG }, { t: "Qué significa", w: 46, texto: true }];
@@ -346,9 +354,14 @@ function agregarHojasAjustes(wb: ExcelJS.Workbook, d: InsumosLibroAjustes) {
 export type InsumosLibroAnalisis = InsumosLibroAjustes & {
   fuentes: { nombre: string; ok: boolean; detalle: string }[];
   noEntran: string[];
+  /** Producto: lo que contó el operador por código (no suma) → columna extra en «Análisis». */
+  ol?: Record<string, number | null>;
+  /** Producto: hoja «Conteo Bavaria» con dónde se contó cada código (ubicación → unidades). */
+  conUbicaciones?: boolean;
 };
 
 export async function armarLibroAnalisis(d: InsumosLibroAnalisis): Promise<ArrayBuffer> {
+  OJO = d.ojo ?? OJO_BODEGA;
   const wb = libroNuevo();
   const logo = await cargarLogo(wb);
   const sub = subDe(d);
@@ -358,7 +371,9 @@ export async function armarLibroAnalisis(d: InsumosLibroAnalisis): Promise<Array
   /* ---------------- ANÁLISIS: la dinámica ---------------- */
   {
     const h = wb.addWorksheet("Análisis", { properties: { tabColor: { argb: BANDA } } });
-    const cols: Col[] = [{ t: "Familia", w: 30, texto: true }, { t: "Código", w: 12 }, { t: "Descripción", w: 44, texto: true }, { t: "SAP", w: 16, fmt: NUM }, { t: "Conteo", w: 16, fmt: NUM }, { t: "Diferencia", w: 16, fmt: SIG }];
+    const OL = !!d.ol;
+    const cols: Col[] = [{ t: "Familia", w: 30, texto: true }, { t: "Código", w: 12 }, { t: "Descripción", w: 44, texto: true }, { t: "SAP", w: 16, fmt: NUM }, { t: "Conteo", w: 16, fmt: NUM }, { t: "Diferencia", w: 16, fmt: SIG },
+      ...(OL ? [{ t: "Contó el operador (no suma)", w: 18, fmt: NUM }] : [])];
     banda(h, cols.length, "Análisis de diferencia", sub);
     /* Las tres cifras grandes, arriba. */
     const tS = sum(F, (f) => f.sap), tC = sum(F, (f) => f.conteo);
@@ -379,7 +394,8 @@ export async function armarLibroAnalisis(d: InsumosLibroAnalisis): Promise<Array
       const xs = F.filter((f) => f.familia === fam);
       const ini = n;
       xs.forEach((f, i) => {
-        const r = fila(h, n, cols, [i === 0 ? fam : "", f.codigo, f.descripcion, f.sap, f.conteo, f.diferencia], false);
+        const r = fila(h, n, cols, [i === 0 ? fam : "", f.codigo, f.descripcion, f.sap, f.conteo, f.diferencia, ...(OL ? [d.ol![f.codigo] ?? ""] : [])], false);
+        if (OL) r.getCell(7).font = letra(9.5, GRIS, false, true);
         r.getCell(1).font = letra(9.5, AZUL, true); r.getCell(1).fill = relleno(AZUL_F);
         r.getCell(2).font = letra(9.5, TINTA, true);
         r.getCell(6).font = letra(10, f.diferencia < 0 ? ROJO : f.diferencia > 0 ? AZUL : GRIS, true);
@@ -389,7 +405,7 @@ export async function armarLibroAnalisis(d: InsumosLibroAnalisis): Promise<Array
       h.getCell(ini, 1).alignment = { vertical: "top", indent: 1, wrapText: true };
       /* El total de la familia. */
       const r = h.getRow(n); r.height = 20;
-      const vs = [`Total ${fam.split(" · ")[0]}`, "", "", sum(xs, (f) => f.sap), sum(xs, (f) => f.conteo), sum(xs, (f) => f.diferencia)];
+      const vs = [`Total ${fam.split(" · ")[0]}`, "", "", sum(xs, (f) => f.sap), sum(xs, (f) => f.conteo), sum(xs, (f) => f.diferencia), ...(OL ? [sum(xs, (f) => d.ol![f.codigo] ?? 0)] : [])];
       vs.forEach((v, i) => {
         const x = r.getCell(i + 1); x.value = v as ExcelJS.CellValue; x.fill = relleno("FFC9D8EE"); x.font = letra(9.5, TINTA, true);
         x.alignment = { vertical: "middle", horizontal: i === 0 ? "left" : "center", indent: i === 0 ? 1 : 0 };
@@ -397,15 +413,16 @@ export async function armarLibroAnalisis(d: InsumosLibroAnalisis): Promise<Array
       });
       n++;
     }
+    const tOl = OL ? sum(F, (f) => d.ol![f.codigo] ?? 0) : 0;
     const r = h.getRow(n); r.height = 24;
-    ["TOTAL GENERAL", "", "", tS, tC, tC - tS].forEach((v, i) => {
+    ["TOTAL GENERAL", "", "", tS, tC, tC - tS, ...(OL ? [tOl] : [])].forEach((v, i) => {
       const x = r.getCell(i + 1); x.value = v as ExcelJS.CellValue; x.fill = relleno(TINTA); x.font = letra(10.5, i === 5 ? BANDA : BLANCO, true);
       x.alignment = { vertical: "middle", horizontal: i === 0 ? "left" : "center", indent: i === 0 ? 1 : 0 };
       if (i >= 3) x.numFmt = i === 5 ? SIG : NUM;
     });
     n += 2;
     const nota = h.getCell(n, 1);
-    nota.value = `En unidades; cajas plásticas y estibas por unidad. Diferencia = CONTEO − SAP. De dónde sale cada cifra: hoja «Base» (y «Detalle» para lo que se ajusta).${d.noEntran.length ? ` No entran: ${d.noEntran.join(", ")}.` : ""}`;
+    nota.value = `${OL ? "En unidades. Lo que contó el operador NO suma: es para comparar con el conteo de Bavaria." : "En unidades; cajas plásticas y estibas por unidad."} Diferencia = CONTEO − SAP. De dónde sale cada cifra: hoja «Base» (y «Detalle» para lo que se ajusta).${d.noEntran.length ? ` No entran: ${d.noEntran.join(", ")}.` : ""}`;
     h.mergeCells(n, 1, n, cols.length); nota.font = letra(9, GRIS, false, true); nota.alignment = { wrapText: true, vertical: "top", indent: 1 }; h.getRow(n).height = 30;
     h.views = [{ state: "frozen", ySplit: 10, showGridLines: false }];
     h.pageSetup = { orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, printTitlesRow: "10:10" };
@@ -430,6 +447,24 @@ export async function armarLibroAnalisis(d: InsumosLibroAnalisis): Promise<Array
     const ult = 7 + base.length;
     total(h, ult + 1, cols.length, "TOTAL (lo filtrado) · filtra por Lado para ver SAP o CONTEO", { 6: { desde: 8, hasta: ult, valor: base.reduce((t, v) => t + (Number(v[5]) || 0), 0), fmt: NUM } });
     if (base.length) h.autoFilter = `A7:F${ult}`;
+    h.views = [{ state: "frozen", ySplit: 7, showGridLines: false }];
+    h.pageSetup = { orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, printTitlesRow: "7:7" };
+  }
+
+  /* ---------------- CONTEO BAVARIA: dónde se contó cada código (producto) ---------------- */
+  if (d.conUbicaciones) {
+    const h = wb.addWorksheet("Conteo Bavaria", { properties: { tabColor: { argb: VERDE } } });
+    const cols: Col[] = [{ t: "Familia", w: 26, texto: true }, { t: "Código", w: 11 }, { t: "Descripción", w: 42, texto: true }, { t: "Ubicación", w: 18 }, { t: "Unidades", w: 15, fmt: NUM }];
+    const ub = F.flatMap((f) => (f.ubicaciones ?? []).map((u) => [f.familia, f.codigo, f.descripcion, u.ubicacion, u.cantidad] as ExcelJS.CellValue[]));
+    banda(h, cols.length, "Conteo Bavaria por ubicación", `${ub.length} renglones · ${sub}`);
+    encabezado(h, 7, cols);
+    if (!ub.length) { const x = h.getCell(8, 1); x.value = "El conteo no trae ubicaciones."; x.font = letra(10, GRIS, false, true) }
+    ub.forEach((v, i) => { const r = fila(h, 8 + i, cols, v, i % 2 === 1); r.getCell(2).font = letra(9.5, TINTA, true); r.getCell(4).font = letra(9.5, AZUL, true) });
+    const ult = 7 + ub.length;
+    if (ub.length) {
+      total(h, ult + 1, cols.length, "TOTAL (lo filtrado) · filtra por Código o Ubicación", { 5: { desde: 8, hasta: ult, valor: ub.reduce((t, v) => t + (Number(v[4]) || 0), 0), fmt: NUM } });
+      h.autoFilter = `A7:E${ult}`;
+    }
     h.views = [{ state: "frozen", ySplit: 7, showGridLines: false }];
     h.pageSetup = { orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, printTitlesRow: "7:7" };
   }
@@ -461,6 +496,7 @@ export type DiaLibro = { fecha: string; guardado_en: string; guardado_por: strin
 export type FilaLibroHist = { fecha: string; familia: string; codigo: string; descripcion: string; sap: number; conteo: number; diferencia: number; compensa: number; ajuste: number; observacion: string };
 
 export async function armarLibroHistorico(dias: DiaLibro[], detalle: FilaLibroHist[]): Promise<ArrayBuffer> {
+  OJO = OJO_BODEGA;
   const wb = libroNuevo();
   const logo = await cargarLogo(wb);
   const dd = (iso: string) => iso.split("-").reverse().join("/");
@@ -542,6 +578,7 @@ export async function armarLibroHistorico(dias: DiaLibro[], detalle: FilaLibroHi
      + las hojas de los ajustes.
    ===================================================================== */
 export async function armarLibroFinal(d: InsumosLibroAjustes & { finalEn: string | null }): Promise<ArrayBuffer> {
+  OJO = d.ojo ?? OJO_BODEGA;
   const wb = libroNuevo();
   const logo = await cargarLogo(wb);
   const sub = `${subDe(d)}${d.finalEn ? ` · análisis final guardado el ${cuando(d.finalEn)}` : " · análisis final sin guardar"}`;
@@ -622,6 +659,7 @@ export async function armarLibroFinal(d: InsumosLibroAjustes & { finalEn: string
    ===================================================================== */
 export type FilaValorLibro = { familia: string; codigo: string; descripcion: string; precio: number | null; fuente: string | null; diferencia: number; vDif: number; compensa: number; vComp: number; ajuste: number; vAjuste: number; difFinal: number; vFinal: number; observacion: string };
 export async function armarLibroValor(d: { fechaLarga: string; guardadoEn: string | null; guardadoPor: string | null; filas: FilaValorLibro[] }): Promise<ArrayBuffer> {
+  OJO = OJO_BODEGA;
   const wb = libroNuevo();
   const logo = await cargarLogo(wb);
   const sub = subDe(d);
