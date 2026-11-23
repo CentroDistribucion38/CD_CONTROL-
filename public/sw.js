@@ -69,6 +69,12 @@ self.addEventListener("activate", (evento) => {
       }
       /* Lo estático se acumula con cada despliegue: se quita lo más viejo. */
       const c = await caches.open(ESTATICO);
+      /* El logo y los íconos cambiaron de imagen sin cambiar de nombre (nov 2026): se borra la copia vieja para que
+         cada equipo baje la nueva. Desde ahora se refrescan solos (ver «guardadoYRefresca» más abajo). */
+      for (const k of await c.keys()) {
+        const ruta = new URL(k.url).pathname;
+        if (ruta.startsWith("/marca/") || ruta.startsWith("/icons/") || /^\/(apple-icon|icon)\.png/.test(ruta)) await c.delete(k);
+      }
       const llaves = await c.keys();
       if (llaves.length > MAX_ESTATICO) {
         for (const k of llaves.slice(0, llaves.length - MAX_ESTATICO)) {
@@ -408,6 +414,9 @@ self.addEventListener("fetch", (evento) => {
   if (p.startsWith("/interno")) return;   // pantalla privada del dueño: nunca se guarda copia en el equipo
 
   if (p.startsWith("/_next/image")) { evento.respondWith(guardadoYRefresca(evento)); return }
+  /* Logo e íconos: salen al instante de la copia, pero se refrescan por detrás, para que un cambio de imagen
+     con el mismo nombre llegue a todos los equipos. */
+  if (p.startsWith("/marca/") || p.startsWith("/icons/") || /^\/(apple-icon|icon)\.png/.test(p)) { evento.respondWith(guardadoYRefresca(evento)); return }
   if (p.startsWith("/_next/static/") || p.startsWith("/icons/") || p.startsWith("/marca/") || /\.(?:png|jpe?g|svg|gif|webp|ico|woff2?)$/i.test(p)) {
     evento.respondWith(primeroCopia(req));
     return;
