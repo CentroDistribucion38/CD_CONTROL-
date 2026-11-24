@@ -76,7 +76,9 @@ export function Corte({ dia, hora, hoy, seguras, dudosas, alcanza, ultima, notif
   const elegidas = COLS.filter((c) => sel.includes(c.k));
   async function copiarTabla() {
     const cols = elegidas.length ? elegidas : COLS;
-    const filas = sinNotif.map((x) => cols.map((c) => c.xl(x)));
+    /* Las filas que en las columnas escogidas quedan vacías (los no retornables no tienen botella ni caja) no se copian:
+       no dejan renglones en blanco arriba al pegar. */
+    const filas = sinNotif.map((x) => cols.map((c) => c.xl(x))).filter((f) => f.some((v) => v !== ""));
     const texto = (elegidas.length ? filas : [cols.map((c) => c.t), ...filas]).map((f) => f.join("\t")).join("\n");
     try {
       await navigator.clipboard.writeText(texto);
