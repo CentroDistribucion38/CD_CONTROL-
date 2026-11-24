@@ -110,6 +110,26 @@ export async function loCargado() {
  * y lo contabilizado en los diez días anteriores (las órdenes a las que les puede faltar el 261). Sin repetir.
  * «falta» = no se ha corrido 2026-11-plan-envase.sql.
  */
+/**
+ * EL ENVASE DE CADA SKU, DE MÁS ATRÁS: para los retornables que no tuvieron órdenes en los últimos días (Producto sin
+ * notificar del corte no sabía qué botella y qué caja llevan y los dejaba por fuera). Trae, de los 120 días antes de la
+ * ventana del conteo, las órdenes (Z01) de esos SKU y el 261 de esas órdenes.
+ */
+export async function envaseHistorico(skus: string[], dia: string) {
+  if (!skus.length) return [] as Mov[];
+  const s = await createClient();
+  const desde = masDias(dia, -130), hasta = masDias(dia, -10);
+  const z = await paginar<Mov>((a, b) => s.from("pe_mb51").select(MOV).eq("clase", "Z01").in("material", skus.map((x) => `${x}P`))
+    .gte("fecha_contab", desde).lt("fecha_contab", hasta).order("id").range(a, b));
+  const ordenes = [...new Set(z.filas.map((m) => m.orden).filter((o): o is string => !!o))];
+  const r261: Mov[] = [];
+  for (let i = 0; i < ordenes.length; i += 150) {
+    const t = await paginar<Mov>((a, b) => s.from("pe_mb51").select(MOV).eq("clase", "261").in("orden", ordenes.slice(i, i + 150)).order("id").range(a, b));
+    r261.push(...t.filas);
+  }
+  return [...z.filas, ...r261].map((m) => ({ ...m, cantidad: Number(m.cantidad) }));
+}
+
 export async function movimientosParaElConteo(dia: string) {
   const s = await createClient();
   const sel = `id, ${MOV}`;

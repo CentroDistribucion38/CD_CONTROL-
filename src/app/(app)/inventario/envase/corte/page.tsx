@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { maestro, masDias, notificacionesAlCorte, papeles, partidasCorte, productoSinNotificar, type FilaPlanBD } from "@/modulos/inventario/envase/calc";
-import { hoyBogota, lunesDe, movimientosDigitadosDesde, movimientosParaElConteo, planesDeSemana, productosDe, upcEnvases } from "@/modulos/inventario/envase/datos";
+import { envaseHistorico, hoyBogota, lunesDe, movimientosDigitadosDesde, movimientosParaElConteo, planesDeSemana, productosDe, upcEnvases } from "@/modulos/inventario/envase/datos";
 import { Pasos } from "../Pasos";
 import "../../fefo.css";
 import "../../balance/analisis/analisis.css";
@@ -38,7 +38,9 @@ export default async function CortePage({ searchParams }: { searchParams: Promis
   }
   const filasPlan = semanas.flatMap((x) => x.filas);
   const skus = [...new Set(filasPlan.map((f) => f.sku).filter((x): x is string => !!x))];
-  const sinNotif = productoSinNotificar(dia, hora, planDia, mc.filas, maestro(filasPlan, await productosDe(skus)));
+  const skusPlan = [...new Set([...planDia.values()].flat().map((f) => f.sku).filter((x): x is string => !!x))];
+  const [prods, historia] = await Promise.all([productosDe(skus), envaseHistorico(skusPlan, dia)]);
+  const sinNotif = productoSinNotificar(dia, hora, planDia, mc.filas, maestro(filasPlan, prods), historia);
 
   return (
     <div className="fe pe">

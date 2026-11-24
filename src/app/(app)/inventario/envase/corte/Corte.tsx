@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { masDias, porMaterial, type FilaNotif, type Partida, type SinNotificar } from "@/modulos/inventario/envase/calc";
@@ -95,17 +95,24 @@ export function Corte({ dia, hora, hoy, seguras, dudosas, alcanza, ultima, notif
           {sinNotif.length > 0 && (
             <div className="pe-sin">
               <h4>Producto sin notificar · según plan <span className="pe-tag t-a">Por confirmar</span>
-                <small>plan vigente de ayer y de hoy hasta las {hora} − lo notificado de esos días · su envase sigue en AG22 · marca los que se envasaron de verdad</small></h4>
+                <small>plan vigente de ayer y de hoy hasta las {hora} − lo notificado de esos días · en unidades · el envase de los retornables sigue en AG22: marca los que se envasaron de verdad</small></h4>
               <div className="pe-caja"><table className="pe-t">
                 <thead><tr><th className="l">Entra</th><th className="l">SKU</th><th>Plan</th><th>Notificado</th><th>Sin notificar</th><th className="l">Botella (PENDIENTE POR NOTIFICAR · CONTEO)</th><th className="l">Caja</th></tr></thead>
-                <tbody>{sinNotif.map((x) => (
-                  <tr key={x.sku} className={conf.has(x.sku) ? "" : "mut"}>
-                    <td className="l"><input type="checkbox" checked={conf.has(x.sku)} onChange={() => confirmar(x.sku)} aria-label={`Incluir ${x.sku}`} /></td>
-                    <td className="l"><b>{x.sku}</b> {x.nombre.slice(0, 30)}</td>
-                    <td>{n0(x.plan)}</td><td>{n0(x.notif)}</td><td><b>{n0(x.sin)}</b></td>
-                    <td className="l">{x.botella ? <><b>{x.botella.codigo}</b> {x.botella.texto} · <b>{n0(x.botella.unidades)}</b></> : "—"}</td>
-                    <td className="l">{x.caja ? <><b>{x.caja.codigo}</b> {x.caja.texto} · <b>{n0(x.caja.unidades)}</b></> : "—"}</td>
-                  </tr>
+                <tbody>{sinNotif.map((x, i) => (
+                  <Fragment key={x.sku}>
+                    {!x.retornable && (i === 0 || sinNotif[i - 1].retornable) && (
+                      <tr className="sub"><td className="l mut" colSpan={7}>No retornables · también quedaron sin notificar, pero no llevan envase en AG22 (no entran a la plantilla)</td></tr>
+                    )}
+                    <tr className={x.retornable && conf.has(x.sku) ? "" : "mut"}>
+                      <td className="l">{x.retornable
+                        ? <input type="checkbox" checked={conf.has(x.sku)} onChange={() => confirmar(x.sku)} aria-label={`Incluir ${x.sku}`} />
+                        : <span title="No retornable: no tiene envase en AG22">—</span>}</td>
+                      <td className="l"><b>{x.sku}</b> {x.nombre.slice(0, 30)}</td>
+                      <td>{n0(x.plan)}</td><td>{n0(x.notif)}</td><td><b>{n0(x.sin)}</b></td>
+                      <td className="l">{x.botella ? <><b>{x.botella.codigo}</b> {x.botella.texto} · <b>{n0(x.botella.unidades)}</b></> : x.retornable ? "—" : "no retornable"}</td>
+                      <td className="l">{x.caja ? <><b>{x.caja.codigo}</b> {x.caja.texto} · <b>{n0(x.caja.unidades)}</b></> : "—"}</td>
+                    </tr>
+                  </Fragment>
                 ))}</tbody>
               </table></div>
             </div>

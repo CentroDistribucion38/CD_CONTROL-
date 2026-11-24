@@ -295,6 +295,8 @@ export function notificacionesAlCorte(dia: string, hora: string, movs: Mov[], up
 
 export type SinNotificar = {
   sku: string; nombre: string; plan: number; notif: number; sin: number;
+  /** Retornable = alguna vez movió botella con 261. Los no retornables salen aparte: no tocan el envase de AG22. */
+  retornable: boolean;
   botella: { codigo: string; texto: string; unidades: number } | null;
   caja: { codigo: string; texto: string; unidades: number } | null;
 };
@@ -310,7 +312,7 @@ export type SinNotificar = {
  * Es una estimación (si la línea produjo menos que el plan, sale de más): la pantalla la muestra POR CONFIRMAR.
  * @param planDia las filas del plan vigente de cada día (ayer y hoy)
  */
-export function productoSinNotificar(dia: string, hora: string, planDia: Map<string, FilaPlanBD[]>, movs: Mov[], M: Maestro): SinNotificar[] {
+export function productoSinNotificar(dia: string, hora: string, planDia: Map<string, FilaPlanBD[]>, movs: Mov[], M: Maestro, historia: Mov[] = []): SinNotificar[] {
   const ayer = masDias(dia, -1);
   const [hh, mm] = hora.split(":").map(Number);
   const unDe = (f: FilaPlanBD) => Number(f.unidades) || (f.formato_ml ? (Number(f.hl) * 1e5) / Number(f.formato_ml) : 0);
@@ -332,7 +334,9 @@ export function productoSinNotificar(dia: string, hora: string, planDia: Map<str
   }
   /* El envase de cada SKU: el material del 261 de sus órdenes (el más usado), botella y caja por separado. */
   const usos = new Map<string, Map<string, { texto: string; n: number; caja: boolean }>>();
-  for (const m of movs) {
+  /* El historial (órdenes de hace más tiempo) solo sirve para saber el envase: no suma a lo notificado. */
+  for (const m of historia) if (m.clase === "Z01" && m.orden && /P$/i.test(m.material) && !skuOrden.has(m.orden)) skuOrden.set(m.orden, skuDe(m.material));
+  for (const m of [...movs, ...historia]) {
     if (m.clase !== "261" || !m.orden || !skuOrden.has(m.orden)) continue;
     const sku = skuOrden.get(m.orden)!;
     if (!usos.has(sku)) usos.set(sku, new Map());
@@ -346,11 +350,13 @@ export function productoSinNotificar(dia: string, hora: string, planDia: Map<str
   const out: SinNotificar[] = [];
   for (const [sku, p] of plan) {
     const n = notif.get(sku) ?? 0, sin = p - n;
+    if (sin < 1) continue;
     const bot = envase(sku, false);
-    if (sin < 1 || !bot) continue;                         // sin envase en el historial: no es retornable
+    /* Sin botella en el historial: no es retornable. Sale igual (lo pendiente es pendiente), pero aparte y sin envase. */
+    if (!bot) { out.push({ sku, nombre: M.get(sku)?.nombre ?? "", plan: p, notif: n, sin, retornable: false, botella: null, caja: null }); continue }
     const caja = envase(sku, true), ref = M.get(sku)?.ref ?? 0;
-    out.push({ sku, nombre: M.get(sku)?.nombre ?? "", plan: p, notif: n, sin,
+    out.push({ sku, nombre: M.get(sku)?.nombre ?? "", plan: p, notif: n, sin, retornable: true,
       botella: { ...bot, unidades: Math.round(sin) }, caja: caja && ref ? { ...caja, unidades: Math.round(sin / ref) } : null });
   }
-  return out.sort((a, b) => b.sin - a.sin);
+  return out.sort((a, b) => Number(b.retornable) - Number(a.retornable) || b.sin - a.sin);
 }
