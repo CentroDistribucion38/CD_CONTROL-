@@ -32,6 +32,28 @@ export async function ultimaEntrada() {
 }
 
 /** Los planes de una semana con sus filas. */
+/**
+ * LOS INSTRUCTIVOS YA GUARDADOS traen el HL de un turno entero en su primera hora (la celda combinada del Excel: T1 =
+ * 731 HL a las 00:00). Al leer se reparte parejo hasta la siguiente hora con plan en ese tren o el fin del turno (8 h),
+ * solo cuando arranca justo en el inicio de un turno (00, 08, 16). Lo cargado desde ahora ya viene repartido.
+ */
+function repartirTurnos(filas: FilaPlanBD[]): FilaPlanBD[] {
+  const grupos = new Map<string, FilaPlanBD[]>();
+  for (const f of filas) { const k = `${f.plan_id}|${f.fecha}|${f.tren}`; const g = grupos.get(k); if (g) g.push(f); else grupos.set(k, [f]) }
+  const out: FilaPlanBD[] = [];
+  for (const g of grupos.values()) {
+    g.sort((a, b) => a.hora - b.hora);
+    g.forEach((f, i) => {
+      const finTurno = Math.floor(f.hora / 8) * 8 + 8;
+      const sig = i + 1 < g.length ? g[i + 1].hora : 24;
+      const ancho = f.hora % 8 === 0 ? Math.max(1, Math.min(sig, finTurno) - f.hora) : 1;
+      if (ancho === 1) { out.push(f); return }
+      for (let k = 0; k < ancho; k++) out.push({ ...f, hora: f.hora + k, hl: f.hl / ancho, unidades: f.unidades == null ? null : f.unidades / ancho });
+    });
+  }
+  return out;
+}
+
 export async function planesDeSemana(lunes: string) {
   const s = await createClient();
   const p = await s.from("pe_planes").select("*").eq("lunes", lunes).order("generado");
@@ -40,7 +62,7 @@ export async function planesDeSemana(lunes: string) {
   if (!planes.length) return { falta: false, error: null, planes, filas: [] as FilaPlanBD[] };
   const f = await paginar<FilaPlanBD>((a, b) => s.from("pe_plan_filas").select("plan_id, fecha, tren, hora, sku, nombre, formato_ml, referencia, hl, unidades")
     .in("plan_id", planes.map((x) => x.id)).order("id").range(a, b));
-  const filas = f.filas.map((x) => ({ ...x, hl: Number(x.hl), unidades: x.unidades == null ? null : Number(x.unidades), formato_ml: x.formato_ml == null ? null : Number(x.formato_ml) }));
+  const filas = repartirTurnos(f.filas.map((x) => ({ ...x, hl: Number(x.hl), unidades: x.unidades == null ? null : Number(x.unidades), formato_ml: x.formato_ml == null ? null : Number(x.formato_ml) })));
   return { falta: false, error: f.error, planes, filas };
 }
 

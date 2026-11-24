@@ -69,7 +69,10 @@ export default async function ValidacionPage({ searchParams }: { searchParams: P
      inicio el conteo.» ?hc=6 → el plan del último día del rango se suma hasta las 06:00 (los días anteriores, completos),
      para cualquier día, no solo hoy. Sin hc: hoy va hasta este momento y los días pasados completos. */
   const hc = /^\d{1,2}$/.test(q.hc ?? "") && Number(q.hc) <= 23 ? Number(q.hc) : null;
+  /* ?hc=dia → el día completo (también hoy): sin corte por hora. */
+  const diaCompleto = q.hc === "dia";
   const hm = hc != null ? [hc, 0]
+    : diaCompleto ? null
     : h === hoy ? new Intl.DateTimeFormat("en-GB", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date()).split(":").map(Number) : null;
   /* Con hora de corte, lo notificado también se corta: solo lo que entró a SAP hasta esa hora de ese día (la foto de las
      06:00 cuando arranca el conteo). Lo digitado después no cuenta, aunque su fecha de contabilización sea de antes. */
@@ -146,7 +149,7 @@ export default async function ValidacionPage({ searchParams }: { searchParams: P
       <ValidacionDia
         dia={d} hastaDia={h} hoy={hoy} conDatos={conDatos} antes={[masDias(d, -n), masDias(h, -n)]} despues={[masDias(d, n), masDias(h, n)]}
         filas={filas} alertas={alertas} maestro={Object.fromEntries(M)} hayCorte={hayCorte}
-        estado={estadoDia(h, u.valor, hoy)} ahora={ahora} lineas={lineas} horaCorte={hc}
+        estado={estadoDia(h, u.valor, hoy)} ahora={ahora} lineas={lineas} horaCorte={diaCompleto ? "dia" : hc}
       />
 
     </div>

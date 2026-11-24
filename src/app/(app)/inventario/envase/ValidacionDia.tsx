@@ -29,24 +29,28 @@ export function ValidacionDia({ dia, hastaDia, hoy, conDatos, antes, despues, fi
   hayCorte: boolean; estado: Dia["estado"];
   /** Solo HOY: la hora, el plan vigente sumado hora por hora hasta ahora (unidades por SKU) y hasta dónde llega la MB51. */
   ahora?: { hora: string; planHasta: Record<string, number>; mb51: string | null; fija?: boolean };
-  /** La hora de corte escogida (?hc=6 → hasta las 06:00), o null = hoy hasta este momento / días pasados completos. */
-  horaCorte?: number | null;
+  /** Cómo se evalúa: una hora de corte (?hc=6 → hasta las 06:00), «dia» (el día completo) o null (hoy: hasta ahora;
+      días pasados: completos). */
+  horaCorte?: number | "dia" | null;
   /** El plan de cada SKU en cada línea (TREN) del instructivo, en unidades: inicial, vigente y (hoy) hasta esta hora. */
   lineas?: { tren: string; sku: string; ini: number; vig: number; hasta: number }[];
 }) {
   const router = useRouter();
   /* «En cualquier rango de fecha: semana, días, lo que yo quiera.» */
   const rango = hastaDia > dia;
-  const url = (d: string, h: string, hc: number | null = horaCorte) => `/inventario/envase?d=${d}${h > d ? `&h=${h}` : ""}${hc != null ? `&hc=${hc}` : ""}`;
+  const url = (d: string, h: string, hc: number | "dia" | null = horaCorte) => `/inventario/envase?d=${d}${h > d ? `&h=${h}` : ""}${hc != null ? `&hc=${hc}` : ""}`;
   /* La hora de corte se recuerda en este equipo: si la última vez se escogió «06:00», vuelve a salir así. */
   useEffect(() => {
     if (horaCorte != null) return;
     let g: string | null = null;
     try { g = localStorage.getItem("pe-hora-corte") } catch { /* sin almacenamiento */ }
     if (g && /^\d{1,2}$/.test(g)) router.replace(url(dia, hastaDia, Number(g)));
+    else if (g === "dia") router.replace(url(dia, hastaDia, "dia"));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const cambiarCorte = (v: string) => {
-    const hc = v === "" ? null : Number(v);
+  /* «Con un botón yo selecciono DÍA y con otro CORTE»: Día (completo) · Ahora (solo hoy) · Corte a las HH:00. */
+  const [horaElegida, setHoraElegida] = useState<number>(typeof horaCorte === "number" ? horaCorte : 6);
+  const modo: "dia" | "ahora" | "corte" = typeof horaCorte === "number" ? "corte" : horaCorte === "dia" || hastaDia !== hoy ? "dia" : "ahora";
+  const cambiarCorte = (hc: number | "dia" | null) => {
     try { if (hc == null) localStorage.removeItem("pe-hora-corte"); else localStorage.setItem("pe-hora-corte", String(hc)) } catch { /* sigue */ }
     router.push(url(dia, hastaDia, hc));
   };
@@ -151,13 +155,19 @@ export function ValidacionDia({ dia, hastaDia, hoy, conDatos, antes, despues, fi
           {despues[1] <= hoy ? <Link href={url(despues[0], despues[1])} aria-label={rango ? "Período siguiente" : "Día siguiente"}>›</Link> : <span aria-hidden>›</span>}
         </div>
         <div className={`pe-estado e-${estado}`}><b>{ESTADO[estado][0]}</b><small>{ESTADO[estado][1]}</small></div>
-        <label className="pe-corte">Hasta las
-          <select value={horaCorte == null ? "" : String(horaCorte)} onChange={(e) => cambiarCorte(e.target.value)}>
-            <option value="">{hastaDia === hoy ? "Ahora" : "Día completo"}</option>
-            <option value="6">06:00 · inicio del conteo</option>
-            {Array.from({ length: 24 }, (_, k) => k).filter((k) => k !== 6).map((k) => <option key={k} value={k}>{String(k).padStart(2, "0")}:00</option>)}
-          </select>
-        </label>
+        <div className="pe-corte">Evaluar
+          <div className="pe-seg" role="group" aria-label="Evaluar">
+            <button type="button" className={modo === "dia" ? "on" : ""} aria-pressed={modo === "dia"} onClick={() => cambiarCorte(hastaDia === hoy ? "dia" : null)} title="El plan del día completo contra todo lo notificado">Día</button>
+            {hastaDia === hoy && <button type="button" className={modo === "ahora" ? "on" : ""} aria-pressed={modo === "ahora"} onClick={() => cambiarCorte(null)} title="El plan hasta este momento">Ahora</button>}
+            <button type="button" className={modo === "corte" ? "on" : ""} aria-pressed={modo === "corte"} onClick={() => cambiarCorte(horaElegida)} title="El plan y lo notificado hasta la hora de corte">Corte</button>
+          </div>
+          {modo === "corte" && (
+            <select value={String(horaElegida)} aria-label="Hora de corte" onChange={(e) => { const v = Number(e.target.value); setHoraElegida(v); cambiarCorte(v) }}>
+              <option value="6">06:00 · inicio del conteo</option>
+              {Array.from({ length: 24 }, (_, k) => k).filter((k) => k !== 6).map((k) => <option key={k} value={k}>{String(k).padStart(2, "0")}:00</option>)}
+            </select>
+          )}
+        </div>
         <div className="pe-unidad">Unidad
           <div className="pe-seg" role="group" aria-label="Unidad">
             {UNI.map(([k, t]) => <button key={k} type="button" className={u === k ? "on" : ""} aria-pressed={u === k} onClick={() => setU(k)}>{t}</button>)}

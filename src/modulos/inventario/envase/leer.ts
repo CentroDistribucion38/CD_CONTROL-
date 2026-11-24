@@ -64,7 +64,10 @@ export function resolverSku(etiqueta: string, formato: string | null, cand: Espe
   return [...pool].sort((a, b) => puntos(b) - puntos(a))[0].sku;
 }
 
-function leerHoja(R: Celda[][], hoja: string, archivo: string, generado: string): PlanLeido | null {
+/** Celdas combinadas de la hoja, en coordenadas de R (fila, columna): para repartir el HL de un turno entre sus horas. */
+type Combinada = { r0: number; c0: number; r1: number; c1: number };
+
+function leerHoja(R: Celda[][], hoja: string, archivo: string, generado: string, combinadas: Combinada[] = []): PlanLeido | null {
   /* Días: la fila con «lunes 16 de noviembre de 2026». */
   const dias = new Map<number, string>();
   for (const fila of R) {
@@ -118,8 +121,15 @@ function leerHoja(R: Celda[][], hoja: string, archivo: string, generado: string)
       const ml = e?.ml || (formato ? Number(formato.split(/\s*X\s*/i)[0]) : 0) || null;
       const ref = e?.ref || (formato ? Number(formato.split(/\s*X\s*/i)[1]) : 0) || null;
       if (!sku) sinSku.add(`${r0} · ${etiqueta}`);
-      filas.push({ fecha: diaDe(j), tren: r0, hora: (j - c0) % 24, etiqueta, sku, nombre: e?.nombre ?? null,
-                   formato_ml: ml, referencia: ref, hl: v, unidades: ml ? Math.round((v * 1e5) / ml) : null });
+      /* El HL de un turno viene en UNA celda combinada sobre sus horas (T1: 00:00 a 07:00 = 731 HL): se reparte parejo
+         entre esas horas, para que el plan «hasta las 06:00» sume 6 de 8 y no el turno entero. */
+      const m = combinadas.find((x) => x.r0 <= i + 2 && i + 2 <= x.r1 && x.c0 === j);
+      const ancho = m ? Math.max(1, Math.min(m.c1, fin - 1) - j + 1) : 1;
+      for (let k = 0; k < ancho; k++) {
+        const parte = v / ancho;
+        filas.push({ fecha: diaDe(j + k), tren: r0, hora: (j + k - c0) % 24, etiqueta, sku, nombre: e?.nombre ?? null,
+                     formato_ml: ml, referencia: ref, hl: parte, unidades: ml ? Math.round((parte * 1e5) / ml) : null });
+      }
     }
     i += 3;
   }
@@ -140,8 +150,12 @@ export async function leerInstructivo(datos: ArrayBuffer, archivo: string, ultim
   const planes: PlanLeido[] = [];
   for (const n of libro.SheetNames) {
     if (!/^semana\s*\d+/i.test(n.trim())) continue;
-    const R = XLSX.utils.sheet_to_json<Celda[]>(libro.Sheets[n], { header: 1, raw: true, defval: null });
-    const p = leerHoja(R, n.trim(), archivo, generado);
+    const ws = libro.Sheets[n];
+    const R = XLSX.utils.sheet_to_json<Celda[]>(ws, { header: 1, raw: true, defval: null });
+    /* R empieza en la primera celda del rango de la hoja: las combinadas se corren a esas coordenadas. */
+    const ini = ws["!ref"] ? XLSX.utils.decode_range(ws["!ref"]).s : { r: 0, c: 0 };
+    const combinadas = (ws["!merges"] ?? []).map((x) => ({ r0: x.s.r - ini.r, c0: x.s.c - ini.c, r1: x.e.r - ini.r, c1: x.e.c - ini.c }));
+    const p = leerHoja(R, n.trim(), archivo, generado, combinadas);
     if (p) planes.push(p);
   }
   if (!planes.length) return { planes, error: "No encontré hojas «Semana NN» con la rejilla de trenes en ese archivo." };
