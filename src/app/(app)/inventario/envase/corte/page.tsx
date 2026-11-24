@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { maestro, masDias, notificacionesAlCorte, papeles, partidasCorte, productoSinNotificar, type FilaPlanBD } from "@/modulos/inventario/envase/calc";
+import { maestro, notificacionesAlCorte, papeles, partidasCorte, productoSinNotificar, type FilaPlanBD } from "@/modulos/inventario/envase/calc";
 import { envaseHistorico, hoyBogota, lunesDe, movimientosDigitadosDesde, movimientosParaElConteo, planesDeSemana, productosDe, upcEnvases } from "@/modulos/inventario/envase/datos";
 import { Pasos } from "../Pasos";
 import "../../fefo.css";
@@ -26,17 +26,11 @@ export default async function CortePage({ searchParams }: { searchParams: Promis
   const r = partidasCorte(`${dia}T${hora}`, mv.filas);
   /* Lo que va al análisis de diferencia de Bodega 38 (AG22) con los nombres de la plantilla. */
   const nt = notificacionesAlCorte(dia, hora, mc.filas, (c) => upc.get(c) ?? 0);
-  /* EL PRODUCTO SIN NINGUNA NOTIFICACIÓN (según el plan vigente de ayer y de hoy hasta el corte) y su envase: POR CONFIRMAR. */
-  const ayer = masDias(dia, -1);
-  const lunesS = [...new Set([lunesDe(ayer), lunesDe(dia)])];
-  const semanas = await Promise.all(lunesS.map((l) => planesDeSemana(l)));
-  const planDia = new Map<string, FilaPlanBD[]>();
-  for (const d of [ayer, dia]) {
-    const ps = semanas[lunesS.indexOf(lunesDe(d))];
-    const P = papeles(ps.planes), c = P.corteDe(d), id = c?.id ?? P.inicial?.id;
-    planDia.set(d, id ? ps.filas.filter((f) => f.plan_id === id && f.fecha === d) : []);
-  }
-  const filasPlan = semanas.flatMap((x) => x.filas);
+  /* LO PENDIENTE POR NOTIFICAR A LA HORA DEL CONTEO (la misma cuenta de Validación › Corte) y su envase: POR CONFIRMAR. */
+  const sem = await planesDeSemana(lunesDe(dia));
+  const P = papeles(sem.planes), id = P.corteDe(dia)?.id ?? P.inicial?.id;
+  const planDia = new Map<string, FilaPlanBD[]>([[dia, id ? sem.filas.filter((f) => f.plan_id === id && f.fecha === dia) : []]]);
+  const filasPlan = sem.filas;
   const skus = [...new Set(filasPlan.map((f) => f.sku).filter((x): x is string => !!x))];
   const skusPlan = [...new Set([...planDia.values()].flat().map((f) => f.sku).filter((x): x is string => !!x))];
   const [prods, historia] = await Promise.all([productosDe(skus), envaseHistorico(skusPlan, dia)]);

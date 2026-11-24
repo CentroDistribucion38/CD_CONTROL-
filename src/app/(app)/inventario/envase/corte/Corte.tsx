@@ -1,12 +1,13 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { masDias, porMaterial, type FilaNotif, type Partida, type SinNotificar } from "@/modulos/inventario/envase/calc";
 import { Calendario } from "@/components/CalendarioRango";
 
 const n0 = (x: number) => Math.round(x).toLocaleString("es-CO");
+const n1 = (x: number | null) => x == null ? "—" : x.toLocaleString("es-CO", { maximumFractionDigits: 0 });
 const fh = (e: string) => `${e.slice(8, 10)}/${e.slice(5, 7)} ${e.slice(11, 16)}`;
 const CLASE: Record<string, string> = {
   "261": "consumo a orden (261)", "262": "reverso de consumo (262)", "531": "entrada a AG28 (531)", "532": "reverso de entrada (532)",
@@ -44,6 +45,20 @@ export function Corte({ dia, hora, hoy, seguras, dudosas, alcanza, ultima, notif
     const filas = [...notif.map((f) => ({ tipo: f.tipo, documento: f.documento, codigo: f.codigo, unidades: f.unidades })), ...confirmadas];
     try { await navigator.clipboard.writeText(filas.map((f) => [f.tipo, f.documento, f.codigo, "", "", f.unidades].join("\t")).join("\n")); setCopiado(`Copiadas ${filas.length}${confirmadas.length ? ` (${confirmadas.length} del producto sin notificar)` : ""}: pégalas en la columna A de NOVEDADES.`) }
     catch { setCopiado("El navegador no dejó copiar.") }
+  }
+  /* La tabla del pendiente, para pegar en Excel: encabezado + una fila por SKU, cada dato en su columna (tabuladores),
+     números sin puntos de miles y con coma decimal (Excel en español). */
+  const tot = sinNotif.reduce((t, x) => ({ plan: t.plan + (x.planHL ?? 0), notif: t.notif + (x.notifHL ?? 0), hl: t.hl + (x.sinHL ?? 0), un: t.un + x.sin }),
+    { plan: 0, notif: 0, hl: 0, un: 0 });
+  const [copiadoT, setCopiadoT] = useState<string | null>(null);
+  async function copiarTabla() {
+    const xl = (v: number | null | undefined, d = 0) => v == null ? "" : (d ? v.toFixed(d) : String(Math.round(v))).replace(".", ",");
+    const cab = ["SKU", "Descripción", "Envase", `Plan a las ${hora} (HL)`, "Notificado (HL)", "Pendiente (HL)", "Pendiente (unidades)", "Pendiente (cajas)",
+      "Código botella", "Botella", "Botellas", "Código caja", "Caja", "Cajas"];
+    const filas = sinNotif.map((x) => [x.sku, x.nombre, x.retornable ? "Retornable" : "No retornable", xl(x.planHL, 1), xl(x.notifHL, 1), xl(x.sinHL, 1),
+      xl(x.sin), xl(x.sinCajas), x.botella?.codigo ?? "", x.botella?.texto ?? "", xl(x.botella?.unidades), x.caja?.codigo ?? "", x.caja?.texto ?? "", xl(x.caja?.unidades)]);
+    try { await navigator.clipboard.writeText([cab, ...filas].map((f) => f.join("\t")).join("\n")); setCopiadoT(`Copiados ${filas.length} SKU con encabezado: pégalos en Excel.`) }
+    catch { setCopiadoT("El navegador no dejó copiar.") }
   }
   const confirmar = (sku: string) => setConf((x) => { const y = new Set(x); if (y.has(sku)) y.delete(sku); else y.add(sku); return y });
   const marcar = (i: number) => setAntes((x) => { const y = new Set(x); if (y.has(i)) y.delete(i); else y.add(i); return y });
@@ -90,30 +105,46 @@ export function Corte({ dia, hora, hoy, seguras, dudosas, alcanza, ultima, notif
             </table></div>
           </>) : <p className="pe-nota">Nada pendiente por notificar ni notificaciones en AG22 al corte de las {hora}.</p>}
 
-          {/* PRODUCTO SIN NINGUNA NOTIFICACIÓN, SEGÚN EL PLAN (opción A: por confirmar). Lo de arriba sale de movimientos de SAP;
-              esto es una estimación del plan, así que nada entra solo: se marca SKU por SKU. */}
+          {/* LO PENDIENTE POR NOTIFICAR A LA HORA DEL CONTEO, POR SKU: la misma cuenta de Validación › Evaluar «Corte».
+              «Esas son las partidas que necesito … para poder copiar por columnas»: cada dato en su columna y «Copiar tabla»
+              las lleva a Excel tal cual. Es plan, no producción: el envase entra a la plantilla solo si se marca. */}
           {sinNotif.length > 0 && (
             <div className="pe-sin">
-              <h4>Producto sin notificar · según plan <span className="pe-tag t-a">Por confirmar</span>
-                <small>plan vigente de ayer y de hoy hasta las {hora} − lo notificado de esos días · en unidades · el envase de los retornables sigue en AG22: marca los que se envasaron de verdad</small></h4>
+              <h4>Pendiente por notificar a las {hora} · según plan <span className="pe-tag t-a">Por confirmar</span>
+                <small>plan vigente del día sumado hora por hora hasta las {hora} − lo notificado que entró a SAP hasta las {hora} · igual que
+                  {" "}<Link href={`/inventario/envase?d=${dia}&h=${dia}&hc=${Number(hora.slice(0, 2))}`}>Validación › Corte</Link></small></h4>
+              <p className="pe-nota" style={{ padding: "0 0 8px" }}>
+                <button type="button" className="pe-bt am" onClick={() => void copiarTabla()}>Copiar tabla</button>{" "}
+                {copiadoT ?? <>{sinNotif.length} SKU · {n1(tot.hl)} HL pendientes · se pega en Excel con cada dato en su columna</>}
+              </p>
               <div className="pe-caja"><table className="pe-t">
-                <thead><tr><th className="l">Entra</th><th className="l">SKU</th><th>Plan</th><th>Notificado</th><th>Sin notificar</th><th className="l">Botella (PENDIENTE POR NOTIFICAR · CONTEO)</th><th className="l">Caja</th></tr></thead>
-                <tbody>{sinNotif.map((x, i) => (
-                  <Fragment key={x.sku}>
-                    {!x.retornable && (i === 0 || sinNotif[i - 1].retornable) && (
-                      <tr className="sub"><td className="l mut" colSpan={7}>No retornables · también quedaron sin notificar, pero no llevan envase en AG22 (no entran a la plantilla)</td></tr>
-                    )}
-                    <tr className={x.retornable && conf.has(x.sku) ? "" : "mut"}>
-                      <td className="l">{x.retornable
-                        ? <input type="checkbox" checked={conf.has(x.sku)} onChange={() => confirmar(x.sku)} aria-label={`Incluir ${x.sku}`} />
-                        : <span title="No retornable: no tiene envase en AG22">—</span>}</td>
-                      <td className="l"><b>{x.sku}</b> {x.nombre.slice(0, 30)}</td>
-                      <td>{n0(x.plan)}</td><td>{n0(x.notif)}</td><td><b>{n0(x.sin)}</b></td>
-                      <td className="l">{x.botella ? <><b>{x.botella.codigo}</b> {x.botella.texto} · <b>{n0(x.botella.unidades)}</b></> : x.retornable ? "—" : "no retornable"}</td>
-                      <td className="l">{x.caja ? <><b>{x.caja.codigo}</b> {x.caja.texto} · <b>{n0(x.caja.unidades)}</b></> : "—"}</td>
-                    </tr>
-                  </Fragment>
-                ))}</tbody>
+                <thead><tr>
+                  <th className="l">Entra</th><th className="l">SKU</th><th className="l">Descripción</th><th className="l">Envase</th>
+                  <th>Plan a las {hora} (HL)</th><th>Notificado (HL)</th><th>Pendiente (HL)</th><th>Pendiente (un.)</th><th>Pendiente (cajas)</th>
+                  <th className="l g">Botella</th><th>Botellas</th><th className="l g">Caja</th><th>Cajas</th>
+                </tr></thead>
+                <tbody>{sinNotif.map((x) => (
+                  <tr key={x.sku} className={x.retornable && !conf.has(x.sku) ? "mut" : ""}>
+                    <td className="l">{x.retornable
+                      ? <input type="checkbox" checked={conf.has(x.sku)} onChange={() => confirmar(x.sku)} aria-label={`Incluir ${x.sku} en la plantilla`} />
+                      : <span title="No retornable: no tiene envase en AG22">—</span>}</td>
+                    <td className="l"><b>{x.sku}</b></td>
+                    <td className="l">{x.nombre}</td>
+                    <td className="l">{x.retornable ? "Retornable" : "No retornable"}</td>
+                    <td>{n1(x.planHL)}</td><td>{n1(x.notifHL)}</td><td><b>{n1(x.sinHL)}</b></td>
+                    <td>{n0(x.sin)}</td><td>{x.sinCajas == null ? "—" : n0(x.sinCajas)}</td>
+                    <td className="l">{x.botella ? <><b>{x.botella.codigo}</b> {x.botella.texto}</> : "—"}</td>
+                    <td>{x.botella ? n0(x.botella.unidades) : "—"}</td>
+                    <td className="l">{x.caja ? <><b>{x.caja.codigo}</b> {x.caja.texto}</> : "—"}</td>
+                    <td>{x.caja ? n0(x.caja.unidades) : "—"}</td>
+                  </tr>
+                ))}
+                  <tr className="tot">
+                    <td className="l" colSpan={4}><b>Total</b></td>
+                    <td><b>{n1(tot.plan)}</b></td><td><b>{n1(tot.notif)}</b></td><td><b>{n1(tot.hl)}</b></td>
+                    <td><b>{n0(tot.un)}</b></td><td colSpan={5} />
+                  </tr>
+                </tbody>
               </table></div>
             </div>
           )}

@@ -295,29 +295,31 @@ export function notificacionesAlCorte(dia: string, hora: string, movs: Mov[], up
 
 export type SinNotificar = {
   sku: string; nombre: string; plan: number; notif: number; sin: number;
-  /** Retornable = alguna vez movió botella con 261. Los no retornables salen aparte: no tocan el envase de AG22. */
+  /** Lo mismo en HL (como Validación) y en cajas; null si el SKU no tiene contenido o unidades por caja. */
+  planHL: number | null; notifHL: number | null; sinHL: number | null; sinCajas: number | null;
+  /** Retornable = alguna vez movió botella con 261. Los no retornables no tocan el envase de AG22. */
   retornable: boolean;
   botella: { codigo: string; texto: string; unidades: number } | null;
   caja: { codigo: string; texto: string; unidades: number } | null;
 };
 
 /**
- * EL PRODUCTO QUE SE ENVASÓ Y TODAVÍA NO TIENE NINGUNA NOTIFICACIÓN, para el corte de un conteo.
- * «Aquí sale el envase y está perfecto, ¿y si está pendiente el producto?» Lo que ya tiene Z01 (antes o después del corte) lo
- * cubren las partidas de arriba; lo que no tiene NINGUNA notificación tampoco tiene 261: SAP sigue teniendo su botella y su
- * caja en AG22 y el conteo sale por debajo sin explicación. Se estima con el PLAN VIGENTE, por SKU retornable:
- *   sin notificar = plan (ayer completo + hoy hasta la hora del corte) − todo lo notificado (Z01 − Z02) con fecha de esos dos días,
- *                   se haya digitado cuando se haya digitado
- * y su envase: botellas = unidades (una por unidad), cajas = unidades ÷ unidades por caja, con el código SAP que usan sus órdenes.
- * Es una estimación (si la línea produjo menos que el plan, sale de más): la pantalla la muestra POR CONFIRMAR.
- * @param planDia las filas del plan vigente de cada día (ayer y hoy)
+ * LO PENDIENTE POR NOTIFICAR A LA HORA DEL CONTEO, POR SKU — la misma cuenta de Validación › Evaluar «Corte»:
+ *   plan a la hora = el plan vigente del día (el último corte; si no hay, el inicial) sumado HORA POR HORA desde las 00:00
+ *                    hasta la hora del conteo (la hora en curso, en proporción a los minutos)
+ *   notificado     = Z01 − Z02 con fecha de contabilización del día y que ENTRÓ A SAP hasta la hora del conteo
+ *   pendiente      = plan a la hora − notificado
+ * «Mira lo que me sale pendiente por notificar al corte de las 06: esas son las partidas que necesito.» A esa hora SAP no
+ * tiene ese producto y sí tiene su botella y su caja en AG22. Es plan, no producción real: la pantalla la muestra POR CONFIRMAR.
+ * Su envase (retornables): botellas = unidades, cajas = unidades ÷ unidades por caja, con el código SAP que usan sus órdenes.
+ * @param planDia las filas del plan vigente del día del conteo
+ * @param historia órdenes de hace más tiempo: solo para saber el envase de cada SKU, no suman a lo notificado
  */
 export function productoSinNotificar(dia: string, hora: string, planDia: Map<string, FilaPlanBD[]>, movs: Mov[], M: Maestro, historia: Mov[] = []): SinNotificar[] {
-  const ayer = masDias(dia, -1);
   const [hh, mm] = hora.split(":").map(Number);
+  const tope = `${dia}T${hora}:00`;
   const unDe = (f: FilaPlanBD) => Number(f.unidades) || (f.formato_ml ? (Number(f.hl) * 1e5) / Number(f.formato_ml) : 0);
   const plan = new Map<string, number>();
-  for (const f of planDia.get(ayer) ?? []) if (f.fecha === ayer && f.sku) plan.set(f.sku, (plan.get(f.sku) ?? 0) + unDe(f));
   for (const f of planDia.get(dia) ?? []) {
     if (f.fecha !== dia || !f.sku) continue;
     const w = f.hora < hh ? 1 : f.hora === hh ? mm / 60 : 0;
@@ -328,7 +330,7 @@ export function productoSinNotificar(dia: string, hora: string, planDia: Map<str
   for (const m of movs) {
     if (!ES_Z.has(m.clase) || !/P$/i.test(m.material)) continue;
     if (m.orden) skuOrden.set(m.orden, skuDe(m.material));
-    if (m.fecha_contab !== ayer && m.fecha_contab !== dia) continue;
+    if (m.fecha_contab !== dia || entrada(m) > tope) continue;
     const q = m.clase === "Z02" ? -Math.abs(m.cantidad) : m.cantidad;
     notif.set(skuDe(m.material), (notif.get(skuDe(m.material)) ?? 0) + q);
   }
@@ -351,12 +353,15 @@ export function productoSinNotificar(dia: string, hora: string, planDia: Map<str
   for (const [sku, p] of plan) {
     const n = notif.get(sku) ?? 0, sin = p - n;
     if (sin < 1) continue;
+    const ref = M.get(sku)?.ref ?? 0;
+    const base = { sku, nombre: M.get(sku)?.nombre ?? "", plan: p, notif: n, sin,
+      planHL: convertir(p, sku, "hl", M), notifHL: convertir(n, sku, "hl", M), sinHL: convertir(sin, sku, "hl", M), sinCajas: ref ? sin / ref : null };
     const bot = envase(sku, false);
-    /* Sin botella en el historial: no es retornable. Sale igual (lo pendiente es pendiente), pero aparte y sin envase. */
-    if (!bot) { out.push({ sku, nombre: M.get(sku)?.nombre ?? "", plan: p, notif: n, sin, retornable: false, botella: null, caja: null }); continue }
-    const caja = envase(sku, true), ref = M.get(sku)?.ref ?? 0;
-    out.push({ sku, nombre: M.get(sku)?.nombre ?? "", plan: p, notif: n, sin, retornable: true,
+    /* Sin botella en sus órdenes: no es retornable. Sale igual (lo pendiente es pendiente), sin envase. */
+    if (!bot) { out.push({ ...base, retornable: false, botella: null, caja: null }); continue }
+    const caja = envase(sku, true);
+    out.push({ ...base, retornable: true,
       botella: { ...bot, unidades: Math.round(sin) }, caja: caja && ref ? { ...caja, unidades: Math.round(sin / ref) } : null });
   }
-  return out.sort((a, b) => Number(b.retornable) - Number(a.retornable) || b.sin - a.sin);
+  return out.sort((a, b) => (b.sinHL ?? 0) - (a.sinHL ?? 0) || b.sin - a.sin);
 }
