@@ -279,3 +279,12 @@
 .pe .pe-sin h4 small { flex-basis: 100%; font-weight: 500; font-size: 12px; color: var(--fe-gris, #6b7280) }
 .pe .pe-sin tr.mut td { color: var(--fe-gris, #6b7280) }
 .pe .pe-sin input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--fe-acento, #FFC400) }
+
+/* Corte · pendiente por notificar: cada encabezado escoge su columna para copiar (amarillo, no negro). */
+.pe .pe-cols th button.pe-col { all: unset; cursor: pointer; display: block; width: 100%; text-align: inherit; padding: 2px 0; border-bottom: 2px solid transparent }
+.pe .pe-cols th button.pe-col:hover { border-bottom-color: var(--fe-aviso) }
+.pe .pe-cols th button.pe-col:focus-visible { outline: 2px solid var(--fe-aviso); outline-offset: 2px }
+.pe .pe-cols th.sel { background: var(--fe-aviso); color: var(--fe-tinta) }
+.pe .pe-cols td.sel { background: color-mix(in srgb, var(--fe-aviso) 18%, transparent) }
+.pe .pe-cols td.g { border-left: 2px solid var(--fe-aviso) }
+.pe .pe-cols td.l:nth-child(2) { min-width: 64px }

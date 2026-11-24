@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { masDias, porMaterial, type FilaNotif, type Partida, type SinNotificar } from "@/modulos/inventario/envase/calc";
@@ -51,14 +51,37 @@ export function Corte({ dia, hora, hoy, seguras, dudosas, alcanza, ultima, notif
   const tot = sinNotif.reduce((t, x) => ({ plan: t.plan + (x.planHL ?? 0), notif: t.notif + (x.notifHL ?? 0), hl: t.hl + (x.sinHL ?? 0), un: t.un + x.sin }),
     { plan: 0, notif: 0, hl: 0, un: 0 });
   const [copiadoT, setCopiadoT] = useState<string | null>(null);
+  /* «Que uno pueda seleccionar solo la columna y copiar los SKU y así mismo las cantidades»: cada encabezado se toca para
+     escoger esa columna (una o varias); «Copiar» lleva solo esas, en el orden de la tabla, sin encabezado, listas para pegar
+     en la plantilla. Sin columnas escogidas se copia la tabla entera con encabezado. */
+  const xl = (v: number | null | undefined, d = 0) => v == null ? "" : (d ? v.toFixed(d) : String(Math.round(v))).replace(".", ",");
+  const COLS: { k: string; t: string; l?: boolean; g?: boolean; b?: boolean; ver: (x: SinNotificar) => ReactNode; xl: (x: SinNotificar) => string; tot?: React.ReactNode }[] = [
+    { k: "sku", t: "SKU", l: true, b: true, ver: (x) => x.sku, xl: (x) => x.sku },
+    { k: "nom", t: "Descripción", l: true, ver: (x) => x.nombre, xl: (x) => x.nombre },
+    { k: "env", t: "Envase", l: true, ver: (x) => x.retornable ? "Retornable" : "No retornable", xl: (x) => x.retornable ? "Retornable" : "No retornable" },
+    { k: "plan", t: `Plan a las ${hora} (HL)`, ver: (x) => n1(x.planHL), xl: (x) => xl(x.planHL, 1), tot: n1(tot.plan) },
+    { k: "notif", t: "Notificado (HL)", ver: (x) => n1(x.notifHL), xl: (x) => xl(x.notifHL, 1), tot: n1(tot.notif) },
+    { k: "pend", t: "Pendiente (HL)", b: true, ver: (x) => n1(x.sinHL), xl: (x) => xl(x.sinHL, 1), tot: n1(tot.hl) },
+    { k: "un", t: "Pendiente (un.)", ver: (x) => n0(x.sin), xl: (x) => xl(x.sin), tot: n0(tot.un) },
+    { k: "cj", t: "Pendiente (cajas)", ver: (x) => x.sinCajas == null ? "—" : n0(x.sinCajas), xl: (x) => xl(x.sinCajas) },
+    { k: "cb", t: "Código botella", l: true, g: true, b: true, ver: (x) => x.botella?.codigo ?? "—", xl: (x) => x.botella?.codigo ?? "" },
+    { k: "bt", t: "Botella", l: true, ver: (x) => x.botella?.texto ?? "—", xl: (x) => x.botella?.texto ?? "" },
+    { k: "bts", t: "Botellas", ver: (x) => x.botella ? n0(x.botella.unidades) : "—", xl: (x) => xl(x.botella?.unidades) },
+    { k: "cc", t: "Código caja", l: true, g: true, b: true, ver: (x) => x.caja?.codigo ?? "—", xl: (x) => x.caja?.codigo ?? "" },
+    { k: "ca", t: "Caja", l: true, ver: (x) => x.caja?.texto ?? "—", xl: (x) => x.caja?.texto ?? "" },
+    { k: "cas", t: "Cajas", ver: (x) => x.caja ? n0(x.caja.unidades) : "—", xl: (x) => xl(x.caja?.unidades) },
+  ];
+  const [sel, setSel] = useState<string[]>([]);
+  const escoger = (k: string) => { setSel((x) => x.includes(k) ? x.filter((y) => y !== k) : [...x, k]); setCopiadoT(null) };
+  const elegidas = COLS.filter((c) => sel.includes(c.k));
   async function copiarTabla() {
-    const xl = (v: number | null | undefined, d = 0) => v == null ? "" : (d ? v.toFixed(d) : String(Math.round(v))).replace(".", ",");
-    const cab = ["SKU", "Descripción", "Envase", `Plan a las ${hora} (HL)`, "Notificado (HL)", "Pendiente (HL)", "Pendiente (unidades)", "Pendiente (cajas)",
-      "Código botella", "Botella", "Botellas", "Código caja", "Caja", "Cajas"];
-    const filas = sinNotif.map((x) => [x.sku, x.nombre, x.retornable ? "Retornable" : "No retornable", xl(x.planHL, 1), xl(x.notifHL, 1), xl(x.sinHL, 1),
-      xl(x.sin), xl(x.sinCajas), x.botella?.codigo ?? "", x.botella?.texto ?? "", xl(x.botella?.unidades), x.caja?.codigo ?? "", x.caja?.texto ?? "", xl(x.caja?.unidades)]);
-    try { await navigator.clipboard.writeText([cab, ...filas].map((f) => f.join("\t")).join("\n")); setCopiadoT(`Copiados ${filas.length} SKU con encabezado: pégalos en Excel.`) }
-    catch { setCopiadoT("El navegador no dejó copiar.") }
+    const cols = elegidas.length ? elegidas : COLS;
+    const filas = sinNotif.map((x) => cols.map((c) => c.xl(x)));
+    const texto = (elegidas.length ? filas : [cols.map((c) => c.t), ...filas]).map((f) => f.join("\t")).join("\n");
+    try {
+      await navigator.clipboard.writeText(texto);
+      setCopiadoT(elegidas.length ? `Copiadas ${elegidas.map((c) => c.t).join(" + ")} · ${filas.length} filas: pégalas en Excel.` : `Copiada la tabla con encabezado · ${filas.length} SKU: pégala en Excel.`);
+    } catch { setCopiadoT("El navegador no dejó copiar.") }
   }
   const confirmar = (sku: string) => setConf((x) => { const y = new Set(x); if (y.has(sku)) y.delete(sku); else y.add(sku); return y });
   const marcar = (i: number) => setAntes((x) => { const y = new Set(x); if (y.has(i)) y.delete(i); else y.add(i); return y });
@@ -114,35 +137,34 @@ export function Corte({ dia, hora, hoy, seguras, dudosas, alcanza, ultima, notif
                 <small>plan vigente del día sumado hora por hora hasta las {hora} − lo notificado que entró a SAP hasta las {hora} · igual que
                   {" "}<Link href={`/inventario/envase?d=${dia}&h=${dia}&hc=${Number(hora.slice(0, 2))}`}>Validación › Corte</Link></small></h4>
               <p className="pe-nota" style={{ padding: "0 0 8px" }}>
-                <button type="button" className="pe-bt am" onClick={() => void copiarTabla()}>Copiar tabla</button>{" "}
-                {copiadoT ?? <>{sinNotif.length} SKU · {n1(tot.hl)} HL pendientes · se pega en Excel con cada dato en su columna</>}
+                <button type="button" className="pe-bt am" onClick={() => void copiarTabla()}>
+                  {elegidas.length ? `Copiar ${elegidas.length === 1 ? "columna" : `${elegidas.length} columnas`}` : "Copiar tabla"}</button>{" "}
+                {elegidas.length > 0 && <><button type="button" className="pe-bt" onClick={() => { setSel([]); setCopiadoT(null) }}>Quitar selección</button>{" "}</>}
+                {copiadoT ?? (elegidas.length ? <>Escogidas: <b>{elegidas.map((c) => c.t).join(" + ")}</b></>
+                  : <>{sinNotif.length} SKU · {n1(tot.hl)} HL pendientes · toca el encabezado de una columna para copiar solo esa (o varias)</>)}
               </p>
-              <div className="pe-caja"><table className="pe-t">
+              <div className="pe-caja"><table className="pe-t pe-cols">
                 <thead><tr>
-                  <th className="l">Entra</th><th className="l">SKU</th><th className="l">Descripción</th><th className="l">Envase</th>
-                  <th>Plan a las {hora} (HL)</th><th>Notificado (HL)</th><th>Pendiente (HL)</th><th>Pendiente (un.)</th><th>Pendiente (cajas)</th>
-                  <th className="l g">Botella</th><th>Botellas</th><th className="l g">Caja</th><th>Cajas</th>
+                  <th className="l">Entra</th>
+                  {COLS.map((c) => (
+                    <th key={c.k} className={[c.l ? "l" : "", c.g ? "g" : "", sel.includes(c.k) ? "sel" : ""].join(" ")}>
+                      <button type="button" className="pe-col" aria-pressed={sel.includes(c.k)} onClick={() => escoger(c.k)} title="Escoger esta columna para copiar">{c.t}</button>
+                    </th>
+                  ))}
                 </tr></thead>
                 <tbody>{sinNotif.map((x) => (
                   <tr key={x.sku} className={x.retornable && !conf.has(x.sku) ? "mut" : ""}>
                     <td className="l">{x.retornable
                       ? <input type="checkbox" checked={conf.has(x.sku)} onChange={() => confirmar(x.sku)} aria-label={`Incluir ${x.sku} en la plantilla`} />
                       : <span title="No retornable: no tiene envase en AG22">—</span>}</td>
-                    <td className="l"><b>{x.sku}</b></td>
-                    <td className="l">{x.nombre}</td>
-                    <td className="l">{x.retornable ? "Retornable" : "No retornable"}</td>
-                    <td>{n1(x.planHL)}</td><td>{n1(x.notifHL)}</td><td><b>{n1(x.sinHL)}</b></td>
-                    <td>{n0(x.sin)}</td><td>{x.sinCajas == null ? "—" : n0(x.sinCajas)}</td>
-                    <td className="l">{x.botella ? <><b>{x.botella.codigo}</b> {x.botella.texto}</> : "—"}</td>
-                    <td>{x.botella ? n0(x.botella.unidades) : "—"}</td>
-                    <td className="l">{x.caja ? <><b>{x.caja.codigo}</b> {x.caja.texto}</> : "—"}</td>
-                    <td>{x.caja ? n0(x.caja.unidades) : "—"}</td>
+                    {COLS.map((c) => (
+                      <td key={c.k} className={[c.l ? "l" : "", c.g ? "g" : "", sel.includes(c.k) ? "sel" : ""].join(" ")}>{c.b ? <b>{c.ver(x)}</b> : c.ver(x)}</td>
+                    ))}
                   </tr>
                 ))}
                   <tr className="tot">
-                    <td className="l" colSpan={4}><b>Total</b></td>
-                    <td><b>{n1(tot.plan)}</b></td><td><b>{n1(tot.notif)}</b></td><td><b>{n1(tot.hl)}</b></td>
-                    <td><b>{n0(tot.un)}</b></td><td colSpan={5} />
+                    <td className="l"><b>Total</b></td>
+                    {COLS.map((c) => <td key={c.k} className={[c.l ? "l" : "", c.g ? "g" : ""].join(" ")}>{c.tot != null ? <b>{c.tot}</b> : null}</td>)}
                   </tr>
                 </tbody>
               </table></div>
