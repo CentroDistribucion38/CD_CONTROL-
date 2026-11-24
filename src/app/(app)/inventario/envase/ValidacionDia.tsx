@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Calendario, type Atajo } from "@/components/CalendarioRango";
@@ -23,19 +23,33 @@ const n0 = (x: number) => Math.round(x).toLocaleString("es-CO");
  * VALIDACIÓN DEL DÍA. Lo principal arriba: las cifras del día y la tabla por SKU (clic en el SKU abre sus órdenes).
  * Las alertas van al final, cerradas, con su conteo a la vista en las cifras.
  */
-export function ValidacionDia({ dia, hastaDia, hoy, conDatos, antes, despues, filas, alertas, maestro, hayCorte, estado, ahora, lineas = [] }: {
+export function ValidacionDia({ dia, hastaDia, hoy, conDatos, antes, despues, filas, alertas, maestro, hayCorte, estado, ahora, lineas = [], horaCorte = null }: {
   /** El rango: un día (dia = hastaDia) o varios. Con varios, todo va sumado día por día. */
   dia: string; hastaDia: string; hoy: string; conDatos: string[]; antes: [string, string]; despues: [string, string]; filas: FilaDia[]; alertas: Alerta[]; maestro: M;
   hayCorte: boolean; estado: Dia["estado"];
   /** Solo HOY: la hora, el plan vigente sumado hora por hora hasta ahora (unidades por SKU) y hasta dónde llega la MB51. */
-  ahora?: { hora: string; planHasta: Record<string, number>; mb51: string | null };
+  ahora?: { hora: string; planHasta: Record<string, number>; mb51: string | null; fija?: boolean };
+  /** La hora de corte escogida (?hc=6 → hasta las 06:00), o null = hoy hasta este momento / días pasados completos. */
+  horaCorte?: number | null;
   /** El plan de cada SKU en cada línea (TREN) del instructivo, en unidades: inicial, vigente y (hoy) hasta esta hora. */
   lineas?: { tren: string; sku: string; ini: number; vig: number; hasta: number }[];
 }) {
   const router = useRouter();
   /* «En cualquier rango de fecha: semana, días, lo que yo quiera.» */
   const rango = hastaDia > dia;
-  const url = (d: string, h: string) => `/inventario/envase?d=${d}${h > d ? `&h=${h}` : ""}`;
+  const url = (d: string, h: string, hc: number | null = horaCorte) => `/inventario/envase?d=${d}${h > d ? `&h=${h}` : ""}${hc != null ? `&hc=${hc}` : ""}`;
+  /* La hora de corte se recuerda en este equipo: si la última vez se escogió «06:00», vuelve a salir así. */
+  useEffect(() => {
+    if (horaCorte != null) return;
+    let g: string | null = null;
+    try { g = localStorage.getItem("pe-hora-corte") } catch { /* sin almacenamiento */ }
+    if (g && /^\d{1,2}$/.test(g)) router.replace(url(dia, hastaDia, Number(g)));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const cambiarCorte = (v: string) => {
+    const hc = v === "" ? null : Number(v);
+    try { if (hc == null) localStorage.removeItem("pe-hora-corte"); else localStorage.setItem("pe-hora-corte", String(hc)) } catch { /* sigue */ }
+    router.push(url(dia, hastaDia, hc));
+  };
   const ir = (d: string, h: string) => router.push(url(d, h));
   const lunesDe = (f: string) => { const x = new Date(f + "T12:00:00Z"); x.setUTCDate(x.getUTCDate() - ((x.getUTCDay() + 6) % 7)); return x.toISOString().slice(0, 10) };
   const mas = (f: string, n: number) => { const x = new Date(f + "T12:00:00Z"); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10) };
@@ -72,9 +86,12 @@ export function ValidacionDia({ dia, hastaDia, hoy, conDatos, antes, despues, fi
   const vigente = hayCorte ? corte : plan;
   const pendAhora = Math.max(0, planAhora.s - notif.s), faltaDia = Math.max(0, vigente.s - notif.s);
   const mb51Hora = ahora?.mb51 ? (ahora.mb51.slice(0, 10) === hastaDia ? ahora.mb51.slice(11, 16) : `${corto(ahora.mb51.slice(0, 10))} ${ahora.mb51.slice(11, 16)}`) : null;
-  /* La MB51 vieja: más de una hora antes de ahora (o de otro día) — lo notificado después todavía no se ve. */
-  const mb51Vieja = !!ahora && (!ahora.mb51 || ahora.mb51.slice(0, 10) !== hastaDia
-    || (Number(ahora.hora.slice(0, 2)) * 60 + Number(ahora.hora.slice(3))) - (Number(ahora.mb51.slice(11, 13)) * 60 + Number(ahora.mb51.slice(14, 16))) > 60);
+  /* La MB51 vieja: más de una hora antes de ahora (o de otro día) — lo notificado después todavía no se ve.
+     Con hora de corte fija: vieja si la MB51 es de antes de esa hora de ese día. */
+  const mb51Vieja = !!ahora && (ahora.fija
+    ? !ahora.mb51 || ahora.mb51.slice(0, 16).replace("T", " ") < `${hastaDia} ${ahora.hora}`
+    : !ahora.mb51 || ahora.mb51.slice(0, 10) !== hastaDia
+      || (Number(ahora.hora.slice(0, 2)) * 60 + Number(ahora.hora.slice(3))) - (Number(ahora.mb51.slice(11, 13)) * 60 + Number(ahora.mb51.slice(14, 16))) > 60);
   const ret = filas.filter((f) => f.retornable);
   const falta = alertas.filter((a) => a.tipo === "falta261");
   const faltaUn = falta.reduce((a, x) => a + x.un, 0);
@@ -134,6 +151,13 @@ export function ValidacionDia({ dia, hastaDia, hoy, conDatos, antes, despues, fi
           {despues[1] <= hoy ? <Link href={url(despues[0], despues[1])} aria-label={rango ? "Período siguiente" : "Día siguiente"}>›</Link> : <span aria-hidden>›</span>}
         </div>
         <div className={`pe-estado e-${estado}`}><b>{ESTADO[estado][0]}</b><small>{ESTADO[estado][1]}</small></div>
+        <label className="pe-corte">Hasta las
+          <select value={horaCorte == null ? "" : String(horaCorte)} onChange={(e) => cambiarCorte(e.target.value)}>
+            <option value="">{hastaDia === hoy ? "Ahora" : "Día completo"}</option>
+            <option value="6">06:00 · inicio del conteo</option>
+            {Array.from({ length: 24 }, (_, k) => k).filter((k) => k !== 6).map((k) => <option key={k} value={k}>{String(k).padStart(2, "0")}:00</option>)}
+          </select>
+        </label>
         <div className="pe-unidad">Unidad
           <div className="pe-seg" role="group" aria-label="Unidad">
             {UNI.map(([k, t]) => <button key={k} type="button" className={u === k ? "on" : ""} aria-pressed={u === k} onClick={() => setU(k)}>{t}</button>)}
@@ -142,8 +166,9 @@ export function ValidacionDia({ dia, hastaDia, hoy, conDatos, antes, despues, fi
       </div></div>
 
       {ahora ? (
-        <p className="pe-aviso"><b>Hoy a las {ahora.hora}.</b> «Plan a las {ahora.hora}» es el plan {hayCorte ? "vigente (último corte)" : "inicial"} sumado
-          hora por hora hasta ahora, y «Pendiente» es eso menos lo notificado.{" "}
+        <p className="pe-aviso"><b>{ahora.fija ? `Corte a las ${ahora.hora} del ${corto(hastaDia)}.` : `Hoy a las ${ahora.hora}.`}</b> «Plan a las {ahora.hora}» es el plan {hayCorte ? "vigente (último corte)" : "inicial"} sumado
+          hora por hora {ahora.fija ? `desde las 00:00 hasta las ${ahora.hora}${rango ? " del último día (los días anteriores, completos)" : ""}` : "hasta ahora"}, y «Pendiente» es eso menos lo notificado.{" "}
+          {ahora.fija && <>Lo notificado también se corta: solo lo que entró a SAP hasta las {ahora.hora} del {corto(hastaDia)}.{" "}</>}
           {mb51Vieja
             ? <><b>Lo notificado llega hasta la última MB51 ({mb51Hora ?? "sin MB51"})</b>: lo que se haya notificado después todavía no se ve. Para el dato real, sube una MB51 nueva en <Link href="/inventario/envase/cargar">Cargar</Link>.</>
             : <>La MB51 es de las {mb51Hora}: el dato está al día.</>}</p>
@@ -158,7 +183,7 @@ export function ValidacionDia({ dia, hastaDia, hoy, conDatos, antes, despues, fi
         <section className="pe-card pe-kpi" aria-label={`Cifras ${del}`}>
           <div className="k-am"><span className="l">Plan {del}</span><b>{fmt(plan.s)}<small>{unom}</small></b>
             <em>{hayCorte ? <>último corte: <b style={{ display: "inline", font: "inherit", fontWeight: 700 }}>{fmt(corte.s)}</b></> : "plan inicial"}</em></div>
-          <div><span className="l">Notificado (Z01)</span><b>{fmt(notif.s)}<small>{unom}</small></b><em>{ahora ? `hasta la MB51 de las ${mb51Hora ?? "—"}` : madr.s ? `${fmt(madr.s)} ${unom} digitados al otro día` : "nada digitado al día siguiente"}</em></div>
+          <div><span className="l">Notificado (Z01)</span><b>{fmt(notif.s)}<small>{unom}</small></b><em>{ahora ? (ahora.fija && !mb51Vieja ? `lo que entró a SAP hasta las ${ahora.hora}` : `hasta la MB51 de las ${mb51Hora ?? "—"}`) : madr.s ? `${fmt(madr.s)} ${unom} digitados al otro día` : "nada digitado al día siguiente"}</em></div>
           {ahora ? (<>
             <div className={pendAhora > 0.5 ? "k-r" : ""}><span className="l">Pendiente a las {ahora.hora}</span><b className={pendAhora > 0.5 ? "mal" : "bien"}>{pendAhora > 0.5 ? fmt(pendAhora) : "0 ✓"}<small>{pendAhora > 0.5 ? unom : ""}</small></b>
               <em>plan a esta hora {fmt(planAhora.s)} {unom} − notificado · del día faltan {fmt(faltaDia)} {unom}</em></div>

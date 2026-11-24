@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { estadoDia, maestro, masDias, papeles, validarDia, type Alerta, type FilaDia, type FilaPlanBD } from "@/modulos/inventario/envase/calc";
+import { entrada, estadoDia, maestro, masDias, papeles, validarDia, type Alerta, type FilaDia, type FilaPlanBD } from "@/modulos/inventario/envase/calc";
 import { hoyBogota, lunesDe, movimientosContab, planesDeSemana, productosDe, ultimaEntrada } from "@/modulos/inventario/envase/datos";
 import { Pasos } from "./Pasos";
 import "../fefo.css";
@@ -25,7 +25,7 @@ const hora = (g: string) => new Date(g.replace(" ", "T") + "Z").toLocaleString("
  * columna es una hora, de las 00:00 a las 23:00) hasta la hora actual —la hora en curso, en proporción a los minutos—, con el
  * plan vigente (el último corte; si no hay, el inicial): eso es lo que debería ir notificado, y el pendiente es eso menos lo notificado.
  */
-export default async function ValidacionPage({ searchParams }: { searchParams: Promise<{ d?: string; h?: string }> }) {
+export default async function ValidacionPage({ searchParams }: { searchParams: Promise<{ d?: string; h?: string; hc?: string }> }) {
   const q = await searchParams;
   const hoy = hoyBogota();
   const u = await ultimaEntrada();
@@ -65,7 +65,16 @@ export default async function ValidacionPage({ searchParams }: { searchParams: P
   const M = maestro(todasFilas, await productosDe([...skus]));
   const psErr = semanas.find((x) => x.error)?.error ?? null;
 
-  const hm = h === hoy ? new Intl.DateTimeFormat("en-GB", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date()).split(":").map(Number) : null;
+  /* LA HORA DE CORTE. «Necesito que llegue hasta la hora que le estipule: a las 06 de la mañana, porque a esa hora
+     inicio el conteo.» ?hc=6 → el plan del último día del rango se suma hasta las 06:00 (los días anteriores, completos),
+     para cualquier día, no solo hoy. Sin hc: hoy va hasta este momento y los días pasados completos. */
+  const hc = /^\d{1,2}$/.test(q.hc ?? "") && Number(q.hc) <= 23 ? Number(q.hc) : null;
+  const hm = hc != null ? [hc, 0]
+    : h === hoy ? new Intl.DateTimeFormat("en-GB", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date()).split(":").map(Number) : null;
+  /* Con hora de corte, lo notificado también se corta: solo lo que entró a SAP hasta esa hora de ese día (la foto de las
+     06:00 cuando arranca el conteo). Lo digitado después no cuenta, aunque su fecha de contabilización sea de antes. */
+  const tope = hc != null ? `${h}T${String(hc).padStart(2, "0")}:00:00` : null;
+  const movsCorte = tope ? mv.filas.filter((m) => entrada(m) <= tope) : mv.filas;
   const unDe = (f: FilaPlanBD) => f.unidades ?? (f.formato_ml ? (f.hl * 1e5) / f.formato_ml : 0);
   const F = new Map<string, FilaDia>();
   const alertas: Alerta[] = [];
@@ -86,7 +95,7 @@ export default async function ValidacionPage({ searchParams }: { searchParams: P
     const cor = c ? ps.filas.filter((f) => f.plan_id === c.id) : null;
     if (c) { hayCorte = true; if (!cortes.includes(c.generado)) cortes.push(c.generado) }
     if (P.inicial && !iniciales.includes(P.inicial.generado)) iniciales.push(P.inicial.generado);
-    const v = validarDia(dia, ini, cor, mv.filas, M);
+    const v = validarDia(dia, ini, cor, movsCorte, M);
     for (const f of v.filas) {
       const x = F.get(f.sku);
       if (!x) { F.set(f.sku, { ...f, planCorte: f.planCorte ?? (rango ? f.planIni : null), ordenes: f.ordenes.map((o) => ({ ...o })) }); continue }
@@ -107,7 +116,7 @@ export default async function ValidacionPage({ searchParams }: { searchParams: P
     for (const f of (cor ?? ini)) if (f.fecha === dia && f.sku) {
       const x = lin(f.tren, f.sku); x.vig += unDe(f);
       if (hm) {
-        const peso = dia < hoy ? 1 : f.hora < hm[0] ? 1 : f.hora === hm[0] ? hm[1] / 60 : 0;
+        const peso = dia < h ? 1 : f.hora < hm[0] ? 1 : f.hora === hm[0] ? hm[1] / 60 : 0;
         x.hasta += unDe(f) * peso;
         if (peso > 0) planHasta[f.sku] = (planHasta[f.sku] ?? 0) + unDe(f) * peso;
       }
@@ -117,7 +126,7 @@ export default async function ValidacionPage({ searchParams }: { searchParams: P
   if (!hayCorte) for (const f of F.values()) f.planCorte = null;
   const filas = [...F.values()].sort((a, b) => b.planIni - a.planIni || b.notif - a.notif);
   const lineas = [...porLinea.values()];
-  const ahora = hm ? { hora: `${String(hm[0]).padStart(2, "0")}:${String(hm[1]).padStart(2, "0")}`, planHasta, mb51: u.valor } : undefined;
+  const ahora = hm ? { hora: `${String(hm[0]).padStart(2, "0")}:${String(hm[1]).padStart(2, "0")}`, planHasta, mb51: u.valor, fija: hc != null } : undefined;
   /* Los días con MB51 (un punto en el calendario): de los 60 días antes de hoy. */
   const conDatos: string[] = [];
   for (let f = masDias(hoy, -60); f <= hoy; f = masDias(f, 1)) { const e = estadoDia(f, u.valor, hoy); if (e === "cerrado" || e === "abierto") conDatos.push(f) }
@@ -137,7 +146,7 @@ export default async function ValidacionPage({ searchParams }: { searchParams: P
       <ValidacionDia
         dia={d} hastaDia={h} hoy={hoy} conDatos={conDatos} antes={[masDias(d, -n), masDias(h, -n)]} despues={[masDias(d, n), masDias(h, n)]}
         filas={filas} alertas={alertas} maestro={Object.fromEntries(M)} hayCorte={hayCorte}
-        estado={estadoDia(h, u.valor, hoy)} ahora={ahora} lineas={lineas}
+        estado={estadoDia(h, u.valor, hoy)} ahora={ahora} lineas={lineas} horaCorte={hc}
       />
 
     </div>

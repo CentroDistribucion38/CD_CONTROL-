@@ -57,6 +57,9 @@
 .pe .pe-estado.e-cerrado { border-left-color: var(--fe-bien) }
 .pe .pe-estado.e-cerrado b { color: var(--fe-bien) }
 .pe .pe-estado.e-abierto { border-left-color: var(--fe-aviso) }
+.pe .pe-corte { margin-left: auto; align-self: flex-end; display: flex; align-items: center; gap: 8px; font: 700 10.5px var(--fe-texto); letter-spacing: .12em; color: var(--fe-gris); text-transform: uppercase }
+.pe .pe-corte select { min-height: 40px; border: 1px solid var(--fe-linea); background: var(--fe-papel, #fff); color: var(--fe-tinta); font: 700 13px var(--fe-titulo); letter-spacing: 0; text-transform: none; padding: 0 10px; border-radius: 0 }
+.pe .pe-corte + .pe-unidad { margin-left: 14px }
 .pe .pe-unidad { margin-left: auto; align-self: flex-end; display: flex; align-items: center; gap: 8px; font: 700 10.5px var(--fe-texto); letter-spacing: .12em; color: var(--fe-gris); text-transform: uppercase }
 
 /* ---------- cifras ---------- */
@@ -156,6 +159,7 @@
 @media (max-width: 900px) {
   .pe .pe-dos { grid-template-columns: 1fr }
   .pe .pe-unidad { margin-left: 0 }
+  .pe .pe-corte { margin-left: 0 }
   .pe .pe-drop { grid-template-columns: 1fr; text-align: left }
   .pe .pe-al { grid-template-columns: 1fr; gap: 4px }
   .pe .pe-al .q { text-align: left }
