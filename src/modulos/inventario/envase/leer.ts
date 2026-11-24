@@ -59,6 +59,10 @@ export function resolverSku(etiqueta: string, formato: string | null, cand: Espe
     let p = n.startsWith(clave) ? 10 : 0;
     if ((n.includes("light") || / lig /.test(n + " ")) !== quiereLig) p -= 5;
     if (n.includes("less sugar") || / go /.test(n)) p -= 3;
+    /* «Pok330» en TREN-2 es el Poker R 330 (2512), no el NR de exportación USA (23223): la variante especial (EXP, USA, TW,
+       TERMOINK, NR) solo gana si la etiqueta la nombra; la de exportación se marca en la rejilla con su SAP («23223»). */
+    const variantes = ["exp", "usa", "tw", "termoink", "terc", "nr"].filter((v) => new RegExp(`(^|[^a-z])${v}([^a-z]|$)`).test(n));
+    if (variantes.length) p += variantes.some((v) => etiqueta.toLowerCase().includes(v)) ? 6 : -4;
     return p;
   };
   return [...pool].sort((a, b) => puntos(b) - puntos(a))[0].sku;
