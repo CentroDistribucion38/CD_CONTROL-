@@ -68,3 +68,17 @@
 .pe .pv-mx tr.pv-foco td { box-shadow: inset 0 2px 0 #F5B800, inset 0 -2px 0 #F5B800 }
 .pe .pv-mx.cmb td.c-sube { background: #e7f5ee; color: #0b5e43; font-weight: 700 }
 .pe .pv-mx.cmb td.c-baja { background: #fdecee; color: #9b0c23; font-weight: 700 }
+
+/* Selección como en Excel: sombreado sobre el color del mapa de calor; la celda activa con borde. */
+.pe .pv-mx td { user-select: none; cursor: cell }
+.pe .pv-mx td.l { cursor: default; user-select: text }
+.pe .pv-mx td.sel { box-shadow: inset 0 0 0 9999px color-mix(in srgb, #1B4F8F 16%, transparent) }
+.pe .pv-mx td.act { outline: 2px solid #111; outline-offset: -2px; box-shadow: inset 0 0 0 9999px color-mix(in srgb, #1B4F8F 6%, transparent) }
+.pe .pv-selbar { position: sticky; bottom: 0; z-index: 4; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; padding: 8px 14px; background: #111; color: #fff; font: 600 13px var(--fe-texto) }
+.pe .pv-selbar b { color: #F5B800; font-family: var(--fe-titulo); font-variant-numeric: tabular-nums }
+.pe .pv-selbar small { color: #aab3bf; margin-left: auto }
+.pe .pv-selbar .pe-bt { height: 30px }
+
+.pe .pv-mx { user-select: none }
+.pe .pv-n { display: inline-grid; place-items: center; min-width: 18px; height: 18px; margin-right: 6px; background: #111; color: #F5B800; font: 800 10.5px var(--fe-titulo); vertical-align: middle }
+.pe .pv-hr { margin-left: 8px; font: 600 11.5px var(--fe-texto); color: var(--fe-gris); white-space: nowrap }

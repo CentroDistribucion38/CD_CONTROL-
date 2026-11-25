@@ -45,6 +45,10 @@ export function PlanVista({ modo, dias, hoy, ahora, semana, filas, bloques, maes
   const [plegadas, setPlegadas] = useState<Set<string>>(new Set());
   const [foco, setFoco] = useState<string | null>(null);
   const [act, setAct] = useState<{ r: number; c: number } | null>(null);
+  /* La SELECCIÓN como en Excel: del ancla a la celda activa (clic y arrastrar, o Shift + flechas / Shift + clic). */
+  const [ancla, setAncla] = useState<{ r: number; c: number } | null>(null);
+  const arrastrando = useRef(false);
+  useEffect(() => { const fin = () => { arrastrando.current = false }; window.addEventListener("mouseup", fin); return () => window.removeEventListener("mouseup", fin) }, []);
   const [desde, setDesde] = useState(dias[0]);
   const [hasta, setHasta] = useState(dias[dias.length - 1]);
   const [bajando, setBajando] = useState(false);
@@ -67,6 +71,28 @@ export function PlanVista({ modo, dias, hoy, ahora, semana, filas, bloques, maes
   const nomV = VISTAS.find((x) => x[0] === vista)![1];
   const nombre = (sku: string) => filas.find((f) => f.sku === sku)?.nombre || maestro[sku]?.nombre || "";
 
+  /* LA SECUENCIA DEL PLAN: en cada línea los SKU van en el orden en que corren (el primer bloque de cada uno en la línea
+     de tiempo), como en el instructivo: Línea 2 → 2512 (00 h), 23223 (13 h), 2912 (19 h). Y sus horas, para mostrarlas. */
+  const planB = vista === "inicial" ? "ini" : "vig";
+  const secuencia = useMemo(() => {
+    const m = new Map<string, { k: number; tramos: { d: number; ini: number; fin: number }[] }>();
+    for (const b of [...bloques].filter((x) => x.plan === planB).sort((a, b) => a.d - b.d || a.ini - b.ini)) {
+      const key = `${b.tren}|${b.sku}`;
+      const x = m.get(key) ?? m.set(key, { k: b.d * 24 + b.ini, tramos: [] }).get(key)!;
+      const u = x.tramos[x.tramos.length - 1];
+      if (u && u.d === b.d && u.fin >= b.ini) u.fin = Math.max(u.fin, b.fin); else x.tramos.push({ d: b.d, ini: b.ini, fin: b.fin });
+    }
+    return m;
+  }, [bloques, planB]);
+  const orden = (tren: string, sku: string) => secuencia.get(`${tren}|${sku}`)?.k ?? 1e9;
+  const horario = (tren: string, sku: string) => {
+    const tr = secuencia.get(`${tren}|${sku}`)?.tramos ?? [];
+    const h2 = (h: number) => String(h).padStart(2, "0");
+    if (!tr.length) return "";
+    if (nd === 1) return tr.map((x) => `${h2(x.ini)}–${h2(x.fin)} h`).join(" · ");
+    return `desde ${dCorto(dias[tr[0].d])} ${h2(tr[0].ini)} h`;
+  };
+
   /* ---------------- los números, en la unidad escogida ---------------- */
   const t = useMemo(() => {
     const rs = filas.map((f) => {
@@ -78,7 +104,7 @@ export function PlanVista({ modo, dias, hoy, ahora, semana, filas, bloques, maes
     }).filter((r) => vista === "cambios" ? r.cambio : r.v.some((x) => x != null && !casi0(x)));
     const trenes = [...new Set(rs.map((r) => r.tren))].sort((a, b) => a.localeCompare(b, "es", { numeric: true }));
     const grupos = trenes.map((tr) => {
-      const xs = rs.filter((r) => r.tren === tr).sort((a, b) => vista === "cambios" ? Math.abs(b.tot) - Math.abs(a.tot) : b.tot - a.tot);
+      const xs = rs.filter((r) => r.tren === tr).sort((a, b) => orden(tr, a.sku) - orden(tr, b.sku) || b.tot - a.tot);
       const dia = dias.map((_, i) => xs.reduce((a, r) => a + (r.v[i] ?? 0), 0));
       return { tren: tr, xs, dia, tot: dia.reduce((a, x) => a + x, 0) };
     });
@@ -90,7 +116,7 @@ export function PlanVista({ modo, dias, hoy, ahora, semana, filas, bloques, maes
     const varTot = todos.reduce((a, x) => a + x.vig - x.ini, 0);
     return { rs, grupos, dia, total, max, nCambian, varTot };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filas, vista, u, dias]);
+  }, [filas, vista, u, dias, secuencia]);
 
   /* ---------------- navegación entre días, rangos y semanas ---------------- */
   const ir = (q: string) => router.push(`/inventario/envase/plan?${q}`);
@@ -137,21 +163,53 @@ export function PlanVista({ modo, dias, hoy, ahora, semana, filas, bloques, maes
   useEffect(() => { setAct((a) => (a && a.r >= visibles.length + 1 ? null : a)) }, [visibles.length]);
   useEffect(() => { if (act) hoja.current?.querySelector<HTMLElement>(`[data-celda="${act.r}-${act.c}"]`)?.scrollIntoView({ block: "nearest", inline: "nearest" }) }, [act]);
   function tecla(e: React.KeyboardEvent) {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c" && act) { e.preventDefault(); void copiarSel(); return }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") { e.preventDefault(); setAncla({ r: 0, c: 0 }); setAct({ r: visibles.length, c: nCols - 1 }); return }
     const n0 = visibles.length + 1, a = act ?? { r: 0, c: 0 };
     const mov: Record<string, [number, number]> = { ArrowDown: [1, 0], ArrowUp: [-1, 0], ArrowRight: [0, 1], ArrowLeft: [0, -1], Enter: [1, 0] };
     let n: { r: number; c: number } | null = null;
     if (mov[e.key]) n = { r: Math.min(n0 - 1, Math.max(0, a.r + mov[e.key][0])), c: Math.min(nCols - 1, Math.max(0, a.c + mov[e.key][1])) };
     else if (e.key === "Home") n = { r: e.ctrlKey ? 0 : a.r, c: 0 };
     else if (e.key === "End") n = { r: e.ctrlKey ? n0 - 1 : a.r, c: nCols - 1 };
-    else if (e.key === "Escape") { setAct(null); return }
+    else if (e.key === "Escape") { setAct(null); setAncla(null); return }
     if (!n) return;
     e.preventDefault(); setAct(n);
+    if (!e.shiftKey) setAncla(n);
   }
+  const sel = act && ancla ? { r0: Math.min(act.r, ancla.r), r1: Math.max(act.r, ancla.r), c0: Math.min(act.c, ancla.c), c1: Math.max(act.c, ancla.c) } : null;
+  const enSel = (r: number, c: number) => !!sel && r >= sel.r0 && r <= sel.r1 && c >= sel.c0 && c <= sel.c1;
   const celda = (r: number, c: number) => ({
     "data-celda": `${r}-${c}`,
-    onClick: () => { setAct({ r, c }); hoja.current?.focus({ preventScroll: true }) },
-    cl: (act?.r === r && act?.c === c ? " act" : "") + (act && (act.r === r || act.c === c) ? " cruz" : ""),
+    onMouseDown: (e: React.MouseEvent) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      setAct({ r, c }); if (!e.shiftKey || !ancla) setAncla({ r, c });
+      arrastrando.current = true; hoja.current?.focus({ preventScroll: true });
+    },
+    onMouseEnter: () => { if (arrastrando.current) setAct({ r, c }) },
+    cl: (act?.r === r && act?.c === c ? " act" : "") + (enSel(r, c) ? " sel" : ""),
   });
+  /* El valor de una celda de la matriz (fila visible · columna), para sumar y copiar la selección. */
+  const valor = (r: number, c: number): number | null => {
+    if (r < visibles.length) { const x = visibles[r]; return c < nd ? x.v[c] : x.tot }
+    return c < nd ? t.dia[c] : t.total;
+  };
+  const resumen = useMemo(() => {
+    if (!sel) return null;
+    const xs: number[] = [];
+    for (let r = sel.r0; r <= sel.r1; r++) for (let c = sel.c0; c <= sel.c1; c++) { const v = valor(r, c); if (v != null && !casi0(v)) xs.push(v) }
+    const n = (sel.r1 - sel.r0 + 1) * (sel.c1 - sel.c0 + 1);
+    const suma = xs.reduce((a, x) => a + x, 0);
+    return { n, conDato: xs.length, suma, prom: xs.length ? suma / xs.length : 0, max: xs.length ? Math.max(...xs) : 0 };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sel?.r0, sel?.r1, sel?.c0, sel?.c1, t, vista, u]);
+  async function copiarSel() {
+    if (!sel) return;
+    const ls: string[] = [];
+    for (let r = sel.r0; r <= sel.r1; r++) { const fila: string[] = []; for (let c = sel.c0; c <= sel.c1; c++) fila.push(num(valor(r, c))); ls.push(fila.join("\t")) }
+    try { await navigator.clipboard.writeText(ls.join("\n")); avisar.bien(`Copiadas ${resumen?.n ?? 0} celdas: pégalas en Excel.`) }
+    catch { avisar.mal("El navegador no dejó copiar.") }
+  }
   const calor = (v: number | null) => {
     if (v == null || casi0(v) || !t.max || vista === "cambios") return undefined;
     return { background: `color-mix(in srgb, #F5B800 ${Math.round(10 + 62 * Math.min(1, Math.abs(v) / t.max))}%, transparent)` };
@@ -298,7 +356,7 @@ export function PlanVista({ modo, dias, hoy, ahora, semana, filas, bloques, maes
         <section className="pe-card">
           <h3 className="pe-h3">
             {vista === "cambios" ? <>Qué cambió del inicial al vigente · {t.rs.length} SKU</> : <>Por línea y SKU · plan {vista} · {t.rs.length} SKU</>}
-            <small>en {nomU} · toca una línea para plegarla · clic en una celda y muévete con las flechas</small>
+            <small>en {nomU} · cada línea en el orden del plan · arrastra para seleccionar celdas como en Excel</small>
           </h3>
           {!t.rs.length ? <p className="pe-nota">{vista === "cambios" ? "Ningún SKU cambió del inicial al vigente en estas fechas." : "Sin plan en estas fechas."}</p> : (
             <div className="pe-caja pe-hoja" ref={hoja} tabIndex={0} onKeyDown={tecla} aria-label="Plan por línea y SKU: muévete con las flechas">
@@ -334,11 +392,12 @@ export function PlanVista({ modo, dias, hoy, ahora, semana, filas, bloques, maes
                         const R = ri;
                         return (
                           <tr key={r.sku} id={`pv-sku-${r.sku}`} className={(act?.r === R ? "fila-act " : "") + (foco === r.sku ? "pv-foco" : "")}>
-                            <td className="l"><span className="pv-pt" style={{ background: colorDe(r.sku) }} /><b>{r.sku}</b> {r.nombre || nombre(r.sku)}</td>
+                            <td className="l"><span className="pv-n">{g.xs.indexOf(r) + 1}</span><span className="pv-pt" style={{ background: colorDe(r.sku) }} /><b>{r.sku}</b> {r.nombre || nombre(r.sku)}
+                              {horario(r.tren, r.sku) && <small className="pv-hr">{horario(r.tren, r.sku)}</small>}</td>
                             {dias.map((_, i) => {
                               const c = celda(R, i), v = r.v[i], dv = r.dif[i];
                               return (
-                                <td key={i} data-celda={c["data-celda"]} onClick={c.onClick} style={calor(v)}
+                                <td key={i} data-celda={c["data-celda"]} onMouseDown={c.onMouseDown} onMouseEnter={c.onMouseEnter} style={calor(v)}
                                   className={c.cl + (vista === "cambios" && v != null && !casi0(v) ? (v > 0 ? " c-sube" : " c-baja") : "")}
                                   title={dv != null && !casi0(dv) ? `Inicial ${fmt(r.ini[i])} → vigente ${fmt(r.vig[i])}` : undefined}>
                                   {vista === "cambios" ? (v == null || casi0(v) ? "—" : sig(v)) : fmt(v)}
@@ -347,7 +406,7 @@ export function PlanVista({ modo, dias, hoy, ahora, semana, filas, bloques, maes
                               );
                             })}
                             {conTotal && (() => { const c = celda(R, nd); return (
-                              <td data-celda={c["data-celda"]} onClick={c.onClick} className={"g" + c.cl}>
+                              <td data-celda={c["data-celda"]} onMouseDown={c.onMouseDown} onMouseEnter={c.onMouseEnter} className={"g" + c.cl}>
                                 <b>{vista === "cambios" ? (casi0(r.tot) ? "—" : sig(r.tot)) : fmt(r.tot)}</b>
                                 {vista !== "cambios" && t.total > 0 && <span className="pv-peso" style={{ width: `${Math.max(2, Math.round(r.tot / t.total * 120))}px` }} title={`${Math.round(r.tot / t.total * 1000) / 10} % del total`} />}
                               </td>
@@ -359,11 +418,21 @@ export function PlanVista({ modo, dias, hoy, ahora, semana, filas, bloques, maes
                   })}
                   <tr className="tot">
                     <td className="l">Total</td>
-                    {t.dia.map((v, i) => { const c = celda(visibles.length, i); return <td key={i} data-celda={c["data-celda"]} onClick={c.onClick} className={c.cl}>{vista === "cambios" ? (casi0(v) ? "—" : sig(v)) : fmt(v)}</td> })}
-                    {conTotal && (() => { const c = celda(visibles.length, nd); return <td data-celda={c["data-celda"]} onClick={c.onClick} className={"g" + c.cl}>{vista === "cambios" ? (casi0(t.total) ? "—" : sig(t.total)) : fmt(t.total)}</td> })()}
+                    {t.dia.map((v, i) => { const c = celda(visibles.length, i); return <td key={i} data-celda={c["data-celda"]} onMouseDown={c.onMouseDown} onMouseEnter={c.onMouseEnter} className={c.cl}>{vista === "cambios" ? (casi0(v) ? "—" : sig(v)) : fmt(v)}</td> })}
+                    {conTotal && (() => { const c = celda(visibles.length, nd); return <td data-celda={c["data-celda"]} onMouseDown={c.onMouseDown} onMouseEnter={c.onMouseEnter} className={"g" + c.cl}>{vista === "cambios" ? (casi0(t.total) ? "—" : sig(t.total)) : fmt(t.total)}</td> })()}
                   </tr>
                 </tbody>
               </table>
+            </div>
+          )}
+          {resumen && resumen.n > 1 && (
+            <div className="pv-selbar" role="status">
+              <span><b>{resumen.n}</b> celdas</span>
+              <span>Suma <b>{vista === "cambios" ? sig(resumen.suma) : fmt(resumen.suma)}</b> {nomU}</span>
+              <span>Promedio <b>{fmt(resumen.prom)}</b></span>
+              <span>Máx <b>{fmt(resumen.max)}</b></span>
+              <button type="button" className="pe-bt" onClick={() => void copiarSel()}>Copiar selección</button>
+              <small>arrastra o Shift + flechas para seleccionar · Ctrl+C copia · Esc quita</small>
             </div>
           )}
         </section>
