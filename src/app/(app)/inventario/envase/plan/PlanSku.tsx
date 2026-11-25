@@ -2,11 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import * as XLSX from "xlsx";
 import type { Unidad } from "@/modulos/inventario/envase/calc";
 import { useAvisos } from "@/components/Aviso";
 
-export type FilaSku = { sku: string; nombre: string; inicial: number[]; vigente: number[] };
+export type FilaSku = { sku: string; nombre: string; tren: string; inicial: number[]; vigente: number[] };
 type M = Record<string, { nombre: string; ml: number; ref: number; cpe: number }>;
 type Vista = "vigente" | "inicial" | "cambios";
 const UNI: [Unidad, string][] = [["hl", "HL"], ["un", "Unidades"], ["cajas", "Cajas"], ["estibas", "Estibas"]];
@@ -106,12 +105,24 @@ export function PlanSku({ lunes, semana, antes, despues, dias, filas, maestro, d
     try { await navigator.clipboard.writeText(tabla().map((l) => l.join("\t")).join("\n")); avisar.bien(`Copiado: ${t.rs.length} SKU (${nomV.toLowerCase()}) en ${nomU}. Pégalo en Excel o en el correo.`) }
     catch { avisar.mal("No se pudo copiar. Usa Descargar Excel.") }
   }
-  function excel() {
-    const ws = XLSX.utils.aoa_to_sheet([[`Plan de la semana · ${nomV} · semana ${semana ?? ""} · ${dMes(dias[0])} – ${dMes(dias[6])} · en ${nomU}`], [], ...tabla()]);
-    ws["!cols"] = [{ wch: 10 }, { wch: 42 }, ...dias.map(() => ({ wch: 13 })), { wch: 14 }, { wch: 14 }, { wch: 15 }];
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, `Semana ${semana ?? ""}`.trim());
-    XLSX.writeFile(wb, `Plan de la semana - semana ${semana ?? lunes} - ${nomV} - ${nomU}.xlsx`);
+  /* EL EXCEL: con la cara de los libros de Bodega 38 (banda, sello, cifras, líneas plegables, mapa de calor, qué cambió y detalle). */
+  const [bajando, setBajando] = useState(false);
+  async function excel() {
+    setBajando(true);
+    try {
+      const { armarLibroPlan } = await import("@/modulos/inventario/envase/libro-plan");
+      const buf = await armarLibroPlan({
+        semana, desde: dias[0], hasta: dias[dias.length - 1], dias: dias.map(dCorto), fechas: dias,
+        fuente: deDia, vista, unidad: nomU, decimales: dec,
+        filas: filas.map((f) => ({ sku: f.sku, nombre: f.nombre || maestro[f.sku]?.nombre || "", tren: f.tren,
+          ini: f.inicial.map((x) => conv(x, f.sku)), vig: f.vigente.map((x) => conv(x, f.sku)) })),
+      });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+      a.download = `Plan de la semana ${semana ?? lunes} - ${nomV} - ${nomU}.xlsx`;
+      a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    } catch (e) { avisar.mal(`No se pudo armar el Excel: ${e instanceof Error ? e.message : e}`) }
+    finally { setBajando(false) }
   }
 
   const celda = (r: number, c: number) => ({
@@ -152,7 +163,7 @@ export function PlanSku({ lunes, semana, antes, despues, dias, filas, maestro, d
         </div>
         <div className="pe-acciones">
           <button type="button" className="pe-bt" disabled={!t.rs.length} onClick={copiar}>Copiar</button>
-          <button type="button" className="pe-bt am" disabled={!t.rs.length} onClick={excel}>Descargar Excel</button>
+          <button type="button" className="pe-bt am" disabled={!t.rs.length || bajando} onClick={() => void excel()}>{bajando ? "Armando…" : "Descargar Excel"}</button>
         </div>
       </div></div>
 

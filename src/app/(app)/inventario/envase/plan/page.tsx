@@ -49,18 +49,24 @@ export default async function PlanSkuPage({ searchParams }: { searchParams: Prom
   /* Para cada día, de qué plan sale lo vigente: su último corte o, si no hay, el inicial. */
   const fuente = dias.map((d) => P.corteDe(d) ?? P.inicial);
   const F = new Map<string, FilaSku>();
-  const fila = (sku: string, nombre: string | null) => {
+  /* La línea (TREN) de cada SKU: donde más HL tiene en la semana. */
+  const hlTren = new Map<string, Map<string, number>>();
+  const fila = (r: FilaPlanBD) => {
+    const sku = r.sku!;
     let f = F.get(sku);
-    if (!f) { f = { sku, nombre: nombre ?? "", inicial: dias.map(() => 0), vigente: dias.map(() => 0) }; F.set(sku, f) }
-    if (!f.nombre && nombre) f.nombre = nombre;
+    if (!f) { f = { sku, nombre: r.nombre ?? "", tren: r.tren, inicial: dias.map(() => 0), vigente: dias.map(() => 0) }; F.set(sku, f) }
+    if (!f.nombre && r.nombre) f.nombre = r.nombre;
+    const m = hlTren.get(sku) ?? hlTren.set(sku, new Map()).get(sku)!;
+    m.set(r.tren, (m.get(r.tren) ?? 0) + Number(r.hl));
     return f;
   };
-  for (const r of ini) { const i = dias.indexOf(r.fecha); if (i >= 0 && r.sku) fila(r.sku, r.nombre).inicial[i] += un(r) }
+  for (const r of ini) { const i = dias.indexOf(r.fecha); if (i >= 0 && r.sku) fila(r).inicial[i] += un(r) }
   dias.forEach((d, i) => {
     const pl = fuente[i];
     if (!pl) return;
-    for (const r of filasDe(pl.id)) if (r.fecha === d && r.sku) fila(r.sku, r.nombre).vigente[i] += un(r);
+    for (const r of filasDe(pl.id)) if (r.fecha === d && r.sku) fila(r).vigente[i] += un(r);
   });
+  for (const f of F.values()) f.tren = [...(hlTren.get(f.sku) ?? new Map()).entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? f.tren;
   const M = maestro(ps.filas, await productosDe([...F.keys()]));
   const semana = ps.planes[0]?.semana;
 
