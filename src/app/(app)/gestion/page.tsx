@@ -47,6 +47,7 @@ export default async function GestionTablero({ searchParams }: { searchParams: P
         resultados={datos.resultados} disparadores={datos.disparadores}
         analisis={an.analisis} acciones={an.acciones} faltaSql={an.falta}
         puedeIndicador={permisos.puedeEditar("/gestion/maestro")}
+        puedeCapturar={permisos.puedeEditar("/gestion/resultados")}
         areasRoturas={deRoturas.map((p) => p.nombre)}
         puede5w={permisos.puedeEditar("/gestion/disparadores")}
       />

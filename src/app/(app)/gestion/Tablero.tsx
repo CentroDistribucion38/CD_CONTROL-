@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAvisos } from "@/components/Aviso";
 import {
-  OPERADORES, PESO, RELEVO, conUnidad, diaCorto, inicioPeriodo, sumarDias, textoMeta,
-  type Accion, type Analisis, type Disparador, type Estado, type Indicador, type Op, type Proceso, type Resultado, type Turno,
+  PESO, RELEVO, conUnidad, diaCorto, inicioPeriodo, sumarDias, textoMeta,
+  type Accion, type Analisis, type Disparador, type Estado, type Indicador, type Proceso, type Resultado, type Turno,
 } from "@/modulos/gestion/semaforo";
-import { cambiarDesdeTablero } from "./actions";
 import { Areas } from "./Areas";
+import { Capturar } from "./Capturar";
+import { FichaIndicador, deIndicador, nuevoIndicador } from "./FichaIndicador";
+import { Turnos } from "./Turnos";
 import { Hoja5W } from "./Hoja5W";
 import { PlanAccion } from "./PlanAccion";
 
@@ -42,17 +42,20 @@ export function estado5w(d: Disparador, a?: Analisis | null): { t: string; c: st
 
 type Hoja = "tablero" | "plan";
 
-export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, resultados, disparadores, analisis, acciones, faltaSql, puedeIndicador, puede5w, areasRoturas }: {
+export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, resultados, disparadores, analisis, acciones, faltaSql, puedeIndicador, puedeCapturar, puede5w, areasRoturas }: {
   d: string; h: string; hoy: string; maxDias: number;
   turnos: Turno[]; procesos: Proceso[]; indicadores: Indicador[]; resultados: Resultado[]; disparadores: Disparador[];
-  analisis: Analisis[]; acciones: Accion[]; faltaSql: boolean; puedeIndicador: boolean; puede5w: boolean; areasRoturas: string[];
+  analisis: Analisis[]; acciones: Accion[]; faltaSql: boolean; puedeIndicador: boolean; puedeCapturar: boolean; puede5w: boolean; areasRoturas: string[];
 }) {
   const router = useRouter();
   const [hoja, setHoja] = useState<Hoja>("tablero");
   const [area, setArea] = useState<string>("todas");
-  const [editar, setEditar] = useState<Indicador | null>(null);
+  const [ficha, setFicha] = useState<ReturnType<typeof deIndicador> | null>(null);
   const [verAreas, setVerAreas] = useState(false);
-  const [abre, setAbre] = useState<"area" | "fechas" | null>(null);
+  const [verTurnos, setVerTurnos] = useState(false);
+  const [inactivos, setInactivos] = useState(false);
+  const [celda, setCelda] = useState<{ i: Indicador; f: string; t?: Turno; r?: Resultado } | null>(null);
+  const [abre, setAbre] = useState<"area" | "fechas" | "param" | null>(null);
   const dropsRef = useRef<HTMLDivElement>(null);
   /* Los desplegables se cierran al tocar fuera. */
   useEffect(() => {
@@ -87,7 +90,10 @@ export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, res
     return m;
   }, [resultados]);
 
-  const vista = useMemo(() => indicadores.filter((i) => i.activo && enArea(i)), [indicadores, area]); // eslint-disable-line react-hooks/exhaustive-deps
+  const vista = useMemo(() => indicadores.filter((i) => (i.activo || inactivos) && enArea(i)), [indicadores, area, inactivos]); // eslint-disable-line react-hooks/exhaustive-deps
+  const nInactivos = indicadores.filter((i) => !i.activo).length;
+  const areaNueva = area !== "todas" && area !== "ninguna" ? area : null;
+  const crear = (enArea: string | null, padre?: Indicador) => { setAbre(null); setFicha(nuevoIndicador(turnos, enArea, padre)) };
 
   /* Orden: por área y, dentro, cada KPI con sus PI debajo. */
   const filas = useMemo(() => {
@@ -130,7 +136,7 @@ export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, res
   [disparadores, indPorId, d, h, area]); // eslint-disable-line react-hooks/exhaustive-deps
   const activos = useMemo(() => new Set(disparadores.filter((x) => x.estado === "activo").map((x) => x.indicador_id)), [disparadores]);
 
-  const cuenta = (e: Estado | null) => vista.filter((i) => (ultimo.get(i.id) ?? null) === e).length;
+  const cuenta = (e: Estado | null) => vista.filter((i) => i.activo).filter((i) => (ultimo.get(i.id) ?? null) === e).length;
   const descartados = new Set(disparadores.filter((x) => x.estado === "descartado").map((x) => x.id));
   const indDeDisp = useMemo(() => new Map(disparadores.map((x) => [x.id, x.indicador_id])), [disparadores]);
   const abiertas = acciones.filter((a) => a.estado === "abierta" && !descartados.has(a.disparador_id) && enArea(indPorId.get(indDeDisp.get(a.disparador_id) ?? ""))).length;
@@ -156,8 +162,9 @@ export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, res
           <p className="ojo">GESTIÓN · TABLERO</p>
           <h1>Indicador · Meta · Disparador</h1>
           <p className="sub">
-            Cómo va cada indicador turno a turno en las fechas que escojas. Indicador, meta y disparador se cambian aquí mismo (✎);
-            lo que no cumple salta abajo como <b>ocurrencia</b> y desde ahí se hace el <b>5W</b> en relevo. Las acciones quedan en <b>Plan de acción</b>.
+            Todo se parametriza aquí: toca un indicador para abrir su ficha (meta, captura, turnos, disparador), una casilla para
+            escribir su resultado, y <b>Parametrizar</b> para crear indicadores, áreas y turnos. Lo que no cumple salta abajo como
+            {" "}<b>ocurrencia</b> y desde ahí se hace el <b>5W</b> en relevo. Las acciones quedan en <b>Plan de acción</b>.
           </p>
         </div>
       </section>
@@ -170,6 +177,25 @@ export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, res
           </button>
         </div>
         <div className="tb-drops" ref={dropsRef} onKeyDown={(e) => { if (e.key === "Escape") setAbre(null) }}>
+          {puedeIndicador && (
+            <div className="tb-dropw">
+              <button type="button" className={"tb-drop tb-param" + (abre === "param" ? " ab" : "")} aria-haspopup="menu" aria-expanded={abre === "param"} onClick={() => setAbre(abre === "param" ? null : "param")}>
+                <b>Parametrizar</b><i aria-hidden>▾</i>
+              </button>
+              {abre === "param" && (
+                <div className="tb-pop tb-pop-param" role="menu" aria-label="Parametrizar">
+                  <button type="button" role="menuitem" onClick={() => crear(areaNueva)}>+ Nuevo indicador<small>KPI o PI{areaNueva ? ` · en ${opcionesArea.find((p) => p.id === areaNueva)?.nombre}` : ""}</small></button>
+                  <button type="button" role="menuitem" onClick={() => { setAbre(null); setVerAreas(true) }}>Áreas<small>agregar, ordenar, activar, eliminar</small></button>
+                  <button type="button" role="menuitem" onClick={() => { setAbre(null); setVerTurnos(true) }}>Turnos<small>las columnas de cada día · horario y orden</small></button>
+                  {nInactivos > 0 && (
+                    <button type="button" role="menuitemcheckbox" aria-checked={inactivos} onClick={() => { setAbre(null); setInactivos(!inactivos) }}>
+                      {inactivos ? "Ocultar" : "Mostrar"} inactivos ({nInactivos})<small>para activarlos o eliminarlos desde su ficha</small>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
           <div className="tb-dropw">
             <button type="button" className={"tb-drop" + (abre === "area" ? " ab" : "")} aria-haspopup="listbox" aria-expanded={abre === "area"} onClick={() => setAbre(abre === "area" ? null : "area")}>
               <small>Área</small><b>{opcionesArea.find((p) => p.id === area)?.nombre ?? "Todas"}</b><i aria-hidden>▾</i>
@@ -230,7 +256,8 @@ export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, res
             <p className="gs-vacio">
               {indicadores.some((i) => i.activo)
                 ? "Esa área no tiene indicadores activos."
-                : <>Todavía no hay indicadores. Créalos en <Link href="/gestion/maestro">Maestro</Link>: el indicador, su meta, su disparador y los turnos.</>}
+                : <>Todavía no hay indicadores.</>}
+              {puedeIndicador && <>{" "}<button type="button" className="btn" onClick={() => crear(areaNueva)}>+ Crear indicador</button></>}
             </p>
           ) : (
             <div className="tb-scroll">
@@ -250,18 +277,22 @@ export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, res
                 </thead>
                 <tbody>
                   {filas.map((x) => "grupo" in x ? (
-                    <tr key={"g" + x.id} className="grupo"><td className="fijo f1" colSpan={3}>{x.grupo}</td><td colSpan={dias.length * nT} /></tr>
+                    <tr key={"g" + x.id} className="grupo"><td className="fijo f1" colSpan={3}>{x.grupo}
+                      {puedeIndicador && <button type="button" className="tb-mas" onClick={() => crear(x.id === "ninguna" ? null : x.id)} title={`Nuevo indicador en ${x.grupo}`}>+ indicador</button>}</td><td colSpan={dias.length * nT} /></tr>
                   ) : (
-                    <tr key={x.i.id} className={(x.pi ? "es-pi" : "es-kpi") + (activos.has(x.i.id) ? " disp" : "")}>
+                    <tr key={x.i.id} className={(x.pi ? "es-pi" : "es-kpi") + (activos.has(x.i.id) ? " disp" : "") + (x.i.activo ? "" : " inact")}>
                       <td className="fijo f1">
-                        <button type="button" className="tb-ed" disabled={!puedeIndicador} onClick={() => setEditar(x.i)} title={puedeIndicador ? "Cambiar indicador, meta y disparador" : undefined}>
+                        <button type="button" className="tb-ed" disabled={!puedeIndicador} onClick={() => setFicha(deIndicador(x.i, turnos))} title={puedeIndicador ? "Abrir la ficha del indicador" : undefined}>
                           <b>{x.i.codigo}</b><span className={"tb-tag" + (x.i.tipo === "kpi" ? " es-kpi" : "")}>{x.i.tipo === "kpi" ? "KPI" : "PI"}</span>
+                          {!x.i.activo && <span className="tb-tag off">Inactivo</span>}
                           <span className="nom">{x.i.nombre}</span>
                         </button>
+                        {puedeIndicador && x.i.tipo === "kpi" && x.i.activo && <button type="button" className="tb-mas pi" onClick={() => crear(x.i.proceso_id, x.i)} title={`Nuevo PI que explica a ${x.i.codigo}`}>+ PI</button>}
                       </td>
-                      <td className="fijo f2"><button type="button" className="tb-ed val" disabled={!puedeIndicador} onClick={() => setEditar(x.i)}>{textoMeta(x.i)}{puedeIndicador && <i aria-hidden>✎</i>}</button></td>
-                      <td className="fijo f3"><button type="button" className={"tb-ed val" + (x.i.disparo_activo ? "" : " off")} disabled={!puedeIndicador} onClick={() => setEditar(x.i)}>{textoDisparador(x.i)}{puedeIndicador && <i aria-hidden>✎</i>}</button></td>
-                      {dias.map((f) => <Celdas key={f} i={x.i} f={f} turnos={tActivos} nT={nT} res={res} />)}
+                      <td className="fijo f2"><button type="button" className="tb-ed val" disabled={!puedeIndicador} onClick={() => setFicha(deIndicador(x.i, turnos))}>{textoMeta(x.i)}{puedeIndicador && <i aria-hidden>✎</i>}</button></td>
+                      <td className="fijo f3"><button type="button" className={"tb-ed val" + (x.i.disparo_activo ? "" : " off")} disabled={!puedeIndicador} onClick={() => setFicha(deIndicador(x.i, turnos))}>{textoDisparador(x.i)}{puedeIndicador && <i aria-hidden>✎</i>}</button></td>
+                      {dias.map((f) => <Celdas key={f} i={x.i} f={f} turnos={tActivos} nT={nT} res={res}
+                        abrir={puedeCapturar && x.i.activo ? (fecha, t, r) => setCelda({ i: x.i, f: fecha, t, r }) : undefined} />)}
                     </tr>
                   ))}
                 </tbody>
@@ -305,7 +336,9 @@ export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, res
       )}
 
       {verAreas && <Areas procesos={procesos} indicadores={indicadores} deRoturas={areasRoturas} cerrar={() => setVerAreas(false)} />}
-      {editar && <EditarIndicador i={editar} cerrar={() => setEditar(null)} />}
+      {ficha && <FichaIndicador key={ficha.id ?? "nuevo"} inicial={ficha} indicadores={indicadores} procesos={procesos} turnos={turnos} cerrar={() => setFicha(null)} />}
+      {verTurnos && <Turnos turnos={turnos} cerrar={() => setVerTurnos(false)} />}
+      {celda && <Capturar i={celda.i} fecha={celda.f} turno={celda.t} r={celda.r} cerrar={() => setCelda(null)} />}
       {disp && (
         <Hoja5W
           key={disp.id + (anPor.get(disp.id)?.actualizado_en ?? "-")}
@@ -318,18 +351,26 @@ export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, res
   );
 }
 
-/** Las celdas de un día: una por turno, o una sola si el indicador es de valor único, semanal o mensual. */
-function Celdas({ i, f, turnos, nT, res }: { i: Indicador; f: string; turnos: Turno[]; nT: number; res: Map<string, Resultado> }) {
+/** Las celdas de un día: una por turno, o una sola si el indicador es de valor único, semanal o mensual.
+ *  Con permiso de capturar, cada casilla se toca para escribir (o corregir) su resultado. */
+function Celdas({ i, f, turnos, nT, res, abrir }: {
+  i: Indicador; f: string; turnos: Turno[]; nT: number; res: Map<string, Resultado>;
+  abrir?: (fecha: string, t: Turno | undefined, r: Resultado | undefined) => void;
+}) {
   const porTurno = i.frecuencia === "dia" && i.captura === "turnos" && turnos.length > 0;
+  const dentro = (txt: string, fn: () => void, titulo?: string) => abrir
+    ? <button type="button" className="tb-cel" onClick={fn} title={titulo ? `${titulo} · tocar para cambiar` : "Tocar para escribir el resultado"}>{txt}</button>
+    : txt;
   if (!porTurno) {
     const dia = inicioPeriodo(f, i.frecuencia);
     let r = res.get(`${i.id}|${dia}|-`);
     /* Un diario de valor único que alguien cargó con turno: se muestra el peor del día. */
     if (!r && i.frecuencia === "dia") r = turnos.map((t) => res.get(`${i.id}|${dia}|${t.id}`)).filter(Boolean).sort((a, b) => PESO[b!.estado] - PESO[a!.estado])[0];
     const per = i.frecuencia !== "dia";
+    const tit = per ? (i.frecuencia === "semana" ? "Valor de la semana" : "Valor del mes") : r?.comentario ?? undefined;
     return (
-      <td colSpan={nT} className={"c ini " + (r?.estado ?? "sin") + (per ? " per" : "")} title={per ? (i.frecuencia === "semana" ? "Valor de la semana" : "Valor del mes") : r?.comentario ?? undefined}>
-        {r ? conUnidad(r.valor, i) : "—"}
+      <td colSpan={nT} className={"c ini " + (r?.estado ?? "sin") + (per ? " per" : "")} title={abrir ? undefined : tit}>
+        {dentro(r ? conUnidad(r.valor, i) : "—", () => abrir!(dia, undefined, r?.turno_id ? undefined : r), tit)}
       </td>
     );
   }
@@ -339,63 +380,11 @@ function Celdas({ i, f, turnos, nT, res }: { i: Indicador; f: string; turnos: Tu
         const aplica = !i.turnos.length || i.turnos.includes(t.id);
         const r = aplica ? res.get(`${i.id}|${f}|${t.id}`) : undefined;
         return (
-          <td key={t.id} className={"c" + (k === 0 ? " ini" : "") + (aplica ? " " + (r?.estado ?? "sin") : " na")} title={aplica ? r?.comentario ?? undefined : "No se mide en este turno"}>
-            {aplica ? (r ? conUnidad(r.valor, i) : "—") : ""}
+          <td key={t.id} className={"c" + (k === 0 ? " ini" : "") + (aplica ? " " + (r?.estado ?? "sin") : " na")} title={aplica ? (abrir ? undefined : r?.comentario ?? undefined) : "No se mide en este turno"}>
+            {aplica ? dentro(r ? conUnidad(r.valor, i) : "—", () => abrir!(f, t, r), r?.comentario ?? undefined) : ""}
           </td>
         );
       })}
     </>
-  );
-}
-
-/** ✎ — nombre, meta y disparador de un indicador, en una ventana de la app. */
-function EditarIndicador({ i, cerrar }: { i: Indicador; cerrar: () => void }) {
-  const router = useRouter();
-  const [avisar, avisos] = useAvisos();
-  const [pend, start] = useTransition();
-  const [nombre, setNombre] = useState(i.nombre);
-  const [op, setOp] = useState<Op>(i.meta_op);
-  const [valor, setValor] = useState(String(i.meta_valor).replace(".", ","));
-  const [activo, setActivo] = useState(i.disparo_activo);
-  const [n, setN] = useState(String(i.disparo_consecutivos));
-  useEffect(() => {
-    const t = (e: KeyboardEvent) => { if (e.key === "Escape") cerrar() };
-    window.addEventListener("keydown", t);
-    return () => window.removeEventListener("keydown", t);
-  }, [cerrar]);
-  const num = Number(valor.replace(/\s/g, "").replace(",", "."));
-  const guardar = () => start(async () => {
-    const r = await cambiarDesdeTablero(i.id, { nombre, meta_op: op, meta_valor: num, disparo_activo: activo, disparo_consecutivos: Number(n) });
-    if (r.error) { avisar.mal(r.error); return }
-    router.refresh(); cerrar();
-  });
-  return (
-    <div className="cf-velo" role="dialog" aria-modal="true" aria-labelledby="tb-ed-t" onClick={(e) => { if (e.target === e.currentTarget) cerrar() }}>
-      {avisos}
-      <div className="cf-caja tb-edcaja">
-        <h2 id="tb-ed-t">{i.codigo} · cambiar desde el tablero</h2>
-        <label className="pt-campo"><span>Indicador</span><input value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus /></label>
-        <div className="pt-campo"><span>Meta {i.unidad ? <b>({i.unidad})</b> : null}</span>
-          <div className="tb-fila">
-            <select value={op} onChange={(e) => setOp(e.target.value as Op)} aria-label="Operador">
-              {OPERADORES.map((o) => <option key={o.k} value={o.k}>{o.t}</option>)}
-            </select>
-            <input inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value)} aria-label="Valor de la meta" />
-          </div>
-        </div>
-        <div className="pt-campo"><span>Disparador</span>
-          <label className="tb-chk"><input type="checkbox" checked={activo} onChange={(e) => setActivo(e.target.checked)} /> Salta cuando no cumple</label>
-          <div className="tb-fila">
-            <input type="number" min={1} max={30} value={n} disabled={!activo} onChange={(e) => setN(e.target.value)} aria-label="Veces seguidas" />
-            <em>{unidadDisparo(i, Number(n) || 1)} seguido{Number(n) === 1 ? "" : "s"}</em>
-          </div>
-        </div>
-        <p className="cf-dice">Lo ya capturado conserva su color: la meta nueva cuenta desde el próximo resultado.</p>
-        <div className="cf-botones">
-          <button type="button" className="cf-btn plano" onClick={cerrar}>Cancelar</button>
-          <button type="button" className="cf-btn" disabled={pend || !nombre.trim() || !Number.isFinite(num) || !valor.trim()} onClick={guardar}>{pend ? "Guardando…" : "Guardar"}</button>
-        </div>
-      </div>
-    </div>
   );
 }

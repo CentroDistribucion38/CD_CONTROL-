@@ -217,6 +217,28 @@ export async function activarIndicador(id: string, activo: boolean) {
 }
 
 /**
+ * ELIMINAR UN INDICADOR (desde su ficha en el tablero). Solo si no tiene historia: ni resultados, ni disparadores, ni PI
+ * colgando. Si la tiene, se desactiva (sale del tablero y se conserva todo); la ventana lo ofrece.
+ */
+export async function eliminarIndicador(id: string) {
+  if (!(await puedeMaestro())) return { error: "No tienes permiso para cambiar indicadores (hace falta Maestro de Gestión en editar)." };
+  const supabase = await createClient();
+  const [r, d, h] = await Promise.all([
+    supabase.from("gestion_resultados").select("id", { count: "exact", head: true }).eq("indicador_id", id),
+    supabase.from("gestion_disparadores").select("id", { count: "exact", head: true }).eq("indicador_id", id),
+    supabase.from("gestion_indicadores").select("id", { count: "exact", head: true }).eq("padre_id", id),
+  ]);
+  const e0 = r.error ?? d.error ?? h.error;
+  if (e0) return { error: msj(e0.message) };
+  if (h.count) return { error: `Tiene ${h.count} PI colgando: pásalos a otro KPI o elimínalos primero.`, conHistoria: true };
+  if (r.count || d.count) return { error: `Tiene ${r.count ?? 0} resultado${r.count === 1 ? "" : "s"} y ${d.count ?? 0} disparador${d.count === 1 ? "" : "es"}: desactívalo para conservar su historia.`, conHistoria: true };
+  const { error } = await supabase.from("gestion_indicadores").delete().eq("id", id);
+  if (error) return { error: msj(error.message) };
+  refrescar();
+  return { ok: true };
+}
+
+/**
  * DESDE EL TABLERO: cambiar el nombre, la meta y el disparador («no cumple N turnos») de un indicador sin ir al Maestro.
  * Lo puede quien edite el Tablero o el Maestro. Lo ya capturado conserva su color: la meta nueva cuenta del próximo
  * resultado en adelante.

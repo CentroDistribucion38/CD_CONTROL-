@@ -213,3 +213,70 @@
 .gs .ar-traer { margin-top: 10px; width: 100%; text-align: left; padding: 10px 12px; border: 1px dashed var(--c-d5dce5); background: var(--c-f7f9fc); color: var(--c-2c4361); font: 500 13.5px "IBM Plex Sans", system-ui, sans-serif; cursor: pointer }
 .gs .ar-traer:hover { border-color: var(--c-04203f) }
 @media (max-width: 520px) { .gs .ar-lista li { grid-template-columns: auto 1fr auto; } .gs .ar-lista small { display: none } .gs .ar-act { grid-column: 2 } }
+
+/* ===== PARAMETRIZAR DESDE EL TABLERO ===== */
+.gs .tb-param { border-color: #F5B800; box-shadow: inset 0 -3px 0 #F5B800 }
+.gs .tb-pop-param { min-width: 300px; display: flex; flex-direction: column; gap: 2px }
+.gs .tb-pop-param button { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-height: 48px; padding: 6px 12px; border: 0; background: none; color: var(--fe-tinta); font: 700 14px var(--fe-texto); text-align: left; cursor: pointer }
+.gs .tb-pop-param button small { font: 500 12px var(--fe-texto); color: var(--fe-gris) }
+.gs .tb-pop-param button:hover, .gs .tb-pop-param button:focus-visible { background: var(--fe-fondo); outline: none; box-shadow: inset 3px 0 0 #F5B800 }
+.gs .tb-mas { margin-left: 12px; min-height: 28px; padding: 0 10px; border: 1px dashed var(--fe-linea); background: var(--fe-papel, #fff); color: var(--fe-tinta); font: 700 11px var(--fe-texto); letter-spacing: .04em; text-transform: none; cursor: pointer }
+.gs .tb-mas:hover { border-style: solid; border-color: #F5B800 }
+.gs .tb-mas.pi { margin: 0 12px 6px; font-size: 11px; opacity: 0; transition: opacity .12s }
+.gs .tb-t tr:hover .tb-mas.pi, .gs .tb-mas.pi:focus-visible { opacity: 1 }
+@media (hover: none) { .gs .tb-mas.pi { opacity: 1 } }
+.gs .tb-t td.f1 { vertical-align: top }
+.gs .tb-tag.off { background: none; color: var(--fe-gris); border-style: dashed }
+.gs .tb-t tr.inact td { opacity: .55 }
+.gs .tb-t tr.inact td.f1 { opacity: 1 }
+/* La casilla que se toca para escribir el resultado. */
+.gs .tb-cel { width: 100%; min-height: 40px; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; padding: 0 4px }
+.gs .tb-cel:hover { box-shadow: inset 0 0 0 2px #F5B800 }
+.gs .tb-cel:focus-visible { outline: 2px solid #F5B800; outline-offset: -2px }
+.gs .tb-t td.c:has(.tb-cel) { padding: 0 }
+
+/* Ficha del indicador */
+.gs .fi-caja { max-width: 720px; max-height: 92vh; overflow: auto }
+.gs .fi-caja h3 { margin: 18px 0 8px; font: 800 11px var(--fe-titulo); letter-spacing: .13em; text-transform: uppercase; color: var(--c-2c4361); border-top: 1px solid var(--c-d5dce5); padding-top: 12px }
+.gs .fi-seg { display: flex; margin: 12px 0 4px }
+.gs .fi-seg button { flex: 1; min-height: 42px; border: 1px solid var(--c-d5dce5); background: #fff; color: var(--c-04203f); font: 700 14px "IBM Plex Sans", system-ui, sans-serif; cursor: pointer }
+.gs .fi-seg button + button { border-left: 0 }
+.gs .fi-seg button[aria-pressed="true"] { background: #F5B800; border-color: #F5B800; font-weight: 800 }
+.gs .fi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; margin-top: 10px }
+.gs .fi-grid .ancho { grid-column: 1 / -1 }
+.gs .fi-grid > label:not(.fi-chk) { display: flex; flex-direction: column; gap: 4px }
+.gs .fi-grid label > span, .gs .fi-turnos > span { font: 700 11px "IBM Plex Sans", system-ui, sans-serif; letter-spacing: .06em; text-transform: uppercase; color: var(--c-5b6b7f) }
+.gs .fi-caja select, .gs .fi-caja input:not([type="checkbox"]), .gs .cp-caja input { box-sizing: border-box; min-height: 44px; padding: 0 12px; border: 1px solid var(--c-d5dce5); border-radius: 2px; background: #fff; color: var(--c-04203f); font: 600 15px "IBM Plex Sans", system-ui, sans-serif; width: 100%; min-width: 0 }
+.gs .fi-caja select:disabled, .gs .fi-caja input:disabled { background: var(--c-f7f9fc); color: var(--c-5b6b7f) }
+.gs .fi-meta { display: flex; gap: 8px; align-items: center }
+.gs .fi-meta select { flex: 0 0 190px } .gs .fi-meta input { flex: 1 } .gs .fi-meta input.u { flex: 0 0 90px } .gs .fi-meta select:last-child { flex: 0 0 140px }
+.gs .fi-meta input.n { flex: 0 0 90px } .gs .fi-meta em { font-style: normal; font-size: 14px; color: var(--c-2c4361) }
+.gs .fi-chk { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--c-04203f); min-height: 44px }
+.gs .fi-chk input, .gs .fi-turnos input { width: 18px; height: 18px; accent-color: #04203f }
+.gs .fi-turnos { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px }
+.gs .fi-turnos > span { flex-basis: 100% }
+.gs .fi-turnos label { display: flex; flex-direction: row; align-items: center; gap: 6px; font-size: 14px; color: var(--c-04203f); min-height: 36px }
+.gs .fi-turnos small { color: var(--c-5b6b7f) }
+.gs .fi-previa { margin: 16px 0 0; padding: 10px 12px; background: var(--c-f7f9fc); border-left: 3px solid #F5B800; font-size: 13.5px; color: var(--c-2c4361) }
+.gs .fi-bot { align-items: center }
+.gs .fi-esp { flex: 1 }
+.gs .fi-borrar { color: #C8102E }
+.gs .fi-borrar:hover { border-color: #C8102E }
+@media (max-width: 640px) {
+  .gs .fi-grid { grid-template-columns: 1fr }
+  .gs .fi-meta { flex-wrap: wrap } .gs .fi-meta select, .gs .fi-meta input, .gs .fi-meta select:last-child { flex: 1 1 45% }
+  .gs .fi-bot { flex-wrap: wrap } .gs .fi-esp { display: none }
+}
+
+/* Capturar el resultado de una casilla */
+.gs .cp-caja { max-width: 440px }
+.gs .cp-campo { display: flex; flex-direction: column; gap: 4px; margin-top: 12px }
+.gs .cp-campo span { font: 700 11px "IBM Plex Sans", system-ui, sans-serif; letter-spacing: .06em; text-transform: uppercase; color: var(--c-5b6b7f) }
+.gs .cp-caja input[inputmode="decimal"] { font-size: 22px; font-weight: 800; min-height: 52px }
+.gs .cp-est { margin: 8px 0 0; padding: 8px 12px; font: 700 14px "IBM Plex Sans", system-ui, sans-serif; border-left: 4px solid var(--c-d5dce5); background: var(--c-f7f9fc); color: var(--c-2c4361) }
+.gs .cp-est.verde { border-left-color: #12805C; color: #0b5e43; background: #e9f6f0 }
+.gs .cp-est.rojo { border-left-color: #C8102E; color: #9b0c23; background: #fdecee }
+
+/* Turnos */
+.gs .tu-lista li { grid-template-columns: auto 1fr 110px 110px auto }
+@media (max-width: 640px) { .gs .tu-lista li { grid-template-columns: auto 1fr 1fr; } .gs .tu-lista li > :first-child { grid-row: span 2 } }
