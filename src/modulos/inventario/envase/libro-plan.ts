@@ -11,6 +11,28 @@
  * Las sumas son fórmulas (SUBTOTAL), así lo que se filtre o se pliegue sigue cuadrando.
  */
 import ExcelJS from "exceljs";
+import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
+
+/**
+ * ExcelJS escribe dentro de <sheetPr> el <pageSetUpPr> ANTES que el <outlinePr> (el de las líneas plegables), y el orden
+ * que exige Excel es tabColor → outlinePr → pageSetUpPr. Con el orden al revés Excel «repara» el libro y deja la hoja
+ * vacía (LibreOffice lo abre bien, por eso no se notaba). Aquí se pone en su orden antes de entregar el archivo.
+ */
+function ordenarSheetPr(buf: ArrayBuffer): ArrayBuffer {
+  const zip = unzipSync(new Uint8Array(buf));
+  for (const k of Object.keys(zip)) {
+    if (!/^xl\/worksheets\/sheet\d+\.xml$/.test(k)) continue;
+    const x = strFromU8(zip[k]);
+    const y = x.replace(/<sheetPr>([\s\S]*?)<\/sheetPr>/, (_, d: string) => {
+      const tab = d.match(/<tabColor[^>]*\/>/)?.[0] ?? "", out = d.match(/<outlinePr[^>]*\/>/)?.[0] ?? "", pag = d.match(/<pageSetUpPr[^>]*\/>/)?.[0] ?? "";
+      const resto = d.replace(/<tabColor[^>]*\/>|<outlinePr[^>]*\/>|<pageSetUpPr[^>]*\/>/g, "");
+      return `<sheetPr>${tab}${out}${pag}${resto}</sheetPr>`;
+    });
+    if (y !== x) zip[k] = strToU8(y);
+  }
+  const u = zipSync(zip, { level: 6 });
+  return u.buffer.slice(u.byteOffset, u.byteOffset + u.byteLength) as ArrayBuffer;
+}
 
 const TINTA = "FF111111", BANDA = "FFFFC20E", BLANCO = "FFFFFFFF", GRIS = "FF6B6B6B", GRIS_CLARO = "FFBDBDBD";
 const FONDO = "FFF6F6F4", RAYA = "FFE3E3E0", VERDE = "FF0F7A4A", VERDE_F = "FFE3F4EA", ROJO = "FFB42318", ROJO_F = "FFFDE7EA";
@@ -294,5 +316,5 @@ export async function armarLibroPlan(d: InsumosLibroPlan): Promise<ArrayBuffer> 
     h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, printTitlesRow: `${H}:${H}` };
   }
 
-  return wb.xlsx.writeBuffer() as Promise<ArrayBuffer>;
+  return ordenarSheetPr(await wb.xlsx.writeBuffer() as ArrayBuffer);
 }
