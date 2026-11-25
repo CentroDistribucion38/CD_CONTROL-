@@ -58,7 +58,8 @@
 .gs .tb-t th.fijo { z-index: 3 }
 .gs .tb-t .f1 { left: 0; width: 260px; min-width: 260px; max-width: 260px }
 .gs .tb-t .f2 { left: 260px; width: 112px; min-width: 112px }
-.gs .tb-t .f3 { left: 372px; width: 168px; min-width: 168px; box-shadow: 2px 0 0 var(--fe-linea) }
+.gs .tb-t .fu { left: 372px; width: 76px; min-width: 76px; text-align: center }
+.gs .tb-t .f3 { left: 448px; width: 168px; min-width: 168px; box-shadow: 2px 0 0 var(--fe-linea) }
 .gs .tb-t th.f3 { box-shadow: 2px 0 0 #3a4a5e }
 .gs .tb-t tr.es-kpi td.fijo { background: color-mix(in srgb, var(--fe-fondo) 55%, var(--fe-papel, #fff)) }
 .gs .tb-t tr.disp td.f1 { box-shadow: inset 4px 0 0 var(--gs-rojo) }
@@ -185,7 +186,7 @@
   .gs .tb-drops { width: 100%; padding-top: 4px } .gs .tb-dropw { flex: 1 } .gs .tb-drop { width: 100%; justify-content: space-between }
   .gs .tb-pop-area { left: 0; right: auto }
   .gs .tb-t .f1 { width: 150px; min-width: 150px; max-width: 150px; box-shadow: 2px 0 0 var(--fe-linea) }
-  .gs .tb-t .f2, .gs .tb-t .f3 { position: static; box-shadow: none }
+  .gs .tb-t .f2, .gs .tb-t .fu, .gs .tb-t .f3 { position: static; box-shadow: none }
   .gs .tb-ed .nom { font-size: 11.5px }
   .gs .h5-velo { padding: 0 }
   .gs .h5 { min-height: 100%; padding: 14px }
@@ -280,3 +281,6 @@
 /* Turnos */
 .gs .tu-lista li { grid-template-columns: auto 1fr 110px 110px auto }
 @media (max-width: 640px) { .gs .tu-lista li { grid-template-columns: auto 1fr 1fr; } .gs .tu-lista li > :first-child { grid-row: span 2 } }
+
+/* UNM: la unidad de medida de cada indicador, entre la meta y el disparador. */
+.gs .tb-t td.fu .tb-ed { justify-content: center; font-weight: 700 }

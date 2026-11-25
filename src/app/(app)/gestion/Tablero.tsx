@@ -266,6 +266,7 @@ export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, res
                   <tr>
                     <th rowSpan={2} className="fijo f1">Indicador</th>
                     <th rowSpan={2} className="fijo f2">Meta</th>
+                    <th rowSpan={2} className="fijo fu" title="Unidad de medida">UNM</th>
                     <th rowSpan={2} className="fijo f3">Disparador</th>
                     {dias.map((f) => <th key={f} colSpan={nT} className={"dia" + (f === hoy ? " hoy" : "")}>{ddmm(f)}<small>{DOW[new Date(f + "T12:00:00Z").getUTCDay()]}</small></th>)}
                   </tr>
@@ -277,7 +278,7 @@ export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, res
                 </thead>
                 <tbody>
                   {filas.map((x) => "grupo" in x ? (
-                    <tr key={"g" + x.id} className="grupo"><td className="fijo f1" colSpan={3}>{x.grupo}
+                    <tr key={"g" + x.id} className="grupo"><td className="fijo f1" colSpan={4}>{x.grupo}
                       {puedeIndicador && <button type="button" className="tb-mas" onClick={() => crear(x.id === "ninguna" ? null : x.id)} title={`Nuevo indicador en ${x.grupo}`}>+ indicador</button>}</td><td colSpan={dias.length * nT} /></tr>
                   ) : (
                     <tr key={x.i.id} className={(x.pi ? "es-pi" : "es-kpi") + (activos.has(x.i.id) ? " disp" : "") + (x.i.activo ? "" : " inact")}>
@@ -289,7 +290,8 @@ export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, res
                         </button>
                         {puedeIndicador && x.i.tipo === "kpi" && x.i.activo && <button type="button" className="tb-mas pi" onClick={() => crear(x.i.proceso_id, x.i)} title={`Nuevo PI que explica a ${x.i.codigo}`}>+ PI</button>}
                       </td>
-                      <td className="fijo f2"><button type="button" className="tb-ed val" disabled={!puedeIndicador} onClick={() => setFicha(deIndicador(x.i, turnos))}>{textoMeta(x.i)}{puedeIndicador && <i aria-hidden>✎</i>}</button></td>
+                      <td className="fijo f2"><button type="button" className="tb-ed val" disabled={!puedeIndicador} onClick={() => setFicha(deIndicador(x.i, turnos))}>{textoMeta({ ...x.i, unidad: "" })}{puedeIndicador && <i aria-hidden>✎</i>}</button></td>
+                      <td className="fijo fu"><button type="button" className="tb-ed val" disabled={!puedeIndicador} onClick={() => setFicha(deIndicador(x.i, turnos))} title="Unidad de medida">{x.i.unidad || "—"}</button></td>
                       <td className="fijo f3"><button type="button" className={"tb-ed val" + (x.i.disparo_activo ? "" : " off")} disabled={!puedeIndicador} onClick={() => setFicha(deIndicador(x.i, turnos))}>{textoDisparador(x.i)}{puedeIndicador && <i aria-hidden>✎</i>}</button></td>
                       {dias.map((f) => <Celdas key={f} i={x.i} f={f} turnos={tActivos} nT={nT} res={res}
                         abrir={puedeCapturar && x.i.activo ? (fecha, t, r) => setCelda({ i: x.i, f: fecha, t, r }) : undefined} />)}
