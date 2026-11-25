@@ -9,6 +9,12 @@ import type { ParetoFila } from "@/modulos/sider/cierre-ai";
 import { META_AI, type FilaRanking } from "@/modulos/sider/informe-ai-graficas";
 import { ParetoLienzo } from "./ParetoLienzo";
 import { useFotoCompartir } from "@/components/FotoCompartir";
+
+/** Las cifras que se pueden poner en la franja amarilla de la imagen (las mismas claves de foto-informe-ai). */
+const CIFRAS_AI_LISTA = [
+  { k: "revisiones", t: "Revisiones" }, { k: "revisadas", t: "Revisadas" }, { k: "malas", t: "Mal estado" }, { k: "ai", t: "%AI" },
+  { k: "meta", t: "Meta" }, { k: "encima", t: "CDs sobre meta" }, { k: "dias", t: "Días sobre meta" }, { k: "peor", t: "CD más alto" }, { k: "sku", t: "SKU" },
+];
 import type { Revision } from "@/modulos/sider/ai";
 import { NOMBRE_TIPO, type TipoRevision } from "@/modulos/sider/comun";
 import { CierreAi } from "./CierreAi";
@@ -164,15 +170,25 @@ export function Informe({
 
   /* LA IMAGEN PARA COMPARTIR, COMO EL CIERRE DE TURNO: una ventana con dos pestañas —1 · Resumen y 2 · Paretos— y los
      botones Copiar imagen, Compartir y Descargar PNG. Partido en dos para que cada imagen se lea en el celular. */
+  /* Las cifras de la franja amarilla: se quitan y se agregan en la misma ventana de la imagen; el equipo las recuerda. */
+  const [cifrasAi, setCifrasAi] = useState<string[]>(["revisiones", "revisadas", "malas", "ai"]);
+  useEffect(() => { try { const g = JSON.parse(localStorage.getItem("sider-ai-cifras") ?? "null"); if (Array.isArray(g) && g.length) setCifrasAi(g) } catch { /* sin memoria */ } }, []);
+  const ponerCifra = (k: string) => setCifrasAi((xs) => {
+    const n = xs.includes(k) ? xs.filter((x) => x !== k) : [...xs, k];
+    const fin = n.length ? n : xs; /* al menos una */
+    try { localStorage.setItem("sider-ai-cifras", JSON.stringify(fin)) } catch { /* sin memoria */ }
+    return fin;
+  });
   const imagen = useFotoCompartir(async (tipo) => {
     const [fo, { cargarLogoB }, { periodoLargo }] = await Promise.all([import("@/modulos/sider/foto-informe-ai"), import("@/modulos/sider/foto-pareto"), import("@/modulos/sider/informe-ai-graficas")]);
     const d = datosInforme(), logo = await cargarLogoB(), uno = tipo !== "detalle";
     const x = { titulo: "Informe %AI", ojo: `REVISIÓN DE ENVASE · PARTE ${uno ? "1 DE 2 · ORIGEN Y TENDENCIA" : "2 DE 2 · CAUSAL, SKU Y DRY"}`, periodo: periodoLargo(desdeI, hastaI), generado: new Date(), logo };
     const rango = desdeI === hastaI ? desdeI : `${desdeI}-a-${hastaI}`;
     return uno
-      ? { lienzo: fo.dibujarInformeParte1(d, x), nombre: `informe-ai-${rango}-1-origen-tendencia.png` }
-      : { lienzo: fo.dibujarInformeParte2(d, x), nombre: `informe-ai-${rango}-2-causal-sku-dry.png` };
-  }, "Informe %AI para compartir", { dashboard: "1 · Origen y tendencia", detalle: "2 · Causal, SKU y DRY" }, undefined, ["dashboard", "detalle"]);
+      ? { lienzo: fo.dibujarInformeParte1(d, x, cifrasAi), nombre: `informe-ai-${rango}-1-origen-tendencia.png` }
+      : { lienzo: fo.dibujarInformeParte2(d, x, cifrasAi), nombre: `informe-ai-${rango}-2-causal-sku-dry.png` };
+  }, "Informe %AI para compartir", { dashboard: "1 · Origen y tendencia", detalle: "2 · Causal, SKU y DRY" },
+    { titulo: "Cifras", valores: CIFRAS_AI_LISTA, actual: cifrasAi, cambiar: ponerCifra }, ["dashboard", "detalle"]);
 
   /* El tope de las barras nunca puede ser cero: `width: NaN%` se descarta y la barra se llena. */
   const topeOri = Math.max(0.0001, ...origenes.map((o) => o.indice));

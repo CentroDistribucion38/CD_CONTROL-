@@ -262,3 +262,7 @@
 .cv-su-prev { margin: 14px 0 0; padding: 10px 12px; background: #f7f7f5; border-left: 3px solid #F5B800; font-size: 14px }
 .cv-su-prev small { display: block; color: var(--fe-gris); font-size: 12px; margin-top: 2px }
 @media (max-width: 560px) { .cv-su-g { grid-template-columns: 1fr } }
+.cv-su-cab { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px }
+.cv-su-cab > span { font: 700 11px var(--fe-texto); letter-spacing: .06em; text-transform: uppercase; color: var(--fe-gris) }
+.cv-su-nv { border: 1px dashed var(--fe-linea); background: none; color: #111; font: 700 12.5px var(--fe-texto); padding: 5px 10px; cursor: pointer; border-radius: 0 }
+.cv-su-nv:hover, .cv-su-nv.on { border-style: solid; border-color: #F5B800; background: color-mix(in srgb, #F5B800 16%, transparent) }

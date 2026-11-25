@@ -17,8 +17,13 @@
 .fc-img { overflow: auto; padding: 12px; background: #F3F5F8 }
 .fc-img img { display: block; width: 100%; height: auto }
 @media (max-width: 640px) {
-  .fc { padding: 0 }
-  .fc-caja { max-height: 100vh; height: 100% }
+  /* En el celular la ventana ocupa la pantalla, pero sin meterse debajo de la hora, la batería ni la muesca: los botones
+     de arriba (pestañas, Copiar, Compartir, Descargar, ×) quedan donde el dedo los alcanza. */
+  .fc { padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); place-items: stretch }
+  .fc-caja { max-height: none; height: 100%; min-height: 0 }
+  .fc-barra { padding-top: 14px; position: relative }
+  .fc-x { position: absolute; top: 8px; right: 8px }
+  .fc-barra > :first-child { max-width: calc(100% - 52px) }
   .fc-acc { width: 100% }
   .fc-bt { flex: 1 1 auto; justify-content: center; padding: 0 10px }
 }
@@ -129,3 +134,12 @@
 }
 .fc { grid-template-columns: minmax(0, 1fr) }
 @media (max-width: 720px) { .fc-filtro { min-width: 0 } .fc-periodo .fc-tabs { width: 100% } .fc-periodo .fc-tabs button { flex: 1 0 auto } }
+
+/* Las opciones de la imagen (unidad, cifras): lo escogido en amarillo, no relleno negro. En el celular bajan en varias líneas. */
+.fc-opc .fc-tabs button.on { background: var(--fe-acento, #FFC300); color: #111; box-shadow: none; font-weight: 800 }
+.fc-opc .fc-tabs button + button { border-left: 1px solid var(--fe-linea, #DEE3EA) }
+@media (max-width: 640px) {
+  .fc-opc { flex-wrap: wrap; width: 100% }
+  .fc-opc .fc-tabs { flex-wrap: wrap; border: 0; gap: 6px }
+  .fc-opc .fc-tabs button { border: 1.5px solid var(--fe-tinta, #111); height: 38px; padding: 0 12px }
+}

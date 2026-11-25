@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { hl, redondear, unidades } from "@/modulos/carnaval/logica";
 import { useAvisos } from "@/components/Aviso";
 import { movimientoSuperadmin } from "./actions";
+import { SelectorCodigo } from "./SelectorCodigo";
 
 type Fila = { codigo: string; descripcion: string; undPorPallet: number; cc: number; pallets: number };
 /* `pallets` que llega es el físico; aquí se le restan los que todavía no tienen entrada de mercancía (no están en SAP). */
@@ -139,13 +140,17 @@ function MovimientoSuper({ codigo, fecha, hoy, filas, cerrar }: {
       {avisos}
       <div className="cf-caja cv-su">
         <h2 id="cv-su-t">Agregar código o cantidad <small>superadministrador</small></h2>
-        <label className="cv-su-c"><span>Código</span>
-          <select value={esNuevo ? "__nuevo" : cod} onChange={(e) => { if (e.target.value === "__nuevo") setEsNuevo(true); else { setEsNuevo(false); setCod(e.target.value) } }} autoFocus={!codigo}>
-            <option value="">— escoge —</option>
-            {filas.map((x) => <option key={x.codigo} value={x.codigo}>{x.codigo} · {x.descripcion} ({nf.format(x.pallets)} pallets)</option>)}
-            <option value="__nuevo">＋ Código nuevo (no está en la lista)…</option>
-          </select>
-        </label>
+        <div className="cv-su-c">
+          <div className="cv-su-cab"><span>Código</span>
+            <button type="button" className={"cv-su-nv" + (esNuevo ? " on" : "")} aria-pressed={esNuevo} onClick={() => setEsNuevo(!esNuevo)}>
+              {esNuevo ? "← Escoger de la lista" : "＋ Código nuevo"}</button>
+          </div>
+          {!esNuevo && (
+            <SelectorCodigo productos={filas.map((x) => ({ codigo: x.codigo, descripcion: x.descripcion }))}
+              saldos={Object.fromEntries(filas.map((x) => [x.codigo, x.pallets]))} value={cod} onChange={setCod}
+              soloConSaldo={signo === -1} placeholder="Busca por código o por nombre" />
+          )}
+        </div>
         {esNuevo && (
           <div className="cv-su-g">
             <label><span>Código</span><input value={nuevo.codigo} onChange={(e) => setNuevo({ ...nuevo, codigo: e.target.value })} placeholder="412671" inputMode="numeric" autoFocus /></label>

@@ -13,7 +13,7 @@
  * se revisa. El pareto queda para las causales (todas sobre las mismas revisadas) y el top 5 DRY.
  * Las dos llevan la misma franja de cifras arriba, para que cada una se entienda sola.
  */
-import { banda, cifra, partir, pintarGrafica, vitales, type ExtraPareto } from "./foto-pareto";
+import { banda, partir, pintarGrafica, vitales, type ExtraPareto } from "./foto-pareto";
 import { META_AI, lienzoRanking, lienzoTendencia, rankingOrigen, rankingSku, type DatosInformeAi } from "./informe-ai-graficas";
 
 type Ctx = CanvasRenderingContext2D;
@@ -32,13 +32,44 @@ function lienzo(alto: number) {
   return { cv, ctx };
 }
 
-/** La franja amarilla, igual en las dos partes. */
-function franja(ctx: Ctx, d: DatosInformeAi) {
+/**
+ * LAS CIFRAS DE LA FRANJA AMARILLA — se escogen en la ventana de la imagen (quitar y agregar), igual en las dos partes.
+ * Por defecto las cuatro de siempre; el resto: la meta, cuántos CDs y cuántos días quedan por encima, el CD más alto y
+ * cuántas referencias se revisaron.
+ */
+export const CIFRAS_AI: { k: string; t: string }[] = [
+  { k: "revisiones", t: "Revisiones" }, { k: "revisadas", t: "Cantidad revisada" }, { k: "malas", t: "En mal estado" }, { k: "ai", t: "%AI" },
+  { k: "meta", t: "Meta" }, { k: "encima", t: "CDs sobre la meta" }, { k: "dias", t: "Días sobre la meta" }, { k: "peor", t: "CD más alto" }, { k: "sku", t: "SKU revisados" },
+];
+export const CIFRAS_AI_DEF = ["revisiones", "revisadas", "malas", "ai"];
+
+function franja(ctx: Ctx, d: DatosInformeAi, cifras: string[] = CIFRAS_AI_DEF) {
   ctx.fillStyle = ORO; ctx.fillRect(0, 100, W, 84);
-  cifra(ctx, M, "REVISIONES", nf.format(d.total.revisiones), `${d.origenes.length} CD${d.origenes.length === 1 ? "" : "s"} de origen`);
-  cifra(ctx, 340, "CANTIDAD REVISADA", nf.format(d.total.revisadas), "unidades");
-  cifra(ctx, 640, "EN MAL ESTADO", nf.format(d.total.defectos), "unidades");
-  cifra(ctx, 900, "%AI DEL PERÍODO", pc(d.total.indice), "mal estado ÷ revisadas");
+  const peor = [...d.origenes].sort((a, b) => b.indice - a.indice)[0];
+  const encima = d.origenes.filter((o) => o.indice > META_AI).length;
+  const dias = d.dias.filter((x) => x.revisadas > 0);
+  const val: Record<string, [string, string, string]> = {
+    revisiones: ["REVISIONES", nf.format(d.total.revisiones), `${d.origenes.length} CD${d.origenes.length === 1 ? "" : "s"} de origen`],
+    revisadas: ["CANTIDAD REVISADA", nf.format(d.total.revisadas), "unidades"],
+    malas: ["EN MAL ESTADO", nf.format(d.total.defectos), "unidades"],
+    ai: ["%AI DEL PERÍODO", pc(d.total.indice), "mal estado ÷ revisadas"],
+    meta: ["META %AI", pc(META_AI), d.total.indice > META_AI ? `${pc(d.total.indice - META_AI)} por encima` : "el período la cumple"],
+    encima: ["CDs SOBRE LA META", `${encima} de ${d.origenes.length}`, "con %AI mayor que la meta"],
+    dias: ["DÍAS SOBRE LA META", `${dias.filter((x) => x.indice > META_AI).length} de ${dias.length}`, "días con revisiones"],
+    peor: ["CD MÁS ALTO", peor ? pc(peor.indice) : "—", peor ? peor.origen : ""],
+    sku: ["SKU REVISADOS", nf.format(d.envases.length), "referencias de envase"],
+  };
+  const xs = cifras.filter((k) => val[k]);
+  const lista = xs.length ? xs : CIFRAS_AI_DEF;
+  const ancho = (W - 2 * M) / lista.length;
+  const tam = lista.length <= 4 ? 38 : lista.length === 5 ? 32 : lista.length === 6 ? 28 : 24;
+  lista.forEach((k, i) => {
+    const [t, v, sub] = val[k], x0 = M + i * ancho;
+    ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = TINTA; ctx.globalAlpha = 0.8; ctx.font = `700 10.5px ${FUENTE}`; ctx.fillText(t.split("").join("\u200A"), x0, 122); ctx.globalAlpha = 1;
+    ctx.font = `900 ${tam}px ${TITULO}`; ctx.fillText(v, x0, 158, ancho - 14);
+    ctx.globalAlpha = 0.85; ctx.font = `500 12px ${FUENTE}`; ctx.fillText(sub, x0, 176, ancho - 14); ctx.globalAlpha = 1;
+  });
 }
 
 /** El título de una sección con su nota a la derecha y la raya gruesa debajo. Devuelve dónde sigue. */
@@ -95,7 +126,7 @@ const medir = () => { const c = document.createElement("canvas").getContext("2d"
 /* =====================================================================
    PARTE 1 · RESUMEN
    ===================================================================== */
-export function dibujarInformeParte1(d: DatosInformeAi, x: ExtraPareto): HTMLCanvasElement {
+export function dibujarInformeParte1(d: DatosInformeAi, x: ExtraPareto, cifras?: string[]): HTMLCanvasElement {
   const o = [...d.origenes].sort((a, b) => b.indice - a.indice);
   const ro = rankingOrigen(d);
   const RANK = Math.round((W - 2 * M) * (72 / 182));
@@ -108,7 +139,7 @@ export function dibujarInformeParte1(d: DatosInformeAi, x: ExtraPareto): HTMLCan
     + (conTend ? 34 + 22 + TEND + 16 : 0) + 10 + lineasPie * 16 + 22;
   const { cv, ctx } = lienzo(alto);
   banda(ctx, W, x.titulo, x);
-  franja(ctx, d);
+  franja(ctx, d, cifras);
 
   /* %AI POR ORIGEN */
   let y = seccion(ctx, 184 + 34, "%AI por origen (CD) · de mayor a menor", `${o.length} CD${o.length === 1 ? "" : "s"} · su parte del mal estado`);
@@ -143,7 +174,7 @@ export function dibujarInformeParte1(d: DatosInformeAi, x: ExtraPareto): HTMLCan
 /* =====================================================================
    PARTE 2 · PARETOS
    ===================================================================== */
-export function dibujarInformeParte2(d: DatosInformeAi, x: ExtraPareto): HTMLCanvasElement {
+export function dibujarInformeParte2(d: DatosInformeAi, x: ExtraPareto, cifras?: string[]): HTMLCanvasElement {
   const bloques = [
     d.causales.length ? { t: "Pareto por causal · el estado más encontrado", p: d.causales, de: "causales" } : null,
   ].filter(Boolean) as { t: string; p: typeof d.causales; de: string }[];
@@ -155,7 +186,7 @@ export function dibujarInformeParte2(d: DatosInformeAi, x: ExtraPareto): HTMLCan
     + (d.top5.length ? 34 + 22 + 32 + d.top5.length * FILA + 14 + GD + 26 : 0) + 10 + lineasPie * 16 + 22;
   const { cv, ctx } = lienzo(alto);
   banda(ctx, W, x.titulo, x);
-  franja(ctx, d);
+  franja(ctx, d, cifras);
 
   let y = 184;
   if (!bloques.length) { ctx.textAlign = "left"; ctx.fillStyle = GRIS; ctx.font = `500 14px ${FUENTE}`; ctx.fillText("No hay unidades en mal estado en el período.", M, y + 60); y += 120 }
