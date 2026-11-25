@@ -53,7 +53,7 @@ export async function Ag07({ sub, fecha: f, guardado: verGuardado = false }: { s
             hojaDe={inv?.fila ? inv.fila.fecha : base ? base.fecha : null} hojaGuardada={!!inv?.fila}
             inventario={(inv?.fila || base) && zx?.zexi ? cuadreInventario07((inv?.fila?.secciones ?? base!.secciones), zx.zexi.filas, fac?.factores ?? new Map(), new Map(maestro.map((m) => [m.codigo, m.descripcion])), pt?.partidas ?? []) : []}
             guardado={gb} partidas={pt?.partidas ?? []} faltaSqlPartidas={!!pt?.faltaSql} codigos={maestro} />
-        : sub === "control" ? <Control fecha={fecha} hoy={hoy} filas={filas} pendientes={Object.fromEntries(em?.pendientes ?? [])} faltaSql={!!em?.faltaSql} />
+        : sub === "control" ? <Control fecha={fecha} hoy={hoy} filas={filas} pendientes={Object.fromEntries(em?.pendientes ?? [])} faltaSql={!!em?.faltaSql} superadmin={perm.manda} />
         : <Registro productos={pc.productos} corte={pc.corte} hoy={hoy} puedeEditar={perm.puedeEditar(RUTA_CUADRE)} movimientos={mv?.filas ?? []} saldos={Object.fromEntries(s?.saldos ?? [])} />}
     </div>
   );

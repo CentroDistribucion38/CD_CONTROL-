@@ -416,3 +416,48 @@ export async function guardarBalanceoAg07(fecha: string): Promise<{ error?: stri
   refrescar();
   return { ok: true };
 }
+
+/**
+ * SOLO EL SUPERADMINISTRADOR (el rol que «manda»), desde Control: sumar o restar pallets a un código con un ajuste, y si el
+ * código todavía no está en el maestro de Carnaval (p. ej. 412671), crearlo ahí mismo con su descripción, unidades por
+ * pallet y cc. Todo queda como AJUSTE con nota y con quién lo hizo, igual que los demás movimientos (se ve en Registro).
+ */
+export async function movimientoSuperadmin(f: {
+  fecha: string; codigo: string; pallets: number; nota: string;
+  nuevo?: { descripcion: string; und_por_pallet: number; cc: number } | null;
+}): Promise<{ error?: string; ok?: true; creado?: boolean }> {
+  const p = await misPermisos();
+  if (!p.manda) return { error: "Solo el superadministrador puede agregar cantidades o códigos aquí." };
+  if (!esDia(f.fecha)) return { error: "Elige el día del movimiento." };
+  const codigo = String(f.codigo ?? "").trim();
+  if (!/^[0-9A-Za-z-]{3,20}$/.test(codigo)) return { error: "Escribe el código (solo números o letras)." };
+  const pal = Number(f.pallets);
+  if (!Number.isFinite(pal) || pal === 0) return { error: "Escribe los pallets (distinto de cero)." };
+  const nota = (f.nota ?? "").trim();
+  if (nota.length < 3) return { error: "Escribe por qué (la nota del ajuste)." };
+  const pc = await productosYCorte();
+  if (pc.error) return { error: faltaTabla(pc.error) ? SQL_FALTA : pc.error };
+  const supabase = await createClient();
+  let creado = false;
+  if (!pc.productos.some((x) => x.codigo === codigo)) {
+    const n = f.nuevo;
+    if (!n) return { error: `El código ${codigo} no está en el maestro de Carnaval: llena su descripción, unidades por pallet y cc.` };
+    const descripcion = (n.descripcion ?? "").trim(), und = Math.round(Number(n.und_por_pallet)), cc = Math.round(Number(n.cc));
+    if (!descripcion) return { error: "Escribe la descripción del código nuevo." };
+    if (!(und > 0)) return { error: "Las unidades por pallet deben ser mayores que cero." };
+    if (!(cc > 0)) return { error: "El cc (contenido en ml) debe ser mayor que cero." };
+    const orden = pc.productos.reduce((m, x) => Math.max(m, x.orden), 0) + 1;
+    const { error } = await supabase.from("carnaval_productos").insert({ codigo, descripcion, und_por_pallet: und, cc, orden });
+    if (error) return { error: /row-level security|permission denied/i.test(error.message) ? "Falta correr supabase/migraciones/2026-11-carnaval-superadmin.sql en Supabase." : error.message };
+    creado = true;
+  }
+  if (pal < 0) {
+    const s = await saldosA("9999-12-31");
+    const hay = s.saldos.get(codigo) ?? 0;
+    if (hay + pal < 0) return { error: `No alcanza: hay ${redondear(hay)} pallets de ${codigo} y se quieren restar ${redondear(-pal)}.` };
+  }
+  const { error } = await supabase.from("carnaval_movimientos").insert({ fecha: f.fecha, tipo: "AJUSTE", codigo, pallets: pal, nota: `Superadmin: ${nota}` });
+  if (error) return { error: faltaTabla(error.message) ? SQL_FALTA : error.message };
+  refrescar();
+  return { ok: true, creado };
+}
