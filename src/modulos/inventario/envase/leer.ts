@@ -29,6 +29,8 @@ export type PlanLeido = {
   archivo: string; total_hl: number; filas: FilaPlan[]; especifico: Especifico[]; sinSku: string[];
   /** Total del «Pendiente por envasar específico», para comprobar que la rejilla se leyó entera. */
   totalEspecifico: number;
+  /** Lo que la validación por HL cambió («TREN-5 «CC» → 5252 …») y lo que sigue sin cuadrar por SKU. */
+  corregidas: string[]; descuadres: string[];
 };
 
 /** La hora del archivo sale del nombre (…_2026-11-18_21.40.13.xlsx); si no la trae, de la fecha del archivo. */
@@ -66,6 +68,80 @@ export function resolverSku(etiqueta: string, formato: string | null, cand: Espe
     return p;
   };
   return [...pool].sort((a, b) => puntos(b) - puntos(a))[0].sku;
+}
+
+/**
+ * VALIDAR POR HL. La etiqueta de la rejilla no siempre dice el SKU («CC», «Pok330», «PM»), pero el mismo Excel lo cuadra:
+ * «Pendiente por envasar específico» trae cuántos HL tiene cada SKU en cada tren, y la rejilla es exactamente ese pendiente.
+ * Cada etiqueta sin su SAP (un tren, una etiqueta, un formato) es un bloque con su total de HL; se busca qué SKU del mismo
+ * tren y formato le corresponde para que, por SKU, la rejilla sume lo mismo que el específico. «TREN-5 «CC» = 1083 HL» →
+ * 5252 Club Col Lta (1083), no 16466 Austen. Las etiquetas que traen su SAP («Cos 20867», «23223») no se tocan.
+ * Si no hay una asignación que cuadre mejor que la del nombre, se deja la del nombre. Devuelve lo cambiado y lo que no cuadra.
+ */
+function validarPorHL(filas: FilaPlan[], especifico: Especifico[]): { corregidas: string[]; descuadres: string[] } {
+  const corregidas: string[] = [], descuadres: string[] = [];
+  const n0 = (x: number) => Math.round(x).toLocaleString("es-CO");
+  for (const tren of [...new Set(filas.map((f) => f.tren))]) {
+    const cand = especifico.filter((e) => e.tren === tren);
+    if (!cand.length) continue;
+    const mias = filas.filter((f) => f.tren === tren);
+    type Bloque = { etiqueta: string; ml: number | null; ref: number | null; hl: number; sku: string | null; filas: FilaPlan[]; opciones: string[] };
+    const bloques = new Map<string, Bloque>();
+    const fija = new Map<string, number>();
+    for (const f of mias) {
+      const conSap = (f.etiqueta.match(/\d{3,6}/g) ?? []).some((n) => n === f.sku && cand.some((c) => c.sku === n));
+      if (conSap && f.sku) { fija.set(f.sku, (fija.get(f.sku) ?? 0) + f.hl); continue }
+      const k = `${f.etiqueta}|${f.formato_ml}|${f.referencia}`;
+      const b = bloques.get(k) ?? { etiqueta: f.etiqueta, ml: f.formato_ml, ref: f.referencia, hl: 0, sku: f.sku, filas: [], opciones: [] };
+      b.hl += f.hl; b.filas.push(f); bloques.set(k, b);
+    }
+    const lista = [...bloques.values()];
+    for (const b of lista) {
+      const mismo = cand.filter((c) => (!b.ml || c.ml === b.ml) && (!b.ref || c.ref === b.ref)).map((c) => c.sku);
+      b.opciones = mismo.length ? mismo : cand.map((c) => c.sku);
+    }
+    const error = (asig: (string | null)[]) => {
+      const suma = new Map(fija);
+      asig.forEach((sku, i) => { if (sku) suma.set(sku, (suma.get(sku) ?? 0) + lista[i].hl) });
+      let e = 0;
+      for (const c of cand) e += Math.abs((suma.get(c.sku) ?? 0) - c.hl);
+      for (const [sku, v] of suma) if (!cand.some((c) => c.sku === sku)) e += v;
+      return e;
+    };
+    const actual = lista.map((b) => b.sku);
+    let mejor = actual, eMejor = error(actual);
+    const combos = lista.reduce((x, b) => x * b.opciones.length, 1);
+    if (lista.length && eMejor > 1 && combos <= 200000) {
+      const asig: string[] = [];
+      const probar = (i: number) => {
+        if (i === lista.length) {
+          const e = error(asig);
+          /* Gana la que menos descuadra; a igual descuadre, la que más se parece a la del nombre. */
+          const cambios = asig.filter((s, j) => s !== actual[j]).length, cambiosMejor = mejor.filter((s, j) => s !== actual[j]).length;
+          if (e < eMejor - 0.5 || (Math.abs(e - eMejor) <= 0.5 && cambios < cambiosMejor)) { mejor = [...asig]; eMejor = e }
+          return;
+        }
+        for (const o of lista[i].opciones) { asig[i] = o; probar(i + 1) }
+      };
+      probar(0);
+    }
+    mejor.forEach((sku, i) => {
+      const b = lista[i];
+      if (!sku || sku === b.sku) return;
+      const e = cand.find((c) => c.sku === sku)!;
+      for (const f of b.filas) {
+        f.sku = sku; f.nombre = e.nombre; f.formato_ml = e.ml || f.formato_ml; f.referencia = e.ref || f.referencia;
+        f.unidades = f.formato_ml ? Math.round((f.hl * 1e5) / f.formato_ml) : null;
+      }
+      corregidas.push(`${tren} «${b.etiqueta}» (${n0(b.hl)} HL) → ${sku} ${e.nombre}${b.sku ? ` (por nombre salía ${b.sku})` : ""}`);
+    });
+    /* Lo que sigue sin cuadrar, SKU por SKU. */
+    const suma = new Map<string, number>();
+    for (const f of mias) if (f.sku) suma.set(f.sku, (suma.get(f.sku) ?? 0) + f.hl);
+    for (const c of cand) { const r = suma.get(c.sku) ?? 0; if (Math.abs(r - c.hl) > 1) descuadres.push(`${tren} · ${c.sku} ${c.nombre}: rejilla ${n0(r)} HL, específico ${n0(c.hl)} HL`) }
+    for (const [sku, r] of suma) if (!cand.some((c) => c.sku === sku)) descuadres.push(`${tren} · ${sku}: ${n0(r)} HL en la rejilla y no está en el específico`);
+  }
+  return { corregidas, descuadres };
 }
 
 /** Celdas combinadas de la hoja, en coordenadas de R (fila, columna): para repartir el HL de un turno entre sus horas. */
@@ -138,12 +214,13 @@ function leerHoja(R: Celda[][], hoja: string, archivo: string, generado: string,
     i += 3;
   }
   if (!filas.length) return null;
+  const { corregidas, descuadres } = validarPorHL(filas, especifico);
   const fechas = filas.map((f) => f.fecha).sort();
   const lunes = dias.get(c0)!;
   const sem = Number(hoja.match(/\d+/)?.[0] ?? 0);
   return {
     hoja, anio: Number(lunes.slice(0, 4)), semana: sem, lunes, desde: fechas[0], hasta: masDias(lunes, cols.length - 1),
-    generado, archivo, total_hl: filas.reduce((a, f) => a + f.hl, 0), filas, especifico, sinSku: [...sinSku], totalEspecifico,
+    generado, archivo, total_hl: filas.reduce((a, f) => a + f.hl, 0), filas, especifico, sinSku: [...sinSku], totalEspecifico, corregidas, descuadres,
   };
 }
 

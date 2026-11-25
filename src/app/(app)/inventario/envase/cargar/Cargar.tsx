@@ -138,7 +138,7 @@ export function Cargar({ existentes, puedeCargar }: { existentes: Existente[]; p
               const trenes = [...new Set(p.filas.map((f) => f.tren.replace(/^TREN-?/i, "")))].join(", ");
               const skus = new Set(p.filas.map((f) => f.sku).filter(Boolean)).size;
               return (
-                <section key={l.id} className={`pe-card pe-lc lc-${!cuadra || p.sinSku.length ? "mal" : pp.c}`}>
+                <section key={l.id} className={`pe-card pe-lc lc-${!cuadra || p.sinSku.length || p.descuadres?.length ? "mal" : pp.c}`}>
                   <h4><span className="pe-tag t-n">{pp.t}</span>{p.hoja}
                     <label><input type="checkbox" checked={l.incluir} onChange={() => marcar(l.id)} /> guardar</label></h4>
                   <p className="f">{l.nombre}</p>
@@ -149,7 +149,16 @@ export function Cargar({ existentes, puedeCargar }: { existentes: Existente[]; p
                     <dt>Trenes · SKU</dt><dd>{trenes} · {skus}</dd>
                     <dt>Total</dt><dd>{n0(p.total_hl)} HL</dd>
                     <dt>Cuadre</dt><dd className={cuadra ? "bien" : "mal"}>{cuadra ? "= pendiente específico ✓" : `rejilla ${n0(p.total_hl)} ≠ ${n0(p.totalEspecifico)} HL`}</dd>
+                    <dt>Por SKU</dt><dd className={p.descuadres?.length ? "mal" : "bien"}>{p.descuadres?.length ? `${p.descuadres.length} SKU no cuadran` : "cada SKU = su HL del específico ✓"}</dd>
                   </dl>
+                  {(p.corregidas?.length ?? 0) > 0 && (
+                    <details className="pe-aviso"><summary>{p.corregidas.length} etiqueta{p.corregidas.length > 1 ? "s" : ""} sin código: el SKU salió por sus HL</summary>
+                      <ul>{p.corregidas.map((c) => <li key={c}>{c}</li>)}</ul></details>
+                  )}
+                  {(p.descuadres?.length ?? 0) > 0 && (
+                    <details className="pe-error" open><summary>No cuadran con el «Pendiente por envasar específico»</summary>
+                      <ul>{p.descuadres.map((c) => <li key={c}>{c}</li>)}</ul></details>
+                  )}
                   {p.sinSku.length > 0 && <p className="pe-error">No supe a qué SKU va: {p.sinSku.join(" · ")}</p>}
                   <p className={pp.c === "av" ? "pe-aviso" : "pe-ok"}>{pp.txt}{pp.repite ? " Ya estaba cargado: se reemplaza." : ""}</p>
                 </section>
