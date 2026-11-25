@@ -39,6 +39,8 @@ export type FilaBaja = {
   destino: "inventario" | "baja" | "registro";
   /** La nota que la dejó en «solo registro», tal como vino en el Excel. */
   nota: string | null;
+  /** La regla que decidió a dónde va (su texto), «no haga nada» o null si no cayó en ninguna (suma al inventario). */
+  regla: string | null;
   /** Identifica la fila para no sumarla dos veces si se importa el mismo archivo otra vez. */
   llave: string;
 };
@@ -90,6 +92,48 @@ export function notaSoloRegistro(fila: unknown[]): string | null {
   return null;
 }
 
+/* ------------------------------------------------------------------ REGLAS DE TEXTOS (parametrizables) */
+
+/**
+ * LAS REGLAS DE TEXTOS — «qué textos suman o no al casco, y a qué; que pueda agregar, editar o modificar».
+ * Se guardan en `casco_reglas_texto` y se editan en Registrar › Baja › «Reglas de textos». Se revisan en orden y gana la
+ * primera que cuadra; si ninguna cuadra, la fila SUMA al inventario. La nota «NO HAGA NADA» en cualquier celda gana a todas.
+ *   patron  = las palabras que tiene que traer (todas, en cualquier orden, sin importar tildes ni mayúsculas). Una palabra de
+ *             1 o 2 letras va completa («C» en «ESTIBAS TIPO C»); las demás pueden ser el comienzo («OBSOLET» → obsoleto/a).
+ *   busca   = solo en el texto del documento, o también en la descripción del material.
+ *   destino = inventario (suma) · baja (resta en la columna «… con baja» del almacén) · registro (no mueve nada).
+ */
+export type DestinoRegla = "inventario" | "baja" | "registro";
+export type ReglaTexto = { id?: string; patron: string; busca: "texto" | "texto_desc"; destino: DestinoRegla; orden: number; activo: boolean; nota?: string | null };
+/** Las de siempre: las que valen si la tabla todavía no existe (y con las que se llena la primera vez). */
+export const REGLAS_BASE: ReglaTexto[] = [
+  { patron: "ROTURA MAQUINA", busca: "texto", destino: "registro", orden: 10, activo: true },
+  { patron: "AJUSTE INV", busca: "texto", destino: "registro", orden: 20, activo: true },
+  { patron: "OBSOLET", busca: "texto_desc", destino: "registro", orden: 30, activo: true },
+  { patron: "ESTIBA TIPO C", busca: "texto_desc", destino: "registro", orden: 40, activo: true },
+  { patron: "LAVADO", busca: "texto", destino: "baja", orden: 50, activo: true },
+  { patron: "EXTRASUCIO", busca: "texto", destino: "baja", orden: 60, activo: true },
+];
+export const NOMBRE_DESTINO: Record<DestinoRegla, string> = { inventario: "Suma al inventario", baja: "Resta en «… con baja»", registro: "Solo registro (no mueve)" };
+
+const palabras = (t: string) => sinAcento(t).replace(/[^A-Z0-9Ñ ]/g, " ").split(/\s+/).filter(Boolean);
+/** ¿El texto cuadra con el patrón? Todas las palabras del patrón tienen que estar. */
+export function cuadraPatron(texto: string, patron: string): boolean {
+  const ps = palabras(patron);
+  if (!ps.length) return false;
+  const ws = palabras(texto);
+  return ps.every((p) => p.length <= 2 ? ws.includes(p) : ws.some((w) => w.startsWith(p)));
+}
+/** La primera regla activa que cuadra con el texto (y la descripción, si la regla mira también ahí). */
+export function reglaDe(texto: string, descripcion: string, reglas: ReglaTexto[]): ReglaTexto | null {
+  for (const r of [...reglas].filter((x) => x.activo && x.patron.trim()).sort((a, b) => a.orden - b.orden)) {
+    if (cuadraPatron(r.busca === "texto_desc" ? `${texto} ${descripcion}` : texto, r.patron)) return r;
+  }
+  return null;
+}
+/** La nota con que se guarda una fila que una regla deja en solo registro (la base la reconoce por «solo registro»). */
+export const notaDeRegla = (r: ReglaTexto) => `${r.patron.trim().toUpperCase()} · solo registro (no mueve el kárdex)`;
+
 /** Fecha de una celda de Excel: número de serie, Date o texto (2026-09-24 · 24/09/2026). */
 export function fechaDeCelda(v: unknown): string | null {
   if (v instanceof Date && !Number.isNaN(v.getTime())) {
@@ -122,7 +166,7 @@ const numero = (v: unknown): number | null => {
  * `filas` = la hoja como matriz (xlsx `sheet_to_json(ws, { header: 1, raw: true })`).
  * Busca la fila de encabezados (la que tiene «Material» y «Cantidad») y lee desde ahí.
  */
-export function leerBaja(filas: unknown[][], hoja: string | null = null): LecturaBaja {
+export function leerBaja(filas: unknown[][], hoja: string | null = null, reglas: ReglaTexto[] = REGLAS_BASE): LecturaBaja {
   const vacio = (error: string): LecturaBaja => ({ hoja, filas: [], descartadas: [], error });
   let h = -1;
   for (let i = 0; i < Math.min(filas.length, 20); i++) {
@@ -190,13 +234,15 @@ export function leerBaja(filas: unknown[][], hoja: string | null = null): Lectur
 
     const desc = cDesc >= 0 ? String(r[cDesc] ?? "").trim() : "";
     /* OBSOLETO y ESTIBAS TIPO C se buscan en el texto del documento y en la descripción del material. */
-    const dicen = `${texto} ${desc}`;
-    const nota = notaSoloRegistro(r) ?? (esRoturaMaquina(texto) ? NOTA_ROTURA_MAQUINA : esAjusteInv(texto) ? NOTA_AJUSTE_INV
-      : esObsoleto(dicen) ? NOTA_OBSOLETO : esEstibaTipoC(dicen) ? NOTA_ESTIBA_TIPO_C : null);
+    /* «NO HAGA NADA» gana; si no, la primera regla de textos que cuadre; si ninguna, suma al inventario. */
+    const noHaga = notaSoloRegistro(r);
+    const regla = noHaga ? null : reglaDe(texto, desc, reglas);
+    const nota = noHaga ?? (regla?.destino === "registro" ? notaDeRegla(regla) : null);
     out.push({
-      fila: n, nota, fecha, centro, sku, descripcion: cDesc >= 0 ? String(r[cDesc] ?? "").trim() : "",
+      fila: n, nota, fecha, centro, sku, descripcion: desc,
       unidades, texto, documento, clase: cClase >= 0 ? String(r[cClase] ?? "").trim() : "",
-      destino: nota ? "registro" : destinoDeTexto(texto), llave: `${base}|${k}`,
+      destino: nota ? "registro" : regla?.destino ?? "inventario", llave: `${base}|${k}`,
+      regla: noHaga ? "NO HAGA NADA" : regla?.patron ?? null,
     });
   }
   if (!out.length && !descartadas.length) return vacio("La hoja no trae filas debajo de los encabezados.");

@@ -6,7 +6,8 @@ import * as XLSX from "xlsx";
 import { createClient } from "@/lib/supabase/client";
 import { useConfirmar } from "@/components/Confirmar";
 import { traducirError } from "@/lib/errores";
-import { hojaBaja, leerBaja, type FilaBaja, type LecturaBaja } from "@/modulos/casco/baja";
+import { NOMBRE_DESTINO, REGLAS_BASE, hojaBaja, leerBaja, type FilaBaja, type LecturaBaja, type ReglaTexto } from "@/modulos/casco/baja";
+import { ReglasTexto } from "./ReglasTexto";
 import type { MaterialCasco, SitioCasco } from "@/modulos/casco/datos";
 import { Cuadre } from "./Cuadre";
 
@@ -79,6 +80,20 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
   const [falla, setFalla] = useState<string | null>(null);
   /* UNA HOJA A LA VEZ: subir el archivo, los archivos subidos o las bajas registradas. */
   const [hoja, setHoja] = useState<"subir" | "archivos" | "bajas" | "exportar">("subir");
+  /* LAS REGLAS DE TEXTOS (casco_reglas_texto): deciden a dónde va cada fila. Si la tabla no existe, las de siempre. */
+  const [reglas, setReglas] = useState<ReglaTexto[]>(REGLAS_BASE);
+  const [faltaReglas, setFaltaReglas] = useState(false);
+  const [verReglas, setVerReglas] = useState(false);
+  const [crudo, setCrudo] = useState<{ matriz: unknown[][]; nombre: string } | null>(null);
+  useEffect(() => {
+    void (async () => {
+      const { data, error } = await supabase.from("casco_reglas_texto").select("*").order("orden");
+      if (error) { setFaltaReglas(true); return }
+      if (data?.length) setReglas(data as ReglaTexto[]);
+    })();
+  }, [supabase]);
+  /* Si cambian las reglas con un archivo abierto, se vuelve a decidir a dónde va cada fila. */
+  useEffect(() => { if (crudo) setLectura(leerBaja(crudo.matriz, crudo.nombre, reglas)) }, [reglas]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const dato = useMemo(() => Object.fromEntries(materiales.map((m) => [m.sku, m])), [materiales]);
   const sinCentros = sitios.length > 0 && sitios.every((s) => !s.centro);
@@ -127,7 +142,8 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
         return;
       }
       const matriz = XLSX.utils.sheet_to_json<unknown[]>(libro.Sheets[nombre], { header: 1, raw: true, defval: null });
-      const l = leerBaja(matriz, nombre);
+      const l = leerBaja(matriz, nombre, reglas);
+      setCrudo({ matriz, nombre });
       setLectura(l);
       if (l.filas.length) await consultarYa(l.filas);
     } catch (e) {
@@ -173,6 +189,18 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
   }, [aplicables]);
 
 
+  /* LOS TEXTOS DEL ARCHIVO: cada texto distinto, a dónde va, por qué regla, y cuánto suma o resta. */
+  const textos = useMemo(() => {
+    const m = new Map<string, { texto: string; destino: FilaBaja["destino"]; regla: string | null; filas: number; unidades: number; estibas: number }>();
+    for (const v of vista) {
+      const k = `${v.texto}|${v.destino}|${v.regla ?? ""}`;
+      const x = m.get(k) ?? { texto: v.texto, destino: v.destino, regla: v.regla, filas: 0, unidades: 0, estibas: 0 };
+      x.filas++; x.unidades += v.unidades; x.estibas += v.estibas ?? 0;
+      m.set(k, x);
+    }
+    return [...m.values()].sort((a, b) => b.unidades - a.unidades);
+  }, [vista]);
+
   /* ---------- APLICAR ---------- */
   const aplicar = async () => {
     if (!aplicables.length || aplicando) return;
@@ -194,7 +222,7 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
       p_leidas: (lectura?.filas.length ?? 0) + (lectura?.descartadas.length ?? 0),
       p_filas: aplicables.map((v) => ({
         fecha: v.fecha, centro: v.centro, sku: v.sku, unidades: v.unidades, texto: v.texto,
-        documento: v.documento, clase: v.clase, llave: v.llave, nota: v.nota,
+        documento: v.documento, clase: v.clase, llave: v.llave, nota: v.nota, destino: v.destino,
       })),
     });
     setAplicando(false);
@@ -308,7 +336,7 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
   }, [archivos, fa]);
 
   const limpiar = () => {
-    setLectura(null); setArchivo(null); setResultado(null); setAviso(null);
+    setLectura(null); setCrudo(null); setArchivo(null); setResultado(null); setAviso(null);
     if (entrada.current) entrada.current.value = "";
   };
 
@@ -356,15 +384,20 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
             </div>
             <a className="btn" href={`/inventario/casco/registrar/plantilla?fecha=${hoy}`} download title={`Excel de la hoja Baja con la fecha de hoy (${corto(hoy)}) ya puesta`}>Descargar plantilla de hoy</a>
             {archivo && <button type="button" className="btn" onClick={limpiar} disabled={aplicando}>Quitar archivo</button>}
+            <button type="button" className="btn reg-btn-reglas" onClick={() => setVerReglas(true)} title="Qué textos suman, restan o solo quedan en el registro">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0" /><circle cx="16" cy="6" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="18" r="2" /></svg>
+              Reglas de textos</button>
           </div>
           <details className="reg-reglas">
             <summary>Cómo se aplica cada fila</summary>
             <ul className="reg-regla">
-              <li>El <b>Texto cab.documento</b> manda: «BAJA LAVADO» se <b>resta</b> en <b>Lavado con baja</b> y «BAJA EXTRASUCIO» en <b>Extrasucio con baja</b>.</li>
-              <li>Si el texto dice <b>«AJUSTE INV»</b>, «ROTURA DE MÁQUINA» u <b>«OBSOLETO»</b>, o habla de <b>«ESTIBAS TIPO C»</b> (en el texto o en la descripción del material), la fila <b>se registra y queda como solo registro</b>: <b>ni se suma ni se resta</b> en Control.</li>
-              <li>Cualquier otro texto (sorting, presorting…) se <b>suma al inventario</b> del almacén de la fila.</li>
-              <li>Si en la fila alguien escribió <b>«NO HAGA NADA»</b> (por ejemplo «QUEDE EN EL REGISTRO - NO HAGA NADA EN EL KARDEX»), la fila <b>queda en el registro</b> pero <b>no mueve</b> el inventario ni la columna de baja.</li>
+              <li>Si en la fila alguien escribió <b>«NO HAGA NADA»</b>, la fila <b>queda en el registro</b> y no mueve nada (siempre gana).</li>
+              {[...reglas].filter((r) => r.activo).sort((x, y) => x.orden - y.orden).map((r) => (
+                <li key={r.id ?? r.patron}>Si el texto{r.busca === "texto_desc" ? " o la descripción" : ""} dice <b>«{r.patron}»</b> → <b>{NOMBRE_DESTINO[r.destino]}</b>.</li>
+              ))}
+              <li>Cualquier otro texto (sorting, presorting…) → <b>{NOMBRE_DESTINO.inventario}</b> del almacén de la fila.</li>
               <li>Cada fila va a la tabla de su <b>Almacén</b>, en el día de Control escogido. Las unidades se dividen por las botellas por estiba del maestro.</li>
+              <li><button type="button" className="reg-link" onClick={() => setVerReglas(true)}>Cambiar las reglas de textos</button></li>
             </ul>
           </details>
           {!puedeEditar && <p className="cas-nota">Tu rol puede ver las bajas pero no registrarlas.</p>}
@@ -394,6 +427,25 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
                   {conProblema.length} fila{conProblema.length === 1 ? "" : "s"} no se pueden aplicar todavía (están en rojo abajo).
                   Completa el maestro o la tabla y vuelve a importar el mismo archivo: lo que ya entró no se suma otra vez.
                 </p>
+              )}
+
+              {textos.length > 0 && (
+                <div className="reg-textos">
+                  <div className="reg-textos-cab"><b>Textos del archivo</b><span>qué hace cada uno con estas reglas</span>
+                    <button type="button" className="btn" onClick={() => setVerReglas(true)}>Reglas de textos</button></div>
+                  <table className="cas-tabla">
+                    <thead><tr><th>Texto</th><th>Va a</th><th>Por la regla</th><th className="n">Filas</th><th className="n">Unidades</th><th className="n">Estibas</th></tr></thead>
+                    <tbody>{textos.map((t) => (
+                      <tr key={t.texto + t.destino}>
+                        <td className="tex"><b>{t.texto || "(sin texto)"}</b></td>
+                        <td><span className={"reg-etq" + (t.destino === "baja" ? " baja" : t.destino === "registro" ? " solo" : "")}>{NOMBRE_DESTINO[t.destino]}</span></td>
+                        <td>{t.regla ? `«${t.regla}»` : <i className="reg-gris">ninguna · suma</i>}</td>
+                        <td className="n">{nf0.format(t.filas)}</td><td className="n">{nf0.format(t.unidades)}</td>
+                        <td className="n est">{t.destino === "registro" ? "0" : (t.destino === "baja" ? "−" : "+") + nf2.format(t.estibas)}</td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                </div>
               )}
 
               {porSitio.length > 0 && (
@@ -622,6 +674,7 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
 
       {/* LA VALIDACIÓN «AYER + BAJAS = HOY», en pantalla y para bajar a Excel. */}
       {hoja === "exportar" && <Cuadre sitios={sitios} materiales={materiales} hoy={hoy} />}
+      {verReglas && <ReglasTexto reglas={reglas} puedeEditar={puedeEditar} falta={faltaReglas} cerrar={() => setVerReglas(false)} guardadas={setReglas} />}
     </>
   );
 }
