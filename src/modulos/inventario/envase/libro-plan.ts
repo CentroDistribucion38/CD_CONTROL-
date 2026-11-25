@@ -23,6 +23,8 @@ const raya = (argb = RAYA, style: ExcelJS.BorderStyle = "thin"): ExcelJS.Border 
 export type FilaLibroPlan = { sku: string; nombre: string; tren: string; ini: (number | null)[]; vig: (number | null)[] };
 export type InsumosLibroPlan = {
   semana: number | null; desde: string; hasta: string;
+  /** «Semana 48», «Miércoles 25 nov», «23 nov – 2 dic»: el título del periodo. */
+  periodo?: string;
   /** «Lun 23» … y de dónde sale cada día («corte 25 nov 09:17», «inicial»). */
   dias: string[]; fechas: string[]; fuente: (string | null)[];
   vista: "vigente" | "inicial" | "cambios"; unidad: string; decimales: number;
@@ -57,7 +59,7 @@ async function cargarLogo(wb: ExcelJS.Workbook): Promise<number | null> {
 function banda(h: ExcelJS.Worksheet, ancho: number, titulo: string, sub: string, logo: number | null) {
   for (let f = 1; f <= 4; f++) for (let c = 1; c <= ancho; c++) h.getRow(f).getCell(c).fill = relleno(TINTA);
   h.getRow(1).height = 16; h.getRow(2).height = 30; h.getRow(3).height = 16; h.getRow(4).height = 8;
-  const o = h.getCell(1, 1); o.value = "INVENTARIO · PLAN VS NOTIFICADO · PLAN DE LA SEMANA"; o.font = letra(8.5, BANDA, true); o.alignment = { vertical: "bottom", indent: 1 };
+  const o = h.getCell(1, 1); o.value = "INVENTARIO · PLAN VS NOTIFICADO · PLAN"; o.font = letra(8.5, BANDA, true); o.alignment = { vertical: "bottom", indent: 1 };
   const t = h.getCell(2, 1); t.value = titulo; t.font = letra(20, BLANCO, true); t.alignment = { vertical: "middle", indent: 1 };
   const s = h.getCell(3, 1); s.value = sub; s.font = letra(9, GRIS_CLARO); s.alignment = { indent: 1 };
   const r5 = h.getRow(5); r5.height = 4;
@@ -90,7 +92,7 @@ export async function armarLibroPlan(d: InsumosLibroPlan): Promise<ArrayBuffer> 
   const cmb = d.vista === "cambios";
   const val = (f: FilaLibroPlan, i: number) => cmb ? ((f.vig[i] ?? 0) - (f.ini[i] ?? 0)) : (d.vista === "inicial" ? f.ini : f.vig)[i] ?? 0;
   const suma = (xs: (number | null)[]) => xs.reduce<number>((a, x) => a + (x ?? 0), 0);
-  const sem = d.semana ? `Semana ${d.semana}` : "Semana";
+  const sem = d.periodo || (d.semana ? `Semana ${d.semana}` : "Periodo");
   const nomVista = d.vista === "inicial" ? "Plan inicial" : d.vista === "cambios" ? "Qué cambió (vigente − inicial)" : "Plan vigente";
   const sub = `${fechaLarga(d.desde)} – ${fechaLarga(d.hasta)} · en ${d.unidad} · exportado el ${cuando()}`;
 
@@ -107,7 +109,7 @@ export async function armarLibroPlan(d: InsumosLibroPlan): Promise<ArrayBuffer> 
 
   /* ============================== 1 · PLAN ============================== */
   {
-    const h = wb.addWorksheet(`Plan ${d.semana ?? ""}`.trim(), { properties: { tabColor: { argb: BANDA }, outlineProperties: { summaryBelow: false, summaryRight: true } } });
+    const h = wb.addWorksheet("Plan", { properties: { tabColor: { argb: BANDA }, outlineProperties: { summaryBelow: false, summaryRight: true } } });
     const ancho = 2 + nd + 2;
     h.columns = [{ width: 11 }, { width: 40 }, ...d.dias.map(() => ({ width: 12.5 })), { width: 14 }, { width: 11 }];
     banda(h, ancho, `${nomVista} · ${sem}`, sub, logo);
@@ -118,14 +120,14 @@ export async function armarLibroPlan(d: InsumosLibroPlan): Promise<ArrayBuffer> 
     h.getRow(6).height = 8;
     const tramos: [number, number][] = [[1, 2], [3, 4 + (nd > 6 ? 1 : 0)], [5 + (nd > 6 ? 1 : 0), 7 + (nd > 6 ? 1 : 0)], [8 + (nd > 6 ? 1 : 0), ancho]];
     if (cmb) {
-      cifra(h, 7, ...tramos[0], "Variación de la semana", `${varSem > 0 ? "+" : ""}${fmtTxt(varSem)} ${d.unidad}`, "vigente − inicial", varSem < 0 ? ROJO : VERDE);
+      cifra(h, 7, ...tramos[0], "Variación total", `${varSem > 0 ? "+" : ""}${fmtTxt(varSem)} ${d.unidad}`, "vigente − inicial", varSem < 0 ? ROJO : VERDE);
       cifra(h, 7, ...tramos[1], "SKU que cambiaron", String(cambian.length), `de ${d.filas.length} SKU de la semana`);
     } else {
-      cifra(h, 7, ...tramos[0], d.vista === "inicial" ? "Plan inicial de la semana" : "Plan de la semana", `${fmtTxt(totSem)} ${d.unidad}`, `${filas.length} SKU en ${trenes.length} líneas`);
+      cifra(h, 7, ...tramos[0], d.vista === "inicial" ? "Plan inicial" : "Plan vigente", `${fmtTxt(totSem)} ${d.unidad}`, `${filas.length} SKU en ${trenes.length} líneas`);
       cifra(h, 7, ...tramos[1], "Día más cargado", d.dias[iMax] ?? "—", `${fmtTxt(totDia[iMax] ?? 0)} ${d.unidad}`, VERDE);
     }
     cifra(h, 7, ...tramos[2], "Línea más cargada", tMax ? linea(tMax.t) : "—", tMax ? `${fmtTxt(tMax.v)} ${d.unidad}` : "");
-    cifra(h, 7, ...tramos[3], "Cambió contra el inicial", `${cambian.length} SKU`, `${varSem > 0 ? "+" : ""}${fmtTxt(varSem)} ${d.unidad} en la semana`, cambian.length ? ROJO : VERDE);
+    cifra(h, 7, ...tramos[3], "Cambió contra el inicial", `${cambian.length} SKU`, `${varSem > 0 ? "+" : ""}${fmtTxt(varSem)} ${d.unidad}`, cambian.length ? ROJO : VERDE);
     for (let f = 7; f <= 9; f++) h.getRow(f).height = f === 8 ? 26 : 15;
     h.getRow(10).height = 10;
 
@@ -133,7 +135,7 @@ export async function armarLibroPlan(d: InsumosLibroPlan): Promise<ArrayBuffer> 
     const H = 11;
     const r1 = h.getRow(H), r2 = h.getRow(H + 1);
     r1.height = 24; r2.height = 14;
-    const tit = ["SKU", "Descripción", ...d.dias, "Semana", "% semana"];
+    const tit = ["SKU", "Descripción", ...d.dias, nd === 1 ? "Día" : "Total", "% del total"];
     tit.forEach((t, i) => {
       const a = r1.getCell(i + 1), b = r2.getCell(i + 1);
       a.value = t; a.font = letra(10, BLANCO, true); a.fill = relleno(TINTA); b.fill = relleno(TINTA);
@@ -230,7 +232,7 @@ export async function armarLibroPlan(d: InsumosLibroPlan): Promise<ArrayBuffer> 
     h.columns = [{ width: 11 }, { width: 40 }, ...d.dias.map(() => ({ width: 11.5 })), { width: 13 }, { width: 13 }, { width: 13 }];
     banda(h, ancho, `Qué cambió del inicial al vigente · ${sem}`, `${cambian.length} SKU con cambios · ${sub}`, logo);
     const H = 7, r0 = h.getRow(H); r0.height = 26;
-    ["SKU", "Descripción", ...d.dias, "Inicial semana", "Vigente semana", "Variación"].forEach((t, i) => {
+    ["SKU", "Descripción", ...d.dias, "Inicial total", "Vigente total", "Variación"].forEach((t, i) => {
       const x = r0.getCell(i + 1); x.value = t; x.font = letra(9.5, BLANCO, true); x.fill = relleno(TINTA);
       x.alignment = { vertical: "middle", horizontal: i < 2 ? "left" : "center", wrapText: true, indent: i < 2 ? 1 : 0 };
     });

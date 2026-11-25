@@ -1,0 +1,70 @@
+/* ===== PLAN · día / rango / semana: línea de tiempo por tren + matriz por línea ===== */
+.pe .pv-barra { flex-wrap: wrap }
+.pe .pv-rango { display: flex; align-items: center; gap: 6px }
+.pe .pv-rango input { height: 38px; padding: 0 8px; border: 1px solid var(--fe-linea); background: var(--fe-papel); color: var(--fe-tinta); font: 600 13px var(--fe-texto); border-radius: 0 }
+.pe .pv-rango i { font-style: normal; color: var(--fe-gris) }
+.pe .pv-fl { width: 36px; border: 0; background: none; color: var(--fe-tinta); font: 700 18px var(--fe-texto); cursor: pointer }
+.pe .pv-fl:hover { background: color-mix(in srgb, var(--fe-acento) 14%, var(--fe-papel)) }
+.pe .pv-dia { position: relative; display: flex; align-items: center; padding: 0 12px; border-left: 1px solid var(--fe-linea); border-right: 1px solid var(--fe-linea); cursor: pointer }
+.pe .pv-dia b { font: 700 13.5px var(--fe-texto); white-space: nowrap }
+.pe .pv-dia input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100% }
+
+/* Cifras */
+.pe .pv-cifras { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 14px 0 }
+.pe .pv-cif { background: var(--fe-papel); border: 1px solid var(--fe-linea); border-bottom: 4px solid #F5B800; padding: 12px 16px; min-width: 0 }
+.pe .pv-cif.v { border-bottom-color: #12805C } .pe .pv-cif.r { border-bottom-color: #C8102E }
+.pe .pv-cif span { display: block; font: 700 10.5px var(--fe-texto); letter-spacing: .14em; text-transform: uppercase; color: var(--fe-gris) }
+.pe .pv-cif b { display: block; font: 900 26px var(--fe-titulo); color: var(--fe-tinta); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.pe .pv-cif small { color: var(--fe-gris); font-size: 12.5px }
+@media (max-width: 900px) { .pe .pv-cifras { grid-template-columns: repeat(2, minmax(0, 1fr)) } }
+
+/* Línea de tiempo */
+.pe .pv-tl { --pv-ln: 132px; margin-bottom: 14px }
+.pe .pv-tl-scroll { overflow-x: auto; padding: 0 0 8px }
+.pe .pv-tl-in { position: relative; padding-right: 14px }
+.pe .pv-tl-cab, .pe .pv-lane { display: flex; align-items: stretch }
+.pe .pv-ln { width: var(--pv-ln); flex: none; padding: 0 14px; display: flex; flex-direction: column; justify-content: center; position: sticky; left: 0; z-index: 3; background: var(--fe-papel) }
+.pe .pv-ln b { font: 800 14px var(--fe-titulo); color: var(--fe-tinta) }
+.pe .pv-ln small { font: 600 12px var(--fe-texto); color: var(--fe-gris) }
+.pe .pv-trk { flex: 1; position: relative; min-width: 0 }
+.pe .pv-tl-cab .pv-trk { height: 62px }
+.pe .pv-dcab { position: absolute; top: 0; bottom: 0; border-left: 2px solid #F5B800 }
+.pe .pv-dcab:first-child { border-left: 0 }
+.pe .pv-dcab > b { position: absolute; top: 0; left: 6px; font: 800 12px var(--fe-titulo); letter-spacing: .06em; text-transform: uppercase; color: var(--fe-tinta) }
+.pe .pv-dcab.hoy > b { color: #C8102E }
+.pe .pv-turnos { position: absolute; left: 0; right: 0; top: 18px; display: grid; grid-template-columns: repeat(3, 1fr); height: 20px }
+.pe .pv-turnos span { background: #111; color: #fff; font: 800 10.5px var(--fe-titulo); letter-spacing: .08em; padding: 3px 6px; border-right: 2px solid #F5B800; overflow: hidden; white-space: nowrap }
+.pe .pv-horas span { position: absolute; top: 44px; font: 600 11px var(--fe-texto); color: var(--fe-gris); transform: translateX(-50%) }
+.pe .pv-horas span:first-child { transform: none }
+.pe .pv-lane { height: 64px; border-top: 1px solid var(--fe-linea) }
+.pe .pv-lane .pv-trk { background-image: linear-gradient(90deg, transparent calc(100% - 1px), color-mix(in srgb, var(--fe-linea) 70%, transparent) 0) }
+.pe .pv-sep { position: absolute; top: 0; bottom: 0; width: 2px; background: #F5B800; opacity: .55 }
+.pe .pv-blk { position: absolute; top: 8px; bottom: 8px; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 1px; padding: 0 8px; border: 0; border-right: 2px solid var(--fe-papel); overflow: hidden; white-space: nowrap; text-align: left; font: 500 12.5px var(--fe-texto); cursor: pointer; border-radius: 0; line-height: 1.2 }
+.pe .pv-blk b { font: 800 13px var(--fe-titulo) }
+.pe .pv-blk span { display: contents }
+.pe .pv-blk small { font: 600 11.5px var(--fe-texto); opacity: .92 }
+.pe .pv-blk:hover, .pe .pv-blk:focus-visible { outline: 3px solid #111; outline-offset: -3px; z-index: 2 }
+.pe .pv-blk.foco { outline: 3px solid #111; outline-offset: -3px; box-shadow: 0 0 0 3px #F5B800; z-index: 2 }
+.pe .pv-ahora { position: absolute; top: 18px; bottom: 8px; width: 2px; background: #C8102E; z-index: 4; pointer-events: none }
+.pe .pv-ahora span { position: absolute; top: 0; left: 4px; background: #C8102E; color: #fff; font: 800 11px var(--fe-titulo); padding: 2px 6px }
+
+/* Matriz por línea */
+.pe .pv-mx th { vertical-align: bottom }
+.pe .pv-mx th i { display: block; font: 600 9px var(--fe-texto); font-style: normal; color: #C8102E; letter-spacing: .06em }
+.pe .pv-mx th small { display: block; font: 700 11.5px var(--fe-texto); color: #F5B800; letter-spacing: 0; margin-top: 2px }
+.pe .pv-mx th.hoy { box-shadow: inset 0 3px 0 #C8102E }
+.pe .pv-mb { display: flex; justify-content: flex-end; align-items: flex-end; height: 22px; margin-top: 4px }
+.pe .pv-mb span { width: 30px; background: #F5B800; display: block }
+.pe .pv-gr td { background: color-mix(in srgb, var(--fe-tinta) 6%, var(--fe-papel)); font-weight: 800; border-top: 2px solid var(--fe-tinta) }
+.pe .pv-gr button { all: unset; cursor: pointer; font: 800 12.5px var(--fe-titulo); letter-spacing: .06em; text-transform: uppercase; color: var(--fe-tinta) }
+.pe .pv-gr button i { font-style: normal; color: #F5B800; margin-right: 4px }
+.pe .pv-gr button small { font: 600 11px var(--fe-texto); color: var(--fe-gris); letter-spacing: 0; text-transform: none; margin-left: 6px }
+.pe .pv-gr button:focus-visible { outline: 2px solid #F5B800; outline-offset: 2px }
+.pe .pv-pt { display: inline-block; width: 8px; height: 8px; margin-right: 6px; vertical-align: middle }
+.pe .pv-mx td em { display: block; font: 700 10.5px var(--fe-texto); font-style: normal }
+.pe .pv-mx td em.sube { color: #12805C } .pe .pv-mx td em.baja { color: #C8102E }
+.pe .pv-mx td.g, .pe .pv-mx th.g { border-left: 2px solid #F5B800; white-space: nowrap }
+.pe .pv-peso { display: inline-block; height: 6px; background: var(--fe-tinta); margin-left: 8px; vertical-align: middle }
+.pe .pv-mx tr.pv-foco td { box-shadow: inset 0 2px 0 #F5B800, inset 0 -2px 0 #F5B800 }
+.pe .pv-mx.cmb td.c-sube { background: #e7f5ee; color: #0b5e43; font-weight: 700 }
+.pe .pv-mx.cmb td.c-baja { background: #fdecee; color: #9b0c23; font-weight: 700 }
