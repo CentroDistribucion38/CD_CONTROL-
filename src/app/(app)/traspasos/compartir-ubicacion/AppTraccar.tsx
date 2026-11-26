@@ -10,11 +10,11 @@ import { useEffect, useState } from "react";
 
 export function AppTraccar() {
   const [url, setUrl] = useState<string | null>(null);
-  const [falta, setFalta] = useState(false);
+  const [falta, setFalta] = useState<string | null>(null);
   const [copiado, setCopiado] = useState(false);
   useEffect(() => {
     fetch("/api/traspasos/gps/app-traccar", { cache: "no-store" }).then((r) => r.json())
-      .then((j: { ok?: boolean; url?: string; falta?: string }) => { if (j.ok && j.url) setUrl(j.url); else if (j.falta) setFalta(true) }).catch(() => {});
+      .then((j: { ok?: boolean; url?: string; falta?: string }) => { if (j.ok && j.url) setUrl(j.url); else setFalta(j.falta ?? "No se pudo traer la dirección.") }).catch(() => setFalta("Sin conexión: no se pudo traer la dirección."));
   }, []);
   const copiar = async () => { if (!url) return; try { await navigator.clipboard.writeText(url); setCopiado(true); setTimeout(() => setCopiado(false), 2500) } catch { /* sin portapapeles */ } };
 
@@ -30,7 +30,7 @@ export function AppTraccar() {
             {url ? (
               <div className="cu-app-url"><code>{url}</code><button type="button" className="cu-mini fuerte" onClick={() => void copiar()}>{copiado ? "Copiada" : "Copiar"}</button></div>
             ) : falta ? (
-              <p className="cu-aviso mal">Falta configurar <b>GPS_CLAVE_TRACCAR</b> en Vercel. Pídeselo al administrador.</p>
+              <p className="cu-aviso mal">{falta}</p>
             ) : <p className="cu-vacio">Cargando la dirección…</p>}
           </li>
           <li><b>Precisión</b>: alta · <b>Intervalo</b>: 10 segundos · <b>Distancia</b>: 0.</li>

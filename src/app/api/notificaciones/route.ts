@@ -8,12 +8,14 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { clienteDeServicio } from "@/lib/supabase/servicio";
-import { enviarAUsuarios, pushConfigurado } from "@/lib/push";
+import { enviarAUsuarios, llavesPush } from "@/lib/push";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  return NextResponse.json({ publica: process.env.NEXT_PUBLIC_VAPID_PUBLICA ?? null, listo: pushConfigurado() });
+  const db = clienteDeServicio();
+  const k = db ? await llavesPush(db) : null;
+  return NextResponse.json({ publica: k?.publica ?? null, listo: !!k, falta: k ? null : db ? "Falta correr 2026-11-config-servidor.sql en Supabase." : "Falta SUPABASE_SERVICE_ROLE_KEY en Vercel." });
 }
 
 export async function POST(req: Request) {
@@ -38,7 +40,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
   if (c.accion === "probar") {
-    if (!pushConfigurado()) return NextResponse.json({ error: "Faltan las llaves de avisos en Vercel (NEXT_PUBLIC_VAPID_PUBLICA y VAPID_PRIVADA)." }, { status: 503 });
+    if (!(await llavesPush(db))) return NextResponse.json({ error: "Falta correr 2026-11-config-servidor.sql en Supabase." }, { status: 503 });
     const n = await enviarAUsuarios(db, [user.id], { titulo: "CONTROL · aviso de prueba", cuerpo: "Así te van a llegar los avisos del GPS.", etiqueta: "prueba" });
     return NextResponse.json({ ok: true, enviados: n });
   }

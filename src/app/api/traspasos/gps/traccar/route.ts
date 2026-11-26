@@ -2,7 +2,8 @@
  * TIEMPOS GPS · LO QUE MANDA LA APP «TRACCAR CLIENT» (gratis, Android/iPhone), que sigue mandando la ubicación con el
  * celular bloqueado. No hace falta un servidor Traccar: la app le manda directo a CONTROL.
  *
- * En la app: URL del servidor = https://<CONTROL>/api/traspasos/gps/traccar?clave=<GPS_CLAVE_TRACCAR>
+ * En la app: URL del servidor = https://<CONTROL>/api/traspasos/gps/traccar?clave=<clave> (la clave sale de Vercel
+ *            GPS_CLAVE_TRACCAR o, si no está, se genera sola y queda en app_config; la muestra Compartir ubicación)
  *            Identificador del dispositivo = la PLACA del vehículo (ABC123).
  *
  * Acepta los dos formatos de la app: el nuevo (JSON: device_id + location.coords, velocidad en m/s, también una lista
@@ -14,20 +15,17 @@ import { clienteDeServicio } from "@/lib/supabase/servicio";
 import { placaValida } from "@/modulos/traspasos/gps/celular";
 import { procesarPosicion } from "@/modulos/traspasos/gps/entrada";
 import { leer, PRECISION_MAX_M } from "@/modulos/traspasos/gps/osmand";
+import { claveTraccar } from "@/modulos/traspasos/gps/clave-app";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
-function claveOk(url: URL): boolean {
-  const k = process.env.GPS_CLAVE_TRACCAR;
-  return !!k && k.length >= 12 && url.searchParams.get("clave") === k;
-}
-
 async function recibir(req: Request) {
   const url = new URL(req.url);
-  if (!claveOk(url)) return NextResponse.json({ error: "Clave incorrecta." }, { status: 401 });
   const db = clienteDeServicio();
   if (!db) return NextResponse.json({ error: "Falta SUPABASE_SERVICE_ROLE_KEY en Vercel." }, { status: 503 });
+  const k = await claveTraccar(db);
+  if (!k || url.searchParams.get("clave") !== k) return NextResponse.json({ error: "Clave incorrecta." }, { status: 401 });
 
   let cuerpo: unknown = null;
   if (req.method === "POST") {

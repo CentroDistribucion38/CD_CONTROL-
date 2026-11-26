@@ -23,6 +23,7 @@ const instalada = () => typeof window !== "undefined" && (window.matchMedia?.("(
 export function AvisosCelular({ cerrar }: { cerrar: () => void }) {
   const [datos, setDatos] = useState<Datos | null>(null);
   const [publica, setPublica] = useState<string | null | undefined>(undefined);
+  const [faltaLlaves, setFaltaLlaves] = useState<string | null>(null);
   const [aqui, setAqui] = useState<"no-soporta" | "bloqueado" | "activo" | "inactivo" | null>(null);
   const [ocupado, setOcupado] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ t: string; mal?: boolean } | null>(null);
@@ -35,6 +36,7 @@ export function AvisosCelular({ cerrar }: { cerrar: () => void }) {
     ]);
     if (a.error) setMsg({ t: a.error, mal: true }); else setDatos(a as Datos);
     setPublica((b as { publica?: string | null }).publica ?? null);
+    setFaltaLlaves((b as { falta?: string | null }).falta ?? null);
   }, []);
 
   const revisarAqui = useCallback(async () => {
@@ -49,7 +51,7 @@ export function AvisosCelular({ cerrar }: { cerrar: () => void }) {
   useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === "Escape") cerrar() }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k) }, [cerrar]);
 
   async function activar() {
-    if (!publica) { setMsg({ t: "Faltan las llaves de avisos en Vercel (NEXT_PUBLIC_VAPID_PUBLICA y VAPID_PRIVADA).", mal: true }); return }
+    if (!publica) { setMsg({ t: faltaLlaves ?? "El servidor todavía no tiene las llaves de avisos.", mal: true }); return }
     setOcupado("activar"); setMsg(null);
     try {
       const permiso = await Notification.requestPermission();
@@ -126,7 +128,7 @@ export function AvisosCelular({ cerrar }: { cerrar: () => void }) {
                 ? <>Te llegan: <b>{datos.yo.tipos.map((t) => TIPOS.find((x) => x[0] === t)?.[1] ?? t).join(", ")}</b> · {datos.yo.equipos} {datos.yo.equipos === 1 ? "equipo activo" : "equipos activos"}.</>
                 : <>Todavía no estás en la lista de quienes reciben avisos{datos.escoge ? ": márcate abajo." : ". Pídeselo a quien administra Tiempos GPS."}</>}</p>
             )}
-            {publica === null && <p className="tg-nota">Para que el servidor pueda mandar avisos faltan en Vercel <b>NEXT_PUBLIC_VAPID_PUBLICA</b> y <b>VAPID_PRIVADA</b>.</p>}
+            {publica === null && faltaLlaves && <p className="tg-aviso mal">{faltaLlaves}</p>}
           </section>
 
           {datos?.escoge && (

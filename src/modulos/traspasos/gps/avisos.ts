@@ -28,7 +28,7 @@ export async function revisarAvisos(db: SupabaseClient, p: {
   placa: string; en: string; zonaId: string | null; zonaNombre: string | null;
   seg: Seguimiento | null; arranco: { id: string; origen: string | null; destino: string | null } | null;
 }): Promise<void> {
-  if (!pushConfigurado()) return;
+  if (!(await pushConfigurado(db))) return;
   const { placa } = p;
   try {
     if (p.seg?.llegoAhora) await avisar(db, "llego", `llego:${p.seg.id}`, placa, `${placa} llegó a ${p.seg.destino ?? "su destino"}`, `${p.seg.km.toLocaleString("es-CO")} km recorridos.`);
