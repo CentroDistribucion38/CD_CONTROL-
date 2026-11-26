@@ -63,6 +63,12 @@
 .gs .tb-t th.f3 { box-shadow: 2px 0 0 #3a4a5e }
 .gs .tb-t tr.es-kpi td.fijo { background: color-mix(in srgb, var(--fe-fondo) 55%, var(--fe-papel, #fff)) }
 .gs .tb-t tr.disp td.f1 { box-shadow: inset 4px 0 0 var(--gs-rojo) }
+.gs .tb-t tr.kpi-nom td { border-top: 2px solid var(--fe-tinta) }
+.gs .tb-t tr.kpi-nom td.fijo { display: table-cell }
+.gs .tb-t tr.kpi-nom .tb-ed { display: inline-flex; align-items: center; gap: 8px; width: auto }
+.gs .tb-t tr.kpi-nom .nom { font: 800 14px var(--fe-titulo); color: var(--fe-tinta) }
+.gs .tb-t tr.kpi-nom .kpi-n { font: 700 11px var(--fe-texto); color: var(--fe-gris) }
+.gs .tb-t tr.kpi-nom td.kpi-res { background: color-mix(in srgb, var(--fe-fondo) 55%, var(--fe-papel, #fff)) }
 .gs .tb-t tr.grupo td { background: var(--fe-fondo); font: 800 11px var(--fe-titulo); letter-spacing: .13em; text-transform: uppercase; color: var(--fe-tinta); padding: 7px 12px; border-bottom: 1px solid var(--fe-linea) }
 
 /* las tres celdas editables: todo el ancho es el botón */
@@ -75,6 +81,7 @@
 .gs .tb-tag.es-kpi { background: var(--fe-tinta); border-color: var(--fe-tinta); color: var(--fe-papel, #fff) }
 .gs .tb-ed .nom { flex-basis: 100%; font-size: 12.5px; color: var(--fe-gris); line-height: 1.3 }
 .gs .tb-t tr.es-pi .tb-ed { padding-left: 26px }
+.gs .tb-t tr.es-pi.suelto .tb-ed { padding-left: 12px }
 .gs .tb-ed.val { flex-wrap: nowrap; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap }
 .gs .tb-ed.val.off { color: var(--fe-gris); font-weight: 500 }
 .gs .tb-ed i { font-style: normal; color: var(--fe-gris); font-size: 12px; margin-left: auto; padding-left: 6px }
@@ -258,6 +265,15 @@
 .gs .fi-turnos > span { flex-basis: 100% }
 .gs .fi-turnos label { display: flex; flex-direction: row; align-items: center; gap: 6px; font-size: 14px; color: var(--c-04203f); min-height: 36px }
 .gs .fi-turnos small { color: var(--c-5b6b7f) }
+/* La ficha del KPI: solo nombre y la lista de PI para ligar. */
+.gs .fi-cuenta { margin-left: 6px; padding: 1px 7px; background: #F5B800; color: #111; font: 900 11px var(--fe-titulo); letter-spacing: 0 }
+.gs .fi-pis { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; max-height: 300px; overflow: auto }
+.gs .fi-pis label { display: grid; grid-template-columns: 18px auto 1fr; align-items: center; gap: 2px 8px; min-height: 44px; padding: 6px 10px; border: 1px solid var(--c-d5dce5); background: #fff; font-size: 13.5px; color: var(--c-04203f); cursor: pointer }
+.gs .fi-pis label.on { border-color: #F5B800; background: #fffaeb }
+.gs .fi-pis input { width: 18px; height: 18px; accent-color: #04203f }
+.gs .fi-pis b { font-size: 12px }
+.gs .fi-pis small { grid-column: 2 / -1; font-size: 11.5px; color: var(--c-5b6b7f) }
+@media (max-width: 640px) { .gs .fi-pis { grid-template-columns: 1fr } }
 .gs .fi-previa { margin: 16px 0 0; padding: 10px 12px; background: var(--c-f7f9fc); border-left: 3px solid #F5B800; font-size: 13.5px; color: var(--c-2c4361) }
 .gs .fi-bot { align-items: center }
 .gs .fi-esp { flex: 1 }

@@ -37,7 +37,7 @@ export function Resultados({ fecha, hoy, turnoInicial, turnos, procesos, indicad
     return resultados.find((r) => r.indicador_id === i.id && r.fecha === ini && (r.turno_id ?? null) === (t ?? null));
   };
 
-  const act = useMemo(() => indicadores.filter((i) => i.activo), [indicadores]);
+  const act = useMemo(() => indicadores.filter((i) => i.activo && i.tipo === "pi"), [indicadores]);
   const delTurno = useMemo(() => (turnoId ? act.filter((i) => enTurno(i, turnoId)) : []), [act, turnoId]);
   const unicos = useMemo(() => act.filter((i) => !(i.captura === "turnos" && i.frecuencia === "dia")), [act]);
 

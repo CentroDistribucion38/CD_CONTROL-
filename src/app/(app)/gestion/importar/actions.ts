@@ -143,7 +143,7 @@ export async function importarResultados(filas: ResultadoImp[]) {
   let omitidos = 0;
   for (const f of filas) {
     const raw = indPorCodigo.get(f.codigo.trim().toUpperCase());
-    if (!raw || !/^\d{4}-\d{2}-\d{2}$/.test(f.fecha) || !Number.isFinite(Number(f.valor))) { omitidos++; continue; }
+    if (!raw || raw.tipo === "kpi" || !/^\d{4}-\d{2}-\d{2}$/.test(f.fecha) || !Number.isFinite(Number(f.valor))) { omitidos++; continue; }
     const i: Indicador = { ...raw, meta_valor: Number(raw.meta_valor), amarillo_valor: num(raw.amarillo_valor), rojo_valor: num(raw.rojo_valor), decimales: Number(raw.decimales), disparo_consecutivos: Number(raw.disparo_consecutivos) };
     const dia = inicioPeriodo(f.fecha, i.frecuencia);
     const porTurno = i.captura === "turnos" && i.frecuencia === "dia";

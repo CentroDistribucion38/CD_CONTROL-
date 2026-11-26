@@ -188,3 +188,7 @@
 .gs .gi-listo h2 { margin: 0; font: 800 22px var(--fe-titulo); color: var(--fe-tinta) }
 @media (max-width: 900px) { .gs .gi-pasos { grid-template-columns: 1fr } .gs .gs-cifras.c4 { grid-template-columns: repeat(2, minmax(0, 1fr)) } }
 .gs .btn.plano.gs-borrar:hover:not(:disabled) { color: var(--gs-rojo); border-color: var(--gs-rojo) }
+
+/* Maestro: el KPI es una fila de título (solo su nombre); sus PI van debajo. */
+.gs .gs-t tr.gs-kpi td { background: color-mix(in srgb, var(--fe-fondo) 60%, var(--fe-papel, #fff)); border-top: 2px solid var(--fe-tinta) }
+.gs .gs-t tr.gs-kpi .gs-nom { font-weight: 800 }

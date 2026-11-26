@@ -45,7 +45,8 @@ export async function guardarResultados(fecha: string, turnoId: string | null, f
   const tocados: string[] = [];
   for (const f of lista) {
     const raw = indicadores.get(f.indicador_id);
-    if (!raw) continue;
+    /* Un KPI no se captura: solo agrupa a sus PI (la meta y los números van en ellos). */
+    if (!raw || raw.tipo === "kpi") continue;
     const i: Indicador = {
       ...raw, meta_valor: Number(raw.meta_valor), amarillo_valor: num(raw.amarillo_valor), rojo_valor: num(raw.rojo_valor),
       decimales: Number(raw.decimales), disparo_consecutivos: Number(raw.disparo_consecutivos),
@@ -169,9 +170,13 @@ export async function guardarIndicador(f: FormIndicador) {
   const nombre = f.nombre.trim();
   if (!nombre) return { error: "Ponle nombre al indicador." };
   if (f.tipo !== "kpi" && f.tipo !== "pi") return { error: "El tipo es KPI o PI." };
+  /* UN KPI ES SOLO SU NOMBRE: agrupa a sus PI, que son los que llevan meta, captura y disparador. */
+  if (f.tipo === "kpi") f = {
+    ...f, padre_id: null, unidad: "", decimales: 0, meta_op: ">=", meta_valor: 0, frecuencia: "dia", captura: "unico", turnos: [],
+    responsable: null, disparo_activo: false, disparo_consecutivos: 1,
+  };
   if (!opOk(f.meta_op) || !Number.isFinite(Number(f.meta_valor))) return { error: "La meta necesita operador y número." };
   if (f.tipo === "pi" && !f.padre_id) return { error: "Un PI cuelga de un KPI: escoge cuál." };
-  if (f.tipo === "kpi" && f.padre_id) f = { ...f, padre_id: null };
   /* Lo que no es diario no se captura por turno. */
   const captura = f.frecuencia === "dia" ? f.captura : "unico";
 
@@ -200,8 +205,29 @@ export async function guardarIndicador(f: FormIndicador) {
     ...(f.orden != null ? { orden: Number(f.orden) || 0 } : {}),
     ...(f.activo != null ? { activo: !!f.activo } : {}),
   };
-  const { error } = f.id ? await supabase.from("gestion_indicadores").update(fila).eq("id", f.id) : await supabase.from("gestion_indicadores").insert(fila);
+  const { data, error } = f.id
+    ? await supabase.from("gestion_indicadores").update(fila).eq("id", f.id).select("id").single()
+    : await supabase.from("gestion_indicadores").insert(fila).select("id").single();
   if (error) return { error: /duplicate|unique/i.test(error.message) ? `Ya existe un indicador con el código ${codigo}.` : msj(error.message) };
+  refrescar();
+  return { ok: true, id: data.id as string };
+}
+
+/**
+ * LIGAR PI A UN KPI (desde la ficha del KPI): los PI escogidos pasan a colgar de él y toman su área, para salir
+ * debajo de él en el tablero. Un PI siempre cuelga de un KPI: para quitarlo de uno se liga a otro.
+ */
+export async function ligarPis(kpiId: string, pis: string[]) {
+  if (!(await puedeMaestro())) return { error: "No tienes permiso para editar el Maestro." };
+  const ids = [...new Set(pis.filter(Boolean))];
+  if (!ids.length) return { ok: true };
+  const supabase = await createClient();
+  const { data: kpi, error: e0 } = await supabase.from("gestion_indicadores").select("tipo, proceso_id").eq("id", kpiId).maybeSingle();
+  if (e0) return { error: msj(e0.message) };
+  if (!kpi || kpi.tipo !== "kpi") return { error: "Solo se ligan PI a un KPI." };
+  const { error } = await supabase.from("gestion_indicadores")
+    .update({ padre_id: kpiId, proceso_id: kpi.proceso_id }).in("id", ids).eq("tipo", "pi");
+  if (error) return { error: msj(error.message) };
   refrescar();
   return { ok: true };
 }

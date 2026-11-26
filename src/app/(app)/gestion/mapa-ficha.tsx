@@ -16,8 +16,7 @@ export function Ficha({ n, proceso }: { n: Nodo; proceso?: string }) {
       <b className="gm-nombre">{i.nombre}</b>
       {proceso && <small className="gm-otro">{proceso}</small>}
       <div className="gm-dato">
-        <span>Meta <b>{textoMeta(i)}</b></span>
-        <span>{resultado}</span>
+        {i.tipo === "kpi" ? <span>Agrupa a sus PI</span> : <><span>Meta <b>{textoMeta(i)}</b></span><span>{resultado}</span></>}
       </div>
       <Semaforo estado={n.estado} />
     </div>

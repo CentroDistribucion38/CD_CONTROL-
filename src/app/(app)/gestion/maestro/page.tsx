@@ -1,5 +1,6 @@
 import "../../inventario/fefo.css";
 import "../gestion.css";
+import "../tablero.css";
 import { misPermisos } from "@/lib/permisos";
 import { leerGestion } from "@/modulos/gestion/datos";
 import { hoyBogota } from "@/modulos/gestion/semaforo";

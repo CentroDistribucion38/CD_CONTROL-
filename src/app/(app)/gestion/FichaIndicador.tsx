@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAvisos } from "@/components/Aviso";
 import { useConfirmar } from "@/components/Confirmar";
 import { FRECUENCIAS, OPERADORES, textoDisparo, textoMeta, type Indicador, type Op, type Proceso, type Turno } from "@/modulos/gestion/semaforo";
-import { activarIndicador, eliminarIndicador, guardarIndicador } from "./actions";
+import { activarIndicador, eliminarIndicador, guardarIndicador, ligarPis } from "./actions";
 
 /* El formulario trabaja con texto (lo que se escribe) y se convierte al guardar. */
 type Form = {
@@ -58,8 +58,15 @@ export function FichaIndicador({ inicial, indicadores, procesos, turnos, cerrar 
   const unidadN = f.frecuencia === "semana" ? (n === 1 ? "semana" : "semanas") : f.frecuencia === "mes" ? (n === 1 ? "mes" : "meses")
     : f.captura === "turnos" ? (n === 1 ? "turno" : "turnos") : (n === 1 ? "día" : "días");
   const original = f.id ? indicadores.find((i) => i.id === f.id) : undefined;
+  const esKpi = f.tipo === "kpi";
+  /* Los PI que se pueden ligar a este KPI: los suyos (marcados) y los demás (para traerlos). */
+  const pis = indicadores.filter((i) => i.tipo === "pi" && (i.activo || i.padre_id === f.id))
+    .sort((a, b) => Number(b.padre_id === f.id && !!f.id) - Number(a.padre_id === f.id && !!f.id) || a.codigo.localeCompare(b.codigo, "es", { numeric: true }));
+  const suyos = new Set(f.id ? pis.filter((i) => i.padre_id === f.id).map((i) => i.id) : []);
+  const [ligar, setLigar] = useState<Set<string>>(() => new Set(suyos));
+  const nuevosPis = [...ligar].filter((id) => !suyos.has(id));
 
-  const falta = !f.nombre.trim() ? "Ponle nombre." : meta == null ? "Escribe la meta." : f.tipo === "pi" && !f.padre_id ? "Escoge el KPI al que explica."
+  const falta = !f.nombre.trim() ? "Ponle nombre." : esKpi ? null : meta == null ? "Escribe la meta." : f.tipo === "pi" && !f.padre_id ? "Escoge el KPI al que explica."
     : f.captura === "turnos" && f.frecuencia === "dia" && tAct.length > 0 && !f.turnos.length ? "Escoge al menos un turno." : null;
 
   const guardar = () => start(async () => {
@@ -72,7 +79,13 @@ export function FichaIndicador({ inicial, indicadores, procesos, turnos, cerrar 
       disparo_activo: f.disparo_activo, disparo_en: "rojo", disparo_consecutivos: n, orden: aNum(f.orden) ?? 0, activo: f.activo,
     });
     if (r.error) { avisar.mal(r.error); return }
-    avisar.bien(f.id ? "Indicador guardado." : "Indicador creado."); router.refresh(); cerrar();
+    if (esKpi && nuevosPis.length && r.id) {
+      const l = await ligarPis(r.id, nuevosPis);
+      if (l.error) { avisar.mal(`El KPI se guardó, pero no se pudieron ligar los PI: ${l.error}`); router.refresh(); return }
+    }
+    avisar.bien(esKpi ? (f.id ? "KPI guardado." : "KPI creado.") + (nuevosPis.length ? ` ${nuevosPis.length} PI ligado${nuevosPis.length === 1 ? "" : "s"}.` : "")
+      : f.id ? "Indicador guardado." : "Indicador creado.");
+    router.refresh(); cerrar();
   });
 
   const activar = () => original && start(async () => {
@@ -98,15 +111,39 @@ export function FichaIndicador({ inicial, indicadores, procesos, turnos, cerrar 
     <div className="cf-velo" role="dialog" aria-modal="true" aria-labelledby="fi-t" onClick={(e) => { if (e.target === e.currentTarget) cerrar() }}>
       {avisos}{dialogo}
       <div className="cf-caja fi-caja">
-        <h2 id="fi-t">{f.id ? `${f.codigo} · ficha del indicador` : "Nuevo indicador"}</h2>
+        <h2 id="fi-t">{f.id ? `${f.codigo} · ${esKpi ? "KPI" : "ficha del indicador"}` : esKpi ? "Nuevo KPI" : "Nuevo PI"}</h2>
 
         <div className="fi-seg" role="group" aria-label="Tipo">
           <button type="button" aria-pressed={f.tipo === "kpi"} onClick={() => poner({ tipo: "kpi", padre_id: "" })}>KPI · el resultado</button>
           <button type="button" aria-pressed={f.tipo === "pi"} onClick={() => poner({ tipo: "pi" })}>PI · indicador de proceso</button>
         </div>
 
+        {esKpi ? (<>
+          <div className="fi-grid">
+            <label className="ancho"><span>Nombre del KPI</span><input value={f.nombre} onChange={(e) => poner({ nombre: e.target.value })} placeholder="Ej.: DCBL · 0 Lesiones" autoFocus /></label>
+          </div>
+          <h3>PI de este KPI <small className="fi-cuenta">{ligar.size}</small></h3>
+          {!pis.length ? <p className="fi-previa">Todavía no hay PI. Después de crear el KPI, agrégale sus PI con «+ PI» en el tablero.</p> : (
+            <div className="fi-pis">
+              {pis.map((i) => {
+                const mio = suyos.has(i.id), otro = !mio && i.padre_id ? indicadores.find((k) => k.id === i.padre_id) : undefined;
+                return (
+                  <label key={i.id} className={ligar.has(i.id) ? "on" : ""} title={mio ? "Para quitarlo de aquí, lígalo a otro KPI desde su ficha." : undefined}>
+                    <input type="checkbox" checked={ligar.has(i.id)} disabled={mio}
+                      onChange={(e) => setLigar((x) => { const n = new Set(x); if (e.target.checked) n.add(i.id); else n.delete(i.id); return n })} />
+                    <b className="mono">{i.codigo}</b><span>{i.nombre}</span>
+                    {otro && <small>hoy en {otro.codigo} · {otro.nombre}</small>}
+                    {!otro && !mio && !i.padre_id && <small>sin KPI</small>}
+                  </label>
+                );
+              })}
+            </div>
+          )}
+          <p className="fi-previa">El KPI es solo su nombre: agrupa a sus PI en el tablero. La meta, la captura y el disparador van en cada PI.
+            {nuevosPis.length > 0 && <> Al guardar, <b>{nuevosPis.length} PI</b> pasa{nuevosPis.length === 1 ? "" : "n"} a este KPI.</>}</p>
+        </>) : (<>
         <div className="fi-grid">
-          <label className="ancho"><span>Indicador</span><input value={f.nombre} onChange={(e) => poner({ nombre: e.target.value })} placeholder="Ej.: DCBL — descuadre de bodega" autoFocus /></label>
+          <label className="ancho"><span>Indicador</span><input value={f.nombre} onChange={(e) => poner({ nombre: e.target.value })} placeholder="Ej.: Tiempo perdido por envase cristalizado" autoFocus /></label>
           <label><span>Código</span><input value={f.codigo} onChange={(e) => poner({ codigo: e.target.value })} placeholder="Automático (KPI-002)" /></label>
           {f.tipo === "pi" && (
             <label><span>KPI al que explica</span>
@@ -184,6 +221,7 @@ export function FichaIndicador({ inicial, indicadores, procesos, turnos, cerrar 
           {f.disparo_activo ? <>El disparador salta cuando {textoDisparo({ disparo_consecutivos: n }).replace(/resultados?/, unidadN)}.</> : "Sin disparador."}
           {f.id && <> Lo ya capturado conserva su color: la meta nueva cuenta desde el próximo resultado.</>}
         </p>
+        </>)}
 
         <div className="cf-botones fi-bot">
           {original && <>
@@ -192,7 +230,7 @@ export function FichaIndicador({ inicial, indicadores, procesos, turnos, cerrar 
           </>}
           <span className="fi-esp" />
           <button type="button" className="cf-btn plano" onClick={cerrar}>Cancelar</button>
-          <button type="button" className="cf-btn" disabled={pend || !!falta} title={falta ?? undefined} onClick={guardar}>{pend ? "Guardando…" : f.id ? "Guardar" : "Crear indicador"}</button>
+          <button type="button" className="cf-btn" disabled={pend || !!falta} title={falta ?? undefined} onClick={guardar}>{pend ? "Guardando…" : f.id ? "Guardar" : esKpi ? "Crear KPI" : "Crear PI"}</button>
         </div>
       </div>
     </div>

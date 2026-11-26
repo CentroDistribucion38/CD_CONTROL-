@@ -4,37 +4,13 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useAvisos } from "@/components/Aviso";
 import { useConfirmar } from "@/components/Confirmar";
-import {
-  FRECUENCIAS, OPERADORES, SIMBOLO, fmt, textoDisparo, textoMeta, textoRegla,
-  type Indicador, type Op, type Proceso, type Turno,
-} from "@/modulos/gestion/semaforo";
-import { activarIndicador, eliminarArea, guardarIndicador, guardarProceso, guardarTurno, type FormIndicador } from "../actions";
+import { FRECUENCIAS, fmt, textoDisparo, textoMeta, type Indicador, type Proceso, type Turno } from "@/modulos/gestion/semaforo";
+import { activarIndicador, eliminarArea, guardarProceso, guardarTurno } from "../actions";
 import { SoloVer } from "../comunes";
+import { FichaIndicador, deIndicador, nuevoIndicador } from "../FichaIndicador";
 
 type Pestana = "indicadores" | "procesos" | "turnos";
 
-/* El formulario trabaja con texto (lo que escribe la gente) y se convierte al guardar. */
-type Form = {
-  id?: string; codigo: string; nombre: string; tipo: "kpi" | "pi"; padre_id: string; proceso_id: string; nivel_reunion: 1 | 2;
-  unidad: string; decimales: string; meta_op: Op; meta_valor: string; amarillo_op: Op | ""; amarillo_valor: string;
-  rojo_op: Op | ""; rojo_valor: string; frecuencia: "dia" | "semana" | "mes"; captura: "turnos" | "unico"; turnos: string[];
-  responsable: string; disparo_activo: boolean; disparo_en: "rojo" | "amarillo"; disparo_consecutivos: string; orden: string; activo: boolean;
-};
-
-const VACIO = (turnos: Turno[]): Form => ({
-  codigo: "", nombre: "", tipo: "kpi", padre_id: "", proceso_id: "", nivel_reunion: 1, unidad: "%", decimales: "0",
-  meta_op: ">=", meta_valor: "", amarillo_op: "", amarillo_valor: "", rojo_op: "", rojo_valor: "", frecuencia: "dia", captura: "turnos",
-  turnos: turnos.filter((t) => t.activo).map((t) => t.id), responsable: "", disparo_activo: true, disparo_en: "rojo",
-  disparo_consecutivos: "1", orden: "0", activo: true,
-});
-const DE = (i: Indicador): Form => ({
-  id: i.id, codigo: i.codigo, nombre: i.nombre, tipo: i.tipo, padre_id: i.padre_id ?? "", proceso_id: i.proceso_id ?? "", nivel_reunion: i.nivel_reunion,
-  unidad: i.unidad, decimales: String(i.decimales), meta_op: i.meta_op, meta_valor: String(i.meta_valor),
-  amarillo_op: i.amarillo_op ?? "", amarillo_valor: i.amarillo_valor == null ? "" : String(i.amarillo_valor),
-  rojo_op: i.rojo_op ?? "", rojo_valor: i.rojo_valor == null ? "" : String(i.rojo_valor),
-  frecuencia: i.frecuencia, captura: i.captura, turnos: i.turnos, responsable: i.responsable ?? "",
-  disparo_activo: i.disparo_activo, disparo_en: i.disparo_en, disparo_consecutivos: String(i.disparo_consecutivos), orden: String(i.orden), activo: i.activo,
-});
 const aNum = (t: string): number | null => { const s = t.trim().replace(",", "."); return s !== "" && Number.isFinite(Number(s)) ? Number(s) : null };
 
 export function Maestro({ turnos, procesos, indicadores, puedeEditar }: {
@@ -45,11 +21,18 @@ export function Maestro({ turnos, procesos, indicadores, puedeEditar }: {
   const [pend, start] = useTransition();
   const [pedir, dialogo] = useConfirmar();
   const [pestana, setPestana] = useState<Pestana>("indicadores");
-  const [f, setF] = useState<Form | null>(null);
+  const [ficha, setFicha] = useState<ReturnType<typeof deIndicador> | null>(null);
   const [fp, setFp] = useState<{ id?: string; nombre: string; orden: string; activo: boolean } | null>(null);
   const [ft, setFt] = useState<{ id?: string; nombre: string; hora_ini: string; hora_fin: string; orden: string; activo: boolean } | null>(null);
   const pro = useMemo(() => new Map(procesos.map((p) => [p.id, p.nombre])), [procesos]);
-  const kpis = indicadores.filter((i) => i.tipo === "kpi" && i.activo);
+  /* Cada KPI con sus PI debajo; al final los PI que no cuelgan de ningún KPI. */
+  const ordenados = useMemo(() => {
+    const o = (a: Indicador, b: Indicador) => a.orden - b.orden || a.codigo.localeCompare(b.codigo, "es", { numeric: true });
+    const kpis = indicadores.filter((i) => i.tipo === "kpi").sort(o);
+    const ids = new Set(kpis.map((k) => k.id));
+    return [...kpis.flatMap((k) => [k, ...indicadores.filter((i) => i.tipo === "pi" && i.padre_id === k.id).sort(o)]),
+      ...indicadores.filter((i) => i.tipo === "pi" && (!i.padre_id || !ids.has(i.padre_id))).sort(o)];
+  }, [indicadores]);
 
   /* Eliminar un proceso: solo si ningún indicador cuelga de él (si tiene, se desactiva o se le cambian los indicadores). */
   const eliminarProceso = async (p: Proceso) => {
@@ -63,38 +46,6 @@ export function Maestro({ turnos, procesos, indicadores, puedeEditar }: {
     avisar.bien(bien); cerrar(); router.refresh();
   };
 
-  const guardarInd = () => f && start(async () => {
-    const meta = aNum(f.meta_valor);
-    if (meta == null) { avisar.mal("La meta necesita un número."); return }
-    const body: FormIndicador = {
-      id: f.id, codigo: f.codigo, nombre: f.nombre, tipo: f.tipo, padre_id: f.tipo === "pi" ? f.padre_id || null : null,
-      proceso_id: f.proceso_id || null, nivel_reunion: f.nivel_reunion, unidad: f.unidad, decimales: aNum(f.decimales) ?? 0,
-      meta_op: f.meta_op, meta_valor: meta,
-      amarillo_op: f.amarillo_op || null, amarillo_valor: f.amarillo_op ? aNum(f.amarillo_valor) : null,
-      rojo_op: f.rojo_op || null, rojo_valor: f.rojo_op ? aNum(f.rojo_valor) : null,
-      frecuencia: f.frecuencia, captura: f.captura, turnos: f.turnos, responsable: f.responsable || null,
-      disparo_activo: f.disparo_activo, disparo_en: f.disparo_en, disparo_consecutivos: aNum(f.disparo_consecutivos) ?? 1,
-      orden: aNum(f.orden) ?? 0, activo: f.activo,
-    };
-    fin(await guardarIndicador(body), f.id ? "Indicador actualizado." : "Indicador creado.", () => setF(null));
-  });
-
-  const vistaPrevia = (x: Form) => {
-    const u = { unidad: x.unidad, decimales: aNum(x.decimales) ?? 0 };
-    const meta = aNum(x.meta_valor);
-    return [
-      meta == null ? "Escribe la meta." : `Cumple si ${textoMeta({ meta_op: x.meta_op, meta_valor: meta, ...u })}.`,
-      x.disparo_activo ? `El disparador salta cuando ${textoDisparo({ disparo_consecutivos: aNum(x.disparo_consecutivos) ?? 1 })}.` : "Sin disparador.",
-    ].filter(Boolean).join(" ");
-  };
-
-  const selOp = (v: Op | "", on: (o: Op | "") => void, vacio?: string) => (
-    <select value={v} onChange={(e) => on(e.target.value as Op | "")}>
-      {vacio !== undefined && <option value="">{vacio}</option>}
-      {OPERADORES.map((o) => <option key={o.k} value={o.k}>{SIMBOLO[o.k]} {o.t.split(" ").slice(1).join(" ")}</option>)}
-    </select>
-  );
-
   return (
     <>
       {avisos}{dialogo}
@@ -103,8 +54,8 @@ export function Maestro({ turnos, procesos, indicadores, puedeEditar }: {
           <p className="ojo">GESTIÓN · MAESTRO</p>
           <h1>Maestro</h1>
           <p className="sub">
-            Aquí se parametriza todo: los turnos, los procesos y los indicadores —KPI y PI— con su meta, su frecuencia,
-            cómo se captura y cuándo salta su disparador. Nada de esto está escrito en el código.
+            Aquí se parametriza todo: los turnos, los procesos y los indicadores. El KPI es solo su nombre y agrupa a sus PI;
+            cada PI lleva su meta, su frecuencia, cómo se captura y cuándo salta su disparador. Nada de esto está escrito en el código.
           </p>
         </div>
       </section>
@@ -119,96 +70,37 @@ export function Maestro({ turnos, procesos, indicadores, puedeEditar }: {
 
       {/* ============================ INDICADORES ============================ */}
       {pestana === "indicadores" && (<>
-        {puedeEditar && !f && <div><button type="button" className="btn" onClick={() => setF(VACIO(turnos))}>+ Nuevo indicador</button></div>}
-
-        {f && (
-          <section className="gs-form">
-            <h2>{f.id ? `Editar ${f.codigo}` : "Nuevo indicador"}</h2>
-            <div className="gs-seg" role="group" aria-label="Tipo">
-              <button type="button" className={f.tipo === "kpi" ? "on" : ""} onClick={() => setF({ ...f, tipo: "kpi", padre_id: "" })}>KPI · el resultado</button>
-              <button type="button" className={f.tipo === "pi" ? "on" : ""} onClick={() => setF({ ...f, tipo: "pi" })}>PI · indicador de proceso</button>
-            </div>
-            <div className="gs-grid">
-              <label className="ancho">Nombre<input value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} placeholder="Ej.: Cumplimiento del plan de despacho" /></label>
-              <label>Código<input value={f.codigo} onChange={(e) => setF({ ...f, codigo: e.target.value })} placeholder="Automático" /></label>
-              {f.tipo === "pi" && (
-                <label>KPI al que explica
-                  <select value={f.padre_id} onChange={(e) => setF({ ...f, padre_id: e.target.value })}>
-                    <option value="">— escoge —</option>
-                    {kpis.map((k) => <option key={k.id} value={k.id}>{k.codigo} · {k.nombre}</option>)}
-                  </select>
-                </label>
-              )}
-              <label>Proceso
-                <select value={f.proceso_id} onChange={(e) => setF({ ...f, proceso_id: e.target.value })}>
-                  <option value="">Sin proceso</option>
-                  {procesos.filter((p) => p.activo).map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                </select>
-              </label>
-              <label>Reunión
-                <select value={f.nivel_reunion} onChange={(e) => setF({ ...f, nivel_reunion: Number(e.target.value) === 2 ? 2 : 1 })}>
-                  <option value={1}>Nivel 1</option><option value={2}>Nivel 2</option>
-                </select>
-              </label>
-              <label>Responsable<input value={f.responsable} onChange={(e) => setF({ ...f, responsable: e.target.value })} placeholder="Quién responde por él" /></label>
-              <label>Unidad<input value={f.unidad} onChange={(e) => setF({ ...f, unidad: e.target.value })} placeholder="%, cajas, min…" /></label>
-              <label>Decimales<input inputMode="numeric" value={f.decimales} onChange={(e) => setF({ ...f, decimales: e.target.value })} /></label>
-            </div>
-
-            <h3>Meta</h3>
-            <div className="gs-grid gs-reglas">
-              <div className="gs-regla meta"><span>Meta (cumple si)</span>{selOp(f.meta_op, (o) => o && setF({ ...f, meta_op: o }))}<input inputMode="decimal" value={f.meta_valor} onChange={(e) => setF({ ...f, meta_valor: e.target.value })} placeholder="Valor" /></div>
-            </div>
-
-            <h3>Captura</h3>
-            <div className="gs-grid">
-              <label>Frecuencia
-                <select value={f.frecuencia} onChange={(e) => { const fr = e.target.value as Form["frecuencia"]; setF({ ...f, frecuencia: fr, captura: fr === "dia" ? f.captura : "unico" }) }}>
-                  {FRECUENCIAS.map((x) => <option key={x.k} value={x.k}>{x.nombre}</option>)}
-                </select>
-              </label>
-              <label>Cómo se digita
-                <select value={f.captura} disabled={f.frecuencia !== "dia"} onChange={(e) => setF({ ...f, captura: e.target.value as Form["captura"] })}>
-                  <option value="turnos">Por turno</option><option value="unico">Valor único</option>
-                </select>
-              </label>
-              {f.captura === "turnos" && f.frecuencia === "dia" && (
-                <div className="gs-checks ancho"><span>En qué turnos</span>
-                  {turnos.filter((t) => t.activo).map((t) => (
-                    <label key={t.id}><input type="checkbox" checked={f.turnos.includes(t.id)}
-                      onChange={(e) => setF({ ...f, turnos: e.target.checked ? [...f.turnos, t.id] : f.turnos.filter((x) => x !== t.id) })} />{t.nombre}</label>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <h3>Disparador</h3>
-            <div className="gs-grid">
-              <label className="gs-chk"><input type="checkbox" checked={f.disparo_activo} onChange={(e) => setF({ ...f, disparo_activo: e.target.checked })} />Salta solo cuando no cumple la meta</label>
-              <label>Resultados seguidos
-                <input inputMode="numeric" value={f.disparo_consecutivos} disabled={!f.disparo_activo} onChange={(e) => setF({ ...f, disparo_consecutivos: e.target.value })} />
-              </label>
-              <label>Orden<input inputMode="numeric" value={f.orden} onChange={(e) => setF({ ...f, orden: e.target.value })} /></label>
-              <label className="gs-chk"><input type="checkbox" checked={f.activo} onChange={(e) => setF({ ...f, activo: e.target.checked })} />Activo (se pide y se ve)</label>
-            </div>
-
-            <p className="gs-previa">{vistaPrevia(f)}</p>
-            <div className="gs-acc">
-              <button type="button" className="btn" disabled={pend} onClick={guardarInd}>{pend ? "Guardando…" : "Guardar indicador"}</button>
-              <button type="button" className="btn plano" onClick={() => setF(null)}>Cancelar</button>
-            </div>
-          </section>
+        {puedeEditar && (
+          <div className="gs-acc">
+            <button type="button" className="btn" onClick={() => setFicha(nuevoIndicador(turnos, null))}>+ Nuevo KPI</button>
+            <button type="button" className="btn plano" disabled={!indicadores.some((i) => i.tipo === "kpi" && i.activo)}
+              title={indicadores.some((i) => i.tipo === "kpi" && i.activo) ? undefined : "Primero crea un KPI"}
+              onClick={() => setFicha({ ...nuevoIndicador(turnos, null), tipo: "pi" })}>+ Nuevo PI</button>
+          </div>
         )}
 
         <div className="gs-scroll">
           <table className="gs-t">
             <thead><tr><th>Código</th><th>Indicador</th><th>Proceso</th><th>Meta</th><th>Frecuencia</th><th>Disparador</th><th>Estado</th><th /></tr></thead>
             <tbody>
-              {indicadores.map((i) => (
+              {ordenados.map((i) => i.tipo === "kpi" ? (
+                <tr key={i.id} className={"gs-kpi" + (i.activo ? "" : " off")}>
+                  <td className="mono">{i.codigo}</td>
+                  <td colSpan={5}><span className="gs-tipo kpi">KPI</span><span className="gs-nom">{i.nombre}</span>
+                    <small className="gs-sub">{indicadores.filter((x) => x.padre_id === i.id).length} PI · {i.proceso_id ? pro.get(i.proceso_id) : "sin área"}</small></td>
+                  <td>{i.activo ? "Activo" : "Inactivo"}</td>
+                  <td className="gs-acc">
+                    {puedeEditar && <>
+                      <button type="button" className="btn plano" onClick={() => setFicha(deIndicador(i, turnos))}>Editar</button>
+                      <button type="button" className="btn plano" disabled={pend} onClick={() => start(async () => fin(await activarIndicador(i.id, !i.activo), i.activo ? "KPI desactivado." : "KPI activado.", () => {}))}>{i.activo ? "Desactivar" : "Activar"}</button>
+                    </>}
+                  </td>
+                </tr>
+              ) : (
                 <tr key={i.id} className={i.activo ? "" : "off"}>
                   <td className="mono">{i.codigo}</td>
-                  <td><span className={"gs-tipo " + i.tipo}>{i.tipo === "kpi" ? "KPI" : "PI"}</span><span className="gs-nom">{i.nombre}</span>
-                    {i.padre_id && <small className="gs-sub">explica a {indicadores.find((k) => k.id === i.padre_id)?.codigo ?? "—"}</small>}</td>
+                  <td><span className="gs-tipo pi">PI</span><span className="gs-nom">{i.nombre}</span>
+                    <small className="gs-sub">{i.padre_id ? `de ${indicadores.find((k) => k.id === i.padre_id)?.nombre ?? "—"}` : "sin KPI"}</small></td>
                   <td>{i.proceso_id ? pro.get(i.proceso_id) : "—"}<small className="gs-sub">Reunión nivel {i.nivel_reunion}</small></td>
                   <td className="gs-meta">{textoMeta(i)}</td>
                   <td>{FRECUENCIAS.find((x) => x.k === i.frecuencia)?.nombre}<small className="gs-sub">{i.captura === "turnos" ? `por turno (${i.turnos.length || "todos"})` : "valor único"}</small></td>
@@ -216,17 +108,19 @@ export function Maestro({ turnos, procesos, indicadores, puedeEditar }: {
                   <td>{i.activo ? "Activo" : "Inactivo"}</td>
                   <td className="gs-acc">
                     {puedeEditar && <>
-                      <button type="button" className="btn plano" onClick={() => { setF(DE(i)); window.scrollTo({ top: 0, behavior: "smooth" }) }}>Editar</button>
+                      <button type="button" className="btn plano" onClick={() => setFicha(deIndicador(i, turnos))}>Editar</button>
                       <button type="button" className="btn plano" disabled={pend} onClick={() => start(async () => fin(await activarIndicador(i.id, !i.activo), i.activo ? "Indicador desactivado." : "Indicador activado.", () => {}))}>{i.activo ? "Desactivar" : "Activar"}</button>
                     </>}
                   </td>
                 </tr>
               ))}
-              {!indicadores.length && <tr><td colSpan={8} className="gs-vacio">Todavía no hay indicadores. Crea el primero con «Nuevo indicador».</td></tr>}
+              {!indicadores.length && <tr><td colSpan={8} className="gs-vacio">Todavía no hay indicadores. Crea primero el KPI (solo su nombre) y después sus PI.</td></tr>}
             </tbody>
           </table>
         </div>
       </>)}
+
+      {ficha && <FichaIndicador key={ficha.id ?? "nuevo-" + ficha.tipo} inicial={ficha} indicadores={indicadores} procesos={procesos} turnos={turnos} cerrar={() => setFicha(null)} />}
 
       {/* ============================ PROCESOS ============================ */}
       {pestana === "procesos" && (<>

@@ -136,7 +136,10 @@ export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, res
   [disparadores, indPorId, d, h, area]); // eslint-disable-line react-hooks/exhaustive-deps
   const activos = useMemo(() => new Set(disparadores.filter((x) => x.estado === "activo").map((x) => x.indicador_id)), [disparadores]);
 
-  const cuenta = (e: Estado | null) => vista.filter((i) => i.activo).filter((i) => (ultimo.get(i.id) ?? null) === e).length;
+  /* Lo que se mide son los PI: el KPI es solo el nombre que los agrupa. */
+  const medibles = vista.filter((i) => i.tipo === "pi");
+  const nPis = useMemo(() => { const m = new Map<string, number>(); for (const i of vista) if (i.tipo === "pi" && i.padre_id) m.set(i.padre_id, (m.get(i.padre_id) ?? 0) + 1); return m }, [vista]);
+  const cuenta = (e: Estado | null) => medibles.filter((i) => i.activo).filter((i) => (ultimo.get(i.id) ?? null) === e).length;
   const descartados = new Set(disparadores.filter((x) => x.estado === "descartado").map((x) => x.id));
   const indDeDisp = useMemo(() => new Map(disparadores.map((x) => [x.id, x.indicador_id])), [disparadores]);
   const abiertas = acciones.filter((a) => a.estado === "abierta" && !descartados.has(a.disparador_id) && enArea(indPorId.get(indDeDisp.get(a.disparador_id) ?? ""))).length;
@@ -246,7 +249,7 @@ export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, res
       ) : (
         <>
           <div className="gs-cifras c4">
-            <div className="gs-cif"><span>Indicadores</span><b>{vista.length}</b></div>
+            <div className="gs-cif"><span>Indicadores (PI)</span><b>{medibles.length}</b></div>
             <div className="gs-cif bien"><span>Cumplen · último resultado</span><b>{cuenta("verde")}</b></div>
             <div className={"gs-cif" + (cuenta("rojo") ? " mal" : "")}><span>No cumplen</span><b>{cuenta("rojo")}</b></div>
             <a href="#ocurrencias" className={"gs-cif enlace" + (ocurrencias.length ? " mal" : "")}><span>Ocurrencias</span><b>{ocurrencias.length}</b></a>
@@ -280,15 +283,27 @@ export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, res
                   {filas.map((x) => "grupo" in x ? (
                     <tr key={"g" + x.id} className="grupo"><td className="fijo f1" colSpan={4}>{x.grupo}
                       {puedeIndicador && <button type="button" className="tb-mas" onClick={() => crear(x.id === "ninguna" ? null : x.id)} title={`Nuevo indicador en ${x.grupo}`}>+ indicador</button>}</td><td colSpan={dias.length * nT} /></tr>
+                  ) : x.i.tipo === "kpi" ? (
+                    <tr key={x.i.id} className={"es-kpi kpi-nom" + (x.i.activo ? "" : " inact")}>
+                      <td className="fijo f1" colSpan={4}>
+                        <button type="button" className="tb-ed" disabled={!puedeIndicador} onClick={() => setFicha(deIndicador(x.i, turnos))} title={puedeIndicador ? "Cambiar el nombre o ligarle PI" : undefined}>
+                          <span className="tb-tag es-kpi">KPI</span>
+                          {!x.i.activo && <span className="tb-tag off">Inactivo</span>}
+                          <span className="nom">{x.i.nombre}</span>
+                          <small className="kpi-n">{nPis.get(x.i.id) ?? 0} PI</small>
+                        </button>
+                        {puedeIndicador && x.i.activo && <button type="button" className="tb-mas" onClick={() => crear(x.i.proceso_id, x.i)} title={`Nuevo PI de ${x.i.nombre}`}>+ PI</button>}
+                      </td>
+                      <td colSpan={dias.length * nT} className="kpi-res" />
+                    </tr>
                   ) : (
-                    <tr key={x.i.id} className={(x.pi ? "es-pi" : "es-kpi") + (activos.has(x.i.id) ? " disp" : "") + (x.i.activo ? "" : " inact")}>
+                    <tr key={x.i.id} className={"es-pi" + (x.pi ? "" : " suelto") + (activos.has(x.i.id) ? " disp" : "") + (x.i.activo ? "" : " inact")}>
                       <td className="fijo f1">
                         <button type="button" className="tb-ed" disabled={!puedeIndicador} onClick={() => setFicha(deIndicador(x.i, turnos))} title={puedeIndicador ? "Abrir la ficha del indicador" : undefined}>
-                          <b>{x.i.codigo}</b><span className={"tb-tag" + (x.i.tipo === "kpi" ? " es-kpi" : "")}>{x.i.tipo === "kpi" ? "KPI" : "PI"}</span>
+                          <b>{x.i.codigo}</b><span className="tb-tag">PI</span>
                           {!x.i.activo && <span className="tb-tag off">Inactivo</span>}
                           <span className="nom">{x.i.nombre}</span>
                         </button>
-                        {puedeIndicador && x.i.tipo === "kpi" && x.i.activo && <button type="button" className="tb-mas pi" onClick={() => crear(x.i.proceso_id, x.i)} title={`Nuevo PI que explica a ${x.i.codigo}`}>+ PI</button>}
                       </td>
                       <td className="fijo f2"><button type="button" className="tb-ed val" disabled={!puedeIndicador} onClick={() => setFicha(deIndicador(x.i, turnos))}>{textoMeta({ ...x.i, unidad: "" })}{puedeIndicador && <i aria-hidden>✎</i>}</button></td>
                       <td className="fijo fu"><button type="button" className="tb-ed val" disabled={!puedeIndicador} onClick={() => setFicha(deIndicador(x.i, turnos))} title="Unidad de medida">{x.i.unidad || "—"}</button></td>
