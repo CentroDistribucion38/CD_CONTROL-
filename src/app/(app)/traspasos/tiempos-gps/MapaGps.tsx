@@ -42,11 +42,18 @@ const CAPAS: Record<CapaBase, { url: string; atrib: string; sub?: string; nativo
 export type ZonaMapa = { id: string; nombre: string; color: string; poligono: Punto[]; adentro: number };
 export type VehiculoMapa = { id: string; etiqueta: string; lat: number; lng: number; rumbo: number | null; estado: "dentro" | "transito" | "quieto"; color: string };
 export type FlujoMapa = { origen: Punto; destino: Punto; viajes: number; texto: string };
+/** La línea de un recorrido (parte 3): en curso en rojo; la escogida, más gruesa y encima. */
+export type RutaMapa = { id: string; puntos: Punto[]; enCurso: boolean; sel: boolean; texto: string };
 
 const escapar = (t: string) => t.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string));
 
-export function MapaGps({ zonas, vehiculos, flujos, capa, dibujo, alDibujar, alCancelarDibujo, seleccion, alSeleccionar, ajustar, centroInicial, edicion, alEditar }: {
+export function MapaGps({ zonas, vehiculos, flujos, capa, dibujo, alDibujar, alCancelarDibujo, seleccion, alSeleccionar, ajustar, centroInicial, edicion, alEditar, rutas = [], alRuta, encuadrar, repetir }: {
   zonas: ZonaMapa[]; vehiculos: VehiculoMapa[]; flujos: FlujoMapa[]; capa: CapaBase;
+  rutas?: RutaMapa[]; alRuta?: (id: string) => void;
+  /** Encuadrar el mapa sobre estos puntos cada vez que cambia la llave (al escoger un recorrido). */
+  encuadrar?: { puntos: Punto[]; llave: string } | null;
+  /** Repetir un recorrido: un camión recorre la línea en ~12 s. Cambia la llave para volver a empezar. */
+  repetir?: { puntos: Punto[]; llave: string; etiqueta: string } | null;
   dibujo: null | "rect" | "poli" | "punto"; alDibujar: (p: Punto[]) => void; alCancelarDibujo: () => void;
   /** Una zona que se está ajustando: sus puntos se arrastran; los «+» del medio agregan un punto; doble clic en un punto lo quita. */
   edicion?: { poligono: Punto[]; color: string; llave: string } | null; alEditar?: (p: Punto[]) => void;
@@ -58,11 +65,11 @@ export function MapaGps({ zonas, vehiculos, flujos, capa, dibujo, alDibujar, alC
   const mapa = useRef<any>(null);
   const L = useRef<any>(null);
   const base = useRef<any>(null);
-  const grupoZonas = useRef<any>(null), grupoFlujos = useRef<any>(null), grupoDibujo = useRef<any>(null), grupoEdicion = useRef<any>(null);
+  const grupoZonas = useRef<any>(null), grupoFlujos = useRef<any>(null), grupoDibujo = useRef<any>(null), grupoEdicion = useRef<any>(null), grupoRutas = useRef<any>(null);
   const marcas = useRef(new Map<string, any>());
   const dibujando = useRef(false);
-  const cb = useRef({ alDibujar, alCancelarDibujo, alSeleccionar, alEditar });
-  cb.current = { alDibujar, alCancelarDibujo, alSeleccionar, alEditar };
+  const cb = useRef({ alDibujar, alCancelarDibujo, alSeleccionar, alEditar, alRuta });
+  cb.current = { alDibujar, alCancelarDibujo, alSeleccionar, alEditar, alRuta };
   const [listo, setListo] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -78,6 +85,7 @@ export function MapaGps({ zonas, vehiculos, flujos, capa, dibujo, alDibujar, alC
       m.attributionControl.setPrefix(false);
       grupoZonas.current = leaf.layerGroup().addTo(m);
       grupoFlujos.current = leaf.layerGroup().addTo(m);
+      grupoRutas.current = leaf.layerGroup().addTo(m);
       grupoDibujo.current = leaf.layerGroup().addTo(m);
       grupoEdicion.current = leaf.layerGroup().addTo(m);
       m.on("click", () => { if (!dibujando.current) cb.current.alSeleccionar(null) });
@@ -131,6 +139,57 @@ export function MapaGps({ zonas, vehiculos, flujos, capa, dibujo, alDibujar, alC
       l.bindTooltip(escapar(f.texto), { sticky: true, className: "tg-tip" });
     }
   }, [listo, flujos]);
+
+  /* LOS RECORRIDOS (parte 3): la línea de cada viaje con seguimiento. Debajo un trazo blanco para que se lea sobre
+     cualquier fondo; la escogida va más gruesa. Tocar una línea la escoge. */
+  useEffect(() => {
+    if (!listo) return;
+    const g = grupoRutas.current; g.clearLayers();
+    const orden = [...rutas].sort((a, b) => Number(a.sel) - Number(b.sel));
+    for (const r of orden) {
+      if (r.puntos.length < 2) continue;
+      const w = r.sel ? 6 : r.enCurso ? 4 : 3;
+      L.current.polyline(r.puntos, { color: "#ffffff", weight: w + 4, opacity: r.sel || r.enCurso ? 0.9 : 0.5, interactive: false, lineJoin: "round", lineCap: "round" }).addTo(g);
+      const l = L.current.polyline(r.puntos, { color: r.enCurso ? "#d64550" : r.sel ? "#15171a" : "#5a6470", weight: w, opacity: r.sel || r.enCurso ? 1 : 0.55, lineJoin: "round", lineCap: "round", className: "tg-ruta" }).addTo(g);
+      l.bindTooltip(escapar(r.texto), { sticky: true, className: "tg-tip" });
+      l.on("click", (e: any) => { L.current.DomEvent.stopPropagation(e); cb.current.alRuta?.(r.id) });
+      if (r.sel) {
+        const a = r.puntos[0];
+        L.current.circleMarker(a, { radius: 6, color: "#15171a", weight: 2, fillColor: "#ffffff", fillOpacity: 1, interactive: false }).addTo(g);
+      }
+    }
+  }, [listo, rutas]);
+
+  /* Encuadrar sobre el recorrido escogido. */
+  useEffect(() => {
+    if (!listo || !encuadrar || encuadrar.puntos.length < 2) return;
+    mapa.current.fitBounds(L.current.latLngBounds(encuadrar.puntos), { padding: [70, 70], maxZoom: 17 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listo, encuadrar?.llave]);
+
+  /* REPETIR EL RECORRIDO: un marcador recorre la línea en ~12 s (por distancia, así va más lento donde hay más puntos juntos). */
+  useEffect(() => {
+    if (!listo || !repetir || repetir.puntos.length < 2) return;
+    const pts = repetir.puntos;
+    const acum = [0];
+    for (let i = 1; i < pts.length; i++) acum.push(acum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+    const total = acum[acum.length - 1] || 1, dur = 12_000;
+    const m = L.current.marker(pts[0], { interactive: false, zIndexOffset: 900, icon: L.current.divIcon({ className: "tg-veh tg-repite", html: `<span class="tg-punto"><i class="tg-flecha"></i></span><span class="tg-placa">${escapar(repetir.etiqueta)}</span>`, iconSize: [0, 0] }) }).addTo(mapa.current);
+    let raf = 0; const t0 = performance.now();
+    const paso = (t: number) => {
+      const f = Math.min(1, (t - t0) / dur), d = f * total;
+      let i = 1; while (i < acum.length - 1 && acum[i] < d) i++;
+      const a = pts[i - 1], b = pts[i], k = (d - acum[i - 1]) / ((acum[i] - acum[i - 1]) || 1);
+      m.setLatLng([a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k]);
+      const el: HTMLElement | undefined = m.getElement();
+      const fl = el?.querySelector<HTMLElement>(".tg-flecha");
+      if (fl) fl.style.transform = `rotate(${(Math.atan2(b[1] - a[1], b[0] - a[0]) * 180) / Math.PI}deg)`;
+      if (f < 1) raf = requestAnimationFrame(paso);
+    };
+    raf = requestAnimationFrame(paso);
+    return () => { cancelAnimationFrame(raf); m.remove() };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listo, repetir?.llave]);
 
   /* Los vehículos: se crean una vez y después solo se mueven (el CSS los desliza). */
   useEffect(() => {

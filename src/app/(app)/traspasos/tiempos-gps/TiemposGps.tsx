@@ -9,7 +9,9 @@ import { duracion, flujosEntreZonas, tiemposPorZona, tramosDe, type Visita, type
 import { COLORES_ZONA, type Instantanea, type VehiculoVivo, type VisitaGps } from "@/modulos/traspasos/gps/tipos";
 import { Demo, ZONAS_DEMO } from "@/modulos/traspasos/gps/demo";
 import { cruzarViajes, norm, placaClave, promedioPorRuta, resumenPorTipo, type EstadoViaje, type LineaPlan, type ViajePlan, type ZonaLigada } from "@/modulos/traspasos/gps/plan";
-import { MapaGps, type CapaBase, type FlujoMapa, type VehiculoMapa, type ZonaMapa } from "./MapaGps";
+import { MapaGps, type CapaBase, type FlujoMapa, type RutaMapa, type VehiculoMapa, type ZonaMapa } from "./MapaGps";
+import { adelgazar, alertasDe, calorPorHora, corto, enVivo, esLarga, lineaDeTiempo, normalesDe, type PosRuta, type Vivo } from "@/modulos/traspasos/gps/seguimiento";
+import { LineaTiempo, CalorEspera } from "./LineaTiempo";
 
 /* ===================================================================
    TIEMPOS GPS — el mapa de los vehículos y sus tiempos por zona
@@ -21,7 +23,23 @@ import { MapaGps, type CapaBase, type FlujoMapa, type VehiculoMapa, type ZonaMap
    Sin Traccar conectado la pantalla corre en MODO DEMO, con vehículos simulados que no se guardan.
    =================================================================== */
 type Rango = "hoy" | "24h" | "7d";
-type Pestania = "ahora" | "plan" | "tiempos" | "flujos" | "zonas";
+type Pestania = "ahora" | "viajes" | "plan" | "tiempos" | "flujos" | "zonas";
+/** Un recorrido con seguimiento (parte 2/3): el viaje que el conductor marcó, con su línea de posiciones. */
+type Rec = {
+  id: string; viaje: string; placa: string; estado: "en_curso" | "llego"; cierre: string | null; inicio: string; fin: string | null; km: number;
+  zonaDestino: string | null; codigo: string | null; origen: string | null; destino: string | null; tipo: string | null; puntos: PosRuta[];
+};
+/** Trae todas las filas de a 1.000 (lo máximo que entrega Supabase por consulta). */
+async function todas<T>(arma: (a: number, b: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>, max = 30_000) {
+  const out: T[] = [];
+  for (let a = 0; a < max; a += 1000) {
+    const r = await arma(a, a + 999);
+    if (r.error) return { data: out, error: r.error };
+    out.push(...(r.data ?? []));
+    if ((r.data?.length ?? 0) < 1000) break;
+  }
+  return { data: out, error: null as { message: string } | null };
+}
 type PuntoT = { clave: string; nombre: string };
 
 const RANGOS: [Rango, string][] = [["hoy", "Hoy"], ["24h", "24 horas"], ["7d", "7 días"]];
@@ -66,6 +84,14 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
   const [reloj, setReloj] = useState(() => Date.now());
   const [demo, setDemo] = useState<Instantanea | null>(null);
   const demoRef = useRef<Demo | null>(null);
+  /* PARTE 3: los recorridos con seguimiento, el recorrido escogido, su repetición y la historia de 14 días para «lo normal». */
+  const [recs, setRecs] = useState<Rec[]>([]);
+  const [faltaRec, setFaltaRec] = useState(false);
+  const [selRec, setSelRec] = useState<string | null>(null);
+  const [repite, setRepite] = useState(0);
+  const [hist, setHist] = useState<VisitaGps[]>([]);
+  const ultimoId = useRef(0);
+  const puntosRef = useRef(new Map<string, PosRuta[]>());
 
   /* ------------------------------------------------------------ lo que hay en la base */
   const cargar = useCallback(async () => {
@@ -107,6 +133,46 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
     setPuntos(pu.error ? [] : ((pu.data ?? []) as PuntoT[]));
   }, [supabase]);
 
+  /* LOS RECORRIDOS DE HOY (y los que sigan en curso) con sus posiciones. Las posiciones se piden solo las nuevas
+     (id mayor que la última que ya se tiene), así cada vuelta de 10 s trae poco. */
+  const cargarRecorridos = useCallback(async () => {
+    const desde = desdeDe(rango === "7d" ? "24h" : rango);
+    const r = await supabase.from("gps_recorridos").select("id, viaje, placa, estado, cierre, inicio, fin, km, zona_destino")
+      .or(`inicio.gte.${desde},estado.eq.en_curso`).neq("estado", "cancelado").order("inicio", { ascending: true }).limit(500);
+    if (r.error) { setFaltaRec(/gps_recorridos|schema cache|does not exist/i.test(r.error.message)); setRecs([]); return }
+    setFaltaRec(false);
+    const filas = (r.data ?? []) as { id: string; viaje: string; placa: string; estado: "en_curso" | "llego"; cierre: string | null; inicio: string; fin: string | null; km: number | string; zona_destino: string | null }[];
+    if (!filas.length) { setRecs([]); return }
+    const ids = filas.map((x) => x.id);
+    const [vj, ps] = await Promise.all([
+      supabase.from("v_traspasos_viajes").select("id, codigo, origen_nombre, destino_nombre, tipo_nombre").in("id", filas.map((x) => x.viaje)),
+      todas<{ id: number; recorrido: string; lat: number; lng: number; velocidad: number | null; en: string }>((a, b) =>
+        supabase.from("gps_posiciones").select("id, recorrido, lat, lng, velocidad, en").in("recorrido", ids).gt("id", ultimoId.current).order("id", { ascending: true }).range(a, b)),
+    ]);
+    const pm = puntosRef.current;
+    for (const k of [...pm.keys()]) if (!ids.includes(k)) pm.delete(k);
+    for (const x of ps.data) {
+      (pm.get(x.recorrido) ?? pm.set(x.recorrido, []).get(x.recorrido)!).push({ lat: x.lat, lng: x.lng, en: x.en, velocidad: x.velocidad });
+      if (x.id > ultimoId.current) ultimoId.current = x.id;
+    }
+    const info = new Map(((vj.data ?? []) as { id: string; codigo: string | null; origen_nombre: string | null; destino_nombre: string | null; tipo_nombre: string | null }[]).map((x) => [x.id, x]));
+    setRecs(filas.map((x) => {
+      const i = info.get(x.viaje);
+      return { id: x.id, viaje: x.viaje, placa: x.placa, estado: x.estado, cierre: x.cierre, inicio: x.inicio, fin: x.fin, km: Number(x.km) || 0, zonaDestino: x.zona_destino,
+        codigo: i?.codigo ?? null, origen: i?.origen_nombre ?? null, destino: i?.destino_nombre ?? null, tipo: i?.tipo_nombre ?? null, puntos: [...(pm.get(x.id) ?? [])] };
+    }));
+  }, [supabase, rango]);
+  useEffect(() => { ultimoId.current = 0; puntosRef.current = new Map() }, [rango]);
+
+  /* LA HISTORIA PARA «LO NORMAL»: las visitas cerradas de los últimos 14 días (una vez al abrir y cada 10 min). */
+  const cargarHistoria = useCallback(async () => {
+    const desde = new Date(Date.now() - 14 * 24 * 3600_000).toISOString();
+    const r = await todas<{ id: number; vehiculo_id: string; zona_id: string; entrada: string; salida: string | null }>((a, b) =>
+      supabase.from("gps_visitas").select("id, vehiculo_id, zona_id, entrada, salida").gte("entrada", desde).not("salida", "is", null).order("entrada", { ascending: true }).range(a, b), 20_000);
+    if (!r.error) setHist(r.data.map((x) => ({ id: String(x.id), vehiculo: x.vehiculo_id, zona: x.zona_id, entrada: x.entrada, salida: x.salida })));
+  }, [supabase]);
+  useEffect(() => { void cargarHistoria(); const t = setInterval(() => void cargarHistoria(), 600_000); return () => clearInterval(t) }, [cargarHistoria]);
+
   /* ¿Hay Traccar conectado? */
   useEffect(() => {
     let vivo = true;
@@ -126,12 +192,12 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
         const j = r ? ((await r.json().catch(() => ({}))) as { error?: string }) : { error: "Sin conexión con el servidor." };
         setMal(j.error ?? null);
       }
-      await cargar();
+      await Promise.all([cargar(), cargarRecorridos()]);
     };
     void vuelta();
     const t = setInterval(() => void vuelta(), conectado ? 15_000 : 10_000);
     return () => clearInterval(t);
-  }, [conectado, cargar]);
+  }, [conectado, cargar, cargarRecorridos]);
 
   useEffect(() => { const t = setInterval(() => setReloj(Date.now()), 1000); return () => clearInterval(t) }, []);
 
@@ -327,6 +393,48 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
   }
 
   const nVeh = calc?.vehs.length ?? 0;
+
+  /* ------------------------------------------------------------ PARTE 3: en vivo, línea de tiempo, tiempos y alertas */
+  const seg3 = useMemo(() => {
+    if (!foto || !d) return null;
+    const zonasS = foto.zonas;
+    const vehDePlaca = new Map(foto.vehiculos.filter((v) => v.placa).map((v) => [placaClave(v.placa), v.id]));
+    const recsV = recs.map((r) => {
+      const destino = zonasS.find((z) => z.id === r.zonaDestino) ?? null;
+      const vivo: Vivo | null = r.estado === "en_curso" ? enVivo(r.puntos, r.km, destino, zonasS, ahoraMs) : null;
+      return { ...r, vehiculo: vehDePlaca.get(placaClave(r.placa)) ?? null, destinoZona: destino?.nombre ?? null, vivo };
+    });
+    const enCurso = recsV.filter((r) => r.estado === "en_curso");
+    const parados = new Map<string, number>();
+    for (const r of enCurso) if (r.vehiculo && r.vivo && !r.vivo.enZona && r.vivo.parado > 0) parados.set(r.vehiculo, r.vivo.parado);
+    /* lo normal: 14 días de visitas cerradas (con nombre de zona) */
+    const histN: Visita[] = hist.filter((v) => d.nombreZ.has(v.zona)).map((v) => ({ vehiculo: v.vehiculo, zona: d.nombreZ.get(v.zona)!, entrada: v.entrada, salida: v.salida }));
+    const normales = normalesDe(histN);
+    const hoyN = normalesDe(d.visitasN);
+    const alertas = enDemo ? [] : alertasDe(d.visitasN, normales, parados, d.nombreV, ahoraIso);
+    /* la ventana de la línea de tiempo: hoy de 00 a 24; si no, las últimas 24 h */
+    const ini = rango === "hoy" ? desdeDe("hoy") : new Date(ahoraMs - 24 * 3600_000).toISOString();
+    const fin = rango === "hoy" ? new Date(Date.parse(ini) + 24 * 3600_000).toISOString() : ahoraIso;
+    const colorN = new Map(foto.zonas.map((z) => [z.nombre, z.color]));
+    const filas = lineaDeTiempo(d.visitasN, colorN, normales, ini, fin, ahoraIso)
+      .map((f) => ({ ...f, nombre: d.nombreV.get(f.vehiculo) ?? "—" })).sort((a, b) => a.nombre.localeCompare(b.nombre, "es", { numeric: true }));
+    const calor = calorPorHora(d.visitasN, ahoraIso);
+    return { recsV, enCurso, terminados: recsV.filter((r) => r.estado === "llego").reverse(), normales, hoyN, alertas, ventana: { ini, fin }, filas, calor };
+  }, [foto, d, recs, hist, ahoraMs, ahoraIso, rango, enDemo]);
+
+  const recSel = seg3?.recsV.find((r) => r.id === selRec) ?? null;
+  const rutasMapa: RutaMapa[] = useMemo(() => (seg3 ? seg3.recsV.filter((r) => r.estado === "en_curso" || r.id === selRec).map((r) => ({
+    id: r.id, puntos: adelgazar(r.puntos).map((p) => [p.lat, p.lng] as Punto), enCurso: r.estado === "en_curso", sel: r.id === selRec,
+    texto: `${r.placa} · ${r.origen ?? "?"} → ${r.destino ?? "?"} · ${r.km.toLocaleString("es-CO", { maximumFractionDigits: 1 })} km`,
+  })) : []), [seg3, selRec]);
+  const puntosSel = useMemo(() => (recSel ? adelgazar(recSel.puntos).map((p) => [p.lat, p.lng] as Punto) : []), [recSel]);
+  /** Escoger un recorrido: se resalta su línea, el mapa se encuadra en ella y su vehículo queda escogido. */
+  const escogerRec = (id: string | null) => {
+    setSelRec(id); setRepite(0);
+    const r = seg3?.recsV.find((x) => x.id === id);
+    if (r?.vehiculo) setSel(r.vehiculo);
+  };
+  const kmTxt = (n: number) => `${n.toLocaleString("es-CO", { maximumFractionDigits: 1, minimumFractionDigits: n < 10 ? 1 : 0 })} km`;
   return (
     <div className="tg">
       {dialogo}
@@ -355,6 +463,10 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
         <div><b>{calc?.enTransito ?? 0}</b><span>en tránsito</span></div>
         <div><b>{calc?.entradas ?? 0}</b><span>entradas a zonas</span></div>
         <div><b>{calc?.promedio ? duracion(calc.promedio) : "—"}</b><span>promedio por visita</span></div>
+        <div><b>{seg3?.enCurso.length ?? 0}</b><span>viajes en curso</span></div>
+        <button type="button" className={"tg-kpi-al" + (seg3?.alertas.length ? " hay" : "")} onClick={() => setTab("tiempos")} aria-label="Ver las alertas en Tiempos">
+          <b>{seg3?.alertas.length ?? 0}</b><span>{seg3?.alertas.length === 1 ? "alerta" : "alertas"}</span>
+        </button>
       </section>
 
       <div className="tg-cuerpo">
@@ -367,7 +479,33 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
                      if (p.length === 1) { ponerCentro(p[0]); return }
                      setNueva({ poligono: p, nombre: "", color: COLORES_ZONA[(foto?.zonas.length ?? 0) % COLORES_ZONA.length], punto: "" }); setTab("zonas");
                    }}
-                   alCancelarDibujo={() => setDibujo(null)} seleccion={sel} alSeleccionar={(id) => { setSel(id); if (id) setTab("ahora") }} ajustar={ajuste} centroInicial={centroInicial} />
+                   alCancelarDibujo={() => setDibujo(null)} seleccion={sel}
+                   alSeleccionar={(id) => {
+                     setSel(id);
+                     const r = id ? seg3?.enCurso.find((x) => x.vehiculo === id) : null;
+                     if (r) { setSelRec(r.id); setTab("viajes") } else { if (!id) setSelRec(null); if (id) setTab("ahora") }
+                   }}
+                   ajustar={ajuste} centroInicial={centroInicial}
+                   rutas={rutasMapa} alRuta={(id) => { escogerRec(id); setTab("viajes") }}
+                   encuadrar={recSel && recSel.estado === "llego" ? { puntos: puntosSel, llave: recSel.id } : null}
+                   repetir={recSel && repite > 0 ? { puntos: puntosSel, llave: `${recSel.id}-${repite}`, etiqueta: recSel.placa } : null} />
+          {recSel && (
+            <div className={"tg-vivo" + (recSel.estado === "en_curso" ? " curso" : "")} role="status">
+              <button type="button" className="tg-vivo-x" onClick={() => escogerRec(null)} aria-label="Cerrar">×</button>
+              <p className="tg-vivo-ruta"><b>{recSel.placa}</b> · {recSel.origen ?? "?"} → {recSel.destino ?? "?"}</p>
+              {recSel.estado === "en_curso" && recSel.vivo ? (<>
+                {recSel.vivo.parado >= 300 && !recSel.vivo.enZona
+                  ? <p className="tg-vivo-eta mal"><b>Parado</b> hace {duracion(recSel.vivo.parado)}</p>
+                  : <p className="tg-vivo-eta"><b>{recSel.vivo.etaMin == null ? "—" : `${recSel.vivo.etaMin} min`}</b>{recSel.vivo.llegaEn ? <span>llega ~{hhmm(recSel.vivo.llegaEn)} · faltan {kmTxt(recSel.vivo.faltaKm ?? 0)}</span> : <span>el destino no tiene geocerca</span>}</p>}
+                <div className="tg-vivo-barra" aria-label={`Avance ${Math.round(recSel.vivo.avance * 100)} %`}><span style={{ width: `${Math.round(recSel.vivo.avance * 100)}%` }} /></div>
+                <p className="tg-vivo-pie">salió {hhmm(recSel.inicio)} · {kmTxt(recSel.km)} recorridos · {Math.round(recSel.vivo.velocidad)} km/h{recSel.vivo.enZona ? ` · en ${recSel.vivo.enZona}` : ""}{recSel.tipo ? ` · ${recSel.tipo}` : ""}</p>
+              </>) : (<>
+                <p className="tg-vivo-eta ok"><b>Llegó {recSel.fin ? hhmm(recSel.fin) : "—"}</b><span>{recSel.fin ? duracion(Math.round((Date.parse(recSel.fin) - Date.parse(recSel.inicio)) / 1000)) : ""} · {kmTxt(recSel.km)}{recSel.cierre === "manual" ? " · marcado a mano" : ""}</span></p>
+                <p className="tg-vivo-pie">salió {hhmm(recSel.inicio)}{recSel.tipo ? ` · ${recSel.tipo}` : ""}{recSel.codigo ? ` · ${recSel.codigo}` : ""}</p>
+                <button type="button" className="tg-btn fuerte tg-vivo-rep" disabled={puntosSel.length < 2} onClick={() => setRepite((n) => n + 1)}>▶ {repite ? "Repetir otra vez" : "Repetir recorrido"}</button>
+              </>)}
+            </div>
+          )}
           {dibujo && (
             <div className="tg-guia" role="status">
               {dibujo === "punto" ? "Toca en el mapa el centro del patio o la bodega." : dibujo === "rect" ? "Haz clic en una esquina y luego en la esquina opuesta." : "Haz clic en cada vértice. Doble clic o Enter para cerrar la zona."} <button type="button" onClick={() => setDibujo(null)}>Cancelar (Esc)</button>
@@ -390,8 +528,10 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
 
         <aside className="tg-lado">
           <div className="tg-pest" role="tablist">
-            {([["ahora", "Ahora"], ["plan", "Plan"], ["tiempos", "Tiempos"], ["flujos", "Flujos"], ["zonas", "Zonas"]] as [Pestania, string][]).map(([k, et]) => (
-              <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)}>{et}</button>
+            {([["ahora", "Ahora"], ["viajes", "Viajes"], ["plan", "Plan"], ["tiempos", "Tiempos"], ["flujos", "Flujos"], ["zonas", "Zonas"]] as [Pestania, string][]).map(([k, et]) => (
+              <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)}>
+                {et}{k === "viajes" && (seg3?.enCurso.length ?? 0) > 0 && <i className="tg-pest-n">{seg3!.enCurso.length}</i>}{k === "tiempos" && (seg3?.alertas.length ?? 0) > 0 && <i className="tg-pest-n mal">{seg3!.alertas.length}</i>}
+              </button>
             ))}
           </div>
 
@@ -437,6 +577,42 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
               })}
               {nVeh === 0 && <li className="tg-vacio">No hay vehículos para mostrar todavía.</li>}
             </ul>
+          )}
+
+          {tab === "viajes" && (
+            <div className="tg-tabla-caja tg-viajes">
+              {faltaRec && <p className="tg-nota">Falta correr <b>2026-11-gps-recorridos.sql</b> en Supabase: con eso aparecen aquí los viajes que los conductores inician en su celular.</p>}
+              <h3 className="tg-sub">En curso · {seg3?.enCurso.length ?? 0}</h3>
+              <ul className="tg-rec">
+                {seg3?.enCurso.map((r) => {
+                  const v = r.vivo!, parado = v.parado >= 300 && !v.enZona;
+                  return (
+                    <li key={r.id}>
+                      <button type="button" className={"tg-rec-b curso" + (selRec === r.id ? " sel" : "") + (parado ? " mal" : "")} onClick={() => escogerRec(selRec === r.id ? null : r.id)} aria-pressed={selRec === r.id}>
+                        <span className="tg-rec-l"><b>{r.placa}</b> · {r.origen ?? "?"} → {r.destino ?? "?"}</span>
+                        <span className="tg-rec-eta">{parado ? <>parado <b>{Math.round(v.parado / 60)} min</b></> : v.etaMin == null ? "sin geocerca destino" : <><b>{v.etaMin} min</b> · llega ~{hhmm(v.llegaEn!)}</>}</span>
+                        <span className="tg-rec-barra"><i style={{ width: `${Math.round(v.avance * 100)}%` }} /></span>
+                        <small>salió {hhmm(r.inicio)} · {kmTxt(r.km)} · {Math.round(v.velocidad)} km/h{v.faltaKm != null ? ` · faltan ${kmTxt(v.faltaKm)}` : ""}</small>
+                      </button>
+                    </li>
+                  );
+                })}
+                {seg3 && seg3.enCurso.length === 0 && <li className="tg-vacio">Ningún viaje en curso. El conductor los inicia en Traspasos → Compartir ubicación, después de que facturación confirma la salida.</li>}
+              </ul>
+              <h3 className="tg-sub">Terminados · {seg3?.terminados.length ?? 0}</h3>
+              <ul className="tg-rec">
+                {seg3?.terminados.map((r) => (
+                  <li key={r.id}>
+                    <button type="button" className={"tg-rec-b" + (selRec === r.id ? " sel" : "")} onClick={() => escogerRec(selRec === r.id ? null : r.id)} aria-pressed={selRec === r.id}>
+                      <span className="tg-rec-l"><b>{r.placa}</b> · {r.origen ?? "?"} → {r.destino ?? "?"}</span>
+                      <small>{hhmm(r.inicio)} → {r.fin ? hhmm(r.fin) : "—"} · <b>{r.fin ? duracion(Math.round((Date.parse(r.fin) - Date.parse(r.inicio)) / 1000)) : "—"}</b> · {kmTxt(r.km)}{r.cierre === "manual" ? " · a mano" : ""}</small>
+                    </button>
+                  </li>
+                ))}
+                {seg3 && seg3.terminados.length === 0 && <li className="tg-vacio">Todavía no termina ningún viaje en este periodo.</li>}
+              </ul>
+              <p className="tg-nota">Toca un viaje para ver su línea en el mapa; en los terminados, <b>Repetir recorrido</b> lo vuelve a pasar. La hora de llegada se calcula con la distancia al borde de la geocerca destino y la velocidad de los últimos 3 minutos.</p>
+            </div>
           )}
 
           {tab === "plan" && plan && (
@@ -495,25 +671,68 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
 
           {tab === "tiempos" && (
             <div className="tg-tabla-caja">
+              <h3 className="tg-sub">Alertas ahora</h3>
+              <ul className="tg-alertas">
+                {seg3?.alertas.map((a, i) => (
+                  <li key={i}><button type="button" onClick={() => { setSel(a.vehiculo); const r = seg3.enCurso.find((x) => x.vehiculo === a.vehiculo); if (r) setSelRec(r.id) }}>
+                    <b>{a.texto}</b><small>{a.detalle}</small></button></li>
+                ))}
+                {seg3 && seg3.alertas.length === 0 && <li className="tg-vacio">Sin alertas: nadie pasa de lo normal.</li>}
+              </ul>
+
+              <h3 className="tg-sub">Espera en cada zona</h3>
               <table className="tg-tabla">
-                <thead><tr><th>Zona</th><th className="n">Visitas</th><th className="n">Promedio</th><th className="n">Más largo</th><th className="n">Ahora</th></tr></thead>
+                <thead><tr><th>Zona</th><th className="n">Hoy</th><th className="n">Normal</th><th className="n">Ahora</th></tr></thead>
                 <tbody>
                   {calc?.tiempos.map((t) => {
                     const z = foto?.zonas.find((x) => x.nombre === t.zona);
-                    const max = Math.max(...(calc?.tiempos.map((x) => x.promedio) ?? [1]), 1);
+                    const n = seg3?.normales.zona.get(t.zona)?.normal ?? null;
+                    const alta = esLarga(t.promedio, n);
                     return (
                       <tr key={t.zona}>
-                        <td><i className="tg-sw" style={{ background: z?.color }} />{t.zona}<div className="tg-barra"><span style={{ width: `${(t.promedio / max) * 100}%`, background: z?.color }} /></div></td>
-                        <td className="n">{t.visitas}</td><td className="n"><b>{duracion(t.promedio)}</b></td><td className="n">{duracion(t.maximo)}</td><td className="n">{t.adentro}</td>
+                        <td><i className="tg-sw" style={{ background: z?.color }} />{t.zona}<small className="tg-n">{t.visitas} {t.visitas === 1 ? "visita" : "visitas"} · la más larga {corto(t.maximo)}</small></td>
+                        <td className={"n" + (alta ? " tg-alto" : "")}><b>{corto(t.promedio)}</b></td><td className="n">{n ? corto(n) : "—"}</td><td className="n">{t.adentro}</td>
                       </tr>
                     );
                   })}
-                  {(calc?.tiempos.length ?? 0) === 0 && <tr><td colSpan={5} className="tg-vacio">Todavía no hay entradas a zonas en este periodo.</td></tr>}
+                  {(calc?.tiempos.length ?? 0) === 0 && <tr><td colSpan={4} className="tg-vacio">Todavía no hay entradas a zonas en este periodo.</td></tr>}
                 </tbody>
               </table>
-              <p className="tg-nota">El tiempo corre desde la primera posición vista dentro de la zona hasta la primera vista afuera; la precisión depende de cada cuánto reporta el GPS.</p>
+
+              <h3 className="tg-sub">Tramos entre zonas</h3>
+              <table className="tg-tabla">
+                <thead><tr><th>Tramo</th><th className="n">Hoy</th><th className="n">Normal</th><th className="n">Viajes</th></tr></thead>
+                <tbody>
+                  {calc?.flujos.map((f) => {
+                    const n = seg3?.normales.tramo.get(`${f.origen} → ${f.destino}`)?.normal ?? null;
+                    return (
+                      <tr key={f.origen + f.destino}>
+                        <td>{f.origen} → {f.destino}</td>
+                        <td className={"n" + (f.promedio < 4 * 3600 && esLarga(f.promedio, n) ? " tg-alto" : "")}><b>{corto(f.promedio)}</b></td><td className="n">{n ? corto(n) : "—"}</td><td className="n">{f.viajes}</td>
+                      </tr>
+                    );
+                  })}
+                  {(calc?.flujos.length ?? 0) === 0 && <tr><td colSpan={4} className="tg-vacio">Aún no hay tramos completos entre dos zonas.</td></tr>}
+                </tbody>
+              </table>
+
+              {seg3 && seg3.normales.ciclo.size > 0 && (<>
+                <h3 className="tg-sub">Ciclo completo (volver a la misma zona)</h3>
+                <table className="tg-tabla">
+                  <thead><tr><th>Desde</th><th className="n">Hoy</th><th className="n">Normal</th></tr></thead>
+                  <tbody>
+                    {[...seg3.normales.ciclo].map(([z, x]) => {
+                      const h = seg3.hoyN.ciclo.get(z);
+                      const hoyMed = h && h.n ? h.normal ?? null : null;
+                      return <tr key={z}><td>{z}</td><td className={"n" + (hoyMed && esLarga(hoyMed, x.normal) ? " tg-alto" : "")}>{hoyMed ? corto(hoyMed) : h?.n ? `${h.n} ${h.n === 1 ? "vuelta" : "vueltas"}` : "—"}</td><td className="n">{x.normal ? corto(x.normal) : "—"}</td></tr>;
+                    })}
+                  </tbody>
+                </table>
+              </>)}
+              <p className="tg-nota"><b>Normal</b> = la mediana de los últimos 14 días (hace falta al menos {3} casos). Una espera es larga si pasa 1,5 veces lo normal y al menos 10 min más; sin historia todavía, si pasa de 45 min. Parado = 15 min o más sin moverse fuera de las zonas.</p>
             </div>
           )}
+
 
           {tab === "flujos" && (
             <div className="tg-tabla-caja">
@@ -635,6 +854,19 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
           )}
         </aside>
       </div>
+
+      {seg3 && (
+        <LineaTiempo filas={seg3.filas} desde={seg3.ventana.ini} hasta={seg3.ventana.fin} ahora={ahoraIso} rango={rango}
+          zonas={(foto?.zonas ?? []).map((z) => ({ nombre: z.nombre, color: z.color }))}
+          alTocar={(veh, ini, fin) => {
+            setSel(veh);
+            const r = seg3.recsV.find((x) => x.vehiculo === veh && x.inicio <= fin && (x.fin ?? ahoraIso) >= ini);
+            if (r) { escogerRec(r.id); setTab("viajes") } else setTab("ahora");
+          }} />
+      )}
+      {seg3 && seg3.calor.size > 0 && (
+        <CalorEspera calor={seg3.calor} normales={seg3.normales.zona} colores={new Map((foto?.zonas ?? []).map((z) => [z.nombre, z.color]))} />
+      )}
     </div>
   );
 }

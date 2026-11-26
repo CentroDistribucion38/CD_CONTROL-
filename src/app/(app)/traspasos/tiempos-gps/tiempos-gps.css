@@ -173,3 +173,100 @@
 .tg-mapa-busca button { min-width: 84px; border: 0; border-left: 1.5px solid var(--tg-tinta); background: var(--tg-amarillo); color: #111; font: 800 .8rem Arial, sans-serif; cursor: pointer }
 .tg-mapa-busca button:disabled { background: #eceae4; color: #8a8a8a; cursor: default }
 .tg-mapa-busca input:disabled { cursor: default }
+
+/* =================== PARTE 3 · EN VIVO, LÍNEA DE TIEMPO, TIEMPOS Y ALERTAS =================== */
+.tg-kpis { grid-template-columns: repeat(6, 1fr) }
+.tg-kpi-al { padding: 12px 18px; border: 0; background: transparent; text-align: left; display: flex; flex-direction: column; gap: 2px; cursor: pointer; font: inherit }
+.tg-kpi-al.hay { background: #5c1414 }
+.tg-kpi-al.hay b { color: #ff8a8a }
+.tg-kpi-al:focus-visible { outline: 3px solid var(--tg-amarillo); outline-offset: -3px }
+@media (max-width: 1100px) { .tg-kpis { grid-template-columns: repeat(3, 1fr) } .tg-kpis > :nth-child(3) { border-right: 0 } .tg-kpis > :nth-child(-n+3) { border-bottom: 1px solid #2c3036 } }
+
+/* la pestaña con su número */
+.tg-pest-n { display: inline-block; min-width: 17px; margin-left: 5px; padding: 0 4px; background: var(--tg-amarillo); color: var(--tg-tinta); font: 800 .66rem/17px Arial, sans-serif; font-style: normal; text-align: center }
+.tg-pest-n.mal { background: #e5484d; color: #fff }
+
+/* A · la tarjeta en vivo sobre el mapa (arriba a la derecha) */
+.tg-vivo { position: absolute; z-index: 750; top: 10px; right: 10px; width: min(300px, calc(100% - 20px)); padding: 12px 14px 12px; background: #fff; border: 1.5px solid var(--tg-tinta); border-top: 5px solid var(--tg-gris); box-shadow: 0 6px 20px rgba(0,0,0,.22) }
+.tg-vivo.curso { border-top-color: #d64550 }
+.tg-vivo-x { position: absolute; top: 4px; right: 6px; width: 30px; height: 30px; border: 0; background: transparent; font-size: 1.2rem; cursor: pointer; color: var(--tg-gris) }
+.tg-vivo-ruta { margin: 0 28px 6px 0; font-size: .84rem; line-height: 1.3 }
+.tg-vivo-eta { margin: 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap }
+.tg-vivo-eta b { font-size: 1.9rem; line-height: 1.05; font-weight: 800; color: #b71c1c; font-variant-numeric: tabular-nums }
+.tg-vivo-eta.ok b { font-size: 1.3rem; color: var(--tg-verde) }
+.tg-vivo-eta.mal b { color: #b71c1c }
+.tg-vivo-eta span { font-size: .76rem; color: var(--tg-gris) }
+.tg-vivo-barra { height: 7px; margin: 9px 0 7px; background: #e6e8eb }
+.tg-vivo-barra span { display: block; height: 100%; background: var(--tg-amarillo); transition: width .6s ease }
+.tg-vivo-pie { margin: 0; font-size: .74rem; color: var(--tg-gris) }
+.tg-vivo-rep { margin-top: 10px; width: 100% }
+
+/* las líneas de los recorridos y el camión de la repetición */
+.tg-ruta { cursor: pointer }
+.tg-repite .tg-punto { --c: #15171a; background: #15171a !important }
+
+/* A · la pestaña Viajes */
+.tg-rec { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px }
+.tg-rec-b { width: 100%; display: flex; flex-direction: column; gap: 4px; padding: 9px 11px; border: 1px solid var(--tg-linea); border-left: 4px solid var(--tg-linea); background: #fff; text-align: left; font: inherit; color: inherit; cursor: pointer }
+.tg-rec-b.curso { border-left-color: #d64550 }
+.tg-rec-b.sel { border-color: var(--tg-tinta); border-left-color: var(--tg-amarillo); background: #fffaeb }
+.tg-rec-b.mal { background: #fdecec; border-left-color: var(--tg-rojo) }
+.tg-rec-b:focus-visible { outline: 3px solid #1d9bd1; outline-offset: 1px }
+.tg-rec-l { font-size: .82rem; line-height: 1.3 }
+.tg-rec-eta { font-size: .8rem; color: var(--tg-gris) }
+.tg-rec-eta b { font-size: 1.05rem; color: #b71c1c }
+.tg-rec-barra { height: 5px; background: #e6e8eb }
+.tg-rec-barra i { display: block; height: 100%; background: var(--tg-amarillo) }
+.tg-rec-b small { font-size: .72rem; color: var(--tg-gris) }
+
+/* C · alertas y tablas */
+.tg-alertas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px }
+.tg-alertas button { width: 100%; display: flex; flex-direction: column; gap: 2px; padding: 9px 11px; border: 1px solid #e3b4b4; border-left: 4px solid var(--tg-rojo); background: #fdecec; text-align: left; font: inherit; color: inherit; cursor: pointer }
+.tg-alertas b { font-size: .84rem; color: #7c1111 }
+.tg-alertas small { font-size: .74rem; color: #7c4a4a }
+.tg-tabla td.tg-alto b { color: var(--tg-rojo) }
+.tg-tabla td.tg-alto { background: #fdecec }
+.tg-n { display: block; margin-left: 16px; font-size: .68rem; color: var(--tg-gris) }
+
+/* B · línea de tiempo (ancho completo, debajo del mapa) */
+.tg-linea { border: 1px solid var(--tg-tinta); background: #fff }
+.tg-linea > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 14px; border-bottom: 1px solid var(--tg-linea) }
+.tg-linea h2 { margin: 0; font: 800 .8rem Arial, sans-serif; letter-spacing: .08em; text-transform: uppercase }
+.tg-linea-ley { display: flex; gap: 12px; flex-wrap: wrap; font-size: .72rem; color: var(--tg-gris) }
+.tg-linea-ley i { display: inline-block; width: 12px; height: 10px; margin-right: 5px; vertical-align: -1px }
+.tg-linea-ley i.larga { background: repeating-linear-gradient(135deg, #f3c1c4 0 3px, #fff 3px 6px); outline: 2px solid #d64550; outline-offset: -2px }
+.tg-linea-cuerpo { padding: 6px 14px 14px; overflow-x: auto }
+.tg-linea-eje, .tg-linea-fila { display: grid; grid-template-columns: 120px minmax(640px, 1fr); align-items: center }
+.tg-linea-eje > div { position: relative; height: 20px }
+.tg-linea-eje em { position: absolute; top: 2px; transform: translateX(-50%); font: 700 .68rem "IBM Plex Mono", ui-monospace, monospace; font-style: normal; color: var(--tg-gris) }
+.tg-linea-fila { min-height: 38px; border-top: 1px solid #eef0f2 }
+.tg-linea-et { display: flex; flex-direction: column; font-size: .8rem; line-height: 1.2 }
+.tg-linea-et small { font-size: .68rem; color: var(--tg-gris) }
+.tg-linea-et em { font-style: normal; color: var(--tg-rojo); font-weight: 700 }
+.tg-linea-pista { position: relative; height: 22px; background: #f6f7f8 }
+.tg-linea-guia { position: absolute; top: 0; bottom: 0; width: 1px; background: #e3e6ea }
+.tg-bloque { position: absolute; top: 2px; bottom: 2px; padding: 0; border: 0; cursor: pointer; min-width: 3px }
+.tg-bloque.transito { background: #c9ced4; top: 7px; bottom: 7px }
+.tg-bloque.larga { outline: 2px solid #d64550; outline-offset: -2px; background-image: repeating-linear-gradient(135deg, rgba(255,255,255,.55) 0 3px, transparent 3px 6px) }
+.tg-bloque.abierto { box-shadow: inset -3px 0 0 var(--tg-tinta) }
+.tg-bloque:hover, .tg-bloque:focus-visible { outline: 2px solid var(--tg-tinta); outline-offset: 0; z-index: 2 }
+.tg-linea-ahora { position: absolute; top: -4px; bottom: -4px; width: 2px; background: #d64550; z-index: 3 }
+
+/* C · calor de espera por hora */
+.tg-calor-caja { padding: 8px 14px 0; overflow-x: auto }
+.tg-calor table { border-collapse: collapse; font-size: .74rem; font-variant-numeric: tabular-nums }
+.tg-calor th { padding: 4px 2px; font: 700 .66rem "IBM Plex Mono", ui-monospace, monospace; color: var(--tg-gris); text-align: center }
+.tg-calor th:first-child, .tg-calor td:first-child { text-align: left; padding-right: 12px; white-space: nowrap; min-width: 120px }
+.tg-calor td { width: 38px; height: 28px; text-align: center; border: 2px solid #fff; font-weight: 700 }
+.tg-calor td.nada { background: #f6f7f8 }
+.tg-calor td.ok { background: #dff2e6; color: #0b5e30 }
+.tg-calor td.medio { background: #ffe7a3; color: #6a4b00 }
+.tg-calor td.alto { background: #f7c9cc; color: #7c1111 }
+.tg-calor td.sin { background: #eceef1; color: var(--tg-tinta) }
+.tg-calor td.nrm { width: auto; padding: 0 8px; color: var(--tg-gris); font-weight: 400; white-space: nowrap }
+.tg-linea-ley i.ok { background: #dff2e6 } .tg-linea-ley i.medio { background: #ffe7a3 } .tg-linea-ley i.alto { background: #f7c9cc } .tg-linea-ley i.sin { background: #eceef1 }
+.tg-calor .tg-nota { padding: 0 14px 12px }
+.tg-pest button { padding: 0 2px; font-size: .74rem; white-space: nowrap }
+.tg-pest-n { min-width: 14px; margin-left: 3px; padding: 0 3px; font-size: .62rem; line-height: 15px; vertical-align: 1px }
+.tg-calor table { width: auto }
+.tg-tabla td:first-child { white-space: normal }
