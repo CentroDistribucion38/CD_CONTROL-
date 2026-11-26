@@ -643,14 +643,14 @@ export const MODULOS: Modulo[] = [
   },
   {
     id: "cinco-s",
-    nombre: "5S",
-    eyebrow: "ORDEN Y ASEO",
+    nombre: "5S y PTL",
+    eyebrow: "EVALUACIONES",
     descripcion:
-      "Auditoría 5S por área: checklist por S con peso, cumple / no cumple / N/A, hallazgos con foto y el puntaje contra la meta.",
+      "Evaluaciones por área: 5S, PTL y los formatos que se creen. Checklist por sección con peso, cumple / no cumple / N/A, hallazgos con foto y el % contra la meta.",
     /* Ámbar de la marca: 5S es orden visual, y la demarcación de piso es amarilla. */
     acento: "#B58200",
     fondo: "#FFF6DA",
-    etiquetas: ["Checklist por S", "Gantt de auditorías", "Plan de acción", "Informe carta"],
+    etiquetas: ["5S y PTL", "Checklist por sección", "Plan de acción", "Informe carta"],
     imagen: "/modulos/cinco-s.jpg",
     ruta: "/5s",
     activo: true,

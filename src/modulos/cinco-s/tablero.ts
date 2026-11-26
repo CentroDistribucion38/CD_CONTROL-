@@ -2,7 +2,7 @@
  * 5S · LAS CIFRAS DEL TABLERO — una sola cuenta para la pantalla y para la imagen que se copia.
  * Si la pantalla y la foto calcularan cada una por su lado, tarde o temprano dirían números distintos.
  */
-import { LAS_S, type Area5S, type Inspeccion5S, type Programada5S, type Responsable5S } from "./cinco-s";
+import { FORMATO_5S, formatoDe, type Area5S, type Formato5S, type Inspeccion5S, type Programada5S, type Responsable5S } from "./cinco-s";
 
 export type NoCumple5S = { inspeccion_id: string; s: string; pregunta: string; zona: string | null; severidad: string | null };
 export const prom = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
@@ -27,8 +27,12 @@ export function piso(valores: (number | null | undefined)[], meta: number) {
 export function armarTablero5S(p: {
   filas: Inspeccion5S[]; areas: Area5S[]; responsables: Responsable5S[]; meta: number; plan: Programada5S[];
   noCumple: NoCumple5S[]; desde: string; hoy: string; areaF: string;
+  /** Qué se mira (5S, PTL…): las cifras de formatos distintos no se mezclan. Sin él, 5S. */
+  formato?: Formato5S; formatos?: Formato5S[];
 }) {
-  const vista = p.filas.filter((f) => f.fecha >= p.desde && (!p.areaF || f.area_id === p.areaF));
+  const fmt = p.formato ?? FORMATO_5S;
+  const esDe = (f: Inspeccion5S) => !p.formatos || formatoDe(p.formatos, f.formato_id).id === fmt.id;
+  const vista = p.filas.filter((f) => esDe(f) && f.fecha >= p.desde && (!p.areaF || f.area_id === p.areaF));
   const ids = new Set(vista.map((f) => f.id));
   const general = prom(vista.map((f) => f.cumplimiento));
   const metaRef = prom(vista.map((f) => f.meta)) ?? p.meta;
@@ -43,9 +47,9 @@ export function armarTablero5S(p: {
       responsable: p.responsables.find((r) => r.id === a?.responsable_id)?.nombre ?? ult.responsable };
   }).sort((a, b) => (a.pct - a.meta) - (b.pct - b.meta));
   const bajoMeta = porArea.filter((a) => a.pct < a.meta).length;
-  const sinAuditar = p.areas.filter((a) => a.activa && !p.filas.some((f) => f.area_id === a.id && f.fecha >= restar(p.hoy, 30)));
+  const sinAuditar = p.areas.filter((a) => a.activa && !p.filas.some((f) => esDe(f) && f.area_id === a.id && f.fecha >= restar(p.hoy, 30)));
 
-  const porS = LAS_S.map((s) => ({ ...s, pct: prom(vista.map((f) => f.por_s[s.clave]).filter((v): v is number => v != null)) }));
+  const porS = fmt.secciones.map((s) => ({ ...s, pct: prom(vista.map((f) => f.por_s[s.clave]).filter((v): v is number => v != null)) }));
   const peorS = porS.filter((s) => s.pct != null).sort((a, b) => a.pct! - b.pct!)[0];
 
   const sm = new Map<string, number[]>();
@@ -75,7 +79,7 @@ export function armarTablero5S(p: {
   const cumplePlan = cerradas.length ? (100 * hechas) / cerradas.length : null;
 
   return {
-    vista, general, metaRef, porArea, bajoMeta, sinAuditar, porS, peorS, semanas, porResp, porAuditor, repetidos,
+    formato: fmt, vista, general, metaRef, porArea, bajoMeta, sinAuditar, porS, peorS, semanas, porResp, porAuditor, repetidos,
     cerradas: cerradas.length, hechas, cumplePlan, hallazgos: vista.reduce((t, f) => t + f.no_cumple, 0),
   };
 }

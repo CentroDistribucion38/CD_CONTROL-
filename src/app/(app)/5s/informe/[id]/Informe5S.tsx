@@ -18,10 +18,10 @@ import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LAS_S, fechaLarga, pct, semanaIso, type ClaveS, type Responsable5S } from "@/modulos/cinco-s/cinco-s";
-import { armarHojas, nombreS, type Bloque, type DatosInforme } from "@/modulos/cinco-s/informe";
+import { FORMATO_5S, fechaLarga, pct, semanaIso, type ClaveS, type Responsable5S } from "@/modulos/cinco-s/cinco-s";
+import { armarHojas, es5S, seccionDe, siglaDe, tituloSeccion, type Bloque, type DatosInforme } from "@/modulos/cinco-s/informe";
 
-const CODIGO = "CD38-5S-F01", VERSION = "01";
+const VERSION = "01";
 const nf1 = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const fecha = (f: string) => `${f.slice(8, 10)}/${f.slice(5, 7)}/${f.slice(0, 4)}`;
 const RES = { cumple: "C", no_cumple: "NC", na: "N/A" } as const;
@@ -58,7 +58,10 @@ export function Informe5S({ datos, descargar, responsables = [], areaResp = null
      guardó (en Colombia). Sin «:» ni «/», que Windows no los deja en un nombre de archivo. */
   const hora = new Date(insp.creado).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit", hour12: false }).replace(":", "-");
   /* Sin tildes: hay navegadores que con una tilde en el nombre bajan el archivo como «download». */
-  const nombreArchivo = `Inspeccion 5S - ${insp.area} - ${fecha(insp.fecha).replace(/\//g, "-")} ${hora}.pdf`
+  /* El formato manda: «Inspeccion PTL - T1 - …», código «CD38-PTL-F01». */
+  const secs = (datos.formato ?? FORMATO_5S).secciones;
+  const sigla = siglaDe(datos), CODIGO = `CD38-${sigla.toUpperCase()}-F01`;
+  const nombreArchivo = `Inspeccion ${sigla} - ${insp.area} - ${fecha(insp.fecha).replace(/\//g, "-")} ${hora}.pdf`
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\\/:*?"<>|]/g, "-");
 
   const bajo = insp.cumplimiento < insp.meta;
@@ -140,7 +143,7 @@ export function Informe5S({ datos, descargar, responsables = [], areaResp = null
     <table className="i5-enc"><tbody><tr>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <td className="logo"><img src="/marca/logo-bavaria.png" alt="Bavaria" /></td>
-      <td className="tt"><b>INFORME DE AUDITORÍA 5S</b><span>Sistema de gestión · Orden y aseo · CD38</span></td>
+      <td className="tt"><b>INFORME DE AUDITORÍA {sigla.toUpperCase()}</b><span>Sistema de gestión · {es5S(datos) ? "Orden y aseo" : (datos.formato?.nombre.split("·")[1] ?? "").trim() || "Evaluación"} · CD38</span></td>
       <td className="cod"><b>Código:</b> {CODIGO}<br /><b>Versión:</b> {VERSION}<br /><b>Fecha:</b> {fecha(insp.fecha)}<br /><b>Página:</b> {n} de {hojas.length}</td>
     </tr></tbody></table>
   );
@@ -173,15 +176,15 @@ export function Informe5S({ datos, descargar, responsables = [], areaResp = null
         </div>
       );
       case "porS": return (
-        <table key={k} className="i5-s"><thead><tr><th colSpan={2}>CUMPLIMIENTO POR S</th><th className="bar">META {pct(insp.meta)}</th><th>C</th><th>NC</th><th>N/A</th><th className="p">%</th></tr></thead>
+        <table key={k} className="i5-s"><thead><tr><th colSpan={2}>{es5S(datos) ? "CUMPLIMIENTO POR S" : "CUMPLIMIENTO POR SECCIÓN"}</th><th className="bar">META {pct(insp.meta)}</th><th>C</th><th>NC</th><th>N/A</th><th className="p">%</th></tr></thead>
           <tbody>
-            {LAS_S.map((s) => {
+            {secs.map((s) => {
               const v = insp.por_s[s.clave];
               if (v === undefined) return null;
               const b2 = v != null && v < insp.meta;
               return (
                 <tr key={s.clave}>
-                  <td className="n">{s.n}S</td><td className="nom">{s.nombre}<i>{s.jp}</i></td>
+                  <td className="n">{s.corto}</td><td className="nom">{s.nombre}{s.jp && <i>{s.jp}</i>}</td>
                   <td className="bar"><div className="barra"><i className={b2 ? "bajo" : ""} style={{ width: `${v ?? 0}%` }} /><em style={{ left: `${insp.meta}%` }} /></div></td>
                   <td>{cuentaS(s.clave, "cumple")}</td><td className={cuentaS(s.clave, "no_cumple") ? "nc" : ""}>{cuentaS(s.clave, "no_cumple")}</td><td>{cuentaS(s.clave, "na")}</td>
                   <td className={"p" + (b2 ? " bajo" : "")}>{v == null ? "—" : `${nf1.format(v)} %`}</td>
@@ -196,7 +199,7 @@ export function Informe5S({ datos, descargar, responsables = [], areaResp = null
           <thead><tr><th className="c">#</th><th className="req">REQUISITO</th><th className="c">C</th><th className="c">NC</th><th className="c">N/A</th><th className="sev">SEV.</th><th className="obs">OBSERVACIÓN</th></tr></thead>
           <tbody>
             {b.filas.map((f, j) => "grupo" in f ? (
-              <tr key={j} className="grupo"><td colSpan={7}>{nombreS(f.grupo)?.n}S · {nombreS(f.grupo)?.nombre.toUpperCase()} ({nombreS(f.grupo)?.jp.toUpperCase()})</td></tr>
+              <tr key={j} className="grupo"><td colSpan={7}>{tituloSeccion(seccionDe(datos, f.grupo), f.grupo)}</td></tr>
             ) : (
               <tr key={j}>
                 <td className="c">{f.n}</td><td>{f.item.pregunta}</td>
@@ -217,7 +220,7 @@ export function Informe5S({ datos, descargar, responsables = [], areaResp = null
             {b.filas.map((f) => (
               <tr key={f.item.id}>
                 <td className="c">{f.n}</td>
-                <td><b>{nombreS(f.item.s)?.n}S{f.item.zona ? ` · ${f.item.zona}` : ""}.</b> {f.item.observacion}</td>
+                <td><b>{seccionDe(datos, f.item.s)?.corto ?? f.item.s}{f.item.zona ? ` · ${f.item.zona}` : ""}.</b> {f.item.observacion}</td>
                 <td className="sev">{cap(f.item.severidad)}</td>
                 <td>{f.item.cerrada_el ? <><b>Cerrado.</b> {f.item.cierre_nota}</> : f.item.accion ?? ""}</td>
                 <td>{f.item.accion_resp ?? ""}</td>
@@ -295,7 +298,7 @@ export function Informe5S({ datos, descargar, responsables = [], areaResp = null
           </button>
         </div>
         <div className="sec">
-          <p className="s5-ojo">5S · INFORME · {datos.numero}</p>
+          <p className="s5-ojo">{sigla.toUpperCase()} · INFORME · {datos.numero}</p>
           <h1>{insp.area}</h1>
           <p className="sub">{fechaLarga(insp.fecha)} · S{semanaIso(insp.fecha)} · Auditor: {insp.auditor_nombre ?? "—"}</p>
         </div>
@@ -303,12 +306,12 @@ export function Informe5S({ datos, descargar, responsables = [], areaResp = null
           <b className={"big" + (bajo ? " bajo" : "")}>{nf1.format(insp.cumplimiento)} %</b>
           <p className="meta">{bajo ? "Bajo" : "Cumple"} la meta de {pct(insp.meta)} · {nc.length} {nc.length === 1 ? "hallazgo" : "hallazgos"}</p>
           <ul className="porS">
-            {LAS_S.map((x) => {
+            {secs.map((x) => {
               const v = insp.por_s[x.clave]; if (v === undefined) return null;
               const b2 = v != null && v < insp.meta;
               return (
-                <li key={x.clave} title={`${x.n}S ${x.nombre}`}>
-                  <b>{x.n}S</b><i><em className={b2 ? "bajo" : ""} style={{ width: `${v ?? 0}%` }} /><u style={{ left: `${insp.meta}%` }} /></i>
+                <li key={x.clave} title={`${x.corto} ${x.nombre}`}>
+                  <b>{x.corto}</b><i><em className={b2 ? "bajo" : ""} style={{ width: `${v ?? 0}%` }} /><u style={{ left: `${insp.meta}%` }} /></i>
                   <span className={b2 ? "bajo" : ""}>{v == null ? "—" : pct(v)}</span>
                 </li>
               );

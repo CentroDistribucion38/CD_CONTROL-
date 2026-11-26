@@ -18,7 +18,7 @@ import { useAvisos } from "@/components/Aviso";
 import { useConfirmar } from "@/components/Confirmar";
 import { sellar, type Foto } from "@/lib/evidencia";
 import {
-  ESTADOS_H, NOMBRE_S, fechaLarga, hoyCo,
+  ESTADOS_H, FORMATO_5S, fechaLarga, hoyCo, mapaSecciones, type Formato5S,
   type Area5S, type EstadoHallazgo, type Hallazgo5S, type Responsable5S,
 } from "@/modulos/cinco-s/cinco-s";
 import { CabezaVentana } from "../CabezaVentana";
@@ -36,9 +36,17 @@ type Vista = "pendientes" | "cerrados" | "todos";
 type FormPlan = { h: Hallazgo5S; accion: string; resp: string; fecha: string };
 type FormCierre = { h: Hallazgo5S; nota: string; fotos: (Foto & { k: number })[] };
 
-export function PlanAccion({ filas, areas, responsables, fotos, puedeEditar }: {
-  filas: Hallazgo5S[]; areas: Area5S[]; responsables: Responsable5S[]; fotos: FotosH; puedeEditar: boolean;
+export function PlanAccion({ filas, areas, responsables, fotos, puedeEditar, formatos = [FORMATO_5S] }: {
+  filas: Hallazgo5S[]; areas: Area5S[]; responsables: Responsable5S[]; fotos: FotosH; puedeEditar: boolean; formatos?: Formato5S[];
 }) {
+  /* «1S Clasificar», «PTL · UBI Ubicación»: de qué formato y sección es cada hallazgo. */
+  const secc = mapaSecciones(formatos);
+  const varios = formatos.length > 1;
+  const etiqueta = (h: Hallazgo5S) => {
+    const x = secc.get(h.s);
+    const sec = x ? `${x.corto} ${x.nombre}` : h.s;
+    return varios && h.formato && !/^5S/.test(h.formato) ? `${h.formato.split("·")[0].trim()} · ${sec}` : sec;
+  };
   const router = useRouter();
   const [avisar, avisos] = useAvisos();
   const [pedir, dialogo] = useConfirmar();
@@ -162,7 +170,7 @@ export function PlanAccion({ filas, areas, responsables, fotos, puedeEditar }: {
       {avisos}{dialogo}
       <header className="s5-cab">
         <div>
-          <p className="s5-ojo">5S · ORDEN Y ASEO</p>
+          <p className="s5-ojo">EVALUACIONES · 5S Y PTL</p>
           <h1>Plan de acción</h1>
         </div>
         <div className="s5-filtros">
@@ -199,7 +207,6 @@ export function PlanAccion({ filas, areas, responsables, fotos, puedeEditar }: {
         ) : (
           <ul className="s5-hal">
             {lista.map((h) => {
-              const ns = NOMBRE_S[h.s];
               const ft = fotos[h.id] ?? { antes: [], despues: [] };
               return (
                 <li key={h.id} className={"est-" + h.estado}>
@@ -211,7 +218,7 @@ export function PlanAccion({ filas, areas, responsables, fotos, puedeEditar }: {
                   <div className="que">
                     <p className="meta">
                       <span className={"s5-chip est est-" + h.estado}>{ESTADOS_H[h.estado]}</span>
-                      <b>{h.area}</b>{h.zona && <> · {h.zona}</>} · {ns.n}S {ns.nombre}
+                      <b>{h.area}</b>{h.zona && <> · {h.zona}</>} · {etiqueta(h)}
                       {h.severidad && <span className={"s5-chip sev-" + h.severidad}>{h.severidad}</span>}
                     </p>
                     <h3>{h.observacion ?? h.pregunta}</h3>
@@ -256,7 +263,7 @@ export function PlanAccion({ filas, areas, responsables, fotos, puedeEditar }: {
              onKeyDown={(e) => { if (e.key === "Escape") setPlan(null) }}>
           <form className="s5-mo" role="dialog" aria-modal="true" aria-label="Plan de acción" onSubmit={(e) => { e.preventDefault(); guardarPlan() }}>
             <CabezaVentana ojo={`5S · PLAN DE ACCIÓN · ${plan.h.area}`} titulo={plan.h.accion ? "Cambiar el plan" : "Asignar plan"} cerrar={() => setPlan(null)} />
-            <Hallazgo h={plan.h} foto={fotos[plan.h.id]?.antes[0]} />
+            <Hallazgo h={plan.h} etiqueta={etiqueta(plan.h)} foto={fotos[plan.h.id]?.antes[0]} />
             <fieldset className="s5-mo-b" style={{ border: 0 }}>
               <label className="s5-campo ancho"><span>¿Qué se va a hacer?</span>
                 <textarea value={plan.accion} maxLength={300} autoFocus placeholder="Retirar las estibas de envase y dejar libre el extintor de la calle 3"
@@ -288,7 +295,7 @@ export function PlanAccion({ filas, areas, responsables, fotos, puedeEditar }: {
              onKeyDown={(e) => { if (e.key === "Escape" && !ocupado) soltarCierre() }}>
           <form className="s5-mo" role="dialog" aria-modal="true" aria-label="Cerrar hallazgo" onSubmit={(e) => { e.preventDefault(); cerrar() }}>
             <CabezaVentana ojo={`5S · CERRAR HALLAZGO · ${cierre.h.area}`} titulo="Cerrar con foto del después" cerrar={() => { if (!ocupado) soltarCierre() }} />
-            <Hallazgo h={cierre.h} foto={fotos[cierre.h.id]?.antes[0]} />
+            <Hallazgo h={cierre.h} etiqueta={etiqueta(cierre.h)} foto={fotos[cierre.h.id]?.antes[0]} />
             <fieldset className="s5-mo-b" style={{ border: 0 }} disabled={ocupado}>
               <div className="s5-campo ancho"><span>Foto del después (obligatoria)</span>
                 <div className="s5-despues">
@@ -324,13 +331,12 @@ export function PlanAccion({ filas, areas, responsables, fotos, puedeEditar }: {
 }
 
 /** El hallazgo de la ventana, arriba y en grande: la foto del antes, qué se encontró, dónde y cuándo. */
-function Hallazgo({ h, foto }: { h: Hallazgo5S; foto?: string }) {
-  const ns = NOMBRE_S[h.s];
+function Hallazgo({ h, etiqueta, foto }: { h: Hallazgo5S; etiqueta: string; foto?: string }) {
   return (
     <div className="s5-mo-hal">
       {foto ? <a href={foto} target="_blank" rel="noreferrer" style={{ backgroundImage: `url("${foto}")` }} aria-label="Ver la foto del antes" /> : <span className="nofoto">Sin foto</span>}
       <div>
-        <span>{ns.n}S {ns.nombre}{h.zona ? ` · ${h.zona}` : ""}{h.severidad ? ` · severidad ${h.severidad}` : ""}</span>
+        <span>{etiqueta}{h.zona ? ` · ${h.zona}` : ""}{h.severidad ? ` · severidad ${h.severidad}` : ""}</span>
         <b>{h.observacion ?? h.pregunta}</b>
         <small>Inspección del {fechaLarga(h.fecha)}</small>
       </div>

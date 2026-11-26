@@ -35,6 +35,6 @@ export default async function Plan5SPage() {
 
   return (
     <PlanAccion filas={h.filas} areas={m.areas} responsables={m.responsables} fotos={porItem}
-                puedeEditar={permisos.puedeEditar("/5s/plan")} />
+                puedeEditar={permisos.puedeEditar("/5s/plan")} formatos={m.formatos} />
   );
 }

@@ -10,6 +10,6 @@ export const dynamic = "force-dynamic";
 export default async function Inspeccionar5SPage() {
   const [m, permisos, auditor] = await Promise.all([leerMaestro5S(), misPermisos(), miNombre()]);
   if (m.falta || m.error) return <Falta5S titulo="Inspeccionar" error={m.error} />;
-  return <Inspeccionar areas={m.areas} responsables={m.responsables} puntos={m.puntos} zonas={m.zonas} metaGeneral={m.meta}
+  return <Inspeccionar areas={m.areas} responsables={m.responsables} puntos={m.puntos} zonas={m.zonas} formatos={m.formatos} metaGeneral={m.meta}
                        auditor={auditor} puedeEditar={permisos.puedeEditar("/5s")} />;
 }

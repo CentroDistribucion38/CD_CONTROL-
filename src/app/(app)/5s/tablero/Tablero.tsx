@@ -17,8 +17,8 @@ import Link from "next/link";
 import { logoMarca, useFotoCompartir, type TipoFoto } from "@/components/FotoCompartir";
 import { leerPaleta } from "@/app/(app)/quiebra/rotura/HojaFirma";
 import {
-  NOMBRE_S, fechaLarga, hoyCo, pct,
-  type Area5S, type ClaveS, type Hallazgo5S, type Inspeccion5S, type Programada5S, type Responsable5S,
+  FORMATO_5S, fechaLarga, formatoDe, hoyCo, pct,
+  type Area5S, type Formato5S, type Hallazgo5S, type Inspeccion5S, type Programada5S, type Responsable5S,
 } from "@/modulos/cinco-s/cinco-s";
 import { armarTablero5S, piso, restar, type NoCumple5S } from "@/modulos/cinco-s/tablero";
 
@@ -27,18 +27,22 @@ const PERIODOS = [
   { id: "6m", t: "6 meses", dias: 182 }, { id: "1a", t: "12 meses", dias: 365 }, { id: "todo", t: "Todo", dias: 99999 },
 ] as const;
 
-export function Tablero({ filas, areas, responsables, meta, plan, noCumple, hallazgos }: {
+export function Tablero({ filas, areas, responsables, meta, plan, noCumple, hallazgos, formatos = [FORMATO_5S] }: {
   filas: Inspeccion5S[]; areas: Area5S[]; responsables: Responsable5S[]; meta: number; plan: Programada5S[]; noCumple: NoCumple5S[];
-  hallazgos?: Hallazgo5S[];
+  hallazgos?: Hallazgo5S[]; formatos?: Formato5S[];
 }) {
   const hoy = hoyCo();
   const [periodo, setPeriodo] = useState<(typeof PERIODOS)[number]["id"]>("3m");
   const [areaF, setAreaF] = useState("");
+  /* QUÉ SE MIRA: 5S o PTL… sus cifras no se mezclan. */
+  const [fmtId, setFmtId] = useState(formatos[0]?.id ?? "");
+  const formato = formatos.find((f) => f.id === fmtId) ?? formatos[0] ?? FORMATO_5S;
+  const es5S = formato.clave === "5s";
   const caja = useRef<HTMLDivElement>(null);
   const P = PERIODOS.find((p) => p.id === periodo)!;
   const desde = restar(hoy, P.dias);
-  const T = useMemo(() => armarTablero5S({ filas, areas, responsables, meta, plan, noCumple, desde, hoy, areaF }),
-    [filas, areas, responsables, meta, plan, noCumple, desde, hoy, areaF]);
+  const T = useMemo(() => armarTablero5S({ filas, areas, responsables, meta, plan, noCumple, desde, hoy, areaF, formato, formatos }),
+    [filas, areas, responsables, meta, plan, noCumple, desde, hoy, areaF, formato, formatos]);
   const { vista, general, metaRef, porArea, bajoMeta, sinAuditar, porS, peorS, semanas, porResp, porAuditor, repetidos, cumplePlan } = T;
   const cerradas = { length: T.cerradas };
   const p5 = piso(porS.map((x) => x.pct), metaRef);
@@ -51,7 +55,7 @@ export function Tablero({ filas, areas, responsables, meta, plan, noCumple, hall
     const [{ dibujarDashboard5S, nombreDashboard5S }, logo] = await Promise.all([import("@/modulos/cinco-s/foto-5s"), logoMarca()]);
     return { lienzo: dibujarDashboard5S(T, { logo, paleta: leerPaleta(caja.current) ?? undefined, periodo: P.t, area: nomArea, desde: P.id === "todo" ? primera : desde, hasta: hoy }),
       nombre: nombreDashboard5S(hoy, nomArea) };
-  }, "Dashboard 5S", { dashboard: "Dashboard 5S" }, undefined, ["dashboard"]);
+  }, `Dashboard ${formato.nombre.split("·")[0].trim()}`, { dashboard: `Dashboard ${formato.nombre.split("·")[0].trim()}` }, undefined, ["dashboard"]);
 
   const maxRep = repetidos[0]?.n ?? 1;
 
@@ -61,6 +65,7 @@ export function Tablero({ filas, areas, responsables, meta, plan, noCumple, hall
     const m = new Map<string, { area: string; vencida: number; sin_plan: number; abierta: number; cerradas: number; aTiempo: number }>();
     for (const h of hallazgos) {
       if (areaF && h.area_id !== areaF) continue;
+      if (formatoDe(formatos, h.formato_id).id !== formato.id) continue;
       if (h.estado === "cerrada" && (h.cerrada_el ?? "").slice(0, 10) < desde) continue;
       const x = m.get(h.area) ?? { area: h.area, vencida: 0, sin_plan: 0, abierta: 0, cerradas: 0, aTiempo: 0 };
       if (h.estado === "cerrada") { x.cerradas++; if (!h.accion_fecha || (h.cerrada_el ?? "").slice(0, 10) <= h.accion_fecha) x.aTiempo++ }
@@ -68,14 +73,14 @@ export function Tablero({ filas, areas, responsables, meta, plan, noCumple, hall
       m.set(h.area, x);
     }
     return [...m.values()].sort((a, b) => b.vencida - a.vencida || b.sin_plan - a.sin_plan || b.abierta - a.abierta || a.area.localeCompare(b.area));
-  }, [hallazgos, areaF, desde]);
+  }, [hallazgos, areaF, desde, formatos, formato]);
 
   return (
     <div className="s5" ref={caja}>
       {foto.vista}
       <header className="s5-cab">
         <div>
-          <p className="s5-ojo">5S · ORDEN Y ASEO</p>
+          <p className="s5-ojo">{formato.nombre.toUpperCase()}</p>
           <h1>Tablero</h1>
         </div>
         <div className="s5-filtros">
@@ -83,6 +88,11 @@ export function Tablero({ filas, areas, responsables, meta, plan, noCumple, hall
             <svg viewBox="0 0 24 24" aria-hidden><rect x="3" y="3" width="8" height="8" /><rect x="13" y="3" width="8" height="5" /><rect x="13" y="10" width="8" height="11" /><rect x="3" y="13" width="8" height="8" /></svg>
             {foto.armando ? "Armando…" : "Dashboard para copiar"}
           </button>
+          {formatos.length > 1 && (
+            <div className="s5-seg" role="group" aria-label="Formato">
+              {formatos.map((f) => <button key={f.id} type="button" className={f.id === formato.id ? "on" : ""} onClick={() => setFmtId(f.id)}>{f.nombre.split("·")[0].trim()}</button>)}
+            </div>
+          )}
           <div className="s5-seg" role="group" aria-label="Periodo">
             {PERIODOS.map((p) => <button key={p.id} type="button" className={periodo === p.id ? "on" : ""} onClick={() => setPeriodo(p.id)}>{p.t}</button>)}
           </div>
@@ -101,7 +111,7 @@ export function Tablero({ filas, areas, responsables, meta, plan, noCumple, hall
         <section className="s5-kpis" aria-label="Resumen">
           <div className={"s5-kpi" + (general != null && general < metaRef ? " bajo" : "")}><span>Cumplimiento</span><b>{pct(general)}</b><small>meta {pct(metaRef)} · {vista.length} inspecciones</small></div>
           <div className={"s5-kpi" + (bajoMeta ? " bajo" : "")}><span>Áreas bajo la meta</span><b>{bajoMeta}<i className="de"> de {porArea.length}</i></b><small>{porArea[0] && porArea[0].pct < porArea[0].meta ? `la más baja: ${porArea[0].nombre}` : "todas cumplen"}</small></div>
-          <div className={"s5-kpi" + (peorS && peorS.pct! < metaRef ? " bajo" : "")}><span>La S más floja</span><b>{peorS ? `${peorS.n}S` : "—"}</b><small>{peorS ? `${peorS.nombre} · ${pct(peorS.pct)}` : "—"}</small></div>
+          <div className={"s5-kpi" + (peorS && peorS.pct! < metaRef ? " bajo" : "")}><span>{es5S ? "La S más floja" : "La sección más floja"}</span><b>{peorS ? peorS.corto : "—"}</b><small>{peorS ? `${peorS.nombre} · ${pct(peorS.pct)}` : "—"}</small></div>
           <div className={"s5-kpi" + (cumplePlan != null && cumplePlan < 100 ? " bajo" : "")}><span>Cumplimiento del plan</span><b>{pct(cumplePlan)}</b><small>{cerradas.length ? `${T.hechas} de ${cerradas.length} auditorías programadas` : "sin auditorías programadas"}</small></div>
         </section>
 
@@ -126,13 +136,13 @@ export function Tablero({ filas, areas, responsables, meta, plan, noCumple, hall
 
           {/* LAS 5 S */}
           <section className="s5-card">
-            <header><h2>Las 5 S</h2><p>Promedio de cada S en el periodo{p5 > 0 ? ` (eje desde ${p5})` : ""}.</p></header>
+            <header><h2>{es5S ? "Las 5 S" : "Por sección"}</h2><p>Promedio de cada {es5S ? "S" : "sección"} en el periodo{p5 > 0 ? ` (eje desde ${p5})` : ""}.</p></header>
             <div className="s5-cols-s">
               {porS.map((s) => (
                 <div key={s.clave} className={s.pct != null && s.pct < metaRef ? "bajo" : ""}>
                   <b className="v">{s.pct == null ? "—" : Math.round(s.pct)}</b>
                   <div className="col" aria-hidden><i style={{ height: `${esc5(s.pct ?? 0)}%` }} /><em style={{ bottom: `${esc5(metaRef)}%` }} /></div>
-                  <span><b>{s.n}S</b>{s.nombre}</span>
+                  <span><b>{s.corto}</b>{s.nombre}</span>
                 </div>
               ))}
             </div>
@@ -151,7 +161,7 @@ export function Tablero({ filas, areas, responsables, meta, plan, noCumple, hall
               <ol className="s5-rep">
                 {repetidos.map((r) => (
                   <li key={r.pregunta}>
-                    <span className="s">{NOMBRE_S[r.s as ClaveS]?.n}S</span>
+                    <span className="s">{formato.secciones.find((x) => x.clave === r.s)?.corto ?? "—"}</span>
                     <div>
                       <p>{r.pregunta}</p>
                       <small>{r.zonas.size ? [...r.zonas].slice(0, 4).join(", ") : "sin zona"}{r.altas ? ` · ${r.altas} de severidad alta` : ""}</small>

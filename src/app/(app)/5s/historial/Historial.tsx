@@ -14,24 +14,29 @@ import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
 import { useConfirmar } from "@/components/Confirmar";
 import {
-  LAS_S, NOMBRE_S, fechaLarga, pct, semanaIso,
-  type Area5S, type Inspeccion5S, type ItemInspeccion,
+  FORMATO_5S, fechaLarga, formatoDe, mapaSecciones, pct, semanaIso,
+  type Area5S, type Formato5S, type Inspeccion5S, type ItemInspeccion, type Seccion5S,
 } from "@/modulos/cinco-s/cinco-s";
 
 type Detalle = { items: ItemInspeccion[]; fotos: Record<string, { ruta: string; url: string }[]> } | "cargando" | { error: string };
 
-export function Historial({ filas, areas, puedeBorrar }: { filas: Inspeccion5S[]; areas: Area5S[]; puedeBorrar: boolean }) {
+export function Historial({ filas, areas, formatos = [FORMATO_5S], puedeBorrar }: { filas: Inspeccion5S[]; areas: Area5S[]; formatos?: Formato5S[]; puedeBorrar: boolean }) {
   const router = useRouter();
   const [avisar, avisos] = useAvisos();
   const [pedir, dialogo] = useConfirmar();
   const [area, setArea] = useState("");
+  /* Un promedio que mezcla 5S con PTL no dice nada: arranca en el primer formato, y «Todos» queda a un toque. */
+  const varios = formatos.length > 1;
+  const [fmt, setFmt] = useState<string>(varios ? formatos[0].id : "");
+  const secc = useMemo(() => mapaSecciones(formatos), [formatos]);
+  const fdeFila = (f: Inspeccion5S) => formatoDe(formatos, f.formato_id);
   const meses = useMemo(() => [...new Set(filas.map((f) => f.fecha.slice(0, 7)))], [filas]);
   const [mes, setMes] = useState("");
   const [abierta, setAbierta] = useState<string | null>(null);
   const [det, setDet] = useState<Record<string, Detalle>>({});
   const [borradas, setBorradas] = useState<Set<string>>(new Set());
 
-  const vista = filas.filter((f) => !borradas.has(f.id) && (!area || f.area_id === area || (!f.area_id && f.area === area)) && (!mes || f.fecha.startsWith(mes)));
+  const vista = filas.filter((f) => !borradas.has(f.id) && (!fmt || fdeFila(f).id === fmt) && (!area || f.area_id === area || (!f.area_id && f.area === area)) && (!mes || f.fecha.startsWith(mes)));
   const prom = vista.length ? vista.reduce((t, f) => t + f.cumplimiento, 0) / vista.length : null;
   const bajo = vista.filter((f) => f.cumplimiento < f.meta).length;
   const hallazgos = vista.reduce((t, f) => t + f.no_cumple, 0);
@@ -56,7 +61,9 @@ export function Historial({ filas, areas, puedeBorrar }: { filas: Inspeccion5S[]
     const url = new Map((firmadas.data ?? []).map((x) => [x.path, x.signedUrl]));
     const fotos: Record<string, { ruta: string; url: string }[]> = {};
     for (const f of ft.data ?? []) (fotos[f.item_id as string] ??= []).push({ ruta: f.ruta as string, url: url.get(f.ruta as string) ?? "" });
-    const iS = (s: string) => LAS_S.findIndex((x) => x.clave === s);
+    const fila = filas.find((x) => x.id === id);
+    const orden = (fila ? fdeFila(fila) : FORMATO_5S).secciones.map((x) => x.clave);
+    const iS = (s: string) => { const i = orden.indexOf(s); return i < 0 ? 99 : i };
     const items = ((it.data ?? []) as ItemInspeccion[]).map((x) => ({ ...x, peso: Number(x.peso) }))
       .sort((a, b) => iS(a.s) - iS(b.s) || a.orden - b.orden);
     setDet((d) => ({ ...d, [id]: { items, fotos } }));
@@ -84,10 +91,19 @@ export function Historial({ filas, areas, puedeBorrar }: { filas: Inspeccion5S[]
       {avisos}{dialogo}
       <header className="s5-cab">
         <div>
-          <p className="s5-ojo">5S · ORDEN Y ASEO</p>
+          <p className="s5-ojo">EVALUACIONES · 5S Y PTL</p>
           <h1>Historial</h1>
         </div>
         <div className="s5-filtros">
+          {varios && (
+            <label className="s5-campo">
+              <span>Formato</span>
+              <select value={fmt} onChange={(e) => setFmt(e.target.value)}>
+                {formatos.map((x) => <option key={x.id} value={x.id}>{x.nombre}</option>)}
+                <option value="">Todos los formatos</option>
+              </select>
+            </label>
+          )}
           <label className="s5-campo">
             <span>Área</span>
             <select value={area} onChange={(e) => setArea(e.target.value)}>
@@ -122,7 +138,7 @@ export function Historial({ filas, areas, puedeBorrar }: { filas: Inspeccion5S[]
             <table className="s5-tabla">
               <thead>
                 <tr>
-                  <th>Fecha</th><th>Área</th><th>Auditor</th><th>Por S</th>
+                  <th>Fecha</th><th>Área</th><th>Auditor</th><th>Por sección</th>
                   <th className="num">No cumple</th><th className="num">Fotos</th><th className="num">Cumplimiento</th><th className="inf">Informe</th>
                 </tr>
               </thead>
@@ -136,11 +152,13 @@ export function Historial({ filas, areas, puedeBorrar }: { filas: Inspeccion5S[]
                           tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); abrir(f.id) } }}
                           aria-expanded={abierta === f.id}>
                         <td className="fecha"><b>{fechaLarga(f.fecha)}</b><small>S{semanaIso(f.fecha)}</small></td>
-                        <td><b>{f.area}</b>{f.responsable && <small style={{ display: "block", color: "var(--s5-gris)" }}>{f.responsable}</small>}</td>
+                        <td><b>{f.area}</b>
+                          {varios && !fmt && <small style={{ display: "block", fontWeight: 700 }}>{f.formato ?? fdeFila(f).nombre}</small>}
+                          {f.responsable && <small style={{ display: "block", color: "var(--s5-gris)" }}>{f.responsable}</small>}</td>
                         <td>{f.auditor_nombre ?? "—"}</td>
                         <td>
-                          <span className="s5-mini" title={LAS_S.map((s) => `${s.n}S ${s.nombre}: ${pct(f.por_s[s.clave])}`).join(" · ")}>
-                            {LAS_S.map((s) => {
+                          <span className="s5-mini" title={fdeFila(f).secciones.map((s) => `${s.corto} ${s.nombre}: ${pct(f.por_s[s.clave])}`).join(" · ")}>
+                            {fdeFila(f).secciones.map((s) => {
                               const v = f.por_s[s.clave];
                               return <i key={s.clave} className={v == null ? "nada" : v < f.meta ? "bajo" : ""} style={v == null ? undefined : { height: `${Math.max(8, v)}%` }} />;
                             })}
@@ -164,7 +182,7 @@ export function Historial({ filas, areas, puedeBorrar }: { filas: Inspeccion5S[]
                           <div className="s5-det">
                             {d === "cargando" || !d ? <p className="s5-sub">Abriendo la inspección…</p>
                               : "error" in d ? <p className="s5-aviso mal">No se pudo abrir: {d.error}</p>
-                              : <DetalleInsp f={f} items={d.items} fotos={d.fotos} puedeBorrar={puedeBorrar} borrar={() => borrar(f)} />}
+                              : <DetalleInsp f={f} secciones={fdeFila(f).secciones} secc={secc} items={d.items} fotos={d.fotos} puedeBorrar={puedeBorrar} borrar={() => borrar(f)} />}
                           </div>
                         </td></tr>
                       )}
@@ -180,8 +198,8 @@ export function Historial({ filas, areas, puedeBorrar }: { filas: Inspeccion5S[]
   );
 }
 
-function DetalleInsp({ f, items, fotos, puedeBorrar, borrar }: {
-  f: Inspeccion5S; items: ItemInspeccion[]; fotos: Record<string, { ruta: string; url: string }[]>; puedeBorrar: boolean; borrar: () => void;
+function DetalleInsp({ f, secciones, secc, items, fotos, puedeBorrar, borrar }: {
+  f: Inspeccion5S; secciones: Seccion5S[]; secc: Map<string, Seccion5S>; items: ItemInspeccion[]; fotos: Record<string, { ruta: string; url: string }[]>; puedeBorrar: boolean; borrar: () => void;
 }) {
   const ordenSev = { alta: 0, media: 1, baja: 2 } as const;
   const malos = items.filter((i) => i.resultado === "no_cumple").sort((a, b) => ordenSev[a.severidad ?? "media"] - ordenSev[b.severidad ?? "media"]);
@@ -191,14 +209,14 @@ function DetalleInsp({ f, items, fotos, puedeBorrar, borrar }: {
     <>
       <div className="s5-det-top">
         <div>
-          <h3>Cumplimiento por S</h3>
+          <h3>Cumplimiento por sección</h3>
           <ul className="s5-det-s">
-            {LAS_S.map((s) => {
+            {secciones.map((s) => {
               const v = f.por_s[s.clave];
               if (v === undefined) return null;
               return (
                 <li key={s.clave}>
-                  <span>{s.n}S {s.nombre}</span>
+                  <span>{s.corto} {s.nombre}</span>
                   <div aria-hidden><i style={{ width: `${v ?? 0}%` }} className={v != null && v < f.meta ? "bajo" : ""} /></div>
                   <b>{pct(v)}</b>
                 </li>
@@ -224,7 +242,7 @@ function DetalleInsp({ f, items, fotos, puedeBorrar, borrar }: {
                 {i.resultado === "no_cumple" ? i.severidad ?? "media" : i.resultado === "cumple" ? "cumple" : "n/a"}
               </span>
               <div>
-                <b><em>{NOMBRE_S[i.s]?.n}S · #{n(i)}{i.zona ? ` · ${i.zona}` : ""}</em>{i.pregunta}</b>
+                <b><em>{secc.get(i.s)?.corto ?? i.s} · #{n(i)}{i.zona ? ` · ${i.zona}` : ""}</em>{i.pregunta}</b>
                 {i.observacion && <p>{i.observacion}</p>}
                 {fotos[i.id]?.length ? (
                   <div className="s5-fotos">

@@ -9,5 +9,5 @@ export const dynamic = "force-dynamic";
 export default async function Tablero5SPage() {
   const [h, m, c, nc, hz] = await Promise.all([leerInspecciones5S(), leerMaestro5S(), leerCronograma5S(), leerNoCumple5S(), leerHallazgos5S()]);
   if (h.falta || h.error) return <Falta5S titulo="Tablero" error={h.error} />;
-  return <Tablero filas={h.filas} areas={m.areas} responsables={m.responsables} meta={m.meta} plan={c.filas} noCumple={nc} hallazgos={hz.falta || hz.error ? undefined : hz.filas} />;
+  return <Tablero filas={h.filas} areas={m.areas} responsables={m.responsables} meta={m.meta} plan={c.filas} noCumple={nc} hallazgos={hz.falta || hz.error ? undefined : hz.filas} formatos={m.formatos} />;
 }

@@ -21,23 +21,27 @@ import { useAvisos } from "@/components/Aviso";
 import { useConfirmar } from "@/components/Confirmar";
 import { sellar, type Foto } from "@/lib/evidencia";
 import {
-  LAS_S, SEVERIDADES, checklistDe, cumplimiento, pct, semanaIso, hoyCo,
-  type Area5S, type Punto5S, type Zona5S, type Responsable5S, type Resultado, type Severidad,
+  FORMATO_5S, SEVERIDADES, checklistDe, cumplimiento, pct, semanaIso, hoyCo,
+  type Area5S, type Formato5S, type Punto5S, type Zona5S, type Responsable5S, type Resultado, type Severidad,
 } from "@/modulos/cinco-s/cinco-s";
 
 import { CampoFecha } from "@/components/CampoFecha";
 type Resp = { resultado: Resultado | null; severidad: Severidad; observacion: string; conNota: boolean; zona: string; fotos: (Foto & { k: number })[] };
 const VACIA: Resp = { resultado: null, severidad: "media", observacion: "", conNota: false, zona: "", fotos: [] };
 const RECORDAR = "s5-area";
+const RECORDAR_F = "s5-formato";
 
-export function Inspeccionar({ areas, responsables, puntos, zonas = [], metaGeneral, auditor, puedeEditar }: {
-  areas: Area5S[]; responsables: Responsable5S[]; puntos: Punto5S[]; zonas?: Zona5S[]; metaGeneral: number; auditor: string; puedeEditar: boolean;
+export function Inspeccionar({ areas, responsables, puntos, zonas = [], formatos = [FORMATO_5S], metaGeneral, auditor, puedeEditar }: {
+  areas: Area5S[]; responsables: Responsable5S[]; puntos: Punto5S[]; zonas?: Zona5S[]; formatos?: Formato5S[]; metaGeneral: number; auditor: string; puedeEditar: boolean;
 }) {
   const router = useRouter();
   const [avisar, avisos] = useAvisos();
   const [pedir, dialogo] = useConfirmar();
   const activas = areas.filter((a) => a.activa);
   const [areaId, setAreaId] = useState<string>("");
+  /* QUÉ SE EVALÚA: 5S, PTL… (se escoge arriba; cada formato trae su checklist y sus secciones). */
+  const formatosAct = formatos.filter((f) => f.activo);
+  const [formatoId, setFormatoId] = useState<string>(formatosAct[0]?.id ?? "");
   const [fecha, setFecha] = useState(hoyCo());
   const [nota, setNota] = useState("");
   const [resp, setResp] = useState<Record<string, Resp>>({});
@@ -53,13 +57,17 @@ export function Inspeccionar({ areas, responsables, puntos, zonas = [], metaGene
     let a = "";
     try { a = localStorage.getItem(RECORDAR) ?? "" } catch { /* sin almacenamiento */ }
     setAreaId(activas.some((x) => x.id === a) ? a : activas[0]?.id ?? "");
+    let fm = "";
+    try { fm = localStorage.getItem(RECORDAR_F) ?? "" } catch { /* sin almacenamiento */ }
+    if (formatosAct.some((x) => x.id === fm)) setFormatoId(fm);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const area = activas.find((a) => a.id === areaId) ?? null;
-  const meta = area?.meta ?? metaGeneral;
+  const formato = formatosAct.find((f) => f.id === formatoId) ?? formatosAct[0] ?? FORMATO_5S;
+  const meta = area?.meta ?? formato.meta ?? metaGeneral;
   const duenno = responsables.find((r) => r.id === area?.responsable_id) ?? null;
-  const lista = useMemo(() => (area ? checklistDe(puntos, area.id) : []), [puntos, area]);
+  const lista = useMemo(() => (area ? checklistDe(puntos, area.id, formato) : []), [puntos, area, formato]);
   const r = (id: string) => resp[id] ?? VACIA;
   const zonasArea = zonas.filter((z) => z.activa && z.area_id === area?.id);
 
@@ -67,7 +75,7 @@ export function Inspeccionar({ areas, responsables, puntos, zonas = [], metaGene
   const tieneAlgo = respondidos > 0 || Object.values(resp).some((x) => x.fotos.length);
   const items = lista.map((p) => ({ peso: p.peso, resultado: r(p.id).resultado }));
   const total = cumplimiento(items);
-  const porS = LAS_S.map((s) => {
+  const porS = formato.secciones.map((s) => {
     const de = lista.filter((p) => p.s === s.clave);
     return { ...s, puntos: de.length, hechos: de.filter((p) => r(p.id).resultado).length, pct: cumplimiento(de.map((p) => ({ peso: p.peso, resultado: r(p.id).resultado }))) };
   });
@@ -108,6 +116,18 @@ export function Inspeccionar({ areas, responsables, puntos, zonas = [], metaGene
     setAreaId(id); setResp({}); setNota(""); setHecha(null); setVerFaltas(false);
     try { localStorage.setItem(RECORDAR, id) } catch { /* sin almacenamiento */ }
   }
+  async function cambiarFormato(id: string) {
+    if (id === formatoId) return;
+    const nuevo = formatosAct.find((f) => f.id === id);
+    if (tieneAlgo && !hecha && !(await pedir({
+      titulo: `¿Pasar a ${nuevo?.nombre ?? "otro formato"}?`,
+      dice: <>Lo que llevas respondido de <b>{formato.nombre}</b> (y sus fotos) se pierde: cada formato tiene su propio checklist.</>,
+      confirmar: "Cambiar de formato", peligro: true,
+    }))) return;
+    for (const x of Object.values(resp)) for (const f of x.fotos) URL.revokeObjectURL(f.url);
+    setFormatoId(id); setResp({}); setNota(""); setHecha(null); setVerFaltas(false);
+    try { localStorage.setItem(RECORDAR_F, id) } catch { /* sin almacenamiento */ }
+  }
   function irA(id: string) {
     const el = document.getElementById("p-" + id);
     el?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -119,7 +139,7 @@ export function Inspeccionar({ areas, responsables, puntos, zonas = [], metaGene
     const id = fotoPara.current;
     if (!archivo || !id || !area) return;
     try {
-      const f = await sellar(archivo, { titulo: area.nombre.toUpperCase(), ubi: null, direccion: "", etiqueta: "5S" });
+      const f = await sellar(archivo, { titulo: area.nombre.toUpperCase(), ubi: null, direccion: "", etiqueta: formato.clave.toUpperCase() });
       setResp((m) => { const x = m[id] ?? VACIA; return { ...m, [id]: { ...x, fotos: [...x.fotos, { ...f, k: contador.current++ }] } } });
     } catch (err) {
       avisar.mal(err instanceof Error ? err.message : "No se pudo procesar esa foto.");
@@ -159,7 +179,7 @@ export function Inspeccionar({ areas, responsables, puntos, zonas = [], metaGene
     }
     const { error } = await sb.rpc("s5_guardar", {
       p: {
-        id, fecha, area_id: area.id, nota: nota.trim() || null,
+        id, fecha, area_id: area.id, formato_id: formato.id || null, nota: nota.trim() || null,
         puntos: lista.map((p) => {
           const x = r(p.id);
           return {
@@ -181,7 +201,7 @@ export function Inspeccionar({ areas, responsables, puntos, zonas = [], metaGene
       return;
     }
     for (const x of Object.values(resp)) for (const f of x.fotos) URL.revokeObjectURL(f.url);
-    setHecha({ id, area: area.nombre, pct: total ?? 0, meta });
+    setHecha({ id, area: `${formato.nombre} · ${area.nombre}`, pct: total ?? 0, meta });
     setResp({}); setNota(""); setVerFaltas(false);
     /* EL RESULTADO DE LA INSPECCIÓN ES SU INFORME: se abre y el PDF se descarga solo. */
     router.push(`/5s/informe/${id}?pdf=1`);
@@ -190,7 +210,7 @@ export function Inspeccionar({ areas, responsables, puntos, zonas = [], metaGene
   if (activas.length === 0) {
     return (
       <div className="s5">
-        <Cabeza />
+        <Cabeza formato={formato.nombre} />
         <p className="s5-vacio">
           Todavía no hay áreas para auditar. Créalas en <b>5S › Maestro</b> (Bodega 38, Fábrica, patio, oficinas…) con su
           responsable; el checklist general ya viene cargado con tres puntos por S.
@@ -204,7 +224,20 @@ export function Inspeccionar({ areas, responsables, puntos, zonas = [], metaGene
   return (
     <div className="s5">
       {avisos}{dialogo}
-      <Cabeza />
+      <Cabeza formato={formato.nombre} />
+
+      {/* QUÉ SE EVALÚA: un toque. Solo sale si hay más de un formato. */}
+      {formatosAct.length > 1 && (
+        <div className="s5-formatos" role="radiogroup" aria-label="Qué se evalúa">
+          {formatosAct.map((f) => (
+            <button key={f.id || f.clave} type="button" role="radio" aria-checked={f.id === formato.id}
+                    className={f.id === formato.id ? "on" : ""} disabled={guardando} onClick={() => cambiarFormato(f.id)}>
+              <b>{f.nombre}</b>
+              {f.descripcion && <small>{f.descripcion}</small>}
+            </button>
+          ))}
+        </div>
+      )}
 
       {hecha && (
         <div className={"s5-hecha " + (hecha.pct >= hecha.meta ? "sobre" : "bajo")} role="status">
@@ -238,14 +271,14 @@ export function Inspeccionar({ areas, responsables, puntos, zonas = [], metaGene
         {/* EL CHECKLIST, por S. */}
         <div className="s5-lista">
           {lista.length === 0 && (
-            <p className="s5-vacio">Esta área no tiene puntos en el checklist. Agrégalos en <b>5S › Maestro › Checklist</b>.</p>
+            <p className="s5-vacio">Esta área no tiene puntos de <b>{formato.nombre}</b>. Agrégalos en <b>5S › Maestro › Checklist</b>.</p>
           )}
           {porS.filter((s) => s.puntos > 0).map((s) => (
             <section key={s.clave} className="s5-bloque" aria-labelledby={"s-" + s.clave}>
               <header>
-                <span className="s5-n">{s.n}S</span>
+                <span className={"s5-n" + (s.corto.length > 2 ? " largo" : "")}>{s.corto}</span>
                 <div>
-                  <h2 id={"s-" + s.clave}>{s.nombre} <i>{s.jp}</i></h2>
+                  <h2 id={"s-" + s.clave}>{s.nombre} {s.jp && <i>{s.jp}</i>}</h2>
                   <small>{s.que}</small>
                 </div>
                 <div className="s5-bloque-pct">
@@ -359,7 +392,7 @@ export function Inspeccionar({ areas, responsables, puntos, zonas = [], metaGene
           <ul className="s5-m-s">
             {porS.filter((s) => s.puntos > 0).map((s) => (
               <li key={s.clave}>
-                <span>{s.n}S <em>{s.nombre}</em></span>
+                <span>{s.corto}{s.corto.toLowerCase() !== s.nombre.toLowerCase() && <> <em>{s.nombre}</em></>}</span>
                 <div aria-hidden><i style={{ width: `${s.pct ?? 0}%` }} className={s.pct != null && s.pct < meta ? "bajo" : ""} /></div>
                 <b>{s.pct == null ? "—" : Math.round(s.pct)}</b>
               </li>
@@ -393,11 +426,11 @@ export function Inspeccionar({ areas, responsables, puntos, zonas = [], metaGene
   );
 }
 
-function Cabeza() {
+function Cabeza({ formato }: { formato: string }) {
   return (
     <header className="s5-cab">
       <div>
-        <p className="s5-ojo">5S · ORDEN Y ASEO</p>
+        <p className="s5-ojo">{formato.toUpperCase()}</p>
         <h1>Inspeccionar</h1>
       </div>
     </header>

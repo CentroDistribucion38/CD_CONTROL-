@@ -44,7 +44,7 @@ export function dibujarDashboard5S(T: Tablero5S, o: {
     return { x: b.x + 16, y: b.y + 48, w: b.w - 32, h: b.h - 62 };
   };
 
-  cabecera(ctx, W, [o.periodo, o.area], P, o.logo, "Auditorías 5S · CD38",
+  cabecera(ctx, W, [o.periodo, o.area], P, o.logo, `Auditorías ${T.formato.nombre.split("·")[0].trim()} · CD38`,
     `Orden y aseo del ${corta(o.desde)} al ${corta(o.hasta)} · ${T.vista.length} ${T.vista.length === 1 ? "inspección" : "inspecciones"}`);
 
   const M = MARGEN, G = HUECO;
@@ -53,7 +53,7 @@ export function dibujarDashboard5S(T: Tablero5S, o: {
   const kpis: { t: string; v: string; sub: string; mal: boolean }[] = [
     { t: "Cumplimiento", v: pc(T.general), sub: `meta ${pc(T.metaRef)}`, mal: T.general != null && T.general < T.metaRef },
     { t: "Áreas bajo la meta", v: `${T.bajoMeta} de ${T.porArea.length}`, sub: T.porArea[0] && T.porArea[0].pct < T.porArea[0].meta ? `la más baja: ${T.porArea[0].nombre}` : "todas cumplen", mal: T.bajoMeta > 0 },
-    { t: "La S más floja", v: T.peorS ? `${T.peorS.n}S ${T.peorS.nombre}` : "—", sub: T.peorS ? pc(T.peorS.pct) : "", mal: !!T.peorS && T.peorS.pct! < T.metaRef },
+    { t: T.formato.clave === "5s" ? "La S más floja" : "La sección más floja", v: T.peorS ? `${T.peorS.corto} ${T.peorS.nombre}` : "—", sub: T.peorS ? pc(T.peorS.pct) : "", mal: !!T.peorS && T.peorS.pct! < T.metaRef },
     { t: "Cumplimiento del plan", v: pc(T.cumplePlan), sub: T.cerradas ? `${T.hechas} de ${T.cerradas} auditorías programadas` : "sin auditorías programadas", mal: T.cumplePlan != null && T.cumplePlan < 100 },
   ];
   kpis.forEach((k, i) => {
@@ -91,7 +91,7 @@ export function dibujarDashboard5S(T: Tablero5S, o: {
   /* ---------------- LAS 5 S ---------------- */
   {
     const x0 = M + WA + G, w0 = W - M - x0;
-    const r = panel({ x: x0, y: Y1, w: w0, h: H1 }, "Las 5 S", `meta ${pc(T.metaRef)}`);
+    const r = panel({ x: x0, y: Y1, w: w0, h: H1 }, T.formato.clave === "5s" ? "Las 5 S" : "Por sección", `meta ${pc(T.metaRef)}`);
     const col = r.w / 5, alto = r.h - 70, base = r.y + 28 + alto;
     const p0 = piso(T.porS.map((x) => x.pct), T.metaRef), esc = (v: number) => (alto * Math.max(0, v - p0)) / (100 - p0);
     T.porS.forEach((s, i) => {
@@ -101,7 +101,7 @@ export function dibujarDashboard5S(T: Tablero5S, o: {
       if (s.pct != null) { ctx.fillStyle = malo ? ROJO : CARBON; ctx.fillRect(cx - cw / 2, base - esc(s.pct), cw, esc(s.pct)) }
       letra(ctx, 900, 20); ctx.fillStyle = malo ? ROJO : TINTA; ctx.textAlign = "center";
       ctx.fillText(s.pct == null ? "—" : String(Math.round(s.pct)), cx, base - alto - 14);
-      letra(ctx, 900, 16); ctx.fillStyle = TINTA; ctx.fillText(`${s.n}S`, cx, base + 20);
+      letra(ctx, 900, 16); ctx.fillStyle = TINTA; ctx.fillText(s.corto, cx, base + 20);
       letra(ctx, 500, 12); ctx.fillStyle = GRIS; ctx.fillText(s.nombre, cx, base + 38);
     });
     const ym = base - esc(T.metaRef);
@@ -147,7 +147,7 @@ export function dibujarDashboard5S(T: Tablero5S, o: {
     lista.forEach((x, i) => {
       const y = r.y + i * fila;
       ctx.fillStyle = AMARILLO; ctx.fillRect(r.x, y + 4, 34, 26);
-      letra(ctx, 900, 13); ctx.fillStyle = "#1b1b1b"; ctx.textAlign = "center"; ctx.fillText(`${["clasificar", "ordenar", "limpiar", "estandarizar", "disciplina"].indexOf(x.s) + 1}S`, r.x + 17, y + 17);
+      letra(ctx, 900, 11); ctx.fillStyle = "#1b1b1b"; ctx.textAlign = "center"; ctx.fillText(T.formato.secciones.find((z) => z.clave === x.s)?.corto ?? "", r.x + 17, y + 17);
       letra(ctx, 700, 13); ctx.fillStyle = TINTA; ctx.textAlign = "left"; ctx.fillText(recortar(ctx, x.pregunta, r.w - 100), r.x + 46, y + 11);
       ctx.fillStyle = RIEL; ctx.fillRect(r.x + 46, y + 25, r.w - 100, 6);
       ctx.fillStyle = ROJO; ctx.fillRect(r.x + 46, y + 25, ((r.w - 100) * x.n) / max, 6);
@@ -155,6 +155,6 @@ export function dibujarDashboard5S(T: Tablero5S, o: {
     });
   }
 
-  pie(ctx, W, H, o.generado ?? new Date(), "5S · ORDEN Y ASEO");
+  pie(ctx, W, H, o.generado ?? new Date(), T.formato.nombre.toUpperCase());
   return c;
 }

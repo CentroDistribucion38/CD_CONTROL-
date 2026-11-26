@@ -12,14 +12,15 @@
  * acción, 5 registro fotográfico, 6 observaciones, 7 firmas (Supervisor OL y Warehouse Supervisor ABI).
  */
 import type { jsPDF as JsPDF } from "jspdf";
-import { LAS_S, NOMBRE_S, type ClaveS, type ItemInspeccion } from "./cinco-s";
+import { FORMATO_5S, type ClaveS, type ItemInspeccion } from "./cinco-s";
+import { es5S, seccionDe, siglaDe, tituloSeccion } from "./informe";
 import type { DatosInforme } from "./informe";
 
 type RGB = [number, number, number];
 const TINTA: RGB = [20, 20, 20], GRIS: RGB = [107, 114, 128], LINEA: RGB = [156, 163, 175], SUAVE: RGB = [201, 205, 211];
 const ROJO: RGB = [227, 6, 19], CARBON: RGB = [47, 47, 47], RIEL: RGB = [238, 240, 242], BANDA: RGB = [241, 242, 244];
 const LABEL: RGB = [243, 244, 246], CREMA: RGB = [255, 241, 194];
-const CODIGO = "CD38-5S-F01", VERSION = "01";
+const VERSION = "01";
 
 const W = 612, H = 792, MX = 36, TOP = 28, CAB = 58, PIE = 36;
 const ANCHO = W - 2 * MX;
@@ -53,7 +54,9 @@ async function logo(): Promise<string | null> {
 export async function pdfInforme5S(JsPDFc: typeof JsPDF, d: DatosInforme, generado: Date): Promise<JsPDF> {
   const doc = new JsPDFc({ unit: "pt", format: "letter", compress: true });
   const { insp } = d;
-  const iS = (s: string) => LAS_S.findIndex((x) => x.clave === s);
+  const secs = (d.formato ?? FORMATO_5S).secciones;
+  const sigla = siglaDe(d), CODIGO = `CD38-${sigla.toUpperCase()}-F01`;
+  const iS = (s: string) => { const i = secs.findIndex((x) => x.clave === s); return i < 0 ? 99 : i };
   const items = [...d.items].sort((a, b) => iS(a.s) - iS(b.s) || a.orden - b.orden);
   const num = new Map(items.map((x, i) => [x.id, i + 1]));
   const gen = `${generado.toLocaleDateString("es-CO")} ${generado.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}`;
@@ -150,19 +153,19 @@ export async function pdfInforme5S(JsPDFc: typeof JsPDF, d: DatosInforme, genera
     const cS = (s: ClaveS, r: string) => items.filter((i) => i.s === s && i.resultado === r).length;
     const xb = MX + 150, wb = 220, xc = xb + wb + 14;
     const cols = [xc + 16, xc + 64, xc + 112];
-    texto("CUMPLIMIENTO POR S", MX, y + 5, { tam: 6.5, b: true, c: GRIS, esp: 1 });
+    texto(es5S(d) ? "CUMPLIMIENTO POR S" : "CUMPLIMIENTO POR SECCIÓN", MX, y + 5, { tam: 6.5, b: true, c: GRIS, esp: 1 });
     texto(`META ${nf1.format(insp.meta).replace(",0", "")} %`, xb + wb, y + 5, { tam: 6.5, b: true, c: GRIS, al: "right", esp: 1 });
     ["C", "NC", "N/A"].forEach((t, i) => texto(t, cols[i], y + 5, { tam: 6.5, b: true, c: GRIS, al: "center" }));
     texto("%", MX + ANCHO, y + 5, { tam: 6.5, b: true, c: GRIS, al: "right" });
     y += 10; trazo(TINTA, 1); doc.line(MX, y, MX + ANCHO, y);
-    for (const s of LAS_S) {
+    for (const s of secs) {
       const v = insp.por_s[s.clave];
       if (v === undefined) continue;
       const b2 = v != null && v < insp.meta;
-      texto(`${s.n}S`, MX, y + 9.5, { tam: 10, b: true });
+      texto(s.corto, MX, y + 9.5, { tam: s.corto.length > 2 ? 8 : 10, b: true });
       texto(s.nombre, MX + 26, y + 9.5, { tam: 8, b: true });
       letra(8, true); const wn = doc.getTextWidth(s.nombre);
-      texto(s.jp, MX + 30 + wn, y + 9.5, { tam: 7.5, c: [156, 163, 175] });
+      if (s.jp) texto(s.jp, MX + 30 + wn, y + 9.5, { tam: 7.5, c: [156, 163, 175] });
       relleno(RIEL); doc.rect(xb, y + 6.5, wb, 6, "F");
       relleno(b2 ? ROJO : CARBON); doc.rect(xb, y + 6.5, (wb * (v ?? 0)) / 100, 6, "F");
       relleno(TINTA); doc.rect(xb + (wb * insp.meta) / 100 - 0.6, y + 4, 1.2, 11, "F");
@@ -192,8 +195,7 @@ export async function pdfInforme5S(JsPDFc: typeof JsPDF, d: DatosInforme, genera
         grupo = it.s;
         if (cabe(14 + 18)) cabeza();
         caja(MX, y, ANCHO, 14, CREMA, SUAVE);
-        const ns = NOMBRE_S[it.s];
-        texto(`${ns.n}S · ${ns.nombre.toUpperCase()} (${ns.jp.toUpperCase()})`, MX + 4, y + 7.5, { tam: 7.5, b: true, esp: 0.3 });
+        texto(tituloSeccion(seccionDe(d, it.s), it.s), MX + 4, y + 7.5, { tam: 7.5, b: true, esp: 0.3 });
         y += 14;
       }
       const req = partir(it.pregunta, cw[1] - 8, 7.8);
@@ -227,7 +229,7 @@ export async function pdfInforme5S(JsPDFc: typeof JsPDF, d: DatosInforme, genera
     };
     cabeza();
     for (const it of malos) {
-      const pre = `${NOMBRE_S[it.s as ClaveS].n}S${it.zona ? ` · ${it.zona}` : ""}. `;
+      const pre = `${seccionDe(d, it.s as ClaveS)?.corto ?? it.s}${it.zona ? ` · ${it.zona}` : ""}. `;
       const lineas = partir(pre + (it.observacion ?? ""), cw[1] - 8, 7.8);
       /* El plan, si ya lo tiene: lo cerrado dice qué se hizo; lo abierto, qué se va a hacer. */
       const acc = it.cerrada_el ? partir(`Cerrado. ${it.cierre_nota ?? ""}`, cw[3] - 8, 7.5) : partir(it.accion ?? "", cw[3] - 8, 7.5);
@@ -334,8 +336,8 @@ export async function pdfInforme5S(JsPDFc: typeof JsPDF, d: DatosInforme, genera
     trazo(TINTA, 1);
     doc.rect(MX, TOP, w1, CAB, "S"); doc.rect(MX + w1, TOP, w2, CAB, "S"); doc.rect(MX + w1 + w2, TOP, w3, CAB, "S");
     if (imgLogo) { const lh = 26, lw = lh * 540 / 160; doc.addImage(imgLogo, "PNG", MX + (w1 - lw) / 2, TOP + (CAB - lh) / 2, lw, lh, "logo", "FAST") }
-    texto("INFORME DE AUDITORÍA 5S", MX + w1 + w2 / 2, TOP + 24, { tam: 12.5, b: true, al: "center", esp: 0.3 });
-    texto("Sistema de gestión · Orden y aseo · CD38", MX + w1 + w2 / 2, TOP + 38, { tam: 7.5, c: GRIS, al: "center" });
+    texto(`INFORME DE AUDITORÍA ${sigla.toUpperCase()}`, MX + w1 + w2 / 2, TOP + 24, { tam: 12.5, b: true, al: "center", esp: 0.3 });
+    texto(`Sistema de gestión · ${es5S(d) ? "Orden y aseo" : (d.formato?.nombre.split("·")[1] ?? "").trim() || "Evaluación"} · CD38`, MX + w1 + w2 / 2, TOP + 38, { tam: 7.5, c: GRIS, al: "center" });
     const cx = MX + w1 + w2 + 8;
     [["Código:", CODIGO], ["Versión:", VERSION], ["Fecha:", fecha(insp.fecha)], ["Página:", `${p} de ${total}`]].forEach(([a, b], i) => {
       const yy = TOP + 12 + i * 11.5;
@@ -346,7 +348,7 @@ export async function pdfInforme5S(JsPDFc: typeof JsPDF, d: DatosInforme, genera
     texto(`Documento generado por CONTROL · ${gen}`, MX, H - 18, { tam: 6.5, c: GRIS });
     texto(`${CODIGO} · v${VERSION}`, W - MX, H - 18, { tam: 6.5, c: GRIS, al: "right" });
   }
-  doc.setProperties({ title: `Informe de auditoría 5S · ${insp.area} · ${insp.fecha}`, author: insp.auditor_nombre ?? "CONTROL", creator: "CONTROL · CD38" });
+  doc.setProperties({ title: `Informe de auditoría ${sigla} · ${insp.area} · ${insp.fecha}`, author: insp.auditor_nombre ?? "CONTROL", creator: "CONTROL · CD38" });
   return doc;
 }
 

@@ -5,7 +5,8 @@
  * (lo que no es N/A). Aquí se repite solo para mostrarla EN VIVO mientras se inspecciona; la que queda es la de la base.
  */
 
-export type ClaveS = "clasificar" | "ordenar" | "limpiar" | "estandarizar" | "disciplina";
+/** La clave de una SECCIÓN del checklist. En 5S son las cinco S; otros formatos (PTL…) traen las suyas (2026-11-cinco-s-6). */
+export type ClaveS = string;
 
 /** LAS CINCO S, en su orden. El número es el que se dice en planta («la 3S»); el japonés va pequeño. */
 export const LAS_S: { clave: ClaveS; n: number; nombre: string; jp: string; que: string }[] = [
@@ -15,7 +16,30 @@ export const LAS_S: { clave: ClaveS; n: number; nombre: string; jp: string; que:
   { clave: "estandarizar", n: 4, nombre: "Estandarizar", jp: "Seiketsu", que: "Lo visual y lo acordado, al día" },
   { clave: "disciplina", n: 5, nombre: "Disciplina", jp: "Shitsuke", que: "Que se sostenga" },
 ];
-export const NOMBRE_S = Object.fromEntries(LAS_S.map((s) => [s.clave, s])) as Record<ClaveS, (typeof LAS_S)[number]>;
+export const NOMBRE_S = Object.fromEntries(LAS_S.map((s) => [s.clave, s])) as Record<string, (typeof LAS_S)[number]>;
+
+/* ---------- FORMATOS: qué se evalúa (5S, PTL…) y sus secciones ---------- */
+export type Seccion5S = { clave: string; nombre: string; corto: string; que: string | null; jp: string | null; orden: number };
+export type Formato5S = { id: string; clave: string; nombre: string; descripcion: string | null; meta: number | null; activo: boolean; orden: number; secciones: Seccion5S[] };
+
+/** El formato 5S de siempre, para cuando el SQL de formatos aún no se ha corrido (id vacío = «el de 5S»). */
+export const FORMATO_5S: Formato5S = {
+  id: "", clave: "5s", nombre: "5S · Orden y aseo", descripcion: null, meta: null, activo: true, orden: 1,
+  secciones: LAS_S.map((s) => ({ clave: s.clave, nombre: s.nombre, corto: `${s.n}S`, que: s.que, jp: s.jp, orden: s.n })),
+};
+
+/** Todas las secciones de todos los formatos por su clave (la clave es única en toda la base). */
+export function mapaSecciones(formatos: Formato5S[]): Map<string, Seccion5S> {
+  const m = new Map<string, Seccion5S>(FORMATO_5S.secciones.map((x) => [x.clave, x]));
+  for (const f of formatos) for (const x of f.secciones) m.set(x.clave, x);
+  return m;
+}
+/** La ficha corta de una sección («1S», «UBI»); si no se conoce, la clave. */
+export const cortoDe = (m: Map<string, Seccion5S>, clave: string) => m.get(clave)?.corto ?? clave;
+/** El formato de una inspección o de un punto; sin formato = 5S. */
+export function formatoDe(formatos: Formato5S[], id: string | null | undefined): Formato5S {
+  return formatos.find((f) => f.id === id) ?? formatos.find((f) => f.clave === "5s") ?? FORMATO_5S;
+}
 
 export type Resultado = "cumple" | "no_cumple" | "na";
 export type Severidad = "baja" | "media" | "alta";
@@ -37,10 +61,11 @@ export type Programada5S = {
 export const ESTADOS: Record<EstadoProg, string> = {
   programada: "Programada", en_curso: "En curso", hecha: "Hecha", vencida: "Vencida", cancelada: "Cancelada",
 };
-export type Punto5S = { id: string; area_id: string | null; s: ClaveS; pregunta: string; peso: number; exige_foto: boolean; orden: number; activo: boolean };
+export type Punto5S = { id: string; formato_id: string; area_id: string | null; s: ClaveS; pregunta: string; peso: number; exige_foto: boolean; orden: number; activo: boolean };
 
 export type Inspeccion5S = {
   id: string; fecha: string; area_id: string | null; area: string; responsable: string | null;
+  formato_id?: string | null; formato?: string | null;
   auditor_nombre: string | null; cumplimiento: number; meta: number; evaluados: number; no_cumple: number;
   nota: string | null; creado: string; por_s: Partial<Record<ClaveS, number | null>>; fotos: number;
   /* Quién firma el informe (paso 3; antes de su SQL no vienen). */
@@ -63,13 +88,14 @@ export type Hallazgo5S = {
   accion: string | null; accion_resp_id: string | null; accion_resp: string | null; accion_fecha: string | null;
   cerrada_el: string | null; cerrada_por: string | null; cierre_nota: string | null;
   estado: EstadoHallazgo; dias: number; fotos_antes: number; fotos_despues: number;
+  formato_id?: string | null; formato?: string | null;
 };
 
-/** Los puntos que se le preguntan a un área: los generales (sin área) y los suyos, activos, por S y por orden. */
-export function checklistDe(puntos: Punto5S[], areaId: string | null): Punto5S[] {
-  const iS = (s: ClaveS) => LAS_S.findIndex((x) => x.clave === s);
+/** Los puntos que se le preguntan a un área en un formato: los generales (sin área) y los suyos, activos, por sección y orden. */
+export function checklistDe(puntos: Punto5S[], areaId: string | null, formato: Formato5S = FORMATO_5S): Punto5S[] {
+  const iS = (s: ClaveS) => { const i = formato.secciones.findIndex((x) => x.clave === s); return i < 0 ? 99 : i };
   return puntos
-    .filter((p) => p.activo && (p.area_id === null || p.area_id === areaId))
+    .filter((p) => p.activo && (p.area_id === null || p.area_id === areaId) && (!formato.id || !p.formato_id || p.formato_id === formato.id))
     .sort((a, b) => iS(a.s) - iS(b.s) || a.orden - b.orden || a.pregunta.localeCompare(b.pregunta));
 }
 

@@ -10,6 +10,6 @@ export const dynamic = "force-dynamic";
 export default async function Maestro5SPage() {
   const [m, permisos] = await Promise.all([leerMaestro5S(), misPermisos()]);
   if (m.falta || m.error) return <Falta5S titulo="Maestro" error={m.error} />;
-  return <Maestro5S meta={m.meta} areas={m.areas} responsables={m.responsables} puntos={m.puntos} zonas={m.zonas}
+  return <Maestro5S meta={m.meta} areas={m.areas} responsables={m.responsables} puntos={m.puntos} zonas={m.zonas} formatos={m.formatos}
                     puedeEditar={permisos.puedeEditar("/5s/maestro")} />;
 }

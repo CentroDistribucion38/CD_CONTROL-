@@ -3,11 +3,13 @@
  * otra, las inspecciones. Si falta correr el SQL, se dice con `falta` y la pantalla lo explica.
  */
 import { createClient } from "@/lib/supabase/server";
-import type { Area5S, Hallazgo5S, Inspeccion5S, Programada5S, Punto5S, Responsable5S, Zona5S } from "./cinco-s";
+import { FORMATO_5S, type Area5S, type Formato5S, type Hallazgo5S, type Inspeccion5S, type Programada5S, type Punto5S, type Responsable5S, type Seccion5S, type Zona5S } from "./cinco-s";
 
 export type Maestro5S = {
   falta: boolean; error: string | null;
   meta: number; areas: Area5S[]; responsables: Responsable5S[]; puntos: Punto5S[]; zonas: Zona5S[];
+  /** Qué se evalúa (5S, PTL…). Sin el SQL del paso 6 viene solo 5S, como antes. */
+  formatos: Formato5S[];
 };
 
 const esFalta = (e: { message: string; code?: string }) =>
@@ -15,16 +17,26 @@ const esFalta = (e: { message: string; code?: string }) =>
 
 export async function leerMaestro5S(): Promise<Maestro5S> {
   const sb = await createClient();
-  const [r, a, s, p, z] = await Promise.all([
+  const [r, a, s, p, z, fo, se] = await Promise.all([
     sb.from("s5_reglas").select("meta").eq("id", 1).maybeSingle(),
     sb.from("s5_areas").select("*").order("orden").order("nombre"),
     sb.from("s5_responsables").select("*").order("nombre"),
     sb.from("s5_puntos").select("*").order("orden"),
     /* Las zonas son del paso 2: si su SQL no se ha corrido, no hay zonas y todo lo demás sigue. */
     sb.from("s5_zonas").select("*").order("orden").order("nombre"),
+    /* Formatos y secciones son del paso 6 (2026-11-cinco-s-6-formatos.sql). */
+    sb.from("s5_formatos").select("*").order("orden").order("nombre"),
+    sb.from("s5_secciones").select("*").order("orden"),
   ]);
   const e = a.error ?? p.error ?? s.error ?? r.error;
-  if (e) return { falta: esFalta(e), error: esFalta(e) ? null : e.message, meta: 90, areas: [], responsables: [], puntos: [], zonas: [] };
+  if (e) return { falta: esFalta(e), error: esFalta(e) ? null : e.message, meta: 90, areas: [], responsables: [], puntos: [], zonas: [], formatos: [FORMATO_5S] };
+  const secciones = (se.error ? [] : se.data ?? []) as (Seccion5S & { formato_id: string; activa: boolean })[];
+  const formatos: Formato5S[] = fo.error || !fo.data?.length ? [FORMATO_5S]
+    : (fo.data as Omit<Formato5S, "secciones">[]).map((f) => ({
+        ...f, meta: f.meta == null ? null : Number(f.meta),
+        secciones: secciones.filter((x) => x.formato_id === f.id && x.activa !== false)
+          .map(({ clave, nombre, corto, que, jp, orden }) => ({ clave, nombre, corto, que, jp, orden })),
+      }));
   return {
     falta: false, error: null,
     meta: Number(r.data?.meta ?? 90),
@@ -32,7 +44,23 @@ export async function leerMaestro5S(): Promise<Maestro5S> {
     responsables: (s.data ?? []) as Responsable5S[],
     puntos: ((p.data ?? []) as Punto5S[]).map((x) => ({ ...x, peso: Number(x.peso) })),
     zonas: z.error ? [] : (z.data ?? []) as Zona5S[],
+    formatos,
   };
+}
+
+/** Solo los formatos con sus secciones (para el informe de una inspección). Sin el SQL del paso 6: solo 5S. */
+export async function leerFormatos5S(): Promise<Formato5S[]> {
+  const sb = await createClient();
+  const [fo, se] = await Promise.all([
+    sb.from("s5_formatos").select("*").order("orden"),
+    sb.from("s5_secciones").select("*").order("orden"),
+  ]);
+  if (fo.error || !fo.data?.length) return [FORMATO_5S];
+  const secciones = (se.data ?? []) as (Seccion5S & { formato_id: string; activa: boolean })[];
+  return (fo.data as Omit<Formato5S, "secciones">[]).map((f) => ({
+    ...f, meta: f.meta == null ? null : Number(f.meta),
+    secciones: secciones.filter((x) => x.formato_id === f.id).map(({ clave, nombre, corto, que, jp, orden }) => ({ clave, nombre, corto, que, jp, orden })),
+  }));
 }
 
 /** Las inspecciones, de la más nueva a la más vieja (hasta 2000: un año largo de auditorías semanales por área). */

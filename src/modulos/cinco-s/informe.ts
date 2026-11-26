@@ -7,12 +7,14 @@
  * puntos de pantalla (1 in = 96) y se llenan las hojas en orden, con margen de sobra para que nada se corte.
  * Las tablas que se parten (la matriz, los hallazgos) repiten su cabecera en la hoja siguiente.
  */
-import { NOMBRE_S, LAS_S, type ClaveS, type Inspeccion5S, type ItemInspeccion } from "./cinco-s";
+import { FORMATO_5S, type ClaveS, type Formato5S, type Inspeccion5S, type ItemInspeccion, type Seccion5S } from "./cinco-s";
 
 export type FotoInf = { item_id: string; url: string; momento?: "antes" | "despues" };
 export type DatosInforme = {
   insp: Inspeccion5S; items: ItemInspeccion[]; fotos: FotoInf[];
   cargo: string | null; anterior: number | null; numero: string;
+  /** El formato de la inspección (5S, PTL…) con sus secciones. Sin él, 5S. */
+  formato?: Formato5S;
 };
 
 export type Bloque =
@@ -29,7 +31,8 @@ const CABE = 1056 - 80 - 74 - 40; // hoja − márgenes − encabezado − aire 
 const largo = (t: string | null | undefined, porLinea: number) => Math.max(1, Math.ceil((t ?? "").length / porLinea));
 
 export function armarHojas(d: DatosInforme): Bloque[][] {
-  const iS = (s: string) => LAS_S.findIndex((x) => x.clave === s);
+  const secs = (d.formato ?? FORMATO_5S).secciones;
+  const iS = (s: string) => { const i = secs.findIndex((x) => x.clave === s); return i < 0 ? 99 : i };
   const items = [...d.items].sort((a, b) => iS(a.s) - iS(b.s) || a.orden - b.orden);
   const num = new Map(items.map((x, i) => [x.id, i + 1]));
   const malos = items.filter((i) => i.resultado === "no_cumple")
@@ -49,7 +52,7 @@ export function armarHojas(d: DatosInforme): Bloque[][] {
     { alto: 82, b: { k: "datos" } },
     { alto: 34, b: { k: "titulo", n: 2, t: "Resultado" } },
     { alto: 150, b: { k: "resultado" } },
-    { alto: 26 + 5 * 25, b: { k: "porS" } },
+    { alto: 26 + Math.max(1, secs.length) * 25, b: { k: "porS" } },
     { alto: 34, b: { k: "titulo", n: 3, t: "Matriz de verificación" } },
   ];
   let grupo = "";
@@ -103,4 +106,12 @@ export function armarHojas(d: DatosInforme): Bloque[][] {
   return hojas.filter((h) => h.length);
 }
 
-export const nombreS = (s: string) => NOMBRE_S[s as ClaveS];
+/** La sección de un punto en el formato del informe (con 5S de respaldo). */
+export const seccionDe = (d: DatosInforme, s: string): Seccion5S | undefined =>
+  (d.formato ?? FORMATO_5S).secciones.find((x) => x.clave === s) ?? FORMATO_5S.secciones.find((x) => x.clave === s);
+/** «CUMPLIMIENTO POR S» en 5S; «CUMPLIMIENTO POR SECCIÓN» en los demás. Y el nombre corto del formato («5S», «PTL»). */
+export const es5S = (d: DatosInforme) => (d.formato ?? FORMATO_5S).clave === "5s";
+export const siglaDe = (d: DatosInforme) => (d.formato ?? FORMATO_5S).nombre.split("·")[0].trim();
+/** La fila-título de una sección en la matriz: «1S · CLASIFICAR (SEIRI)», «UBI · UBICACIÓN». */
+export const tituloSeccion = (x: Seccion5S | undefined, clave: ClaveS) =>
+  x ? `${x.corto} · ${x.nombre.toUpperCase()}${x.jp ? ` (${x.jp.toUpperCase()})` : ""}` : clave;

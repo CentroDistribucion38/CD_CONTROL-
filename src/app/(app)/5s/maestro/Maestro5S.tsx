@@ -2,7 +2,8 @@
 
 /**
  * 5S · MAESTRO — lo que hay que tener listo antes de auditar, en el orden en que se arma:
- *   1. Responsables (los dueños de las áreas)  →  2. Áreas (con su responsable y, si quiere, su meta)  →  3. Checklist.
+ *   1. Responsables  →  2. Áreas (con su responsable y su meta)  →  3. Formatos (qué se evalúa: 5S, PTL… y sus
+ *   secciones)  →  4. Checklist (los puntos de cada formato).
  * El checklist tiene puntos GENERALES (valen para todas las áreas) y puntos PROPIOS de un área. Al escoger un área se ve
  * exactamente lo que se le va a preguntar: los generales y los suyos.
  * Nada se borra: se desactiva. Las inspecciones viejas guardan su copia de cada pregunta, así que cambiar o quitar un
@@ -15,18 +16,23 @@ import { createClient } from "@/lib/supabase/client";
 import { useAvisos } from "@/components/Aviso";
 import { CabezaVentana } from "../CabezaVentana";
 import {
-  LAS_S, NOMBRE_S, checklistDe, pct,
-  type Area5S, type ClaveS, type Punto5S, type Responsable5S, type Zona5S,
+  FORMATO_5S, checklistDe, mapaSecciones, pct,
+  type Area5S, type ClaveS, type Formato5S, type Punto5S, type Responsable5S, type Seccion5S, type Zona5S,
 } from "@/modulos/cinco-s/cinco-s";
 
-type Tab = "responsables" | "areas" | "checklist";
+type Tab = "responsables" | "areas" | "formatos" | "checklist";
 type Edit =
   | { que: "responsable"; v: Partial<Responsable5S> }
   | { que: "area"; v: Partial<Area5S> & { metaTxt?: string } }
-  | { que: "punto"; v: Partial<Punto5S> & { pesoTxt?: string } };
+  | { que: "punto"; v: Partial<Punto5S> & { pesoTxt?: string } }
+  | { que: "formato"; v: Partial<Formato5S> & { metaTxt?: string } }
+  | { que: "seccion"; v: Partial<Seccion5S> & { formato_id: string } };
 
-export function Maestro5S({ meta, areas, responsables, puntos, zonas = [], puedeEditar }: {
-  meta: number; areas: Area5S[]; responsables: Responsable5S[]; puntos: Punto5S[]; zonas?: Zona5S[]; puedeEditar: boolean;
+/** «Revisión de montacargas» → «revision_de_montacargas» (las claves de la base: minúsculas, números y _). */
+const slug = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40) || "x";
+
+export function Maestro5S({ meta, areas, responsables, puntos, zonas = [], formatos = [FORMATO_5S], puedeEditar }: {
+  meta: number; areas: Area5S[]; responsables: Responsable5S[]; puntos: Punto5S[]; zonas?: Zona5S[]; formatos?: Formato5S[]; puedeEditar: boolean;
 }) {
   const router = useRouter();
   const [avisar, avisos] = useAvisos();
@@ -36,10 +42,16 @@ export function Maestro5S({ meta, areas, responsables, puntos, zonas = [], puede
   const [metaTxt, setMetaTxt] = useState(String(meta));
   const [ocupado, setOcupado] = useState(false);
   const [zonaNueva, setZonaNueva] = useState<{ area: string; txt: string } | null>(null);
+  /* El checklist se ve por formato: 5S, PTL… */
+  const [fmtId, setFmtId] = useState<string>(formatos[0]?.id ?? "");
+  const fmt = formatos.find((f) => f.id === fmtId) ?? formatos[0] ?? FORMATO_5S;
+  const conFormatos = formatos.some((f) => f.id);   // false = falta correr el SQL del paso 6
+  const secc = mapaSecciones(formatos);
+  const deFmt = (p: Punto5S) => !fmt.id || !p.formato_id || p.formato_id === fmt.id;
 
   const nomResp = (id: string | null) => responsables.find((r) => r.id === id)?.nombre ?? null;
-  const propios = (areaId: string) => puntos.filter((p) => p.activo && p.area_id === areaId).length;
-  const generales = puntos.filter((p) => p.activo && p.area_id === null).length;
+  const propios = (areaId: string) => puntos.filter((p) => p.activo && p.area_id === areaId && deFmt(p)).length;
+  const generales = puntos.filter((p) => p.activo && p.area_id === null && deFmt(p)).length;
 
   async function correr(f: () => PromiseLike<{ error: { message: string } | null }>, bien: string) {
     setOcupado(true);
@@ -74,20 +86,48 @@ export function Maestro5S({ meta, areas, responsables, puntos, zonas = [], puede
       await correr(() => v.id ? sb.from("s5_areas").update(fila).eq("id", v.id)
         : sb.from("s5_areas").insert({ ...fila, orden: areas.length + 1 }),
         v.id ? `${fila.nombre} actualizada.` : `${fila.nombre} creada.`);
-    } else {
+    } else if (edit.que === "punto") {
       const v = edit.v;
       const peso = Number((v.pesoTxt ?? "1").replace(",", "."));
-      const fila = { s: v.s as ClaveS, pregunta: (v.pregunta ?? "").trim(), area_id: v.area_id || null, peso, exige_foto: !!v.exige_foto };
-      if (!fila.s) { avisar.mal("Escoge a cuál S pertenece."); return }
+      const fila = { s: v.s as ClaveS, pregunta: (v.pregunta ?? "").trim(), area_id: v.area_id || null, peso, exige_foto: !!v.exige_foto,
+        ...(fmt.id ? { formato_id: v.formato_id || fmt.id } : {}) };
+      if (!fila.s) { avisar.mal("Escoge a cuál sección pertenece."); return }
       if (!fila.pregunta) { avisar.mal("Escribe el punto a revisar."); return }
       if (!(peso > 0 && peso <= 100)) { avisar.mal("El peso va de 0,1 a 100."); return }
       const orden = v.id ? v.orden : Math.max(0, ...puntos.filter((p) => p.s === fila.s).map((p) => p.orden)) + 1;
+      const sx = secc.get(fila.s);
       await correr(() => v.id ? sb.from("s5_puntos").update(fila).eq("id", v.id) : sb.from("s5_puntos").insert({ ...fila, orden }),
-        v.id ? "Punto actualizado." : `Punto agregado a la ${NOMBRE_S[fila.s].n}S.`);
+        v.id ? "Punto actualizado." : `Punto agregado a ${sx ? `${sx.corto} · ${sx.nombre}` : "la sección"}.`);
+    } else if (edit.que === "formato") {
+      const v = edit.v;
+      const m = (v.metaTxt ?? "").trim().replace(",", ".");
+      const metaN = m === "" ? null : Number(m);
+      if (metaN !== null && !(metaN >= 1 && metaN <= 100)) { avisar.mal("La meta va de 1 a 100 %, o vacía para usar la del área o la general."); return }
+      const nombre = (v.nombre ?? "").trim();
+      if (!nombre) { avisar.mal("Escribe el nombre del formato."); return }
+      const fila = { nombre, descripcion: v.descripcion?.trim() || null, meta: metaN };
+      let clave = slug(nombre.split("·")[0]);
+      while (formatos.some((f) => f.clave === clave)) clave += "_2";
+      await correr(() => v.id ? sb.from("s5_formatos").update(fila).eq("id", v.id)
+        : sb.from("s5_formatos").insert({ ...fila, clave, orden: formatos.length + 1 }),
+        v.id ? `${nombre} actualizado.` : `Formato ${nombre} creado. Ahora agrégale sus secciones.`);
+    } else {
+      const v = edit.v;
+      const nombre = (v.nombre ?? "").trim();
+      const corto = (v.corto ?? "").trim().toUpperCase();
+      if (!nombre) { avisar.mal("Escribe el nombre de la sección."); return }
+      if (!corto || corto.length > 6) { avisar.mal("La ficha corta va de 1 a 6 letras (ej.: UBI)."); return }
+      const f = formatos.find((x) => x.id === v.formato_id);
+      const fila = { nombre, corto, que: v.que?.trim() || null };
+      let clave = `${f?.clave ?? "f"}_${slug(nombre)}`;
+      while (!v.clave && secc.has(clave)) clave += "_2";
+      await correr(() => v.clave ? sb.from("s5_secciones").update(fila).eq("clave", v.clave)
+        : sb.from("s5_secciones").insert({ ...fila, clave, formato_id: v.formato_id, orden: (f?.secciones.length ?? 0) + 1 }),
+        v.clave ? `Sección ${nombre} actualizada.` : `Sección ${nombre} agregada a ${f?.nombre ?? "el formato"}.`);
     }
   }
 
-  async function activar(tabla: "s5_responsables" | "s5_areas" | "s5_puntos" | "s5_zonas", id: string, campo: "activo" | "activa", valor: boolean, que: string) {
+  async function activar(tabla: "s5_responsables" | "s5_areas" | "s5_puntos" | "s5_zonas" | "s5_formatos", id: string, campo: "activo" | "activa", valor: boolean, que: string) {
     const sb = createClient();
     await correr(() => sb.from(tabla).update({ [campo]: valor }).eq("id", id), valor ? `${que}: activo otra vez.` : `${que}: desactivado.`);
   }
@@ -113,24 +153,25 @@ export function Maestro5S({ meta, areas, responsables, puntos, zonas = [], puede
   }
 
   const areaPara = areas.find((a) => a.id === para) ?? null;
-  const verPuntos = para ? checklistDe(puntos, para) : puntos.filter((p) => p.area_id === null).sort((a, b) => a.orden - b.orden);
-  const inactivosPara = puntos.filter((p) => !p.activo && (para ? p.area_id === para : p.area_id === null));
+  const verPuntos = para ? checklistDe(puntos, para, fmt) : puntos.filter((p) => p.area_id === null && deFmt(p)).sort((a, b) => a.orden - b.orden);
+  const inactivosPara = puntos.filter((p) => !p.activo && deFmt(p) && (para ? p.area_id === para : p.area_id === null));
 
   return (
     <div className="s5">
       {avisos}
       <header className="s5-cab">
         <div>
-          <p className="s5-ojo">5S · ORDEN Y ASEO</p>
+          <p className="s5-ojo">EVALUACIONES · 5S Y PTL</p>
           <h1>Maestro</h1>
-          <p className="s5-sub">Primero los responsables, después las áreas con su responsable y al final el checklist.</p>
+          <p className="s5-sub">Primero los responsables, después las áreas, los formatos (qué se evalúa) y al final el checklist de cada formato.</p>
         </div>
       </header>
 
       <nav className="s5-tabs" aria-label="Partes del maestro">
         <button type="button" className={tab === "responsables" ? "on" : ""} onClick={() => setTab("responsables")}>1 · Responsables<i>{responsables.filter((r) => r.activo).length}</i></button>
         <button type="button" className={tab === "areas" ? "on" : ""} onClick={() => setTab("areas")}>2 · Áreas<i>{areas.filter((a) => a.activa).length}</i></button>
-        <button type="button" className={tab === "checklist" ? "on" : ""} onClick={() => setTab("checklist")}>3 · Checklist<i>{puntos.filter((p) => p.activo).length}</i></button>
+        <button type="button" className={tab === "formatos" ? "on" : ""} onClick={() => setTab("formatos")}>3 · Formatos<i>{formatos.filter((f) => f.activo).length}</i></button>
+        <button type="button" className={tab === "checklist" ? "on" : ""} onClick={() => setTab("checklist")}>4 · Checklist<i>{puntos.filter((p) => p.activo).length}</i></button>
       </nav>
 
       {tab === "responsables" && (
@@ -229,11 +270,63 @@ export function Maestro5S({ meta, areas, responsables, puntos, zonas = [], puede
         </>
       )}
 
+      {tab === "formatos" && (
+        <section className="s5-card">
+          <header>
+            <h2>Formatos de evaluación</h2>
+            {puedeEditar && conFormatos && <button type="button" className="s5-bt osc" onClick={() => setEdit({ que: "formato", v: { metaTxt: "" } })}>+ Nuevo formato</button>}
+            <p>Qué se evalúa: 5S, PTL y los que vengan (check de montacargas, FMS…). Cada uno con sus secciones; el % sale por sección y total.</p>
+          </header>
+          {!conFormatos ? (
+            <p className="s5-vacio">Falta correr <b>2026-11-cinco-s-6-formatos.sql</b> en Supabase: mientras tanto solo existe 5S.</p>
+          ) : (
+            <ul className="s5-filas">
+              {formatos.map((f) => {
+                const n = puntos.filter((p) => p.activo && p.formato_id === f.id).length;
+                return (
+                  <li key={f.id} className={"s5-fila" + (f.activo ? "" : " inactiva")}>
+                    <div>
+                      <b>{f.nombre}</b>{!f.activo && <span className="s5-chip">inactivo</span>}
+                      <small>{[f.descripcion, `${n} puntos`, f.meta != null ? `meta ${pct(f.meta)}` : "meta del área o la general"].filter(Boolean).join(" · ")}</small>
+                      <div className="s5-zonas">
+                        <span>Secciones</span>
+                        {f.secciones.map((x) => (
+                          puedeEditar
+                            ? <button key={x.clave} type="button" className="s5-zona-chip" title="Editar sección" onClick={() => setEdit({ que: "seccion", v: { ...x, formato_id: f.id } })}><b>{x.corto}</b>&nbsp;{x.nombre}</button>
+                            : <span key={x.clave} className="s5-zona-chip"><b>{x.corto}</b>&nbsp;{x.nombre}</span>
+                        ))}
+                        {f.secciones.length === 0 && <em>sin secciones</em>}
+                        {puedeEditar && <button type="button" className="s5-link" onClick={() => setEdit({ que: "seccion", v: { formato_id: f.id } })}>+ sección</button>}
+                      </div>
+                    </div>
+                    {puedeEditar && (
+                      <div className="s5-acc">
+                        <button type="button" className="s5-bt" onClick={() => { setFmtId(f.id); setTab("checklist") }}>Ver checklist</button>
+                        <button type="button" className="s5-bt" onClick={() => setEdit({ que: "formato", v: { ...f, metaTxt: f.meta == null ? "" : String(f.meta) } })}>Editar</button>
+                        <button type="button" className="s5-bt" disabled={ocupado} onClick={() => activar("s5_formatos", f.id, "activo", !f.activo, f.nombre)}>{f.activo ? "Desactivar" : "Activar"}</button>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      )}
+
       {tab === "checklist" && (
         <section className="s5-card">
           <header>
-            <h2>{areaPara ? `Lo que se le pregunta a ${areaPara.nombre}` : "Checklist general"}</h2>
+            <h2>{fmt.nombre} · {areaPara ? `lo que se le pregunta a ${areaPara.nombre}` : "checklist general"}</h2>
             <div className="s5-acc">
+              {formatos.length > 1 && (
+                <label className="s5-campo" style={{ minWidth: 200 }}>
+                  <span>Formato</span>
+                  <select value={fmt.id} onChange={(e) => setFmtId(e.target.value)}>
+                    {formatos.map((f) => <option key={f.id} value={f.id}>{f.nombre}{f.activo ? "" : " (inactivo)"}</option>)}
+                  </select>
+                </label>
+              )}
               <label className="s5-campo" style={{ minWidth: 220 }}>
                 <span>Ver</span>
                 <select value={para} onChange={(e) => setPara(e.target.value)}>
@@ -242,19 +335,19 @@ export function Maestro5S({ meta, areas, responsables, puntos, zonas = [], puede
                 </select>
               </label>
               {puedeEditar && <button type="button" className="s5-bt osc" style={{ alignSelf: "end" }}
-                onClick={() => setEdit({ que: "punto", v: { area_id: para || null, pesoTxt: "1", exige_foto: false } })}>+ Nuevo punto</button>}
+                onClick={() => setEdit({ que: "punto", v: { area_id: para || null, pesoTxt: "1", exige_foto: false, formato_id: fmt.id, s: fmt.secciones[0]?.clave } })}>+ Nuevo punto</button>}
             </div>
-            <p>{areaPara ? `Los ${generales} generales y los propios de ${areaPara.nombre}. Un punto propio solo se le pregunta a esta área.` : "Estos puntos se le preguntan a todas las áreas. Cada punto es de una S."}</p>
+            <p>{areaPara ? `Los ${generales} generales y los propios de ${areaPara.nombre}. Un punto propio solo se le pregunta a esta área.` : "Estos puntos se le preguntan a todas las áreas. Cada punto es de una sección."}</p>
           </header>
-          {LAS_S.map((s) => {
+          {fmt.secciones.map((s) => {
             const de = verPuntos.filter((p) => p.s === s.clave);
             if (!de.length) return null;
             return (
               <div key={s.clave}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px 6px" }}>
-                  <span className="s5-n" style={{ width: 34, height: 34, fontSize: 14 }}>{s.n}S</span>
+                  <span className="s5-n" style={{ minWidth: 34, height: 34, fontSize: s.corto.length > 3 ? 11 : 14, padding: "0 4px" }}>{s.corto}</span>
                   <b style={{ font: "900 15px var(--s5-titulo)" }}>{s.nombre}</b>
-                  <small style={{ color: "var(--s5-gris)" }}>{s.jp} · {s.que}</small>
+                  <small style={{ color: "var(--s5-gris)" }}>{[s.jp, s.que].filter(Boolean).join(" · ")}</small>
                 </div>
                 <ul className="s5-filas">
                   {de.map((p) => (
@@ -285,7 +378,7 @@ export function Maestro5S({ meta, areas, responsables, puntos, zonas = [], puede
               <ul className="s5-filas">
                 {inactivosPara.map((p) => (
                   <li key={p.id} className="s5-fila inactiva">
-                    <div><span className="s5-chip">{NOMBRE_S[p.s].n}S</span> {p.pregunta}</div>
+                    <div><span className="s5-chip">{secc.get(p.s)?.corto ?? p.s}</span> {p.pregunta}</div>
                     {puedeEditar && <button type="button" className="s5-bt" disabled={ocupado} onClick={() => activar("s5_puntos", p.id, "activo", true, "El punto")}>Volver a poner</button>}
                   </li>
                 ))}
@@ -302,7 +395,9 @@ export function Maestro5S({ meta, areas, responsables, puntos, zonas = [], puede
             <CabezaVentana ojo="5S · MAESTRO" cerrar={() => setEdit(null)}
               titulo={edit.que === "responsable" ? (edit.v.id ? "Editar responsable" : "Nuevo responsable")
                 : edit.que === "area" ? (edit.v.id ? "Editar área" : "Nueva área")
-                : (edit.v.id ? "Editar punto" : "Nuevo punto del checklist")} />
+                : edit.que === "formato" ? (edit.v.id ? "Editar formato" : "Nuevo formato")
+                : edit.que === "seccion" ? (edit.v.clave ? "Editar sección" : "Nueva sección")
+                : (edit.v.id ? "Editar punto" : `Nuevo punto · ${fmt.nombre}`)} />
             <div className="s5-mo-b">
               {edit.que === "responsable" && (<>
                 <label className="s5-campo ancho"><span>Nombre</span>
@@ -328,11 +423,11 @@ export function Maestro5S({ meta, areas, responsables, puntos, zonas = [], puede
                   <input value={edit.v.descripcion ?? ""} placeholder="Calles 1 a 12, zona de casco…" onChange={(e) => setEdit({ que: "area", v: { ...edit.v, descripcion: e.target.value } })} /></label>
               </>)}
               {edit.que === "punto" && (<>
-                <div className="s5-campo ancho"><span>¿De cuál S?</span>
-                  <div className="s5-s-pick" role="radiogroup" aria-label="S">
-                    {LAS_S.map((s) => (
+                <div className="s5-campo ancho"><span>¿De cuál sección?</span>
+                  <div className="s5-s-pick" role="radiogroup" aria-label="Sección">
+                    {(formatos.find((f) => f.id === edit.v.formato_id) ?? fmt).secciones.map((s) => (
                       <button key={s.clave} type="button" role="radio" aria-checked={edit.v.s === s.clave} className={edit.v.s === s.clave ? "on" : ""}
-                              onClick={() => setEdit({ que: "punto", v: { ...edit.v, s: s.clave } })}><b>{s.n}S</b><span>{s.nombre}</span></button>
+                              onClick={() => setEdit({ que: "punto", v: { ...edit.v, s: s.clave } })}><b>{s.corto}</b><span>{s.nombre}</span></button>
                     ))}
                   </div></div>
                 <label className="s5-campo ancho"><span>Qué se revisa</span>
@@ -349,6 +444,28 @@ export function Maestro5S({ meta, areas, responsables, puntos, zonas = [], puede
                   <input type="checkbox" checked={!!edit.v.exige_foto} onChange={(e) => setEdit({ que: "punto", v: { ...edit.v, exige_foto: e.target.checked } })} />
                   Exige foto cada vez que se evalúa
                 </label>
+              </>)}
+              {edit.que === "formato" && (<>
+                <label className="s5-campo ancho"><span>Nombre</span>
+                  <input autoFocus value={edit.v.nombre ?? ""} placeholder="Check de montacargas"
+                         onChange={(e) => setEdit({ que: "formato", v: { ...edit.v, nombre: e.target.value } })} /></label>
+                <label className="s5-campo ancho"><span>Qué evalúa (opcional)</span>
+                  <input value={edit.v.descripcion ?? ""} placeholder="Una línea que se ve al escogerlo en la inspección."
+                         onChange={(e) => setEdit({ que: "formato", v: { ...edit.v, descripcion: e.target.value } })} /></label>
+                <label className="s5-campo"><span>Meta propia (%)</span>
+                  <input inputMode="decimal" value={edit.v.metaTxt ?? ""} placeholder="vacía = la del área"
+                         onChange={(e) => setEdit({ que: "formato", v: { ...edit.v, metaTxt: e.target.value.replace(/[^0-9,.]/g, "") } })} /></label>
+              </>)}
+              {edit.que === "seccion" && (<>
+                <label className="s5-campo ancho"><span>Nombre de la sección</span>
+                  <input autoFocus value={edit.v.nombre ?? ""} placeholder="Ubicación"
+                         onChange={(e) => setEdit({ que: "seccion", v: { ...edit.v, nombre: e.target.value } })} /></label>
+                <label className="s5-campo"><span>Ficha corta (1 a 6)</span>
+                  <input value={edit.v.corto ?? ""} maxLength={6} placeholder="UBI" style={{ textTransform: "uppercase" }}
+                         onChange={(e) => setEdit({ que: "seccion", v: { ...edit.v, corto: e.target.value } })} /></label>
+                <label className="s5-campo"><span>Qué busca (opcional)</span>
+                  <input value={edit.v.que ?? ""} placeholder="Cada producto en su módulo"
+                         onChange={(e) => setEdit({ que: "seccion", v: { ...edit.v, que: e.target.value } })} /></label>
               </>)}
             </div>
             <footer className="s5-mo-f">

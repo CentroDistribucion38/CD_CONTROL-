@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { misPermisos } from "@/lib/permisos";
-import { LAS_S, type Inspeccion5S, type ItemInspeccion, type Responsable5S } from "@/modulos/cinco-s/cinco-s";
+import { formatoDe, type Inspeccion5S, type ItemInspeccion, type Responsable5S } from "@/modulos/cinco-s/cinco-s";
+import { leerFormatos5S } from "@/modulos/cinco-s/datos";
 import { Informe5S } from "./Informe5S";
 import { Falta5S } from "../../Falta";
 import "../../cinco-s.css";
@@ -24,16 +25,18 @@ export default async function Informe5SPage({ params, searchParams }: {
   const i = { ...insp, cumplimiento: Number(insp.cumplimiento), meta: Number(insp.meta) } as Inspeccion5S;
 
   const anio = i.fecha.slice(0, 4);
+  const formato = formatoDe(await leerFormatos5S(), i.formato_id);
   const [it, ft, ant, cuenta, area, resp, permisos, prevOl] = await Promise.all([
     sb.from("s5_inspeccion_puntos").select("*").eq("inspeccion_id", id),
     /* «*»: con el paso 3 trae `momento` (antes / después); sin él, todas son del antes. */
     sb.from("s5_fotos").select("*").eq("inspeccion_id", id).order("ruta"),
     i.area_id
-      ? sb.from("s5_inspecciones").select("cumplimiento, fecha, creado").eq("area_id", i.area_id)
+      ? (formato.id ? sb.from("s5_inspecciones").select("cumplimiento, fecha, creado").eq("formato_id", formato.id) : sb.from("s5_inspecciones").select("cumplimiento, fecha, creado"))
+          .eq("area_id", i.area_id)
           .or(`fecha.lt.${i.fecha},and(fecha.eq.${i.fecha},creado.lt.${i.creado})`)
           .order("fecha", { ascending: false }).order("creado", { ascending: false }).limit(1)
       : Promise.resolve({ data: [] as { cumplimiento: number }[] }),
-    sb.from("s5_inspecciones").select("id", { count: "exact", head: true })
+    (formato.id ? sb.from("s5_inspecciones").select("id", { count: "exact", head: true }).eq("formato_id", formato.id) : sb.from("s5_inspecciones").select("id", { count: "exact", head: true }))
       .gte("fecha", `${anio}-01-01`).lte("creado", i.creado),
     i.area_id ? sb.from("s5_areas").select("responsable_id").eq("id", i.area_id).maybeSingle() : Promise.resolve({ data: null }),
     sb.from("s5_responsables").select("*").order("nombre"),
@@ -50,7 +53,7 @@ export default async function Informe5SPage({ params, searchParams }: {
   const rutas = (ft.data ?? []).map((f) => f.ruta as string);
   const firmadas = rutas.length ? await sb.storage.from("cinco-s").createSignedUrls(rutas, 3600) : { data: [] };
   const url = new Map((firmadas.data ?? []).map((x) => [x.path, x.signedUrl]));
-  const iS = (s: string) => LAS_S.findIndex((x) => x.clave === s);
+  const iS = (s: string) => { const k = formato.secciones.findIndex((x) => x.clave === s); return k < 0 ? 99 : k };
   const items = ((it.data ?? []) as ItemInspeccion[]).map((x) => ({ ...x, peso: Number(x.peso), zona: x.zona ?? null }))
     .sort((a, b) => iS(a.s) - iS(b.s) || a.orden - b.orden);
   const prev = (ant.data ?? [])[0] as { cumplimiento: number } | undefined;
@@ -61,7 +64,8 @@ export default async function Informe5SPage({ params, searchParams }: {
         insp: i, items, cargo,
         fotos: (ft.data ?? []).map((f) => ({ item_id: f.item_id as string, url: url.get(f.ruta as string) ?? "", momento: (f.momento === "despues" ? "despues" : "antes") as "antes" | "despues" })).filter((f) => f.url),
         anterior: prev ? Number(prev.cumplimiento) : null,
-        numero: `5S-${anio}-${String(cuenta.count ?? 1).padStart(4, "0")}`,
+        numero: `${formato.clave.toUpperCase()}-${anio}-${String(cuenta.count ?? 1).padStart(4, "0")}`,
+        formato,
       }}
       descargar={pdf === "1"}
       responsables={(resp.data ?? []) as Responsable5S[]}
