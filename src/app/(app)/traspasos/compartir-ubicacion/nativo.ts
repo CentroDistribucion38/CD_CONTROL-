@@ -6,9 +6,11 @@
  * peticiones de la página después de 5 min en segundo plano, las nativas no.
  * En el navegador normal nada de esto existe y la pantalla sigue como siempre.
  */
-type Cap = { isNativePlatform?: () => boolean; registerPlugin?: <T>(nombre: string) => T };
+type Cap = { isNativePlatform?: () => boolean };
 const cap = (): Cap | undefined => (typeof window !== "undefined" ? (window as unknown as { Capacitor?: Cap }).Capacitor : undefined);
 
+/** El puente nativo de Android solo trae lo mínimo (isNativePlatform); registerPlugin vive en la librería
+ *  @capacitor/core, que se carga aquí solo dentro de la app (en el navegador normal nunca se descarga). */
 export const enApp = () => !!cap()?.isNativePlatform?.();
 
 export type LugarNativo = { latitude: number; longitude: number; accuracy: number; speed: number | null; bearing: number | null; time: number | null };
@@ -21,12 +23,20 @@ type PluginGps = {
 };
 type PluginHttp = { post: (o: { url: string; headers?: Record<string, string>; data?: unknown; connectTimeout?: number; readTimeout?: number }) => Promise<{ status: number; data: unknown }> };
 
-const gps = () => cap()?.registerPlugin?.<PluginGps>("BackgroundGeolocation");
-const http = () => cap()?.registerPlugin?.<PluginHttp>("CapacitorHttp");
+let plugins: Promise<{ gps: PluginGps; http: PluginHttp } | null> | null = null;
+function cargar() {
+  if (!enApp()) return Promise.resolve(null);
+  plugins ??= import("@capacitor/core")
+    .then(({ registerPlugin, CapacitorHttp }) => ({ gps: registerPlugin<PluginGps>("BackgroundGeolocation"), http: CapacitorHttp as unknown as PluginHttp }))
+    .catch(() => { plugins = null; return null });
+  return plugins;
+}
+const gps = async () => (await cargar())?.gps;
+const http = async () => (await cargar())?.http;
 
 /** Arranca el GPS en segundo plano. Devuelve el id del vigilante (para pararlo). */
 export async function empezarNativo(placa: string, cb: (l?: LugarNativo, e?: ErrorNativo) => void): Promise<string | null> {
-  const g = gps();
+  const g = await gps();
   if (!g) return null;
   return g.addWatcher({
     backgroundTitle: "CONTROL está siguiendo el viaje",
@@ -34,12 +44,12 @@ export async function empezarNativo(placa: string, cb: (l?: LugarNativo, e?: Err
     requestPermissions: true, stale: false, distanceFilter: 0,
   }, cb);
 }
-export async function pararNativo(id: string | null) { if (id) await gps()?.removeWatcher({ id }).catch(() => {}) }
-export async function ajustesNativo() { await gps()?.openSettings().catch(() => {}) }
+export async function pararNativo(id: string | null) { if (id) await (await gps())?.removeWatcher({ id }).catch(() => {}) }
+export async function ajustesNativo() { await (await gps())?.openSettings().catch(() => {}) }
 
 /** Manda una posición por HTTP nativo al punto de entrada del GPS (formato de la app de GPS: device_id + location). */
 export async function mandarNativo(url: string, placa: string, l: LugarNativo): Promise<boolean> {
-  const h = http();
+  const h = await http();
   if (!h) return false;
   try {
     const r = await h.post({

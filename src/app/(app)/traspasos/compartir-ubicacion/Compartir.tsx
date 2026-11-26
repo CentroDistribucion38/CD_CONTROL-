@@ -106,6 +106,7 @@ export function Compartir({ conViajes = false }: { conViajes?: boolean }) {
     if (!c?.ok || !c.url) { setMal(c?.falta ?? "No se pudo preparar el envío. Revisa el internet y vuelve a intentar."); return }
     nativoRef.current = { id: null, url: c.url, ultimo: 0 };
     setActivo(true); setEsperando(true); marcarActivo(true);
+    let fallo = "";
     const id = await empezarNativo(p, (l?: LugarNativo, e?: { code?: string; message?: string }) => {
       if (e) {
         setEsperando(false);
@@ -126,8 +127,8 @@ export function Compartir({ conViajes = false }: { conViajes?: boolean }) {
         setUltimo({ hora: hora(Date.now()), zona: null, precision: l.accuracy });
         setEnviados((n) => n + 1);
       });
-    });
-    if (!id) { setActivo(false); setEsperando(false); marcarActivo(false); setMal("No se pudo arrancar el GPS de la app."); return }
+    }).catch((e: unknown) => { fallo = e instanceof Error ? e.message : String(e ?? ""); return null });
+    if (!id) { setActivo(false); setEsperando(false); marcarActivo(false); setMal(`No se pudo arrancar el GPS de la app.${fallo ? ` (${fallo})` : ""} Cierra CONTROL Conductor y vuelve a abrirla.`); return }
     nativoRef.current.id = id;
   }, []);
 
