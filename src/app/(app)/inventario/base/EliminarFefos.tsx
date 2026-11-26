@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { traducirError } from "@/lib/errores";
 import type { ConteoFefo } from "@/modulos/inventario/fefo";
 
+import { CampoFecha } from "@/components/CampoFecha";
 /* ===================================================================
    ELIMINAR FEFOs ESPECÍFICOS — solo quien administra la plataforma.
 
@@ -135,7 +136,7 @@ export function EliminarFefos({ conteos, abrir }: { conteos: ConteoFefo[]; abrir
             </label>
             {fechando === c.id ? (
               <span className="ba-elim-fecha">
-                <input type="date" value={nuevaFecha} max={hoyBogota()} disabled={ocupado} aria-label={`Nueva fecha del FEFO ${c.codigo}`}
+                <CampoFecha value={nuevaFecha} max={hoyBogota()} disabled={ocupado} aria-label={`Nueva fecha del FEFO ${c.codigo}`}
                        onChange={(e) => setNuevaFecha(e.target.value)} />
                 <button type="button" className="btn plano" disabled={ocupado || !nuevaFecha} onClick={() => cambiarFecha(c)}>
                   {ocupado ? "Guardando…" : "Guardar fecha"}

@@ -8,6 +8,7 @@ import type { PlacaM, Punto, TipoViaje, Viaje } from "@/modulos/traspasos/datos"
 import { TURNOS } from "@/modulos/traspasos/formato";
 import { Desplegable, FilaViaje, type Opcion } from "./comunes";
 
+import { CampoFecha } from "@/components/CampoFecha";
 /**
  * LOS VIAJES DEL DÍA, lo último arriba.
  *
@@ -238,7 +239,7 @@ function Corregir({ v, tipos, puntos, placas, cerrar, listo, fallo }: {
       <div className="rejilla-corregir">
         <div className="campo">
           <label htmlFor={"f-" + v.id}>Día</label>
-          <input id={"f-" + v.id} type="date" value={fecha}
+          <CampoFecha id={"f-" + v.id} value={fecha}
                  onChange={(e) => setFecha(e.target.value)} />
         </div>
 

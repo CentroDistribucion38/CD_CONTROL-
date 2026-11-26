@@ -11,6 +11,7 @@ import {
 import { descartarDisparador } from "./actions";
 import { cerrarDisparador, guardarAccion, guardarAnalisis, marcarAccion, pasarRelevo, quitarAccion } from "./disparadores/actions";
 
+import { CampoFecha } from "@/components/CampoFecha";
 const PREGUNTA = ["¿Por qué 1?", "¿Por qué 2?", "¿Por qué 3?", "¿Por qué 4?", "¿Por qué 5?"];
 const porquesDe = (a?: Analisis | null) => (a ? [a.porque1, a.porque2, a.porque3, a.porque4, a.porque5] : ["", "", "", "", ""]);
 const ddmm = (f: string) => `${f.slice(8, 10)}/${f.slice(5, 7)}`;
@@ -160,7 +161,7 @@ export function Hoja5W({ d, i, turno, an, acciones, puede, hoy, cerrar }: {
                 <input value={nueva.accion} onChange={(e) => setNueva({ ...nueva, accion: e.target.value })} placeholder="Qué se va a hacer" />
                 <div className="h5-fila">
                   <input value={nueva.responsable} onChange={(e) => setNueva({ ...nueva, responsable: e.target.value })} placeholder={resp ? `Quién (${resp})` : "Quién"} />
-                  <input type="date" min={hoy} value={nueva.fecha} onChange={(e) => setNueva({ ...nueva, fecha: e.target.value })} aria-label="Fecha límite" />
+                  <CampoFecha min={hoy} value={nueva.fecha} onChange={(e) => setNueva({ ...nueva, fecha: e.target.value })} aria-label="Fecha límite" />
                   <button type="button" className="btn" disabled={pend || nueva.accion.trim().length < 5 || !nueva.fecha || !(nueva.responsable.trim() || resp.trim())} onClick={agregar}>+ Acción</button>
                 </div>
               </div>

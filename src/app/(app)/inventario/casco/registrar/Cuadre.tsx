@@ -6,6 +6,7 @@ import { traducirError } from "@/lib/errores";
 import { cargarCuadre, type Cuadre as ResultadoCuadre, type SitioResultado } from "@/modulos/casco/cuadre";
 import type { MaterialCasco, SitioCasco } from "@/modulos/casco/datos";
 
+import { CampoFecha } from "@/components/CampoFecha";
 /**
  * REGISTRAR · BAJA · EXPORTAR — «que el sistema me haga esa tabla para yo validar, y poder exportarla».
  *
@@ -57,7 +58,7 @@ export function Cuadre({ sitios, materiales, hoy }: { sitios: SitioCasco[]; mate
 
       <div className="reg-filtros cu-barra">
         <label className="cas-c"><span>Día de Control</span>
-          <input type="date" value={fecha} max={hoy} onChange={(e) => e.target.value && setFecha(e.target.value)} />
+          <CampoFecha value={fecha} max={hoy} onChange={(e) => e.target.value && setFecha(e.target.value)} />
         </label>
         <div className="cu-acciones">
           <button type="button" className="btn" disabled={cargando} onClick={() => void cargar()}>{cargando ? "Calculando…" : "Actualizar"}</button>

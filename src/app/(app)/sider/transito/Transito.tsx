@@ -30,6 +30,7 @@ import {
   HuecoFaltante, completarFoto, sellar, subirFotos, traducir,
 } from "@/modulos/sider/evidencia";
 
+import { CampoFecha } from "@/components/CampoFecha";
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const nf2 = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 });
 
@@ -725,13 +726,13 @@ export function Transito({ viajes, nombres, esEditor, puedePedirAi, manda, orige
               dibujemos nosotros, y no hay que mantenerla. */}
           <label>
             <span>Salió desde</span>
-            <input type="date" value={f.desde} max={f.hasta || undefined}
-                   onChange={(e) => setF({ ...f, desde: e.target.value })} />
+            <CampoFecha value={f.desde} max={f.hasta || undefined}
+                   onChange={(e) => setF({ ...f, desde: e.target.value })} hasta={f.hasta} alHasta={(e) => setF({ ...f, hasta: e.target.value })} />
           </label>
           <label>
             <span>Hasta</span>
-            <input type="date" value={f.hasta} min={f.desde || undefined}
-                   onChange={(e) => setF({ ...f, hasta: e.target.value })} />
+            <CampoFecha value={f.hasta} min={f.desde || undefined}
+                   onChange={(e) => setF({ ...f, hasta: e.target.value })} desde={f.desde} alDesde={(e) => setF({ ...f, desde: e.target.value })} />
           </label>
           <button type="button" className="btn plano" disabled={!hayFiltro}
                   onClick={limpiar}>

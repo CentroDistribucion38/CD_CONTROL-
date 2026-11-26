@@ -12,6 +12,7 @@ import type { Defecto, DetalleAi, Revision } from "@/modulos/sider/ai";
 import type { FotoRevision, RevisionLibro } from "@/modulos/sider/libro-revision-ai";
 import "./exportar.css";
 
+import { CampoFecha } from "@/components/CampoFecha";
 type Clase = "" | "ai" | "sorting";
 type Rango = "hoy" | "7" | "mes" | "pasado" | "todo" | "otro";
 
@@ -178,8 +179,8 @@ export function ExportarRevision({ nombres }: { nombres: Record<string, string> 
           </div>
           {rango !== "todo" && (
             <div className="rx-fila">
-              <label className="rx-f"><span>Desde</span><input type="date" value={desde} max={hasta || undefined} onChange={(e) => { setDesde(e.target.value); setRango("otro") }} /></label>
-              <label className="rx-f"><span>Hasta</span><input type="date" value={hasta} min={desde || undefined} onChange={(e) => { setHasta(e.target.value); setRango("otro") }} /></label>
+              <label className="rx-f"><span>Desde</span><CampoFecha value={desde} max={hasta || undefined} onChange={(e) => { setDesde(e.target.value); setRango("otro") }} hasta={hasta} alHasta={(e) => { setHasta(e.target.value); setRango("otro") }} /></label>
+              <label className="rx-f"><span>Hasta</span><CampoFecha value={hasta} min={desde || undefined} onChange={(e) => { setHasta(e.target.value); setRango("otro") }} desde={desde} alDesde={(e) => { setDesde(e.target.value); setRango("otro") }} /></label>
             </div>
           )}
           <div className="rx-fila">

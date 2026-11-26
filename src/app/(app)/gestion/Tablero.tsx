@@ -13,6 +13,7 @@ import { Turnos } from "./Turnos";
 import { Hoja5W } from "./Hoja5W";
 import { PlanAccion } from "./PlanAccion";
 
+import { CampoFecha } from "@/components/CampoFecha";
 /* ---------- pequeñas utilidades ---------- */
 const DOW = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
 const ddmm = (f: string) => `${f.slice(8, 10)}/${f.slice(5, 7)}`;
@@ -225,8 +226,8 @@ export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, res
                     {atajos.map(([t, a, b]) => <button key={t} type="button" className={a === d && b === h ? "on" : ""} onClick={() => { setAbre(null); ir(a, b) }}>{t}</button>)}
                   </div>
                   <div className="tb-cal">
-                    <label>Desde<input type="date" value={desde} max={hoy} onChange={(e) => setDesde(e.target.value)} /></label>
-                    <label>Hasta<input type="date" value={hasta} max={hoy} onChange={(e) => setHasta(e.target.value)} /></label>
+                    <label>Desde<CampoFecha value={desde} max={hoy} onChange={(e) => setDesde(e.target.value)} hasta={hasta} alHasta={(e) => setHasta(e.target.value)} /></label>
+                    <label>Hasta<CampoFecha value={hasta} max={hoy} onChange={(e) => setHasta(e.target.value)} desde={desde} alDesde={(e) => setDesde(e.target.value)} /></label>
                   </div>
                   <div className="tb-ver">
                     <small>Máximo {maxDias} días</small>

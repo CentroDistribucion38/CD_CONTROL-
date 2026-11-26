@@ -6,6 +6,7 @@ import { useAvisos } from "@/components/Aviso";
 import type { Hallazgo, TemaHallazgo } from "@/modulos/acciones/hallazgos";
 import { informeHallazgosPdf, type FotoLista } from "./pdf";
 
+import { CampoFecha } from "@/components/CampoFecha";
 /**
  * EL INFORME DE HALLAZGOS — lo que se escoge y lo que se manda.
  *
@@ -119,13 +120,13 @@ export function Informe({ hallazgos, temas, nombres, hoy }: {
       <div className="hz-inf-barra">
         <div className="hz-inf-campo">
           <label htmlFor="hz-desde" className="hz-rot">Desde</label>
-          <input id="hz-desde" type="date" value={desde} max={hasta}
-                 onChange={(e) => setDesde(e.target.value)} />
+          <CampoFecha id="hz-desde" value={desde} max={hasta}
+                 onChange={(e) => setDesde(e.target.value)} hasta={hasta} alHasta={(e) => setHasta(e.target.value)} />
         </div>
         <div className="hz-inf-campo">
           <label htmlFor="hz-hasta" className="hz-rot">Hasta</label>
-          <input id="hz-hasta" type="date" value={hasta} min={desde}
-                 onChange={(e) => setHasta(e.target.value)} />
+          <CampoFecha id="hz-hasta" value={hasta} min={desde}
+                 onChange={(e) => setHasta(e.target.value)} desde={desde} alDesde={(e) => setDesde(e.target.value)} />
         </div>
         <div className="hz-inf-campo">
           <label htmlFor="hz-tema" className="hz-rot">Tema</label>

@@ -30,7 +30,7 @@
 .gs .tb-at button.on { background: #F5B800; border-color: #F5B800; font-weight: 800 }
 .gs .tb-cal { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px }
 .gs .tb-cal label { display: flex; flex-direction: column; gap: 4px; font: 700 10px var(--fe-texto); letter-spacing: .12em; text-transform: uppercase; color: var(--fe-gris) }
-.gs .tb-cal input[type="date"] { min-height: 42px; border: 1px solid var(--fe-linea); background: var(--fe-papel, #fff); color: var(--fe-tinta); font: 700 13.5px var(--fe-titulo); padding: 0 10px; border-radius: 0; letter-spacing: 0 }
+.gs .tb-cal input[data-fecha] { min-height: 42px; border: 1px solid var(--fe-linea); background: var(--fe-papel, #fff); color: var(--fe-tinta); font: 700 13.5px var(--fe-titulo); padding: 0 10px; border-radius: 0; letter-spacing: 0 }
 .gs .tb-ver { display: flex; justify-content: space-between; align-items: center; margin-top: 10px }
 .gs .tb-ver small { font-size: 12px; color: var(--fe-gris) }
 .gs .tb-ver button { min-height: 40px; padding: 0 22px; border: 0; background: #F5B800; color: #111; font: 800 13.5px var(--fe-titulo); cursor: pointer }

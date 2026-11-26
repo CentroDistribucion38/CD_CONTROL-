@@ -8,6 +8,7 @@ import { useConfirmar } from "@/components/Confirmar";
 import { traducirError } from "@/lib/errores";
 import type { MaterialCasco, SitioCasco } from "@/modulos/casco/datos";
 
+import { CampoFecha } from "@/components/CampoFecha";
 /**
  * CASCO DE VIDRIO · REGISTRAR · MOVIMIENTO.
  *
@@ -290,7 +291,7 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
 
         <label className="cas-c reg-dia">
           <span>Fecha del movimiento</span>
-          <input type="date" value={fecha} max={hoy} disabled={!puedeEditar || guardando}
+          <CampoFecha value={fecha} max={hoy} disabled={!puedeEditar || guardando}
                  onChange={(e) => { if (e.target.value) setFecha(e.target.value) }} />
         </label>
 
@@ -381,7 +382,7 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
         </p>
         <label className="cas-c reg-dia">
           <span>Fecha del ajuste</span>
-          <input type="date" value={fecha} max={hoy} disabled={!puedeEditar || guardando}
+          <CampoFecha value={fecha} max={hoy} disabled={!puedeEditar || guardando}
                  onChange={(e) => { if (e.target.value) setFecha(e.target.value) }} />
         </label>
         <div className="cas-tabla-caja reg-tabla-alta">
@@ -471,8 +472,8 @@ export function Movimiento({ sitios, materiales, puedeEditar, hoy }: {
         </header>
 
         <div className="reg-filtros">
-          <label className="cas-c"><span>Desde</span><input type="date" value={fm.desde} onChange={(e) => setFm({ ...fm, desde: e.target.value })} /></label>
-          <label className="cas-c"><span>Hasta</span><input type="date" value={fm.hasta} onChange={(e) => setFm({ ...fm, hasta: e.target.value })} /></label>
+          <label className="cas-c"><span>Desde</span><CampoFecha value={fm.desde} onChange={(e) => setFm({ ...fm, desde: e.target.value })} hasta={fm.hasta} alHasta={(e) => setFm({ ...fm, hasta: e.target.value })} /></label>
+          <label className="cas-c"><span>Hasta</span><CampoFecha value={fm.hasta} onChange={(e) => setFm({ ...fm, hasta: e.target.value })} desde={fm.desde} alDesde={(e) => setFm({ ...fm, desde: e.target.value })} /></label>
           <label className="cas-c"><span>Alm origen</span>
             <select value={fm.origen} onChange={(e) => setFm({ ...fm, origen: e.target.value })}>
               <option value="">Todos</option>{nombresOrigen.map((n) => <option key={n} value={n}>{n}</option>)}

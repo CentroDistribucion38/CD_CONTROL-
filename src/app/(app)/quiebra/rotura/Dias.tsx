@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { CampoFecha } from "@/components/CampoFecha";
 /**
  * MOVERSE DE DÍA.
  *
@@ -48,7 +49,7 @@ export function Dias({ dia, hoy, esHoy }: { dia: string; hoy: string; esHoy: boo
           <rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" />
         </svg>
         <span>{bonita}</span>
-        <input type="date" value={dia} aria-label="Día"
+        <CampoFecha value={dia} aria-label="Día"
                onChange={(e) => e.target.value && ir(e.target.value)} />
       </label>
 

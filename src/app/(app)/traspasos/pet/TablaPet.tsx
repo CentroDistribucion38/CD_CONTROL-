@@ -9,6 +9,7 @@ import {
   type FilaPet, type Unidad,
 } from "@/modulos/traspasos/pet";
 
+import { CampoFecha } from "@/components/CampoFecha";
 const nf = (u: Unidad) => new Intl.NumberFormat("es-CO", { maximumFractionDigits: u === "hl" ? 2 : 1 });
 const UNIDADES: [Unidad, string][] = [["estibas", "Estibas"], ["pacas", "Pacas"], ["hl", "HL"]];
 const corto = (f: string) => {
@@ -112,8 +113,8 @@ export function TablaPet({ filas, desde, hasta, hoy, filasProg }: { filas: FilaP
 
       <section className="filtros">
         <div className="arriba"><div className="tp-f1">
-          <label className="sel fecha"><span>Desde</span><input type="date" value={d1} max={d2} onChange={(e) => setD1(e.target.value)} /></label>
-          <label className="sel fecha"><span>Hasta</span><input type="date" value={d2} onChange={(e) => setD2(e.target.value)} /></label>
+          <label className="sel fecha"><span>Desde</span><CampoFecha value={d1} max={d2} onChange={(e) => setD1(e.target.value)} hasta={d2} alHasta={(e) => setD2(e.target.value)} /></label>
+          <label className="sel fecha"><span>Hasta</span><CampoFecha value={d2} onChange={(e) => setD2(e.target.value)} desde={d1} alDesde={(e) => setD1(e.target.value)} /></label>
           <button type="button" className="btn" onClick={buscar} disabled={d1 === desde && d2 === hasta}>Ver</button>
           <button type="button" className="btn si pv-plan" onClick={() => void excel()} disabled={vhs.length === 0 || bajando}>{bajando ? "Armando Excel…" : "Descargar Excel"}</button>
         </div><div className="tp-f2">

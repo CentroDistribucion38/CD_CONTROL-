@@ -20,6 +20,7 @@ import { NOMBRE_TIPO, type TipoRevision } from "@/modulos/sider/comun";
 import { CierreAi } from "./CierreAi";
 import { TurnosAi } from "./TurnosAi";
 
+import { CampoFecha } from "@/components/CampoFecha";
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const nf2 = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const pct = (x: number) => nf2.format(x * 100) + " %";
@@ -207,13 +208,13 @@ export function Informe({
       {/* ---------- LOS FILTROS, EN UNA FILA ARRIBA ---------- */}
       <section className="ia-filtros">
         <label><span>Desde</span>
-          <input type="date" value={filtro.desde ?? ""} min={opciones.primera ?? undefined}
+          <CampoFecha value={filtro.desde ?? ""} min={opciones.primera ?? undefined}
                  max={opciones.ultima ?? undefined}
-                 onChange={(e) => filtrar("desde", e.target.value)} /></label>
+                 onChange={(e) => filtrar("desde", e.target.value)} hasta={filtro.hasta ?? ""} alHasta={(e) => filtrar("hasta", e.target.value)} /></label>
         <label><span>Hasta</span>
-          <input type="date" value={filtro.hasta ?? ""} min={opciones.primera ?? undefined}
+          <CampoFecha value={filtro.hasta ?? ""} min={opciones.primera ?? undefined}
                  max={opciones.ultima ?? undefined}
-                 onChange={(e) => filtrar("hasta", e.target.value)} /></label>
+                 onChange={(e) => filtrar("hasta", e.target.value)} desde={filtro.desde ?? ""} alDesde={(e) => filtrar("desde", e.target.value)} /></label>
         <label><span>Revisión</span>
           <select value={filtro.tipo ?? ""} onChange={(e) => filtrar("tipo", e.target.value)}>
             <option value="">Todas</option>

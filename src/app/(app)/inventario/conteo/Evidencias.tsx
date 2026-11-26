@@ -12,6 +12,7 @@ import { cargarFotos } from "@/modulos/inventario/evidencias-fotos";
 import { construirInforme, detalleNovedad, periodoTxt, type Graficas } from "@/modulos/inventario/evidencias-informe";
 import { leerPaleta } from "../informe";
 
+import { CampoFecha } from "@/components/CampoFecha";
 /**
  * INVENTARIO · TABLERO · EVIDENCIAS
  *
@@ -180,8 +181,8 @@ export function Evidencias() {
             </div>
             {rango === "otro" && (
               <div className="tp-fechas">
-                <label><span>Desde</span><input type="date" value={desde} max={hasta} onChange={(e) => e.target.value && setDesde(e.target.value)} /></label>
-                <label><span>Hasta</span><input type="date" value={hasta} min={desde} max={hoy} onChange={(e) => e.target.value && setHasta(e.target.value)} /></label>
+                <label><span>Desde</span><CampoFecha value={desde} max={hasta} onChange={(e) => e.target.value && setDesde(e.target.value)} hasta={hasta} alHasta={(e) => e.target.value && setHasta(e.target.value)} /></label>
+                <label><span>Hasta</span><CampoFecha value={hasta} min={desde} max={hoy} onChange={(e) => e.target.value && setHasta(e.target.value)} desde={desde} alDesde={(e) => e.target.value && setDesde(e.target.value)} /></label>
               </div>
             )}
           </div>

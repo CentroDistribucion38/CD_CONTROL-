@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Carga, Motivo, Programada, Zona } from "@/modulos/acciones/datos";
 
+import { CampoFecha } from "@/components/CampoFecha";
 /**
  * PREVENTIVAS PROGRAMADAS — «revisar extintores cada mes».
  *
@@ -88,7 +89,7 @@ export function Programadas({ lista, zonas, motivos, equipos, gente, puedeEditar
                   {CADA.map((c) => <option key={c.v} value={c.v}>{c.t}</option>)}
                 </select></label>
               <label><span>Primera vez</span>
-                <input type="date" value={f.proxima} onChange={(e) => pon("proxima", e.target.value)} /></label>
+                <CampoFecha value={f.proxima} onChange={(e) => pon("proxima", e.target.value)} /></label>
               <label><span>Zona</span>
                 <select value={f.zona} onChange={(e) => pon("zona", e.target.value)}>
                   <option value="">Sin zona (escribe dónde)</option>

@@ -11,6 +11,7 @@ import { ReglasTexto } from "./ReglasTexto";
 import type { MaterialCasco, SitioCasco } from "@/modulos/casco/datos";
 import { Cuadre } from "./Cuadre";
 
+import { CampoFecha } from "@/components/CampoFecha";
 /**
  * CASCO DE VIDRIO · REGISTRAR · BAJA.
  *
@@ -366,7 +367,7 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
           <div className="reg-fila-subir">
             <label className="cas-c reg-dia">
               <span>Sumar al Control del día</span>
-              <input type="date" value={diaControl} max={hoy} disabled={aplicando}
+              <CampoFecha value={diaControl} max={hoy} disabled={aplicando}
                      onChange={(e) => { if (e.target.value) setDiaControl(e.target.value) }} />
             </label>
             {/* UN BOTÓN VISIBLE, al lado de la fecha: el campo de archivo del navegador es una línea de texto que nadie ve. */}
@@ -525,8 +526,8 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
       <section className="cas-bloque reg-compacto">
         <p className="cas-nota">Cada Excel que aplicas queda aquí, con quién lo subió, cuándo y a qué día de Control. Puedes deshacer un archivo entero.</p>
         <div className="reg-filtros">
-          <label className="cas-c"><span>Subido desde</span><input type="date" value={fa.desde} onChange={(e) => setFa({ ...fa, desde: e.target.value })} /></label>
-          <label className="cas-c"><span>Hasta</span><input type="date" value={fa.hasta} onChange={(e) => setFa({ ...fa, hasta: e.target.value })} /></label>
+          <label className="cas-c"><span>Subido desde</span><CampoFecha value={fa.desde} onChange={(e) => setFa({ ...fa, desde: e.target.value })} hasta={fa.hasta} alHasta={(e) => setFa({ ...fa, hasta: e.target.value })} /></label>
+          <label className="cas-c"><span>Hasta</span><CampoFecha value={fa.hasta} onChange={(e) => setFa({ ...fa, hasta: e.target.value })} desde={fa.desde} alDesde={(e) => setFa({ ...fa, desde: e.target.value })} /></label>
           <label className="cas-c reg-f-ancho"><span>Nombre del archivo</span><input type="search" placeholder="Buscar por nombre…" value={fa.texto} onChange={(e) => setFa({ ...fa, texto: e.target.value })} /></label>
           {(fa.desde || fa.hasta || fa.texto) && <button type="button" className="btn" onClick={() => setFa({ desde: "", hasta: "", texto: "" })}>Limpiar</button>}
         </div>
@@ -582,8 +583,8 @@ export function Baja({ sitios, materiales, puedeEditar, hoy }: {
         </header>
 
         <div className="reg-filtros">
-          <label className="cas-c"><span>Control desde</span><input type="date" value={fb.desde} onChange={(e) => setFb({ ...fb, desde: e.target.value })} /></label>
-          <label className="cas-c"><span>Hasta</span><input type="date" value={fb.hasta} onChange={(e) => setFb({ ...fb, hasta: e.target.value })} /></label>
+          <label className="cas-c"><span>Control desde</span><CampoFecha value={fb.desde} onChange={(e) => setFb({ ...fb, desde: e.target.value })} hasta={fb.hasta} alHasta={(e) => setFb({ ...fb, hasta: e.target.value })} /></label>
+          <label className="cas-c"><span>Hasta</span><CampoFecha value={fb.hasta} onChange={(e) => setFb({ ...fb, hasta: e.target.value })} desde={fb.desde} alDesde={(e) => setFb({ ...fb, desde: e.target.value })} /></label>
           <label className="cas-c"><span>Tabla de Control</span>
             <select value={fb.sitio} onChange={(e) => setFb({ ...fb, sitio: e.target.value })}>
               <option value="">Todas</option>

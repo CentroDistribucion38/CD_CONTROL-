@@ -8,6 +8,7 @@ import {
 import { ParDiferencia, tablasDelPar } from "./Diferencia";
 import type { LineaC, MatC, UbiC } from "./Corte";
 
+import { CampoFecha } from "@/components/CampoFecha";
 /* ===================================================================
    EL HISTORIAL DE LA DIFERENCIA
 
@@ -108,8 +109,8 @@ export function Historial({ cortes, lineas, ubicaciones, materiales, conteos, li
     <div className="dq-hist">
       {pares.length > 1 && (
         <form className="dq-filtros" role="search" aria-label="Filtrar el historial" onSubmit={(e) => e.preventDefault()}>
-          <label><span className="dq-eti">Desde</span><input type="date" value={desde} max={hasta || undefined} onChange={(e) => f1(() => setDesde(e.target.value))()} /></label>
-          <label><span className="dq-eti">Hasta</span><input type="date" value={hasta} min={desde || undefined} onChange={(e) => f1(() => setHasta(e.target.value))()} /></label>
+          <label><span className="dq-eti">Desde</span><CampoFecha value={desde} max={hasta || undefined} onChange={(e) => f1(() => setDesde(e.target.value))()} hasta={hasta} alHasta={(e) => f1(() => setHasta(e.target.value))()} /></label>
+          <label><span className="dq-eti">Hasta</span><CampoFecha value={hasta} min={desde || undefined} onChange={(e) => f1(() => setHasta(e.target.value))()} desde={desde} alDesde={(e) => f1(() => setDesde(e.target.value))()} /></label>
           <label>
             <span className="dq-eti">Línea</span>
             <select value={linea} onChange={(e) => f1(() => setLinea(e.target.value))()}>

@@ -11,6 +11,7 @@ import { descartarDisparador } from "../actions";
 import { SoloVer } from "../comunes";
 import { cerrarDisparador, guardarAccion, guardarAnalisis, marcarAccion, quitarAccion } from "./actions";
 
+import { CampoFecha } from "@/components/CampoFecha";
 type Vista = "pendientes" | "analisis" | "cerrados" | "todos";
 const ETAPA: Record<Etapa, string> = { pendiente: "Pendiente", analisis: "En análisis", cerrado: "Cerrado", descartado: "Descartado" };
 const hace = (iso: string) => {
@@ -232,7 +233,7 @@ function Panel({ d, i, etapa, proceso, turno, an, acciones, puedeEditar, hoy }: 
               <div className="gp-nueva">
                 <input value={nueva.accion} onChange={(e) => setNueva({ ...nueva, accion: e.target.value })} placeholder="Qué se va a hacer" />
                 <input value={nueva.responsable} onChange={(e) => setNueva({ ...nueva, responsable: e.target.value })} placeholder="Quién" />
-                <input type="date" min={hoy} value={nueva.fecha} onChange={(e) => setNueva({ ...nueva, fecha: e.target.value })} aria-label="Fecha límite" />
+                <CampoFecha min={hoy} value={nueva.fecha} onChange={(e) => setNueva({ ...nueva, fecha: e.target.value })} aria-label="Fecha límite" />
                 <button type="button" className="btn" disabled={pend}
                         onClick={() => ejecutar(() => guardarAccion({ disparador_id: d.id, accion: nueva.accion, responsable: nueva.responsable || resp, fecha_limite: nueva.fecha }),
                           "Acción agregada.", () => setNueva({ accion: "", responsable: "", fecha: "" }))}>Agregar</button>

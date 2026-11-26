@@ -11,6 +11,7 @@ import type { MaterialCasco, SitioCasco } from "@/modulos/casco/datos";
 import type { UbicacionesInventario } from "@/modulos/casco/ubicaciones-inventario";
 import { ubicacionDeFila } from "@/modulos/casco/ubicaciones-armar";
 
+import { CampoFecha } from "@/components/CampoFecha";
 /** Qué estado del inventario alimenta las ubicaciones de cada tabla (igual que ESTADO_POR_CENTRO). */
 const ESTADO_UBIC: Record<string, string> = { AG18: "LAVADO y BAJA (regla de fábrica)", AG22: "BAJA (inventario) y EXTRASUCIO (extrasucio con baja)" };
 
@@ -443,7 +444,7 @@ export function Casco({ sitios, materiales, hoy, inicio, puestos, puedeEditar, d
         <div className="cas-campos">
           <label className="cas-c">
             <span>Fecha</span>
-            <input type="date" value={fecha} max={hoy}
+            <CampoFecha value={fecha} max={hoy}
                    onChange={(e) => { if (e.target.value) setFecha(e.target.value) }} />
           </label>
           <p className="cas-nota">

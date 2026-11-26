@@ -20,7 +20,7 @@
 .gs .gs-filtros label, .gs .gs-grid label, .gs .gs-regla > span {
   display: flex; flex-direction: column; gap: 4px; font: 700 10.5px var(--fe-texto); letter-spacing: .12em; text-transform: uppercase; color: var(--fe-gris);
 }
-.gs select, .gs input:not([type="checkbox"]):not([type="date"]) {
+.gs select, .gs input:not([type="checkbox"]):not([data-fecha]) {
   min-height: 40px; border: 1px solid var(--fe-linea); background: var(--fe-papel); color: var(--fe-tinta);
   font: 600 13.5px var(--fe-texto); padding: 0 10px; border-radius: 2px; min-width: 0; letter-spacing: 0; text-transform: none;
 }

@@ -26,6 +26,7 @@ import {
   type Area5S, type EstadoProg, type Prioridad, type Programada5S, type Responsable5S,
 } from "@/modulos/cinco-s/cinco-s";
 
+import { CampoFecha } from "@/components/CampoFecha";
 /* ------------------------------ fechas ------------------------------ */
 const DIA = 86400000;
 const aD = (f: string) => new Date(f + "T00:00:00Z");
@@ -358,12 +359,15 @@ export function Cronograma({ filas, areas, responsables, puedeEditar }: {
                   {responsables.filter((r) => r.activo || r.id === form.auditor_id).map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
                 </select></label>
               <label className="s5-campo"><span>Desde</span>
-                <input type="date" value={form.desde} onChange={(e) => {
+                <CampoFecha value={form.desde} onChange={(e) => {
+                  const d = e.target.value; const largo = Math.max(0, dias(form.desde, form.hasta));
+                  setForm({ ...form, desde: d, hasta: d ? mas(d, largo) : form.hasta });
+                }} hasta={form.hasta} alHasta={(e) => setForm({ ...form, hasta: e.target.value })} /></label>
+              <label className="s5-campo"><span>Hasta</span>
+                <CampoFecha value={form.hasta} min={form.desde} onChange={(e) => setForm({ ...form, hasta: e.target.value })} desde={form.desde} alDesde={(e) => {
                   const d = e.target.value; const largo = Math.max(0, dias(form.desde, form.hasta));
                   setForm({ ...form, desde: d, hasta: d ? mas(d, largo) : form.hasta });
                 }} /></label>
-              <label className="s5-campo"><span>Hasta</span>
-                <input type="date" value={form.hasta} min={form.desde} onChange={(e) => setForm({ ...form, hasta: e.target.value })} /></label>
               <div className="s5-campo"><span>Prioridad</span>
                 <div className="s5-seg ancho" role="radiogroup" aria-label="Prioridad">
                   {PRIORIDADES.map((p) => <button key={p.v} type="button" role="radio" aria-checked={form.prioridad === p.v} className={form.prioridad === p.v ? "on" : ""} onClick={() => setForm({ ...form, prioridad: p.v })}>{p.t}</button>)}

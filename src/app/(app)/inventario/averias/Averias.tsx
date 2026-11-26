@@ -14,6 +14,7 @@ import type {
 import type { Causal } from "@/modulos/averias/hallazgos";
 import { CUPO, LeyendaCausales, type PorCausal } from "./Estiba";
 
+import { CampoFecha } from "@/components/CampoFecha";
 /* LA ESTIBA SE CARGA APARTE Y SOLO EN EL NAVEGADOR.
    Son 600 kB de librería de 3D: metidos en el paquete de la pantalla,
    TODO el tablero —la tabla, los filtros, el formulario— esperaría a que
@@ -459,7 +460,7 @@ export function Averias({ lista, causales, productos, ubicaciones, puedeEditar, 
 
         <label className="avr-c">
           <span>Se vence</span>
-          <input type="date" value={f.vence}
+          <CampoFecha value={f.vence}
                  onChange={(e) => setF({ ...f, vence: e.target.value })} />
         </label>
         {/* «DÍA EN QUE PASÓ» YA NO ESTÁ.
@@ -483,7 +484,7 @@ export function Averias({ lista, causales, productos, ubicaciones, puedeEditar, 
           ) : (
             <>
               <span>Pasó antes de hoy — opcional</span>
-              <input type="date" max={ayer} value={f.paso_antes}
+              <CampoFecha max={ayer} value={f.paso_antes}
                      onChange={(e) => setF({ ...f, paso_antes: e.target.value })} />
               <p className="avr-nota">
                 Esto <b>no cambia</b> la fecha del registro, que sigue siendo hoy. Solo explica

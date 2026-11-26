@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { Unidad } from "@/modulos/inventario/envase/calc";
 import { useAvisos } from "@/components/Aviso";
 
+import { CampoFecha } from "@/components/CampoFecha";
 export type Modo = "dia" | "rango" | "semana";
 export type FilaSku = { sku: string; nombre: string; tren: string; inicial: number[]; vigente: number[] };
 /** Un tramo de la línea de tiempo: un SKU en un tren, de la hora `ini` a la `fin` del día `d` (índice en `dias`). */
@@ -252,16 +253,16 @@ export function PlanVista({ modo, dias, hoy, ahora, semana, filas, bloques, maes
         <div className="ad-dia"><span>{modo === "rango" ? "Fechas" : modo === "dia" ? "Día" : "Semana"}</span>
           {modo === "rango" ? (
             <div className="pv-rango">
-              <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} aria-label="Desde" />
+              <CampoFecha value={desde} onChange={(e) => setDesde(e.target.value)} aria-label="Desde" hasta={hasta} alHasta={(e) => setHasta(e.target.value)} />
               <i aria-hidden>→</i>
-              <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} aria-label="Hasta" />
+              <CampoFecha value={hasta} onChange={(e) => setHasta(e.target.value)} aria-label="Hasta" desde={desde} alDesde={(e) => setDesde(e.target.value)} />
               <button type="button" className="pe-bt" disabled={!desde || !hasta || (desde === dias[0] && hasta === dias[nd - 1])} onClick={() => ir(`v=rango&d=${desde}&h=${hasta}`)}>Ver</button>
             </div>
           ) : (
             <div className="pe-semana">
               <button type="button" className="pv-fl" onClick={() => paso(-1)} aria-label="Anterior">‹</button>
               {modo === "dia"
-                ? <label className="pv-dia"><b>{dLargo(dias[0])}</b><input type="date" value={dias[0]} onChange={(e) => e.target.value && ir(`v=dia&d=${e.target.value}`)} aria-label="Escoger día" /></label>
+                ? <label className="pv-dia"><b>{dLargo(dias[0])}</b><CampoFecha value={dias[0]} onChange={(e) => e.target.value && ir(`v=dia&d=${e.target.value}`)} aria-label="Escoger día" /></label>
                 : <b>{titulo} <small>{dMes(dias[0])} – {dMes(dias[nd - 1])}</small></b>}
               <button type="button" className="pv-fl" onClick={() => paso(1)} aria-label="Siguiente">›</button>
             </div>

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { TiemposCierre } from "./TiemposCierre";
 import { analizarRecorrido, duracion, estadoConteo, fmtSeg, horaCo, hoyCo, porHora, ranking, SEG_MUY_SEGUIDO, sumarDias, textoUbicacion, type FilaTiempo, type InicioUbi, type Renglon } from "@/modulos/inventario/tiempos";
 
+import { CampoFecha } from "@/components/CampoFecha";
 /**
  * INVENTARIO · CONTEO · TIEMPOS
  *
@@ -107,8 +108,8 @@ export function Tiempos({ manda = false }: { manda?: boolean }) {
           </div>
           {rango === "otro" && (
             <div className="tp-fechas">
-              <label><span>Desde</span><input type="date" value={desde} max={hasta} onChange={(e) => e.target.value && setDesde(e.target.value)} /></label>
-              <label><span>Hasta</span><input type="date" value={hasta} min={desde} max={hoy} onChange={(e) => e.target.value && setHasta(e.target.value)} /></label>
+              <label><span>Desde</span><CampoFecha value={desde} max={hasta} onChange={(e) => e.target.value && setDesde(e.target.value)} hasta={hasta} alHasta={(e) => e.target.value && setHasta(e.target.value)} /></label>
+              <label><span>Hasta</span><CampoFecha value={hasta} min={desde} max={hoy} onChange={(e) => e.target.value && setHasta(e.target.value)} desde={desde} alDesde={(e) => e.target.value && setDesde(e.target.value)} /></label>
             </div>
           )}
         </div>

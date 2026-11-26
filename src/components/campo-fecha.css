@@ -1,0 +1,73 @@
+/* =====================================================================
+   CAMPO DE FECHA DE CONTROL (CampoFecha.tsx) — reemplaza al calendario del navegador.
+   Recto, blanco y amarillo; el seleccionado es amarillo con texto oscuro (nunca relleno negro).
+   El campo hereda el estilo de los inputs de cada pantalla; aquí solo lo mínimo para que se vea como fecha.
+   ===================================================================== */
+.fc-campo {
+  min-width: 132px; font-variant-numeric: tabular-nums; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b6b7f' stroke-width='1.8'%3E%3Crect x='3.5' y='5' width='17' height='15.5'/%3E%3Cpath d='M3.5 10h17M8 3.5v3M16 3.5v3'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important; background-position: right 10px center !important; background-size: 16px !important; padding-right: 34px !important;
+}
+.fc-campo:disabled { cursor: default }
+.fc-campo.fc-ab { border-color: #F5B800 !important; box-shadow: inset 0 -2px 0 #F5B800 }
+
+.fc-pop {
+  position: fixed; z-index: 10000; width: max-content; max-width: calc(100vw - 16px);
+  background: #fff; color: #17212e; border: 1px solid #c9d1db; border-top: 4px solid #F5B800;
+  box-shadow: 0 14px 34px rgba(16, 24, 40, .18); font: 14px "IBM Plex Sans", system-ui, sans-serif; border-radius: 0;
+}
+.fc-cuerpo { display: flex }
+.fc-atajos { display: flex; flex-direction: column; padding: 8px 0; border-right: 1px solid #e3e8ee; min-width: 150px }
+.fc-atajos button { min-height: 36px; padding: 0 16px; border: 0; background: none; color: #17212e; font: 500 13.5px "IBM Plex Sans", system-ui, sans-serif; text-align: left; cursor: pointer; white-space: nowrap }
+.fc-atajos button:hover { background: #fffaeb }
+.fc-atajos button.on { background: #FFF6D6; color: #5c3b00; font-weight: 700; box-shadow: inset 3px 0 0 #F5B800 }
+
+.fc-mes { padding: 10px 12px 6px }
+.fc-cab { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px }
+.fc-fl { width: 36px; height: 36px; border: 1px solid transparent; background: none; color: #17212e; font: 400 22px/1 "IBM Plex Sans", system-ui, sans-serif; cursor: pointer; border-radius: 0 }
+.fc-fl:hover { border-color: #c9d1db }
+.fc-tit { flex: 1; min-height: 36px; border: 0; background: none; color: #17212e; font: 800 15px "IBM Plex Sans", system-ui, sans-serif; text-transform: capitalize; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px }
+.fc-tit span { font-size: 10px; color: #5b6b7f }
+.fc-tit:hover { background: #f4f6f9 }
+
+.fc-g { display: grid; grid-template-columns: repeat(7, 38px); grid-auto-rows: 36px; text-align: center }
+.fc-sem { font: 700 10.5px "IBM Plex Sans", system-ui, sans-serif; letter-spacing: .1em; color: #5b6b7f; line-height: 30px; height: 30px }
+.fc-d { border: 0; margin: 0; padding: 0; background: none; color: #17212e; font: 500 14px "IBM Plex Sans", system-ui, sans-serif; font-variant-numeric: tabular-nums; cursor: pointer; border-radius: 0; position: relative }
+.fc-d:hover:not(:disabled) { background: #fffaeb; box-shadow: inset 0 0 0 1px #F5B800 }
+.fc-d:focus-visible { outline: 2px solid #17212e; outline-offset: -2px }
+.fc-d.om { color: #9aa6b4 }
+.fc-d.no { color: #c5ccd5; cursor: not-allowed; text-decoration: line-through; text-decoration-color: #dfe4ea }
+.fc-d.hoy::after { content: ""; position: absolute; left: 50%; bottom: 5px; width: 4px; height: 4px; margin-left: -2px; background: #C8102E }
+.fc-d.rg { background: #FFF6D6; color: #5c3b00 }
+.fc-d.pt { background: #F5B800; color: #2b1d00; font-weight: 800 }
+.fc-d.pt.hoy::after { background: #2b1d00 }
+
+.fc-meses { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; width: 266px; padding: 6px 0 8px }
+.fc-meses button { min-height: 44px; border: 1px solid #e3e8ee; background: #fff; color: #17212e; font: 600 14px "IBM Plex Sans", system-ui, sans-serif; text-transform: capitalize; cursor: pointer; border-radius: 0 }
+.fc-meses button:hover:not(:disabled) { border-color: #F5B800 }
+.fc-meses button.on { background: #FFF6D6; border-color: #F5B800; color: #5c3b00; font-weight: 800 }
+.fc-meses button:disabled { color: #c5ccd5; cursor: not-allowed }
+
+.fc-pie { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; border-top: 1px solid #e3e8ee; background: #fafbfd }
+.fc-res { font-size: 12.5px; color: #4a5a6d }
+.fc-res b { color: #17212e }
+.fc-bts { display: flex; gap: 6px; flex-shrink: 0 }
+.fc-b { min-height: 34px; padding: 0 14px; border: 1px solid #c9d1db; background: #fff; color: #17212e; font: 700 13px "IBM Plex Sans", system-ui, sans-serif; cursor: pointer; border-radius: 0 }
+.fc-b:hover:not(:disabled) { border-color: #17212e }
+.fc-ok { background: #F5B800; border-color: #F5B800; color: #2b1d00 }
+.fc-ok:hover:not(:disabled) { background: #e5ab00; border-color: #e5ab00 }
+.fc-b:disabled { opacity: .45; cursor: not-allowed }
+
+/* ---------- celular: hoja abajo a todo el ancho; atajos como fichas arriba ---------- */
+.fc-fondo { position: fixed; inset: 0; z-index: 10000; background: rgba(10, 16, 24, .45); display: flex; align-items: flex-end }
+.fc-pop.fc-hoja { position: static; width: 100%; max-width: none; border-left: 0; border-right: 0; border-bottom: 0; padding-bottom: env(safe-area-inset-bottom) }
+.fc-hoja .fc-cuerpo { flex-direction: column }
+.fc-hoja .fc-atajos { flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid #e3e8ee; padding: 8px; gap: 6px; min-width: 0; scrollbar-width: none }
+.fc-hoja .fc-atajos button { flex-shrink: 0; min-height: 40px; border: 1px solid #c9d1db; padding: 0 12px }
+.fc-hoja .fc-atajos button.on { box-shadow: none; border-color: #F5B800 }
+.fc-hoja .fc-mes { padding: 8px 10px }
+.fc-hoja .fc-g { grid-template-columns: repeat(7, 1fr); grid-auto-rows: 46px }
+.fc-hoja .fc-meses { width: auto }
+.fc-hoja .fc-d { font-size: 16px }
+.fc-hoja .fc-pie { flex-wrap: wrap }
+.fc-hoja .fc-b { min-height: 44px }

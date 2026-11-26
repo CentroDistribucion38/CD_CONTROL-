@@ -10,6 +10,7 @@ import { arrastres, ejeNice, estadoAlmacen, filtrar, porFecha, porMaterial, viaj
 import { enOrdenInforme, media, type DatosInformeCasco } from "@/modulos/casco/informe";
 import { BotonesInforme } from "./BotonesInforme";
 
+import { CampoFecha } from "@/components/CampoFecha";
 /**
  * TABLERO DE CASCO DE VIDRIO — la hoja PARTIR, viva.
  *
@@ -221,9 +222,9 @@ export function TableroCasco({ puntos, sitios, nombres, errorLectura, delInventa
           </div>
           {rango === "fechas" && (
             <span className="cvt-fechas">
-              <input type="date" value={desde} min={primera} max={hasta || ultima} onChange={(e) => setDesde(e.target.value)} aria-label="Desde" />
+              <CampoFecha value={desde} min={primera} max={hasta || ultima} onChange={(e) => setDesde(e.target.value)} aria-label="Desde" hasta={hasta} alHasta={(e) => setHasta(e.target.value)} />
               <span>→</span>
-              <input type="date" value={hasta} min={desde || primera} max={ultima} onChange={(e) => setHasta(e.target.value)} aria-label="Hasta" />
+              <CampoFecha value={hasta} min={desde || primera} max={ultima} onChange={(e) => setHasta(e.target.value)} aria-label="Hasta" desde={desde} alDesde={(e) => setDesde(e.target.value)} />
             </span>
           )}
         </div>

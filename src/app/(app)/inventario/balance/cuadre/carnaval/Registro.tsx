@@ -8,6 +8,7 @@ import { leerPeldar, type Lectura } from "@/modulos/carnaval/leer";
 import { SelectorCodigo } from "./SelectorCodigo";
 import { anularMovimiento, aplicarPeldar, editarMovimiento, eliminarMovimiento, previsualizarPeldar, registrarMovimiento } from "./actions";
 
+import { CampoFecha } from "@/components/CampoFecha";
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 });
 const TIPO: Record<string, string> = { INICIAL: "Inicial", INGRESO: "Ingreso Peldar", TRASIEGO: "Trasiego", AJUSTE: "Ajuste" };
 const conSigno = (v: number) => (v > 0 ? "+" : v < 0 ? "−" : "") + nf.format(Math.abs(v));
@@ -169,7 +170,7 @@ export function Registro({ productos, corte, hoy, puedeEditar, movimientos, sald
               </select>
             </label>
             <label style={{ width: 150 }}>Día
-              <input type="date" value={fecha} max={hoy} onChange={(e) => setFecha(e.target.value)} disabled={!puedeEditar} />
+              <CampoFecha value={fecha} max={hoy} onChange={(e) => setFecha(e.target.value)} disabled={!puedeEditar} />
             </label>
             <label className="ancho" style={{ minWidth: 260 }}>Código
               <SelectorCodigo productos={productos} saldos={saldos} value={codigo} onChange={setCodigo} soloConSaldo={tipo === "TRASIEGO"} disabled={!puedeEditar} />
@@ -256,7 +257,7 @@ export function Registro({ productos, corte, hoy, puedeEditar, movimientos, sald
                 <>
                   <div className="cv-form">
                     <label style={{ width: 150 }}>Día
-                      <input type="date" value={eFecha} max={hoy} onChange={(e) => setEFecha(e.target.value)} />
+                      <CampoFecha value={eFecha} max={hoy} onChange={(e) => setEFecha(e.target.value)} />
                     </label>
                     <label style={{ width: 130 }}>Pallets{acc.m.tipo === "AJUSTE" ? " (− si resta)" : ""}
                       <input inputMode="decimal" value={ePallets} onChange={(e) => setEPallets(e.target.value)} style={{ width: "100%" }} />

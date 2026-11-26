@@ -22,6 +22,7 @@ import { Ventana } from "../Ventana";
 import { FiltroCol, VACIAS } from "../FiltroCol";
 import { asignarResponsables, asignarGrupo, cambiarEstado, fichaPersona, registrarValidacion, type Registro } from "../actions";
 
+import { CampoFecha } from "@/components/CampoFecha";
 const nf = new Intl.NumberFormat("es-CO");
 const CORTO = ["Alt", "Cal", "SQ", "360", "Elé", "EC", "Izj", "HPRM"];
 const NIVELES = ["Básico", "Intermedio", "Avanzado"];
@@ -401,7 +402,7 @@ function RegistrarValidacion({ inicial, personas, hoy, config, empresas, grupos,
             {NIVELES.map((n) => <button key={n} type="button" role="radio" aria-checked={f.nivel === n} className={f.nivel === n ? "on" : ""} style={{ flex: 1 }} onClick={() => set("nivel", n)}>{n}</button>)}
           </div>
         </div>
-        <div className="sg-campo"><label htmlFor="sg-exp">FECHA DE EXPEDICIÓN</label><input id="sg-exp" type="date" max={hoy} value={f.expedicion} onChange={(e) => set("expedicion", e.target.value)} /></div>
+        <div className="sg-campo"><label htmlFor="sg-exp">FECHA DE EXPEDICIÓN</label><CampoFecha id="sg-exp" max={hoy} value={f.expedicion} onChange={(e) => set("expedicion", e.target.value)} /></div>
         <div className="sg-campo"><label htmlFor="sg-sop">SOP-DTO OUTSAFETY</label><input id="sg-sop" value={f.sop} onChange={(e) => set("sop", e.target.value)} /></div>
         <div className="sg-campo"><label htmlFor="sg-est">ESTADO</label>
           <select id="sg-est" value={f.estado} onChange={(e) => set("estado", e.target.value)}>{ESTADOS.map((s) => <option key={s} value={s}>{s}</option>)}</select>

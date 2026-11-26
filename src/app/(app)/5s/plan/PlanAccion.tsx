@@ -23,6 +23,7 @@ import {
 } from "@/modulos/cinco-s/cinco-s";
 import { CabezaVentana } from "../CabezaVentana";
 
+import { CampoFecha } from "@/components/CampoFecha";
 export type FotosH = Record<string, { antes: string[]; despues: string[] }>;
 
 const ORDEN: Record<EstadoHallazgo, number> = { vencida: 0, sin_plan: 1, abierta: 2, cerrada: 3 };
@@ -266,7 +267,7 @@ export function PlanAccion({ filas, areas, responsables, fotos, puedeEditar }: {
                   {responsables.filter((r) => r.activo || r.id === plan.resp).map((r) => <option key={r.id} value={r.id}>{r.nombre}{r.cargo ? ` · ${r.cargo}` : ""}</option>)}
                 </select></label>
               <label className="s5-campo"><span>Fecha compromiso</span>
-                <input type="date" value={plan.fecha} min={plan.h.fecha} onChange={(e) => setPlan({ ...plan, fecha: e.target.value })} /></label>
+                <CampoFecha value={plan.fecha} min={plan.h.fecha} onChange={(e) => setPlan({ ...plan, fecha: e.target.value })} /></label>
               <div className="s5-campo ancho"><span>Atajos</span>
                 <div className="s5-seg" role="group" aria-label="Plazo">
                   {[["Hoy", 0], ["Mañana", 1], ["3 días", 3], ["1 semana", 7], ["2 semanas", 14]].map(([t, n]) => (

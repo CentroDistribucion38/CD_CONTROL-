@@ -10,6 +10,7 @@ import {
 import { guardarResultados, type FilaResultado } from "../actions";
 import { Semaforo, SoloVer } from "../comunes";
 
+import { CampoFecha } from "@/components/CampoFecha";
 const aNumero = (t: string): number | null => {
   const s = t.trim().replace(/\s/g, "").replace(",", ".");
   if (s === "" || !/^-?\d*\.?\d+$/.test(s)) return null;
@@ -126,7 +127,7 @@ export function Resultados({ fecha, hoy, turnoInicial, turnos, procesos, indicad
       <div className="gs-barra">
         <div className="gs-fecha">
           <button type="button" onClick={() => ir(sumarDias(fecha, -1))} aria-label="Día anterior">‹</button>
-          <input type="date" value={fecha} max={hoy} onChange={(e) => e.target.value && ir(e.target.value)} aria-label="Día" />
+          <CampoFecha value={fecha} max={hoy} onChange={(e) => e.target.value && ir(e.target.value)} aria-label="Día" />
           <button type="button" onClick={() => ir(sumarDias(fecha, 1))} disabled={fecha >= hoy} aria-label="Día siguiente">›</button>
           {fecha !== hoy && <button type="button" className="gs-hoy" onClick={() => ir(hoy)}>Hoy</button>}
         </div>

@@ -8,6 +8,7 @@ import { PLANTILLA_INICIAL } from "@/modulos/carnaval/plantilla";
 import { eliminarInventario, guardarHoja } from "./actions";
 import { SelectorCodigo } from "./SelectorCodigo";
 
+import { CampoFecha } from "@/components/CampoFecha";
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 });
 const IR = (f?: string) => `/inventario/balance/cuadre?alm=AG07&sub=inventario${f ? `&fecha=${f}` : ""}`;
 const corto = (iso: string) => { const [, m, d] = iso.split("-"); return `${d}/${m}` };
@@ -169,7 +170,7 @@ export function Inventario({ fecha, hoy, guardado, base, dias, puedeEditar, maes
       {aviso && <p className={`cv-msg ${aviso.mal ? "mal" : ""}`} role="status">{aviso.t}</p>}
       <div className="cv-barra">
         <label>Inventario del día
-          <input type="date" className="cv-fecha" value={fecha} max={hoy} onChange={(e) => e.target.value && router.push(IR(e.target.value))} />
+          <CampoFecha className="cv-fecha" value={fecha} max={hoy} onChange={(e) => e.target.value && router.push(IR(e.target.value))} />
         </label>
         {dias.length > 0 && (
           <span className="cv-dias" aria-label="Días guardados">

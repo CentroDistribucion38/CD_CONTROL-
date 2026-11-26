@@ -10,6 +10,7 @@ import type { DatosComparativo } from "@/modulos/casco/foto-comparativo";
 import { ORDEN_UNIDADES, TablaUbicacion, useTablaUbicacion, type ConteoDia, type Factores } from "./TablaUbicacion";
 import { BotonesComparativo } from "./BotonesComparativo";
 
+import { CampoFecha } from "@/components/CampoFecha";
 /**
  * COMPARATIVO DE CASCO DE VIDRIO — qué cambió entre dos días.
  *
@@ -139,14 +140,14 @@ export function Comparativo({ puntos, sitios, nombres, cajasPorEstiba, hlPorEsti
     <section className="cvt-filtros cvc-ctrl" aria-label="Fechas a comparar">
       <div className="cvt-grupo">
         <span className="cvt-lb">Día A</span>
-        <input type="date" value={diaA} min={primera} max={ultima} onChange={(e) => e.target.value && setDiaA(e.target.value)} aria-label="Día A" />
+        <CampoFecha value={diaA} min={primera} max={ultima} onChange={(e) => e.target.value && setDiaA(e.target.value)} aria-label="Día A" />
         {cmp.diaA && cmp.diaA !== diaA && <small className="cvc-usa">usa el registro del {corta(cmp.diaA)}</small>}
         {!cmp.diaA && <small className="cvc-usa mal">no hay registros hasta esa fecha</small>}
       </div>
       <button type="button" className="cvc-cambiar" onClick={() => { setDiaA(diaB); setDiaB(diaA) }} aria-label="Intercambiar el día A y el día B" title="Intercambiar">⇄</button>
       <div className="cvt-grupo">
         <span className="cvt-lb">Día B</span>
-        <input type="date" value={diaB} min={primera} max={ultima} onChange={(e) => e.target.value && setDiaB(e.target.value)} aria-label="Día B" />
+        <CampoFecha value={diaB} min={primera} max={ultima} onChange={(e) => e.target.value && setDiaB(e.target.value)} aria-label="Día B" />
         {cmp.diaB && cmp.diaB !== diaB && <small className="cvc-usa">usa el registro del {corta(cmp.diaB)}</small>}
       </div>
       <div className="cvt-grupo">

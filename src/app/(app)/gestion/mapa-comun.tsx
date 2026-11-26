@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { sumarDias, type Proceso } from "@/modulos/gestion/semaforo";
 
+import { CampoFecha } from "@/components/CampoFecha";
 /** La barra de las dos pantallas del mapa: el día, el proceso y el botón de imprimir. */
 export function BarraMapa({ base, fecha, hoy, proceso, procesos, conProceso }: {
   base: string; fecha: string; hoy: string; proceso: string; procesos: Proceso[]; conProceso: boolean;
@@ -18,7 +19,7 @@ export function BarraMapa({ base, fecha, hoy, proceso, procesos, conProceso }: {
     <div className="gs-barra gm-barra">
       <div className="gs-fecha">
         <button type="button" onClick={() => ir(sumarDias(fecha, -1), proceso)} aria-label="Día anterior">‹</button>
-        <input type="date" value={fecha} max={hoy} onChange={(e) => e.target.value && ir(e.target.value, proceso)} aria-label="Día" />
+        <CampoFecha value={fecha} max={hoy} onChange={(e) => e.target.value && ir(e.target.value, proceso)} aria-label="Día" />
         <button type="button" onClick={() => ir(sumarDias(fecha, 1), proceso)} disabled={fecha >= hoy} aria-label="Día siguiente">›</button>
         {fecha !== hoy && <button type="button" className="gs-hoy" onClick={() => ir(hoy, proceso)}>Hoy</button>}
       </div>

@@ -7,6 +7,7 @@ import { useAvisos } from "@/components/Aviso";
 import { movimientoSuperadmin } from "./actions";
 import { SelectorCodigo } from "./SelectorCodigo";
 
+import { CampoFecha } from "@/components/CampoFecha";
 type Fila = { codigo: string; descripcion: string; undPorPallet: number; cc: number; pallets: number };
 /* `pallets` que llega es el físico; aquí se le restan los que todavía no tienen entrada de mercancía (no están en SAP). */
 
@@ -47,7 +48,7 @@ export function Control({ fecha, hoy, filas, pendientes, faltaSql, superadmin = 
     <>
       <div className="cv-barra">
         <label>Inventario al día
-          <input type="date" className="cv-fecha" value={fecha} max={hoy} disabled={pend}
+          <CampoFecha className="cv-fecha" value={fecha} max={hoy} disabled={pend}
                  onChange={(e) => e.target.value && start(() => router.push(`/inventario/balance/cuadre?alm=AG07&sub=control&fecha=${e.target.value}`))} />
         </label>
         {fecha !== hoy && <button type="button" className="cs-bt alt" onClick={() => start(() => router.push("/inventario/balance/cuadre?alm=AG07&sub=control"))}>Volver a hoy</button>}
@@ -165,7 +166,7 @@ function MovimientoSuper({ codigo, fecha, hoy, filas, cerrar }: {
             <button type="button" aria-pressed={signo === -1} onClick={() => setSigno(-1)}>− Restar pallets</button>
           </div>
           <label><span>Pallets</span><input value={pal} onChange={(e) => setPal(e.target.value)} inputMode="decimal" placeholder="0" autoFocus={!!codigo} /></label>
-          <label><span>Día del movimiento</span><input type="date" value={dia} max={hoy} onChange={(e) => setDia(e.target.value)} /></label>
+          <label><span>Día del movimiento</span><CampoFecha value={dia} max={hoy} onChange={(e) => setDia(e.target.value)} /></label>
           <label className="ancho"><span>Por qué</span><input value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Ej.: código que faltaba en el maestro; conteo físico" /></label>
         </div>
         {codigoFinal && Math.abs(n) > 0 && (

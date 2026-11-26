@@ -6,6 +6,7 @@ import type { FilaCuadre07, FilaInv07, Partida } from "@/modulos/carnaval/logica
 import { leerZexiAg07 } from "@/modulos/carnaval/leerZexi";
 import { agregarPartida, guardarBalanceoAg07, guardarZexiAg07, quitarPartida, quitarZexiAg07 } from "./actions";
 
+import { CampoFecha } from "@/components/CampoFecha";
 const ent = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 });
 const conSigno = (v: number) => (v > 0.5 ? "+" : v < -0.5 ? "−" : "") + ent.format(Math.abs(v));
@@ -163,7 +164,7 @@ export function CuadreAg07({ fecha, hoy, filas, inventario, hojaDe, hojaGuardada
         <aside className="cv-b-lado">
           <div className="cv-card">
             <h4>Día del cuadre</h4>
-            <div className="cv-card-b"><input type="date" className="cv-fecha" value={fecha} max={hoy} disabled={pend} onChange={(e) => e.target.value && router.push(IR(e.target.value))} /></div>
+            <div className="cv-card-b"><CampoFecha className="cv-fecha" value={fecha} max={hoy} disabled={pend} onChange={(e) => e.target.value && router.push(IR(e.target.value))} /></div>
           </div>
 
           <div className={"cv-estado " + (!zexi || sinFilas ? "" : todoOk ? "ok" : "mal")}>

@@ -19,6 +19,7 @@ import {
   estadoHoja, textoEquipo, TEXTO_ESTADO, type AvanceHoja, type EstadoHoja,
 } from "@/modulos/inventario/fiscal-cruce";
 
+import { CampoFecha } from "@/components/CampoFecha";
 /* ===================================================================
    EL INVENTARIO FISCAL, PANTALLA DE QUIEN LO ORGANIZA
 
@@ -575,7 +576,7 @@ function FormFiscal({ modo = "fiscal", form, setForm, personas, roles: rolesIn, 
         </label>
         <label>
           <span>Fecha del inventario</span>
-          <input type="date" value={form.fecha} onChange={(e) => ponFecha(e.target.value)} />
+          <CampoFecha value={form.fecha} onChange={(e) => ponFecha(e.target.value)} />
         </label>
         <div className="fi-fecha">
           <span className="fi-fecha-t">{form.fecha ? `${fechaConDia(form.fecha)} · ${textoCuando(hoy, form.fecha)}` : "Atajos"}</span>

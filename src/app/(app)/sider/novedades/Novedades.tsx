@@ -31,6 +31,7 @@ import { useConfirmar } from "@/components/Confirmar";
 import { Selector } from "@/components/Selector";
 import { sellar, type Foto } from "@/lib/evidencia";
 
+import { CampoFecha } from "@/components/CampoFecha";
 const HOY = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -483,7 +484,7 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
 
             <label>
               <span>¿Cuándo pasó?</span>
-              <input type="date" value={n.fecha} max={HOY()}
+              <CampoFecha value={n.fecha} max={HOY()}
                      onChange={(e) => setN({ ...n, fecha: e.target.value })} />
             </label>
 
@@ -867,7 +868,7 @@ export function Novedades({ novedades, motivos, viajes, hilo, nombres, puedeEdit
                 </label>
                 <label>
                   <span>Para cuándo</span>
-                  <input type="date" value={resp.fecha}
+                  <CampoFecha value={resp.fecha}
                          onChange={(e) => setResp({ ...resp, fecha: e.target.value })} />
                 </label>
 

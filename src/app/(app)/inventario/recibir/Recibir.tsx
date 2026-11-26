@@ -8,6 +8,7 @@ import type { Material, Ubicacion } from "@/modulos/inventario/fefo";
 import { fechaCorta, limiteDespacho, rotulosPdf, sumarDias,
          type Rotulo, type TipoRecibo } from "@/modulos/inventario/rotulo";
 
+import { CampoFecha } from "@/components/CampoFecha";
 /**
  * RECIBIR — lo que entra al CD, y el rótulo que se le pega.
  *
@@ -360,7 +361,7 @@ export function Recibir({ materiales, ubicaciones, quien, puedeRecibir }: {
                   estar mal. */}
               <label className="rc-c">
                 <span>Vence el</span>
-                <input type="date" value={f.vence}
+                <CampoFecha value={f.vence}
                        onChange={(e) => setF((x) => ({ ...x, vence: e.target.value }))} />
                 <em>
                   {!f.vence ? "Es lo único que hay que teclear: lo demás lo trae el código."

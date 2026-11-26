@@ -8,6 +8,7 @@ import {
   type UsoDia, type UsoPantalla, type UsoUsuario,
 } from "@/modulos/uso/uso";
 
+import { CampoFecha } from "@/components/CampoFecha";
 type Datos = { desde: string; hasta: string; usuarios: UsoUsuario[]; dias: UsoDia[]; pantallas: UsoPantalla[] };
 type Rol = { clave: string; nombre: string; manda: boolean };
 type Orden = "minutos" | "visitas" | "dias" | "ultimo" | "nombre";
@@ -137,8 +138,8 @@ export function Uso({ hoy, inicial, roles }: { hoy: string; inicial: Datos; role
         </div>
         {periodo === "otro" && (
           <div className="us-fechas">
-            <label><span>Desde</span><input type="date" value={desde} max={hasta} onChange={(e) => setDesde(e.target.value)} /></label>
-            <label><span>Hasta</span><input type="date" value={hasta} min={desde} max={hoy} onChange={(e) => setHasta(e.target.value)} /></label>
+            <label><span>Desde</span><CampoFecha value={desde} max={hasta} onChange={(e) => setDesde(e.target.value)} hasta={hasta} alHasta={(e) => setHasta(e.target.value)} /></label>
+            <label><span>Hasta</span><CampoFecha value={hasta} min={desde} max={hoy} onChange={(e) => setHasta(e.target.value)} desde={desde} alDesde={(e) => setDesde(e.target.value)} /></label>
             <button type="button" className="btn" onClick={() => void traer(desde, hasta)} disabled={cargando}>Ver</button>
           </div>
         )}

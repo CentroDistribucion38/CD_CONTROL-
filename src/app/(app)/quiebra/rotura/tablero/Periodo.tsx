@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Linea } from "@/modulos/rotlinea/datos";
 
+import { CampoFecha } from "@/components/CampoFecha";
 /**
  * EL PERÍODO Y LA LÍNEA.
  *
@@ -115,13 +116,13 @@ export function Periodo({ desde, hasta, linea, hoy, lineas,
       <div className="rl-fechas">
         <label>
           <span>Desde</span>
-          <input type="date" value={desde} max={hasta}
-                 onChange={(e) => e.target.value && ir(e.target.value, hasta, linea)} />
+          <CampoFecha value={desde} max={hasta}
+                 onChange={(e) => e.target.value && ir(e.target.value, hasta, linea)} hasta={hasta} alHasta={(e) => e.target.value && ir(desde, e.target.value, linea)} />
         </label>
         <label>
           <span>Hasta</span>
-          <input type="date" value={hasta} min={desde}
-                 onChange={(e) => e.target.value && ir(desde, e.target.value, linea)} />
+          <CampoFecha value={hasta} min={desde}
+                 onChange={(e) => e.target.value && ir(desde, e.target.value, linea)} desde={desde} alDesde={(e) => e.target.value && ir(e.target.value, hasta, linea)} />
         </label>
         {conLinea && <label>
           <span>Línea</span>

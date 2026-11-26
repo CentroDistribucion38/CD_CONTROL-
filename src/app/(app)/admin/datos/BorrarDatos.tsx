@@ -19,6 +19,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
+import { CampoFecha } from "@/components/CampoFecha";
 export type Punto = { clave: string; modulo: string; nombre: string; detalle: string; bucket: string | null };
 export type Borrado = {
   id: number; nombre: string; desde: string | null; hasta: string | null;
@@ -193,8 +194,8 @@ export function BorrarDatos({ puntos, historial, hoy, hayLlave }: {
               </div>
               {!todo && (
                 <div className="bd-fechas">
-                  <label><span>Desde</span><input type="date" value={desde} max={hasta || undefined} onChange={(e) => setDesde(e.target.value)} /></label>
-                  <label><span>Hasta</span><input type="date" value={hasta} min={desde || undefined} onChange={(e) => setHasta(e.target.value)} /></label>
+                  <label><span>Desde</span><CampoFecha value={desde} max={hasta || undefined} onChange={(e) => setDesde(e.target.value)} hasta={hasta} alHasta={(e) => setHasta(e.target.value)} /></label>
+                  <label><span>Hasta</span><CampoFecha value={hasta} min={desde || undefined} onChange={(e) => setHasta(e.target.value)} desde={desde} alDesde={(e) => setDesde(e.target.value)} /></label>
                 </div>
               )}
               {rangoMalo && <p className="bd-mal">La fecha inicial tiene que ir antes de la final.</p>}

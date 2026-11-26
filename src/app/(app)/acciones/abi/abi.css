@@ -53,7 +53,7 @@
 }
 
 .ac .hz-form input[type="text"],
-.ac .hz-form input[type="date"],
+.ac .hz-form input[data-fecha],
 .ac .hz-form select,
 .ac .hz-form textarea,
 .ac .hz-tecnica textarea,
@@ -435,7 +435,7 @@
 }
 .ac .hz-inf-barra label { margin-bottom: 0 }
 .ac .hz-inf-barra select,
-.ac .hz-inf-barra input[type="date"] {
+.ac .hz-inf-barra input[data-fecha] {
   min-height: 44px;
   padding: 8px 10px;
   border: 1px solid var(--linea, #d5dce5);

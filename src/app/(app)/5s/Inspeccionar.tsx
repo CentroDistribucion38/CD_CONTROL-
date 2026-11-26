@@ -25,6 +25,7 @@ import {
   type Area5S, type Punto5S, type Zona5S, type Responsable5S, type Resultado, type Severidad,
 } from "@/modulos/cinco-s/cinco-s";
 
+import { CampoFecha } from "@/components/CampoFecha";
 type Resp = { resultado: Resultado | null; severidad: Severidad; observacion: string; conNota: boolean; zona: string; fotos: (Foto & { k: number })[] };
 const VACIA: Resp = { resultado: null, severidad: "media", observacion: "", conNota: false, zona: "", fotos: [] };
 const RECORDAR = "s5-area";
@@ -227,7 +228,7 @@ export function Inspeccionar({ areas, responsables, puntos, zonas = [], metaGene
         </label>
         <label className="s5-campo">
           <span>Fecha · S{semanaIso(fecha || hoyCo())}</span>
-          <input type="date" value={fecha} max={hoyCo()} onChange={(e) => setFecha(e.target.value)} disabled={guardando} />
+          <CampoFecha value={fecha} max={hoyCo()} onChange={(e) => setFecha(e.target.value)} disabled={guardando} />
         </label>
         <div className="s5-dato"><span>Responsable del área</span><b>{duenno?.nombre ?? "Sin asignar"}</b>{duenno?.cargo && <small>{duenno.cargo}</small>}</div>
         <div className="s5-dato"><span>Auditor</span><b>{auditor || "—"}</b><small>quien entró a la app</small></div>
