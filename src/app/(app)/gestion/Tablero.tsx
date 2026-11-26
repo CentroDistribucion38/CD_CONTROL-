@@ -91,7 +91,13 @@ export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, res
     return m;
   }, [resultados]);
 
-  const vista = useMemo(() => indicadores.filter((i) => (i.activo || inactivos) && enArea(i)), [indicadores, area, inactivos]); // eslint-disable-line react-hooks/exhaustive-deps
+  /* Un KPI es solo el nombre que agrupa: sale si es del área o si alguno de sus PI lo es (así el PI nunca queda suelto). */
+  const vista = useMemo(() => {
+    const ok = (i: Indicador) => i.activo || inactivos;
+    const pis = indicadores.filter((i) => i.tipo === "pi" && ok(i) && enArea(i));
+    const conPi = new Set(pis.map((i) => i.padre_id).filter(Boolean));
+    return indicadores.filter((i) => ok(i) && (i.tipo === "pi" ? enArea(i) : enArea(i) || conPi.has(i.id)));
+  }, [indicadores, area, inactivos]); // eslint-disable-line react-hooks/exhaustive-deps
   const nInactivos = indicadores.filter((i) => !i.activo).length;
   const areaNueva = area !== "todas" && area !== "ninguna" ? area : null;
   const crear = (enArea: string | null, padre?: Indicador) => { setAbre(null); setFicha(nuevoIndicador(turnos, enArea, padre)) };
@@ -100,7 +106,8 @@ export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, res
   const filas = useMemo(() => {
     const ids = new Set(vista.map((i) => i.id));
     const hijos = new Map<string, Indicador[]>();
-    for (const i of vista) if (i.tipo === "pi" && i.padre_id && ids.has(i.padre_id) && indPorId.get(i.padre_id)?.proceso_id === i.proceso_id) {
+    /* El PI va debajo de SU KPI aunque tengan áreas distintas: el área del PI no lo cambia de KPI. */
+    for (const i of vista) if (i.tipo === "pi" && i.padre_id && ids.has(i.padre_id)) {
       const a = hijos.get(i.padre_id); a ? a.push(i) : hijos.set(i.padre_id, [i]);
     }
     const esHijo = new Set([...hijos.values()].flat().map((i) => i.id));
@@ -115,7 +122,7 @@ export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, res
     for (const p of procesos.filter((p) => p.activo)) poner(p.id, p.nombre, raices.filter((i) => i.proceso_id === p.id));
     poner("ninguna", "Sin área", raices.filter((i) => !i.proceso_id || !procesos.some((p) => p.activo && p.id === i.proceso_id)));
     return out;
-  }, [vista, procesos, indPorId, area]);
+  }, [vista, procesos, area]);
 
   /* El último resultado del rango de cada indicador: con eso se cuenta quién cumple. */
   const ultimo = useMemo(() => {
