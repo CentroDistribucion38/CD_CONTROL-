@@ -172,7 +172,7 @@ export async function guardarIndicador(f: FormIndicador) {
   if (f.tipo !== "kpi" && f.tipo !== "pi") return { error: "El tipo es KPI o PI." };
   /* UN KPI ES SOLO SU NOMBRE: agrupa a sus PI, que son los que llevan meta, captura y disparador. */
   if (f.tipo === "kpi") f = {
-    ...f, padre_id: null, unidad: "", decimales: 0, meta_op: ">=", meta_valor: 0, frecuencia: "dia", captura: "unico", turnos: [],
+    ...f, padre_id: null, proceso_id: null, unidad: "", decimales: 0, meta_op: ">=", meta_valor: 0, frecuencia: "dia", captura: "unico", turnos: [],
     responsable: null, disparo_activo: false, disparo_consecutivos: 1,
   };
   if (!opOk(f.meta_op) || !Number.isFinite(Number(f.meta_valor))) return { error: "La meta necesita operador y número." };
@@ -214,19 +214,19 @@ export async function guardarIndicador(f: FormIndicador) {
 }
 
 /**
- * LIGAR PI A UN KPI (desde la ficha del KPI): los PI escogidos pasan a colgar de él y toman su área, para salir
- * debajo de él en el tablero. Un PI siempre cuelga de un KPI: para quitarlo de uno se liga a otro.
+ * LIGAR PI A UN KPI (desde la ficha del KPI): los PI escogidos pasan a colgar de él. Cada PI conserva su área: el
+ * KPI es de todas y sale en cada área que tenga PI suyos. Un PI siempre cuelga de un KPI: para quitarlo de uno se liga a otro.
  */
 export async function ligarPis(kpiId: string, pis: string[]) {
   if (!(await puedeMaestro())) return { error: "No tienes permiso para editar el Maestro." };
   const ids = [...new Set(pis.filter(Boolean))];
   if (!ids.length) return { ok: true };
   const supabase = await createClient();
-  const { data: kpi, error: e0 } = await supabase.from("gestion_indicadores").select("tipo, proceso_id").eq("id", kpiId).maybeSingle();
+  const { data: kpi, error: e0 } = await supabase.from("gestion_indicadores").select("tipo").eq("id", kpiId).maybeSingle();
   if (e0) return { error: msj(e0.message) };
   if (!kpi || kpi.tipo !== "kpi") return { error: "Solo se ligan PI a un KPI." };
   const { error } = await supabase.from("gestion_indicadores")
-    .update({ padre_id: kpiId, proceso_id: kpi.proceso_id }).in("id", ids).eq("tipo", "pi");
+    .update({ padre_id: kpiId }).in("id", ids).eq("tipo", "pi");   // el PI conserva su área: el KPI es de todas
   if (error) return { error: msj(error.message) };
   refrescar();
   return { ok: true };

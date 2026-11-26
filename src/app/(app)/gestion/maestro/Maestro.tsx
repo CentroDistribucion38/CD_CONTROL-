@@ -87,7 +87,7 @@ export function Maestro({ turnos, procesos, indicadores, puedeEditar }: {
                 <tr key={i.id} className={"gs-kpi" + (i.activo ? "" : " off")}>
                   <td className="mono">{i.codigo}</td>
                   <td colSpan={5}><span className="gs-tipo kpi">KPI</span><span className="gs-nom">{i.nombre}</span>
-                    <small className="gs-sub">{indicadores.filter((x) => x.padre_id === i.id).length} PI · {i.proceso_id ? pro.get(i.proceso_id) : "sin área"}</small></td>
+                    <small className="gs-sub">{indicadores.filter((x) => x.padre_id === i.id).length} PI · todas las áreas</small></td>
                   <td>{i.activo ? "Activo" : "Inactivo"}</td>
                   <td className="gs-acc">
                     {puedeEditar && <>

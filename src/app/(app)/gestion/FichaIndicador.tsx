@@ -18,7 +18,7 @@ const aNum = (t: string): number | null => { const s = t.trim().replace(/\s/g, "
 /** Lo que trae un indicador nuevo: el área desde donde se creó, todos los turnos, disparador a 3 seguidos. */
 export function nuevoIndicador(turnos: Turno[], area: string | null, padre?: Indicador): Form {
   return {
-    codigo: "", nombre: "", tipo: padre ? "pi" : "kpi", padre_id: padre?.id ?? "", proceso_id: padre?.proceso_id ?? area ?? "", nivel_reunion: 1,
+    codigo: "", nombre: "", tipo: padre ? "pi" : "kpi", padre_id: padre?.id ?? "", proceso_id: area ?? "", nivel_reunion: 1,
     unidad: "%", decimales: "2", meta_op: "<=", meta_valor: "", frecuencia: "dia", captura: "turnos",
     turnos: turnos.filter((t) => t.activo).map((t) => t.id), responsable: "", disparo_activo: true, disparo_consecutivos: "3", orden: "0", activo: true,
   };
@@ -147,7 +147,7 @@ export function FichaIndicador({ inicial, indicadores, procesos, turnos, cerrar 
           <label><span>Código</span><input value={f.codigo} onChange={(e) => poner({ codigo: e.target.value })} placeholder="Automático (KPI-002)" /></label>
           {f.tipo === "pi" && (
             <label><span>KPI al que explica</span>
-              <select value={f.padre_id} onChange={(e) => { const k = indicadores.find((i) => i.id === e.target.value); poner({ padre_id: e.target.value, proceso_id: k?.proceso_id ?? f.proceso_id }) }}>
+              <select value={f.padre_id} onChange={(e) => poner({ padre_id: e.target.value })}>
                 <option value="">— escoge —</option>
                 {kpis.map((k) => <option key={k.id} value={k.id}>{k.codigo} · {k.nombre}</option>)}
               </select>

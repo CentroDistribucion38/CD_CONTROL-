@@ -81,7 +81,7 @@ export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, res
   const dias = useMemo(() => diasEntre(d, h), [d, h]);
   const nT = Math.max(1, tActivos.length);
   const opcionesArea = [{ id: "todas", nombre: "Todas" }, ...procesos.filter((p) => p.activo),
-    ...(indicadores.some((i) => i.activo && (!i.proceso_id || !procesos.some((p) => p.activo && p.id === i.proceso_id))) ? [{ id: "ninguna", nombre: "Sin área" }] : [])];
+    ...(indicadores.some((i) => i.activo && i.tipo === "pi" && (!i.proceso_id || !procesos.some((p) => p.activo && p.id === i.proceso_id))) ? [{ id: "ninguna", nombre: "Sin área" }] : [])];
   const enArea = (i?: Indicador) => !!i && (area === "todas" || (area === "ninguna" ? !i.proceso_id : i.proceso_id === area));
 
   /* Resultado por indicador · fecha · turno ("-" = sin turno). */
@@ -91,36 +91,47 @@ export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, res
     return m;
   }, [resultados]);
 
-  /* Un KPI es solo el nombre que agrupa: sale si es del área o si alguno de sus PI lo es (así el PI nunca queda suelto). */
+  /* EL KPI ES DE TODAS LAS ÁREAS (0 Lesiones va en Líneas, en Maquila…): el área la pone cada PI. Un KPI sale en el
+     área donde tenga PI; los que todavía no tienen ninguno, al final en «Todas». */
   const vista = useMemo(() => {
     const ok = (i: Indicador) => i.activo || inactivos;
     const pis = indicadores.filter((i) => i.tipo === "pi" && ok(i) && enArea(i));
     const conPi = new Set(pis.map((i) => i.padre_id).filter(Boolean));
-    return indicadores.filter((i) => ok(i) && (i.tipo === "pi" ? enArea(i) : enArea(i) || conPi.has(i.id)));
+    const conAlguno = new Set(indicadores.filter((i) => i.tipo === "pi" && ok(i)).map((i) => i.padre_id).filter(Boolean));
+    return indicadores.filter((i) => ok(i) && (i.tipo === "pi" ? enArea(i) : conPi.has(i.id) || (area === "todas" && !conAlguno.has(i.id))));
   }, [indicadores, area, inactivos]); // eslint-disable-line react-hooks/exhaustive-deps
   const nInactivos = indicadores.filter((i) => !i.activo).length;
   const areaNueva = area !== "todas" && area !== "ninguna" ? area : null;
   const crear = (enArea: string | null, padre?: Indicador) => { setAbre(null); setFicha(nuevoIndicador(turnos, enArea, padre)) };
 
-  /* Orden: por área y, dentro, cada KPI con sus PI debajo. */
+  /* Orden: por área y, dentro, cada KPI con los PI DE ESA ÁREA debajo. El mismo KPI puede salir en varias áreas. */
+  type Fila = { grupo: string; id: string } | { i: Indicador; pi: boolean; en: string | null; n?: number };
   const filas = useMemo(() => {
-    const ids = new Set(vista.map((i) => i.id));
-    const hijos = new Map<string, Indicador[]>();
-    /* El PI va debajo de SU KPI aunque tengan áreas distintas: el área del PI no lo cambia de KPI. */
-    for (const i of vista) if (i.tipo === "pi" && i.padre_id && ids.has(i.padre_id)) {
-      const a = hijos.get(i.padre_id); a ? a.push(i) : hijos.set(i.padre_id, [i]);
-    }
-    const esHijo = new Set([...hijos.values()].flat().map((i) => i.id));
-    const orden = (xs: Indicador[]) => [...xs].sort((a, b) => (a.tipo === b.tipo ? a.orden - b.orden || a.codigo.localeCompare(b.codigo) : a.tipo === "kpi" ? -1 : 1));
-    const out: ({ grupo: string; id: string } | { i: Indicador; pi: boolean })[] = [];
-    const poner = (id: string, nombre: string, xs: Indicador[]) => {
+    const orden = (xs: Indicador[]) => [...xs].sort((a, b) => a.orden - b.orden || a.codigo.localeCompare(b.codigo, "es", { numeric: true }));
+    const kpis = orden(vista.filter((i) => i.tipo === "kpi"));
+    const kpiIds = new Set(kpis.map((k) => k.id));
+    const pis = vista.filter((i) => i.tipo === "pi");
+    const out: Fila[] = [];
+    const grupo = (id: string, nombre: string, xs: Indicador[]) => {
       if (!xs.length) return;
+      const en = id === "ninguna" ? null : id;
       if (area === "todas") out.push({ grupo: nombre, id });
-      for (const i of orden(xs)) { out.push({ i, pi: false }); for (const c of orden(hijos.get(i.id) ?? [])) out.push({ i: c, pi: true }) }
+      const porKpi = new Map<string, Indicador[]>(), sueltos: Indicador[] = [];
+      for (const p of xs) if (p.padre_id && kpiIds.has(p.padre_id)) { const a = porKpi.get(p.padre_id); a ? a.push(p) : porKpi.set(p.padre_id, [p]) } else sueltos.push(p);
+      for (const k of kpis) {
+        const suyos = porKpi.get(k.id); if (!suyos) continue;
+        out.push({ i: k, pi: false, en, n: suyos.length });
+        for (const p of orden(suyos)) out.push({ i: p, pi: true, en });
+      }
+      for (const p of orden(sueltos)) out.push({ i: p, pi: false, en });
     };
-    const raices = vista.filter((i) => !esHijo.has(i.id));
-    for (const p of procesos.filter((p) => p.activo)) poner(p.id, p.nombre, raices.filter((i) => i.proceso_id === p.id));
-    poner("ninguna", "Sin área", raices.filter((i) => !i.proceso_id || !procesos.some((p) => p.activo && p.id === i.proceso_id)));
+    for (const p of procesos.filter((p) => p.activo)) grupo(p.id, p.nombre, pis.filter((i) => i.proceso_id === p.id));
+    grupo("ninguna", "Sin área", pis.filter((i) => !i.proceso_id || !procesos.some((p) => p.activo && p.id === i.proceso_id)));
+    const sinPi = kpis.filter((k) => !pis.some((p) => p.padre_id === k.id));
+    if (sinPi.length) {
+      if (area === "todas") out.push({ grupo: "KPI sin PI todavía", id: "kpi-sin" });
+      for (const k of sinPi) out.push({ i: k, pi: false, en: null, n: 0 });
+    }
     return out;
   }, [vista, procesos, area]);
 
@@ -146,7 +157,6 @@ export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, res
 
   /* Lo que se mide son los PI: el KPI es solo el nombre que los agrupa. */
   const medibles = vista.filter((i) => i.tipo === "pi");
-  const nPis = useMemo(() => { const m = new Map<string, number>(); for (const i of vista) if (i.tipo === "pi" && i.padre_id) m.set(i.padre_id, (m.get(i.padre_id) ?? 0) + 1); return m }, [vista]);
   const cuenta = (e: Estado | null) => medibles.filter((i) => i.activo).filter((i) => (ultimo.get(i.id) ?? null) === e).length;
   const descartados = new Set(disparadores.filter((x) => x.estado === "descartado").map((x) => x.id));
   const indDeDisp = useMemo(() => new Map(disparadores.map((x) => [x.id, x.indicador_id])), [disparadores]);
@@ -290,22 +300,22 @@ export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, res
                 <tbody>
                   {filas.map((x) => "grupo" in x ? (
                     <tr key={"g" + x.id} className="grupo"><td className="fijo f1" colSpan={4}>{x.grupo}
-                      {puedeIndicador && <button type="button" className="tb-mas" onClick={() => crear(x.id === "ninguna" ? null : x.id)} title={`Nuevo indicador en ${x.grupo}`}>+ indicador</button>}</td><td colSpan={dias.length * nT} /></tr>
+                      {puedeIndicador && x.id !== "kpi-sin" && <button type="button" className="tb-mas" onClick={() => crear(x.id === "ninguna" ? null : x.id)} title={`Nuevo indicador en ${x.grupo}`}>+ indicador</button>}</td><td colSpan={dias.length * nT} /></tr>
                   ) : x.i.tipo === "kpi" ? (
-                    <tr key={x.i.id} className={"es-kpi kpi-nom" + (x.i.activo ? "" : " inact")}>
+                    <tr key={(x.en ?? "-") + ":" + x.i.id} className={"es-kpi kpi-nom" + (x.i.activo ? "" : " inact")}>
                       <td className="fijo f1" colSpan={4}>
                         <button type="button" className="tb-ed" disabled={!puedeIndicador} onClick={() => setFicha(deIndicador(x.i, turnos))} title={puedeIndicador ? "Cambiar el nombre o ligarle PI" : undefined}>
                           <span className="tb-tag es-kpi">KPI</span>
                           {!x.i.activo && <span className="tb-tag off">Inactivo</span>}
                           <span className="nom">{x.i.nombre}</span>
-                          <small className="kpi-n">{nPis.get(x.i.id) ?? 0} PI</small>
+                          <small className="kpi-n">{x.n ?? 0} PI</small>
                         </button>
-                        {puedeIndicador && x.i.activo && <button type="button" className="tb-mas" onClick={() => crear(x.i.proceso_id, x.i)} title={`Nuevo PI de ${x.i.nombre}`}>+ PI</button>}
+                        {puedeIndicador && x.i.activo && <button type="button" className="tb-mas" onClick={() => crear(x.en ?? areaNueva, x.i)} title={`Nuevo PI de ${x.i.nombre}`}>+ PI</button>}
                       </td>
                       <td colSpan={dias.length * nT} className="kpi-res" />
                     </tr>
                   ) : (
-                    <tr key={x.i.id} className={"es-pi" + (x.pi ? "" : " suelto") + (activos.has(x.i.id) ? " disp" : "") + (x.i.activo ? "" : " inact")}>
+                    <tr key={(x.en ?? "-") + ":" + x.i.id} className={"es-pi" + (x.pi ? "" : " suelto") + (activos.has(x.i.id) ? " disp" : "") + (x.i.activo ? "" : " inact")}>
                       <td className="fijo f1">
                         <button type="button" className="tb-ed" disabled={!puedeIndicador} onClick={() => setFicha(deIndicador(x.i, turnos))} title={puedeIndicador ? "Abrir la ficha del indicador" : undefined}>
                           {/* Lo que se lee primero es QUÉ se mide; el código va pequeño debajo. */}
