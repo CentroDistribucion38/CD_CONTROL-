@@ -10,6 +10,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Zona } from "./motor";
 import { distanciaM, puntoEnPoligono, type Punto } from "./geo";
+import { distanciaAPoligono } from "./seguimiento";
 import { placaClave, zonaDePunto, type ZonaLigada } from "./plan";
 
 /** Cuánto hacia atrás se buscan los viajes del conductor (el día operativo cruza la medianoche). */
@@ -18,6 +19,10 @@ const VENTANA_H = 20;
 const PASO_MIN_M = 12;
 /** Un salto mayor entre dos envíos seguidos es un error del GPS, no un recorrido. */
 const SALTO_MAX_M = 5000;
+/** LLEGÓ aunque la geocerca quede corta: basta con estar a esta distancia del borde de la zona destino. Y para contar
+ *  que «ya salió» del destino hay que alejarse un poco más (así un GPS que baila en el borde no lo cierra y abre). */
+export const MARGEN_LLEGADA_M = 60;
+const MARGEN_SALIDA_M = 90;
 
 export type EstadoRecorrido = "en_curso" | "llego" | "cancelado";
 export type Recorrido = {
@@ -168,11 +173,34 @@ export async function seguirPosicion(db: SupabaseClient, placa: string, fix: Fix
   }
 
   const zd = zonas.find((z) => z.id === r.zona_destino) ?? null;
-  const dentro = !!zd && puntoEnPoligono(aqui, zd.poligono);
+  const dist = zd ? (puntoEnPoligono(aqui, zd.poligono) ? 0 : distanciaAPoligono(aqui, zd.poligono)) : Infinity;
+  const dentro = !!zd && dist <= MARGEN_LLEGADA_M;
   let llegoAhora = false;
-  if (zd && !dentro && !r.fuera_destino) cambios.fuera_destino = true;
+  if (zd && dist > MARGEN_SALIDA_M && !r.fuera_destino) cambios.fuera_destino = true;
   if (zd && dentro && r.fuera_destino) { Object.assign(cambios, { estado: "llego", cierre: "geocerca", fin: fix.en }); llegoAhora = true }
 
   if (Object.keys(cambios).length) await db.from("gps_recorridos").update(cambios).eq("id", r.id).eq("estado", "en_curso");
   return { id: r.id, estado: llegoAhora ? "llego" : "en_curso", km: Math.round(km * 10) / 10, destino: zd?.nombre ?? null, llegoAhora };
+}
+
+
+/**
+ * EL VIAJE ARRANCA SOLO (los conductores no siempre marcan): cuando el vehículo SALE de una zona y la placa tiene un
+ * viaje con la salida ya confirmada (o vacío registrado), todavía sin iniciar, cuyo origen es esa zona, se inicia ese
+ * viaje (el más antiguo). Si ya tiene uno en curso no hace nada. Devuelve el viaje iniciado, si hubo.
+ */
+export async function autoIniciar(db: SupabaseClient, placa: string, salioDe: string[]): Promise<{ id: string; origen: string | null; destino: string | null } | null> {
+  if (!salioDe.length) return null;
+  const p = placaClave(placa);
+  const ya = await db.from("gps_recorridos").select("id").eq("placa", p).eq("estado", "en_curso").maybeSingle();
+  if (ya.error || ya.data) return null;
+  const lista = await viajesDeConductor(db, placa);
+  if (!lista.ok) return null;
+  const zonas = await zonasLigadas(db);
+  const { data: filas } = await db.from("v_traspasos_viajes").select("id, origen, origen_nombre").in("id", lista.viajes.filter((v) => !v.recorrido).map((v) => v.id));
+  const origenDe = new Map(((filas ?? []) as { id: string; origen: string | null; origen_nombre: string | null }[]).map((f) => [f.id, zonaDePunto(f.origen, f.origen_nombre, zonas)?.id ?? null]));
+  const v = lista.viajes.find((x) => !x.recorrido && salioDe.includes(origenDe.get(x.id) ?? ""));
+  if (!v) return null;
+  const r = await iniciarRecorrido(db, placa, v.id, null);
+  return r.ok ? { id: v.id, origen: v.origen, destino: v.destino } : null;
 }

@@ -9,8 +9,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { clienteDeServicio } from "@/lib/supabase/servicio";
-import { limpiarPlaca, placaValida, registrarCelular } from "@/modulos/traspasos/gps/celular";
-import { seguirPosicion } from "@/modulos/traspasos/gps/recorridos";
+import { limpiarPlaca, placaValida } from "@/modulos/traspasos/gps/celular";
+import { procesarPosicion } from "@/modulos/traspasos/gps/entrada";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -42,9 +42,8 @@ export async function POST(req: Request) {
     lat, lng, en: new Date().toISOString(), precision,
     velocidad: Number.isFinite(vel) && vel >= 0 ? vel : null, rumbo: Number.isFinite(rum) && rum >= 0 ? rum : null,
   };
-  const r = await registrarCelular(db, { placa, ...fix });
+  /* registrar · el viaje arranca solo al salir de su origen · se guarda con su viaje y se cierra al llegar · avisos */
+  const r = await procesarPosicion(db, placa, fix);
   if (!r.ok) return NextResponse.json({ error: r.error }, { status: r.estado });
-  /* Parte 2: la posición queda guardada con el viaje en curso de la placa y, si entró a la geocerca destino, el viaje se cierra. */
-  const recorrido = await seguirPosicion(db, placa, fix, r.zonas).catch(() => null);
-  return NextResponse.json({ ok: true, zona: r.zona, entradas: r.entradas, salidas: r.salidas, recorrido });
+  return NextResponse.json({ ok: true, zona: r.zona, entradas: r.entradas, salidas: r.salidas, recorrido: r.recorrido, arranco: r.arranco });
 }

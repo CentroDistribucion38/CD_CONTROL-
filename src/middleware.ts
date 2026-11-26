@@ -17,7 +17,9 @@ export const config = {
      *    antes de que haya sesión: con redirección al login guardaría el login como aviso.
      *  · api/version — es solo el número de despliegue, no toca datos.
      *  · api/traspasos/gps/cron — lo llama un reloj sin sesión; la ruta se protege sola con GPS_CRON_SECRET.
+     *  · api/traspasos/gps/traccar — lo llama la app Traccar Client del conductor, sin sesión; se protege con GPS_CLAVE_TRACCAR.
+     *    (La dirección con la clave para configurar la app está aparte, en api/traspasos/gps/app-traccar, con sesión.)
      */
-    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|sin-conexion.html|api/version|api/traspasos/gps/cron|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|sin-conexion.html|api/version|api/traspasos/gps/cron|api/traspasos/gps/traccar|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

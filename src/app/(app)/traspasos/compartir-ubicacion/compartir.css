@@ -48,3 +48,15 @@
 .cu-caja-check { flex: none; width: 22px; height: 22px; border: 2px solid currentColor; background: #fff }
 .cu-botones { display: flex; gap: 8px; flex-wrap: wrap }
 .cu-check:focus-visible, .cu-mini:focus-visible { outline: 3px solid #1d9bd1; outline-offset: 2px }
+
+/* ---------- Con el celular bloqueado: app Traccar Client (cerrado, al final) ---------- */
+.cu-app { max-width: 520px; margin: 12px auto 0; background: #fff; border: 1px solid #d8dce0; font-family: Arial, Helvetica, sans-serif; color: #15171a }
+.cu-app summary { display: flex; flex-direction: column; gap: 2px; padding: 14px 16px; cursor: pointer; border-left: 4px solid #ffc20e }
+.cu-app summary span { font-size: .76rem; color: #5a6470 }
+.cu-app[open] summary { border-bottom: 1px solid #e3e6ea }
+.cu-app-cuerpo { padding: 12px 16px 16px; font-size: .86rem; line-height: 1.45 }
+.cu-app-cuerpo p { margin: 0 0 10px }
+.cu-app-cuerpo ol { margin: 0 0 10px; padding-left: 20px; display: flex; flex-direction: column; gap: 8px }
+.cu-app-cuerpo a { color: #15171a; font-weight: 700 }
+.cu-app-url { display: flex; gap: 8px; align-items: stretch; margin-top: 6px }
+.cu-app-url code { flex: 1; min-width: 0; padding: 8px; background: #f4f5f6; border: 1px solid #d8dce0; font: .72rem ui-monospace, Consolas, monospace; overflow-wrap: anywhere }

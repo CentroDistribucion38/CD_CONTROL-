@@ -12,6 +12,7 @@ import { cruzarViajes, norm, placaClave, promedioPorRuta, resumenPorTipo, type E
 import { MapaGps, type CapaBase, type FlujoMapa, type RutaMapa, type VehiculoMapa, type ZonaMapa } from "./MapaGps";
 import { adelgazar, alertasDe, calorPorHora, corto, enVivo, esLarga, lineaDeTiempo, normalesDe, type PosRuta, type Vivo } from "@/modulos/traspasos/gps/seguimiento";
 import { LineaTiempo, CalorEspera } from "./LineaTiempo";
+import { AvisosCelular } from "./AvisosCelular";
 
 /* ===================================================================
    TIEMPOS GPS — el mapa de los vehículos y sus tiempos por zona
@@ -90,6 +91,7 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
   const [selRec, setSelRec] = useState<string | null>(null);
   const [repite, setRepite] = useState(0);
   const [hist, setHist] = useState<VisitaGps[]>([]);
+  const [verAvisos, setVerAvisos] = useState(false);
   const ultimoId = useRef(0);
   const puntosRef = useRef(new Map<string, PosRuta[]>());
 
@@ -448,6 +450,9 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
           <h1>Seguimiento de flota</h1>
         </div>
         <div className="tg-controles">
+          <button type="button" className="tg-btn tg-btn-avisos" onClick={() => setVerAvisos(true)}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 1 1 12 0v5l2 2H4z" /><path d="M10 20a2 2 0 0 0 4 0" /></svg>Avisos al celular
+          </button>
           <div className="tg-seg" role="group" aria-label="Periodo">
             {RANGOS.map(([k, et]) => <button key={k} type="button" aria-pressed={rango === k} onClick={() => setRango(k)}>{et}</button>)}
           </div>
@@ -911,6 +916,8 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
           )}
         </section>
       </div>
+
+      {verAvisos && <AvisosCelular cerrar={() => setVerAvisos(false)} />}
 
       <div className="tg-abajo">
       {seg3 && (

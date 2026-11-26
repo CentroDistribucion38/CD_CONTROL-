@@ -468,14 +468,14 @@ export const MODULOS: Modulo[] = [
       { nombre: "Facturación", ruta: "/traspasos/facturacion" },
       { nombre: "Control", ruta: "/traspasos/control" },
       /* TIEMPOS GPS: el mapa de los vehículos con sus zonas (Fábrica, Bodega 38, Arenosa…); se mira después de Control.
-         «Que solo se vea para los superadmin ese módulo de geocerca y lo que creemos ahora adicional, ya que es algo que
-         estoy desarrollando, modo prueba» (26 nov 2026): solo quien manda, como PET. Quitar soloManda cuando salga de prueba. */
-      { nombre: "Tiempos GPS", ruta: "/traspasos/tiempos-gps", soloManda: true },
+         Estuvo solo para el superadmin mientras era prueba; desde el 26 nov 2026 se da POR ROL (Admin → Roles: supervisores,
+         facturación…), igual que Compartir ubicación para los conductores. */
+      { nombre: "Tiempos GPS", ruta: "/traspasos/tiempos-gps" },
       /* PET, UNO SOLO Y DESPUÉS DE TIEMPOS GPS: adentro está Programar (el número de Vhs de PET que va al plan) y los
          Vhs por formato. «PET va después del tiempo de GPS y por ahora que ese módulo solo lo vean los super admin.» */
       { nombre: "PET", ruta: "/traspasos/pet", soloManda: true },
       /* COMPARTIR UBICACIÓN: la pantalla del conductor; con ella el GPS funciona sin Traccar, desde el celular. */
-      { nombre: "Compartir ubicación", ruta: "/traspasos/compartir-ubicacion", soloManda: true },
+      { nombre: "Compartir ubicación", ruta: "/traspasos/compartir-ubicacion" },
       /* IMPORTAR VA DESPUÉS DE CONTROL Y ANTES DEL MAESTRO, porque ese
          es el orden del proceso: se planea, se registra lo que sale, se
          mira si se cumplió el plan, y al final del día se sube el corte

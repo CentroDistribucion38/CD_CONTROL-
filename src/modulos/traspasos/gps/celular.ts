@@ -22,7 +22,9 @@ export function idDeCelular(placa: string): number {
 
 export type EntradaCelular = { placa: string; lat: number; lng: number; velocidad: number | null; rumbo: number | null; en: string };
 export type ResultadoCelular =
-  | { ok: true; zona: string | null; entradas: number; salidas: number; zonas: Zona[] }
+  | { ok: true; zona: string | null; zonaId: string | null; entradas: number; salidas: number; zonas: Zona[];
+      /** Las zonas de las que acaba de salir con esta posición (para arrancar solo el viaje que sale de ahí). */
+      salioDe: string[] }
   | { ok: false; estado: number; error: string };
 
 export async function registrarCelular(db: SupabaseClient, e: EntradaCelular): Promise<ResultadoCelular> {
@@ -48,5 +50,6 @@ export async function registrarCelular(db: SupabaseClient, e: EntradaCelular): P
   }
   const zona = est?.zonaId ? zonas.find((z) => z.id === est.zonaId)?.nombre ?? null : null;
   const r = res as { entradas?: number; salidas?: number } | null;
-  return { ok: true, zona, entradas: r?.entradas ?? 0, salidas: r?.salidas ?? 0, zonas };
+  return { ok: true, zona, zonaId: est?.zonaId ?? null, entradas: r?.entradas ?? 0, salidas: r?.salidas ?? 0, zonas,
+    salioDe: eventos.filter((v) => v.tipo === "sale").map((v) => v.zonaId) };
 }

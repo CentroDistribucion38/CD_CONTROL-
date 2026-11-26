@@ -5,7 +5,7 @@
  *        accion: "iniciar" (check al viaje) · "cancelar" (se marcó el equivocado) · "llegue" (destino sin geocerca)
  *
  * Lee los viajes con la llave de servicio (el conductor no tiene permiso sobre Traspasos), pero SOLO
- * después de comprobar aquí la sesión y que quien pide es el superadmin mientras esto está en prueba.
+ * después de comprobar aquí la sesión y que quien pide puede ver «Compartir ubicación» (se da por rol en Admin → Roles).
  */
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
@@ -22,7 +22,7 @@ async function quien() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: NextResponse.json({ error: "Sin sesión." }, { status: 401 }) };
   const permisos = await misPermisos();
-  if (!permisos.manda) return { error: NextResponse.json({ error: "Los viajes con seguimiento están en prueba: solo el superadministrador." }, { status: 403 }) };
+  if (!permisos.manda && !permisos.puedeVer("/traspasos/compartir-ubicacion")) return { error: NextResponse.json({ error: "Sin permiso para Compartir ubicación (Admin → Roles)." }, { status: 403 }) };
   const db = clienteDeServicio();
   if (!db) return { error: NextResponse.json({ error: "Falta SUPABASE_SERVICE_ROLE_KEY en Vercel." }, { status: 503 }) };
   return { user, db };

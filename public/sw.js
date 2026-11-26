@@ -427,3 +427,36 @@ self.addEventListener("fetch", (evento) => {
   const acepta = req.headers.get("accept") || "";
   if (req.mode === "navigate" || acepta.includes("text/html")) evento.respondWith(pagina(evento));
 });
+
+/* ======================================================================
+ * AVISOS AL CELULAR (Tiempos GPS): el servidor manda el aviso y aquí se
+ * muestra con sonido y vibración, aunque CONTROL esté cerrado. Tocarlo
+ * abre (o trae al frente) la pantalla del aviso.
+ * ====================================================================== */
+self.addEventListener("push", (evento) => {
+  let d = {};
+  try { d = evento.data ? evento.data.json() : {} } catch { d = { cuerpo: evento.data ? evento.data.text() : "" } }
+  const titulo = d.titulo || "CONTROL";
+  evento.waitUntil(self.registration.showNotification(titulo, {
+    body: d.cuerpo || "",
+    tag: d.etiqueta || titulo,
+    renotify: true,
+    requireInteraction: true,
+    vibrate: [300, 120, 300, 120, 500],
+    icon: "/icons/icon-192.png",
+    badge: "/icons/icon-192.png",
+    data: { url: d.url || "/traspasos/tiempos-gps" },
+  }));
+});
+
+self.addEventListener("notificationclick", (evento) => {
+  evento.notification.close();
+  const url = new URL((evento.notification.data && evento.notification.data.url) || "/", self.location.origin).href;
+  evento.waitUntil((async () => {
+    const ventanas = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const v of ventanas) {
+      if (v.url.startsWith(self.location.origin)) { await v.focus(); try { await v.navigate(url) } catch { /* otra pestaña */ } return }
+    }
+    await self.clients.openWindow(url);
+  })());
+});

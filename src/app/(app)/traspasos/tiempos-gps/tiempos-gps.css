@@ -368,3 +368,25 @@
 }
 /* la leyenda del mapa, clara como el resto */
 .tg-leyenda { background: rgba(255,255,255,.95); color: var(--tg-tinta); border: 1px solid var(--tg-tinta) }
+
+/* =================== AVISOS AL CELULAR =================== */
+.tg-btn-avisos { display: inline-flex; align-items: center; gap: 7px; min-height: 38px }
+.tg-btn-avisos svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round }
+.tg-modal-fondo { position: fixed; inset: 0; z-index: 3000; display: grid; place-items: center; padding: 16px; background: rgba(20,22,26,.45) }
+.tg-modal { width: min(760px, 100%); max-height: calc(100vh - 32px); display: flex; flex-direction: column; background: #fff; border: 1.5px solid var(--tg-tinta); border-top: 5px solid var(--tg-amarillo); box-shadow: 0 18px 50px rgba(0,0,0,.3) }
+.tg-modal > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--tg-linea) }
+.tg-modal h2 { margin: 2px 0 0; font-size: 1.25rem; font-weight: 800 }
+.tg-modal-x { width: 36px; height: 36px; border: 0; background: transparent; font-size: 1.5rem; color: var(--tg-gris); cursor: pointer }
+.tg-modal-cuerpo { padding: 6px 18px 18px; overflow-y: auto }
+.tg-av-fila { display: flex; align-items: center; gap: 8px; flex-wrap: wrap }
+.tg-av-estado { flex: 1; min-width: 180px; padding: 9px 12px; background: #f4f5f6; border-left: 4px solid var(--tg-gris); font-weight: 700; font-size: .86rem }
+.tg-av-estado.si { background: #e8f6ee; border-left-color: #2fa66a }
+.tg-av-cab { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap }
+.tg-av-cab input { min-height: 36px; width: 220px; padding: 0 10px; border: 1px solid var(--tg-tinta); font: inherit; font-size: .84rem }
+.tg-av-tabla { max-height: 46vh; overflow: auto; border: 1px solid var(--tg-linea); margin-top: 6px }
+.tg-av-tabla table { width: 100%; min-width: 0 }
+.tg-av-tabla th { position: sticky; top: 0; background: #fff; z-index: 1 }
+.tg-av-tabla .c { text-align: center; width: 92px }
+.tg-av-tabla input[type="checkbox"] { width: 20px; height: 20px; accent-color: #c99700; cursor: pointer }
+.tg-av-tabla tr.con td:first-child { box-shadow: inset 4px 0 0 var(--tg-amarillo) }
+@media (max-width: 640px) { .tg-av-tabla .c { width: 64px } .tg-modal-fondo { padding: 0; place-items: stretch } .tg-modal { max-height: 100vh; border-left: 0; border-right: 0 } }
