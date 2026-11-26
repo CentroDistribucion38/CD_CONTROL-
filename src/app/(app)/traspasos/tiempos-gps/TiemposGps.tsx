@@ -238,13 +238,13 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
   }
   /** Busca una dirección: coordenadas o Plus Code directo; si no, OpenStreetMap (Nominatim), con las abreviaturas de las
    *  direcciones colombianas escritas completas (Cra → Carrera, Cl → Calle…). Si no encuentra el número, prueba la vía sola. */
-  async function buscarDireccion() {
-    const texto = busca.texto.trim();
+  async function buscarDireccion(dado?: string) {
+    const texto = (dado ?? busca.texto).trim();
     if (!texto) return;
     const ref: Punto = foto && foto.zonas.length ? centro(foto.zonas[0].poligono) : [10.98, -74.8];
     const directo = leerUbicacion(texto, ref);
-    if (directo) { setBusca({ ...busca, resultados: [{ nombre: `${directo[0].toFixed(5)}, ${directo[1].toFixed(5)}`, lat: directo[0], lng: directo[1] }] }); return }
-    setBusca({ ...busca, cargando: true, resultados: null });
+    if (directo) { setBusca({ texto, cargando: false, resultados: null }); ponerCentro(directo); return }
+    setBusca({ texto, cargando: true, resultados: null });
     const largo = texto
       .replace(/\b(cra|kra|kr|cr|carr)\.?\s*/gi, "Carrera ").replace(/\b(cll|cl|clle)\.?\s*/gi, "Calle ")
       .replace(/\b(dg|diag)\.?\s*/gi, "Diagonal ").replace(/\b(tv|tr|trans|transv)\.?\s*/gi, "Transversal ")
@@ -259,9 +259,24 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
     };
     let res = await pedirN(conCiudad(largo));
     if (!res.length && largo.includes("#")) res = await pedirN(conCiudad(largo.split("#")[0].trim() + (largo.includes(",") ? largo.slice(largo.indexOf(",")) : "")));
+    /* Un solo resultado: se pone de una el perímetro ahí. Varios: se escoge en la lista de la derecha. */
+    if (res.length === 1) { setBusca((b) => ({ ...b, cargando: false, resultados: null })); ponerCentro([res[0].lat, res[0].lng]); return }
     setBusca((b) => ({ ...b, cargando: false, resultados: res }));
     if (!res.length) setMal("No encontré esa dirección. Prueba con la vía y la ciudad (Calle 30, Soledad), con coordenadas de Google Maps, o toca el sitio en el mapa.");
   }
+  /** Empieza una zona nueva por dirección (desde el botón de Zonas o desde el buscador del mapa). */
+  const nuevaPorDireccion = () => {
+    setOk(null); setMal(null); setTab("zonas");
+    setEditar({ nombre: "", color: COLORES_ZONA[(foto?.zonas.length ?? 0) % COLORES_ZONA.length], punto: "", centro: null, radio: 150, poligono: [], llave: "nueva" });
+  };
+  /** EL BUSCADOR DEL MAPA: escribes la dirección y Enter → se abre «Zona por dirección» con el perímetro puesto ahí. */
+  const [dirMapa, setDirMapa] = useState("");
+  const buscarEnMapa = () => {
+    const t = dirMapa.trim();
+    if (!t || dibujo || nueva) return;
+    if (!editar || editar.id) nuevaPorDireccion();
+    void buscarDireccion(t);
+  };
   /** Pone el círculo de la zona en un sitio (o lo vuelve a armar con otro radio). */
   const ponerCentro = (c: Punto, radio = editar?.radio || 150) => setEditar((e) => e && ({ ...e, centro: c, radio, poligono: circuloComoPoligono(c, radio, 12), llave: `c${Date.now()}` }));
   async function guardarEdicion() {
@@ -277,7 +292,7 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
     setOcupado(false);
     if (error) { setMal(/duplicate|unique|gps_zonas_nombre/i.test(error.message) ? `Ya hay una zona llamada «${nombre}».` : traducirError(error.message)); return }
     setOk(editar.id ? `Zona «${nombre}» ajustada.` : `Zona «${nombre}» creada. Desde ahora cuenta las entradas y salidas.`);
-    setEditar(null); setBusca({ texto: "", cargando: false, resultados: null });
+    setEditar(null); setBusca({ texto: "", cargando: false, resultados: null }); setDirMapa("");
     await cargar();
   }
   async function quitarZona(id: string, nombre: string) {
@@ -357,6 +372,14 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
             <div className="tg-guia" role="status">
               {dibujo === "punto" ? "Toca en el mapa el centro del patio o la bodega." : dibujo === "rect" ? "Haz clic en una esquina y luego en la esquina opuesta." : "Haz clic en cada vértice. Doble clic o Enter para cerrar la zona."} <button type="button" onClick={() => setDibujo(null)}>Cancelar (Esc)</button>
             </div>
+          )}
+          {puedeEditar && !dibujo && (
+            <form className="tg-mapa-busca" role="search" onSubmit={(e) => { e.preventDefault(); buscarEnMapa() }}>
+              <span aria-hidden="true">⌖</span>
+              <input value={dirMapa} onChange={(e) => setDirMapa(e.target.value)} disabled={!!dibujo || !!nueva || !!editar?.id}
+                placeholder="Dirección para una geocerca: Cra 38 #10-50, Barranquilla" aria-label="Dirección para crear una geocerca" />
+              <button type="submit" disabled={!dirMapa.trim() || busca.cargando || !!dibujo || !!nueva || !!editar?.id}>{busca.cargando ? "Buscando…" : "Buscar"}</button>
+            </form>
           )}
           <div className="tg-leyenda" aria-hidden="true">
             <span><i style={{ background: "#2fa66a" }} /> dentro de una zona</span>
@@ -520,7 +543,7 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
             <div className="tg-zonas">
               {puedeEditar ? (
                 <div className="tg-acciones">
-                  <button type="button" className="tg-btn fuerte" disabled={!!dibujo || !!nueva || !!editar} onClick={() => { setOk(null); setMal(null); setEditar({ nombre: "", color: COLORES_ZONA[(foto?.zonas.length ?? 0) % COLORES_ZONA.length], punto: "", centro: null, radio: 150, poligono: [], llave: "nueva" }) }}>⌖ Zona por dirección</button>
+                  <button type="button" className="tg-btn fuerte" disabled={!!dibujo || !!nueva || !!editar} onClick={nuevaPorDireccion}>⌖ Zona por dirección</button>
                   <button type="button" className="tg-btn" disabled={!!dibujo || !!nueva || !!editar} onClick={() => { setOk(null); setMal(null); setDibujo("rect") }}>▭ Dibujar rectángulo</button>
                   <button type="button" className="tg-btn" disabled={!!dibujo || !!nueva || !!editar} onClick={() => { setOk(null); setMal(null); setDibujo("poli") }}>⬠ Dibujar polígono</button>
                   {conectado && <button type="button" className="tg-btn plano" disabled={ocupado} onClick={() => void traerDeTraccar()}>Traer las de Traccar</button>}
