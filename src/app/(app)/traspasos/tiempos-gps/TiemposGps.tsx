@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { traducirError } from "@/lib/errores";
 import { useConfirmar } from "@/components/Confirmar";
-import { centro, cuadradoEn, leerUbicacion, type Punto } from "@/modulos/traspasos/gps/geo";
+import { centro, circuloComoPoligono, leerUbicacion, type Punto } from "@/modulos/traspasos/gps/geo";
 import { duracion, flujosEntreZonas, tiemposPorZona, tramosDe, type Visita, type Zona } from "@/modulos/traspasos/gps/motor";
 import { COLORES_ZONA, type Instantanea, type VehiculoVivo, type VisitaGps } from "@/modulos/traspasos/gps/tipos";
 import { Demo, ZONAS_DEMO } from "@/modulos/traspasos/gps/demo";
@@ -47,13 +47,16 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
   const [lineasPlan, setLineasPlan] = useState<LineaPlan[]>([]);
   const [puntos, setPuntos] = useState<PuntoT[]>([]);
   const [puntoDeZona, setPuntoDeZona] = useState<Map<string, string | null>>(new Map());
-  const [porCoord, setPorCoord] = useState<null | { nombre: string; texto: string; lado: string; punto: string }>(null);
+  /* LA ZONA QUE SE ESTÁ ARMANDO O AJUSTANDO: por dirección (o tocando el mapa) se pone un círculo de N metros y luego
+     se arrastran sus esquinas en el mapa hasta que encierre el patio. Con id = se está ajustando una que ya existe. */
+  const [editar, setEditar] = useState<null | { id?: string; nombre: string; color: string; punto: string; centro: Punto | null; radio: number; poligono: Punto[]; llave: string }>(null);
+  const [busca, setBusca] = useState<{ texto: string; cargando: boolean; resultados: { nombre: string; lat: number; lng: number }[] | null }>({ texto: "", cargando: false, resultados: null });
   const [falta, setFalta] = useState(false);
   const [rango, setRango] = useState<Rango>("hoy");
   const [capa, setCapa] = useState<CapaBase>("calles");
   const [tab, setTab] = useState<Pestania>("ahora");
   const [sel, setSel] = useState<string | null>(null);
-  const [dibujo, setDibujo] = useState<null | "rect" | "poli">(null);
+  const [dibujo, setDibujo] = useState<null | "rect" | "poli" | "punto">(null);
   const [nueva, setNueva] = useState<{ poligono: Punto[]; nombre: string; color: string; punto: string } | null>(null);
   const [verFlujos, setVerFlujos] = useState(true);
   const [ajuste, setAjuste] = useState(0);
@@ -233,20 +236,49 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
     const { error } = await supabase.from("gps_zonas").update({ punto: punto || null }).eq("id", id);
     if (error) setMal(traducirError(error.message)); else { setOk("Zona ligada al punto de Traspasos."); await cargar() }
   }
-  async function zonaPorCoordenadas() {
-    if (!porCoord) return;
-    const nombre = porCoord.nombre.trim();
+  /** Busca una dirección: coordenadas o Plus Code directo; si no, OpenStreetMap (Nominatim), con las abreviaturas de las
+   *  direcciones colombianas escritas completas (Cra → Carrera, Cl → Calle…). Si no encuentra el número, prueba la vía sola. */
+  async function buscarDireccion() {
+    const texto = busca.texto.trim();
+    if (!texto) return;
+    const ref: Punto = foto && foto.zonas.length ? centro(foto.zonas[0].poligono) : [10.98, -74.8];
+    const directo = leerUbicacion(texto, ref);
+    if (directo) { setBusca({ ...busca, resultados: [{ nombre: `${directo[0].toFixed(5)}, ${directo[1].toFixed(5)}`, lat: directo[0], lng: directo[1] }] }); return }
+    setBusca({ ...busca, cargando: true, resultados: null });
+    const largo = texto
+      .replace(/\b(cra|kra|kr|cr|carr)\.?\s*/gi, "Carrera ").replace(/\b(cll|cl|clle)\.?\s*/gi, "Calle ")
+      .replace(/\b(dg|diag)\.?\s*/gi, "Diagonal ").replace(/\b(tv|tr|trans|transv)\.?\s*/gi, "Transversal ")
+      .replace(/\b(av|avda)\.?\s*/gi, "Avenida ").replace(/\s*(#|no\.?|n°)\s*/gi, " # ").replace(/\s+/g, " ").trim();
+    const conCiudad = (t: string) => (/,/.test(t) ? `${t}, Colombia` : `${t}, Atlántico, Colombia`);
+    const vb = `${ref[1] - 0.5},${ref[0] + 0.5},${ref[1] + 0.5},${ref[0] - 0.5}`;
+    const pedirN = async (q: string) => {
+      const u = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&countrycodes=co&accept-language=es&viewbox=${vb}&q=${encodeURIComponent(q)}`;
+      const r = await fetch(u, { headers: { Accept: "application/json" } }).catch(() => null);
+      const j = r && r.ok ? ((await r.json().catch(() => [])) as { display_name: string; lat: string; lon: string }[]) : [];
+      return j.map((x) => ({ nombre: x.display_name.split(",").slice(0, 4).join(",").trim(), lat: Number(x.lat), lng: Number(x.lon) }));
+    };
+    let res = await pedirN(conCiudad(largo));
+    if (!res.length && largo.includes("#")) res = await pedirN(conCiudad(largo.split("#")[0].trim() + (largo.includes(",") ? largo.slice(largo.indexOf(",")) : "")));
+    setBusca((b) => ({ ...b, cargando: false, resultados: res }));
+    if (!res.length) setMal("No encontré esa dirección. Prueba con la vía y la ciudad (Calle 30, Soledad), con coordenadas de Google Maps, o toca el sitio en el mapa.");
+  }
+  /** Pone el círculo de la zona en un sitio (o lo vuelve a armar con otro radio). */
+  const ponerCentro = (c: Punto, radio = editar?.radio || 150) => setEditar((e) => e && ({ ...e, centro: c, radio, poligono: circuloComoPoligono(c, radio, 12), llave: `c${Date.now()}` }));
+  async function guardarEdicion() {
+    if (!editar) return;
+    const nombre = editar.nombre.trim();
     if (!nombre) { setMal("Ponle un nombre a la zona."); return }
-    const ref: Punto | undefined = foto && foto.zonas.length ? centro(foto.zonas[0].poligono) : undefined;
-    const c = leerUbicacion(porCoord.texto, ref);
-    if (!c) { setMal("No entiendo esa ubicación. Pega un Plus Code (X6FH+WC) o las coordenadas (10.9748, -74.7714) tal como las da Google Maps."); return }
-    const lado = Math.min(1000, Math.max(30, Number(porCoord.lado) || 120));
+    if (editar.poligono.length < 3) { setMal("Busca la dirección o toca el sitio en el mapa."); return }
     setMal(null); setOcupado(true);
-    const { error } = await supabase.from("gps_zonas").insert({ nombre, color: COLORES_ZONA[(foto?.zonas.length ?? 0) % COLORES_ZONA.length], poligono: cuadradoEn(c, lado), origen: "dibujada", punto: porCoord.punto || puntoSugerido(nombre) });
+    const fila = { nombre, color: editar.color, poligono: editar.poligono, punto: editar.punto || puntoSugerido(nombre) };
+    const { error } = editar.id
+      ? await supabase.from("gps_zonas").update(fila).eq("id", editar.id)
+      : await supabase.from("gps_zonas").insert({ ...fila, origen: "dibujada" });
     setOcupado(false);
     if (error) { setMal(/duplicate|unique|gps_zonas_nombre/i.test(error.message) ? `Ya hay una zona llamada «${nombre}».` : traducirError(error.message)); return }
-    setPorCoord(null); setOk(`Zona «${nombre}» creada en ${c[0].toFixed(5)}, ${c[1].toFixed(5)} (${lado} m de lado). Revísala en el mapa y ajústala si hace falta.`);
-    await cargar(); setAjuste((n) => n + 1);
+    setOk(editar.id ? `Zona «${nombre}» ajustada.` : `Zona «${nombre}» creada. Desde ahora cuenta las entradas y salidas.`);
+    setEditar(null); setBusca({ texto: "", cargando: false, resultados: null });
+    await cargar();
   }
   async function quitarZona(id: string, nombre: string) {
     if (!(await pedir({ titulo: `Quitar la zona «${nombre}»`, dice: "Deja de contar entradas y salidas en ella. Lo que ya se registró se conserva.", confirmar: "Quitar zona", peligro: true }))) return;
@@ -312,12 +344,18 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
 
       <div className="tg-cuerpo">
         <div className={"tg-mapa-col" + (dibujo ? " dibujando" : "")}>
-          <MapaGps zonas={zonasMapa} vehiculos={vehiculosMapa} flujos={flujosMapa} capa={capa} dibujo={dibujo}
-                   alDibujar={(p) => { setDibujo(null); setNueva({ poligono: p, nombre: "", color: COLORES_ZONA[(foto?.zonas.length ?? 0) % COLORES_ZONA.length], punto: "" }); setTab("zonas") }}
+          <MapaGps zonas={editar?.id ? zonasMapa.filter((z) => z.id !== editar.id) : zonasMapa} vehiculos={vehiculosMapa} flujos={flujosMapa} capa={capa} dibujo={dibujo}
+                   edicion={editar && editar.poligono.length >= 3 ? { poligono: editar.poligono, color: editar.color, llave: editar.llave } : null}
+                   alEditar={(p) => setEditar((e) => e && ({ ...e, poligono: p }))}
+                   alDibujar={(p) => {
+                     setDibujo(null);
+                     if (p.length === 1) { ponerCentro(p[0]); return }
+                     setNueva({ poligono: p, nombre: "", color: COLORES_ZONA[(foto?.zonas.length ?? 0) % COLORES_ZONA.length], punto: "" }); setTab("zonas");
+                   }}
                    alCancelarDibujo={() => setDibujo(null)} seleccion={sel} alSeleccionar={(id) => { setSel(id); if (id) setTab("ahora") }} ajustar={ajuste} centroInicial={centroInicial} />
           {dibujo && (
             <div className="tg-guia" role="status">
-              {dibujo === "rect" ? "Haz clic en una esquina y luego en la esquina opuesta." : "Haz clic en cada vértice. Doble clic o Enter para cerrar la zona."} <button type="button" onClick={() => setDibujo(null)}>Cancelar (Esc)</button>
+              {dibujo === "punto" ? "Toca en el mapa el centro del patio o la bodega." : dibujo === "rect" ? "Haz clic en una esquina y luego en la esquina opuesta." : "Haz clic en cada vértice. Doble clic o Enter para cerrar la zona."} <button type="button" onClick={() => setDibujo(null)}>Cancelar (Esc)</button>
             </div>
           )}
           <div className="tg-leyenda" aria-hidden="true">
@@ -482,29 +520,52 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
             <div className="tg-zonas">
               {puedeEditar ? (
                 <div className="tg-acciones">
-                  <button type="button" className="tg-btn" disabled={!!dibujo || !!nueva} onClick={() => { setOk(null); setMal(null); setDibujo("rect") }}>▭ Dibujar rectángulo</button>
-                  <button type="button" className="tg-btn" disabled={!!dibujo || !!nueva} onClick={() => { setOk(null); setMal(null); setDibujo("poli") }}>⬠ Dibujar polígono</button>
-                  <button type="button" className="tg-btn" disabled={!!dibujo || !!nueva || !!porCoord} onClick={() => { setOk(null); setMal(null); setPorCoord({ nombre: "", texto: "", lado: "120", punto: "" }) }}>⌖ Por Plus Code o coordenadas</button>
+                  <button type="button" className="tg-btn fuerte" disabled={!!dibujo || !!nueva || !!editar} onClick={() => { setOk(null); setMal(null); setEditar({ nombre: "", color: COLORES_ZONA[(foto?.zonas.length ?? 0) % COLORES_ZONA.length], punto: "", centro: null, radio: 150, poligono: [], llave: "nueva" }) }}>⌖ Zona por dirección</button>
+                  <button type="button" className="tg-btn" disabled={!!dibujo || !!nueva || !!editar} onClick={() => { setOk(null); setMal(null); setDibujo("rect") }}>▭ Dibujar rectángulo</button>
+                  <button type="button" className="tg-btn" disabled={!!dibujo || !!nueva || !!editar} onClick={() => { setOk(null); setMal(null); setDibujo("poli") }}>⬠ Dibujar polígono</button>
                   {conectado && <button type="button" className="tg-btn plano" disabled={ocupado} onClick={() => void traerDeTraccar()}>Traer las de Traccar</button>}
                 </div>
               ) : <p className="tg-nota">Solo ves las zonas. Para dibujarlas hace falta permiso de edición en esta pantalla (Admin → Roles).</p>}
 
-              {porCoord && (
-                <form className="tg-nueva" onSubmit={(e) => { e.preventDefault(); void zonaPorCoordenadas() }}>
-                  <b>Zona desde una ubicación</b>
-                  <input autoFocus value={porCoord.nombre} onChange={(e) => setPorCoord({ ...porCoord, nombre: e.target.value })} placeholder="Nombre: Arenosa, Fábrica…" aria-label="Nombre de la zona" maxLength={40} />
-                  <input value={porCoord.texto} onChange={(e) => setPorCoord({ ...porCoord, texto: e.target.value })} placeholder="Plus Code (X6FH+WC) o coordenadas (10.9748, -74.7714)" aria-label="Ubicación" />
-                  <label className="tg-placa-edit">Lado del cuadro (metros)
-                    <input value={porCoord.lado} onChange={(e) => setPorCoord({ ...porCoord, lado: e.target.value.replace(/\D/g, "") })} inputMode="numeric" maxLength={4} />
-                  </label>
-                  <select value={porCoord.punto} onChange={(e) => setPorCoord({ ...porCoord, punto: e.target.value })} aria-label="Punto de Traspasos">
-                    <option value="">Punto de Traspasos: (igual al nombre)</option>
-                    {puntos.map((p) => <option key={p.clave} value={p.clave}>{p.nombre}</option>)}
-                  </select>
-                  <p className="tg-nota">En Google Maps: clic derecho sobre el sitio → copia las coordenadas, o abre el sitio y copia su Plus Code. Se crea un cuadro centrado ahí; si no cubre bien el patio, dibújala a mano.</p>
+              {editar && (
+                <form className="tg-nueva tg-dir" onSubmit={(e) => { e.preventDefault(); void guardarEdicion() }}>
+                  <b>{editar.id ? `Ajustar «${editar.nombre}»` : "Zona por dirección"}</b>
+                  {!editar.id && (<>
+                    <div className="tg-busca">
+                      <input autoFocus value={busca.texto} onChange={(e) => setBusca({ ...busca, texto: e.target.value })}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void buscarDireccion() } }}
+                        placeholder="Cra 38 #10-50, Barranquilla · o coordenadas · o Plus Code" aria-label="Dirección" />
+                      <button type="button" className="tg-btn" disabled={busca.cargando || !busca.texto.trim()} onClick={() => void buscarDireccion()}>{busca.cargando ? "Buscando…" : "Buscar"}</button>
+                    </div>
+                    {busca.resultados && busca.resultados.length > 0 && (
+                      <ul className="tg-res">{busca.resultados.map((r, k) => (
+                        <li key={k}><button type="button" onClick={() => { ponerCentro([r.lat, r.lng]); setBusca({ ...busca, resultados: null }) }}>{r.nombre}</button></li>
+                      ))}</ul>
+                    )}
+                    <button type="button" className="tg-btn plano" onClick={() => setDibujo("punto")}>…o toca el sitio en el mapa</button>
+                  </>)}
+                  {editar.poligono.length >= 3 && (<>
+                    {!editar.id && (
+                      <div className="tg-radio" role="group" aria-label="Tamaño del perímetro">
+                        <span>Perímetro</span>
+                        {[80, 150, 250, 400].map((r) => (
+                          <button key={r} type="button" aria-pressed={editar.radio === r} onClick={() => editar.centro && ponerCentro(editar.centro, r)}>{r} m</button>
+                        ))}
+                      </div>
+                    )}
+                    <p className="tg-nota">En el mapa: <b>arrastra los cuadritos</b> de las esquinas hasta que el perímetro encierre el patio · toca un <b>+</b> para agregar una esquina · doble clic en una esquina la quita.</p>
+                    <input value={editar.nombre} onChange={(e) => setEditar({ ...editar, nombre: e.target.value })} placeholder="Nombre: Arenosa, Fábrica…" aria-label="Nombre de la zona" maxLength={40} />
+                    <select value={editar.punto} onChange={(e) => setEditar({ ...editar, punto: e.target.value })} aria-label="Punto de Traspasos">
+                      <option value="">Punto de Traspasos: (igual al nombre)</option>
+                      {puntos.map((p) => <option key={p.clave} value={p.clave}>{p.nombre}</option>)}
+                    </select>
+                    <div className="tg-colores" role="group" aria-label="Color">
+                      {COLORES_ZONA.map((c) => <button key={c} type="button" style={{ background: c }} aria-pressed={editar.color === c} aria-label={`Color ${c}`} onClick={() => setEditar({ ...editar, color: c })} />)}
+                    </div>
+                  </>)}
                   <div className="tg-acciones">
-                    <button type="submit" className="tg-btn fuerte" disabled={ocupado}>Crear zona</button>
-                    <button type="button" className="tg-btn plano" onClick={() => setPorCoord(null)}>Descartar</button>
+                    {editar.poligono.length >= 3 && <button type="submit" className="tg-btn fuerte" disabled={ocupado}>{editar.id ? "Guardar ajuste" : "Guardar zona"}</button>}
+                    <button type="button" className="tg-btn plano" onClick={() => { setEditar(null); setDibujo(null); setBusca({ texto: "", cargando: false, resultados: null }) }}>Descartar</button>
                   </div>
                 </form>
               )}
@@ -538,7 +599,10 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
                         </select>
                       ) : !enDemo && puntoDeZona.get(z.id) ? <small>Punto: {puntos.find((p) => p.clave === puntoDeZona.get(z.id))?.nombre ?? puntoDeZona.get(z.id)}</small> : null}
                     </span>
-                    {puedeEditar && !enDemo && <button type="button" className="tg-x" onClick={() => void quitarZona(z.id, z.nombre)} aria-label={`Quitar ${z.nombre}`}>Quitar</button>}
+                    {puedeEditar && !enDemo && <span className="tg-zacc">
+                      <button type="button" className="tg-x aj" disabled={!!editar || !!dibujo} onClick={() => { setOk(null); setMal(null); setEditar({ id: z.id, nombre: z.nombre, color: z.color, punto: puntoDeZona.get(z.id) ?? "", centro: centro(z.poligono), radio: 0, poligono: z.poligono, llave: z.id }) }} aria-label={`Ajustar ${z.nombre}`}>Ajustar</button>
+                      <button type="button" className="tg-x" onClick={() => void quitarZona(z.id, z.nombre)} aria-label={`Quitar ${z.nombre}`}>Quitar</button>
+                    </span>}
                   </li>
                 ))}
                 {(foto?.zonas.length ?? 0) === 0 && <li className="tg-vacio">Aún no hay zonas. Dibuja la primera.</li>}

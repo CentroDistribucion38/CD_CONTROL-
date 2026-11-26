@@ -145,3 +145,21 @@
 .tg-nueva select, .tg-punto { height: 36px; padding: 0 8px; border: 1px solid var(--tg-linea); background: #fff; font: 600 .8rem Arial, sans-serif; border-radius: 0 }
 .tg-punto { margin-top: 4px; max-width: 100%; height: 30px; font-size: .74rem }
 .tg-pest button { padding-left: 4px; padding-right: 4px }
+
+/* ===== Zona por dirección y ajuste de esquinas ===== */
+.tg-dir .tg-busca { display: flex; gap: 6px }
+.tg-dir .tg-busca input { flex: 1; min-width: 0 }
+.tg-res { list-style: none; margin: 0; padding: 0; border: 1px solid #d5dce5; max-height: 200px; overflow: auto; background: #fff }
+.tg-res li + li { border-top: 1px solid #eef0f3 }
+.tg-res button { all: unset; display: block; width: 100%; box-sizing: border-box; padding: 9px 10px; font-size: 13px; cursor: pointer; color: #111 }
+.tg-res button:hover, .tg-res button:focus-visible { background: #fff6d6; box-shadow: inset 3px 0 0 #ffc20e }
+.tg-radio { display: flex; align-items: center; gap: 0; flex-wrap: wrap }
+.tg-radio span { font: 700 11px var(--fe-texto, system-ui); letter-spacing: .08em; text-transform: uppercase; color: #5b6b7f; margin-right: 8px }
+.tg-radio button { border: 1px solid #d5dce5; background: #fff; padding: 6px 10px; font: 700 12.5px var(--fe-texto, system-ui); cursor: pointer; margin-left: -1px; border-radius: 0 }
+.tg-radio button[aria-pressed="true"] { background: #ffc20e; border-color: #ffc20e; font-weight: 800; position: relative }
+.tg-zacc { display: flex; gap: 4px }
+.tg-x.aj { color: #111 }
+.tg-vert i { display: block; width: 14px; height: 14px; margin: 2px; background: #ffc20e; border: 2px solid #111; box-sizing: border-box; cursor: grab }
+.tg-vert:active i { cursor: grabbing }
+.tg-vert-mas i { display: grid; place-items: center; width: 16px; height: 16px; margin: 1px; background: #fff; border: 1.5px solid #111; color: #111; font: 800 12px/1 system-ui; font-style: normal; cursor: pointer; opacity: .85 }
+.tg-vert-mas i:hover { background: #ffc20e; opacity: 1 }

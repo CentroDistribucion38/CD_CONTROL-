@@ -31,10 +31,12 @@ function cargarLeaflet(): Promise<any> {
 }
 
 export type CapaBase = "calles" | "oscuro" | "satelite";
-const CAPAS: Record<CapaBase, { url: string; atrib: string; sub?: string }> = {
-  calles: { url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", atrib: "© OpenStreetMap · © CARTO", sub: "abcd" },
-  oscuro: { url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", atrib: "© OpenStreetMap · © CARTO", sub: "abcd" },
-  satelite: { url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", atrib: "Imágenes © Esri" },
+/* Los fondos del mapa. CARTO empezó a pedir clave («API KEY REQUIRED» encima del mapa): calles y oscuro pasan a los
+   mapas de Esri, que no la piden (los mismos del satélite). maxNativeZoom: hasta dónde hay imagen; más cerca se amplía. */
+const CAPAS: Record<CapaBase, { url: string; atrib: string; sub?: string; nativo: number }> = {
+  calles: { url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", atrib: "Mapa © Esri · OpenStreetMap", nativo: 19 },
+  oscuro: { url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}", atrib: "Mapa © Esri", nativo: 16 },
+  satelite: { url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", atrib: "Imágenes © Esri", nativo: 19 },
 };
 
 export type ZonaMapa = { id: string; nombre: string; color: string; poligono: Punto[]; adentro: number };
@@ -43,9 +45,11 @@ export type FlujoMapa = { origen: Punto; destino: Punto; viajes: number; texto: 
 
 const escapar = (t: string) => t.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string));
 
-export function MapaGps({ zonas, vehiculos, flujos, capa, dibujo, alDibujar, alCancelarDibujo, seleccion, alSeleccionar, ajustar, centroInicial }: {
+export function MapaGps({ zonas, vehiculos, flujos, capa, dibujo, alDibujar, alCancelarDibujo, seleccion, alSeleccionar, ajustar, centroInicial, edicion, alEditar }: {
   zonas: ZonaMapa[]; vehiculos: VehiculoMapa[]; flujos: FlujoMapa[]; capa: CapaBase;
-  dibujo: null | "rect" | "poli"; alDibujar: (p: Punto[]) => void; alCancelarDibujo: () => void;
+  dibujo: null | "rect" | "poli" | "punto"; alDibujar: (p: Punto[]) => void; alCancelarDibujo: () => void;
+  /** Una zona que se está ajustando: sus puntos se arrastran; los «+» del medio agregan un punto; doble clic en un punto lo quita. */
+  edicion?: { poligono: Punto[]; color: string; llave: string } | null; alEditar?: (p: Punto[]) => void;
   seleccion: string | null; alSeleccionar: (id: string | null) => void;
   /** Cada vez que cambia, el mapa se encuadra sobre las zonas. */
   ajustar: number; centroInicial: Punto;
@@ -54,11 +58,11 @@ export function MapaGps({ zonas, vehiculos, flujos, capa, dibujo, alDibujar, alC
   const mapa = useRef<any>(null);
   const L = useRef<any>(null);
   const base = useRef<any>(null);
-  const grupoZonas = useRef<any>(null), grupoFlujos = useRef<any>(null), grupoDibujo = useRef<any>(null);
+  const grupoZonas = useRef<any>(null), grupoFlujos = useRef<any>(null), grupoDibujo = useRef<any>(null), grupoEdicion = useRef<any>(null);
   const marcas = useRef(new Map<string, any>());
   const dibujando = useRef(false);
-  const cb = useRef({ alDibujar, alCancelarDibujo, alSeleccionar });
-  cb.current = { alDibujar, alCancelarDibujo, alSeleccionar };
+  const cb = useRef({ alDibujar, alCancelarDibujo, alSeleccionar, alEditar });
+  cb.current = { alDibujar, alCancelarDibujo, alSeleccionar, alEditar };
   const [listo, setListo] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,6 +79,7 @@ export function MapaGps({ zonas, vehiculos, flujos, capa, dibujo, alDibujar, alC
       grupoZonas.current = leaf.layerGroup().addTo(m);
       grupoFlujos.current = leaf.layerGroup().addTo(m);
       grupoDibujo.current = leaf.layerGroup().addTo(m);
+      grupoEdicion.current = leaf.layerGroup().addTo(m);
       m.on("click", () => { if (!dibujando.current) cb.current.alSeleccionar(null) });
       mapa.current = m;
       setTimeout(() => m.invalidateSize(), 60);
@@ -90,7 +95,7 @@ export function MapaGps({ zonas, vehiculos, flujos, capa, dibujo, alDibujar, alC
     if (!listo) return;
     const c = CAPAS[capa];
     base.current?.remove();
-    base.current = L.current.tileLayer(c.url, { attribution: c.atrib, subdomains: c.sub ?? "abc", maxZoom: 19, detectRetina: true }).addTo(mapa.current);
+    base.current = L.current.tileLayer(c.url, { attribution: c.atrib, subdomains: c.sub ?? "abc", maxZoom: 20, maxNativeZoom: c.nativo }).addTo(mapa.current);
     base.current.bringToBack();
     caja.current?.setAttribute("data-capa", capa);
   }, [listo, capa]);
@@ -176,6 +181,7 @@ export function MapaGps({ zonas, vehiculos, flujos, capa, dibujo, alDibujar, alC
 
     const clic = (e: any) => {
       const p: [number, number] = [e.latlng.lat, e.latlng.lng];
+      if (dibujo === "punto") { fin([p]); return }
       if (dibujo === "rect") {
         if (pts.length === 0) { pts = [p]; return }
         const [a] = pts;
@@ -213,6 +219,38 @@ export function MapaGps({ zonas, vehiculos, flujos, capa, dibujo, alDibujar, alC
       g.clearLayers();
     };
   }, [listo, dibujo]);
+
+  /* AJUSTAR UNA ZONA: el borde punteado amarillo, un cuadrito por esquina que se arrastra y un «+» en la mitad de cada
+     lado para agregar una esquina. Doble clic en una esquina la quita (mínimo 3). Al entrar se encuadra sobre la zona. */
+  const llaveEd = edicion?.llave ?? null;
+  useEffect(() => {
+    if (!listo || !llaveEd || !edicion) return;
+    const pts = edicion.poligono;
+    if (pts.length) mapa.current.fitBounds(L.current.latLngBounds(pts), { padding: [70, 70], maxZoom: 18 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listo, llaveEd]);
+  useEffect(() => {
+    if (!listo) return;
+    const g = grupoEdicion.current, leaf = L.current;
+    g.clearLayers();
+    if (!edicion || edicion.poligono.length < 3) return;
+    let pts = edicion.poligono.map((p) => [p[0], p[1]] as Punto);
+    const poli = leaf.polygon(pts, { color: "#111", weight: 2.5, dashArray: "6 5", fillColor: edicion.color, fillOpacity: 0.25, interactive: false }).addTo(g);
+    const esquina = leaf.divIcon({ className: "tg-vert", html: "<i></i>", iconSize: [18, 18], iconAnchor: [9, 9] });
+    const medio = leaf.divIcon({ className: "tg-vert-mas", html: "<i>+</i>", iconSize: [18, 18], iconAnchor: [9, 9] });
+    pts.forEach((p, k) => {
+      const mk = leaf.marker(p, { draggable: true, icon: esquina, zIndexOffset: 900, keyboard: false }).addTo(g);
+      mk.on("drag", (e: any) => { const ll = e.target.getLatLng(); pts = pts.map((q, j) => (j === k ? [ll.lat, ll.lng] as Punto : q)); poli.setLatLngs(pts) });
+      mk.on("dragend", () => cb.current.alEditar?.(pts));
+      mk.on("dblclick", (e: any) => { leaf.DomEvent.stopPropagation(e); if (pts.length > 3) cb.current.alEditar?.(pts.filter((_, j) => j !== k)) });
+    });
+    pts.forEach((p, k) => {
+      const q = pts[(k + 1) % pts.length];
+      const mid: Punto = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
+      const mk = leaf.marker(mid, { icon: medio, zIndexOffset: 800, keyboard: false, title: "Agregar una esquina aquí" }).addTo(g);
+      mk.on("click", (e: any) => { leaf.DomEvent.stopPropagation(e); const n = [...pts]; n.splice(k + 1, 0, mid); cb.current.alEditar?.(n) });
+    });
+  }, [listo, edicion]);
 
   return (
     <div className="tg-mapa-caja">
