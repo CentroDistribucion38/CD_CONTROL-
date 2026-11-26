@@ -308,9 +308,10 @@ export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, res
                     <tr key={x.i.id} className={"es-pi" + (x.pi ? "" : " suelto") + (activos.has(x.i.id) ? " disp" : "") + (x.i.activo ? "" : " inact")}>
                       <td className="fijo f1">
                         <button type="button" className="tb-ed" disabled={!puedeIndicador} onClick={() => setFicha(deIndicador(x.i, turnos))} title={puedeIndicador ? "Abrir la ficha del indicador" : undefined}>
+                          {/* Lo que se lee primero es QUÉ se mide; el código va pequeño debajo. */}
+                          <span className="nom">{x.i.nombre}</span>
                           <b>{x.i.codigo}</b><span className="tb-tag">PI</span>
                           {!x.i.activo && <span className="tb-tag off">Inactivo</span>}
-                          <span className="nom">{x.i.nombre}</span>
                         </button>
                       </td>
                       <td className="fijo f2"><button type="button" className="tb-ed val" disabled={!puedeIndicador} onClick={() => setFicha(deIndicador(x.i, turnos))}>{textoMeta({ ...x.i, unidad: "" })}{puedeIndicador && <i aria-hidden>✎</i>}</button></td>

@@ -82,6 +82,10 @@
 .gs .tb-ed .nom { flex-basis: 100%; font-size: 12.5px; color: var(--fe-gris); line-height: 1.3 }
 .gs .tb-t tr.es-pi .tb-ed { padding-left: 26px }
 .gs .tb-t tr.es-pi.suelto .tb-ed { padding-left: 12px }
+/* En el PI manda el nombre: oscuro y firme; el código y la ficha «PI», chicos y grises debajo. */
+.gs .tb-t tr.es-pi .tb-ed .nom { order: -1; font: 700 13.5px var(--fe-texto); color: var(--fe-tinta); line-height: 1.3 }
+.gs .tb-t tr.es-pi .tb-ed b { font: 600 11px var(--fe-texto); color: var(--fe-gris); letter-spacing: .02em }
+.gs .tb-t tr.es-pi .tb-ed .tb-tag { padding: 1px 5px; font-size: 9px }
 .gs .tb-ed.val { flex-wrap: nowrap; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap }
 .gs .tb-ed.val.off { color: var(--fe-gris); font-weight: 500 }
 .gs .tb-ed i { font-style: normal; color: var(--fe-gris); font-size: 12px; margin-left: auto; padding-left: 6px }
@@ -195,6 +199,7 @@
   .gs .tb-t .f1 { width: 150px; min-width: 150px; max-width: 150px; box-shadow: 2px 0 0 var(--fe-linea) }
   .gs .tb-t .f2, .gs .tb-t .fu, .gs .tb-t .f3 { position: static; box-shadow: none }
   .gs .tb-ed .nom { font-size: 11.5px }
+  .gs .tb-t tr.es-pi .tb-ed .nom { font-size: 12.5px }
   .gs .h5-velo { padding: 0 }
   .gs .h5 { min-height: 100%; padding: 14px }
   .gs .h5-relevo { grid-template-columns: repeat(2, minmax(0, 1fr)) }
