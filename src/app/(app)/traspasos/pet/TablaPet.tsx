@@ -17,7 +17,9 @@ const corto = (f: string) => {
 };
 
 type Vh = { viaje: string; fecha: string; turno: string; hora: string | null; placa: string | null;
-            origen: string | null; destino: string | null; por: Map<number | null, number>; total: number; sinSku: boolean; carga: number };
+            origen: string | null; destino: string | null; por: Map<number | null, number>; total: number; sinSku: boolean; carga: number;
+            /** Lo que trasladó: cada SKU con su descripción, formato y cantidad (en la unidad escogida). */
+            skus: { sku: string; desc: string; fm: number | null; q: number }[] };
 
 /**
  * LA TABLA DE PET. Un renglón por Vh (los SKU del mismo formato se suman), una columna por formato con una barrita
@@ -42,12 +44,16 @@ export function TablaPet({ filas, desde, hasta }: { filas: FilaPet[]; desde: str
   const vhs = useMemo(() => {
     const m = new Map<string, Vh>();
     for (const f of vistas) {
-      const v = m.get(f.viaje) ?? { viaje: f.viaje, fecha: f.fecha, turno: f.turno, hora: f.hora, placa: f.placa,
-                                    origen: f.origen, destino: f.destino, por: new Map(), total: 0, sinSku: true, carga: 0 };
+      const v: Vh = m.get(f.viaje) ?? { viaje: f.viaje, fecha: f.fecha, turno: f.turno, hora: f.hora, placa: f.placa,
+                                    origen: f.origen, destino: f.destino, por: new Map(), total: 0, sinSku: true, carga: 0, skus: [] };
       if (f.sku) v.sinSku = false;
       v.carga += f.estibas;
       const c = cantidad(f, unidad);
       v.por.set(f.formato_ml, (v.por.get(f.formato_ml) ?? 0) + c);
+      if (f.sku) {
+        const y = v.skus.find((x) => x.sku === f.sku);
+        if (y) y.q += c; else v.skus.push({ sku: f.sku, desc: f.descripcion, fm: f.formato_ml, q: c });
+      }
       v.total += c;
       m.set(f.viaje, v);
     }
@@ -56,6 +62,15 @@ export function TablaPet({ filas, desde, hasta }: { filas: FilaPet[]; desde: str
   }, [vistas, unidad]);
 
   const dias = [...new Set(vhs.map((v) => v.fecha))];
+  /* Lo mismo que la hoja «Por SKU» del Excel: qué se trasladó, de mayor a menor. */
+  const porSku = useMemo(() => {
+    const m = new Map<string, { sku: string; desc: string; fm: number | null; q: number; vhs: Set<string>; placas: Set<string> }>();
+    for (const v of vhs) for (const k of v.skus) {
+      const x = m.get(k.sku) ?? { sku: k.sku, desc: k.desc, fm: k.fm, q: 0, vhs: new Set(), placas: new Set() };
+      x.q += k.q; x.vhs.add(v.viaje); if (v.placa) x.placas.add(v.placa); m.set(k.sku, x);
+    }
+    return [...m.values()].sort((a, b) => b.q - a.q);
+  }, [vhs]);
   const tot = (lista: Vh[], fm?: number | null) => lista.reduce((a, v) => a + (fm === undefined ? v.total : v.por.get(fm) ?? 0), 0);
   const enVhs = (fm: number | null) => vhs.filter((v) => (v.por.get(fm) ?? 0) > 0).length;
   const T = tot(vhs);
@@ -139,7 +154,7 @@ export function TablaPet({ filas, desde, hasta }: { filas: FilaPet[]; desde: str
           <table className="pv-tabla">
             <thead>
               <tr>
-                <th>Turno · hora</th><th>Placa</th><th>Origen → destino</th>
+                <th>Turno</th><th>Hora</th><th>Placa</th><th>Origen → destino</th><th>SKU · descripción</th>
                 {visibles.map((fm) => <th key={String(fm)} className="n"><i className="sw" style={{ background: colorFormato(fm) }} />{nombreFormato(fm)}</th>)}
                 <th className="n tt">Total</th>
               </tr>
@@ -149,15 +164,21 @@ export function TablaPet({ filas, desde, hasta }: { filas: FilaPet[]; desde: str
                 const del = vhs.filter((v) => v.fecha === d);
                 return [
                   <tr key={d} className="dia">
-                    <td colSpan={3}><b>{corto(d)}</b><small>{del.length} {del.length === 1 ? "Vh" : "Vhs"} · {n.format(tot(del))} {u}</small></td>
+                    <td colSpan={5}><b>{corto(d)}</b><small>{del.length} {del.length === 1 ? "Vh" : "Vhs"} · {n.format(tot(del))} {u}</small></td>
                     {visibles.map((fm) => <td key={String(fm)} className="n">{tot(del, fm) ? n.format(tot(del, fm)) : "—"}</td>)}
                     <td className="n tt">{n.format(tot(del))}</td>
                   </tr>,
                   ...del.flatMap((v) => [
                     <tr key={v.viaje}>
-                      <td><span className="turno">{v.turno}</span>{v.hora?.slice(0, 5) ?? ""}</td>
+                      <td><span className="turno">{v.turno}</span></td>
+                      <td>{v.hora?.slice(0, 5) ?? ""}</td>
                       <td>{v.placa ? <span className="pl">{v.placa}</span> : "—"}</td>
                       <td className="pv-ruta"><b>{v.origen ?? "—"}</b> <span>→</span> {v.destino ?? "—"}</td>
+                      <td className="pv-skus">
+                        {v.skus.length ? v.skus.map((k) => (
+                          <span key={k.sku} className="pv-sku"><i className="sw" style={{ background: colorFormato(k.fm) }} /><b>{k.sku}</b> {k.desc}{v.skus.length > 1 && <em> · {n.format(k.q)}</em>}</span>
+                        )) : <span className="pv-sku sin">Sin SKU</span>}
+                      </td>
                       {visibles.map((fm) => {
                         const c = v.por.get(fm) ?? 0;
                         return (
@@ -172,7 +193,7 @@ export function TablaPet({ filas, desde, hasta }: { filas: FilaPet[]; desde: str
                       <td className="n tt"><b>{n.format(v.total)}</b></td>
                     </tr>,
                     ...(poniendo === v.viaje ? [
-                      <tr key={`${v.viaje}-poner`} className="pv-poner-fila"><td colSpan={4 + visibles.length}>
+                      <tr key={`${v.viaje}-poner`} className="pv-poner-fila"><td colSpan={6 + visibles.length}>
                         <PonerSku viaje={v.viaje} carga={v.carga} alCerrar={() => setPoniendo(null)} alGuardar={() => { setPoniendo(null); router.refresh() }} />
                       </td></tr>,
                     ] : []),
@@ -180,13 +201,34 @@ export function TablaPet({ filas, desde, hasta }: { filas: FilaPet[]; desde: str
                 ];
               })}
               <tr className="sum">
-                <td colSpan={3}>Total · {vhs.length} {vhs.length === 1 ? "Vh" : "Vhs"}</td>
+                <td colSpan={5}>Total · {vhs.length} {vhs.length === 1 ? "Vh" : "Vhs"} · {porSku.length} SKU</td>
                 {visibles.map((fm) => <td key={String(fm)} className="n">{n.format(tot(vhs, fm))}</td>)}
                 <td className="n tt">{n.format(T)}</td>
               </tr>
             </tbody>
           </table>
         </div>
+        <details className="caja pv-porsku">
+          <summary><b>Por SKU</b> · qué se trasladó, de mayor a menor ({porSku.length} SKU)</summary>
+          <div className="pv-tabla-caja">
+            <table className="pv-tabla">
+              <thead><tr><th>SKU</th><th>Descripción</th><th>Formato</th><th className="n">Vhs</th><th>Placas</th><th className="n tt">Total ({u})</th><th className="n">% del total</th></tr></thead>
+              <tbody>
+                {porSku.map((k) => (
+                  <tr key={k.sku}>
+                    <td><b>{k.sku}</b></td>
+                    <td className="pv-desc">{k.desc}</td>
+                    <td><i className="sw" style={{ background: colorFormato(k.fm) }} />{nombreFormato(k.fm)}</td>
+                    <td className="n">{k.vhs.size}</td>
+                    <td className="pv-desc">{[...k.placas].join(" · ")}</td>
+                    <td className="n tt"><b>{n.format(k.q)}</b></td>
+                    <td className="n">{T ? `${n.format((100 * k.q) / T)} %` : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
         <p className="guia">Del {corto(desde)} al {corto(hasta)} · {DIAS[diaSemana(hasta)]} incluido. Un Vh que lleva dos SKU del mismo formato suma los dos en esa columna. A los viajes de antes el formato se les saca del documento SAP del viaje (Traspasos › Importar) o de la nota; «Sin formato» son los que no traen ninguno de los dos: cuentan como Vh con su carga.</p>
       </>)}
     </>

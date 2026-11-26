@@ -77,3 +77,16 @@
 .tp .pv-mat tr.cero td.n b { color: var(--tp-linea) }
 .tp .pv-mat tr.sum td { background: var(--tp-fondo) }
 .tp .pv-mat .pv-dias { font-size: 12px; color: var(--tp-gris) }
+
+/* ---------- Vhs por formato: lo que trasladó cada Vh y el resumen por SKU ---------- */
+.tp .pv-tabla td.pv-skus { white-space: normal; min-width: 260px; max-width: 420px }
+.tp .pv-sku { display: block; font-size: 12.5px; line-height: 1.35; color: var(--tp-gris) }
+.tp .pv-sku + .pv-sku { margin-top: 3px }
+.tp .pv-sku b { color: var(--tp-tinta); font-weight: 700; margin-right: 4px; font-variant-numeric: tabular-nums }
+.tp .pv-sku em { font-style: normal; font-weight: 700; color: var(--tp-tinta) }
+.tp .pv-sku.sin { font-style: italic }
+.tp .pv-tabla .pv-desc { white-space: normal; color: var(--tp-gris); font-size: 12.5px }
+.tp .pv-porsku { margin-top: 10px }
+.tp .pv-porsku summary { padding: 12px 16px; cursor: pointer; font-size: 13.5px; color: var(--tp-gris) }
+.tp .pv-porsku summary b { color: var(--tp-tinta) }
+.tp .pv-porsku[open] summary { border-bottom: 1px solid var(--tp-linea) }
