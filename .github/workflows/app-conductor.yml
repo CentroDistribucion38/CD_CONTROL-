@@ -29,12 +29,16 @@ jobs:
           cache: npm
           cache-dependency-path: apps/conductor/package-lock.json
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
 
-      - uses: android-actions/setup-android@v3
+      # El SDK de Android ya viene instalado en ubuntu-latest (ANDROID_HOME); solo se aceptan las licencias
+      # para que Gradle baje solo la plataforma o las build-tools que falten.
+      - name: Licencias del SDK de Android
+        working-directory: .
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
 
       - name: Dependencias
         run: npm ci
