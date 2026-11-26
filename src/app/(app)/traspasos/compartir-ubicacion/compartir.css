@@ -18,3 +18,33 @@
 @keyframes cu-p { 0%, 100% { opacity: 1 } 50% { opacity: .25 } }
 .cu-notas { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 8px; font-size: .82rem; color: #3b434c }
 @media (prefers-reduced-motion: reduce) { .cu-pulso { animation: none } }
+
+/* ---------- Parte 2: los viajes de la placa ---------- */
+.cu-aviso.bien { border-left-color: #2fa66a; background: #e8f6ee }
+.cu-viajes { display: flex; flex-direction: column; gap: 10px; padding-top: 4px; border-top: 2px solid #15171a }
+.cu-viajes-cab { display: flex; align-items: center; gap: 10px; flex-wrap: wrap }
+.cu-viajes-cab h2 { margin: 0; flex: 1; font: 800 .8rem "IBM Plex Mono", ui-monospace, monospace; letter-spacing: .1em; text-transform: uppercase }
+.cu-viajes-cab span { font-size: .78rem; color: #5a6470; font-variant-numeric: tabular-nums }
+.cu-mini { min-height: 40px; padding: 0 14px; border: 1px solid #15171a; border-radius: 0; background: #fff; color: #15171a; font: 700 .82rem Arial, sans-serif; cursor: pointer }
+.cu-mini.fuerte { background: #ffc20e; border-color: #ffc20e }
+.cu-mini:disabled { opacity: .5; cursor: default }
+.cu-vacio { margin: 0; padding: 14px; background: #f4f5f6; color: #3b434c; font-size: .86rem }
+.cu-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px }
+.cu-viaje { display: flex; gap: 12px; padding: 12px; border: 1px solid #d8dce0; border-left: 5px solid #d8dce0; background: #fff }
+.cu-viaje.curso { border-color: #ffc20e; border-left-color: #ffc20e; background: #fffaeb }
+.cu-viaje.llego { border-left-color: #2fa66a; background: #f6faf8 }
+.cu-num { flex: none; width: 30px; height: 30px; display: grid; place-items: center; border: 2px solid #15171a; font: 800 .9rem "IBM Plex Mono", ui-monospace, monospace }
+.cu-viaje.curso .cu-num { background: #ffc20e; border-color: #ffc20e }
+.cu-viaje.llego .cu-num { border-color: #2fa66a; color: #2fa66a }
+.cu-viaje-cuerpo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px }
+.cu-ruta { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; font-size: 1.02rem; line-height: 1.2; overflow-wrap: anywhere }
+.cu-ruta span { color: #d64550; font-weight: 800 }
+.cu-meta, .cu-nota { margin: 0; font-size: .78rem; color: #5a6470 }
+.cu-sigue { margin: 0; font-size: .86rem; font-variant-numeric: tabular-nums }
+.cu-viaje.llego .cu-sigue { color: #1f6b45 }
+.cu-check { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 0 14px; border: 2px solid #15171a; border-radius: 0; background: #fff; color: #15171a; font: 800 .98rem Arial, sans-serif; text-align: left; cursor: pointer }
+.cu-check:not(:disabled):active { background: #ffc20e }
+.cu-check:disabled { border-color: #c4c9ce; color: #8a94a0; cursor: default }
+.cu-caja-check { flex: none; width: 22px; height: 22px; border: 2px solid currentColor; background: #fff }
+.cu-botones { display: flex; gap: 8px; flex-wrap: wrap }
+.cu-check:focus-visible, .cu-mini:focus-visible { outline: 3px solid #1d9bd1; outline-offset: 2px }

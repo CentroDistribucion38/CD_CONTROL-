@@ -22,7 +22,7 @@ export function idDeCelular(placa: string): number {
 
 export type EntradaCelular = { placa: string; lat: number; lng: number; velocidad: number | null; rumbo: number | null; en: string };
 export type ResultadoCelular =
-  | { ok: true; zona: string | null; entradas: number; salidas: number }
+  | { ok: true; zona: string | null; entradas: number; salidas: number; zonas: Zona[] }
   | { ok: false; estado: number; error: string };
 
 export async function registrarCelular(db: SupabaseClient, e: EntradaCelular): Promise<ResultadoCelular> {
@@ -48,5 +48,5 @@ export async function registrarCelular(db: SupabaseClient, e: EntradaCelular): P
   }
   const zona = est?.zonaId ? zonas.find((z) => z.id === est.zonaId)?.nombre ?? null : null;
   const r = res as { entradas?: number; salidas?: number } | null;
-  return { ok: true, zona, entradas: r?.entradas ?? 0, salidas: r?.salidas ?? 0 };
+  return { ok: true, zona, entradas: r?.entradas ?? 0, salidas: r?.salidas ?? 0, zonas };
 }

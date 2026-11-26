@@ -10,6 +10,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { clienteDeServicio } from "@/lib/supabase/servicio";
 import { limpiarPlaca, placaValida, registrarCelular } from "@/modulos/traspasos/gps/celular";
+import { seguirPosicion } from "@/modulos/traspasos/gps/recorridos";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -37,10 +38,13 @@ export async function POST(req: Request) {
   const db = clienteDeServicio();
   if (!db) return NextResponse.json({ error: "Falta SUPABASE_SERVICE_ROLE_KEY en Vercel." }, { status: 503 });
   const vel = Number(c.velocidad), rum = Number(c.rumbo);
-  const r = await registrarCelular(db, {
-    placa, lat, lng, en: new Date().toISOString(),
+  const fix = {
+    lat, lng, en: new Date().toISOString(), precision,
     velocidad: Number.isFinite(vel) && vel >= 0 ? vel : null, rumbo: Number.isFinite(rum) && rum >= 0 ? rum : null,
-  });
+  };
+  const r = await registrarCelular(db, { placa, ...fix });
   if (!r.ok) return NextResponse.json({ error: r.error }, { status: r.estado });
-  return NextResponse.json({ ok: true, zona: r.zona, entradas: r.entradas, salidas: r.salidas });
+  /* Parte 2: la posición queda guardada con el viaje en curso de la placa y, si entró a la geocerca destino, el viaje se cierra. */
+  const recorrido = await seguirPosicion(db, placa, fix, r.zonas).catch(() => null);
+  return NextResponse.json({ ok: true, zona: r.zona, entradas: r.entradas, salidas: r.salidas, recorrido });
 }
