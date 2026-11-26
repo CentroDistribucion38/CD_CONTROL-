@@ -1,0 +1,68 @@
+# CONTROL CONDUCTOR — compila la app Android (apps/conductor) y la deja lista para descargar.
+# Corre sola cuando cambia algo de apps/conductor en main, o a mano: Actions → «App CONTROL Conductor» → Run workflow.
+# Resultado: una versión nueva en Releases (control-conductor.apk), firmada siempre igual para que se instale encima.
+name: App CONTROL Conductor
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "apps/conductor/**"
+      - ".github/workflows/app-conductor.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/conductor
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/conductor/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Dependencias
+        run: npm ci
+
+      - name: Preparar el proyecto Android
+        run: npx cap sync android
+
+      - name: Compilar (firmada)
+        working-directory: apps/conductor/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Nombre del archivo
+        run: cp android/app/build/outputs/apk/release/app-release.apk control-conductor.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: control-conductor
+          path: apps/conductor/control-conductor.apk
+
+      - name: Publicar la versión
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: conductor-v${{ github.run_number }}
+          name: CONTROL Conductor 1.0.${{ github.run_number }}
+          body: |
+            App Android de CONTROL para los conductores: manda la ubicación del vehículo aunque el celular esté bloqueado.
+            Descarga **control-conductor.apk**, ábrelo en el celular y acepta «Instalar apps de origen desconocido».
+          files: apps/conductor/control-conductor.apk
+          make_latest: true

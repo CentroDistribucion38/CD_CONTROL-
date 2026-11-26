@@ -3,11 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useConfirmar } from "@/components/Confirmar";
 import type { ViajeConductor } from "@/modulos/traspasos/gps/recorridos";
+import { ajustesNativo, empezarNativo, enApp, mandarNativo, pararNativo, type LugarNativo } from "./nativo";
 
 /* ===================================================================
    COMPARTIR UBICACIÓN — el celular del conductor manda su posición cada ~10 s.
-   Mientras esté activo se pide mantener la pantalla encendida (si el celular se bloquea o se cambia de
-   aplicación, el navegador pausa el GPS y se deja de reportar).
+   · En el navegador: mientras esté activo se pide mantener la pantalla encendida (si el celular se bloquea o se
+     cambia de aplicación, el navegador pausa el GPS y se deja de reportar).
+   · En la app CONTROL Conductor (Android): el GPS lo lleva Android en segundo plano y sigue con el celular bloqueado
+     (ver nativo.ts). Si la app se vuelve a abrir con un seguimiento activo, se retoma sola.
    =================================================================== */
 const CADA_MS = 10_000;
 const PRECISION_MAX_M = 50;   // igual que en el servidor: con más error no se puede decir en qué zona está
@@ -23,6 +26,9 @@ const minutos = (a: string, b: string | null) => { const m = Math.max(0, Math.ro
 const limpiar = (p: string) => p.toUpperCase().replace(/[^A-Z0-9]/g, "");
 const leerPlaca = () => { try { return localStorage.getItem("gps_placa") ?? "" } catch { return "" } };
 const guardarPlaca = (p: string) => { try { localStorage.setItem("gps_placa", p) } catch { /* sin almacenamiento */ } };
+/** En la app: si quedó compartiendo, al volver a abrirla se retoma sola. */
+const marcarActivo = (si: boolean) => { try { if (si) localStorage.setItem("gps_activo", "1"); else localStorage.removeItem("gps_activo") } catch { /* nada */ } };
+const estabaActivo = () => { try { return localStorage.getItem("gps_activo") === "1" } catch { return false } };
 
 export function Compartir({ conViajes = false }: { conViajes?: boolean }) {
   const [placa, setPlaca] = useState("");
@@ -46,7 +52,11 @@ export function Compartir({ conViajes = false }: { conViajes?: boolean }) {
   const placaRef = useRef("");
   const cargarRef = useRef<(() => Promise<void>) | null>(null);
 
-  useEffect(() => { setPlaca(leerPlaca()) }, []);
+  /* ¿Estamos dentro de la app CONTROL Conductor? */
+  const [app, setApp] = useState(false);
+  const nativoRef = useRef<{ id: string | null; url: string | null; ultimo: number }>({ id: null, url: null, ultimo: 0 });
+  const [sinPermiso, setSinPermiso] = useState(false);
+  useEffect(() => { setPlaca(leerPlaca()); setApp(enApp()) }, []);
 
   const pedirPantalla = useCallback(async () => {
     try {
@@ -78,6 +88,8 @@ export function Compartir({ conViajes = false }: { conViajes?: boolean }) {
   }, []);
 
   const parar = useCallback(() => {
+    if (nativoRef.current.id) { void pararNativo(nativoRef.current.id); nativoRef.current.id = null }
+    marcarActivo(false);
     if (watchRef.current != null) navigator.geolocation.clearWatch(watchRef.current);
     watchRef.current = null;
     if (timerRef.current) clearInterval(timerRef.current);
@@ -86,9 +98,43 @@ export function Compartir({ conViajes = false }: { conViajes?: boolean }) {
     setActivo(false); setEsperando(false);
   }, []);
 
+  /* EN LA APP: GPS de Android en segundo plano + envío nativo (sigue con el celular bloqueado). */
+  const empezarApp = useCallback(async (p: string) => {
+    setMal(null); setAviso(null); setEnviados(0); setUltimo(null); setSinPermiso(false);
+    placaRef.current = p; guardarPlaca(p); setPlaca(p);
+    const c = await fetch("/api/traspasos/gps/app-traccar", { cache: "no-store" }).then((r) => r.json()).catch(() => null) as { ok?: boolean; url?: string; falta?: string } | null;
+    if (!c?.ok || !c.url) { setMal(c?.falta ?? "No se pudo preparar el envío. Revisa el internet y vuelve a intentar."); return }
+    nativoRef.current = { id: null, url: c.url, ultimo: 0 };
+    setActivo(true); setEsperando(true); marcarActivo(true);
+    const id = await empezarNativo(p, (l?: LugarNativo, e?: { code?: string; message?: string }) => {
+      if (e) {
+        setEsperando(false);
+        if (e.code === "NOT_AUTHORIZED") { setSinPermiso(true); setMal("CONTROL Conductor no tiene permiso de ubicación.") }
+        else setAviso(e.message ?? "No encuentro la señal GPS…");
+        return;
+      }
+      if (!l) return;
+      setEsperando(false);
+      fixRef.current = { lat: l.latitude, lng: l.longitude, precision: l.accuracy, velocidad: l.speed != null && l.speed >= 0 ? l.speed * 3.6 : null, rumbo: l.bearing, en: l.time ?? Date.now() };
+      const ahora = Date.now();
+      if (ahora - nativoRef.current.ultimo < CADA_MS - 2000) return;
+      if (l.accuracy > PRECISION_MAX_M) { setAviso(`Tu ubicación tiene ±${Math.round(l.accuracy)} m de error: espera a tener mejor señal GPS.`); return }
+      nativoRef.current.ultimo = ahora;
+      void mandarNativo(nativoRef.current.url!, p, l).then((ok) => {
+        if (!ok) { setAviso("Sin internet. Sigo intentando…"); return }
+        setAviso(null); setMal(null);
+        setUltimo({ hora: hora(Date.now()), zona: null, precision: l.accuracy });
+        setEnviados((n) => n + 1);
+      });
+    });
+    if (!id) { setActivo(false); setEsperando(false); marcarActivo(false); setMal("No se pudo arrancar el GPS de la app."); return }
+    nativoRef.current.id = id;
+  }, []);
+
   const empezar = useCallback(() => {
     const p = limpiar(placa);
     if (!/^[A-Z0-9]{5,7}$/.test(p)) { setMal("Escribe la placa del vehículo (por ejemplo ABC123)."); return }
+    if (app) { void empezarApp(p); return }
     if (!("geolocation" in navigator)) { setMal("Este celular no permite ubicación en el navegador."); return }
     setMal(null); setAviso(null); setEnviados(0); setUltimo(null); enviadoRef.current = 0; fixRef.current = null;
     placaRef.current = p; guardarPlaca(p); setPlaca(p);
@@ -107,7 +153,15 @@ export function Compartir({ conViajes = false }: { conViajes?: boolean }) {
     );
     timerRef.current = setInterval(() => void mandar(), CADA_MS);
     void pedirPantalla();
-  }, [placa, mandar, parar, pedirPantalla]);
+  }, [placa, mandar, parar, pedirPantalla, app, empezarApp]);
+
+  /* En la app: si se cerró la pantalla de CONTROL con el seguimiento activo, al volver a abrirla se retoma solo. */
+  useEffect(() => {
+    if (!app || activo || !estabaActivo()) return;
+    const p = limpiar(leerPlaca());
+    if (/^[A-Z0-9]{5,7}$/.test(p)) void empezarApp(p);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [app]);
 
   /* Al volver a la pantalla, se pide otra vez mantenerla encendida (el celular la suelta al cambiar de app). */
   /* Y si estuvo más de un minuto bloqueado o en otra app, se le dice: en ese tiempo no se mandó su ubicación
@@ -116,6 +170,7 @@ export function Compartir({ conViajes = false }: { conViajes?: boolean }) {
   const [pausa, setPausa] = useState<string | null>(null);
   useEffect(() => {
     const v = () => {
+      if (app) return;   /* en la app el GPS sigue con el celular bloqueado */
       if (document.hidden) { if (activo) ocultoDesde.current = Date.now(); return }
       if (!activo) return;
       void pedirPantalla();
@@ -125,7 +180,7 @@ export function Compartir({ conViajes = false }: { conViajes?: boolean }) {
     };
     document.addEventListener("visibilitychange", v);
     return () => document.removeEventListener("visibilitychange", v);
-  }, [activo, pedirPantalla, mandar]);
+  }, [activo, pedirPantalla, mandar, app]);
   useEffect(() => parar, [parar]);
 
   /* ---------- PARTE 2: LOS VIAJES DE LA PLACA (en prueba, solo superadmin) ---------- */
@@ -206,6 +261,7 @@ export function Compartir({ conViajes = false }: { conViajes?: boolean }) {
           </div>
         )}
 
+        {sinPermiso && <p className="cu-aviso mal" role="alert">Para seguir el viaje con el celular bloqueado, dale a CONTROL Conductor el permiso de ubicación <b>«Permitir todo el tiempo»</b> o «Mientras se usa la app». <button type="button" className="cu-mini fuerte" onClick={() => void ajustesNativo()}>Abrir ajustes</button></p>}
         {pausa && <p className="cu-aviso mal" role="alert">{pausa} <button type="button" className="cu-mini" onClick={() => setPausa(null)}>Entendido</button></p>}
         {llegada && <p className="cu-aviso bien" role="status">{llegada}</p>}
 
@@ -258,10 +314,15 @@ export function Compartir({ conViajes = false }: { conViajes?: boolean }) {
         )}
 
         <ul className="cu-notas">
-          <li>Deja <b>esta pantalla encendida y abierta</b>. Si bloqueas el celular o cambias de aplicación, el GPS se pausa y no se registra el recorrido.</li>
-          <li>Acepta el permiso de ubicación cuando el celular lo pida.</li>
+          {app ? (<>
+            <li><b>Puedes bloquear el celular o usar otras apps</b>: CONTROL sigue mandando la ubicación. Arriba queda el aviso «CONTROL está siguiendo el viaje».</li>
+            <li>No cierres CONTROL Conductor desde las apps recientes, y quítale el <b>ahorro de batería</b> (Ajustes → Apps → CONTROL Conductor → Batería → Sin restricciones).</li>
+          </>) : (<>
+            <li>Deja <b>esta pantalla encendida y abierta</b>. Si bloqueas el celular o cambias de aplicación, el GPS se pausa y no se registra el recorrido. Para que siga con el celular bloqueado, usa la app <b>CONTROL Conductor</b> (pídesela a tu supervisor).</li>
+            <li>Acepta el permiso de ubicación cuando el celular lo pida.</li>
+          </>)}
           <li>Al llegar a Fábrica, Bodega 38 o Arenosa el sistema marca solo la entrada y la salida: no tienes que tocar nada.</li>
-          {conViajes && <li>Antes de arrancar, marca <b>el viaje que vas a hacer</b>. Al entrar a la geocerca del destino se cierra solo y marcas el siguiente.</li>}
+          {conViajes && <li>El viaje arranca solo al salir de tu zona de origen con la salida confirmada; también puedes marcarlo. Al llegar al destino se cierra solo.</li>}
         </ul>
       </div>
       {dialogo}

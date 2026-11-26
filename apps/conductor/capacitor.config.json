@@ -1,0 +1,24 @@
+{
+  "appId": "com.cd38.control.conductor",
+  "appName": "CONTROL Conductor",
+  "webDir": "www",
+  "server": {
+    "url": "https://cd-control-one.vercel.app/traspasos/compartir-ubicacion",
+    "cleartext": false,
+    "allowNavigation": [
+      "cd-control-one.vercel.app",
+      "*.vercel.app",
+      "*.supabase.co"
+    ]
+  },
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#f0f0f0",
+    "useLegacyBridge": true
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": false
+    }
+  }
+}

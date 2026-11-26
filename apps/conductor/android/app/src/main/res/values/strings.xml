@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">CONTROL Conductor</string>
+    <string name="title_activity_main">CONTROL Conductor</string>
+    <string name="package_name">com.cd38.control.conductor</string>
+    <string name="custom_url_scheme">com.cd38.control.conductor</string>
+    <string name="capacitor_background_geolocation_notification_channel_name">Seguimiento del viaje</string>
+    <string name="capacitor_background_geolocation_notification_color">#FFC20E</string>
+</resources>
