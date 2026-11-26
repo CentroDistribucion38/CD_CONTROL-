@@ -11,8 +11,8 @@
  *   · El mapa de calor empresa × semana, el cumplimiento por empresa, el ritmo por mes, quién valida, los niveles y
  *     los bloqueos.
  */
-import { useMemo, useRef } from "react";
-import { armarIndicadores, fechaCorta, type ConfigCert, type PersonaCert, type ValidacionHist } from "@/modulos/seguridad/certificaciones";
+import { useMemo, useRef, useState } from "react";
+import { armarIndicadores, claveTexto, ESTADOS, fechaCorta, type ConfigCert, type PersonaCert, type ValidacionHist } from "@/modulos/seguridad/certificaciones";
 import { BotonDashboard, useFotosVaca } from "../FotosVaca";
 
 const nf = new Intl.NumberFormat("es-CO");
@@ -22,11 +22,18 @@ export function IndicadoresCert({ personas, hist, hoy, config, departamentos }: 
   personas: PersonaCert[]; hist: ValidacionHist[]; hoy: string; config: ConfigCert; departamentos: string[];
 }) {
   const caja = useRef<HTMLDivElement>(null);
-  const I = useMemo(() => armarIndicadores(personas, hist, hoy, config), [personas, hist, hoy, config]);
+  /* EL FILTRO DE ESTADO: por defecto solo Activo (el que está trabajando); se pueden sumar Vacaciones, No activo o
+     Bloqueado. Todo el tablero y la imagen del Dashboard salen con lo escogido. */
+  const [estados, setEstados] = useState<string[]>(["ACTIVO"]);
+  const cuantos = useMemo(() => Object.fromEntries(ESTADOS.map((e) => [e, personas.filter((p) => claveTexto(p.estado) === e).length])), [personas]);
+  const cambiar = (e: string) => setEstados((xs) => xs.includes(e) ? (xs.length > 1 ? xs.filter((x) => x !== e) : xs) : ESTADOS.filter((x) => x === e || xs.includes(x)));
+  const I = useMemo(() => armarIndicadores(personas, hist, hoy, config, estados), [personas, hist, hoy, config, estados]);
+  const solo = estados.length === 1 && estados[0] === "ACTIVO";
+  const nomEst = estados.map((e) => e.charAt(0) + e.slice(1).toLowerCase()).join(" + ");
   const deptos = departamentos.map((d) => d.charAt(0) + d.slice(1).toLowerCase()).join(", ");
 
   /* LAS IMÁGENES: el Dashboard y, en pestañas, cada lista (vencidas, 7 días, este mes). */
-  const foto = useFotosVaca({ personas, hist, hoy, config, departamentos, caja });
+  const foto = useFotosVaca({ personas, hist, hoy, config, departamentos, caja, estados });
 
   /* LA OLA: barras por semana; en ocre las que pasan el ritmo de validación. */
   const W = I.semanas.length, bw = 46, g = 18, h = 190;
@@ -45,12 +52,23 @@ export function IndicadoresCert({ personas, hist, hoy, config, departamentos }: 
         <div>
           <p className="sg-ojo">SEGURIDAD · CERTIFICACIONES</p>
           <h1>Dashboard licencias <span className="sg-tag">{deptos}</span></h1>
-          <p className="sg-sub">Licencias VACA · corte {fechaCorta(hoy)} de {hoy.slice(0, 4)} · {nf.format(I.activos)} activos de {nf.format(personas.length)} en la base</p>
+          <p className="sg-sub">Licencias VACA · corte {fechaCorta(hoy)} de {hoy.slice(0, 4)} · {nf.format(I.activos)} {solo ? "activos" : `personas (${nomEst.toLowerCase()})`} de {nf.format(personas.length)} en la base</p>
         </div>
         <div className="sg-acc">
           <BotonDashboard foto={foto} />
         </div>
       </header>
+      <div className="sg-filtros sg-est-fil">
+        <span className="sg-est-rot">Estado</span>
+        <div className="sg-seg" role="group" aria-label="Qué estados entran en el tablero">
+          {ESTADOS.map((e) => (
+            <button key={e} type="button" className={estados.includes(e) ? "on" : ""} aria-pressed={estados.includes(e)} onClick={() => cambiar(e)}>
+              {e.charAt(0) + e.slice(1).toLowerCase()}<i>{nf.format(cuantos[e] ?? 0)}</i>
+            </button>
+          ))}
+        </div>
+        {!solo && <button type="button" className="sg-link" onClick={() => setEstados(["ACTIVO"])}>Solo activos</button>}
+      </div>
       {foto.mal && <p className="sg-aviso mal" role="alert">No se pudo armar la imagen. Recarga la página y vuelve a intentar.</p>}
 
       <section className="sg-hero" aria-label="Indicadores principales">
@@ -64,10 +82,10 @@ export function IndicadoresCert({ personas, hist, hoy, config, departamentos }: 
           <div>
             <span>ÍNDICE DE CUMPLIMIENTO</span>
             <b>{nf.format(I.alDia)} de {nf.format(I.activos)}</b>
-            <small>activos con la licencia al día</small>
+            <small>{I.quien} con la licencia al día</small>
           </div>
         </div>
-        <div className={I.vencidas ? "mal" : ""}><span>VENCIDAS TRABAJANDO</span><b>{I.vencidas}</b><small>meta: 0</small></div>
+        <div className={I.vencidas ? "mal" : ""}><span>{solo ? "VENCIDAS TRABAJANDO" : "VENCIDAS"}</span><b>{I.vencidas}</b><small>meta: 0</small></div>
         <div><span>RENOVADAS A TIEMPO</span><b>{I.renovaciones ? pc(I.aTiempo / I.renovaciones) : "—"}</b>
           <small>{I.renovaciones ? `${I.aTiempo} de ${I.renovaciones} renovaron antes de vencer` : "aún no hay renovaciones registradas"}</small></div>
         <div><span>VALIDADAS ESTE MES</span><b>{I.validadasMes}</b><small>{I.validadasMesAnterior} el mes pasado</small></div>
@@ -132,14 +150,14 @@ export function IndicadoresCert({ personas, hist, hoy, config, departamentos }: 
           </div>
         </section>
         <section className="sg-card">
-          <header><h2>Cumplimiento por empresa</h2><span className="sg-leg">% de activos al día</span></header>
+          <header><h2>Cumplimiento por empresa</h2><span className="sg-leg">% de {I.quien} al día</span></header>
           <div className="sg-pad">
             {I.empresas.slice(0, 12).map((e) => (
               <div key={e.empresa} className="sg-emp">
                 <span title={e.empresa}>{e.empresa}</span>
                 <div className="sg-emp-t"><i style={{ width: `${e.pct * 100}%`, background: e.pct < 0.8 ? "#C8102E" : e.pct < 0.95 ? "#B58200" : "#FFC300" }} /></div>
                 <b style={{ color: e.pct < 0.8 ? "#C8102E" : undefined }}>{Math.round(e.pct * 100)}%</b>
-                <small>{e.activos} act.</small>
+                <small>{e.activos} {solo ? "act." : "pers."}</small>
               </div>
             ))}
           </div>
@@ -161,7 +179,7 @@ export function IndicadoresCert({ personas, hist, hoy, config, departamentos }: 
           </div>
         </section>
         <section className="sg-card">
-          <header><h2>Niveles</h2><span className="sg-leg">activos</span></header>
+          <header><h2>Niveles</h2><span className="sg-leg">{I.quien}</span></header>
           <div className="sg-pad sg-pir">
             {I.niveles.map((n) => <div key={n.nivel} style={{ width: `${40 + 60 * (n.n / totNiv)}%` }}><b>{n.n}</b>{n.nivel}</div>)}
           </div>

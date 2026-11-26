@@ -54,7 +54,7 @@ export function dibujarDashboardCert(I: Indicadores, t: TableroCert, extra: { pa
 
   const deptos = extra.deptos ?? "Logística";
   cabecera(ctx, W, [deptos, `Aviso ${t.config.diasAviso} días`], P, extra.logo, `Licencias VACA · ${deptos}`,
-    `Licencia para cuidar al ${larga(t.hoy)} · ${nf.format(I.activos)} personas trabajando`);
+    `Licencia para cuidar al ${larga(t.hoy)} · ${nf.format(I.activos)} ${I.quien === "activos" ? "personas trabajando" : "personas en el filtro"}`);
 
   const M = MARGEN, G = HUECO;
   const Y1 = 106, H1 = 430, Y2 = Y1 + H1 + G, H2 = H - Y2 - 34;
@@ -85,7 +85,7 @@ export function dibujarDashboardCert(I: Indicadores, t: TableroCert, extra: { pa
 
   /* ---------- B · CUMPLIMIENTO POR EMPRESA (las de más gente) ---------- */
   {
-    const a = panel({ x: xB, y: Y1, w: wB, h: H1 }, "Cumplimiento por empresa", [{ t: "% activos al día", col: AMARILLO }]);
+    const a = panel({ x: xB, y: Y1, w: wB, h: H1 }, "Cumplimiento por empresa", [{ t: `% ${I.quien} al día`, col: AMARILLO }]);
     const filas = [...I.empresas].sort((x, y) => y.activos - x.activos).slice(0, 12).sort((x, y) => x.pct - y.pct || y.activos - x.activos);
     const NOM = 168, VAL = 116, X0 = a.x + NOM + 10, X1 = a.x + a.w - VAL;
     const fila = Math.min(30, a.h / Math.max(1, filas.length)), bh = Math.min(18, fila * 0.62);
@@ -96,7 +96,7 @@ export function dibujarDashboardCert(I: Indicadores, t: TableroCert, extra: { pa
       const col = f.pct >= 0.95 ? AMARILLO : f.pct >= 0.8 ? OCRE : ROJO;
       ctx.fillStyle = col; ctx.fillRect(X0, cy - bh / 2, Math.max(2, (X1 - X0) * f.pct), bh);
       letra(ctx, 900, 14); ctx.fillStyle = f.pct < 0.8 ? ROJO : TINTA; ctx.textAlign = "right"; ctx.fillText(pct(f.pct), a.x + a.w - 46, cy);
-      letra(ctx, 500, 11.5); ctx.fillStyle = GRIS; ctx.textAlign = "left"; ctx.fillText(`${f.activos} act.`, a.x + a.w - 40, cy);
+      letra(ctx, 500, 11.5); ctx.fillStyle = GRIS; ctx.textAlign = "left"; ctx.fillText(`${f.activos} ${I.quien === "activos" ? "act." : "pers."}`, a.x + a.w - 40, cy);
     });
   }
 
@@ -123,8 +123,8 @@ export function dibujarDashboardCert(I: Indicadores, t: TableroCert, extra: { pa
   /* ---------- K · LAS CIFRAS GRANDES ---------- */
   {
     const kpis: { t: string; v: string; s: string; mal?: boolean; anillo?: number }[] = [
-      { t: "ÍNDICE DE CUMPLIMIENTO", v: pct(I.cumplimiento), s: `${nf.format(I.alDia)} de ${nf.format(I.activos)} activos al día`, anillo: I.cumplimiento },
-      { t: "PERSONAS ACTIVAS", v: nf.format(I.activos), s: `de ${nf.format(t.total)} en la base · ${nf.format(t.bloqueados)} bloqueadas` },
+      { t: "ÍNDICE DE CUMPLIMIENTO", v: pct(I.cumplimiento), s: `${nf.format(I.alDia)} de ${nf.format(I.activos)} ${I.quien} al día`, anillo: I.cumplimiento },
+      { t: I.quien === "activos" ? "PERSONAS ACTIVAS" : "PERSONAS EN EL FILTRO", v: nf.format(I.activos), s: `de ${nf.format(t.total)} en la base · ${nf.format(t.bloqueados)} bloqueadas` },
       { t: "VALIDADAS ESTE MES", v: nf.format(I.validadasMes), s: `${nf.format(I.validadasMesAnterior)} el mes pasado` },
       { t: "DÍAS PROMEDIO A VENCER", v: nf.format(I.diasPromedio), s: `de ${t.config.vigencia} que dura la licencia` },
     ];

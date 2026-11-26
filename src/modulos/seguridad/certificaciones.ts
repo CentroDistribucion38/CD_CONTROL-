@@ -225,6 +225,8 @@ export function textoAlertas(t: TableroCert, deptos = "LOGÍSTICA"): string {
 export type ValidacionHist = { cedula: string; expedicion: string; vencimiento: string; validador: string | null };
 export type Indicadores = {
   activos: number; alDia: number; cumplimiento: number; vencidas: number;
+  /** Cómo se llama a quienes entran en la cuenta: «activos» (lo de siempre) o «personas» si el filtro de estado mete otros. */
+  quien: string;
   renovaciones: number; aTiempo: number;
   validadasMes: number; validadasMesAnterior: number; diasPromedio: number;
   semanas: { desde: string; vencen: number }[]; ritmo: number;
@@ -237,8 +239,13 @@ export type Indicadores = {
   bloqueos: { motivo: string; n: number }[]; bloqueados: number;
 };
 const MESES_L = MESES;
-export function armarIndicadores(personas: PersonaCert[], hist: ValidacionHist[], hoy: string, config: ConfigCert = CONFIG_CERT): Indicadores {
-  const act = personas.filter((p) => trabaja(p.estado));
+/** `estados`: qué estados entran en la cuenta (el filtro del Dashboard). Por defecto solo ACTIVO, el que está trabajando. */
+export function armarIndicadores(personas: PersonaCert[], hist: ValidacionHist[], hoy: string, config: ConfigCert = CONFIG_CERT, estados: readonly string[] = ["ACTIVO"]): Indicadores {
+  const quieren = new Set(estados.map(claveTexto));
+  const act = personas.filter((p) => quieren.has(claveTexto(p.estado)));
+  /* Las validaciones de quienes quedan fuera del filtro no cuentan (ritmo, renovaciones, validadores, meses). */
+  const cedulas = new Set(act.map((p) => p.cedula));
+  if (!(quieren.size === 1 && quieren.has("ACTIVO"))) hist = hist.filter((v) => cedulas.has(v.cedula));
   const vigente = (p: PersonaCert, f = hoy) => p.vencimiento >= f;
   const alDia = act.filter((p) => vigente(p)).length;
   /* RENOVÓ A TIEMPO: la validación siguiente se expidió antes de que venciera la anterior. */
@@ -291,6 +298,7 @@ export function armarIndicadores(personas: PersonaCert[], hist: ValidacionHist[]
   const vig = act.filter((p) => vigente(p));
   return {
     activos: act.length, alDia, cumplimiento: act.length ? alDia / act.length : 1, vencidas: act.length - alDia,
+    quien: quieren.size === 1 && quieren.has("ACTIVO") ? "activos" : "personas",
     renovaciones: renov, aTiempo,
     validadasMes: hist.filter((v) => mesDe(v.expedicion) === mesHoy).length,
     validadasMesAnterior: hist.filter((v) => mesDe(v.expedicion) === mesAnt).length,

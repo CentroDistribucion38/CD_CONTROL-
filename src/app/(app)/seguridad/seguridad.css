@@ -371,3 +371,7 @@
 .sg-fc-limpia { border: 0; background: none; padding: 0; cursor: pointer; font: 700 12px var(--sg-texto); color: var(--sg-rojo); text-decoration: underline }
 .sg-fc-limpia:disabled { color: var(--sg-gris); opacity: .5; cursor: default; text-decoration: none }
 @media (max-width: 720px) { .sg-buscar { min-width: 0; flex: 1 1 100% } }
+
+/* Dashboard licencias: el filtro de estado (por defecto solo Activo) */
+.sg-est-fil { margin: 0 0 14px }
+.sg-est-rot { font: 800 11px var(--sg-texto); letter-spacing: .12em; text-transform: uppercase; color: var(--sg-gris, #6b6b6b) }

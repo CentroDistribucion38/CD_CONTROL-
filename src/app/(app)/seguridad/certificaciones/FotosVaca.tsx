@@ -13,7 +13,9 @@ import { armarIndicadores, armarTablero, type ConfigCert, type PersonaCert, type
 
 const LISTA = { vencidas: "vencida", semana: "critica", mes: "aviso" } as const;
 
-export function useFotosVaca(p: { personas: PersonaCert[]; hist: ValidacionHist[]; hoy: string; config: ConfigCert; departamentos: string[]; caja: RefObject<HTMLElement | null> }) {
+export function useFotosVaca(p: { personas: PersonaCert[]; hist: ValidacionHist[]; hoy: string; config: ConfigCert; departamentos: string[]; caja: RefObject<HTMLElement | null>;
+  /** El filtro de estado del Dashboard (por defecto solo Activo). Las listas de vencidas siguen siendo de quienes trabajan. */
+  estados?: string[] }) {
   const deptos = p.departamentos.map((d) => d.charAt(0) + d.slice(1).toLowerCase()).join(", ").replace("Logistica", "Logística");
   const T = useMemo(() => armarTablero(p.personas, p.hoy, p.config), [p.personas, p.hoy, p.config]);
   return useFotoCompartir(async (tipo: TipoFoto) => {
@@ -23,7 +25,7 @@ export function useFotosVaca(p: { personas: PersonaCert[]; hist: ValidacionHist[
       return { lienzo: dibujarListaCert(T, LISTA[tipo], { paleta, logo, deptos }), nombre: nombreListaCert(p.hoy, LISTA[tipo]) };
     }
     const [{ dibujarDashboardCert, nombreDashboardCert }, logo] = await Promise.all([import("@/modulos/seguridad/foto-dash"), logoMarca()]);
-    return { lienzo: dibujarDashboardCert(armarIndicadores(p.personas, p.hist, p.hoy, p.config), T, { paleta, logo, deptos }), nombre: nombreDashboardCert(p.hoy) };
+    return { lienzo: dibujarDashboardCert(armarIndicadores(p.personas, p.hist, p.hoy, p.config, p.estados), T, { paleta, logo, deptos }), nombre: nombreDashboardCert(p.hoy) };
   }, "Licencias VACA", { dashboard: "Dashboard", vencidas: "Vencidas", semana: `Vencen en ${p.config.diasCriticos} días`, mes: "Vencen este mes" },
   undefined, ["dashboard", "vencidas", "semana", "mes"]);
 }
