@@ -13,7 +13,9 @@ import { enviarAUsuarios, pushConfigurado } from "@/lib/push";
 import { esLarga, normalesDe, segundosParado, corto, type PosRuta } from "./seguimiento";
 import type { Seguimiento } from "./recorridos";
 
-export type TipoAviso = "parado" | "espera" | "llego" | "salio" | "tramo";
+export type TipoAviso = "parado" | "espera" | "llego" | "salio" | "tramo" | "senal";
+/** Desde cuántos segundos sin posición un viaje en curso cuenta como «sin señal». */
+export const SIN_SENAL_S = 180;
 
 async function avisar(db: SupabaseClient, tipo: TipoAviso, clave: string, placa: string, titulo: string, cuerpo: string) {
   const ins = await db.from("gps_alertas_enviadas").insert({ clave, tipo, placa, titulo, cuerpo }).select("id").maybeSingle();
@@ -62,4 +64,28 @@ export async function revisarAvisos(db: SupabaseClient, p: {
     const normal = normalesDe(((h ?? []) as { vehiculo_id: string; entrada: string; salida: string }[]).map((x) => ({ vehiculo: x.vehiculo_id, zona, entrada: x.entrada, salida: x.salida }))).zona.get(zona)?.normal ?? null;
     if (esLarga(s, normal)) await avisar(db, "espera", clave, placa, `${placa} lleva ${corto(s)} en ${zona}`, normal ? `Lo normal es ${corto(normal)}.` : "Pasa de 45 min.");
   } catch { /* un aviso que falla nunca tumba el registro de la posición */ }
+}
+
+/**
+ * EL VIGÍA (cada minuto): los viajes en curso cuyo vehículo lleva 3 min o más sin mandar ubicación. Un aviso por
+ * cada silencio (la clave lleva la hora de la última posición: si vuelve a mandar y se calla otra vez, avisa otra vez).
+ */
+export async function revisarSenal(db: SupabaseClient): Promise<{ enCurso: number; callados: number }> {
+  const { data } = await db.from("gps_recorridos").select("id, placa, inicio, ultimo_en, zona_destino").eq("estado", "en_curso");
+  const recs = (data ?? []) as { id: string; placa: string; inicio: string; ultimo_en: string | null; zona_destino: string | null }[];
+  if (!recs.length || !(await pushConfigurado(db))) return { enCurso: recs.length, callados: 0 };
+  const ahora = Date.now();
+  let callados = 0;
+  for (const r of recs) {
+    const u = await db.from("gps_posiciones").select("en").eq("placa", r.placa).order("en", { ascending: false }).limit(1).maybeSingle();
+    const ultima = (u.data?.en as string | undefined) ?? r.ultimo_en ?? r.inicio;
+    const s = Math.round((ahora - Date.parse(ultima)) / 1000);
+    if (s < SIN_SENAL_S) continue;
+    callados++;
+    let destino = "su destino";
+    if (r.zona_destino) { const z = await db.from("gps_zonas").select("nombre").eq("id", r.zona_destino).maybeSingle(); if (z.data?.nombre) destino = z.data.nombre as string }
+    await avisar(db, "senal", `senal:${r.id}:${ultima.slice(0, 16)}`, r.placa, `${r.placa} dejó de mandar su ubicación`,
+      `Hace ${corto(s)}, en camino a ${destino}. Puede tener el celular bloqueado, sin datos o con CONTROL cerrado.`);
+  }
+  return { enCurso: recs.length, callados };
 }

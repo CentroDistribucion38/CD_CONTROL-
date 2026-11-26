@@ -52,6 +52,8 @@ export function segundosParado(puntos: PosRuta[], ahora: number): number {
 }
 
 export type Vivo = {
+  /** Segundos desde la última posición recibida (3 min o más = sin señal: celular bloqueado, sin datos o CONTROL cerrado). */
+  callado: number;
   /** km que le faltan (en línea recta hasta el borde de la geocerca destino, por 1,3 de calles). */
   faltaKm: number | null;
   /** Velocidad de los últimos 3 minutos (km/h). */
@@ -67,7 +69,7 @@ export type Vivo = {
 /** El estado en vivo de un recorrido en curso. `km` es lo que ya recorrió (lo guarda el servidor). */
 export function enVivo(puntos: PosRuta[], km: number, destino: ZonaSimple | null, zonas: ZonaSimple[], ahora: number): Vivo {
   const u = puntos[puntos.length - 1];
-  if (!u) return { faltaKm: null, velocidad: 0, etaMin: null, llegaEn: null, avance: 0, parado: 0, enZona: null };
+  if (!u) return { callado: 0, faltaKm: null, velocidad: 0, etaMin: null, llegaEn: null, avance: 0, parado: 0, enZona: null };
   const aqui: Punto = [u.lat, u.lng];
   /* Velocidad: distancia recorrida en los últimos 3 minutos de posiciones (más estable que la del GPS del celular). */
   const t0 = Date.parse(u.en) - 180_000;
@@ -84,11 +86,15 @@ export function enVivo(puntos: PosRuta[], km: number, destino: ZonaSimple | null
   const enZona = zonas.find((z) => z.poligono.length >= 3 && puntoEnPoligono(aqui, z.poligono))?.nombre ?? null;
   const total = km + (faltaKm ?? 0);
   return {
+    callado: Math.max(0, Math.round((ahora - Date.parse(u.en)) / 1000)),
     faltaKm, velocidad, etaMin, llegaEn: etaMin == null ? null : new Date(ahora + etaMin * 60_000).toISOString(),
     avance: faltaKm == null ? 0 : total > 0 ? Math.min(1, km / total) : 0,
     parado: segundosParado(puntos, ahora), enZona,
   };
 }
+
+/** Desde cuántos segundos sin posición un viaje en curso está «sin señal». */
+export const SIN_SENAL_S = 180;
 
 /** Quita puntos casi encima del anterior (< 8 m) para dibujar la ruta sin miles de vértices. */
 export function adelgazar(puntos: PosRuta[], minM = 8): PosRuta[] {
@@ -185,7 +191,7 @@ export function lineaDeTiempo(visitas: Visita[], colorDe: Map<string, string>, n
 
 /* ============================================================ C · ALERTAS */
 
-export type Alerta = { vehiculo: string; tipo: "espera" | "parado" | "tramo"; texto: string; detalle: string; segundos: number };
+export type Alerta = { vehiculo: string; tipo: "espera" | "parado" | "tramo" | "senal"; texto: string; detalle: string; segundos: number };
 
 const min = (s: number) => `${Math.round(s / 60)} min`;
 

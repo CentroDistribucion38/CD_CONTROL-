@@ -10,7 +10,7 @@ import { COLORES_ZONA, type Instantanea, type VehiculoVivo, type VisitaGps } fro
 import { Demo, ZONAS_DEMO } from "@/modulos/traspasos/gps/demo";
 import { cruzarViajes, norm, placaClave, promedioPorRuta, resumenPorTipo, type EstadoViaje, type LineaPlan, type ViajePlan, type ZonaLigada } from "@/modulos/traspasos/gps/plan";
 import { MapaGps, type CapaBase, type FlujoMapa, type RutaMapa, type VehiculoMapa, type ZonaMapa } from "./MapaGps";
-import { adelgazar, alertasDe, calorPorHora, corto, enVivo, esLarga, lineaDeTiempo, normalesDe, type PosRuta, type Vivo } from "@/modulos/traspasos/gps/seguimiento";
+import { adelgazar, alertasDe, calorPorHora, corto, enVivo, esLarga, SIN_SENAL_S, lineaDeTiempo, normalesDe, type PosRuta, type Vivo } from "@/modulos/traspasos/gps/seguimiento";
 import { LineaTiempo, CalorEspera } from "./LineaTiempo";
 import { AvisosCelular } from "./AvisosCelular";
 
@@ -414,6 +414,11 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
     const normales = normalesDe(histN);
     const hoyN = normalesDe(d.visitasN);
     const alertas = enDemo ? [] : alertasDe(d.visitasN, normales, parados, d.nombreV, ahoraIso);
+    /* sin señal: un viaje en curso que lleva 3 min o más sin mandar (o que arrancó y nunca mandó) */
+    for (const r of enCurso) {
+      const s = r.vivo ? r.vivo.callado : Math.round((ahoraMs - Date.parse(r.inicio)) / 1000);
+      if (!enDemo && s >= SIN_SENAL_S) alertas.unshift({ vehiculo: r.vehiculo ?? r.placa, tipo: "senal", segundos: s, texto: `${r.placa} sin señal hace ${corto(s)}`, detalle: `en camino a ${r.destino ?? "su destino"} · celular bloqueado, sin datos o CONTROL cerrado` });
+    }
     /* la ventana de la línea de tiempo: hoy de 00 a 24; si no, las últimas 24 h */
     const ini = rango === "hoy" ? desdeDe("hoy") : new Date(ahoraMs - 24 * 3600_000).toISOString();
     const fin = rango === "hoy" ? new Date(Date.parse(ini) + 24 * 3600_000).toISOString() : ahoraIso;
@@ -577,14 +582,15 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
               <h3 className="tg-sub">En curso · {seg3?.enCurso.length ?? 0}</h3>
               <ul className="tg-rec">
                 {seg3?.enCurso.map((r) => {
-                  const v = r.vivo!, parado = v.parado >= 300 && !v.enZona;
+                  const v = r.vivo, callado = v ? v.callado : Math.round((ahoraMs - Date.parse(r.inicio)) / 1000);
+                  const sinSenal = callado >= SIN_SENAL_S, parado = !!v && !sinSenal && v.parado >= 300 && !v.enZona;
                   return (
                     <li key={r.id}>
-                      <button type="button" className={"tg-rec-b curso" + (selRec === r.id ? " sel" : "") + (parado ? " mal" : "")} onClick={() => escogerRec(selRec === r.id ? null : r.id)} aria-pressed={selRec === r.id}>
+                      <button type="button" className={"tg-rec-b curso" + (selRec === r.id ? " sel" : "") + (parado || sinSenal ? " mal" : "")} onClick={() => escogerRec(selRec === r.id ? null : r.id)} aria-pressed={selRec === r.id}>
                         <span className="tg-rec-l"><b>{r.placa}</b> · {r.origen ?? "?"} → {r.destino ?? "?"}</span>
-                        <span className="tg-rec-eta">{parado ? <>parado <b>{Math.round(v.parado / 60)} min</b></> : v.etaMin == null ? "sin geocerca destino" : <><b>{v.etaMin} min</b> · llega ~{hhmm(v.llegaEn!)}</>}</span>
-                        <span className="tg-rec-barra"><i style={{ width: `${Math.round(v.avance * 100)}%` }} /></span>
-                        <small>salió {hhmm(r.inicio)} · {kmTxt(r.km)} · {Math.round(v.velocidad)} km/h{v.faltaKm != null ? ` · faltan ${kmTxt(v.faltaKm)}` : ""}</small>
+                        <span className="tg-rec-eta">{sinSenal ? <>sin señal hace <b>{corto(callado)}</b></> : parado ? <>parado <b>{Math.round(v!.parado / 60)} min</b></> : !v || v.etaMin == null ? "sin geocerca destino" : <><b>{v.etaMin} min</b> · llega ~{hhmm(v.llegaEn!)}</>}</span>
+                        <span className="tg-rec-barra"><i style={{ width: `${Math.round((v?.avance ?? 0) * 100)}%` }} /></span>
+                        <small>salió {hhmm(r.inicio)} · {kmTxt(r.km)}{v ? ` · ${Math.round(v.velocidad)} km/h` : ""}{v?.faltaKm != null ? ` · faltan ${kmTxt(v.faltaKm)}` : ""}</small>
                       </button>
                     </li>
                   );
@@ -856,7 +862,9 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
             const nO = zo ? seg3?.normales.zona.get(zo)?.normal ?? null : null, nD = zd ? seg3?.normales.zona.get(zd)?.normal ?? null : null;
             const nT = zo && zd ? seg3?.normales.tramo.get(`${zo} → ${zd}`)?.normal ?? null : null;
             const lleva = Math.round(((r.fin ? Date.parse(r.fin) : ahoraMs) - Date.parse(r.inicio)) / 1000);
-            const parado = !!v && v.parado >= 300 && !v.enZona;
+            const callado = r.estado === "en_curso" ? (v ? v.callado : Math.round((ahoraMs - Date.parse(r.inicio)) / 1000)) : 0;
+            const sinSenal = callado >= SIN_SENAL_S;
+            const parado = !!v && !sinSenal && v.parado >= 300 && !v.enZona;
             const deLaPlaca = seg3?.recsV.filter((x) => x.placa === r.placa).length ?? 0;
             return (<>
               <div className="tg-det-cab">
@@ -864,7 +872,11 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
                 <small>{[r.codigo, r.tipo].filter(Boolean).join(" · ")}</small>
                 {recSel && <button type="button" className="tg-det-x" onClick={() => escogerRec(null)} aria-label="Cerrar el detalle">×</button>}
               </div>
-              {r.estado === "en_curso" && v ? (<>
+              {r.estado === "en_curso" && sinSenal ? (<>
+                <p className="tg-det-ojo">Sin señal hace</p>
+                <p className="tg-det-eta mal"><b>{corto(callado)}</b><span>celular bloqueado, sin datos o CONTROL cerrado</span></p>
+                <div className="tg-det-barra"><span style={{ width: `${Math.round((v?.avance ?? 0) * 100)}%`, background: "#d64550" }} /></div>
+              </>) : r.estado === "en_curso" && v ? (<>
                 <p className="tg-det-ojo">{parado ? "Parado hace" : "Llega en"}</p>
                 <p className={"tg-det-eta" + (parado ? " mal" : "")}>
                   <b>{parado ? corto(v.parado) : v.etaMin == null ? "—" : `${v.etaMin} min`}</b>

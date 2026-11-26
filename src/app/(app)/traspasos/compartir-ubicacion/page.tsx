@@ -1,5 +1,4 @@
 import { misPermisos } from "@/lib/permisos";
-import { AppTraccar } from "./AppTraccar";
 import "../traspasos.css";
 import "./compartir.css";
 import { Compartir } from "./Compartir";
@@ -18,7 +17,6 @@ export default async function CompartirUbicacionPage() {
   return (
     <div className="tp">
       <Compartir conViajes={permisos.manda || permisos.puedeVer("/traspasos/compartir-ubicacion")} />
-      <AppTraccar />
     </div>
   );
 }

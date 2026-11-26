@@ -10,7 +10,7 @@ import { misPermisos } from "@/lib/permisos";
 
 export const dynamic = "force-dynamic";
 const RUTA = "/traspasos/tiempos-gps";
-const TIPOS = ["parado", "espera", "llego", "salio"] as const;
+const TIPOS = ["senal", "parado", "espera", "llego", "salio"] as const;
 
 async function quien() {
   const supabase = await createClient();

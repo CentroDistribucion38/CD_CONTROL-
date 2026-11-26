@@ -110,11 +110,22 @@ export function Compartir({ conViajes = false }: { conViajes?: boolean }) {
   }, [placa, mandar, parar, pedirPantalla]);
 
   /* Al volver a la pantalla, se pide otra vez mantenerla encendida (el celular la suelta al cambiar de app). */
+  /* Y si estuvo más de un minuto bloqueado o en otra app, se le dice: en ese tiempo no se mandó su ubicación
+     (y en Tiempos GPS salió «sin señal»). Se manda una posición enseguida para retomar. */
+  const ocultoDesde = useRef<number | null>(null);
+  const [pausa, setPausa] = useState<string | null>(null);
   useEffect(() => {
-    const v = () => { if (!document.hidden && activo) void pedirPantalla() };
+    const v = () => {
+      if (document.hidden) { if (activo) ocultoDesde.current = Date.now(); return }
+      if (!activo) return;
+      void pedirPantalla();
+      const d = ocultoDesde.current ? Date.now() - ocultoDesde.current : 0;
+      ocultoDesde.current = null;
+      if (d >= 60_000) { setPausa(`Estuviste ${Math.round(d / 60_000)} min con la pantalla bloqueada o en otra app: en ese tiempo no se mandó tu ubicación. Deja esta pantalla abierta y encendida mientras manejas.`); void mandar() }
+    };
     document.addEventListener("visibilitychange", v);
     return () => document.removeEventListener("visibilitychange", v);
-  }, [activo, pedirPantalla]);
+  }, [activo, pedirPantalla, mandar]);
   useEffect(() => parar, [parar]);
 
   /* ---------- PARTE 2: LOS VIAJES DE LA PLACA (en prueba, solo superadmin) ---------- */
@@ -195,6 +206,7 @@ export function Compartir({ conViajes = false }: { conViajes?: boolean }) {
           </div>
         )}
 
+        {pausa && <p className="cu-aviso mal" role="alert">{pausa} <button type="button" className="cu-mini" onClick={() => setPausa(null)}>Entendido</button></p>}
         {llegada && <p className="cu-aviso bien" role="status">{llegada}</p>}
 
         {conViajes && placaLista && (

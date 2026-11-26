@@ -11,7 +11,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Persona = { id: string; nombre: string; usuario: string; tipos: string[]; equipos: number };
 type Datos = { escoge: boolean; yo: { id: string; tipos: string[]; equipos: number }; personas: Persona[] };
-const TIPOS: [string, string][] = [["parado", "Parado"], ["espera", "Espera larga"], ["llego", "Llegó"], ["salio", "Salió"]];
+const TIPOS: [string, string][] = [["senal", "Sin señal"], ["parado", "Parado"], ["espera", "Espera larga"], ["llego", "Llegó"], ["salio", "Salió"]];
 
 const llave = (b64: string) => {
   const p = "=".repeat((4 - (b64.length % 4)) % 4), s = atob((b64 + p).replace(/-/g, "+").replace(/_/g, "/"));
@@ -150,11 +150,11 @@ export function AvisosCelular({ cerrar }: { cerrar: () => void }) {
                         <td className={"n" + (p.tipos.length && !p.equipos ? " tg-alto" : "")} title={p.tipos.length && !p.equipos ? "Está en la lista pero no ha activado los avisos en ningún equipo" : undefined}>{p.equipos || "—"}</td>
                       </tr>
                     ))}
-                    {lista.length === 0 && <tr><td colSpan={6} className="tg-vacio">Nadie con ese nombre.</td></tr>}
+                    {lista.length === 0 && <tr><td colSpan={7} className="tg-vacio">Nadie con ese nombre.</td></tr>}
                   </tbody>
                 </table>
               </div>
-              <p className="tg-nota">Cada persona marcada tiene que abrir CONTROL en su celular y tocar <b>Activar avisos aquí</b> una vez. En rojo, los que están en la lista sin ningún equipo activo. <b>Parado</b>: 15 min sin moverse fuera de las zonas. <b>Espera larga</b>: mucho más que lo normal en una zona. <b>Llegó</b> y <b>Salió</b>: cada viaje.</p>
+              <p className="tg-nota">Cada persona marcada tiene que abrir CONTROL en su celular y tocar <b>Activar avisos aquí</b> una vez. En rojo, los que están en la lista sin ningún equipo activo. <b>Sin señal</b>: un viaje en curso lleva 3 min sin mandar ubicación (celular bloqueado o sin datos). <b>Parado</b>: 15 min sin moverse fuera de las zonas. <b>Espera larga</b>: mucho más que lo normal en una zona. <b>Llegó</b> y <b>Salió</b>: cada viaje.</p>
             </section>
           )}
         </div>
