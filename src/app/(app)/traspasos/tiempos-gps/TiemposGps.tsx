@@ -27,7 +27,7 @@ type Pestania = "ahora" | "viajes" | "plan" | "tiempos" | "flujos" | "zonas";
 /** Un recorrido con seguimiento (parte 2/3): el viaje que el conductor marcó, con su línea de posiciones. */
 type Rec = {
   id: string; viaje: string; placa: string; estado: "en_curso" | "llego"; cierre: string | null; inicio: string; fin: string | null; km: number;
-  zonaDestino: string | null; codigo: string | null; origen: string | null; destino: string | null; tipo: string | null; puntos: PosRuta[];
+  zonaDestino: string | null; zonaOrigen: string | null; codigo: string | null; origen: string | null; destino: string | null; tipo: string | null; puntos: PosRuta[];
 };
 /** Trae todas las filas de a 1.000 (lo máximo que entrega Supabase por consulta). */
 async function todas<T>(arma: (a: number, b: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>, max = 30_000) {
@@ -72,7 +72,7 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
   const [falta, setFalta] = useState(false);
   const [rango, setRango] = useState<Rango>("hoy");
   const [capa, setCapa] = useState<CapaBase>("calles");
-  const [tab, setTab] = useState<Pestania>("ahora");
+  const [tab, setTab] = useState<Pestania>("viajes");
   const [sel, setSel] = useState<string | null>(null);
   const [dibujo, setDibujo] = useState<null | "rect" | "poli" | "punto">(null);
   const [nueva, setNueva] = useState<{ poligono: Punto[]; nombre: string; color: string; punto: string } | null>(null);
@@ -137,11 +137,11 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
      (id mayor que la última que ya se tiene), así cada vuelta de 10 s trae poco. */
   const cargarRecorridos = useCallback(async () => {
     const desde = desdeDe(rango === "7d" ? "24h" : rango);
-    const r = await supabase.from("gps_recorridos").select("id, viaje, placa, estado, cierre, inicio, fin, km, zona_destino")
+    const r = await supabase.from("gps_recorridos").select("id, viaje, placa, estado, cierre, inicio, fin, km, zona_destino, zona_origen")
       .or(`inicio.gte.${desde},estado.eq.en_curso`).neq("estado", "cancelado").order("inicio", { ascending: true }).limit(500);
     if (r.error) { setFaltaRec(/gps_recorridos|schema cache|does not exist/i.test(r.error.message)); setRecs([]); return }
     setFaltaRec(false);
-    const filas = (r.data ?? []) as { id: string; viaje: string; placa: string; estado: "en_curso" | "llego"; cierre: string | null; inicio: string; fin: string | null; km: number | string; zona_destino: string | null }[];
+    const filas = (r.data ?? []) as { id: string; viaje: string; placa: string; estado: "en_curso" | "llego"; cierre: string | null; inicio: string; fin: string | null; km: number | string; zona_destino: string | null; zona_origen: string | null }[];
     if (!filas.length) { setRecs([]); return }
     const ids = filas.map((x) => x.id);
     const [vj, ps] = await Promise.all([
@@ -158,7 +158,7 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
     const info = new Map(((vj.data ?? []) as { id: string; codigo: string | null; origen_nombre: string | null; destino_nombre: string | null; tipo_nombre: string | null }[]).map((x) => [x.id, x]));
     setRecs(filas.map((x) => {
       const i = info.get(x.viaje);
-      return { id: x.id, viaje: x.viaje, placa: x.placa, estado: x.estado, cierre: x.cierre, inicio: x.inicio, fin: x.fin, km: Number(x.km) || 0, zonaDestino: x.zona_destino,
+      return { id: x.id, viaje: x.viaje, placa: x.placa, estado: x.estado, cierre: x.cierre, inicio: x.inicio, fin: x.fin, km: Number(x.km) || 0, zonaDestino: x.zona_destino, zonaOrigen: x.zona_origen,
         codigo: i?.codigo ?? null, origen: i?.origen_nombre ?? null, destino: i?.destino_nombre ?? null, tipo: i?.tipo_nombre ?? null, puntos: [...(pm.get(x.id) ?? [])] };
     }));
   }, [supabase, rango]);
@@ -423,11 +423,15 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
   }, [foto, d, recs, hist, ahoraMs, ahoraIso, rango, enDemo]);
 
   const recSel = seg3?.recsV.find((r) => r.id === selRec) ?? null;
-  const rutasMapa: RutaMapa[] = useMemo(() => (seg3 ? seg3.recsV.filter((r) => r.estado === "en_curso" || r.id === selRec).map((r) => ({
-    id: r.id, puntos: adelgazar(r.puntos).map((p) => [p.lat, p.lng] as Punto), enCurso: r.estado === "en_curso", sel: r.id === selRec,
+  /* El detalle muestra el escogido; si no hay ninguno (ni vehículo escogido), el primer viaje en curso. */
+  const recDet = recSel ?? (sel ? null : seg3?.enCurso[0] ?? null);
+  const detId = recDet?.id ?? null;
+  const rutasMapa: RutaMapa[] = useMemo(() => (seg3 ? seg3.recsV.filter((r) => r.estado === "en_curso" || r.id === detId).map((r) => ({
+    id: r.id, puntos: adelgazar(r.puntos).map((p) => [p.lat, p.lng] as Punto), enCurso: r.estado === "en_curso", sel: r.id === detId,
     texto: `${r.placa} · ${r.origen ?? "?"} → ${r.destino ?? "?"} · ${r.km.toLocaleString("es-CO", { maximumFractionDigits: 1 })} km`,
-  })) : []), [seg3, selRec]);
+  })) : []), [seg3, detId]);
   const puntosSel = useMemo(() => (recSel ? adelgazar(recSel.puntos).map((p) => [p.lat, p.lng] as Punto) : []), [recSel]);
+  const puntosDet = useMemo(() => (recDet ? adelgazar(recDet.puntos).map((p) => [p.lat, p.lng] as Punto) : []), [recDet]);
   /** Escoger un recorrido: se resalta su línea, el mapa se encuadra en ella y su vehículo queda escogido. */
   const escogerRec = (id: string | null) => {
     setSelRec(id); setRepite(0);
@@ -441,7 +445,7 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
       <header className="tg-cab">
         <div>
           <p className="tg-ojo">Traspasos · Tiempos GPS</p>
-          <h1>Mapa de vehículos y tiempos por zona</h1>
+          <h1>Seguimiento de flota</h1>
         </div>
         <div className="tg-controles">
           <div className="tg-seg" role="group" aria-label="Periodo">
@@ -459,17 +463,17 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
       {ok && <p className="tg-aviso bien" role="status">{ok}</p>}
 
       <section className="tg-kpis" aria-label="Resumen">
-        <div><b>{calc?.enZonas ?? 0}</b><span>en una zona ahora</span></div>
-        <div><b>{calc?.enTransito ?? 0}</b><span>en tránsito</span></div>
-        <div><b>{calc?.entradas ?? 0}</b><span>entradas a zonas</span></div>
-        <div><b>{calc?.promedio ? duracion(calc.promedio) : "—"}</b><span>promedio por visita</span></div>
-        <div><b>{seg3?.enCurso.length ?? 0}</b><span>viajes en curso</span></div>
-        <button type="button" className={"tg-kpi-al" + (seg3?.alertas.length ? " hay" : "")} onClick={() => setTab("tiempos")} aria-label="Ver las alertas en Tiempos">
-          <b>{seg3?.alertas.length ?? 0}</b><span>{seg3?.alertas.length === 1 ? "alerta" : "alertas"}</span>
+        <div className="k-ruta"><span>en ruta</span><b>{seg3?.enCurso.length ?? 0}</b></div>
+        <div className="k-zona"><span>en una zona</span><b>{calc?.enZonas ?? 0}</b></div>
+        <div className="k-tran"><span>en tránsito</span><b>{calc?.enTransito ?? 0}</b></div>
+        <div className="k-viajes"><span>viajes con GPS</span><b>{seg3?.recsV.length ?? 0}</b></div>
+        <div className="k-espera"><span>espera promedio</span><b>{calc?.promedio ? corto(calc.promedio) : "—"}</b></div>
+        <button type="button" className={"k-al" + (seg3?.alertas.length ? " hay" : "")} onClick={() => setTab("tiempos")} aria-label="Ver las alertas en Tiempos">
+          <span>{seg3?.alertas.length === 1 ? "alerta" : "alertas"}</span><b>{seg3?.alertas.length ?? 0}</b>
         </button>
       </section>
 
-      <div className="tg-cuerpo">
+      <div className="tg-cuerpo tres">
         <div className={"tg-mapa-col" + (dibujo ? " dibujando" : "")}>
           <MapaGps zonas={editar?.id ? zonasMapa.filter((z) => z.id !== editar.id) : zonasMapa} vehiculos={vehiculosMapa} flujos={flujosMapa} capa={capa} dibujo={dibujo}
                    edicion={editar && editar.poligono.length >= 3 ? { poligono: editar.poligono, color: editar.color, llave: editar.llave } : null}
@@ -489,23 +493,6 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
                    rutas={rutasMapa} alRuta={(id) => { escogerRec(id); setTab("viajes") }}
                    encuadrar={recSel && recSel.estado === "llego" ? { puntos: puntosSel, llave: recSel.id } : null}
                    repetir={recSel && repite > 0 ? { puntos: puntosSel, llave: `${recSel.id}-${repite}`, etiqueta: recSel.placa } : null} />
-          {recSel && (
-            <div className={"tg-vivo" + (recSel.estado === "en_curso" ? " curso" : "")} role="status">
-              <button type="button" className="tg-vivo-x" onClick={() => escogerRec(null)} aria-label="Cerrar">×</button>
-              <p className="tg-vivo-ruta"><b>{recSel.placa}</b> · {recSel.origen ?? "?"} → {recSel.destino ?? "?"}</p>
-              {recSel.estado === "en_curso" && recSel.vivo ? (<>
-                {recSel.vivo.parado >= 300 && !recSel.vivo.enZona
-                  ? <p className="tg-vivo-eta mal"><b>Parado</b> hace {duracion(recSel.vivo.parado)}</p>
-                  : <p className="tg-vivo-eta"><b>{recSel.vivo.etaMin == null ? "—" : `${recSel.vivo.etaMin} min`}</b>{recSel.vivo.llegaEn ? <span>llega ~{hhmm(recSel.vivo.llegaEn)} · faltan {kmTxt(recSel.vivo.faltaKm ?? 0)}</span> : <span>el destino no tiene geocerca</span>}</p>}
-                <div className="tg-vivo-barra" aria-label={`Avance ${Math.round(recSel.vivo.avance * 100)} %`}><span style={{ width: `${Math.round(recSel.vivo.avance * 100)}%` }} /></div>
-                <p className="tg-vivo-pie">salió {hhmm(recSel.inicio)} · {kmTxt(recSel.km)} recorridos · {Math.round(recSel.vivo.velocidad)} km/h{recSel.vivo.enZona ? ` · en ${recSel.vivo.enZona}` : ""}{recSel.tipo ? ` · ${recSel.tipo}` : ""}</p>
-              </>) : (<>
-                <p className="tg-vivo-eta ok"><b>Llegó {recSel.fin ? hhmm(recSel.fin) : "—"}</b><span>{recSel.fin ? duracion(Math.round((Date.parse(recSel.fin) - Date.parse(recSel.inicio)) / 1000)) : ""} · {kmTxt(recSel.km)}{recSel.cierre === "manual" ? " · marcado a mano" : ""}</span></p>
-                <p className="tg-vivo-pie">salió {hhmm(recSel.inicio)}{recSel.tipo ? ` · ${recSel.tipo}` : ""}{recSel.codigo ? ` · ${recSel.codigo}` : ""}</p>
-                <button type="button" className="tg-btn fuerte tg-vivo-rep" disabled={puntosSel.length < 2} onClick={() => setRepite((n) => n + 1)}>▶ {repite ? "Repetir otra vez" : "Repetir recorrido"}</button>
-              </>)}
-            </div>
-          )}
           {dibujo && (
             <div className="tg-guia" role="status">
               {dibujo === "punto" ? "Toca en el mapa el centro del patio o la bodega." : dibujo === "rect" ? "Haz clic en una esquina y luego en la esquina opuesta." : "Haz clic en cada vértice. Doble clic o Enter para cerrar la zona."} <button type="button" onClick={() => setDibujo(null)}>Cancelar (Esc)</button>
@@ -528,7 +515,7 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
 
         <aside className="tg-lado">
           <div className="tg-pest" role="tablist">
-            {([["ahora", "Ahora"], ["viajes", "Viajes"], ["plan", "Plan"], ["tiempos", "Tiempos"], ["flujos", "Flujos"], ["zonas", "Zonas"]] as [Pestania, string][]).map(([k, et]) => (
+            {([["viajes", "Viajes"], ["ahora", "Vehículos"], ["tiempos", "Tiempos"], ["plan", "Plan"], ["flujos", "Flujos"], ["zonas", "Zonas"]] as [Pestania, string][]).map(([k, et]) => (
               <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)}>
                 {et}{k === "viajes" && (seg3?.enCurso.length ?? 0) > 0 && <i className="tg-pest-n">{seg3!.enCurso.length}</i>}{k === "tiempos" && (seg3?.alertas.length ?? 0) > 0 && <i className="tg-pest-n mal">{seg3!.alertas.length}</i>}
               </button>
@@ -853,8 +840,79 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
             </div>
           )}
         </aside>
+
+        {/* EL DETALLE (derecha): el viaje escogido —o el primero en curso— con su paso a paso. */}
+        <section className="tg-det" aria-label="Detalle del viaje">
+          {recDet ? (() => {
+            const r = recDet, v = r.vivo;
+            const zo = r.zonaOrigen ? d?.nombreZ.get(r.zonaOrigen) ?? null : null, zd = r.destinoZona;
+            const espO = r.vehiculo && zo ? d?.visitasN.filter((x) => x.vehiculo === r.vehiculo && x.zona === zo && x.salida && Math.abs(Date.parse(x.salida) - Date.parse(r.inicio)) < 30 * 60_000).pop() : undefined;
+            const sEspO = espO ? Math.round((Date.parse(espO.salida!) - Date.parse(espO.entrada)) / 1000) : null;
+            const nO = zo ? seg3?.normales.zona.get(zo)?.normal ?? null : null, nD = zd ? seg3?.normales.zona.get(zd)?.normal ?? null : null;
+            const nT = zo && zd ? seg3?.normales.tramo.get(`${zo} → ${zd}`)?.normal ?? null : null;
+            const lleva = Math.round(((r.fin ? Date.parse(r.fin) : ahoraMs) - Date.parse(r.inicio)) / 1000);
+            const parado = !!v && v.parado >= 300 && !v.enZona;
+            const deLaPlaca = seg3?.recsV.filter((x) => x.placa === r.placa).length ?? 0;
+            return (<>
+              <div className="tg-det-cab">
+                <span className="tg-placa-et">{r.placa}</span>
+                <small>{[r.codigo, r.tipo].filter(Boolean).join(" · ")}</small>
+                {recSel && <button type="button" className="tg-det-x" onClick={() => escogerRec(null)} aria-label="Cerrar el detalle">×</button>}
+              </div>
+              {r.estado === "en_curso" && v ? (<>
+                <p className="tg-det-ojo">{parado ? "Parado hace" : "Llega en"}</p>
+                <p className={"tg-det-eta" + (parado ? " mal" : "")}>
+                  <b>{parado ? corto(v.parado) : v.etaMin == null ? "—" : `${v.etaMin} min`}</b>
+                  {!parado && v.llegaEn && <span>~{hhmm(v.llegaEn)}</span>}
+                </p>
+                <div className="tg-det-barra"><span style={{ width: `${Math.round(v.avance * 100)}%` }} /></div>
+              </>) : (<>
+                <p className="tg-det-ojo">Llegó</p>
+                <p className="tg-det-eta ok"><b>{r.fin ? hhmm(r.fin) : "—"}</b><span>{corto(lleva)} de viaje</span></p>
+                <div className="tg-det-barra"><span style={{ width: "100%", background: "#2fa66a" }} /></div>
+              </>)}
+              <ol className="tg-pasos">
+                <li className="p-hecho" style={{ ["--c" as string]: zo ? d?.colorZ.get(r.zonaOrigen!) ?? GRIS : GRIS }}>
+                  <b>Salió de {r.origen ?? zo ?? "origen"}</b>
+                  <small>{hhmm(r.inicio)}{sEspO != null ? ` · esperó ${corto(sEspO)}${nO ? ` (normal ${corto(nO)})` : ""}` : ""}</small>
+                </li>
+                <li className={r.estado === "en_curso" ? (parado ? "p-ahora mal" : "p-ahora") : "p-hecho"}>
+                  <b>{r.estado === "en_curso" ? (parado ? `Parado${v?.enZona ? ` en ${v.enZona}` : " fuera de las zonas"}` : "En camino") : "Tránsito"}</b>
+                  <small>{r.estado === "en_curso" && v
+                    ? `${kmTxt(r.km)} recorridos · ${Math.round(v.velocidad)} km/h${v.faltaKm != null ? ` · faltan ${kmTxt(v.faltaKm)}` : ""}`
+                    : `${corto(lleva)} · ${kmTxt(r.km)}${nT ? ` (normal ${corto(nT)})` : ""}${r.cierre === "manual" ? " · llegada marcada a mano" : ""}`}</small>
+                </li>
+                <li className={r.estado === "llego" ? "p-hecho" : "p-falta"} style={{ ["--c" as string]: r.zonaDestino ? d?.colorZ.get(r.zonaDestino) ?? GRIS : GRIS }}>
+                  <b>{r.estado === "llego" ? "Llegó a" : "Llega a"} {r.destino ?? zd ?? "destino"}</b>
+                  <small>{r.estado === "llego" ? (r.fin ? hhmm(r.fin) : "—") : v?.llegaEn ? `~${hhmm(v.llegaEn)}` : zd ? "—" : "el destino no tiene geocerca"}{nD ? ` · descargue normal ${corto(nD)}` : ""}</small>
+                </li>
+              </ol>
+              <div className="tg-det-cifras">
+                <div><span>Tramo {r.estado === "en_curso" ? "hasta ahora" : ""}</span><b>{corto(lleva)}</b></div>
+                <div><span>Normal</span><b>{nT ? corto(nT) : "—"}</b></div>
+                <div><span>Viajes de la placa</span><b>{deLaPlaca}</b></div>
+                <div><span>Recorrido</span><b>{kmTxt(r.km)}</b></div>
+              </div>
+              <div className="tg-det-acc">
+                {r.estado === "llego"
+                  ? <button type="button" className="tg-btn" disabled={puntosDet.length < 2} onClick={() => { if (selRec !== r.id) escogerRec(r.id); setRepite((n) => n + 1) }}>▶ {repite && selRec === r.id ? "Repetir otra vez" : "Repetir recorrido"}</button>
+                  : <button type="button" className="tg-btn" onClick={() => { escogerRec(r.id) }}>Seguir en el mapa</button>}
+              </div>
+            </>);
+          })() : (
+            <div className="tg-det-vacio">
+              <p className="tg-det-ojo">Alertas ahora</p>
+              <ul className="tg-alertas">
+                {seg3?.alertas.map((a, i) => <li key={i}><button type="button" onClick={() => setSel(a.vehiculo)}><b>{a.texto}</b><small>{a.detalle}</small></button></li>)}
+                {seg3 && seg3.alertas.length === 0 && <li className="tg-vacio">Sin alertas: nadie pasa de lo normal.</li>}
+              </ul>
+              <p className="tg-nota">Toca un viaje de la lista, una línea del mapa o un bloque de la línea de tiempo para ver aquí su paso a paso: cuándo salió, cuánto esperó, cuánto le falta y a qué hora llega.</p>
+            </div>
+          )}
+        </section>
       </div>
 
+      <div className="tg-abajo">
       {seg3 && (
         <LineaTiempo filas={seg3.filas} desde={seg3.ventana.ini} hasta={seg3.ventana.fin} ahora={ahoraIso} rango={rango}
           zonas={(foto?.zonas ?? []).map((z) => ({ nombre: z.nombre, color: z.color }))}
@@ -867,6 +925,7 @@ export function TiemposGps({ puedeEditar }: { puedeEditar: boolean }) {
       {seg3 && seg3.calor.size > 0 && (
         <CalorEspera calor={seg3.calor} normales={seg3.normales.zona} colores={new Map((foto?.zonas ?? []).map((z) => [z.nombre, z.color]))} />
       )}
+      </div>
     </div>
   );
 }

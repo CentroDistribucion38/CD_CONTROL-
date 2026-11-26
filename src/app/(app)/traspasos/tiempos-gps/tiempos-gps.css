@@ -270,3 +270,101 @@
 .tg-pest-n { min-width: 14px; margin-left: 3px; padding: 0 3px; font-size: .62rem; line-height: 15px; vertical-align: 1px }
 .tg-calor table { width: auto }
 .tg-tabla td:first-child { white-space: normal }
+
+/* =================== OPCIÓN 2 · TRES COLUMNAS, TODO CLARO (nov 2026) =================== */
+/* los botones escogidos: amarillo claro con raya amarilla, nunca relleno negro */
+.tg-seg button[aria-pressed="true"] { background: #fff3c4; color: var(--tg-tinta); box-shadow: inset 0 -3px 0 var(--tg-amarillo) }
+
+/* los números: tarjetas blancas con raya de color a la izquierda */
+.tg-kpis { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; background: transparent; color: var(--tg-tinta); border-bottom: 0 }
+.tg-kpis > div, .tg-kpis > button { display: flex; flex-direction: column; gap: 2px; padding: 10px 16px; background: #fff; border: 1px solid var(--tg-linea); border-left: 5px solid var(--tg-gris); text-align: left; font: inherit; color: inherit }
+.tg-kpis > div:last-child { border-right: 1px solid var(--tg-linea) }
+.tg-kpis span { order: 0; font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--tg-gris) }
+.tg-kpis b { order: 1; font-size: 1.65rem; line-height: 1.1; font-weight: 800; color: var(--tg-tinta) }
+.tg-kpis .k-ruta { border-left-color: var(--tg-amarillo) }
+.tg-kpis .k-zona { border-left-color: #2fa66a }
+.tg-kpis .k-tran { border-left-color: #c9a000 }
+.tg-kpis .k-viajes { border-left-color: var(--tg-tinta) }
+.tg-kpis .k-espera { border-left-color: #1d9bd1 }
+.tg-kpis .k-al { border-left-color: #d64550; cursor: pointer }
+.tg-kpis .k-al.hay { background: #fdecec; border-color: #e3b4b4; border-left-color: var(--tg-rojo) }
+.tg-kpis .k-al.hay b { color: var(--tg-rojo) }
+.tg-kpis .k-al:focus-visible { outline: 3px solid #1d9bd1; outline-offset: 1px }
+.tg-kpi-al { display: none }
+@media (max-width: 1100px) { .tg-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)) } .tg-kpis > :nth-child(-n+3) { border-bottom: 1px solid var(--tg-linea) } }
+@media (max-width: 560px) { .tg-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) } }
+
+/* tres columnas: pestañas y lista a la izquierda · mapa · detalle del viaje a la derecha */
+.tg-cuerpo.tres { grid-template-columns: 340px minmax(0, 1fr) 350px; grid-template-areas: "lado mapa det"; gap: 0; border: 1px solid var(--tg-tinta); background: #fff }
+.tg-cuerpo.tres > .tg-lado { grid-area: lado; border: 0; border-right: 1px solid var(--tg-linea) }
+.tg-cuerpo.tres > .tg-mapa-col { grid-area: mapa; border: 0 }
+.tg-cuerpo.tres > .tg-det { grid-area: det }
+.tg-cuerpo.tres .tg-pest { background: #fff; border-bottom: 1px solid var(--tg-linea) }
+.tg-cuerpo.tres .tg-pest button { color: var(--tg-gris) }
+.tg-cuerpo.tres .tg-pest button[aria-selected="true"] { color: var(--tg-tinta); background: #fffaeb; border-bottom-color: var(--tg-amarillo) }
+@media (max-width: 1360px) {
+  .tg-cuerpo.tres { grid-template-columns: 320px minmax(0, 1fr); grid-template-areas: "lado mapa" "det det" }
+  .tg-cuerpo.tres > .tg-det { border-left: 0; border-top: 1px solid var(--tg-linea); max-height: none; height: auto }
+}
+@media (max-width: 900px) {
+  .tg-cuerpo.tres { grid-template-columns: minmax(0, 1fr); grid-template-areas: "mapa" "det" "lado" }
+  .tg-cuerpo.tres > .tg-lado { border-right: 0; border-top: 1px solid var(--tg-linea); height: auto; max-height: none }
+}
+
+/* el detalle del viaje */
+.tg-det { position: relative; display: flex; flex-direction: column; padding: 16px 18px; border-left: 1px solid var(--tg-linea); min-height: 560px; height: calc(100vh - 330px); max-height: 760px; overflow-y: auto }
+.tg-det-cab { display: flex; align-items: center; gap: 10px; padding-right: 30px }
+.tg-placa-et { padding: 4px 9px; background: #fff3c4; border: 1.5px solid var(--tg-tinta); font: 800 .95rem "IBM Plex Mono", ui-monospace, monospace; letter-spacing: .04em }
+.tg-det-cab small { margin-left: auto; font-size: .74rem; color: var(--tg-gris); text-align: right }
+.tg-det-x { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; border: 0; background: transparent; font-size: 1.3rem; color: var(--tg-gris); cursor: pointer }
+.tg-det-ojo { margin: 18px 0 2px; font: 700 .7rem Arial, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--tg-gris) }
+.tg-det-eta { margin: 0; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap }
+.tg-det-eta b { font-size: 3rem; line-height: 1; font-weight: 800; color: #b71c1c; font-variant-numeric: tabular-nums; letter-spacing: -.01em }
+.tg-det-eta.ok b { font-size: 2.4rem; color: var(--tg-verde) }
+.tg-det-eta span { font-size: .95rem; color: var(--tg-tinta) }
+.tg-det-barra { height: 7px; margin: 14px 0 6px; background: #e6e8eb }
+.tg-det-barra span { display: block; height: 100%; background: var(--tg-amarillo); transition: width .6s ease }
+.tg-pasos { list-style: none; margin: 14px 0 0 7px; padding: 0 0 0 20px; border-left: 2px solid var(--tg-linea); display: flex; flex-direction: column; gap: 16px }
+.tg-pasos li { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; font-size: .86rem; color: var(--tg-tinta) }
+.tg-pasos li b { font-size: .9rem; font-weight: 700; color: var(--tg-tinta) }
+.tg-pasos li::before { content: ""; position: absolute; left: -28px; top: 2px; width: 12px; height: 12px; background: var(--c, var(--tg-gris)); border: 2px solid #fff; outline: 1px solid var(--c, var(--tg-gris)) }
+.tg-pasos li.p-ahora::before { --c: #d64550; width: 14px; height: 14px; left: -29px; top: 1px; box-shadow: 0 0 0 5px rgba(214,69,80,.18) }
+.tg-pasos li.p-ahora.mal b { color: var(--tg-rojo) }
+.tg-pasos li.p-falta::before { background: #fff; outline-width: 2px }
+.tg-pasos li.p-falta { color: var(--tg-gris) }
+.tg-pasos li.p-falta b { color: var(--tg-tinta) }
+.tg-pasos small { font-size: .76rem; color: var(--tg-gris) }
+.tg-det-cifras { display: grid; grid-template-columns: 1fr 1fr; margin-top: 20px; border: 1px solid var(--tg-linea) }
+.tg-det-cifras div { padding: 9px 11px; display: flex; flex-direction: column; gap: 2px }
+.tg-det-cifras div:nth-child(odd) { border-right: 1px solid var(--tg-linea) }
+.tg-det-cifras div:nth-child(-n+2) { border-bottom: 1px solid var(--tg-linea) }
+.tg-det-cifras span { font-size: .7rem; color: var(--tg-gris) }
+.tg-det-cifras b { font-size: 1.1rem; font-variant-numeric: tabular-nums }
+.tg-det-acc { display: flex; gap: 8px; margin-top: 14px }
+.tg-det-acc .tg-btn { flex: 1; min-height: 42px; border: 1.5px solid var(--tg-tinta); background: #fff; color: var(--tg-tinta) }
+.tg-det-vacio .tg-det-ojo { margin-top: 2px }
+
+/* abajo: línea de tiempo y calor, lado a lado en pantallas anchas */
+.tg-abajo { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 12px; align-items: start }
+.tg-abajo > :only-child { grid-column: 1 / -1 }
+@media (max-width: 1360px) { .tg-abajo { grid-template-columns: minmax(0, 1fr) } }
+/* botones claros (sin relleno negro); el principal sigue en amarillo */
+.tg-btn { background: #fff; color: var(--tg-tinta); border: 1.5px solid var(--tg-tinta) }
+.tg-btn:disabled { opacity: .5 }
+
+/* pestañas de la izquierda en dos filas de tres (caben con su número) */
+.tg-cuerpo.tres .tg-pest { display: grid; grid-template-columns: repeat(3, 1fr) }
+.tg-cuerpo.tres .tg-pest button { min-height: 38px; font-size: .78rem; border-bottom-width: 3px }
+.tg-calor .tg-linea-ley { font-size: .68rem }
+.tg .tg-calor table { width: auto !important }
+/* pantallas medianas: el detalle baja debajo del mapa en dos columnas (paso a paso | cifras), sin espacio vacío */
+@media (max-width: 1360px) and (min-width: 700px) {
+  .tg-cuerpo.tres > .tg-det { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 32px; align-content: start; min-height: 0 }
+  .tg-cuerpo.tres > .tg-det > * { grid-column: 1 }
+  .tg-cuerpo.tres > .tg-det > .tg-det-cab { grid-column: 1 / -1 }
+  .tg-cuerpo.tres > .tg-det > .tg-det-cifras { grid-column: 2; grid-row: 2 / span 3; margin-top: 18px; align-self: start }
+  .tg-cuerpo.tres > .tg-det > .tg-det-acc { grid-column: 2; grid-row: 5; align-self: end }
+  .tg-cuerpo.tres > .tg-det > .tg-det-vacio { grid-column: 1 / -1 }
+}
+/* la leyenda del mapa, clara como el resto */
+.tg-leyenda { background: rgba(255,255,255,.95); color: var(--tg-tinta); border: 1px solid var(--tg-tinta) }
