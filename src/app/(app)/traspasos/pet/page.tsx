@@ -20,7 +20,10 @@ export default async function PetPage({ searchParams }: { searchParams: Promise<
   const hasta = esF(q.hasta) ? q.hasta! : hoy;
   const desde = esF(q.desde) && q.desde! <= hasta ? q.desde! : masDias(hasta, -6);
   /* Programar mira 10 semanas hacia atrás (8 días iguales y la gráfica de 28 días). */
-  const r = vista === "vhs" ? await petRango(desde, hasta) : await petRango(masDias(hoy, -70), hoy);
+  /* Vhs por formato lee además las 10 semanas de Programar: la hoja «Promedios» del Excel es la misma cuenta. */
+  const [r, prog] = vista === "vhs"
+    ? await Promise.all([petRango(desde, hasta), petRango(masDias(hoy, -70), hoy)])
+    : await petRango(masDias(hoy, -70), hoy).then((x) => [x, x] as const);
 
   return (
     <div className="tp tp-pet-v">
@@ -33,7 +36,7 @@ export default async function PetPage({ searchParams }: { searchParams: Promise<
       ) : r.error ? (
         <section className="sin-tablas"><h2>No se pudo leer el PET</h2><p>{r.error}</p></section>
       ) : vista === "vhs" ? (
-        <TablaPet filas={r.filas} desde={desde} hasta={hasta} />
+        <TablaPet filas={r.filas} desde={desde} hasta={hasta} hoy={hoy} filasProg={prog.error ? [] : prog.filas} />
       ) : (
         <Programar filas={r.filas} hoy={hoy} />
       )}

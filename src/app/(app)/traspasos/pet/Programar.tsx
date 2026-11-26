@@ -90,7 +90,7 @@ export function Programar({ filas, hoy }: { filas: FilaPet[]; hoy: string }) {
         <section className="caja pv-mat-caja">
           <div className="cab"><div>
             <h2>Vhs a programar · {dia} {corto(fecha)}</h2>
-            <p>Promedio de {n === 1 ? "el" : "los"} {n} {deque} {n === 1 ? "" : "cerrados"} ({corto(p.dias[0])}{n > 1 ? ` – ${corto(p.dias[n - 1])}` : ""}). El número grande es lo que hay que hacer; los turnos suman el día.</p>
+            <p>Promedio de {n === 1 ? "el" : "los"} {n} {deque} {n === 1 ? "" : "cerrados"} ({corto(p.dias[0])}{n > 1 ? ` – ${corto(p.dias[n - 1])}` : ""}). El número grande es lo que hay que hacer: los turnos suman el día y los formatos suman el total (un Vh con dos formatos cuenta en el que más llevó).</p>
           </div></div>
           <div className="pv-tabla-caja">
             <table className="pv-tabla pv-mat">

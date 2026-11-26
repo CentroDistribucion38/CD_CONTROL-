@@ -26,7 +26,7 @@ type Vh = { viaje: string; fecha: string; turno: string; hora: string | null; pl
  * de su color (se ve de un vistazo qué pesó más en cada Vh), agrupada por día con su subtotal, y arriba el resumen
  * del periodo. Origen, destino, placa y unidad filtran aquí mismo; las fechas van a la base.
  */
-export function TablaPet({ filas, desde, hasta }: { filas: FilaPet[]; desde: string; hasta: string }) {
+export function TablaPet({ filas, desde, hasta, hoy, filasProg }: { filas: FilaPet[]; desde: string; hasta: string; hoy: string; filasProg: FilaPet[] }) {
   const router = useRouter();
   const [unidad, setUnidad] = useState<Unidad>("estibas");
   const [origen, setOrigen] = useState("");
@@ -90,9 +90,8 @@ export function TablaPet({ filas, desde, hasta }: { filas: FilaPet[]; desde: str
     setBajando(true); setErrExcel(null);
     try {
       const { armarLibroPet } = await import("@/modulos/traspasos/libro-pet");
-      const hoy = new Date().toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
       const filtro = [origen && `Origen ${origen}`, destino && `Destino ${destino}`, placa && `Placa ${placa}`].filter(Boolean).join(" · ");
-      const buf = await armarLibroPet({ filas: vistas, unidad, desde, hasta, hoy, filtro });
+      const buf = await armarLibroPet({ filas: vistas, filasProg, unidad, desde, hasta, hoy, filtro });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
       a.download = `PET ${desde} a ${hasta} - ${u}.xlsx`;

@@ -21,6 +21,8 @@ import {
 
 export type InsumosLibroPet = {
   filas: FilaPet[]; unidad: Unidad; desde: string; hasta: string; hoy: string;
+  /** Las 10 semanas que lee PET › Programar (sin filtros): «Promedios» sale de aquí para que dé lo mismo que Programar. */
+  filasProg: FilaPet[];
   /** Lo que se filtró en pantalla («Origen FABRICA · Placa NLW428»), o vacío. */
   filtro: string;
 };
@@ -231,14 +233,14 @@ export async function armarLibroPet(d: InsumosLibroPet): Promise<ArrayBuffer> {
 
   /* ============================== 3 · PROMEDIOS ============================== */
   {
-    const corte = d.hasta < d.hoy ? masDias(d.hasta, 1) : d.hoy;
-    const p = programar(d.filas, masDias(d.hasta, 1), { modo: "dias", n: 400 }, corte);
+    /* LA MISMA CUENTA DE PET › PROGRAMAR (lo que abre por defecto): para mañana, con los últimos 7 días con PET. */
+    const p = programar(d.filasProg, masDias(d.hoy, 1), { modo: "dias", n: 7 }, d.hoy);
     const dias = p.dias, nd = dias.length;
     const ancho = Math.max(10, 1 + nd + 3);
     const h = wb.addWorksheet("Promedios", { properties: { tabColor: { argb: VERDE } } });
     h.columns = [{ width: 24 }, ...Array.from({ length: ancho - 1 }, (_, i) => ({ width: i === 8 ? 14 : 12 }))];
     const rango = nd ? `${diaCorto(dias[0])} – ${diaCorto(dias[nd - 1])}` : "sin días cerrados";
-    banda(h, ancho, `Promedios de PET · ${rango}`, `Vhs al día y por turno, por formato · ${nd} ${nd === 1 ? "día" : "días"} con PET${deFiltro} · exportado el ${cuando()}`, logo, `${OJO} · PROMEDIOS`);
+    banda(h, ancho, `Promedios de PET · ${rango}`, `Igual que PET › Programar: Vhs al día y por turno, por formato · últimos ${nd} ${nd === 1 ? "día" : "días"} con PET (todo el PET, sin los filtros de la pantalla) · exportado el ${cuando()}`, logo, `${OJO} · PROMEDIOS`);
     h.getRow(6).height = 8;
 
     if (!nd) {
@@ -290,7 +292,7 @@ export async function armarLibroPet(d: InsumosLibroPet): Promise<ArrayBuffer> {
       });
 
       /* B · Vhs de cada día */
-      tituloBloque(h, B0, ancho, "Vhs de cada día", "Cuántos Vhs llevaron cada formato en cada día que entra al promedio (un Vh que llevó dos formatos cuenta en los dos). El promedio es fórmula: si cambias un número, se recalcula.");
+      tituloBloque(h, B0, ancho, "Vhs de cada día", "Cuántos Vhs de cada formato hubo en cada día que entra al promedio (un Vh que llevó dos formatos cuenta en el que más llevó, así los formatos suman el total). El promedio es fórmula: si cambias un número, se recalcula.");
       cabeza(h, BH, ["Formato", ...dias.map(diaCorto), "Promedio", "Máximo"], 1);
       filasDe.forEach((f, i) => {
         const r = BH + 1 + i, x = h.getRow(r), esT = i === p.formatos.length; x.height = 18;
@@ -311,7 +313,7 @@ export async function armarLibroPet(d: InsumosLibroPet): Promise<ArrayBuffer> {
         const r = CH + 1 + i, x = h.getRow(r), esT = i === p.formatos.length; x.height = 18;
         x.getCell(1).value = esT ? `Total PET (${nu})` : nombre(i); x.getCell(1).font = letra(10, TINTA, true); x.getCell(1).alignment = { indent: 1 };
         if (!esT) x.getCell(1).border = { left: { style: "thick", color: { argb: argb(colorFormato(f.formato)) } } };
-        const qs = dias.map((dia) => d.filas.filter((z) => z.fecha === dia && (esT || z.formato_ml === f.formato)).reduce((a, z) => a + cantidad(z, u), 0));
+        const qs = dias.map((dia) => d.filasProg.filter((z) => z.fecha === dia && (esT || z.formato_ml === f.formato)).reduce((a, z) => a + cantidad(z, u), 0));
         qs.forEach((q, k) => { const c = x.getCell(2 + k); c.value = q; c.numFmt = N; c.font = letra(10, q ? TINTA : GRIS_CLARO, esT); if (q && !esT) c.fill = relleno(tinte(colorFormato(f.formato))) });
         const cp = x.getCell(2 + nd), cv = x.getCell(3 + nd);
         const pq = qs.reduce((a, b) => a + b, 0) / nd;
@@ -325,7 +327,7 @@ export async function armarLibroPet(d: InsumosLibroPet): Promise<ArrayBuffer> {
       const nota = CH + 1 + filasA + 1;
       h.mergeCells(nota, 1, nota, ancho);
       const c = h.getCell(nota, 1);
-      c.value = `Entran los días ya cerrados del periodo con PET y con el formato registrado${d.hasta >= d.hoy ? " (hoy no, porque no ha cerrado)" : ""}. Los días sin PET (domingos, paros) no bajan el promedio.`;
+      c.value = "Entran los últimos 7 días ya cerrados con PET (hoy no, porque no ha cerrado) en los que casi todos los Vhs (80 % o más) traen el formato. Los días sin PET no bajan el promedio. Es la misma cuenta de PET › Programar.";
       c.font = letra(9, GRIS, false, true); c.alignment = { indent: 1, wrapText: true }; h.getRow(nota).height = 28;
     }
     h.views = [{ state: "frozen", xSplit: 1, ySplit: 5, showGridLines: false }];
