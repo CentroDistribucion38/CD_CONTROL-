@@ -2,52 +2,66 @@
 
 import { useMemo, useState } from "react";
 import {
-  colorFormato, nombreFormato, programar, masDias, diaSemana, DIAS,
-  type FilaPet, type PlanFormato,
+  colorFormato, nombreFormato, programar, masDias, diaSemana, DIAS, TURNOS_PET,
+  type BasePet, type FilaPet, type PlanFormato,
 } from "@/modulos/traspasos/pet";
 import { PetCabeza } from "./PetCabeza";
 
-const TURNOS: [string, string][] = [["D", "Día"], ["C", "C"], ["A", "A"], ["B", "B"]];
 const plural = (dow: number) => (dow === 0 ? "domingos" : dow === 6 ? "sábados" : DIAS[dow]);
 const corto = (f: string) => {
   const d = new Date(f + "T12:00:00Z");
   return `${d.getUTCDate()} ${d.toLocaleDateString("es-CO", { month: "short", timeZone: "UTC" }).replace(".", "")}`;
 };
-const dec = (x: number) => new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 }).format(x);
+const dec = (x: number) => new Intl.NumberFormat("es-CO", { maximumFractionDigits: 1 }).format(x);
 
 function Tendencia({ t, hay }: { t: number; hay: boolean }) {
-  if (!hay) return <span className="pv-igual">sin tendencia todavía</span>;
+  if (!hay) return <span className="pv-igual">—</span>;
   if (Math.abs(t) < 0.25) return <span className="pv-igual">= estable</span>;
-  return t > 0 ? <span className="pv-sube">▲ sube +{dec(t)}</span> : <span className="pv-baja">▼ baja −{dec(-t)}</span>;
+  return t > 0 ? <span className="pv-sube">▲ +{dec(t)}</span> : <span className="pv-baja">▼ −{dec(-t)}</span>;
+}
+
+/* «Con base en»: los últimos días con PET (cualquier día) o los últimos iguales al día a programar. */
+const BASES: { clave: string; base: BasePet; nombre: (dow: number) => string }[] = [
+  { clave: "d7", base: { modo: "dias", n: 7 }, nombre: () => "Últimos 7 días con PET" },
+  { clave: "d14", base: { modo: "dias", n: 14 }, nombre: () => "Últimos 14 días con PET" },
+  { clave: "d28", base: { modo: "dias", n: 28 }, nombre: () => "Últimos 28 días con PET" },
+  { clave: "s4", base: { modo: "semana", n: 4 }, nombre: (d) => `Últimos 4 ${plural(d)}` },
+  { clave: "s8", base: { modo: "semana", n: 8 }, nombre: (d) => `Últimos 8 ${plural(d)}` },
+];
+
+function Num({ c }: { c: { promedio: number; sugerido: number } }) {
+  return (<><b>{c.sugerido}</b><small>prom {dec(c.promedio)}</small></>);
 }
 
 /**
- * PET › PROGRAMAR. Solo para VER LA TENDENCIA por formato: cuántos Vhs de cada formato salieron los días iguales, su
- * promedio, si va subiendo o bajando y la gráfica de 28 días. No llena el Plan: el plan se sigue haciendo en Plan.
+ * PET › PROGRAMAR. Cuántos Vhs de cada formato hay que hacer AL DÍA Y POR TURNO, según lo registrado: el promedio
+ * de los días base (los últimos días con PET desde que se registra el formato, o los últimos días iguales). No llena
+ * el Plan: el plan se sigue haciendo en Plan.
  */
 export function Programar({ filas, hoy }: { filas: FilaPet[]; hoy: string }) {
   const [dow, setDow] = useState(diaSemana(masDias(hoy, 1)));
-  const [base, setBase] = useState(4);
-  const [turno, setTurno] = useState("D");
+  const [clave, setClave] = useState("d7");
   const proximo = (d: number) => {
     for (let i = 1; i <= 7; i++) { const f = masDias(hoy, i); if (diaSemana(f) === d) return f; }
     return masDias(hoy, 1);
   };
   const fecha = proximo(dow);
-  const p = useMemo(() => programar(filas, fecha, base, turno, 28, hoy), [filas, fecha, base, turno, hoy]);
+  const b = BASES.find((x) => x.clave === clave) ?? BASES[0];
+  const p = useMemo(() => programar(filas, fecha, b.base, hoy), [filas, fecha, b, hoy]);
   const dia = DIAS[dow];
-  const hayTend = p.usados >= 4;
-  const sumaFormatos = p.formatos.reduce((a, x) => a + x.sugerido, 0);
-  const enTurno = turno === "D" ? "" : ` · TURNO ${turno}`;
+  const n = p.dias.length;
+  const hayTend = n >= 4;
+  const deque = b.base.modo === "dias" ? `${n === 1 ? "día" : "días"} con PET` : plural(dow);
+  const t = p.total;
 
   return (
     <>
       <PetCabeza
         v="programar"
-        sub={<>Cuántos Vhs de PET programar por formato (200, 330, 1000, 1.500) según los últimos {plural(dow)}. El detalle viaje por viaje está en <b>Vhs por formato</b>.</>}
-        rot={`SUGERIDO · ${dia.toUpperCase()} ${corto(fecha).toUpperCase()}${enTurno}`}
-        num={p.usados ? p.total.sugerido : "—"}
-        pie={p.usados ? <>Vhs de PET · promedio <b>{dec(p.total.promedio)}</b> de los últimos {p.usados} {plural(dow)}</> : <>todavía no hay {plural(dow)} con PET registrado</>}
+        sub={<>Cuántos Vhs de PET hacer <b>al día y por turno</b>, por formato (200, 330, 1000, 1.500), según lo registrado. El detalle viaje por viaje está en <b>Vhs por formato</b>.</>}
+        rot={`SUGERIDO · ${dia.toUpperCase()} ${corto(fecha).toUpperCase()}`}
+        num={n ? t.dia.sugerido : "—"}
+        pie={n ? <>Vhs de PET · turno C <b>{t.turnos.C.sugerido}</b> · A <b>{t.turnos.A.sugerido}</b> · B <b>{t.turnos.B.sugerido}</b></> : <>todavía no hay días con PET por formato</>}
       />
 
       <section className="filtros">
@@ -62,42 +76,62 @@ export function Programar({ filas, hoy }: { filas: FilaPet[]; hoy: string }) {
             </div>
           </div>
           <label className="sel"><span>Con base en</span>
-            <select value={base} onChange={(e) => setBase(Number(e.target.value))}>
-              {[2, 3, 4, 5, 6, 8].map((n) => <option key={n} value={n}>Últimos {n} {plural(dow)}</option>)}
+            <select value={clave} onChange={(e) => setClave(e.target.value)}>
+              {BASES.map((x) => <option key={x.clave} value={x.clave}>{x.nombre(dow)}</option>)}
             </select>
           </label>
-          <div className="sel"><span>Turno</span>
-            <div className="seg turno" role="group" aria-label="Turno">
-              {TURNOS.map(([k, t]) => <button key={k} type="button" className={turno === k ? "on" : ""} aria-pressed={turno === k} onClick={() => setTurno(k)}>{t}</button>)}
-            </div>
-          </div>
         </div></div>
       </section>
 
-      {p.usados === 0 ? (
-        <section className="caja"><div className="vacio"><b>Todavía no hay un {dia} con Vhs de PET registrados con su SKU</b>
-          La cuenta arranca sola desde el primer {dia} que se registre en Traspasos › Registrar con el tipo PET.</div></section>
+      {n === 0 ? (
+        <section className="caja"><div className="vacio"><b>{p.inicioFormato ? `Todavía no hay ${b.base.modo === "dias" ? "días cerrados" : plural(dow)} con PET registrado por formato` : "Todavía no hay Vhs de PET registrados con su SKU"}</b>
+          La cuenta arranca sola con los Vhs que se registren en Traspasos › Registrar con el tipo PET y su SKU.</div></section>
       ) : (<>
-        {p.usados < base && (
-          <p className="aviso">Solo hay <b>{p.usados} {p.usados === 1 ? dia : plural(dow)}</b> con registro de PET (desde el {corto(p.total.iguales[0].fecha)}):
-            el promedio sale de {p.usados === 1 ? "ese" : "esos"}. Se afina solo a medida que haya más.</p>
-        )}
-
-        <section className="cifras pv-cifras">
-          {p.formatos.map((f) => (
-            <div key={String(f.formato)} className="cifra" style={{ borderLeftColor: colorFormato(f.formato) }}>
-              <div className="rot">{nombreFormato(f.formato).toUpperCase()}</div>
-              <div className="n">{f.sugerido} <span className="pv-u">{f.sugerido === 1 ? "Vh" : "Vhs"}</span></div>
-              <div className="u">{plural(dow)}: {f.iguales.map((x) => x.vhs).join(" · ")} · promedio <b>{dec(f.promedio)}</b><br /><Tendencia t={f.tendencia} hay={hayTend} /></div>
-            </div>
-          ))}
+        <section className="caja pv-mat-caja">
+          <div className="cab"><div>
+            <h2>Vhs a programar · {dia} {corto(fecha)}</h2>
+            <p>Promedio de {n === 1 ? "el" : "los"} {n} {deque} {n === 1 ? "" : "cerrados"} ({corto(p.dias[0])}{n > 1 ? ` – ${corto(p.dias[n - 1])}` : ""}). El número grande es lo que hay que hacer; los turnos suman el día.</p>
+          </div></div>
+          <div className="pv-tabla-caja">
+            <table className="pv-tabla pv-mat">
+              <thead><tr>
+                <th>Formato</th>
+                {TURNOS_PET.map((x) => <th key={x} className="n">Turno {x}</th>)}
+                <th className="n tt">Día</th>
+                <th className="n">Cada día base</th>
+                <th className="n">Tendencia</th>
+              </tr></thead>
+              <tbody>
+                {p.formatos.map((f) => (
+                  <tr key={String(f.formato)} className={f.dia.sugerido ? "" : "cero"}>
+                    <td><i className="sw" style={{ background: colorFormato(f.formato) }} />{nombreFormato(f.formato)}</td>
+                    {TURNOS_PET.map((x) => <td key={x} className="n"><Num c={f.turnos[x]} /></td>)}
+                    <td className="n tt"><Num c={f.dia} /></td>
+                    <td className="n pv-dias">{f.porDia.map((d) => d.vhs).join(" · ")}</td>
+                    <td className="n"><Tendencia t={f.tendencia} hay={hayTend} /></td>
+                  </tr>
+                ))}
+                <tr className="sum">
+                  <td>Total Vhs de PET</td>
+                  {TURNOS_PET.map((x) => <td key={x} className="n"><Num c={t.turnos[x]} /></td>)}
+                  <td className="n tt"><Num c={t.dia} /></td>
+                  <td className="n pv-dias">{t.porDia.map((d) => d.vhs).join(" · ")}</td>
+                  <td className="n"><Tendencia t={t.tendencia} hay={hayTend} /></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </section>
+
+        {n < b.base.n && (
+          <p className="aviso">Solo hay <b>{n} {deque}</b> con el formato registrado (se registra desde el {corto(p.inicioFormato!)}): el promedio sale de {n === 1 ? "ese" : "esos"} y se afina solo a medida que haya más.</p>
+        )}
         {p.mezclan && (
-          <p className="guia">Los formatos suman {sumaFormatos} y el total es {p.total.sugerido}: hay Vhs que llevan más de un formato. Al plan va el total de Vhs; el desglose dice qué cargar.</p>
+          <p className="guia">Los formatos suman {p.formatos.reduce((a, x) => a + x.dia.sugerido, 0)} y el total es {t.dia.sugerido}: hay Vhs que llevan más de un formato. Al plan va el total de Vhs; el desglose dice qué cargar.</p>
         )}
 
         <section className="pv-graf">
-          {p.formatos.map((f) => <Grafica key={String(f.formato)} f={f} dia={dia} plural={plural(dow)} fecha={fecha} />)}
+          {p.formatos.filter((f) => f.serie.some((s) => s.vhs > 0)).map((f) => <Grafica key={String(f.formato)} f={f} dia={dia} fecha={fecha} />)}
         </section>
       </>)}
     </>
@@ -105,10 +139,10 @@ export function Programar({ filas, hoy }: { filas: FilaPet[]; hoy: string }) {
 }
 
 /** Barras de 28 días + el sugerido punteado a la derecha + la raya del promedio de los días iguales. */
-function Grafica({ f, dia, plural, fecha }: { f: PlanFormato; dia: string; plural: string; fecha: string }) {
+function Grafica({ f, dia, fecha }: { f: PlanFormato; dia: string; fecha: string }) {
   const c = colorFormato(f.formato);
   const W = 640, H = 170, izq = 24, slots = f.serie.length + 2, bw = (W - izq) / slots;
-  const mx = Math.max(1, ...f.serie.map((s) => s.vhs), f.sugerido, Math.ceil(f.promedio));
+  const mx = Math.max(1, ...f.serie.map((s) => s.vhs), f.dia.sugerido, Math.ceil(f.dia.promedio));
   const paso = Math.max(1, Math.ceil(mx / 5));
   const tope = Math.ceil(mx / paso) * paso;
   const y = (v: number) => H - (v * (H - 18)) / tope;
@@ -118,10 +152,10 @@ function Grafica({ f, dia, plural, fecha }: { f: PlanFormato; dia: string; plura
   return (
     <div className="caja">
       <div className="cab"><div><h2><i className="pv-sw" style={{ background: c }} />{nombreFormato(f.formato)}</h2>
-        <p><span className="pv-ley" style={{ background: c }} />{plural} · <span className="pv-ley gris" />otros días · – – promedio · el punteado es el sugerido</p></div>
+        <p><span className="pv-ley" style={{ background: c }} />días base · <span className="pv-ley gris" />otros días · – – promedio · el punteado es el sugerido</p></div>
         <p>últimos {f.serie.length} días</p></div>
       <svg className="pv-svg" viewBox={`0 0 ${W} ${H + 24}`} role="img"
-           aria-label={`${nombreFormato(f.formato)}: Vhs por día de los últimos ${f.serie.length} días; sugerido ${f.sugerido} para el ${dia}`}>
+           aria-label={`${nombreFormato(f.formato)}: Vhs por día de los últimos ${f.serie.length} días; sugerido ${f.dia.sugerido} para el ${dia}`}>
         {lineas.map((v) => (
           <g key={v}>
             <line x1={izq - 4} x2={W} y1={y(v)} y2={y(v)} style={{ stroke: "var(--tp-fondo)" }} />
@@ -133,10 +167,10 @@ function Grafica({ f, dia, plural, fecha }: { f: PlanFormato; dia: string; plura
             <title>{`${corto(s.fecha)}: ${s.vhs} ${s.vhs === 1 ? "Vh" : "Vhs"}`}</title>
           </rect>
         ))}
-        {f.promedio > 0 && <line x1={izq - 4} x2={xs - 4} y1={y(f.promedio)} y2={y(f.promedio)} strokeDasharray="5 4" style={{ stroke: "var(--tp-tinta)" }} />}
-        {f.sugerido > 0 && (<>
-          <rect x={xs} y={y(f.sugerido)} width={bw - 4} height={H - y(f.sugerido)} strokeWidth="2" strokeDasharray="4 3" style={{ fill: "var(--tp-papel)", stroke: c }} />
-          <text x={xs + (bw - 4) / 2} y={y(f.sugerido) - 6} textAnchor="middle" fontSize="13" fontWeight="700" style={{ fill: "var(--tp-tinta)" }}>{f.sugerido}</text>
+        {f.dia.promedio > 0 && <line x1={izq - 4} x2={xs - 4} y1={y(f.dia.promedio)} y2={y(f.dia.promedio)} strokeDasharray="5 4" style={{ stroke: "var(--tp-tinta)" }} />}
+        {f.dia.sugerido > 0 && (<>
+          <rect x={xs} y={y(f.dia.sugerido)} width={bw - 4} height={H - y(f.dia.sugerido)} strokeWidth="2" strokeDasharray="4 3" style={{ fill: "var(--tp-papel)", stroke: c }} />
+          <text x={xs + (bw - 4) / 2} y={y(f.dia.sugerido) - 6} textAnchor="middle" fontSize="13" fontWeight="700" style={{ fill: "var(--tp-tinta)" }}>{f.dia.sugerido}</text>
         </>)}
         <line x1={izq - 4} x2={W} y1={H} y2={H} style={{ stroke: "var(--tp-tinta)" }} />
         {f.serie.map((s, i) => i % 7 === 0 && <text key={s.fecha} x={izq + i * bw} y={H + 16} fontSize="11" style={{ fill: "var(--tp-gris)" }}>{corto(s.fecha)}</text>)}

@@ -727,7 +727,9 @@ export function Navegacion({ permitidas, anclado, alternar }: {
             >
               <Icono />
               <span className="texto">{s.nombre}</span>
-              <span className="globo">{s.grupo ? `${s.grupo} · ${s.nombre}` : s.nombre}</span>
+              {/* Solo el superadmin ve estas pantallas (en prueba): la marca le recuerda que nadie más las tiene. */}
+              {s.soloManda && <span className="texto solo-sa" title="Solo el superadministrador la ve (en prueba)">SA</span>}
+              <span className="globo">{s.grupo ? `${s.grupo} · ${s.nombre}` : s.nombre}{s.soloManda ? " · solo superadmin" : ""}</span>
             </Link>
           )];
         })}

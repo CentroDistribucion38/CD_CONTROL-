@@ -66,3 +66,14 @@
   .tp .pv-graf { grid-template-columns: 1fr }
   .tp .seg { flex-wrap: wrap }
 }
+
+/* ---------- Programar: la tabla formato × turno ---------- */
+.tp .pv-mat-caja { margin-bottom: 10px }
+.tp .pv-mat { min-width: 720px }
+.tp .pv-mat td.n b { display: block; font-size: 22px; line-height: 1.1; font-weight: 800; color: var(--tp-tinta) }
+.tp .pv-mat td.n small { display: block; font-size: 11px; color: var(--tp-gris) }
+.tp .pv-mat td.tt { background: color-mix(in srgb, var(--tp-acento) 14%, transparent) }
+.tp .pv-mat th.tt { background: var(--tp-acento); color: var(--tp-sobre-acento) }
+.tp .pv-mat tr.cero td.n b { color: var(--tp-linea) }
+.tp .pv-mat tr.sum td { background: var(--tp-fondo) }
+.tp .pv-mat .pv-dias { font-size: 12px; color: var(--tp-gris) }

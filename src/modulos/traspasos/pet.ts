@@ -37,69 +37,102 @@ export const masDias = (f: string, n: number) => new Date(Date.parse(f + "T12:00
 export const diaSemana = (f: string) => new Date(f + "T12:00:00Z").getUTCDay(); // 0 = domingo
 export const DIAS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
 
+/** Con qué días se saca el promedio: los últimos `n` días con PET, o los últimos `n` iguales al día a programar. */
+export type BasePet = { modo: "dias" | "semana"; n: number };
+export const TURNOS_PET = ["C", "A", "B"] as const;
+export type Celda = { promedio: number; sugerido: number };
+
 export type PlanFormato = {
   formato: number | null;
-  /** Vhs de ese formato en cada uno de los últimos días iguales (del más viejo al más nuevo). */
-  iguales: { fecha: string; vhs: number }[];
-  promedio: number;
-  /** promedio de los 2 últimos días iguales − el de los 2 anteriores (en Vhs). */
+  /** Vhs al día (promedio y sugerido) y por turno; los sugeridos de los turnos suman el del día. */
+  dia: Celda;
+  turnos: Record<string, Celda>;
+  /** Vhs de ese formato en cada día base (del más viejo al más nuevo). */
+  porDia: { fecha: string; vhs: number }[];
+  /** Promedio de la mitad más nueva de los días base − el de la mitad más vieja (Vhs al día). */
   tendencia: number;
-  sugerido: number;
-  /** Vhs de cada uno de los `ventana` días antes de `fecha`, para la gráfica. `igual` = es uno de los días que
-   *  entraron al promedio. */
+  /** Vhs de cada uno de los `ventana` días hasta ayer, para la gráfica. `igual` = es un día base. */
   serie: { fecha: string; vhs: number; igual: boolean }[];
 };
 
 export type Programa = {
-  fecha: string; base: number;
-  /** Días iguales con datos que de verdad se usaron (puede ser menos que `base` si el registro arrancó hace poco). */
-  usados: number;
-  total: { iguales: { fecha: string; vhs: number }[]; promedio: number; sugerido: number; tendencia: number };
+  fecha: string; base: BasePet;
+  /** Los días que entraron al promedio (cerrados, con PET y con el formato ya registrado). */
+  dias: string[];
+  /** El primer día con el formato registrado: antes de ese, los Vhs no dicen qué llevaban y no cuentan. */
+  inicioFormato: string | null;
+  total: PlanFormato;
   formatos: PlanFormato[];
-  /** La suma de los sugeridos por formato supera al total: hay Vhs que llevan más de un formato. */
+  /** La suma de los formatos supera el total: hay Vhs que llevan más de un formato. */
   mezclan: boolean;
 };
 
+const redondo = (x: number) => Math.floor(x + 0.5);
+const prom = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
+
+/** El sugerido del día repartido en los turnos según su promedio (mayor residuo): C + A + B = día, siempre. */
+export function repartir(diaSugerido: number, promedios: number[]): number[] {
+  const suma = promedios.reduce((a, b) => a + b, 0);
+  if (!suma || !diaSugerido) return promedios.map(() => 0);
+  const ideal = promedios.map((p) => (p * diaSugerido) / suma);
+  const base = ideal.map(Math.floor);
+  let falta = diaSugerido - base.reduce((a, b) => a + b, 0);
+  const orden = ideal.map((x, i) => [x - Math.floor(x), i] as const).sort((a, b) => b[0] - a[0] || a[1] - b[1]);
+  for (const [, i] of orden) { if (falta <= 0) break; base[i]++; falta-- }
+  return base;
+}
+
 /**
- * CUÁNTOS VHS PROGRAMAR. Para el día `fecha`: los últimos `base` días de la misma semana (mismo día de la semana)
- * desde que hay registro de PET, cuántos Vhs llevaron cada formato (un Vh cuenta en cada formato que llevó) y
- * cuántos Vhs distintos salieron. El sugerido es el promedio redondeado (0,5 sube). La tendencia compara los 2
- * últimos con los 2 anteriores. `turno` = "D" para el día entero o C / A / B.
- * `corte` = el primer día que todavía no cerró (hoy): ni ese ni los siguientes cuentan como día igual, porque
- * medio día de registros bajaría el promedio.
+ * CUÁNTOS VHS DE PET PROGRAMAR, POR FORMATO, AL DÍA Y POR TURNO.
+ *
+ * Días base: días YA CERRADOS (antes de `corte`, que es hoy), con al menos un Vh de PET y desde que el formato se
+ * registra (antes de eso los Vhs salen «sin formato» y bajarían todo). Con `modo: "dias"` son los últimos `n` días
+ * así; con `modo: "semana"`, los últimos `n` iguales al día a programar (mismo día de la semana).
+ * Por cada formato: Vhs distintos que lo llevaron cada día base (un Vh que llevó dos formatos cuenta en los dos),
+ * el promedio al día, y el mismo promedio por turno (C, A, B). El sugerido del día es el promedio redondeado y se
+ * reparte en los turnos para que sumen exacto.
  */
-export function programar(filas: FilaPet[], fecha: string, base = 4, turno = "D", ventana = 28, corte?: string): Programa {
-  const f = turno === "D" ? filas : filas.filter((x) => x.turno === turno);
-  const desdeData = filas.reduce((m, x) => (x.fecha < m ? x.fecha : m), "9999-12-31");
-  const iguales: string[] = [];
-  let d0 = masDias(fecha, -7);
-  while (corte && d0 >= corte) d0 = masDias(d0, -7);
-  for (let d = d0; iguales.length < base && d >= desdeData; d = masDias(d, -7)) iguales.unshift(d);
-
-  const vhsDe = (dia: string, fm?: number | null) =>
-    new Set(f.filter((x) => x.fecha === dia && (fm === undefined || x.formato_ml === fm)).map((x) => x.viaje)).size;
-  const prom = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
-  const redondo = (x: number) => Math.floor(x + 0.5);
-  const tend = (xs: number[]) => (xs.length >= 4 ? prom(xs.slice(-2)) - prom(xs.slice(-4, -2)) : 0);
-
-  /* La gráfica termina en el último día cerrado (ayer) o en la víspera del día a programar, lo que llegue antes. */
-  const fin = corte && corte <= fecha ? masDias(corte, -1) : masDias(fecha, -1);
-  const formatos = formatosDe(filas).map((fm): PlanFormato => {
-    const ig = iguales.map((d) => ({ fecha: d, vhs: vhsDe(d, fm) }));
-    const p = prom(ig.map((x) => x.vhs));
-    const serie: PlanFormato["serie"] = [];
-    for (let i = ventana - 1; i >= 0; i--) {
-      const d = masDias(fin, -i);
-      serie.push({ fecha: d, vhs: d >= desdeData ? vhsDe(d, fm) : 0, igual: iguales.includes(d) });
+export function programar(filas: FilaPet[], fecha: string, base: BasePet = { modo: "dias", n: 7 }, corte?: string, ventana = 28): Programa {
+  const inicioFormato = filas.reduce<string | null>((m, x) => (x.formato_ml != null && (m == null || x.fecha < m) ? x.fecha : m), null);
+  const fin = masDias(corte && corte <= fecha ? corte : fecha, -1);
+  const conPet = new Set(filas.map((x) => x.fecha));
+  const dias: string[] = [];
+  if (inicioFormato) {
+    if (base.modo === "dias") {
+      for (let d = fin; dias.length < base.n && d >= inicioFormato; d = masDias(d, -1)) if (conPet.has(d)) dias.unshift(d);
+    } else {
+      let d = masDias(fecha, -7);
+      while (d > fin) d = masDias(d, -7);
+      for (; dias.length < base.n && d >= inicioFormato; d = masDias(d, -7)) if (conPet.has(d)) dias.unshift(d);
     }
-    return { formato: fm, iguales: ig, promedio: p, tendencia: tend(ig.map((x) => x.vhs)), sugerido: redondo(p), serie };
-  }).filter((x) => (FORMATOS_BASE as readonly (number | null)[]).includes(x.formato) || x.serie.some((s) => s.vhs > 0));
+  }
+  const enBase = new Set(dias);
 
-  const tig = iguales.map((d) => ({ fecha: d, vhs: vhsDe(d) }));
-  const tp = prom(tig.map((x) => x.vhs));
-  const total = { iguales: tig, promedio: tp, sugerido: redondo(tp), tendencia: tend(tig.map((x) => x.vhs)) };
-  return {
-    fecha, base, usados: iguales.length, total, formatos,
-    mezclan: formatos.reduce((a, x) => a + x.sugerido, 0) > total.sugerido,
+  /* Vhs distintos por día · turno · formato. */
+  const viajes = new Map<string, Set<string>>();
+  const k = (d: string, t: string, fm: number | null | "T") => `${d}|${t}|${fm}`;
+  const meter = (key: string, v: string) => (viajes.get(key) ?? viajes.set(key, new Set()).get(key)!).add(v);
+  for (const x of filas) for (const t of [x.turno, "D"]) { meter(k(x.fecha, t, x.formato_ml), x.viaje); meter(k(x.fecha, t, "T"), x.viaje) }
+  const vhs = (d: string, t: string, fm: number | null | "T") => viajes.get(k(d, t, fm))?.size ?? 0;
+
+  const fila = (fm: number | null | "T"): PlanFormato => {
+    const porDia = dias.map((d) => ({ fecha: d, vhs: vhs(d, "D", fm) }));
+    const pd = prom(porDia.map((x) => x.vhs));
+    const pt = TURNOS_PET.map((t) => prom(dias.map((d) => vhs(d, t, fm))));
+    const sd = redondo(pd);
+    const st = repartir(sd, pt);
+    const xs = porDia.map((x) => x.vhs), m = Math.floor(xs.length / 2);
+    const serie: PlanFormato["serie"] = [];
+    for (let i = ventana - 1; i >= 0; i--) { const d = masDias(fin, -i); serie.push({ fecha: d, vhs: vhs(d, "D", fm), igual: enBase.has(d) }) }
+    return {
+      formato: fm === "T" ? null : fm, dia: { promedio: pd, sugerido: sd },
+      turnos: Object.fromEntries(TURNOS_PET.map((t, i) => [t, { promedio: pt[i], sugerido: st[i] }])),
+      porDia, tendencia: xs.length >= 4 ? prom(xs.slice(m)) - prom(xs.slice(0, xs.length - m)) : 0, serie,
+    };
   };
+
+  const formatos = formatosDe(filas.filter((x) => enBase.has(x.fecha) || x.formato_ml != null)).map(fila)
+    .filter((x) => (FORMATOS_BASE as readonly (number | null)[]).includes(x.formato) || x.porDia.some((d) => d.vhs > 0));
+  const total = fila("T");
+  return { fecha, base, dias, inicioFormato, total, formatos, mezclan: formatos.reduce((a, x) => a + x.dia.sugerido, 0) > total.dia.sugerido };
 }
