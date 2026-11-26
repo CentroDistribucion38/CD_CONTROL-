@@ -68,15 +68,22 @@ export function TablaPet({ filas, desde, hasta }: { filas: FilaPet[]; desde: str
     const p = new URLSearchParams({ desde: d1 <= d2 ? d1 : d2, hasta: d1 <= d2 ? d2 : d1 });
     router.push(`/traspasos/pet?v=vhs&${p}`);
   }
+  /* El Excel con la cara de CONTROL: los Vhs con sus SKU y descripción, por SKU y los promedios (como Programar). */
+  const [bajando, setBajando] = useState(false);
+  const [errExcel, setErrExcel] = useState<string | null>(null);
   async function excel() {
-    const XLSX = await import("xlsx");
-    const datos: (string | number)[][] = [["Fecha", "Turno", "Hora", "Placa", "Origen", "Destino", ...visibles.map((fm) => nombreFormato(fm)), `Total (${u})`]];
-    for (const v of vhs) datos.push([v.fecha, v.turno, v.hora?.slice(0, 5) ?? "", v.placa ?? "", v.origen ?? "", v.destino ?? "",
-      ...visibles.map((fm) => Number((v.por.get(fm) ?? 0).toFixed(2))), Number(v.total.toFixed(2))]);
-    datos.push(["Total", "", "", `${vhs.length} Vhs`, "", "", ...visibles.map((fm) => Number(tot(vhs, fm).toFixed(2))), Number(T.toFixed(2))]);
-    const libro = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(libro, XLSX.utils.aoa_to_sheet(datos), "PET por formato");
-    XLSX.writeFile(libro, `PET_por_formato_${desde}_${hasta}.xlsx`);
+    setBajando(true); setErrExcel(null);
+    try {
+      const { armarLibroPet } = await import("@/modulos/traspasos/libro-pet");
+      const hoy = new Date().toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
+      const filtro = [origen && `Origen ${origen}`, destino && `Destino ${destino}`, placa && `Placa ${placa}`].filter(Boolean).join(" · ");
+      const buf = await armarLibroPet({ filas: vistas, unidad, desde, hasta, hoy, filtro });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+      a.download = `PET ${desde} a ${hasta} - ${u}.xlsx`;
+      a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    } catch (e) { setErrExcel(`No se pudo armar el Excel: ${e instanceof Error ? e.message : e}`) }
+    finally { setBajando(false) }
   }
 
   return (
@@ -94,7 +101,7 @@ export function TablaPet({ filas, desde, hasta }: { filas: FilaPet[]; desde: str
           <label className="sel fecha"><span>Desde</span><input type="date" value={d1} max={d2} onChange={(e) => setD1(e.target.value)} /></label>
           <label className="sel fecha"><span>Hasta</span><input type="date" value={d2} onChange={(e) => setD2(e.target.value)} /></label>
           <button type="button" className="btn" onClick={buscar} disabled={d1 === desde && d2 === hasta}>Ver</button>
-          <button type="button" className="btn si pv-plan" onClick={excel} disabled={vhs.length === 0}>Descargar Excel</button>
+          <button type="button" className="btn si pv-plan" onClick={() => void excel()} disabled={vhs.length === 0 || bajando}>{bajando ? "Armando Excel…" : "Descargar Excel"}</button>
         </div><div className="tp-f2">
           <label className="sel"><span>Origen</span><select value={origen} onChange={(e) => setOrigen(e.target.value)}><option value="">Todos</option>{opc("origen").map((x) => <option key={x}>{x}</option>)}</select></label>
           <label className="sel"><span>Destino</span><select value={destino} onChange={(e) => setDestino(e.target.value)}><option value="">Todos</option>{opc("destino").map((x) => <option key={x}>{x}</option>)}</select></label>
@@ -106,6 +113,7 @@ export function TablaPet({ filas, desde, hasta }: { filas: FilaPet[]; desde: str
           </div>
         </div></div>
       </section>
+      {errExcel && <p className="aviso" role="alert">{errExcel}</p>}
 
       {vhs.length === 0 ? (
         <section className="caja"><div className="vacio">

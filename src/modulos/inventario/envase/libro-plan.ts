@@ -18,7 +18,7 @@ import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
  * que exige Excel es tabColor → outlinePr → pageSetUpPr. Con el orden al revés Excel «repara» el libro y deja la hoja
  * vacía (LibreOffice lo abre bien, por eso no se notaba). Aquí se pone en su orden antes de entregar el archivo.
  */
-function ordenarSheetPr(buf: ArrayBuffer): ArrayBuffer {
+export function ordenarSheetPr(buf: ArrayBuffer): ArrayBuffer {
   const zip = unzipSync(new Uint8Array(buf));
   for (const k of Object.keys(zip)) {
     if (!/^xl\/worksheets\/sheet\d+\.xml$/.test(k)) continue;
@@ -34,13 +34,13 @@ function ordenarSheetPr(buf: ArrayBuffer): ArrayBuffer {
   return u.buffer.slice(u.byteOffset, u.byteOffset + u.byteLength) as ArrayBuffer;
 }
 
-const TINTA = "FF111111", BANDA = "FFFFC20E", BLANCO = "FFFFFFFF", GRIS = "FF6B6B6B", GRIS_CLARO = "FFBDBDBD";
-const FONDO = "FFF6F6F4", RAYA = "FFE3E3E0", VERDE = "FF0F7A4A", VERDE_F = "FFE3F4EA", ROJO = "FFB42318", ROJO_F = "FFFDE7EA";
-const GRUPO = "FFEDEFF2";
+export const TINTA = "FF111111", BANDA = "FFFFC20E", BLANCO = "FFFFFFFF", GRIS = "FF6B6B6B", GRIS_CLARO = "FFBDBDBD";
+export const FONDO = "FFF6F6F4", RAYA = "FFE3E3E0", VERDE = "FF0F7A4A", VERDE_F = "FFE3F4EA", ROJO = "FFB42318", ROJO_F = "FFFDE7EA";
+export const GRUPO = "FFEDEFF2";
 
-const relleno = (argb: string): ExcelJS.Fill => ({ type: "pattern", pattern: "solid", fgColor: { argb } });
-const letra = (size: number, color: string, bold = false, italic = false): Partial<ExcelJS.Font> => ({ name: "Calibri", size, bold, italic, color: { argb: color } });
-const raya = (argb = RAYA, style: ExcelJS.BorderStyle = "thin"): ExcelJS.Border => ({ style, color: { argb } });
+export const relleno = (argb: string): ExcelJS.Fill => ({ type: "pattern", pattern: "solid", fgColor: { argb } });
+export const letra = (size: number, color: string, bold = false, italic = false): Partial<ExcelJS.Font> => ({ name: "Calibri", size, bold, italic, color: { argb: color } });
+export const raya = (argb = RAYA, style: ExcelJS.BorderStyle = "thin"): ExcelJS.Border => ({ style, color: { argb } });
 
 export type FilaLibroPlan = { sku: string; nombre: string; tren: string; ini: (number | null)[]; vig: (number | null)[] };
 export type InsumosLibroPlan = {
@@ -63,10 +63,10 @@ const calor = (v: number, max: number) => {
   return `FF${mez(255, 255)}${mez(255, 194)}${mez(255, 14)}`;
 };
 const linea = (t: string) => t.replace(/^TREN-?/i, "Línea ");
-const cuando = () => new Date().toLocaleString("es-CO", { timeZone: "America/Bogota", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).replace(/\./g, "");
-const fechaLarga = (f: string) => new Date(f + "T12:00:00Z").toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).replace(/\./g, "");
+export const cuando = () => new Date().toLocaleString("es-CO", { timeZone: "America/Bogota", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).replace(/\./g, "");
+export const fechaLarga = (f: string) => new Date(f + "T12:00:00Z").toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).replace(/\./g, "");
 
-async function cargarLogo(wb: ExcelJS.Workbook): Promise<number | null> {
+export async function cargarLogo(wb: ExcelJS.Workbook): Promise<number | null> {
   try {
     if (typeof fetch === "undefined") return null;
     const r = await fetch("/marca/logo-b.png");
@@ -78,10 +78,10 @@ async function cargarLogo(wb: ExcelJS.Workbook): Promise<number | null> {
 }
 
 /** La banda negra de arriba: ojo amarillo, título, de qué semana es; la raya amarilla debajo y el sello a la derecha. */
-function banda(h: ExcelJS.Worksheet, ancho: number, titulo: string, sub: string, logo: number | null) {
+export function banda(h: ExcelJS.Worksheet, ancho: number, titulo: string, sub: string, logo: number | null, ojo = "INVENTARIO · PLAN VS NOTIFICADO · PLAN") {
   for (let f = 1; f <= 4; f++) for (let c = 1; c <= ancho; c++) h.getRow(f).getCell(c).fill = relleno(TINTA);
   h.getRow(1).height = 16; h.getRow(2).height = 30; h.getRow(3).height = 16; h.getRow(4).height = 8;
-  const o = h.getCell(1, 1); o.value = "INVENTARIO · PLAN VS NOTIFICADO · PLAN"; o.font = letra(8.5, BANDA, true); o.alignment = { vertical: "bottom", indent: 1 };
+  const o = h.getCell(1, 1); o.value = ojo; o.font = letra(8.5, BANDA, true); o.alignment = { vertical: "bottom", indent: 1 };
   const t = h.getCell(2, 1); t.value = titulo; t.font = letra(20, BLANCO, true); t.alignment = { vertical: "middle", indent: 1 };
   const s = h.getCell(3, 1); s.value = sub; s.font = letra(9, GRIS_CLARO); s.alignment = { indent: 1 };
   const r5 = h.getRow(5); r5.height = 4;
@@ -93,7 +93,7 @@ function banda(h: ExcelJS.Worksheet, ancho: number, titulo: string, sub: string,
 }
 
 /** Una cifra de arriba (rótulo gris en mayúsculas, número grande, nota), sobre varias columnas, con su raya de color. */
-function cifra(h: ExcelJS.Worksheet, fila: number, c0: number, c1: number, rotulo: string, valor: string, nota: string, color = BANDA) {
+export function cifra(h: ExcelJS.Worksheet, fila: number, c0: number, c1: number, rotulo: string, valor: string, nota: string, color = BANDA) {
   h.mergeCells(fila, c0, fila, c1); h.mergeCells(fila + 1, c0, fila + 1, c1); h.mergeCells(fila + 2, c0, fila + 2, c1);
   const a = h.getCell(fila, c0); a.value = rotulo.toUpperCase(); a.font = letra(8, GRIS, true); a.alignment = { indent: 1, vertical: "bottom" };
   const b = h.getCell(fila + 1, c0); b.value = valor; b.font = letra(17, TINTA, true); b.alignment = { indent: 1, vertical: "middle" };
