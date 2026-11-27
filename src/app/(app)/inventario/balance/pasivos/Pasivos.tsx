@@ -169,7 +169,7 @@ export function Pasivos({ filas, error, desde, hasta, dias, diasConteo, codigos,
       const r = await subirArchivo(JSON.stringify(leida.filas), leida.archivo);
       if ("error" in r && r.error) { setAviso({ tipo: "mal", texto: r.error }); return }
       const fs = leida.filas.map((x) => x.fecha).sort();
-      setAviso({ tipo: "ok", texto: `${"filas" in r ? r.filas : 0} filas de «${leida.archivo}» cargadas.${"excluidos" in r && r.excluidos?.length ? ` No se subieron (envases nuevos / estiba): ${r.excluidos.join(", ")}.` : ""}` });
+      setAviso({ tipo: "ok", texto: `${"filas" in r ? r.filas : 0} filas de «${leida.archivo}» cargadas.${"fueraCuadre" in r && r.fueraCuadre?.length ? ` ${r.fueraCuadre.join(", ")} (envase nuevo / estiba) quedó en Pasivos y en la descarga de la baja, pero no cuenta en el cuadre SAP.` : ""}` });
       setLeida(null);
       ir(fs[0], fs[fs.length - 1]);
     });
@@ -391,7 +391,7 @@ export function Pasivos({ filas, error, desde, hasta, dias, diasConteo, codigos,
                 <td className="r">{n2(f.hl)}</td>
                 <td className="r">{n0(f.cajas)}</td>
                 <td className="r">{plata(f.costo)}</td>
-                <td><span className={`pas-origen ${f.origen}`} title={f.archivo ?? f.nota ?? undefined}>{ORIGEN[f.origen] ?? f.origen}</span>{f.origen === "balance" && f.nota && <small className="pas-nota">{f.nota}</small>}</td>
+                <td><span className={`pas-origen ${f.origen}`} title={f.archivo ?? f.nota ?? undefined}>{ORIGEN[f.origen] ?? f.origen}</span>{f.origen === "balance" && f.nota && <small className="pas-nota">{f.nota}</small>}{f.fueraCuadre && <small className="pas-nota" title="Envase nuevo / estiba: va en Pasivos y en la descarga de la baja, pero el cuadre SAP no lo cuenta">no va al cuadre SAP</small>}</td>
               </tr>
             ))}
             {vistas.length === 0 && <tr><td colSpan={puedeEditar ? 13 : 12} className="bal-sin-filas">No hay pasivos en estas fechas con esos filtros.</td></tr>}

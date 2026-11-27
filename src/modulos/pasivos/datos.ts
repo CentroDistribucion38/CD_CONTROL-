@@ -24,6 +24,9 @@ export type FilaPasivo = {
   origen: "balance" | "archivo" | "manual" | "historico"; archivo: string | null; nota: string | null; sin_maestro: boolean;
   /** Descartada: se ve en la base pero NO suma ni resta (tabla pasivos_base.descartada). */
   descartada?: boolean;
+  /** Envase nuevo / estiba que se subió en el ARCHIVO PLANO: va en Pasivos y en las descargas de la baja,
+   *  pero el cuadre SAP no lo cuenta (la regla de excluidos de AG22). */
+  fueraCuadre?: boolean;
 };
 export type MaestroPasivo = {
   codigo: string; material: string | null; descripcion: string; familia: string | null;
@@ -95,8 +98,15 @@ export async function leerPasivos(desde: string, hasta: string, conDescartadas =
     .gte("fecha", desde).lte("fecha", hasta)
     .order("fecha", { ascending: false }).order("almacen").order("estado").order("causal").order("codigo").order("id")
     .range(d, h));
-  /* Envases nuevos (barril, 412644, 412671, 412707) y la estiba 3500163: no cuentan en Pasivos aunque hayan quedado cargados. */
-  return { ...r, data: r.data.filter((f) => !excluye(regla, f.codigo, f.descripcion) && (conDescartadas || !f.descartada)) };
+  /* Envases nuevos (barril, 412644, 412671, 412707) y la estiba 3500163: no cuentan en Pasivos aunque hayan quedado cargados…
+     salvo los que se subieron a propósito en el archivo plano: «que lo suba, pero para el cuadre en SAP no lo tengas en
+     cuenta; es para que cuando descargue y exporte lo de la baja se refleje». Esos van, marcados fueraCuadre. */
+  return {
+    ...r,
+    data: r.data
+      .map((f) => (excluye(regla, f.codigo, f.descripcion) ? { ...f, fueraCuadre: true } : f))
+      .filter((f) => (!f.fueraCuadre || f.origen === "archivo") && (conDescartadas || !f.descartada)),
+  };
 }
 
 /* LO DESCARTADO SOBREVIVE A TRAER / SUBIR OTRA VEZ: esas acciones borran y vuelven a insertar las filas del día,

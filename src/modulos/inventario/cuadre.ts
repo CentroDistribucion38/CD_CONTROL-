@@ -294,6 +294,7 @@ export async function armarCuadre(pedida?: string | null, almacen: Almacen = "AG
 
   /* 2. PEND. BAJA Y ANDINA / HEINEKEN (Pasivos AG18 · BAJA, del día). */
   for (const f of pas.data) {
+    if (f.fueraCuadre) continue; /* envase nuevo / estiba subido en el archivo plano: va en Pasivos, no en el cuadre SAP */
     if (f.almacen !== ALMACEN_CUADRE || String(f.estado).toUpperCase() !== "BAJA") continue;
     if (esPendienteEnviado(f.causal)) continue; /* lo enviado desde la Validación de pasivo ya sale de conteo − pasivo: no se cuenta doble */
     const a = de(String(f.codigo), f.descripcion);
@@ -493,6 +494,7 @@ async function armarCuadreAG22(pedida?: string | null) {
   };
   const fuera = new Map<string, { filas: number; unidades: number }>();
   for (const f of pas.data) {
+    if (f.fueraCuadre) continue; /* envase nuevo / estiba subido en el archivo plano: va en Pasivos, no en el cuadre SAP */
     if (String(f.almacen).toUpperCase() !== "AG22") continue;
     /* Lo enviado desde la Validación de pasivo AG22 ya sale de conteo − base: no se cuenta doble ni se avisa. */
     if (esPendienteEnviado(f.causal)) continue;

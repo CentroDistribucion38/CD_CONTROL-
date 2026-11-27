@@ -54,16 +54,14 @@ export async function subirArchivo(filasJson: string, archivo: string) {
   filas = filas.filter((f) => esDia(f.fecha) && f.codigo && f.estado && f.causal && f.almacen && Number.isFinite(Number(f.unidades)));
   if (!filas.length) return { error: "El archivo no trae filas válidas." };
   const supabase = await createClient();
-  /* Envases nuevos (barril, 412644, 412671, 412707) y la estiba 3500163: no se suben. El barril se reconoce por el nombre del maestro. */
+  /* Envases nuevos (barril, 412644, 412671, 412707) y la estiba 3500163: si vienen en el archivo SÍ se suben (se
+     pusieron a propósito: salen en Pasivos y en lo que se descarga de la baja), pero el cuadre SAP no los cuenta.
+     Se avisan para que se sepa. El barril se reconoce por el nombre del maestro. */
   const codigosArchivo = [...new Set(filas.map((f) => String(f.codigo)))];
   const { data: nombres } = await supabase.from("pasivos_maestro").select("codigo, descripcion").in("codigo", codigosArchivo);
   const nombreDe = new Map(((nombres ?? []) as { codigo: string; descripcion: string | null }[]).map((m) => [String(m.codigo), m.descripcion]));
   const regla = await leerExcluidos("AG22");
   const fuera = codigosArchivo.filter((c) => excluye(regla, c, nombreDe.get(c)));
-  if (fuera.length) {
-    filas = filas.filter((f) => !fuera.includes(String(f.codigo)));
-    if (!filas.length) return { error: `Ese archivo solo trae códigos que no van en Pasivos (${fuera.join(", ")}: envases nuevos / estiba). No se subió nada.` };
-  }
   /* Los días que ya están cargados del Excel (HISTÓRICO) no se suben otra vez. */
   const fechas = [...new Set(filas.map((f) => f.fecha))];
   const { data: hist } = await supabase.from("pasivos_base").select("fecha").in("fecha", fechas).eq("origen", "historico").limit(1000);
@@ -87,7 +85,7 @@ export async function subirArchivo(filasJson: string, archivo: string) {
     if (error) return { error: error.message };
   }
   revalidatePath(RUTA);
-  return { ok: true, filas: filas.length, excluidos: fuera };
+  return { ok: true, filas: filas.length, fueraCuadre: fuera };
 }
 
 /** BORRAR las filas marcadas. */
