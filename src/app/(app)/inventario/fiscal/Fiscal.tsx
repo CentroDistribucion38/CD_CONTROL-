@@ -115,10 +115,12 @@ export type FiscalBD = {
 /** `manual`: el nombre lo escribió alguien. Mientras no, sigue a la fecha («FISCAL OCTUBRE 2026 · viernes 02/10»). */
 type FormF = { id: string | null; nombre: string; fecha: string; hojas: HojaForm[]; manual: boolean };
 
-export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puedePublicar = true, conCruce = true, conCalle = true, conFamilias = true, familias = [], manda, ahora, modo = "fiscal", cruces }: {
+export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puedePublicar = true, conCruce = true, conCalle = true, conFamilias = true, familias = [], manda, ahora, modo = "fiscal", cruces, avisosExtra = [] }: {
   bodegaId: string; personas: Persona[]; roles: RolF[]; fiscales: FiscalBD[];
   /** «fiscal» (Plan fiscal) o «ciclico» (Producto · Cíclico): mismo armado, otras palabras y otras funciones de la base. */
   modo?: ModoPlan;
+  /** Avisos de la página (p. ej. el resumen del cruce que no respondió): van en el MISMO «Avisos», no en otro aparte. */
+  avisosExtra?: ReactNode[];
   /** Solo en el cíclico: por id de hoja, cuántos renglones cruza y cuántos NO coinciden. La hoja queda cuadrada
    *  cuando todo coincide: nadie la aprueba ni la «termina». */
   cruces?: Record<string, { total: number; conDif: number; enviada?: boolean }>;
@@ -291,7 +293,9 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
               </>
             )}
           </>
-        ) : <em className="fi-falta">{sola ? "Nadie: la cuenta una sola persona" : "Falta asignar"}</em>}
+        ) : sola
+          ? <em className="fi-nadie">No aplica · la hoja la cuenta una sola persona</em>
+          : <em className="fi-falta">Falta asignar</em>}
       </div>
     );
     const parejas = (
@@ -325,7 +329,7 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
       </>
     );
     /* Los avisos van al final y cerrados: lo principal es la tabla. */
-    const avisos: ReactNode[] = [];
+    const avisos: ReactNode[] = [...avisosExtra];
     if (!conCruce && puedeEditar) avisos.push(<>Para ver el avance de cada hoja y <b>cruzar a las dos personas</b> falta correr <code>supabase/migraciones/2026-10-fiscal-cruce.sql</code> en Supabase.</>);
     if (!puedePublicar && puedeEditar) avisos.push(<>Para poder <b>mostrar un plan en Contar</b> falta correr <code>supabase/migraciones/2026-10-fiscal-publicar.sql</code> en Supabase.</>);
     if (!conCalle && puedeEditar) avisos.push(<>Para poder <b>poner una calle a cada hoja</b> falta correr <code>supabase/migraciones/2026-10-fiscal-calle.sql</code> en Supabase.</>);

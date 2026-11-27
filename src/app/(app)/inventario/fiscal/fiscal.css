@@ -101,6 +101,8 @@
 .fe .fi-eq-et { font: 700 10.5px var(--fe-texto); letter-spacing: .12em; text-transform: uppercase; color: var(--fe-gris) }
 .fe .fi-quien { font: 800 19px/1.2 var(--fe-titulo); color: var(--fe-tinta); overflow-wrap: anywhere }
 .fe .fi-falta { font: 700 15px var(--fe-texto); font-style: normal; color: var(--fe-aviso) }
+/* Cíclico de una sola persona: el otro lado no falta, no aplica (gris, no rojo). */
+.fe .fi-nadie { font: 500 14px var(--fe-texto); font-style: normal; color: var(--fe-gris) }
 .fe .fi-med { display: block; height: 8px; margin: 8px 0 4px; background: var(--fe-fondo); max-width: 300px; overflow: hidden }
 .fe .fi-med i { display: block; height: 100% }
 .fe .fi-med.listo i { background: var(--fe-bien) }

@@ -76,13 +76,8 @@ export default async function CiclicoPage() {
         familias={familias.filter((f) => f.tipo === "PT")}
         manda={permisos.manda}
         ahora={new Date().toISOString()}
+        avisosExtra={res.error ? [<>El resumen del cruce no respondió ({res.error.message}); el estado de cada hoja se armó con el cruce hoja por hoja. Corre <code>supabase/migraciones/2026-11-producto-ciclico-control.sql</code> en Supabase.</>] : []}
       />
-      {res.error && (
-        <details className="fi-avisos">
-          <summary>Avisos (1)</summary>
-          <p className="cl-nota" role="note">El resumen del cruce no respondió ({res.error.message}); el estado de cada hoja se armó con el cruce hoja por hoja. Corre <code>supabase/migraciones/2026-11-producto-ciclico-control.sql</code> en Supabase.</p>
-        </details>
-      )}
     </div>
   );
 }

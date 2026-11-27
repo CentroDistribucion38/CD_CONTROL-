@@ -45,7 +45,9 @@ end $$;
 revoke all on function public.inv_ciclico_enviar(uuid) from public, anon;
 grant execute on function public.inv_ciclico_enviar(uuid) to authenticated;
 
-create or replace function public.inv_ciclico_resumen()
+-- Se rehace (no «replace»): si la base tiene la versión vieja sin «enviada_en», replace fallaría por el tipo de retorno.
+drop function if exists public.inv_ciclico_resumen();
+create function public.inv_ciclico_resumen()
 returns table (fiscal_id uuid, hoja_id uuid, numero integer, total bigint, con_diferencia bigint, enviada_en timestamptz)
 language plpgsql
 stable
