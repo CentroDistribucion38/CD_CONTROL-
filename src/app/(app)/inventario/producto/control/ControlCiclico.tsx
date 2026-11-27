@@ -442,6 +442,26 @@ export function ControlCiclico({ personas, ciclicos, cerradasIniciales, ahora, p
     setAviso(`Hoja ${numero} reabierta.`);
   }
 
+  /* «Envíalo tú»: si quien contó no alcanzó a enviar, quien edita lo envía por ella (mismas reglas de la base). */
+  async function enviar(f: FiscalBD, numero: number) {
+    const id = f.hojaIds?.[numero];
+    if (!id) return;
+    const h = f.hojas.find((x) => x.numero === numero);
+    const quien = [h?.ol, h?.bavaria].filter(Boolean).map((x) => nombre.get(x!) ?? "quien contó").join(" y ") || "quien contó";
+    const n = cruces[numero]?.length ?? 0;
+    const ok = await pedir({
+      titulo: `¿Enviar el conteo de la hoja ${numero}?`,
+      dice: <>Se envía lo que contó <b>{quien}</b> ({n} {n === 1 ? "renglón" : "renglones"}) como conteo final de la hoja. Queda registrado que lo enviaste tú; si hay que corregir, se reabre.</>,
+      confirmar: "Enviar el conteo",
+    });
+    if (!ok) return;
+    const { error } = await createClient().rpc("inv_ciclico_enviar", { p_hoja: id });
+    if (error) { setMal(/Solo quien cuenta la hoja puede/i.test(error.message) ? "Para enviar por otra persona falta correr supabase/migraciones/2026-11-producto-ciclico-enviar-por.sql en Supabase." : error.message); return }
+    setCerradas((c) => ({ ...c, [id]: new Date().toISOString() }));
+    setAviso(`Hoja ${numero} enviada.`);
+    await alDia(f);
+  }
+
   /* LA BD: lo que anotó cada persona, renglón por renglón (se lee al abrirla y después de cada cambio). */
   async function leerBd(f: FiscalBD) {
     setBdMal(null);
@@ -630,6 +650,9 @@ export function ControlCiclico({ personas, ciclicos, cerradasIniciales, ahora, p
                                   title="Lo que anotó cada persona, renglón por renglón: corregir o quitar">BD</button>
                         )}
                       </span>
+                      {e.texto.endsWith("falta enviar") && puedeEditar && f.estado === "abierto" && (
+                        <button type="button" className="fe-mini cy-enviar" onClick={() => enviar(f, h.numero)}>Enviar</button>
+                      )}
                       {enviada && puedeEditar && f.estado === "abierto" && (
                         <button type="button" className="fe-mini" onClick={() => reabrir(f, h.numero)}>Reabrir</button>
                       )}

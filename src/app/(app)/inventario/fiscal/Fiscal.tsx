@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { traducirError } from "@/lib/errores";
 import { Buscador } from "@/components/Buscador";
+import { useConfirmar } from "@/components/Confirmar";
 import { diaColombia } from "@/modulos/inventario/corte";
 import Link from "next/link";
 import { Ico } from "./PanelFiscal";
@@ -144,6 +145,7 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
   const [mal, setMal] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [borrar, setBorrar] = useState<string | null>(null);
+  const [pedir, dialogo] = useConfirmar();
   const nombre = useMemo(() => new Map(personas.map((p) => [p.id, p.nombre])), [personas]);
   const { proximos, anteriores } = useMemo(() => agrupar(fiscales, hoy), [fiscales, hoy]);
   /* Una sola pantalla: el inventario escogido (el más próximo al abrir). */
@@ -155,6 +157,29 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
     setMal(null); setAviso(null);
     setForm({ id: null, nombre: nombreAutoBase(hoy, T.prefijo), fecha: hoy, hojas: hojasVacias(2), manual: false });
   };
+  /* «Hasta allí llegó, envíalo tú»: quien manda envía el conteo de la hoja por quien la contó (mismas reglas de la base). */
+  async function enviarPor(f: FiscalBD, numero: number, quien: string, renglones: number) {
+    const id = f.hojaIds?.[numero];
+    if (!id) return;
+    const ok = await pedir({
+      titulo: `¿Enviar el conteo de la hoja ${numero}?`,
+      dice: <>Se envía lo que contó <b>{quien}</b> ({renglones} {renglones === 1 ? "renglón" : "renglones"}) como conteo final de la hoja. Queda registrado que lo enviaste tú. Si hay que corregir algo después, se reabre en el Control cíclico.</>,
+      confirmar: "Enviar el conteo",
+    });
+    if (!ok) return;
+    setMal(null); setAviso(null); setOcupado(true);
+    const { error } = await createClient().rpc("inv_ciclico_enviar", { p_hoja: id });
+    setOcupado(false);
+    if (error) {
+      setMal(/Solo quien cuenta la hoja puede/i.test(error.message)
+        ? "Para enviar por otra persona falta correr supabase/migraciones/2026-11-producto-ciclico-enviar-por.sql en Supabase."
+        : traducirError(error.message));
+      return;
+    }
+    setAviso(`Hoja ${numero} enviada: el conteo de ${quien} ya cuenta.`);
+    router.refresh();
+  }
+
   const editar = (f: FiscalBD) => {
     setMal(null); setAviso(null);
     setForm({ id: f.id, nombre: f.nombre, fecha: f.fecha, hojas: f.hojas.length ? f.hojas : hojasVacias(1), manual: f.nombre !== nombreAutoBase(f.fecha, T.prefijo) });
@@ -315,8 +340,17 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
                 <div className="fi-num"><small>Hoja</small><b>{h.numero}</b>{h.calle && <span className="fi-calle">Calle {h.calle}</span>}{conFamilias && (h.familias?.length ?? 0) > 0 && <span className="fi-calle fi-fams-ver" title="Familias que cuenta esta hoja">{h.familias!.join(" + ")}</span>}</div>
                 {equipo(h.ol, "Operador logístico", av?.olRenglones, av?.olTermino, sentidoDe(h.calle, "ol"), modo === "ciclico" && !!cruceDe(h.numero)?.enviada, modo === "ciclico" && !!h.bavaria)}
                 {equipo(h.bavaria, "Bavaria", av?.bavariaRenglones, av?.bavariaTermino, sentidoDe(h.calle, "bavaria"), modo === "ciclico" && !!cruceDe(h.numero)?.enviada, modo === "ciclico" && !!h.ol)}
-                {ec ? <i className={"fi-av " + ec.clase}>{ec.texto}</i>
-                  : conAvance && av && <i className={"fi-av " + est}>{TEXTO_ESTADO[est]}</i>}
+                {ec ? (
+                  ec.texto.endsWith("falta enviar") && puedeEditar && f.estado === "abierto" ? (
+                    <div className="fi-av-env">
+                      <i className={"fi-av " + ec.clase}>{ec.texto}</i>
+                      <button type="button" className="btn" disabled={ocupado}
+                              onClick={() => enviarPor(f, h.numero, [h.ol, h.bavaria].filter(Boolean).map((x) => nombre.get(x!) ?? "quien contó").join(" y ") || "quien contó", cruceDe(h.numero)?.total ?? 0)}>
+                        <Ico n="ok" tam={16} /> Enviar conteo
+                      </button>
+                    </div>
+                  ) : <i className={"fi-av " + ec.clase}>{ec.texto}</i>
+                ) : conAvance && av && <i className={"fi-av " + est}>{TEXTO_ESTADO[est]}</i>}
               </li>
             );
           })}
@@ -383,6 +417,7 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
         </div>
       </section>
 
+      {dialogo}
       {aviso && <p className="cl-ok" role="status">{aviso}</p>}
       {mal && !form && <p className="cl-mal" role="alert">{mal}</p>}
 

@@ -100,3 +100,5 @@
   .fe .cy-nuevo label, .fe .cy-nuevo input, .fe .cy-nuevo select { width: 100% }
   .fe .cy-n-num { width: calc(50% - 6px) }
 }
+.fe .fe-mini.cy-enviar { background: var(--fe-acento); border-color: var(--fe-acento); color: var(--fe-sobre, #14171C); font-weight: 800 }
+.fe .fe-mini.cy-enviar:hover { filter: brightness(.95); color: var(--fe-sobre, #14171C) }

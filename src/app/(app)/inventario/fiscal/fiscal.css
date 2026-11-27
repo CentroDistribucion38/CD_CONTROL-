@@ -108,6 +108,8 @@
 .fe .fi-med.listo i { background: var(--fe-bien) }
 .fe .fi-med.contando i { background: repeating-linear-gradient(135deg, var(--fe-acento) 0 6px, color-mix(in srgb, var(--fe-acento) 40%, transparent) 6px 12px) }
 .fe .fi-fila > .fi-av { align-self: center; margin: 0 18px }
+.fe .fi-fila > .fi-av-env { align-self: center; margin: 0 18px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px }
+.fe .fi-av-env .btn { min-height: 40px }
 .fe .fi-av.una-termino, .fe .fi-av.contando { border: 1px solid var(--fe-acento); background: transparent; color: var(--fe-tinta) }
 .fe .fi-av.sin-empezar { color: var(--fe-gris) }
 @media (max-width: 760px) {
@@ -115,6 +117,7 @@
   .fe .fi-num { grid-row: 1 / span 3 }
   .fe .fi-eq { border-left: 0; border-top: 1px solid var(--fe-linea); padding: 10px 14px }
   .fe .fi-fila > .fi-av { grid-column: 2; margin: 0 14px 12px; justify-self: start }
+  .fe .fi-fila > .fi-av-env { grid-column: 2; margin: 0 14px 12px; align-items: flex-start }
 }
 
 /* Los avisos, al final y cerrados. */
