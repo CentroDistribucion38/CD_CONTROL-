@@ -66,7 +66,10 @@ export function Inspeccionar({ areas, responsables, puntos, zonas = [], formatos
   const area = activas.find((a) => a.id === areaId) ?? null;
   const formato = formatosAct.find((f) => f.id === formatoId) ?? formatosAct[0] ?? FORMATO_5S;
   const meta = area?.meta ?? formato.meta ?? metaGeneral;
-  const duenno = responsables.find((r) => r.id === area?.responsable_id) ?? null;
+  /* EL RESPONSABLE: se ve el del área; si se toca, se escoge otro de la lista (queda en esta inspección). */
+  const [respId, setRespId] = useState<string | null>(null);
+  const duenno = responsables.find((r) => r.id === (respId ?? area?.responsable_id)) ?? null;
+  const cambiado = respId != null && respId !== area?.responsable_id;
   const lista = useMemo(() => (area ? checklistDe(puntos, area.id, formato) : []), [puntos, area, formato]);
   const r = (id: string) => resp[id] ?? VACIA;
   const zonasArea = zonas.filter((z) => z.activa && z.area_id === area?.id);
@@ -113,7 +116,7 @@ export function Inspeccionar({ areas, responsables, puntos, zonas = [], formatos
       confirmar: "Cambiar de área", peligro: true,
     }))) return;
     for (const x of Object.values(resp)) for (const f of x.fotos) URL.revokeObjectURL(f.url);
-    setAreaId(id); setResp({}); setNota(""); setHecha(null); setVerFaltas(false);
+    setAreaId(id); setResp({}); setNota(""); setHecha(null); setVerFaltas(false); setRespId(null);
     try { localStorage.setItem(RECORDAR, id) } catch { /* sin almacenamiento */ }
   }
   async function cambiarFormato(id: string) {
@@ -179,7 +182,7 @@ export function Inspeccionar({ areas, responsables, puntos, zonas = [], formatos
     }
     const { error } = await sb.rpc("s5_guardar", {
       p: {
-        id, fecha, area_id: area.id, formato_id: formato.id || null, nota: nota.trim() || null,
+        id, fecha, area_id: area.id, formato_id: formato.id || null, responsable_id: duenno?.id ?? null, nota: nota.trim() || null,
         puntos: lista.map((p) => {
           const x = r(p.id);
           return {
@@ -263,7 +266,18 @@ export function Inspeccionar({ areas, responsables, puntos, zonas = [], formatos
           <span>Fecha · S{semanaIso(fecha || hoyCo())}</span>
           <CampoFecha value={fecha} max={hoyCo()} onChange={(e) => setFecha(e.target.value)} disabled={guardando} />
         </label>
-        <div className="s5-dato"><span>Responsable del área</span><b>{duenno?.nombre ?? "Sin asignar"}</b>{duenno?.cargo && <small>{duenno.cargo}</small>}</div>
+        <label className="s5-dato s5-dato-sel" title="Tocar para escoger otro responsable">
+          <span>Responsable del área{cambiado && " · cambiado"}</span>
+          <b>{duenno?.nombre ?? "Sin asignar"} <i aria-hidden>▾</i></b>
+          {duenno?.cargo ? <small>{duenno.cargo}</small> : <small>toca para escoger</small>}
+          <select aria-label="Responsable del área" value={duenno?.id ?? ""} disabled={guardando}
+                  onChange={(e) => setRespId(e.target.value || null)}>
+            {!duenno && <option value="">Sin asignar</option>}
+            {responsables.filter((x) => x.activo || x.id === duenno?.id).map((x) => (
+              <option key={x.id} value={x.id}>{x.nombre}{x.cargo ? ` · ${x.cargo}` : ""}{x.id === area?.responsable_id ? " (del área)" : ""}</option>
+            ))}
+          </select>
+        </label>
         <div className="s5-dato"><span>Auditor</span><b>{auditor || "—"}</b><small>quien entró a la app</small></div>
       </section>
 

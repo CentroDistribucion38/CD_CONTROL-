@@ -75,6 +75,12 @@
 .s5-dato > span { font: 700 11px var(--s5-texto); letter-spacing: .12em; text-transform: uppercase; color: var(--s5-gris) }
 .s5-dato > b { font: 800 16px var(--s5-titulo); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .s5-dato > small { font-size: 12px; color: var(--s5-gris) }
+/* El responsable se ve igual que los demás datos; toda la casilla es un desplegable invisible encima. */
+.s5-dato-sel { position: relative; cursor: pointer }
+.s5-dato-sel > b i { font-style: normal; font-size: 11px; color: var(--s5-gris); margin-left: 2px }
+.s5-dato-sel:hover > b { text-decoration: underline; text-decoration-color: var(--s5-amarillo); text-decoration-thickness: 3px; text-underline-offset: 4px }
+.s5-dato-sel > select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 16px }
+.s5-dato-sel:focus-within > b { box-shadow: inset 0 -3px 0 var(--s5-amarillo) }
 
 /* =========================== EL TRABAJO =========================== */
 .s5-trabajo { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 14px; align-items: start }

@@ -91,14 +91,13 @@ export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, res
     return m;
   }, [resultados]);
 
-  /* EL KPI ES DE TODAS LAS ÁREAS (0 Lesiones va en Líneas, en Maquila…): el área la pone cada PI. Un KPI sale en el
-     área donde tenga PI; los que todavía no tienen ninguno, al final en «Todas». */
+  /* EL KPI ES DE TODAS LAS ÁREAS (0 Lesiones va en Líneas, en Maquila…): el área la pone cada PI. Un KPI sale SOLO
+     en el área donde tenga PI: un KPI sin PI no se mide y no sale en el tablero (sus PI se le ligan desde el Maestro). */
   const vista = useMemo(() => {
     const ok = (i: Indicador) => i.activo || inactivos;
     const pis = indicadores.filter((i) => i.tipo === "pi" && ok(i) && enArea(i));
     const conPi = new Set(pis.map((i) => i.padre_id).filter(Boolean));
-    const conAlguno = new Set(indicadores.filter((i) => i.tipo === "pi" && ok(i)).map((i) => i.padre_id).filter(Boolean));
-    return indicadores.filter((i) => ok(i) && (i.tipo === "pi" ? enArea(i) : conPi.has(i.id) || (area === "todas" && !conAlguno.has(i.id))));
+    return indicadores.filter((i) => ok(i) && (i.tipo === "pi" ? enArea(i) : conPi.has(i.id)));
   }, [indicadores, area, inactivos]); // eslint-disable-line react-hooks/exhaustive-deps
   const nInactivos = indicadores.filter((i) => !i.activo).length;
   const areaNueva = area !== "todas" && area !== "ninguna" ? area : null;
@@ -127,11 +126,6 @@ export function Tablero({ d, h, hoy, maxDias, turnos, procesos, indicadores, res
     };
     for (const p of procesos.filter((p) => p.activo)) grupo(p.id, p.nombre, pis.filter((i) => i.proceso_id === p.id));
     grupo("ninguna", "Sin área", pis.filter((i) => !i.proceso_id || !procesos.some((p) => p.activo && p.id === i.proceso_id)));
-    const sinPi = kpis.filter((k) => !pis.some((p) => p.padre_id === k.id));
-    if (sinPi.length) {
-      if (area === "todas") out.push({ grupo: "KPI sin PI todavía", id: "kpi-sin" });
-      for (const k of sinPi) out.push({ i: k, pi: false, en: null, n: 0 });
-    }
     return out;
   }, [vista, procesos, area]);
 
