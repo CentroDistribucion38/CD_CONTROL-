@@ -23,17 +23,18 @@ import { useConfirmar } from "@/components/Confirmar";
 import { sellar, type Foto } from "@/lib/evidencia";
 import {
   FORMATO_5S, SEVERIDADES, checklistDe, cumplimiento, pct, semanaIso, hoyCo,
-  type Area5S, type Formato5S, type Punto5S, type Zona5S, type Responsable5S, type Resultado, type Severidad,
+  type Area5S, type Formato5S, type Punto5S, type Zona5S, type Responsable5S, type UsuarioApp, type Resultado, type Severidad,
 } from "@/modulos/cinco-s/cinco-s";
 
 import { CampoFecha } from "@/components/CampoFecha";
+import { Selector, type OpcionSel } from "@/components/Selector";
 type Resp = { resultado: Resultado | null; severidad: Severidad; observacion: string; conNota: boolean; zona: string; fotos: (Foto & { k: number })[] };
 const VACIA: Resp = { resultado: null, severidad: "media", observacion: "", conNota: false, zona: "", fotos: [] };
 const RECORDAR = "s5-area";
 const RECORDAR_F = "s5-formato";
 
-export function Inspeccionar({ areas, responsables, puntos, zonas = [], formatos = [FORMATO_5S], metaGeneral, auditor, puedeEditar }: {
-  areas: Area5S[]; responsables: Responsable5S[]; puntos: Punto5S[]; zonas?: Zona5S[]; formatos?: Formato5S[]; metaGeneral: number; auditor: string; puedeEditar: boolean;
+export function Inspeccionar({ areas, responsables, usuarios = [], puntos, zonas = [], formatos = [FORMATO_5S], metaGeneral, auditor, puedeEditar }: {
+  areas: Area5S[]; responsables: Responsable5S[]; usuarios?: UsuarioApp[]; puntos: Punto5S[]; zonas?: Zona5S[]; formatos?: Formato5S[]; metaGeneral: number; auditor: string; puedeEditar: boolean;
 }) {
   const router = useRouter();
   const [avisar, avisos] = useAvisos();
@@ -68,12 +69,32 @@ export function Inspeccionar({ areas, responsables, puntos, zonas = [], formatos
   const formato = formatosAct.find((f) => f.id === formatoId) ?? formatosAct[0] ?? FORMATO_5S;
   const meta = area?.meta ?? formato.meta ?? metaGeneral;
   /* EL RESPONSABLE: se ve el del área; si se toca, se escoge otro de la lista (queda en esta inspección). */
-  const [respId, setRespId] = useState<string | null>(null);
-  const duenno = responsables.find((r) => r.id === (respId ?? area?.responsable_id)) ?? null;
-  const cambiado = respId != null && respId !== area?.responsable_id;
+  /* LAS PERSONAS que se pueden escoger como responsable o auditor: los responsables de 5S y los usuarios activos de
+     CONTROL (sin repetir a quien ya está en las dos listas). Valor «r:<id>» o «u:<id>» según de dónde sale. */
+  const personas = useMemo<OpcionSel[]>(() => {
+    const norm = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+    const ya = new Set(responsables.filter((r) => r.activo).map((r) => norm(r.nombre)));
+    return [
+      ...responsables.filter((r) => r.activo || r.id === area?.responsable_id)
+        .map((r) => ({ valor: `r:${r.id}`, etiqueta: r.nombre, nota: [r.cargo, r.id === area?.responsable_id ? "responsable del área" : ""].filter(Boolean).join(" · ") || "Responsable de 5S" })),
+      ...usuarios.filter((u) => u.nombre && !ya.has(norm(u.nombre)))
+        .map((u) => ({ valor: `u:${u.id}`, etiqueta: u.nombre, nota: "Usuario de CONTROL" })),
+    ];
+  }, [responsables, usuarios, area?.responsable_id]);
+  const respDelArea = area?.responsable_id ? `r:${area.responsable_id}` : "";
+  const [respSel, setRespSel] = useState("");
+  const respVal = respSel || respDelArea;
+  const respPersona = personas.find((o) => o.valor === respVal) ?? null;
+  const cambiado = respSel !== "" && respSel !== respDelArea;
   /* El auditor: quien entró, salvo que se escoja otra persona de la lista. */
-  const [audId, setAudId] = useState("");
-  const otroAuditor = responsables.find((r) => r.id === audId) ?? null;
+  const [audSel, setAudSel] = useState("");
+  const audPersona = personas.find((o) => o.valor === audSel) ?? null;
+  const opcAuditor = useMemo<OpcionSel[]>(() => {
+    const yo = auditor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+    const sinYo = personas.filter((o) => !(o.valor.startsWith("u:") && o.etiqueta.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase() === yo));
+    return [{ valor: "", etiqueta: auditor || "Yo", nota: "Quien entró a la app" }, ...sinYo];
+  }, [personas, auditor]);
+  const deLista = (v: string, k: "r" | "u") => (v.startsWith(`${k}:`) ? v.slice(2) : null);
   const lista = useMemo(() => (area ? checklistDe(puntos, area.id, formato) : []), [puntos, area, formato]);
   const r = (id: string) => resp[id] ?? VACIA;
   const zonasArea = zonas.filter((z) => z.activa && z.area_id === area?.id);
@@ -120,7 +141,7 @@ export function Inspeccionar({ areas, responsables, puntos, zonas = [], formatos
       confirmar: "Cambiar de área", peligro: true,
     }))) return;
     for (const x of Object.values(resp)) for (const f of x.fotos) URL.revokeObjectURL(f.url);
-    setAreaId(id); setResp({}); setNota(""); setHecha(null); setVerFaltas(false); setRespId(null);
+    setAreaId(id); setResp({}); setNota(""); setHecha(null); setVerFaltas(false); setRespSel("");
     try { localStorage.setItem(RECORDAR, id) } catch { /* sin almacenamiento */ }
   }
   async function cambiarFormato(id: string) {
@@ -186,7 +207,8 @@ export function Inspeccionar({ areas, responsables, puntos, zonas = [], formatos
     }
     const { error } = await sb.rpc("s5_guardar", {
       p: {
-        id, fecha, area_id: area.id, formato_id: formato.id || null, responsable_id: duenno?.id ?? null, auditor_id: otroAuditor?.id ?? null, nota: nota.trim() || null,
+        id, fecha, area_id: area.id, formato_id: formato.id || null, responsable_id: deLista(respVal, "r"), responsable_usuario: deLista(respVal, "u"),
+        auditor_id: deLista(audSel, "r"), auditor_usuario: deLista(audSel, "u"), nota: nota.trim() || null,
         puntos: lista.map((p) => {
           const x = r(p.id);
           return {
@@ -270,29 +292,17 @@ export function Inspeccionar({ areas, responsables, puntos, zonas = [], formatos
           <span>Fecha · S{semanaIso(fecha || hoyCo())}</span>
           <CampoFecha value={fecha} max={hoyCo()} onChange={(e) => setFecha(e.target.value)} disabled={guardando} />
         </label>
-        <label className="s5-dato s5-dato-sel" title="Tocar para escoger otro responsable">
+        <div className={`s5-dato s5-dato-sel${guardando ? " quieto" : ""}`}>
           <span>Responsable del área{cambiado && " · cambiado"}</span>
-          <b>{duenno?.nombre ?? "Sin asignar"} <i aria-hidden>▾</i></b>
-          {duenno?.cargo ? <small>{duenno.cargo}</small> : <small>toca para escoger</small>}
-          <select aria-label="Responsable del área" value={duenno?.id ?? ""} disabled={guardando}
-                  onChange={(e) => setRespId(e.target.value || null)}>
-            {!duenno && <option value="">Sin asignar</option>}
-            {responsables.filter((x) => x.activo || x.id === duenno?.id).map((x) => (
-              <option key={x.id} value={x.id}>{x.nombre}{x.cargo ? ` · ${x.cargo}` : ""}{x.id === area?.responsable_id ? " (del área)" : ""}</option>
-            ))}
-          </select>
-        </label>
-        <label className="s5-dato s5-dato-sel" title="Tocar para escoger otro auditor">
-          <span>Auditor{otroAuditor && " · cambiado"}</span>
-          <b>{otroAuditor?.nombre ?? (auditor || "—")} <i aria-hidden>▾</i></b>
-          <small>{otroAuditor ? (otroAuditor.cargo ?? "escogido de la lista") : "quien entró a la app"}</small>
-          <select aria-label="Auditor" value={otroAuditor?.id ?? ""} disabled={guardando} onChange={(e) => setAudId(e.target.value)}>
-            <option value="">{auditor || "Yo"} (quien entró)</option>
-            {responsables.filter((x) => x.activo || x.id === otroAuditor?.id).map((x) => (
-              <option key={x.id} value={x.id}>{x.nombre}{x.cargo ? ` · ${x.cargo}` : ""}</option>
-            ))}
-          </select>
-        </label>
+          <Selector className="s5-sel" ariaLabel="Responsable del área" buscar valor={respVal} onCambiar={setRespSel}
+                    opciones={respPersona ? personas : [{ valor: "", etiqueta: "Sin asignar" }, ...personas]} vacio="Sin asignar" />
+          <small>{respPersona?.nota ?? "toca para escoger"}</small>
+        </div>
+        <div className={`s5-dato s5-dato-sel${guardando ? " quieto" : ""}`}>
+          <span>Auditor{audPersona && " · cambiado"}</span>
+          <Selector className="s5-sel" ariaLabel="Auditor" buscar valor={audSel} onCambiar={setAudSel} opciones={opcAuditor} />
+          <small>{audPersona?.nota ?? "quien entró a la app"}</small>
+        </div>
       </section>
 
       <div className="s5-trabajo">

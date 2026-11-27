@@ -10,9 +10,10 @@ import "./selector.css";
  *   · Con más de 7 opciones sale un buscador arriba (sin tildes, sin importar mayúsculas).
  *   · ↑ ↓ para moverse, Enter para escoger, Esc para cerrar.
  *   · `codigo` (opcional) va a la izquierda en letra de máquina: un SKU, una placa.
+ *   · `nota` (opcional) sale pequeña debajo del nombre, solo en la lista: un cargo, un detalle.
  *   · Si no cabe debajo, se abre hacia arriba.
  */
-export type OpcionSel = { valor: string; etiqueta: string; codigo?: string };
+export type OpcionSel = { valor: string; etiqueta: string; codigo?: string; nota?: string };
 
 const limpio = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
@@ -46,7 +47,7 @@ export function Selector({
   const visibles = useMemo(() => {
     const t = limpio(q.trim());
     if (!t) return opciones;
-    return opciones.filter((o) => o.valor !== "" && limpio(`${o.codigo ?? ""} ${o.etiqueta}`).includes(t));
+    return opciones.filter((o) => o.valor !== "" && limpio(`${o.codigo ?? ""} ${o.etiqueta} ${o.nota ?? ""}`).includes(t));
   }, [opciones, q]);
 
   function abrir() {
@@ -121,7 +122,7 @@ export function Selector({
                    onMouseDown={(e) => e.preventDefault()}
                    onClick={() => escoger(o)}>
                 {o.codigo && <i>{o.codigo}</i>}
-                <b>{o.etiqueta}</b>
+                <b>{o.etiqueta}{o.nota && <small>{o.nota}</small>}</b>
                 {o.valor === valor && <u aria-hidden="true">✓</u>}
               </div>
             ))}

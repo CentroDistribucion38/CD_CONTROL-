@@ -47,6 +47,8 @@ export const SEVERIDADES: { v: Severidad; t: string }[] = [
   { v: "baja", t: "Baja" }, { v: "media", t: "Media" }, { v: "alta", t: "Alta" },
 ];
 
+/** Un usuario activo de CONTROL: también se puede escoger como responsable o auditor en la inspección. */
+export type UsuarioApp = { id: string; nombre: string };
 export type Responsable5S = { id: string; nombre: string; cedula: string | null; cargo: string | null; activo: boolean };
 export type Area5S = { id: string; nombre: string; descripcion: string | null; responsable_id: string | null; meta: number | null; activa: boolean; orden: number };
 export type Zona5S = { id: string; area_id: string; nombre: string; activa: boolean; orden: number };

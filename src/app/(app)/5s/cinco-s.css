@@ -75,12 +75,21 @@
 .s5-dato > span { font: 700 11px var(--s5-texto); letter-spacing: .12em; text-transform: uppercase; color: var(--s5-gris) }
 .s5-dato > b { font: 800 16px var(--s5-titulo); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .s5-dato > small { font-size: 12px; color: var(--s5-gris) }
-/* El responsable se ve igual que los demás datos; toda la casilla es un desplegable invisible encima. */
-.s5-dato-sel { position: relative; cursor: pointer }
-.s5-dato-sel > b i { font-style: normal; font-size: 11px; color: var(--s5-gris); margin-left: 2px }
-.s5-dato-sel:hover > b { text-decoration: underline; text-decoration-color: var(--s5-amarillo); text-decoration-thickness: 3px; text-underline-offset: 4px }
-.s5-dato-sel > select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 16px }
-.s5-dato-sel:focus-within > b { box-shadow: inset 0 -3px 0 var(--s5-amarillo) }
+/* Responsable y auditor se ven igual que los demás datos (nombre en grande con ▾); al tocarlos se abre la lista
+   propia de la app (Selector) con buscador, todas las personas y su cargo. Nada del desplegable azul del navegador. */
+.s5-dato-sel .s5-sel .selx-btn { height: auto; min-height: 26px; padding: 0 0 2px; border: 0; background: none; gap: 6px; justify-content: flex-start;
+  font: 800 16px var(--s5-titulo); color: var(--s5-tinta); outline: 0 }
+.s5-dato-sel .s5-sel .selx-val { flex: 0 1 auto; font-weight: 800 }
+.s5-dato-sel .s5-sel .selx-btn svg { color: var(--s5-gris); width: 12px; height: 12px }
+.s5-dato-sel .s5-sel .selx-btn:hover .selx-val, .s5-dato-sel .s5-sel.abierto .selx-val { text-decoration: underline; text-decoration-color: var(--s5-amarillo); text-decoration-thickness: 3px; text-underline-offset: 4px }
+.s5-dato-sel .s5-sel .selx-btn:focus-visible { outline: 3px solid var(--s5-amarillo); outline-offset: 2px }
+.s5-dato-sel .s5-sel .selx-pop { min-width: max(100%, 300px); border-color: var(--s5-tinta) }
+/* La escogida en crema con raya amarilla, como el resto del módulo (nada negro). */
+.s5-dato-sel .s5-sel .selx-op.on, .s5-dato-sel .s5-sel .selx-op.on.act { background: var(--s5-crema); color: var(--s5-tinta); border-left-color: var(--s5-amarillo) }
+.s5-dato-sel .s5-sel .selx-op.on b { font-weight: 700 }
+.s5-dato-sel .s5-sel .selx-op.on b small { color: var(--s5-gris) }
+.s5-dato-sel .s5-sel .selx-op.on u { color: #B8860B }
+.s5-dato-sel.quieto { pointer-events: none; opacity: .6 }
 
 /* =========================== EL TRABAJO =========================== */
 .s5-trabajo { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 14px; align-items: start }
@@ -545,3 +554,11 @@ button.s5-zona-chip:hover { border-color: var(--s5-amarillo); background: var(--
 }
 
 @media (prefers-reduced-motion: reduce) { .s5 * { scroll-behavior: auto !important } }
+.s5-dato-sel:last-child .s5-sel .selx-pop { left: auto; right: 0 }
+.s5-dato-sel .s5-sel .selx-op.ninguno b { font-style: normal; color: inherit }
+@media (max-width: 640px) {
+  /* En el celular la lista abre a todo el ancho de la ficha, nunca por fuera de la pantalla. */
+  .s5-ficha { position: relative }
+  .s5-ficha .s5-dato-sel, .s5-ficha .s5-dato-sel .s5-sel { position: static }
+  .s5-dato-sel .s5-sel .selx-pop, .s5-dato-sel .s5-sel .selx-pop.arriba, .s5-dato-sel:last-child .s5-sel .selx-pop { left: 10px; right: 10px; top: auto; bottom: auto; min-width: 0; margin-top: 4px }
+}

@@ -31,6 +31,8 @@
 .selx-op.on i { color: #FFC400 }
 .selx-op.on.act { background: #111 }
 .selx-op u { text-decoration: none; color: #FFC400; font-weight: 800; margin-left: 10px }
+.selx-op b small { display: block; font-size: 12px; color: #777; font-weight: 400; margin-top: 1px }
+.selx-op.on b small { color: #ddd }
 .selx-op.ninguno b { color: #666; font-style: italic }
 .selx-nada { padding: 14px; font-size: 13px; color: #777 }
 .selx-pie { display: flex; justify-content: space-between; gap: 12px; padding: 7px 14px; background: #F6F7F9; border-top: 1px solid #E3E6EA }

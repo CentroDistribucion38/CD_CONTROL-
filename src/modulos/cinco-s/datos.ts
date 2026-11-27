@@ -3,7 +3,7 @@
  * otra, las inspecciones. Si falta correr el SQL, se dice con `falta` y la pantalla lo explica.
  */
 import { createClient } from "@/lib/supabase/server";
-import { FORMATO_5S, type Area5S, type Formato5S, type Hallazgo5S, type Inspeccion5S, type Programada5S, type Punto5S, type Responsable5S, type Seccion5S, type Zona5S } from "./cinco-s";
+import { FORMATO_5S, type Area5S, type Formato5S, type Hallazgo5S, type Inspeccion5S, type Programada5S, type Punto5S, type Responsable5S, type Seccion5S, type UsuarioApp, type Zona5S } from "./cinco-s";
 
 export type Maestro5S = {
   falta: boolean; error: string | null;
@@ -79,6 +79,15 @@ export async function leerInspecciones5S(): Promise<{ falta: boolean; error: str
 }
 
 /** El nombre de quien entró: es el auditor de lo que inspeccione. */
+/** Los usuarios activos de CONTROL (nombre o, si no tiene, el usuario), para escoger responsable o auditor. */
+export async function leerUsuarios5S(): Promise<UsuarioApp[]> {
+  const sb = await createClient();
+  const { data } = await sb.from("perfiles").select("id, nombre, usuario").eq("activo", true).order("nombre");
+  return ((data ?? []) as { id: string; nombre: string | null; usuario: string | null }[])
+    .map((u) => ({ id: u.id, nombre: (u.nombre ?? "").trim() || (u.usuario ?? "").trim() }))
+    .filter((u) => u.nombre);
+}
+
 export async function miNombre(): Promise<string> {
   const sb = await createClient();
   const { data: { user } } = await sb.auth.getUser();
