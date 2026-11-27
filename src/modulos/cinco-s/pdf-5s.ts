@@ -99,7 +99,7 @@ export async function pdfInforme5S(JsPDFc: typeof JsPDF, d: DatosInforme, genera
     const cw = [ANCHO * 0.2, ANCHO * 0.32, ANCHO * 0.18, ANCHO * 0.3];
     const filas: [string, string, string, string][] = [
       ["Área auditada", insp.area, "Fecha / semana", `${fecha(insp.fecha)} · S${semana(insp.fecha)}`],
-      ["Responsable del área", (insp.responsable ?? "Sin asignar") + (d.cargo ? ` · ${d.cargo}` : ""), "Auditor", insp.auditor_nombre ?? "—"],
+      ["Responsable del área", (insp.responsable ?? "Sin asignar") + (d.cargo ? ` · ${d.cargo}` : ""), "Auditor", (insp.auditor_nombre ?? "—") + (insp.auditor_cargo ? ` · ${insp.auditor_cargo}` : "")],
       ["Meta del área", `${nf1.format(insp.meta).replace(",0", "")} %`, "Inspección N.º", d.numero],
     ];
     for (const f of filas) {
@@ -136,7 +136,7 @@ export async function pdfInforme5S(JsPDFc: typeof JsPDF, d: DatosInforme, genera
     const altas = nc.filter((i) => i.severidad === "alta").length;
     const filas: [string, string][] = [
       ["Responsable del área", (insp.responsable ?? "Sin asignar") + (d.cargo ? ` · ${d.cargo}` : "")],
-      ["Auditor", insp.auditor_nombre ?? "—"],
+      ["Auditor", (insp.auditor_nombre ?? "—") + (insp.auditor_cargo ? ` · ${insp.auditor_cargo}` : "")],
       ["Puntos evaluados", `${evaluados} de ${items.length}${na ? ` (${na} N/A)` : ""}`],
       ["No cumple", `${nc.length}${altas ? ` · ${altas === 1 ? "uno" : altas} de severidad alta` : ""}`],
       ["Evidencia fotográfica", `${nAntes} ${nAntes === 1 ? "foto" : "fotos"}`],

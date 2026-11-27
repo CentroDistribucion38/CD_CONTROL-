@@ -555,6 +555,14 @@ button.s5-zona-chip:hover { border-color: var(--s5-amarillo); background: var(--
 
 @media (prefers-reduced-motion: reduce) { .s5 * { scroll-behavior: auto !important } }
 .s5-dato-sel:last-child .s5-sel .selx-pop { left: auto; right: 0 }
+/* El cargo debajo del nombre: se ve como texto pequeño, pero se toca y se escribe lo que se quiera. */
+.s5-cargo { width: 100%; max-width: 100%; min-width: 0; height: 22px; padding: 0 18px 0 0; border: 0; border-bottom: 1px dashed transparent; border-radius: 0;
+  background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a9099' stroke-width='2.2'%3E%3Cpath d='M4 20h4L19 9l-4-4L4 16z'/%3E%3C/svg%3E") right center no-repeat;
+  font: 400 12px var(--s5-texto); color: var(--s5-gris); outline: 0 }
+.s5-cargo::placeholder { color: #A3A9B1 }
+.s5-cargo:hover { border-bottom-color: var(--s5-linea) }
+.s5-cargo:focus { border-bottom: 2px solid var(--s5-amarillo); color: var(--s5-tinta); background-image: none }
+@media (max-width: 640px) { .s5-cargo { font-size: 16px; height: 26px; flex: 1 1 160px } }
 .s5-dato-sel .s5-sel .selx-op.ninguno b { font-style: normal; color: inherit }
 @media (max-width: 640px) {
   /* En el celular la lista abre a todo el ancho de la ficha, nunca por fuera de la pantalla. */

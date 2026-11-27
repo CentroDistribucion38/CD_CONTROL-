@@ -79,13 +79,25 @@ export async function leerInspecciones5S(): Promise<{ falta: boolean; error: str
 }
 
 /** El nombre de quien entró: es el auditor de lo que inspeccione. */
-/** Los usuarios activos de CONTROL (nombre o, si no tiene, el usuario), para escoger responsable o auditor. */
+/** Los usuarios activos de CONTROL (nombre o, si no tiene, el usuario) con su cargo, para escoger responsable o auditor. */
 export async function leerUsuarios5S(): Promise<UsuarioApp[]> {
   const sb = await createClient();
-  const { data } = await sb.from("perfiles").select("id, nombre, usuario").eq("activo", true).order("nombre");
+  const [{ data }, cg] = await Promise.all([
+    sb.from("perfiles").select("id, nombre, usuario").eq("activo", true).order("nombre"),
+    /* El cargo que se le escribió en una inspección (paso 10; sin su SQL, ninguno). */
+    sb.from("s5_cargos_usuario").select("perfil_id, cargo"),
+  ]);
+  const cargo = new Map(((cg.error ? [] : cg.data) ?? []).map((x) => [x.perfil_id as string, x.cargo as string]));
   return ((data ?? []) as { id: string; nombre: string | null; usuario: string | null }[])
-    .map((u) => ({ id: u.id, nombre: (u.nombre ?? "").trim() || (u.usuario ?? "").trim() }))
+    .map((u) => ({ id: u.id, nombre: (u.nombre ?? "").trim() || (u.usuario ?? "").trim(), cargo: cargo.get(u.id) ?? null }))
     .filter((u) => u.nombre);
+}
+
+/** El id de quien entró (para saber su cargo de auditor). */
+export async function miId(): Promise<string | null> {
+  const sb = await createClient();
+  const { data: { user } } = await sb.auth.getUser();
+  return user?.id ?? null;
 }
 
 export async function miNombre(): Promise<string> {

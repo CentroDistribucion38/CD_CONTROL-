@@ -44,11 +44,13 @@ export default async function Informe5SPage({ params, searchParams }: {
     /* Los nombres de Supervisor OL que ya se han escrito, para sugerirlos al escribir. */
     sb.from("s5_inspecciones").select("firma_ol").not("firma_ol", "is", null).order("creado", { ascending: false }).limit(300),
   ]);
-  let cargo: string | null = null;
+  /* El cargo del responsable: el que quedó en la inspección (paso 10). Las de antes no lo tienen: se toma el del
+     responsable del área, solo si es la misma persona que quedó en la inspección. */
+  let cargo: string | null = i.responsable_cargo ?? null;
   const respId = (area.data as { responsable_id: string | null } | null)?.responsable_id;
-  if (respId) {
-    const { data } = await sb.from("s5_responsables").select("cargo").eq("id", respId).maybeSingle();
-    cargo = data?.cargo ?? null;
+  if (!cargo && respId) {
+    const { data } = await sb.from("s5_responsables").select("nombre, cargo").eq("id", respId).maybeSingle();
+    if (data && data.nombre === i.responsable) cargo = data.cargo ?? null;
   }
   const rutas = (ft.data ?? []).map((f) => f.ruta as string);
   const firmadas = rutas.length ? await sb.storage.from("cinco-s").createSignedUrls(rutas, 3600) : { data: [] };

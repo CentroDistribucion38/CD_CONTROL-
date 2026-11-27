@@ -154,7 +154,7 @@ export function Informe5S({ datos, descargar, responsables = [], areaResp = null
       case "datos": return (
         <table key={k} className="i5-dat"><tbody>
           <tr><td className="l">Área auditada</td><td><b>{insp.area}</b></td><td className="l">Fecha / semana</td><td>{fecha(insp.fecha)} · S{semanaIso(insp.fecha)}</td></tr>
-          <tr><td className="l">Responsable del área</td><td>{insp.responsable ?? "Sin asignar"}{datos.cargo ? ` · ${datos.cargo}` : ""}</td><td className="l">Auditor</td><td>{insp.auditor_nombre ?? "—"}</td></tr>
+          <tr><td className="l">Responsable del área</td><td>{insp.responsable ?? "Sin asignar"}{datos.cargo ? ` · ${datos.cargo}` : ""}</td><td className="l">Auditor</td><td>{(insp.auditor_nombre ?? "—") + (insp.auditor_cargo ? ` · ${insp.auditor_cargo}` : "")}</td></tr>
           <tr><td className="l">Meta del área</td><td>{pct(insp.meta)}</td><td className="l">Inspección N.º</td><td>{datos.numero}</td></tr>
         </tbody></table>
       );
@@ -168,7 +168,7 @@ export function Informe5S({ datos, descargar, responsables = [], areaResp = null
           </div>
           <table className="resumen"><tbody>
             <tr><td>Responsable del área</td><td>{insp.responsable ?? "Sin asignar"}{datos.cargo ? ` · ${datos.cargo}` : ""}</td></tr>
-            <tr><td>Auditor</td><td>{insp.auditor_nombre ?? "—"}</td></tr>
+            <tr><td>Auditor</td><td>{(insp.auditor_nombre ?? "—") + (insp.auditor_cargo ? ` · ${insp.auditor_cargo}` : "")}</td></tr>
             <tr><td>Puntos evaluados</td><td>{evaluados} de {items.length}{na ? ` (${na} N/A)` : ""}</td></tr>
             <tr><td>No cumple</td><td>{nc.length}{altas ? ` · ${altas === 1 ? "uno" : altas} de severidad alta` : ""}</td></tr>
             <tr><td>Evidencia fotográfica</td><td>{nAntes} {nAntes === 1 ? "foto" : "fotos"}</td></tr>
@@ -300,7 +300,7 @@ export function Informe5S({ datos, descargar, responsables = [], areaResp = null
         <div className="sec">
           <p className="s5-ojo">{sigla.toUpperCase()} · INFORME · {datos.numero}</p>
           <h1>{insp.area}</h1>
-          <p className="sub">{fechaLarga(insp.fecha)} · S{semanaIso(insp.fecha)} · Auditor: {insp.auditor_nombre ?? "—"}</p>
+          <p className="sub">{fechaLarga(insp.fecha)} · S{semanaIso(insp.fecha)} · Auditor: {(insp.auditor_nombre ?? "—") + (insp.auditor_cargo ? ` · ${insp.auditor_cargo}` : "")}</p>
         </div>
         <div className="sec">
           <b className={"big" + (bajo ? " bajo" : "")}>{nf1.format(insp.cumplimiento)} %</b>

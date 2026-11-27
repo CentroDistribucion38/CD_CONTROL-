@@ -33,8 +33,8 @@ const VACIA: Resp = { resultado: null, severidad: "media", observacion: "", conN
 const RECORDAR = "s5-area";
 const RECORDAR_F = "s5-formato";
 
-export function Inspeccionar({ areas, responsables, usuarios = [], puntos, zonas = [], formatos = [FORMATO_5S], metaGeneral, auditor, puedeEditar }: {
-  areas: Area5S[]; responsables: Responsable5S[]; usuarios?: UsuarioApp[]; puntos: Punto5S[]; zonas?: Zona5S[]; formatos?: Formato5S[]; metaGeneral: number; auditor: string; puedeEditar: boolean;
+export function Inspeccionar({ areas, responsables, usuarios = [], puntos, zonas = [], formatos = [FORMATO_5S], metaGeneral, auditor, auditorCargo = null, puedeEditar }: {
+  areas: Area5S[]; responsables: Responsable5S[]; usuarios?: UsuarioApp[]; puntos: Punto5S[]; zonas?: Zona5S[]; formatos?: Formato5S[]; metaGeneral: number; auditor: string; auditorCargo?: string | null; puedeEditar: boolean;
 }) {
   const router = useRouter();
   const [avisar, avisos] = useAvisos();
@@ -78,9 +78,19 @@ export function Inspeccionar({ areas, responsables, usuarios = [], puntos, zonas
       ...responsables.filter((r) => r.activo || r.id === area?.responsable_id)
         .map((r) => ({ valor: `r:${r.id}`, etiqueta: r.nombre, nota: [r.cargo, r.id === area?.responsable_id ? "responsable del área" : ""].filter(Boolean).join(" · ") || "Responsable de 5S" })),
       ...usuarios.filter((u) => u.nombre && !ya.has(norm(u.nombre)))
-        .map((u) => ({ valor: `u:${u.id}`, etiqueta: u.nombre, nota: "Usuario de CONTROL" })),
+        .map((u) => ({ valor: `u:${u.id}`, etiqueta: u.nombre, nota: u.cargo || "Usuario de CONTROL" })),
     ];
   }, [responsables, usuarios, area?.responsable_id]);
+  /* EL CARGO que se recuerda de cada persona (lo que sale escrito debajo del nombre; se puede cambiar). */
+  const cargoDe = useMemo(() => {
+    const m = new Map<string, string>();
+    responsables.forEach((r) => { if (r.cargo) m.set(`r:${r.id}`, r.cargo) });
+    usuarios.forEach((u) => { if (u.cargo) m.set(`u:${u.id}`, u.cargo) });
+    if (auditorCargo) m.set("", auditorCargo);
+    return m;
+  }, [responsables, usuarios, auditorCargo]);
+  const [respCargo, setRespCargo] = useState<string | null>(null); // null = no se ha tocado: va el recordado
+  const [audCargo, setAudCargo] = useState<string | null>(null);
   const respDelArea = area?.responsable_id ? `r:${area.responsable_id}` : "";
   const [respSel, setRespSel] = useState("");
   const respVal = respSel || respDelArea;
@@ -141,7 +151,7 @@ export function Inspeccionar({ areas, responsables, usuarios = [], puntos, zonas
       confirmar: "Cambiar de área", peligro: true,
     }))) return;
     for (const x of Object.values(resp)) for (const f of x.fotos) URL.revokeObjectURL(f.url);
-    setAreaId(id); setResp({}); setNota(""); setHecha(null); setVerFaltas(false); setRespSel("");
+    setAreaId(id); setResp({}); setNota(""); setHecha(null); setVerFaltas(false); setRespSel(""); setRespCargo(null);
     try { localStorage.setItem(RECORDAR, id) } catch { /* sin almacenamiento */ }
   }
   async function cambiarFormato(id: string) {
@@ -208,7 +218,11 @@ export function Inspeccionar({ areas, responsables, usuarios = [], puntos, zonas
     const { error } = await sb.rpc("s5_guardar", {
       p: {
         id, fecha, area_id: area.id, formato_id: formato.id || null, responsable_id: deLista(respVal, "r"), responsable_usuario: deLista(respVal, "u"),
-        auditor_id: deLista(audSel, "r"), auditor_usuario: deLista(audSel, "u"), nota: nota.trim() || null,
+        auditor_id: deLista(audSel, "r"), auditor_usuario: deLista(audSel, "u"),
+        /* El cargo solo se manda si se escribió: así se recuerda para esa persona (vacío = se borra). */
+        ...(respCargo !== null ? { responsable_cargo: respCargo.trim() } : {}),
+        ...(audCargo !== null ? { auditor_cargo: audCargo.trim() } : {}),
+        nota: nota.trim() || null,
         puntos: lista.map((p) => {
           const x = r(p.id);
           return {
@@ -294,14 +308,19 @@ export function Inspeccionar({ areas, responsables, usuarios = [], puntos, zonas
         </label>
         <div className={`s5-dato s5-dato-sel${guardando ? " quieto" : ""}`}>
           <span>Responsable del área{cambiado && " · cambiado"}</span>
-          <Selector className="s5-sel" ariaLabel="Responsable del área" buscar valor={respVal} onCambiar={setRespSel}
+          <Selector className="s5-sel" ariaLabel="Responsable del área" buscar valor={respVal} onCambiar={(v) => { setRespSel(v); setRespCargo(null) }}
                     opciones={respPersona ? personas : [{ valor: "", etiqueta: "Sin asignar" }, ...personas]} vacio="Sin asignar" />
-          <small>{respPersona?.nota ?? "toca para escoger"}</small>
+          {respPersona
+            ? <input className="s5-cargo" aria-label="Cargo del responsable" value={respCargo ?? cargoDe.get(respVal) ?? ""} maxLength={60}
+                     placeholder={respVal.startsWith("u:") ? "Usuario de CONTROL · escribe el cargo" : "Escribe el cargo"} onChange={(e) => setRespCargo(e.target.value)} />
+            : <small>toca para escoger</small>}
         </div>
         <div className={`s5-dato s5-dato-sel${guardando ? " quieto" : ""}`}>
           <span>Auditor{audPersona && " · cambiado"}</span>
-          <Selector className="s5-sel" ariaLabel="Auditor" buscar valor={audSel} onCambiar={setAudSel} opciones={opcAuditor} />
-          <small>{audPersona?.nota ?? "quien entró a la app"}</small>
+          <Selector className="s5-sel" ariaLabel="Auditor" buscar valor={audSel} onCambiar={(v) => { setAudSel(v); setAudCargo(null) }} opciones={opcAuditor} />
+          <input className="s5-cargo" aria-label="Cargo del auditor" value={audCargo ?? cargoDe.get(audSel) ?? ""} maxLength={60}
+                 placeholder={audSel === "" ? "Quien entró a la app · escribe tu cargo" : audSel.startsWith("u:") ? "Usuario de CONTROL · escribe el cargo" : "Escribe el cargo"}
+                 onChange={(e) => setAudCargo(e.target.value)} />
         </div>
       </section>
 

@@ -48,7 +48,7 @@ export const SEVERIDADES: { v: Severidad; t: string }[] = [
 ];
 
 /** Un usuario activo de CONTROL: también se puede escoger como responsable o auditor en la inspección. */
-export type UsuarioApp = { id: string; nombre: string };
+export type UsuarioApp = { id: string; nombre: string; cargo?: string | null };
 export type Responsable5S = { id: string; nombre: string; cedula: string | null; cargo: string | null; activo: boolean };
 export type Area5S = { id: string; nombre: string; descripcion: string | null; responsable_id: string | null; meta: number | null; activa: boolean; orden: number };
 export type Zona5S = { id: string; area_id: string; nombre: string; activa: boolean; orden: number };
@@ -68,6 +68,8 @@ export type Punto5S = { id: string; formato_id: string; area_id: string | null; 
 export type Inspeccion5S = {
   id: string; fecha: string; area_id: string | null; area: string; responsable: string | null;
   formato_id?: string | null; formato?: string | null;
+  /* El cargo de quien se escogió ese día (paso 10; antes de su SQL no viene). */
+  responsable_cargo?: string | null; auditor_cargo?: string | null;
   auditor_nombre: string | null; cumplimiento: number; meta: number; evaluados: number; no_cumple: number;
   nota: string | null; creado: string; por_s: Partial<Record<ClaveS, number | null>>; fotos: number;
   /* Quién firma el informe (paso 3; antes de su SQL no vienen). */
