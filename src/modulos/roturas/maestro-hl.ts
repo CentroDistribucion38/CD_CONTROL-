@@ -37,10 +37,10 @@ export async function leerMaestroHL(supabase: SupabaseClient): Promise<MaestroHL
  */
 export async function leerCatalogoLibro(supabase: SupabaseClient, hl?: MaestroHL | null): Promise<MaterialLibro[]> {
   try {
-    const mats: { clave: string; nombre: string; tipo: "producto_terminado" | "eer" }[] = [];
+    const mats: { clave: string; nombre: string; tipo: "producto_terminado" | "eer"; botellas_x_empaque: number | null }[] = [];
     const prods: { sku: string; precio_botella: number | string | null; envase_sku: string | null; unidades_x_caja: number | null }[] = [];
     for (let d = 0; d < 20000; d += 1000) {
-      const { data, error } = await supabase.from("v_roturas_materiales_maestro").select("clave, nombre, tipo").order("clave").range(d, d + 999);
+      const { data, error } = await supabase.from("v_roturas_materiales_maestro").select("clave, nombre, tipo, botellas_x_empaque").order("clave").range(d, d + 999);
       if (error || !data?.length) break;
       mats.push(...(data as typeof mats));
       if (data.length < 1000) break;
@@ -59,7 +59,8 @@ export async function leerCatalogoLibro(supabase: SupabaseClient, hl?: MaestroHL
       const h = hl?.get(k);
       return {
         sku: k, nombre: m.nombre, tipo: m.tipo,
-        upc: num(pr?.unidades_x_caja) || h?.upc || null, hl: h?.hl ?? null,
+        /* unid. por caja: la del maestro de Inventario (la vista la trae aunque `productos` no se pueda leer directo). */
+        upc: num(pr?.unidades_x_caja) || num(m.botellas_x_empaque) || h?.upc || null, hl: h?.hl ?? null,
         precioEnvase: num(env?.precio_botella), precioProducto: m.tipo === "eer" ? null : num(pr?.precio_botella),
       };
     });

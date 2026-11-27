@@ -151,8 +151,23 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
   /* LA HOJA «MAESTRO»: lo que el Detalle busca por SKU. El catálogo completo si vino; si no, los SKU del libro
      con lo que traen las roturas. Lo que falta va como «—» (texto) para que una fórmula no lo lea como cero. */
   const maestroFilas: MaterialLibro[] = (() => {
+    /* LO QUE COBRA LA APP MANDA: para cada SKU que viene en el libro, el factor y los precios salen de sus propias
+       roturas (v_roturas), que es con lo que la app calculó el cobro. Así lo que se ve al abrir (en vista protegida)
+       y lo que Excel recalcula al habilitar la edición es la misma cifra. El catálogo solo completa los demás SKU. */
+    const deRot = new Map<string, { upc: number | null; pe: number | null; pp: number | null }>();
+    for (const r of todas) {
+      const k = String(r.material ?? "").trim();
+      const x = deRot.get(k) ?? { upc: null, pe: null, pp: null };
+      x.upc ??= Number(r.factor_caja) || null;
+      x.pe ??= r.precio_envase != null ? Number(r.precio_envase) : null;
+      x.pp ??= r.precio_producto != null ? Number(r.precio_producto) : null;
+      deRot.set(k, x);
+    }
     const m = new Map<string, MaterialLibro>();
-    for (const x of d.catalogo ?? []) if (x.sku?.trim()) m.set(x.sku.trim(), { ...x, sku: x.sku.trim() });
+    for (const x of d.catalogo ?? []) if (x.sku?.trim()) {
+      const k = x.sku.trim(), r = deRot.get(k);
+      m.set(k, { ...x, sku: k, upc: r?.upc ?? x.upc, precioEnvase: r?.pe ?? x.precioEnvase, precioProducto: r?.pp ?? x.precioProducto });
+    }
     for (const r of todas) {
       const k = String(r.material ?? "").trim();
       if (!k || m.has(k)) continue;
@@ -298,7 +313,8 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
       const c = h.getCell(11, 2);
       const f0 = (v: number, dec = 0) => v.toLocaleString("es-CO", { minimumFractionDigits: dec, maximumFractionDigits: dec });
       const txt = `Lo registrado (sin anuladas), en las tres medidas:  ${f0(tCajas)} cajas  ·  ${hayHL || tUnid ? f0(tUnid) : "—"} unidades  ·  ${hayHL ? f0(tHL, 2) : "—"} HL${sinHL ? `   (${sinHL} sin dato en el Maestro de Pasivos: no suman)` : ""}.  Los Paretos que se recalculan están en la hoja Tablero.`;
-      c.value = { formula: `"Lo registrado (sin anuladas), en las tres medidas:  "&TEXT(SUMIFS(${RG("cajas")},${VIVA}),"#,##0")&" cajas  ·  "&TEXT(SUMIFS(${RG("unid")},${VIVA}),"#,##0")&" unidades  ·  "&TEXT(SUMIFS(${RG("hl")},${VIVA}),"#,##0.00")&" HL"&IF(COUNTIFS(${RG("hl")},"sin HL",${VIVA})>0,"   ("&COUNTIFS(${RG("hl")},"sin HL",${VIVA})&" sin dato en el Maestro: no suman)","")&".  Los Paretos que se recalculan están en la hoja Tablero."`, result: txt };
+      /* FIXED y no TEXT: los códigos de formato de TEXT cambian con el idioma de Excel («#,##0» en español sale «1917,0»). */
+      c.value = { formula: `"Lo registrado (sin anuladas), en las tres medidas:  "&FIXED(SUMIFS(${RG("cajas")},${VIVA}),0)&" cajas  ·  "&FIXED(SUMIFS(${RG("unid")},${VIVA}),0)&" unidades  ·  "&FIXED(SUMIFS(${RG("hl")},${VIVA}),2)&" HL"&IF(COUNTIFS(${RG("hl")},"sin HL",${VIVA})>0,"   ("&COUNTIFS(${RG("hl")},"sin HL",${VIVA})&" sin dato en el Maestro: no suman)","")&".  Los Paretos que se recalculan están en la hoja Tablero."`, result: txt };
       c.font = letra(9, GRIS, false, true); c.alignment = { vertical: "middle", wrapText: true }; h.getRow(11).height = 26;
     }
 
@@ -566,8 +582,8 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
       const I = (k: string) => `INDEX(${RG(k)},${m})`;
       const ficha = `${I("matN")}&CHAR(10)&${I("rotas")}&" caja(s) "&IF(${I("tipo")}="Envase (EER)","de envase","rotas")`
         + `&IF(N(${I("contam")})>0," · "&${I("contam")}&" contaminada(s)","")&CHAR(10)&${I("causa")}&" · "&${I("proc")}&IF(${I("area")}&""<>""," · "&${I("area")},"")`
-        + `&CHAR(10)&TEXT(${I("fecha")},"dd/mm/yy hh:mm")&" · turno "&${I("turno")}&" · "&${I("rep")}`
-        + `&IF(ISNUMBER(${I("cobT")}),CHAR(10)&"Cobro "&TEXT(${I("cobT")},"$ #,##0"),"")`
+        + `&CHAR(10)&TEXT(DAY(${I("fecha")}),"00")&"/"&TEXT(MONTH(${I("fecha")}),"00")&"/"&RIGHT(YEAR(${I("fecha")}),2)&" "&TEXT(HOUR(${I("fecha")}),"00")&":"&TEXT(MINUTE(${I("fecha")}),"00")&" · turno "&${I("turno")}&" · "&${I("rep")}`
+        + `&IF(ISNUMBER(${I("cobT")}),CHAR(10)&"Cobro $ "&FIXED(${I("cobT")},0),"")`
         + `&IF(${I("desc")}&""<>"",CHAR(10)&"«"&${I("desc")}&"»","")&IF(${I("ol")}&""<>"",CHAR(10)&"OL: «"&${I("ol")}&"»","")`;
       const extra = [fs.some((x) => x.papel === "descargo") ? "Incluye foto del descargo del OL" : "", enApp > fs.length ? `+${enApp - fs.length} foto(s) más en la app` : ""].filter(Boolean).join(" · ");
       row.getCell(2).value = { formula: `IFERROR(${ficha}${extra ? `&CHAR(10)&${crit(extra)}` : ""},"ELIMINADA DEL DETALLE")`, result: lineas.map((x) => x.text).join("").trim() };
