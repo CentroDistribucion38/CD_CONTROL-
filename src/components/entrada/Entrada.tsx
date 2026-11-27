@@ -21,7 +21,8 @@ import "./entrada.css";
  * Tocar la pantalla no salta la entrada. Con «reducir movimiento» solo hace un fundido.
  *
  * EN NAVIDAD (lib/temporada.ts) la entrada es otra: la B con gorro dentro de un globo de nieve que cae, se sacude
- * y la nieve sube y baja (GloboNavidad.tsx), con «We Wish You a Merry Christmas» de fondo. Dura un poco más y al final la B
+ * y la nieve sube y baja (GloboNavidad.tsx), con «We Wish You a Merry Christmas» de fondo (solo
+ * música, sin voz). Dura un poco más y al final la B
  * (sin gorro) sale del globo y vuela a su sitio igual que siempre.
  */
 export const CLAVE_ENTRADA = "cd38-entrada";

@@ -172,8 +172,8 @@ const espera = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms)
 
 /**
  * NAVIDAD: «We Wish You a Merry Christmas» (tradicional inglés — dominio público) en campanas, con bajo y acordes
- * suaves y un destello de campanitas justo cuando el globo aterriza y se levanta la nieve (ver GloboNavidad). La
- * música baja un poco mientras la voz dice la frase. Devuelve en cuántos ms entra la voz y la ganancia de la música.
+ * suaves y un destello de campanitas justo cuando el globo aterriza y se levanta la nieve (ver GloboNavidad).
+ * En temporada es lo único que suena: no hay voz.
  */
 const VILLANCICO: [number, number][] = [ // [nota MIDI, duración en tiempos de 3/4]
   [74, 1],
@@ -209,15 +209,9 @@ export function villancico(): { voz: number; musica: GainNode } | null {
   return { voz: Math.round((ini - c.currentTime + 7 * tiempo) * 1000), musica };
 }
 
+/* En temporada suena solo la música: sin voz (ni «Control Team» ni felicitación). */
 async function presentacionNavidad() {
-  let m: ReturnType<typeof villancico> = null;
-  try { m = villancico() } catch { /* sigue */ }
-  await espera(m?.voz ?? 2800);
-  try {
-    if (m && ctx) { const g = m.musica.gain, t = ctx.currentTime; g.cancelScheduledValues(t); g.setValueAtTime(1, t); g.linearRampToValueAtTime(0.45, t + 0.25); g.setValueAtTime(0.45, t + 3.2); g.linearRampToValueAtTime(1, t + 3.8) }
-  } catch { /* sigue */ }
-  try { window.speechSynthesis?.cancel() } catch { /* sigue */ }
-  await decir("Feliz Navidad. Bienvenido a Control Tim Barranquilla", 1.05, 0.95);
+  try { villancico() } catch { /* sigue */ }
 }
 
 /** LA PRESENTACIÓN: el tono Oro y, encima de sus campanas, la frase de una sola vez, ágil y sin pausas.
