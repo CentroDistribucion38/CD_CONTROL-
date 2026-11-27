@@ -4,7 +4,7 @@ import { createContext, memo, useCallback, useContext, useEffect, useMemo, useRe
 import { useRouter } from "next/navigation";
 import {
   ReactFlow, ReactFlowProvider, Background, BackgroundVariant, MiniMap, NodeResizer, NodeToolbar, Handle, Position,
-  ConnectionMode, MarkerType, useReactFlow, useNodesState, useEdgesState, addEdge, getNodesBounds, getViewportForBounds,
+  ConnectionMode, MarkerType, useReactFlow, useNodesState, useEdgesState, useStore, addEdge, getNodesBounds, getViewportForBounds,
   type Node, type Edge, type NodeProps, type Connection, type OnSelectionChangeParams,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -174,6 +174,59 @@ const ZonaNodo = memo(function ZonaNodo({ data, selected }: NodeProps<ZonaNode>)
   );
 });
 const TIPOS_NODO = { fig: FiguraNodo, zona: ZonaNodo };
+
+/* ---------------------------------------------------------------- las barras para ir rodando
+ * «Aquí debe haber una barra para poder ir rodando.» Una horizontal abajo y una vertical a la derecha, como en cualquier
+ * programa: el tamaño de la barrita dice cuánto del diagrama se ve, se arrastra para moverse y un clic en el carril salta. */
+function Barras({ nodes }: { nodes: NodoLz[] }) {
+  const rf = useReactFlow();
+  const [tx, ty, zm] = useStore((st) => st.transform);
+  const W = useStore((st) => st.width), H = useStore((st) => st.height);
+  const b = useMemo(() => (nodes.length ? getNodesBounds(nodes) : { x: 0, y: 0, width: 1, height: 1 }), [nodes]);
+  if (!W || !H) return null;
+  const vx = -tx / zm, vy = -ty / zm, vw = W / zm, vh = H / zm;
+  const eje = (ini: number, largo: number, vIni: number, vLargo: number) => {
+    const min = Math.min(ini - 200, vIni), max = Math.max(ini + largo + 200, vIni + vLargo);
+    return { min, total: max - min, desde: (vIni - min) / (max - min), tam: vLargo / (max - min) };
+  };
+  const ex = eje(b.x, b.width, vx, vw), ey = eje(b.y, b.height, vy, vh);
+  const mover = (eje2: "x" | "y") => (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault(); e.stopPropagation();
+    const carril = e.currentTarget.parentElement!.getBoundingClientRect();
+    const largo = eje2 === "x" ? carril.width : carril.height, total = eje2 === "x" ? ex.total : ey.total;
+    const p0 = eje2 === "x" ? e.clientX : e.clientY, v0 = rf.getViewport();
+    const el = e.currentTarget;
+    el.setPointerCapture(e.pointerId);
+    const mueve = (ev: PointerEvent) => {
+      const d = ((eje2 === "x" ? ev.clientX : ev.clientY) - p0) / largo * total * v0.zoom;
+      void rf.setViewport(eje2 === "x" ? { ...v0, x: v0.x - d } : { ...v0, y: v0.y - d });
+    };
+    const suelta = () => { el.removeEventListener("pointermove", mueve); el.removeEventListener("pointerup", suelta); el.removeEventListener("pointercancel", suelta) };
+    el.addEventListener("pointermove", mueve); el.addEventListener("pointerup", suelta); el.addEventListener("pointercancel", suelta);
+  };
+  /* Un clic en el carril: el centro de la vista va a ese punto. */
+  const saltar = (eje2: "x" | "y") => (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target !== e.currentTarget) return;
+    const r = e.currentTarget.getBoundingClientRect(), v = rf.getViewport();
+    if (eje2 === "x") { const f = ex.min + ((e.clientX - r.left) / r.width) * ex.total; void rf.setViewport({ ...v, x: -(f - vw / 2) * v.zoom }, { duration: 200 }) }
+    else { const f = ey.min + ((e.clientY - r.top) / r.height) * ey.total; void rf.setViewport({ ...v, y: -(f - vh / 2) * v.zoom }, { duration: 200 }) }
+  };
+  const pct = (v: number) => `${Math.max(0, Math.min(100, v * 100))}%`;
+  return (
+    <>
+      {ex.tam < 0.995 && (
+        <div className="lz-barra-h" onClick={saltar("x")} aria-hidden="true">
+          <div className="lz-pulgar" style={{ left: pct(ex.desde), width: `max(28px, ${pct(Math.min(1, ex.tam))})` }} onPointerDown={mover("x")} />
+        </div>
+      )}
+      {ey.tam < 0.995 && (
+        <div className="lz-barra-v" onClick={saltar("y")} aria-hidden="true">
+          <div className="lz-pulgar" style={{ top: pct(ey.desde), height: `max(28px, ${pct(Math.min(1, ey.tam))})` }} onPointerDown={mover("y")} />
+        </div>
+      )}
+    </>
+  );
+}
 
 /* ---------------------------------------------------------------- el lienzo */
 export function Lienzo(p: { id: string; titulo: string; doc: DocLienzo; version: number; editable: boolean; editado: boolean; faltaSql: boolean; pis: PiLienzo[] }) {
@@ -415,12 +468,13 @@ function Editor({ id, titulo, doc, version, editable, editado, faltaSql, pis }: 
     const z = rf.getNode(zid);
     if (!z) return;
     setDentro(zid);
-    const w = ancho(z as NodoLz), h = alto(z as NodoLz), r = caja.current?.getBoundingClientRect();
-    /* Una zona muy ancha (los carriles del mapa) no se encoge hasta no leerse: se llena de alto y arranca por la izquierda. */
-    if (r && r.width / w < (r.height / h) * 0.6) {
-      const zm = Math.min(1.1, Math.max(0.35, (r.height - 90) / h));
-      void rf.setViewport({ x: -z.position.x * zm + 16, y: -z.position.y * zm + 70, zoom: zm }, { duration: 450 });
-    } else void rf.fitBounds({ x: z.position.x, y: z.position.y, width: w, height: h }, { padding: 0.04, duration: 450 });
+    /* SE ENCUADRAN SUS FIGURAS (no el rectángulo de la zona, que puede ser mucho más ancho): así «N1» muestra lo de N1. */
+    const zr = { id: z.id, t: "", x: z.position.x, y: z.position.y, w: ancho(z as NodoLz), h: alto(z as NodoLz) };
+    const suyas = (rf.getNodes() as NodoLz[]).filter((n): n is FigNode => n.type === "fig"
+      && zonaDe([zr], { id: n.id, tipo: n.data.tipo, t: n.data.t, x: n.position.x, y: n.position.y, w: ancho(n), h: alto(n) }) != null);
+    const b = suyas.length ? getNodesBounds(suyas) : { x: zr.x, y: zr.y, width: zr.w, height: zr.h };
+    /* Arriba queda espacio para el nombre de la zona y la barra de figuras. */
+    void rf.fitBounds({ x: b.x - 30, y: b.y - 70, width: b.width + 60, height: b.height + 100 }, { padding: 0.04, duration: 450, maxZoom: 1.3 } as never);
   }, [rf]);
   const irA = useCallback((nid: string) => {
     const n = rf.getNode(nid);
@@ -428,6 +482,20 @@ function Editor({ id, titulo, doc, version, editable, editado, faltaSql, pis }: 
     setNodes((ns) => ns.map((m) => ({ ...m, selected: m.id === nid })));
     void rf.setCenter(n.position.x + ancho(n as NodoLz) / 2, n.position.y + alto(n as NodoLz) / 2, { zoom: Math.max(rf.getZoom(), 1), duration: 450 });
   }, [rf, setNodes]);
+
+  /* SHIFT + RUEDA mueve de lado a lado (la rueda sola acerca y aleja, como siempre). */
+  useEffect(() => {
+    const el = caja.current;
+    if (!el) return;
+    const rueda = (e: WheelEvent) => {
+      if (!e.shiftKey) return;
+      e.preventDefault(); e.stopPropagation();
+      const v = rf.getViewport(), d = e.deltaY || e.deltaX;
+      void rf.setViewport({ ...v, x: v.x - d });
+    };
+    el.addEventListener("wheel", rueda, { capture: true, passive: false });
+    return () => el.removeEventListener("wheel", rueda, { capture: true });
+  }, [rf]);
 
   /* ------------------------------------------------ teclado */
   useEffect(() => {
@@ -610,12 +678,13 @@ function Editor({ id, titulo, doc, version, editable, editado, faltaSql, pis }: 
               panOnDrag={modo === "mover" ? true : [1, 2]} selectionOnDrag={modo === "escoger"} panOnScroll={false}
               selectionKeyCode="Shift" multiSelectionKeyCode={["Meta", "Control"]}
               elevateNodesOnSelect={false} elevateEdgesOnSelect
-              minZoom={0.05} maxZoom={2.5} fitView fitViewOptions={{ padding: 0.06 }}
+              minZoom={0.05} maxZoom={2.5} fitView fitViewOptions={{ padding: 0.06 }} zoomOnScroll zoomOnPinch zoomOnDoubleClick={false}
               onMove={(_, v) => setZoom(v.zoom)}
               defaultEdgeOptions={{ type: "step" }}
               proOptions={{ hideAttribution: true }}
             >
               <Background variant={BackgroundVariant.Dots} gap={GRID} size={1.2} color="#C9CED6" />
+              <Barras nodes={nodes} />
               <MiniMap pannable zoomable position="bottom-right" className="lz-mapa"
                 nodeColor={(n) => (n.type === "zona" ? "#EEF0F3" : ((n.data as FigData).color ?? TIPOS[(n.data as FigData).tipo].fondo))}
                 nodeStrokeColor={(n) => (n.type === "zona" ? "#E3E6EA" : TIPOS[(n.data as FigData).tipo].borde)} maskColor="rgba(20,23,28,.06)" />
@@ -641,7 +710,7 @@ function Editor({ id, titulo, doc, version, editable, editado, faltaSql, pis }: 
               <button type="button" onClick={() => void rf.zoomIn({ duration: 200 })} aria-label="Acercar">+</button>
               <button type="button" onClick={verTodo}>Ver todo</button>
             </div>
-            <p className="lz-ayuda">{editable ? "Doble clic para escribir · arrastra de un punto a otra figura para unir · Supr borra · Shift+arrastrar escoge varias" : "Rueda para acercar · arrastra para moverte · toca una zona a la izquierda para entrar"}</p>
+            <p className="lz-ayuda">{editable ? "Rueda acerca · Shift+rueda va de lado · doble clic escribe · arrastra de un punto a otra figura para unir · Supr borra" : "Rueda para acercar · arrastra o usa las barras para moverte · toca una zona a la izquierda para entrar"}</p>
           </div>
 
           {verFicha && <div className="lz-tirador" role="separator" aria-orientation="vertical" aria-label="Ancho de la ficha" title="Arrastra para cambiar el ancho · doble clic para ocultar"

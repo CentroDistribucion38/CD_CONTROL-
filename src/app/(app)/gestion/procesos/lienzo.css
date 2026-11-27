@@ -78,6 +78,17 @@
 .lz-ayuda { position: absolute; left: 50%; top: 62px; transform: translateX(-50%); z-index: 4; margin: 0; padding: 5px 10px; background: rgba(255, 255, 255, .92); border: 1px solid var(--lz-linea); font-size: 11.5px; color: var(--lz-gris); white-space: nowrap; pointer-events: none }
 .lz-mapa { border: 1px solid #D5D9DF !important; box-shadow: 0 6px 16px rgba(20, 23, 28, .1); border-radius: 0 !important }
 
+/* ---------- las barras para ir rodando ---------- */
+.lz-barra-h, .lz-barra-v { position: absolute; z-index: 6; background: rgba(20, 23, 28, .05); cursor: pointer }
+.lz-barra-h { left: 0; right: 14px; bottom: 0; height: 14px }
+.lz-barra-v { top: 0; bottom: 14px; right: 0; width: 14px }
+.lz-pulgar { position: absolute; background: #9AA3AF; border: 3px solid transparent; background-clip: padding-box; cursor: grab; touch-action: none }
+.lz-pulgar:hover, .lz-pulgar:active { background-color: #E0A92E }
+.lz-barra-h .lz-pulgar { top: 0; bottom: 0 }
+.lz-barra-v .lz-pulgar { left: 0; right: 0 }
+.lz-zoom { bottom: 22px !important }
+.lz-mapa { margin-bottom: 22px !important; margin-right: 22px !important }
+
 /* ---------- las figuras ---------- */
 .lz .react-flow__node { border-radius: 0; font-family: "IBM Plex Sans", system-ui, sans-serif }
 .lz-fig { position: relative; width: 100%; height: 100% }
