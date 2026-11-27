@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { sincronizarAnalisisProducto } from "../analisis/actions";
 import { createClient } from "@/lib/supabase/client";
 import { useConfirmar } from "@/components/Confirmar";
 import { diaColombia } from "@/modulos/inventario/corte";
@@ -343,6 +345,13 @@ export function ControlCiclico({ personas, ciclicos, cerradasIniciales, ahora, p
   const sel = todos.find((f) => f.id === selId) ?? todos[0] ?? null;
 
   const [pedir, dialogo] = useConfirmar();
+  const router = useRouter();
+  /* TODO AMARRADO: cada cambio en la BD pone al día el análisis de diferencia (foto, ajustes, final e histórico) y lo
+     que la página trajo del servidor. */
+  const alDia = useCallback(async (f: FiscalBD) => {
+    try { await sincronizarAnalisisProducto(f.id) } catch { /* sin análisis guardado o sin permiso: igual se ve al día al abrirlo */ }
+    router.refresh();
+  }, [router]);
   const [avance, setAvance] = useState<Record<number, AvanceHoja>>({});
   const [cruces, setCruces] = useState<Record<number, FilaCruce[]>>({});
   const [cerradas, setCerradas] = useState<Record<string, string>>(cerradasIniciales);
@@ -461,7 +470,7 @@ export function ControlCiclico({ personas, ciclicos, cerradasIniciales, ahora, p
     if (error) { setBdMal(sinSqlBd(error.message)); return }
     setEditando(null);
     setAviso(`${l.sku} en ${l.ubicacion} quedó en ${nf.format(cj)} cajas${un ? ` + ${nf.format(un)} un.` : ""}.`);
-    await Promise.all([leerBd(f), cargar(f)]);
+    await Promise.all([leerBd(f), cargar(f), alDia(f)]);
   }
   async function quitar(f: FiscalBD, l: Detalle) {
     if (!l.id) return;
@@ -476,7 +485,7 @@ export function ControlCiclico({ personas, ciclicos, cerradasIniciales, ahora, p
     setTocando(null);
     if (error) { setBdMal(sinSqlBd(error.message)); return }
     setAviso(`Se quitó ${l.sku} en ${l.ubicacion}.`);
-    await Promise.all([leerBd(f), cargar(f)]);
+    await Promise.all([leerBd(f), cargar(f), alDia(f)]);
   }
 
   async function agregar(f: FiscalBD, numero: number, x: NuevoRenglon): Promise<boolean> {
@@ -488,7 +497,7 @@ export function ControlCiclico({ personas, ciclicos, cerradasIniciales, ahora, p
     });
     if (error) { setBdMal(/inv_ciclico_agregar|schema cache|does not exist/i.test(error.message) ? "Falta correr supabase/migraciones/2026-11-producto-ciclico-bd-admin.sql en Supabase." : error.message); return false }
     setAviso(`Se agregó ${x.sku} en ${x.sitio.toUpperCase()} a ${x.equipo === "BAVARIA" ? "Bavaria" : "el operador"}.`);
-    await Promise.all([leerBd(f), cargar(f)]);
+    await Promise.all([leerBd(f), cargar(f), alDia(f)]);
     return true;
   }
 

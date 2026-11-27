@@ -22,7 +22,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { mismaFamilia } from "./fiscal";
 import type { FilaAnalisis, Partida } from "./analisis-dif";
-import { calcularAjustes, ROTURA_PT, type FilaFinal, type Hecho } from "./compensa";
+import { analisisFinal, calcularAjustes, ROTURA_PT, type FilaFinal, type Hecho } from "./compensa";
 export { ROTURA_PT };
 
 export const ZEXI_PRODUCTO = "ZEXI PRODUCTO";
@@ -218,6 +218,55 @@ const dedupe = (xs: AnalisisProducto["noEntran"]) => [...new Map(xs.map((x) => [
 /* ---------------- PASO 2 y 3: LO GUARDADO, LOS AJUSTES Y EL FINAL ---------------- */
 export type GuardadoProducto = { fiscal_id: string; fecha: string; guardado_en: string; guardado_por: string | null; sap: number; conteo: number; filas: FilaProducto[] };
 
+/* ---------------- TODO AMARRADO A LA BD ----------------
+ * «Cuando yo modifique algún conteo, o de más, se debe actualizar de una todo el flujo donde se usa ese dato.»
+ * El análisis se guarda como una foto (prod_dif_guardado) y de ella salen los ajustes, el final y el histórico. Si
+ * después alguien corrige, quita o agrega un renglón en la BD del cíclico (o cambia la plantilla o una rotura), la foto
+ * se vuelve a armar con lo de ahora: CONTEO y SAP por código, y si ya había análisis final, también el final (con lo
+ * ajustado y las observaciones que ya había). Se hace al cambiar la BD y cada vez que se abren los ajustes, el final o
+ * el histórico de un cíclico abierto. Si quien mira no puede escribir, igual ve lo de ahora (solo no se guarda). */
+const firma = (fs: FilaProducto[]) => JSON.stringify(fs.map((f) => [f.codigo, f.sap, f.conteo, f.ol, f.deSap, f.deConteo]));
+type GuardadoBD = { fiscal_id: string; fecha: string; filas: FilaProducto[]; sap: number; conteo: number; guardado_en: string; guardado_por: string | null;
+  final: FilaFinal[] | null; final_en: string | null; ro_desde?: string | null; ro_hasta?: string | null; actualizado_en?: string | null };
+
+function finalDe(filas: FilaProducto[], obs: Record<string, string>, hechos: Record<string, Hecho>) {
+  return analisisFinal(calcularAjustes(filas, obs, hechos)).map((f) => ({
+    familia: f.familia, codigo: f.codigo, descripcion: f.descripcion, sap: f.sap, conteo: f.conteo, diferencia: f.diferencia,
+    ajuste: f.ajuste, movAjuste: f.movAjuste, sapFinal: f.sapFinal, difFinal: f.difFinal, observacion: f.observacion,
+  })) as unknown as FilaFinal[];
+}
+
+/** Vuelve a armar la foto de UN cíclico con lo que hay ahora en la BD. Devuelve la foto al día (aunque no se haya podido guardar). */
+export async function sincronizarProducto(fiscalId: string, g?: GuardadoBD | null, c?: Ciclico | null): Promise<{ guardado: GuardadoBD | null; cambio: boolean; guardo: boolean }> {
+  const supabase = await createClient();
+  if (g === undefined) {
+    const r = await supabase.from("prod_dif_guardado").select("*").eq("fiscal_id", fiscalId).maybeSingle();
+    g = (r.data as GuardadoBD | null) ?? null;
+  }
+  if (!g) return { guardado: null, cambio: false, guardo: false };
+  if (c === undefined) c = (await ciclicos()).lista.find((x) => x.id === fiscalId) ?? null;
+  if (!c) return { guardado: g, cambio: false, guardo: false };
+  const a = await armarAnalisisProducto(c, g.ro_desde ?? undefined, g.ro_hasta ?? undefined);
+  if (a.falta || !a.filas.length || firma(a.filas) === firma(g.filas ?? [])) return { guardado: g, cambio: false, guardo: false };
+  const sap = a.filas.reduce((t, f) => t + (Number(f.sap) || 0), 0);
+  const conteo = a.filas.reduce((t, f) => t + (Number(f.conteo) || 0), 0);
+  let final = g.final;
+  if (g.final_en) {
+    const o = await supabase.from("prod_dif_obs").select("codigo, observacion, ajuste_hecho").eq("fiscal_id", fiscalId);
+    const obs: Record<string, string> = {}, hechos: Record<string, Hecho> = {};
+    for (const x of (o.data ?? []) as { codigo: string; observacion: string; ajuste_hecho: number | null }[]) {
+      obs[x.codigo] = x.observacion;
+      hechos[x.codigo] = { comp: true, ajuste: x.ajuste_hecho == null ? null : Number(x.ajuste_hecho) };
+    }
+    final = finalDe(a.filas, obs, hechos);
+  }
+  const nuevo: GuardadoBD = { ...g, filas: a.filas, sap, conteo, final, actualizado_en: new Date().toISOString() };
+  const cambios: Record<string, unknown> = { filas: a.filas, sap, conteo, ...(g.final_en ? { final } : {}) };
+  let up = await supabase.from("prod_dif_guardado").update({ ...cambios, actualizado_en: nuevo.actualizado_en }).eq("fiscal_id", fiscalId).select("fiscal_id");
+  if (up.error && /actualizado_en|42703|PGRST204/i.test(`${up.error.code} ${up.error.message}`)) up = await supabase.from("prod_dif_guardado").update(cambios).eq("fiscal_id", fiscalId).select("fiscal_id");
+  return { guardado: nuevo, cambio: true, guardo: !up.error && !!up.data?.length };
+}
+
 export async function leerAjustesProducto(fiscalId: string) {
   const supabase = await createClient();
   const [g, o] = await Promise.all([
@@ -231,7 +280,9 @@ export async function leerAjustesProducto(fiscalId: string) {
     obs[x.codigo] = x.observacion;
     hechos[x.codigo] = { comp: true, ajuste: x.ajuste_hecho == null ? null : Number(x.ajuste_hecho) };
   }
-  const gd = g.data as (Omit<GuardadoProducto, "guardado_por"> & { guardado_por: string | null; final?: FilaFinal[] | null; final_en?: string | null }) | null;
+  /* La foto al día con la BD (si alguien corrigió conteos después de guardar). */
+  const sync = g.data ? await sincronizarProducto(fiscalId, g.data as GuardadoBD) : null;
+  const gd = (sync?.guardado ?? g.data) as (Omit<GuardadoProducto, "guardado_por"> & { guardado_por: string | null; final?: FilaFinal[] | null; final_en?: string | null }) | null;
   let quien: string | null = null;
   if (gd?.guardado_por) {
     const p = await supabase.from("perfiles").select("usuario, nombre").eq("id", gd.guardado_por).maybeSingle();
@@ -251,14 +302,23 @@ export async function leerAjustesProducto(fiscalId: string) {
 export type DiaProducto = { fiscalId: string; nombre: string; fecha: string; guardadoEn: string; sap: number; conteo: number; diferencia: number; codigos: number; conDif: number; final: { diferencia: number; pendientes: number } | null };
 export async function historicoProducto(): Promise<{ dias: DiaProducto[]; falta: string | null }> {
   const supabase = await createClient();
-  const g = await supabase.from("prod_dif_guardado").select("fiscal_id, fecha, filas, sap, conteo, guardado_en, final, final_en").order("fecha", { ascending: false }).limit(200);
+  const g = await supabase.from("prod_dif_guardado").select("*").order("fecha", { ascending: false }).limit(200);
   if (g.error) return { dias: [], falta: faltaSql(g.error.message) ? SQL : g.error.message };
+  /* Los cíclicos ABIERTOS se ponen al día con la BD antes de mostrarse (los cerrados ya no cambian). */
+  const cs = await ciclicos();
+  const abiertos = new Map(cs.lista.filter((x) => x.estado === "abierto").map((x) => [x.id, x]));
+  const filasG = (g.data ?? []) as GuardadoBD[];
+  await Promise.all(filasG.map(async (x, i) => {
+    if (!abiertos.has(x.fiscal_id)) return;
+    const r = await sincronizarProducto(x.fiscal_id, x, abiertos.get(x.fiscal_id));
+    if (r.guardado) filasG[i] = r.guardado;
+  }));
   const ids = (g.data ?? []).map((x) => x.fiscal_id as string);
   const f = ids.length ? await supabase.from("inv_fiscales").select("id, nombre").in("id", ids) : { data: [] };
   const nombre = new Map(((f.data ?? []) as { id: string; nombre: string }[]).map((x) => [x.id, x.nombre]));
   return {
     falta: null,
-    dias: ((g.data ?? []) as { fiscal_id: string; fecha: string; filas: FilaProducto[]; sap: number; conteo: number; guardado_en: string; final: FilaFinal[] | null; final_en: string | null }[]).map((x) => ({
+    dias: filasG.map((x) => ({
       fiscalId: x.fiscal_id, nombre: nombre.get(x.fiscal_id) ?? "—", fecha: String(x.fecha).slice(0, 10), guardadoEn: x.guardado_en,
       sap: Number(x.sap), conteo: Number(x.conteo), diferencia: Number(x.conteo) - Number(x.sap),
       codigos: (x.filas ?? []).length, conDif: (x.filas ?? []).filter((r) => Number(r.diferencia) !== 0).length,

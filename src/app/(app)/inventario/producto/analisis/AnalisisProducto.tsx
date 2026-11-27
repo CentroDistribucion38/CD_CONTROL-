@@ -138,7 +138,7 @@ export function AnalisisProducto({ datos, puedeEditar, guardadoEn, enProduccion 
     setMsg({ t: "Se quitó la plantilla de este cíclico." }); router.refresh();
   });
   const guardarYSeguir = () => ciclico && start(async () => {
-    const g = await guardarAnalisisProducto(ciclico.id, ciclico.fecha, JSON.stringify(filas));
+    const g = await guardarAnalisisProducto(ciclico.id, ciclico.fecha, JSON.stringify(filas), datos.roturas?.desde, datos.roturas?.hasta);
     if ("error" in g && g.error) { setMsg({ mal: true, t: g.error }); return }
     router.push(`/inventario/producto/analisis?c=${ciclico.id}&paso=ajustes`);
   });

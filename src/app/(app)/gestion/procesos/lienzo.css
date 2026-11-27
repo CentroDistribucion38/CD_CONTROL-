@@ -32,7 +32,20 @@
 
 /* ---------- el cuerpo: árbol · lienzo · ficha ---------- */
 .lz-cuerpo { position: relative; flex: 1; display: flex; min-height: 0 }
-.lz-arbol { flex: 0 0 270px; display: flex; flex-direction: column; border-right: 1px solid var(--lz-linea); background: #fff; min-height: 0 }
+.lz-arbol { flex: none; width: 260px; min-width: 0; display: flex; flex-direction: column; background: #fff; min-height: 0; overflow: hidden }
+.lz-panel-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 10px 0 12px }
+.lz-panel-cab b { font: 800 11px "Archivo", system-ui, sans-serif; letter-spacing: .14em; text-transform: uppercase; color: var(--lz-gris) }
+.lz-panel-cab button, .lz-ficha-x { border: 1px solid #D5D9DF; background: #fff; padding: 3px 8px; font: 600 12px "IBM Plex Sans", system-ui, sans-serif; color: var(--lz-tinta); cursor: pointer; border-radius: 0 }
+.lz-panel-cab button:hover, .lz-ficha-x:hover { border-color: var(--lz-tinta) }
+.lz-ficha-x { float: right; margin: -4px -4px 6px 8px }
+/* El borde que se arrastra para cambiar el ancho de un panel. */
+.lz-tirador { flex: none; width: 7px; margin: 0 -3px; position: relative; z-index: 6; cursor: col-resize; touch-action: none; background: linear-gradient(var(--lz-linea), var(--lz-linea)) center / 1px 100% no-repeat }
+.lz-tirador:hover, .lz-tirador.on { background: linear-gradient(var(--lz-ambar), var(--lz-ambar)) center / 3px 100% no-repeat }
+/* Con el panel oculto queda una pestañita en el borde para volver a abrirlo. */
+.lz-pestana { position: absolute; top: 50%; z-index: 7; transform: translateY(-50%); writing-mode: vertical-rl; padding: 12px 6px; border: 1px solid #D5D9DF; background: #fff; font: 700 12px "IBM Plex Sans", system-ui, sans-serif; color: var(--lz-tinta); cursor: pointer; box-shadow: 0 4px 12px rgba(20, 23, 28, .08) }
+.lz-pestana:hover { background: var(--lz-crema); border-color: var(--lz-ambar) }
+.lz-pestana.izq { left: 0; border-left: 0 }
+.lz-pestana.der { right: 0; border-right: 0; transform: translateY(-50%) rotate(180deg) }
 .lz-busca { margin: 10px; height: 38px; padding: 0 10px; border: 1.5px solid #D9DCE1; border-radius: 0; font: 500 14px "IBM Plex Sans", system-ui, sans-serif; outline: 0 }
 .lz-busca:focus { border-color: var(--lz-tinta); box-shadow: 0 0 0 3px rgba(255, 195, 0, .45) }
 .lz-ramas { flex: 1; overflow: auto; padding: 0 0 12px }
@@ -49,7 +62,7 @@
 .lz-nada { padding: 12px; font-size: 13px; color: var(--lz-gris) }
 
 .lz-lienzo { position: relative; flex: 1; min-width: 0; background: #FAFBFC }
-.lz-ficha { flex: 0 0 300px; overflow: auto; border-left: 1px solid var(--lz-linea); background: #fff; padding: 14px }
+.lz-ficha { flex: none; width: 300px; min-width: 0; overflow: auto; background: #fff; padding: 14px }
 
 /* ---------- la paleta flotante ---------- */
 .lz-paleta { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 5; display: flex; align-items: center; gap: 2px; padding: 5px;
@@ -143,8 +156,9 @@
 /* ---------- celular y pantallas angostas: los paneles van encima del lienzo ---------- */
 @media (max-width: 1000px) {
   .lz-arbol, .lz-ficha { position: absolute; top: 0; bottom: 0; z-index: 8; box-shadow: 0 10px 30px rgba(20, 23, 28, .18) }
-  .lz-arbol { left: 0; width: min(300px, 86vw) }
-  .lz-ficha { right: 0; width: min(320px, 90vw) }
+  .lz-arbol { left: 0; width: min(300px, 86vw) !important }
+  .lz-ficha { right: 0; width: min(320px, 90vw) !important }
+  .lz-tirador { display: none }
   .lz-ayuda { display: none }
   .lz-b { min-height: 40px }
 }

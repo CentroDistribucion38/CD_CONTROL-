@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { sincronizarProducto } from "@/modulos/inventario/producto-dif";
 
 /* LO QUE ESCRIBE EL ANÁLISIS DE DIFERENCIA DE PRODUCTO. Todo va por inventario cíclico (fiscal_id). */
 const RUTA = "/inventario/producto/analisis";
@@ -65,7 +66,7 @@ export async function quitarNovedadesProducto(fiscalId: string) {
 }
 
 /** GUARDAR EL ANÁLISIS: la foto con la que se arman los ajustes. Volver a guardar la reemplaza (las observaciones se quedan). */
-export async function guardarAnalisisProducto(fiscalId: string, fecha: string, filasJson: string) {
+export async function guardarAnalisisProducto(fiscalId: string, fecha: string, filasJson: string, roDesde?: string, roHasta?: string) {
   if (!esId(fiscalId) || !esDia(fecha)) return { error: "Escoge el inventario cíclico." };
   let filas: { sap: number; conteo: number }[] = [];
   try { filas = JSON.parse(filasJson) } catch { return { error: "No se pudo leer el análisis." } }
@@ -74,9 +75,13 @@ export async function guardarAnalisisProducto(fiscalId: string, fecha: string, f
   const conteo = filas.reduce((t, f) => t + (Number(f.conteo) || 0), 0);
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  const { error } = await supabase.from("prod_dif_guardado").upsert(
-    { fiscal_id: fiscalId, fecha, filas, sap, conteo, guardado_por: user?.id ?? null, guardado_en: new Date().toISOString() },
-    { onConflict: "fiscal_id" });
+  const base = { fiscal_id: fiscalId, fecha, filas, sap, conteo, guardado_por: user?.id ?? null, guardado_en: new Date().toISOString() };
+  /* Con el rango de roturas con que se armó: así, cuando la foto se pone al día con la BD, usa el mismo rango. */
+  const rango = esDia(roDesde ?? "") && esDia(roHasta ?? "") ? { ro_desde: roDesde, ro_hasta: roHasta, actualizado_en: null } : {};
+  let { error } = await supabase.from("prod_dif_guardado").upsert({ ...base, ...rango }, { onConflict: "fiscal_id" });
+  if (error && /ro_desde|ro_hasta|actualizado_en|42703|PGRST204/i.test(`${error.code} ${error.message}`)) {
+    ({ error } = await supabase.from("prod_dif_guardado").upsert(base, { onConflict: "fiscal_id" }));
+  }
   if (error) return { error: falta(`${error.code} ${error.message}`) };
   revalidatePath(RUTA);
   return { ok: true };
@@ -91,6 +96,15 @@ export async function guardarObservacionProducto(fiscalId: string, codigo: strin
     { onConflict: "fiscal_id,codigo" });
   if (error) return { error: falta(`${error.code} ${error.message}`) };
   return { ok: true };
+}
+
+/** PONER AL DÍA CON LA BD: después de corregir, quitar o agregar un renglón del cíclico (Control cíclico), la foto del
+ *  análisis, los ajustes, el final y el histórico se rearman con lo de ahora. */
+export async function sincronizarAnalisisProducto(fiscalId: string) {
+  if (!esId(fiscalId)) return { error: "Datos inválidos." };
+  const r = await sincronizarProducto(fiscalId);
+  revalidatePath(RUTA);
+  return { ok: true, cambio: r.cambio, guardo: r.guardo };
 }
 
 /** LO AJUSTADO EN SAP de un código, con su signo (null = nada). */

@@ -202,8 +202,36 @@ function Editor({ id, titulo, doc, version, editable, editado, faltaSql, pis }: 
   const [estado, setEstado] = useState<Estado>("guardado");
   const [mal, setMal] = useState<string | null>(null);
 
-  /* En celular los paneles arrancan cerrados (el lienzo primero). */
-  useEffect(() => { if (window.innerWidth < 1000) { setVerArbol(false); setVerFicha(false) } }, []);
+  /* LOS PANELES: se angostan o se ensanchan arrastrando su borde (se recuerda) y se ocultan con su botón o con doble clic
+     en el borde, para que el lienzo quede más grande. En celular arrancan cerrados (el lienzo primero). */
+  const [anchos, setAnchos] = useState({ arbol: 260, ficha: 300 });
+  useEffect(() => {
+    if (window.innerWidth < 1000) { setVerArbol(false); setVerFicha(false) }
+    try {
+      const g = JSON.parse(localStorage.getItem("lz-paneles") ?? "null") as { arbol?: number; ficha?: number; verArbol?: boolean; verFicha?: boolean } | null;
+      if (g) {
+        setAnchos((a) => ({ arbol: g.arbol ?? a.arbol, ficha: g.ficha ?? a.ficha }));
+        if (window.innerWidth >= 1000) { if (g.verArbol === false) setVerArbol(false); if (g.verFicha === false) setVerFicha(false) }
+      }
+    } catch { /* sin almacenamiento: los de siempre */ }
+  }, []);
+  useEffect(() => {
+    try { localStorage.setItem("lz-paneles", JSON.stringify({ ...anchos, verArbol, verFicha })) } catch { /* sigue */ }
+  }, [anchos, verArbol, verFicha]);
+  const tirar = (cual: "arbol" | "ficha") => (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const el = e.currentTarget, x0 = e.clientX, w0 = anchos[cual];
+    el.setPointerCapture(e.pointerId);
+    el.classList.add("on");
+    const mueve = (ev: PointerEvent) => {
+      const dx = ev.clientX - x0;
+      const w = cual === "arbol" ? w0 + dx : w0 - dx;
+      setAnchos((a) => ({ ...a, [cual]: Math.round(Math.max(180, Math.min(cual === "arbol" ? 520 : 480, w))) }));
+    };
+    const suelta = () => { el.classList.remove("on"); el.removeEventListener("pointermove", mueve); el.removeEventListener("pointerup", suelta); el.removeEventListener("pointercancel", suelta) };
+    el.addEventListener("pointermove", mueve); el.addEventListener("pointerup", suelta); el.addEventListener("pointercancel", suelta);
+  };
 
   /* ------------------------------------------------ deshacer y guardar */
   const hist = useRef<{ pasado: string[]; futuro: string[]; ultimo: string }>({ pasado: [], futuro: [], ultimo: JSON.stringify(aDoc(aNodos(doc, editable), doc.uniones.map(aEdge))) });
@@ -538,7 +566,8 @@ function Editor({ id, titulo, doc, version, editable, editado, faltaSql, pis }: 
 
         <div className="lz-cuerpo">
           {verArbol && (
-            <aside className="lz-arbol" aria-label="Procesos del diagrama">
+            <aside className="lz-arbol" aria-label="Procesos del diagrama" style={{ width: anchos.arbol }}>
+              <div className="lz-panel-cab"><b>Procesos</b><button type="button" onClick={() => setVerArbol(false)} title="Ocultar el panel (el lienzo queda más grande)">‹ Ocultar</button></div>
               <input className="lz-busca" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar actividad o proceso…" aria-label="Buscar en el diagrama" />
               <div className="lz-ramas">
                 {arbol.map((z) => {
@@ -563,6 +592,9 @@ function Editor({ id, titulo, doc, version, editable, editado, faltaSql, pis }: 
             </aside>
           )}
 
+          {verArbol && <div className="lz-tirador" role="separator" aria-orientation="vertical" aria-label="Ancho del panel de procesos" title="Arrastra para cambiar el ancho · doble clic para ocultar"
+            onPointerDown={tirar("arbol")} onDoubleClick={() => setVerArbol(false)} />}
+          {!verArbol && <button type="button" className="lz-pestana izq" onClick={() => setVerArbol(true)} title="Mostrar el panel de procesos">Procesos ›</button>}
           <div className="lz-lienzo" ref={caja} onDragOver={(e) => { if (editable) { e.preventDefault(); e.dataTransfer.dropEffect = "copy" } }} onDrop={onDrop}>
             <ReactFlow<NodoLz, EdgeLz>
               nodes={nodes} edges={edges} nodeTypes={TIPOS_NODO}
@@ -612,8 +644,12 @@ function Editor({ id, titulo, doc, version, editable, editado, faltaSql, pis }: 
             <p className="lz-ayuda">{editable ? "Doble clic para escribir · arrastra de un punto a otra figura para unir · Supr borra · Shift+arrastrar escoge varias" : "Rueda para acercar · arrastra para moverte · toca una zona a la izquierda para entrar"}</p>
           </div>
 
+          {verFicha && <div className="lz-tirador" role="separator" aria-orientation="vertical" aria-label="Ancho de la ficha" title="Arrastra para cambiar el ancho · doble clic para ocultar"
+            onPointerDown={tirar("ficha")} onDoubleClick={() => setVerFicha(false)} />}
+          {!verFicha && <button type="button" className="lz-pestana der" onClick={() => setVerFicha(true)} title="Mostrar la ficha">‹ Ficha</button>}
           {verFicha && (
-            <aside className="lz-ficha" aria-label="Ficha">
+            <aside className="lz-ficha" aria-label="Ficha" style={{ width: anchos.ficha }}>
+              <button type="button" className="lz-ficha-x" onClick={() => setVerFicha(false)} title="Ocultar la ficha (el lienzo queda más grande)">Ocultar ›</button>
               {unaFig ? (() => {
                 const d = unaFig.data, cr = critDe(d.t), zn = zonaDeFig(unaFig);
                 return (<>
