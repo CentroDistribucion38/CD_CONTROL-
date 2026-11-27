@@ -154,10 +154,10 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
     /* LO QUE COBRA LA APP MANDA: para cada SKU que viene en el libro, el factor y los precios salen de sus propias
        roturas (v_roturas), que es con lo que la app calculó el cobro. Así lo que se ve al abrir (en vista protegida)
        y lo que Excel recalcula al habilitar la edición es la misma cifra. El catálogo solo completa los demás SKU. */
-    const deRot = new Map<string, { upc: number | null; pe: number | null; pp: number | null }>();
+    const deRot = new Map<string, { upc: number | null; pe: number | null; pp: number | null; tipo: Rotura["tipo"] }>();
     for (const r of todas) {
       const k = String(r.material ?? "").trim();
-      const x = deRot.get(k) ?? { upc: null, pe: null, pp: null };
+      const x = deRot.get(k) ?? { upc: null, pe: null, pp: null, tipo: r.tipo };
       x.upc ??= Number(r.factor_caja) || null;
       x.pe ??= r.precio_envase != null ? Number(r.precio_envase) : null;
       x.pp ??= r.precio_producto != null ? Number(r.precio_producto) : null;
@@ -166,7 +166,8 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
     const m = new Map<string, MaterialLibro>();
     for (const x of d.catalogo ?? []) if (x.sku?.trim()) {
       const k = x.sku.trim(), r = deRot.get(k);
-      m.set(k, { ...x, sku: k, upc: r?.upc ?? x.upc, precioEnvase: r?.pe ?? x.precioEnvase, precioProducto: r?.pp ?? x.precioProducto });
+      /* El tipo también es el de la rotura: la app cobra el producto según el tipo con que se registró. */
+      m.set(k, { ...x, sku: k, tipo: r?.tipo ?? x.tipo, upc: r?.upc ?? x.upc, precioEnvase: r?.pe ?? x.precioEnvase, precioProducto: r?.pp ?? x.precioProducto });
     }
     for (const r of todas) {
       const k = String(r.material ?? "").trim();
@@ -204,6 +205,13 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
   const C = (k: string, fila: number) => `$${col(pos(k))}${fila}`;
   const vl = (fila: number, n: number) => `VLOOKUP(${C("mat", fila)}&"",Maestro!$A:$G,${n},FALSE)`;
   const filaDe = (x: CtxD) => 9 + x.i;
+  /* MIENTRAS EL SKU SEA EL MISMO CON QUE SE EXPORTÓ, el cobro usa el factor y los precios DE ESA ROTURA (columnas
+     ocultas «t·…»): da exactamente lo que cobra la app. Si cambias el SKU, usa los del Maestro. */
+  const mismo = (n: number) => `${C("mat", n)}&""=${C("tSku0", n)}&""`;
+  const UPC = (n: number) => `IF(${mismo(n)},${C("tUpc0", n)},${C("upc", n)})`;
+  const PE = (n: number) => `IF(${mismo(n)},${C("tPe0", n)},${vl(n, 6)})`;
+  const PP = (n: number) => `IF(${mismo(n)},${C("tPp0", n)},${vl(n, 7)})`;
+  const nada = (v: unknown) => (v == null || v === "" || !Number.isFinite(Number(v)) ? "—" : Number(v));
   const G1 = "CUÁNDO", G2 = "QUÉ", G3 = "CUÁNTO · CAJAS, UNIDADES Y HL", G4 = "CUÁNTO SE COBRA", G5 = "A QUÉ CORRESPONDE", G6 = "ESTADO Y NOTAS", G7 = "PARA EL TABLERO";
   const COLS: ColD[] = [
     { k: "cod", t: "Código", w: 11, g: G1, v: (x) => x.r.codigo },
@@ -221,9 +229,9 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
     { k: "unid", t: "UNIDADES (botellas)", w: 13, g: G3, num: true, v: (x) => fx(`IF(N(${C("upc", filaDe(x))})>0,${C("cajas", filaDe(x))}*${C("upc", filaDe(x))},"sin dato")`, x.f.unidades ?? "sin dato") },
     { k: "hl", t: "HL", w: 11, g: G3, num: true, v: (x) => fx(`IFERROR(IF(AND(ISNUMBER(${C("unid", filaDe(x))}),ISNUMBER(${vl(filaDe(x), 5)})),ROUND(${C("unid", filaDe(x))}*${vl(filaDe(x), 5)},3),"sin HL"),"sin HL")`, x.f.hl ?? "sin HL") },
     { k: "cobR", t: "Cobro rotas", w: 13, g: G4, num: true, v: (x) => { const n = filaDe(x);
-        return fx(`IFERROR(IF(OR(N(${C("upc", n)})=0,NOT(ISNUMBER(${vl(n, 6)}))),"",N(${C("rotas", n)})*${C("upc", n)}*${vl(n, 6)}),"")`, x.r.cobro_rotas ?? "") } },
+        return fx(`IFERROR(IF(OR(NOT(ISNUMBER(${UPC(n)})),NOT(ISNUMBER(${PE(n)}))),"",N(${C("rotas", n)})*${UPC(n)}*${PE(n)}),"")`, x.r.cobro_rotas ?? "") } },
     { k: "cobC", t: "Cobro contam.", w: 13, g: G4, num: true, v: (x) => { const n = filaDe(x);
-        return fx(`IFERROR(IF(N(${C("contam", n)})=0,0,IF(OR(N(${C("upc", n)})=0,NOT(ISNUMBER(${vl(n, 6)})),NOT(ISNUMBER(${vl(n, 7)}))),"",N(${C("contam", n)})*${C("upc", n)}*(${vl(n, 6)}+${vl(n, 7)}))),"")`, x.r.cobro_contaminadas ?? "") } },
+        return fx(`IFERROR(IF(N(${C("contam", n)})=0,0,IF(OR(NOT(ISNUMBER(${UPC(n)})),NOT(ISNUMBER(${PE(n)})),NOT(ISNUMBER(${PP(n)}))),"",N(${C("contam", n)})*${UPC(n)}*(${PE(n)}+${PP(n)}))),"")`, x.r.cobro_contaminadas ?? "") } },
     { k: "cobT", t: "COBRO TOTAL", w: 15, g: G4, num: true, v: (x) => { const n = filaDe(x);
         const sinPrecio = x.r.cobro_total == null && faseRotura(x.r) === "cobro" && x.r.estado !== "anulada";
         return fx(`IF(AND(ISNUMBER(${C("cobR", n)}),ISNUMBER(${C("cobC", n)})),${C("cobR", n)}+${C("cobC", n)},IF(${C("tFase", n)}="cobro","sin precio",""))`,
@@ -251,6 +259,10 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
     { k: "tCobro", t: "Tablero · cobro", w: 12, g: G7, oculta: true, v: (x) => { const n = filaDe(x);
         return fx(`IF(AND(${C("tFase", n)}="cobro",${C("cuenta", n)}<>"Anulada",ISNUMBER(${C("cobT", n)})),${C("cobT", n)},0)`, x.f.cobro ?? 0) } },
     { k: "tFase", t: "Tablero · fase", w: 10, g: G7, oculta: true, v: (x) => (x.r.estado === "anulada" ? "anulada" : faseRotura(x.r)) },
+    { k: "tSku0", t: "SKU exportado", w: 11, g: G7, oculta: true, v: (x) => String(x.r.material ?? "").trim() },
+    { k: "tUpc0", t: "Unid. por caja de la rotura", w: 10, g: G7, oculta: true, v: (x) => nada(x.r.factor_caja) },
+    { k: "tPe0", t: "Precio envase de la rotura", w: 10, g: G7, oculta: true, v: (x) => nada(x.r.precio_envase) },
+    { k: "tPp0", t: "Precio producto de la rotura", w: 10, g: G7, oculta: true, v: (x) => nada(x.r.precio_producto) },
   ];
   const pos = (k: string) => COLS.findIndex((c) => c.k === k) + 1;
   /* Los rangos del Detalle que leen el Resumen y las Evidencias (fila 9 a la última rotura). Si borras una fila
@@ -631,7 +643,7 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
     maestroFilas.forEach((m, i) => {
       const row = h.getRow(9 + i); row.height = 16;
       const vals: ExcelJS.CellValue[] = [m.sku, m.nombre, m.tipo === "eer" ? "Envase (EER)" : "Producto terminado", o(m.upc), o(m.hl),
-        o(m.precioEnvase), m.tipo === "eer" ? "—" : o(m.precioProducto)];
+        o(m.precioEnvase), o(m.precioProducto)];
       vals.forEach((v, c) => {
         const cel = row.getCell(c + 1); cel.value = v;
         cel.font = letra(9.5, v === "—" ? "FF9A9A9A" : TINTA, c === 0);

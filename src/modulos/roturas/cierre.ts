@@ -227,7 +227,9 @@ function resumir(dia: string, turno: TurnoR, todas: FilaCierre[]): TurnoCierre {
     rotas: vivas.reduce((s, f) => s + f.rotas, 0),
     contaminadas: vivas.reduce((s, f) => s + f.contaminadas, 0),
     hl: Math.round(vivas.reduce((s, f) => s + (f.hl ?? 0), 0) * 1000) / 1000,
-    cobro: vivas.reduce((s, f) => s + (f.cobro ?? 0), 0),
+    /* SOLO LO QUE VA A COBRO: la cifra se lee «$ … a cobro». Antes sumaba también las que no se cobran y las que
+       esperan al OL, y no cuadraba con el «A COBRO» del Excel. */
+    cobro: vivas.filter((f) => f.fase === "cobro").reduce((s, f) => s + (f.cobro ?? 0), 0),
     sinHL: vivas.filter((f) => f.hl == null).length,
     sinPrecio: vivas.filter((f) => f.cobro == null && f.fase === "cobro").length,
     anuladas: todas.length - vivas.length,
