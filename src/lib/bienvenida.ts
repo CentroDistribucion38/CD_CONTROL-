@@ -171,13 +171,21 @@ function decir(texto: string, rate: number, pitch: number): Promise<void> {
 const espera = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms));
 
 /**
- * NAVIDAD: el comienzo de «Noche de paz» (Franz Gruber, 1818 — dominio público) en campanas, con un bajo suave y un
- * destello de campanitas justo cuando el globo aterriza y se levanta la nieve (ver GloboNavidad). La música baja un
- * poco mientras la voz dice la frase. Devuelve en cuántos ms entra la voz y la ganancia de la música para bajarla.
+ * NAVIDAD: «We Wish You a Merry Christmas» (tradicional inglés — dominio público) en campanas, con bajo y acordes
+ * suaves y un destello de campanitas justo cuando el globo aterriza y se levanta la nieve (ver GloboNavidad). La
+ * música baja un poco mientras la voz dice la frase. Devuelve en cuántos ms entra la voz y la ganancia de la música.
  */
-const NOCHE_DE_PAZ: [number, number][] = [ // [nota MIDI, duración en corcheas]
-  [79, 1.5], [81, 0.5], [79, 1], [76, 3], [79, 1.5], [81, 0.5], [79, 1], [76, 3],
-  [86, 2], [86, 1], [83, 3], [84, 2], [84, 1], [79, 3],
+const VILLANCICO: [number, number][] = [ // [nota MIDI, duración en tiempos de 3/4]
+  [74, 1],
+  [79, 1], [79, 0.5], [81, 0.5], [79, 0.5], [78, 0.5], [76, 1], [76, 1], [76, 1],
+  [81, 1], [81, 0.5], [83, 0.5], [81, 0.5], [79, 0.5], [78, 1], [74, 1], [74, 1],
+  [83, 1], [83, 0.5], [84, 0.5], [83, 0.5], [81, 0.5], [79, 1], [76, 1], [74, 0.5], [74, 0.5],
+  [76, 1], [81, 1], [78, 1], [79, 3],
+];
+/* Un compás por fila: [bajo, acorde]. */
+const ACORDES: [number, number[]][] = [
+  [43, [59, 62, 67]], [48, [60, 64, 67]], [45, [57, 61, 64]], [50, [57, 62, 66]],
+  [47, [59, 64, 67]], [48, [60, 64, 67]], [50, [57, 62, 66]], [43, [59, 62, 67]],
 ];
 export function villancico(): { voz: number; musica: GainNode } | null {
   if (!ctx) return null;
@@ -185,20 +193,20 @@ export function villancico(): { voz: number; musica: GainNode } | null {
   musica.gain.value = 1; musica.connect(salida());
   /* Destello de campanitas que bajan: la nieve que se levanta. */
   [100, 96, 93, 91, 88, 86, 84].forEach((n, i) => campanaDe(t0 + 0.62 + i * 0.045, n, 0.9, 0.035, musica));
-  const ini = t0 + 0.9, corchea = 0.36;
+  const ini = t0 + 0.9, tiempo = 0.4;
   let t = ini;
-  for (const [n, d] of NOCHE_DE_PAZ) {
-    campanaDe(t, n, Math.max(1.6, d * corchea * 1.4), 0.15, musica);
-    campanaDe(t + 0.01, n + 12, 0.8, 0.025, musica);
-    t += d * corchea;
+  for (const [n, d] of VILLANCICO) {
+    campanaDe(t, n, Math.max(1.4, d * tiempo * 1.5), 0.15, musica);
+    campanaDe(t + 0.01, n + 12, 0.7, 0.025, musica);
+    t += d * tiempo;
   }
-  /* Bajo y acorde de fondo: do · do · sol · do, una vez por compás (6 corcheas). */
-  [[48, [60, 64, 67]], [48, [60, 64, 67]], [43, [59, 62, 67]], [48, [60, 64, 67]]].forEach(([b, acorde], k) => {
-    const tc = ini + k * 6 * corchea;
-    campanaDe(tc, b as number, 2.4, 0.11, musica);
-    colchon(tc, acorde as number[], 6 * corchea + (k === 3 ? 1.2 : 0.1), 0.012, musica);
+  /* El bajo entra con el primer compás completo (después de la anacrusa). */
+  ACORDES.forEach(([b, acorde], k) => {
+    const tc = ini + tiempo + k * 3 * tiempo;
+    campanaDe(tc, b, 1.8, 0.11, musica);
+    colchon(tc, acorde, 3 * tiempo + (k === ACORDES.length - 1 ? 1.2 : 0.05), 0.012, musica);
   });
-  return { voz: Math.round((ini - c.currentTime + 6 * corchea) * 1000), musica };
+  return { voz: Math.round((ini - c.currentTime + 7 * tiempo) * 1000), musica };
 }
 
 async function presentacionNavidad() {

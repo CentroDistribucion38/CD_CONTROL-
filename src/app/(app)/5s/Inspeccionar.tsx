@@ -10,7 +10,8 @@
  *     «82 %» a secas no.
  *   · NO CUMPLE PIDE QUÉ SE ENCONTRÓ (y su severidad). Un hallazgo sin descripción no se puede cerrar.
  *   · LA FOTO SE TOMA CON LA CÁMARA y queda sellada con fecha y hora; sube al almacenamiento, no a la base.
- *   · EL AUDITOR ES QUIEN ENTRÓ y el responsable sale del área: no se escoge de una lista.
+ *   · EL AUDITOR sale como quien entró y el responsable sale del área; tocando cualquiera de los dos se abre la
+ *     lista para escoger otra persona (la de responsables de 5S).
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -70,6 +71,9 @@ export function Inspeccionar({ areas, responsables, puntos, zonas = [], formatos
   const [respId, setRespId] = useState<string | null>(null);
   const duenno = responsables.find((r) => r.id === (respId ?? area?.responsable_id)) ?? null;
   const cambiado = respId != null && respId !== area?.responsable_id;
+  /* El auditor: quien entró, salvo que se escoja otra persona de la lista. */
+  const [audId, setAudId] = useState("");
+  const otroAuditor = responsables.find((r) => r.id === audId) ?? null;
   const lista = useMemo(() => (area ? checklistDe(puntos, area.id, formato) : []), [puntos, area, formato]);
   const r = (id: string) => resp[id] ?? VACIA;
   const zonasArea = zonas.filter((z) => z.activa && z.area_id === area?.id);
@@ -182,7 +186,7 @@ export function Inspeccionar({ areas, responsables, puntos, zonas = [], formatos
     }
     const { error } = await sb.rpc("s5_guardar", {
       p: {
-        id, fecha, area_id: area.id, formato_id: formato.id || null, responsable_id: duenno?.id ?? null, nota: nota.trim() || null,
+        id, fecha, area_id: area.id, formato_id: formato.id || null, responsable_id: duenno?.id ?? null, auditor_id: otroAuditor?.id ?? null, nota: nota.trim() || null,
         puntos: lista.map((p) => {
           const x = r(p.id);
           return {
@@ -254,7 +258,7 @@ export function Inspeccionar({ areas, responsables, puntos, zonas = [], formatos
         </div>
       )}
 
-      {/* LA FICHA: área y fecha se escogen; responsable y auditor salen solos. */}
+      {/* LA FICHA: área y fecha se escogen; responsable y auditor salen solos, y tocándolos se cambian. */}
       <section className="s5-ficha">
         <label className="s5-campo grande">
           <span>Área</span>
@@ -278,7 +282,17 @@ export function Inspeccionar({ areas, responsables, puntos, zonas = [], formatos
             ))}
           </select>
         </label>
-        <div className="s5-dato"><span>Auditor</span><b>{auditor || "—"}</b><small>quien entró a la app</small></div>
+        <label className="s5-dato s5-dato-sel" title="Tocar para escoger otro auditor">
+          <span>Auditor{otroAuditor && " · cambiado"}</span>
+          <b>{otroAuditor?.nombre ?? (auditor || "—")} <i aria-hidden>▾</i></b>
+          <small>{otroAuditor ? (otroAuditor.cargo ?? "escogido de la lista") : "quien entró a la app"}</small>
+          <select aria-label="Auditor" value={otroAuditor?.id ?? ""} disabled={guardando} onChange={(e) => setAudId(e.target.value)}>
+            <option value="">{auditor || "Yo"} (quien entró)</option>
+            {responsables.filter((x) => x.activo || x.id === otroAuditor?.id).map((x) => (
+              <option key={x.id} value={x.id}>{x.nombre}{x.cargo ? ` · ${x.cargo}` : ""}</option>
+            ))}
+          </select>
+        </label>
       </section>
 
       <div className="s5-trabajo">
