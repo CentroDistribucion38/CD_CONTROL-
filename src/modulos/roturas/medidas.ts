@@ -35,7 +35,10 @@ export type Medidas = { cajas: number; unidades: number | null; hl: number | nul
 const r3 = (v: number) => Math.round(v * 1000) / 1000;
 
 export function medidasDe(r: Rotura, maestro?: MaestroHL | null): Medidas {
-  const cajas = Math.max(0, Number(r.unidades_vidrio) || 0) + (Number(r.contaminadas) || 0);
+  /* ROTAS + CONTAMINADAS, LAS DOS EN CAJAS, como se registraron. Antes se sumaba `unidades_vidrio`, que en
+     producto terminado son BOTELLAS (cajas × botellas por empaque): mezclaba botellas con cajas y las unidades y
+     los HL de producto terminado salían multiplicados por el empaque. */
+  const cajas = Math.max(0, Number(r.unidades) || 0) + (Number(r.contaminadas) || 0);
   const m = maestro?.get(String(r.material ?? "").trim());
   const upc = Number(r.factor_caja) || m?.upc || null;
   const unidades = upc ? cajas * upc : null;

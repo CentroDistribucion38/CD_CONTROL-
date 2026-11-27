@@ -46,6 +46,15 @@ export type InsumosRoturas = {
   logo: Buffer | Uint8Array | null;
   /** Unid. por caja y HL por unidad (Maestro de Pasivos). Sin él, las unidades y los HL salen vacíos —no cero—. */
   maestro?: MaestroHL | null;
+  /** El maestro de materiales para la hoja «Maestro» (SKU, nombre, tipo, unid. por caja y precios por botella).
+   *  Sin él, la hoja lleva solo los SKU que vienen en el libro, con lo que traen las roturas. */
+  catalogo?: MaterialLibro[] | null;
+};
+
+/** Una fila de la hoja «Maestro»: lo que el Detalle busca por SKU. */
+export type MaterialLibro = {
+  sku: string; nombre: string; tipo: "producto_terminado" | "eer";
+  upc: number | null; hl: number | null; precioEnvase: number | null; precioProducto: number | null;
 };
 
 /* ---- La paleta de CONTROL: tinta negra, banda amarilla. ---- */
@@ -139,6 +148,23 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
       causa: nombreT(r, "causa"), area: nombreT(r, "area"), registro: nombreT(r, "registro"), opm: nombreT(r, "opm"),
     };
   });
+  /* LA HOJA «MAESTRO»: lo que el Detalle busca por SKU. El catálogo completo si vino; si no, los SKU del libro
+     con lo que traen las roturas. Lo que falta va como «—» (texto) para que una fórmula no lo lea como cero. */
+  const maestroFilas: MaterialLibro[] = (() => {
+    const m = new Map<string, MaterialLibro>();
+    for (const x of d.catalogo ?? []) if (x.sku?.trim()) m.set(x.sku.trim(), { ...x, sku: x.sku.trim() });
+    for (const r of todas) {
+      const k = String(r.material ?? "").trim();
+      if (!k || m.has(k)) continue;
+      m.set(k, { sku: k, nombre: r.material_nombre, tipo: r.tipo, upc: Number(r.factor_caja) || null, hl: null,
+        precioEnvase: r.precio_envase != null ? Number(r.precio_envase) : null, precioProducto: r.precio_producto != null ? Number(r.precio_producto) : null });
+    }
+    return [...m.values()].map((x) => {
+      const p = d.maestro?.get(x.sku);
+      return { ...x, upc: x.upc ?? p?.upc ?? null, hl: x.hl ?? p?.hl ?? null };
+    }).sort((a, b) => a.sku.localeCompare(b.sku, "es", { numeric: true }));
+  })();
+  const nMaestro = maestroFilas.length;
   const categorias = Object.fromEntries((["causa", "area", "registro", "opm"] as DimT[]).map((x) =>
     [x, [...canon[x].values()].sort((a, b) => a.localeCompare(b, "es"))])) as Record<DimT, string[]>;
   const hoyISO = turnoYDia(new Date().toISOString()).dia;
@@ -150,6 +176,78 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
   const tUnid = vivasT.reduce((t, f) => t + (f.unidades ?? 0), 0);
   const tHL = vivasT.reduce((t, f) => t + (f.hl ?? 0), 0);
   const sinHL = vivasT.filter((f) => f.hl == null).length;
+
+  /* ======================= LAS COLUMNAS DEL DETALLE =======================
+     Agrupadas como se lee una rotura: CUÁNDO fue, QUÉ era, CUÁNTO (cajas, unidades y HL), CUÁNTO SE COBRA,
+     A QUÉ CORRESPONDE (causa, proceso, área, quién) y su ESTADO. Al final van, ocultas, las ayudas del Tablero. */
+  type CtxD = { r: Rotura; i: number; td: ReturnType<typeof turnoYDia>; e: ReturnType<typeof etiquetaRotura>; eer: boolean; nFotos: number; f: FilaTab };
+  type ColD = { k: string; t: string; w: number; g: string; num?: boolean; oculta?: boolean; v: (x: CtxD) => ExcelJS.CellValue };
+  /* TODO AMARRADO: lo que sale del SKU (material, tipo, unid. por caja, unidades, HL y cobro) son FÓRMULAS que
+     buscan el SKU en la hoja «Maestro». Cambias el SKU o las cajas en el Detalle y se recalcula todo: el
+     Detalle, el Resumen, el Tablero y las Evidencias. Borras una fila y sale de todas las hojas. */
+  const fx = (formula: string, result: ExcelJS.CellValue) => ({ formula, result }) as ExcelJS.CellValue;
+  const C = (k: string, fila: number) => `$${col(pos(k))}${fila}`;
+  const vl = (fila: number, n: number) => `VLOOKUP(${C("mat", fila)}&"",Maestro!$A:$G,${n},FALSE)`;
+  const filaDe = (x: CtxD) => 9 + x.i;
+  const G1 = "CUÁNDO", G2 = "QUÉ", G3 = "CUÁNTO · CAJAS, UNIDADES Y HL", G4 = "CUÁNTO SE COBRA", G5 = "A QUÉ CORRESPONDE", G6 = "ESTADO Y NOTAS", G7 = "PARA EL TABLERO";
+  const COLS: ColD[] = [
+    { k: "cod", t: "Código", w: 11, g: G1, v: (x) => x.r.codigo },
+    { k: "fecha", t: "Fecha y hora", w: 15, g: G1, v: (x) => aFecha(x.r.reportada_en) },
+    { k: "turno", t: "Turno", w: 7, g: G1, v: (x) => x.td.turno },
+    { k: "dia", t: "Día de turno", w: 11, g: G1, v: (x) => aDia(x.td.dia) },
+    { k: "mat", t: "Cód. material", w: 11, g: G2, v: (x) => x.r.material },
+    { k: "matN", t: "Material", w: 30, g: G2, v: (x) => fx(`IFERROR(${vl(filaDe(x), 2)},"SKU no está en el Maestro")`, x.r.material_nombre) },
+    { k: "tipo", t: "Tipo", w: 17, g: G2, v: (x) => fx(`IFERROR(${vl(filaDe(x), 3)}&"","")`, x.eer ? "Envase (EER)" : "Producto terminado") },
+    { k: "rotas", t: "Rotas (cajas)", w: 11, g: G3, num: true, v: (x) => Number(x.r.unidades) || 0 },
+    { k: "contam", t: "Contaminadas (cajas)", w: 14, g: G3, num: true, v: (x) => (x.eer ? null : Number(x.r.contaminadas) || 0) },
+    { k: "cajas", t: "CAJAS (rotas + contam.)", w: 13, g: G3, num: true, v: (x) => fx(`N(${C("rotas", filaDe(x))})+N(${C("contam", filaDe(x))})`, x.f.cajas) },
+    { k: "upc", t: "Unid. por caja", w: 10, g: G3, num: true, v: (x) => fx(`IFERROR(IF(ISNUMBER(${vl(filaDe(x), 4)}),IF(${vl(filaDe(x), 4)}>0,${vl(filaDe(x), 4)},""),""),"")`,
+        (x.f.unidades != null && x.f.cajas ? x.f.unidades / x.f.cajas : x.r.factor_caja ?? "")) },
+    { k: "unid", t: "UNIDADES (botellas)", w: 13, g: G3, num: true, v: (x) => fx(`IF(N(${C("upc", filaDe(x))})>0,${C("cajas", filaDe(x))}*${C("upc", filaDe(x))},"sin dato")`, x.f.unidades ?? "sin dato") },
+    { k: "hl", t: "HL", w: 11, g: G3, num: true, v: (x) => fx(`IFERROR(IF(AND(ISNUMBER(${C("unid", filaDe(x))}),ISNUMBER(${vl(filaDe(x), 5)})),ROUND(${C("unid", filaDe(x))}*${vl(filaDe(x), 5)},3),"sin HL"),"sin HL")`, x.f.hl ?? "sin HL") },
+    { k: "cobR", t: "Cobro rotas", w: 13, g: G4, num: true, v: (x) => { const n = filaDe(x);
+        return fx(`IFERROR(IF(OR(N(${C("upc", n)})=0,NOT(ISNUMBER(${vl(n, 6)}))),"",N(${C("rotas", n)})*${C("upc", n)}*${vl(n, 6)}),"")`, x.r.cobro_rotas ?? "") } },
+    { k: "cobC", t: "Cobro contam.", w: 13, g: G4, num: true, v: (x) => { const n = filaDe(x);
+        return fx(`IFERROR(IF(N(${C("contam", n)})=0,0,IF(OR(N(${C("upc", n)})=0,NOT(ISNUMBER(${vl(n, 6)})),NOT(ISNUMBER(${vl(n, 7)}))),"",N(${C("contam", n)})*${C("upc", n)}*(${vl(n, 6)}+${vl(n, 7)}))),"")`, x.r.cobro_contaminadas ?? "") } },
+    { k: "cobT", t: "COBRO TOTAL", w: 15, g: G4, num: true, v: (x) => { const n = filaDe(x);
+        const sinPrecio = x.r.cobro_total == null && faseRotura(x.r) === "cobro" && x.r.estado !== "anulada";
+        return fx(`IF(AND(ISNUMBER(${C("cobR", n)}),ISNUMBER(${C("cobC", n)})),${C("cobR", n)}+${C("cobC", n)},IF(${C("tFase", n)}="cobro","sin precio",""))`,
+          x.r.cobro_total ?? (sinPrecio ? "sin precio" : "")) } },
+    { k: "causa", t: "Causa", w: 26, g: G5, v: (x) => x.r.causa_nombre },
+    { k: "asum", t: "Asumida", w: 11, g: G5, v: (x) => (x.r.grupo === "no_asumida" ? "No asumida" : "Asumida") },
+    { k: "proc", t: "Proceso", w: 16, g: G5, v: (x) => x.r.proceso_nombre },
+    { k: "area", t: "Área", w: 16, g: G5, v: (x) => x.r.area_nombre ?? "" },
+    { k: "orig", t: "Origen", w: 12, g: G5, v: (x) => ORIGEN_TXT[(x.r.origen ?? "sin") as OrigenR] },
+    { k: "rep", t: "Reportó (usuario)", w: 15, g: G5, v: (x) => quien(x.r) },
+    { k: "opm", t: "OPM", w: 16, g: G5, v: (x) => x.r.opm_nombre ?? "" },
+    { k: "estado", t: "Estado", w: 22, g: G6, v: (x) => x.e.txt },
+    { k: "cuenta", t: "Cuenta", w: 9, g: G6, v: (x) => x.f.cuenta },
+    { k: "fotos", t: "Fotos", w: 8, g: G6, num: true, v: (x) => x.nFotos },
+    { k: "desc", t: "Qué pasó", w: 40, g: G6, v: (x) => x.r.descripcion ?? "" },
+    { k: "ol", t: "Dice el OL", w: 30, g: G6, v: (x) => x.r.ol_nota ?? "" },
+    { k: "dec", t: "Decisión", w: 30, g: G6, v: (x) => x.r.nota_decision ?? "" },
+    { k: "anul", t: "Anulada porque", w: 30, g: G6, v: (x) => x.r.motivo_anulacion ?? "" },
+    { k: "tCausa", t: "Tablero · causa", w: 16, g: G7, oculta: true, v: (x) => fx(`IF(TRIM(${C("causa", filaDe(x))})="","Sin dato",TRIM(${C("causa", filaDe(x))}))`, x.f.causa) },
+    { k: "tArea", t: "Tablero · área", w: 16, g: G7, oculta: true, v: (x) => fx(`IF(TRIM(${C("area", filaDe(x))})="","Sin dato",TRIM(${C("area", filaDe(x))}))`, x.f.area) },
+    { k: "tReg", t: "Tablero · registró", w: 16, g: G7, oculta: true, v: (x) => fx(`IF(OR(TRIM(${C("rep", filaDe(x))})="",${C("rep", filaDe(x))}="—"),"Sin dato",TRIM(${C("rep", filaDe(x))}))`, x.f.registro) },
+    { k: "tOpm", t: "Tablero · OPM", w: 16, g: G7, oculta: true, v: (x) => x.f.opm },
+    { k: "tFiltro", t: "Tablero · en el filtro", w: 10, g: G7, oculta: true, v: (x) => ({ formula: formulasFila(9 + x.i).filtro, result: enFiltro(x.f, sel) ? 1 : 0 }) },
+    { k: "tValor", t: "Tablero · valor", w: 10, g: G7, oculta: true, v: (x) => ({ formula: formulasFila(9 + x.i).valor, result: valorEn(x.f, sel) }) },
+    { k: "tCobro", t: "Tablero · cobro", w: 12, g: G7, oculta: true, v: (x) => { const n = filaDe(x);
+        return fx(`IF(AND(${C("tFase", n)}="cobro",${C("cuenta", n)}<>"Anulada",ISNUMBER(${C("cobT", n)})),${C("cobT", n)},0)`, x.f.cobro ?? 0) } },
+    { k: "tFase", t: "Tablero · fase", w: 10, g: G7, oculta: true, v: (x) => (x.r.estado === "anulada" ? "anulada" : faseRotura(x.r)) },
+  ];
+  const pos = (k: string) => COLS.findIndex((c) => c.k === k) + 1;
+  /* Los rangos del Detalle que leen el Resumen y las Evidencias (fila 9 a la última rotura). Si borras una fila
+     en el Detalle, Excel encoge el rango solo y la cifra cambia en todas las hojas. */
+  const ultD = 8 + Math.max(1, todas.length);
+  const RG = (k: string) => `Detalle!$${col(pos(k))}$9:$${col(pos(k))}$${ultD}`;
+  const crit = (t: string) => `"${t.replace(/"/g, '""').replace(/[*?~]/g, "~$&")}"`;
+  const VIVA = `${RG("cuenta")},"<>Anulada"`;
+  Object.assign(DET, {
+    DIA: pos("dia"), CAJAS: pos("cajas"), UNID: pos("unid"), HL: pos("hl"), CUENTA: pos("cuenta"),
+    CAUSA: pos("tCausa"), AREA: pos("tArea"), REG: pos("tReg"), OPM: pos("tOpm"), FILTRO: pos("tFiltro"), VALOR: pos("tValor"), COBRO: pos("tCobro"),
+  });
 
   /* ======================= 1 · RESUMEN ======================= */
   {
@@ -166,12 +264,15 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
     const plata = aCobro.reduce((s, r) => s + (Number(r.cobro_total) || 0), 0);
     const sinFoto = vivas.filter((r) => r.le_falta_foto);
     const anuladas = todas.length - vivas.length;
-    const fichas: { rot: string; num: number; fmt: string; pie: string; amarilla?: boolean; roja?: boolean }[] = [
-      { rot: "REGISTRADAS", num: vivas.length, fmt: NUM, pie: anuladas ? `${anuladas} anulada${anuladas === 1 ? "" : "s"} aparte` : "sin anuladas", amarilla: true },
-      { rot: "ROTAS", num: rotas, fmt: NUM, pie: "cajas" },
-      { rot: "CONTAMINADAS", num: contam, fmt: NUM, pie: "cajas" },
-      { rot: "A COBRO", num: plata, fmt: PESOS, pie: `${aCobro.length} rotura${aCobro.length === 1 ? "" : "s"}` },
-      { rot: "SIN FOTO", num: sinFoto.length, fmt: NUM, pie: "la causa exige foto", roja: sinFoto.length > 0 },
+    /* Cada cifra es una FÓRMULA sobre el Detalle: borras o cambias una fila allá y cambia aquí. */
+    const fichas: { rot: string; num: number; fmt: string; pie: string; amarilla?: boolean; roja?: boolean; fx: string; pieFx?: string }[] = [
+      { rot: "REGISTRADAS", num: vivas.length, fmt: NUM, pie: anuladas ? `${anuladas} anulada${anuladas === 1 ? "" : "s"} aparte` : "sin anuladas", amarilla: true,
+        fx: `COUNTIFS(${RG("cod")},"<>",${VIVA})`, pieFx: `IF(COUNTIF(${RG("cuenta")},"Anulada")=0,"sin anuladas",COUNTIF(${RG("cuenta")},"Anulada")&" anulada(s) aparte")` },
+      { rot: "ROTAS", num: rotas, fmt: NUM, pie: "cajas", fx: `SUMIFS(${RG("rotas")},${VIVA})` },
+      { rot: "CONTAMINADAS", num: contam, fmt: NUM, pie: "cajas", fx: `SUMIFS(${RG("contam")},${VIVA})` },
+      { rot: "A COBRO", num: plata, fmt: PESOS, pie: `${aCobro.length} rotura${aCobro.length === 1 ? "" : "s"}`,
+        fx: `SUM(${RG("tCobro")})`, pieFx: `COUNTIFS(${RG("tFase")},"cobro",${VIVA})&" roturas"` },
+      { rot: "SIN FOTO", num: sinFoto.length, fmt: NUM, pie: "la causa exige foto", roja: sinFoto.length > 0, fx: `COUNTIFS(${RG("fotos")},"Falta",${VIVA})` },
     ];
     const pares: [number, number][] = [[2, 3], [4, 5], [6, 7], [8, 9], [10, 11]];
     h.getRow(8).height = 16; h.getRow(9).height = 34; h.getRow(10).height = 16;
@@ -186,8 +287,8 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
         cel.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
       }
       h.getCell(8, c1).value = f.rot; h.getCell(8, c1).font = letra(8, f.amarilla ? TINTA : GRIS, true);
-      const n = h.getCell(9, c1); n.value = f.num; n.numFmt = f.fmt; n.font = letra(f.fmt === PESOS ? 17 : 22, f.roja ? ROJO : TINTA, true);
-      h.getCell(10, c1).value = f.pie; h.getCell(10, c1).font = letra(8.5, f.amarilla ? TINTA : GRIS);
+      const n = h.getCell(9, c1); n.value = { formula: f.fx, result: f.num }; n.numFmt = f.fmt; n.font = letra(f.fmt === PESOS ? 17 : 22, f.roja ? ROJO : TINTA, true);
+      h.getCell(10, c1).value = f.pieFx ? { formula: f.pieFx, result: f.pie } : f.pie; h.getCell(10, c1).font = letra(8.5, f.amarilla ? TINTA : GRIS);
       h.getCell(8, c1).border = { top: { style: "medium", color: { argb: f.roja ? ROJO : TINTA } }, left: { style: "thick", color: { argb: BLANCO } } };
     });
 
@@ -196,12 +297,16 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
       h.mergeCells(11, 2, 11, 11);
       const c = h.getCell(11, 2);
       const f0 = (v: number, dec = 0) => v.toLocaleString("es-CO", { minimumFractionDigits: dec, maximumFractionDigits: dec });
-      c.value = `Lo registrado (sin anuladas), en las tres medidas:  ${f0(tCajas)} cajas  ·  ${hayHL || tUnid ? f0(tUnid) : "—"} unidades  ·  ${hayHL ? f0(tHL, 2) : "—"} HL${sinHL ? `   (${sinHL} sin dato en el Maestro de Pasivos: no suman)` : ""}.  Los Paretos que se recalculan están en la hoja Tablero.`;
+      const txt = `Lo registrado (sin anuladas), en las tres medidas:  ${f0(tCajas)} cajas  ·  ${hayHL || tUnid ? f0(tUnid) : "—"} unidades  ·  ${hayHL ? f0(tHL, 2) : "—"} HL${sinHL ? `   (${sinHL} sin dato en el Maestro de Pasivos: no suman)` : ""}.  Los Paretos que se recalculan están en la hoja Tablero.`;
+      c.value = { formula: `"Lo registrado (sin anuladas), en las tres medidas:  "&TEXT(SUMIFS(${RG("cajas")},${VIVA}),"#,##0")&" cajas  ·  "&TEXT(SUMIFS(${RG("unid")},${VIVA}),"#,##0")&" unidades  ·  "&TEXT(SUMIFS(${RG("hl")},${VIVA}),"#,##0.00")&" HL"&IF(COUNTIFS(${RG("hl")},"sin HL",${VIVA})>0,"   ("&COUNTIFS(${RG("hl")},"sin HL",${VIVA})&" sin dato en el Maestro: no suman)","")&".  Los Paretos que se recalculan están en la hoja Tablero."`, result: txt };
       c.font = letra(9, GRIS, false, true); c.alignment = { vertical: "middle", wrapText: true }; h.getRow(11).height = 26;
     }
 
     /* ---- LAS BARRAS: dos columnas de paneles. ---- */
-    const panel = (fila: number, c: number, titulo: string, cab: string, datos: Conteo[], valor: (x: Conteo) => number, colorBarra: string, tope = 8, fijo = false) => {
+    /* `fxDe`: la fórmula de la cifra de cada barra sobre el Detalle; `fxTotal`: la de todo (para «Otras»). Las barras
+       también son fórmulas (REPT), así que crecen o se encogen cuando cambia el Detalle. */
+    const panel = (fila: number, c: number, titulo: string, cab: string, datos: Conteo[], valor: (x: Conteo) => number, colorBarra: string, tope = 8, fijo = false,
+                   fxDe?: (x: Conteo) => string, fxTotal?: string) => {
       const t = h.getCell(fila, c); t.value = titulo; t.font = letra(8.5, TINTA, true); t.alignment = { indent: c > 2 ? 1 : 0 };
       const k = h.getCell(fila, c + 4); k.value = cab; k.font = letra(8, GRIS, true); k.alignment = { horizontal: "right" };
       for (let x = c; x <= c + 4; x++) h.getCell(fila, x).border = { bottom: { style: "medium", color: { argb: TINTA } } };
@@ -209,15 +314,26 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
       const vis = lista.slice(0, tope);
       const resto = lista.slice(tope);
       if (resto.length) vis.push({ nombre: `Otras ${resto.length}`, n: resto.reduce((s, x) => s + x.n, 0), cajas: resto.reduce((s, x) => s + x.cajas, 0), color: GRIS_CLARO });
+      /* Con fórmulas, un nombre cambiado en el Detalle (otro SKU, otra causa) no tiene barra propia: cae aquí y el
+         total del panel sigue cuadrando con el del Detalle. */
+      else if (fxDe && fxTotal && !fijo) vis.push({ nombre: "Otros / cambiados en el Detalle", n: 0, cajas: 0, color: GRIS_CLARO });
       const max = Math.max(1, ...vis.map(valor));
+      const vc = col(c + 4), r1 = fila + 1, r2 = fila + Math.max(1, vis.length);
       vis.forEach((x, i) => {
         const f = fila + 1 + i;
         h.getRow(f).height = 17;
         h.mergeCells(f, c, f, c + 1);
         const nom = h.getCell(f, c); nom.value = x.nombre; nom.font = letra(9.5, TINTA); nom.alignment = { vertical: "middle", shrinkToFit: true, indent: c > 2 ? 1 : 0 };
         h.mergeCells(f, c + 2, f, c + 3);
-        const b = h.getCell(f, c + 2); b.value = barra(valor(x), max, 20); b.font = letra(9, x.color ?? colorBarra); b.alignment = { vertical: "middle" };
-        const v = h.getCell(f, c + 4); v.value = valor(x); v.numFmt = NUM; v.font = letra(9.5, TINTA, true); v.alignment = { horizontal: "right", vertical: "middle", indent: 1 };
+        const b = h.getCell(f, c + 2);
+        b.value = fxDe ? { formula: `IF(N(${vc}${f})>0,REPT("█",MAX(1,ROUND(${vc}${f}/MAX(1,MAX(${vc}${r1}:${vc}${r2}))*20,0))),"")`, result: barra(valor(x), max, 20) } : barra(valor(x), max, 20);
+        b.font = letra(9, x.color ?? colorBarra); b.alignment = { vertical: "middle" };
+        const v = h.getCell(f, c + 4);
+        const esOtras = i === vis.length - 1 && (resto.length > 0 || x.nombre === "Otros / cambiados en el Detalle");
+        v.value = fxDe
+          ? { formula: esOtras && fxTotal ? `MAX(0,${fxTotal}-SUM(${vc}${r1}:${vc}${f - 1}))` : fxDe(x), result: valor(x) }
+          : valor(x);
+        v.numFmt = NUM; v.font = letra(9.5, TINTA, true); v.alignment = { horizontal: "right", vertical: "middle", indent: 1 };
         for (let z = c; z <= c + 4; z++) h.getCell(f, z).border = { bottom: raya() };
       });
       if (!vis.length) { const v = h.getCell(fila + 1, c); v.value = "Nada en lo exportado."; v.font = letra(9, GRIS, false, true) }
@@ -252,21 +368,26 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
         nom.alignment = { vertical: "middle", indent: 1 };
         h.mergeCells(f, 4, f, 5);
         const b = h.getCell(f, 4); b.value = barra(x.n, max, 20); b.font = letra(9, x.color ?? TINTA); b.alignment = { vertical: "middle" };
-        const v = h.getCell(f, 6); v.value = x.n; v.numFmt = NUM; v.font = letra(9.5, TINTA, true); v.alignment = { horizontal: "right", vertical: "middle", indent: 1 };
+        const v = h.getCell(f, 6); v.value = { formula: `COUNTIF(${RG("estado")},${crit(x.nombre)})`, result: x.n }; v.numFmt = NUM; v.font = letra(9.5, TINTA, true); v.alignment = { horizontal: "right", vertical: "middle", indent: 1 };
+        b.value = { formula: `IF(N(F${f})>0,REPT("█",MAX(1,ROUND(F${f}/MAX(1,MAX(F${f1 + 1}:F${f1 + Math.max(1, porEstado.length)}))*20,0))),"")`, result: barra(x.n, max, 20) };
         for (let z = 2; z <= 6; z++) h.getCell(f, z).border = { bottom: raya() };
       });
       f1 = f1 + 1 + Math.max(1, porEstado.length);
     }
-    f2 = panel(f2, 7, "POR TURNO (C 22-06 · A 06-14 · B 14-22)", "CAJAS", porTurno, (x) => x.cajas, BANDA, 8, true);
+    const cajasPor = (k: string, vacio?: string) => (x: Conteo) => `SUMIFS(${RG("cajas")},${RG(k)},${x.nombre === vacio ? '""' : crit(x.nombre)},${VIVA})`;
+    const totCajas = `SUMIFS(${RG("cajas")},${VIVA})`;
+    f2 = panel(f2, 7, "POR TURNO (C 22-06 · A 06-14 · B 14-22)", "CAJAS", porTurno, (x) => x.cajas, BANDA, 8, true,
+      (x) => `SUMIFS(${RG("cajas")},${RG("turno")},${crit(x.nombre.replace("Turno ", ""))},${VIVA})`, totCajas);
     f1 = Math.max(f1, f2) + 1; f2 = f1;
-    f1 = panel(f1, 2, "CAUSAS", "CAJAS", agrupar(vivas, (r) => r.causa_nombre), (x) => x.cajas, TINTA);
-    f2 = panel(f2, 7, "PROCESO", "CAJAS", agrupar(vivas, (r) => r.proceso_nombre), (x) => x.cajas, TINTA);
+    f1 = panel(f1, 2, "CAUSAS", "CAJAS", agrupar(vivas, (r) => r.causa_nombre), (x) => x.cajas, TINTA, 8, false, cajasPor("causa"), totCajas);
+    f2 = panel(f2, 7, "PROCESO", "CAJAS", agrupar(vivas, (r) => r.proceso_nombre), (x) => x.cajas, TINTA, 8, false, cajasPor("proc"), totCajas);
     f1 = Math.max(f1, f2) + 1; f2 = f1;
-    f1 = panel(f1, 2, "MATERIAL", "CAJAS", agrupar(vivas, (r) => r.material_nombre), (x) => x.cajas, "FF8A6200");
-    f2 = panel(f2, 7, "ÁREA", "CAJAS", agrupar(vivas, (r) => r.area_nombre ?? "Sin área"), (x) => x.cajas, "FF8A6200");
+    f1 = panel(f1, 2, "MATERIAL", "CAJAS", agrupar(vivas, (r) => r.material_nombre), (x) => x.cajas, "FF8A6200", 8, false, cajasPor("matN"), totCajas);
+    f2 = panel(f2, 7, "ÁREA", "CAJAS", agrupar(vivas, (r) => r.area_nombre ?? "Sin área"), (x) => x.cajas, "FF8A6200", 8, false, cajasPor("area", "Sin área"), totCajas);
     f1 = Math.max(f1, f2) + 1; f2 = f1;
-    f1 = panel(f1, 2, "QUIÉN LA REPORTÓ", "CAJAS", agrupar(vivas, quien), (x) => x.cajas, GRIS);
-    f2 = panel(f2, 7, "ORIGEN", "ROTURAS", agrupar(vivas, (r) => ORIGEN_TXT[(r.origen ?? "sin") as OrigenR]), (x) => x.n, GRIS);
+    f1 = panel(f1, 2, "QUIÉN LA REPORTÓ", "CAJAS", agrupar(vivas, quien), (x) => x.cajas, GRIS, 8, false, cajasPor("rep"), totCajas);
+    f2 = panel(f2, 7, "ORIGEN", "ROTURAS", agrupar(vivas, (r) => ORIGEN_TXT[(r.origen ?? "sin") as OrigenR]), (x) => x.n, GRIS, 8, false,
+      (x) => `COUNTIFS(${RG("orig")},${crit(x.nombre)},${VIVA})`, `COUNTIFS(${RG("cod")},"<>",${VIVA})`);
     let f = Math.max(f1, f2) + 1;
 
     /* ---- PARA MIRAR: lo que hace que un cobro se caiga. ---- */
@@ -297,57 +418,6 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
     h.mergeCells(f, 2, f, 11); nota.font = letra(8.5, GRIS, false, true); nota.alignment = { wrapText: true, vertical: "top" }; h.getRow(f).height = 26;
     h.pageSetup = { orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, margins: { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0, footer: 0 } };
   }
-
-  /* ======================= LAS COLUMNAS DEL DETALLE =======================
-     Agrupadas como se lee una rotura: CUÁNDO fue, QUÉ era, CUÁNTO (cajas, unidades y HL), CUÁNTO SE COBRA,
-     A QUÉ CORRESPONDE (causa, proceso, área, quién) y su ESTADO. Al final van, ocultas, las ayudas del Tablero. */
-  type CtxD = { r: Rotura; i: number; td: ReturnType<typeof turnoYDia>; e: ReturnType<typeof etiquetaRotura>; eer: boolean; nFotos: number; f: FilaTab };
-  type ColD = { k: string; t: string; w: number; g: string; num?: boolean; oculta?: boolean; v: (x: CtxD) => ExcelJS.CellValue };
-  const G1 = "CUÁNDO", G2 = "QUÉ", G3 = "CUÁNTO · CAJAS, UNIDADES Y HL", G4 = "CUÁNTO SE COBRA", G5 = "A QUÉ CORRESPONDE", G6 = "ESTADO Y NOTAS", G7 = "PARA EL TABLERO";
-  const COLS: ColD[] = [
-    { k: "cod", t: "Código", w: 11, g: G1, v: (x) => x.r.codigo },
-    { k: "fecha", t: "Fecha y hora", w: 15, g: G1, v: (x) => aFecha(x.r.reportada_en) },
-    { k: "turno", t: "Turno", w: 7, g: G1, v: (x) => x.td.turno },
-    { k: "dia", t: "Día de turno", w: 11, g: G1, v: (x) => aDia(x.td.dia) },
-    { k: "mat", t: "Cód. material", w: 11, g: G2, v: (x) => x.r.material },
-    { k: "matN", t: "Material", w: 30, g: G2, v: (x) => x.r.material_nombre },
-    { k: "tipo", t: "Tipo", w: 17, g: G2, v: (x) => (x.eer ? "Envase (EER)" : "Producto terminado") },
-    { k: "rotas", t: "Rotas (cajas)", w: 11, g: G3, num: true, v: (x) => Number(x.r.unidades) || 0 },
-    { k: "contam", t: "Contaminadas (cajas)", w: 14, g: G3, num: true, v: (x) => (x.eer ? null : Number(x.r.contaminadas) || 0) },
-    { k: "cajas", t: "CAJAS (rotas + contam.)", w: 13, g: G3, num: true, v: (x) => x.f.cajas },
-    { k: "upc", t: "Unid. por caja", w: 10, g: G3, num: true, v: (x) => (x.f.unidades != null && x.f.cajas ? x.f.unidades / x.f.cajas : x.r.factor_caja ?? null) },
-    { k: "unid", t: "UNIDADES (botellas)", w: 13, g: G3, num: true, v: (x) => x.f.unidades ?? "sin dato" },
-    { k: "hl", t: "HL", w: 11, g: G3, num: true, v: (x) => x.f.hl ?? "sin HL" },
-    { k: "cobR", t: "Cobro rotas", w: 13, g: G4, num: true, v: (x) => x.r.cobro_rotas ?? null },
-    { k: "cobC", t: "Cobro contam.", w: 13, g: G4, num: true, v: (x) => x.r.cobro_contaminadas ?? null },
-    { k: "cobT", t: "COBRO TOTAL", w: 15, g: G4, num: true, v: (x) => x.r.cobro_total ?? null },
-    { k: "causa", t: "Causa", w: 26, g: G5, v: (x) => x.r.causa_nombre },
-    { k: "asum", t: "Asumida", w: 11, g: G5, v: (x) => (x.r.grupo === "no_asumida" ? "No asumida" : "Asumida") },
-    { k: "proc", t: "Proceso", w: 16, g: G5, v: (x) => x.r.proceso_nombre },
-    { k: "area", t: "Área", w: 16, g: G5, v: (x) => x.r.area_nombre ?? "" },
-    { k: "orig", t: "Origen", w: 12, g: G5, v: (x) => ORIGEN_TXT[(x.r.origen ?? "sin") as OrigenR] },
-    { k: "rep", t: "Reportó (usuario)", w: 15, g: G5, v: (x) => quien(x.r) },
-    { k: "opm", t: "OPM", w: 16, g: G5, v: (x) => x.r.opm_nombre ?? "" },
-    { k: "estado", t: "Estado", w: 22, g: G6, v: (x) => x.e.txt },
-    { k: "cuenta", t: "Cuenta", w: 9, g: G6, v: (x) => x.f.cuenta },
-    { k: "fotos", t: "Fotos", w: 8, g: G6, num: true, v: (x) => x.nFotos },
-    { k: "desc", t: "Qué pasó", w: 40, g: G6, v: (x) => x.r.descripcion ?? "" },
-    { k: "ol", t: "Dice el OL", w: 30, g: G6, v: (x) => x.r.ol_nota ?? "" },
-    { k: "dec", t: "Decisión", w: 30, g: G6, v: (x) => x.r.nota_decision ?? "" },
-    { k: "anul", t: "Anulada porque", w: 30, g: G6, v: (x) => x.r.motivo_anulacion ?? "" },
-    { k: "tCausa", t: "Tablero · causa", w: 16, g: G7, oculta: true, v: (x) => x.f.causa },
-    { k: "tArea", t: "Tablero · área", w: 16, g: G7, oculta: true, v: (x) => x.f.area },
-    { k: "tReg", t: "Tablero · registró", w: 16, g: G7, oculta: true, v: (x) => x.f.registro },
-    { k: "tOpm", t: "Tablero · OPM", w: 16, g: G7, oculta: true, v: (x) => x.f.opm },
-    { k: "tFiltro", t: "Tablero · en el filtro", w: 10, g: G7, oculta: true, v: (x) => ({ formula: formulasFila(9 + x.i).filtro, result: enFiltro(x.f, sel) ? 1 : 0 }) },
-    { k: "tValor", t: "Tablero · valor", w: 10, g: G7, oculta: true, v: (x) => ({ formula: formulasFila(9 + x.i).valor, result: valorEn(x.f, sel) }) },
-    { k: "tCobro", t: "Tablero · cobro", w: 12, g: G7, oculta: true, v: (x) => x.f.cobro ?? 0 },
-  ];
-  const pos = (k: string) => COLS.findIndex((c) => c.k === k) + 1;
-  Object.assign(DET, {
-    DIA: pos("dia"), CAJAS: pos("cajas"), UNID: pos("unid"), HL: pos("hl"), CUENTA: pos("cuenta"),
-    CAUSA: pos("tCausa"), AREA: pos("tArea"), REG: pos("tReg"), OPM: pos("tOpm"), FILTRO: pos("tFiltro"), VALOR: pos("tValor"), COBRO: pos("tCobro"),
-  });
 
   /* ======================= TABLERO · Paretos que se recalculan ======================= */
   const { graficas } = armarTablero(wb, { banda, relleno, letra, raya, TINTA, BANDA, BLANCO, GRIS, FONDO, RAYA }, { filas: filasTab, sel, categorias, sub });
@@ -393,14 +463,16 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
       row.height = 18;
       COLS.forEach((c, ci) => {
         const cel = row.getCell(ci + 1);
-        const v = c.v(x);
-        cel.value = v;
+        const v0 = c.v(x);
+        /* Una fórmula guarda su resultado: con él se dan formato, totales y tipo de letra. */
+        const v = v0 && typeof v0 === "object" && "formula" in v0 ? (v0 as ExcelJS.CellFormulaValue).result as ExcelJS.CellValue : v0;
+        cel.value = v0 === "" ? null : v0;
         if (typeof v === "number") sumas[c.k] = (sumas[c.k] ?? 0) + v;
         cel.font = letra(9.5, r.estado === "anulada" ? GRIS : TINTA);
         cel.border = { bottom: raya(), ...(inicioGrupo.has(ci + 1) ? { left: { style: "thin", color: { argb: "FFB9B9B9" } } } : {}) };
         cel.alignment = { vertical: "middle", horizontal: c.num ? "right" : "left", indent: 1 };
         if (i % 2 === 1) cel.fill = relleno(FONDO);
-        if (c.num && typeof v === "number") cel.numFmt = c.k === "hl" ? "#,##0.00" : c.k.startsWith("cob") ? PESOS : c.k === "upc" ? "#,##0.##" : NUM;
+        if (c.num) cel.numFmt = c.k === "hl" ? "#,##0.00" : c.k.startsWith("cob") ? PESOS : c.k === "upc" ? "#,##0.##" : NUM;
         /* Lo que falta se dice, en gris y cursiva: un hueco vacío parece un cero. */
         if (typeof v === "string" && (c.k === "hl" || c.k === "unid")) cel.font = letra(8.5, "FF9A9A9A", false, true);
       });
@@ -410,14 +482,19 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
       cel("turno").alignment = { horizontal: "center", vertical: "middle" }; cel("turno").font = letra(9.5, TINTA, true);
       if (r.grupo === "no_asumida") cel("asum").font = letra(9.5, ROJO, true);
       /* Las tres medidas, en negrita: son las que se preguntan. */
-      for (const k of ["cajas", "unid", "hl", "cobT"]) if (typeof cel(k).value === "number") cel(k).font = letra(9.5, r.estado === "anulada" ? GRIS : TINTA, true);
+      for (const k of ["cajas", "unid", "hl", "cobT"]) cel(k).font = letra(9.5, r.estado === "anulada" ? GRIS : TINTA, true);
       const est = ESTADO[x.e.clase] ?? ESTADO["tb-gris"];
       cel("estado").fill = relleno(est.fondo); cel("estado").font = letra(8.5, est.tinta, true);
       /* Las fotos saltan a su tarjeta en Evidencias. */
       const fe = filaEvid.get(r.id);
       if (fe && x.nFotos > 0) { cel("fotos").value = vinculo("Evidencias", `A${fe}`, `${x.nFotos} ↗`); cel("fotos").font = letra(9.5, ENLACE, true) }
       else if (r.le_falta_foto) { cel("fotos").value = "Falta"; cel("fotos").font = letra(9.5, ROJO, true) }
-      if (r.cobro_total == null && faseRotura(r) === "cobro" && r.estado !== "anulada") { cel("cobT").value = "sin precio"; cel("cobT").font = letra(9, ROJO, true, true) }
+      /* El SKU se escoge de la lista del Maestro (o se escribe): al cambiarlo se recalcula todo. */
+      cel("mat").dataValidation = {
+        type: "list", allowBlank: false, formulae: [`Maestro!$A$9:$A$${8 + Math.max(1, nMaestro)}`],
+        showErrorMessage: true, errorStyle: "warning", errorTitle: "SKU", error: "Ese SKU no está en la hoja Maestro: el material, los HL y el cobro salen vacíos.",
+      };
+      cel("mat").fill = relleno("FFFFF6D6");
     });
     const ult = 8 + todas.length;
     /* Totales que siguen al filtro (SUBTOTAL 109): filtras y la cifra cambia. */
@@ -430,6 +507,15 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
       cel.value = { formula: `SUBTOTAL(109,${col(c)}9:${col(c)}${Math.max(9, ult)})`, result: k === "hl" ? Math.round((sumas[k] ?? 0) * 1000) / 1000 : sumas[k] ?? 0 };
       cel.numFmt = k === "hl" ? "#,##0.00" : k.startsWith("cob") ? PESOS : NUM; cel.alignment = { horizontal: "right", vertical: "middle", indent: 1 };
     }
+    /* Lo que falta sale en rojo aunque se recalcule: «sin precio», «SKU no está en el Maestro», «sin HL». */
+    if (todas.length) h.addConditionalFormatting({
+      ref: `${col(pos("matN"))}9:${col(pos("cobT"))}${ult}`,
+      rules: [
+        { type: "containsText", operator: "containsText", text: "no está", priority: 1, style: { font: { color: { argb: ROJO }, bold: true } } },
+        { type: "containsText", operator: "containsText", text: "sin precio", priority: 2, style: { font: { color: { argb: ROJO }, bold: true, italic: true } } },
+        { type: "containsText", operator: "containsText", text: "sin ", priority: 3, style: { font: { color: { argb: "FF9A9A9A" }, italic: true } } },
+      ],
+    });
     /* Las columnas de ayuda del Tablero van ocultas (se pueden mostrar). */
     COLS.forEach((c, i) => { if (c.oculta) h.getColumn(i + 1).hidden = true });
     h.autoFilter = `A8:${col(N)}${Math.max(9, ult)}`;
@@ -474,8 +560,19 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
       if (fs.some((x) => x.papel === "descargo")) lineas.push({ text: "Incluye foto del descargo del OL\n", font: letra(8.5, GRIS, false, true) });
       if (enApp > fs.length) lineas.push({ text: `+${enApp - fs.length} foto${enApp - fs.length === 1 ? "" : "s"} más en la app`, font: letra(8.5, GRIS, false, true) });
       row.getCell(1).value = r.codigo; row.getCell(1).font = letra(11, TINTA, true);
-      row.getCell(2).value = { richText: lineas };
-      row.getCell(3).value = e.txt; row.getCell(3).font = letra(8.5, est.tinta, true); row.getCell(3).fill = relleno(est.fondo);
+      /* LA FICHA Y EL ESTADO SE LEEN DEL DETALLE por el código: si ahí cambias el SKU, las cajas o la causa, la
+         tarjeta cambia; si borras la fila, la tarjeta dice «ELIMINADA DEL DETALLE». */
+      const m = `MATCH($A${fila},${RG("cod")},0)`;
+      const I = (k: string) => `INDEX(${RG(k)},${m})`;
+      const ficha = `${I("matN")}&CHAR(10)&${I("rotas")}&" caja(s) "&IF(${I("tipo")}="Envase (EER)","de envase","rotas")`
+        + `&IF(N(${I("contam")})>0," · "&${I("contam")}&" contaminada(s)","")&CHAR(10)&${I("causa")}&" · "&${I("proc")}&IF(${I("area")}&""<>""," · "&${I("area")},"")`
+        + `&CHAR(10)&TEXT(${I("fecha")},"dd/mm/yy hh:mm")&" · turno "&${I("turno")}&" · "&${I("rep")}`
+        + `&IF(ISNUMBER(${I("cobT")}),CHAR(10)&"Cobro "&TEXT(${I("cobT")},"$ #,##0"),"")`
+        + `&IF(${I("desc")}&""<>"",CHAR(10)&"«"&${I("desc")}&"»","")&IF(${I("ol")}&""<>"",CHAR(10)&"OL: «"&${I("ol")}&"»","")`;
+      const extra = [fs.some((x) => x.papel === "descargo") ? "Incluye foto del descargo del OL" : "", enApp > fs.length ? `+${enApp - fs.length} foto(s) más en la app` : ""].filter(Boolean).join(" · ");
+      row.getCell(2).value = { formula: `IFERROR(${ficha}${extra ? `&CHAR(10)&${crit(extra)}` : ""},"ELIMINADA DEL DETALLE")`, result: lineas.map((x) => x.text).join("").trim() };
+      row.getCell(2).font = letra(9.5, TINTA);
+      row.getCell(3).value = { formula: `IFERROR(${I("estado")},"ELIMINADA")`, result: e.txt }; row.getCell(3).font = letra(8.5, est.tinta, true); row.getCell(3).fill = relleno(est.fondo);
       for (let c = 1; c <= 3 + NF; c++) {
         const cel = row.getCell(c);
         cel.alignment = { vertical: "top", wrapText: true, indent: 1 };
@@ -489,6 +586,11 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
         h.addImage(id, { tl: { col: 3 + k + 0.03, row: fila - 1 + 0.03 } as ExcelJS.Anchor, ext: { width: Math.round(aw * esc), height: Math.round(ah * esc) }, editAs: "oneCell" });
       });
     });
+    if (conFoto.length) h.addConditionalFormatting({
+      ref: `B9:C${8 + conFoto.length}`,
+      rules: [{ type: "containsText", operator: "containsText", text: "ELIMINADA", priority: 1,
+        style: { fill: { type: "pattern", pattern: "solid", bgColor: { argb: "FFFBE0DD" } }, font: { color: { argb: ROJO }, bold: true } } }],
+    });
     let f = 9 + conFoto.length + 1;
     if (sinFoto.length) {
       const a = h.getCell(f, 1); a.value = "SIN FOTO"; a.font = letra(8.5, ROJO, true);
@@ -499,6 +601,33 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
     }
     h.views = [{ state: "frozen", ySplit: 8, showGridLines: false }];
     h.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9 };
+  }
+
+  /* ======================= 4 · MAESTRO ======================= */
+  {
+    const h = wb.addWorksheet("Maestro", { properties: { tabColor: { argb: GRIS } } });
+    const T = ["SKU", "Material", "Tipo", "Unid. por caja", "HL por unidad", "Precio envase (botella)", "Precio producto (botella)"];
+    h.columns = [12, 42, 18, 12, 13, 18, 18].map((w) => ({ width: w }));
+    banda(h, T.length, `Maestro · ${nMaestro} SKU`, "Lo que el Detalle busca por SKU. Cambia aquí un precio o un factor —o un SKU en el Detalle— y se recalculan el Detalle, el Resumen, el Tablero y las Evidencias.", null);
+    const cab = h.getRow(8); cab.height = 30;
+    T.forEach((t, i) => { const c = cab.getCell(i + 1); c.value = t; c.font = letra(9, BLANCO, true); c.fill = relleno(TINTA); c.alignment = { vertical: "middle", wrapText: true, horizontal: i >= 3 ? "right" : "left", indent: 1 } });
+    const o = (v: number | null) => (v == null || !Number.isFinite(v) ? "—" : v);
+    maestroFilas.forEach((m, i) => {
+      const row = h.getRow(9 + i); row.height = 16;
+      const vals: ExcelJS.CellValue[] = [m.sku, m.nombre, m.tipo === "eer" ? "Envase (EER)" : "Producto terminado", o(m.upc), o(m.hl),
+        o(m.precioEnvase), m.tipo === "eer" ? "—" : o(m.precioProducto)];
+      vals.forEach((v, c) => {
+        const cel = row.getCell(c + 1); cel.value = v;
+        cel.font = letra(9.5, v === "—" ? "FF9A9A9A" : TINTA, c === 0);
+        cel.alignment = { vertical: "middle", horizontal: c >= 3 ? "right" : "left", indent: 1 };
+        cel.border = { bottom: raya() };
+        if (i % 2 === 1) cel.fill = relleno(FONDO);
+        if (c === 0) cel.numFmt = "@";
+        if (c === 4) cel.numFmt = "0.0000##"; else if (c >= 5) cel.numFmt = '"$" #,##0.00'; else if (c === 3) cel.numFmt = "#,##0";
+      });
+    });
+    h.autoFilter = `A8:G${8 + Math.max(1, nMaestro)}`;
+    h.views = [{ state: "frozen", ySplit: 8, showGridLines: false }];
   }
 
   const buf = (await wb.xlsx.writeBuffer()) as ArrayBuffer;

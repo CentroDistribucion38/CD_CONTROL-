@@ -9,6 +9,7 @@ import { useConfirmar } from "@/components/Confirmar";
 import { usePedirTexto } from "@/components/PedirTexto";
 import type { Rotura } from "@/modulos/roturas/datos";
 import { Caso, type Corr } from "./Caso";
+import type { Cambios, Catalogos } from "./Editar";
 import { Revision } from "./Revision";
 import { etiquetaRotura, HORARIO_TURNO, TURNOS, turnoYDia, type Etiqueta } from "@/modulos/roturas/cierre";
 import { Cierre } from "./Cierre";
@@ -57,10 +58,12 @@ const pelado = (t: string) =>
  *  se puede llamar distinto a lo mismo. */
 const etiquetaDe = (r: Rotura): Etiqueta => etiquetaRotura(r);
 
-export function Tablero({ roturas, nombres, manda, correcciones, revisadas, seguridad }: {
+export function Tablero({ roturas, nombres, manda, correcciones, revisadas, seguridad, catalogos = null }: {
   roturas: Rotura[];
   nombres: Record<string, string>;
   manda: boolean;
+  /** Material, causas, procesos y áreas para editar el caso completo (solo superadmin y con el SQL corrido). */
+  catalogos?: Catalogos | null;
   /** Las correcciones de cantidades que ya se hicieron, por rotura (la más nueva primero). */
   correcciones: Record<string, Corr[]>;
   /** Los id de las roturas que el administrador ya revisó (foto y cifras). */
@@ -212,6 +215,26 @@ export function Tablero({ roturas, nombres, manda, correcciones, revisadas, segu
     if (error) { avisar.mal(error.message); return false }
     setRev((p) => new Set(p).add(r.id));
     avisar.bien(`${r.codigo} corregida: ${rotas} rotas${r.tipo === "eer" ? "" : ` y ${contaminadas} contaminadas`}. El cobro se recalculó.`);
+    router.refresh();
+    return true;
+  }
+
+  /* EDITAR EL CASO COMPLETO (superadmin): SKU, causa, proceso, área y cifras. La base guarda lo de antes. */
+  async function editar(r: Rotura, c: Cambios): Promise<boolean> {
+    setMandando(true);
+    const { error } = await supabase.rpc("rotura_editar", {
+      p_id: r.id, p_material: c.material, p_causa: c.causa, p_proceso: c.proceso, p_area: c.area,
+      p_rotas: c.rotas, p_contaminadas: c.contaminadas, p_motivo: c.motivo,
+    });
+    setMandando(false);
+    if (error) {
+      avisar.mal(/rotura_editar|schema cache|function/i.test(error.message)
+        ? "Para editar el caso completo falta correr 2026-11-roturas-editar-caso.sql en Supabase."
+        : error.message);
+      return false;
+    }
+    setRev((p) => new Set(p).add(r.id));
+    avisar.bien(`${r.codigo} editada${c.material !== r.material ? ` · ahora es ${c.material}` : ""}. El cobro se recalculó.`);
     router.refresh();
     return true;
   }
@@ -537,7 +560,8 @@ export function Tablero({ roturas, nombres, manda, correcciones, revisadas, segu
                   anterior={iAbierta > 0 ? () => setAbierta(vistas[iAbierta - 1].id) : null}
                   siguiente={iAbierta < vistas.length - 1 ? () => setAbierta(vistas[iAbierta + 1].id) : null}
                   cerrar={() => setAbierta(null)}
-                  corregir={(a, b, c) => corregir(r, a, b, c)} />
+                  corregir={(a, b, c) => corregir(r, a, b, c)}
+                  catalogos={catalogos} editar={(c) => { void editar(r, c) }} />
           );
         })()}
         </div>

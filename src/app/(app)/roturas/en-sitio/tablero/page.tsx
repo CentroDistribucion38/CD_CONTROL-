@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { misPermisos } from "@/lib/permisos";
 import { nombresTodos } from "@/modulos/sider/datos";
-import { roturas as leerRoturas } from "@/modulos/roturas/datos";
+import { roturas as leerRoturas, materialesMaestro, causas as leerCausas, procesos as leerProcesos, areas as leerAreas } from "@/modulos/roturas/datos";
+import type { Catalogos } from "./Editar";
 import "../../roturas.css";
 import { SinTablas } from "../../comunes";
 import { createClient } from "@/lib/supabase/server";
@@ -32,22 +33,47 @@ export default async function TableroEnSitioPage() {
   const correcciones: Record<string, Corr[]> = {};
   let falta = false;
   let revisadas: string[] = [];
+  let catalogos: Catalogos | null = null;
   if (permisos.manda) {
     const supabase = await createClient();
-    const { data, error } = await supabase.from("roturas_correcciones")
-      .select("rotura_id, antes_rotas, antes_contaminadas, despues_rotas, despues_contaminadas, motivo, corregida_por, corregida_en")
+    /* Con las columnas de «editar el caso completo» (2026-11-roturas-editar-caso.sql); si aún no existen, como antes. */
+    const base = "rotura_id, antes_rotas, antes_contaminadas, despues_rotas, despues_contaminadas, motivo, corregida_por, corregida_en";
+    const conCambios = await supabase.from("roturas_correcciones")
+      .select(base + ", antes_material, despues_material, antes_causa, despues_causa, antes_proceso, despues_proceso, antes_area, despues_area")
       .order("corregida_en", { ascending: false }).limit(2000);
+    const editarListo = !conCambios.error;
+    const { data, error } = editarListo ? conCambios
+      : await supabase.from("roturas_correcciones").select(base).order("corregida_en", { ascending: false }).limit(2000);
     if (error) falta = true;
+    if (editarListo) {
+      const [mm, ca, pr, ar] = await Promise.all([materialesMaestro(), leerCausas(false), leerProcesos(false), leerAreas(false)]);
+      catalogos = { materiales: mm.materiales, causas: ca, procesos: pr, areas: ar };
+    }
+    const nomCausa = new Map((catalogos?.causas ?? []).map((x) => [x.clave, x.nombre]));
+    const nomProc = new Map((catalogos?.procesos ?? []).map((x) => [x.clave, x.nombre]));
+    const nomArea = new Map((catalogos?.areas ?? []).map((x) => [x.clave, x.nombre]));
+    const cambio = (que: string, a: string | null | undefined, d: string | null | undefined, nom?: Map<string, string>) =>
+      a !== undefined && d !== undefined && (a ?? null) !== (d ?? null)
+        ? `${que}: ${a ? nom?.get(a) ?? a : "—"} → ${d ? nom?.get(d) ?? d : "—"}` : null;
     const rv = await supabase.from("roturas_revision").select("rotura_id").limit(5000);
     revisadas = ((rv.data ?? []) as { rotura_id: string }[]).map((x) => x.rotura_id);
-    for (const c of (data ?? []) as {
+    type Fila = {
       rotura_id: string; antes_rotas: number; antes_contaminadas: number | null; despues_rotas: number;
       despues_contaminadas: number | null; motivo: string; corregida_por: string | null; corregida_en: string;
-    }[]) {
+      antes_material?: string | null; despues_material?: string | null; antes_causa?: string | null; despues_causa?: string | null;
+      antes_proceso?: string | null; despues_proceso?: string | null; antes_area?: string | null; despues_area?: string | null;
+    };
+    for (const c of (data ?? []) as unknown as Fila[]) {
       (correcciones[c.rotura_id] ??= []).push({
         antes_rotas: c.antes_rotas, antes_contaminadas: c.antes_contaminadas,
         despues_rotas: c.despues_rotas, despues_contaminadas: c.despues_contaminadas,
         motivo: c.motivo, por: nombres[c.corregida_por ?? ""] ?? "—", en: c.corregida_en,
+        cambios: [
+          cambio("SKU", c.antes_material, c.despues_material),
+          cambio("Causa", c.antes_causa, c.despues_causa, nomCausa),
+          cambio("Proceso", c.antes_proceso, c.despues_proceso, nomProc),
+          cambio("Área", c.antes_area, c.despues_area, nomArea),
+        ].filter((x): x is string => !!x),
       });
     }
   }
@@ -82,7 +108,7 @@ export default async function TableroEnSitioPage() {
             Cada rotura con el estado en que quedó: si espera al operador logístico, si está
             en desacuerdo, si se va a cobrar o si ya se descartó. Aquí se <b>busca</b>; las
             bandejas son para decidir, de una en una.
-            {permisos.manda && <> Y aquí el administrador anula, borra —que no son lo mismo— y corrige las cantidades de cada caso.</>}
+            {permisos.manda && <> Y aquí el administrador anula, borra —que no son lo mismo— y edita cada caso: SKU, causa, proceso, área y cantidades.</>}
           </p>
         </div>
         <div className="kpi">
@@ -104,7 +130,7 @@ export default async function TableroEnSitioPage() {
         </div>
       )}
 
-      <Tablero roturas={datos.roturas} nombres={nombres} manda={permisos.manda} correcciones={correcciones} revisadas={revisadas} seguridad={seguridad} />
+      <Tablero roturas={datos.roturas} nombres={nombres} manda={permisos.manda} correcciones={correcciones} revisadas={revisadas} seguridad={seguridad} catalogos={catalogos} />
 
       {!permisos.manda && (
         <div className="aviso">

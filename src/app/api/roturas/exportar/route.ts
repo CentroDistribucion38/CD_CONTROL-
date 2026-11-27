@@ -19,7 +19,7 @@ import { misPermisos } from "@/lib/permisos";
 import type { Rotura } from "@/modulos/roturas/datos";
 import { nombresTodos } from "@/modulos/sider/datos";
 import { armarLibroRoturas, type FotoLibro } from "@/modulos/roturas/libro-roturas";
-import { leerMaestroHL } from "@/modulos/roturas/maestro-hl";
+import { leerCatalogoLibro, leerMaestroHL } from "@/modulos/roturas/maestro-hl";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -129,10 +129,11 @@ export async function POST(req: Request) {
     leerMaestroHL(supabase),
   ]);
   const yo = yoR.data as { usuario: string | null; nombre: string | null } | null;
+  const catalogo = await leerCatalogoLibro(supabase, maestro);
 
   const archivo = await armarLibroRoturas({
     roturas, nombres, fotos, fotosFuera: fuera, periodo, filtros,
-    quien: yo?.nombre || yo?.usuario || "—", logo, maestro,
+    quien: yo?.nombre || yo?.usuario || "—", logo, maestro, catalogo,
   });
   const nombre = `roturas-en-sitio-${sello()}.xlsx`;
   return new NextResponse(new Uint8Array(archivo), {

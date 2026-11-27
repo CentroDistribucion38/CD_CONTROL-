@@ -141,3 +141,15 @@
 }
 
 .rt .tb-rev { color: #1E7A3C; font-weight: 900; margin-left: 6px; font-size: 14px }
+
+/* EDITAR EL CASO COMPLETO (superadmin): SKU con buscador, causa, proceso y área en lista. */
+.rt .co-form select, .rt .co-motivo input {
+  width: 100%; min-height: 40px; padding: 0 10px; border: 1px solid var(--rt-linea); background: #fff;
+  font: 600 13.5px var(--rt-texto); color: var(--rt-tinta); border-radius: 0;
+}
+.rt .co-motivo input { font: 700 14px var(--rt-titulo); letter-spacing: .02em }
+.rt .co-form select:focus, .rt .co-motivo input:focus { outline: none; border-color: var(--rt-tinta); box-shadow: 0 0 0 3px rgba(0,0,0,.12) }
+.rt .co-motivo em { font-style: normal; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--rt-gris) }
+.rt .co-mat { font: 500 12px var(--rt-texto); color: var(--rt-gris) }
+.rt .co-mat.mal { color: #b42318; font-weight: 700 }
+.rt .co-hist .co-camb { display: block; font-weight: 700; color: var(--rt-tinta) }

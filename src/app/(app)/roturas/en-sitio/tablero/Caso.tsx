@@ -14,23 +14,29 @@ import type { Rotura } from "@/modulos/roturas/datos";
 import type { Etiqueta } from "@/modulos/roturas/cierre";
 import { Evidencia } from "../../Evidencia";
 import { Corregir } from "./Corregir";
+import { Editar, type Cambios, type Catalogos } from "./Editar";
 
 export type Corr = {
   antes_rotas: number; antes_contaminadas: number | null;
   despues_rotas: number; despues_contaminadas: number | null;
   motivo: string; por: string; en: string;
+  /** Lo que cambió además de las cifras (2026-11-roturas-editar-caso.sql). */
+  cambios?: string[];
 };
 
 const cop = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
 const cuando = (iso: string) => new Date(iso).toLocaleString("es-CO", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" });
 
-export function Caso({ r, etiqueta, nombres, historial, manda, guardando, pos, total, anterior, siguiente, cerrar, corregir }: {
+export function Caso({ r, etiqueta, nombres, historial, manda, guardando, pos, total, anterior, siguiente, cerrar, corregir, catalogos, editar }: {
   r: Rotura; etiqueta: Etiqueta; nombres: Record<string, string>;
   historial: Corr[]; manda: boolean; guardando: boolean;
   pos: number; total: number;
   anterior: (() => void) | null; siguiente: (() => void) | null;
   cerrar: () => void;
   corregir: (rotas: number, contaminadas: number, motivo: string) => void;
+  /** Con los catálogos (superadmin y el SQL de editar corrido) se edita el caso completo: SKU, causa, proceso, área y cifras. */
+  catalogos?: Catalogos | null;
+  editar?: (c: Cambios) => void;
 }) {
   const decidida = r.estado !== "esperando" || Boolean(r.ol_respuesta);
   const eer = r.tipo === "eer";
@@ -70,7 +76,11 @@ export function Caso({ r, etiqueta, nombres, historial, manda, guardando, pos, t
         {r.descripcion && <div><b>Qué pasó</b> {r.descripcion}</div>}
       </div>
 
-      {manda && r.estado !== "anulada" && (
+      {manda && r.estado !== "anulada" && catalogos && editar && (
+        <Editar key={`${r.id}-${r.material}-${r.causa}-${r.proceso}-${r.area ?? ""}-${r.unidades}-${r.contaminadas ?? 0}`} r={r} cat={catalogos}
+                decidida={decidida} guardando={guardando} guardar={editar} />
+      )}
+      {manda && r.estado !== "anulada" && !(catalogos && editar) && (
         <Corregir key={`${r.id}-${r.unidades}-${r.contaminadas ?? 0}`} r={r} decidida={decidida}
                   guardando={guardando} guardar={corregir} />
       )}
@@ -84,6 +94,7 @@ export function Caso({ r, etiqueta, nombres, historial, manda, guardando, pos, t
                 <b>{h.antes_rotas}{h.antes_contaminadas ? ` + ${h.antes_contaminadas} contam.` : ""}</b>
                 {" → "}
                 <b>{h.despues_rotas}{h.despues_contaminadas ? ` + ${h.despues_contaminadas} contam.` : ""}</b>
+                {h.cambios?.map((c) => <span key={c} className="co-camb">{c}</span>)}
                 <span>«{h.motivo}» · {h.por} · {cuando(h.en)}</span>
               </li>
             ))}
