@@ -89,11 +89,12 @@ export const aPayload = (hojas: HojaForm[]) =>
   [...hojas].sort((a, b) => a.numero - b.numero)
     .map((h) => ({ numero: h.numero, ol: h.ol || null, bavaria: h.bavaria || null, calle: h.calle || null, familias: h.familias ?? [] }));
 
-/** «5 hojas · 4 parejas completas · 1 a medias»: lo que se dice de un inventario en la lista. */
-export function textoResumen(r: Pick<Revision, "total" | "completas" | "aMedias" | "vacias">): string {
+/** «5 hojas · 4 parejas completas · 1 a medias» (en el cíclico, «1 de una persona»): lo que se dice de un inventario en la lista. */
+export function textoResumen(r: Pick<Revision, "total" | "completas" | "aMedias" | "vacias">, unaPersona = false): string {
   const partes = [`${r.total} ${r.total === 1 ? "hoja" : "hojas"}`];
   partes.push(`${r.completas} ${r.completas === 1 ? "pareja completa" : "parejas completas"}`);
-  if (r.aMedias > 0) partes.push(`${r.aMedias} a medias`);
+  /* En el cíclico una hoja con una sola persona no está a medias: esa persona la cuenta sola. */
+  if (r.aMedias > 0) partes.push(unaPersona ? `${r.aMedias} de una persona` : `${r.aMedias} a medias`);
   if (r.vacias > 0) partes.push(`${r.vacias} sin nadie`);
   return partes.join(" · ");
 }

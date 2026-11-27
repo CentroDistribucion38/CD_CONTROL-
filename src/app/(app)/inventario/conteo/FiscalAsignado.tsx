@@ -8,7 +8,7 @@ import { agruparMisHojas, fechaConDia, textoCuando, type MiHojaBD } from "@/modu
    inventario, el día, el número de su hoja y quién es su pareja. Cada una cuenta
    la hoja por su lado. Si a la persona no le tocó nada, esto no sale.
    =================================================================== */
-export function FiscalAsignado({ filas, hoy }: { filas: MiHojaBD[]; hoy: string }) {
+export function FiscalAsignado({ filas, hoy, ciclico = false }: { filas: MiHojaBD[]; hoy: string; ciclico?: boolean }) {
   const grupos = agruparMisHojas(filas);
   if (grupos.length === 0) return null;
   return (
@@ -31,7 +31,7 @@ export function FiscalAsignado({ filas, hoy }: { filas: MiHojaBD[]; hoy: string 
                     {" · "}
                     {h.pareja
                       ? <>con <b>{h.pareja}</b>{h.parejaEquipo && <> ({h.parejaEquipo})</>}</>
-                      : <em>sin pareja aún</em>}
+                      : <em>{ciclico ? "sin pareja: la cuentas tú" : "sin pareja aún"}</em>}
                   </span>
                 </li>
               ))}

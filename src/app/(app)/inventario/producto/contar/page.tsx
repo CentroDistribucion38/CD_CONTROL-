@@ -77,7 +77,7 @@ export default async function ContarProductoPage() {
           <p>Abre el SQL Editor y ejecuta <code>supabase/migraciones/2026-11-producto-ciclico.sql</code>.</p>
         </section>
       )}
-      <FiscalAsignado filas={sep.ciclico} hoy={hoy} />
+      <FiscalAsignado ciclico filas={sep.ciclico} hoy={hoy} />
       {hojas.length > 0 ? (
         <ContarFiscal ciclico hojas={hojas} bodegaId={bodega.id} materiales={m.materiales} ubicaciones={ubis} />
       ) : (

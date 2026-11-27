@@ -20,6 +20,9 @@ import {
    SEGUIR CONTANDO y se cierra el cruce. Para que no se vea nada denso.»
    Por eso aquí no vive una tabla abierta: una barra con «Cruzar». El resultado se abre solo al cruzar y se cierra
    con «Seguir contando». Si todo coincide, «Enviar conteo» cierra la hoja (ya no se anota más).
+
+   UNA SOLA PERSONA («que pueda colocar a una sola persona a contar»): si la hoja no tiene pareja, no hay nada que
+   cruzar. La barra lo dice y deja «Enviar conteo» directo, con una confirmación (al enviar ya no se anota más).
    =================================================================== */
 const nf = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 });
 
@@ -38,8 +41,9 @@ function dif(f: FilaCruce): string {
   return `${signo}${nf.format(c)}${s > 0 ? ` + ${nf.format(s)} un.` : ""}`;
 }
 
-export function CruceCiclico({ hojaId, numero }: { hojaId: string; numero: number; equipo?: string }) {
+export function CruceCiclico({ hojaId, numero, sola = false }: { hojaId: string; numero: number; equipo?: string; sola?: boolean }) {
   const router = useRouter();
+  const [confirmar, setConfirmar] = useState(false);
   /** null = cerrado (solo la barra); con filas = el resultado del último cruce, abierto. */
   const [filas, setFilas] = useState<FilaCruce[] | null>(null);
   const [cargando, setCargando] = useState(false);
@@ -69,7 +73,7 @@ export function CruceCiclico({ hojaId, numero }: { hojaId: string; numero: numbe
         ? "Para enviar el conteo falta correr supabase/migraciones/2026-11-producto-ciclico-control.sql en Supabase." : error.message);
       return;
     }
-    setFilas(null);
+    setFilas(null); setConfirmar(false);
     router.refresh();
   }
 
@@ -77,6 +81,29 @@ export function CruceCiclico({ hojaId, numero }: { hojaId: string; numero: numbe
   const cuadra = !!r && r.total > 0 && r.conDiferencia === 0;
   /* Solo lo que NO coincide: lo que coincide no hay que mirarlo. */
   const pendientes = (filas ?? []).filter((f) => f.estado !== "COINCIDE");
+
+  /* UNA SOLA PERSONA: sin cruce; envía lo que contó cuando termine. */
+  if (sola) {
+    return (
+      <section className="cc cc-barra" aria-label={`Enviar el conteo de la hoja ${numero}`}>
+        {confirmar ? (
+          <>
+            <p className="cc-sub"><b>¿Ya contaste toda la hoja {numero}?</b> Al enviar, la hoja se cierra y ya no se anota más.</p>
+            <span className="cc-botones" style={{ marginTop: 0 }}>
+              <button type="button" className="btn" disabled={enviando} onClick={enviar}>{enviando ? "Enviando…" : "Sí, enviar conteo"}</button>
+              <button type="button" className="btn plano" disabled={enviando} onClick={() => { setConfirmar(false); setMal(null) }}>Todavía no</button>
+            </span>
+          </>
+        ) : (
+          <>
+            <p className="cc-sub"><b>Cuentas esta hoja sin pareja.</b> No hay con quién cruzar: cuando termines, envía el conteo.</p>
+            <button type="button" className="btn" onClick={() => setConfirmar(true)}>Enviar conteo</button>
+          </>
+        )}
+        {mal && <p className="cc-mal" role="alert">{mal}</p>}
+      </section>
+    );
+  }
 
   /* CERRADO: una barra sola, nada más. */
   if (!filas) {

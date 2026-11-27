@@ -410,6 +410,9 @@ export function ControlCiclico({ personas, ciclicos, cerradasIniciales, ahora, p
     if (enviadaDe(f, numero)) return { clase: "lista", texto: "Conteo enviado" };
     const filas = cruces[numero];
     if (!filas || filas.length === 0) return { clase: "sin-empezar", texto: "Sin contar" };
+    /* Una sola persona en la hoja: no hay con quién cruzar; lo que contó se envía tal cual. */
+    const h = f.hojas.find((x) => x.numero === numero);
+    if (h && !(h.ol && h.bavaria)) return { clase: "una-termino", texto: `${filas.length} ${filas.length === 1 ? "renglón" : "renglones"} · una persona · falta enviar` };
     const r = resumenCruce(filas);
     if (r.conDiferencia > 0) return { clase: "contando", texto: `${r.conDiferencia} por cruzar` };
     return { clase: "una-termino", texto: "Todo coincide · falta enviar" };

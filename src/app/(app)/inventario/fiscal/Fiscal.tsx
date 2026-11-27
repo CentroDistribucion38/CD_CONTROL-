@@ -244,6 +244,9 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
       const c = cruceDe(numero);
       if (c?.enviada) return { clase: "lista", texto: "Conteo enviado" };
       if (!c || c.total === 0) return { clase: "sin-empezar", texto: "Sin contar" };
+      /* Una sola persona: no hay cruce; cuando termine, envía lo que contó. */
+      const h = f.hojas.find((x) => x.numero === numero);
+      if (h && !(h.ol && h.bavaria)) return { clase: "una-termino", texto: "Una persona · falta enviar" };
       if (c.conDif > 0) return { clase: "contando", texto: `${c.conDif} por cruzar` };
       return { clase: "lista", texto: "Todo coincide · falta enviar" };
     };
@@ -252,7 +255,9 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
     const cifras: { v: number; et: string; tono?: string }[] = modo === "ciclico" && cruces
       ? [
         { v: r.total, et: r.total === 1 ? "hoja" : "hojas" },
-        { v: r.completas, et: r.completas === 1 ? "pareja completa" : "parejas completas" },
+        r.aMedias > 0
+          ? { v: r.completas + r.aMedias, et: `${r.completas + r.aMedias === 1 ? "hoja asignada" : "hojas asignadas"} · ${r.aMedias} de una persona` }
+          : { v: r.completas, et: r.completas === 1 ? "pareja completa" : "parejas completas" },
         { v: conDif, et: "con diferencias por cruzar", tono: "proceso" },
         { v: enviadas, et: enviadas === 1 ? "conteo enviado" : "conteos enviados", tono: "ok" },
       ]
@@ -273,7 +278,7 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
       const m = numeradosDe(calle);
       return m.length < 2 ? undefined : eq === "ol" ? `${m[0]} → ${m[m.length - 1]}` : `${m[m.length - 1]} → ${m[0]}`;
     };
-    const equipo = (id: string, et: string, renglones: number | undefined, termino: string | null | undefined, sentido?: string, enviada = false) => (
+    const equipo = (id: string, et: string, renglones: number | undefined, termino: string | null | undefined, sentido?: string, enviada = false, sola = false) => (
       <div className="fi-eq">
         <span className="fi-eq-et">{et}{sentido && <em className="fi-sentido">{sentido}</em>}</span>
         {id ? (
@@ -286,7 +291,7 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
               </>
             )}
           </>
-        ) : <em className="fi-falta">Falta asignar</em>}
+        ) : <em className="fi-falta">{sola ? "Nadie: la cuenta una sola persona" : "Falta asignar"}</em>}
       </div>
     );
     const parejas = (
@@ -304,8 +309,8 @@ export function Fiscal({ bodegaId, personas, roles, fiscales, puedeEditar, puede
             return (
               <li key={h.numero} className={"fi-fila " + est}>
                 <div className="fi-num"><small>Hoja</small><b>{h.numero}</b>{h.calle && <span className="fi-calle">Calle {h.calle}</span>}{conFamilias && (h.familias?.length ?? 0) > 0 && <span className="fi-calle fi-fams-ver" title="Familias que cuenta esta hoja">{h.familias!.join(" + ")}</span>}</div>
-                {equipo(h.ol, "Operador logístico", av?.olRenglones, av?.olTermino, sentidoDe(h.calle, "ol"), modo === "ciclico" && !!cruceDe(h.numero)?.enviada)}
-                {equipo(h.bavaria, "Bavaria", av?.bavariaRenglones, av?.bavariaTermino, sentidoDe(h.calle, "bavaria"), modo === "ciclico" && !!cruceDe(h.numero)?.enviada)}
+                {equipo(h.ol, "Operador logístico", av?.olRenglones, av?.olTermino, sentidoDe(h.calle, "ol"), modo === "ciclico" && !!cruceDe(h.numero)?.enviada, modo === "ciclico" && !!h.bavaria)}
+                {equipo(h.bavaria, "Bavaria", av?.bavariaRenglones, av?.bavariaTermino, sentidoDe(h.calle, "bavaria"), modo === "ciclico" && !!cruceDe(h.numero)?.enviada, modo === "ciclico" && !!h.ol)}
                 {ec ? <i className={"fi-av " + ec.clase}>{ec.texto}</i>
                   : conAvance && av && <i className={"fi-av " + est}>{TEXTO_ESTADO[est]}</i>}
               </li>
@@ -594,10 +599,14 @@ function FormFiscal({ modo = "fiscal", form, setForm, personas, roles: rolesIn, 
         {filtroRol("bavaria", "Bavaria")}
       </div>
 
-      <h3 className="fi-t">Hojas y parejas <small>{textoResumen(r)}</small></h3>
+      <h3 className="fi-t">Hojas y parejas <small>{textoResumen(r, modo === "ciclico")}</small></h3>
       {(() => {
-        const estadoDe = (h: HojaForm) => (h.ol && h.bavaria ? "ok" : h.ol || h.bavaria ? "me" : "va");
-        const textoEstado = (h: HojaForm) => (h.ol && h.bavaria ? "Pareja completa" : h.ol ? "Falta Bavaria" : h.bavaria ? "Falta operador logístico" : "Sin nadie");
+        /* En el CÍCLICO una hoja puede ir con UNA sola persona: cuenta sola y envía sin cruce (no queda «a medias»). */
+        const sola = modo === "ciclico";
+        const estadoDe = (h: HojaForm) => (h.ol && h.bavaria ? "ok" : h.ol || h.bavaria ? (sola ? "ok" : "me") : "va");
+        const textoEstado = (h: HojaForm) => (h.ol && h.bavaria ? "Pareja completa"
+          : (h.ol || h.bavaria) && sola ? "Cuenta una sola persona · envía sin cruce"
+          : h.ol ? "Falta Bavaria" : h.bavaria ? "Falta operador logístico" : "Sin nadie");
         const hAct = form.hojas.find((x) => x.numero === activa) ?? form.hojas[0];
         const agrega = (n: number) => {
           const nuevas = agregarHojas(form.hojas, n);
@@ -678,9 +687,11 @@ function FormFiscal({ modo = "fiscal", form, setForm, personas, roles: rolesIn, 
         <button type="button" className="btn plano" disabled={ocupado} onClick={onCancelar}>Cancelar</button>
         <span className="fi-pie-nota">
           {r.errores.length === 0 && (r.aMedias > 0 || r.vacias > 0) && (<>
-            {r.aMedias > 0 && <>{r.aMedias} {r.aMedias === 1 ? "hoja tiene" : "hojas tienen"} una sola persona. </>}
+            {r.aMedias > 0 && (modo === "ciclico"
+              ? <>{r.aMedias} {r.aMedias === 1 ? "hoja la cuenta" : "hojas las cuenta"} una sola persona: envía su conteo sin cruzar. </>
+              : <>{r.aMedias} {r.aMedias === 1 ? "hoja tiene" : "hojas tienen"} una sola persona. </>)}
             {r.vacias > 0 && <>{r.vacias} {r.vacias === 1 ? "hoja no tiene" : "hojas no tienen"} a nadie todavía. </>}
-            Se puede guardar así y completar después.
+            {(modo !== "ciclico" || r.vacias > 0) && "Se puede guardar así y completar después."}
           </>)}
         </span>
         <button type="button" className="btn grande" disabled={!puede} onClick={onGuardar}>

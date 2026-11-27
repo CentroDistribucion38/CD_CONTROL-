@@ -1145,7 +1145,7 @@ export function ContarFiscal({
       </section>
 
       {/* EL CÍCLICO SE CRUZA AQUÍ MISMO, por cualquiera de la pareja y cuando quiera. */}
-      {ciclico && hoja.puedeContar && <CruceCiclico key={hoja.hojaId} hojaId={hoja.hojaId} numero={hoja.numero} equipo={hoja.equipo} />}
+      {ciclico && hoja.puedeContar && <CruceCiclico key={hoja.hojaId} hojaId={hoja.hojaId} numero={hoja.numero} equipo={hoja.equipo} sola={!hoja.pareja} />}
     </>
   );
 }
