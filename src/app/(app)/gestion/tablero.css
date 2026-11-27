@@ -279,6 +279,31 @@
 .gs .fi-pis b { font-size: 12px }
 .gs .fi-pis small { grid-column: 2 / -1; font-size: 11.5px; color: var(--c-5b6b7f) }
 @media (max-width: 640px) { .gs .fi-pis { grid-template-columns: 1fr } }
+/* LA BOLSA DEL KPI: los PI que tiene, por área (con «Sacar»), y abajo los que se pueden meter (con buscador y área). */
+.gs .fb-bolsa { display: grid; gap: 10px }
+.gs .fb-area { border: 1px solid var(--c-d5dce5); border-left: 4px solid #F5B800; background: #fffdf5 }
+.gs .fb-area > header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 8px 12px; border-bottom: 1px solid var(--c-d5dce5) }
+.gs .fb-area > header b { font: 800 14px var(--fe-titulo); color: var(--c-04203f) }
+.gs .fb-area > header small { font-size: 12px; color: var(--c-5b6b7f) }
+.gs .fb-pi { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 48px; padding: 6px 12px; border-top: 1px solid var(--c-eef1f5) }
+.gs .fb-area .fb-pi:first-of-type { border-top: 0 }
+.gs .fb-pi.entra { background: #fff4c7 }
+.gs .fb-nom { display: flex; flex-direction: column; min-width: 0 }
+.gs .fb-nom > b { font: 700 14px "IBM Plex Sans", system-ui, sans-serif; color: var(--c-04203f) }
+.gs .fb-nom small { font-size: 12px; color: var(--c-5b6b7f) }
+.gs .fb-btn { flex: none; min-height: 36px; padding: 0 14px; border: 1px solid var(--c-d5dce5); background: #fff; color: #9b0d22; font: 700 13px "IBM Plex Sans", system-ui, sans-serif; cursor: pointer; border-radius: 0 }
+.gs .fb-btn:hover { border-color: #9b0d22 }
+.gs .fb-btn.meter { color: var(--c-04203f) }
+.gs .fb-btn.meter:hover { border-color: #F5B800; background: #fffaeb }
+.gs .fb-filtros { display: grid; grid-template-columns: 1fr 220px; gap: 8px }
+.gs .fb-lista { margin-top: 8px; max-height: 280px; overflow: auto; border: 1px solid var(--c-d5dce5) }
+.gs .fb-lista .fb-pi:first-child { border-top: 0 }
+.gs .fb-vacia { margin: 6px 0; font-size: 13px; color: var(--c-5b6b7f) }
+.gs .fb-salen { margin: 8px 0 0; font-size: 13px; color: #9b0d22 }
+.gs .fb-link { margin-left: 8px; border: 0; background: none; color: var(--c-04203f); font: 700 13px "IBM Plex Sans", system-ui, sans-serif; text-decoration: underline; cursor: pointer }
+.gs .fb-nuevo { display: grid; grid-template-columns: 1fr 220px auto; gap: 8px; align-items: center; margin-top: 14px; padding: 10px 12px; background: var(--c-f7f9fc); border: 1px dashed var(--c-d5dce5) }
+.gs .fb-nuevo span { font-size: 13px; color: var(--c-04203f); font-weight: 600 }
+@media (max-width: 640px) { .gs .fb-filtros, .gs .fb-nuevo { grid-template-columns: 1fr } }
 .gs .fi-previa { margin: 16px 0 0; padding: 10px 12px; background: var(--c-f7f9fc); border-left: 3px solid #F5B800; font-size: 13.5px; color: var(--c-2c4361) }
 .gs .fi-bot { align-items: center }
 .gs .fi-esp { flex: 1 }

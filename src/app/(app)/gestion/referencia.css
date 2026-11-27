@@ -119,14 +119,15 @@
 .dg-f.g-rect { --dg-clip: inset(0) }
 .dg-f.g-llave { color: #6B7682; display: block }
 .dg-f.g-llave svg { width: 100%; height: 100%; display: block }
-.dg-f.k-tarea { --dg-b: var(--fe-tinta); --dg-f: #fff }
-.dg-f.k-actividad { --dg-b: #B7791F; --dg-f: #FFF6DD }
-.dg-f.k-es { --dg-b: #7A8794; --dg-f: #EEF2F7 }
-.dg-f.k-decision { --dg-b: var(--fe-tinta); --dg-f: #FFD966; font-weight: 800 }
-.dg-f.k-terminal { --dg-b: var(--fe-tinta); --dg-f: var(--fe-tinta); color: #fff; font-weight: 800 }
-.dg-f.k-doc { --dg-b: #8A95A1; --dg-f: #F1F3F6; font-size: 12px }
-.dg-f.k-proceso { --dg-b: var(--fe-tinta); --dg-f: var(--fe-tinta); color: #fff; font-weight: 800 }
-.dg-f.k-pi { --dg-b: #B7791F; --dg-f: #FFF3D1; font-weight: 700 }
+/* Los mismos tonos del lienzo del Mapa de procesos (modulos/gestion/lienzo/doc.ts · TIPOS): todo uniforme. */
+.dg-f.k-tarea { --dg-b: #3B4250; --dg-f: #fff }
+.dg-f.k-actividad { --dg-b: #E0A92E; --dg-f: #FFF6D9 }
+.dg-f.k-es { --dg-b: #8C97A6; --dg-f: #FFFFFF }
+.dg-f.k-decision { --dg-b: #C8102E; --dg-f: #FFFFFF; font-weight: 800 }
+.dg-f.k-terminal { --dg-b: #04203F; --dg-f: #04203F; color: #fff; font-weight: 800 }
+.dg-f.k-doc { --dg-b: #7A8899; --dg-f: #F3F6FA; font-size: 12px }
+.dg-f.k-proceso { --dg-b: #04203F; --dg-f: #04203F; color: #fff; font-weight: 800 }
+.dg-f.k-pi { --dg-b: #C99A00; --dg-f: #FFC300; font-weight: 700 }
 .dg-f.k-etiqueta { font: 900 14px var(--fe-titulo) } .dg-f.k-etiqueta > i { display: none }
 .dg-f.k-tiempo { font: 800 12px var(--fe-mono, ui-monospace, monospace); color: #fff } .dg-f.k-tiempo > i.b, .dg-f.k-tiempo > i.r { background: #44505C }
 

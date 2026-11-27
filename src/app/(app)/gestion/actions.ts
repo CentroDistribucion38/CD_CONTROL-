@@ -232,6 +232,19 @@ export async function ligarPis(kpiId: string, pis: string[]) {
   return { ok: true };
 }
 
+/** SACAR PI DE LA BOLSA DEL KPI: el PI queda sin KPI (sigue en su área, con su historia); se puede meter en otra bolsa. */
+export async function sacarPis(kpiId: string, pis: string[]) {
+  if (!(await puedeMaestro())) return { error: "No tienes permiso para editar el Maestro." };
+  const ids = [...new Set(pis.filter(Boolean))];
+  if (!ids.length) return { ok: true };
+  const supabase = await createClient();
+  const { error } = await supabase.from("gestion_indicadores")
+    .update({ padre_id: null }).in("id", ids).eq("tipo", "pi").eq("padre_id", kpiId);
+  if (error) return { error: msj(error.message) };
+  refrescar();
+  return { ok: true };
+}
+
 /** Desactivar no borra: sus resultados y disparadores se conservan, solo deja de pedirse. */
 export async function activarIndicador(id: string, activo: boolean) {
   if (!(await puedeMaestro())) return { error: "No tienes permiso para editar el Maestro." };

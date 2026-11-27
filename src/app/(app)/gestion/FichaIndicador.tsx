@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAvisos } from "@/components/Aviso";
 import { useConfirmar } from "@/components/Confirmar";
 import { FRECUENCIAS, OPERADORES, textoDisparo, textoMeta, type Indicador, type Op, type Proceso, type Turno } from "@/modulos/gestion/semaforo";
-import { activarIndicador, eliminarIndicador, guardarIndicador, ligarPis } from "./actions";
+import { activarIndicador, eliminarIndicador, guardarIndicador, ligarPis, sacarPis } from "./actions";
 
 /* El formulario trabaja con texto (lo que se escribe) y se convierte al guardar. */
 type Form = {
@@ -59,12 +59,27 @@ export function FichaIndicador({ inicial, indicadores, procesos, turnos, cerrar 
     : f.captura === "turnos" ? (n === 1 ? "turno" : "turnos") : (n === 1 ? "día" : "días");
   const original = f.id ? indicadores.find((i) => i.id === f.id) : undefined;
   const esKpi = f.tipo === "kpi";
-  /* Los PI que se pueden ligar a este KPI: los suyos (marcados) y los demás (para traerlos). */
+  /* LA BOLSA DEL KPI: el KPI es solo un nombre que agrupa PI de cualquier área. Se meten y se sacan; cada área ve en su
+     tablero el KPI con SUS PI de la bolsa (0 Lesiones en Líneas con los PI de Líneas, en Bodega con los de Bodega). */
   const pis = indicadores.filter((i) => i.tipo === "pi" && (i.activo || i.padre_id === f.id))
-    .sort((a, b) => Number(b.padre_id === f.id && !!f.id) - Number(a.padre_id === f.id && !!f.id) || a.codigo.localeCompare(b.codigo, "es", { numeric: true }));
+    .sort((a, b) => a.codigo.localeCompare(b.codigo, "es", { numeric: true }));
   const suyos = new Set(f.id ? pis.filter((i) => i.padre_id === f.id).map((i) => i.id) : []);
   const [ligar, setLigar] = useState<Set<string>>(() => new Set(suyos));
   const nuevosPis = [...ligar].filter((id) => !suyos.has(id));
+  const salen = [...suyos].filter((id) => !ligar.has(id));
+  const [busca, setBusca] = useState("");
+  const [areaBusca, setAreaBusca] = useState("");
+  const [nuevoPiArea, setNuevoPiArea] = useState("");
+  const nomArea = (id: string | null) => (id ? procesos.find((p) => p.id === id)?.nombre ?? "Área borrada" : "Sin área");
+  const sinTilde = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const enBolsa = pis.filter((i) => ligar.has(i.id));
+  const porArea = [...new Map(enBolsa.map((i) => [i.proceso_id ?? "", [] as Indicador[]])).keys()]
+    .map((a) => ({ area: a, nombre: nomArea(a || null), pis: enBolsa.filter((i) => (i.proceso_id ?? "") === a) }))
+    .sort((x, y) => x.nombre.localeCompare(y.nombre, "es"));
+  const fuera = pis.filter((i) => !ligar.has(i.id) && i.activo
+    && (!areaBusca || (i.proceso_id ?? "") === areaBusca)
+    && (!busca.trim() || sinTilde(`${i.codigo} ${i.nombre}`).includes(sinTilde(busca.trim()))));
+  const mover = (id: string, meter: boolean) => setLigar((x) => { const n = new Set(x); if (meter) n.add(id); else n.delete(id); return n });
 
   const falta = !f.nombre.trim() ? "Ponle nombre." : esKpi ? null : meta == null ? "Escribe la meta." : f.tipo === "pi" && !f.padre_id ? "Escoge el KPI al que explica."
     : f.captura === "turnos" && f.frecuencia === "dia" && tAct.length > 0 && !f.turnos.length ? "Escoge al menos un turno." : null;
@@ -81,9 +96,15 @@ export function FichaIndicador({ inicial, indicadores, procesos, turnos, cerrar 
     if (r.error) { avisar.mal(r.error); return }
     if (esKpi && nuevosPis.length && r.id) {
       const l = await ligarPis(r.id, nuevosPis);
-      if (l.error) { avisar.mal(`El KPI se guardó, pero no se pudieron ligar los PI: ${l.error}`); router.refresh(); return }
+      if (l.error) { avisar.mal(`El KPI se guardó, pero no se pudieron meter los PI: ${l.error}`); router.refresh(); return }
     }
-    avisar.bien(esKpi ? (f.id ? "KPI guardado." : "KPI creado.") + (nuevosPis.length ? ` ${nuevosPis.length} PI ligado${nuevosPis.length === 1 ? "" : "s"}.` : "")
+    if (esKpi && salen.length && r.id) {
+      const l = await sacarPis(r.id, salen);
+      if (l.error) { avisar.mal(`El KPI se guardó, pero no se pudieron sacar los PI: ${l.error}`); router.refresh(); return }
+    }
+    avisar.bien(esKpi ? (f.id ? "KPI guardado." : "KPI creado.")
+        + (nuevosPis.length ? ` Entra${nuevosPis.length === 1 ? "" : "n"} ${nuevosPis.length} PI a la bolsa.` : "")
+        + (salen.length ? ` Sale${salen.length === 1 ? "" : "n"} ${salen.length}.` : "")
       : f.id ? "Indicador guardado." : "Indicador creado.");
     router.refresh(); cerrar();
   });
@@ -122,25 +143,66 @@ export function FichaIndicador({ inicial, indicadores, procesos, turnos, cerrar 
           <div className="fi-grid">
             <label className="ancho"><span>Nombre del KPI</span><input value={f.nombre} onChange={(e) => poner({ nombre: e.target.value })} placeholder="Ej.: DCBL · 0 Lesiones" autoFocus /></label>
           </div>
-          <h3>PI de este KPI <small className="fi-cuenta">{ligar.size}</small></h3>
-          {!pis.length ? <p className="fi-previa">Todavía no hay PI. Después de crear el KPI, agrégale sus PI con «+ PI» en el tablero.</p> : (
-            <div className="fi-pis">
-              {pis.map((i) => {
-                const mio = suyos.has(i.id), otro = !mio && i.padre_id ? indicadores.find((k) => k.id === i.padre_id) : undefined;
-                return (
-                  <label key={i.id} className={ligar.has(i.id) ? "on" : ""} title={mio ? "Para quitarlo de aquí, lígalo a otro KPI desde su ficha." : undefined}>
-                    <input type="checkbox" checked={ligar.has(i.id)} disabled={mio}
-                      onChange={(e) => setLigar((x) => { const n = new Set(x); if (e.target.checked) n.add(i.id); else n.delete(i.id); return n })} />
-                    <b className="mono">{i.codigo}</b><span>{i.nombre}</span>
-                    {otro && <small>hoy en {otro.codigo} · {otro.nombre}</small>}
-                    {!otro && !mio && !i.padre_id && <small>sin KPI</small>}
-                  </label>
-                );
-              })}
+          <h3>La bolsa · PI de este KPI <small className="fi-cuenta">{ligar.size}</small></h3>
+          {porArea.length === 0
+            ? <p className="fb-vacia">La bolsa está vacía. Mete abajo los PI que ya existen o crea uno nuevo.</p>
+            : (
+              <div className="fb-bolsa">
+                {porArea.map((g) => (
+                  <section key={g.area || "-"} className="fb-area">
+                    <header><b>{g.nombre}</b><small>{g.pis.length} PI · así sale en el tablero de {g.nombre}</small></header>
+                    {g.pis.map((i) => (
+                      <div key={i.id} className={"fb-pi" + (suyos.has(i.id) ? "" : " entra")}>
+                        <span className="fb-nom"><b>{i.nombre}</b><small className="mono">{i.codigo}{!suyos.has(i.id) && " · entra al guardar"}</small></span>
+                        <button type="button" className="fb-btn" onClick={() => mover(i.id, false)} aria-label={`Sacar ${i.codigo} de la bolsa`}>Sacar</button>
+                      </div>
+                    ))}
+                  </section>
+                ))}
+              </div>
+            )}
+          {salen.length > 0 && <p className="fb-salen">Al guardar salen de la bolsa: {salen.map((id) => pis.find((x) => x.id === id)?.codigo).filter(Boolean).join(", ")} (quedan sin KPI, en su área).
+            <button type="button" className="fb-link" onClick={() => setLigar((x) => new Set([...x, ...salen]))}>Deshacer</button></p>}
+
+          <h3>Meter PI a la bolsa</h3>
+          <div className="fb-filtros">
+            <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar PI por nombre o código" aria-label="Buscar PI" />
+            <select value={areaBusca} onChange={(e) => setAreaBusca(e.target.value)} aria-label="Área">
+              <option value="">Todas las áreas</option>
+              {procesos.filter((p) => p.activo).map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+            </select>
+          </div>
+          {fuera.length === 0
+            ? <p className="fb-vacia">{busca || areaBusca ? "Ningún PI con ese filtro." : "No hay más PI fuera de esta bolsa."}</p>
+            : (
+              <div className="fb-lista">
+                {fuera.map((i) => {
+                  const otro = i.padre_id ? indicadores.find((k) => k.id === i.padre_id) : undefined;
+                  return (
+                    <div key={i.id} className="fb-pi">
+                      <span className="fb-nom"><b>{i.nombre}</b>
+                        <small><span className="mono">{i.codigo}</span> · {nomArea(i.proceso_id)} · {suyos.has(i.id) ? <b>sale de esta bolsa al guardar</b> : otro ? <>hoy en la bolsa de <b>{otro.nombre}</b> (pasa a esta)</> : "sin KPI"}</small></span>
+                      <button type="button" className="fb-btn meter" onClick={() => mover(i.id, true)} aria-label={`Meter ${i.codigo} a la bolsa`}>Meter</button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+          {original ? (
+            <div className="fb-nuevo">
+              <span>¿El PI no existe? Créalo directo en esta bolsa:</span>
+              <select value={nuevoPiArea} onChange={(e) => setNuevoPiArea(e.target.value)} aria-label="Área del PI nuevo">
+                <option value="">Escoge el área…</option>
+                {procesos.filter((p) => p.activo).map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+              </select>
+              <button type="button" className="cf-btn" disabled={!nuevoPiArea || nuevosPis.length > 0 || salen.length > 0}
+                title={nuevosPis.length || salen.length ? "Guarda primero los cambios de la bolsa" : undefined}
+                onClick={() => setF(nuevoIndicador(turnos, nuevoPiArea, original))}>+ Crear PI</button>
             </div>
-          )}
-          <p className="fi-previa">El KPI es solo su nombre: agrupa a sus PI en el tablero. La meta, la captura y el disparador van en cada PI.
-            {nuevosPis.length > 0 && <> Al guardar, <b>{nuevosPis.length} PI</b> pasa{nuevosPis.length === 1 ? "" : "n"} a este KPI.</>}</p>
+          ) : <p className="fi-previa">Crea el KPI y después, desde su bolsa, podrás crear PI nuevos directo en ella.</p>}
+          <p className="fi-previa">El KPI es solo su nombre: una bolsa que agrupa PI de cualquier área. Cada área ve en su tablero el KPI con sus propios PI de la bolsa.
+            La meta, la captura y el disparador van en cada PI.</p>
         </>) : (<>
         <div className="fi-grid">
           <label className="ancho"><span>Indicador</span><input value={f.nombre} onChange={(e) => poner({ nombre: e.target.value })} placeholder="Ej.: Tiempo perdido por envase cristalizado" autoFocus /></label>

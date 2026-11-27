@@ -3,16 +3,20 @@ import "../gestion.css";
 import "../mapa.css";
 import "../referencia.css";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
+import { misPermisos } from "@/lib/permisos";
 import { CRITICIDAD } from "@/modulos/gestion/referencia/criticidad-datos";
 import { DIAGRAMAS } from "@/modulos/gestion/referencia/diagramas-datos";
-import { Diagrama } from "../Diagrama";
+import { esDoc, semilla, type DocLienzo } from "@/modulos/gestion/lienzo/doc";
+import { Lienzo, type PiLienzo } from "./Lienzo";
 
 export const dynamic = "force-dynamic";
 
 /**
  * GESTIÓN · MAPA DE PROCESOS — el «Mapa de Procesos de Logística» del Excel: el mapeo N1 macroproceso · N2 procesos · N3 actividades,
  * los cuatro flujos con sus PI y documentos críticos, y la matriz de criticidad (qué actividades y tareas son críticas).
- * Es de consulta: los datos salen de src/modulos/gestion/referencia (generados desde el Excel).
+ * Los diagramas son un LIENZO editable (Lienzo.tsx): mientras nadie lo edite, sale como viene del Excel, ordenado; al
+ * primer cambio queda guardado en gestion_mapas (2026-11-gestion-mapas-lienzo.sql). La criticidad sigue siendo de consulta.
  */
 const VISTAS = [
   { id: "mapa", nombre: "Mapa N1 · N2 · N3", diag: "mapa" },
@@ -39,6 +43,24 @@ export default async function ProcesosPage({ searchParams }: { searchParams: Pro
   const vista = VISTAS.find((v) => v.id === sp.vista) ?? VISTAS[0];
   const d = vista.diag ? DIAGRAMAS.find((x) => x.id === vista.diag) : undefined;
 
+  /* EL LIENZO: lo guardado (si hay) o el diagrama del Excel ordenado; quién puede editar; los PI para ligar. */
+  let lienzo: { doc: DocLienzo; version: number; editado: boolean; faltaSql: boolean; puede: boolean; pis: PiLienzo[] } | null = null;
+  if (d) {
+    const sb = await createClient();
+    const [guardado, permisos, ind] = await Promise.all([
+      sb.from("gestion_mapas").select("doc, version").eq("id", d.id).maybeSingle(),
+      misPermisos(),
+      sb.from("gestion_indicadores").select("id, codigo, nombre").eq("tipo", "pi").eq("activo", true).order("codigo"),
+    ]);
+    const faltaSql = !!guardado.error && /gestion_mapas|does not exist|PGRST205|schema cache/i.test(`${guardado.error.code} ${guardado.error.message}`);
+    const doc = guardado.data && esDoc(guardado.data.doc) ? guardado.data.doc : semilla(d);
+    lienzo = {
+      doc, version: guardado.data ? Number(guardado.data.version) || 1 : 0, editado: !!guardado.data, faltaSql,
+      puede: permisos.puedeEditar("/gestion/procesos") && !guardado.error,
+      pis: ((ind.data ?? []) as PiLienzo[]),
+    };
+  }
+
   const criticas = CRITICIDAD.flatMap((c) => c.bloques.flatMap((b) => b.filas.filter((f) => f.c).map((f) => ({ nivel: c.id.toUpperCase().replace("N", "Nivel "), proceso: b.proceso, ...f }))));
   const totalActs = CRITICIDAD.reduce((s, c) => s + c.bloques.reduce((x, b) => x + b.filas.length, 0), 0);
 
@@ -59,10 +81,17 @@ export default async function ProcesosPage({ searchParams }: { searchParams: Pro
         {VISTAS.map((v) => <Link key={v.id} href={`/gestion/procesos?vista=${v.id}`} className={v.id === vista.id ? "on" : ""}>{v.nombre}</Link>)}
       </nav>
 
-      {d && (
+      {d && lienzo && (
         <section className="rf-sec">
           <p className="rf-nota">{TEXTO[vista.id]}</p>
-          <Diagrama d={d} />
+          <Lienzo key={`${d.id}-${lienzo.version}`} id={d.id} titulo={d.titulo} doc={lienzo.doc} version={lienzo.version}
+                  editable={lienzo.puede} editado={lienzo.editado} faltaSql={lienzo.faltaSql} pis={lienzo.pis} />
+          {lienzo.faltaSql && (
+            <details className="rf-avisos">
+              <summary>Avisos (1)</summary>
+              <p className="rf-nota">Para guardar lo que edites en el lienzo falta correr <code>supabase/migraciones/2026-11-gestion-mapas-lienzo.sql</code> en Supabase. Mientras tanto se ve como viene del Excel, ordenado.</p>
+            </details>
+          )}
         </section>
       )}
 

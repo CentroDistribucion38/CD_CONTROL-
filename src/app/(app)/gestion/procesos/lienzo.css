@@ -1,0 +1,161 @@
+/* =====================================================================
+   EL LIENZO DEL MAPA DE PROCESOS (Lienzo.tsx). Recto, blanco, ámbar y rojo de CONTROL; nada de bandas negras.
+   ===================================================================== */
+.lz { --lz-linea: #E3E6EA; --lz-tinta: #14171C; --lz-gris: #6B7280; --lz-ambar: #F5B800; --lz-ambar-2: #E0A92E; --lz-crema: #FFF6D9; --lz-rojo: #C8102E;
+  position: relative; display: flex; flex-direction: column; height: calc(100dvh - 250px); min-height: 560px; background: #fff;
+  border: 1px solid var(--lz-linea); border-top: 4px solid var(--lz-ambar); outline: 0; font-family: "IBM Plex Sans", system-ui, sans-serif; color: var(--lz-tinta) }
+.lz.completa { height: 100dvh; border: 0 }
+.lz * { box-sizing: border-box }
+
+/* ---------- la barra de arriba ---------- */
+.lz-barra { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-height: 54px; padding: 7px 10px; border-bottom: 1px solid var(--lz-linea); background: #fff }
+.lz-tit { display: flex; align-items: baseline; gap: 8px; min-width: 0; margin-left: 4px }
+.lz-tit > b { font: 800 16px "Archivo", system-ui, sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 30vw }
+.lz-tit { overflow: hidden }
+.lz-miga { font-size: 13px; color: var(--lz-gris); white-space: nowrap }
+.lz-miga button { margin-left: 6px; border: 0; background: none; font: 700 13px "IBM Plex Sans", system-ui, sans-serif; color: var(--lz-tinta); text-decoration: underline; cursor: pointer }
+.lz-estado { font: 700 11.5px "IBM Plex Sans", system-ui, sans-serif; padding: 3px 8px; border: 1px solid var(--lz-linea); color: var(--lz-gris); white-space: nowrap }
+.lz-estado.e-guardado { color: #2C6B2F; background: #EEF6EC; border-color: #CFE5CC }
+.lz-estado.e-cambios, .lz-estado.e-guardando { color: #7A5B00; background: #FFF8DF; border-color: #F2D27A }
+.lz-estado.e-error, .lz-estado.e-conflicto { color: #9B0D22; background: #FDECEE; border-color: #F3B8C1 }
+.lz-esp { flex: 1 }
+.lz-b { min-height: 36px; padding: 0 12px; border: 1px solid #D5D9DF; background: #fff; color: var(--lz-tinta); font: 600 13px "IBM Plex Sans", system-ui, sans-serif; cursor: pointer; border-radius: 0; white-space: nowrap }
+.lz-b:hover:not(:disabled) { border-color: var(--lz-tinta) }
+.lz-b:disabled { opacity: .45; cursor: default }
+.lz-b.ico { min-width: 36px; padding: 0 8px; font-size: 15px }
+.lz-b.on { background: var(--lz-crema); border-color: var(--lz-ambar); box-shadow: inset 0 -3px 0 var(--lz-ambar) }
+.lz-b.pri { background: var(--lz-ambar); border-color: var(--lz-ambar-2); font-weight: 800 }
+.lz-b.mal { color: var(--lz-rojo) }
+.lz-b.mal:hover:not(:disabled) { border-color: var(--lz-rojo) }
+.lz-mal { display: flex; align-items: center; gap: 10px; margin: 0; padding: 8px 12px; background: #FDECEE; color: #9B0D22; font-size: 13px; font-weight: 600; border-bottom: 1px solid #F3B8C1 }
+.lz-mal button { border: 1px solid #9B0D22; background: #fff; color: #9B0D22; font: 700 12px "IBM Plex Sans", system-ui, sans-serif; padding: 4px 10px; cursor: pointer }
+
+/* ---------- el cuerpo: árbol · lienzo · ficha ---------- */
+.lz-cuerpo { position: relative; flex: 1; display: flex; min-height: 0 }
+.lz-arbol { flex: 0 0 270px; display: flex; flex-direction: column; border-right: 1px solid var(--lz-linea); background: #fff; min-height: 0 }
+.lz-busca { margin: 10px; height: 38px; padding: 0 10px; border: 1.5px solid #D9DCE1; border-radius: 0; font: 500 14px "IBM Plex Sans", system-ui, sans-serif; outline: 0 }
+.lz-busca:focus { border-color: var(--lz-tinta); box-shadow: 0 0 0 3px rgba(255, 195, 0, .45) }
+.lz-ramas { flex: 1; overflow: auto; padding: 0 0 12px }
+.lz-rama-cab { display: flex; align-items: stretch }
+.lz-flecha { flex: 0 0 28px; border: 0; background: none; color: var(--lz-gris); cursor: pointer; font-size: 12px }
+.lz-rama-t { flex: 1; display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 38px; padding: 0 12px 0 0; border: 0; background: none; text-align: left; font: 800 12px "Archivo", system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--lz-tinta); cursor: pointer }
+.lz-rama-t small { font: 700 11px "IBM Plex Sans", system-ui, sans-serif; letter-spacing: 0; color: var(--lz-gris); background: #F1F2F4; padding: 1px 6px }
+.lz-rama.on > .lz-rama-cab { background: var(--lz-crema); box-shadow: inset 3px 0 0 var(--lz-ambar) }
+.lz-hoja { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 34px; padding: 4px 12px 4px 30px; border: 0; background: none; text-align: left; font: 500 13px "IBM Plex Sans", system-ui, sans-serif; color: var(--lz-tinta); cursor: pointer }
+.lz-hoja span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.lz-hoja:hover { background: #F6F7F9 }
+.lz-hoja.on { background: #F1F2F4; font-weight: 700 }
+.lz-hoja svg { flex: none }
+.lz-nada { padding: 12px; font-size: 13px; color: var(--lz-gris) }
+
+.lz-lienzo { position: relative; flex: 1; min-width: 0; background: #FAFBFC }
+.lz-ficha { flex: 0 0 300px; overflow: auto; border-left: 1px solid var(--lz-linea); background: #fff; padding: 14px }
+
+/* ---------- la paleta flotante ---------- */
+.lz-paleta { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 5; display: flex; align-items: center; gap: 2px; padding: 5px;
+  background: #fff; border: 1px solid #D5D9DF; box-shadow: 0 8px 22px rgba(20, 23, 28, .12); max-width: calc(100% - 24px); overflow-x: auto }
+.lz-paleta button { flex: none; width: 44px; height: 38px; display: grid; place-items: center; border: 0; background: none; cursor: grab; font-size: 16px; color: var(--lz-tinta) }
+.lz-paleta button:hover { background: #F6F7F9 }
+.lz-paleta button.on { background: var(--lz-crema); box-shadow: inset 0 -3px 0 var(--lz-ambar); cursor: pointer }
+.lz-sep { flex: none; width: 1px; height: 26px; margin: 0 5px; background: var(--lz-linea) }
+.lz-zoom { position: absolute; left: 12px; bottom: 12px; z-index: 5; display: flex; background: #fff; border: 1px solid #D5D9DF; box-shadow: 0 6px 16px rgba(20, 23, 28, .08) }
+.lz-zoom button, .lz-zoom output { min-width: 38px; height: 36px; padding: 0 10px; display: grid; place-items: center; border: 0; border-left: 1px solid var(--lz-linea); background: none; font: 700 13px "IBM Plex Sans", system-ui, sans-serif; color: var(--lz-tinta); cursor: pointer }
+.lz-zoom > :first-child { border-left: 0 }
+.lz-zoom output { cursor: default; min-width: 56px; font-variant-numeric: tabular-nums }
+.lz-ayuda { position: absolute; left: 50%; top: 62px; transform: translateX(-50%); z-index: 4; margin: 0; padding: 5px 10px; background: rgba(255, 255, 255, .92); border: 1px solid var(--lz-linea); font-size: 11.5px; color: var(--lz-gris); white-space: nowrap; pointer-events: none }
+.lz-mapa { border: 1px solid #D5D9DF !important; box-shadow: 0 6px 16px rgba(20, 23, 28, .1); border-radius: 0 !important }
+
+/* ---------- las figuras ---------- */
+.lz .react-flow__node { border-radius: 0; font-family: "IBM Plex Sans", system-ui, sans-serif }
+.lz-fig { position: relative; width: 100%; height: 100% }
+.lz-forma { position: absolute; inset: 0; overflow: visible; filter: drop-shadow(0 1px 1.5px rgba(20, 23, 28, .10)) }
+.lz-txt { position: absolute; inset: 4px 10px; display: flex; align-items: center; justify-content: center; text-align: center; font: 600 13px/1.25 "IBM Plex Sans", system-ui, sans-serif; overflow: hidden; word-break: break-word }
+.lz-txt.chev { inset: 4px 22px }
+.lz-txt.par { inset: 4px 20px }
+.lz-txt.rombo { inset: 18% 20% }
+.lz-txt span { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden }
+.lz-txt em { font-weight: 500; opacity: .55 }
+.lz-fig.f-inicio .lz-txt, .lz-fig.f-proceso .lz-txt, .lz-fig.f-pi .lz-txt { font-weight: 700 }
+.lz-fig.f-etiqueta .lz-txt { inset: 0; justify-content: flex-start; text-align: left; font: 800 12px "Archivo", system-ui, sans-serif; letter-spacing: .1em; text-transform: uppercase }
+.lz-fig.f-etiqueta.sel { outline: 2px dashed var(--lz-ambar-2); outline-offset: 2px }
+.lz-txt textarea { width: 100%; height: 100%; resize: none; border: 0; outline: 2px solid var(--lz-ambar); background: rgba(255, 255, 255, .96); color: var(--lz-tinta); font: inherit; text-align: center; padding: 4px }
+.lz-crit { position: absolute; top: -9px; right: -9px; min-width: 22px; height: 22px; display: grid; place-items: center; padding: 0 4px; background: var(--lz-rojo); color: #fff; font: 800 11px "Archivo", system-ui, sans-serif }
+.lz-crit.muestra { position: static }
+.lz-pib { position: absolute; bottom: -8px; right: 8px; padding: 1px 5px; background: #FFC300; border: 1px solid #C99A00; color: var(--lz-tinta); font: 800 10px "Archivo", system-ui, sans-serif }
+.lz .lz-h { width: 9px; height: 9px; border: 1.5px solid var(--lz-ambar-2); background: #fff; border-radius: 0; opacity: 0; transition: opacity 120ms }
+.lz .react-flow__node:hover .lz-h, .lz .react-flow__node.selected .lz-h, .lz .react-flow__handle.connectingfrom, .lz .react-flow__handle.connectingto { opacity: 1 }
+.lz .lz-rh { width: 9px !important; height: 9px !important; border-radius: 0 !important; background: #fff !important; border: 2px solid var(--lz-ambar-2) !important }
+.lz .lz-rl { border-color: var(--lz-ambar-2) !important; border-style: dashed !important }
+.lz-mini { display: flex; background: #fff; border: 1px solid var(--lz-tinta); box-shadow: 0 6px 18px rgba(20, 23, 28, .16) }
+.lz-mini button { min-height: 32px; padding: 0 10px; border: 0; border-left: 1px solid var(--lz-linea); background: #fff; font: 600 12px "IBM Plex Sans", system-ui, sans-serif; color: var(--lz-tinta); cursor: pointer; white-space: nowrap }
+.lz-mini button:first-child { border-left: 0 }
+.lz-mini button:hover { background: var(--lz-crema) }
+.lz-mini button.mal { color: var(--lz-rojo) }
+
+/* ---------- las zonas (carriles N1/N2/N3 o columnas del flujo) ---------- */
+.lz-zona { width: 100%; height: 100%; border: 1px solid var(--lz-linea); border-left: 8px solid var(--lz-ambar) }
+.lz-zona.z0 { background: rgba(255, 249, 232, .72) }
+.lz-zona.z1 { background: rgba(255, 255, 255, .72); border-left-color: var(--lz-ambar-2) }
+.lz-zona.z2 { background: rgba(241, 243, 246, .72); border-left-color: var(--lz-rojo) }
+.lz-zona.sel { outline: 2px dashed var(--lz-ambar-2) }
+.lz-zona-t { position: absolute; left: 16px; top: 14px; font: 800 13px "Archivo", system-ui, sans-serif; letter-spacing: .14em; text-transform: uppercase; color: var(--lz-tinta); white-space: nowrap }
+.lz .react-flow__node-zona { cursor: default }
+
+/* ---------- las uniones ---------- */
+.lz .react-flow__edge-path { stroke: #5B6472; stroke-width: 1.6 }
+.lz .react-flow__edge.selected .react-flow__edge-path, .lz .react-flow__edge:hover .react-flow__edge-path { stroke: var(--lz-ambar-2); stroke-width: 2.4 }
+.lz .react-flow__edge-textbg { fill: #fff }
+.lz .react-flow__edge-text { font: 800 12px "Archivo", system-ui, sans-serif; fill: var(--lz-tinta) }
+.lz .react-flow__connectionline path { stroke: var(--lz-ambar-2); stroke-width: 2; stroke-dasharray: 5 4 }
+.lz .react-flow__selection { background: rgba(255, 195, 0, .10); border: 1px dashed var(--lz-ambar-2) }
+
+/* ---------- la ficha ---------- */
+.lz-ojo { margin: 0 0 8px; font: 800 11px "Archivo", system-ui, sans-serif; letter-spacing: .14em; text-transform: uppercase; color: var(--lz-gris) }
+.lz-ficha-cab { display: flex; align-items: center; gap: 10px }
+.lz-ficha-cab b { font: 800 16px "Archivo", system-ui, sans-serif }
+.lz-donde { margin: 6px 0 0; font-size: 12.5px; color: var(--lz-gris); line-height: 1.4 }
+.lz-campo { display: flex; flex-direction: column; gap: 5px; margin-top: 14px }
+.lz-campo > span { font: 700 10.5px "IBM Plex Sans", system-ui, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--lz-gris) }
+.lz-campo input, .lz-campo textarea { width: 100%; padding: 9px 10px; border: 1.5px solid #D9DCE1; border-radius: 0; font: 500 14px "IBM Plex Sans", system-ui, sans-serif; color: var(--lz-tinta); background: #fff; outline: 0; resize: vertical }
+.lz-campo input:focus, .lz-campo textarea:focus { border-color: var(--lz-tinta); box-shadow: 0 0 0 3px rgba(255, 195, 0, .45) }
+.lz-campo input:disabled, .lz-campo textarea:disabled { background: #F6F7F9 }
+.lz-colores { display: flex; flex-wrap: wrap; gap: 6px }
+.lz-colores button { width: 28px; height: 28px; border: 1px solid #D5D9DF; cursor: pointer; border-radius: 0 }
+.lz-colores button.auto { width: auto; padding: 0 8px; background: #fff; font: 700 11px "IBM Plex Sans", system-ui, sans-serif }
+.lz-colores button.on { outline: 2px solid var(--lz-ambar-2); outline-offset: 1px }
+.lz-crit-caja { display: grid; grid-template-columns: auto 1fr; gap: 0 10px; align-items: center; margin-top: 14px; padding: 10px 12px; border: 1px solid var(--lz-linea) }
+.lz-crit-caja small { grid-column: 1 / -1; font: 700 10.5px "IBM Plex Sans", system-ui, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--lz-gris) }
+.lz-crit-caja b { font: 800 26px "Archivo", system-ui, sans-serif }
+.lz-crit-caja span { font-size: 12.5px; color: var(--lz-gris) }
+.lz-crit-caja.mal b, .lz-crit-caja.mal span { color: var(--lz-rojo); font-weight: 700 }
+.lz-botones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px }
+.lz-botones .lz-b { flex: 1 }
+.lz-rejilla { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px }
+.lz-rejilla.dos { grid-template-columns: 1fr 1fr }
+.lz-rejilla button { min-height: 34px; border: 1px solid #D5D9DF; background: #fff; font: 600 12px "IBM Plex Sans", system-ui, sans-serif; color: var(--lz-tinta); cursor: pointer; border-radius: 0 }
+.lz-rejilla button:hover { border-color: var(--lz-tinta); background: var(--lz-crema) }
+.lz-leyenda { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px }
+.lz-leyenda li { display: grid; grid-template-columns: 40px 1fr auto; align-items: center; gap: 8px; min-height: 34px; font-size: 13.5px }
+.lz-leyenda small { font: 700 11px "IBM Plex Sans", system-ui, sans-serif; color: var(--lz-gris); background: #F1F2F4; padding: 1px 6px }
+.lz-restaurar { margin-top: 18px; width: 100% }
+.lz-ficha .selx-btn { height: 40px }
+
+/* ---------- celular y pantallas angostas: los paneles van encima del lienzo ---------- */
+@media (max-width: 1000px) {
+  .lz-arbol, .lz-ficha { position: absolute; top: 0; bottom: 0; z-index: 8; box-shadow: 0 10px 30px rgba(20, 23, 28, .18) }
+  .lz-arbol { left: 0; width: min(300px, 86vw) }
+  .lz-ficha { right: 0; width: min(320px, 90vw) }
+  .lz-ayuda { display: none }
+  .lz-b { min-height: 40px }
+}
+@media (max-width: 1280px) { .lz-tx { display: none } .lz-b { padding: 0 10px } }
+@media (max-width: 640px) {
+  .lz { height: calc(100dvh - 170px); min-height: 480px }
+  .lz-barra { gap: 4px; padding: 6px }
+  .lz-estado { font-size: 10.5px; padding: 2px 6px }
+  .lz-mapa { display: none }
+  .lz-tit > b { max-width: 40vw; font-size: 14px }
+  .lz-paleta { top: 8px }
+  .lz-busca { font-size: 16px }
+}
+@media (prefers-reduced-motion: reduce) { .lz .lz-h { transition: none } }
