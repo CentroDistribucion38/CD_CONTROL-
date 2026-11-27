@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { sonarAlAbrir } from "@/lib/bienvenida";
+import { esNavidad } from "@/lib/temporada";
+import { GloboNavidad } from "./GloboNavidad";
 import "./entrada.css";
 
 /**
@@ -17,14 +19,23 @@ import "./entrada.css";
  * EL SONIDO suena solo al abrir donde el navegador lo permite (Android instalado, Chrome/Edge en computador); en
  * iPhone, con el primer toque en cualquier parte. Una vez por sesión (ver sonarAlAbrir en lib/bienvenida.ts).
  * Tocar la pantalla no salta la entrada. Con «reducir movimiento» solo hace un fundido.
+ *
+ * EN NAVIDAD (lib/temporada.ts) la entrada es otra: la B con gorro dentro de un globo de nieve que cae, se sacude
+ * y la nieve sube y baja (GloboNavidad.tsx), con «Noche de paz» de fondo. Dura un poco más y al final la B
+ * (sin gorro) sale del globo y vuela a su sitio igual que siempre.
  */
 export const CLAVE_ENTRADA = "cd38-entrada";
 const VUELA_EN = 3700, TERMINA_EN = 4600;
+const VUELA_NAVIDAD = 4200, TERMINA_NAVIDAD = 5100;
 
 export function Entrada() {
   const [viva, setViva] = useState(true);
   const capa = useRef<HTMLDivElement>(null);
   const logo = useRef<HTMLDivElement>(null);
+  const bGlobo = useRef<HTMLDivElement>(null);
+  const vuela = useRef<HTMLDivElement>(null);
+  /* Misma fecha (de Colombia) en el servidor y en el celular: el HTML del servidor ya sale con el globo. */
+  const [navidad] = useState(() => esNavidad());
 
   useEffect(() => {
     let ya = false;
@@ -35,11 +46,30 @@ export function Entrada() {
     const reducir = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     /* El vuelo: la B grande va a ponerse encima del logo de la página (el primero que se vea). */
+    const destinoLogo = () => [...document.querySelectorAll<HTMLElement>("[data-logo-entrada]")]
+      .map((x) => x.getBoundingClientRect()).find((r) => r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight);
+    /* En Navidad la B sale del globo: una copia se pone justo encima de la del globo y esa es la que vuela. */
+    const volarNavidad = () => {
+      const b = bGlobo.current, v = vuela.current;
+      if (b && v) {
+        const r = b.getBoundingClientRect(), destino = destinoLogo();
+        Object.assign(v.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px`, display: "block" });
+        b.classList.add("oculta");
+        if (destino) {
+          v.style.setProperty("--tx", `${destino.left + destino.width / 2 - (r.left + r.width / 2)}px`);
+          v.style.setProperty("--ty", `${destino.top + destino.height / 2 - (r.top + r.height / 2)}px`);
+          v.style.setProperty("--ts", String(destino.width / r.width));
+        }
+        void v.offsetWidth; // que el navegador pinte la copia en su sitio antes de moverla
+        v.classList.add(destino ? "va" : "se-va");
+      }
+      capa.current?.classList.add("abre");
+    };
     const volar = () => {
+      if (navidad) { volarNavidad(); return }
       const el = logo.current;
       if (!el) return;
-      const destino = [...document.querySelectorAll<HTMLElement>("[data-logo-entrada]")]
-        .map((x) => x.getBoundingClientRect()).find((r) => r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight);
+      const destino = destinoLogo();
       const r = el.getBoundingClientRect();
       if (destino) {
         el.style.setProperty("--tx", `${destino.left + destino.width / 2 - (r.left + r.width / 2)}px`);
@@ -49,12 +79,23 @@ export function Entrada() {
       } else el.classList.add("se-va");
       capa.current?.classList.add("abre");
     };
-    const t1 = window.setTimeout(volar, reducir ? 400 : VUELA_EN);
-    const t2 = window.setTimeout(() => setViva(false), reducir ? 900 : TERMINA_EN);
+    const t1 = window.setTimeout(volar, reducir ? 400 : navidad ? VUELA_NAVIDAD : VUELA_EN);
+    const t2 = window.setTimeout(() => setViva(false), reducir ? 900 : navidad ? TERMINA_NAVIDAD : TERMINA_EN);
     return () => { window.clearTimeout(t1); window.clearTimeout(t2) };
-  }, []);
+  }, [navidad]);
 
   if (!viva) return null;
+  if (navidad) return (
+    <div className="ent" aria-hidden>
+      <div className="ent-capa" ref={capa}>
+        <GloboNavidad bRef={bGlobo} />
+      </div>
+      <div className="gn-vuela" ref={vuela} style={{ display: "none" }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/marca/logo-b-hd.png" alt="" />
+      </div>
+    </div>
+  );
   return (
     <div className="ent" aria-hidden>
       <div className="ent-capa" ref={capa}>

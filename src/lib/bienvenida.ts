@@ -13,6 +13,8 @@
  * toque de «Entrar», `prepararBienvenida()` despierta el audio y la voz en silencio; y cuando la clave resulta
  * buena, `sonarBienvenida()` ya puede sonar. Si la clave está mala, no suena nada. Con el celular en silencio no suena.
  */
+import { esNavidad } from "@/lib/temporada";
+
 export type Tono = "oro" | "marimba" | "fanfarria";
 export const TONO_APP: Tono = "oro";
 export const FRASE_BIENVENIDA = "Bienvenido a Control Tim Barranquilla.";
@@ -168,8 +170,52 @@ function decir(texto: string, rate: number, pitch: number): Promise<void> {
 }
 const espera = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms));
 
-/** LA PRESENTACIÓN: el tono Oro y, encima de sus campanas, la frase de una sola vez, ágil y sin pausas. */
+/**
+ * NAVIDAD: el comienzo de «Noche de paz» (Franz Gruber, 1818 — dominio público) en campanas, con un bajo suave y un
+ * destello de campanitas justo cuando el globo aterriza y se levanta la nieve (ver GloboNavidad). La música baja un
+ * poco mientras la voz dice la frase. Devuelve en cuántos ms entra la voz y la ganancia de la música para bajarla.
+ */
+const NOCHE_DE_PAZ: [number, number][] = [ // [nota MIDI, duración en corcheas]
+  [79, 1.5], [81, 0.5], [79, 1], [76, 3], [79, 1.5], [81, 0.5], [79, 1], [76, 3],
+  [86, 2], [86, 1], [83, 3], [84, 2], [84, 1], [79, 3],
+];
+export function villancico(): { voz: number; musica: GainNode } | null {
+  if (!ctx) return null;
+  const c = ctx, t0 = c.currentTime + 0.03, musica = c.createGain();
+  musica.gain.value = 1; musica.connect(salida());
+  /* Destello de campanitas que bajan: la nieve que se levanta. */
+  [100, 96, 93, 91, 88, 86, 84].forEach((n, i) => campanaDe(t0 + 0.62 + i * 0.045, n, 0.9, 0.035, musica));
+  const ini = t0 + 0.9, corchea = 0.36;
+  let t = ini;
+  for (const [n, d] of NOCHE_DE_PAZ) {
+    campanaDe(t, n, Math.max(1.6, d * corchea * 1.4), 0.15, musica);
+    campanaDe(t + 0.01, n + 12, 0.8, 0.025, musica);
+    t += d * corchea;
+  }
+  /* Bajo y acorde de fondo: do · do · sol · do, una vez por compás (6 corcheas). */
+  [[48, [60, 64, 67]], [48, [60, 64, 67]], [43, [59, 62, 67]], [48, [60, 64, 67]]].forEach(([b, acorde], k) => {
+    const tc = ini + k * 6 * corchea;
+    campanaDe(tc, b as number, 2.4, 0.11, musica);
+    colchon(tc, acorde as number[], 6 * corchea + (k === 3 ? 1.2 : 0.1), 0.012, musica);
+  });
+  return { voz: Math.round((ini - c.currentTime + 6 * corchea) * 1000), musica };
+}
+
+async function presentacionNavidad() {
+  let m: ReturnType<typeof villancico> = null;
+  try { m = villancico() } catch { /* sigue */ }
+  await espera(m?.voz ?? 2800);
+  try {
+    if (m && ctx) { const g = m.musica.gain, t = ctx.currentTime; g.cancelScheduledValues(t); g.setValueAtTime(1, t); g.linearRampToValueAtTime(0.45, t + 0.25); g.setValueAtTime(0.45, t + 3.2); g.linearRampToValueAtTime(1, t + 3.8) }
+  } catch { /* sigue */ }
+  try { window.speechSynthesis?.cancel() } catch { /* sigue */ }
+  await decir("Feliz Navidad. Bienvenido a Control Tim Barranquilla", 1.05, 0.95);
+}
+
+/** LA PRESENTACIÓN: el tono Oro y, encima de sus campanas, la frase de una sola vez, ágil y sin pausas.
+ *  En temporada de Navidad (lib/temporada.ts) suena el villancico en su lugar. */
 export async function presentacion() {
+  if (esNavidad()) return presentacionNavidad();
   try { logoSonoro("oro") } catch { /* sigue */ }
   await espera(700);
   try { window.speechSynthesis?.cancel() } catch { /* sigue */ }
