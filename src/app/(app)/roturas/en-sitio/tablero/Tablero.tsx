@@ -107,7 +107,7 @@ export function Tablero({ roturas, nombres, manda, correcciones, revisadas, segu
       : roturas.filter((r) => r.estado !== "anulada" && r.etapa === filtro);
     if (!q) return base;
     return base.filter((r) => pelado(
-      `${r.codigo} ${r.material_nombre} ${r.causa_nombre} ${r.proceso_nombre} ${r.area_nombre ?? ""} ${nombres[r.reportada_por ?? ""] ?? ""}`
+      `${r.codigo} ${r.material_nombre} ${r.causa_nombre} ${r.proceso_nombre} ${r.area_nombre ?? ""} ${r.maquina ? `maquina ${r.maquina} maq ${r.maquina}` : ""} ${nombres[r.reportada_por ?? ""] ?? ""}`
     ).includes(q));
   }, [roturas, filtro, q, nombres]);
 
@@ -222,10 +222,22 @@ export function Tablero({ roturas, nombres, manda, correcciones, revisadas, segu
   /* EDITAR EL CASO COMPLETO (superadmin): SKU, causa, proceso, área y cifras. La base guarda lo de antes. */
   async function editar(r: Rotura, c: Cambios): Promise<boolean> {
     setMandando(true);
-    const { error } = await supabase.rpc("rotura_editar", {
+    /* Lo del caso va por rotura_editar (con su motivo y lo de antes); la máquina, por su propia función. */
+    const otroCaso = c.material !== r.material || c.causa !== r.causa || c.proceso !== r.proceso || c.area !== (r.area ?? null)
+      || c.rotas !== r.unidades || c.contaminadas !== (r.contaminadas ?? 0);
+    const { error } = otroCaso ? await supabase.rpc("rotura_editar", {
       p_id: r.id, p_material: c.material, p_causa: c.causa, p_proceso: c.proceso, p_area: c.area,
       p_rotas: c.rotas, p_contaminadas: c.contaminadas, p_motivo: c.motivo,
-    });
+    }) : { error: null };
+    if (!error && c.maquina !== (r.maquina ?? null)) {
+      const m = await supabase.rpc("rotura_poner_maquina", { p_id: r.id, p_maquina: c.maquina ?? "" });
+      if (m.error) {
+        setMandando(false);
+        avisar.mal(/rotura_poner_maquina|schema cache|function/i.test(m.error.message) ? "Para la máquina falta correr 2026-11-roturas-maquina.sql en Supabase." : m.error.message);
+        if (otroCaso) router.refresh();
+        return false;
+      }
+    }
     setMandando(false);
     if (error) {
       avisar.mal(/rotura_editar|schema cache|function/i.test(error.message)

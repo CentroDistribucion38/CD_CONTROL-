@@ -17,7 +17,7 @@ import type { Area, Causa, Material, Proceso, Rotura } from "@/modulos/roturas/d
 import { cobroDe } from "./Corregir";
 
 export type Catalogos = { materiales: Material[]; causas: Causa[]; procesos: Proceso[]; areas: Area[] };
-export type Cambios = { material: string; causa: string; proceso: string; area: string | null; rotas: number; contaminadas: number; motivo: string };
+export type Cambios = { material: string; causa: string; proceso: string; area: string | null; rotas: number; contaminadas: number; motivo: string; maquina: string | null };
 
 const cop = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
 
@@ -32,6 +32,7 @@ export function Editar({ r, cat, decidida, guardando, guardar }: {
   const [rotas, setRotas] = useState(String(r.unidades));
   const [contam, setContam] = useState(String(r.contaminadas ?? 0));
   const [motivo, setMotivo] = useState("");
+  const [maquina, setMaquina] = useState(r.maquina ?? "");
 
   const porClave = useMemo(() => new Map(cat.materiales.map((m) => [m.clave, m])), [cat.materiales]);
   const mat = porClave.get(material.trim());
@@ -42,7 +43,7 @@ export function Editar({ r, cat, decidida, guardando, guardar }: {
   const nr = entero(rotas), nc = eer ? 0 : entero(contam);
   const valido = Number.isFinite(nr) && Number.isFinite(nc);
   const igual = !otroMat && causa === r.causa && proceso === r.proceso && (area || null) === (r.area ?? null)
-    && valido && nr === r.unidades && nc === (r.contaminadas ?? 0);
+    && valido && nr === r.unidades && nc === (r.contaminadas ?? 0) && (maquina || null) === (r.maquina ?? null);
   const antes = r.cobro_total != null ? Number(r.cobro_total) : cobroDe(r, r.unidades, r.contaminadas ?? 0);
   const despues = valido && !otroMat ? cobroDe(r, nr, nc) : null;
   const falta = otroMat && !mat ? "Ese SKU no está en el maestro"
@@ -52,7 +53,7 @@ export function Editar({ r, cat, decidida, guardando, guardar }: {
     : motivo.trim().length < 4 ? "Escribe por qué se edita"
     : "Guardar cambios";
   const puede = falta === "Guardar cambios" && !guardando;
-  const enviar = () => puede && guardar({ material: material.trim(), causa, proceso, area: area || null, rotas: nr, contaminadas: nc, motivo: motivo.trim() });
+  const enviar = () => puede && guardar({ material: material.trim(), causa, proceso, area: area || null, rotas: nr, contaminadas: nc, motivo: motivo.trim(), maquina: maquina || null });
 
   const lista = (xs: { clave: string; nombre: string; activo: boolean }[], actual: string) =>
     xs.filter((x) => x.activo || x.clave === actual);
@@ -94,6 +95,9 @@ export function Editar({ r, cat, decidida, guardando, guardar }: {
             <option value="">— sin área —</option>
             {lista(cat.areas, r.area ?? "").map((x) => <option key={x.clave} value={x.clave}>{x.nombre}</option>)}
           </select>
+        </label>
+        <label><span>Máquina {(maquina || null) !== (r.maquina ?? null) && <em>antes {r.maquina ?? "—"}</em>}</span>
+          <input inputMode="numeric" maxLength={3} value={maquina} placeholder="Ej.: 045" onChange={(e) => setMaquina(e.target.value.replace(/\D/g, "").slice(0, 3))} />
         </label>
         <label><span>Rotas <em>antes {r.unidades}</em></span>
           <input inputMode="numeric" value={rotas} onChange={(e) => setRotas(e.target.value)} />

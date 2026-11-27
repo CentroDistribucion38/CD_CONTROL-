@@ -2945,3 +2945,11 @@
 .rt .rq-quien-sw { display: flex; margin-bottom: 6px }
 .rt .rq-quien-sw button { padding: 3px 10px; border: 1px solid var(--rt-linea, #d7d7d2); background: #fff; font: 700 11.5px var(--rt-cuerpo, inherit); color: var(--rt-tinta); cursor: pointer; margin-left: -1px }
 .rt .rq-quien-sw button.on { background: var(--rt-tinta); color: #fff; border-color: var(--rt-tinta) }
+
+/* LA MÁQUINA en el registro: solo el número, hasta 3 dígitos. */
+.rt-rep .rp3-maq {
+  width: 120px; height: 48px; padding: 0 14px; border: 1.5px solid var(--rt-linea); border-radius: 0;
+  background: var(--rt-papel); color: var(--rt-tinta); font: 800 22px/1 ui-monospace, "IBM Plex Mono", monospace; letter-spacing: .12em; text-align: center;
+}
+.rt-rep .rp3-maq:focus { outline: none; border-color: var(--rt-tinta); box-shadow: 0 0 0 3px color-mix(in srgb, var(--rt-oro) 40%, transparent) }
+.rt-rep .rp3-maq::placeholder { font-weight: 500; font-size: 15px; letter-spacing: 0; color: var(--rt-gris) }

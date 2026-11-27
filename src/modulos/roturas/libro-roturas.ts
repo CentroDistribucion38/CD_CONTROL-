@@ -240,6 +240,7 @@ export async function armarLibroRoturas(d: InsumosRoturas): Promise<ArrayBuffer>
     { k: "asum", t: "Asumida", w: 11, g: G5, v: (x) => (x.r.grupo === "no_asumida" ? "No asumida" : "Asumida") },
     { k: "proc", t: "Proceso", w: 16, g: G5, v: (x) => x.r.proceso_nombre },
     { k: "area", t: "Área", w: 16, g: G5, v: (x) => x.r.area_nombre ?? "" },
+    { k: "maq", t: "Máquina", w: 10, g: G5, v: (x) => x.r.maquina ?? "" },
     { k: "orig", t: "Origen", w: 12, g: G5, v: (x) => ORIGEN_TXT[(x.r.origen ?? "sin") as OrigenR] },
     { k: "rep", t: "Reportó (usuario)", w: 15, g: G5, v: (x) => quien(x.r) },
     { k: "opm", t: "OPM", w: 16, g: G5, v: (x) => x.r.opm_nombre ?? "" },

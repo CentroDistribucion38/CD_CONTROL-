@@ -136,6 +136,8 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
   const [area, setArea] = useState("");
   const [causa, setCausa] = useState("");
   const [descripcion, setDescripcion] = useState("");
+  /* LA MÁQUINA: «que puedan poner el número de máquina; solo MÁQUINA y que permita 3 dígitos». Opcional. */
+  const [maquina, setMaquina] = useState("");
 
   const [foto, setFoto] = useState<Foto | null>(null);
   /* «Seguir sin foto»: la foto va primero, pero no siempre se puede tomar en ese momento. */
@@ -502,6 +504,15 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
       }
     }
 
+    /* LA MÁQUINA, también en su propia llamada (como el origen). Si falla, la rotura ya existe: se avisa. */
+    let avisoMaquina = "";
+    if (id && maquina) {
+      const { error: eMaq } = await supabase.rpc("rotura_poner_maquina", { p_id: id, p_maquina: maquina });
+      if (eMaq) avisoMaquina = /rotura_poner_maquina|schema cache|does not exist/i.test(eMaq.message)
+        ? "La rotura quedó registrada, pero sin la máquina: falta correr supabase/migraciones/2026-11-roturas-maquina.sql."
+        : `La rotura quedó registrada, pero sin la máquina: ${eMaq.message}`;
+    }
+
     /* La foto va DESPUÉS, porque su ruta lleva el id de la rotura. Si
        falla, la rotura YA existe y eso es lo correcto: perder el reporte
        porque no subió una imagen sería cambiar lo importante por lo
@@ -532,7 +543,7 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
     /* LOS DOS AVISOS, NO UNO. Si falla el origen Y la foto, enseñar solo
        el último deja el otro problema sin nadie que lo sepa —y el del
        origen es justamente el que no se ve después en la pantalla. */
-    const todo = [avisoOrigen, aviso].filter(Boolean).join(" ");
+    const todo = [avisoOrigen, avisoMaquina, aviso].filter(Boolean).join(" ");
     if (todo) setMal(todo);
     router.refresh();
   }
@@ -875,6 +886,14 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
               )}
             </div>
 
+            {/* LA MÁQUINA: solo el número, hasta 3 dígitos (se escribe con el teclado de números del celular). */}
+            <div className="rp3-f">
+              <div className="rp3-lb"><b>Máquina</b><span>Número de la máquina · hasta 3 dígitos</span></div>
+              <input id="rt-maq" className="rp3-maq" inputMode="numeric" pattern="[0-9]*" maxLength={3} autoComplete="off"
+                     value={maquina} placeholder="Ej.: 045" aria-label="Número de la máquina (hasta 3 dígitos)"
+                     onChange={(e) => setMaquina(e.target.value.replace(/\D/g, "").slice(0, 3))} />
+            </div>
+
             {/* LA CAUSA SE HABILITA CON EL PROCESO, y va en dos grupos.
                 Lo que separa a las causas —de qué lado caen— se dice UNA
                 vez, en el rótulo de su grupo; las opciones se quedan con
@@ -962,7 +981,7 @@ export function Reportar({ materiales, procesos, areas, causas, cerrar }: {
              de mandar se lee de un golpe «T1 · Bahías T1 · la paga el OL»
              sin volver a subir por el formulario. */
           <span className="res" role="status">
-            {[procNombre, areaNombre].filter(Boolean).join(" · ") || "Falta escoger"}
+            {[procNombre, areaNombre, maquina && `Máq. ${maquina}`].filter(Boolean).join(" · ") || "Falta escoger"}
             {cau && <> · <b className={cau.grupo === "asumida" ? "si" : "no"}>
               {cau.grupo === "asumida" ? "la paga el OL" : "no la paga el OL"}</b></>}
           </span>

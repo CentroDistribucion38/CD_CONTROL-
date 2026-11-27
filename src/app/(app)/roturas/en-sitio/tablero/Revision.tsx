@@ -161,7 +161,7 @@ export function Revision({ lista, nombres, revisadas, correcciones, inicio, guar
           <div className="rv-pie">
             {f ? <>Tomada {f.tomada_en ? new Date(f.tomada_en).toLocaleString("es-CO", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "sin hora"}
               {f.precision_m != null && <> · ±{Math.round(Number(f.precision_m))} m</>} · </> : null}
-            {r.area_nombre ?? "—"} · registró {nombres[r.reportada_por ?? ""] ?? "—"}
+            {r.area_nombre ?? "—"}{r.maquina ? ` · máq. ${r.maquina}` : ""} · registró {nombres[r.reportada_por ?? ""] ?? "—"}
           </div>
           <button type="button" className="rv-flecha izq" onClick={() => irA(i - 1)} disabled={i === 0} aria-label="Caso anterior">‹</button>
           <button type="button" className="rv-flecha der" onClick={() => irA(i + 1)} disabled={i === lista.length - 1} aria-label="Caso siguiente">›</button>

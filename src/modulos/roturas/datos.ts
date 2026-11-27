@@ -68,6 +68,8 @@ export type Rotura = {
    *  área, y no se le puede inventar una. */
   area?: string | null;
   area_nombre?: string | null;
+  /** El número de la máquina (hasta 3 dígitos), si lo pusieron al registrar (2026-11-roturas-maquina.sql). */
+  maquina?: string | null;
   causa: string;
   causa_nombre: string;
   grupo: "asumida" | "no_asumida";

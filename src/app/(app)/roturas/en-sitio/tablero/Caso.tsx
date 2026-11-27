@@ -69,6 +69,7 @@ export function Caso({ r, etiqueta, nombres, historial, manda, guardando, pos, t
         <div><b>Causa</b> {r.causa_nombre}</div>
         <div><b>Proceso</b> {r.proceso_nombre}</div>
         <div><b>Área</b> {r.area_nombre ?? "—"}</div>
+        <div><b>Máquina</b> {r.maquina ?? "—"}</div>
         <div><b>Quién</b> {nombres[r.reportada_por ?? ""] ?? "—"}</div>
         {r.ol_nota && <div><b>Dice el OL</b> «{r.ol_nota}»</div>}
         {r.nota_decision && <div><b>Decisión</b> {r.nota_decision}</div>}
